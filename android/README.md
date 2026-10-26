@@ -146,7 +146,10 @@ android_adb_log(name = "log", serial = "emulator-5554")
 
 Run one with `bazel run //path:install`. `serial` names the target
 device or emulator; `ADB` selects the adb binary and defaults to
-`PATH`.
+`PATH`. `android_adb_install` takes exactly one of `apk` or `apk_set`;
+`apk_set` names an [`android_apk_set`](#apk-sets) and installs its
+split APKs with `adb install-multiple -r`. Neither or both fail at
+analysis.
 
 ## Release signing
 
@@ -250,6 +253,38 @@ bazel test //android/tests/fixtures/rust_apk:check_app_aab_test \
 The inspect tests read the package, version, SDK floors and library
 name from the bundle manifest, and check the asset, the resource table,
 the dex and the ELF machine of each `base/lib/<abi>/lib<name>.so`.
+
+### APK sets
+
+Turn a bundle into the split APKs one device installs:
+
+```python
+load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_apk_set")
+
+android_apk_set(name = "app_set", aab = ":app_apk_aab_file", device_spec = "device.json")
+android_adb_install(name = "install_set", apk_set = ":app_set", serial = "emulator-5554")
+```
+
+`device_spec` is a bundletool device spec JSON. Write one by hand or
+save the spec of a connected device with
+`bundletool get-device-spec --output=device.json`:
+
+```json
+{"supportedAbis": ["x86_64"], "supportedLocales": ["en"], "screenDensity": 420, "sdkVersion": 34}
+```
+
+The rule runs `bundletool build-apks` and `extract-apks` with the
+rules_android debug key, so the APKs are for development only. Its
+default output is the directory `<name>_apks` of APKs; the `apks`
+output group holds the `.apks` archive. A bundle that does not match
+the spec fails the build with
+`dx-android-apk-set: device spec ... does not match ...` and exit 1.
+A missing bundle or spec exits 2. An `aab` without one `.aab` or a
+`device_spec` without one `.json` fails at analysis.
+
+On a qualified host with `emulator-5554` running,
+`bazel test //android/tests/fixtures/rust_apk:aab_emulator_test` installs
+the fixture set, starts the app and finds its lifecycle line in logcat.
 
 ### Upload signing
 

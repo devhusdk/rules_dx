@@ -20,6 +20,8 @@ _JAVA_RUNTIME = Label("@rules_java//toolchains:current_java_runtime")
 
 _BUNDLETOOL = Label("//android/packaging:bundletool")
 
+_DEBUG_KEYSTORE = Label("@rules_android//tools/android:debug_keystore")
+
 def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):
     """Returns one error string per rejected application package selection."""
     errors = []
@@ -362,6 +364,8 @@ def _adb_selection_impl(ctx):
     failures = []
     if ctx.attr.serial == "":
         failures.append("dx_android_adb: serial names the target device or emulator")
+    if ctx.attr.require_install and ctx.attr.apk_count + ctx.attr.apk_set_count != 1:
+        failures.append("dx_android_adb: install takes exactly one of apk or apk_set")
     if ctx.attr.app_id != "":
         failures.extend(app_id_errors(ctx.attr.app_id))
     if ctx.attr.require_activity and ctx.attr.activity == "":
@@ -378,12 +382,24 @@ _adb_selection = rule(
             doc = "Activity launched on the device, required when require_activity is set.",
             default = "",
         ),
+        "apk_count": attr.int(
+            doc = "Number of apk attributes supplied to the install launcher.",
+            default = 0,
+        ),
+        "apk_set_count": attr.int(
+            doc = "Number of apk_set attributes supplied to the install launcher.",
+            default = 0,
+        ),
         "app_id": attr.string(
             doc = "Application id to launch, validated when non-empty.",
             default = "",
         ),
         "require_activity": attr.bool(
             doc = "Whether an empty activity fails analysis.",
+            default = False,
+        ),
+        "require_install": attr.bool(
+            doc = "Whether exactly one of apk or apk_set must be supplied.",
             default = False,
         ),
         "serial": attr.string(
@@ -393,29 +409,38 @@ _adb_selection = rule(
     },
 )
 
-def android_adb_install(name, apk, serial = "", visibility = None):
-    """Declares an explicit APK install launcher; nothing runs at build time."""
+def android_adb_install(name, apk = None, serial = "", apk_set = None, visibility = None):
+    """Declares an explicit APK or APK set install launcher; nothing runs at build time."""
     _adb_selection(
         name = name + "_selection",
+        apk_count = 0 if apk == None else 1,
+        apk_set_count = 0 if apk_set == None else 1,
+        require_install = True,
         serial = serial,
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    _apk_file(
-        name = name + "_apk",
-        src = apk,
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
-    )
+    data = [":" + name + "_selection"]
+    env = {"DX_ADB_SERIAL": serial}
+    if apk_set != None:
+        data.append(apk_set)
+        env["DX_ADB_APKS"] = "$(rootpath " + apk_set + ")"
+        env["DX_ADB_OP"] = "install-multiple"
+    if apk != None:
+        _apk_file(
+            name = name + "_apk",
+            src = apk,
+            tags = ["manual"],
+            visibility = ["//visibility:private"],
+        )
+        data.insert(0, ":" + name + "_apk")
+        env["DX_ADB_APK"] = "$(location :" + name + "_apk)"
+        env["DX_ADB_OP"] = "install"
     sh_binary(
         name = name,
         srcs = [Label("//android/packaging:adb_ops.sh")],
-        data = [":" + name + "_apk", ":" + name + "_selection"],
-        env = {
-            "DX_ADB_APK": "$(location :" + name + "_apk)",
-            "DX_ADB_OP": "install",
-            "DX_ADB_SERIAL": serial,
-        },
+        data = data,
+        env = env,
         tags = ["manual"],
         visibility = visibility,
     )
@@ -688,3 +713,60 @@ def android_aab_check(name, aab, abis = [], resources = [], size = "small", tags
         tags = tags,
         visibility = visibility,
     )
+
+def apk_set_errors(label, aab_count, spec_count):
+    """Returns one error string per rejected APK set selection."""
+    errors = []
+    if aab_count != 1:
+        errors.append("android_apk_set: '" + label + "' aab built " + str(aab_count) + " aab files, want exactly one")
+    if spec_count != 1:
+        errors.append("android_apk_set: '" + label + "' device_spec names " + str(spec_count) + " json files, want exactly one")
+    return errors
+
+def _apk_set_impl(ctx):
+    aabs = [file for file in ctx.files.aab if file.extension == "aab"]
+    specs = [file for file in ctx.files.device_spec if file.extension == "json"]
+    failures = apk_set_errors(str(ctx.label), len(aabs), len(specs))
+    if len(failures) > 0:
+        fail("; ".join(failures))
+    out_dir = ctx.actions.declare_directory(ctx.label.name + "_apks")
+    apks = ctx.actions.declare_file(ctx.label.name + ".apks")
+    bundletool = ctx.attr._bundletool[DefaultInfo].files_to_run
+    ctx.actions.run(
+        executable = ctx.executable._build_apk_set,
+        arguments = [
+            bundletool.executable.path,
+            aabs[0].path,
+            specs[0].path,
+            ctx.file._keystore.path,
+            apks.path,
+            out_dir.path,
+        ],
+        inputs = [aabs[0], specs[0], ctx.file._keystore],
+        outputs = [apks, out_dir],
+        tools = [bundletool],
+        mnemonic = "DxApkSet",
+        progress_message = "Building APK set %{label}",
+        use_default_shell_env = True,
+    )
+    return [
+        DefaultInfo(files = depset([out_dir])),
+        OutputGroupInfo(apks = depset([apks])),
+    ]
+
+android_apk_set = rule(
+    implementation = _apk_set_impl,
+    doc = "Builds the debug-signed split APKs that one App Bundle installs on one device spec.",
+    attrs = {
+        "aab": attr.label(allow_files = True, mandatory = True, doc = "Target that builds the App Bundle."),
+        "device_spec": attr.label(allow_files = True, mandatory = True, doc = "bundletool device spec JSON."),
+        "_build_apk_set": attr.label(
+            default = Label("//android/packaging:build_apk_set.sh"),
+            allow_single_file = True,
+            executable = True,
+            cfg = "exec",
+        ),
+        "_bundletool": attr.label(default = _BUNDLETOOL, executable = True, cfg = "exec"),
+        "_keystore": attr.label(default = _DEBUG_KEYSTORE, allow_single_file = True),
+    },
+)

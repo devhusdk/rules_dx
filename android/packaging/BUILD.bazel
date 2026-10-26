@@ -2,13 +2,14 @@ load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_java//java:java_import.bzl", "java_import")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "android_aab_check", "android_aab_release_sign", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_release_sign", "rust_android_apk")
+load(":defs.bzl", "android_aab_check", "android_aab_release_sign", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_release_sign", "android_apk_set", "rust_android_apk")
 load(":metadata_tests.bzl", "android_packaging_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "adb_ops.sh",
+    "build_apk_set.sh",
     "check_aab.sh",
     "check_apk.sh",
     "defs.bzl",
@@ -261,6 +262,43 @@ failure_test(
     name = "apk_as_aab_sign_test",
     expected_failure_substring = "built 0 aab files, want exactly one",
     target = ":apk_as_aab_sign_selection",
+)
+
+android_adb_install(
+    name = "install_both",
+    apk = "//android/tests/fixtures/rust_apk:dummy.apk",
+    apk_set = "//android/tests/fixtures/rust_apk:device_x86_64.json",
+    serial = "emulator-5554",
+)
+
+failure_test(
+    name = "install_both_test",
+    expected_failure_substring = "install takes exactly one of apk or apk_set",
+    target = ":install_both_selection",
+)
+
+android_adb_install(
+    name = "install_none",
+    serial = "emulator-5554",
+)
+
+failure_test(
+    name = "install_none_test",
+    expected_failure_substring = "install takes exactly one of apk or apk_set",
+    target = ":install_none_selection",
+)
+
+android_apk_set(
+    name = "apk_set_bad_spec",
+    aab = "//android/tests/fixtures/rust_apk:dummy.apk",
+    device_spec = "//android/tests/fixtures/rust_apk:dummy.apk",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "apk_set_bad_spec_test",
+    expected_failure_substring = "device_spec names 0 json files, want exactly one",
+    target = ":apk_set_bad_spec",
 )
 
 real_source_target(

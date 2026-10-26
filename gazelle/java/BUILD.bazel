@@ -68,6 +68,7 @@ real_source_target(
         "testdata/qualified_import/README.md",
         "testdata/source_only/README.md",
         "testdata/static_import/README.md",
+        "testdata/wildcard_import/README.md",
     ],
     tags = ["corpus"],
 )

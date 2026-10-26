@@ -7,7 +7,7 @@ import (
 
 func TestParseImportsSingleType(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget\nimport java.util.List\n"))
-	want := []string{"Widget", "java.util.List"}
+	want := []string{"com.example.Widget", "java.util.List"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -15,7 +15,7 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsAliasAndOnDemand(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget as W\nimport com.example.*\n"))
-	want := []string{"Widget", "example"}
+	want := []string{"com.example.*", "com.example.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -31,7 +31,7 @@ func TestParseImportsCommentsAndStringsInert(t *testing.T) {
 
 func TestParseImportsDedupedSorted(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Zeta\nimport com.example.Alpha\nimport com.example.Zeta\n"))
-	want := []string{"Alpha", "Zeta"}
+	want := []string{"com.example.Alpha", "com.example.Zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -90,5 +90,13 @@ func TestNestedBlockCommentInert(t *testing.T) {
 	}
 	if DefinesMain([]byte("/* a /* b */\nfun main() = 0\n*/\n")) {
 		t.Error("DefinesMain matched a main inside a nested comment")
+	}
+}
+
+func TestParseImportsStdlibWildcard(t *testing.T) {
+	got := ParseImports([]byte("package demo\n\nimport java.util.*\nimport kotlin.collections.*\n"))
+	want := []string{"java.util", "kotlin.collections"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
 }

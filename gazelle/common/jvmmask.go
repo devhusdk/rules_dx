@@ -275,7 +275,57 @@ func maskQuoted(s []byte, pos int, quote byte, mask func(int, int)) (int, bool) 
 	return j, true
 }
 
+// PackageID is the index id under which a source registers its whole package.
+func PackageID(pkg string) string { return pkg + ".*" }
+
+// QualifiedJVMIDs returns [pkg.stem, pkg.*] for the source at path, or nil when
+// the file cannot be read or declares no package.
+func QualifiedJVMIDs(path string, parse func([]byte) (string, error), stem string) []string {
+	content, err := ReadSource(path)
+	if err != nil {
+		return nil
+	}
+	pkg, err := parse(content)
+	if err != nil || pkg == "" {
+		return nil
+	}
+	return []string{pkg + "." + stem, PackageID(pkg)}
+}
+
+// MemberCandidates lists the dotted ancestors of name that still contain a dot,
+// nearest first. The immediate parent is followed by its package id. A
+// wildcard name only tries the class it names, never a parent package.
+func MemberCandidates(name string) []string {
+	orig := name
+	if stripped, ok := strings.CutSuffix(name, ".*"); ok {
+		if strings.Contains(stripped, ".") {
+			return []string{stripped}
+		}
+		return nil
+	}
+	var out []string
+	first := true
+	for {
+		i := strings.LastIndexByte(name, '.')
+		if i < 0 {
+			return out
+		}
+		name = name[:i]
+		if !strings.Contains(name, ".") {
+			return out
+		}
+		out = append(out, name)
+		if first {
+			first = false
+			if id := PackageID(name); id != orig {
+				out = append(out, id)
+			}
+		}
+	}
+}
+
 func SimpleName(dotted string) string {
+	dotted = strings.TrimSuffix(dotted, ".*")
 	if i := strings.LastIndexByte(dotted, '.'); i >= 0 {
 		return dotted[i+1:]
 	}

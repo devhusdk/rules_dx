@@ -119,8 +119,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.kt,Helper.kt", got)
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.Names)
+	if strings.Join(got.Names, ",") != "com.example.Widget" {
+		t.Errorf("library imports = %+v, want [com.example.Widget]", got.Names)
 	}
 }
 
@@ -326,5 +326,65 @@ func TestGenerateBOMDoesNotMixPackages(t *testing.T) {
 	}, []string{"A.kt", "B.kt"})
 	if len(result.Gen) != 1 {
 		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+}
+
+func TestResolveMemberAndWildcardImports(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "util/Format.kt", "package com.acme.util\n\nfun formatDate(): String = \"\"\nfun String.toSlug(): String = this\n")
+	writeFixture(t, root, "widget/Widget.kt", "package com.acme\n\nclass Widget { companion object }\n")
+	writeFixture(t, root, "widget/Color.kt", "package com.acme\n\nenum class Color { RED }\n")
+	writeFixture(t, root, "widgets/Gadget.kt", "package com.acme.widgets\n\nclass Gadget\n")
+	writeFixture(t, root, "other/formatDate.kt", "package other\n\nclass formatDate\n")
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	directives, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:resolve kotlin Gson @maven//:gson\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "consumer", directives)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	for pkg, src := range map[string][]string{"util": {"Format.kt"}, "widget": {"Widget.kt", "Color.kt"}, "widgets": {"Gadget.kt"}, "other": {"formatDate.kt"}} {
+		r := rule.NewRule(LibraryKind, pkg)
+		r.SetAttr("srcs", src)
+		f, err := rule.LoadData(filepath.Join(root, pkg, "BUILD.bazel"), pkg, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index.AddRule(cfg, r, f)
+	}
+	index.Finish()
+	from := label.New("", "consumer", "consumer")
+	for _, tc := range []struct{ imp, want string }{
+		{"com.acme.util.formatDate", "//util"},
+		{"com.acme.util.toSlug", "//util"},
+		{"com.acme.Widget.Companion", "//widget"},
+		{"com.acme.Color.*", "//widget"},
+		{"com.acme.widgets.*", "//widgets"},
+		{"com.google.gson.Gson", "@maven//:gson"},
+	} {
+		r := rule.NewRule(LibraryKind, "consumer")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{tc.imp}), from)
+		if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != tc.want {
+			t.Errorf("%s: deps = %v, want %s", tc.imp, got, tc.want)
+		}
+	}
+	if lang.Failed() {
+		t.Fatal("a member or wildcard import was reported")
+	}
+	lang.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "consumer"), common.WrapImportSet([]string{"com.nowhere.Missing"}), from)
+	if !lang.Failed() {
+		t.Fatal("an unknown import was not reported")
+	}
+	nope := rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, nope, common.WrapImportSet([]string{"com.acme.nope.*"}), from)
+	if got := nope.AttrStrings("deps"); len(got) != 0 {
+		t.Errorf("unindexed package wildcard resolved to the parent package: deps = %v", got)
 	}
 }

@@ -860,3 +860,23 @@ func TestGenerateRootHint(t *testing.T) {
 		t.Fatalf("subpackage: generated %+v, want x", result.Gen)
 	}
 }
+
+func TestImportsDedupesPackageID(t *testing.T) {
+	spec := dotSpec()
+	spec.QualifiedIDs = func(p string) []string {
+		return []string{"pkg." + strings.TrimSuffix(path.Base(p), ".dot"), PackageID("pkg")}
+	}
+	l := NewSingleLang(spec)
+	lib := rule.NewRule(dotKind, "demo")
+	lib.SetAttr("srcs", []string{"A.dot", "B.dot"})
+	imports := l.Imports(&config.Config{}, lib, &rule.File{Path: "/x/BUILD.bazel", Pkg: "x"})
+	count := 0
+	for _, s := range imports {
+		if s.Imp == "pkg.*" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("pkg.* specs = %d in %v, want 1", count, imports)
+	}
+}

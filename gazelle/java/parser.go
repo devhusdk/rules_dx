@@ -59,7 +59,11 @@ func DefinesMain(content []byte) bool {
 func importIdentity(dotted string, static, onDemand bool) string {
 	if !static {
 		if onDemand {
-			return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+			dotted = strings.TrimSpace(dotted)
+			if dotted == "" || IsStdLib(dotted) {
+				return dotted
+			}
+			return common.PackageID(dotted)
 		}
 		return strings.TrimSpace(dotted)
 	}
@@ -91,13 +95,5 @@ func importCandidates(name string) []string {
 }
 
 func qualifiedIDs(path string) []string {
-	content, err := common.ReadSource(path)
-	if err != nil {
-		return nil
-	}
-	pkg, err := ParsePackage(content)
-	if err != nil || pkg == "" {
-		return nil
-	}
-	return []string{pkg + "." + ClassIdentity(filepath.Base(path))}
+	return common.QualifiedJVMIDs(path, ParsePackage, ClassIdentity(filepath.Base(path)))
 }

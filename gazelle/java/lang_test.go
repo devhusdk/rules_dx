@@ -457,3 +457,46 @@ func TestGenerateRootPackage(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveWildcardImportUsesPackage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "widgets/Gadget.java", "package com.acme.widgets;\npublic class Gadget {}\n")
+	writeFixture(t, root, "other/widgets.java", "package other;\npublic class widgets {}\n")
+	writeFixture(t, root, "outer/Outer.java", "package com.acme;\npublic class Outer { public static class Inner {} }\n")
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "consumer", &rule.File{})
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	for pkg, src := range map[string]string{"widgets": "Gadget.java", "other": "widgets.java", "outer": "Outer.java"} {
+		r := rule.NewRule(LibraryKind, pkg)
+		r.SetAttr("srcs", []string{src})
+		f, err := rule.LoadData(filepath.Join(root, pkg, "BUILD.bazel"), pkg, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index.AddRule(cfg, r, f)
+	}
+	index.Finish()
+	r := rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"com.acme.widgets.*"}), label.New("", "consumer", "consumer"))
+	if lang.Failed() {
+		t.Fatal("wildcard import was reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "//widgets" {
+		t.Fatalf("deps = %v, want [//widgets]", got)
+	}
+	nested := rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, nested, common.WrapImportSet([]string{"com.acme.Outer.*"}), label.New("", "consumer", "consumer"))
+	if lang.Failed() {
+		t.Fatal("nested-type wildcard import was reported")
+	}
+	if got := nested.AttrStrings("deps"); len(got) != 1 || got[0] != "//outer" {
+		t.Fatalf("nested deps = %v, want [//outer]", got)
+	}
+}

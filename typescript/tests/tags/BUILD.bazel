@@ -5,7 +5,9 @@ load("//typescript/rules:defs.bzl", "typescript_project")
 
 typescript_project(
     name = "tagged",
+    testonly = True,
     srcs = ["tagged.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     tags = [
         "manual",
@@ -17,7 +19,9 @@ typescript_project(
 
 typescript_project(
     name = "plain",
+    testonly = True,
     srcs = ["plain.ts"],
+    aspect_hints = ["//:biome_config"],
     declaration = True,
     tsconfig = "base_plain.json",
 )

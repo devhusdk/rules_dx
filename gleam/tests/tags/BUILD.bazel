@@ -3,6 +3,7 @@ load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:tag_probe.bzl", "tag_subject")
 load("//quality:fixtures.bzl", "real_source_target")
 
+# keep
 gleam_library(
     name = "tagged_lib",
     srcs = ["src/tagged_lib.gleam"],
@@ -14,12 +15,14 @@ gleam_library(
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
 )
 
+# keep
 gleam_library(
     name = "plain_lib",
     srcs = ["src/plain_lib.gleam"],
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
 )
 
+# keep
 gleam_erl_library(
     name = "tagged_erl",
     srcs = ["src/tagged_erl.erl"],
@@ -31,12 +34,14 @@ gleam_erl_library(
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
 )
 
+# keep
 gleam_erl_library(
     name = "plain_erl",
     srcs = ["src/plain_erl.erl"],
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
 )
 
+# keep
 gleam_js_library(
     name = "tagged_js",
     srcs = ["src/tagged_js.gleam"],
@@ -48,6 +53,7 @@ gleam_js_library(
     target_compatible_with = GLEAM_COMPATIBLE_WITH,
 )
 
+# keep
 gleam_js_library(
     name = "plain_js",
     srcs = ["src/plain_js.gleam"],

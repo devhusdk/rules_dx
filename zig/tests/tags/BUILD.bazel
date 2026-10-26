@@ -1,3 +1,5 @@
+# gazelle:ignore
+
 load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:tag_probe.bzl", "tag_subject")
 load("//quality:fixtures.bzl", "real_source_target")

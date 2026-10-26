@@ -1,0 +1,20 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//cc/rules:defs.bzl", "cc_binary")
+
+package(default_visibility = ["//:__subpackages__"])
+
+cc_binary(
+    name = "with_args",
+    testonly = True,
+    srcs = ["main.cc"],
+    args = [
+        "--marker",
+        "$(rootpath :marker.txt)",
+    ],
+    data = [":marker.txt"],
+)
+
+build_test(
+    name = "binary_args_build_test",
+    targets = [":with_args"],
+)

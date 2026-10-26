@@ -1,7 +1,7 @@
 """Shared wrapper conformance checks for language rules."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//libs/starlark:wrapper.bzl", "dx_effective_visibility", "dx_forwarded_test_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_effective_visibility", "dx_forwarded_test_kwargs")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES")
 
 def dx_file_class_checks(classes):
@@ -31,6 +31,10 @@ def dx_forwarder_checks():
         expect_equal("test kwargs forward only test exec group", dx_forwarded_test_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}), {"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}}),
         expect_equal("test kwargs forward local", dx_forwarded_test_kwargs({"local": True}), {"local": True}),
         expect_equal("test kwargs keep local False", dx_forwarded_test_kwargs({"local": False}), {"local": False}),
+        expect_equal("binary kwargs forward testonly", dx_binary_forward_kwargs({"testonly": True}), {"testonly": True}),
+        expect_equal("binary kwargs forward args with data", dx_binary_forward_kwargs({"args": ["--x"], "data": [":d"]}), {"args": ["--x"], "data": [":d"]}),
+        expect_equal("binary kwargs keep data upstream without args", dx_binary_forward_kwargs({"data": [":d"]}), {}),
+        expect_equal("binary kwargs drop none args", dx_binary_forward_kwargs({"args": None}), {}),
         expect_equal("test kwargs empty stays empty", dx_forwarded_test_kwargs({}), {}),
     ]
 

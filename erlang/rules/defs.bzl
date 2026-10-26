@@ -9,7 +9,7 @@ load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")
 load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
 load("//erlang/toolchain:pins.bzl", "CELLS")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ErlangAppInfo = _ErlangAppInfo
@@ -82,6 +82,9 @@ def _escript_binary_impl(ctx):
         root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0],
     ), is_executable = True)
     runfiles = ctx.runfiles([launcher, archive]).merge(erlang_runfiles).merge(ctx.attr.upstream[DefaultInfo].default_runfiles)
+    for dep in ctx.attr.data:
+        runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
+        runfiles = runfiles.merge(ctx.runfiles(transitive_files = dep[DefaultInfo].files))
     return [
         DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles),
         coverage_common.instrumented_files_info(ctx, source_attributes = ["srcs"], dependency_attributes = ["upstream"]),
@@ -92,10 +95,10 @@ _escript_binary = rule(
     implementation = _escript_binary_impl,
     doc = "Runs one escript archive on the resolved OTP runtime.",
     executable = True,
-    attrs = {
+    attrs = dict({
         "srcs": attr.label_list(allow_files = _EXTS, doc = "Direct Erlang sources owned by this binary."),
         "upstream": attr.label(executable = True, cfg = "target", mandatory = True, doc = "The rules_erlang escript archive."),
-    },
+    }, **dx_forward_data_attr()),
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     toolchains = ["@rules_erlang//tools:toolchain_type"],
 )

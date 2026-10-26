@@ -58,7 +58,7 @@ def python_library(name, srcs, visibility = None, **kwargs):
 
 def python_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over py_binary."""
-    dx_wrap(name, _py_binary, _python_binary_forward, srcs if srcs != None else [], visibility = visibility, **kwargs)
+    dx_wrap(name, _py_binary, _python_binary_forward, srcs if srcs != None else [], visibility = visibility, executable = True, **kwargs)
 
 def python_test_rejection(kwargs):
     """Returns the rejection for forbidden python_test kwargs, or None."""

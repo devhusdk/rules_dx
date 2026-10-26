@@ -226,6 +226,31 @@ def wrapper_shape_kwargs_tests(name):
                 {},
             ),
             expect_equal(
+                "binary testonly rides forwarder",
+                dx_binary_forward_kwargs({"testonly": True}),
+                {"testonly": True},
+            ),
+            expect_equal(
+                "binary args ride forwarder",
+                dx_binary_forward_kwargs({"args": ["--x"]}),
+                {"args": ["--x"]},
+            ),
+            expect_equal(
+                "binary args carry data",
+                dx_binary_forward_kwargs({"args": ["--x"], "data": [":d"]}),
+                {"args": ["--x"], "data": [":d"]},
+            ),
+            expect_equal(
+                "binary data alone stays upstream",
+                dx_binary_forward_kwargs({"data": [":d"]}),
+                {},
+            ),
+            expect_equal(
+                "binary none args stay empty",
+                dx_binary_forward_kwargs({"args": None, "data": [":d"]}),
+                {},
+            ),
+            expect_equal(
                 "binary target_compatible_with rides forwarder",
                 dx_binary_forward_kwargs({"target_compatible_with": ["@platforms//os:linux"]}),
                 {"target_compatible_with": ["@platforms//os:linux"]},

@@ -209,6 +209,7 @@ def rust_binary(
         _rust_forward_binary,
         srcs,
         visibility = visibility,
+        executable = True,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward(),
         **kwargs

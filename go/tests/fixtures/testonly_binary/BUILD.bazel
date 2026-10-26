@@ -1,0 +1,16 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//go/rules:defs.bzl", "go_binary")
+
+package(default_visibility = ["//:__subpackages__"])
+
+go_binary(
+    name = "testonly_main",
+    testonly = True,
+    srcs = ["main.go"],
+    importpath = "rules_dx/go/tests/fixtures/testonly_binary",
+)
+
+build_test(
+    name = "testonly_binary_build_test",
+    targets = [":testonly_main"],
+)

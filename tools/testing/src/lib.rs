@@ -446,11 +446,14 @@ pub fn snapshot_diff(
             .and_then(|name| name.to_str())
             .unwrap_or("expected");
         if let Some(staged) = stage_update(actual, label) {
-            let mut hint = format!("staged refreshed golden at {}", staged.display());
+            let mut hint = format!(
+                "snapshot UPDATE_EXPECT: staged refreshed golden at {}",
+                staged.display()
+            );
             if let Some(rel) = workspace_rel {
                 hint.push_str(&format!("; copy it to {rel} in the checkout, then re-run"));
             }
-            return Ok(());
+            return Err(hint);
         }
         return Err("UPDATE_EXPECT staged refresh failed".to_owned());
     }
@@ -509,7 +512,12 @@ mod tests {
         command
             .args([name, "--exact", "--test-threads=1"])
             .env("DX_TESTING_CHILD", dir);
-        for key in ["RUNFILES_MANIFEST_FILE", "RUNFILES_DIR", "TEST_SRCDIR"] {
+        for key in [
+            "RUNFILES_MANIFEST_FILE",
+            "RUNFILES_DIR",
+            "TEST_SRCDIR",
+            "BUILD_WORKSPACE_DIRECTORY",
+        ] {
             command.env_remove(key);
         }
         for (key, value) in envs {
@@ -577,6 +585,39 @@ mod tests {
             "tests::a_manifest_resolves_escaped_keys",
             dir.path(),
             &[("RUNFILES_MANIFEST_FILE", &manifest)],
+        );
+    }
+
+    #[test]
+    fn an_update_without_a_checkout_fails_and_names_the_staged_file() {
+        if let Some(dir) = child_dir() {
+            let golden = dir.join("runfiles/_main/pkg/golden.txt");
+            let actual = dir.join("actual.txt");
+            let err = snapshot_diff(&golden, &actual, Some("pkg/golden.txt"))
+                .expect_err("a staged-only refresh must fail");
+            let staged = dir.join("out/golden.txt.expected.update");
+            assert!(err.contains(&staged.display().to_string()), "{err}");
+            assert!(err.contains("pkg/golden.txt"), "{err}");
+            assert_eq!(read(&staged), "new\n");
+            assert_eq!(read(&golden), "old\n");
+            return;
+        }
+        let dir = scratch("dx-testing-update-");
+        let golden = write(dir.path(), "runfiles/_main/pkg/golden.txt", "old\n");
+        write(dir.path(), "actual.txt", "new\n");
+        let mut perms = std::fs::metadata(&golden).expect("meta").permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&golden, perms).expect("read-only golden");
+        let out = dir.path().join("out");
+        let nogit = dir.path().join("nogit");
+        in_child(
+            "tests::an_update_without_a_checkout_fails_and_names_the_staged_file",
+            dir.path(),
+            &[
+                ("UPDATE_EXPECT", Path::new("1")),
+                ("TEST_UNDECLARED_OUTPUTS_DIR", &out),
+                ("GIT_DIR", &nogit),
+            ],
         );
     }
 

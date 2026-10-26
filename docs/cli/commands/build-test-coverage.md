@@ -82,7 +82,7 @@ invalid UTF-8 still counts; dx replaces the bad bytes and prints a
 `no_cases` with complete evidence), with its Bazel status,
 run, shard, attempt, cached state, duration, and case counts. A failing result
 also carries `failing_cases` (up to 10, each with `classname`, `name`,
-`outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines of
+`outcome` and `message`), `log_path`, and `log_tail` (the last 40 lines, at most 8 KiB of
 `test.log`). `artifacts` and `evidence_complete` appear only when evidence is
 missing. `final` is `false` on an attempt that a later attempt of the same
 target, configuration, run and shard replaced, and appears only then. Plain

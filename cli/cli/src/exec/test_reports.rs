@@ -220,7 +220,8 @@ const LOG_TAIL_LINES: usize = 40;
 
 const LOG_TAIL_BYTES: usize = 8192;
 
-/// The last lines of a test log, cut to a bounded size on a line boundary.
+/// The last `LOG_TAIL_LINES` lines of a test log. When those exceed `LOG_TAIL_BYTES`, the oldest
+/// whole lines are dropped; a single oversize line is cut at a char boundary instead.
 fn log_tail(bytes: &[u8]) -> Option<String> {
     let text = String::from_utf8_lossy(bytes);
     let lines: Vec<&str> = text.lines().collect();
@@ -231,7 +232,13 @@ fn log_tail(bytes: &[u8]) -> Option<String> {
         while !tail.is_char_boundary(from) {
             from += 1;
         }
-        tail = tail[from..].to_owned();
+        let at_line_start = tail.as_bytes()[from - 1] == b'\n';
+        let window = &tail[from..];
+        tail = match window.split_once('\n') {
+            _ if at_line_start => window.to_owned(),
+            Some((_, rest)) => rest.to_owned(),
+            None => window.to_owned(),
+        };
     }
     (!tail.trim().is_empty()).then_some(tail)
 }
@@ -1121,6 +1128,46 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn log_tail_keeps_last_forty_lines() {
+        let text: String = (1..=50).map(|n| format!("line {n}\n")).collect();
+        let want: Vec<String> = (11..=50).map(|n| format!("line {n}")).collect();
+        assert_eq!(super::log_tail(text.as_bytes()), Some(want.join("\n")));
+    }
+
+    #[test]
+    fn log_tail_returns_short_logs_whole() {
+        assert_eq!(super::log_tail(b"a\nb\nc\n"), Some("a\nb\nc".to_owned()));
+    }
+
+    #[test]
+    fn log_tail_drops_partial_first_line_when_capped() {
+        let lines: Vec<String> = (0..40).map(|n| format!("{n:02}{}", "x".repeat(298))).collect();
+        let tail = super::log_tail(lines.join("\n").as_bytes()).unwrap();
+        assert!(tail.len() <= super::LOG_TAIL_BYTES);
+        let got: Vec<&str> = tail.split('\n').collect();
+        assert!(got.iter().all(|l| l.len() == 300));
+        assert_eq!(got, lines[40 - got.len()..].iter().map(String::as_str).collect::<Vec<_>>());
+        assert!(!tail.starts_with('\n'));
+    }
+
+    #[test]
+    fn log_tail_cuts_one_oversize_multibyte_line_at_char_boundary() {
+        let tail = super::log_tail("日".repeat(3500).as_bytes()).unwrap();
+        assert!(!tail.is_empty() && tail.len() <= super::LOG_TAIL_BYTES);
+    }
+
+    #[test]
+    fn log_tail_is_none_for_blank_input() {
+        assert_eq!(super::log_tail(b""), None);
+        assert_eq!(super::log_tail(b"  \n\t\n\n"), None);
+    }
+
+    #[test]
+    fn log_tail_tolerates_invalid_utf8() {
+        assert!(super::log_tail(b"ok\n\xff\xfe bad\n").is_some());
+    }
+
     use super::super::test_support::*;
     use super::stable_exec_path;
     use std::path::Path;

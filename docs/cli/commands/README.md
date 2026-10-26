@@ -293,7 +293,7 @@ configurations appear once, with a `count`.
   attempt replaced.
   A failing result adds `failing_cases` (up to 10, each with `classname`,
   `name`, `outcome`, and a `message` cut to 1024 bytes),
-  `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines of the
+  `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines, at most 8 KiB of the
   test log).
 - `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
   `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of

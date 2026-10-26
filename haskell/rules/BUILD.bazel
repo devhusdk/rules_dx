@@ -1,0 +1,22 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":wrapper_tests.bzl", "haskell_wrapper_contract_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "wrapper_tests.bzl",
+])
+
+haskell_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "wrapper_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -432,6 +432,7 @@ Language rules:
 - `@rules_dx//gherkin/rules:defs.bzl`: Gherkin.
 - `@rules_dx//gleam/rules:defs.bzl`: Gleam.
 - `@rules_dx//go/rules:defs.bzl`: Go.
+- `@rules_dx//haskell/rules:defs.bzl`: Haskell.
 - `@rules_dx//html_template/rules:defs.bzl`: HTML templates.
 - `@rules_dx//java/rules:defs.bzl`: Java.
 - `@rules_dx//javascript/rules:defs.bzl`: JavaScript.

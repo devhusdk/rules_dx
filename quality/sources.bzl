@@ -62,6 +62,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "gherkin",
     "gleam",
     "go",
+    "haskell",
     "jsonnet",
     "lua",
     "ocaml",

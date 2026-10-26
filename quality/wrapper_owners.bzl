@@ -23,6 +23,7 @@ WRAPPER_OWNERS = {
     "go": "//go/rules:defs.bzl",
     "go_module": "other",
     "graphql": "//javascript/rules:defs.bzl",
+    "haskell": "//haskell/rules:defs.bzl",
     "html": "//javascript/rules:defs.bzl",
     "html_template": "//html_template/rules:defs.bzl",
     "java": "//java/rules:defs.bzl",

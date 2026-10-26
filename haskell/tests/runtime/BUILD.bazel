@@ -1,0 +1,60 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+cc_library(
+    name = "probe_c",
+    srcs = ["src/probe.c"],
+    hdrs = ["src/probe.h"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+)
+
+# keep
+haskell_library(
+    name = "probe",
+    srcs = ["src/Probe.hs"],
+    ghcopts = [
+        "-Wall",
+        "-Werror",
+    ] + select({
+        "@platforms//os:linux": ["-DDX_LINUX"],
+        "//conditions:default": [],
+    }),
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":probe_c",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+# keep
+haskell_binary(
+    name = "probe_bin",
+    srcs = ["src/Main.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":probe",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+# keep
+haskell_test(
+    name = "probe_test",
+    size = "small",
+    srcs = ["test/ProbeTest.hs"],
+    data = ["data.txt"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":probe",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

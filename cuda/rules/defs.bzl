@@ -4,11 +4,14 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cuda//cuda:defs.bzl", _cuda_library = "cuda_library")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaInfo")
 load("//cc/rules:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
+load("//cuda/rules:components.bzl", _cuda_component_library = "cuda_component_library")
 load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//cuda/toolchain:transition.bzl", "cuda_host_transition")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("//modules:cuda.bzl", "CUDA_VERSION")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+
+cuda_component_library = _cuda_component_library
 
 CUDA_TARGET = [
     "@platforms//os:linux",

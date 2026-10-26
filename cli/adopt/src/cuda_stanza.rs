@@ -4,6 +4,8 @@
 //! extension is root-only too, so a consumer has to repeat the pins that rules_dx itself uses.
 //! The text mirrors the root `MODULE.bazel`, `modules/cuda.bzl` and `modules/versions.bzl`;
 //! the drift tests below compare against them.
+//! The library components (cuBLAS, cuFFT, cuRAND) are declared for every consumer but Bazel
+//! fetches an archive only when a target uses it.
 //!
 //! When the host compiler stops being LLVM 22 only (issue 3316), delete the host-compiler part
 //! in `host_compiler_stanza`; nothing else depends on it.
@@ -27,7 +29,7 @@ const CUDA_HOST_SYSROOT_SHA256: &str =
     "84656a6df544ecef62169cfe3ab6e41bb4346a62d3ba2a045dc5a0a2ecea94a3";
 
 /// `(component, redist directory, archive stem, version, sha256)`.
-pub const CUDA_COMPONENTS: [(&str, &str, &str, &str, &str); 5] = [
+pub const CUDA_COMPONENTS: [(&str, &str, &str, &str, &str); 8] = [
     (
         "cccl",
         "cccl",
@@ -43,11 +45,32 @@ pub const CUDA_COMPONENTS: [(&str, &str, &str, &str, &str); 5] = [
         "c969e61ded12dbf0cf20ace72867f1622ec0e8ea1e1d305e27761012025f7aaa",
     ),
     (
+        "cublas",
+        "libcublas",
+        "libcublas",
+        "13.8.0.4",
+        "bd6ffcce561672da6abb928214a6694f392741e7d1e2d7dfde0da4bd651706b6",
+    ),
+    (
         "cudart",
         "cuda_cudart",
         "cuda_cudart",
         "13.4.92",
         "0ac5dbc538d04e9983bc493b410cce4b459e1ee9f5f6654b6464ef7b3e14a8b5",
+    ),
+    (
+        "cufft",
+        "libcufft",
+        "libcufft",
+        "12.4.0.43",
+        "f7f8ac2cc67714989a3c8140cda39b1b7ed7d462a491e1ad3f53adb777f5070f",
+    ),
+    (
+        "curand",
+        "libcurand",
+        "libcurand",
+        "10.4.4.72",
+        "6f725f9187dc5f675308b830f786c163f5b1b499d86986f94fb60aa701c13c0b",
     ),
     (
         "nvcc",

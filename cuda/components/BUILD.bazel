@@ -1,0 +1,38 @@
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_component_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+# License-gated library components. Depend on these labels, never on @cuda//:cublas or the
+# @cuda aggregates, so that the EULA gate and the pin check always run. Bazel fetches a
+# component archive only when a target that uses it is built.
+
+cuda_component_library(
+    name = "cublas",
+    component = "@cuda//:cublas",
+    component_name = "cublas",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_component_library(
+    name = "cufft",
+    component = "@cuda//:cufft",
+    component_name = "cufft",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_component_library(
+    name = "curand",
+    component = "@cuda//:curand",
+    component_name = "curand",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

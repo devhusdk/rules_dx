@@ -1520,10 +1520,8 @@ fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
-        let dir = std::env::temp_dir().join(format!(
-            "{prefix}{}-{nanos}-{counter}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("{prefix}{}-{nanos}-{counter}", std::process::id()));
         match create_private_dir(&dir) {
             Ok(()) => return Ok(dir),
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
@@ -5606,7 +5604,10 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            let mode = std::fs::metadata(parent).expect("stat").permissions().mode();
+            let mode = std::fs::metadata(parent)
+                .expect("stat")
+                .permissions()
+                .mode();
             assert_eq!(mode & 0o777, 0o700, "npmrc dir must stay owner-only");
         }
         std::fs::remove_dir_all(parent).expect("cleanup");
@@ -5632,7 +5633,10 @@ mod tests {
             std::fs::write(&target, "keep").expect("write target");
             std::os::unix::fs::symlink(&target, scratch.path().join("link")).expect("symlink");
             assert!(write_secure_file(scratch.path(), "link", "leak").is_err());
-            assert_eq!(std::fs::read_to_string(&target).expect("read target"), "keep");
+            assert_eq!(
+                std::fs::read_to_string(&target).expect("read target"),
+                "keep"
+            );
         }
     }
 
@@ -5647,7 +5651,10 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            let mode = std::fs::metadata(&child).expect("stat").permissions().mode();
+            let mode = std::fs::metadata(&child)
+                .expect("stat")
+                .permissions()
+                .mode();
             assert_eq!(mode & 0o777, 0o700, "private dir must stay owner-only");
         }
     }

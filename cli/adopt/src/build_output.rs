@@ -159,58 +159,63 @@ pub struct ScanReport {
     pub committed_skipped: Option<String>,
 }
 
-fn git(root: &Path, args: &[&str]) -> Option<std::process::Output> {
-    Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(args)
-        .output()
-        .ok()
+struct Git<'a> {
+    root: &'a Path,
+    configure: &'a dyn Fn(&mut Command),
 }
 
-fn git_ok_text(root: &Path, args: &[&str]) -> Option<String> {
-    let output = git(root, args)?;
-    if !output.status.success() {
-        return None;
+impl Git<'_> {
+    fn run(&self, args: &[&str]) -> Option<std::process::Output> {
+        let mut cmd = Command::new("git");
+        cmd.arg("-C").arg(self.root).args(args);
+        (self.configure)(&mut cmd);
+        cmd.output().ok()
     }
-    let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    (!text.is_empty()).then_some(text)
-}
 
-fn git_stdout(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
-    let output = git(root, args).ok_or_else(|| "git did not start".to_owned())?;
-    if output.status.success() {
-        return Ok(output.stdout);
+    fn ok_text(&self, args: &[&str]) -> Option<String> {
+        let output = self.run(args)?;
+        if !output.status.success() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        (!text.is_empty()).then_some(text)
     }
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let line = stderr.lines().next().unwrap_or("git failed").trim();
-    Err(line.to_owned())
+
+    fn stdout(&self, args: &[&str]) -> Result<Vec<u8>, String> {
+        let output = self
+            .run(args)
+            .ok_or_else(|| "git did not start".to_owned())?;
+        if output.status.success() {
+            return Ok(output.stdout);
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let line = stderr.lines().next().unwrap_or("git failed").trim();
+        Err(line.to_owned())
+    }
 }
 
-fn default_base(root: &Path) -> Option<String> {
+fn default_base(git: &Git<'_>) -> Option<String> {
     let mut candidates = Vec::new();
-    if let Some(head) = git_ok_text(
-        root,
-        &[
-            "symbolic-ref",
-            "--quiet",
-            "--short",
-            "refs/remotes/origin/HEAD",
-        ],
-    ) {
+    if let Some(head) = git.ok_text(&[
+        "symbolic-ref",
+        "--quiet",
+        "--short",
+        "refs/remotes/origin/HEAD",
+    ]) {
         candidates.push(head);
     }
     candidates.extend(DEFAULT_BRANCH_CANDIDATES.iter().map(|c| (*c).to_owned()));
     candidates.into_iter().find(|candidate| {
         let spec = format!("{candidate}^{{commit}}");
-        git_ok_text(root, &["rev-parse", "--verify", "--quiet", &spec]).is_some()
+        git.ok_text(&["rev-parse", "--verify", "--quiet", &spec])
+            .is_some()
     })
 }
 
-fn lfs_paths(root: &Path, paths: &[String]) -> Result<BTreeSet<String>, String> {
+fn lfs_paths(git: &Git<'_>, paths: &[String]) -> Result<BTreeSet<String>, String> {
     let mut args = vec!["check-attr", "-z", "filter", "--"];
     args.extend(paths.iter().map(String::as_str));
-    let stdout = git_stdout(root, &args)?;
+    let stdout = git.stdout(&args)?;
     let fields: Vec<&[u8]> = stdout.split(|byte| *byte == 0).collect();
     Ok(fields
         .chunks(3)
@@ -221,26 +226,32 @@ fn lfs_paths(root: &Path, paths: &[String]) -> Result<BTreeSet<String>, String> 
 
 /// Scans the change: untracked files, staged and unstaged edits, and commits since the default branch.
 pub fn scan(root: &Path) -> Result<ScanReport, String> {
+    scan_with(root, &|_| {})
+}
+
+/// `scan` with a hook that configures every git command, so tests can isolate git.
+fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport, String> {
+    let git = &Git { root, configure };
     let mut report = ScanReport::default();
-    let Some(inside) = git(root, &["rev-parse", "--is-inside-work-tree"]) else {
+    let Some(inside) = git.run(&["rev-parse", "--is-inside-work-tree"]) else {
         return Ok(report);
     };
     if !inside.status.success() {
         return Ok(report);
     }
     let mut paths: Vec<(String, bool)> = Vec::new();
-    let others = git_stdout(root, &["ls-files", "-z", "--others", "--exclude-standard"])?;
+    let others = git.stdout(&["ls-files", "-z", "--others", "--exclude-standard"])?;
     for field in others.split(|byte| *byte == 0).filter(|f| !f.is_empty()) {
         let path = std::str::from_utf8(field)
             .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
         paths.push((path.to_owned(), true));
     }
-    let has_head =
-        git_ok_text(root, &["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]).is_some();
+    let has_head = git
+        .ok_text(&["rev-parse", "--verify", "--quiet", "HEAD^{commit}"])
+        .is_some();
     if has_head {
         let mut reference = "HEAD".to_owned();
-        match default_base(root).and_then(|base| git_ok_text(root, &["merge-base", &base, "HEAD"]))
-        {
+        match default_base(git).and_then(|base| git.ok_text(&["merge-base", &base, "HEAD"])) {
             Some(base) => reference = base,
             None => {
                 report.committed_skipped = Some(
@@ -249,17 +260,14 @@ pub fn scan(root: &Path) -> Result<ScanReport, String> {
                 );
             }
         }
-        let diff = git_stdout(
-            root,
-            &[
-                "diff",
-                "--relative",
-                "--name-status",
-                "-z",
-                "--diff-filter=ACMR",
-                &reference,
-            ],
-        )?;
+        let diff = git.stdout(&[
+            "diff",
+            "--relative",
+            "--name-status",
+            "-z",
+            "--diff-filter=ACMR",
+            &reference,
+        ])?;
         for change in dedupe_changes(parse_name_status_nul(&diff)?) {
             let added = matches!(
                 change.kind,
@@ -268,7 +276,7 @@ pub fn scan(root: &Path) -> Result<ScanReport, String> {
             paths.push((change.path, added));
         }
     } else {
-        let cached = git_stdout(root, &["ls-files", "-z", "--cached"])?;
+        let cached = git.stdout(&["ls-files", "-z", "--cached"])?;
         for field in cached.split(|byte| *byte == 0).filter(|f| !f.is_empty()) {
             let path = std::str::from_utf8(field)
                 .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
@@ -286,7 +294,7 @@ pub fn scan(root: &Path) -> Result<ScanReport, String> {
     let lfs = if oversized.is_empty() {
         BTreeSet::new()
     } else {
-        lfs_paths(root, &oversized)?
+        lfs_paths(git, &oversized)?
     };
     report.findings = found
         .into_iter()
@@ -300,15 +308,42 @@ pub fn scan(root: &Path) -> Result<ScanReport, String> {
 mod tests {
     use super::*;
 
-    fn temp() -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "dx-build-output-{}-{:?}",
-            std::process::id(),
-            std::thread::current().id()
-        ));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).expect("dir");
-        dir
+    /// A repo directory at `sandbox/repo`; derefs to the repo path.
+    struct Fixture {
+        _sandbox: dx_test_scratch::TempDir,
+        repo: std::path::PathBuf,
+    }
+
+    impl std::ops::Deref for Fixture {
+        type Target = std::path::PathBuf;
+        fn deref(&self) -> &Self::Target {
+            &self.repo
+        }
+    }
+
+    fn sandbox_of(root: &Path) -> &Path {
+        root.parent().expect("sandbox")
+    }
+
+    fn temp() -> Fixture {
+        let sandbox = dx_test_scratch::scratch("dx-build-output-");
+        let repo = sandbox
+            .path()
+            .canonicalize()
+            .expect("canonical")
+            .join("repo");
+        std::fs::create_dir_all(&repo).expect("dir");
+        Fixture {
+            _sandbox: sandbox,
+            repo,
+        }
+    }
+
+    fn scan_isolated(root: &Path) -> Result<ScanReport, String> {
+        let sandbox = sandbox_of(root);
+        scan_with(root, &|c| {
+            dx_test_scratch::isolate_git(c, sandbox);
+        })
     }
 
     fn names(root: &Path, paths: &[&str]) -> Vec<String> {
@@ -407,8 +442,8 @@ mod tests {
     }
 
     fn git(root: &Path, args: &[&str]) {
-        let status = Command::new("git")
-            .arg("-C")
+        let mut cmd = Command::new("git");
+        cmd.arg("-C")
             .arg(root)
             .args([
                 "-c",
@@ -418,9 +453,9 @@ mod tests {
                 "-c",
                 "commit.gpgsign=false",
             ])
-            .args(args)
-            .status()
-            .expect("git");
+            .args(args);
+        dx_test_scratch::isolate_git(&mut cmd, sandbox_of(root));
+        let status = cmd.status().expect("git");
         assert!(status.success(), "{args:?}");
     }
 
@@ -434,7 +469,7 @@ mod tests {
         vec![0u8; (MAX_FILE_BYTES + 1) as usize]
     }
 
-    fn repo_on_main() -> std::path::PathBuf {
+    fn repo_on_main() -> Fixture {
         let root = temp();
         git(&root, &["init", "-q", "-b", "main"]);
         write(&root, "README.md", b"x");
@@ -444,7 +479,7 @@ mod tests {
     }
 
     fn found(root: &Path) -> Vec<String> {
-        scan(root)
+        scan_isolated(root)
             .expect("scan")
             .findings
             .into_iter()
@@ -466,7 +501,10 @@ mod tests {
         git(&root, &["commit", "-q", "-m", "work"]);
         assert!(found(&root).is_empty());
         git(&root, &["switch", "-q", "main"]);
-        assert!(scan(&root).expect("scan").committed_skipped.is_none());
+        assert!(scan_isolated(&root)
+            .expect("scan")
+            .committed_skipped
+            .is_none());
     }
 
     #[test]
@@ -543,7 +581,7 @@ mod tests {
         git(&root, &["add", "-A"]);
         git(&root, &["commit", "-q", "-m", "init"]);
         write(&root, "target/x", b"x");
-        let report = scan(&root).expect("scan");
+        let report = scan_isolated(&root).expect("scan");
         assert_eq!(report.findings.len(), 1);
         assert!(report.committed_skipped.is_some());
     }
@@ -553,7 +591,7 @@ mod tests {
         let root = temp();
         git(&root, &["init", "-q", "-b", "main"]);
         write(&root, "target/x", b"x");
-        let report = scan(&root).expect("scan");
+        let report = scan_isolated(&root).expect("scan");
         assert_eq!(report.findings.len(), 1);
         assert!(report.committed_skipped.is_none());
     }
@@ -561,15 +599,20 @@ mod tests {
     #[test]
     fn scan_outside_git_finds_nothing() {
         let root = temp();
+        let version = Command::new("git")
+            .arg("--version")
+            .output()
+            .expect("git runs");
+        assert!(version.status.success(), "git is installed");
         write(&root, "target/x", b"x");
-        assert_eq!(scan(&root), Ok(ScanReport::default()));
+        assert_eq!(scan_isolated(&root), Ok(ScanReport::default()));
     }
 
     #[test]
     fn corrupt_index_is_an_error() {
         let root = repo_on_main();
         std::fs::write(root.join(".git/index"), b"garbage").expect("index");
-        let error = scan(&root).expect_err("error");
+        let error = scan_isolated(&root).expect_err("error");
         assert!(!error.is_empty());
     }
 
@@ -580,7 +623,7 @@ mod tests {
         let root = repo_on_main();
         let name = std::ffi::OsStr::from_bytes(b"bad\xff.txt");
         std::fs::write(root.join(name), b"x").expect("write");
-        assert!(scan(&root).is_err());
+        assert!(scan_isolated(&root).is_err());
     }
 
     #[test]
@@ -591,5 +634,31 @@ mod tests {
         for line in ["/.dx/ide/", "/.vscode/.rules_rust_analyzer/"] {
             assert!(IGNORE_LINES.contains(&line), "{line}");
         }
+    }
+
+    #[test]
+    fn isolation_overrides_ambient_excludes() {
+        let root = repo_on_main();
+        let sandbox = sandbox_of(&root);
+        let ambient = sandbox.join("ambient");
+        write(&ambient, "ignore", b"target/\n");
+        write(
+            &ambient,
+            "gitconfig",
+            format!(
+                "[core]\n\texcludesFile = {}\n",
+                ambient.join("ignore").display()
+            )
+            .as_bytes(),
+        );
+        write(&root, "cli/target/debug/dx", b"x");
+        let report = scan_with(&root, &|c| {
+            c.env("GIT_CONFIG_GLOBAL", ambient.join("gitconfig"));
+            c.env("XDG_CONFIG_HOME", &ambient);
+            dx_test_scratch::isolate_git(c, sandbox);
+        })
+        .expect("scan");
+        let paths: Vec<String> = report.findings.into_iter().map(|f| f.path).collect();
+        assert_eq!(paths, ["cli/target/debug/dx"]);
     }
 }

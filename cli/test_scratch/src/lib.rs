@@ -9,6 +9,7 @@
 )]
 
 use std::path::Path;
+use std::process::Command;
 pub use tempfile::TempDir;
 
 /// Longest prefix kept verbatim; the rest is folded into a checksum.
@@ -51,6 +52,36 @@ pub fn scratch(prefix: &str) -> TempDir {
         .prefix(&bounded)
         .tempdir()
         .unwrap_or_else(|err| panic!("test scratch creates {prefix:?}: {err}"))
+}
+
+/// Makes a git command hermetic: it ignores system and user config, and cannot
+/// discover a repository above `sandbox`.
+///
+/// `XDG_CONFIG_HOME` is redirected too because git reads `core.excludesFile`
+/// from `$XDG_CONFIG_HOME/git/ignore` even when `GIT_CONFIG_GLOBAL` is set.
+/// `GIT_CEILING_DIRECTORIES` stops discovery from walking out of the sandbox.
+/// Repository-pointing variables are removed so tests run from a git hook do
+/// not write to the developer's real repository. Writes nothing to disk.
+pub fn isolate_git<'a>(cmd: &'a mut Command, sandbox: &Path) -> &'a mut Command {
+    let home = sandbox.join(".home");
+    cmd.env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_GLOBAL", home.join(".gitconfig"))
+        .env("HOME", &home)
+        .env("XDG_CONFIG_HOME", home.join(".config"))
+        .env("GIT_CEILING_DIRECTORIES", sandbox);
+    for var in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_CONFIG_PARAMETERS",
+        "GIT_CONFIG_COUNT",
+    ] {
+        cmd.env_remove(var);
+    }
+    cmd
 }
 
 /// Removes a directory link without following it into its target.
@@ -139,5 +170,31 @@ mod tests {
             "marker",
             "the target is not followed"
         );
+    }
+
+    #[test]
+    fn isolate_git_ignores_ambient_repos_and_config() {
+        let dir = scratch("dx-isolate-git-");
+        let sandbox = dir.path().canonicalize().expect("canonical");
+        let repo = sandbox.join("repo");
+        std::fs::create_dir(&repo).expect("repo dir");
+        let mut probe = Command::new("git");
+        probe
+            .arg("-C")
+            .arg(&repo)
+            .args(["rev-parse", "--is-inside-work-tree"]);
+        isolate_git(&mut probe, &sandbox);
+        assert!(!probe.output().expect("git").status.success(), "not a repo");
+        let mut init = Command::new("git");
+        init.arg("-C").arg(&repo).args(["init", "-q"]);
+        isolate_git(&mut init, &sandbox);
+        assert!(init.status().expect("git").success());
+        let mut list = Command::new("git");
+        list.arg("-C")
+            .arg(&repo)
+            .args(["config", "--global", "--list"]);
+        isolate_git(&mut list, &sandbox);
+        let out = list.output().expect("git");
+        assert!(String::from_utf8_lossy(&out.stdout).trim().is_empty());
     }
 }

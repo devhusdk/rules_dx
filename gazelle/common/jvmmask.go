@@ -11,13 +11,16 @@ type blockComment struct {
 	start  string
 	end    string
 	nested bool
+	operator string
 }
 
 var cStyleComments = []blockComment{{start: "/*", end: "*/"}}
 
+var nestedCStyleComments = []blockComment{{start: "/*", end: "*/", nested: true}}
+
 var fStyleComments = []blockComment{
 	{start: "/*", end: "*/"},
-	{start: "(*", end: "*)", nested: true},
+	{start: "(*", end: "*)", nested: true, operator: "(*)"},
 }
 
 func MaskJavaStyle(content []byte) []byte {
@@ -26,6 +29,14 @@ func MaskJavaStyle(content []byte) []byte {
 
 func MaskCSharpStyle(content []byte) []byte {
 	return maskCLike(content, cStyleComments, maskSingleQuoted)
+}
+
+func MaskKotlinStyle(content []byte) []byte {
+	return maskCLike(content, nestedCStyleComments, maskSingleQuoted)
+}
+
+func MaskScalaStyle(content []byte) []byte {
+	return maskCLike(content, nestedCStyleComments, maskSingleQuoted)
 }
 
 func MaskFSharpStyle(content []byte) []byte {
@@ -157,6 +168,9 @@ func maskBlockComment(s []byte, pos int, comments []blockComment, mask func(int,
 	var open blockComment
 	found := false
 	for _, c := range comments {
+		if c.operator != "" && bytes.HasPrefix(s[pos:], []byte(c.operator)) {
+			continue
+		}
 		if bytes.HasPrefix(s[pos:], []byte(c.start)) {
 			open = c
 			found = true
@@ -169,6 +183,10 @@ func maskBlockComment(s []byte, pos int, comments []blockComment, mask func(int,
 	j := pos + len(open.start)
 	depth := 1
 	for j < len(s) {
+		if open.operator != "" && bytes.HasPrefix(s[j:], []byte(open.operator)) {
+			j += len(open.operator)
+			continue
+		}
 		if open.nested && bytes.HasPrefix(s[j:], []byte(open.start)) {
 			depth++
 			j += len(open.start)

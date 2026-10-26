@@ -1015,7 +1015,8 @@ scopes = ["services/worker"]
 
     #[test]
     fn missing_file_is_not_a_registry() {
-        let workspace = std::env::temp_dir().join("dx-dependency-sets-absent");
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-absent-");
+        let workspace = scratch.path().join("absent");
         assert_eq!(load(&workspace).expect("absent"), None);
     }
 
@@ -1335,12 +1336,13 @@ scopes = ["apps/leaf"]
         assert_eq!(resolved.len(), 2);
     }
 
-    fn settings_workspace(name: &str, pyproject: &str, config: Option<&str>) -> std::path::PathBuf {
-        let workspace = std::env::temp_dir().join(format!(
-            "dx-dependency-sets-settings-{name}-{}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_dir_all(&workspace);
+    fn settings_workspace(
+        name: &str,
+        pyproject: &str,
+        config: Option<&str>,
+    ) -> dx_test_scratch::TempDir {
+        let scratch = dx_test_scratch::scratch(&format!("dx-dependency-sets-settings-{name}-"));
+        let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("apps/frontend")).expect("mkdir");
         std::fs::write(workspace.join("apps/frontend/pyproject.toml"), pyproject)
             .expect("pyproject");
@@ -1351,7 +1353,7 @@ scopes = ["apps/leaf"]
             )
             .expect("uv.toml");
         }
-        workspace
+        scratch
     }
 
     #[test]
@@ -1359,10 +1361,12 @@ scopes = ["apps/leaf"]
         let registry = load_text(TWO_UV_SETS);
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         let metadata = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n\n[tool.uv]\npackage = false\ndev-dependencies = []\n\n[tool.uv.sources]\nlocal = { path = \"../local\" }\n\n[tool.ruff]\nline-length = 100\n";
-        let workspace = settings_workspace("ok", metadata, None);
+        let scratch = settings_workspace("ok", metadata, None);
+        let workspace = scratch.path().to_path_buf();
         assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
         let resolver = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n\n[tool.uv]\nexclude-newer = \"2020-01-01T00:00:00Z\"\nindex-url = \"https://example.invalid/simple\"\n";
-        let workspace = settings_workspace("tool", resolver, None);
+        let scratch = settings_workspace("tool", resolver, None);
+        let workspace = scratch.path().to_path_buf();
         let error = check_backend_settings(&workspace, &frontend).expect_err("resolver settings");
         assert_eq!(
             error,
@@ -1375,7 +1379,6 @@ scopes = ["apps/leaf"]
         let message = error.to_string();
         assert!(message.contains("\"frontend\""), "{message}");
         assert!(message.contains("does not apply"), "{message}");
-        let _ = std::fs::remove_dir_all(&workspace);
     }
 
     #[test]
@@ -1388,7 +1391,8 @@ scopes = ["apps/leaf"]
             ("apps/uv.toml", "apps/uv.toml exists"),
             ("uv.toml", "uv.toml exists"),
         ] {
-            let workspace = settings_workspace(&config.replace('/', "-"), plain, Some(config));
+            let scratch = settings_workspace(&config.replace('/', "-"), plain, Some(config));
+            let workspace = scratch.path().to_path_buf();
             assert_eq!(
                 check_backend_settings(&workspace, &frontend),
                 Err(DependencySetsError::UnsupportedSettings {
@@ -1397,15 +1401,14 @@ scopes = ["apps/leaf"]
                 }),
                 "{config}"
             );
-            let _ = std::fs::remove_dir_all(&workspace);
         }
-        let workspace = settings_workspace("missing", plain, None);
+        let scratch = settings_workspace("missing", plain, None);
+        let workspace = scratch.path().to_path_buf();
         std::fs::remove_file(workspace.join("apps/frontend/pyproject.toml")).expect("rm");
         assert!(matches!(
             check_backend_settings(&workspace, &frontend),
             Err(DependencySetsError::Read { .. })
         ));
-        let _ = std::fs::remove_dir_all(&workspace);
     }
 
     #[test]
@@ -1420,7 +1423,8 @@ scopes = ["apps/leaf"]
             ),
             ("pyproject.toml", "pyproject.toml sets [tool.uv.workspace]"),
         ] {
-            let workspace = settings_workspace(&parent.replace('/', "-"), plain, None);
+            let scratch = settings_workspace(&parent.replace('/', "-"), plain, None);
+            let workspace = scratch.path().to_path_buf();
             std::fs::write(
                 workspace.join(parent),
                 "[tool.uv.workspace]\nmembers = [\"frontend\"]\n",
@@ -1434,18 +1438,18 @@ scopes = ["apps/leaf"]
                 }),
                 "{parent}"
             );
-            let _ = std::fs::remove_dir_all(&workspace);
         }
-        let workspace = settings_workspace("plain-parent", plain, None);
+        let scratch = settings_workspace("plain-parent", plain, None);
+        let workspace = scratch.path().to_path_buf();
         std::fs::write(workspace.join("pyproject.toml"), plain).expect("parent pyproject");
         assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
-        let _ = std::fs::remove_dir_all(&workspace);
     }
 
     #[test]
     fn missing_files_fail_closed_with_paths() {
         let registry = load_text(TWO_UV_SETS);
-        let workspace = std::env::temp_dir().join("dx-dependency-sets-missing");
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-missing-");
+        let workspace = scratch.path().join("absent");
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         assert!(matches!(
             check_files(&workspace, &frontend, true),
@@ -1578,22 +1582,20 @@ scopes = ["services/worker"]
         }
     }
 
-    fn npm_workspace(name: &str) -> std::path::PathBuf {
-        let workspace = std::env::temp_dir().join(format!(
-            "dx-dependency-sets-npm-{name}-{}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_dir_all(&workspace);
+    fn npm_workspace(name: &str) -> dx_test_scratch::TempDir {
+        let scratch = dx_test_scratch::scratch(&format!("dx-dependency-sets-npm-{name}-"));
+        let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("apps/web")).expect("set dir");
         std::fs::write(workspace.join("apps/web/package.json"), "{}\n").expect("manifest");
-        workspace
+        scratch
     }
 
     #[test]
     fn npm_sets_need_their_own_pnpm_lock_and_no_parent_pnpm_workspace() {
         let registry = load_text(TWO_NPM_SETS);
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
-        let workspace = npm_workspace("plain");
+        let scratch = npm_workspace("plain");
+        let workspace = scratch.path().to_path_buf();
         assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
         std::fs::write(
             workspace.join("apps/web/pnpm-workspace.yaml"),
@@ -1601,9 +1603,9 @@ scopes = ["services/worker"]
         )
         .expect("own workspace");
         assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
-        let _ = std::fs::remove_dir_all(&workspace);
         for parent in ["apps/pnpm-workspace.yaml", "pnpm-workspace.yaml"] {
-            let workspace = npm_workspace(&parent.replace('/', "-"));
+            let scratch = npm_workspace(&parent.replace('/', "-"));
+            let workspace = scratch.path().to_path_buf();
             std::fs::write(workspace.join(parent), "packages: [\"apps/*\"]\n")
                 .expect("parent workspace");
             assert_eq!(
@@ -1615,9 +1617,9 @@ scopes = ["services/worker"]
                 }),
                 "{parent}"
             );
-            let _ = std::fs::remove_dir_all(&workspace);
         }
-        let workspace = npm_workspace("other-lock");
+        let scratch = npm_workspace("other-lock");
+        let workspace = scratch.path().to_path_buf();
         let mut other = frontend.clone();
         other.locks = vec!["apps/web/package-lock.json".to_owned()];
         assert_eq!(
@@ -1629,6 +1631,5 @@ scopes = ["services/worker"]
                     .to_owned(),
             })
         );
-        let _ = std::fs::remove_dir_all(&workspace);
     }
 }

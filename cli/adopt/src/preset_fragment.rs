@@ -152,6 +152,13 @@ mod tests {
             let mut permissions = std::fs::metadata(&bazelrc).expect("stat").permissions();
             permissions.set_mode(0o000);
             std::fs::set_permissions(&bazelrc, permissions).expect("chmod");
+            if std::fs::read(&bazelrc).is_ok() {
+                // Root, CAP_DAC_OVERRIDE, or a filesystem that ignores mode bits.
+                std::fs::set_permissions(&bazelrc, std::fs::Permissions::from_mode(0o600))
+                    .expect("chmod back");
+                eprintln!("skipping: mode 000 does not block reads here");
+                return;
+            }
             let outcome = check_preset(&root);
             std::fs::set_permissions(&bazelrc, std::fs::Permissions::from_mode(0o600))
                 .expect("chmod back");

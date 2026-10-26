@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "examples/c-app/store/store.h"
@@ -16,6 +17,21 @@
       return 1;                                                                \
     }                                                                          \
   } while (0)
+
+/* Writes a stock file larger than the reader's first buffer. */
+static int write_large_stock(const char *path, int items) {
+  FILE *file = fopen(path, "wb");
+  if (file == NULL) {
+    return 0;
+  }
+  fputs("{\"items\":[", file);
+  for (int i = 0; i < items; i++) {
+    fprintf(file, "%s{\"name\":\"item-%d\",\"qty\":1,\"price_cents\":2}",
+            i > 0 ? "," : "", i);
+  }
+  fputs("]}", file);
+  return fclose(file) == 0;
+}
 
 int main(void) {
   CHECK(__STDC_VERSION__ >= 201112L);
@@ -56,5 +72,16 @@ int main(void) {
     CHECK(strcmp(err, "stock item is malformed") == 0);
     CHECK(store.count == 0 && store.items == NULL);
   }
+
+  const char *tmp = getenv("TEST_TMPDIR");
+  CHECK(tmp != NULL);
+  char large[512];
+  snprintf(large, sizeof(large), "%s/large_stock.json", tmp);
+  CHECK(write_large_stock(large, 100));
+  CHECK(store_load(large, &store, err, sizeof(err)) == 0);
+  CHECK(store.count == 100);
+  CHECK(store_total_cents(&store) == 200);
+  CHECK(store_find(&store, "item-99") != NULL);
+  store_free(&store);
   return 0;
 }

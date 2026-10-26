@@ -28,6 +28,16 @@ TEST(MenuTest, RejectsMissingHeader) {
   EXPECT_THROW(parse_menu(in), ParseError);
 }
 
+TEST(MenuTest, RejectsWrongColumnCount) {
+  std::istringstream in("name,category,price_cents\nsoup,starter\n");
+  EXPECT_THROW(parse_menu(in), ParseError);
+}
+
+TEST(MenuTest, RejectsNonNumericPrice) {
+  std::istringstream in("name,category,price_cents\nsoup,starter,abc\n");
+  EXPECT_THROW(parse_menu(in), ParseError);
+}
+
 TEST(MenuTest, RejectsMissingFile) {
   EXPECT_THROW(load_menu("examples/cpp-app/core/absent.csv"), ParseError);
 }

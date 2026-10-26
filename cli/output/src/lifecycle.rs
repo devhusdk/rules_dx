@@ -1472,6 +1472,56 @@ mod tests {
     }
 
     #[test]
+    fn cut_stops_on_a_char_boundary() {
+        for wide in ["\u{e9}", "\u{20ac}", "\u{1f30d}"] {
+            let s = format!("{}{wide}tail", "x".repeat(EVENT_MESSAGE_LIMIT - 1));
+            let out = cut(&s, EVENT_MESSAGE_LIMIT);
+            assert_eq!(out, "x".repeat(EVENT_MESSAGE_LIMIT - 1), "{wide}");
+            assert!(out.len() <= EVENT_MESSAGE_LIMIT);
+        }
+        let exact = format!("{}\u{e9}tail", "x".repeat(EVENT_MESSAGE_LIMIT - 2));
+        let out = cut(&exact, EVENT_MESSAGE_LIMIT);
+        assert_eq!(out.len(), EVENT_MESSAGE_LIMIT);
+        assert!(out.ends_with('\u{e9}'));
+        assert_eq!(cut("", 5), "");
+        assert_eq!(cut("abc", 0), "");
+        assert_eq!(cut("\u{e9}", 1), "");
+    }
+
+    #[test]
+    fn a_multibyte_case_message_straddling_the_limit_is_cut_whole() {
+        let message = format!("{}\u{1f30d}tail", "x".repeat(EVENT_MESSAGE_LIMIT - 2));
+        let outcome = TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "failed".to_owned(),
+            evidence_complete: true,
+            cases: vec![TestCase {
+                name: "wide".to_owned(),
+                outcome: "failed".to_owned(),
+                message: Some(message.clone()),
+                ..TestCase::default()
+            }],
+            ..TestOutcome::default()
+        };
+        let event = test_outcome_event(&outcome).expect("event");
+        let json = serde_json::to_string(&event).expect("json");
+        let parsed: Value = serde_json::from_str(&json).expect("valid json");
+        let cut_message = parsed["failing_cases"][0]["message"]
+            .as_str()
+            .expect("message");
+        assert!(cut_message.len() <= EVENT_MESSAGE_LIMIT);
+        assert!(message.starts_with(cut_message));
+        assert!(!cut_message.contains('\u{1f30d}'));
+        assert!(!cut_message.contains('\u{fffd}'));
+        assert_eq!(cut_message, "x".repeat(EVENT_MESSAGE_LIMIT - 2));
+        let record = test_result_record(&outcome).expect("record");
+        assert_eq!(
+            record["cases"][0]["message"].as_str(),
+            Some(message.as_str())
+        );
+    }
+
+    #[test]
     fn finished_counts_report_passed_and_cached_tests() {
         let counts = |tests| {
             command_finished(

@@ -345,3 +345,50 @@ fn duplicate_replacements_for_one_module_version_are_errors() {
         "module a\nreplace example.com/lib v1.0.0 => ../one\nreplace example.com/lib => ../two\n";
     assert!(parse_mod(mixed).is_ok());
 }
+
+#[test]
+fn insert_require_lands_sorted_in_the_first_direct_block() {
+    let head = "module example.com/root\n\ngo 1.24.12\n\n";
+    for (before, after) in [
+        (
+            "require (\n\texample.com/a v1.0.0\n\texample.com/z v1.0.0\n)\n",
+            "require (\n\texample.com/a v1.0.0\n\texample.com/new v1.2.3\n\texample.com/z v1.0.0\n)\n",
+        ),
+        (
+            "require (\n\texample.com/a v1.0.0 // indirect\n)\n\nrequire (\n    example.com/b v1.0.0 // pinned\n)\n",
+            "require (\n\texample.com/a v1.0.0 // indirect\n)\n\nrequire (\n    example.com/b v1.0.0 // pinned\n    example.com/new v1.2.3\n)\n",
+        ),
+        (
+            "require (\r\n\texample.com/a v1.0.0\r\n)\r\n",
+            "require (\r\n\texample.com/a v1.0.0\r\n\texample.com/new v1.2.3\r\n)\r\n",
+        ),
+        (
+            "require example.com/a v1.0.0\n",
+            "require example.com/a v1.0.0\n\nrequire (\n\texample.com/new v1.2.3\n)\n",
+        ),
+        (
+            "replace (\n\texample.com/x => ../x\n)\n",
+            "replace (\n\texample.com/x => ../x\n)\n\nrequire (\n\texample.com/new v1.2.3\n)\n",
+        ),
+    ] {
+        let got = insert_require(&format!("{head}{before}"), "example.com/new", "v1.2.3");
+        assert_eq!(got, Ok(format!("{head}{after}")), "{before:?}");
+    }
+}
+
+#[test]
+fn insert_require_rejects_declared_and_malformed_input() {
+    let text = "module example.com/root\n\nrequire example.com/new v1.0.0 // indirect\n";
+    assert_eq!(
+        insert_require(text, "example.com/new", "v1.2.3"),
+        Err(GoEditError::Ambiguous(1))
+    );
+    assert!(matches!(
+        insert_require("module example.com/root\nrequire (\n", "example.com/new", "v1.2.3"),
+        Err(GoEditError::Invalid(_))
+    ));
+    assert!(matches!(
+        insert_require("module example.com/root\n", "example.com/new", "v1 2"),
+        Err(GoEditError::Invalid(_))
+    ));
+}

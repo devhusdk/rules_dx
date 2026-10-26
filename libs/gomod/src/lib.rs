@@ -260,6 +260,139 @@ pub fn set_require_version(text: &str, module: &str, version: &str) -> Result<St
     Ok(out)
 }
 
+/// Adds a direct `require` entry for `module`, leaving every other byte alone.
+/// A module that is already required fails with `Ambiguous(count)`.
+///
+/// The entry goes into the first `require ( ... )` block that holds a direct
+/// requirement, in sorted position; without one, a new block is appended.
+pub fn insert_require(text: &str, module: &str, version: &str) -> Result<String, GoEditError> {
+    let before = parse_mod(text).map_err(GoEditError::Invalid)?;
+    let count = before
+        .require
+        .iter()
+        .filter(|requirement| requirement.module == module)
+        .count();
+    if count > 0 {
+        return Err(GoEditError::Ambiguous(count));
+    }
+    if module.is_empty()
+        || version.is_empty()
+        || [module, version]
+            .iter()
+            .any(|part| part.chars().any(|c| c.is_whitespace() || matches!(c, '"' | '`' | '(' | ')')) || part.contains("//"))
+    {
+        return Err(GoEditError::Invalid(format!(
+            "{module:?} {version:?} is not a plain requirement"
+        )));
+    }
+    let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
+    let out = match direct_require_block(text) {
+        Some(block) => {
+            let at = block
+                .entries
+                .iter()
+                .find(|(_, name)| name.as_str() > module)
+                .map_or(block.close, |(start, _)| *start);
+            let entry = format!("{}{module} {version}{eol}", block.indent);
+            format!("{}{entry}{}", &text[..at], &text[at..])
+        }
+        None => {
+            let mut out = text.to_owned();
+            if !out.is_empty() && !out.ends_with('\n') {
+                out.push_str(eol);
+            }
+            if !out.trim().is_empty() {
+                out.push_str(eol);
+            }
+            out.push_str(&format!("require ({eol}\t{module} {version}{eol}){eol}"));
+            out
+        }
+    };
+    let after = parse_mod(&out).map_err(GoEditError::Invalid)?;
+    let mut expected = before.require.clone();
+    expected.push(GoRequirement {
+        module: module.to_owned(),
+        version: version.to_owned(),
+        indirect: false,
+        marker: None,
+    });
+    let mut got = after.require;
+    let key = |r: &GoRequirement| (r.module.clone(), r.version.clone(), r.indirect);
+    expected.sort_by_key(key);
+    got.sort_by_key(key);
+    if got != expected || after.replace != before.replace || after.module != before.module {
+        return Err(GoEditError::Invalid(format!(
+            "version {version:?} does not produce a valid requirement"
+        )));
+    }
+    Ok(out)
+}
+
+struct RequireBlock {
+    /// Start offset and module path of every entry line.
+    entries: Vec<(usize, String)>,
+    /// Start offset of the closing `)` line.
+    close: usize,
+    indent: String,
+}
+
+/// The first `require ( ... )` block holding at least one direct requirement.
+fn direct_require_block(text: &str) -> Option<RequireBlock> {
+    let mut base = 0;
+    let mut current: Option<(RequireBlock, bool)> = None;
+    let mut other_block = false;
+    for line in text.split_inclusive('\n') {
+        let start = base;
+        base += line.len();
+        let tokens = tokenize(line, start);
+        let Some(first) = tokens.first() else {
+            continue;
+        };
+        if other_block {
+            if first.value == ")" {
+                other_block = false;
+            }
+            continue;
+        }
+        if let Some((block, direct)) = current.as_mut() {
+            if first.value == ")" {
+                block.close = start;
+                if *direct {
+                    return current.map(|(block, _)| block);
+                }
+                current = None;
+                continue;
+            }
+            let indirect = line
+                .split_once("//")
+                .is_some_and(|(_, comment)| comment.trim().starts_with("indirect"));
+            if !indirect {
+                *direct = true;
+            }
+            if block.entries.is_empty() {
+                block.indent = line[..line.len() - line.trim_start().len()].to_owned();
+            }
+            block.entries.push((start, first.value.clone()));
+            continue;
+        }
+        if tokens.get(1).map(|token| token.value.as_str()) == Some("(") {
+            if first.value == "require" && tokens.len() == 2 {
+                current = Some((
+                    RequireBlock {
+                        entries: Vec::new(),
+                        close: 0,
+                        indent: "\t".to_owned(),
+                    },
+                    false,
+                ));
+            } else {
+                other_block = true;
+            }
+        }
+    }
+    None
+}
+
 #[derive(Clone, Copy)]
 enum Quote {
     Bare,

@@ -105,6 +105,7 @@ rust_test(
     size = "large",
     srcs = [
         "consumer.rs",
+        "macos.rs",
         "macos_app_consumer_test.rs",
     ],
     crate_root = "macos_app_consumer_test.rs",
@@ -129,6 +130,7 @@ rust_test(
     size = "large",
     srcs = [
         "consumer.rs",
+        "macos.rs",
         "macos_framework_consumer_test.rs",
     ],
     crate_root = "macos_framework_consumer_test.rs",

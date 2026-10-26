@@ -65,8 +65,12 @@ rust_test(
         ":consumer_release_checksum",
     ],
     env = {
-        "DX_CONSUMER_CHECKSUM": "$(rootpath :consumer_release_checksum)",
-        "DX_CONSUMER_TARBALL": "$(rootpath :consumer_release_archive)",
+        "DX_ARCHIVE_APP": "consumer_app",
+        "DX_ARCHIVE_BANNER": "dx-consumer-shared-marker",
+        "DX_ARCHIVE_CHECKSUM": "$(rootpath :consumer_release_checksum)",
+        "DX_ARCHIVE_GREETING": "Hello from the consumer native library, consumer",
+        "DX_ARCHIVE_NOTICE": "consumer-release NOTICE",
+        "DX_ARCHIVE_TARBALL": "$(rootpath :consumer_release_archive)",
     },
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
@@ -105,14 +109,18 @@ consumer_archive(
 # keep
 rust_test(
     name = "external_release_verify",
-    srcs = ["external_verify.rs"],
+    srcs = ["verify.rs"],
     data = [
         ":external_release_archive",
         ":external_release_checksum",
     ],
     env = {
-        "DX_EXTERNAL_CHECKSUM": "$(rootpath :external_release_checksum)",
-        "DX_EXTERNAL_TARBALL": "$(rootpath :external_release_archive)",
+        "DX_ARCHIVE_APP": "external_app",
+        "DX_ARCHIVE_BANNER": "dx-external-archive-marker",
+        "DX_ARCHIVE_CHECKSUM": "$(rootpath :external_release_checksum)",
+        "DX_ARCHIVE_GREETING": "Hello from the external native library, external",
+        "DX_ARCHIVE_NOTICE": "external-release NOTICE",
+        "DX_ARCHIVE_TARBALL": "$(rootpath :external_release_archive)",
     },
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],

@@ -1298,7 +1298,7 @@ mod tests {
     }
 
     #[test]
-    fn large_trees_stay_bounded() {
+    fn package_cap_stops_the_walk() {
         let scratch = module_workspace();
         let root = scratch.path();
         std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
@@ -1307,10 +1307,32 @@ mod tests {
             std::fs::create_dir_all(root.join(&dir)).expect("mkdir");
             std::fs::write(root.join(format!("{dir}/BUILD.bazel")), "").expect("marker");
         }
+        let expected = |count: usize| -> Vec<String> {
+            (0..count).map(|i| format!("//pkg/{i:03}/...")).collect()
+        };
         let got = label_candidates_from_workspace(root, "", 100);
-        assert_eq!(got.len(), 100, "candidates truncate: {got:?}");
-        let many = label_candidates_from_workspace(root, "//pkg/", 200);
-        assert!(many.len() <= 200, "package dirs bound: {many:?}");
+        assert_eq!(got, expected(100));
+        let many = label_candidates_from_workspace(root, "//pkg/", 250);
+        assert_eq!(many, expected(MAX_PACKAGE_DIRS));
+        assert!(!many.contains(&"//pkg/200/...".to_owned()), "{many:?}");
+    }
+
+    #[test]
+    fn visited_cap_stops_the_walk() {
+        let scratch = module_workspace();
+        let root = scratch.path();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        for index in 0..1997 {
+            std::fs::create_dir_all(root.join(format!("a/{index:04}"))).expect("mkdir");
+        }
+        std::fs::create_dir_all(root.join("z")).expect("mkdir");
+        std::fs::write(root.join("z/BUILD.bazel"), "").expect("marker");
+        assert_eq!(
+            label_candidates_from_workspace(root, "", 100),
+            vec!["//z/...".to_owned()]
+        );
+        std::fs::create_dir_all(root.join("a/1997")).expect("mkdir");
+        assert!(label_candidates_from_workspace(root, "", 100).is_empty());
     }
 
     #[test]

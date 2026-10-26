@@ -273,15 +273,71 @@ mod tests {
         assert_eq!(diagnostic_excerpt(b"x", 0, 4096), None);
     }
 
+    const INIT_TEST_PATH: &str =
+        "diagnostics::tests::diagnostics_init_filters_levels_and_follows_color_gate";
+
     #[test]
-    fn diagnostics_init_is_idempotent_and_tracing_macros_do_not_panic() {
-        init_diagnostics(false);
-        init_diagnostics(true);
-        init_diagnostics(false);
-        tracing::debug!("dx diagnostics debug probe");
-        tracing::info!("dx diagnostics info probe");
-        tracing::warn!("dx diagnostics warn probe");
-        tracing::error!("dx diagnostics error probe");
+    fn diagnostics_init_filters_levels_and_follows_color_gate() {
+        if let Ok(spec) = std::env::var("DX_OUTPUT_DIAG_CHILD") {
+            let (verbose, mode) = spec.split_once(':').expect("verbose:mode");
+            let verbose = verbose == "true";
+            let mode = ColorMode::parse(mode).expect("mode");
+            init_diagnostics_with_color(verbose, mode);
+            // The first init wins; a second one must not change anything.
+            init_diagnostics(!verbose);
+            tracing::debug!("dx-probe-debug");
+            tracing::info!("dx-probe-info");
+            tracing::warn!("dx-probe-warn");
+            tracing::error!("dx-probe-error");
+            return;
+        }
+        let run = |spec: &str, envs: &[(&str, &str)]| -> String {
+            let mut cmd = std::process::Command::new(std::env::current_exe().expect("test binary"));
+            cmd.args([INIT_TEST_PATH, "--exact"]);
+            for key in ["NO_COLOR", "CLICOLOR", "CLICOLOR_FORCE", "RUST_LOG"] {
+                cmd.env_remove(key);
+            }
+            cmd.env("DX_OUTPUT_DIAG_CHILD", spec);
+            for (k, v) in envs {
+                cmd.env(k, v);
+            }
+            let output = cmd.output().expect("spawn diagnostics child");
+            let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+            assert!(
+                output.status.success(),
+                "child {spec} failed: {stderr}{}",
+                String::from_utf8_lossy(&output.stdout)
+            );
+            assert!(
+                stderr.contains("dx-probe-warn"),
+                "child {spec} did not run the probe: {stderr}"
+            );
+            stderr
+        };
+        const ANSI: &str = "\x1b[";
+
+        let quiet = run("false:never", &[]);
+        assert!(quiet.contains("dx-probe-error"), "{quiet}");
+        assert!(!quiet.contains("dx-probe-info"), "{quiet}");
+        assert!(!quiet.contains("dx-probe-debug"), "{quiet}");
+        assert!(!quiet.contains(ANSI), "{quiet}");
+
+        let verbose = run("true:never", &[]);
+        assert!(verbose.contains("dx-probe-info"), "{verbose}");
+        assert!(!verbose.contains("dx-probe-debug"), "{verbose}");
+        assert!(!verbose.contains("dx diagnostics initialised"), "{verbose}");
+
+        let always = run("false:always", &[("NO_COLOR", "")]);
+        assert!(always.contains(ANSI), "{always}");
+
+        let forced = run("false:auto", &[("CLICOLOR_FORCE", "1")]);
+        assert!(forced.contains(ANSI), "{forced}");
+
+        let forced_no_color = run("false:auto", &[("CLICOLOR_FORCE", "1"), ("NO_COLOR", "")]);
+        assert!(!forced_no_color.contains(ANSI), "{forced_no_color}");
+
+        let piped = run("false:auto", &[]);
+        assert!(!piped.contains(ANSI), "{piped}");
     }
 
     #[test]

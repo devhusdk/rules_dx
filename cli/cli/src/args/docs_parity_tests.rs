@@ -1230,6 +1230,40 @@ fn clean_page_names_every_clean_notice_code() {
 }
 
 #[test]
+fn clean_section_describes_every_clean_flag() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
+    let (_, body) = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx clean`")
+        .expect("check-fix-clean.md has a `dx clean` section");
+    let mut prose = String::new();
+    let mut fenced = false;
+    for line in body.lines() {
+        if line.trim_start().starts_with("```") {
+            fenced = !fenced;
+        } else if !fenced {
+            prose.push_str(line);
+            prose.push('\n');
+        }
+    }
+    let tokens = backticked(&prose);
+    for flag in flag_tokens(Command::Clean.usage()) {
+        assert!(
+            tokens.iter().any(|token| token == &flag),
+            "check-fix-clean.md `dx clean` prose never names `{flag}` in backticks"
+        );
+    }
+    assert!(
+        shell_blocks(&body)
+            .iter()
+            .flatten()
+            .any(|line| line.contains("--prune-unobserved")),
+        "check-fix-clean.md `dx clean` section needs a shell example using `--prune-unobserved`"
+    );
+}
+
+#[test]
 fn new_upgrade_page_names_codes_and_starter_files() {
     use crate::adopt::{CODE_NEW_FAILED, CODE_STATUS_PIN_MISMATCH, CODE_UPGRADE_FAILED};
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new-upgrade.md");

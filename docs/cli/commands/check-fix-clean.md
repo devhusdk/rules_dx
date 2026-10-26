@@ -142,7 +142,7 @@ dx clean [--check] [--apply] [--prune-unobserved]
 ```
 
 Reports unselected managed state under `.dx` by default and deletes
-nothing. Pass `--apply` to prune it. A generation a live reader still
+nothing. `--check` is that default: it reports and deletes nothing. Pass `--apply` to prune it. A generation a live reader still
 holds is never pruned. When process observation is unavailable, dx keeps
 unobserved state and reports it; pass `--prune-unobserved` to prune it
 anyway. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes.
@@ -196,4 +196,5 @@ is unavailable exits `0`.
 ```sh
 bazel run @rules_dx//:dx -- clean --check
 bazel run @rules_dx//:dx -- clean --apply
+bazel run @rules_dx//:dx -- clean --apply --prune-unobserved
 ```

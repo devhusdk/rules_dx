@@ -1,0 +1,18 @@
+load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+
+# A user-owned rule must survive generation unchanged.
+filegroup(
+    name = "assets",
+    srcs = ["README.txt"],
+)
+
+mdx_library(
+    name = "guide",
+    srcs = ["guide.mdx"],
+    deps = [":helper"],
+)
+
+mdx_library(
+    name = "helper",
+    srcs = ["helper.mdx"],
+)

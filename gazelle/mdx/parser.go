@@ -82,7 +82,7 @@ func extractESMRegions(src []byte) [][]byte {
 			prevText = true
 			continue
 		}
-		if len(chunk) > 0 && depth > 0 && isESMContinuation(line) {
+		if len(chunk) > 0 && depth > 0 {
 			chunk = append(chunk, line)
 			depth += braceDelta(line)
 			boundary = false
@@ -136,11 +136,6 @@ func isESMOpener(line string) bool {
 		return false
 	}
 	return false
-}
-
-func isESMContinuation(line string) bool {
-	trimmed := strings.TrimLeft(line, " \t")
-	return strings.HasPrefix(trimmed, "}") || strings.HasPrefix(trimmed, "from ") || strings.HasPrefix(trimmed, "from\t")
 }
 
 func isBoundaryLine(line string, prevText bool) bool {

@@ -73,8 +73,10 @@ func TestParseImports(t *testing.T) {
 		{"unterminatedProse", "\"abc\nimport y from './real.mdx';\n", nil},
 		{"relativeNoExt", "import x from './helper';\n", []string{"helper"}},
 		{"relativeDir", "import x from './dir/';\n", []string{"dir"}},
-		{"multilineNarrow", "import {\n a,\n b\n} from './multi.mdx';\n", nil},
-		{"exportMultilineNarrow", "export {\na\n} from \"./shared.mdx\";\n", nil},
+		{"multiline", "import {\n a,\n b\n} from './multi.mdx';\n", []string{"multi"}},
+		{"prettierWrapped", "import {\n  Chart,\n  Table,\n} from './widgets';\n", []string{"widgets"}},
+		{"wrappedThenImport", "import {\n  a,\n} from './one.mdx';\n\nimport b from './two.mdx';\n", []string{"one", "two"}},
+		{"exportMultiline", "export {\na\n} from \"./shared.mdx\";\n", []string{"shared"}},
 		{"duplicate", "import a from './same.mdx';\nimport b from './same.mdx';\n", []string{"same"}},
 		{"emptySpec", "import \"\";\n", nil},
 		{"unterminatedBlock", "/* import \"./hidden.mdx\";", nil},
@@ -186,7 +188,8 @@ func TestExtractESMRegions(t *testing.T) {
 		{"continuationTwoLine", "import {\n} from \"./a.mdx\";\n", []string{"import {\n} from \"./a.mdx\";\n"}},
 		{"badImportOpener", "importx from \"./a.mdx\";\n", nil},
 		{"badExportOpener", "exportx from \"./a.mdx\";\n", nil},
-		{"multilineBracesNarrow", "import {\n a\n} from \"./a.mdx\";\n", []string{"import {\n"}},
+		{"multilineBraces", "import {\n a\n} from \"./a.mdx\";\n", []string{"import {\n a\n} from \"./a.mdx\";\n"}},
+		{"headingInsideOpenBrace", "import {\n# Title\n", []string{"import {\n# Title\n"}},
 		{"commentWholeDocInert", "import a from \"./a.mdx\";\n<!-- oops\nimport b from \"./b.mdx\";\n", nil},
 	}
 	for _, tc := range cases {

@@ -162,6 +162,38 @@ func TestCargoImplicitTargets(t *testing.T) {
 	}
 }
 
+func TestCargoImplicitTargetsSorted(t *testing.T) {
+	files := map[string]bool{
+		"pkg/src/lib.rs":          true,
+		"pkg/tests/zeta.rs":       true,
+		"pkg/tests/alpha.rs":      true,
+		"pkg/tests/mid.rs":        true,
+		"pkg/tests/beta.rs":       true,
+		"pkg/tests/common/mod.rs": true,
+		"pkg/tests/sub/x.rs":      true,
+	}
+	want := []string{"alpha_test", "beta_test", "mid_test", "zeta_test"}
+	for run := 0; run < 50; run++ {
+		manifest, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo\"\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := manifest.withImplicitTargets(files, "pkg"); err != nil {
+			t.Fatal(err)
+		}
+		if len(manifest.targets) != 1+len(want) || manifest.targets[0].kind != libraryKind {
+			t.Fatalf("run %d: targets = %+v", run, manifest.targets)
+		}
+		var got []string
+		for _, target := range manifest.targets[1:] {
+			got = append(got, target.name)
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("run %d: test order = %v, want %v", run, got, want)
+		}
+	}
+}
+
 func TestCargoExplicitTargetsSuppressImplicitDuplicates(t *testing.T) {
 	manifest, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo\"\n[lib]\n[[bin]]\nname = \"tool\"\n[[test]]\nname = \"smoke\"\n"))
 	if err != nil {

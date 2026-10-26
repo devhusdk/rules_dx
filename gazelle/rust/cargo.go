@@ -89,18 +89,23 @@ func (m *cargoManifest) withImplicitTargets(files map[string]bool, packagePath s
 		}
 	}
 	prefix := path.Join(packagePath, "tests") + "/"
+	var testRoots []string
 	for file := range files {
 		rel := strings.TrimPrefix(file, prefix)
 		if !strings.HasPrefix(file, prefix) || rel == "" || strings.Contains(rel, "/") || !strings.HasSuffix(rel, ".rs") {
 			continue
 		}
+		testRoots = append(testRoots, rel)
+	}
+	sort.Strings(testRoots)
+	for _, rel := range testRoots {
 		targetPath := "tests/" + rel
 		if explicitPaths[targetPath] {
 			continue
 		}
 		name, err := common.Normalize(strings.TrimSuffix(rel, ".rs"))
 		if err != nil {
-			return fmt.Errorf("rust: Cargo integration-test root %s: %w", file, err)
+			return fmt.Errorf("rust: Cargo integration-test root %s: %w", prefix+rel, err)
 		}
 		m.targets = append(m.targets, cargoTarget{kind: testKind, name: IntegrationTestName(name), logical: IntegrationTestName(name), path: targetPath, harness: true})
 	}

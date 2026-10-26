@@ -3439,45 +3439,11 @@ fn status_toolchain_detail_tracks_the_canonical_rust_pins() {
     );
 }
 
-fn workflow_exports() -> Vec<String> {
-    let build = std::fs::read_to_string(workspace_root().join(".github/BUILD.bazel"))
-        .expect(".github/BUILD.bazel ships as test data");
-    let mut names: Vec<String> = Vec::new();
-    let mut in_exports = false;
-    for line in build.lines() {
-        if line.starts_with("exports_files(") {
-            in_exports = true;
-            continue;
-        }
-        if !in_exports {
-            continue;
-        }
-        if !line.starts_with(' ') {
-            break;
-        }
-        let trimmed = line.trim();
-        if !trimmed.starts_with('"') {
-            continue;
-        }
-        let name = trimmed
-            .trim_start_matches('"')
-            .split('"')
-            .next()
-            .unwrap_or_default();
-        if name.ends_with(".yml") {
-            names.push(name.to_owned());
-        }
-    }
-    assert!(!names.is_empty(), ".github/BUILD.bazel exports no workflow");
-    names
-}
-
 fn workflows() -> Vec<(String, String)> {
-    workflow_exports()
+    dx_testing::workflow_files()
         .into_iter()
         .map(|name| {
-            let text = std::fs::read_to_string(workspace_root().join(".github").join(&name))
-                .unwrap_or_else(|_| panic!("{name} must ship as dx_cli_test data"));
+            let text = dx_testing::read_runfiles(&name);
             (name, text)
         })
         .collect()

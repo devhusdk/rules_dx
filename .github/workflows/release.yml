@@ -170,8 +170,6 @@ jobs:
             exit 1
           fi
           gh release upload "$RELEASE_TAG" out/dx-* --clobber
-          # The source archive digest is pinned by the BCR source.json, so it is
-          # uploaded without --clobber and never replaced with different bytes.
           mkdir -p existing
           for file in "$src" "$src.sha256" source.json; do
             if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$file"; then

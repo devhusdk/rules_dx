@@ -646,15 +646,15 @@ mod tests {
     }
 
     #[test]
-    fn renames_count_both_paths() {
+    fn renames_count_both_paths_and_keep_owners() {
         let dir = repo();
         let root = dir.path();
         git(root, &["mv", "a/a.txt", "a/c.txt"]);
         let graph = graph();
         let (plan, _) = run(root, Command::Lint, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/c.txt"]);
-        assert_eq!(plan.widened.len(), 1);
-        assert_eq!(plan.widened[0].reason, "renamed from a/a.txt");
+        assert!(plan.widened.is_empty());
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
     }
 
     #[test]

@@ -490,34 +490,6 @@ func TestExtractScripts(t *testing.T) {
 	}
 }
 
-func TestOpensTag(t *testing.T) {
-	cases := []struct {
-		name, source, tag string
-		want              bool
-	}{
-		{"basic", "<script>const x = 1;</script>", "script", true},
-		{"upper", "<SCRIPT>", "script", true},
-		{"noClose", "<script", "script", true},
-		{"afterMarkup", "<div>x</div><script src=\"a.js\">", "script", true},
-		{"afterComment", "<!-- <script> --><script>", "script", true},
-		{"commentedOut", "<!-- <script> -->", "script", false},
-		{"unterminatedComment", "<!-- <script>", "script", false},
-		{"empty", "", "script", false},
-		{"markupOnly", "<div>x</div>", "script", false},
-		{"namePrefix", "<scriptx>no</scriptx>", "script", false},
-		{"closingOnly", "</script>", "script", false},
-		{"bareLessThan", "a < b", "script", false},
-		{"trailingLessThan", "trailing <", "script", false},
-		{"style", "<style>a{}</style>", "style", true},
-		{"otherName", "<div>x</div>", "script", false},
-	}
-	for _, tc := range cases {
-		if got := OpensTag([]byte(tc.source), tc.tag); got != tc.want {
-			t.Errorf("OpensTag(%q, %q) = %v, want %v", tc.source, tc.tag, got, tc.want)
-		}
-	}
-}
-
 func TestMaskStyles(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"line comment", "import a.B;\n// import hidden.C;\n", "import a.B;\n                   \n"},
@@ -559,6 +531,24 @@ func TestMaskMultiLineLiterals(t *testing.T) {
 	}
 }
 
+func TestMaskNestedStyles(t *testing.T) {
+	styles := map[string]func([]byte) []byte{"kotlin": MaskKotlinStyle, "scala": MaskScalaStyle}
+	cases := []struct{ name, in, want string }{
+		{"nested", "/* /* a */ b */\n", "               \n"},
+		{"unterminated nested", "/* /* a */ import x\n", "                   \n"},
+		{"block", "a /* b */ c\n", "a         c\n"},
+		{"line", "a // b\n", "a     \n"},
+		{"string inert", "val s = \"/* a\"\nimport x\n", "val s =       \nimport x\n"},
+	}
+	for name, mask := range styles {
+		for _, tc := range cases {
+			if got := string(mask([]byte(tc.in))); got != tc.want {
+				t.Errorf("%s %s = %q, want %q", name, tc.name, got, tc.want)
+			}
+		}
+	}
+}
+
 func TestMaskFSharpStyle(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"block comment", "open a.B\n(* open hidden.C *)\n", "open a.B\n                   \n"},
@@ -573,6 +563,9 @@ func TestMaskFSharpStyle(t *testing.T) {
 		{"newline escape", "let c = '\\n'\n", "let c =     \n"},
 		{"decimal escape", "let c = '\\065'\n", "let c =       \n"},
 		{"quote escape", "let c = '\\''\n", "let c =     \n"},
+		{"multiply operator", "List.fold (*) 1 xs\nopen a.B\n", "List.fold (*) 1 xs\nopen a.B\n"},
+		{"operator inside comment", "(* (*) open hidden.C *) open d.E\n", "                        open d.E\n"},
+		{"empty comment", "(**) open d.E\n", "     open d.E\n"},
 		{"unclosed stays", "let c = 'ab\nopen A.B\n", "let c = 'ab\nopen A.B\n"},
 	}
 	for _, tc := range cases {

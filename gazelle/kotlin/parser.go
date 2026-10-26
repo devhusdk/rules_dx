@@ -13,7 +13,7 @@ var (
 )
 
 func ParseImports(content []byte) []string {
-	stripped := common.MaskJavaStyle(content)
+	stripped := common.MaskKotlinStyle(content)
 	set := make(map[string]struct{})
 	for _, m := range importRe.FindAllSubmatch(stripped, -1) {
 		dotted := string(m[1])
@@ -31,7 +31,7 @@ func ParseImports(content []byte) []string {
 }
 
 func ParsePackage(content []byte) (string, error) {
-	stripped := common.MaskJavaStyle(content)
+	stripped := common.MaskKotlinStyle(content)
 	matches := packageRe.FindAllSubmatch(stripped, -1)
 	if len(matches) > 1 {
 		return "", errDuplicatePackage(string(matches[0][1]))
@@ -51,7 +51,7 @@ func (e *duplicatePackageError) Error() string {
 func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
 
 func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskJavaStyle(content))
+	return mainRe.Match(common.MaskKotlinStyle(content))
 }
 
 func normalizeImport(dotted string, onDemand bool) string {

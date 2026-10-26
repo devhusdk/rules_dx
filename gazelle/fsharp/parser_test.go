@@ -78,6 +78,17 @@ func TestDefinesMain(t *testing.T) {
 	}
 }
 
+func TestMultiplyOperatorIsNotComment(t *testing.T) {
+	src := []byte("module App\nlet product xs = List.fold (*) 1 xs\nopen Acme.Core\n[<EntryPoint>]\nlet main _ = 0\n")
+	got := ParseImports(src)
+	if !reflect.DeepEqual(got, []string{"Core"}) {
+		t.Errorf("ParseImports = %v, want [Core]", got)
+	}
+	if !DefinesMain(src) {
+		t.Error("DefinesMain missed an entry point after (*)")
+	}
+}
+
 func TestIsStdLib(t *testing.T) {
 	for _, imp := range []string{"System.Collections.Generic", "System.Text", "System", "System.IO", "FSharp.Collections", "Microsoft.FSharp.Core"} {
 		if !IsStdLib(imp) {

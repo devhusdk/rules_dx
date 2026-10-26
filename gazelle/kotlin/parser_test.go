@@ -83,3 +83,12 @@ func TestParsePackageDuplicateFails(t *testing.T) {
 		t.Fatalf("duplicate: %v", err)
 	}
 }
+
+func TestNestedBlockCommentInert(t *testing.T) {
+	if got := ParseImports([]byte("/* outer /* inner */\nimport com.acme.Secret\n*/\npackage app\n")); len(got) != 0 {
+		t.Errorf("ParseImports = %v, want none", got)
+	}
+	if DefinesMain([]byte("/* a /* b */\nfun main() = 0\n*/\n")) {
+		t.Error("DefinesMain matched a main inside a nested comment")
+	}
+}

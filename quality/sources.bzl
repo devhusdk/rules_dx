@@ -58,6 +58,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "gleam",
     "go",
     "jsonnet",
+    "ocaml",
     "perl",
     "pkl",
     "protobuf",

@@ -254,6 +254,8 @@ to.
 | `yamllint` | lint | yaml |
 | `zig_fmt` | format | zig |
 
+OCaml (`ocaml`) has no formatter and no linter. `dx format` and `dx lint` skip it.
+
 ## Tool overrides
 
 The three commands run every wired tool from its managed executable. Pass

@@ -8,6 +8,7 @@ PARITY_SCHEMA_VERSION = 1
 PARITY_DEFERRED = {
     "astro": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
     "mdx": ["ADR", "framework adapter region; prose-is-not-dependency boundary per composition"],
+    "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "perl": ["ADR", "perltidy adapter pending in a later #1788 slice"],
     "svelte": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
     "vue": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],

@@ -49,6 +49,18 @@ type SingleLangSpec struct {
 	Candidates     func(name string) []string
 	Fallback       func(name string) string
 	Generate       func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
+
+	// KindDefs maps a kind to the defs package that exports it. Kinds without
+	// an entry load from DefsPackage.
+	KindDefs map[string]string
+	// IndexKinds are extra kinds whose ImportAttr sources Imports indexes.
+	IndexKinds []string
+	// IsIndexSource replaces IsImportSource for IndexKinds when set.
+	IsIndexSource func(name string) bool
+	// Directives are extra Gazelle directives the language accepts.
+	Directives []string
+	// ConfigureExt runs at the end of Configure for the language's own state.
+	ConfigureExt func(c *config.Config, rel string, f *rule.File, rep Reporter)
 }
 
 type SingleLang struct {
@@ -68,7 +80,9 @@ func (l *SingleLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
 
 func (l *SingleLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 
-func (*SingleLang) KnownDirectives() []string { return []string{"dx_ignore_import"} }
+func (l *SingleLang) KnownDirectives() []string {
+	return append([]string{"dx_ignore_import"}, l.spec.Directives...)
+}
 
 func (l *SingleLang) Configure(c *config.Config, rel string, f *rule.File) {
 	declared, errs := DeclaredIgnores(l.spec.LanguageName, rel, f)
@@ -77,6 +91,9 @@ func (l *SingleLang) Configure(c *config.Config, rel string, f *rule.File) {
 	}
 	l.ignores = append(l.ignores, declared...)
 	c.Exts[l.spec.LanguageName] = &IgnoreConfig{Ignores: MergeIgnores(InheritedIgnores(c, l.spec.LanguageName), declared)}
+	if l.spec.ConfigureExt != nil {
+		l.spec.ConfigureExt(c, rel, f, l)
+	}
 }
 
 func (l *SingleLang) fail(format string, args ...interface{}) {
@@ -109,19 +126,42 @@ func (l *SingleLang) ApparentLoads(moduleToApparentName func(string) string) []r
 }
 
 func (l *SingleLang) loads(rulesRepo string) []rule.LoadInfo {
-	symbols := append([]string{l.spec.LibraryKind}, l.spec.ExtraKinds...)
-	return []rule.LoadInfo{
-		{Name: "@" + rulesRepo + "//" + l.spec.DefsPackage, Symbols: symbols},
+	bySymbols := map[string][]string{}
+	for _, kind := range append([]string{l.spec.LibraryKind}, l.spec.ExtraKinds...) {
+		pkg := l.spec.DefsPackage
+		if p, ok := l.spec.KindDefs[kind]; ok {
+			pkg = p
+		}
+		bySymbols[pkg] = append(bySymbols[pkg], kind)
 	}
+	pkgs := make([]string, 0, len(bySymbols))
+	for pkg := range bySymbols {
+		if pkg != l.spec.DefsPackage {
+			pkgs = append(pkgs, pkg)
+		}
+	}
+	sort.Strings(pkgs)
+	pkgs = append([]string{l.spec.DefsPackage}, pkgs...)
+	var loads []rule.LoadInfo
+	for _, pkg := range pkgs {
+		if symbols := bySymbols[pkg]; len(symbols) > 0 {
+			loads = append(loads, rule.LoadInfo{Name: "@" + rulesRepo + "//" + pkg, Symbols: symbols})
+		}
+	}
+	return loads
 }
 
 func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
-	if r.Kind() != l.spec.LibraryKind {
+	if r.Kind() != l.spec.LibraryKind && !slices.Contains(l.spec.IndexKinds, r.Kind()) {
 		return nil
+	}
+	isSource := l.spec.IsImportSource
+	if r.Kind() != l.spec.LibraryKind && l.spec.IsIndexSource != nil {
+		isSource = l.spec.IsIndexSource
 	}
 	var specs []resolve.ImportSpec
 	for _, src := range r.AttrStrings(l.spec.ImportAttr) {
-		if !l.spec.IsImportSource(src) {
+		if !isSource(src) {
 			continue
 		}
 		if l.spec.IsTestSource != nil && l.spec.IsTestSource(src) {

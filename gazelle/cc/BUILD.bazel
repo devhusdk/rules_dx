@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:private"])
 go_library(
     name = "cc",
     srcs = [
+        "cuda.go",
         "doc.go",
         "lang.go",
         "naming.go",
@@ -71,6 +72,7 @@ real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
+        "testdata/cuda_generate/README.md",
         "testdata/cuda_keep/README.md",
         "testdata/entries/README.md",
         "testdata/merge/README.md",

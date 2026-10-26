@@ -1,0 +1,12 @@
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_library")
+
+# gazelle:dx_cuda_archs compute_89:compute_89,sm_89 sm_120
+
+cuda_library(
+    name = "multi_cuda",
+    srcs = ["m.cu"],
+    archs = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+)

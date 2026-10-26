@@ -45,3 +45,12 @@ func TestDirTargetName(t *testing.T) {
 		t.Errorf("DirTargetName = %q, %v; want demo_pkg", got, err)
 	}
 }
+
+func TestCudaClassification(t *testing.T) {
+	if !IsCudaSource("a.cu") || IsCudaSource("a.cuh") || IsCudaHeader("a.cu") || !IsCudaHeader("p/a.cuh") {
+		t.Error("cuda classification wrong")
+	}
+	if IsCudaSource("a.cc") || IsCudaHeader("a.h") {
+		t.Error("cc files classified as cuda")
+	}
+}

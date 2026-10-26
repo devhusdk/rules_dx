@@ -50,11 +50,13 @@ rust_test(
         "//:MODULE.bazel",
         "//tools:dx",
         "//tools:dx.cmd",
+        "//tools/testing/process_probe",
     ],
     env = {
         "DX_LAUNCHER_CMD": "$(rootpath //tools:dx.cmd)",
         "DX_LAUNCHER_SH": "$(rootpath //tools:dx)",
         "DX_MODULE": "$(rootpath //:MODULE.bazel)",
+        "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
     },
     deps = [
         "//cli/process:dx_process",

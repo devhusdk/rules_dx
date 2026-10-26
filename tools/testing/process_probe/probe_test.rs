@@ -33,6 +33,7 @@ fn help_names_every_flag_and_exits_zero() {
         "--print-env-all",
         "--print-argv",
         "--print-cwd",
+        "--print-exe",
         "--spawn-descendant",
         "--detached-descendant",
         "--descendant-own-group",
@@ -209,6 +210,15 @@ fn print_cwd_reports_the_working_directory() {
     assert_eq!(run.status.code(), Some(0));
     let cwd = std::env::current_dir().expect("readable working directory");
     assert_eq!(run.stdout, format!("{}\n", cwd.to_string_lossy()));
+}
+
+#[test]
+fn print_exe_reports_the_probe_binary() {
+    let run = run(&["--print-exe"]);
+    assert_eq!(run.status.code(), Some(0));
+    let printed = std::fs::canonicalize(run.stdout.trim()).expect("printed path exists");
+    let expected = std::fs::canonicalize(probe()).expect("probe path exists");
+    assert_eq!(printed, expected);
 }
 
 #[test]

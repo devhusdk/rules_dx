@@ -35,6 +35,7 @@ Usage: process_probe [options]
   --print-env-all               write every variable to stdout as KEY=VALUE lines
   --print-argv                  write each argument to stdout, one per line
   --print-cwd                   write the working directory to stdout
+  --print-exe                   write this probe's executable path to stdout
   --spawn-descendant            run a descendant probe and exit with its status
   --detached-descendant         start the descendant before sleeping; do not wait
   --descendant-own-group        detach the descendant like a daemon, with no output
@@ -74,6 +75,7 @@ struct Plan {
     print_env_all: bool,
     print_argv: bool,
     print_cwd: bool,
+    print_exe: bool,
     spawn_descendant: bool,
     detached_descendant: bool,
     descendant_own_group: bool,
@@ -122,6 +124,7 @@ const SWITCH_FLAGS: &[&str] = &[
     "--print-env-all",
     "--print-argv",
     "--print-cwd",
+    "--print-exe",
     "--spawn-descendant",
     "--detached-descendant",
     "--descendant-own-group",
@@ -139,6 +142,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 "--print-env-all" => plan.print_env_all = true,
                 "--print-argv" => plan.print_argv = true,
                 "--print-cwd" => plan.print_cwd = true,
+                "--print-exe" => plan.print_exe = true,
                 "--detached-descendant" => {
                     plan.detached_descendant = true;
                     plan.spawn_descendant = true;
@@ -282,6 +286,10 @@ fn write_report(plan: &Plan, out: &mut impl Write) -> io::Result<()> {
     if plan.print_cwd {
         let cwd = env::current_dir().map_err(|err| io::Error::other(err.to_string()))?;
         writeln!(out, "{}", cwd.to_string_lossy())?;
+    }
+    if plan.print_exe {
+        let exe = env::current_exe().map_err(|err| io::Error::other(err.to_string()))?;
+        writeln!(out, "{}", exe.to_string_lossy())?;
     }
     Ok(())
 }

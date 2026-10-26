@@ -68,3 +68,12 @@ javascript_library(
     srcs = ["jest.config.cjs"],
     aspect_hints = ["//:biome_config"],
 )
+
+typescript_project(
+    name = "types",
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    declaration_srcs = ["types.d.ts"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)

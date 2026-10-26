@@ -1,0 +1,17 @@
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+
+typescript_project(
+    name = "widget",
+    declaration_srcs = ["widget.d.ts"],
+)
+
+typescript_project(
+    name = "gone",
+    declaration_srcs = ["gone.d.ts"],
+)
+
+typescript_project(
+    name = "consumer",
+    srcs = ["consumer.ts"],
+    declaration_srcs = ["shared.d.ts"],
+)

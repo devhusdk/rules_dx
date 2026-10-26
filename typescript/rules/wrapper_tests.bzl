@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_inner_kwargs", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_empty_project_rejection", "typescript_inner_kwargs", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
 
 def typescript_wrapper_contract_tests(name):
     """Instantiates TypeScript wrapper contract tests."""
@@ -94,6 +94,31 @@ def typescript_wrapper_contract_tests(name):
                 "upstream sources keep real order without declarations",
                 typescript_upstream_srcs(["b.ts", "a.ts"], None),
                 ["b.ts", "a.ts"],
+            ),
+            expect_equal(
+                "upstream sources accept absent srcs with declarations",
+                typescript_upstream_srcs(None, ["a.d.ts"]),
+                ["a.d.ts"],
+            ),
+            expect_equal(
+                "project with no srcs and no declarations is rejected",
+                typescript_empty_project_rejection(None, None) != None,
+                True,
+            ),
+            expect_equal(
+                "project with empty lists is rejected",
+                typescript_empty_project_rejection([], []) != None,
+                True,
+            ),
+            expect_equal(
+                "declaration-only project is accepted",
+                typescript_empty_project_rejection(None, ["a.d.ts"]),
+                None,
+            ),
+            expect_equal(
+                "source-only project is accepted",
+                typescript_empty_project_rejection(["a.ts"], None),
+                None,
             ),
             expect_equal(
                 "upstream sources keep declaration order",

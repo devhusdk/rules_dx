@@ -37,10 +37,11 @@ var typescriptKinds = map[string]rule.KindInfo{
 func projectKindInfo() rule.KindInfo {
 	return rule.KindInfo{
 		MatchAttrs:    []string{"srcs"},
-		NonEmptyAttrs: map[string]bool{"srcs": true},
+		NonEmptyAttrs: map[string]bool{"srcs": true, "declaration_srcs": true},
 		MergeableAttrs: map[string]bool{
-			"srcs": true,
-			"deps": true,
+			"srcs":             true,
+			"declaration_srcs": true,
+			"deps":             true,
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	}
@@ -146,7 +147,11 @@ func (*typescriptLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []r
 		return nil
 	}
 	var specs []resolve.ImportSpec
+	indexed := make(map[string]bool)
 	for _, src := range r.AttrStrings("srcs") {
+		if isSupported(src) && !IsTestFile(src) {
+			indexed[ModuleName(src)] = true
+		}
 		if common.IsAssetSource(src) && !isSupported(src) && !IsDeclaration(src) {
 			specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), src)})
 			continue
@@ -156,7 +161,74 @@ func (*typescriptLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []r
 		}
 		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), ModuleName(src))})
 	}
+	for _, src := range plainDeclarations(r) {
+		module := ModuleName(src)
+		if indexed[module] {
+			continue
+		}
+		indexed[module] = true
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), module)})
+	}
 	return specs
+}
+
+// plainDeclarations returns the declaration files named directly in a rule's
+// declaration_srcs. Labels and paths into other packages are skipped.
+func plainDeclarations(r *rule.Rule) []string {
+	var out []string
+	for _, src := range r.AttrStrings("declaration_srcs") {
+		src = strings.TrimPrefix(src, ":")
+		if src == "" || strings.ContainsAny(src, "/:") || !IsDeclaration(src) {
+			continue
+		}
+		out = append(out, src)
+	}
+	return out
+}
+
+// ownedDeclarations returns the declaration files already listed in
+// declaration_srcs by an existing project, test or plain-test rule other than
+// the one a generated declaration rule would be named.
+func ownedDeclarations(file *rule.File, other []*rule.Rule) map[string]bool {
+	owned := make(map[string]bool)
+	add := func(r *rule.Rule) {
+		switch r.Kind() {
+		case projectKind, testKind, plainTestKind:
+		default:
+			return
+		}
+		for _, decl := range plainDeclarations(r) {
+			if name, err := TargetName(decl); err == nil && name == r.Name() {
+				continue
+			}
+			owned[decl] = true
+		}
+	}
+	if file != nil {
+		for _, r := range file.Rules {
+			add(r)
+		}
+	}
+	for _, r := range other {
+		add(r)
+	}
+	return owned
+}
+
+// carryDeclarationSrcs copies hand-written declaration_srcs from an existing
+// rule of the same kind and name onto a regenerated source rule.
+func carryDeclarationSrcs(file *rule.File, gen *rule.Rule) {
+	if file == nil {
+		return
+	}
+	for _, r := range file.Rules {
+		if r.Kind() == gen.Kind() && r.Name() == gen.Name() {
+			if expr := r.Attr("declaration_srcs"); expr != nil {
+				gen.SetAttr("declaration_srcs", expr)
+			}
+			return
+		}
+	}
 }
 
 func (*typescriptLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
@@ -195,18 +267,32 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 	if len(sources) == 0 {
 		return mergeStale(args.File, language.GenerateResult{})
 	}
+	modules := make(map[string]bool, len(sources))
+	for _, src := range sources {
+		modules[ModuleName(src)] = true
+	}
+	owned := ownedDeclarations(args.File, args.OtherGen)
+	var decls []string
+	for _, name := range args.RegularFiles {
+		if IsDeclaration(name) && !modules[ModuleName(name)] && !owned[name] {
+			decls = append(decls, name)
+		}
+	}
+	sort.Strings(decls)
 
 	type plan struct {
 		name    string
 		src     string
 		test    bool
 		entry   bool
+		decl    bool
 		imports []string
 		local   map[string]bool
 		asset   map[string]bool
 	}
 	var plans []plan
-	for _, src := range sources {
+	all := append(append([]string(nil), sources...), decls...)
+	for _, src := range all {
 		content, err := os.ReadFile(filepath.Join(args.Dir, src))
 		if err != nil {
 			l.fail("typescript: %s: read %s: %v", args.Rel, src, err)
@@ -218,7 +304,8 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 			continue
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
-		p.entry = !p.test && IsEntryFile(src)
+		p.decl = IsDeclaration(src)
+		p.entry = !p.test && !p.decl && IsEntryFile(src)
 		seen := make(map[string]bool)
 		p.local = make(map[string]bool)
 		p.asset = make(map[string]bool)
@@ -279,7 +366,12 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 			continue
 		}
 		r := rule.NewRule(projectKind, p.name)
-		r.SetAttr("srcs", []string{p.src})
+		if p.decl {
+			r.SetAttr("declaration_srcs", []string{p.src})
+		} else {
+			r.SetAttr("srcs", []string{p.src})
+			carryDeclarationSrcs(args.File, r)
+		}
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local, asset: p.asset})
 		if p.entry {
@@ -399,7 +491,7 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 			if imports.asset[name] {
 				continue
 			}
-			l.fail("typescript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path, with the module extension removed, or <path>/index)", from, name)
+			l.fail("typescript: %s: unresolved import %q; add a local one-source library or declaration file, or an exact # gazelle:resolve mapping (relative imports use the workspace path, with the module extension removed, or <path>/index)", from, name)
 		default:
 			l.fail("typescript: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
 		}

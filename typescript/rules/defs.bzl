@@ -67,7 +67,13 @@ def typescript_declaration_srcs_rejection(declaration_srcs):
 
 def typescript_upstream_srcs(srcs, declaration_srcs):
     """Returns the combined upstream sources for real plus declaration inputs."""
-    return list(srcs) + list(declaration_srcs or [])
+    return list(srcs or []) + list(declaration_srcs or [])
+
+def typescript_empty_project_rejection(srcs, declaration_srcs):
+    """Returns the rejection for a project with neither srcs nor declaration_srcs, or None."""
+    if not srcs and not declaration_srcs:
+        return "typescript_project needs srcs or declaration_srcs"
+    return None
 
 def typescript_transpiler(transpiler):
     """Returns tsc when no transpiler is set, else the value unchanged."""
@@ -214,7 +220,10 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
 
     return dx_scoped_tsconfig_out(name, kwargs)
 
-def _typescript_wrap_project(name, srcs, declaration_srcs = None, visibility = None, **kwargs):
+def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
+    empty_rejection = typescript_empty_project_rejection(srcs, declaration_srcs)
+    if empty_rejection != None:
+        fail(empty_rejection)
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
@@ -243,13 +252,13 @@ def _typescript_wrap_project(name, srcs, declaration_srcs = None, visibility = N
     _typescript_project_forward(
         name = name,
         upstream = name + "_upstream",
-        srcs = list(srcs),
+        srcs = list(srcs or []),
         visibility = visibility,
         **forward_kwargs
     )
 
-def typescript_project(name, srcs, declaration_srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; declaration_srcs holds declaration inputs outside quality ownership and tags reach the upstream targets too."""
+def typescript_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
+    """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership and tags reach the upstream targets too."""
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 _typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)

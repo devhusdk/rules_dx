@@ -76,7 +76,11 @@ exports_files(
 rust_test(
     name = "browser_test",
     size = "large",
-    srcs = ["browser_test.rs"],
+    srcs = [
+        "browser_test.rs",
+        "preview_server.rs",
+    ],
+    crate_root = "browser_test.rs",
     data = [
         ":user_site",
         "//tools/docs/site/browser:firefox",
@@ -98,7 +102,11 @@ rust_test(
 rust_test(
     name = "deploy_smoke_test",
     size = "large",
-    srcs = ["deploy_smoke_test.rs"],
+    srcs = [
+        "deploy_smoke_test.rs",
+        "preview_server.rs",
+    ],
+    crate_root = "deploy_smoke_test.rs",
     data = [
         ":user_site",
         "//tools/docs/site/browser:firefox",

@@ -566,10 +566,16 @@ mod tests {
         let cases: [(&[&str], &str); 17] = [
             (&["check", "--affected", "--output=json"], "check"),
             (&["fix", "--affected", "--output=json"], "check"),
-            (&["fix", "--apply", "--affected", "--output=json"], "default"),
+            (
+                &["fix", "--apply", "--affected", "--output=json"],
+                "default",
+            ),
             (&["fix", "--check", "--affected", "--output=json"], "check"),
             (&["lint", "--affected", "--output=json"], "check"),
-            (&["lint", "--apply", "--affected", "--output=json"], "default"),
+            (
+                &["lint", "--apply", "--affected", "--output=json"],
+                "default",
+            ),
             (&["typecheck", "--affected", "--output=json"], "check"),
             (
                 &["typecheck", "--apply", "--affected", "--output=json"],
@@ -586,14 +592,20 @@ mod tests {
             (&["list-tests", "--affected", "--output=json"], "default"),
             (&["security", "--affected", "--output=json"], "default"),
             (&["license", "--affected", "--output=json"], "default"),
-            (&["check", "--check", "--affected", "--output=json"], "check"),
+            (
+                &["check", "--check", "--affected", "--output=json"],
+                "check",
+            ),
         ];
         let mut covered: Vec<String> = cases.iter().map(|(w, _)| w[0].to_owned()).collect();
         covered.sort();
         covered.dedup();
         let mut every: Vec<String> = Command::value_variants()
             .iter()
-            .filter(|command| command.supports_affected())
+            .filter(|command| {
+                **command != Command::Watch
+                    && crate::args::grammar::accepts_long(**command, "affected")
+            })
             .map(|command| command.name().to_owned())
             .collect();
         every.sort();

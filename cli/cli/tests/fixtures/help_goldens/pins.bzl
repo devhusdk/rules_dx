@@ -22,7 +22,6 @@ HELP_COMMAND_INVARIANTS = [
     "Scopes:",
     "Exit codes:",
     "Output:",
-    "Per-command flags:",
 ]
 
 HELP_FLAG_ONLY = ["--help", "-h"]

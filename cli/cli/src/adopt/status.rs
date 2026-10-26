@@ -17,9 +17,7 @@ pub(crate) const CODE_STATUS_CHECK_FAILED: &str = "status_check_failed";
 use super::operational;
 
 fn effect_of(command: Command) -> &'static str {
-    if command.is_mutating_by_default() {
-        "mutating"
-    } else if command.supports_apply() {
+    if command.supports_apply() {
         "apply"
     } else {
         "none"
@@ -557,6 +555,18 @@ mod tests {
             .find(|event| event["name"] == serde_json::json!("lint"))
             .expect("lint record");
         assert_eq!(lint["source"], serde_json::json!("cli-grammar"));
+        for (name, effect) in [
+            ("lint", "apply"),
+            ("fix", "apply"),
+            ("build", "none"),
+            ("status", "none"),
+        ] {
+            let record = capabilities
+                .iter()
+                .find(|event| event["name"] == serde_json::json!(name))
+                .expect("capability record");
+            assert_eq!(record["effect"], serde_json::json!(effect), "{name}");
+        }
         assert_eq!(lint["availability"], serde_json::json!("available"));
         let tools = capabilities
             .iter()

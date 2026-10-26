@@ -317,7 +317,6 @@ mod tests {
         for command in [Command::Security, Command::License] {
             let entry = spec(command);
             assert!(entry.aspects.is_empty());
-            assert!(command.is_audit_update());
         }
         assert_eq!(spec(Command::Security).reports, &[StandardFormat::Sarif]);
         assert_eq!(
@@ -327,15 +326,12 @@ mod tests {
         let update = spec(Command::Update);
         assert!(update.aspects.is_empty());
         assert!(update.reports.is_empty());
-        assert!(Command::Update.is_audit_update());
         let bump = spec(Command::Bump);
         assert!(bump.aspects.is_empty());
         assert!(bump.reports.is_empty());
-        assert!(Command::Bump.is_audit_update());
         let migrate = spec(Command::Migrate);
         assert!(migrate.aspects.is_empty());
         assert!(migrate.reports.is_empty());
-        assert!(!Command::Migrate.is_audit_update());
     }
 
     #[test]

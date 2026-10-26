@@ -136,7 +136,7 @@ mod tests {
     fn profile_flags_reject_conflicts_and_foreign_commands() {
         for command in Command::value_variants() {
             let command = *command;
-            if !command.supports_profile() {
+            if !crate::args::command::owners::PROFILE_OWNERS.contains(&command) {
                 continue;
             }
             let words = [command.name(), "--debug", "--release"];

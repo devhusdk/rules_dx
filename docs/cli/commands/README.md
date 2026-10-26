@@ -207,7 +207,8 @@ current directory tree. `--affected` limits it to targets your changes reach. `-
 Exit codes: `0` success, `2` usage error, `1` failed check.
 
 A usage error names the offending token, prints a `tip: a similar ...` line when
-a near match exists, then prints the usage line above.
+a near match exists, then prints the usage line above. With no command, the usage
+error prints the command list and a `see dx <command> --help` hint.
 
 ## JSON Output
 

@@ -164,7 +164,11 @@ mod tests {
         for command in [Command::Worktree, Command::Fix, Command::Test] {
             assert!(Command::parse(command.name()).is_some());
         }
-        assert!(Command::Fix.supports_affected() && Command::Test.supports_affected());
+        for command in [Command::Fix, Command::Test] {
+            assert!(
+                crate::args::grammar::advertised_flags(command).contains(&"affected".to_owned())
+            );
+        }
     }
 
     #[test]

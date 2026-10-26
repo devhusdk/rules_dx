@@ -94,19 +94,6 @@ fn flag_tokens(text: &str) -> Vec<String> {
     flags
 }
 
-fn strip_backticks(text: &str) -> String {
-    let mut plain = String::with_capacity(text.len());
-    let mut quoted = false;
-    for ch in text.chars() {
-        match ch {
-            '`' => quoted = !quoted,
-            _ if !quoted => plain.push(ch),
-            _ => {}
-        }
-    }
-    plain
-}
-
 fn rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
     let mut words = vec![command.name()];
     if command == Command::Docs {
@@ -422,41 +409,6 @@ fn command_help_only_advertises_accepted_flags() {
                 command.name()
             );
         }
-        let prose = command.flags();
-        let plain = strip_backticks(prose);
-        let wrapped_flags = command == Command::Watch;
-        let clauses: Vec<&str> = plain
-            .split(", ")
-            .filter(|clause| flag_tokens(clause).contains(&"--fail-on".to_owned()))
-            .collect();
-        if let Some(first) = clauses.first().filter(|_| !wrapped_flags) {
-            let excluded = first.contains("do not apply");
-            assert!(
-                clauses
-                    .iter()
-                    .all(|clause| clause.contains("do not apply") == excluded),
-                "dx {} splits --fail-on across clauses that disagree:\n{prose}",
-                command.name()
-            );
-            assert_eq!(
-                excluded,
-                rejects(command, "--fail-on", Some("error")),
-                "dx {} prose and parser disagree on --fail-on:\n{prose}",
-                command.name()
-            );
-        }
-        if !wrapped_flags && rejects(command, "--report", Some("sarif")) {
-            for clause in plain
-                .split(", ")
-                .filter(|clause| flag_tokens(clause).contains(&"--report".to_owned()))
-            {
-                assert!(
-                    clause.contains("do not apply"),
-                    "dx {} advertises --report in its flags but the parser rejects it:\n{prose}",
-                    command.name()
-                );
-            }
-        }
         if usage.contains("[-- bazel-options") || usage.contains("[-- bazel-args") {
             assert!(
                 !rejects(command, "--", Some("--jobs=1")),
@@ -568,12 +520,6 @@ fn command_usage_advertises_apply_exactly_where_the_parser_accepts_it() {
             "dx {} accepts={accepted} advertises={advertised} for --apply: {words:?}\n{usage}",
             command.name()
         );
-        assert_eq!(
-            command.supports_apply(),
-            accepted,
-            "dx {} supports_apply disagrees with the parser for --apply",
-            command.name()
-        );
     }
 }
 
@@ -593,7 +539,11 @@ fn docs_usage_blocks_only_use_accepted_flags() {
                 });
                 let mut accepted = globals.clone();
                 accepted.extend(flag_tokens(command.usage()));
-                accepted.extend(flag_tokens(command.flags()));
+                accepted.extend(
+                    super::super::grammar::advertised_flags(command)
+                        .iter()
+                        .map(|name| format!("--{name}")),
+                );
                 for flag in flag_tokens(line) {
                     assert!(
                         accepted.contains(&flag),
@@ -1337,16 +1287,6 @@ fn umbrella_phase_flag_routing_matches_docs() {
         sentence_names(&page, "`--report sarif=<dest>` merges"),
         sarif
     );
-    for command in [Command::Check, Command::Fix] {
-        let flags = command.flags();
-        let fail_on_clause = format!("--fail-on applies to {}", fail_on.join("/"));
-        let sarif_clause = format!("--report sarif merges {}", sarif.join("/"));
-        assert!(
-            flags.contains(&fail_on_clause) && flags.contains(&sarif_clause),
-            "dx {} help must say `{fail_on_clause}` and `{sarif_clause}`:\n{flags}",
-            command.name()
-        );
-    }
 }
 
 fn incomplete_result_clause(page: &str, name: &str) -> String {
@@ -1479,12 +1419,7 @@ fn command_reference_links_every_page_and_only_real_pages() {
 #[test]
 fn help_doc_anchors_resolve() {
     for command in Command::value_variants() {
-        let texts = [
-            command.describe(),
-            command.usage(),
-            command.flags(),
-            command.scopes_text(),
-        ];
+        let texts = [command.describe(), command.usage(), command.scopes_text()];
         for text in texts {
             let mut rest = text;
             while let Some(start) = rest.find("docs/") {
@@ -3165,12 +3100,18 @@ fn scope_page_affected_lists_match_the_registry() {
     };
     assert_eq!(
         scope_page_affected_sentence(&body, "accepted by"),
-        names(Command::supports_affected),
+        names(|command| {
+            command != Command::Watch && super::super::grammar::accepts_long(command, "affected")
+        }),
         "scope-defaults.md must name exactly the commands that accept `--affected`"
     );
     assert_eq!(
         scope_page_affected_sentence(&body, "reject `--affected`"),
-        names(|command| command.supports_here() && !command.supports_affected()),
+        names(|command| {
+            command.supports_here()
+                && command != Command::Watch
+                && !super::super::grammar::accepts_long(command, "affected")
+        }),
         "scope-defaults.md must name exactly the `--here` commands that reject `--affected`"
     );
 }
@@ -3283,7 +3224,7 @@ fn bullet_terms(page: &str) -> Vec<String> {
 fn watch_help_and_page_name_exactly_the_watchable_commands() {
     let registry = dx_adopt::WATCHABLE_COMMANDS;
     let command = Command::Watch;
-    for text in [command.usage(), command.flags(), command.scopes_text()] {
+    for text in [command.usage(), command.scopes_text()] {
         slot_lists(text, registry);
     }
     let page = std::fs::read_to_string(docs_dir().join("watch.md")).expect("watch page");
@@ -3294,13 +3235,7 @@ fn watch_help_and_page_name_exactly_the_watchable_commands() {
 fn completion_help_banner_and_page_name_exactly_the_shells() {
     let registry = super::super::completion::COMPLETION_SHELLS;
     let command = Command::Completion;
-    for text in [
-        command.describe(),
-        command.usage(),
-        command.flags(),
-        command.scopes_text(),
-        &banner(),
-    ] {
+    for text in [command.describe(), command.usage(), command.scopes_text()] {
         slot_lists(text, registry);
     }
     let page = std::fs::read_to_string(docs_dir().join("completion.md")).expect("completion page");
@@ -3310,7 +3245,7 @@ fn completion_help_banner_and_page_name_exactly_the_shells() {
 #[test]
 fn new_help_and_page_name_exactly_the_languages() {
     let registry = dx_adopt::SUPPORTED_NEW_LANGUAGES;
-    slot_lists(Command::New.flags(), registry);
+    slot_lists(Command::New.scopes_text(), registry);
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
     slot_lists(&page, registry);
     for entry in dx_adopt::NEW_LANGUAGES {

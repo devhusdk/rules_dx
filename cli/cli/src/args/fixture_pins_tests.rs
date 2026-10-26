@@ -180,7 +180,7 @@ fn profile_pins_match_the_profile_commands() {
     let pins = fixture("build_profiles");
     let mut wanted: Vec<String> = Command::value_variants()
         .iter()
-        .filter(|command| command.supports_profile())
+        .filter(|command| crate::args::command::owners::PROFILE_OWNERS.contains(command))
         .map(|command| (*command.name()).to_owned())
         .collect();
     wanted.sort();

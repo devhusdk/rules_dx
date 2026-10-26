@@ -17,6 +17,7 @@ coverage_fixture = rule(
 )
 
 def _manifest_impl(ctx):
+    """Checks the target's manifest header and rows against the expected cell and rows."""
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
     manifests = target[OutputGroupInfo][DX_COVERAGE_SOURCES_OUTPUT_GROUP].to_list()

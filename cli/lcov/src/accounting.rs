@@ -137,6 +137,23 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, String> {
     }
 }
 
+/// Declaration stubs that carry no executable lines.
+const DECLARATION_SUFFIXES: &[&str] = &[".d.ts", ".d.mts", ".d.cts"];
+/// C and C++ headers, which collectors omit from LCOV when they hold only declarations.
+const HEADER_SUFFIXES: &[&str] = &[".h", ".hh", ".hpp", ".hxx"];
+
+/// True for files that hold declarations only and so have nothing to execute.
+fn is_declaration_stub(path: &str) -> bool {
+    DECLARATION_SUFFIXES
+        .iter()
+        .any(|suffix| path.ends_with(suffix))
+}
+
+/// True for C and C++ headers.
+fn is_header(path: &str) -> bool {
+    HEADER_SUFFIXES.iter().any(|suffix| path.ends_with(suffix))
+}
+
 /// True when a valid exclusion range covers every line that is not blank or a comment.
 fn whole_file_excluded(path: &str, source: &str) -> bool {
     let Ok(ignores) = find_ignores(path, source) else {
@@ -210,7 +227,7 @@ pub fn account(
     }
     for (key, (path, test)) in &owned {
         let source = || load_source(path).unwrap_or_default();
-        let disposition = if *test {
+        let disposition = if *test || is_declaration_stub(path) {
             Disposition::Support
         } else if !is_covered_language(path) {
             Disposition::Unsupported
@@ -231,6 +248,8 @@ pub fn account(
             }
         } else if whole_file_excluded(path, &source()) {
             Disposition::Excluded
+        } else if is_header(path) {
+            Disposition::Support
         } else {
             result.errors.push(format!(
                 "production source absent from coverage report: {path}"

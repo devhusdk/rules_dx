@@ -190,6 +190,35 @@ fn header_without_lines_is_support() {
 }
 
 #[test]
+fn header_absent_from_the_report_is_support() {
+    let manifests = [manifest(
+        "v1 cell linux_x86_64\nprod source cc/decl.hpp\nprod source cc/a.cc\n",
+    )];
+    let documents = [lcov("cc/a.cc", &[(1, 1)])];
+    let result = account(
+        &manifests,
+        &documents,
+        &sources(&[("cc/decl.hpp", "int a();\n"), ("cc/a.cc", "int a;\n")]),
+    );
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.files["cc/decl.hpp"], Disposition::Support);
+    assert_eq!(result.support_files, 1);
+}
+
+#[test]
+fn declaration_stubs_are_support() {
+    let manifests = [manifest(
+        "v1 cell linux_x86_64\nprod source ts/a.d.ts\nprod source ts/b.d.mts\n",
+    )];
+    let result = account(&manifests, &[], &sources(&[]));
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.files["ts/a.d.ts"], Disposition::Support);
+    assert_eq!(result.files["ts/b.d.mts"], Disposition::Support);
+    assert_eq!(result.unsupported_files, 0);
+    assert_eq!(result.support_files, 2);
+}
+
+#[test]
 fn generated_report_path_matches_its_short_path() {
     let manifests = [manifest(
         "v1 cell linux_x86_64\nprod generated gen/out.cc\n",

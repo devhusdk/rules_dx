@@ -11,6 +11,7 @@ pub use crate::args::WorkflowVerb;
 pub const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
 
 pub const COVERAGE_SOURCES_GROUP_FLAG: &str = "--output_groups=+dx_coverage_sources";
+pub const COVERAGE_ALL_TARGETS_FLAG: &str = "--build_tests_only=false";
 
 /// The `--aspects` flag that writes the coverage source manifests.
 pub fn coverage_sources_aspect_flag() -> String {
@@ -90,6 +91,7 @@ pub fn workflow_options(verb: WorkflowVerb, bep_path: Option<&str>) -> Vec<Strin
     let mut required = Vec::new();
     if verb == WorkflowVerb::Coverage {
         required.push(COVERAGE_COMBINED_REPORT_FLAG.to_owned());
+        required.push(COVERAGE_ALL_TARGETS_FLAG.to_owned());
         required.push(coverage_sources_aspect_flag());
         required.push(COVERAGE_SOURCES_GROUP_FLAG.to_owned());
     }
@@ -408,7 +410,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[
                     "--keep_going",
-                    "--config=ci",
+                    "--config=mine",
                     "--config=ci-pr",
                     "--config=sanitizer",
                 ]),
@@ -428,7 +430,7 @@ mod tests {
                 .expect("keep_going is planned");
             let ci = argv
                 .iter()
-                .position(|arg| *arg == "--config=ci")
+                .position(|arg| *arg == "--config=mine")
                 .expect("ci is planned");
             let ci_pr = argv
                 .iter()
@@ -619,6 +621,32 @@ mod tests {
         };
         assert!(position(&aspect) > position("--aspects=//tools:mine.bzl%mine"));
         assert!(position(COVERAGE_SOURCES_GROUP_FLAG) > position("--output_groups=default"));
+        let forced_last = plan
+            .argv
+            .iter()
+            .rposition(|arg| arg == COVERAGE_ALL_TARGETS_FLAG)
+            .expect("build_tests_only forced off");
+        assert!(forced_last > position("--build_tests_only=false"));
+        let bare = plan_workflow(
+            WorkflowVerb::Coverage,
+            &resolved(&[]),
+            &strings(&["--config=mine"]),
+            None,
+            None,
+            &[],
+        )
+        .expect("plan");
+        let forced = bare
+            .argv
+            .iter()
+            .position(|arg| arg == COVERAGE_ALL_TARGETS_FLAG)
+            .unwrap_or_else(|| panic!("rc build_tests_only is overridden: {bare:?}"));
+        let config = bare
+            .argv
+            .iter()
+            .position(|arg| arg == "--config=mine")
+            .expect("user config kept");
+        assert!(forced > config, "forced after rc expansion: {bare:?}");
         for verb in [WorkflowVerb::Build, WorkflowVerb::Test] {
             let plan = plan_workflow(verb, &resolved(&[]), &[], None, None, &[]).expect("plan");
             assert!(

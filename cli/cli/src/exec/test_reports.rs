@@ -1047,17 +1047,20 @@ fn coverage_sources(
             message: format!("{path}: {error}"),
         })
     });
-    if matches!(output, OutputMode::Text { .. }) {
-        let _ = writeln!(err, "dx: {}", account.summary());
-    }
+    let summary = account.summary();
     let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
-    for message in &errors {
+    let notices = std::iter::once(("info", CODE_COVERAGE_SOURCES, &summary)).chain(
+        errors
+            .iter()
+            .map(|message| ("warning", CODE_COVERAGE_SOURCES_INCOMPLETE, *message)),
+    );
+    for (level, code, message) in notices {
         match output {
             OutputMode::Json => {
                 let notice = NoticeEvent {
-                    level: "warning".to_owned(),
-                    code: CODE_COVERAGE_SOURCES_INCOMPLETE.to_owned(),
-                    message: (*message).clone(),
+                    level: level.to_owned(),
+                    code: code.to_owned(),
+                    message: message.clone(),
                     related_command: None,
                     scope: None,
                     path: None,
@@ -1068,8 +1071,11 @@ fn coverage_sources(
                     let _ = write_event(out, &event);
                 }
             }
+            OutputMode::Text { .. } if code == CODE_COVERAGE_SOURCES => {
+                let _ = writeln!(err, "dx: {message}");
+            }
             OutputMode::Text { .. } => {
-                let _ = writeln!(err, "dx: {CODE_COVERAGE_SOURCES_INCOMPLETE}: {message}");
+                let _ = writeln!(err, "dx: {code}: {message}");
             }
             _ => {}
         }
@@ -1711,7 +1717,18 @@ mod tests {
             notice["message"],
             "production source absent from coverage report: src/b.py"
         );
-        assert!(!out.contains("coverage sources linux_x86_64"), "{out}");
+        let counts = out
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find(|event| event["code"] == "coverage_sources")
+            .unwrap_or_else(|| panic!("no counts notice: {out}"));
+        assert_eq!(counts["level"], "info", "{counts}");
+        assert!(
+            counts["message"]
+                .as_str()
+                .is_some_and(|message| message.starts_with("coverage sources linux_x86_64: ")),
+            "{counts}"
+        );
     }
 
     #[test]

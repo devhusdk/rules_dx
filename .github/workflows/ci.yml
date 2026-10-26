@@ -43,6 +43,13 @@ jobs:
     with:
       rules_dx_version: "0.0.0"
       docs_scope: "//docs/... //tools/docs/..."
+      site: "//tools/docs/site:user_site"
+      site_check: "//tools/docs/site:user_site_check"
+      landing: true
+      smoke_test: "//tools/docs/site:deploy_smoke_test"
+      forbid: |
+        Treat warnings as errors
+        docs_fixture
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}

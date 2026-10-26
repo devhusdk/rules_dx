@@ -54,7 +54,6 @@ pub(super) fn execute_configured(
             runner,
             workspace,
             invocation,
-            mode,
             &mut gate,
         ) {
             drop(gate);
@@ -87,9 +86,9 @@ fn run_configured_target(
     runner: &dyn dx_process::Runner,
     workspace: &std::path::Path,
     invocation: &Invocation,
-    mode: RunMode,
     gate: &mut SlotGate<'_>,
 ) -> Result<(), i32> {
+    let mode = RunMode::of(invocation);
     let set = &target.set;
     let verb = mode.verb();
     if mode == RunMode::Update {

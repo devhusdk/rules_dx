@@ -22,11 +22,7 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
     }
     let verbose = invocation.chatty();
-    let mode = if invocation.applies() {
-        RunMode::Update
-    } else {
-        RunMode::Check
-    };
+    let mode = RunMode::of(invocation);
     if let Some(registry) = match dx_adopt::dependency_sets::load(env.workspace) {
         Ok(registry) => registry,
         Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
@@ -95,6 +91,14 @@ enum RunMode {
 }
 
 impl RunMode {
+    fn of(invocation: &Invocation) -> RunMode {
+        if invocation.applies() {
+            RunMode::Update
+        } else {
+            RunMode::Check
+        }
+    }
+
     fn mode_text(self) -> &'static str {
         match self {
             RunMode::Update => "default",

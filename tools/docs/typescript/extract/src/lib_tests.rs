@@ -198,11 +198,12 @@ fn a_dangling_re_export_is_an_error() {
 fn a_value_and_a_type_with_one_name_get_distinct_ids() {
     let value = json!({
         "id": 30, "name": "Color", "variant": "declaration", "kind": 32,
-        "flags": {"isConst": true}, "type": number()
+        "flags": {"isConst": true}, "type": number(),
+        "sources": source("src/c.ts", 1)
     });
     let alias = json!({
         "id": 31, "name": "Color", "variant": "declaration", "kind": 2097152,
-        "flags": {}, "type": number()
+        "flags": {}, "type": number(), "sources": source("src/c.ts", 2)
     });
     let shard = convert_ok(json!([value, alias]));
     let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
@@ -246,6 +247,7 @@ fn a_re_export_of_overloads_points_at_the_first_overload() {
 fn interface_call_and_index_signatures_are_rendered() {
     let interface = json!({
         "id": 40, "name": "Fn", "variant": "declaration", "kind": 256, "flags": {},
+        "sources": source("src/c.ts", 3),
         "signatures": [{
             "id": 41, "name": "Fn", "variant": "signature", "kind": 16384, "flags": {},
             "parameters": [{
@@ -461,6 +463,7 @@ fn a_symbol_without_sources_is_an_error_naming_it() {
         .as_object_mut()
         .expect("signature")
         .remove("sources");
+    bare.as_object_mut().expect("node").remove("sources");
     let error = convert(&project(json!([bare])), &settings()).expect_err("no sources");
     assert!(error.contains("'scale'"), "{error}");
     assert!(error.contains("no sources"), "{error}");
@@ -502,9 +505,21 @@ fn parse_rejects_bad_invocations() {
     for (input, needle) in [
         (vec!["--typedoc"], "needs a value"),
         (vec!["--bogus", "x"], "unknown argument"),
-        (vec!["--out", "b", "--package", "p"], "--typedoc is required"),
         (
-            vec!["--typedoc", "a", "--typedoc", "b", "--out", "o", "--package", "p"],
+            vec!["--out", "b", "--package", "p"],
+            "--typedoc is required",
+        ),
+        (
+            vec![
+                "--typedoc",
+                "a",
+                "--typedoc",
+                "b",
+                "--out",
+                "o",
+                "--package",
+                "p",
+            ],
             "more than once",
         ),
         (

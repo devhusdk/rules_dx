@@ -38,7 +38,15 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut index = 0;
     while index < args.len() {
         let flag = args[index].as_str();
-        if !["--typedoc", "--out", "--package", "--source-prefix", "--config"].contains(&flag) {
+        if ![
+            "--typedoc",
+            "--out",
+            "--package",
+            "--source-prefix",
+            "--config",
+        ]
+        .contains(&flag)
+        {
             return Err(format!("unknown argument '{flag}'"));
         }
         let Some(value) = args.get(index + 1) else {

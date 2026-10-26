@@ -433,12 +433,7 @@ impl Walker<'_> {
         let source = signature
             .and_then(|s| list(s, "sources").first())
             .or_else(|| list(node, "sources").first())
-            .ok_or_else(|| {
-                format!(
-                    "TypeDoc symbol '{}' has no sources entry",
-                    draft.qualified
-                )
-            })
+            .ok_or_else(|| format!("TypeDoc symbol '{}' has no sources entry", draft.qualified))
             .and_then(|source| self.source(source))
             .map(Some)?;
         let parent_ids = member_of(self, &draft.parent);

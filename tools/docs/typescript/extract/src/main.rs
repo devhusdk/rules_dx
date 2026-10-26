@@ -18,10 +18,13 @@ fn main() -> ExitCode {
         println!("{}", dx_docs_typescript_extract::usage());
         return ExitCode::SUCCESS;
     }
-    let command = match dx_docs_typescript_extract::parse(&args) {
+    let options = match dx_docs_typescript_extract::parse(&args) {
         Ok(options) => options,
         Err(detail) => {
-            eprintln!("typescript_extract: {detail}\n{}", dx_docs_typescript_extract::usage());
+            eprintln!(
+                "typescript_extract: {detail}\n{}",
+                dx_docs_typescript_extract::usage()
+            );
             return ExitCode::from(2);
         }
     };

@@ -399,6 +399,25 @@ fn qualify_passes_a_synthetic_cell_and_round_trips_the_record() {
 }
 
 #[test]
+fn qualify_passes_a_gnu_binary_with_only_system_imports() {
+    let mut cell = synthetic_cell("tar.gz");
+    cell.runtime.clear();
+    let exe = elf(
+        EM_X86_64,
+        &["libc.so.6", "libgcc_s.so.1", "ld-linux-x86-64.so.2"],
+    );
+    let members = members_of(&cell, exe);
+    let record = qualify(&stage(cell, members).inputs, &FakeRunner::new());
+    assert_eq!(
+        verdict_of(&record, "imports").0,
+        Verdict::Ok,
+        "{:#?}",
+        record.checks
+    );
+    assert_eq!(record.result, Verdict::Ok, "{:#?}", record.checks);
+}
+
+#[test]
 fn qualify_rejects_a_wrong_architecture_binary() {
     let (cell, exe) = host_cell("tar.gz");
     let fixture = stage(cell.clone(), members_of(&cell, patch_machine(&exe)));
@@ -620,6 +639,7 @@ fn import_allowed_matches_system_lists_runtime_and_windows_case() {
         &[]
     ));
     assert!(import_allowed("linux", "libc.so.6", &[]));
+    assert!(import_allowed("linux", "libgcc_s.so.1", &[]));
     assert!(!import_allowed("linux", "LIBC.so.6", &[]));
     assert!(!import_allowed("linux", "libssl.so.3", &[]));
     assert!(!import_allowed("solaris", "libc.so.6", &[]));

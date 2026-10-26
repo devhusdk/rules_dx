@@ -10,6 +10,20 @@ pub fn results_path(workspace: &Path) -> PathBuf {
     workspace.join(".dx").join("results.json")
 }
 
+/// Identifies one run: `{pid}-{nonce}-{suffix}`, the suffix being the random part of the
+/// `dx-run-XXXXXX` temp dir name (omitted when the dir has another name).
+pub fn run_id(pid: u32, nonce: u64, temp_dir: &Path) -> String {
+    let suffix = temp_dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| name.strip_prefix("dx-run-"))
+        .filter(|suffix| !suffix.is_empty());
+    match suffix {
+        Some(suffix) => format!("{pid}-{nonce}-{suffix}"),
+        None => format!("{pid}-{nonce}"),
+    }
+}
+
 pub fn intended_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
     temp_dir.join(format!("dx-generate-{pid}-{nonce}.json"))
 }
@@ -51,6 +65,15 @@ pub fn clean_for_stop() -> MutexGuard<'static, Option<PathBuf>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn run_id_is_stable_per_run_and_differs_by_nonce() {
+        let dir = Path::new("/tmp/dx-run-AbC123");
+        assert_eq!(run_id(7, 1, dir), "7-1-AbC123");
+        assert_eq!(run_id(7, 1, dir), run_id(7, 1, dir));
+        assert_ne!(run_id(7, 1, dir), run_id(7, 2, dir));
+        assert_eq!(run_id(7, 1, Path::new("/tmp/harness")), "7-1");
+    }
 
     #[test]
     fn clean_for_stop_removes_the_registered_run_dir_once() {

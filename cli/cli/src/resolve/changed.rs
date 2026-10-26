@@ -147,6 +147,9 @@ fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, String> {
         if path.is_empty() {
             return Err("git change list has an empty path".to_owned());
         }
+        if path == ".dx" || path.starts_with(".dx/") {
+            continue;
+        }
         changes.push(dx_adopt::GitChange {
             path: path.to_owned(),
             from: None,
@@ -793,10 +796,24 @@ pub fn resolve_affected(
         let loaded = RuleGraph::load(workspace, runner, startup_options)?;
         for (path, changed) in &narrowed {
             let mut repos: BTreeSet<String> = BTreeSet::new();
+            let mut seeds: Vec<String> = Vec::new();
             for (hub, crates) in changed {
-                targets.extend(lock_inputs::seeds(loaded.external_inputs(), hub, crates));
+                seeds.extend(lock_inputs::seeds(loaded.external_inputs(), hub, crates));
                 repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
             }
+            // Bazel picks a toolchain through resolution, so its users have no
+            // edge to it; a changed crate behind one can reach any rule.
+            if let Some(toolchain) = loaded
+                .reached_of_kind(&seeds, |kind| kind == "toolchain")
+                .first()
+            {
+                push_widened(
+                    &mut widened,
+                    "//...".to_owned(),
+                    format!("changed crates in {path} reach toolchain {toolchain}"),
+                );
+            }
+            targets.extend(seeds);
             if !repos.is_empty() {
                 let repos: Vec<String> = repos.into_iter().collect();
                 widened.push(WidenedScope {
@@ -891,6 +908,17 @@ mod tests {
                 .iter()
                 .map(|(name, inputs)| {
                     serde_json::json!({"type": "RULE", "rule": {"name": name, "ruleInput": inputs}})
+                        .to_string()
+                })
+                .collect();
+            FakeQuery::ok(&lines.join("\n"))
+        }
+
+        fn graph_with_kinds(rules: &[(&str, &str, &[&str])]) -> QueryResult {
+            let lines: Vec<String> = rules
+                .iter()
+                .map(|(name, class, inputs)| {
+                    serde_json::json!({"type": "RULE", "rule": {"name": name, "ruleClass": class, "ruleInput": inputs}})
                         .to_string()
                 })
                 .collect();
@@ -1572,6 +1600,48 @@ mod tests {
         let calls = query.calls();
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].0, strings(&["git", "show", "base:./Cargo.lock"]));
+    }
+
+    #[test]
+    fn lock_bump_behind_a_toolchain_widens_to_everything() {
+        let scratch = crate_workspace("dx-changed-toolchain-lock-");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&cargo_lock("1.0.1")),
+            FakeQuery::graph_with_kinds(&[
+                (
+                    "//tc:prost_impl",
+                    "rust_library",
+                    &["@@rules_rust++crate+crates//:serde"],
+                ),
+                ("//tc:prost", "toolchain", &["//tc:prost_impl"]),
+                ("//a:lib", "rust_library", &[]),
+            ]),
+        ]);
+        let selection = resolve_affected(
+            &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("lock widens");
+        assert_eq!(
+            selection.widened,
+            [
+                WidenedScope {
+                    scope: "//...".to_owned(),
+                    reason: "changed crates in Cargo.lock reach toolchain //tc:prost".to_owned(),
+                    repos: Vec::new(),
+                },
+                WidenedScope {
+                    scope: "rdeps(//..., @crates//:serde)".to_owned(),
+                    reason: "changed crates in Cargo.lock".to_owned(),
+                    repos: strings(&["@crates//:serde"]),
+                },
+            ]
+        );
     }
 
     #[test]
@@ -2400,6 +2470,21 @@ mod tests {
             collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect("collect");
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].path, "pkg/a.py");
+    }
+
+    #[test]
+    fn untracked_dx_state_is_not_a_change() {
+        let scratch = dx_test_scratch::scratch("dx-changed-untracked-state-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(Vec::new()),
+            FakeQuery::raw(Vec::new()),
+            FakeQuery::raw(b".dx/leases/process-groups/1-7.lock\0pkg/c.py\0".to_vec()),
+        ]);
+        let changes =
+            collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect("collect");
+        let paths: Vec<&str> = changes.iter().map(|change| change.path.as_str()).collect();
+        assert_eq!(paths, vec!["pkg/c.py"]);
     }
 
     #[test]

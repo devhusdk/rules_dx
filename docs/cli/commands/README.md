@@ -237,7 +237,8 @@ so does `output` in `dx.toml`. In CI these variables are ignored.
 
 Empty optional fields are left out of `test_outcome` and `build_failure` events. A plain
 pass is not an event. `dx test` and `dx coverage` count passed, failed, cached, no_cases, and skipped tests
-in `command_finished` and write every test to the `results` report. Equal
+in `command_finished` and write every test to the `results` report. Each count is
+per result, so a target with four shards counts four. Equal
 `build_failure` and `diagnostic` events from different targets and
 configurations appear once, with a `count`.
 
@@ -306,9 +307,10 @@ configurations appear once, with a `count`.
   `dx worktree prune --apply`.
   `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
-- `command_finished`: the `exit_code`, plus any `results_complete`,
+- `command_finished`: the `exit_code`, plus any `results_complete`, `run_id`,
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
-  `failed`, `cached`, `no_cases`, and `skipped`. `failed` counts results whose final attempt has
+  `failed`, `cached`, `no_cases`, and `skipped`. Each counts results (per target,
+  configuration, run and shard), so a target with four shards counts four. `failed` counts results whose final attempt has
   outcome `failed` or `timeout`; earlier failed attempts of a retried test
   still appear as `test_outcome` events with `final: false` and are not
   counted. `cached` counts

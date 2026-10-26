@@ -649,6 +649,15 @@ fn parse_inner<S: AsRef<OsStr>>(
             option: "--from <version> --to <version>".to_owned(),
         });
     }
+    if command == Command::Generate {
+        if let Some(scope) = targets.iter().find(|scope| {
+            scope.starts_with('@') && !scope.starts_with("@//") && !scope.starts_with("@@//")
+        }) {
+            return Err(ArgsError::InvalidScope {
+                scope: scope.clone(),
+            });
+        }
+    }
     if command == Command::Upgrade {
         if let Some(scope) = targets.first() {
             return Err(unsupported(command, scope.clone()));

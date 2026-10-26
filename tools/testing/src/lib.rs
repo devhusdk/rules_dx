@@ -11,6 +11,7 @@
 use std::path::{Path, PathBuf};
 
 pub mod fatbin;
+pub mod latency;
 pub mod nested;
 
 pub use dx_binfmt::machine as image_machine;

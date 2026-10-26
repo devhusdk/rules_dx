@@ -883,7 +883,14 @@ mod tests {
         .expect("probe lists");
         assert_eq!(listed.code, Some(0));
         let text = String::from_utf8(listed.stdout).expect("listing is text");
-        let mut allowed = vec!["TMPDIR", "TEMP", "TMP", "LANG", "TZ"];
+        let mut allowed = vec![
+            "TMPDIR",
+            "TEMP",
+            "TMP",
+            "LANG",
+            "TZ",
+            "__LLVM_PROFILE_RT_INIT_ONCE",
+        ];
         if cfg!(windows) {
             allowed.push("SystemRoot");
         }

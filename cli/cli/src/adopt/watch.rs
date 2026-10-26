@@ -788,7 +788,7 @@ mod tests {
         .expect("release");
         assert!(release.release);
         assert_eq!(
-            release.bazel_options,
+            release.raw_bazel_options(),
             vec!["--hi".to_owned()],
             "app args ride the cloned invocation"
         );
@@ -798,7 +798,7 @@ mod tests {
     #[test]
     fn watch_parses_wrapped_options_like_the_wrapped_command() {
         let got = invocation(&["watch", "build", "//...", "--", "--jobs=4"]);
-        assert_eq!(got.bazel_options, vec!["--jobs=4".to_owned()]);
+        assert_eq!(got.raw_bazel_options(), vec!["--jobs=4".to_owned()]);
         let got = invocation(&["watch", "--apply", "fix", "//app:bin"]);
         assert!(got.apply);
         assert!(crate::args::parse(&["watch", "--apply", "run", "//app:bin"]).is_err());
@@ -830,7 +830,7 @@ mod tests {
         assert_eq!(iteration.reports.len(), 1);
         assert_eq!(iteration.targets, vec!["//a:one".to_owned()]);
         assert_eq!(
-            iteration.bazel_options,
+            iteration.raw_bazel_options(),
             vec!["--jobs=4".to_owned(), "--apply".to_owned()]
         );
         assert!(!iteration.apply);

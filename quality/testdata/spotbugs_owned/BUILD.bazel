@@ -101,6 +101,11 @@ spotbugs_results(
     target = ":dep",
 )
 
+config_setting(
+    name = "coverage",
+    values = {"collect_code_coverage": "true"},
+)
+
 sh_test(
     name = "spotbugs_owned_test",
     srcs = ["check.sh"],
@@ -112,14 +117,20 @@ sh_test(
         ":implicit_test_results",
         ":uses_api_results",
     ],
+    target_compatible_with = select({
+        ":coverage": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 sh_test(
     name = "spotbugs_native_test",
     srcs = ["native.sh"],
+    args = ["$(rootpaths @bazel_tools//tools/jdk:JacocoCoverage)"],
     data = [
         ":app",
         ":dep",
         "//quality/tools/jvm:spotbugs",
+        "@bazel_tools//tools/jdk:JacocoCoverage",
     ],
 )

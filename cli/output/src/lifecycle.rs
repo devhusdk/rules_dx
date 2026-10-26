@@ -767,15 +767,21 @@ fn opt_i64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FinishedCounts {
     pub results_complete: Option<bool>,
+    /// Ties `.dx/results.json` to the run that wrote it.
+    pub run_id: Option<String>,
     pub diagnostics: Option<[u64; 3]>,
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
     pub baseline: Option<[u64; 3]>,
-    /// Test result counts.
+    /// Test result counts; see `TestCounts` for the unit.
     pub tests: Option<TestCounts>,
 }
 
 /// Test result counts; `no_cases` is the part of `passed` whose report had no cases.
+///
+/// The unit is one result: one per target, configuration, run and shard, counted at its final
+/// attempt. A target with 4 shards counts 4. `skipped` counts once per skipped or filtered target
+/// and configuration.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TestCounts {
     pub passed: u64,
@@ -790,6 +796,9 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
     map.insert("exit_code".to_owned(), Value::from(exit_code));
     if let Some(results_complete) = counts.results_complete {
         map.insert("results_complete".to_owned(), Value::Bool(results_complete));
+    }
+    if let Some(run_id) = &counts.run_id {
+        map.insert("run_id".to_owned(), Value::from(run_id.as_str()));
     }
     if let Some([info, warning, error]) = counts.diagnostics {
         map.insert(
@@ -976,6 +985,7 @@ mod tests {
     fn finished_counts_render_exactly() {
         let counts = FinishedCounts {
             results_complete: Some(true),
+            run_id: Some("7-1-abc".to_owned()),
             diagnostics: Some([0, 3, 1]),
             changes: Some([0, 2]),
             effects: Some([1, 1]),
@@ -984,6 +994,7 @@ mod tests {
         };
         let event = command_finished(1, &counts);
         assert_eq!(event["exit_code"], Value::from(1));
+        assert_eq!(event["run_id"], Value::from("7-1-abc"));
         assert_eq!(event["diagnostics"]["warning"], Value::from(3));
         assert_eq!(
             event["changes"],
@@ -993,12 +1004,14 @@ mod tests {
         assert!(event.get("baseline").is_none());
         let bare = command_finished(0, &FinishedCounts::default());
         assert!(bare.get("changes").is_none());
+        assert!(bare.get("run_id").is_none());
     }
 
     #[test]
     fn finished_changes_render() {
         let counts = FinishedCounts {
             results_complete: None,
+            run_id: None,
             diagnostics: None,
             changes: Some([1, 2]),
             effects: None,

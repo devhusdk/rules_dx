@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use dx_testing::latency::{record, Class, Stats};
 use dx_testing::{mkscratch, resolve_runfiles};
 
 const SAMPLES: usize = 40;
@@ -131,11 +132,6 @@ fn once(sandbox: &Sandbox, op: &Operation) -> Duration {
     elapsed
 }
 
-fn percentile(sorted: &[Duration], pct: usize) -> Duration {
-    let rank = (sorted.len() * pct).div_ceil(100).max(1);
-    sorted[rank - 1]
-}
-
 #[test]
 fn local_operations_never_launch_bazel() {
     let sandbox = sandbox();
@@ -162,18 +158,20 @@ fn local_operations_stay_inside_their_ceilings() {
         for _ in 0..WARMUP {
             once(&sandbox, op);
         }
-        let mut times: Vec<Duration> = (0..SAMPLES).map(|_| once(&sandbox, op)).collect();
-        times.sort();
-        let median = percentile(&times, 50);
-        let p95 = percentile(&times, 95);
+        let times: Vec<Duration> = (0..SAMPLES).map(|_| once(&sandbox, op)).collect();
+        let stats = Stats::of(times, true);
+        let median = stats.median;
+        let p95 = stats.p95.unwrap_or(stats.max);
         println!(
-            "{:<22} median={:>6.1}ms p95={:>6.1}ms max={:>6.1}ms ceilings={}ms/{}ms",
-            op.name,
-            median.as_secs_f64() * 1e3,
-            p95.as_secs_f64() * 1e3,
-            times[times.len() - 1].as_secs_f64() * 1e3,
-            op.median_ceiling.as_millis(),
-            op.p95_ceiling.as_millis()
+            "{}",
+            record(
+                op.name,
+                Class::Local,
+                "local",
+                "warm",
+                &stats,
+                &[("median", op.median_ceiling), ("p95", op.p95_ceiling)],
+            )
         );
         if median > op.median_ceiling || p95 > op.p95_ceiling {
             failures.push(format!("{}: median {median:?} p95 {p95:?}", op.name));

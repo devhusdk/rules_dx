@@ -59,6 +59,7 @@ pub struct QualityRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
+    pub baseline: Option<String>,
     pub origin: Option<UmbrellaOrigin>,
 }
 
@@ -86,6 +87,7 @@ pub struct UmbrellaRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
+    pub baseline: Option<String>,
 }
 
 impl CommonOptions {
@@ -190,6 +192,7 @@ impl UmbrellaRequest {
             workspace: self.workspace.clone(),
             common: self.common_with(reports),
             fail_on: self.fail_on,
+            baseline: self.baseline.clone(),
             origin: Some(self.origin()),
         })
     }
@@ -224,6 +227,7 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
+    pub baseline: Option<String>,
     pub include_edits: bool,
     pub min_coverage: Option<u32>,
     pub targets: Vec<String>,
@@ -374,6 +378,7 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
+            baseline: self.baseline.clone(),
             origin: None,
         })
     }
@@ -443,6 +448,7 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
+            baseline: self.baseline.clone(),
         })
     }
 }
@@ -562,6 +568,7 @@ mod tests {
             output: OutputMode::Text { quiet: false },
             reports: Vec::new(),
             fail_on: Threshold::Warning,
+            baseline: None,
             include_edits: false,
             min_coverage: None,
             targets: targets.iter().map(ToString::to_string).collect(),
@@ -882,6 +889,31 @@ mod tests {
             dx_output::Threshold::Error,
             "severity rides the typed request"
         );
+    }
+
+    #[test]
+    fn baseline_selection_rides_every_quality_request() {
+        let defaults = crate::args::FileDefaults {
+            baseline: Some("b.json".to_owned()),
+            ..Default::default()
+        };
+        let inv = crate::args::parse_with(&["lint".to_owned()], &|_| None, &defaults)
+            .expect("parse lint");
+        assert_eq!(
+            inv.quality_request().expect("quality").baseline.as_deref(),
+            Some("b.json")
+        );
+        let fix =
+            crate::args::parse_with(&["fix".to_owned()], &|_| None, &defaults).expect("parse fix");
+        let umbrella = fix.umbrella_request().expect("umbrella");
+        let phase = umbrella
+            .phase_quality_request(Command::Lint, Vec::new())
+            .expect("phase");
+        assert_eq!(phase.baseline.as_deref(), Some("b.json"));
+        let verify = umbrella
+            .verify_quality_request(Command::Lint)
+            .expect("verify");
+        assert_eq!(verify.baseline.as_deref(), Some("b.json"));
     }
 
     #[test]

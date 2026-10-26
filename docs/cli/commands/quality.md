@@ -1033,6 +1033,8 @@ file in `dx.toml`:
 baseline = "quality/baseline.json"
 ```
 
+`dx.local.toml` can override the selection; CI reads only `dx.toml`.
+
 The path stays inside the workspace and names a `.json` file. Commit the
 file with the selection. A missing file fails checks. Pass `--apply` once to
 write it.

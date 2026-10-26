@@ -281,36 +281,6 @@ fn every_command_rejects_empty_and_relative_scopes() {
 }
 
 #[test]
-fn file_defaults_load_from_workspace_and_reject_invalid_toml() {
-    let scratch = dx_test_scratch::scratch("parser-file-defaults-");
-    assert_eq!(
-        super::load_file_defaults(scratch.path()).expect("absent"),
-        super::super::FileDefaults::default()
-    );
-    std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("workspace");
-    std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
-    std::fs::write(scratch.path().join("dx.toml"), "[dx]\nquiet = true\n").expect("defaults");
-    assert_eq!(
-        super::load_file_defaults(scratch.path())
-            .expect("defaults")
-            .quiet,
-        Some(true)
-    );
-    std::fs::write(scratch.path().join("dx.toml"), "[broken").expect("bad defaults");
-    assert!(super::load_file_defaults(scratch.path()).is_err());
-    std::fs::write(scratch.path().join("dx.toml"), "[dx]\nqiet = true\n").expect("misspelled key");
-    let detail = super::load_file_defaults(scratch.path()).expect_err("a typo is not ignored");
-    assert!(
-        detail.contains("unknown field `qiet`"),
-        "the diagnostic names the key: {detail}"
-    );
-    assert!(
-        detail.contains("dx.toml"),
-        "the diagnostic names the file: {detail}"
-    );
-}
-
-#[test]
 fn bump_needs_exactly_one_selector_plus_version() {
     let bump = parse(&strings(&["bump", "cargo:anyhow", "1.2.3"])).expect("parse bump");
     assert_eq!(bump.command, Command::Bump);

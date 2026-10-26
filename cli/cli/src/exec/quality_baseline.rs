@@ -104,6 +104,7 @@ fn view_for(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn apply_baseline(
     workspace: &Path,
     status: &[DiagnosticEvent],
@@ -112,14 +113,13 @@ pub(crate) fn apply_baseline(
     complete: bool,
     stable: bool,
     apply: bool,
+    baseline: Option<&str>,
 ) -> Result<Option<BaselineView>, (String, String)> {
     let fail = |message: String| (CODE_VERIFICATION_FAILED.to_owned(), message);
-    let (defaults, _) =
-        dx_adopt::load_defaults(workspace).map_err(|error| fail(error.to_string()))?;
-    let Some(rel) = defaults.baseline else {
+    let Some(rel) = baseline else {
         return Ok(None);
     };
-    let full = dx_adopt::join_quality_baseline(workspace, &rel);
+    let full = dx_adopt::join_quality_baseline(workspace, rel);
     let bytes = match std::fs::read(&full) {
         Ok(bytes) => Some(bytes),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
@@ -160,23 +160,19 @@ pub(crate) fn apply_baseline(
         let rendered = render_baseline(&next).map_err(|error| fail(error.to_string()))?;
         write_baseline(&full, rendered.as_bytes())
             .map_err(|error| fail(format!("cannot write baseline {rel}: {error}")))?;
-        return Ok(Some(view_for(
-            &rel, &next, &findings, scope, complete, true,
-        )));
+        return Ok(Some(view_for(rel, &next, &findings, scope, complete, true)));
     };
     let baseline = parse_baseline(&bytes).map_err(|error| fail(format!("{rel}: {error}")))?;
     if !write {
         return Ok(Some(view_for(
-            &rel, &baseline, &findings, scope, complete, false,
+            rel, &baseline, &findings, scope, complete, false,
         )));
     }
     let next = refresh_baseline(&baseline, &findings, scope);
     let rendered = render_baseline(&next).map_err(|error| fail(error.to_string()))?;
     write_baseline(&full, rendered.as_bytes())
         .map_err(|error| fail(format!("cannot write baseline {rel}: {error}")))?;
-    Ok(Some(view_for(
-        &rel, &next, &findings, scope, complete, true,
-    )))
+    Ok(Some(view_for(rel, &next, &findings, scope, complete, true)))
 }
 
 #[cfg(test)]
@@ -510,6 +506,31 @@ mod tests {
     }
 
     #[test]
+    fn ci_ignores_the_local_baseline_selection() {
+        let mut harness = Harness::new("baseline-ci-local");
+        harness.write_source(PATH, BODY);
+        commit_baseline(&harness, vec![recorded("unused", LINE)]);
+        harness.write_source("dx.local.toml", "[quality]\nbaseline = \"local.json\"\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
+        );
+        let words: &[&str] = &["lint", "--check", "--output=text"];
+        let (code, out, _) = harness.run_with_ci(words, true);
+        assert_eq!(code, 0, "{out}");
+        assert!(out.contains("Baseline quality/baseline.json"), "{out}");
+        let (code, out, err) = harness.run_with_ci(words, false);
+        assert_ne!(code, 0);
+        assert!(format!("{out}{err}").contains("local.json"), "{out}{err}");
+        harness.write_source("dx.local.toml", "[broken");
+        let (code, out, _) = harness.run_with_ci(words, true);
+        assert_eq!(code, 0, "{out}");
+        let (code, _, err) = harness.run_with_ci(words, false);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("dx.local.toml"), "{err}");
+    }
+
+    #[test]
     fn threshold_still_applies_to_new_findings_only() {
         let mut harness = Harness::new("baseline-threshold");
         harness.write_source(PATH, BODY);
@@ -528,6 +549,7 @@ mod tests {
             true,
             true,
             false,
+            Some(REL),
         )
         .expect("applies")
         .expect("configured");

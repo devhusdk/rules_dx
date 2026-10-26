@@ -324,6 +324,7 @@ fn run_quality_request(
         collected.complete,
         collected.unstable.is_empty(),
         apply,
+        request.baseline.as_deref(),
     ) {
         Ok(view) => view,
         Err((code, message)) => {

@@ -903,6 +903,7 @@ mod tests {
             output,
             reports,
             fail_on: dx_output::Threshold::Warning,
+            baseline: None,
             include_edits: false,
             min_coverage: None,
             targets: vec!["//app:bin".to_owned()],

@@ -747,6 +747,7 @@ pub struct TestCounts {
     pub failed: u64,
     pub cached: u64,
     pub no_cases: u64,
+    pub skipped: u64,
 }
 
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
@@ -781,7 +782,7 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
     if let Some(t) = &counts.tests {
         map.insert(
             "tests".to_owned(),
-            json!({"passed": t.passed, "failed": t.failed, "cached": t.cached, "no_cases": t.no_cases}),
+            json!({"passed": t.passed, "failed": t.failed, "cached": t.cached, "no_cases": t.no_cases, "skipped": t.skipped}),
         );
     }
     Value::Object(map)
@@ -1438,13 +1439,14 @@ mod tests {
                 passed: 5,
                 failed: 1,
                 cached: 2,
-                no_cases: 3
+                no_cases: 3,
+                skipped: 4
             }))["tests"],
-            serde_json::json!({"passed": 5, "failed": 1, "cached": 2, "no_cases": 3})
+            serde_json::json!({"passed": 5, "failed": 1, "cached": 2, "no_cases": 3, "skipped": 4})
         );
         assert_eq!(
             counts(Some(TestCounts::default()))["tests"],
-            serde_json::json!({"passed": 0, "failed": 0, "cached": 0, "no_cases": 0})
+            serde_json::json!({"passed": 0, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         assert!(counts(None).get("tests").is_none());
     }

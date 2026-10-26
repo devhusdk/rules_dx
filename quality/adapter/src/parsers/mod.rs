@@ -791,6 +791,14 @@ mod tests {
     }
 
     #[test]
+    fn located_reads_colon_in_unix_path() {
+        assert_eq!(
+            located("tsc", "a:b.sh:1:2: x", &["a:b.sh"]).expect("located"),
+            ("a:b.sh", "1:2: x")
+        );
+    }
+
+    #[test]
     fn located_matches_drive_rooted_paths() {
         let files = [r"C:\a", r"C:\a:b"];
         assert_eq!(

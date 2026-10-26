@@ -71,10 +71,9 @@ pub fn parse_ty(
             continue;
         }
         let (path, line_no, column, severity, rule, message) = ty_diagnostic(line, files)?;
-        let file = path;
         findings.push(finding(
             TOOL,
-            file,
+            path,
             rule.to_owned(),
             message,
             severity,

@@ -61,10 +61,9 @@ pub fn parse_flake8(
             continue;
         }
         let (path, row, column, rule, message) = flake8_line(line, files)?;
-        let checked = path;
         let (start, end) = point(row, column);
         findings.push(FileFinding {
-            file: checked.to_owned(),
+            file: path.to_owned(),
             finding: Finding {
                 tool_id: TOOL.to_owned(),
                 rule_id: rule.to_owned(),

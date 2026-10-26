@@ -481,6 +481,14 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
             ),
         });
     }
+    for downloads in &plan.downloads {
+        lines.push(format!(
+            "repository cache downloads unused for 30 days, {} entries, {}: {}",
+            downloads.entries.len(),
+            size(downloads.bytes),
+            downloads.cache.display()
+        ));
+    }
     lines
 }
 
@@ -555,6 +563,12 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
         };
         let mut event = simple_event("prune_base", base.slot, &base.dir, None, state);
         event["disk_bytes"] = base.bytes.into();
+        events.push(event);
+    }
+    for downloads in &plan.downloads {
+        let mut event = simple_event("prune_downloads", None, &downloads.cache, None, "stale");
+        event["disk_bytes"] = downloads.bytes.into();
+        event["entries"] = downloads.entries.len().into();
         events.push(event);
     }
     events
@@ -745,6 +759,7 @@ fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
 mod tests {
     use super::*;
     use crate::args::parsed;
+    use crate::worktree::host::Download;
     use crate::worktree::ops::State;
 
     #[test]
@@ -1206,6 +1221,21 @@ mod tests {
                     slot: None,
                     reason: "locked",
                 }],
+                downloads: vec![ops::PruneDownloads {
+                    cache: PathBuf::from("/bazel/cache/repos/v1/content_addressable"),
+                    entries: ["aaa", "bbb"]
+                        .iter()
+                        .map(|key| Download {
+                            dir: PathBuf::from(format!(
+                                "/bazel/cache/repos/v1/content_addressable/sha256/{key}"
+                            )),
+                            cache: PathBuf::from("/bazel/cache/repos/v1/content_addressable"),
+                            used: 0,
+                            bytes: 512,
+                        })
+                        .collect(),
+                    bytes: 1024,
+                }],
             },
             kept: vec![ops::PruneKept {
                 path: PathBuf::from("/kept"),
@@ -1234,6 +1264,12 @@ mod tests {
             ..PrunePlan::default()
         };
         assert_eq!(prune_exit(false, &only_kept), 0);
+        let only_downloads = PrunePlan {
+            downloads: full.downloads.clone(),
+            ..PrunePlan::default()
+        };
+        assert_eq!(prune_exit(false, &only_downloads), 1);
+        assert_eq!(prune_exit(true, &only_downloads), 0);
     }
 
     #[test]
@@ -1258,9 +1294,11 @@ mod tests {
                 ("prune_base", "skipped"),
                 ("prune_base", "free"),
                 ("prune_base", "orphaned"),
+                ("prune_downloads", "stale"),
             ]
         );
-        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 7] = [
+        assert_eq!(events[7]["entries"], 2);
+        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 8] = [
             ("/cache/slots/3", Some(3), None, Some(100), None),
             ("/ext", None, Some("e"), Some(200), None),
             ("/kept", None, Some("k"), None, Some("server")),
@@ -1268,6 +1306,13 @@ mod tests {
             ("/bazel/sss", Some(2), None, None, Some("server")),
             ("/bazel/bbb", Some(2), None, Some(1024), None),
             ("/bazel/aaa", None, None, Some(2048), None),
+            (
+                "/bazel/cache/repos/v1/content_addressable",
+                None,
+                None,
+                Some(1024),
+                None,
+            ),
         ];
         for (event, (path, slot, branch, bytes, reason)) in events.iter().zip(expected) {
             let object = event.as_object().expect("object");
@@ -1329,11 +1374,12 @@ mod tests {
              external worktree e, 200 B: /ext\n\
              output base of free slot 2, 1.0 KiB: /bazel/bbb\n\
              output base of removed /gone, 2.0 KiB: /bazel/aaa\n\
-             dx worktree: 3.3 KiB to reclaim; run `dx worktree prune --apply`\n"
+             repository cache downloads unused for 30 days, 2 entries, 1.0 KiB: /bazel/cache/repos/v1/content_addressable\n\
+             dx worktree: 4.3 KiB to reclaim; run `dx worktree prune --apply`\n"
         );
         let (code, text) = run_prune_output(&["worktree", "prune", "--apply"], &full);
         assert_eq!(code, 0);
-        assert!(text.ends_with("dx worktree: pruned 3.3 KiB\n"), "{text}");
+        assert!(text.ends_with("dx worktree: pruned 4.3 KiB\n"), "{text}");
         for words in [
             &["worktree", "prune"][..],
             &["worktree", "prune", "--apply"],

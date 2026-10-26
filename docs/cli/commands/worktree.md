@@ -38,8 +38,8 @@ JSON reports it as a `slot` event with `slot`, action `release`, and state
 
 `--output=json` streams `command_started`, one `slot` event per slot, and
 `command_finished`. `list` adds a `summary` event after the slots. `prune`
-emits `slot` events with action `prune`, and action `prune_base` for output
-bases.
+emits `slot` events with action `prune`, action `prune_base` for output
+bases, and action `prune_downloads` for repository cache downloads.
 
 When `git fetch origin` fails, `add` still uses local refs. Text prints
 `dx worktree: cannot fetch origin, using local refs: <error>` before the slot
@@ -49,7 +49,8 @@ after `command_started`. `hook create` prints the same line on stderr.
 When the pool's disk or the disk of a Bazel output root has under 20 GiB and
 under 10% free, or under 1 GiB free whatever its size, `add` and `hook create`
 (after they fetch and pick a slot) and `release` drop orphaned output bases,
-then free slots' output bases oldest first, and print one of these lines before
+then repository cache downloads unused for 30 days, then free slots' output
+bases, each oldest first, and print one of these lines before
 the slot line. `add` and `hook create` keep the output base of the slot they
 lease, so it stays warm for the build that follows.
 
@@ -78,10 +79,13 @@ A refusal emits no `slot` event. A branch you already hold still resolves to
 its slot.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
-`prune_base`), `path`, `state`, `server`, and optional `slot`, `branch`,
-`holder`, `reason`, `base`, and `disk_bytes`. `base` is set on `add` when it
-starts a new branch. `disk_bytes` is set for `prune` and `prune_base` events
-other than `kept` and `skipped`, and for `list` with `--disk`.
+`prune_base`, `prune_downloads`), `path`, `state`, `server`, and optional
+`slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, and `entries`.
+`base` is set on `add` when it starts a new branch. `disk_bytes` is set for
+`prune`, `prune_base`, and `prune_downloads` events other than `kept` and
+`skipped`, and for `list` with `--disk`. `entries` is set for
+`prune_downloads`: the number of downloads, and `path` is the repository
+cache's `content_addressable` directory.
 
 `state` values:
 
@@ -97,6 +101,8 @@ other than `kept` and `skipped`, and for `list` with `--disk`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
 - `skipped`: `prune_base` for a free slot's output base that `prune --apply`
   could not delete, with its `slot` and `reason` (`server`, `held`, or `busy`).
+- `stale`: `prune_downloads` for repository cache downloads unused for 30
+  days.
 
 `summary` fields: `slots`, `servers`, `servers_rss_bytes`, plus `disk_bytes` and
 `disk_cache_bytes` with `--disk`.
@@ -126,7 +132,8 @@ stderr `dx: cancelled: stopped by signal N`.
 It picks the slot that last held the branch, then a slot with the same
 `MODULE.bazel.lock`, then the most recently used, whatever the free disk.
 When disk is low, under 20 GiB and under 10% free or under 1 GiB free, it then
-deletes orphaned output bases, then the output bases of the other free slots,
+deletes orphaned output bases, then repository cache downloads unused for 30
+days, then the output bases of the other free slots,
 least recently used first, until each output base's disk is no longer low. It
 keeps the output base of the slot it picked. It reuses a free slot before it creates one. Files
 matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref>`
@@ -210,7 +217,13 @@ tracks `origin/<branch>` and is merged into the default branch, or whose
 `origin/<branch>` is deleted, and Bazel output bases of removed worktrees,
 including checkouts removed from `.claude/worktrees`. It also lists the output
 bases of the other free slots whose disk is low, least recently used first, as
-`output base of free slot <n>, <size>: <dir>`. `--bases` lists the output bases of every free slot, whatever the disk state, least recently used first, except the slots already listed as idle. `--bases` works with `prune` only. `--apply` deletes the idle free slots and stops each slot's
+`output base of free slot <n>, <size>: <dir>`. `--bases` lists the output bases of every free slot, whatever the disk state, least recently used first, except the slots already listed as idle. `--bases` works with `prune` only. It also lists the downloads in
+Bazel's repository cache that no build used for 30 days. Bazel never deletes
+these itself. Only the default cache, `cache/repos/v1/content_addressable`
+under each Bazel output root, is checked. A cache moved with
+`--repository_cache` is not cleaned, and the `contents` directory next to it is
+left to Bazel's own `--repo_contents_cache_gc_max_age` cleanup. A deleted
+download is fetched again when a build needs it. `--apply` deletes the idle free slots and stops each slot's
 Bazel server and deletes those output bases; the other slots stay. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
@@ -219,8 +232,10 @@ Without `--apply`, text prints one line per item, and a closing line
 `dx worktree: <size> to reclaim; run dx worktree prune --apply`. The item
 lines are `slot <n> idle <days> days, <size>: <path>`,
 `external worktree <branch>, <size>: <path>`,
-`output base of free slot <n>, <size>: <dir>`, and
-`output base of removed <workspace>, <size>: <dir>`. With `--apply` the closing
+`output base of free slot <n>, <size>: <dir>`,
+`output base of removed <workspace>, <size>: <dir>`, and
+`repository cache downloads unused for 30 days, <n> entries, <size>: <dir>`,
+one per cache. With `--apply` the closing
 line is `dx worktree: pruned <size>`, and `dx worktree: nothing to prune`
 replaces everything when nothing qualifies.
 
@@ -240,6 +255,10 @@ taken, or whose slot runs a `dx` command, is kept and printed as
 `skipped output base of free slot <n> (<reason>): <dir>`, with reason `server`,
 `held`, or `busy`. It is not counted in `pruned <size>`, and the command still exits
 `0`.
+
+`--apply` checks each download again right before it deletes it. One that a
+build used since the check is kept without a line and is not counted in
+`pruned <size>`.
 
 ## Shared disk cache
 

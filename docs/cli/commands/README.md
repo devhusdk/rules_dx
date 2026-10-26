@@ -140,7 +140,8 @@ an app's exit code is never reported as `disk_full`.
 
 When the disk holding the worktree pool has under 20 GiB and under 10% free,
 or under 1 GiB free,
-dx drops orphaned output bases and free slots' output bases each time it
+dx drops orphaned output bases, repository cache downloads unused for 30 days,
+and free slots' output bases each time it
 takes a build slot: once for each command above, for each `watch` iteration,
 for the build `run` does before the app starts, and for `update` when it runs
 Bazel. This also happens when build slots are disabled. It never drops the

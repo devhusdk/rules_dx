@@ -138,6 +138,92 @@ pub(crate) fn scan_output_bases(roots: &[PathBuf]) -> Vec<OutputBase> {
     bases
 }
 
+/// One entry of Bazel's repository cache download store.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Download {
+    pub(crate) dir: PathBuf,
+    pub(crate) cache: PathBuf,
+    pub(crate) used: u64,
+    pub(crate) bytes: u64,
+}
+
+/// Where Bazel keeps downloads under an output root when `--repository_cache` is not set.
+pub(crate) fn download_store(root: &Path) -> PathBuf {
+    root.join("cache")
+        .join("repos")
+        .join("v1")
+        .join("content_addressable")
+}
+
+/// When an entry was last used: the newest modified time of any file in it, in seconds since the epoch.
+///
+/// Bazel touches `file` each time it reuses a download and writes new ones through `tmp-*` files,
+/// so a download being written or read right now is never older than its newest file.
+/// An empty entry has no time, so a download Bazel is just starting is never stale.
+pub(crate) fn download_used(dir: &Path) -> Option<u64> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    let mut newest = None;
+    for entry in entries.flatten() {
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
+        newest = newest.max(Some(seconds(&meta)));
+    }
+    newest
+}
+
+fn seconds(meta: &std::fs::Metadata) -> u64 {
+    meta.modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |elapsed| elapsed.as_secs())
+}
+
+/// Finds the download entries in each root's default repository cache, `<algo>/<key>/` under `content_addressable`.
+pub(crate) fn scan_downloads(roots: &[PathBuf], stop: &dyn Fn() -> Option<i32>) -> Vec<Download> {
+    let mut downloads: Vec<Download> = Vec::new();
+    let mut seen: Vec<PathBuf> = Vec::new();
+    for root in roots {
+        let cache = download_store(root);
+        if seen.contains(&cache) {
+            continue;
+        }
+        seen.push(cache.clone());
+        let Ok(algos) = std::fs::read_dir(&cache) else {
+            continue;
+        };
+        for algo in algos.flatten() {
+            if !algo.file_type().is_ok_and(|kind| kind.is_dir()) {
+                continue;
+            }
+            let Ok(keys) = std::fs::read_dir(algo.path()) else {
+                continue;
+            };
+            for key in keys.flatten() {
+                if stop().is_some() {
+                    return downloads;
+                }
+                if !key.file_type().is_ok_and(|kind| kind.is_dir()) {
+                    continue;
+                }
+                let dir = key.path();
+                let Some(used) = download_used(&dir) else {
+                    continue;
+                };
+                downloads.push(Download {
+                    bytes: walk_bytes(&dir, stop),
+                    dir,
+                    cache: cache.clone(),
+                    used,
+                });
+            }
+        }
+    }
+    downloads.sort_by(|left, right| left.dir.cmp(&right.dir));
+    downloads.dedup_by(|left, right| left.dir == right.dir);
+    downloads
+}
+
 fn walk_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> u64 {
     let Ok(metadata) = std::fs::symlink_metadata(path) else {
         return 0;
@@ -480,6 +566,88 @@ mod tests {
         let full = walk_bytes(&dir, &|| None);
         assert_eq!(full, 200);
         assert!(walk_bytes(&dir, &stop) < full);
+    }
+
+    fn aged(path: &Path, secs: u64) {
+        let file = std::fs::File::options()
+            .write(true)
+            .open(path)
+            .expect("open");
+        file.set_modified(std::time::UNIX_EPOCH + Duration::from_secs(secs))
+            .expect("set time");
+    }
+
+    fn download(root: &Path, key: &str, files: &[(&str, u64)]) -> PathBuf {
+        let dir = download_store(root).join("sha256").join(key);
+        std::fs::create_dir_all(&dir).expect("entry");
+        for (name, secs) in files {
+            std::fs::write(dir.join(name), vec![0u8; 10]).expect("file");
+            aged(&dir.join(name), *secs);
+        }
+        dir
+    }
+
+    #[test]
+    fn downloads_are_found_with_their_newest_file_time() {
+        let scratch = dx_test_scratch::scratch("dx-wt-downloads-");
+        let root = scratch.path().join("root");
+        let old = download(&root, "aaa", &[("file", 100)]);
+        let reading = download(&root, "bbb", &[("file", 100), ("id-x", 500)]);
+        let writing = download(&root, "ccc", &[("file", 100), ("tmp-1", 900)]);
+        std::fs::create_dir_all(download_store(&root).join("sha256").join("empty")).expect("dir");
+        let found = scan_downloads(
+            &[root.clone(), root.clone(), scratch.path().join("none")],
+            &|| None,
+        );
+        let cache = download_store(&root);
+        assert_eq!(
+            found,
+            vec![
+                Download {
+                    dir: old,
+                    cache: cache.clone(),
+                    used: 100,
+                    bytes: 10,
+                },
+                Download {
+                    dir: reading.clone(),
+                    cache: cache.clone(),
+                    used: 500,
+                    bytes: 20,
+                },
+                Download {
+                    dir: writing,
+                    cache,
+                    used: 900,
+                    bytes: 20,
+                },
+            ]
+        );
+        aged(&reading.join("file"), 700);
+        assert_eq!(download_used(&reading), Some(700));
+        assert_eq!(download_used(&reading.join("gone")), None);
+    }
+
+    #[test]
+    fn a_root_without_a_repository_cache_has_no_downloads() {
+        let scratch = dx_test_scratch::scratch("dx-wt-no-downloads-");
+        let root = scratch.path().join("root");
+        std::fs::create_dir_all(root.join("cache").join("repos").join("v1").join("contents"))
+            .expect("contents");
+        assert!(scan_downloads(&[root], &|| None).is_empty());
+    }
+
+    #[test]
+    fn scan_downloads_stops_when_the_stop_probe_fires() {
+        let scratch = dx_test_scratch::scratch("dx-wt-stop-downloads-");
+        let root = scratch.path().join("root");
+        download(&root, "aaa", &[("file", 100)]);
+        download(&root, "bbb", &[("file", 100)]);
+        assert_eq!(
+            scan_downloads(std::slice::from_ref(&root), &|| None).len(),
+            2
+        );
+        assert!(scan_downloads(&[root], &|| Some(15)).is_empty());
     }
 
     #[cfg(unix)]

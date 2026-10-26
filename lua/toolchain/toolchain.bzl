@@ -28,7 +28,7 @@ lua_toolchain = rule(
         ),
         "version": attr.string(
             mandatory = True,
-            doc = "Lua version the launcher embeds.",
+            doc = "Version of the lua Bazel module the launcher and luac are built from.",
         ),
     },
 )

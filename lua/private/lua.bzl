@@ -30,11 +30,7 @@ def _strip_slashes(path):
     return path
 
 def import_root(package, strip_import_prefix):
-    """Returns the repo-relative directory module names start from.
-
-    An absolute prefix ("/x") starts at the repository root. A relative prefix starts at the package.
-    An empty prefix keeps the repository root.
-    """
+    """Returns the repo-relative directory module names start from."""
     if not strip_import_prefix:
         return ""
     if strip_import_prefix.startswith("/"):
@@ -42,11 +38,7 @@ def import_root(package, strip_import_prefix):
     return _strip_slashes(_join([package, strip_import_prefix]))
 
 def module_name(path, package = "", strip_import_prefix = "", import_prefix = ""):
-    """Returns the require name of one repo-relative .lua path, or None when it cannot have one.
-
-    a/b.lua is module a.b; a/init.lua is module a. The path must sit under the import root, and no
-    directory or file stem may contain a dot.
-    """
+    """Returns the require name of one repo-relative .lua path, or None."""
     if not path.endswith(".lua"):
         return None
     root = import_root(package, strip_import_prefix)

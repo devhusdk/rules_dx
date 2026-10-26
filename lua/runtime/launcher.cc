@@ -1,5 +1,4 @@
 // Runs one Lua program from the <name>.luaentry file next to the executable.
-// The entry format is LUA_ENTRY_FORMAT in //lua/private:providers.bzl.
 
 #include <cctype>
 #include <cstdio>
@@ -37,12 +36,17 @@ std::string g_source_repo;
 }
 
 bool EndsWithExe(const std::string &path) {
+#ifdef _WIN32
   if (path.size() < 4)
     return false;
   std::string tail = path.substr(path.size() - 4);
   for (char &c : tail)
     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
   return tail == ".exe";
+#else
+  (void)path;
+  return false;
+#endif
 }
 
 std::string EntryPath(const std::string &argv0) {

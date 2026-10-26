@@ -84,10 +84,6 @@ lua_binary(
 - `bazel build` checks the syntax of every source with `luac`, so a syntax
   error fails the build.
 
-Every executable is one shared C++ launcher next to a `<name>.luaentry`
-file. Line 1 is the main chunk, line 2 the owning repository, and every
-further line is `<module>\t<runfiles key>`.
-
 ## Packages
 
 There is no LuaRocks support. Pin a pure-Lua package with `http_archive` and
@@ -115,9 +111,8 @@ lua_library(
 
 ## Quality
 
-Lua sources form the `lua` class, so `dx check` sees them. No Lua formatter,
-linter or type check runs yet. Until one does, the Lua rules add the
-`no-format`, `no-lint` and `no-typecheck` tags to every target.
+Lua sources form the `lua` class, so `dx check` sees them. The Lua rules add
+the `no-format`, `no-lint` and `no-typecheck` tags to every target.
 
 ## Platforms
 

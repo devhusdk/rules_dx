@@ -1,5 +1,7 @@
 """Shared charset validators for dx deploy providers."""
 
+load("@bazel_skylib//lib:shell.bzl", "shell")
+
 ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
 LOWER_ALNUM = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -41,3 +43,12 @@ def charset_schema_error(version, charsets):
             if c in unsafe:
                 return what + ": unsafe charset char '" + c + "' (must stay launcher-safe)"
     return ""
+
+def genrule_arg(value):
+    """Quotes one free-form string for a native.genrule cmd.
+
+    Shell-quotes the value, then doubles every $ because Bazel expands $ in
+    genrule cmd before bash sees it. For genrule cmd only: do not use it with
+    ctx.actions.run_shell, where the doubled $ would be wrong.
+    """
+    return shell.quote(value).replace("$", "$$")

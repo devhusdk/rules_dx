@@ -217,7 +217,26 @@ pub(crate) enum PhaseKind {
     Cancelled,
 }
 
+/// Bazel exit codes shared by every Bazel-backed phase.
+pub(crate) const BAZEL_BUILD_FAILED: i32 = 1;
+pub(crate) const BAZEL_USAGE: i32 = 2;
+pub(crate) const BAZEL_TESTS_FAILED: i32 = 3;
+pub(crate) const BAZEL_NO_TESTS: i32 = 4;
+pub(crate) const BAZEL_INTERRUPTED: i32 = 8;
+
 impl PhaseKind {
+    /// Classifies a Bazel exit code; `findings` is the phase's own verdict that the code means findings.
+    pub(crate) fn from_bazel_exit(code: i32, findings: bool) -> PhaseKind {
+        match code {
+            0 => PhaseKind::Clean,
+            _ if findings => PhaseKind::Findings,
+            BAZEL_BUILD_FAILED | BAZEL_TESTS_FAILED => PhaseKind::Incomplete,
+            BAZEL_USAGE | BAZEL_NO_TESTS => PhaseKind::Selection,
+            BAZEL_INTERRUPTED => PhaseKind::Cancelled,
+            _ => PhaseKind::Tool,
+        }
+    }
+
     /// Reports whether later phases of `command` still run after a phase of this kind.
     pub(crate) fn continues(self, command: Command) -> bool {
         match self {
@@ -893,6 +912,24 @@ pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn from_bazel_exit_classifies_every_code() {
+        let table = [
+            (0, false, PhaseKind::Clean),
+            (0, true, PhaseKind::Clean),
+            (1, false, PhaseKind::Incomplete),
+            (2, false, PhaseKind::Selection),
+            (3, false, PhaseKind::Incomplete),
+            (3, true, PhaseKind::Findings),
+            (4, false, PhaseKind::Selection),
+            (8, false, PhaseKind::Cancelled),
+            (36, false, PhaseKind::Tool),
+        ];
+        for (code, findings, kind) in table {
+            assert_eq!(PhaseKind::from_bazel_exit(code, findings), kind, "{code}");
+        }
+    }
+
     use super::*;
     use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity};
     use std::cell::RefCell;

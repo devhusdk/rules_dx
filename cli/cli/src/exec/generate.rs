@@ -210,6 +210,7 @@ fn run_generate_request(
     let _ = std::fs::remove_file(&patch);
     let Some(witness) = std::fs::read(&intended).ok() else {
         if bazel_code != 0 {
+            *kind = PhaseKind::from_bazel_exit(bazel_code, false);
             return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
         }
         *kind = PhaseKind::Incomplete;
@@ -231,9 +232,11 @@ fn run_generate_request(
     let projected = match finalized {
         Ok(projected) => projected,
         Err(FinalizeError::IncompleteCheck) => {
-            if bazel_code == 0 {
-                *kind = PhaseKind::Incomplete;
-            }
+            *kind = if bazel_code == 0 {
+                PhaseKind::Incomplete
+            } else {
+                PhaseKind::from_bazel_exit(bazel_code, false)
+            };
             return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
         }
         Err(error) => {
@@ -324,7 +327,7 @@ fn generate_kind(
     gazelle_diff: bool,
 ) -> PhaseKind {
     if bazel_code != 0 && !gazelle_diff {
-        PhaseKind::Tool
+        PhaseKind::from_bazel_exit(bazel_code, false)
     } else if !results_complete {
         PhaseKind::Incomplete
     } else if code != 0 {
@@ -504,9 +507,11 @@ mod tests {
     #[test]
     fn generate_kind_needs_the_gazelle_diff_signal_for_findings() {
         assert_eq!(generate_kind(1, 1, true, true), PhaseKind::Findings);
-        assert_eq!(generate_kind(1, 1, true, false), PhaseKind::Tool);
-        assert_eq!(generate_kind(1, 1, false, false), PhaseKind::Tool);
-        assert_eq!(generate_kind(2, 2, true, false), PhaseKind::Tool);
+        assert_eq!(generate_kind(1, 1, true, false), PhaseKind::Incomplete);
+        assert_eq!(generate_kind(1, 1, false, false), PhaseKind::Incomplete);
+        assert_eq!(generate_kind(2, 2, true, false), PhaseKind::Selection);
+        assert_eq!(generate_kind(8, 8, true, false), PhaseKind::Cancelled);
+        assert_eq!(generate_kind(36, 36, true, false), PhaseKind::Tool);
         assert_eq!(generate_kind(1, 0, true, false), PhaseKind::Findings);
         assert_eq!(generate_kind(0, 0, true, false), PhaseKind::Clean);
     }
@@ -860,6 +865,14 @@ mod tests {
             assert_eq!(run.code, 1);
             assert_eq!(run.kind, PhaseKind::Host);
         }
+    }
+
+    #[test]
+    fn generate_interrupted_without_manifest_ends_the_phase_as_cancelled() {
+        let mut harness = Harness::new("generate-phase-interrupted");
+        harness.generate_code = Some(8);
+        let run = generate_phase(&harness, &["generate", "--output=text"]);
+        assert_eq!(run.kind, PhaseKind::Cancelled);
     }
 
     #[test]

@@ -443,12 +443,6 @@ struct Verification {
     readable: bool,
 }
 
-const BAZEL_BUILD_FAILED: i32 = 1;
-const BAZEL_USAGE: i32 = 2;
-const BAZEL_TESTS_FAILED: i32 = 3;
-const BAZEL_NO_TESTS: i32 = 4;
-const BAZEL_INTERRUPTED: i32 = 8;
-
 /// Runner that forwards every call and records whether Bazel failed to launch or was signalled.
 struct LaunchWatch<'a> {
     inner: &'a dyn Runner,
@@ -572,14 +566,7 @@ fn test_phase_kind(code: i32, complete: bool, launch_failed: bool) -> PhaseKind 
     if launch_failed && code != 0 {
         return PhaseKind::Host;
     }
-    match code {
-        0 => PhaseKind::Clean,
-        BAZEL_TESTS_FAILED if complete => PhaseKind::Findings,
-        BAZEL_BUILD_FAILED | BAZEL_TESTS_FAILED => PhaseKind::Incomplete,
-        BAZEL_USAGE | BAZEL_NO_TESTS => PhaseKind::Selection,
-        BAZEL_INTERRUPTED => PhaseKind::Cancelled,
-        _ => PhaseKind::Tool,
-    }
+    PhaseKind::from_bazel_exit(code, code == BAZEL_TESTS_FAILED && complete)
 }
 
 /// Where a `fix --apply` verification pass runs, minus its buffered streams.

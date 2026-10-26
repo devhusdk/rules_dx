@@ -84,8 +84,15 @@ including `passed_after_retry` and `no_cases`, matching the passed entries in
 the `results` report), `failed` (results whose final attempt has outcome
 `failed` or `timeout`), `cached` (passed results that came from the
 cache), and `no_cases` (passed results whose report had no test cases; part of
-`passed`). Earlier attempts of a retried test still appear as `test_outcome`
-events with `final: false` and are not counted.
+`passed`), and `skipped` (tests with outcome `skipped` or `filtered`). Earlier
+attempts of a retried test still appear as `test_outcome` events with
+`final: false` and are not counted.
+
+A test that Bazel skipped has outcome `skipped`. A test that a tag or size
+filter removed from the run has outcome `filtered`. Neither changes the exit
+code. When any test was filtered, dx emits one `notice` event with code
+`tests_filtered` that gives the count and the first labels. In text mode it
+prints `dx: tests_filtered: ...` on stderr.
 
 `--report results=<path>` writes one JSON file with every test result, passed
 or not. It follows the same path rules as the other reports. With

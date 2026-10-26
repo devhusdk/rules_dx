@@ -69,6 +69,8 @@ pub struct TestEvents {
     pub gaps: Vec<EventGap>,
     pub skipped: Vec<EventGap>,
     pub unbuilt: Vec<UnbuiltTest>,
+    /// Tests that built and completed but have no result or summary.
+    pub filtered: Vec<UnbuiltTest>,
     /// The cut-off last line that ended the stream early.
     pub problem: Option<String>,
 }
@@ -266,6 +268,7 @@ fn read_test_events(
     let mut ledger = EventLedger::default();
     let mut test_labels: HashSet<String> = HashSet::new();
     let mut failed_completions: Vec<UnbuiltTest> = Vec::new();
+    let mut passed_completions: Vec<UnbuiltTest> = Vec::new();
     let mut mnemonics: HashMap<String, String> = HashMap::new();
     let mut lines = EventLines::new(reader);
     for next in lines.by_ref() {
@@ -290,8 +293,12 @@ fn read_test_events(
         if let Some(label) = test_label(id, object) {
             test_labels.insert(label.to_owned());
         }
-        if let Some(failed) = failed_completion(id, object) {
-            failed_completions.push(failed);
+        if let Some((target, success)) = target_completion(id, object) {
+            if success {
+                passed_completions.push(target);
+            } else {
+                failed_completions.push(target);
+            }
         }
         if let Some(summary_id) = id.get("testSummary").and_then(Value::as_object) {
             record_shard_count(summary_id, object, line_no, &mut shard_counts)?;
@@ -434,23 +441,41 @@ fn read_test_events(
         .filter(|target| test_labels.contains(&target.label))
         .collect();
     unbuilt.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
+    let gaps = ledger.gaps(&["testResult", "testSummary"]);
+    let mut filtered: Vec<UnbuiltTest> = passed_completions
+        .into_iter()
+        .filter(|target| {
+            test_labels.contains(&target.label)
+                && !results.iter().any(|result| result.label == target.label)
+                && !summary_records
+                    .iter()
+                    .any(|summary| summary.label == target.label)
+                && !gaps
+                    .iter()
+                    .any(|gap| gap.label.as_deref() == Some(target.label.as_str()))
+                && !unbuilt.iter().any(|other| other.label == target.label)
+        })
+        .collect();
+    filtered.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
+    filtered.dedup();
     let events = TestEvents {
         results,
         summaries: summary_records,
         ended: ledger.ended(),
-        gaps: ledger.gaps(&["testResult", "testSummary"]),
+        gaps,
         skipped,
         unbuilt,
+        filtered,
         problem: None,
     };
     Ok((events, lines.tail))
 }
 
-/// A top-level target completion Bazel reported without success.
-fn failed_completion(
+/// A top-level target completion and whether Bazel reported success.
+fn target_completion(
     id: &serde_json::Map<String, Value>,
     object: &serde_json::Map<String, Value>,
-) -> Option<UnbuiltTest> {
+) -> Option<(UnbuiltTest, bool)> {
     let completed = id.get("targetCompleted").and_then(Value::as_object)?;
     if completed.contains_key("aspect") {
         return None;
@@ -460,13 +485,11 @@ fn failed_completion(
         .and_then(Value::as_object)
         .and_then(|body| opt_bool(body, "success"))
         .unwrap_or(false);
-    if success {
-        return None;
-    }
-    Some(UnbuiltTest {
+    let target = UnbuiltTest {
         label: completed.get("label").and_then(Value::as_str)?.to_owned(),
         configuration: opt_configuration(completed),
-    })
+    };
+    Some((target, success))
 }
 
 /// The label of a configured target Bazel will test, from its test size.
@@ -1515,5 +1538,45 @@ mod tests {
                 .then(a.attempt.cmp(&b.attempt))
         });
         assert_eq!(outputs, flattened);
+    }
+
+    fn configured_test(label: &str) -> String {
+        format!(
+            r#"{{"id":{{"targetConfigured":{{"label":"{label}"}}}},"configured":{{"testSize":"SMALL"}}}}"#
+        )
+    }
+
+    fn completed(label: &str, success: bool) -> String {
+        format!(
+            r#"{{"id":{{"targetCompleted":{{"label":"{label}"}}}},"completed":{{"success":{success}}}}}"#
+        )
+    }
+
+    #[test]
+    fn a_completed_test_without_summary_is_filtered() {
+        let stream = [
+            configured_test("//a:gone"),
+            completed("//a:gone", true),
+            configured_test("//a:ran"),
+            completed("//a:ran", true),
+            test_summary("//a:ran", Some(1)),
+        ]
+        .join("\n");
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        let labels: Vec<&str> = events.filtered.iter().map(|t| t.label.as_str()).collect();
+        assert_eq!(labels, ["//a:gone"]);
+    }
+
+    #[test]
+    fn failed_and_non_test_completions_are_not_filtered() {
+        let stream = [
+            configured_test("//a:broken"),
+            completed("//a:broken", false),
+            completed("//a:lib", true),
+        ]
+        .join("\n");
+        let events = collect_test_events(Cursor::new(stream), None).expect("events");
+        assert!(events.filtered.is_empty(), "{:?}", events.filtered);
+        assert_eq!(events.unbuilt.len(), 1);
     }
 }

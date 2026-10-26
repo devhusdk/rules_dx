@@ -1,10 +1,9 @@
+use super::rustc_stderr::{self, ActionDiagnostic};
 use dx_bep::{collect_build_failures, BuildFailure, FailureStage, StderrRef};
 use dx_output::{
     build_failure_event, notice_event, write_event, BuildFailureEvent, FailureDiagnostic,
     NoticeEvent, OutputMode,
 };
-use quality_adapter::parsers::{parse_rustc_action_output, ActionDiagnostic};
-use quality_adapter::ToolSeverity;
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 
@@ -37,7 +36,7 @@ fn rustc_diagnostics(failure: &BuildFailure) -> Diagnostics {
             items: Vec::new(),
         };
     };
-    let parsed = read_stderr(path).and_then(|bytes| parse_rustc_action_output(&bytes).ok());
+    let parsed = read_stderr(path).map(|bytes| rustc_stderr::parse(&bytes));
     match parsed {
         None => Diagnostics {
             status: "unavailable",
@@ -54,14 +53,6 @@ fn rustc_diagnostics(failure: &BuildFailure) -> Diagnostics {
             total: items.len() as u64,
             items,
         },
-    }
-}
-
-fn severity_name(severity: ToolSeverity) -> &'static str {
-    match severity {
-        ToolSeverity::Error => "error",
-        ToolSeverity::Warning => "warning",
-        ToolSeverity::Info => "info",
     }
 }
 
@@ -110,7 +101,7 @@ pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
             .into_iter()
             .take(DIAGNOSTIC_LIMIT)
             .map(|item| FailureDiagnostic {
-                severity: severity_name(item.severity).to_owned(),
+                severity: item.severity.to_owned(),
                 code: item.code,
                 message: item.message,
                 path: item.file,

@@ -286,7 +286,8 @@ impl super::RealBackend {
             mirror_rel: PathBuf::from(rel),
             contents: MirrorContents::Bytes(bytes.as_bytes().to_vec()),
         }));
-        mirrors.extend(Self::mirror_tool_files(tool_id, tool));
+        let tools = Self::mirror_tool_files(tool_id, tool, &mirrors);
+        mirrors.extend(tools);
         write_all(&scratch, tool_id, &mirrors)?;
         let absolute = scratch.root().join(path);
         Ok((scratch, absolute))

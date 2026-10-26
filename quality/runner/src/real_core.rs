@@ -854,6 +854,54 @@ pub(super) fn taplo_format_reports_unformatted_files() {
 }
 
 #[test]
+pub(super) fn taplo_config_that_is_a_source_uses_pipeline_text() {
+    let tool = RealTool {
+        config_rel: Some(".taplo.toml".to_owned()),
+        tool_files: vec![(".taplo.toml".to_owned(), b"a = 1\n".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("taplo", tool, taplo_reads_disk);
+    let findings = backend
+        .diagnose("taplo", "format", &single(".taplo.toml", "a=1\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+}
+
+#[test]
+pub(super) fn taplo_fix_of_a_config_source_uses_pipeline_text() {
+    let tool = RealTool {
+        config_rel: Some(".taplo.toml".to_owned()),
+        tool_files: vec![(".taplo.toml".to_owned(), b"b=2\n".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("taplo", tool, taplo_reads_disk);
+    let fixed = backend
+        .apply_fix("taplo", ".taplo.toml", "a=1\n", "format")
+        .expect("fixed");
+    assert_eq!(fixed, "a = 1\n");
+}
+
+#[test]
+pub(super) fn taplo_pipeline_formats_a_config_source_to_stable() {
+    let tool = RealTool {
+        config_rel: Some(".taplo.toml".to_owned()),
+        tool_files: vec![(".taplo.toml".to_owned(), b"a = 1\n".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("taplo", tool, taplo_reads_disk);
+    let stages = vec![stage("taplo", &["format"], &[".taplo.toml"])];
+    let files = vec![file(".taplo.toml", "a=1\n")];
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("real pipeline");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.initial_diagnostics.len(), 1);
+    assert!(result.initial_diagnostics.iter().all(|d| d.fixable));
+    assert_eq!(result.replacements.len(), 1);
+    assert!(encode_validated(&result).is_ok());
+}
+
+#[test]
 pub(super) fn rustfmt_hinted_config_reaches_the_tool() {
     let tool = RealTool {
         config_rel: Some("hint.toml".to_owned()),

@@ -865,6 +865,38 @@ pub(super) fn taplo_either(
     })
 }
 
+pub(super) fn taplo_reads_disk(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let bytes = std::fs::read(&file).expect("checked file is materialized");
+    if argv.iter().any(|arg| arg == "--check") {
+        let dirty = String::from_utf8_lossy(&bytes).contains("a=1");
+        let stderr = if dirty {
+            format!(
+                "ERROR taplo:format_files: the file is not properly formatted path=\"{file}\"\n"
+            )
+            .into_bytes()
+        } else {
+            Vec::new()
+        };
+        return Ok(ChildOutput {
+            code: Some(i32::from(dirty)),
+            stdout: Vec::new(),
+            stderr,
+        });
+    }
+    std::fs::write(&file, b"a = 1\n").expect("formatted file is writable");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn taplo_garbage(
     argv: &[OsString],
     _cwd: &Path,

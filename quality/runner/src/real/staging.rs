@@ -15,7 +15,11 @@ pub(super) struct FsharplintInputs {
 }
 
 impl RealBackend {
-    pub(super) fn mirror_tool_files(tool_id: &str, tool: &RealTool) -> Vec<MirrorFile> {
+    pub(super) fn mirror_tool_files(
+        tool_id: &str,
+        tool: &RealTool,
+        staged: &[MirrorFile],
+    ) -> Vec<MirrorFile> {
         let mut mirrors = Vec::with_capacity(tool.tool_files.len() + 1);
         for (rel, bytes) in &tool.tool_files {
             mirrors.push(MirrorFile {
@@ -47,6 +51,11 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(STYLELINT_DEFAULTS_BYTES.to_vec()),
             });
         }
+        mirrors.retain(|mirror| {
+            !staged
+                .iter()
+                .any(|done| done.mirror_rel == mirror.mirror_rel)
+        });
         mirrors
     }
 
@@ -95,7 +104,8 @@ impl RealBackend {
             });
             resolve_pairs.push((path.clone(), absolute));
         }
-        mirrors.extend(Self::mirror_tool_files(tool_id, tool));
+        let tools = Self::mirror_tool_files(tool_id, tool, &mirrors);
+        mirrors.extend(tools);
         write_all(&scratch, tool_id, &mirrors)?;
         Ok(StagedScratch {
             scratch,

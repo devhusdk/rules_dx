@@ -4,6 +4,8 @@ use serde::Serialize;
 
 use dx_module_bazel::ModuleFile;
 
+use crate::AdoptError;
+
 use super::{
     pin_fix_hint, read_module_dependency, version_pin_matches_module, CONSUMER_RULES_RUST_VERSION,
     CONSUMER_RUST_VERSION, MODULE_VERSION,
@@ -126,6 +128,14 @@ fn module_check(root: &Path) -> StatusCheck {
     }
     let dependency = match read_module_dependency(root) {
         Ok(dependency) => dependency,
+        Err(error @ AdoptError::LoadModuleFile { .. }) => {
+            return check(
+                "module",
+                "error",
+                format!("unavailable: {error}"),
+                "bazel mod graph",
+            )
+        }
         Err(error) => {
             return check(
                 "module",
@@ -172,7 +182,7 @@ fn module_check(root: &Path) -> StatusCheck {
         None => check(
             "module",
             "error",
-            "unavailable: MODULE.bazel has no rules_dx dependency".to_owned(),
+            "unavailable: MODULE.bazel and its includes have no rules_dx dependency".to_owned(),
             "dx init",
         ),
     }
@@ -536,6 +546,65 @@ mod tests {
         assert!(git.detail.starts_with("unknown:"), "{}", git.detail);
         std::fs::write(dir.join("MODULE.bazel"), "module(name = \"app\")\n").expect("module");
         assert_eq!(super::module_check(&dir).status, "error");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("dx-status-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("dir");
+        dir
+    }
+
+    #[test]
+    fn module_check_reads_an_included_declaration() {
+        let dir = scratch("module-include");
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            "include(\"//:dx.MODULE.bazel\")\n",
+        )
+        .expect("module");
+        std::fs::write(
+            dir.join("dx.MODULE.bazel"),
+            format!("bazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"),
+        )
+        .expect("include");
+        let found = super::module_check(&dir);
+        assert_eq!(found.status, "ok", "{}", found.detail);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn module_check_reports_a_broken_module_file() {
+        let dir = scratch("module-broken");
+        std::fs::write(dir.join("MODULE.bazel"), "bazel_dep(name = \"rules_dx\"\n")
+            .expect("module");
+        let broken = super::module_check(&dir);
+        assert_eq!(broken.status, "error");
+        assert_ne!(broken.hint, "dx init");
+        assert!(
+            broken.detail.contains("MODULE.bazel or its includes"),
+            "{}",
+            broken.detail
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn module_check_reports_a_missing_include() {
+        let dir = scratch("module-missing-include");
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            "include(\"//:gone.MODULE.bazel\")\n",
+        )
+        .expect("module");
+        let missing = super::module_check(&dir);
+        assert_eq!(missing.status, "error");
+        assert!(
+            missing.detail.contains("cannot read included"),
+            "{}",
+            missing.detail
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

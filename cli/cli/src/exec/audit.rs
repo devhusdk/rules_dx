@@ -574,7 +574,7 @@ pub(super) fn bazel_inputs_for_configured(
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
     let read_include = |label: &str| -> Result<String, String> {
-        let rel = dx_audit::locks::include_rel(module_dir, label)?;
+        let rel = dx_module_bazel::include_rel(module_dir, label)?;
         read_workspace_text(workspace, &rel)
             .map_err(|error| format!("cannot read included {label}: {error}"))
     };

@@ -335,3 +335,111 @@ fn dict_arguments_keep_literal_keys_and_values() {
     assert_eq!(platforms[1].0, Value::Ident("KEY".to_owned()));
     assert_eq!(platforms[1].1, Value::Computed { line: 3 });
 }
+
+#[test]
+fn an_include_label_resolves_under_the_module_dir() {
+    assert_eq!(
+        include_rel("", "//:deps.MODULE.bazel").as_deref(),
+        Ok("deps.MODULE.bazel")
+    );
+    assert_eq!(
+        include_rel("sub", "//bazel:deps.MODULE.bazel").as_deref(),
+        Ok("sub/bazel/deps.MODULE.bazel")
+    );
+    assert_eq!(
+        include_rel("", "//a/b:c/d.MODULE.bazel").as_deref(),
+        Ok("a/b/c/d.MODULE.bazel")
+    );
+}
+
+#[test]
+fn an_include_outside_the_workspace_is_rejected() {
+    for label in [
+        "//:/etc/passwd.MODULE.bazel",
+        "///etc:passwd.MODULE.bazel",
+        "//:C:/x.MODULE.bazel",
+        "//:..\\x.MODULE.bazel",
+        "//a//b:x.MODULE.bazel",
+        "//:./x.MODULE.bazel",
+        "//..:x.MODULE.bazel",
+        "//:",
+        "//a/:x.MODULE.bazel",
+        "//etc/passwd.MODULE.bazel",
+    ] {
+        let error = include_rel("", label).expect_err(label);
+        assert!(
+            error.contains("leaves the workspace") || error.contains("is not //package:file"),
+            "{label}: {error}"
+        );
+    }
+}
+
+#[test]
+fn an_include_must_name_a_module_file() {
+    for label in [
+        "//:deps.bzl",
+        "//:.hidden.MODULE.bazel",
+        "//a:b/.x.MODULE.bazel",
+    ] {
+        let error = include_rel("", label).expect_err(label);
+        assert!(
+            error == format!("include {label} must name a .MODULE.bazel file"),
+            "{label}: {error}"
+        );
+    }
+}
+
+#[test]
+fn an_include_of_a_repo_label_is_rejected() {
+    for label in [
+        "@//:deps.MODULE.bazel",
+        "@@//:deps.MODULE.bazel",
+        "@foo//:deps.MODULE.bazel",
+    ] {
+        let error = include_rel("", label).expect_err(label);
+        assert!(
+            error.contains(label) && error.contains("Bazel accepts only // labels in include"),
+            "{label}: {error}"
+        );
+    }
+}
+
+#[test]
+fn nested_includes_load_in_order() {
+    let read = |label: &str| -> Result<String, String> {
+        Ok(match label {
+            "//:a.MODULE.bazel" => "include(\"//:b.MODULE.bazel\")\nmodule(name = \"a\")\n",
+            "//:b.MODULE.bazel" => "module(name = \"b\")\n",
+            other => panic!("read {other}"),
+        }
+        .to_owned())
+    };
+    let files = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read).expect("loads");
+    assert_eq!(files.len(), 3);
+    let modules = files
+        .iter()
+        .flat_map(ModuleFile::calls)
+        .filter(|c| c.name == "module");
+    assert_eq!(modules.count(), 2);
+}
+
+#[test]
+fn an_included_parse_error_names_the_label_and_the_root_does_not() {
+    let read = |_: &str| -> Result<String, String> { Ok("bazel_dep(".to_owned()) };
+    let error = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read).expect_err("fails");
+    assert!(error.starts_with("//:a.MODULE.bazel: "), "{error}");
+    let root = load_with_includes("bazel_dep(", &read).expect_err("fails");
+    assert!(!root.contains("a.MODULE.bazel"), "{root}");
+}
+
+#[test]
+fn repeated_and_repo_includes_fail_before_reading() {
+    let read = |label: &str| -> Result<String, String> { panic!("read {label}") };
+    let error =
+        load_with_includes("include(\"@//:deps.MODULE.bazel\")\n", &read).expect_err("fails");
+    assert!(
+        error.contains("include @//:deps.MODULE.bazel is not a //package:file label")
+            && error.contains("MODULE.bazel line 1"),
+        "{error}"
+    );
+}

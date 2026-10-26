@@ -8,6 +8,8 @@ pub enum AdoptError {
     ReadVersionPin { detail: String },
     #[error("read MODULE.bazel: {detail}")]
     ReadModuleFile { detail: String },
+    #[error("MODULE.bazel or its includes: {detail}")]
+    LoadModuleFile { detail: String },
     #[error("refuses empty version")]
     EmptyVersion,
     #[error("launcher version is not semver: {version:?}")]
@@ -177,6 +179,13 @@ mod tests {
             }
             .to_string(),
             "read MODULE.bazel: denied"
+        );
+        assert_eq!(
+            AdoptError::LoadModuleFile {
+                detail: "bad".to_owned()
+            }
+            .to_string(),
+            "MODULE.bazel or its includes: bad"
         );
         assert_eq!(
             plan_watch("docs", false).unwrap_err().to_string(),

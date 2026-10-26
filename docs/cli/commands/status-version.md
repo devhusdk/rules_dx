@@ -43,7 +43,7 @@ Inside a worktree slot there is also `lease`.
   It never fails `dx status`, and it reports what `MODULE.bazel` declares, not
   what Bazel resolves.
 - `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
-- `module`: compares the `rules_dx` version in `MODULE.bazel` with the `dx` version.
+- `module`: compares the `rules_dx` version in `MODULE.bazel`, or in a file it `include()`s, with the `dx` version. It reports `error` with the parser message when either cannot be read or parsed.
   A `single_version_override` version wins over `bazel_dep`. An override
   without a version is `warn`.
 - `host`: checks the machine is a v1 execution platform: linux_x86_64,
@@ -126,7 +126,7 @@ Output: `--output text|json`. Bare text prints one line each:
 Bare JSON emits `binary`, `module`, `pin`, and `dependency` status events.
 `pin` is `warn` when the pin differs from the module version. `dependency` is
 `warn` when MODULE.bazel is missing or unreadable, has no `rules_dx`
-dependency, or declares or overrides a different version. Bare `dx version`
+dependency, or declares or overrides a different version. When MODULE.bazel or an included file cannot be parsed, `dependency` prints `unknown (<reason>)`. Bare `dx version`
 still exits `0` on these warnings.
 
 `dx version --check` prints `version ok: <pin>` on stdout. On drift it prints

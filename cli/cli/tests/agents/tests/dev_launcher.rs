@@ -822,7 +822,12 @@ mod cmd {
         let calls = repo.base.join("calls");
         let out = repo
             .command(&["--exit-code=0"], &calls)
-            .env("STUB_EXE", dx_testing::process_probe())
+            .env(
+                "STUB_EXE",
+                dx_testing::process_probe()
+                    .to_string_lossy()
+                    .replace('/', "\\"),
+            )
             .output()
             .expect("launcher runs");
         assert_eq!(out.status.code(), Some(0), "{out:?}");

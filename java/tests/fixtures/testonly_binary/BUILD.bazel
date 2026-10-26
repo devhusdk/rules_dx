@@ -5,12 +5,14 @@ package(default_visibility = ["//:__subpackages__"])
 
 java_library(
     name = "lib",
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
     testonly = True,
     srcs = ["Lib.java"],
 )
 
 java_binary(
     name = "testonly_main",
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
     testonly = True,
     srcs = ["Main.java"],
     main_class = "testonly.Main",

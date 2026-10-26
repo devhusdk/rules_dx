@@ -21,8 +21,36 @@ fn normalize_arch(raw: &str) -> String {
     }
 }
 
+fn parse_sysctl_flag(raw: Option<&str>) -> Option<bool> {
+    match raw?.trim() {
+        "1" => Some(true),
+        "0" => Some(false),
+        _ => None,
+    }
+}
+
+fn macos_host_arch(arm64: Option<bool>, uname: &str) -> String {
+    if arm64 == Some(true) {
+        "aarch64".to_owned()
+    } else {
+        normalize_arch(uname)
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn sysctl(key: &str) -> Option<String> {
+    let output = std::process::Command::new("/usr/sbin/sysctl")
+        .args(["-n", key])
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
 #[cfg(not(windows))]
-fn host_arch() -> String {
+fn uname_m() -> String {
     let output = std::process::Command::new("uname")
         .arg("-m")
         .output()
@@ -32,7 +60,20 @@ fn host_arch() -> String {
         "uname -m failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    normalize_arch(&String::from_utf8_lossy(&output.stdout))
+    String::from_utf8_lossy(&output.stdout).into_owned()
+}
+
+#[cfg(target_os = "macos")]
+fn host_arch() -> String {
+    macos_host_arch(
+        parse_sysctl_flag(sysctl("hw.optional.arm64").as_deref()),
+        &uname_m(),
+    )
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn host_arch() -> String {
+    normalize_arch(&uname_m())
 }
 
 #[cfg(windows)]
@@ -46,7 +87,21 @@ fn host_arch() -> String {
     )
 }
 
-#[cfg(not(target_os = "macos"))]
+fn translated() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        parse_sysctl_flag(sysctl("sysctl.proc_translated").as_deref()) == Some(true)
+    }
+    #[cfg(windows)]
+    {
+        std::env::var("PROCESSOR_ARCHITEW6432").is_ok()
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        false
+    }
+}
+
 fn staged_machine(path: &Path) -> String {
     use std::io::Read as _;
     let mut head = Vec::with_capacity(4096);
@@ -54,10 +109,9 @@ fn staged_machine(path: &Path) -> String {
         .and_then(|file| file.take(4096).read_to_end(&mut head))
         .unwrap_or_else(|err| panic!("cannot read {}: {err}", path.display()));
     dx_testing::image_machine(&head)
-        .unwrap_or_else(|| panic!("{} is not an ELF or PE image", path.display()))
+        .unwrap_or_else(|| panic!("{} is not an ELF, PE or thin Mach-O image", path.display()))
 }
 
-#[cfg(not(target_os = "macos"))]
 fn assert_native(name: &str, path: &Path) {
     let machine = staged_machine(path);
     assert!(
@@ -68,13 +122,11 @@ fn assert_native(name: &str, path: &Path) {
     );
 }
 
-#[cfg(target_os = "macos")]
-fn assert_native(_name: &str, _path: &Path) {}
-
 fn report() -> String {
     format!(
-        "preflight host={} host_arch={} binary_arch={}",
+        "preflight host={} translated={} host_arch={} binary_arch={}",
         std::env::consts::OS,
+        translated(),
         host_arch(),
         binary_arch()
     )
@@ -139,10 +191,28 @@ fn reports_host_and_binary_architecture() {
         binary,
         "emulated execution: host {host} differs from binary {binary}"
     );
-    #[cfg(windows)]
-    assert!(
-        std::env::var("PROCESSOR_ARCHITEW6432").is_err(),
-        "emulated execution under WOW64"
+    assert!(!translated(), "emulated execution: {}", report());
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    assert_eq!(
+        parse_sysctl_flag(sysctl("hw.optional.arm64").as_deref()),
+        Some(true),
+        "hw.optional.arm64 must read 1 on Apple silicon"
     );
     println!("{}", report());
+}
+
+#[test]
+fn sysctl_flags_parse() {
+    assert_eq!(parse_sysctl_flag(Some("1\n")), Some(true));
+    assert_eq!(parse_sysctl_flag(Some("0")), Some(false));
+    assert_eq!(parse_sysctl_flag(Some("")), None);
+    assert_eq!(parse_sysctl_flag(None), None);
+    assert_eq!(parse_sysctl_flag(Some("garbage")), None);
+}
+
+#[test]
+fn macos_host_arch_prefers_hw_optional_arm64() {
+    assert_eq!(macos_host_arch(Some(true), "x86_64"), "aarch64");
+    assert_eq!(macos_host_arch(None, "arm64"), "aarch64");
+    assert_eq!(macos_host_arch(Some(false), "x86_64"), "x86_64");
 }

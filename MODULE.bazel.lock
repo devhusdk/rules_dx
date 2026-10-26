@@ -1692,7 +1692,7 @@
     "@@rules_cuda+//cuda:extensions.bzl%toolchain": {
       "general": {
         "bzlTransitiveDigest": "Vv990ZJAgjxlqfYBdx7RClmoNCQjuIFLIV+LhWA03lg=",
-        "usagesDigest": "dNSX3y1g8pIKF+l9BPDbOv+EYq7VinmNwgpKWF5jh8c=",
+        "usagesDigest": "1RTayofqLknzBQlES//G8h3c/vXe7dO+zWhmbWCXRfM=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
           "REPO_MAPPING:bazel_features+,bazel_features_version bazel_features++version_extension+bazel_features_version",
@@ -1734,6 +1734,19 @@
               "version": "13.4.92"
             }
           },
+          "cuda_cublas": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cublas",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "bd6ffcce561672da6abb928214a6694f392741e7d1e2d7dfde0da4bd651706b6",
+              "strip_prefix": "libcublas-linux-x86_64-13.8.0.4-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcublas/linux-x86_64/libcublas-linux-x86_64-13.8.0.4-archive.tar.xz",
+              "urls": [],
+              "version": "13.8.0.4"
+            }
+          },
           "cuda_cudart": {
             "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
             "attributes": {
@@ -1745,6 +1758,32 @@
               "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-13.4.92-archive.tar.xz",
               "urls": [],
               "version": "13.4.92"
+            }
+          },
+          "cuda_cufft": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cufft",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "f7f8ac2cc67714989a3c8140cda39b1b7ed7d462a491e1ad3f53adb777f5070f",
+              "strip_prefix": "libcufft-linux-x86_64-12.4.0.43-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcufft/linux-x86_64/libcufft-linux-x86_64-12.4.0.43-archive.tar.xz",
+              "urls": [],
+              "version": "12.4.0.43"
+            }
+          },
+          "cuda_curand": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "curand",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "6f725f9187dc5f675308b830f786c163f5b1b499d86986f94fb60aa701c13c0b",
+              "strip_prefix": "libcurand-linux-x86_64-10.4.4.72-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcurand/linux-x86_64/libcurand-linux-x86_64-10.4.4.72-archive.tar.xz",
+              "urls": [],
+              "version": "10.4.4.72"
             }
           },
           "cuda_nvcc": {
@@ -1779,7 +1818,10 @@
               "components_mapping": {
                 "cccl": "@cuda_cccl",
                 "crt": "@cuda_crt",
+                "cublas": "@cuda_cublas",
                 "cudart": "@cuda_cudart",
+                "cufft": "@cuda_cufft",
+                "curand": "@cuda_curand",
                 "nvcc": "@cuda_nvcc",
                 "nvvm": "@cuda_nvvm"
               },

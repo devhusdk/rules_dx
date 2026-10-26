@@ -4,6 +4,7 @@ load(":wrapper_tests.bzl", "cuda_wrapper_contract_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "components.bzl",
     "defs.bzl",
     "wrapper_tests.bzl",
 ])
@@ -15,6 +16,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "components.bzl",
         "defs.bzl",
         "wrapper_tests.bzl",
     ],

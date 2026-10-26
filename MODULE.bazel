@@ -313,12 +313,36 @@ cuda.component(
     version = "13.4.92",
 )
 cuda.component(
+    name = "cuda_cublas",
+    component_name = "cublas",
+    sha256 = "bd6ffcce561672da6abb928214a6694f392741e7d1e2d7dfde0da4bd651706b6",
+    strip_prefix = "libcublas-linux-x86_64-13.8.0.4-archive",
+    url = "https://developer.download.nvidia.com/compute/cuda/redist/libcublas/linux-x86_64/libcublas-linux-x86_64-13.8.0.4-archive.tar.xz",
+    version = "13.8.0.4",
+)
+cuda.component(
     name = "cuda_cudart",
     component_name = "cudart",
     sha256 = "0ac5dbc538d04e9983bc493b410cce4b459e1ee9f5f6654b6464ef7b3e14a8b5",
     strip_prefix = "cuda_cudart-linux-x86_64-13.4.92-archive",
     url = "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-13.4.92-archive.tar.xz",
     version = "13.4.92",
+)
+cuda.component(
+    name = "cuda_cufft",
+    component_name = "cufft",
+    sha256 = "f7f8ac2cc67714989a3c8140cda39b1b7ed7d462a491e1ad3f53adb777f5070f",
+    strip_prefix = "libcufft-linux-x86_64-12.4.0.43-archive",
+    url = "https://developer.download.nvidia.com/compute/cuda/redist/libcufft/linux-x86_64/libcufft-linux-x86_64-12.4.0.43-archive.tar.xz",
+    version = "12.4.0.43",
+)
+cuda.component(
+    name = "cuda_curand",
+    component_name = "curand",
+    sha256 = "6f725f9187dc5f675308b830f786c163f5b1b499d86986f94fb60aa701c13c0b",
+    strip_prefix = "libcurand-linux-x86_64-10.4.4.72-archive",
+    url = "https://developer.download.nvidia.com/compute/cuda/redist/libcurand/linux-x86_64/libcurand-linux-x86_64-10.4.4.72-archive.tar.xz",
+    version = "10.4.4.72",
 )
 cuda.component(
     name = "cuda_nvcc",
@@ -341,7 +365,10 @@ cuda.toolkit(
     components_mapping = {
         "cccl": "@cuda_cccl",
         "crt": "@cuda_crt",
+        "cublas": "@cuda_cublas",
         "cudart": "@cuda_cudart",
+        "cufft": "@cuda_cufft",
+        "curand": "@cuda_curand",
         "nvcc": "@cuda_nvcc",
         "nvvm": "@cuda_nvvm",
     },

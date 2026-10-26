@@ -22,11 +22,29 @@ CUDA_COMPONENTS = {
         sha256 = "c969e61ded12dbf0cf20ace72867f1622ec0e8ea1e1d305e27761012025f7aaa",
         strip_prefix = "cuda_crt-linux-x86_64-13.4.92-archive",
     ),
+    "cublas": struct(
+        version = "13.8.0.4",
+        url = _REDIST + "libcublas/linux-x86_64/libcublas-linux-x86_64-13.8.0.4-archive.tar.xz",
+        sha256 = "bd6ffcce561672da6abb928214a6694f392741e7d1e2d7dfde0da4bd651706b6",
+        strip_prefix = "libcublas-linux-x86_64-13.8.0.4-archive",
+    ),
     "cudart": struct(
         version = "13.4.92",
         url = _REDIST + "cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-13.4.92-archive.tar.xz",
         sha256 = "0ac5dbc538d04e9983bc493b410cce4b459e1ee9f5f6654b6464ef7b3e14a8b5",
         strip_prefix = "cuda_cudart-linux-x86_64-13.4.92-archive",
+    ),
+    "cufft": struct(
+        version = "12.4.0.43",
+        url = _REDIST + "libcufft/linux-x86_64/libcufft-linux-x86_64-12.4.0.43-archive.tar.xz",
+        sha256 = "f7f8ac2cc67714989a3c8140cda39b1b7ed7d462a491e1ad3f53adb777f5070f",
+        strip_prefix = "libcufft-linux-x86_64-12.4.0.43-archive",
+    ),
+    "curand": struct(
+        version = "10.4.4.72",
+        url = _REDIST + "libcurand/linux-x86_64/libcurand-linux-x86_64-10.4.4.72-archive.tar.xz",
+        sha256 = "6f725f9187dc5f675308b830f786c163f5b1b499d86986f94fb60aa701c13c0b",
+        strip_prefix = "libcurand-linux-x86_64-10.4.4.72-archive",
     ),
     "nvcc": struct(
         version = "13.4.92",

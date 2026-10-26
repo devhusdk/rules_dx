@@ -161,6 +161,10 @@ rules_cuda and toolchains_llvm only read their tags from the root module, so
 `MODULE.bazel` carries the pinned CUDA 13.4 toolkit components and the LLVM 22
 host compiler for nvcc. No CUDA install is needed to build.
 
+The stanza also pins cuBLAS, cuFFT and cuRAND. Bazel fetches them only when a
+target depends on `//cuda/components:cublas`, `:cufft` or `:curand`. A
+workspace with an older stanza must copy the stanza again to use them.
+
 The stanza also contains `cuda_license.license(accept = ["cuda-eula"])`, which
 accepts the [NVIDIA CUDA Toolkit EULA](https://docs.nvidia.com/cuda/eula/index.html)
 for the build. Remove that line to decline; CUDA targets then fail to build.

@@ -124,6 +124,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude ruby/tests/fixtures/hello
 # gazelle:exclude ruby/tests/fixtures/rspec
 # gazelle:exclude zig/tests/fixtures/hello
+# gazelle:exclude julia/tests/fixtures/hello
 # gazelle:exclude rust/tests/fixtures/bindgen
 # gazelle:exclude cc/tests/fixtures/googletest
 # gazelle:exclude cc/tests/fixtures/lcov_accounting

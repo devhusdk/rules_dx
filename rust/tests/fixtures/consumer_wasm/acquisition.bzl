@@ -117,13 +117,19 @@ wasi_runtime_subject = rule(
 )
 
 def _wasm_transition_impl(_settings, _attr):
-    """Selects the raw wasm32 platform for one dependency edge."""
-    return {"//command_line_option:platforms": [_WASM_PLATFORM]}
+    """Selects the raw wasm32 platform without coverage for one dependency edge."""
+    return {
+        "//command_line_option:collect_code_coverage": False,
+        "//command_line_option:platforms": [_WASM_PLATFORM],
+    }
 
 wasm_transition = transition(
     implementation = _wasm_transition_impl,
     inputs = [],
-    outputs = ["//command_line_option:platforms"],
+    outputs = [
+        "//command_line_option:collect_code_coverage",
+        "//command_line_option:platforms",
+    ],
 )
 
 def _wasm_subject_proxy_impl(ctx):
@@ -141,7 +147,7 @@ _WASM_TRIPLE = "wasm32-unknown-unknown"
 _HOSTS = {
     "linux_arm64": ("linux", "aarch64", "linux_aarch64", "aarch64-unknown-linux-gnu"),
     "linux_x86_64": ("linux", "x86_64", "linux_x86_64", "x86_64-unknown-linux-gnu"),
-    "macos_arm64": ("macos", "aarch64", "darwin_aarch64", "aarch64-apple-darwin"),
+    "macos_arm64": ("macos", "aarch64", "macos_aarch64", "aarch64-apple-darwin"),
     "windows_arm64": ("windows", "aarch64", "windows_aarch64", "aarch64-pc-windows-msvc"),
     "windows_x86_64": ("windows", "x86_64", "windows_x86_64", "x86_64-pc-windows-msvc"),
 }

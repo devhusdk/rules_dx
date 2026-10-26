@@ -29,6 +29,7 @@ typescript_test(
     declaration = True,
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":totals"],

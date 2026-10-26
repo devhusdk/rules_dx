@@ -31,6 +31,7 @@ typescript_test(
     declaration = True,
     node_modules = "//examples/node-app:node_modules",
     node_options = ["--experimental-vm-modules"],
+    package_json = "//examples/node-app:package_json",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":cli"],

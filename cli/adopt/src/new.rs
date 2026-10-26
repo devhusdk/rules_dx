@@ -1122,6 +1122,7 @@ javascript_js_test(
         ":node_modules/{package}",
     ],
     entry_point = "hello.test.js",
+    package_json = ":package_json",
 )
 "#,
         rule = starter.rule,
@@ -1442,6 +1443,10 @@ mod tests {
             let build = read("BUILD.bazel");
             assert!(build.contains(&format!("{language}_library(")), "{build}");
             assert!(build.contains("javascript_js_test("), "{build}");
+            assert!(
+                build.contains("package_json = \":package_json\""),
+                "{build}"
+            );
             assert!(!build.contains("jest"), "{build}");
             let module = read("MODULE.bazel");
             assert!(module.contains("module(name = \"demo-app\")"), "{module}");

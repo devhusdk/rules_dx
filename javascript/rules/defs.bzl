@@ -155,16 +155,16 @@ def javascript_js_test_rejection(kwargs):
     """Returns the rejection for forbidden javascript_js_test kwargs, or None."""
     return node_test_plain_rejection("javascript_test", "javascript_js_test", kwargs)
 
-def javascript_test(name, srcs, node_modules, data = None, visibility = None, env_inherit = None, **kwargs):
+def javascript_test(name, srcs, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test."""
     rejection = javascript_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
-    node_wrap_test(name, _jest_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), {"node_modules": node_modules}, env_inherit, visibility, kwargs)
+    node_wrap_test(name, _jest_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, {"node_modules": node_modules}, env_inherit, visibility, kwargs)
 
-def javascript_js_test(name, srcs, entry_point, data = None, visibility = None, env_inherit = None, **kwargs):
+def javascript_js_test(name, srcs, entry_point, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over js_test."""
     rejection = javascript_js_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
-    node_wrap_test(name, _js_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), {"entry_point": entry_point}, env_inherit, visibility, kwargs)
+    node_wrap_test(name, _js_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, {"entry_point": entry_point}, env_inherit, visibility, kwargs)

@@ -1044,13 +1044,9 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         let verification = verify_fix(request, &context, through);
         reports_ok &= verification.readable;
         verification_failed = verification.failed_phase.is_some();
-        if let Err(exit) = deliver_verification(
-            out,
-            err,
-            request.common.output,
-            command,
-            &verification,
-        ) {
+        if let Err(exit) =
+            deliver_verification(out, err, request.common.output, command, &verification)
+        {
             verify_forward_exit = Some(exit);
         }
     }

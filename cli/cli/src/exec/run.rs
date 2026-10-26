@@ -379,9 +379,9 @@ fn execute_run_multi(
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use crate::resolve::ResolveError;
     use crate::args::parse;
     use crate::args::Command;
+    use crate::resolve::ResolveError;
 
     #[test]
     fn run_label_passthrough_preserves_status_on_stderr() {

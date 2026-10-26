@@ -421,7 +421,11 @@ mod tests {
             ),
         ] {
             let failure = Failure::resolve(&error);
-            assert_eq!((failure.code.as_str(), failure.exit), (code, exit), "{error}");
+            assert_eq!(
+                (failure.code.as_str(), failure.exit),
+                (code, exit),
+                "{error}"
+            );
         }
     }
 

@@ -37,6 +37,7 @@ def sbom_unit_tests(name):
     )
 
 def sbom_file_tests(name, spdx, want):
+    """Checks that an SPDX output contains the wanted text."""
     starlark_test(
         name = name,
         mode = "execution",

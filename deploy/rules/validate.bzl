@@ -45,10 +45,5 @@ def charset_schema_error(version, charsets):
     return ""
 
 def genrule_arg(value):
-    """Quotes one free-form string for a native.genrule cmd.
-
-    Shell-quotes the value, then doubles every $ because Bazel expands $ in
-    genrule cmd before bash sees it. For genrule cmd only: do not use it with
-    ctx.actions.run_shell, where the doubled $ would be wrong.
-    """
+    """Shell-quotes a string for a native.genrule cmd."""
     return shell.quote(value).replace("$", "$$")

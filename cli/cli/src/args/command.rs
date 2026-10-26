@@ -621,7 +621,7 @@ pub static COMMANDS: [CommandMeta; 30] = [
         scope_policy: "default-//...",
         describe: "list configured test targets without building or running them (non-mutating; --cases builds and runs supported test binaries to list cases)",
         usage: "Usage: dx list-tests [--cases] [--configured] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected lists only the affected tests, not their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
         supports_json: true,

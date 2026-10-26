@@ -13,7 +13,9 @@ Keeps a small pool of warm checkouts, called slots, so a new worktree reuses
 a slot that already has a Bazel server, output base and caches. Slots live at
 `<cache>/dx/worktrees/<repo>/<n>`. `<cache>` is `$XDG_CACHE_HOME`, else
 `$HOME/.cache`, else `%LOCALAPPDATA%`. Lease records live in
-`<cache>/dx/worktrees/<repo>/.dx/`.
+`<cache>/dx/worktrees/<repo>/.dx/`. `<repo>` is the basename of the main
+checkout, or `<repo>-2`, `<repo>-3` when another repository already uses that
+name.
 
 A bare `dx worktree` runs `list`.
 
@@ -29,7 +31,10 @@ above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`. When
 `<base>` is the `--create` ref, else `origin/HEAD`, `origin/main`, or
 `origin/master`.
 `release` prints `dx worktree: released slot <n> at <path>`, or
-`dx worktree: removed <path>` for an external worktree.
+`dx worktree: removed <path>` for an external worktree. Releasing a slot that
+is already free prints `dx worktree: slot <n> is already free` and exits `0`.
+JSON reports it as a `slot` event with `slot`, action `release`, and state
+`free`.
 
 `--output=json` streams `command_started`, one `slot` event per slot, and
 `command_finished`. `list` adds a `summary` event after the slots. `prune`
@@ -49,8 +54,10 @@ bases, then free slots' output bases oldest first, and print one of these lines 
 - `dx worktree: low disk: <free> free; nothing to reclaim`
 - `dx worktree: low disk, cannot reclaim output bases: <error>`
 
-The first two end with `; run dx worktree prune --apply` while disk stays low.
-JSON emits a `notice` event with level `warning` and code `disk_low` before
+The first two end with `; run dx worktree prune --apply` while disk stays low,
+so a pool with nothing to reclaim prints
+`low disk: <free> free; nothing to reclaim; run dx worktree prune --apply`.
+All three use the `disk_low` notice code. JSON emits a `notice` event with level `warning` and code `disk_low` before
 the `slot` event.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
@@ -78,7 +85,9 @@ other than `kept` and `skipped`, and for `list` with `--disk`.
 `disk_cache_bytes` with `--disk`.
 
 Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
-wrong arguments, a flag on the wrong subcommand, an unknown `--create` ref,
+wrong arguments, an invalid branch name (`invalid_branch`), a path that is not
+a slot (`not_a_slot`, including a bare `release` from the main checkout),
+a flag on the wrong subcommand, an unknown `--create` ref,
 `--create` on an existing branch, `release` of a slot another holder holds
 without `--force`, any other `dx` command in a slot leased to another
 session or in a slot that `add` is switching, and running outside a git repository, in a bare repository, or where
@@ -86,7 +95,8 @@ the main checkout cannot be found), `1` operational failures (a branch already
 checked out elsewhere or held by another holder without `--force`, a dirty or
 unpushed slot or external worktree on `release` without `--force`, `slot_busy`
 when a `dx` command runs in the slot that `add --force` or `release` wants, even
-with `--force`, a busy pool lock, `path` finds
+with `--force`, a busy pool lock, `no_home` when no cache directory can be found,
+`lease_changed` when another holder took the slot during the command, `path` finds
 no checkout, `prune` finds work without `--apply`, no default branch to start
 a new branch from, and any `hook create`, `hook remove`, or `hook stop`
 failure), and `128` plus the signal number when Ctrl-C, `SIGTERM`, or `SIGHUP`
@@ -148,8 +158,11 @@ Each refusal of a subcommand ends with the next step, such as `pass --create=<re
 ```text
 1	feature-x	session 7f3a agent a91c pid 4121	held	server	-	/home/me/.cache/dx/worktrees/app/1
 2	(detached)	-	free	no server	-	/home/me/.cache/dx/worktrees/app/2
+3	review-y	pid 4180 (gone)	held	no server	-	/home/me/.cache/dx/worktrees/app/3
 1 bazel server(s) running, 2.1 GiB resident
 ```
+
+A holder that has exited shows ` (gone)` after its name.
 
 The columns are slot, branch, holder, state, server, disk use, and path. The
 disk column shows `-` unless you pass `--disk`, which measures each slot and
@@ -179,10 +192,19 @@ tracks `origin/<branch>` and is merged into the default branch, or whose
 `origin/<branch>` is deleted, and Bazel output bases of removed worktrees,
 including checkouts removed from `.claude/worktrees`. It also lists the output
 bases of the other free slots whose disk is low, least recently used first, as
-`output base of free slot <n>, <size>: <dir>`. `--apply` stops each slot's
-Bazel server and deletes those output bases; the slots stay. `--apply` removes the
+`output base of free slot <n>, <size>: <dir>`. `--apply` deletes the idle free slots and stops each slot's
+Bazel server and deletes those output bases; the other slots stay. `--apply` removes the
 external worktrees with their output bases and keeps the branches. It deletes nothing without `--apply`. It exits `1` when something
 would be pruned and `--apply` is absent, and `0` when there is nothing to prune.
+
+Without `--apply`, text prints one line per item, and a closing line
+`dx worktree: <size> to reclaim; run dx worktree prune --apply`. The item
+lines are `slot <n> idle <days> days, <size>: <path>`,
+`external worktree <branch>, <size>: <path>`,
+`output base of free slot <n>, <size>: <dir>`, and
+`output base of removed <workspace>, <size>: <dir>`. With `--apply` the closing
+line is `dx worktree: pruned <size>`, and `dx worktree: nothing to prune`
+replaces everything when nothing qualifies.
 
 `--apply` finds and deletes everything under the pool lock. It checks each
 external worktree again. One that
@@ -227,7 +249,9 @@ any failure, including empty or invalid stdin. When `create`, `remove`, or
 event that runs it.
 
 - `create` reads `name` and `cwd`. Without `cwd`, it uses the current
-  directory. It leases a slot on branch `worktree-<name>` and prints only the
+  directory. It leases a slot on branch `worktree-<name>`, where characters
+  other than letters, digits, `-`, `_`, and `.` become `-`, so `my task`
+  gives `worktree-my-task`. It prints only the
   path on stdout. Warnings such as
   `dx worktree: cannot fetch origin, using local refs: <error>` go to stderr
   and do not change the exit code. It reuses a local branch with

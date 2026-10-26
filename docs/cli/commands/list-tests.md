@@ -26,7 +26,10 @@ Bazel invocation behind the command, including the inventory query.
 
 The default inventory is unconfigured (`bazel query`). `--configured`
 reads configured targets through `bazel cquery` instead. File ownership
-resolution stays unconfigured in both modes.
+resolution stays unconfigured in both modes, so owners are found without
+configuration. With `--configured`, a file scope keeps only the tests that
+reach its owners in the configured graph (cquery `rdeps`). Such a scope can
+drop tests or fail with `no_tests`.
 
 `--cases` enumerates test cases for Rust targets (`rust_test` and the
 `dx_wrap` forwarder) by building each test and running it with `--list`.
@@ -42,7 +45,7 @@ empty suite. Case output is sorted and deterministic, with no cap. It ends with
 a completeness line (`complete` or `incomplete`) on stderr, or a
 `list-tests-summary` status event (`ok` or `warn`) with `--output json`. Inventory stays useful without case enumeration.
 
-Output: `--output text|json`. Text prints one label per line, or one
+Output: `--output text|json`. `dx list-tests` has no report format. Text prints one label per line, or one
 `label: case` line per case with `--cases`; problems go to stderr. JSON
 starts with `command_started`, adds one `status` event per label
 (`detail` is the label, `hint` names the scope and the query verb), one
@@ -52,7 +55,7 @@ the label), one `error` event per problem, and ends with
 `phase`, and `status` when a Bazel run exited (`bazel_failed`, `case_failed`).
 
 Exit codes: `0` success, `2` usage errors including an external scope, a
-relative label, an unreadable path, or a Bazel option `--cases` cannot pass to
+relative label, an unreadable path, a missing path (`invalid_scope`), a file no target owns (`no_owner`), or a Bazel option `--cases` cannot pass to
 `bazel run`, `1` operational failures including
 `no_tests`, `bazel_failed`, `query_failed`, `query_launch_failed`, `launch_failed`,
 `unsupported_framework`, `no_cases`, or `case_failed`. A partial match still exits `1` when
@@ -61,6 +64,6 @@ any scope contributed no tests.
 ```sh
 bazel run @rules_dx//:dx -- list-tests //cli/test_scratch/...
 bazel run @rules_dx//:dx -- list-tests --cases //cli/test_scratch:dx_test_scratch_test_upstream
-bazel run @rules_dx//:dx -- list-tests --cases //cli/test_scratch/... --output=json
+bazel run @rules_dx//:dx -- list-tests --cases //cli/test_scratch:dx_test_scratch_test_upstream --output=json
 bazel run @rules_dx//:dx -- list-tests --configured //cli/test_scratch/... -- --config=ci
 ```

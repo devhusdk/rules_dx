@@ -719,3 +719,38 @@ func TestStripBOM(t *testing.T) {
 	}
 }
 
+// IncompleteJS stands in for acorn failing at the last character, which is
+// when micromark-extension-mdxjs-esm 3 keeps a block open past a blank line.
+func TestIncompleteJS(t *testing.T) {
+	cases := []struct {
+		src  string
+		want bool
+	}{
+		{"", false},
+		{"import a from './a';", false},
+		{"import {", true},
+		{"import {\n  a,\n} from './a';", false},
+		{"export const x = [", true},
+		{"export const x = f(", true},
+		{"export const s = `a\n", true},
+		{"export const s = `a ${b} c`;", false},
+		{"export const s = `a ${ {b: 1} } c`;", false},
+		{"export const s = `a ${", true},
+		{"export const s = `\\``;", false},
+		{"import a /* note", true},
+		{"import a /* note */ from 'a';", false},
+		{"import a from 'a'; // {", false},
+		{"export const s = '{';", false},
+		{"export const s = \"(\";", false},
+		{"export const s = 'abc", false},
+		{"export const r = /[{(]/;", false},
+		{"export const x = a / b / c;", false},
+		{"export const x = {a: [1, (2)]};", false},
+		{"export default )", false},
+	}
+	for _, tc := range cases {
+		if got := IncompleteJS([]byte(tc.src)); got != tc.want {
+			t.Errorf("IncompleteJS(%q) = %v, want %v", tc.src, got, tc.want)
+		}
+	}
+}

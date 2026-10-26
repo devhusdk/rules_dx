@@ -1,5 +1,7 @@
 package common
 
+import "bytes"
+
 func ScanEmbedded(src []byte, add func(string)) {
 	n := len(src)
 	i := 0
@@ -226,3 +228,62 @@ func parseEmbeddedRequire(src []byte, j int, add func(string)) int {
 	return k + 1
 }
 
+// IncompleteJS reports whether src ends inside an open bracket, template
+// literal, or block comment, so later lines could still complete it.
+func IncompleteJS(src []byte) bool {
+	n := len(src)
+	var stack []byte
+	i := 0
+	for i < n {
+		c := src[i]
+		if len(stack) > 0 && stack[len(stack)-1] == '`' {
+			switch {
+			case c == '\\':
+				i += 2
+			case c == '`':
+				stack = stack[:len(stack)-1]
+				i++
+			case c == '$' && i+1 < n && src[i+1] == '{':
+				stack = append(stack, '}')
+				i += 2
+			default:
+				i++
+			}
+			continue
+		}
+		switch {
+		case c == '/' && i+1 < n && src[i+1] == '/':
+			for i < n && src[i] != '\n' {
+				i++
+			}
+		case c == '/' && i+1 < n && src[i+1] == '*':
+			end := bytes.Index(src[i+2:], []byte("*/"))
+			if end < 0 {
+				return true
+			}
+			i += end + 4
+		case c == '\'' || c == '"':
+			i = skipQuoted(src, i)
+		case c == '/' && isRegexStart(src, i):
+			i = skipRegex(src, i)
+		case c == '`':
+			stack = append(stack, '`')
+			i++
+		case c == '(':
+			stack = append(stack, ')')
+			i++
+		case c == '[':
+			stack = append(stack, ']')
+			i++
+		case c == '{':
+			stack = append(stack, '}')
+			i++
+		case len(stack) > 0 && c == stack[len(stack)-1]:
+			stack = stack[:len(stack)-1]
+			i++
+		default:
+			i++
+		}
+	}
+	return len(stack) > 0
+}

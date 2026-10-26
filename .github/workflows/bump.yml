@@ -88,7 +88,6 @@ jobs:
           echo "Scheduled discovery (issue #639): enumerating outdated via upstream registry clients (stable only, never custom HTTP)."
           echo "Discovery policy: stable only; prerelease follows upstream resolver/project config, never a private policy; transitives stay resolver-governed."
           echo "Registry clients: BCR / crates.io / npm registry / Go proxy / Maven Central / NuGet / GitHub releases (planned in dx_bump::discovery; manual selector only rejected)."
-          echo "Fixtures: cli/bump/tests/fixtures/bump_discovery/ (pins.bzl plus bump_discovery.expected)."
           echo ""
           echo "Declared requirements (manifest scan, no fetch):"
           if [[ -f MODULE.bazel ]]; then
@@ -154,7 +153,6 @@ jobs:
           if command -v gh >/dev/null 2>&1; then
             echo "--- GitHub releases (gh) ---"
             grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 10 || echo "(no pinned actions found)"
-            echo "(tags auto-resolve to SHA via the upstream GitHub releases client before the file edit, planned in dx_bump::gha, issue #640; fixtures in cli/bump/tests/fixtures/bump_gha/; manual SHA only rejected)"
             while IFS= read -r pin; do
               repo="$(echo "$pin" | sed -E 's/.*uses: *([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@.*/\1/')"
               tag="$(echo "$pin" | sed -E 's/.*@([A-Za-z0-9_.-]+).*/\1/')"

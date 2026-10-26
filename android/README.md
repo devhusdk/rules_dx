@@ -1,24 +1,49 @@
 # Android
 
-Acquire one pinned NDK archive and pinned build-tools 34.0.0 on an
-opt-in basis. Disabled setups fetch no Android payload.
+Acquire pinned Android SDK packages on an opt-in basis. Disabled setups
+fetch no Android payload.
 
 ```python
 android_sdk = use_extension("@rules_dx//android/sdk:repos.bzl", "android_sdk")
 
 android_sdk.configure(
     accept_licenses = ["android-sdk-license"],
+    # api_level = 31,                       # 31-34, default 34
+    # extra_packages = ["platform-tools"],  # and/or "emulator"
 )
 
-use_repo(android_sdk, "dx_android_sdk", "dx_android_ndk_linux_x86_64")
+use_repo(
+    android_sdk,
+    "dx_android_sdk",
+    "dx_android_ndk_linux_x86_64",
+    "dx_android_build_tools_linux_x86_64",
+    "dx_android_platform",
+)
 ```
 
-The `dx_android_sdk` hub exposes `ndk`, `zipalign` and `apksigner_jar`.
-Each archive downloads only when a build needs it. Without a
-`configure` tag only the hub exists and its targets are empty. Pass
-`mirror` to override the download host, `local_path` to use an
-installed SDK with an accepted license instead of downloading, and
-`extra_packages` for `platform-tools` or `emulator`.
+What is fetched, each only when a build needs it:
+
+- NDK r27 (`dx_android_ndk_linux_x86_64`)
+- build-tools 34.0.0 (`dx_android_build_tools_linux_x86_64`)
+- `platforms;android-<api_level>` for `api_level` 31 to 34, default 34
+  (`dx_android_platform`; the name does not depend on the level)
+- opt-in through `extra_packages`: `platform-tools` r37.0.1
+  (`dx_android_platform_tools_linux_x86_64`) and `emulator` 16428233
+  (`dx_android_emulator_linux_x86_64`, about 350 MB). The emulator ships
+  no system image.
+
+Any other `extra_packages` entry, a repeated entry, or an `api_level`
+other than 31 to 34 fails with an error naming the allowed values.
+
+The `dx_android_sdk` hub exposes `ndk`, `zipalign`, `apksigner_jar`,
+`bundletool_jar`, `android_jar`, `adb` and `emulator`. Targets for packages
+that were not requested are empty. Without a `configure` tag only the hub
+exists. Pass `mirror` to override the download host.
+
+`local_path` uses an installed SDK with an accepted license instead of
+downloading. The NDK must be present. An explicit `api_level` or a requested
+extra package must exist in the SDK, otherwise the error names the missing
+path. Without them a missing android-34 platform leaves `android_jar` empty.
 The qualified host is Linux x86_64 with NDK r27 targeting API 31.
 
 ## Native platforms

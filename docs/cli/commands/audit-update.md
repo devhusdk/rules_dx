@@ -382,6 +382,7 @@ A set that needs a refresh under `--offline` fails before writing with
 `frozen_locked`.
 
 `--check`, `--fail-on`, `--report`, and Bazel options do not apply.
+`--bazel-startup-option` applies to the Bazel run that refreshes the lock.
 Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
 1 a pending add without `--apply`, a declared package, or an operational
 failure.

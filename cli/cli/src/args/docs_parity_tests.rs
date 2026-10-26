@@ -3361,21 +3361,34 @@ fn versions_pin(name: &str) -> String {
 
 #[test]
 fn status_toolchain_detail_tracks_the_canonical_rust_pins() {
-    let expected = format!(
-        "rust {} via rules_rust {} (MODULE.bazel)",
-        versions_pin("RUST_VERSION"),
-        versions_pin("RULES_RUST_VERSION")
-    );
-    let toolchain = dx_adopt::default_status_checks("0.0.0")
+    let rust = versions_pin("RUST_VERSION");
+    let rules_rust = versions_pin("RULES_RUST_VERSION");
+    let scratch = dx_test_scratch::scratch("dx-docs-toolchain-");
+    std::fs::write(
+        scratch.path().join("MODULE.bazel"),
+        dx_adopt::render_consumer_module_setup(),
+    )
+    .expect("module");
+    let tools = dx_adopt::StatusCheck {
+        name: "tools".to_owned(),
+        status: "warn".to_owned(),
+        detail: String::new(),
+        hint: String::new(),
+    };
+    let toolchain = dx_adopt::observed_status_checks(scratch.path(), "0.0.0", tools)
         .into_iter()
         .find(|check| check.name == "toolchain")
         .expect("dx status has a toolchain check");
+    let expected =
+        format!("available: rust {rust} via rules_rust {rules_rust} declared in MODULE.bazel");
+    assert_eq!(toolchain.status, "ok", "{}", toolchain.detail);
     assert_eq!(toolchain.detail, expected, "dx status toolchain detail");
+    let line = dx_adopt::render_status_text(&[toolchain]);
     let page = std::fs::read_to_string(docs_dir().join("status-version.md"))
         .expect("status page ships as test data");
     assert!(
-        page.contains(&expected),
-        "docs/cli/commands/status-version.md must show the canonical toolchain line: {expected}"
+        page.contains(&line),
+        "docs/cli/commands/status-version.md must show the canonical toolchain line: {line}"
     );
 }
 

@@ -69,8 +69,7 @@ pub use scaffold::{
     CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, ENVRC_CONTENT,
 };
 pub use status::{
-    default_status_checks, observed_status_checks, render_status_json, render_status_text,
-    StatusCheck,
+    observed_status_checks, render_status_json, render_status_text, StatusCheck,
 };
 pub use upgrade::{
     plan_qualified_upgrade, plan_released_upgrade, plan_upgrade, upgrade_recovery_message,

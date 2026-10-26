@@ -2,7 +2,12 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use super::{pin_fix_hint, read_module_dependency, version_pin_matches_module, MODULE_VERSION};
+use dx_module_bazel::ModuleFile;
+
+use super::{
+    pin_fix_hint, read_module_dependency, version_pin_matches_module, CONSUMER_RULES_RUST_VERSION,
+    CONSUMER_RUST_VERSION, MODULE_VERSION,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct StatusCheck {
@@ -31,41 +36,18 @@ pub fn render_status_json(
     dx_fingerprint::to_json(&StatusPayload { checks })
 }
 
-pub fn default_status_checks(pinned: &str) -> Vec<StatusCheck> {
+fn pin_check(pinned: &str) -> StatusCheck {
     let pin_status = if version_pin_matches_module(pinned, MODULE_VERSION) {
         "ok"
     } else {
         "error"
     };
-    vec![
-        StatusCheck {
-            name: "toolchain".to_owned(),
-            status: "ok".to_owned(),
-            detail: "rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)".to_owned(),
-            hint: "bazel build //...".to_owned(),
-        },
-        StatusCheck {
-            name: "platform".to_owned(),
-            status: "ok".to_owned(),
-            detail:
-                "execution linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 selects tools; the target platform never selects tools"
-                    .to_owned(),
-            hint: "out-of-v1 hosts stay unqualified".to_owned(),
-        },
-        StatusCheck {
-            name: "tools".to_owned(),
-            status: "warn".to_owned(),
-            detail: "unknown: pinned tools (//quality/artifacts) resolve at build time and status does not probe them"
-                .to_owned(),
-            hint: "bazel build //...".to_owned(),
-        },
-        StatusCheck {
-            name: "pin".to_owned(),
-            status: pin_status.to_owned(),
-            detail: format!("dx {pinned} vs module {MODULE_VERSION}"),
-            hint: pin_fix_hint(pinned, MODULE_VERSION),
-        },
-    ]
+    StatusCheck {
+        name: "pin".to_owned(),
+        status: pin_status.to_owned(),
+        detail: format!("dx {pinned} vs module {MODULE_VERSION}"),
+        hint: pin_fix_hint(pinned, MODULE_VERSION),
+    }
 }
 
 fn check(name: &str, status: &str, detail: String, hint: &str) -> StatusCheck {
@@ -196,6 +178,82 @@ fn module_check(root: &Path) -> StatusCheck {
     }
 }
 
+fn toolchain_check(root: &Path) -> StatusCheck {
+    let hint = "bazel build //...";
+    let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
+        return check(
+            "toolchain",
+            "warn",
+            "unknown: no MODULE.bazel in the workspace".to_owned(),
+            hint,
+        );
+    };
+    let Ok(module) = ModuleFile::parse(&text) else {
+        return check(
+            "toolchain",
+            "warn",
+            "unknown: MODULE.bazel does not parse".to_owned(),
+            hint,
+        );
+    };
+    let binding = module.calls_named("use_extension").find_map(|call| {
+        match call.positional.as_slice() {
+            [dx_module_bazel::Value::Str(label), dx_module_bazel::Value::Str(name), ..]
+                if label.value == "@rules_rust//rust:extensions.bzl" && name.value == "rust" =>
+            {
+                call.binding.clone()
+            }
+            _ => None,
+        }
+    });
+    let tag = binding.map(|binding| format!("{binding}.toolchain"));
+    let versions: Vec<&str> = tag
+        .iter()
+        .flat_map(|tag| module.calls_named(tag))
+        .flat_map(|call| call.str_list("versions"))
+        .collect();
+    if versions.is_empty() {
+        return check(
+            "toolchain",
+            "warn",
+            "unknown: MODULE.bazel declares no rust toolchain versions".to_owned(),
+            hint,
+        );
+    }
+    let overridden = module.calls().iter().any(|call| {
+        call.name.ends_with("_override") && call.str("module_name") == Some("rules_rust")
+    });
+    let rules_rust = match module.bazel_dep_version("rules_rust") {
+        Ok(version) if !overridden => version.value.clone(),
+        _ => {
+            return check(
+                "toolchain",
+                "warn",
+                "unknown: rules_rust version comes from an override or is not declared in MODULE.bazel"
+                    .to_owned(),
+                hint,
+            )
+        }
+    };
+    let declared = versions.join(", ");
+    if declared == CONSUMER_RUST_VERSION && rules_rust == CONSUMER_RULES_RUST_VERSION {
+        return check(
+            "toolchain",
+            "ok",
+            format!("available: rust {declared} via rules_rust {rules_rust} declared in MODULE.bazel"),
+            hint,
+        );
+    }
+    check(
+        "toolchain",
+        "warn",
+        format!(
+            "unknown: MODULE.bazel declares rust {declared} via rules_rust {rules_rust}, dx tests rust {CONSUMER_RUST_VERSION} via rules_rust {CONSUMER_RULES_RUST_VERSION}"
+        ),
+        hint,
+    )
+}
+
 fn host_name(os: &str, arch: &str) -> Option<&'static str> {
     match (os, arch) {
         ("linux", "x86_64") => Some("linux_x86_64"),
@@ -291,78 +349,102 @@ fn launcher_check(root: &Path, pinned: &str) -> Option<StatusCheck> {
 }
 
 pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> Vec<StatusCheck> {
-    let mut checks = default_status_checks(pinned);
-    for check in checks.iter_mut().filter(|check| check.name == tools.name) {
-        *check = tools.clone();
-    }
-    checks.insert(1, bazel_check(root, std::env::var_os("PATH")));
-    checks.insert(2, module_check(root));
-    checks.insert(3, host_check(std::env::consts::OS, std::env::consts::ARCH));
-    checks.insert(4, exec_tools_check(root));
+    let mut checks = vec![
+        toolchain_check(root),
+        bazel_check(root, std::env::var_os("PATH")),
+        module_check(root),
+        host_check(std::env::consts::OS, std::env::consts::ARCH),
+        exec_tools_check(root),
+        tools,
+        pin_check(pinned),
+    ];
     checks.extend(launcher_check(root, pinned));
     checks
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::{default_status_checks, StatusCheck, MODULE_VERSION};
-    use super::{render_status_json, render_status_text};
+    use super::super::{render_consumer_module_setup, StatusCheck, MODULE_VERSION};
+    use super::{pin_check, render_status_json, render_status_text, toolchain_check};
 
-    #[test]
-    fn status_renders_text_and_json() {
-        let checks = default_status_checks(MODULE_VERSION);
-        assert_eq!(checks.len(), 4);
-        let text = render_status_text(&checks);
-        assert!(text.contains("pin: ok"));
-        let pin = checks.iter().find(|c| c.name == "pin").expect("pin check");
-        assert_eq!(pin.hint, "dx version --check");
-        let toolchain = checks
-            .iter()
-            .find(|c| c.name == "toolchain")
-            .expect("toolchain check");
-        assert!(
-            toolchain.detail.contains("MODULE.bazel"),
-            "{}",
-            toolchain.detail
-        );
-        let tools = checks
-            .iter()
-            .find(|c| c.name == "tools")
-            .expect("tools check");
-        assert_eq!(tools.status, "warn");
-        assert!(
-            tools.detail.contains("//quality/artifacts"),
-            "{}",
-            tools.detail
-        );
-        let json = render_status_json(&checks).expect("status json");
-        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"rust 1.98.0 via rules_rust 0.74.0 (MODULE.bazel)","hint":"bazel build //..."},{"name":"platform","status":"ok","detail":"execution linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 selects tools; the target platform never selects tools","hint":"out-of-v1 hosts stay unqualified"},{"name":"tools","status":"warn","detail":"unknown: pinned tools (//quality/artifacts) resolve at build time and status does not probe them","hint":"bazel build //..."},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --check"}]}"#);
+    fn tools_check() -> StatusCheck {
+        StatusCheck {
+            name: "tools".to_owned(),
+            status: "warn".to_owned(),
+            detail: "unknown: pinned tools (//quality/artifacts) resolve at build time"
+                .to_owned(),
+            hint: "bazel build //...".to_owned(),
+        }
     }
 
     #[test]
-    fn platform_check_names_execution_not_target() {
-        let checks = default_status_checks(MODULE_VERSION);
-        let platform = checks
-            .iter()
-            .find(|c| c.name == "platform")
-            .expect("platform check");
-        assert_eq!(platform.status, "ok");
-        for key in [
-            "linux_x86_64",
-            "linux_arm64",
-            "macos_arm64",
-            "windows_x86_64",
-        ] {
-            assert!(platform.detail.contains(key), "{}", platform.detail);
-        }
-        assert!(platform.detail.contains("execution"), "{}", platform.detail);
-        assert!(
-            platform
-                .detail
-                .contains("target platform never selects tools"),
-            "{}",
-            platform.detail
+    fn status_renders_text_and_json() {
+        let scratch = dx_test_scratch::scratch("dx-status-render-");
+        let dir = scratch.path();
+        std::fs::write(dir.join("MODULE.bazel"), render_consumer_module_setup()).expect("module");
+        let checks = vec![toolchain_check(dir), pin_check(MODULE_VERSION)];
+        let text = render_status_text(&checks);
+        assert!(text.contains("pin: ok"), "{text}");
+        assert!(text.contains("toolchain: ok"), "{text}");
+        let json = render_status_json(&checks).expect("status json");
+        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"available: rust 1.98.0 via rules_rust 0.74.0 declared in MODULE.bazel","hint":"bazel build //..."},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --check"}]}"#);
+    }
+
+    #[test]
+    fn toolchain_check_reads_the_workspace_module() {
+        let scratch = dx_test_scratch::scratch("dx-status-toolchain-");
+        let dir = scratch.path();
+        let run = |module: &str| {
+            std::fs::write(dir.join("MODULE.bazel"), module).expect("module");
+            toolchain_check(dir)
+        };
+        let missing = toolchain_check(dir);
+        assert_eq!(missing.status, "warn");
+        assert_eq!(missing.detail, "unknown: no MODULE.bazel in the workspace");
+        let broken = run("bazel_dep(");
+        assert_eq!(broken.status, "warn");
+        assert_eq!(broken.detail, "unknown: MODULE.bazel does not parse");
+        let none = run("bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n");
+        assert_eq!(none.status, "warn");
+        assert!(none.detail.starts_with("unknown:"), "{}", none.detail);
+        let setup = render_consumer_module_setup();
+        let ok = run(&setup);
+        assert_eq!(ok.status, "ok", "{}", ok.detail);
+        assert_eq!(
+            ok.detail,
+            format!(
+                "available: rust {} via rules_rust {} declared in MODULE.bazel",
+                super::CONSUMER_RUST_VERSION,
+                super::CONSUMER_RULES_RUST_VERSION
+            )
         );
+        let renamed = run(&setup.replace("rust = use_extension", "rs = use_extension")
+            .replace("rust.toolchain", "rs.toolchain")
+            .replace("use_repo(rust,", "use_repo(rs,"));
+        assert_eq!(renamed.status, "ok", "{}", renamed.detail);
+        let skew = run(&setup.replace(super::CONSUMER_RUST_VERSION, "9.9.9"));
+        assert_eq!(skew.status, "warn");
+        assert!(skew.detail.contains("9.9.9"), "{}", skew.detail);
+        assert!(
+            skew.detail.contains(super::CONSUMER_RUST_VERSION),
+            "{}",
+            skew.detail
+        );
+        let overridden = run(&format!(
+            "{}single_version_override(module_name = \"rules_rust\", version = \"0.74.0\")\n",
+            setup
+        ));
+        assert_eq!(overridden.status, "warn");
+        assert!(
+            overridden.detail.contains("override"),
+            "{}",
+            overridden.detail
+        );
+        let no_dep = run(&setup.replace(
+            "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n",
+            "",
+        ));
+        assert_eq!(no_dep.status, "warn");
     }
 
     #[test]
@@ -475,12 +557,11 @@ mod tests {
                 "module",
                 "host",
                 "exec_tools",
-                "platform",
                 "tools",
                 "pin"
             ]
         );
-        assert_eq!(checks[6], tools);
+        assert_eq!(checks[5], tools);
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -506,10 +587,7 @@ mod tests {
     fn observed_launcher_check_fails_when_stale() {
         let scratch = dx_test_scratch::scratch("dx-status-launcher-");
         let dir = scratch.path();
-        let tools = super::default_status_checks(MODULE_VERSION)
-            .into_iter()
-            .find(|check| check.name == "tools")
-            .expect("tools");
+        let tools = tools_check();
         let last = |pin: &str| {
             super::observed_status_checks(dir, pin, tools.clone())
                 .pop()

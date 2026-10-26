@@ -7,8 +7,8 @@ use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS, STARTUP_OPTIONS}
 
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
-use super::super::{parse, ArgsError, Command};
 use super::super::tokenizer::REMOVED_COMMANDS;
+use super::super::{parse, ArgsError, Command};
 use super::{render_command_help, render_top_help, usage_banner};
 use crate::test_support::strings;
 
@@ -1180,7 +1180,9 @@ fn docs_and_help_never_name_removed_commands() {
         for pair in words.windows(2) {
             if pair[0] == "dx" {
                 assert!(
-                    !REMOVED_COMMANDS.iter().any(|(removed, _)| *removed == pair[1]),
+                    !REMOVED_COMMANDS
+                        .iter()
+                        .any(|(removed, _)| *removed == pair[1]),
                     "{name} names the removed command dx {}",
                     pair[1]
                 );

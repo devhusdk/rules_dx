@@ -157,11 +157,13 @@ gh workflow run evidence.yml --ref <branch> -f scope=//cli/cli/...
 gh workflow run evidence.yml --ref <branch> -f scope="//cli/process/... //tools/testing/process_probe/..."
 ```
 
-- `scope`: space-separated Bazel target patterns. Each must start with `//`.
+- `scope`: space-separated target patterns such as `//pkg/...` or
+  `//pkg:target`.
 - `task`: `test` (default) or `build`.
 - `platforms`: JSON array of platform labels. Accepted: `linux_x86_64`,
-  `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.
-- `test_timeout`: seconds each test may run. Default `600`.
+  `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`. List each
+  platform once.
+- `test_timeout`: whole seconds each test may run. Default `600`.
 - `displays`: Linux only. `xcb`, `wayland` or `xcb,wayland`. Starts Xvfb and a
   headless Weston and sets `DX_QT_DISPLAYS`. Default empty: no displays.
 

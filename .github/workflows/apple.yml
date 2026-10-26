@@ -117,9 +117,11 @@ jobs:
           retention-days: 14
       - name: Write job summary
         if: always()
+        env:
+          DX_RUNNER: ${{ inputs.runner || 'macos-15' }}
         run: |
           {
-            echo "## Apple ${{ inputs.runner || 'macos-15' }}"
+            printf '## Apple %s\n' "$DX_RUNNER"
             echo ""
             head -n 12 evidence/executor.txt
             echo ""

@@ -283,9 +283,10 @@ export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks 
 ## Docs Workflow
 
 `examples/docs-ci/` calls `reusable-docs.yml`. It runs `dx lint --check` over
-`docs_scope` (default `//...`) plus `dx docs --check` site validation, then
-renders the site with `dx docs` and checks the rendered tree for missing
-pages, styles, and search index, so broken links fail before deploy.
+`docs_scope` (default `//...`), runs `dx docs --check` on `site_check` when
+you set it, then renders your `site` label with `dx docs` and checks the
+rendered tree for missing pages, styles, and search index, so broken links
+fail before deploy.
 
 Inputs:
 
@@ -297,12 +298,24 @@ Inputs:
   leading `-` or anything but a target pattern fails with one error naming it.
 - `publish`: build the rendered site and deploy to Pages. Default false.
 - `environment`: Pages environment name. Default `github-pages`.
+- `site`: required. One target label in your repository whose output is the
+  rendered mdBook tree, with `index.html` and `searchindex.js` at its root.
+- `site_check`: target label that `dx docs --check` runs. Default empty,
+  which skips the source check.
+- `forbid`: text the rendered site must not contain, one entry per line.
+  Default empty.
+- `landing`: also require a landing page in the rendered site. Default false.
+- `smoke_test`: test label run with `DX_PAGES_URL` set to the deployed page
+  URL. Default empty, which runs only the built-in page fetch.
+
+A `site`, `site_check` or `smoke_test` value that is not a single target label
+fails the docs check with one `dx-ci:` line naming the input.
 
 Publishing needs `pages: write` plus `id-token: write`. The publish job stages
-and validates the whole rendered tree, deploys it, then loads the reported
-page URL and checks routes, assets, and search before the clean-checkout
-proof. Enable Pages with source GitHub Actions before the first publishing
-run.
+and validates the whole `site` tree, deploys it, fetches `index.html` and
+`searchindex.js` from the reported page URL, then runs `smoke_test` if you set
+one, all before the clean-checkout proof. Enable Pages with source GitHub
+Actions before the first publishing run.
 
 ## Bump Workflow
 

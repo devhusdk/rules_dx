@@ -417,3 +417,65 @@ fn docs_list_every_input_each_reusable_workflow_accepts() {
         );
     }
 }
+
+/// Returns each `//` label in `text` that names no repository, with its 1-based line.
+fn bare_main_repo_labels(text: &str) -> Vec<(usize, String)> {
+    let repo_char = |c: char| c.is_ascii_alphanumeric() || "_.~+-".contains(c);
+    let label_char = |c: char| c.is_ascii_alphanumeric() || "_.+@=,~/:-".contains(c);
+    let mut found = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        for (start, _) in line.match_indices("//") {
+            let after = line[start + 2..].chars().next();
+            if !after.is_some_and(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':') {
+                continue;
+            }
+            let before = line[..start].trim_end_matches(repo_char);
+            if before.ends_with('@') || line[..start].ends_with(':') {
+                continue;
+            }
+            let end = line[start..]
+                .find(|c: char| !label_char(c))
+                .map_or(line.len(), |offset| start + offset);
+            found.push((index + 1, line[start..end].to_owned()));
+        }
+    }
+    found
+}
+
+#[test]
+fn bare_main_repo_label_check_flags_only_unqualified_labels() {
+    for good in [
+        "run: bazel run @rules_dx//tools/ci:module_pin_bin",
+        "run: bazel run @dx_tools//:dx",
+        "run: bazel run @@//:dx",
+        "url: https://example.com/a",
+        "scope: \"//\"",
+        "default: \"//...\"",
+        "# a plain // comment",
+    ] {
+        assert_eq!(bare_main_repo_labels(good), vec![], "{good}");
+    }
+    for (bad, label) in [
+        ("bazel run //tools/x", "//tools/x"),
+        ("bazel run //:dx -- docs", "//:dx"),
+        ("site: \"//docs:site\"", "//docs:site"),
+    ] {
+        assert_eq!(
+            bare_main_repo_labels(bad),
+            vec![(1, label.to_owned())],
+            "{bad}"
+        );
+    }
+}
+
+#[test]
+fn reusable_workflows_name_no_main_repo_label() {
+    for workflow in REUSABLE {
+        let text = read_runfiles(&format!(".github/workflows/{workflow}"));
+        if let Some((line, label)) = bare_main_repo_labels(&text).into_iter().next() {
+            panic!(
+                "{workflow}:{line} names {label}, which a caller's repository does not have; qualify it with @rules_dx or take it as an input"
+            );
+        }
+    }
+}

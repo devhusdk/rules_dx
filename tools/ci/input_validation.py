@@ -40,6 +40,8 @@ CHECKS = (
     "build",
     "coverage",
 )
+# The one job per platform that saves the shared repository cache, in order.
+CACHE_SAVERS = ("coverage", "test", "build")
 SCHEDULING = "parallel"
 WHOLE_PERCENT = re.compile(r"[0-9]+")
 INVOCATION_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
@@ -238,6 +240,10 @@ def main():
         "platforms": compact(accepted_values[PLATFORMS_ENV]),
         "runners": compact(PLATFORMS),
         "disabled": ",".join(accepted_values[DISABLED_ENV]),
+        "cache_saver": next(
+            (job for job in CACHE_SAVERS if job not in accepted_values[DISABLED_ENV]),
+            "",
+        ),
         "min_coverage": accepted_values[MIN_COVERAGE_ENV],
         "min_changed_line_coverage": accepted_values[MIN_CHANGED_ENV],
         "snapshot_artifact": "-".join(

@@ -1,6 +1,7 @@
 input {"DX_DISABLED_CHECKS": "  lint , coverage  "}
 exit 0
 says DX_DISABLED_CHECKS lint,coverage
+out cache_saver "test"
 out disabled "lint,coverage"
 out min_changed_line_coverage ""
 out min_coverage ""

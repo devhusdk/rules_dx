@@ -70,6 +70,7 @@ jobs:
     permissions:
       contents: read
     outputs:
+      cache_saver: ${{ steps.validate.outputs.cache_saver }}
       disabled: ${{ steps.validate.outputs.disabled }}
       min_changed_line_coverage: ${{ steps.validate.outputs.min_changed_line_coverage }}
       min_coverage: ${{ steps.validate.outputs.min_coverage }}
@@ -96,8 +97,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -119,12 +120,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//tools/ci:input_validation_bin
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   lint:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',lint,') }}
@@ -160,8 +155,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -173,12 +168,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- lint --check //... -- "$@"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   typecheck:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',typecheck,') }}
@@ -214,8 +203,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -227,12 +216,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- typecheck --check //... -- "$@"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   format:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',format,') }}
@@ -268,8 +251,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -281,12 +264,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- format --check //... -- "$@"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   generate:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',generate,') }}
@@ -322,8 +299,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -335,12 +312,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- generate --check //... -- "$@"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   advisory-snapshots:
     name: advisory snapshots (one run, every platform)
     needs: [validate]
@@ -373,8 +344,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -402,12 +373,6 @@ jobs:
           path: .dx/advisory
           if-no-files-found: error
           retention-days: 1
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   security-audit:
     needs: [validate, advisory-snapshots]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',security-audit,') }}
@@ -443,8 +408,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -471,12 +436,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- security //...
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   license-audit:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',license-audit,') }}
@@ -512,8 +471,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -526,12 +485,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- license //...
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   test:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',test,') }}
@@ -567,8 +520,12 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Stamp the restored Bazel repository cache
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -580,8 +537,30 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- test //... -- "$@"
+      - name: Prune the Bazel repository cache to this run's downloads
+        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        env:
+          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
+        run: |
+          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
+          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
+          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
+            exit 0
+          fi
+          pruned=0
+          for entry in "$DX_REPO_CACHE"/*/*/; do
+            entry="${entry%/}"
+            [ -d "$entry" ] || continue
+            if [ ! "$entry/file" -nt "$stamp" ]; then
+              rm -rf "$entry"
+              pruned=$((pruned + 1))
+            fi
+          done
+          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
+          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
@@ -621,8 +600,12 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Stamp the restored Bazel repository cache
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -639,8 +622,30 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
+      - name: Prune the Bazel repository cache to this run's downloads
+        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        env:
+          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
+        run: |
+          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
+          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
+          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
+            exit 0
+          fi
+          pruned=0
+          for entry in "$DX_REPO_CACHE"/*/*/; do
+            entry="${entry%/}"
+            [ -d "$entry" ] || continue
+            if [ ! "$entry/file" -nt "$stamp" ]; then
+              rm -rf "$entry"
+              pruned=$((pruned + 1))
+            fi
+          done
+          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
+          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
@@ -682,8 +687,12 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Stamp the restored Bazel repository cache
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -803,8 +812,30 @@ jobs:
           else
             gh pr comment "$pr" --body-file "${RUNNER_TEMP:-/tmp}"/coverage_comment.md
           fi
+      - name: Prune the Bazel repository cache to this run's downloads
+        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        env:
+          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
+        run: |
+          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
+          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
+          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
+            exit 0
+          fi
+          pruned=0
+          for entry in "$DX_REPO_CACHE"/*/*/; do
+            entry="${entry%/}"
+            [ -d "$entry" ] || continue
+            if [ ! "$entry/file" -nt "$stamp" ]; then
+              rm -rf "$entry"
+              pruned=$((pruned + 1))
+            fi
+          done
+          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
+          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable

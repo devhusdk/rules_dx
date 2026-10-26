@@ -358,8 +358,11 @@ Both callers forward repository secrets with `secrets: inherit`. Set
 optional.
 
 Every job restores the Bazel repository cache that Bazel and `dx` use. Each
-job and platform keeps its own copy, keyed on `MODULE.bazel` and
-`MODULE.bazel.lock`. Pushes save it. Pull requests, forks included, only
+platform shares one copy, keyed on `MODULE.bazel` and `MODULE.bazel.lock`.
+On the default branch, `coverage` saves it. If `coverage` is disabled, `test`
+saves it. If both are disabled, `build` saves it. With all three disabled,
+nothing saves it. The saved copy holds only the downloads the saving job
+used. Pull requests, forks included, merge queues and other branches only
 restore it. Without `BUILDBUDDY_API_KEY`, build and test outputs
 are not cached between runs.
 

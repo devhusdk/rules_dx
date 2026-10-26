@@ -72,6 +72,15 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     };
     let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
+    let locks: BTreeMap<String, Vec<String>> = resolved
+        .keys()
+        .map(|set| {
+            (
+                set.name().to_owned(),
+                set.locks().iter().map(|path| (*path).to_owned()).collect(),
+            )
+        })
+        .collect();
     finish_update(FinishUpdate {
         invocation,
         out,
@@ -81,6 +90,7 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         details,
         verbose,
         mode,
+        locks,
     })
 }
 
@@ -137,6 +147,7 @@ struct FinishUpdate<'a> {
     details: BTreeMap<String, String>,
     verbose: bool,
     mode: RunMode,
+    locks: BTreeMap<String, Vec<String>>,
 }
 
 fn finish_update(finish: FinishUpdate<'_>) -> i32 {
@@ -149,6 +160,7 @@ fn finish_update(finish: FinishUpdate<'_>) -> i32 {
         details,
         verbose,
         mode,
+        locks,
     } = finish;
     let depends: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let report = match dx_update::outcome::aggregate(&selected, &attempted, &depends) {
@@ -157,11 +169,11 @@ fn finish_update(finish: FinishUpdate<'_>) -> i32 {
             return operational(invocation, out, err, CODE_UPDATE_FAILED, &error.to_string());
         }
     };
-    let exit = dx_update::report::exit_code(&report);
+    let recovery = dx_update::recovery::plan(&report, mode.retry_mode(), &locks);
     if invocation.output == OutputMode::Json {
-        emit_update_json(out, err, &report, &details, verbose, exit, mode)
+        emit_update_json(out, err, &report, &details, verbose, recovery.as_ref())
     } else {
-        emit_update_text(out, err, &report, &details, verbose, exit, mode)
+        emit_update_text(out, err, &report, &details, verbose, recovery.as_ref(), mode)
     }
 }
 
@@ -387,9 +399,9 @@ fn emit_update_json(
     report: &dx_update::outcome::UpdateReport,
     details: &BTreeMap<String, String>,
     verbose: bool,
-    exit: i32,
-    mode: RunMode,
+    recovery: Option<&dx_update::recovery::RecoveryPlan>,
 ) -> i32 {
+    let exit = dx_update::report::exit_code(report);
     for outcome in &report.outcomes {
         let set_name = outcome.set.as_str();
         let correlation = format!("update:{set_name}");
@@ -516,7 +528,7 @@ fn emit_update_json(
             }
         }
     }
-    if let Some(plan) = dx_update::recovery::plan(report, mode.retry_mode()) {
+    if let Some(plan) = recovery {
         if let Ok(event) = notice_event(&NoticeEvent {
             level: "warning".to_owned(),
             code: dx_update::recovery::RECOVERY_CODE.to_owned(),
@@ -557,9 +569,10 @@ fn emit_update_text(
     report: &dx_update::outcome::UpdateReport,
     details: &BTreeMap<String, String>,
     verbose: bool,
-    exit: i32,
+    recovery: Option<&dx_update::recovery::RecoveryPlan>,
     mode: RunMode,
 ) -> i32 {
+    let exit = dx_update::report::exit_code(report);
     for outcome in &report.outcomes {
         match outcome.status {
             dx_update::outcome::ReportedStatus::Updated
@@ -601,7 +614,7 @@ fn emit_update_text(
             }
         }
     }
-    if let Some(plan) = dx_update::recovery::plan(report, mode.retry_mode()) {
+    if let Some(plan) = recovery {
         let _ = writeln!(
             err,
             "dx: {}: {}",

@@ -169,11 +169,19 @@ func TestGenerateNoSourcesStaleSweep(t *testing.T) {
 
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.scala", "Main.scala"}
-	got := refuseFixture(t, map[string]string{
-		"pkg/demo/Demo.scala": "package demo\n\nclass Demo\n",
-		"pkg/demo/Main.scala": "package demo\n\nobject Main {\n  def main(args: Array[String]): Unit = {}\n}\n",
-	}, regular)
-	wantRefusal(t, got, "scala: pkg/demo: Main.scala defines main;")
+	for name, main := range map[string]string{
+		"def main":     "package demo\n\nobject Main {\n  def main(args: Array[String]): Unit = {}\n}\n",
+		"@main":        "package demo\n\n@main def run(): Unit = ()\n",
+		"extends App":  "package demo\n\nobject Main extends App {\n}\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := refuseFixture(t, map[string]string{
+				"pkg/demo/Demo.scala": "package demo\n\nclass Demo\n",
+				"pkg/demo/Main.scala": main,
+			}, regular)
+			wantRefusal(t, got, "scala: pkg/demo: Main.scala defines main;")
+		})
+	}
 }
 
 func TestGenerateKindMismatchFails(t *testing.T) {

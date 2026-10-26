@@ -1,0 +1,10 @@
+load("@rules_dx//scala/rules:defs.bzl", "scala_library")
+
+scala_library(
+    name = "demo",
+    srcs = [
+        "Block.scala",
+        "Chained.scala",
+    ],
+    deps = ["//widget"],
+)

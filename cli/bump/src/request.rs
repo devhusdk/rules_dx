@@ -309,7 +309,7 @@ pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<Strin
 #[path = "request_cargo.rs"]
 mod cargo;
 #[path = "request_plans.rs"]
-mod plans;
+pub(crate) mod plans;
 
 use cargo::*;
 use plans::*;

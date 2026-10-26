@@ -148,16 +148,16 @@ pub(super) fn plan_package_json(
     }
 }
 
-const NPM_SECTIONS: [&str; 4] = [
+pub(crate) const NPM_SECTIONS: [&str; 4] = [
     "dependencies",
     "devDependencies",
     "peerDependencies",
     "optionalDependencies",
 ];
 
-struct JsonScan<'a> {
-    text: &'a str,
-    at: usize,
+pub(crate) struct JsonScan<'a> {
+    pub(crate) text: &'a str,
+    pub(crate) at: usize,
 }
 
 impl JsonScan<'_> {
@@ -168,13 +168,13 @@ impl JsonScan<'_> {
         }
     }
 
-    fn skip_ws(&mut self) {
+    pub(crate) fn skip_ws(&mut self) {
         while self.text[self.at..].starts_with([' ', '\t', '\n', '\r']) {
             self.at += 1;
         }
     }
 
-    fn string_end(&mut self) -> Result<usize, BumpError> {
+    pub(crate) fn string_end(&mut self) -> Result<usize, BumpError> {
         let bytes = self.text.as_bytes();
         let mut i = self.at + 1;
         while i < bytes.len() {
@@ -190,7 +190,7 @@ impl JsonScan<'_> {
         Err(Self::bad())
     }
 
-    fn skip_value(&mut self) -> Result<(), BumpError> {
+    pub(crate) fn skip_value(&mut self) -> Result<(), BumpError> {
         self.skip_ws();
         match self.text[self.at..].chars().next() {
             Some('"') => self.string_end().map(|_| ()),
@@ -233,7 +233,7 @@ impl JsonScan<'_> {
         }
     }
 
-    fn members(&mut self) -> Result<Vec<(String, usize)>, BumpError> {
+    pub(crate) fn members(&mut self) -> Result<Vec<(String, usize)>, BumpError> {
         self.skip_ws();
         if !self.text[self.at..].starts_with('{') {
             return Err(Self::bad());
@@ -419,7 +419,7 @@ struct PaketDeclaration<'a> {
     requirement: std::ops::Range<usize>,
 }
 
-fn paket_tokens(line: &str) -> Vec<(usize, usize, &str)> {
+pub(crate) fn paket_tokens(line: &str) -> Vec<(usize, usize, &str)> {
     let body = line.trim_end_matches(['\n', '\r']);
     let mut tokens: Vec<(usize, usize, &str)> = Vec::new();
     let mut start = None;

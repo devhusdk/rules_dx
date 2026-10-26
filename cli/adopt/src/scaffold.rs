@@ -96,6 +96,22 @@ pub fn render_consumer_module_setup() -> String {
     )
 }
 
+/// Puts the CUDA stanza ahead of the consumer's `register_toolchains` lines.
+///
+/// The first registered toolchain wins, and the CUDA host compiler only applies when its
+/// flag is on. If `@llvm//toolchain:all` came first, it would also match for nvcc's host
+/// compilation and nvcc would get a clang it does not support.
+fn with_cuda_stanza(setup: &str) -> String {
+    let stanza = format!(
+        "# CUDA: this workspace has .cu sources, so the pinned toolkit and its host compiler follow.\n{}\n",
+        crate::cuda_stanza::render_cuda_module_stanza("rules_dx"),
+    );
+    match setup.find("register_toolchains(") {
+        Some(at) => format!("{}{}{}", &setup[..at], stanza, &setup[at..]),
+        None => format!("{setup}\n{stanza}"),
+    }
+}
+
 pub fn editor_disposition(language: &str) -> &'static str {
     match language {
         "rust" => "automatic: rules_rust discover and flycheck via bazel run, separate IDE output bases under .dx/ide",
@@ -245,6 +261,16 @@ pub fn plan_init_files_for_host(
     module_name: &str,
     windows: bool,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_with(module_name, windows, false)
+}
+
+/// Plans the init files. `cuda` appends the pinned CUDA stanza to `MODULE.bazel.snippet`;
+/// `dx init` sets it when the workspace has `.cu`/`.cuh` sources.
+pub fn plan_init_files_with(
+    module_name: &str,
+    windows: bool,
+    cuda: bool,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
     Ok(vec![
         ScaffoldFile {
@@ -284,7 +310,11 @@ pub fn plan_init_files_for_host(
             path: "MODULE.bazel.snippet".to_owned(),
             content: format!(
                 "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
-                setup = render_consumer_module_setup(),
+                setup = if cuda {
+                    with_cuda_stanza(&render_consumer_module_setup())
+                } else {
+                    render_consumer_module_setup()
+                },
             ),
         },
     ])
@@ -377,14 +407,18 @@ pub fn apply_scaffold(root: &Path, files: &[ScaffoldFile]) -> Result<Vec<String>
 }
 
 pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
-    apply_scaffold(root, &plan_init_files(module_name)?)
+    let cuda = crate::load_graph::workspace_has_cuda_sources(root)?;
+    apply_scaffold(
+        root,
+        &plan_init_files_with(module_name, cfg!(windows), cuda)?,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::{
         apply_init, editor_disposition, editor_language_supported, parse_consumer_setup,
-        plan_init_files, plan_init_files_for_host, render_consumer_caller,
+        plan_init_files, plan_init_files_for_host, plan_init_files_with, render_consumer_caller,
         render_consumer_own_toolchain_setup, render_consumer_renamed_setup, render_editor_settings,
         CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
         CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION,
@@ -992,6 +1026,52 @@ mod tests {
                 .contains(&"@llvm//toolchain:all".to_owned()),
             "renamed setup keeps the hermetic registrations: {setup:?}"
         );
+    }
+
+    #[test]
+    fn cuda_snippet_adds_the_stanza_and_registers_the_host_compiler_first() {
+        let plain = plan_init_files_with("demo", false, false).expect("plans");
+        let cuda = plan_init_files_with("demo", false, true).expect("plans");
+        let snippet = |files: &[super::ScaffoldFile]| {
+            files
+                .iter()
+                .find(|file| file.path == "MODULE.bazel.snippet")
+                .expect("snippet")
+                .content
+                .clone()
+        };
+        let (plain, cuda) = (snippet(&plain), snippet(&cuda));
+        assert!(!plain.contains("cuda"), "non-CUDA snippet must not change");
+        let setup = parse_consumer_setup(&cuda);
+        let base = parse_consumer_setup(&plain);
+        assert!(base.deps.iter().all(|dep| setup.deps.contains(dep)));
+        assert!(setup.deps.iter().any(|(name, _)| name == "rules_cuda"));
+        assert_eq!(
+            setup.registered,
+            [
+                "@cuda_host_llvm//:all",
+                "@llvm//toolchain:all",
+                "@rust_toolchains//:all"
+            ]
+        );
+        assert!(cuda.contains("cuda-eula"));
+    }
+
+    #[test]
+    fn apply_init_adds_the_stanza_only_for_cuda_workspaces() {
+        let plain = dx_test_scratch::scratch("dx-adopt-init-nocuda-");
+        apply_init(plain.path(), "demo").expect("init");
+        let text =
+            std::fs::read_to_string(plain.path().join("MODULE.bazel.snippet")).expect("read");
+        assert!(!text.contains("rules_cuda"));
+        plain.close().expect("cleanup");
+        let with = dx_test_scratch::scratch("dx-adopt-init-cuda-");
+        std::fs::create_dir_all(with.path().join("k")).expect("mkdir");
+        std::fs::write(with.path().join("k/a.cu"), "").expect("write");
+        apply_init(with.path(), "demo").expect("init");
+        let text = std::fs::read_to_string(with.path().join("MODULE.bazel.snippet")).expect("read");
+        assert!(text.contains("bazel_dep(name = \"rules_cuda\""), "{text}");
+        with.close().expect("cleanup");
     }
 
     #[test]

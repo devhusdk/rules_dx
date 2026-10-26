@@ -352,6 +352,17 @@ mod tests {
             "demo-app",
             &["src/hello.erl", "src/hello_cli.erl", "test/hello_tests.erl"],
         ),
+        (
+            "cuda",
+            "demo-app",
+            &[
+                "scale.cu",
+                "scale.cuh",
+                "scale.h",
+                "main.cc",
+                "scale_test.cc",
+            ],
+        ),
     ];
 
     #[test]
@@ -388,7 +399,7 @@ mod tests {
                 build.contains("\"demo-app_bin\""),
                 matches!(
                     *language,
-                    "ruby" | "powershell" | "zig" | "elixir" | "gleam" | "erlang"
+                    "ruby" | "powershell" | "zig" | "elixir" | "gleam" | "erlang" | "cuda"
                 ),
                 "{language}: {build}"
             );

@@ -142,6 +142,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         name: "erlang",
         identity: IdentityRule::BazelModule,
     },
+    NewLanguage {
+        name: "cuda",
+        identity: IdentityRule::BazelModule,
+    },
 ];
 
 const NEW_LANGUAGE_COUNT: usize = NEW_LANGUAGES.len();
@@ -673,6 +677,100 @@ bazel test //...
         ("hello.h".to_owned(), header),
         (format!("main.{ext}"), main),
         (format!("hello_test.{ext}"), test),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+/// Kernel archs of the starter: the pinned nvcc's list, `modules/cuda.bzl` `CUDA_ARCHS`.
+const CUDA_STARTER_ARCHS: [&str; 2] = ["compute_89:compute_89,sm_89", "sm_120"];
+
+fn cuda_files(identity: &str) -> Vec<(String, String)> {
+    let archs: String = CUDA_STARTER_ARCHS
+        .iter()
+        .map(|arch| format!("        \"{arch}\",\n"))
+        .collect();
+    let build = r#"load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_test")
+load("@rules_dx//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+
+cuda_library(
+    name = "IDENTITY",
+    srcs = ["scale.cu"],
+    hdrs = [
+        "scale.cuh",
+        "scale.h",
+    ],
+    archs = [
+ARCHS    ],
+)
+
+cc_binary(
+    name = "IDENTITY_bin",
+    srcs = ["main.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":IDENTITY"],
+)
+
+# Checks the host-side logic only; it launches no kernel, so it passes without a GPU.
+cc_test(
+    name = "IDENTITY_test",
+    srcs = ["scale_test.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":IDENTITY"],
+)
+"#
+    .replace("IDENTITY", identity)
+    .replace("ARCHS", &archs);
+    let readme = r#"# IDENTITY
+
+A CUDA starter. The toolkit (13.4) and its host compiler are pinned in `MODULE.bazel`,
+so no CUDA install is needed to build. Linux x86_64 only.
+
+```sh
+bazel build //...
+bazel test //...
+bazel run :IDENTITY_bin
+```
+
+The binary runs the kernel when a GPU and driver are present and falls back to the CPU
+otherwise. The test checks host-side logic only and launches no kernel.
+
+## License
+
+`MODULE.bazel` contains `cuda_license.license(accept = ["cuda-eula"])`. That line accepts
+the NVIDIA CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) on your behalf.
+Remove it to decline; CUDA targets then fail to build with a message that names the license.
+"#
+    .replace("IDENTITY", identity);
+    let module = format!(
+        "{}\n{}",
+        consumer_module_bazel(identity, false),
+        super::cuda_stanza::render_cuda_module_stanza("rules_dx"),
+    );
+    vec![
+        ("MODULE.bazel".to_owned(), module),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "scale.cuh".to_owned(),
+            "#pragma once\n\n__host__ __device__ inline float scale_one(float a, float x) {\n  return a * x;\n}\n".to_owned(),
+        ),
+        (
+            "scale.h".to_owned(),
+            "#pragma once\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nint scale_device_count(void);\nint scale_gpu(int n, float a, const float *x, float *y);\nvoid scale_cpu(int n, float a, const float *x, float *y);\n\n#ifdef __cplusplus\n}\n#endif\n".to_owned(),
+        ),
+        (
+            "scale.cu".to_owned(),
+            "#include <cuda_runtime.h>\n\n#include \"scale.cuh\"\n#include \"scale.h\"\n\n__global__ void scale_kernel(int n, float a, const float* x, float* y) {\n  int i = blockIdx.x * blockDim.x + threadIdx.x;\n  if (i < n) {\n    y[i] = scale_one(a, x[i]);\n  }\n}\n\nextern \"C\" int scale_device_count(void) {\n  int count = 0;\n  if (cudaGetDeviceCount(&count) != cudaSuccess) {\n    return 0;\n  }\n  return count;\n}\n\nextern \"C\" int scale_gpu(int n, float a, const float* x, float* y) {\n  size_t bytes = static_cast<size_t>(n) * sizeof(float);\n  float* dx = nullptr;\n  float* dy = nullptr;\n  if (cudaMalloc(&dx, bytes) != cudaSuccess) {\n    return 1;\n  }\n  if (cudaMalloc(&dy, bytes) != cudaSuccess) {\n    cudaFree(dx);\n    return 1;\n  }\n  cudaMemcpy(dx, x, bytes, cudaMemcpyHostToDevice);\n  scale_kernel<<<(n + 255) / 256, 256>>>(n, a, dx, dy);\n  cudaError_t status = cudaDeviceSynchronize();\n  cudaMemcpy(y, dy, bytes, cudaMemcpyDeviceToHost);\n  cudaFree(dx);\n  cudaFree(dy);\n  return status == cudaSuccess ? 0 : 1;\n}\n\nextern \"C\" void scale_cpu(int n, float a, const float* x, float* y) {\n  for (int i = 0; i < n; ++i) {\n    y[i] = scale_one(a, x[i]);\n  }\n}\n".to_owned(),
+        ),
+        (
+            "main.cc".to_owned(),
+            "#include <cstdio>\n#include <vector>\n\n#include \"scale.h\"\n\nint main() {\n  const int n = 8;\n  std::vector<float> x(n);\n  std::vector<float> y(n, 0.0f);\n  for (int i = 0; i < n; ++i) {\n    x[i] = static_cast<float>(i);\n  }\n  if (scale_device_count() == 0 || scale_gpu(n, 2.0f, x.data(), y.data()) != 0) {\n    scale_cpu(n, 2.0f, x.data(), y.data());\n  }\n  float sum = 0.0f;\n  for (int i = 0; i < n; ++i) {\n    sum += y[i];\n  }\n  std::printf(\"scaled sum=%g\\n\", sum);\n  return 0;\n}\n".to_owned(),
+        ),
+        (
+            "scale_test.cc".to_owned(),
+            "#include <cstdio>\n#include <vector>\n\n#include \"scale.h\"\n\nint main() {\n  const std::vector<float> x = {1.0f, 2.0f, 3.0f};\n  std::vector<float> y(x.size(), 0.0f);\n  scale_cpu(static_cast<int>(x.size()), 2.0f, x.data(), y.data());\n  for (size_t i = 0; i < x.size(); ++i) {\n    if (y[i] != 2.0f * x[i]) {\n      std::fprintf(stderr, \"unexpected value at %zu: %g\\n\", i, y[i]);\n      return 1;\n    }\n  }\n  return 0;\n}\n".to_owned(),
+        ),
         ("README.md".to_owned(), readme),
     ]
 }
@@ -1281,6 +1379,7 @@ fn new_language_files(
         "elixir" => elixir_files(identity),
         "gleam" => gleam_files(identity),
         "erlang" => erlang_files(identity),
+        "cuda" => cuda_files(identity),
         "c" => c_files(identity),
         "cpp" => cpp_files(identity),
         _ => {
@@ -1367,6 +1466,35 @@ mod tests {
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("gleam"), Some("gleam"));
         assert_eq!(normalize_new_language("erlang"), Some("erlang"));
+        assert_eq!(normalize_new_language("cuda"), Some("cuda"));
+    }
+
+    #[test]
+    fn cuda_starter_carries_the_pinned_stanza_and_known_archs() {
+        let files = plan_new_files("cuda", "demo-app").expect("plans");
+        let text = |name: &str| {
+            files
+                .iter()
+                .find(|file| file.path == format!("demo-app/{name}"))
+                .unwrap_or_else(|| panic!("{name} planned"))
+                .content
+                .clone()
+        };
+        let module = text("MODULE.bazel");
+        assert!(module.starts_with("module(name = \"demo-app\")"));
+        assert!(module.ends_with(&crate::cuda_stanza::render_cuda_module_stanza("rules_dx")));
+        assert!(text("README.md").contains("https://docs.nvidia.com/cuda/eula/index.html"));
+        let cuda = workspace_text("modules/cuda.bzl");
+        let build = text("BUILD.bazel");
+        for arch in CUDA_STARTER_ARCHS {
+            for part in arch.split([':', ',']) {
+                assert!(
+                    cuda.contains(&format!("\"{part}\"")),
+                    "{part} is not in CUDA_ARCHS"
+                );
+            }
+            assert!(build.contains(arch));
+        }
     }
 
     #[test]

@@ -9,6 +9,7 @@
 )]
 
 pub mod build_output;
+pub mod cuda_stanza;
 pub mod defaults;
 pub mod dependency_sets;
 pub mod error;
@@ -26,6 +27,7 @@ pub mod upgrade;
 pub mod version;
 pub mod watch;
 
+pub use cuda_stanza::render_cuda_module_stanza;
 pub use defaults::{
     check_quality_baseline, env_bool, env_string, find_config_sources, find_new_configs, is_truthy,
     join_quality_baseline, load_defaults_with_mode, merge_defaults, parse_bool, parse_file_text,
@@ -42,7 +44,9 @@ pub use launcher::{
     launcher_version, plan_launcher_files, refresh_launcher_files, render_launcher_cmd,
     render_launcher_sh, stale_launchers, write_launcher_files, LAUNCHER_CMD_REL, LAUNCHER_SH_REL,
 };
-pub use load_graph::{bzl_impact, module_inputs, BzlImpact, ModuleInput, ModuleInputs};
+pub use load_graph::{
+    bzl_impact, module_inputs, workspace_has_cuda_sources, BzlImpact, ModuleInput, ModuleInputs,
+};
 pub use migrate::{
     migrate_is_major_bump, migrate_is_upgrade, migrate_manifest_name, migrate_manifest_name_full,
     plan_migrate, plan_qualified_migrate, plan_released_migrate, MigratePlan, QUALIFIED_MIGRATIONS,
@@ -60,8 +64,8 @@ pub use preset_fragment::{
 };
 pub use scaffold::{
     apply_init, apply_scaffold, bazelignore_covers_dx, editor_disposition,
-    editor_language_supported, plan_init_files, plan_init_files_for_host, render_consumer_caller,
-    render_consumer_module_setup, render_consumer_own_toolchain_setup,
+    editor_language_supported, plan_init_files, plan_init_files_for_host, plan_init_files_with,
+    render_consumer_caller, render_consumer_module_setup, render_consumer_own_toolchain_setup,
     render_consumer_renamed_setup, render_editor_settings, scaffold_dest_within_root,
     validate_init_module, ScaffoldFile, BAZELIGNORE_CONTENT, CONSUMER_LLVM_VERSION,
     CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,

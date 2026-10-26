@@ -29,7 +29,7 @@ creating the file when it is missing (see below). If `.claude/settings.json`
 already exists, it is left alone and the missing hook entries are printed to
 stderr. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
-`rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
+`rules_dx_version` matching the snippet. When the tree has `.cu` or `.cuh` files, the snippet also carries the pinned CUDA toolkit and host-compiler stanza and the opt-in `cuda-eula` license line (see `dx new cuda`). The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/` and
 `/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`, so Bazel skips
 the IDE output bases. When a `.bazelignore` already exists it is left alone, and

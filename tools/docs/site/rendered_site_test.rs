@@ -431,7 +431,13 @@ fn nested_example_pages_render_their_own_route_and_links() {
         "the nested example page must render its own heading"
     );
     let examples = read(&root, "examples/index.html");
-    for target in ["mixed/hello/", "adopt-rust/", "consumer-ci/", "docs-ci/"] {
+    for target in [
+        "mixed/hello/",
+        "adopt-rust/",
+        "consumer-ci/",
+        "docs-ci/",
+        "gitlab-ci/",
+    ] {
         assert!(
             examples.contains(&format!("href=\"{target}")),
             "the examples page must link {target}"

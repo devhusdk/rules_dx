@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "consumer-ci/caller.yml",
     "docs-ci/caller.yml",
+    "gitlab-ci/.gitlab-ci.yml",
 ])
 
 ADOPT_READMES = [
@@ -34,6 +35,7 @@ filegroup(
         "README.md",
         "consumer-ci/README.md",
         "docs-ci/README.md",
+        "gitlab-ci/README.md",
         "//examples/appimage-app:README.md",
         "//examples/c-app:README.md",
         "//examples/cpp-app:README.md",
@@ -211,6 +213,7 @@ real_source_target(
         "README.md",
         "consumer-ci/README.md",
         "docs-ci/README.md",
+        "gitlab-ci/README.md",
     ],
     tags = ["corpus"],
 )

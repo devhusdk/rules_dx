@@ -97,6 +97,11 @@ USER_BOOK = [
         "//examples:consumer-ci/README.md",
     ),
     mdbook_page("Docs CI", "examples/docs-ci/README.md", "//examples:docs-ci/README.md"),
+    mdbook_page(
+        "GitLab CI",
+        "examples/gitlab-ci/README.md",
+        "//examples:gitlab-ci/README.md",
+    ),
     mdbook_page("Adopt C++", "examples/adopt-cpp/README.md", "//examples/adopt-cpp:README.md"),
     mdbook_page("Adopt C#", "examples/adopt-csharp/README.md", "//examples/adopt-csharp:README.md"),
     mdbook_page("Adopt F#", "examples/adopt-fsharp/README.md", "//examples/adopt-fsharp:README.md"),

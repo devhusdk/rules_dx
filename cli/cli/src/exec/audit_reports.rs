@@ -163,6 +163,46 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
 }
 
 #[test]
+fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
+    let policy =
+        "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//...\"]\n";
+    for scope in ["//javascript/...", "//javascript:app"] {
+        for (license, code) in [("MIT", 0), ("AGPL-3.0-only", 1)] {
+            let (code_seen, out, err) = run_with(
+                &["license", scope, "--report=sarif=-"],
+                &AuditRunner::clean(),
+                &|harness| {
+                    harness.write_source("package-lock.json", &npm_lock_with(license));
+                    harness.write_source("licenses.toml", policy);
+                },
+            );
+            assert_eq!(code_seen, code, "{license} under {scope}: {out}{err}");
+            assert!(
+                !out.contains("license/missing-notice-text"),
+                "{license} under {scope}: {out}{err}"
+            );
+        }
+    }
+    let load = |text: &str| dx_audit::license_policy::load_licenses_toml(text).expect("policy");
+    let roots = |labels: &[&str]| {
+        labels
+            .iter()
+            .map(|label| (*label).to_owned())
+            .collect::<Vec<_>>()
+    };
+    let wide = load(policy);
+    assert_eq!(
+        super::tier_for_roots(&wide, &roots(&["//cli/cli:dx_cli", "//cli/audit:dx_audit"])),
+        dx_audit::license_expr::Tier::Internal
+    );
+    let narrow = load("[distribution]\ninternal = [\"//cli/...\"]\n");
+    assert_eq!(
+        super::tier_for_roots(&narrow, &roots(&["//cli/cli:dx_cli", "//go:x"])),
+        dx_audit::license_expr::Tier::Distributed
+    );
+}
+
+#[test]
 fn security_policy_read_failures_and_absent_file_are_explicit() {
     let harness = Harness::new("security-policy-io");
     assert!(super::load_security_policy(&harness.workspace)

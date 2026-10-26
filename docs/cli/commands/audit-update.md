@@ -124,8 +124,11 @@ unknown key fails the run.
 
 `[policy]` holds `blocked`, `[policy.distributed]` holds `allow`, `review`, and
 `deny`, and `[policy.sets.<set>]` adds `review` ids for one set. An id in two
-lists fails the run. `[distribution] internal` lists the internal scopes, and
-every other scope is distributed. An internal scope fails only on `blocked`, so
+lists fails the run. `[distribution] internal` lists label patterns. `//...`
+covers every scope in the main repo, `//pkg/...` covers `pkg` and everything
+under it, `//pkg:all` covers the targets in `pkg`, and any other entry matches
+one label. A run is internal only when an entry covers every scope, including
+the `--here` and `--affected` scopes, and every other run is distributed. An internal scope fails only on `blocked`, so
 `review`, `deny`, and unlisted ids pass. A distributed scope fails on all of
 them. Its SARIF rule is `license/<license>` and its message names the package,
 version, license, and tier.

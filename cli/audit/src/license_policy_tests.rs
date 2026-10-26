@@ -103,6 +103,44 @@ fn unlisted_distributables_default_distributed() {
 }
 
 #[test]
+fn internal_entries_match_as_label_patterns() {
+    let tier = |entry: &str, root: &str| {
+        Distribution {
+            internal: [entry].iter().map(|item| (*item).to_owned()).collect(),
+        }
+        .tier_of(root)
+    };
+    for root in [
+        "//...",
+        "//cli/...",
+        "//cli/cli:dx_cli",
+        "//:root",
+        "@//cli:x",
+        "@@//cli/...",
+    ] {
+        assert_eq!(tier("//...", root), Tier::Internal, "{root}");
+    }
+    assert_eq!(tier("//...", "@other//a:b"), Tier::Distributed);
+    for root in ["//cli:x", "//cli/...", "//cli/cli/...", "//cli/cli:dx"] {
+        assert_eq!(tier("//cli/...", root), Tier::Internal, "{root}");
+    }
+    for root in ["//client:x", "//...", "//other/..."] {
+        assert_eq!(tier("//cli/...", root), Tier::Distributed, "{root}");
+    }
+    for root in ["//cli:x", "//cli:all"] {
+        assert_eq!(tier("//cli:all", root), Tier::Internal, "{root}");
+    }
+    for root in ["//cli/...", "//cli/sub:x"] {
+        assert_eq!(tier("//cli:all", root), Tier::Distributed, "{root}");
+    }
+    assert_eq!(tier("//cli:dx", "//cli:dx"), Tier::Internal);
+    assert_eq!(tier("//cli:dx", "//cli:other"), Tier::Distributed);
+    assert_eq!(tier("@repo//...", "@repo//a:b"), Tier::Internal);
+    assert_eq!(tier("@repo//...", "//a:b"), Tier::Distributed);
+    assert_eq!(tier("//...", "cargo"), Tier::Distributed);
+}
+
+#[test]
 fn promotion_to_distributed_requalifies_under_strict_table() {
     let internal = Distribution {
         internal: ["//cli:dx"].iter().map(|item| (*item).to_owned()).collect(),

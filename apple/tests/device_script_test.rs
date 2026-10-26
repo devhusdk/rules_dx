@@ -395,12 +395,14 @@ minos=17.0
     fixture.assert_clean(&ran);
 }
 
+type Case<'a> = (Vec<&'a str>, Vec<(&'a str, &'a str)>, String);
+
 #[test]
 fn bad_or_missing_inputs_fail_before_signing() {
     let fixture = Fixture::new("apple-export-args");
     let usage = "usage: bazel run <export> -- --certificate <identity.p12> --password-file <file> --out <App.ipa>";
     let ws = fixture.path("ws");
-    let cases: Vec<(Vec<&str>, Vec<(&str, &str)>, String)> = vec![
+    let cases: Vec<Case> = vec![
         (
             ARGS[2..].to_vec(),
             vec![],

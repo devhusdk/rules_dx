@@ -254,7 +254,7 @@ to.
 | `yamllint` | lint | yaml |
 | `zig_fmt` | format | zig |
 
-OCaml (`ocaml`) has no formatter and no linter. `dx format` and `dx lint` skip it.
+OCaml (`ocaml`) has no formatter and no linter. OCaml targets are tagged `no-format`, `no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck` skip them.
 
 ## Tool overrides
 

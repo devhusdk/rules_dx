@@ -40,8 +40,9 @@ dx_ocaml_toolchain = rule(
     },
 )
 
-def dx_ocaml_dist(emitters, licenses, version_file):
+def dx_ocaml_dist(name, emitters, licenses, version_file):
     """Declares the OCaml toolchains of one installed conda tree."""
+    native.filegroup(name = name, srcs = [":licenses", ":version_file"])
     string_setting(name = "version", build_setting_default = OCAML_VERSION)
     native.filegroup(name = "stdlib", srcs = native.glob([STDLIB + "/**"]))
     native.filegroup(name = "stublibs", srcs = native.glob([STUBLIBS + "/*.so"]))

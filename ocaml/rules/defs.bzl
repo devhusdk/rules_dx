@@ -25,16 +25,6 @@ load(
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_wrap_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
-OCamlArchiveProvider = _OCamlArchiveProvider
-
-OCamlDepsProvider = _OCamlDepsProvider
-
-OCamlLibraryProvider = _OCamlLibraryProvider
-
-OCamlModuleProvider = _OCamlModuleProvider
-
-OCamlSignatureProvider = _OCamlSignatureProvider
-
 ocamllex = _ocamllex
 
 ocamlyacc = _ocamlyacc
@@ -53,6 +43,8 @@ OCAML_DEFAULT_TOOLCHAIN = "ocamlc.opt"
 OCAML_LINK_OPTS = ["-without-runtime"]
 
 LOCAL_TAGS = ["no-remote-exec"]
+
+SKIP_TAGS = ["no-format", "no-lint", "no-typecheck"]
 
 _OCAML = [("ocaml", ["ml", "mli"])]
 
@@ -182,10 +174,12 @@ def upstream_tags(tags):
     return out + [tag for tag in LOCAL_TAGS if tag not in out]
 
 def with_defaults(kwargs):
-    """Returns kwargs with the qualified OCaml cell as the default compatibility."""
+    """Returns kwargs with the qualified OCaml cell and the quality skip tags as defaults."""
     out = dict(kwargs)
     if out.get("target_compatible_with") == None:
         out["target_compatible_with"] = OCAML_COMPATIBLE_WITH
+    tags = list(out.get("tags") or [])
+    out["tags"] = tags + [tag for tag in SKIP_TAGS if tag not in tags]
     return out
 
 def link_kwargs(kwargs):

@@ -78,8 +78,9 @@ ocaml_test(
 
 ## Formatting and linting
 
-No OCaml formatter or linter runs. `dx format` and `dx lint` skip OCaml
-sources. The compiler is the type check.
+No OCaml formatter or linter runs. The rules tag every target `no-format`,
+`no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck`
+skip it. The compiler is the type check.
 
 ## Platforms
 

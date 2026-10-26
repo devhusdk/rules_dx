@@ -40,6 +40,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files(glob(["**"]))
 
 dx_ocaml_dist(
+    name = "dist",
     emitters = {emitters},
     licenses = {licenses},
     version_file = "{version_file}",

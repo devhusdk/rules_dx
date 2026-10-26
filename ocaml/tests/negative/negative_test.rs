@@ -145,14 +145,22 @@ fn an_undeclared_dependency_fails_the_build() {
     fails_with(
         &case,
         "//ocaml:missing_dep",
-        &["ocaml/missing_dep.ml\", line 1", "Error: Unbound module Base_dep"],
+        &[
+            "ocaml/missing_dep.ml\", line 1",
+            "Error: Unbound module Base_dep",
+        ],
     );
 }
 
 #[test]
 fn a_failing_test_fails_with_its_message() {
     let case = consumer();
-    let tested = bazel(&case, "test", "//ocaml:failing_test", &["--test_output=all"]);
+    let tested = bazel(
+        &case,
+        "test",
+        "//ocaml:failing_test",
+        &["--test_output=all"],
+    );
     assert_eq!(tested.code, Some(3), "{}", tested.text);
     assert!(
         tested.text.contains("the answer is wrong: 41"),

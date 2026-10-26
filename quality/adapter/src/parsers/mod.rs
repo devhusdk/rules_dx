@@ -240,16 +240,29 @@ fn lines<'a>(tool: &'static str, raw: &'a [u8]) -> Result<Vec<&'a str>, ParseErr
         .collect())
 }
 
-/// The checked file a line names, with everything after the first colon.
+/// The checked file a line starts with (longest wins), with everything after its colon.
 fn located<'a>(
     tool: &'static str,
     line: &'a str,
     files: &[&'a str],
 ) -> Result<(&'a str, &'a str), ParseError> {
-    let (path, rest) = line
-        .split_once(':')
-        .ok_or_else(|| missing(tool, "location", line))?;
-    Ok((known(tool, files, path)?, rest))
+    let best = files
+        .iter()
+        .copied()
+        .filter(|file| line.strip_prefix(file).is_some_and(|r| r.starts_with(':')))
+        .max_by_key(|file| file.len());
+    if let Some(file) = best {
+        return Ok((file, &line[file.len() + 1..]));
+    }
+    if !line.contains(':') {
+        return Err(missing(tool, "location", line));
+    }
+    let skip = if dx_path::drive_rooted(line) { 2 } else { 0 };
+    let end = line[skip..].find(':').map_or(line.len(), |at| at + skip);
+    Err(ParseError::UnknownFile {
+        tool,
+        path: line[..end].to_owned(),
+    })
 }
 
 /// The line and column of a diagnostic that spells both, with its tail.
@@ -775,6 +788,27 @@ mod tests {
             .expect_err("no location")
             .to_string()
             .contains("malformed location: no-colon-here"));
+    }
+
+    #[test]
+    fn located_matches_drive_rooted_paths() {
+        let files = [r"C:\a", r"C:\a:b"];
+        assert_eq!(
+            located("tsc", r"C:\a:b:1:2: x", &files).expect("located"),
+            (r"C:\a:b", "1:2: x")
+        );
+        assert_eq!(
+            located("tsc", r"C:\a:1:2: x", &files).expect("located"),
+            (r"C:\a", "1:2: x")
+        );
+        assert!(matches!(
+            located("tsc", r"C:\x\b.sh:1:1: m", &files),
+            Err(ParseError::UnknownFile { path, .. }) if path == r"C:\x\b.sh"
+        ));
+        assert!(located("tsc", "no-colon-here", &files)
+            .expect_err("no location")
+            .to_string()
+            .contains("malformed location"));
     }
 
     #[test]

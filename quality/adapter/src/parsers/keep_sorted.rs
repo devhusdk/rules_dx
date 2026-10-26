@@ -132,4 +132,15 @@ mod tests {
         assert!(parse_keep_sorted_lint(DIRTY.as_bytes(), Some(1), &["notes.txt"]).is_err());
         assert!(parse_keep_sorted(DIRECT_DIRTY.as_bytes(), Some(1), &["notes.txt"]).is_err());
     }
+
+    #[test]
+    fn keep_sorted_reads_drive_rooted_paths() {
+        let file = "C:\\tmp\\a.txt";
+        let findings = parse_keep_sorted("C:\\tmp\\a.txt:3: msg\n".as_bytes(), Some(1), &[file])
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, file);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 1);
+    }
 }

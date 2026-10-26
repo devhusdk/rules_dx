@@ -81,4 +81,14 @@ mod tests {
         assert!(parse_clang_tidy(b"nope\n", Some(1), &["x"]).is_err());
         assert!(parse_clang_tidy(&[0xff], Some(1), &["x"]).is_err());
     }
+
+    #[test]
+    fn clang_tidy_reads_drive_rooted_paths() {
+        let file = "C:\\tmp\\a.c";
+        let findings = parse_clang_tidy("C:\\tmp\\a.c:3:1: warning: do not use 'else' after 'return' [readability-else-after-return]\n".as_bytes(), Some(1), &[file]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, file);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 1);
+    }
 }

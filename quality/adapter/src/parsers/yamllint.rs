@@ -85,4 +85,20 @@ mod tests {
         .is_err());
         assert!(parse_yamllint(&[0xff], Some(1), &["x"]).is_err());
     }
+
+    #[test]
+    fn yamllint_reads_drive_rooted_paths() {
+        let file = "C:\\tmp\\a.yaml";
+        let findings = parse_yamllint(
+            "C:\\tmp\\a.yaml:3:1: [warning] missing document start \"---\" (document-start)\n"
+                .as_bytes(),
+            Some(1),
+            &[file],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, file);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 1);
+    }
 }

@@ -593,6 +593,21 @@ impl Runner for FakeRunner {
 }
 
 pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored: &str) -> Vec<u8> {
+    let result = if files.trim().is_empty() {
+        "clean"
+    } else {
+        "diff_found"
+    };
+    intended_witness_with_result(mode, result, complete, files, ignored)
+}
+
+pub(crate) fn intended_witness_with_result(
+    mode: &str,
+    result: &str,
+    complete: bool,
+    files: &str,
+    ignored: &str,
+) -> Vec<u8> {
     let files_value: Vec<serde_json::Value> = if files.trim().is_empty() {
         Vec::new()
     } else {
@@ -605,8 +620,9 @@ pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored:
     };
     serde_json::to_vec(&serde_json::json!({
         "schema_major": 1,
-        "schema_minor": 0,
+        "schema_minor": 1,
         "mode": mode,
+        "result": result,
         "scopes": [{"value": "//...", "results_complete": complete}],
         "files": files_value,
         "ignored_imports": ignored_value,

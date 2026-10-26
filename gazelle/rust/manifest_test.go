@@ -119,7 +119,7 @@ func TestAfterResolvingDepsEmits(t *testing.T) {
 	}
 	l.AfterResolvingDeps(context.Background())
 	manifest := readIntended(t, out)
-	if manifest.Mode != "default" || len(manifest.Files) != 0 || len(manifest.IgnoredImports) != 0 {
+	if manifest.Mode != "default" || manifest.Result != common.IntendedResultClean || len(manifest.Files) != 0 || len(manifest.IgnoredImports) != 0 {
 		t.Errorf("manifest = %+v", manifest)
 	}
 	if manifest.SchemaMajor != common.IntendedManifestSchemaMajor || manifest.SchemaMinor != common.IntendedManifestSchemaMinor {

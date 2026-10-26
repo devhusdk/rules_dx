@@ -6,6 +6,7 @@ package(default_visibility = VIS_PUBLIC)
 
 exports_files(["defs.bzl"])
 
+# keep
 rust_test(
     name = "extract_test",
     size = "small",

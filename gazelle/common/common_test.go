@@ -265,7 +265,7 @@ func TestSpecSetKeepsDirectories(t *testing.T) {
 }
 
 func TestIsNodeBuiltin(t *testing.T) {
-	for _, name := range []string{"fs", "path", "node:fs", "node:path", "test", "node:test"} {
+	for _, name := range []string{"fs", "path", "node:fs", "node:path", "node:test", "node:sqlite", "node:sea", "node:ffi", "node:test/reporters"} {
 		if !IsNodeBuiltin(name) {
 			t.Errorf("node builtin not recognized: %q", name)
 		}
@@ -274,7 +274,7 @@ func TestIsNodeBuiltin(t *testing.T) {
 		t.Error("node builtin subpath fs/promises not recognized")
 	}
 	for _, name := range []string{
-		"", "node:", "node:node:fs", "helper", "fs-extra", "react",
+		"", "node:", "node:node:fs", "test", "sqlite", "sea", "ffi", "test/reporters", "helper", "fs-extra", "react",
 		"fs/promises/extra", "@mdx-js/mdx", "astro", "svelte", "vue",
 	} {
 		if IsNodeBuiltin(name) {
@@ -290,6 +290,20 @@ func TestParseImportRefs(t *testing.T) {
 		want   []string
 	}{
 		{"empty", "", nil},
+		{"commentFromInImport", "import {\n a, // from utils\n b,\n} from './x';", []string{"x"}},
+		{"commentSemiInImport", "import { a /* ; */, b } from './x';", []string{"x"}},
+		{"commentFromInExport", "export {\n a, // from y\n} from './x';", []string{"x"}},
+		{"commentBraceInExport", "export { a /* } */ } from './x';", []string{"x"}},
+		{"exportLineComment", "export const x = 1 // c\nimport y from './z';", []string{"z"}},
+		{"unclosedCommentInImport", "import { a /* b", nil},
+		{"importEquals", "import x = require('./z');", []string{"z"}},
+		{"importEqualsType", "import type x = require('./z');", []string{"z"}},
+		{"importTypeEquals", "import type = require('./z');", []string{"z"}},
+		{"exportImportEquals", "export import x = require('./z');", []string{"z"}},
+		{"importEqualsDynamic", "import x = require(name);", nil},
+		{"importEqualsAlias", "import A = B.C;\nimport y from './real.js';", []string{"real"}},
+		{"importEqualsNumber", "import x = 1;", nil},
+		{"importEqualsEOF", "import x =", nil},
 		{"sideEffect", "import \"./hello.js\";\n", []string{"hello"}},
 		{"sideEffectSingle", "import './helper';\n", []string{"helper"}},
 		{"default", "import hello from \"./hello.js\";\n", []string{"hello"}},
@@ -406,6 +420,8 @@ func TestParseImportRefsRelative(t *testing.T) {
 		{"json", "import d from \"./data.json\";\n", []ImportRef{{Spec: "./data.json", Root: "pkg/data.json", Ext: ".json", Relative: true}}},
 		{"css module", "import s from \"./styles.module.css\";\n", []ImportRef{{Spec: "./styles.module.css", Root: "pkg/styles.module.css", Ext: ".css", Relative: true}}},
 		{"mts", "import x from \"./x.mts\";\n", []ImportRef{{Spec: "./x.mts", Root: "pkg/x", Relative: true}}},
+		{"importEqualsRelative", "import x = require(\"./z.js\");\n", []ImportRef{{Spec: "./z.js", Root: "pkg/z", Relative: true}}},
+		{"commentInList", "import {\n a, // from utils\n} from './x';\n", []ImportRef{{Spec: "./x", Root: "pkg/x", Relative: true}}},
 		{"sameTarget", "import a from \"./x/../util.js\";\nimport b from \"./util\";\n", []ImportRef{{Spec: "./x/../util.js", Root: "pkg/util", Relative: true}}},
 	}
 	for _, tc := range cases {

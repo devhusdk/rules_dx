@@ -343,7 +343,22 @@ impl Harness {
     }
 
     pub(crate) fn run_with_ci(&self, words: &[&str], ci: bool) -> (i32, String, String) {
-        let inv = match crate::args::parse(&crate::test_support::strings(words)) {
+        let defaults = match crate::args::load_startup_defaults(
+            &dx_process::workspace_start(&self.cwd),
+            &self.cwd,
+            None,
+            None,
+            ci,
+        ) {
+            Ok(defaults) => defaults,
+            Err(failure) => return (2, String::new(), format!("dx: {}\n", failure.detail)),
+        };
+        let inv = match crate::args::parse_with_ci(
+            &crate::test_support::strings(words),
+            &|_| None,
+            &defaults,
+            ci,
+        ) {
             Ok(inv) => inv,
             Err(error) => {
                 return (

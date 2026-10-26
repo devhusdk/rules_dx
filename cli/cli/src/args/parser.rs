@@ -59,13 +59,6 @@ pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
 }
 
-pub fn load_file_defaults(start: &std::path::Path) -> Result<super::FileDefaults, String> {
-    match dx_adopt::defaults::load_defaults(start) {
-        Ok((defaults, _)) => Ok(defaults),
-        Err(error) => Err(error.to_string()),
-    }
-}
-
 pub fn config_sources(start: &std::path::Path) -> dx_adopt::defaults::ConfigSources {
     dx_adopt::defaults::find_config_sources(start)
 }
@@ -754,6 +747,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         reports,
         fail_on,
+        baseline: file.baseline.clone(),
         include_edits,
         min_coverage,
         targets,

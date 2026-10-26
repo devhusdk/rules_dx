@@ -2,6 +2,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
+# keep
 cc_library(
     name = "probe_c",
     srcs = ["src/probe.c"],
@@ -33,9 +34,11 @@ haskell_binary(
     srcs = ["src/Main.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
-        ":probe",
         "@dx_haskell_toolchains//:base",
-    ],
+    ] + select({
+        "@platforms//os:linux": [":probe"],
+        "//conditions:default": [":probe"],
+    }),
 )
 
 # keep

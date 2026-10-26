@@ -17,6 +17,7 @@ def haskell_wrapper_contract_tests(name):
             expect_equal("other kwargs pass through", upstream_kwargs({"deps": [":a"]})["deps"], [":a"]),
             expect_equal("executables get gmp once", [str(dep) for dep in with_gmp([":a"])], [":a", str(GMP)]),
             expect_equal("a listed gmp is kept", [str(dep) for dep in with_gmp([str(GMP)])], [str(GMP)]),
+            expect_equal("select deps get gmp appended", type(with_gmp([":a"] + select({"//conditions:default": []}))), "select"),
             expect_equal("no deps still links gmp", [str(dep) for dep in with_gmp(None)], [str(GMP)]),
             expect_equal("packages compile on the GHC cell", [str(constraint) for constraint in HASKELL_COMPATIBLE_WITH], [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))]),
         ],

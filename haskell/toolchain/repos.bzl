@@ -13,6 +13,8 @@ load(
 
 HUB_NAME = "dx_haskell_toolchains"
 
+TOOLCHAINS_PACKAGE = "toolchains"
+
 CLOSURE_DIR = "dx_closure"
 
 LIBDIR = "lib"
@@ -25,7 +27,6 @@ GMP_PACKAGE = "ghc-bignum"
 
 _CELL_PREFIX = "dx_ghc_"
 
-# The boot packages the hub exposes as `@dx_haskell_toolchains//:<package>`.
 TOOLCHAIN_LIBRARIES = [
     "array",
     "base",
@@ -143,9 +144,6 @@ GHC_DROPPED_PATHS = [
     "wrappers",
 ]
 
-# Every program GHC would otherwise take from the build host. The Haskell rules
-# pass the C compiler, assembler, linker and object merger of the registered
-# cc toolchain on each invocation; anything else fails with this name.
 NO_HOST_TOOL = "dx-no-host-tool"
 
 SETTINGS = {
@@ -374,10 +372,11 @@ _ghc_repo = repository_rule(
 )
 
 def _hub_impl(rctx):
+    toolchains = []
     content = []
     arms = []
     for cell in sorted(CELLS.keys()):
-        content.append(_TOOLCHAIN.format(
+        toolchains.append(_TOOLCHAIN.format(
             cell = cell,
             constraints = repr(CELLS[cell].exec_compatible_with),
             repo = cell_repository_name(cell),
@@ -390,6 +389,7 @@ def _hub_impl(rctx):
     for name in ["gmp", "licenses"]:
         content.append(_HUB_ALIAS.format(name = name, arms = "\n".join(arms).replace("{name}", name)))
     rctx.file("REPO.bazel", "")
+    rctx.file(TOOLCHAINS_PACKAGE + "/BUILD.bazel", "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(toolchains))
     for name in TOOLCHAIN_LIBRARIES:
         content.append("haskell_toolchain_library(name = \"{}\")\n".format(name))
     rctx.file("BUILD.bazel", "load(\"@rules_haskell//haskell:defs.bzl\", \"haskell_toolchain_library\")\n\npackage(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(content))

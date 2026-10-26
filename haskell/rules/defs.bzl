@@ -65,6 +65,8 @@ def upstream_kwargs(kwargs):
 
 def with_gmp(deps, gmp = GMP):
     """Returns executable deps with the GMP runtime that ghc-bignum links added once."""
+    if type(deps) == "select":
+        return deps + [gmp]
     deps = list(deps or [])
     if gmp not in deps and str(gmp) not in deps:
         deps.append(gmp)

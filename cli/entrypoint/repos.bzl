@@ -500,7 +500,8 @@ complete_words() {
   set -eu
   echo "stderr_bytes=$$(wc -c < "$$root/stderr.txt" | tr -d ' ')" >> "$$dest"
 }
-(cd "$$start" && complete_words "$$out/completion_flag.txt" dx build --workspace "$$ws" "--bazel-startup-option=--output_base=$$root/base ü" "--bazel-startup-option=--output_user_root=$$root/user root" "//pkg:a")
+# Hermetic rc policy (CI set) pins the --nohome_rc --nosystem_rc startup tokens on any host.
+(cd "$$start" && export CI=true && complete_words "$$out/completion_flag.txt" dx build --workspace "$$ws" "--bazel-startup-option=--output_base=$$root/base ü" "--bazel-startup-option=--output_user_root=$$root/user root" "//pkg:a")
 sed "s|$$root|ROOT|g" "$$root/argv.txt" > "$$out/completion_argv.txt"
 (cd "$$start" && export DX_WORKSPACE="$$other" && complete_words "$$out/completion_env.txt" dx build "")
 echo '[dx]' > "$$start/dx.toml"

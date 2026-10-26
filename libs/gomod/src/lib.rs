@@ -10,6 +10,7 @@
     )
 )]
 
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, VecDeque};
 use std::str::FromStr;
 
@@ -78,7 +79,8 @@ impl GoModFile {
 
 /// Reads a `go.mod`, failing on syntax the Go toolchain rejects.
 pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
-    let parsed = GoMod::from_str(text).map_err(|detail| format!("invalid go.mod: {detail}"))?;
+    let padded = pad_glued_comments(text);
+    let parsed = GoMod::from_str(&padded).map_err(|detail| format!("invalid go.mod: {detail}"))?;
     let mut markers = requirement_markers(text);
     let require = parsed
         .require
@@ -117,9 +119,10 @@ pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
     })
 }
 
-/// Reads a `go.sum` into module paths and versions, keeping the first of each pair.
+/// Reads a `go.sum` into module paths and their highest hashed version.
 pub fn parse_sum(text: &str) -> BTreeMap<String, String> {
-    let mut packages = BTreeMap::new();
+    let mut hashed: BTreeMap<String, String> = BTreeMap::new();
+    let mut manifest_only: BTreeMap<String, String> = BTreeMap::new();
     for line in text.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -129,12 +132,89 @@ pub fn parse_sum(text: &str) -> BTreeMap<String, String> {
         let (Some(module), Some(version)) = (tokens.next(), tokens.next()) else {
             continue;
         };
-        let version = version.strip_suffix("/go.mod").unwrap_or(version);
-        packages
-            .entry(module.to_owned())
-            .or_insert_with(|| version.to_owned());
+        let (version, map) = match version.strip_suffix("/go.mod") {
+            Some(version) => (version, &mut manifest_only),
+            None => (version, &mut hashed),
+        };
+        match map.get_mut(module) {
+            Some(best) => {
+                if compare_go_versions(version, best) == Ordering::Greater {
+                    version.clone_into(best);
+                }
+            }
+            None => {
+                map.insert(module.to_owned(), version.to_owned());
+            }
+        }
     }
-    packages
+    for (module, version) in manifest_only {
+        hashed.entry(module).or_insert(version);
+    }
+    hashed
+}
+
+/// Parsed `vMAJOR.MINOR.PATCH[-pre][+build]`.
+struct GoVersion<'a> {
+    numbers: [u64; 3],
+    pre: Vec<&'a str>,
+}
+
+fn parse_go_version(text: &str) -> Option<GoVersion<'_>> {
+    let text = text.strip_prefix('v')?;
+    let text = text.split('+').next().unwrap_or(text);
+    let (core, pre) = match text.split_once('-') {
+        Some((core, pre)) => (core, pre.split('.').collect()),
+        None => (text, Vec::new()),
+    };
+    let mut numbers = [0u64; 3];
+    let mut parts = core.split('.');
+    for (index, slot) in numbers.iter_mut().enumerate() {
+        match parts.next() {
+            Some(part) => *slot = part.parse().ok()?,
+            None if index > 0 => break,
+            None => return None,
+        }
+    }
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(GoVersion { numbers, pre })
+}
+
+fn compare_pre_part(a: &str, b: &str) -> Ordering {
+    match (a.parse::<u64>(), b.parse::<u64>()) {
+        (Ok(a), Ok(b)) => a.cmp(&b),
+        (Ok(_), Err(_)) => Ordering::Less,
+        (Err(_), Ok(_)) => Ordering::Greater,
+        (Err(_), Err(_)) => a.cmp(b),
+    }
+}
+
+/// Orders Go module versions by semver; a version that does not parse sorts lowest.
+fn compare_go_versions(a: &str, b: &str) -> Ordering {
+    match (parse_go_version(a), parse_go_version(b)) {
+        (None, None) => a.cmp(b),
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
+        (Some(a), Some(b)) => {
+            a.numbers
+                .cmp(&b.numbers)
+                .then_with(|| match (a.pre.is_empty(), b.pre.is_empty()) {
+                    (true, true) => Ordering::Equal,
+                    (true, false) => Ordering::Greater,
+                    (false, true) => Ordering::Less,
+                    (false, false) => {
+                        for (x, y) in a.pre.iter().zip(&b.pre) {
+                            let order = compare_pre_part(x, y);
+                            if order != Ordering::Equal {
+                                return order;
+                            }
+                        }
+                        a.pre.len().cmp(&b.pre.len())
+                    }
+                })
+        }
+    }
 }
 
 /// Why a `go.mod` requirement could not be edited.
@@ -258,6 +338,7 @@ fn tokenize(line: &str, base: usize) -> Vec<Token> {
             while end < bytes.len()
                 && !bytes[end].is_ascii_whitespace()
                 && !matches!(bytes[end], b'(' | b')' | b',')
+                && !(bytes[end] == b'/' && bytes.get(end + 1) == Some(&b'/'))
             {
                 end += 1;
             }
@@ -274,9 +355,10 @@ fn tokenize(line: &str, base: usize) -> Vec<Token> {
     tokens
 }
 
-fn locate_require_version(text: &str, module: &str) -> Option<VersionSpan> {
+/// Name and version tokens of every `require` entry.
+fn require_entries(text: &str) -> Vec<(Token, Token)> {
     let mut block: Option<String> = None;
-    let mut found = None;
+    let mut found = Vec::new();
     let mut base = 0;
     for line in text.split_inclusive('\n') {
         let tokens = tokenize(line, base);
@@ -284,22 +366,50 @@ fn locate_require_version(text: &str, module: &str) -> Option<VersionSpan> {
         let Some(first) = tokens.first() else {
             continue;
         };
-        let entry = if let Some(keyword) = &block {
+        let is_require = if let Some(keyword) = &block {
             if first.value == ")" {
                 block = None;
                 continue;
             }
-            (keyword == "require").then_some(&tokens[..])
+            keyword == "require"
         } else {
             if tokens.get(1).map(|token| token.value.as_str()) == Some("(") {
                 block = Some(first.value.clone());
                 continue;
             }
-            (first.value == "require").then(|| &tokens[1..])
+            first.value == "require"
         };
-        let Some([name, version, ..]) = entry else {
+        if !is_require {
             continue;
-        };
+        }
+        let skip = usize::from(block.is_none());
+        let mut entry = tokens.into_iter().skip(skip);
+        if let (Some(name), Some(version)) = (entry.next(), entry.next()) {
+            found.push((name, version));
+        }
+    }
+    found
+}
+
+/// Inserts a space where a require version runs straight into `//`, which
+/// `gomod-parser` would otherwise read as part of the version.
+fn pad_glued_comments(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 8);
+    let mut copied = 0;
+    for (_, version) in require_entries(text) {
+        if text.get(version.end..version.end + 2) == Some("//") {
+            out.push_str(&text[copied..version.end]);
+            out.push(' ');
+            copied = version.end;
+        }
+    }
+    out.push_str(&text[copied..]);
+    out
+}
+
+fn locate_require_version(text: &str, module: &str) -> Option<VersionSpan> {
+    let mut found = None;
+    for (name, version) in require_entries(text) {
         if name.value == module {
             if found.is_some() {
                 return None;

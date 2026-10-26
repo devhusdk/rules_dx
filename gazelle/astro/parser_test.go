@@ -39,6 +39,8 @@ func TestParseImports(t *testing.T) {
 		{"loneFenceLine", "---\n", nil},
 		{"scriptStringInFrontmatter", "---\nconst s = \"<script>\";\nimport x from \"./a.astro\";\n---\n<div>x</div>\n", []string{"a"}},
 		{"clientScripts", "---\nconst t = \"demo\";\n---\n<script>\nimport a from './a.astro';\n</script>\n<script>\nimport b from './b.astro';\n</script>\n<div>x</div>\n", []string{"a", "b"}},
+		{"frontmatterTwoBodyScripts", "---\nimport a from \"./a.astro\";\n---\n<main><script>\nimport b from \"./b\";\n</script></main>\n<script>\nimport c from \"./c\";\n</script>\n", []string{"a", "b", "c"}},
+		{"scriptInSlot", "---\nimport Card from \"./Card.astro\";\n---\n<Card><div slot=\"footer\"><script>\nimport d from \"./d\";\n</script></div></Card>\n", []string{"Card", "d"}},
 		{"sideEffect", "import \"./hello.astro\";\n", []string{"hello"}},
 		{"sideEffectSingle", "import './helper';\n", []string{"helper"}},
 		{"default", "import hello from \"./hello.astro\";\n", []string{"hello"}},
@@ -140,7 +142,8 @@ func TestParseImports(t *testing.T) {
 		"fenceIndentedInert": true, "fenceTrailingSpace": true,
 		"fenceCRLF": true, "emptyFence": true, "bareFence": true,
 		"loneFenceLine": true, "scriptStringInFrontmatter": true,
-		"clientScripts": true,
+		"clientScripts": true, "frontmatterTwoBodyScripts": true,
+		"scriptInSlot": true,
 	}
 	for _, tc := range cases {
 		var content []byte

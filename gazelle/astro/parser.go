@@ -15,7 +15,7 @@ func ParseImports(content []byte, dir string) []string {
 		regions = append(regions, front)
 		body = rest
 	}
-	scripts := common.ExtractScripts(body)
+	scripts := common.ExtractScripts(body, common.Anywhere)
 	regions = append(regions, scripts...)
 	set := common.SpecSet{Dir: dir}
 	for _, region := range regions {
@@ -24,6 +24,9 @@ func ParseImports(content []byte, dir string) []string {
 	return set.Roots()
 }
 
+// splitFence is hand-written because Astro frontmatter is TypeScript with no Go
+// parser. It is stricter than the @astrojs/compiler tokenizer (commit 3f9a776),
+// which also accepts whitespace before the opening fence.
 func splitFence(src []byte) (fenced bool, front, rest []byte, ok bool) {
 	var first, after []byte
 	if nl := bytes.IndexByte(src, '\n'); nl < 0 {

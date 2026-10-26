@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"reflect"
 	"sort"
 	"testing"
@@ -70,7 +71,7 @@ func TestScanPlain(t *testing.T) {
 func TestScanEmbedded(t *testing.T) {
 	src := []byte("<template><p>x</p></template><script>import y from \"./why.js\";</script><script setup>import z from \"./zed.js\";</script>")
 	var got []string
-	for _, script := range ExtractScripts(src) {
+	for _, script := range ExtractScripts(src, TopLevel) {
 		got = append(got, collectEmbedded(script)...)
 	}
 	if !reflect.DeepEqual(got, []string{"why", "zed"}) {
@@ -500,8 +501,79 @@ func TestExtractScripts(t *testing.T) {
 		{"unterminatedCommentInScript", "<script>\nconst x = 1;<!--", nil},
 	}
 	for _, tc := range cases {
-		if got := ExtractScripts([]byte(tc.source)); !reflect.DeepEqual(got, tc.all) {
-			t.Errorf("ExtractScripts %s = %q, want %q", tc.name, got, tc.all)
+		for _, scope := range []ScriptScope{TopLevel, Anywhere} {
+			if got := ExtractScripts([]byte(tc.source), scope); !reflect.DeepEqual(got, tc.all) {
+				t.Errorf("ExtractScripts %s scope %d = %q, want %q", tc.name, scope, got, tc.all)
+			}
+		}
+	}
+}
+
+// Expectations follow @vue/compiler-sfc 3.5 and svelte 5 root blocks for
+// TopLevel, and @astrojs/compiler 2 hoisting for Anywhere.
+func TestExtractScriptsScopes(t *testing.T) {
+	one := func(s string) []byte { return []byte(s) }
+	cases := []struct {
+		name     string
+		source   string
+		top      [][]byte
+		anywhere [][]byte
+	}{
+		{"vueSetupAndPlain", "<script>\nexport default {}\n</script>\n<script setup>\nimport A from './A.vue';\n</script>\n<template><A/></template>",
+			[][]byte{one("\nexport default {}\n"), one("\nimport A from './A.vue';\n")},
+			[][]byte{one("\nexport default {}\n"), one("\nimport A from './A.vue';\n")}},
+		{"svelteModuleAndInstance", "<script module>\nimport a from './a';\n</script>\n<script>\nimport b from './b';\n</script>\n<p>x</p>",
+			[][]byte{one("\nimport a from './a';\n"), one("\nimport b from './b';\n")},
+			[][]byte{one("\nimport a from './a';\n"), one("\nimport b from './b';\n")}},
+		{"nestedInTemplate", "<template><script>import x from './x';</script></template>",
+			nil, [][]byte{one("import x from './x';")}},
+		{"nestedInDiv", "<div><span><script>import x from './x';</script></span></div><script>import y from './y';</script>",
+			[][]byte{one("import y from './y';")}, [][]byte{one("import x from './x';"), one("import y from './y';")}},
+		{"styleBody", "<style>a::after { content: '<script>import x from \"./x\"</script>'; }</style><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"textareaBody", "<textarea><script>x</script></textarea><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"unclosedP", "<template><div><p>a<p>b</div></template><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"voidElement", "<div><br><img src=x><input></div><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"unquotedAttr", "<script lang=ts>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"scriptDataEscape", "<script><!--<script></script>--></script><script>y</script>",
+			[][]byte{one("<!--<script></script>-->"), one("y")}, [][]byte{one("<!--<script></script>-->"), one("y")}},
+		{"strayEndTag", "</div></template><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+	}
+	for _, tc := range cases {
+		if got := ExtractScripts([]byte(tc.source), TopLevel); !reflect.DeepEqual(got, tc.top) {
+			t.Errorf("%s TopLevel = %q, want %q", tc.name, got, tc.top)
+		}
+		if got := ExtractScripts([]byte(tc.source), Anywhere); !reflect.DeepEqual(got, tc.anywhere) {
+			t.Errorf("%s Anywhere = %q, want %q", tc.name, got, tc.anywhere)
+		}
+	}
+}
+
+func TestExtractScriptsAliasesInput(t *testing.T) {
+	src := []byte("<template>\r\n</template><script>\x00a\r\nb</script>")
+	got := ExtractScripts(src, TopLevel)
+	if len(got) != 1 || string(got[0]) != "\x00a\r\nb" {
+		t.Fatalf("ExtractScripts = %q", got)
+	}
+	if &got[0][0] != &src[bytes.Index(src, []byte("\x00"))] {
+		t.Error("region does not alias the input")
+	}
+}
+
+func TestExtractScriptsNoPanic(t *testing.T) {
+	seeds := []string{
+		"<script>\xff\xfe</script>", "<\xff>", "<script \xed\xa0\x80>x</script>",
+		"\xed\xa0\x80<script>", "<script>\"\\ud800\"</script", "<", "</", "<!", "<!--", "<![CDATA[",
+		"<plaintext><script>x</script>", "<script/", "<a b='",
+	}
+	for _, s := range seeds {
+		for _, scope := range []ScriptScope{TopLevel, Anywhere} {
+			_ = ExtractScripts([]byte(s), scope)
 		}
 	}
 }
@@ -646,3 +718,4 @@ func TestStripBOM(t *testing.T) {
 		}
 	}
 }
+

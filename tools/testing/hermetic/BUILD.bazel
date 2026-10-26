@@ -251,6 +251,31 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "perl",
+    files = {
+        "//examples/perl-app/cli:BUILD.bazel": "examples/perl-app/cli/BUILD.bazel",
+        "//examples/perl-app/cli:stockctl.pl": "examples/perl-app/cli/stockctl.pl",
+        "//examples/perl-app/cli:t/launcher.t": "examples/perl-app/cli/t/launcher.t",
+        "//examples/perl-app/inventory:BUILD.bazel": "examples/perl-app/inventory/BUILD.bazel",
+        "//examples/perl-app/inventory:lib/Inventory/Item.pm": "examples/perl-app/inventory/lib/Inventory/Item.pm",
+        "//examples/perl-app/inventory:lib/Inventory/Ledger.pm": "examples/perl-app/inventory/lib/Inventory/Ledger.pm",
+        "//examples/perl-app/inventory:t/item.t": "examples/perl-app/inventory/t/item.t",
+        "//examples/perl-app/inventory:t/ledger.t": "examples/perl-app/inventory/t/ledger.t",
+        "//examples/perl-app/report:BUILD.bazel": "examples/perl-app/report/BUILD.bazel",
+        "//examples/perl-app/report:data/units.csv": "examples/perl-app/report/data/units.csv",
+        "//examples/perl-app/report:lib/Report.pm": "examples/perl-app/report/lib/Report.pm",
+        "//examples/perl-app/report:t/report.t": "examples/perl-app/report/t/report.t",
+        "//examples/perl-app/third_party:BUILD.bazel": "examples/perl-app/third_party/BUILD.bazel",
+        "//examples/perl-app/third_party:cpanfile": "examples/perl-app/third_party/cpanfile",
+        "//examples/perl-app/third_party:cpanfile.snapshot": "examples/perl-app/third_party/cpanfile.snapshot",
+        "//examples/perl-app/third_party:cpanfile.snapshot.lock.json": "examples/perl-app/third_party/cpanfile.snapshot.lock.json",
+    },
+    languages = ["perl"],
+    module_fragment = "consumers/perl/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "erlang",
     files = {
         "//examples/erlang-app/proto:BUILD.bazel": "examples/erlang-app/proto/BUILD.bazel",
@@ -478,6 +503,7 @@ rustfmt_test(
         ":gleam",
         ":hermetic",
         ":msix",
+        ":perl",
         ":qt_rust",
         ":qt_tasks",
         ":rust_wasi",
@@ -499,6 +525,7 @@ rust_clippy_test(
         ":gleam",
         ":hermetic",
         ":msix",
+        ":perl",
         ":qt_rust",
         ":qt_tasks",
         ":rust_wasi",

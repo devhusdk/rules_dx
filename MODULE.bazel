@@ -300,6 +300,15 @@ bazel_dep(name = "rules_julia", version = "0.8.0")
 julia = use_extension("@rules_julia//julia:extensions.bzl", "julia")
 julia.toolchain(version = "1.12.5")
 
+bazel_dep(name = "rules_perl", version = "1.5.0")
+
+cpan = use_extension("//perl/cpan:extensions.bzl", "cpan_dev", dev_dependency = True)
+cpan.install(
+    name = "perl_app_cpan",
+    lock = "//examples/perl-app/third_party:cpanfile.snapshot.lock.json",
+)
+use_repo(cpan, perl_cpan = "perl_app_cpan")
+
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.component(
     name = "cuda_cccl",

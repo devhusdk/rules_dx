@@ -46,6 +46,7 @@ workspace below records exact commands and expected evidence in its own
 - [kotlin-app](kotlin-app/) multi-package Kotlin gradebook CLI with pinned `gson` and `guava` dependencies, a generated object and a packaged resource.
 - [msix-app](msix-app/) Windows console app with a DLL and a packaged resource, built as an MSIX, installed and signed in tests.
 - [node-app](node-app/) multi-package TypeScript and JavaScript registry CLI with a pinned `semver` dependency, a generated module and a packaged resource.
+- [perl-app](perl-app/) multi-package Perl stock CLI with a typed ledger, a runfiles CSV table, a pinned `Text::CSV` CPAN dependency and a `select()` flag.
 - [python-service](python-service/) multi-package Python CLI and local service with a pinned `click` dependency, a generated module and packaged data.
 - [qt-app](qt-app/) headless Qt app with a QML module, a C++ QML type, a Qt resource and a QtTest suite.
 - [qt-rust](qt-rust/) headless Qt/QML ledger backed by a Rust model through CXX-Qt bindings, with a pinned `adler2` dependency, a QtTest suite and a relocatable archive.

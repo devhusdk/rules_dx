@@ -68,5 +68,8 @@ real_source_target(
         source = "erlang/tests/runtime/src/dx_runtime_probe.erl",
         target = ":" + target,
     )
-    for target in ["eunit", "diagnostics_SUITE"]
+    for target in [
+        "eunit",
+        "diagnostics_SUITE",
+    ]
 ]

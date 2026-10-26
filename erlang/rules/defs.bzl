@@ -2,7 +2,7 @@
 
 load("@rules_erlang//:ct.bzl", _ct_suite = "ct_suite")
 load("@rules_erlang//:erlang_app.bzl", _DEFAULT_ERLC_OPTS = "DEFAULT_ERLC_OPTS", _DEFAULT_TEST_ERLC_OPTS = "DEFAULT_TEST_ERLC_OPTS", _erlang_app = "erlang_app", _test_erlang_app = "test_erlang_app")
-load("@rules_erlang//:erlang_app_info.bzl", _ErlangAppInfo = "ErlangAppInfo", "flat_deps")
+load("@rules_erlang//:erlang_app_info.bzl", "flat_deps", _ErlangAppInfo = "ErlangAppInfo")
 load("@rules_erlang//:erlang_bytecode2.bzl", _erlang_bytecode = "erlang_bytecode", _erlc_opts = "erlc_opts")
 load("@rules_erlang//:erlang_xrl_yrl.bzl", _erlang_xrl_yrl = "erlang_xrl_yrl")
 load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")

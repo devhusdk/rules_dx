@@ -387,7 +387,12 @@ fn a_bad_argument_prints_usage_to_stderr_only() {
     let result = bootstrap_offline(&["--nope".to_owned()], bundle.path());
     result.expect_refusal("unknown argument '--nope'");
     assert_eq!(result.stdout, "", "a refusal prints nothing on stdout");
-    assert_eq!(result.stderr.matches("usage:").count(), 1, "{}", result.stderr);
+    assert_eq!(
+        result.stderr.matches("usage:").count(),
+        1,
+        "{}",
+        result.stderr
+    );
 }
 
 #[test]
@@ -395,7 +400,12 @@ fn help_prints_usage_once_and_exits_zero() {
     let bundle = bundle("bundle");
     let result = bootstrap_offline(&["--help".to_owned()], bundle.path());
     result.expect_ok();
-    assert_eq!(result.stdout.matches("usage:").count(), 1, "{}", result.stdout);
+    assert_eq!(
+        result.stdout.matches("usage:").count(),
+        1,
+        "{}",
+        result.stdout
+    );
     assert_eq!(result.stderr, "");
 }
 
@@ -441,7 +451,9 @@ fn the_demo_offline_bundle_bootstraps() {
 fn offline_bundle_knows_every_host_launcher() {
     let rel = std::env::var("DX_OFFLINE_BZL").expect("DX_OFFLINE_BZL must name offline.bzl");
     let bzl = read(&dx_testing::resolve_runfiles(&rel));
-    let start = bzl.find("_LAUNCHERS = [").expect("offline.bzl lists launchers");
+    let start = bzl
+        .find("_LAUNCHERS = [")
+        .expect("offline.bzl lists launchers");
     let list = &bzl[start..];
     let list = &list[..list.find(']').expect("launcher list is closed")];
     let mut in_bzl: Vec<String> = list

@@ -61,6 +61,11 @@ USER_BOOK = [
         "//docs:cli/commands/new-upgrade.md",
     ),
     mdbook_page(
+        "Offline Bundle",
+        "docs/cli/commands/offline-bundle.md",
+        "//docs:cli/commands/offline-bundle.md",
+    ),
+    mdbook_page(
         "Status, Version",
         "docs/cli/commands/status-version.md",
         "//docs:cli/commands/status-version.md",

@@ -430,6 +430,7 @@ Packaging and deploy:
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
 - `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
 - `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx//deploy/offline:offline.bzl`: offline bundles.
 - `@rules_dx//deploy/rules:archive.bzl`: release archives.
 - `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.
 - `@rules_dx//deploy/rules:crates.bzl`: crates.io publish.

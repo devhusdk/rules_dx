@@ -22,6 +22,7 @@ guides below.
 - [Completion](cli/commands/completion.md): shell completions.
 - [Migrate](cli/commands/migrate.md): move to the current layout.
 - [New, upgrade, rollback](cli/commands/new-upgrade.md): create modules and change the pin.
+- [Offline bundle](cli/commands/offline-bundle.md): build a vendored bundle and install from it.
 - [Watch](cli/commands/watch.md): rerun on file changes.
 - [Worktree](cli/commands/worktree.md): worktree slots.
 

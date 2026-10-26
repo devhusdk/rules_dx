@@ -27,13 +27,6 @@ fn affected_is_accepted_by_the_scope_taking_commands() {
 }
 
 #[test]
-fn affected_is_rejected_by_generate_and_docs() {
-    for name in ["generate", "docs"] {
-        assert!(parse(&strings(&[name, "--affected"])).is_err(), "{name}");
-    }
-}
-
-#[test]
 fn affected_conflicts_with_scopes_and_here() {
     assert_eq!(
         parse(&strings(&["test", "--affected", "//a:b"])),

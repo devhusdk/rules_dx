@@ -42,13 +42,13 @@ func ParsePackage(content []byte) (string, error) {
 	return f.Name.Name, nil
 }
 
-// BuildExcluded reports whether no GOOS, GOARCH, or toolchain tags satisfy the file's build constraint.
+// BuildExcluded reports whether the file's build constraint cannot hold without the ignore or tools tag.
 func BuildExcluded(content []byte) (bool, error) {
 	expr, err := buildConstraint(content)
 	if err != nil || expr == nil {
 		return false, err
 	}
-	return !satisfiable(expr, isPlatformTag), nil
+	return !satisfiable(expr, isBuildableTag), nil
 }
 
 func buildConstraint(content []byte) (constraint.Expr, error) {
@@ -140,15 +140,10 @@ func satisfiable(expr constraint.Expr, free func(string) bool) bool {
 	return false
 }
 
-func isPlatformTag(tag string) bool {
-	if rule.KnownOSSet[tag] || rule.KnownArchSet[tag] {
-		return true
-	}
-	switch tag {
-	case "unix", "cgo", "gc", "gccgo", "race", "msan", "asan":
-		return true
-	}
-	return strings.HasPrefix(tag, "go1.") || strings.HasPrefix(tag, "goexperiment.")
+var neverBuiltTags = map[string]bool{"ignore": true, "tools": true}
+
+func isBuildableTag(tag string) bool {
+	return !neverBuiltTags[tag]
 }
 
 func IsCgoImport(path string) bool {

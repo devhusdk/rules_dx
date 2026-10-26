@@ -206,6 +206,42 @@ fn a_value_and_a_type_with_one_name_get_distinct_ids() {
 }
 
 #[test]
+fn a_namespace_merged_with_a_value_gets_a_distinct_id() {
+    let class = json!({
+        "id": 40, "name": "Canvas", "variant": "declaration", "kind": 128, "flags": {},
+        "sources": source("src/d.ts", 1),
+        "children": [{
+            "id": 41, "name": "width", "variant": "declaration", "kind": 1024, "flags": {},
+            "sources": source("src/d.ts", 2), "type": number()
+        }]
+    });
+    let namespace = json!({
+        "id": 42, "name": "Canvas", "variant": "declaration", "kind": 4, "flags": {},
+        "sources": source("src/d.ts", 4),
+        "children": [{
+            "id": 43, "name": "Options", "variant": "declaration", "kind": 2097152,
+            "flags": {}, "type": number(), "sources": source("src/d.ts", 5)
+        }]
+    });
+    let shard = convert_ok(json!([class, namespace]));
+    let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        vec![
+            "typescript:geo:Canvas",
+            "typescript:geo:Canvas#namespace",
+            "typescript:geo:Canvas#namespace.Options",
+            "typescript:geo:Canvas.width",
+        ]
+    );
+    let options = &shard.symbols[2];
+    assert_eq!(
+        options.relations.as_ref().map(|r| r.member_of.clone()),
+        Some(vec!["typescript:geo:Canvas#namespace".to_owned()])
+    );
+}
+
+#[test]
 fn a_re_export_of_overloads_points_at_the_first_overload() {
     let mut overloaded = scale();
     let second = overloaded["signatures"][0].clone();

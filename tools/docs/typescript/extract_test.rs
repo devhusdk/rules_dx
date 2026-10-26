@@ -105,3 +105,19 @@ fn the_binary_rejects_a_wrong_schema_version_and_writes_no_shard() {
     assert_eq!(code, 0, "{stderr}");
     assert!(dir.join("shard.ir.pb").exists());
 }
+
+#[test]
+fn namespaces_merged_with_values_get_their_own_ids() {
+    let shard = fixture();
+    let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
+    for id in [
+        "typescript:geometry:Canvas",
+        "typescript:geometry:Canvas#namespace",
+        "typescript:geometry:Canvas#namespace.Options",
+        "typescript:geometry:draw",
+        "typescript:geometry:draw#namespace",
+        "typescript:geometry:draw#namespace.lineWidth",
+    ] {
+        assert!(ids.contains(&id), "{id} is missing: {ids:?}");
+    }
+}

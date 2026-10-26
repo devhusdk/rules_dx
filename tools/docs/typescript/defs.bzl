@@ -7,7 +7,6 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 _TYPEDOC = Label("//quality/tools/javascript/bin:typedoc")
 _JSON_SCHEMA = "2.0"
 
-# Options the rule owns. Letting a caller set one would change what is read or written.
 _RESERVED_OPTIONS = ["plugin", "options", "tsconfig", "entryPoints", "json", "out", "basePath"]
 
 def _docs_typescript_shard_impl(ctx):

@@ -89,10 +89,17 @@ fn index_names(node: &Value, parent: &str, names: &mut BTreeMap<i64, String>) {
         .filter(|child| !is_type_kind(child))
         .map(|child| text(child, "name"))
         .collect();
+    let plain: Vec<&str> = list(node, "children")
+        .iter()
+        .filter(|child| !is_type_kind(child) && !is_namespace(child))
+        .map(|child| text(child, "name"))
+        .collect();
     for child in list(node, "children") {
         let mut qualified = qualify(parent, text(child, "name"));
         if is_type_kind(child) && values.contains(&text(child, "name")) {
             qualified.push_str("#type");
+        } else if is_namespace(child) && plain.contains(&text(child, "name")) {
+            qualified.push_str("#namespace");
         }
         if let Some(id) = child.get("id").and_then(Value::as_i64) {
             names.insert(id, qualified.clone());
@@ -106,6 +113,10 @@ fn is_type_kind(node: &Value) -> bool {
         node.get("kind").and_then(Value::as_u64),
         Some(KIND_INTERFACE | KIND_TYPE_ALIAS)
     )
+}
+
+fn is_namespace(node: &Value) -> bool {
+    node.get("kind").and_then(Value::as_u64) == Some(KIND_NAMESPACE)
 }
 
 fn qualify(parent: &str, name: &str) -> String {

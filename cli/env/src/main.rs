@@ -19,11 +19,13 @@ const METADATA_CANDIDATES: &[(&str, &str)] = &[
     ("_main/env/default_tree.metadata.json", "_main"),
 ];
 
+const USAGE: &str =
+    "usage: env [--workspace DIR] [--staged-bin DIR --metadata FILE] [--lock-timeout-ms N]";
+const ABOUT: &str = "install the staged environment tree into .dx/bin";
+
 fn usage_error(message: &str) -> i32 {
     tracing::error!("dx env: {message}");
-    tracing::error!(
-        "usage: env [--workspace DIR] [--staged-bin DIR --metadata FILE] [--lock-timeout-ms N]"
-    );
+    tracing::error!("{USAGE}");
     2
 }
 
@@ -95,11 +97,18 @@ fn installed_message(outcome: &RefreshOutcome, count: usize, identity: &str) -> 
     }
 }
 
+fn help(out: &mut impl std::io::Write) -> i32 {
+    match writeln!(out, "dx env: {ABOUT}").and_then(|()| writeln!(out, "{USAGE}")) {
+        Ok(()) => 0,
+        Err(_) => 1,
+    }
+}
+
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 fn run() -> i32 {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (workspace, staged_bin, metadata, lock_timeout) = match plan(&args) {
-        Ok(Plan::Help) => return usage_error("install the staged environment tree into .dx/bin"),
+        Ok(Plan::Help) => return help(&mut std::io::stdout().lock()),
         Ok(Plan::Install {
             workspace,
             staged_bin,
@@ -349,6 +358,27 @@ mod tests {
     #[test]
     fn usage_errors_report_two() {
         assert_eq!(usage_error("bad flag"), 2);
+    }
+
+    struct FailingWriter;
+
+    impl std::io::Write for FailingWriter {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("closed"))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn help_prints_usage_and_exits_zero() {
+        let mut out = Vec::new();
+        assert_eq!(help(&mut out), 0);
+        let text = String::from_utf8(out).expect("utf8");
+        assert_eq!(text, format!("dx env: {ABOUT}\n{USAGE}\n"));
+        assert_eq!(help(&mut FailingWriter), 1);
     }
 
     #[test]

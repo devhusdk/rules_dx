@@ -22,8 +22,9 @@ source_checkout() {
 }
 bin="$root/bazel-bin/cli/cli/dx$exe"
 state="$root/.dx/launcher"
-if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ] && [ -x "$bin" ]; then
-  exec "$bin" "$@"
+if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
+  [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
+  [ -x "$bin" ] && exec "$bin" "$@"
 fi
 here=$(pwd -P) || here=/
 until [ "$here" = / ] || source_checkout "$here"; do

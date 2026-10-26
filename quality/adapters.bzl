@@ -113,6 +113,7 @@ REAL_CLASS_TO_FAMILY = {
     "less": "css",
     "markdown": "markdown",
     "mdx": "mdx",
+    "perl": "perl",
     "pkl": "pkl",
     "protobuf": "protobuf",
     "powershell": "powershell",

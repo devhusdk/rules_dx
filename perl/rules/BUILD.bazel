@@ -1,0 +1,47 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":wrapper_tests.bzl", "perl_wrapper_contract_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "wrapper_tests.bzl",
+])
+
+perl_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+RULES_PERL_PLATFORMS = {
+    "linux_x86_64": ("linux", "x86_64"),
+    "linux_arm64": ("linux", "arm64"),
+    "macos_x86_64": ("macos", "x86_64"),
+    "macos_arm64": ("macos", "arm64"),
+    "windows_x86_64": ("windows", "x86_64"),
+}
+
+[
+    config_setting(
+        name = name,
+        constraint_values = [
+            "@platforms//os:" + os,
+            "@platforms//cpu:" + cpu,
+        ],
+    )
+    for name, (os, cpu) in RULES_PERL_PLATFORMS.items()
+]
+
+selects.config_setting_group(
+    name = "rules_perl_platform",
+    match_any = [":" + name for name in RULES_PERL_PLATFORMS],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "wrapper_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

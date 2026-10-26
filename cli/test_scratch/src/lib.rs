@@ -93,6 +93,35 @@ pub fn remove_directory_link(path: &Path) -> std::io::Result<()> {
     removed
 }
 
+/// Symlinks host tools into `dir` so a test can run a script with an exact PATH.
+///
+/// Each name is looked up on the test process PATH, falling back to `/usr/bin` and `/bin`.
+/// Links are symlinks, not copies, because coreutils and busybox dispatch on argv[0].
+/// Returns the names that were not found.
+#[cfg(unix)]
+pub fn link_host_tools(dir: &Path, names: &[&str]) -> std::io::Result<Vec<String>> {
+    let mut search: Vec<std::path::PathBuf> = std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).collect())
+        .unwrap_or_default();
+    search.push("/usr/bin".into());
+    search.push("/bin".into());
+    std::fs::create_dir_all(dir)?;
+    let mut missing = Vec::new();
+    for name in names {
+        let found = search.iter().map(|d| d.join(name)).find(|c| c.is_file());
+        match found {
+            Some(target) => {
+                let link = dir.join(name);
+                if !link.exists() {
+                    std::os::unix::fs::symlink(&target, &link)?;
+                }
+            }
+            None => missing.push((*name).to_owned()),
+        }
+    }
+    Ok(missing)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,6 +153,17 @@ mod tests {
             !bounded.contains(':'),
             "separators are sanitized: {bounded}"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn host_tools_are_linked_and_missing_ones_reported() {
+        let dir = scratch("dx-test-scratch-tools-");
+        let tools = dir.path().join("tools");
+        let missing = link_host_tools(&tools, &["sh", "dx-no-such-tool-xyz"]).expect("links");
+        assert_eq!(missing, vec!["dx-no-such-tool-xyz"]);
+        assert!(tools.join("sh").exists());
+        assert!(!tools.join("dx-no-such-tool-xyz").exists());
     }
 
     #[test]

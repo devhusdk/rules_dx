@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{as_text, code_name, finding, unformatted_at, FileFinding, ParseError};
+use super::{as_text, code_name, finding, missing, unformatted_at, FileFinding, ParseError};
 use crate::ToolSeverity;
 
 const TOOL: &str = "djlint";
@@ -12,14 +12,13 @@ pub fn djlint_ran(stderr: &[u8]) -> Result<(), ParseError> {
         .lines()
         .find(|line| line.contains("Failed to load config file"))
     {
-        return Err(shape(line));
+        return Err(missing(TOOL, "finding", line));
     }
     if text.lines().any(|line| line.contains("No files to check!")) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: "the file was skipped by the djlint configuration (exclude or require_pragma)"
-                .to_owned(),
-        });
+        return Err(ParseError::shape(
+            TOOL,
+            "the file was skipped by the djlint configuration (exclude or require_pragma)",
+        ));
     }
     Ok(())
 }
@@ -33,10 +32,13 @@ pub fn parse_djlint(
     let text = as_text(TOOL, stdout)?;
     let mut findings = Vec::new();
     for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
-        let (name, line_no, column, tail) = split_location(line).ok_or_else(|| shape(line))?;
-        let (rule, message) = tail.split_once(' ').ok_or_else(|| shape(line))?;
+        let (name, line_no, column, tail) =
+            split_location(line).ok_or_else(|| missing(TOOL, "finding", line))?;
+        let (rule, message) = tail
+            .split_once(' ')
+            .ok_or_else(|| missing(TOOL, "finding", line))?;
         if !is_rule(rule) || message.trim().is_empty() {
-            return Err(shape(line));
+            return Err(missing(TOOL, "finding", line));
         }
         findings.push(finding(
             TOOL,
@@ -50,10 +52,10 @@ pub fn parse_djlint(
     }
     let want = if findings.is_empty() { 0 } else { 1 };
     if code != Some(want) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with {} findings", code_name(code), findings.len()),
-        });
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} with {} findings", code_name(code), findings.len()),
+        ));
     }
     Ok(findings)
 }
@@ -77,22 +79,19 @@ pub fn parse_djlint_format(
         .iter()
         .rev()
         .find_map(|line| updated_count(line))
-        .ok_or_else(|| ParseError::Shape {
-            tool: TOOL,
-            detail: "no update count in the output".to_owned(),
-        })?;
+        .ok_or_else(|| ParseError::shape(TOOL, "no update count in the output"))?;
     if count != changed.len() {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("{count} files counted but {} named", changed.len()),
-        });
+        return Err(ParseError::shape(
+            TOOL,
+            format!("{count} files counted but {} named", changed.len()),
+        ));
     }
     let want = if count == 0 { 0 } else { 1 };
     if code != Some(want) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with {count} files to update", code_name(code)),
-        });
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} with {count} files to update", code_name(code)),
+        ));
     }
     let mut findings: Vec<FileFinding> = Vec::new();
     for name in changed {
@@ -102,13 +101,6 @@ pub fn parse_djlint_format(
         }
     }
     Ok(findings)
-}
-
-fn shape(line: &str) -> ParseError {
-    ParseError::Shape {
-        tool: TOOL,
-        detail: format!("malformed finding: {line}"),
-    }
 }
 
 fn is_rule(text: &str) -> bool {

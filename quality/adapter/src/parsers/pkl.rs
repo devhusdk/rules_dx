@@ -33,19 +33,15 @@ pub fn parse_pkl(
             let before = findings.len();
             findings.extend(format_errors(errors, files)?);
             if findings.len() == before {
-                return Err(shape("exit 1 with no located errors".to_owned()));
+                return Err(ParseError::shape(TOOL, "exit 1 with no located errors"));
             }
             Ok(findings)
         }
-        _ => Err(shape(format!(
-            "unexpected exit {} with output",
-            code_name(code)
-        ))),
+        _ => Err(ParseError::shape(
+            TOOL,
+            format!("unexpected exit {} with output", code_name(code)),
+        )),
     }
-}
-
-fn shape(detail: String) -> ParseError {
-    ParseError::Shape { tool: TOOL, detail }
 }
 
 fn format_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
@@ -53,7 +49,10 @@ fn format_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
     let mut closed = false;
     for line in stderr.lines().map(str::trim_end).filter(|l| !l.is_empty()) {
         if closed {
-            return Err(shape(format!("output after the closing line: {line}")));
+            return Err(ParseError::shape(
+                TOOL,
+                format!("output after the closing line: {line}"),
+            ));
         }
         if line == TRAILER {
             closed = true;
@@ -63,7 +62,10 @@ fn format_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
             .strip_prefix("Could not format `")
             .and_then(|rest| rest.split_once("`: "))
         else {
-            return Err(shape(format!("unrecognized error output: {line}")));
+            return Err(ParseError::shape(
+                TOOL,
+                format!("unrecognized error output: {line}"),
+            ));
         };
         let file = known(TOOL, files, path)?;
         let (message, row, column) = split_location(message);
@@ -78,7 +80,10 @@ fn format_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
         ));
     }
     if !closed {
-        return Err(shape("error output without the closing line".to_owned()));
+        return Err(ParseError::shape(
+            TOOL,
+            "error output without the closing line",
+        ));
     }
     Ok(findings)
 }

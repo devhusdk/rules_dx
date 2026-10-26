@@ -1,19 +1,18 @@
 use super::{
-    check_output_size, code_name, finding, known, unformatted_at, FileFinding, ParseError,
+    check_output_size, code_name, finding, known, row_col, unformatted_at, FileFinding, ParseError,
 };
 use crate::ToolSeverity;
+
+const TOOL: &str = "prettier";
 
 pub fn parse_prettier_check(
     stderr: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "prettier";
     check_output_size(TOOL, stderr)?;
-    let text = std::str::from_utf8(stderr).map_err(|err| ParseError::Shape {
-        tool: TOOL,
-        detail: err.to_string(),
-    })?;
+    let text =
+        std::str::from_utf8(stderr).map_err(|err| ParseError::shape(TOOL, err.to_string()))?;
     let mut findings = Vec::new();
     for line in text.lines() {
         let trimmed = line.trim();
@@ -25,10 +24,10 @@ pub fn parse_prettier_check(
             continue;
         }
         let Some(path) = trimmed.strip_prefix("[warn] ") else {
-            return Err(ParseError::Shape {
-                tool: TOOL,
-                detail: format!("unexpected stderr line: {trimmed:?}"),
-            });
+            return Err(ParseError::shape(
+                TOOL,
+                format!("unexpected stderr line: {trimmed:?}"),
+            ));
         };
         if path.starts_with("Code style issues") {
             continue;
@@ -38,10 +37,10 @@ pub fn parse_prettier_check(
         findings.push(unformatted_at(TOOL, checked, 1, 1));
     }
     if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with no warn lines", code_name(code)),
-        });
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} with no warn lines", code_name(code)),
+        ));
     }
     Ok(findings)
 }
@@ -51,7 +50,6 @@ fn syntax_error(
     files: &[&str],
     findings: &mut Vec<FileFinding>,
 ) -> Result<(), ParseError> {
-    const TOOL: &str = "prettier";
     let named = files.iter().find_map(|file| {
         let message = text
             .strip_prefix(file)
@@ -62,10 +60,10 @@ fn syntax_error(
     let Some((file, message)) = named else {
         return match findings.last() {
             Some(last) if last.finding.severity == ToolSeverity::Error && is_frame(text) => Ok(()),
-            _ => Err(ParseError::Shape {
-                tool: TOOL,
-                detail: format!("error without a file: {text:?}"),
-            }),
+            _ => Err(ParseError::shape(
+                TOOL,
+                format!("error without a file: {text:?}"),
+            )),
         };
     };
     let (line, column) = error_position(message).unwrap_or((1, 1));
@@ -99,8 +97,7 @@ fn error_position(message: &str) -> Option<(u64, u64)> {
         .and_then(|rest| rest.rsplit_once('('))
         .map(|(_, position)| position)
         .or_else(|| head.rsplit_once(" at ").map(|(_, position)| position))?;
-    let (line, column) = tail.split_once(':')?;
-    Some((line.trim().parse().ok()?, column.trim().parse().ok()?))
+    row_col(tail, ':')
 }
 
 #[cfg(test)]

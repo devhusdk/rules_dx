@@ -1,4 +1,6 @@
-use super::{as_text, code_name, finding, listed_paths, FileFinding, ParseError, Spelling};
+use super::{
+    as_text, code_name, finding, listed_paths, prefixed, row_col, FileFinding, ParseError, Spelling,
+};
 use crate::ToolSeverity;
 
 const TOOL: &str = "jsonnetfmt";
@@ -29,20 +31,20 @@ pub fn parse_jsonnetfmt(
             }
             findings.extend(syntax_errors(errors, files)?);
             if findings.is_empty() {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: format!(
+                return Err(ParseError::shape(
+                    TOOL,
+                    format!(
                         "exit {} with no files and no located errors",
                         code_name(code)
                     ),
-                });
+                ));
             }
             Ok(findings)
         }
-        _ => Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("unexpected exit {} with output", code_name(code)),
-        }),
+        _ => Err(ParseError::shape(
+            TOOL,
+            format!("unexpected exit {} with output", code_name(code)),
+        )),
     }
 }
 
@@ -52,11 +54,10 @@ fn syntax_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
         if line.trim().is_empty() {
             continue;
         }
-        let located = files.iter().find_map(|file| {
-            let rest = line.strip_prefix(file)?.strip_prefix(':')?;
+        let located = prefixed(line, files).and_then(|(file, rest)| {
             let (location, message) = rest.split_once(' ')?;
             let (row, column) = start_position(location)?;
-            Some((*file, row, column, message))
+            Some((file, row, column, message))
         });
         let Some((file, row, column, message)) = located else {
             if let Some(last) = findings.last_mut() {
@@ -64,10 +65,10 @@ fn syntax_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
                 last.finding.message.push_str(line);
                 continue;
             }
-            return Err(ParseError::Shape {
-                tool: TOOL,
-                detail: format!("error without a location: {line}"),
-            });
+            return Err(ParseError::shape(
+                TOOL,
+                format!("error without a location: {line}"),
+            ));
         };
         findings.push(finding(
             TOOL,
@@ -87,9 +88,7 @@ fn start_position(location: &str) -> Option<(u64, u64)> {
         .split_once(")-(")
         .map_or(location, |(start, _)| start);
     let start = start.strip_prefix('(').unwrap_or(start);
-    let (row, column) = start.split_once(':')?;
-    let column = column.split('-').next()?;
-    Some((row.parse().ok()?, column.parse().ok()?))
+    row_col(start.split('-').next()?, ':')
 }
 
 #[cfg(test)]
@@ -168,5 +167,17 @@ mod tests {
         assert!(parse_jsonnetfmt(b"/o/other.jsonnet\n", b"", Some(2), &FILES).is_err());
         assert!(parse_jsonnetfmt(&[0xff], b"", Some(0), &FILES).is_err());
         assert!(parse_jsonnetfmt(b"", b"", Some(3), &FILES).is_err());
+    }
+
+    #[test]
+    fn jsonnetfmt_picks_the_longest_checked_file() {
+        let findings = parse_jsonnetfmt(
+            b"",
+            b"/s/a.b:2:1 Unexpected\n",
+            Some(1),
+            &["/s/a", "/s/a.b"],
+        )
+        .expect("parsed");
+        assert_eq!(findings[0].file, "/s/a.b");
     }
 }

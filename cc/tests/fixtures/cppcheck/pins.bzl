@@ -2,7 +2,7 @@
 
 CPPCHECK_VERSION = "2.21.0"
 
-CPPCHECK_ARTIFACT = "standalone checksummed release artifact"
+CPPCHECK_ARTIFACT = "checksummed upstream source archive built with the hermetic LLVM toolchain"
 
 CPPCHECK_CHECK = "cppcheck --xml --xml-version=2 on stderr (exit 0 clean with empty errors, exit 1 with error elements when dirty)"
 CPPCHECK_FIX = "check-only with the provisional sandbox-apply-and-diff fix flow"

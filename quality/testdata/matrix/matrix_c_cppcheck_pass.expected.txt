@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_c_cppcheck_pass
+capability LINT
+stages 1
+stage cppcheck classes=c sources=matrix/cppcheck_pass.c
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -493,6 +493,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         create,
         force,
         disk,
+        bases,
         bazel_startup_options: startup_tokens,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
@@ -778,6 +779,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         create,
         force,
         disk,
+        bases,
         path_only,
         agent,
         bazel_startup_options,

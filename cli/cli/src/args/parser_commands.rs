@@ -1352,6 +1352,9 @@ fn worktree_subcommands_parse_with_their_flags() {
     let got = parse(&strings(&["worktree", "prune", "--apply"])).expect("prune");
     assert!(got.apply);
     assert!(!got.disk);
+    assert!(!got.bases);
+    let got = parse(&strings(&["worktree", "prune", "--apply", "--bases"])).expect("bases");
+    assert!(got.bases && got.apply);
     let got = parse(&strings(&["worktree", "list", "--disk"])).expect("list --disk");
     assert!(got.disk);
     let got = parse(&strings(&["worktree", "--disk"])).expect("bare --disk");

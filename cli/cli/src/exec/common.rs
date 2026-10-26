@@ -694,7 +694,6 @@ pub(crate) fn run_bazel_withdrawable(
     }
 }
 
-const LOW_DISK_BYTES: u64 = 1 << 30;
 const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
 
 fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
@@ -728,12 +727,12 @@ fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
     paths
 }
 
-/// The probed path with the least free space, when that is under `LOW_DISK_BYTES`.
+/// The probed path with the least free space, when that is under `DISK_FULL_BYTES`.
 fn disk_shortage(runner: &dyn Runner, workspace: &Path, argv: &[String]) -> Option<(PathBuf, u64)> {
     disk_paths(workspace, argv)
         .into_iter()
         .filter_map(|path| runner.free_disk_bytes(&path).map(|free| (path, free)))
-        .filter(|(_, free)| *free < LOW_DISK_BYTES)
+        .filter(|(_, free)| crate::disk::is_full(*free))
         .min_by_key(|(_, free)| *free)
 }
 

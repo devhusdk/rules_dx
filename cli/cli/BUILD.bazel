@@ -39,6 +39,7 @@ rust_library(
         "src/args/quality_docs_parity_tests.rs",
         "src/args/strict_tests.rs",
         "src/args/tokenizer.rs",
+        "src/disk.rs",
         "src/exec.rs",
         "src/exec/add.rs",
         "src/exec/add_tests.rs",

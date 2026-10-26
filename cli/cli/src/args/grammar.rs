@@ -78,6 +78,7 @@ pub(crate) struct Flags {
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
     pub(crate) disk: bool,
+    pub(crate) bases: bool,
     pub(crate) bazel_startup_options: Vec<String>,
 }
 
@@ -422,6 +423,14 @@ flag_group! {
     DiskFlag, {
         #[arg(long, overrides_with = "disk")]
         disk: bool,
+    }
+}
+
+flag_group! {
+    /// List or delete every free slot's output base (prune only).
+    BasesFlag, {
+        #[arg(long, overrides_with = "bases")]
+        bases: bool,
     }
 }
 
@@ -771,6 +780,7 @@ command_args! {
         create: CreateFlag,
         force: ForceFlag,
         disk: DiskFlag,
+        bases: BasesFlag,
     };
 }
 

@@ -373,6 +373,29 @@ foreach ($marker in @($false, $true)) {
     }
 }
 
+$public = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate.RawData)
+$public.FriendlyName = "user public only"
+$store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+$store.Add($public)
+$store.Close()
+$script:lastKey = ""
+try {
+    Test-ArgvSign "keyless certificate" "argv-keyless.log" @{} 0 1 @("-Pfx", $good, "-Out", (Join-Path $work "argv-keyless.msix")) | Out-Null
+    $left = Get-StoreCertificate $certificate.Thumbprint
+    Assert-Equal 1 $left.Count "keyless certificate was not restored to CurrentUser\My"
+    Assert-That ($left.Count -eq 1 -and -not $left[0].HasPrivateKey) "keyless certificate got a private key"
+    Assert-That ($left.Count -eq 1 -and $left[0].FriendlyName -ceq "user public only") "keyless certificate lost its FriendlyName"
+    Test-KeyGone $script:lastKey "keyless certificate"
+} finally {
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+    foreach ($found in $store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $certificate.Thumbprint, $false)) {
+        $store.Remove($found)
+    }
+    $store.Close()
+}
+
 $arm64 = Get-Content -LiteralPath (Find-Runfile $env:DX_MSIX_ARM64 ".msix.identity.json") -Raw | ConvertFrom-Json -AsHashtable
 Assert-Equal "arm64" $arm64.arch "arm64 package arch"
 $signedArm64 = Join-Path $work "signed-arm64.msix"

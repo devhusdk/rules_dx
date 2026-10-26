@@ -58,19 +58,29 @@ function Import-SigningCertificate([string]$Path, [string]$Thumbprint) {
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
     try {
         $existing = $store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $false)
-        if ($existing.Count -gt 0) {
-            # The user's own certificate: sign with it and leave it and its key alone.
-            # A FriendlyName marker means a killed run left it behind: clean it up, key included.
-            return [pscustomobject]@{ Certificate = $existing[0]; Owned = ($existing[0].FriendlyName -ceq $tempName) }
+        $stale = $existing.Count -gt 0 -and $existing[0].FriendlyName -ceq $tempName
+        if ($existing.Count -gt 0 -and $existing[0].HasPrivateKey) {
+            return [pscustomobject]@{ Certificate = $existing[0]; Owned = $stale; Restore = $null }
+        }
+        $restore = $null
+        if ($existing.Count -gt 0 -and -not $stale) {
+            $restore = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($existing[0].RawData)
+            $restore.FriendlyName = $existing[0].FriendlyName
         }
         $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::UserKeySet -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
         $loaded = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($Path, $env:DX_MSIX_PFX_PASSWORD, $flags)
-        $import = [pscustomobject]@{ Certificate = $loaded; Owned = $true }
+        $import = [pscustomobject]@{ Certificate = $loaded; Owned = $true; Restore = $restore }
         try {
             $loaded.FriendlyName = $tempName
+            foreach ($found in $existing) {
+                $store.Remove($found)
+            }
             $store.Add($loaded)
         } catch {
             Remove-PrivateKey $loaded
+            if ($restore) {
+                $store.Add($restore)
+            }
             throw
         }
         return $import
@@ -117,6 +127,19 @@ function Remove-SigningCertificate($Import) {
         [Console]::Error.WriteLine("dx_msix_sign: cannot remove certificate $($certificate.Thumbprint) from the store: $($_.Exception.Message)")
     }
     Remove-PrivateKey $certificate
+    if ($Import.Restore) {
+        try {
+            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+            $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+            try {
+                $store.Add($Import.Restore)
+            } finally {
+                $store.Close()
+            }
+        } catch {
+            [Console]::Error.WriteLine("dx_msix_sign: cannot restore certificate $($certificate.Thumbprint) to the store: $($_.Exception.Message)")
+        }
+    }
 }
 
 function Copy-Package([string]$Package, [string]$Target) {

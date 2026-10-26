@@ -431,6 +431,7 @@ Packaging and deploy:
 
 - `@rules_dx//android/packaging:defs.bzl`: APKs, App Bundles and adb.
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
+- `@rules_dx//apple/ios:device.bzl`: signed iOS IPA export.
 - `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
 - `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
 - `@rules_dx//deploy/offline:offline.bzl`: offline bundles.

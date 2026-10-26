@@ -9,11 +9,11 @@ use dx_output::OutputMode;
 #[test]
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
-        "security", "license", "update", "bump", "migrate", "upgrade", "docs", "status", "version",
-        "init", "new",
+        "security", "license", "update", "bump", "add", "migrate", "upgrade", "docs", "status",
+        "version", "init", "new",
     ] {
         let base = match command {
-            "bump" => vec![command, "cargo:demo", "1.0.0"],
+            "bump" | "add" => vec![command, "cargo:demo", "1.0.0"],
             "migrate" | "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
             "new" => vec![command, "rust"],
             _ => vec![command],
@@ -84,7 +84,7 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
 
 fn required_words(name: &str) -> &'static [&'static str] {
     match name {
-        "bump" => &["cargo:demo", "1.0.0"],
+        "bump" | "add" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
         "new" => &["rust"],
@@ -377,6 +377,86 @@ fn bump_needs_exactly_one_selector_plus_version() {
         ])),
         Err(ArgsError::UnsupportedOption {
             command: "bump",
+            option: "--".to_owned(),
+        })
+    );
+}
+
+#[test]
+fn add_needs_exactly_one_selector_plus_version() {
+    let add = parse(&strings(&["add", "cargo:serde", "1.2.3"])).expect("parse add");
+    assert_eq!(add.command, Command::Add);
+    assert_eq!(add.command.name(), "add");
+    assert!(!add.command.is_adoption());
+    assert!(!add.command.is_managed());
+    assert_eq!(
+        add.targets,
+        vec!["cargo:serde".to_owned(), "1.2.3".to_owned()]
+    );
+    assert_eq!(
+        parse(&strings(&["add"])),
+        Err(ArgsError::MissingValue {
+            option: "<set:package> <version>".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde"])),
+        Err(ArgsError::MissingValue {
+            option: "<set:package> <version>".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde", "1.2.3", "npm:react"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "npm:react".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde", "1.2.3", "--check"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--check".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&[
+            "add",
+            "cargo:serde",
+            "1.2.3",
+            "--fail-on=error"
+        ])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--fail-on".to_owned(),
+        })
+    );
+    let got = parse(&strings(&["add", "cargo:serde", "1.2.3", "--output=json"])).expect("add json");
+    assert_eq!(got.command, Command::Add);
+    assert_eq!(got.output, OutputMode::Json);
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde", "1.2.3", "--output=diff"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--output=diff".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&[
+            "add",
+            "cargo:serde",
+            "1.2.3",
+            "--report=sarif=out.sarif"
+        ])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--report=sarif=out.sarif".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde", "1.2.3", "--", "--jobs=4"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
             option: "--".to_owned(),
         })
     );
@@ -1322,4 +1402,23 @@ fn generate_refuses_external_labels_but_takes_main_repo_forms() {
     for scope in ["@//p:x", "@@//p/..."] {
         parse(&strings(&["generate", scope])).unwrap_or_else(|e| panic!("{scope}: {e:?}"));
     }
+}
+
+#[test]
+fn add_accepts_apply_offline_and_frozen() {
+    let got = parse(&strings(&[
+        "add",
+        "npm:vue",
+        "3.5.42",
+        "--apply",
+        "--offline",
+        "--frozen",
+    ]))
+    .expect("add flags");
+    assert_eq!(got.command, Command::Add);
+    assert!(got.applies());
+    assert!(got.offline);
+    assert!(got.frozen);
+    let check = parse(&strings(&["add", "npm:vue", "3.5.42"])).expect("add check");
+    assert!(!check.applies());
 }

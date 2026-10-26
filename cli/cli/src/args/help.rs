@@ -232,6 +232,7 @@ pub(crate) fn accepts_bazel_options(command: Command) -> bool {
             | Command::Clean
             | Command::Update
             | Command::Bump
+            | Command::Add
             | Command::Migrate
             | Command::Upgrade
     )
@@ -534,7 +535,7 @@ mod tests {
     fn completing_words(command: Command) -> Vec<String> {
         let owned = |words: &[&str]| words.iter().map(|word| (*word).to_owned()).collect();
         match command {
-            Command::Bump => owned(&["rust:serde", "1.0.0"]),
+            Command::Bump | Command::Add => owned(&["rust:serde", "1.0.0"]),
             Command::Migrate | Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
             Command::Completion => owned(&["bash"]),
             Command::Watch => owned(&["lint"]),

@@ -548,8 +548,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn update_and_bump_heads_carry_startup_and_the_default_profile() {
-        for command in [Command::Update, Command::Bump] {
+    fn update_bump_and_add_heads_carry_startup_and_the_default_profile() {
+        for command in [Command::Update, Command::Bump, Command::Add] {
             let mut invocation = invocation_for(command, &[]);
             invocation.bazel_startup_options = vec!["--output_base=/ob".to_owned()];
             let head = invocation.bazel_head();

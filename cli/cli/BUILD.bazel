@@ -40,6 +40,8 @@ rust_library(
         "src/args/strict_tests.rs",
         "src/args/tokenizer.rs",
         "src/exec.rs",
+        "src/exec/add.rs",
+        "src/exec/add_tests.rs",
         "src/exec/affected.rs",
         "src/exec/audit.rs",
         "src/exec/audit_bazel_consumer.rs",

@@ -710,29 +710,31 @@ command_args! {
     };
     /// The flags `dx bump` accepts.
     Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
+    /// The flags `dx add` accepts.
+    Add => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
     /// The flags `dx migrate` accepts.
-    Migrate => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
+    Migrate => 17, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.
-    Codegen => 17, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
+    Codegen => 18, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 18, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
+    Env => 19, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 19, NoPassthroughTail, { apply: ApplyFlag, };
+    Init => 20, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx new` accepts.
-    New => 20, NoPassthroughTail, { apply: ApplyFlag, };
+    New => 21, NoPassthroughTail, { apply: ApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 21, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
+    Upgrade => 22, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
     /// The flags `dx status` accepts.
-    Status => 22, NoPassthroughTail, {
+    Status => 23, NoPassthroughTail, {
         output: ReadOutputFlag,
     };
     /// The flags `dx version` accepts.
-    Version => 23, NoPassthroughTail, {
+    Version => 24, NoPassthroughTail, {
         output: ReadOutputFlag,
         check: CheckFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 24, BazelTail, {
+    Watch => 25, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
@@ -744,16 +746,16 @@ command_args! {
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.
-    Completion => 25, NoPassthroughTail, {};
+    Completion => 26, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
-    Docs => 26, BazelTail, {
+    Docs => 27, BazelTail, {
         output: ReadOutputFlag,
         check: CheckFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx list-tests` accepts.
-    ListTests => 27, BazelTail, {
+    ListTests => 28, BazelTail, {
         output: ReadOutputFlag,
         own: CasesFlag,
         configured: ConfiguredFlag,
@@ -761,9 +763,9 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 28, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, };
+    Rollback => 29, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, };
     /// The flags `dx worktree` accepts.
-    Worktree => 29, NoPassthroughTail, {
+    Worktree => 30, NoPassthroughTail, {
         output: WorktreeOutputFlag,
         apply: ApplyFlag,
         create: CreateFlag,
@@ -923,6 +925,31 @@ mod tests {
         .map_or(clap::error::ErrorKind::UnknownArgument, |error| {
             error.kind()
         })
+    }
+
+    #[test]
+    fn every_grammar_index_names_its_own_command() {
+        use clap::{CommandFactory, ValueEnum};
+        let cli = Cli::command();
+        for (index, command) in super::super::command::Command::value_variants()
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(COMMANDS[index].command, *command, "index {index}");
+            assert_eq!(
+                subcommand_args(*command).get_name(),
+                command.name(),
+                "{command:?} grammar index"
+            );
+            let sub = cli
+                .find_subcommand(command.name())
+                .unwrap_or_else(|| panic!("{command:?} has a subcommand"));
+            assert_eq!(
+                sub.get_about().map(ToString::to_string).as_deref(),
+                Some(command.describe()),
+                "{command:?} about"
+            );
+        }
     }
 
     #[test]

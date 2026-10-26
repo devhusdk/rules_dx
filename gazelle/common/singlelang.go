@@ -160,6 +160,7 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 		isSource = l.spec.IsIndexSource
 	}
 	var specs []resolve.ImportSpec
+	seen := make(map[string]bool)
 	for _, src := range r.AttrStrings(l.spec.ImportAttr) {
 		if !isSource(src) {
 			continue
@@ -174,6 +175,10 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 		specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: imp})
 		if l.spec.QualifiedIDs != nil && f != nil {
 			for _, id := range l.spec.QualifiedIDs(filepath.Join(filepath.Dir(f.Path), src)) {
+				if seen[id] {
+					continue
+				}
+				seen[id] = true
 				specs = append(specs, resolve.ImportSpec{Lang: l.spec.LanguageName, Imp: id})
 			}
 		}

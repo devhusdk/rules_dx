@@ -2,8 +2,10 @@ package kotlin
 
 import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
+	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 var (
@@ -18,7 +20,7 @@ func ParseImports(content []byte) []string {
 	for _, m := range importRe.FindAllSubmatch(stripped, -1) {
 		dotted := string(m[1])
 		onDemand := len(m[2]) > 0
-		if id := normalizeImport(dotted, onDemand); id != "" {
+		if id := importIdentity(dotted, onDemand); id != "" {
 			set[id] = struct{}{}
 		}
 	}
@@ -54,6 +56,17 @@ func DefinesMain(content []byte) bool {
 	return mainRe.Match(common.MaskKotlinStyle(content))
 }
 
-func normalizeImport(dotted string, onDemand bool) string {
-	return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+func importIdentity(dotted string, onDemand bool) string {
+	dotted = strings.TrimSpace(dotted)
+	if dotted == "" || IsStdLib(dotted) {
+		return dotted
+	}
+	if onDemand {
+		return common.PackageID(dotted)
+	}
+	return dotted
+}
+
+func qualifiedIDs(path string) []string {
+	return common.QualifiedJVMIDs(path, ParsePackage, ClassIdentity(filepath.Base(path)))
 }

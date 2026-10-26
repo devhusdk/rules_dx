@@ -1,8 +1,11 @@
 package common
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -637,6 +640,41 @@ func TestDotnetPlatform(t *testing.T) {
 	}
 }
 
+func TestPackageID(t *testing.T) {
+	if got := PackageID("a.b"); got != "a.b.*" {
+		t.Errorf("PackageID = %q", got)
+	}
+}
+
+func TestMemberCandidates(t *testing.T) {
+	for name, want := range map[string][]string{
+		"a.b.C.d": {"a.b.C", "a.b.C.*", "a.b"},
+		"a.b.f":   {"a.b", "a.b.*"},
+		"a.b.C.*": {"a.b.C"},
+		"a.b.*":   {"a.b"},
+		"a.*":     nil,
+		"X":       nil,
+	} {
+		if got := MemberCandidates(name); !reflect.DeepEqual(got, want) {
+			t.Errorf("MemberCandidates(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
+func TestQualifiedJVMIDsStripsBOM(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Stem.kt")
+	if err := os.WriteFile(path, []byte("\xEF\xBB\xBFpackage a.b\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	parse := func(c []byte) (string, error) {
+		return strings.TrimSpace(strings.TrimPrefix(string(c), "package")), nil
+	}
+	want := []string{"a.b.Stem", "a.b.*"}
+	if got := QualifiedJVMIDs(path, parse, "Stem"); !reflect.DeepEqual(got, want) {
+		t.Errorf("QualifiedJVMIDs = %v, want %v", got, want)
+	}
+}
+
 func TestStripBOM(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"none", "abc", "abc"},
@@ -650,5 +688,11 @@ func TestStripBOM(t *testing.T) {
 		if got := string(StripBOM([]byte(tc.in))); got != tc.want {
 			t.Errorf("%s: StripBOM(%q) = %q, want %q", tc.name, tc.in, got, tc.want)
 		}
+	}
+}
+
+func TestSimpleNameStripsOnDemand(t *testing.T) {
+	if got := SimpleName("a.b.widgets.*"); got != "widgets" {
+		t.Errorf("SimpleName = %q", got)
 	}
 }

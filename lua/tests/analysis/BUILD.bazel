@@ -1,0 +1,52 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//lua/rules:defs.bzl", "lua_binary", "lua_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+lua_library(
+    name = "dup_a",
+    srcs = ["a/dup.lua"],
+    strip_import_prefix = "a",
+    tags = ["manual"],
+)
+
+lua_library(
+    name = "dup_b",
+    srcs = ["b/dup.lua"],
+    strip_import_prefix = "b",
+    tags = ["manual"],
+)
+
+lua_library(
+    name = "dup_both",
+    tags = ["manual"],
+    deps = [
+        ":dup_a",
+        ":dup_b",
+    ],
+)
+
+failure_test(
+    name = "duplicate_module_test",
+    expected_failure_substring = "module 'dup' is provided by both",
+    target = ":dup_both",
+)
+
+lua_binary(
+    name = "not_lua_main",
+    main = "main.txt",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "main_not_lua_test",
+    expected_failure_substring = "main.txt",
+    target = ":not_lua_main",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

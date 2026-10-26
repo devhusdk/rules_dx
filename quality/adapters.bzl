@@ -111,6 +111,7 @@ REAL_CLASS_TO_FAMILY = {
     "jsx": "javascript",
     "kotlin": "kotlin",
     "less": "css",
+    "lua": "lua",
     "markdown": "markdown",
     "mdx": "mdx",
     "ocaml": "ocaml",

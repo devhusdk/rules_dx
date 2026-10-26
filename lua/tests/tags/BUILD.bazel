@@ -1,0 +1,70 @@
+# gazelle:ignore
+
+load("//libs/starlark:defs.bzl", "starlark_test")
+load("//libs/starlark:tag_probe.bzl", "tag_subject")
+load("//lua/rules:defs.bzl", "lua_binary", "lua_library", "lua_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+lua_library(
+    name = "lib",
+    srcs = ["main.lua"],
+    tags = [
+        "manual",
+        "no-lint",
+        "no-remote-exec",
+    ],
+)
+
+lua_binary(
+    name = "bin",
+    main = "main.lua",
+    tags = [
+        "manual",
+        "no-lint",
+        "no-remote-exec",
+    ],
+)
+
+lua_test(
+    name = "unit",
+    main = "main.lua",
+    tags = [
+        "manual",
+        "no-lint",
+        "no-remote-exec",
+    ],
+)
+
+tag_subject(
+    name = "tags_subject",
+    testonly = True,
+    targets = [
+        ":bin",
+        ":lib",
+        ":unit",
+    ],
+)
+
+starlark_test(
+    name = "tags_test",
+    expected_observations = """subject //lua/tests/tags:tags_subject
+field bin=manual,no-format,no-lint,no-remote-exec,no-typecheck
+field lib=manual,no-format,no-lint,no-remote-exec,no-typecheck
+field unit=manual,no-format,no-lint,no-remote-exec,no-typecheck
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//lua/tests/tags:tags_subject
+aspect_field transitive_count=0
+""",
+    mode = "analysis",
+    subjects = [":tags_subject"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

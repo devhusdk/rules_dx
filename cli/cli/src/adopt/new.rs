@@ -552,7 +552,11 @@ mod tests {
         merged.push_str(&build[end..]);
         merged
             .lines()
-            .filter(|line| *line != "    testonly = True," && *line != "# keep" && *line != "# gazelle:dx_corpus false")
+            .filter(|line| {
+                *line != "    testonly = True,"
+                    && *line != "# keep"
+                    && *line != "# gazelle:dx_corpus false"
+            })
             .map(|line| format!("{line}\n"))
             .collect::<String>()
             .trim_end_matches('\n')

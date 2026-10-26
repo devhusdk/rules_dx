@@ -103,3 +103,48 @@ The rule owns the options `plugin`, `options`, `tsconfig`, `entryPoints`, `json`
 passes an empty `--options` file, so a stray `typedoc.json` is never read.
 `typedocOptions` in `tsconfig.json` or `package.json` is still loaded by TypeDoc,
 and it can load JavaScript plugins. Keep `plugin` out of those files.
+
+## Go API reference
+
+`go_doc_shard` from `@rules_dx//tools/docs/go:defs.bzl` reads one Go library's
+exported API with `go/doc` from the pinned Go SDK and produces a docs IR shard with
+language `go`. It never runs `go`, the library's code or host tools. Pass the shard
+to `docs_site` beside other shards.
+
+```starlark
+load("@rules_dx//tools/docs/go:defs.bzl", "go_doc_shard")
+
+go_doc_shard(
+    name = "api_docs",
+    library = ":money",
+)
+```
+
+Attributes:
+
+- `library`: the documented `go_library`.
+- `package`: the package segment of the symbol ids. Defaults to the library's `importpath`.
+- `goos`, `goarch`: the platform the build constraints are evaluated for. Defaults to `linux` and `amd64`, on every host.
+- `build_tags`: extra Go build tags.
+
+Symbol ids have the form `go:<importpath>:<Name>`, and `go:<importpath>:<Type>.<Member>`
+for methods, struct fields and interface methods. The package itself is
+`go:<importpath>:<package name>`. Functions, methods, struct and other defined types,
+interfaces, aliases, struct fields, interface methods, constants and variables are
+documented. Unexported names and `_test.go` files are left out.
+
+cgo is off. Files left out by build constraints or by `import "C"` are listed in the
+package's `go.excluded` extension, and the `go.config` extension records the
+configuration on every symbol. Use one configuration per import path in a site: two
+shards with the same ids fail the site build.
+
+Build the shard's site with the scope of the target:
+
+```sh
+bazel run @rules_dx//:dx -- docs //lib:api_docs
+```
+
+Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
+failure. Bazel failures keep Bazel's code. A parse error, mixed package names,
+`package main`, no files left after build constraints, or no exported API fails the
+build, and no pages are written.

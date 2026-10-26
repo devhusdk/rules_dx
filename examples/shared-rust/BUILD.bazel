@@ -355,7 +355,10 @@ rust_test(
         "DX_TASKS_WASI_RELEASE": "$(rootpath :tasks_wasi_release)",
         "DX_WASMTIME": "$(rootpath //wasi/runtime:wasmtime)",
     },
-    tags = ["block-network"],
+    tags = [
+        "block-network",
+        "no-remote-exec",
+    ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
@@ -390,6 +393,7 @@ rust_test(
     tags = [
         "block-network",
         "no-coverage",
+        "no-remote-exec",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
@@ -416,6 +420,7 @@ rust_test(
     tags = [
         "block-network",
         "no-coverage",
+        "no-remote-exec",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [

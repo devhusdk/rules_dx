@@ -121,7 +121,10 @@ rust_test(
         "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
         "DX_WEB_SERVE": "$(rootpath :serve)",
     },
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "no-remote-exec",
+    ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//tools/docs/site/browser:dx_site_browser",

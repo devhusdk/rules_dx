@@ -20,6 +20,7 @@ ide_acquisition_test(
     name = "rust_analyzer_acquisition_test",
     binary = ":rust_analyzer_tool",
     expected = "rust-analyzer",
+    tags = ["no-remote-exec"],
     version_args = ["--version"],
 )
 

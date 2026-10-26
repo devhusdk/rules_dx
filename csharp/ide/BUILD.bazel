@@ -11,6 +11,7 @@ ide_acquisition_test(
     name = "ide_acquisition_test",
     binary = ":dotnet_tool",
     expected = DOTNET_VERSION,
+    tags = ["no-remote-exec"],
     version_args = ["--info"],
 )
 

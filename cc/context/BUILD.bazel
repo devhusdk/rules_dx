@@ -148,6 +148,7 @@ rust_test(
         "DX_LSP_RUSTC_PROJECT": "$(rootpath @rust_analyzer_1.98.0_tools//:rustc)",
         "DX_LSP_RUST_ANALYZER": "$(rootpath @rust_analyzer_1.98.0_tools//:rust_analyzer)",
     },
+    tags = ["no-remote-exec"],
     target_compatible_with = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",

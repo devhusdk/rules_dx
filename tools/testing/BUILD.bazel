@@ -227,6 +227,7 @@ rust_test(
     ),
     data = [":starlark_harness"],
     env = {"STARLARK_HARNESS_BIN": "$(rootpath :starlark_harness)"},
+    tags = ["no-remote-exec"],
     deps = crate_deps(
         ["serde_json"],
         package_name = "tools/dx_testing",

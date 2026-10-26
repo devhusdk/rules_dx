@@ -25,6 +25,7 @@ rust_test(
         "DX_LSP_CLANGD": "$(rootpath @llvm//tools:clangd)",
         "DX_LSP_TOOLCHAIN_FILES": "$(rootpaths @rules_rust//rust/toolchain:current_rust_analyzer_toolchain)",
     },
+    tags = ["no-remote-exec"],
     target_compatible_with = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",

@@ -90,6 +90,9 @@ SCALA_DOTNET_CASES = [
         "stages": ["roslyn;csharp;matrix/roslyn_clean.cs"],
         "upstream_tools": ["roslyn"],
         "upstream_srcs": [":matrix/matrix_csharp_lint_pass.upstream.roslyn.txt"],
+        "toolfile_tools": ["roslyn"],
+        "toolfile_srcs": [":matrix/roslyn_exit_zero.txt"],
+        "toolfile_rels": ["dx-roslyn/exit"],
         "expected_file": ":matrix/matrix_csharp_lint_pass.expected.txt",
     },
     {
@@ -101,6 +104,9 @@ SCALA_DOTNET_CASES = [
         "stages": ["roslyn;csharp;matrix/roslyn_dirty.cs"],
         "upstream_tools": ["roslyn"],
         "upstream_srcs": [":matrix/matrix_csharp_lint_fail.upstream.roslyn.txt"],
+        "toolfile_tools": ["roslyn"],
+        "toolfile_srcs": [":matrix/roslyn_exit_zero.txt"],
+        "toolfile_rels": ["dx-roslyn/exit"],
         "expected_file": ":matrix/matrix_csharp_lint_fail.expected.txt",
     },
     {

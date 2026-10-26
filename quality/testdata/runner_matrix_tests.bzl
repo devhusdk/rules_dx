@@ -57,7 +57,10 @@ def _runner_matrix_test_impl(ctx):
     tool_files = []
     for i, tool in enumerate(ctx.attr.toolfile_tools):
         f = _single_file(ctx.attr.toolfile_srcs[i])
-        tool_files.append((tool, f.short_path, f))
+        rel = f.short_path
+        if i < len(ctx.attr.toolfile_rels) and ctx.attr.toolfile_rels[i]:
+            rel = ctx.attr.toolfile_rels[i]
+        tool_files.append((tool, rel, f))
     configs = {}
     for i, tool in enumerate(ctx.attr.config_tools):
         configs[tool] = _single_file(ctx.attr.config_files[i]).short_path
@@ -207,6 +210,9 @@ _runner_matrix_test = rule(
         "tool_names": attr.string_list(),
         "tool_binaries": attr.label_list(),
         "toolfile_tools": attr.string_list(),
+        "toolfile_rels": attr.string_list(
+            doc = "Optional mirror-relative path per toolfile_srcs entry; empty keeps the file's short path.",
+        ),
         "toolfile_srcs": attr.label_list(
             allow_files = True,
         ),
@@ -282,6 +288,7 @@ def runner_matrix_suite(name, cases):
             rustfmt_from_toolchain = case.get("rustfmt_from_toolchain", False),
             toolfile_tools = case.get("toolfile_tools", []),
             toolfile_srcs = case.get("toolfile_srcs", []),
+            toolfile_rels = case.get("toolfile_rels", []),
             config_tools = case.get("config_tools", []),
             config_files = case.get("config_files", []),
             edition_tools = case.get("edition_tools", []),

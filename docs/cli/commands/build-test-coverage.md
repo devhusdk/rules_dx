@@ -338,6 +338,11 @@ Coverage ignores use `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`
 with a short `reason:` and `issue:`. Bare ignores without a reason fail the
 gate.
 
+The comment syntax depends on the language: `//` for Rust, Go, JS/TS, the JVM
+languages (including Kotlin scripts, `.kts`), .NET and C/C++; `#` for Python
+and Ruby; `%` for Erlang (`.erl` and `.hrl`). Markers in other sources
+(`.bzl`, `.pyi`, `.cu`/`.cuh`, `.d.ts`) are not read.
+
 ## Line And Branch Metrics
 
 The coverage gate enforces exact executable-line coverage. Branch outcomes

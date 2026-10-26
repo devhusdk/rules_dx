@@ -531,6 +531,10 @@ fn covered_languages_include_wrapped_langs() {
         "elf.hh",
         "elf.hpp",
         "elf.hxx",
+        "elf.kts",
+        "elf.rb",
+        "elf.erl",
+        "elf.hrl",
     ] {
         assert!(is_covered_language(path), "{path}");
     }
@@ -554,6 +558,7 @@ fn every_covered_language_is_scanned_with_its_own_comment_marker() {
         match syntax {
             LineComment::SlashSlash => "//",
             LineComment::Hash => "#",
+            LineComment::Percent => "%",
         }
     }
     for (extension, syntax) in COVERED_LANGUAGES {
@@ -1368,4 +1373,16 @@ fn tracked_reconciliation_flags_path_aliases_and_duplicates() {
     assert!(errors.contains(
         &"path alias in tracked source list: sub\\b.rs and sub/b.rs name the same file".to_string()
     ));
+}
+
+#[test]
+fn language_label_names_new_covered_extensions() {
+    for (path, label) in [
+        ("a.kts", "kts"),
+        ("a.rb", "rb"),
+        ("a.erl", "erl"),
+        ("a.hrl", "hrl"),
+    ] {
+        assert_eq!(language_label(path), label, "{path}");
+    }
 }

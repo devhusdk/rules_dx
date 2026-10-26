@@ -15,6 +15,13 @@ fn hash_scan() -> Option<&'static Regex> {
     SCAN.as_ref()
 }
 
+fn percent_scan() -> Option<&'static Regex> {
+    static SCAN: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\$(?:\\.|.)|(?P<marker>%)"#).ok()
+    });
+    SCAN.as_ref()
+}
+
 fn scan_with(line: &str, compiled: Option<&Regex>) -> Option<usize> {
     let re = compiled?;
     for captures in re.captures_iter(line) {
@@ -33,10 +40,15 @@ fn hash_comment(line: &str) -> Option<&str> {
     scan_with(line, hash_scan()).map(|end| &line[end..])
 }
 
+fn percent_comment(line: &str) -> Option<&str> {
+    scan_with(line, percent_scan()).map(|end| &line[end..])
+}
+
 pub(crate) fn comment_text(path: &str, line: &str) -> String {
     match line_comment_syntax(path) {
         Some(LineComment::SlashSlash) => slash_comment(line).unwrap_or_default().to_string(),
         Some(LineComment::Hash) => hash_comment(line).unwrap_or_default().to_string(),
+        Some(LineComment::Percent) => percent_comment(line).unwrap_or_default().to_string(),
         None => String::new(),
     }
 }

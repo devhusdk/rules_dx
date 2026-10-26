@@ -67,14 +67,21 @@ def env_name_error(name):
     return ""
 
 def env_tool_error(bin_name, aliases):
-    """Validates one tool record."""
+    """Validates one tool record.
+
+    Host names (bin_name and aliases) must be unique within the record without regard to case.
+    """
     primary_error = env_name_error(bin_name)
     if primary_error != "":
         return "invalid bin_name: " + primary_error
+    seen = {bin_name.lower(): True}
     for alias in aliases:
         alias_error = env_name_error(alias)
         if alias_error != "":
             return "invalid alias '" + alias + "': " + alias_error
+        if alias.lower() in seen:
+            return "duplicate host name '" + alias + "'"
+        seen[alias.lower()] = True
     return ""
 
 def env_tool_record(owner, bin_name, aliases):
@@ -105,12 +112,9 @@ def env_collision_error(records):
     """Detects host-name collisions across tool records."""
     owners_by_key = {}
     for record in records:
-        seen = {}
+        # Records are checked by env_tool_error; owners_by_key dedupes per owner.
         for name in [record.bin_name] + list(record.aliases):
             key = name.lower()
-            if key in seen:
-                continue
-            seen[key] = True
             if key not in owners_by_key:
                 owners_by_key[key] = {}
             owners_by_key[key][record.owner] = True

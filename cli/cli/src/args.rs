@@ -114,9 +114,9 @@ pub use invocation::{
 };
 pub use parser::{
     ci_ignores_env, config_sources, early_output_flag, early_workspace_flag, freeze_workspace,
-    is_discovery_exempt, is_help_request, json_output_intent,
-    load_startup_defaults, parse, parse_with, parse_with_ci, select_startup_defaults,
-    select_startup_defaults_with_ci, startup_workspace, DefaultsFailure, StartupDefaults,
+    is_discovery_exempt, is_help_request, json_output_intent, load_startup_defaults, parse,
+    parse_with, parse_with_ci, select_startup_defaults, select_startup_defaults_with_ci,
+    startup_workspace, DefaultsFailure, StartupDefaults,
 };
 pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 

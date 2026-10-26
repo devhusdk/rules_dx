@@ -903,14 +903,16 @@ mod tests {
             inv.quality_request().expect("quality").baseline.as_deref(),
             Some("b.json")
         );
-        let fix = crate::args::parse_with(&["fix".to_owned()], &|_| None, &defaults)
-            .expect("parse fix");
+        let fix =
+            crate::args::parse_with(&["fix".to_owned()], &|_| None, &defaults).expect("parse fix");
         let umbrella = fix.umbrella_request().expect("umbrella");
         let phase = umbrella
             .phase_quality_request(Command::Lint, Vec::new())
             .expect("phase");
         assert_eq!(phase.baseline.as_deref(), Some("b.json"));
-        let verify = umbrella.verify_quality_request(Command::Lint).expect("verify");
+        let verify = umbrella
+            .verify_quality_request(Command::Lint)
+            .expect("verify");
         assert_eq!(verify.baseline.as_deref(), Some("b.json"));
     }
 

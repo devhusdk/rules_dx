@@ -782,7 +782,8 @@ mod tests {
             !found.starts_with(&neighbor),
             "a neighboring workspace never supplies the defaults: {found:?}"
         );
-        let (defaults, path) = load_defaults_with_mode(&root.join("mine"), false).expect("loads the ancestor");
+        let (defaults, path) =
+            load_defaults_with_mode(&root.join("mine"), false).expect("loads the ancestor");
         assert_eq!(defaults.output, Some("json".to_owned()));
         assert_eq!(path, Some(root.join("dx.toml")));
         scratch.close().expect("cleanup");
@@ -799,7 +800,8 @@ mod tests {
         std::fs::write(root.join("dx.toml"), "not toml = [").expect("bad config");
         assert!(load_defaults_with_mode(&root, false).is_err());
         std::fs::write(root.join("dx.toml"), "[dx]\nqiet = true\n").expect("typo");
-        let error = load_defaults_with_mode(&root, false).expect_err("a misspelled key is not ignored");
+        let error =
+            load_defaults_with_mode(&root, false).expect_err("a misspelled key is not ignored");
         let rendered = error.to_string();
         assert!(
             rendered.contains("unknown field") && rendered.contains("qiet"),
@@ -886,7 +888,8 @@ mod tests {
         let bad = "not toml = [";
         std::fs::write(root.join(".dx/config.toml"), bad).expect("obsolete toml");
         std::fs::write(root.join(".dx/config"), bad).expect("obsolete plain");
-        let (defaults, path) = load_defaults_with_mode(&root, false).expect("obsolete files are ignored");
+        let (defaults, path) =
+            load_defaults_with_mode(&root, false).expect("obsolete files are ignored");
         assert_eq!(defaults, FileDefaults::default());
         assert_eq!(path, None);
         std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("new");

@@ -15,14 +15,14 @@ use std::process::ExitCode;
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let options = match dx_bootstrap::parse_args(&args) {
-        Ok(options) => options,
-        Err((detail, with_usage)) => {
-            eprint!("bootstrap-offline: {detail}");
-            if with_usage {
-                eprintln!("\n{}", dx_bootstrap::usage());
-            } else {
-                println!("{}", dx_bootstrap::usage());
-            }
+        Ok(dx_bootstrap::Command::Help) => {
+            println!("{}", dx_bootstrap::usage());
+            return ExitCode::SUCCESS;
+        }
+        Ok(dx_bootstrap::Command::Bootstrap(options)) => options,
+        Err(detail) => {
+            eprintln!("bootstrap-offline: {detail}");
+            eprintln!("{}", dx_bootstrap::usage());
             return ExitCode::FAILURE;
         }
     };

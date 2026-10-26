@@ -193,6 +193,15 @@ fn identity(home: &Path, set: &str) -> String {
     .to_owned()
 }
 
+/// Returns the `url` field of one identity line.
+fn recorded_url(meta: &str) -> String {
+    meta.split("\"url\": \"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .unwrap_or_else(|| panic!("identity needs a url: {meta}"))
+        .to_owned()
+}
+
 fn assert_identity_binds_the_vendored_file(bundle: &Bundle, home: &Path, set: &str) {
     let meta = identity(home, set);
     let snapshot = bundle.advisory(&format!("{set}.json"));
@@ -202,12 +211,17 @@ fn assert_identity_binds_the_vendored_file(bundle: &Bundle, home: &Path, set: &s
         dx_digest::is_lower_hex(&digest, 32),
         "{set} digest must be 64 lowercase hex"
     );
+    let url = recorded_url(&meta);
+    let want = bundle.advisory(&format!("{set}.json"));
+    let read_back = dx_path::uri_to_path(&url)
+        .unwrap_or_else(|error| panic!("{set} url {url} is not a file URI: {error}"));
+    assert_eq!(
+        std::fs::canonicalize(&read_back).ok(),
+        std::fs::canonicalize(&want).ok(),
+        "{set} url {url} must name the vendored snapshot"
+    );
     for field in [
         format!("\"set\": \"{set}\""),
-        format!(
-            "\"url\": \"file://{}/advisory/{set}.json\"",
-            bundle.path().to_string_lossy()
-        ),
         format!("\"sha256\": \"{digest}\""),
         format!("\"path\": \".dx/advisory/{set}.json\""),
     ] {
@@ -339,10 +353,18 @@ fn an_unknown_advisory_set_is_refused() {
     run(&bundle, &scratch()).expect_refusal("unknown advisory set: pypi");
 }
 
+#[cfg(unix)]
 #[test]
-fn a_bundle_path_it_cannot_spell_in_json_is_refused() {
-    let bundle = bundle("we\"ird/bundle");
-    run(&bundle, &scratch()).expect_refusal("bundle path must stay plain text");
+fn a_bundle_path_with_a_quote_or_backslash_is_recorded_percent_encoded() {
+    let bundle = bundle("we\"ird\\bundle");
+    let home = scratch();
+    run(&bundle, &home).expect_ok();
+    let meta = identity(&home, "cargo");
+    let url = recorded_url(&meta);
+    assert!(url.contains("%22"), "quote is encoded: {url}");
+    assert!(url.contains("%5C"), "backslash is encoded: {url}");
+    assert!(!url.contains('\\'), "no raw backslash: {url}");
+    assert_identity_binds_the_vendored_file(&bundle, &home, "cargo");
 }
 
 #[test]
@@ -357,4 +379,22 @@ fn a_flag_without_its_value_is_refused() {
         bundle.path(),
     )
     .expect_refusal("--workspace needs a DIR");
+}
+
+#[test]
+fn a_bad_argument_prints_usage_to_stderr_only() {
+    let bundle = bundle("bundle");
+    let result = bootstrap_offline(&["--nope".to_owned()], bundle.path());
+    result.expect_refusal("unknown argument '--nope'");
+    assert_eq!(result.stdout, "", "a refusal prints nothing on stdout");
+    assert_eq!(result.stderr.matches("usage:").count(), 1, "{}", result.stderr);
+}
+
+#[test]
+fn help_prints_usage_once_and_exits_zero() {
+    let bundle = bundle("bundle");
+    let result = bootstrap_offline(&["--help".to_owned()], bundle.path());
+    result.expect_ok();
+    assert_eq!(result.stdout.matches("usage:").count(), 1, "{}", result.stdout);
+    assert_eq!(result.stderr, "");
 }

@@ -50,9 +50,9 @@ rust_test(
         "DX_BOOTSTRAP_SRC": "$(rootpath //deploy/offline/bootstrap:src/lib.rs)",
     },
     tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
         "//tools/testing:dx_testing",
     ],
 )

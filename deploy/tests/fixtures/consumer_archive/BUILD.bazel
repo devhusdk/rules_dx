@@ -76,6 +76,81 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+consumer_archive(
+    name = "consumer_release_zip",
+    app = ":consumer_app",
+    arch = select({
+        "@platforms//cpu:arm64": "aarch64",
+        "@platforms//cpu:x86_64": "x86_64",
+    }),
+    format = "zip",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    resources = [":consumer_res"],
+)
+
+# keep
+rust_test(
+    name = "consumer_release_zip_verify",
+    srcs = ["zip_verify.rs"],
+    crate_name = "consumer_release_zip_verify",
+    data = [
+        ":consumer_release_zip_archive",
+        ":consumer_release_zip_checksum",
+    ],
+    env = {
+        "DX_ARCHIVE": "$(rootpath :consumer_release_zip_archive)",
+        "DX_ARCHIVE_APP": "consumer_app",
+        "DX_ARCHIVE_CHECKSUM": "$(rootpath :consumer_release_zip_checksum)",
+        "DX_ARCHIVE_MEMBERS": "IDENTITY.txt,NOTICE,consumer_app,resources/banner.txt",
+        "DX_ARCHIVE_RUNTIME": "",
+        "DX_ARCHIVE_SUFFIX": "zip",
+    },
+    deps = [
+        "//cli/digest:dx_digest",
+        "//deploy/rules:dx_deploy_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+consumer_archive(
+    name = "consumer_runtime_release",
+    app = ":consumer_app",
+    arch = select({
+        "@platforms//cpu:arm64": "aarch64",
+        "@platforms//cpu:x86_64": "x86_64",
+    }),
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    runtime = ["consumer_runtime.txt"],
+)
+
+# keep
+rust_test(
+    name = "consumer_runtime_release_verify",
+    srcs = ["zip_verify.rs"],
+    crate_name = "consumer_runtime_release_verify",
+    data = [
+        ":consumer_runtime_release_archive",
+        ":consumer_runtime_release_checksum",
+    ],
+    env = {
+        "DX_ARCHIVE": "$(rootpath :consumer_runtime_release_archive)",
+        "DX_ARCHIVE_APP": "consumer_app",
+        "DX_ARCHIVE_CHECKSUM": "$(rootpath :consumer_runtime_release_checksum)",
+        "DX_ARCHIVE_MEMBERS": "IDENTITY.txt,NOTICE,consumer_app,consumer_runtime.txt",
+        "DX_ARCHIVE_RUNTIME": "consumer_runtime.txt",
+        "DX_ARCHIVE_SUFFIX": "tar.gz",
+    },
+    deps = [
+        "//cli/digest:dx_digest",
+        "//deploy/rules:dx_deploy_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 starlark_test(
     name = "consumer_notice_reads",
     testonly = True,
@@ -212,6 +287,28 @@ consumer_archive(
 )
 
 consumer_archive(
+    name = "consumer_bad_format",
+    app = ":consumer_app",
+    arch = "x86_64",
+    format = "rar",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    tags = ["manual"],
+)
+
+consumer_archive(
+    name = "consumer_runtime_clash",
+    app = ":consumer_app",
+    arch = "x86_64",
+    min_runtime = "glibc-2.17",
+    notice = ":consumer_notice_files",
+    os = "linux",
+    runtime = [":consumer_app"],
+    tags = ["manual"],
+)
+
+consumer_archive(
     name = "consumer_no_notice",
     app = ":consumer_app",
     arch = "x86_64",
@@ -247,6 +344,18 @@ failure_test(
     name = "consumer_bad_linkage_fails",
     expected_failure_substring = "unsupported linkage",
     target = ":consumer_bad_linkage_stage",
+)
+
+failure_test(
+    name = "consumer_bad_format_fails",
+    expected_failure_substring = "unsupported format 'rar'",
+    target = ":consumer_bad_format_stage",
+)
+
+failure_test(
+    name = "consumer_runtime_clash_fails",
+    expected_failure_substring = "duplicate member 'consumer_app' from runtime",
+    target = ":consumer_runtime_clash_stage",
 )
 
 failure_test(

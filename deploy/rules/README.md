@@ -224,8 +224,9 @@ archive_deploy(
 - `app`: required. One executable target. It is the only tarball member.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Outputs: `<name>_archive` builds `<name>.tar.gz` and `<name>_checksum`
-builds `<name>.tar.gz.sha256`.
+Outputs: `<name>_archive` builds `<name>.<format>` and `<name>_checksum`
+builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
+other member with mode 0644, in both formats.
 
 ```
 dx deploy --apply //pkg:tasks_deploy
@@ -240,8 +241,8 @@ Example: [shared-rust](../../examples/shared-rust/README.md#deploy).
 
 # consumer_archive
 
-Packages one app with its resources, a `NOTICE` and an `IDENTITY.txt` as a
-tarball plus a sha256 file. It builds files only and has no deploy run.
+Packages one app with its runtime files, resources, a `NOTICE` and an
+`IDENTITY.txt` as a tar.gz or zip plus a sha256 file. It builds files only and has no deploy run.
 
 ```starlark
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
@@ -262,6 +263,9 @@ consumer_archive(
 - `os`: required. `linux`, `macos` or `windows`.
 - `min_runtime`: required. A non-empty requirement such as `glibc-2.34`.
 - `linkage`: `static` or `dynamic`. Defaults to `dynamic`.
+- `runtime`: files the app needs at run time, such as DLLs. Each lands at
+  the archive root under its basename, mode 0644. Defaults to `[]`.
+- `format`: `tar.gz` or `zip`. Defaults to `tar.gz`.
 - `resources`: targets whose files land under `resources/`. Each file must
   sit under a directory named after its target. Defaults to `[]`.
 - `notice`: required. Exactly one file, stored as `NOTICE`.

@@ -6,10 +6,10 @@ package(default_visibility = ["//:__subpackages__"])
 
 ide_acquisition_test(
     name = "ide_acquisition_test",
-    binary = "@rules_rust//tools/rust_analyzer:gen_rust_project",
+    binary = "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
     binary_two = "@rules_rust//tools/rust_analyzer:flycheck",
-    expected = "TARGETS",
-    expected_two = "rust-analyzer flycheck wrapper backed by `bazel build`",
+    expected = "--bazel_startup_option",
+    expected_two = "--output-base",
     version_args = ["--help"],
     version_args_two = ["--help"],
 )

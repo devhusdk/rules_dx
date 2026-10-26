@@ -27,7 +27,7 @@ Removed spellings fail with exit `2` and name the replacement:
 - `f#` and `f-sharp` are now `fsharp`.
 
 Every starter also writes `.dx/version`, `.devcontainer/devcontainer.json`,
-`.gitignore`, `.envrc`, `.vscode/settings.json`, `.vscode/extensions.json`,
+`.gitignore`, `.bazelignore`, `.envrc`, `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml` and `MODULE.bazel.snippet`. Check mode reports
 them when they are missing.
 

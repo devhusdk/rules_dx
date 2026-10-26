@@ -95,6 +95,41 @@ func TestScanTemplateSubstitution(t *testing.T) {
 	}
 }
 
+func TestScanEmbeddedNoSemicolons(t *testing.T) {
+	prefixes := []string{"export let x", "export let x = \"\"", "const b = import.meta.env.BASE_URL", "import.meta.hot"}
+	followers := []struct{ src, want string }{
+		{"import './side.js'", "side"},
+		{"import s from './static.js'", "static"},
+		{"const r = require('./r.js')", "r"},
+	}
+	for _, prefix := range prefixes {
+		for _, f := range followers {
+			for _, semi := range []string{"", ";"} {
+				src := prefix + semi + "\n" + f.src + semi + "\n"
+				if got := collectEmbedded([]byte(src)); !reflect.DeepEqual(got, []string{f.want}) {
+					t.Errorf("ScanEmbedded %q = %q, want [%s]", src, got, f.want)
+				}
+			}
+		}
+	}
+	cases := []struct {
+		src  string
+		want []string
+	}{
+		{"export const r = require('./r.js')", []string{"r"}},
+		{"export default { c: () => import('./lazy.js') }", []string{"lazy"}},
+		{"export { a }\nimport './side.js'", []string{"side"}},
+		{"export * as ns\nfrom './x.js'", []string{"x"}},
+		{"export * as ns\nimport './side.js'", []string{"side"}},
+		{"export type { T } from './t.js'", []string{"t"}},
+	}
+	for _, tc := range cases {
+		if got := collectEmbedded([]byte(tc.src)); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("ScanEmbedded %q = %q, want %q", tc.src, got, tc.want)
+		}
+	}
+}
+
 func TestScanEmbeddedTricks(t *testing.T) {
 	cases := []struct {
 		name, src string
@@ -195,7 +230,7 @@ func TestSpecSetIdentity(t *testing.T) {
 		{"./dir/", "dir"},
 		{"./helper", "helper"},
 		{"./.hidden", ".hidden"},
-		{"../pkg/demo.mjsx", "../pkg/demo"},
+		{"../pkg/demo.mjsx", "../pkg/demo.mjsx"},
 		{"/abs/path.mdx", "abs/path"},
 		{"react", "react"},
 		{"@mdx-js/mdx", "@mdx-js/mdx"},
@@ -366,6 +401,11 @@ func TestParseImportRefsRelative(t *testing.T) {
 		{"mixedCollision", "import { fmt } from \"./util.js\";\nimport u from \"util\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", Relative: true}, {Spec: "util", Root: "util"}}},
 		{"absolute", "import x from \"/abs/path.js\";\n", []ImportRef{{Spec: "/abs/path.js", Root: "abs/path", Relative: true}}},
 		{"repeatedBasenames", "import a from \"../a/util\";\nimport b from \"../b/util.ts\";\n", []ImportRef{{Spec: "../a/util", Root: "a/util", Relative: true}, {Spec: "../b/util.ts", Root: "b/util", Relative: true}}},
+		{"index", "import c from \"./components\";\n", []ImportRef{{Spec: "./components", Root: "pkg/components", Relative: true}}},
+		{"dotted", "import c from \"./config.prod\";\n", []ImportRef{{Spec: "./config.prod", Root: "pkg/config.prod", Ext: ".prod", Relative: true}}},
+		{"json", "import d from \"./data.json\";\n", []ImportRef{{Spec: "./data.json", Root: "pkg/data.json", Ext: ".json", Relative: true}}},
+		{"css module", "import s from \"./styles.module.css\";\n", []ImportRef{{Spec: "./styles.module.css", Root: "pkg/styles.module.css", Ext: ".css", Relative: true}}},
+		{"mts", "import x from \"./x.mts\";\n", []ImportRef{{Spec: "./x.mts", Root: "pkg/x", Relative: true}}},
 		{"sameTarget", "import a from \"./x/../util.js\";\nimport b from \"./util\";\n", []ImportRef{{Spec: "./x/../util.js", Root: "pkg/util", Relative: true}}},
 	}
 	for _, tc := range cases {
@@ -488,6 +528,7 @@ func TestMaskStyles(t *testing.T) {
 		{"text block", "x = \"\"\"\nimport a.B;\n\"\"\";\n", "x =    \n           \n   ;\n"},
 		{"unterminated block", "import a.B;\n/* import hidden.C;\n", "import a.B;\n                   \n"},
 		{"unterminated string", "import a.B;\n\"import hidden.C;\n", "import a.B;\n                 \n"},
+		{"char literal stays on its line", "c = 'a\nimport a.B;\nd = 'b';\n", "c =   \nimport a.B;\nd =    ;\n"},
 		{"annotation is not verbatim", "@Foo(\"x\")\n", "@Foo(   )\n"},
 	}
 	for _, tc := range cases {
@@ -525,6 +566,14 @@ func TestMaskFSharpStyle(t *testing.T) {
 		{"unterminated block comment", "(* open hidden.C\n", "                \n"},
 		{"verbatim", "let s = \"\"\"\nopen hidden.C\n\"\"\"\n", "let s =    \n             \n   \n"},
 		{"line comment", "open a.B\n// open hidden.C\n", "open a.B\n                \n"},
+		{"type variable", "let f (x: 'a) = x\nopen A.B\nlet c = 'z'\n", "let f (x: 'a) = x\nopen A.B\nlet c =    \n"},
+		{"generic type variable", "let m : Map<'T,'U> = x\nopen A.B\n", "let m : Map<'T,'U> = x\nopen A.B\n"},
+		{"primed names", "let x' = 1\nlet y'' = 2\nopen A.B\n", "let x' = 1\nlet y'' = 2\nopen A.B\n"},
+		{"quote char", "let c = '\"'\nopen A.B\n", "let c =    \nopen A.B\n"},
+		{"newline escape", "let c = '\\n'\n", "let c =     \n"},
+		{"decimal escape", "let c = '\\065'\n", "let c =       \n"},
+		{"quote escape", "let c = '\\''\n", "let c =     \n"},
+		{"unclosed stays", "let c = 'ab\nopen A.B\n", "let c = 'ab\nopen A.B\n"},
 	}
 	for _, tc := range cases {
 		if got := string(MaskFSharpStyle([]byte(tc.in))); got != tc.want {

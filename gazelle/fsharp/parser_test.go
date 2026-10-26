@@ -110,3 +110,19 @@ func TestLiteralAndTruncatedSourceRemainInert(t *testing.T) {
 		t.Fatalf("duplicate: %v", err)
 	}
 }
+
+func TestParseImportsTypeVariablesAndPrimes(t *testing.T) {
+	source := "namespace Demo\n\nlet f (x: 'a) = x\nlet g<'T> (y: 'T) = y\nlet x' = 1\nlet z'' = 2\nlet c = '\"'\nopen Acme.Widget\n"
+	got := ParseImports([]byte(source))
+	want := []string{"Widget"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestDefinesMainAfterTypeVariables(t *testing.T) {
+	source := "module Program\n\nlet f (x: 'a) = x\nlet x' = 1\n\n[<EntryPoint>]\nlet main argv = 0\n"
+	if !DefinesMain([]byte(source)) {
+		t.Errorf("DefinesMain = false for %q", source)
+	}
+}

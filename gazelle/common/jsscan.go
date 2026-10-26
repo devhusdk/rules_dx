@@ -2,6 +2,7 @@ package common
 
 import (
 	"path"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -74,15 +75,23 @@ func Scan(src []byte, add func(string)) {
 type ImportRef struct {
 	Spec     string
 	Root     string
+	Ext      string
 	Relative bool
 }
 
-func RelativeIdentity(dir, spec string) string {
+// JSModuleExts are the extensions stripped from a relative JavaScript or
+// TypeScript import to get its module identity.
+var JSModuleExts = []string{".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
+
+// relativeRef returns the workspace-relative identity of a relative spec with
+// any extension in exts stripped, and any other extension (such as .json or
+// .prod) left in the root and returned as ext.
+func relativeRef(dir, spec string, exts []string) (root, ext string) {
 	spec = strings.TrimSpace(spec)
 	trimmed := strings.TrimSuffix(spec, "/")
 	switch path.Base(trimmed) {
 	case "", ".", "..", "/":
-		return ""
+		return "", ""
 	}
 	var joined string
 	if strings.HasPrefix(spec, "/") {
@@ -90,19 +99,19 @@ func RelativeIdentity(dir, spec string) string {
 	} else {
 		joined = path.Join(dir, trimmed)
 	}
-	return stripModuleExt(joined)
+	base := path.Base(joined)
+	e := path.Ext(base)
+	if e == "" || e == "." || e == base {
+		return joined, ""
+	}
+	if slices.Contains(exts, e) {
+		return strings.TrimSuffix(joined, e), ""
+	}
+	return joined, e
 }
 
 func ModuleIdentity(pkg, stem string) string {
 	return path.Join(pkg, stem)
-}
-
-func stripModuleExt(p string) string {
-	base := path.Base(p)
-	if idx := strings.LastIndexByte(base, '.'); idx > 0 {
-		return p[:len(p)-len(base)+idx]
-	}
-	return p
 }
 
 func isRelativeSpec(spec string) bool {
@@ -118,9 +127,9 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 			return
 		}
 		relative := isRelativeSpec(spec)
-		root := spec
+		root, ext := spec, ""
 		if relative {
-			root = RelativeIdentity(dir, spec)
+			root, ext = relativeRef(dir, spec, JSModuleExts)
 		}
 		if root == "" {
 			return
@@ -128,7 +137,7 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 		if prev, ok := refs[root]; ok && (prev.Relative || !relative) {
 			return
 		}
-		refs[root] = ImportRef{Spec: spec, Root: root, Relative: relative}
+		refs[root] = ImportRef{Spec: spec, Root: root, Ext: ext, Relative: relative}
 	})
 	out := make([]ImportRef, 0, len(refs))
 	for _, ref := range refs {
@@ -137,6 +146,8 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })
 	return out
 }
+
+var specSetExts = append(slices.Clone(JSModuleExts), ".vue", ".svelte", ".astro", ".mdx")
 
 type SpecSet struct {
 	Dir   string
@@ -147,7 +158,7 @@ func (s *SpecSet) Add(spec string) {
 	spec = strings.TrimSpace(spec)
 	root := spec
 	if isRelativeSpec(spec) {
-		root = RelativeIdentity(s.Dir, spec)
+		root, _ = relativeRef(s.Dir, spec, specSetExts)
 	}
 	if root == "" {
 		return

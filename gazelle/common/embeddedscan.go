@@ -68,6 +68,9 @@ func ScanEmbedded(src []byte, add func(string)) {
 func parseEmbeddedImport(src []byte, j int, add func(string)) int {
 	n := len(src)
 	k := skipTrivia(src, j)
+	if k < n && src[k] == '.' {
+		return k + 1
+	}
 	if k < n && (src[k] == '\'' || src[k] == '"') {
 		if spec, next, ok := parseQuoted(src, k); ok {
 			add(spec)
@@ -136,49 +139,71 @@ func parseEmbeddedImport(src []byte, j int, add func(string)) int {
 
 func parseEmbeddedExport(src []byte, j int, add func(string)) int {
 	n := len(src)
-	depth := 0
 	p := skipTrivia(src, j)
+	if hasWordAt(src, p, "type") {
+		p = skipTrivia(src, p+4)
+	}
+	if p >= n || (src[p] != '{' && src[p] != '*') {
+		// A declaration (let, const, default, function, ...): let ScanEmbedded
+		// read it so a require( or import( inside it is still found.
+		return p
+	}
+	if src[p] == '*' {
+		p = skipTrivia(src, p+1)
+		if hasWordAt(src, p, "as") {
+			p = skipTrivia(src, p+2)
+			if p < n && (src[p] == '\'' || src[p] == '"') {
+				p = skipQuoted(src, p)
+			} else {
+				for p < n && isIdentChar(src[p]) {
+					p++
+				}
+			}
+			p = skipTrivia(src, p)
+		}
+		return parseEmbeddedFrom(src, p, add)
+	}
+	depth := 0
 	for p < n {
 		if p+1 < n && src[p] == '/' && (src[p+1] == '/' || src[p+1] == '*') {
 			p = skipTrivia(src, p)
 			continue
 		}
 		c := src[p]
-		if c == '{' {
-			depth++
-		} else if c == '}' {
-			if depth > 0 {
-				depth--
-			}
-		} else if c == '\'' || c == '"' {
+		if c == '\'' || c == '"' {
 			p = skipQuoted(src, p)
 			continue
-		} else if c == '`' {
+		}
+		if c == '`' {
 			p = skipTemplate(src, p)
-			continue
-		} else if c == ';' {
-			return p + 1
-		} else if depth == 0 && isIdentStart(c) {
-			q := p + 1
-			for q < n && isIdentChar(src[q]) {
-				q++
-			}
-			if string(src[p:q]) == "from" {
-				m := skipTrivia(src, q)
-				if m < n && (src[m] == '\'' || src[m] == '"') {
-					if spec, next, ok := parseQuoted(src, m); ok {
-						add(spec)
-						return next
-					}
-				}
-				return q
-			}
-			p = q
 			continue
 		}
 		p++
+		if c == '{' {
+			depth++
+		} else if c == '}' {
+			depth--
+			if depth <= 0 {
+				return parseEmbeddedFrom(src, skipTrivia(src, p), add)
+			}
+		}
 	}
 	return p
+}
+
+// parseEmbeddedFrom takes an optional `from '<spec>'` at p.
+func parseEmbeddedFrom(src []byte, p int, add func(string)) int {
+	if !hasWordAt(src, p, "from") {
+		return p
+	}
+	m := skipTrivia(src, p+4)
+	if m < len(src) && (src[m] == '\'' || src[m] == '"') {
+		if spec, next, ok := parseQuoted(src, m); ok {
+			add(spec)
+			return next
+		}
+	}
+	return m
 }
 
 func parseEmbeddedRequire(src []byte, j int, add func(string)) int {

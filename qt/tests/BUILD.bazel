@@ -110,7 +110,10 @@ rust_test(
         "DX_RCC": "$(rootpath @dx_qt//:rcc)",
         "DX_UIC": "$(rootpath @dx_qt//:uic)",
     },
-    tags = ["block-network"],
+    tags = [
+        "block-network",
+        "no-remote-exec",
+    ],
     target_compatible_with = _LINUX,
     deps = ["//tools/testing:dx_testing"],
 )

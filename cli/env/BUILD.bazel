@@ -129,7 +129,10 @@ rust_test(
         "DX_ENV_BIN": "$(rootpath :env)",
         "DX_STAGED_METADATA": "env/default_tree.metadata.json",
     },
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "no-remote-exec",
+    ],
     deps = ["//tools/testing:dx_testing"],
 )
 

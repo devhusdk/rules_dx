@@ -300,7 +300,7 @@ def runner_matrix_suite(name, cases):
             expected = case.get("expected", ""),
             expected_file = case.get("expected_file"),
             runner_failure = case.get("runner_failure", False),
-            tags = ["no-coverage"],
+            tags = ["no-coverage"] + case.get("tags", []),
             target_compatible_with = _compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False)),
         )
         tests.append(":" + case["name"])

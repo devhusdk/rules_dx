@@ -55,6 +55,7 @@ rust_test(
         "DX_NOTICE": "$(rootpath @consumer_archive_repo//:NOTICE.txt)",
         "DX_TARBALL": "$(rootpath //deploy/rules:release_demo_archive)",
     },
+    tags = ["no-remote-exec"],
     deps = [
         "//cli/path:dx_path",
         "//tools/testing:dx_testing",

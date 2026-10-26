@@ -103,6 +103,7 @@ rust_test(
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
+    tags = ["no-remote-exec"],
     deps = all_crate_deps(
         package_name = "quality/quality_adapter",
         normal = True,

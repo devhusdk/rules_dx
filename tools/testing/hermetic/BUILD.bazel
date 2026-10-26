@@ -48,6 +48,7 @@ rust_test(
     crate = ":hermetic",
     data = [":cpp_rust_manifest"],
     env = {"DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)"},
+    tags = ["no-remote-exec"],
     target_compatible_with = LINUX,
     deps = crate_deps(
         [

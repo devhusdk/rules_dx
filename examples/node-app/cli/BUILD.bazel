@@ -89,6 +89,7 @@ rust_test(
         "CLI_TEST": "$(rootpath :cli_test)",
         "REGISTRY_TEST": "$(rootpath //examples/node-app/registry:registry_test)",
     },
+    tags = ["no-remote-exec"],
     deps = ["//tools/testing:dx_testing"],
 )
 

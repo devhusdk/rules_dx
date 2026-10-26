@@ -599,6 +599,7 @@ FILE_FAMILY_CASES = [
     },
     {
         "name": "matrix_powershell_lint_pass",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/psscriptanalyzer_clean.ps1": "Write-Output \"hello\"\n",
         },
@@ -610,6 +611,7 @@ FILE_FAMILY_CASES = [
     },
     {
         "name": "matrix_powershell_lint_fail",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/psscriptanalyzer_dirty.ps1": "Write-Output \"a\"\nWrite-Output \"b\"\nWrite-Output \"c\"\nWrite-Host \"hello\"\n",
         },

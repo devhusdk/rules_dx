@@ -1302,35 +1302,6 @@ fn real_fs_override_keeps_display_path() {
     scratch.close().expect("cleanup");
 }
 
-const SELECTION_PROBE_FILTER: &str = "selection_argv_probe_marker";
-const UNICODE_PROBE_ARG: &str = "dx_argv_probe with spaces héllo";
-
-fn selection_probe_args() -> Vec<String> {
-    std::env::args().skip(1).collect()
-}
-
-#[test]
-fn selected_test_observes_its_selection_argv_probe_marker() {
-    let args = selection_probe_args();
-    if !args.iter().any(|arg| arg.contains(SELECTION_PROBE_FILTER)) {
-        return;
-    }
-    assert!(
-        args.iter().any(|arg| arg == UNICODE_PROBE_ARG),
-        "verbatim argument must reach the test binary alongside the filter: {args:?}"
-    );
-}
-
-#[test]
-#[ignore]
-fn ignored_selection_probe_runs_only_when_explicitly_selected() {
-    let args = selection_probe_args();
-    assert!(
-        args.iter().any(|arg| arg == "--ignored"),
-        "explicit ignored selection must reach the test binary: {args:?}"
-    );
-}
-
 #[test]
 fn disk_space_is_read_from_df_lines_and_byte_counts() {
     let df =

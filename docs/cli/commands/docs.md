@@ -95,6 +95,9 @@ Build the shard's site with the scope of the target:
 bazel run @rules_dx//:dx -- docs //lib:api_docs
 ```
 
+Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
+failure. Bazel failures keep Bazel's code, so a TypeDoc error in the shard fails the build.
+
 The rule owns the options `plugin`, `options`, `tsconfig`, `entryPoints`, `json`,
 `out` and `basePath`, and fails at load time if `options` sets one of them. It also
 passes an empty `--options` file, so a stray `typedoc.json` is never read.

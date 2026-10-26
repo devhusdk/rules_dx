@@ -366,7 +366,9 @@ NUGET_PUBLISH_LIVE=1 NUGET_PUBLISH_APPROVED=1 NUGET_API_KEY=... \
 dx deploy --apply //pkg:nuget_demo
 ```
 
-This runs `dotnet nuget push --skip-duplicate`. A live run refuses nuspec
+This runs `dotnet nuget push --skip-duplicate`. The key goes to `dotnet`
+through the `NUGET_API_KEY` env var, never the command line, so NuGet 7.6+
+(.NET SDK 10.0.300+) is required; older versions are refused. A live run refuses nuspec
 version `0.0.0`.
 
 # oci_deploy
@@ -446,7 +448,8 @@ OCTOPUS_URL=https://octopus.example.com \
 dx deploy --apply //pkg:octopus_demo
 ```
 
-This runs `octo push`. A live run refuses version `0.0.0` and the default
+This runs `octo push`. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
+env, never the command line. A live run refuses version `0.0.0` and the default
 `octopus_url`.
 
 # promotion_deploy

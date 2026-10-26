@@ -168,6 +168,22 @@ fn go_comparators_respect_partial_versions_and_zero_major_caret() {
     assert!(!version_affected("unknown", "", ""));
 }
 
+#[test]
+fn locked_package_new_defaults_to_registry_package() {
+    assert_eq!(
+        LockedPackage::new("npm", "react", "18.2.0"),
+        LockedPackage {
+            name: "react".to_owned(),
+            version: "18.2.0".to_owned(),
+            set: "npm".to_owned(),
+            is_git: false,
+            is_private: false,
+            location: None,
+            platform: None,
+        }
+    );
+}
+
 fn packages() -> Vec<LockedPackage> {
     vec![
         LockedPackage {

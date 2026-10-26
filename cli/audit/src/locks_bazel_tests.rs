@@ -14,7 +14,10 @@ fn inputs_of(module: &str, lock_text: &str) -> Result<Vec<BazelInput>, String> {
 }
 
 fn modules_of(module: &str, lock_text: &str) -> Result<Vec<LockedPackage>, String> {
-    parse_bazel_modules(module, lock_text, &no_includes)
+    Ok(inputs_of(module, lock_text)?
+        .iter()
+        .map(BazelInput::locked)
+        .collect())
 }
 
 fn lock(modules: &[(&str, &str)]) -> String {

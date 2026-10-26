@@ -198,13 +198,9 @@ fn collect_legacy(
             continue;
         }
         out.push(LockedPackage {
-            name: identity,
-            version,
-            set: "npm".to_owned(),
             is_git,
-            is_private: false,
             location,
-            platform: None,
+            ..LockedPackage::new("npm", identity, version)
         });
     }
     Ok(())
@@ -254,13 +250,9 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
                 || is_npm_git_reference(&resolved)
                 || is_npm_git_reference(&from);
             out.push(LockedPackage {
-                name,
-                version,
-                set: "npm".to_owned(),
                 is_git,
-                is_private: false,
                 location: Some(path.trim().to_owned()),
-                platform: None,
+                ..LockedPackage::new("npm", name, version)
             });
         }
     }

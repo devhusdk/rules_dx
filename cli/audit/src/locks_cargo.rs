@@ -19,28 +19,15 @@ pub fn parse_cargo_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         };
         if source.is_git() {
             out.push(LockedPackage {
-                name,
-                version,
-                set: "cargo".to_owned(),
                 is_git: true,
-                is_private: false,
-                location: None,
-                platform: None,
+                ..LockedPackage::new("cargo", name, version)
             });
             continue;
         }
         if source.is_path() {
             continue;
         }
-        out.push(LockedPackage {
-            name,
-            version,
-            set: "cargo".to_owned(),
-            is_git: false,
-            is_private: false,
-            location: None,
-            platform: None,
-        });
+        out.push(LockedPackage::new("cargo", name, version));
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     out.dedup_by(|b, a| a.name == b.name && a.version == b.version);

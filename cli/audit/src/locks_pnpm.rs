@@ -72,13 +72,8 @@ fn pnpm_packages_from_value(value: &yaml_serde::Value, out: &mut Vec<LockedPacka
                 || is_npm_git_reference(&version)
                 || detail.get("resolution").is_some_and(pnpm_resolution_is_git);
             out.push(LockedPackage {
-                name,
-                version,
-                set: "npm".to_owned(),
                 is_git,
-                is_private: false,
-                location: None,
-                platform: None,
+                ..LockedPackage::new("npm", name, version)
             });
         }
     }
@@ -242,13 +237,8 @@ fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> 
         || is_npm_git_reference(version)
         || is_npm_git_reference(resolved);
     Some(LockedPackage {
-        name: name.to_owned(),
-        version: version.to_owned(),
-        set: "npm".to_owned(),
         is_git,
-        is_private: false,
-        location: None,
-        platform: None,
+        ..LockedPackage::new("npm", name, version)
     })
 }
 

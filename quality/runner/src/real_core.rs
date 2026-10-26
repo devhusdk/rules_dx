@@ -408,7 +408,11 @@ pub(super) fn placeholders_cover_the_other_known_files_with_the_extensions() {
 #[test]
 pub(super) fn rustfmt_parent_relative_path_module_is_formatted() {
     let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
-    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs", "shared/util.rs"])];
+    let stages = vec![stage(
+        "rustfmt",
+        &["rust"],
+        &["src/lib.rs", "shared/util.rs"],
+    )];
     let files = vec![
         file("src/lib.rs", "#[path = \"../shared/util.rs\"]\nmod util;\n"),
         file("shared/util.rs", "pub fn u() {}  \n"),

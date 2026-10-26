@@ -1,5 +1,6 @@
 use super::{
-    check_output_size, code_name, finding, known_lexical, missing, unformatted_at, FileFinding, ParseError,
+    check_output_size, code_name, finding, known_lexical, missing, unformatted_at, FileFinding,
+    ParseError,
 };
 use crate::ToolSeverity;
 
@@ -184,8 +185,13 @@ mod tests {
     #[test]
     fn rustfmt_matches_parent_relative_path_modules() {
         let files = ["/s/src/lib.rs", "/s/shared/util.rs"];
-        let found = parse_rustfmt(b"Diff in /s/src/../shared/util.rs:1:\n", b"", Some(1), &files)
-            .expect("parsed");
+        let found = parse_rustfmt(
+            b"Diff in /s/src/../shared/util.rs:1:\n",
+            b"",
+            Some(1),
+            &files,
+        )
+        .expect("parsed");
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file, "/s/shared/util.rs");
         let found = parse_rustfmt(
@@ -199,7 +205,9 @@ mod tests {
         assert_eq!(found[0].finding.severity, ToolSeverity::Error);
         let err = parse_rustfmt(b"Diff in /s/src/../other.rs:1:\n", b"", Some(1), &files)
             .expect_err("unknown");
-        assert!(matches!(err, ParseError::UnknownFile { ref path, .. } if path == "/s/src/../other.rs"));
+        assert!(
+            matches!(err, ParseError::UnknownFile { ref path, .. } if path == "/s/src/../other.rs")
+        );
         assert!(parse_rustfmt(
             b"Diff in /s/../../shared/util.rs:1:\n",
             b"",

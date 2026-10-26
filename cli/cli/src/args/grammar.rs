@@ -897,6 +897,13 @@ pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> 
     flags
 }
 
+/// Whether `dx <command>` parses `--<long>`, hidden arguments included.
+pub(crate) fn accepts_long(command: super::command::Command, long: &str) -> bool {
+    subcommand_args(command)
+        .get_arguments()
+        .any(|arg| arg.get_long() == Some(long))
+}
+
 /// Whether the grammar lets `dx <command> -- <bazel-options>` through.
 pub(crate) fn advertises_passthrough(command: super::command::Command) -> bool {
     subcommand_args(command)

@@ -201,7 +201,8 @@ fn repeated_apply_is_idempotent() {
 }
 
 #[test]
-fn apply_matrix_matches_supports_apply() {
+fn apply_is_accepted_exactly_by_the_apply_commands() {
+    use super::super::command::owners::APPLY_COMMANDS;
     use clap::ValueEnum;
     for command in Command::value_variants() {
         let command = *command;
@@ -210,7 +211,9 @@ fn apply_matrix_matches_supports_apply() {
             words[1] = "fix".to_owned();
         }
         words.push("--apply".to_owned());
-        if command.supports_apply() {
+        let listed = APPLY_COMMANDS.contains(&command);
+        assert_eq!(command.supports_apply(), listed, "dx {}", command.name());
+        if listed {
             let got = parse(&words).unwrap_or_else(|error| {
                 panic!("dx {} --apply must parse: {error}", command.name())
             });
@@ -687,7 +690,6 @@ fn audit_update_parse_and_reject_unsupported_options() {
     let security = parse(&strings(&["security"])).expect("parse security");
     assert_eq!(security.command, Command::Security);
     assert_eq!(security.command.name(), "security");
-    assert!(security.command.is_audit_update());
     assert!(!security.command.is_adoption());
     assert!(!security.command.is_managed());
     assert!(security.targets.is_empty());
@@ -697,7 +699,6 @@ fn audit_update_parse_and_reject_unsupported_options() {
     let update = parse(&strings(&["update"])).expect("parse update");
     assert_eq!(update.command, Command::Update);
     assert_eq!(update.command.name(), "update");
-    assert!(update.command.is_audit_update());
     let selected = parse(&strings(&["update", "crates"])).expect("parse update selector");
     assert_eq!(selected.targets, vec!["crates".to_owned()]);
     assert_eq!(

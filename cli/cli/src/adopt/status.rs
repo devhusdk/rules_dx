@@ -17,9 +17,7 @@ pub(crate) const CODE_STATUS_CHECK_FAILED: &str = "status_check_failed";
 use super::operational;
 
 fn effect_of(command: Command) -> &'static str {
-    if command.is_mutating_by_default() {
-        "mutating"
-    } else if command.supports_apply() {
+    if command.supports_apply() {
         "apply"
     } else {
         "none"

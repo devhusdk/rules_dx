@@ -2,6 +2,7 @@ use super::super::scope_error;
 use super::super::{assert_usage, ArgsError, Command, OperationMode};
 use super::parse;
 use crate::test_support::strings;
+use super::super::command::owners::{CHECK_OWNERS, PROFILE_OWNERS};
 use clap::ValueEnum;
 use dx_output::OutputMode;
 
@@ -156,8 +157,12 @@ fn include_edits_needs_json_output() {
     }
 }
 
-const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 7] = [
-    ("--check", Command::supports_check, &["--check"]),
+const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
+    (
+        "--check",
+        |c| CHECK_OWNERS.contains(&c),
+        &["--check"],
+    ),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=info"]),
     (
         "--fail-on",
@@ -165,13 +170,8 @@ const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 7] = [
         &["--fail-on=warning"],
     ),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=error"]),
-    ("--debug", Command::supports_profile, &["--debug"]),
-    ("--release", Command::supports_profile, &["--release"]),
-    (
-        "--min-coverage",
-        Command::supports_min_coverage,
-        &["--min-coverage=80"],
-    ),
+    ("--debug", |c| PROFILE_OWNERS.contains(&c), &["--debug"]),
+    ("--release", |c| PROFILE_OWNERS.contains(&c), &["--release"]),
 ];
 
 #[test]
@@ -319,7 +319,6 @@ fn bump_needs_exactly_one_selector_plus_version() {
     let bump = parse(&strings(&["bump", "cargo:anyhow", "1.2.3"])).expect("parse bump");
     assert_eq!(bump.command, Command::Bump);
     assert_eq!(bump.command.name(), "bump");
-    assert!(bump.command.is_audit_update());
     assert!(!bump.command.is_adoption());
     assert!(!bump.command.is_managed());
     assert_eq!(
@@ -418,10 +417,8 @@ fn migrate_needs_from_and_to_versions() {
         parse(&strings(&["migrate", "--from=1.2.3", "--to=2.0.0"])).expect("parse migrate");
     assert_eq!(migrate.command, Command::Migrate);
     assert_eq!(migrate.command.name(), "migrate");
-    assert!(!migrate.command.is_audit_update());
     assert!(!migrate.command.is_adoption());
     assert!(!migrate.command.is_managed());
-    assert!(!migrate.command.is_mutating_by_default());
     assert_eq!(migrate.from, Some("1.2.3".to_owned()));
     assert_eq!(migrate.to, Some("2.0.0".to_owned()));
     let spaced =
@@ -528,7 +525,6 @@ fn new_takes_language_plus_optional_name() {
     let got = parse(&strings(&["new", "rust", "demo"])).expect("parse new");
     assert_eq!(got.command, Command::New);
     assert!(got.command.is_adoption());
-    assert!(!got.command.is_mutating_by_default());
     assert!(!got.command.supports_json());
     assert_eq!(got.targets, vec!["rust".to_owned(), "demo".to_owned()]);
     let bare_lang = parse(&strings(&["new", "go"])).expect("language only");
@@ -560,7 +556,6 @@ fn upgrade_needs_from_and_to_with_no_scopes() {
     let got = parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("parse upgrade");
     assert_eq!(got.command, Command::Upgrade);
     assert!(got.command.is_adoption());
-    assert!(!got.command.is_mutating_by_default());
     assert!(got.command.supports_json());
     assert_eq!(
         parse(&strings(&["upgrade", "--from=1.2.3"])),
@@ -1168,11 +1163,9 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
         let got = parse(&strings(&[command, "--offline"])).expect("offline parses");
         assert!(got.offline, "command: {command}");
         assert!(!got.frozen, "command: {command}");
-        assert!(got.command.supports_offline(), "command: {command}");
         let frozen = parse(&strings(&[command, "--frozen"])).expect("frozen parses");
         assert!(frozen.frozen, "command: {command}");
         assert!(!frozen.offline, "command: {command}");
-        assert!(frozen.command.supports_frozen(), "command: {command}");
         let both = parse(&strings(&[command, "--offline", "--frozen"])).expect("combined parses");
         assert!(both.offline && both.frozen, "command: {command}");
         let bare = parse(&strings(&[command])).expect("bare parses");
@@ -1183,12 +1176,10 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
         parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--offline"])).expect("bump offline");
     assert!(bump.offline);
     assert!(!bump.frozen);
-    assert!(bump.command.supports_offline());
     let bump_frozen =
         parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--frozen"])).expect("bump frozen");
     assert!(bump_frozen.frozen);
     assert!(!bump_frozen.offline);
-    assert!(bump_frozen.command.supports_frozen());
     for words in [
         vec!["lint", "--offline"],
         vec!["build", "//a:one", "--offline"],

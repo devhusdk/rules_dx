@@ -593,7 +593,10 @@ mod tests {
         covered.dedup();
         let mut every: Vec<String> = Command::value_variants()
             .iter()
-            .filter(|command| command.supports_affected())
+            .filter(|command| {
+                **command != Command::Watch
+                    && crate::args::grammar::accepts_long(**command, "affected")
+            })
             .map(|command| command.name().to_owned())
             .collect();
         every.sort();

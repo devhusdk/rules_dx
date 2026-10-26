@@ -520,12 +520,6 @@ fn command_usage_advertises_apply_exactly_where_the_parser_accepts_it() {
             "dx {} accepts={accepted} advertises={advertised} for --apply: {words:?}\n{usage}",
             command.name()
         );
-        assert_eq!(
-            command.supports_apply(),
-            accepted,
-            "dx {} supports_apply disagrees with the parser for --apply",
-            command.name()
-        );
     }
 }
 
@@ -3110,12 +3104,18 @@ fn scope_page_affected_lists_match_the_registry() {
     };
     assert_eq!(
         scope_page_affected_sentence(&body, "accepted by"),
-        names(Command::supports_affected),
+        names(|command| {
+            command != Command::Watch && super::super::grammar::accepts_long(command, "affected")
+        }),
         "scope-defaults.md must name exactly the commands that accept `--affected`"
     );
     assert_eq!(
         scope_page_affected_sentence(&body, "reject `--affected`"),
-        names(|command| command.supports_here() && !command.supports_affected()),
+        names(|command| {
+            command.supports_here()
+                && command != Command::Watch
+                && !super::super::grammar::accepts_long(command, "affected")
+        }),
         "scope-defaults.md must name exactly the `--here` commands that reject `--affected`"
     );
 }

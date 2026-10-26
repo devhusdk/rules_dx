@@ -63,6 +63,12 @@ dx writes its build event file with
 `--build_event_json_file` and any other `--build_event_json_file_path_conversion`
 value. A rejected flag fails before Bazel starts with exit `2`.
 
+dx forces these flags and treats them as protected: `--skip_incompatible_explicit_targets`
+(build, test and coverage), the three `--@rules_dx//config:` settings for validation and
+rustc and clippy diagnostics, `--remote_download_outputs=all` (test and coverage),
+`--combined_report=lcov` (coverage), and `--build_event_json_file`. Another value
+for one of them, and Bazel startup options after `--`, exit `2`.
+
 Output: `--output text|json`. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
 for stdout. A relative path anchors at the workspace root; an absolute one writes
@@ -196,8 +202,9 @@ In an agent session (`CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`,
 `dx run` default to `--output=json`. They pass `--noshow_progress`,
 `--noshow_loading_progress`, `--noshow_timestamps`, `--curses=no`,
 `--ui_event_filters=-info,-debug` and `--test_summary=none` to Bazel before
-your own Bazel options, so Bazel prints no progress on stderr. For `dx run`,
-args after `--` still go only to the app. `--output` and `DX_OUTPUT` still
+your own Bazel options, so Bazel prints no progress on stderr. Those quiet
+Bazel flags apply only when the output is JSON. For `dx run`,
+args after `--` still go only to the app. `--output`, `DX_OUTPUT` and the `output` setting in `dx.toml` still
 win. In CI these variables are ignored.
 
 If Bazel fails and its event file is missing or ends early, dx still returns
@@ -206,7 +213,7 @@ Bazel's code and reports a `build_events_incomplete` notice. `dx test` and
 `complete: false`. If Bazel succeeds and `dx test` or `dx coverage` cannot
 read the event file, dx exits `1` with `unreadable_bep` or `invalid_bep`.
 
-Exit codes: `0` success. `2` usage or scope errors. `1` operational
+Exit codes: `0` success. `2` usage, scope or owner errors. `1` operational
 failures, including `no_tests` and `query_launch_failed`. Bazel failures keep Bazel's code. Results are incomplete when a
 result has no `test.xml`, a `test.xml` is missing, truncated or invalid,
 Bazel announces a result it never reports, a target has a summary but no
@@ -228,6 +235,15 @@ bazel run @rules_dx//:dx -- test --affected
 bazel run @rules_dx//:dx -- test //... -- --jobs=4
 bazel run @rules_dx//:dx -- test //cli/process/... -- --test_filter=workflow_argv
 ```
+
+`--affected` builds or tests the changed targets and their reverse
+dependencies. A `Cargo.lock` or crate_universe lockfile change selects the
+users of the changed crates. Other lock files and patches named in
+`MODULE.bazel` widen to `//...`; see [scope defaults](scope-defaults.md).
+`dx test --affected` and `dx coverage --affected` run only the
+affected test targets. With nothing affected they print `no affected targets`
+and exit `0`. Usage errors exit `2`. Affected targets that do not fit the host
+platform are skipped; see [Scope Defaults](scope-defaults.md).
 
 Args after `--` reach the test binary through Bazel. `dx test` and
 `dx coverage` accept repeatable `--test_arg` tokens, in equals and
@@ -265,8 +281,9 @@ and `correlation` `run:<label>`.
 A failed build emits an `error` with code `bazel_failed` and starts no app.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
-a launch failure. A failed build exits with Bazel's code. The app's own code
-is the exit code.
+a launch failure, or a file or directory scope that matches more than one runnable
+target (ambiguous). A failed build keeps Bazel's exit code. The app's own code
+is the exit code, and the first app that exits nonzero stops the later targets.
 
 ```sh
 bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help
@@ -280,7 +297,9 @@ dx deploy [--apply] [--debug|--release] <label> [-- args...]
 ```
 
 Builds one deployable target without publishing it. Pass `--apply` to run
-the deployment. Takes exactly one label. No flag uses `dx_release` here.
+the deployment. Takes exactly one label. The profile is the flag if given, else the target's
+`profile` attribute, else the command default. With `--apply`, dx sets
+`DX_PROFILE` for the deploy tool.
 Args after `--` go to the app, and only reach it on an `--apply` launch.
 
 Output: text only.
@@ -289,23 +308,20 @@ Exit codes: `0` success, `2` usage or scope errors, `1` a build or launch
 failure. The target's own code is the exit code. A passing check names
 the `--apply` command that publishes.
 
-`--affected` builds or tests the changed targets and their reverse
-dependencies. A `Cargo.lock` or crate_universe lockfile change selects the
-users of the changed crates. Other lock files and patches named in
-`MODULE.bazel` widen to `//...`; see [scope defaults](scope-defaults.md).
-`dx test --affected` and `dx coverage --affected` run only the
-affected test targets. With nothing affected they print `no affected targets`
-and exit `0`. Usage errors exit `2`. Affected targets that do not fit the host
-platform are skipped; see [Scope Defaults](scope-defaults.md).
-
 ## `dx coverage`
 
 ```text
 dx coverage [--here] [--affected] [--min-coverage <percent>] [--report lcov=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
 ```
 
-Collects LCOV coverage over the scope. `--min-coverage` fails below that
-percent. Without it, coverage collects without enforcing.
+Collects LCOV coverage over the scope. `--min-coverage` takes a whole number
+from 0 to 100 and fails below that percent. The gate compares one line rate
+(covered over executable lines, across all files) against it. Without the flag,
+coverage collects without enforcing. A passing gate prints
+`coverage <percent>% (<covered>/<eligible> lines) meets minimum <n>%`. A failing one
+prints `coverage_below_minimum: coverage <percent>% (<covered>/<eligible> lines) below minimum <n>%`
+on stderr, or emits an `error` event with code `coverage_below_minimum` with
+`--output=json`. A collected LCOV with zero executable lines also fails.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. Repeat the flag for more files. Use `-` for stdout. A relative
@@ -318,7 +334,7 @@ a plain pass, as for `dx test`. `command_finished` counts tests as for `dx test`
 `--report failures=<path>` and `--report results=<path>` work here too, as
 described above.
 
-Exit codes: `0` success. `2` usage or scope errors. `1` operational
+Exit codes: `0` success. `2` usage, scope or owner errors. `1` operational
 failures, coverage below minimum, or incomplete coverage. Bazel failures
 keep Bazel's code. Coverage is incomplete when Bazel reports a
 `coverage.dat` artifact that is missing or invalid, when no coverage
@@ -336,7 +352,8 @@ bazel run @rules_dx//:dx -- coverage --min-coverage 100 //...
 
 Coverage ignores use `LCOV_EXCL_LINE` or `LCOV_EXCL_START` / `LCOV_EXCL_STOP`
 with a short `reason:` and `issue:`. Bare ignores without a reason fail the
-gate.
+gate. `reason:` goes on the marker line or the line before and holds at most 120
+characters. `issue:` must contain a digit.
 
 The comment syntax depends on the language: `//` for Rust, Go, JS/TS, the JVM
 languages (including Kotlin scripts, `.kts`), .NET and C/C++; `#` for Python
@@ -344,6 +361,8 @@ and Ruby; `%` for Erlang (`.erl` and `.hrl`). Markers in other sources
 (`.bzl`, `.pyi`, `.cu`/`.cuh`, `.d.ts`) are not read.
 
 ## Line And Branch Metrics
+
+This section describes `//tools/coverage:coverage_bin`, not `dx coverage`.
 
 The coverage gate enforces exact executable-line coverage. Branch outcomes
 are measured separately and never change the gate. Each file with branch

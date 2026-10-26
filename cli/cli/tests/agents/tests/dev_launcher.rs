@@ -198,7 +198,7 @@ mod sh {
         let stub = base.join("stub/bazel");
         std::fs::write(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      sleep 1\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         )
         .expect("bazel stub");
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -600,7 +600,17 @@ mod sh {
     #[test]
     fn concurrent_stale_runs_all_succeed_and_keep_the_inputs() {
         let repo = source_repo("dx-launcher-concurrent-");
-        let children: Vec<_> = (0..4).map(|_| repo.spawn()).collect();
+        let barrier = repo.base.join("barrier");
+        std::fs::create_dir_all(&barrier).expect("barrier dir");
+        let children: Vec<_> = (0..4)
+            .map(|_| {
+                spawn(
+                    repo.command()
+                        .env("STUB_BARRIER", &barrier)
+                        .env("STUB_BARRIER_N", "4"),
+                )
+            })
+            .collect();
         for child in children {
             let out = child.wait_with_output().expect("launcher runs");
             assert_eq!(
@@ -613,6 +623,7 @@ mod sh {
                 String::from_utf8_lossy(&out.stderr)
             );
         }
+        assert_eq!(repo.builds(), 4, "all four runs really built concurrently");
         assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
         assert!(
             repo.inputs().contains("//cli/cli:BUILD.bazel"),

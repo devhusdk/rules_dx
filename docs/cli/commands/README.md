@@ -462,3 +462,9 @@ Minor releases add without breaking old uses.
 A breaking change needs a new major version and a migration.
 Readers tolerate added fields and fail on a new major schema.
 Bazel 9.2.0 is the tested baseline.
+
+rules_dx does not provide debugger acquisition, launch or attach integration,
+Debug Adapter Protocol adapters, or generated debugger configurations. These
+are unsupported and not planned. Debug build profiles and editor
+language-server settings do not imply debugger support. You can set up
+external debuggers yourself.

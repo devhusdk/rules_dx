@@ -48,7 +48,9 @@ dx test [--here] [--affected] [--debug|--release] [--report junit=<path>] [--rep
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
-`--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict.
+`--release` uses `dx_release`. No flag uses `dx_dev`. The two flags conflict. `--debug` changes compilation
+only. It does not start or attach a debugger. See
+[Supported Surface](README.md#supported-surface).
 Exec tools build at `fastbuild`; `--release` builds them at `opt`.
 Extra `--config` values pass through after the dx profile in their original
 order. Only a conflicting dx profile is rejected.

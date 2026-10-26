@@ -31,7 +31,8 @@ stderr. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/` and `/build/`. Editor settings point at the managed
-interpreter and tools with host-native names.
+interpreter and tools with host-native names. They configure language servers, not debuggers. See
+[Supported Surface](README.md#supported-surface).
 Flags: `--apply`.
 Scopes: optional single module name.
 

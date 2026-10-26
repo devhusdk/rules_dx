@@ -75,8 +75,9 @@ every job.
 
 Opt in with a GitLab CI/CD variable:
 
-1. Add a variable named `DX_REMOTE_BAZELRC` of type File. Mark it protected
-   and masked. Put your remote cache flags in it.
+1. Add a variable named `DX_REMOTE_BAZELRC` of type File. Mark it
+   protected. Put your remote cache flags in it. GitLab cannot mask a
+   multi-line value, so never print the file in a job.
 2. Add this line to the consumer `.bazelrc`:
 
 ```text

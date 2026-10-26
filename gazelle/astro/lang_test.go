@@ -201,3 +201,17 @@ func TestLanguageMetadata(t *testing.T) {
 		t.Errorf("unused ignores = %v, want none", got)
 	}
 }
+
+func TestGenerateBOMKeepsFrontmatterImports(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/demo.astro":   "\xEF\xBB\xBF---\nimport helper from \"./helper.astro\";\n---\n\n<div>x</div>\n",
+		"pkg/demo/helper.astro": component("export const label = \"\";\n"),
+	}, []string{"demo.astro", "helper.astro"})
+	if len(result.Imports) != 2 {
+		t.Fatalf("generated %d import sets, want 2", len(result.Imports))
+	}
+	libImports := result.Imports[0].(common.ImportSet)
+	if strings.Join(libImports.Names, ",") != "pkg/demo/helper" {
+		t.Errorf("library imports = %+v, want [pkg/demo/helper]", libImports)
+	}
+}

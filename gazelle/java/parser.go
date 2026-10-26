@@ -2,7 +2,6 @@ package java
 
 import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -92,7 +91,7 @@ func importCandidates(name string) []string {
 }
 
 func qualifiedIDs(path string) []string {
-	content, err := os.ReadFile(path)
+	content, err := common.ReadSource(path)
 	if err != nil {
 		return nil
 	}

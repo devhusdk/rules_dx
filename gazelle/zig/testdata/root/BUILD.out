@@ -1,0 +1,7 @@
+load("@rules_dx//zig/rules:defs.bzl", "zig_library")
+
+zig_library(
+    name = "demo",
+    srcs = ["util.zig"],
+    main = "demo.zig",
+)

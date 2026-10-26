@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -203,7 +202,7 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 	}
 	var plans []plan
 	for _, src := range sources {
-		content, err := os.ReadFile(filepath.Join(args.Dir, src))
+		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
 			l.fail("javascript: %s: read %s: %v", args.Rel, src, err)
 			continue

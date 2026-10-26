@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path"
@@ -198,7 +199,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	}
 	var plans []plan
 	for _, src := range sources {
-		content, err := os.ReadFile(filepath.Join(args.Dir, src))
+		content, err := ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
 			rep.Fail("%s: %s: read %s: %v", spec.LanguageName, args.Rel, src, err)
 			continue
@@ -246,6 +247,20 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	return MergeStale(args.File, result, kinds)
 }
 
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+
+func StripBOM(content []byte) []byte {
+	return bytes.TrimPrefix(content, utf8BOM)
+}
+
+func ReadSource(path string) ([]byte, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return StripBOM(content), nil
+}
+
 type SingleDirSpec struct {
 	LanguageName string
 	LibraryKind  string
@@ -253,6 +268,7 @@ type SingleDirSpec struct {
 	IsHeader     func(name string) bool
 	IsMainFile   func(name string) bool
 	DirName      func(dir string) (string, error)
+	RootHint     func(args language.GenerateArgs) string
 	CheckPackage bool
 	ParsePackage func(content []byte) (string, error)
 	DefinesMain  func(content []byte) bool
@@ -282,7 +298,11 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	if len(sources) == 0 && len(headers) == 0 {
 		return MergeStale(args.File, language.GenerateResult{}, kinds)
 	}
-	name, err := PackageTargetName(args)
+	var hints []string
+	if args.Rel == "" && spec.RootHint != nil {
+		hints = append(hints, spec.RootHint(args))
+	}
+	name, err := PackageTargetName(args, hints...)
 	if args.Rel != "" {
 		name, err = spec.DirName(args.Rel)
 	}
@@ -299,7 +319,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	contents := make(map[string][]byte, len(sources))
 	var imports []string
 	for _, file := range append(append([]string{}, sources...), headers...) {
-		content, err := os.ReadFile(filepath.Join(args.Dir, file))
+		content, err := ReadSource(filepath.Join(args.Dir, file))
 		if err != nil {
 			rep.Fail("%s: %s: read %s: %v", spec.LanguageName, args.Rel, file, err)
 			continue

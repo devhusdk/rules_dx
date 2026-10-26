@@ -418,3 +418,16 @@ func TestResolveNuGetNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 		t.Fatal("an unresolved NuGet import was not reported")
 	}
 }
+
+func TestGenerateBOMKeepsUsing(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/Demo.cs": "\xEF\xBB\xBFusing Acme.Shared;\n\nnamespace Demo;\n\nclass Demo\n",
+	}, []string{"Demo.cs"})
+	if len(result.Imports) != 1 {
+		t.Fatalf("generated %d import sets, want 1", len(result.Imports))
+	}
+	got := result.Imports[0].(common.ImportSet)
+	if strings.Join(got.Names, ",") != "Shared" {
+		t.Errorf("imports = %+v, want [Shared]", got.Names)
+	}
+}

@@ -73,6 +73,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			return isSupported(file) && !IsTestSource(file) && !IsBuildScript(file)
 		},
 		DirName:      DirTargetName,
+		RootHint:     rootHint,
 		ParsePackage: ParsePackage,
 		DefinesMain:  DefinesMain,
 		MainRule:     "zig_binary",

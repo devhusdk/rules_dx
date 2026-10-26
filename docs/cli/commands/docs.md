@@ -71,6 +71,8 @@ The build never changes sources. Serve runs a local preview only. The site
 renders Markdown to HTML with syntax-highlighted code, a sidebar, a search
 index, and one route per page.
 
+API pages show `Undocumented.` when the source has no doc comment.
+
 ## Rust API reference
 
 `rust_doc_shard` from `@rules_dx//tools/docs/rust:defs.bzl` documents one Rust

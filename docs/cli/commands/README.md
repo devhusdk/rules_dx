@@ -455,6 +455,7 @@ SDK and toolchain extensions:
 - `@rules_dx//apple/ios:simulator.bzl`: iOS simulator.
 - `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
 - `@rules_dx//gleam/rules:hex.bzl`: Hex packages for Gleam.
+- `@rules_dx//powershell/rules:gallery.bzl`: PowerShell Gallery modules.
 - `@rules_dx//msix:repos.bzl`: MSIX tools.
 - `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.
 

@@ -51,13 +51,13 @@ _ruby_forward_test = dx_executable_forward_rule(
 )
 
 def ruby_library(name, srcs, visibility = None, **kwargs):
-    """Minimal wrapper over rb_library."""
+    """Minimal wrapper over rb_library; takes .rb srcs."""
     dx_wrap(name, _rb_library, _ruby_library_forward, srcs, visibility = visibility, **kwargs)
 
 def ruby_binary(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over rb_binary."""
+    """Minimal wrapper over rb_binary; srcs is optional."""
     dx_wrap_binary(name, _rb_binary, _ruby_binary_forward, srcs, visibility = visibility, **kwargs)
 
 def ruby_test(name, srcs, visibility = None, **kwargs):
-    """Minimal wrapper over rb_test."""
+    """Minimal wrapper over rb_test; set main to a runner such as an RSpec bin."""
     dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, **kwargs)

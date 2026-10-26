@@ -41,6 +41,7 @@ workspace below records exact commands and expected evidence in its own
 - [appimage-app](appimage-app/) multi-package Linux C app with a shared library and a packaged resource, built as an AppImage and run without FUSE in tests.
 - [c-app](c-app/) multi-package pure C stock CLI with a pinned `cJSON` dependency, a generated header and packaged data.
 - [cpp-app](cpp-app/) multi-package C++17 menu report with templates, a pinned `fmt` dependency, a generated header and a runfiles resource.
+- [cuda-app](cuda-app/) multi-package CUDA app with three kernels behind a C ABI header, a C++ binary with a CPU fallback and checks on the compiled device code.
 - [elixir-app](elixir-app/) multi-package Elixir application with a generated unit table, a supervised ledger, a pinned `jason` Hex package and an escript.
 - [erlang-app](erlang-app/) multi-package Erlang/OTP key-value store with a leex and yecc parser, a supervised application, a pinned `thoas` dependency and an escript.
 - [gleam-app](gleam-app/) multi-package Gleam stock CLI for Erlang and JavaScript with a generated unit table, a typed ledger and a pinned `gleam_json` Hex package.

@@ -1,0 +1,50 @@
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files([
+    "BUILD.bazel",
+    "common.cuh",
+    "kernels.h",
+    "reduce.cu",
+    "stencil.cu",
+    "vector_add.cu",
+])
+
+cuda_library(
+    name = "kernels",
+    srcs = [
+        "reduce.cu",
+        "stencil.cu",
+        "vector_add.cu",
+    ],
+    hdrs = [
+        "common.cuh",
+        "kernels.h",
+    ],
+    archs = [
+        "compute_80:compute_80,sm_80",
+        "sm_90",
+    ],
+)
+
+filegroup(
+    name = "format_srcs",
+    srcs = [
+        "common.cuh",
+        "kernels.h",
+        "reduce.cu",
+        "stencil.cu",
+        "vector_add.cu",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

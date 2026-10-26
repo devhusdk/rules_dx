@@ -27,7 +27,7 @@ pub const AMBIENT_TOOLS: &[&str] = &[
     "ranlib", "nm", "strip", "objcopy", "objdump", "python", "python3", "perl", "ruby", "gem",
     "node", "npm", "npx", "yarn", "pnpm", "java", "javac", "go", "rustc", "cargo", "rustup",
     "dotnet", "mono", "swift", "swiftc", "kotlinc", "scalac", "pip", "pip3", "make", "cmake",
-    "ninja", "curl", "wget", "git", "tar", "unzip", "xz", "bzip2", "zstd", "7z", "7za",
+    "ninja", "curl", "wget", "git", "tar", "unzip", "xz", "bzip2", "zstd", "7z", "7za", "nvcc",
 ];
 
 pub const TOOL_DIRS: &[&str] = &["/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"];
@@ -42,7 +42,12 @@ pub const SDK_DIRS: &[&str] = &[
     "/usr/libexec/gcc",
 ];
 
-pub const SDK_DIR_PREFIXES: &[(&str, &str)] = &[("/usr/lib", "llvm-"), ("/usr/lib", "clang")];
+pub const SDK_DIR_PREFIXES: &[(&str, &str)] = &[
+    ("/usr/lib", "llvm-"),
+    ("/usr/lib", "clang"),
+    ("/usr/lib", "cuda"),
+    ("/usr/lib", "nvidia-cuda-toolkit"),
+];
 
 /// Lists the host SDK directories, including versioned LLVM trees.
 pub fn sdk_candidates() -> Vec<PathBuf> {
@@ -141,6 +146,7 @@ pub struct Manifest {
     pub patterns: Vec<String>,
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: PathBuf,
+    pub fragment_before_toolchains: bool,
     pub dx: PathBuf,
     pub module_file: PathBuf,
     pub bazelversion: PathBuf,
@@ -222,6 +228,9 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         patterns,
         files,
         module_fragment: base.join(string(&value, "module_fragment")?),
+        fragment_before_toolchains: value["fragment_before_toolchains"]
+            .as_bool()
+            .unwrap_or(false),
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
         bazelversion: base.join(string(&value, "bazelversion")?),
@@ -257,12 +266,38 @@ pub fn add_rust_target_triples(snippet: &str, triples: &[String]) -> Result<Stri
     ))
 }
 
+/// Inserts `fragment` before the first `register_toolchains(` line of `setup`.
+fn insert_before_toolchains(setup: &str, fragment: &str) -> Result<String, String> {
+    let mut at = None;
+    let mut offset = 0;
+    for line in setup.split_inclusive('\n') {
+        if line.starts_with("register_toolchains(") {
+            at = Some(offset);
+            break;
+        }
+        offset += line.len();
+    }
+    let at = at.ok_or_else(|| {
+        format!("dx init snippet has no register_toolchains to put the fragment before: {setup}")
+    })?;
+    Ok(format!(
+        "{}{}\n\n{}",
+        &setup[..at],
+        fragment.trim_end(),
+        &setup[at..]
+    ))
+}
+
 /// Builds the consumer MODULE.bazel from the `dx init` snippet.
+///
+/// The fragment is appended, or with `before_toolchains` placed ahead of the snippet's first
+/// toolchain registration so its own registrations resolve first.
 pub fn compose_module(
     snippet: &str,
     module: &str,
     repo_name: &str,
     fragment: &str,
+    before_toolchains: bool,
     rules_dx: &Path,
 ) -> Result<String, String> {
     let needle = "bazel_dep(name = \"rules_dx\", ";
@@ -280,11 +315,17 @@ pub fn compose_module(
             1,
         )
     };
+    let body = if before_toolchains {
+        insert_before_toolchains(&setup, fragment)?
+            .trim_end()
+            .to_owned()
+    } else {
+        format!("{}\n{}", setup.trim_end(), fragment.trim_end())
+    };
     Ok(format!(
-        "module(name = {})\n\n{}\n{}\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
+        "module(name = {})\n\n{}\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
         starlark_string(module),
-        setup.trim_end(),
-        fragment.trim_end(),
+        body,
         starlark_string(&rules_dx.to_string_lossy()),
     ))
 }
@@ -663,7 +704,7 @@ fn probe_expectation(name: &str) -> (&'static str, &'static str) {
     }
 }
 
-const NATIVE_LANGUAGES: [&str; 4] = ["appimage", "cpp", "rust", "zig"];
+const NATIVE_LANGUAGES: [&str; 5] = ["appimage", "cpp", "cuda", "rust", "zig"];
 
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts
@@ -900,7 +941,14 @@ pub fn materialize(
         .map_err(|err| format!("cannot read {}: {err}", manifest.module_fragment.display()))?;
     let snippet = add_rust_target_triples(&snippet, &manifest.rust_target_triples)?;
     let (name, repo) = (&manifest.module, &manifest.repo_name);
-    let module = compose_module(&snippet, name, repo, &fragment, source)?;
+    let module = compose_module(
+        &snippet,
+        name,
+        repo,
+        &fragment,
+        manifest.fragment_before_toolchains,
+        source,
+    )?;
     write(&workspace.join("MODULE.bazel"), &module)?;
     copy(&manifest.bazelversion, &workspace.join(".bazelversion"))?;
     for (src, dest) in &manifest.files {

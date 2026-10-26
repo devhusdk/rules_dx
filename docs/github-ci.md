@@ -134,6 +134,9 @@ fails or is cancelled, when a declared check never reports a result, and when a
 check is skipped without being listed in `disabled_checks`. A check you disabled
 stays distinguishable from a check that never ran.
 
+When a pull request or push run is cancelled, the gate is skipped and uses no
+runner. In a merge queue the gate still runs and fails.
+
 The workflow needs `contents: read` plus `checks: write` for check runs.
 `coverage` also needs `pull-requests: write` for its pull-request comment.
 The comment shows PASS or FAIL for the coverage threshold and the changed-line
@@ -333,7 +336,9 @@ permissions, so a read-only repository default is fine.
 
 - Approval policy: `all_external_contributors`, so fork pull requests run.
 - Branch protection for the consumer workflow: require `dx-ci (aggregate)`.
-  One green gate covers the whole matrix.
+  One green gate covers the whole matrix. GitHub counts a skipped required
+  check as passing, so rerun a cancelled pull request run before merging, or
+  use a merge queue.
 - Branch protection for the docs workflow: require `docs-check`. Add
   `docs-publish (GitHub Pages)` once `publish` is true.
 - Merge gate: require branches to be up to date, or use a merge queue. Both

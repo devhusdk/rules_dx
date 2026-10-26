@@ -304,8 +304,7 @@ jobs:
           key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   ci:
     name: ci
-    # One green gate covers every job in this workflow.
-    if: ${{ always() }}
+    if: ${{ !cancelled() || github.event_name == 'merge_group' }}
     needs:
       [
         dogfood,

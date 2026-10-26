@@ -813,7 +813,7 @@ jobs:
   dx-ci:
     name: dx-ci (aggregate)
     needs: [validate, lint, typecheck, format, generate, security-audit, advisory-snapshots, license-audit, test, build, coverage]
-    if: ${{ always() }}
+    if: ${{ !cancelled() || github.event_name == 'merge_group' }}
     timeout-minutes: 10
     runs-on: ubuntu-latest
     permissions:

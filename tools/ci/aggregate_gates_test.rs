@@ -12,6 +12,9 @@ const GATE: &str = "ci";
 
 const AGGREGATE: &str = "dx-ci";
 
+/// Runs a gate on every dependency outcome, except a cancelled run outside merge_group.
+const GATE_IF: &str = "${{ !cancelled() || github.event_name == 'merge_group' }}";
+
 /// Returns the parsed workflow, which must be valid Actions YAML.
 fn document(workflow: &str) -> Value {
     let text = read_runfiles(workflow);
@@ -75,8 +78,8 @@ fn the_outer_gate_requires_every_declared_dependency() {
     );
     assert_eq!(
         document["jobs"][GATE]["if"],
-        json!("${{ always() }}"),
-        "{CI_WORKFLOW} job {GATE} must run on every dependency outcome"
+        json!(GATE_IF),
+        "{CI_WORKFLOW} job {GATE} must run on every dependency outcome unless the run is cancelled outside merge_group"
     );
     let script = aggregate_script(CI_WORKFLOW, GATE);
     assert_eq!(
@@ -111,6 +114,11 @@ fn the_consumer_gate_requires_every_declared_check() {
         document["jobs"][AGGREGATE]["name"],
         json!("dx-ci (aggregate)"),
         "{CONSUMER_WORKFLOW} job {AGGREGATE} keeps the branch-protection check name"
+    );
+    assert_eq!(
+        document["jobs"][AGGREGATE]["if"],
+        json!(GATE_IF),
+        "{CONSUMER_WORKFLOW} job {AGGREGATE} must run on every dependency outcome unless the run is cancelled outside merge_group"
     );
     let wanted: Vec<String> = needs_of(CONSUMER_WORKFLOW, AGGREGATE)
         .into_iter()

@@ -655,7 +655,10 @@ impl RealBackend {
             "pkl" => {
                 let invocation = commands::pkl_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(tool_id, parsers::parse_pkl(&out.stdout, out.code, &strs))
+                parsed(
+                    tool_id,
+                    parsers::parse_pkl(&out.stdout, &out.stderr, out.code, &strs),
+                )
             }
             "modfmt" => {
                 let invocation = commands::modfmt_check(&tool.binary, &refs);

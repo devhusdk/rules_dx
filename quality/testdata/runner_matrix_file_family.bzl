@@ -10,6 +10,8 @@ _CUE_MODULE = "quality/tests/fixtures/consumer_policy/cue_module/"
 
 _JSONNET_MODULE = "quality/tests/fixtures/consumer_policy/jsonnet_module/"
 
+_PKL_MODULE = "quality/tests/fixtures/consumer_policy/pkl_module/"
+
 _TERRAFORM_MODULE = "quality/tests/fixtures/consumer_policy/terraform_module/"
 
 FILE_FAMILY_CASES = [
@@ -137,19 +139,54 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["pkl;pkl;matrix/pkl_clean.pkl"],
         "tool_names": ["pkl"],
-        "tool_binaries": ["//quality/testdata:fake_pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
         "expected_file": ":matrix/matrix_pkl_format_pass.expected.txt",
     },
     {
         "name": "matrix_pkl_format_fail",
         "generated": {
-            "matrix/pkl_dirty.pkl": "value=\"hello\"BADFMT\n",
+            "matrix/pkl_dirty.pkl": "value   =   \"hello\"\n",
         },
         "capability": "format",
         "stages": ["pkl;pkl;matrix/pkl_dirty.pkl"],
         "tool_names": ["pkl"],
-        "tool_binaries": ["//quality/testdata:fake_pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
         "expected_file": ":matrix/matrix_pkl_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_pkl_format_syntax_error",
+        "generated": {
+            "matrix/pkl_broken.pkl": "value = = 1\n",
+        },
+        "capability": "format",
+        "stages": ["pkl;pkl;matrix/pkl_broken.pkl"],
+        "tool_names": ["pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
+        "expected_file": ":matrix/matrix_pkl_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_pkl_format_module",
+        "srcs": ["//quality/tests/fixtures/consumer_policy:pkl_module"],
+        "capability": "format",
+        "stages": ["pkl;pkl;" + ",".join([
+            _PKL_MODULE + "lib/settings.pkl",
+            _PKL_MODULE + "main.pkl",
+        ])],
+        "tool_names": ["pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
+        "expected_file": ":matrix/matrix_pkl_format_module.expected.txt",
+    },
+    {
+        "name": "matrix_pkl_format_module_syntax_error",
+        "generated": {
+            "matrix/pkl_module/lib/settings.pkl": "retries = 3\n",
+            "matrix/pkl_module/main.pkl": "import \"lib/settings.pkl\"\n\nname = \"app\"\nretries = settings.retries +\n",
+        },
+        "capability": "format",
+        "stages": ["pkl;pkl;matrix/pkl_module/lib/settings.pkl,matrix/pkl_module/main.pkl"],
+        "tool_names": ["pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
+        "expected_file": ":matrix/matrix_pkl_format_module_syntax_error.expected.txt",
     },
     {
         "name": "matrix_go_module_format_pass",

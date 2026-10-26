@@ -8,4 +8,4 @@ initial 1
 initial WARNING pkl - matrix/pkl_dirty.pkl 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/pkl_dirty.pkl 13 19 "fixed"
+replacement matrix/pkl_dirty.pkl 6 11 "="

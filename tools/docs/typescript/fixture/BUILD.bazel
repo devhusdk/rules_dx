@@ -1,13 +1,19 @@
-load("//tools/docs/typedoc:defs.bzl", "typedoc_site")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
 
 package(default_visibility = ["//:__subpackages__"])
 
-typedoc_site(
+typescript_doc_shard(
     name = "geometry_docs",
     srcs = glob(["src/*.ts"]),
     entry_points = ["src/index.ts"],
     package = "geometry",
-    source_url = "https://example.test/geometry/blob/main/{file}#L{line}",
     tsconfig = "tsconfig.json",
-    deps = ["//:node_modules/csstype"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

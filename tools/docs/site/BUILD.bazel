@@ -36,6 +36,17 @@ docs_site(
 )
 
 docs_site(
+    name = "demo_polyglot_site",
+    book_toml = "demo/book.toml",
+    prose = ["demo/demo_prose.md"],
+    shards = [
+        "//tools/docs/rust/fixture:docs_fixture_docs",
+        "//tools/docs/typescript/fixture:geometry_docs",
+    ],
+    source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
+)
+
+docs_site(
     name = "demo_changed_site",
     book_toml = "demo/book.toml",
     prose = ["demo/demo_prose.md"],

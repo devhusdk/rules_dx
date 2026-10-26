@@ -227,7 +227,10 @@ pub fn plan_new_files(language: &str, name: &str) -> Result<Vec<ScaffoldFile>, A
     let language_files = new_language_files(canonical, &identity)?;
     let mut files = Vec::new();
     for file in super::plan_init_files(&identity)? {
-        if language_files.iter().any(|(suffix, _)| *suffix == file.path) {
+        if language_files
+            .iter()
+            .any(|(suffix, _)| *suffix == file.path)
+        {
             continue;
         }
         files.push(ScaffoldFile {

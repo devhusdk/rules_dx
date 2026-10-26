@@ -196,16 +196,18 @@ fn toolchain_check(root: &Path) -> StatusCheck {
             hint,
         );
     };
-    let binding = module.calls_named("use_extension").find_map(|call| {
-        match call.positional.as_slice() {
-            [dx_module_bazel::Value::Str(label), dx_module_bazel::Value::Str(name), ..]
-                if label.value == "@rules_rust//rust:extensions.bzl" && name.value == "rust" =>
-            {
-                call.binding.clone()
-            }
-            _ => None,
-        }
-    });
+    let binding =
+        module
+            .calls_named("use_extension")
+            .find_map(|call| match call.positional.as_slice() {
+                [dx_module_bazel::Value::Str(label), dx_module_bazel::Value::Str(name), ..]
+                    if label.value == "@rules_rust//rust:extensions.bzl"
+                        && name.value == "rust" =>
+                {
+                    call.binding.clone()
+                }
+                _ => None,
+            });
     let tag = binding.map(|binding| format!("{binding}.toolchain"));
     let versions: Vec<&str> = tag
         .iter()
@@ -225,22 +227,22 @@ fn toolchain_check(root: &Path) -> StatusCheck {
     });
     let rules_rust = match module.bazel_dep_version("rules_rust") {
         Ok(version) if !overridden => version.value.clone(),
-        _ => {
-            return check(
-                "toolchain",
-                "warn",
-                "unknown: rules_rust version comes from an override or is not declared in MODULE.bazel"
-                    .to_owned(),
-                hint,
-            )
-        }
+        _ => return check(
+            "toolchain",
+            "warn",
+            "unknown: rules_rust version comes from an override or is not declared in MODULE.bazel"
+                .to_owned(),
+            hint,
+        ),
     };
     let declared = versions.join(", ");
     if declared == CONSUMER_RUST_VERSION && rules_rust == CONSUMER_RULES_RUST_VERSION {
         return check(
             "toolchain",
             "ok",
-            format!("available: rust {declared} via rules_rust {rules_rust} declared in MODULE.bazel"),
+            format!(
+                "available: rust {declared} via rules_rust {rules_rust} declared in MODULE.bazel"
+            ),
             hint,
         );
     }
@@ -371,8 +373,7 @@ mod tests {
         StatusCheck {
             name: "tools".to_owned(),
             status: "warn".to_owned(),
-            detail: "unknown: pinned tools (//quality/artifacts) resolve at build time"
-                .to_owned(),
+            detail: "unknown: pinned tools (//quality/artifacts) resolve at build time".to_owned(),
             hint: "bazel build //...".to_owned(),
         }
     }
@@ -418,7 +419,8 @@ mod tests {
                 super::CONSUMER_RULES_RUST_VERSION
             )
         );
-        let renamed = run(&setup.replace("rust = use_extension", "rs = use_extension")
+        let renamed = run(&setup
+            .replace("rust = use_extension", "rs = use_extension")
             .replace("rust.toolchain", "rs.toolchain")
             .replace("use_repo(rust,", "use_repo(rs,"));
         assert_eq!(renamed.status, "ok", "{}", renamed.detail);

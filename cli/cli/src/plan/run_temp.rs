@@ -14,6 +14,10 @@ pub fn intended_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
     temp_dir.join(format!("dx-generate-{pid}-{nonce}.json"))
 }
 
+pub fn patch_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
+    temp_dir.join(format!("dx-generate-{pid}-{nonce}.patch"))
+}
+
 static RUN_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub fn run_nonce() -> u64 {

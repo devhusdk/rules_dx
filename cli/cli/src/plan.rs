@@ -25,8 +25,8 @@ pub use run_deploy::{
     shell_quote,
 };
 pub use run_temp::{
-    bep_path, clean_for_stop, create_run_temp_dir, intended_path, remove_on_stop, results_path,
-    run_nonce,
+    bep_path, clean_for_stop, create_run_temp_dir, intended_path, patch_path, remove_on_stop,
+    results_path, run_nonce,
 };
 pub use workflow::{plan_workflow, workflow_options, workflow_protected, WorkflowVerb};
 

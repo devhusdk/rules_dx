@@ -48,7 +48,8 @@ A refused change has a `reason`: `write_mismatch`, `missing_file`, or
 `unreadable_file`. Each ignored import emits a `notice` with `code`
 `ignored_import`, `level` `warning`, `path`, `language`, and `import`. A Bazel
 failure with `--apply`, or one that leaves results incomplete, emits a
-`bazel_failed` error. `command_finished` ends the stream with
+`bazel_failed` error. So does a Gazelle failure with `--check`, including a
+nonzero exit that does not come with a Gazelle diff. `command_finished` ends the stream with
 `results_complete`, `exit_code`, and `changes` with `create` and `modify`
 counts, plus `applied` and `refused` with `--apply`. An incomplete `--apply`
 run still emits its `change` events and `changes` with `applied` and `refused`.

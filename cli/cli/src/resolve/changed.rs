@@ -404,6 +404,7 @@ fn is_workspace_input(path: &str, rc_files: &BTreeSet<String>) -> bool {
         name,
         "MODULE.bazel" | "MODULE.bazel.lock" | "WORKSPACE" | "WORKSPACE.bazel" | ".bazelversion"
     ) || name.starts_with(".bazelrc")
+        || (name.ends_with(".MODULE.bazel") && !name.starts_with('.'))
         || rc_files.contains(path)
 }
 
@@ -443,10 +444,14 @@ fn is_crate_extension(extension: &Option<(String, String)>) -> bool {
 }
 
 fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
-    let hubs = std::fs::read_to_string(workspace.join("MODULE.bazel"))
-        .ok()
-        .and_then(|text| lock_inputs::crate_hubs(&text).ok())
-        .unwrap_or_default();
+    let hubs_of = |path: &Path| {
+        std::fs::read_to_string(path)
+            .ok()
+            .and_then(|text| lock_inputs::crate_hubs(&text).ok())
+    };
+    let root_hubs = hubs_of(&workspace.join("MODULE.bazel"));
+    let mut hubs = root_hubs.clone().unwrap_or_default();
+    let mut segments_ok = root_hubs.is_some();
     let mut inputs = ModuleInputPaths {
         paths: BTreeSet::new(),
         fallback: true,
@@ -454,6 +459,12 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
     if let Ok(scanned) = dx_adopt::module_inputs(workspace) {
         inputs.fallback = !scanned.complete;
         for file in scanned.files {
+            if file.tag == "include" {
+                match hubs_of(&workspace.join(&file.path)) {
+                    Some(found) => hubs.extend(found),
+                    None => segments_ok = false,
+                }
+            }
             if is_crate_extension(&file.extension) {
                 continue;
             }
@@ -468,6 +479,9 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
             }
             inputs.paths.insert(file.path);
         }
+    }
+    if !segments_ok {
+        hubs.clear();
     }
     (hubs, inputs)
 }
@@ -1123,6 +1137,7 @@ mod tests {
         for changed in [
             "MODULE.bazel",
             "MODULE.bazel.lock",
+            "deps/go.MODULE.bazel",
             "Cargo.lock",
             ".bazelrc",
         ] {
@@ -1347,6 +1362,46 @@ mod tests {
         format!(
             "version = 3\n\n[[package]]\nname = \"serde\"\nversion = \"{serde}\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n\n[[package]]\nname = \"itoa\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n"
         )
+    }
+
+    #[test]
+    fn included_segment_crate_hubs_count_as_lock_inputs() {
+        let scratch = dx_test_scratch::scratch("dx-changed-segment-hubs-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "include(\"//deps:rust.MODULE.bazel\")\n",
+        );
+        write(workspace, "deps/BUILD.bazel", "");
+        write(workspace, "deps/rust.MODULE.bazel", CRATE_MODULE);
+        let (hubs, _) = module_inputs_of(workspace);
+        assert_ne!(
+            lock_inputs::classify("cargo-bazel-lock.json", &hubs),
+            LockKind::Unknown
+        );
+    }
+
+    #[test]
+    fn root_extension_binding_does_not_reach_a_segment() {
+        let scratch = dx_test_scratch::scratch("dx-changed-segment-binding-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ninclude(\"//deps:rust.MODULE.bazel\")\n",
+        );
+        write(workspace, "deps/BUILD.bazel", "");
+        write(
+            workspace,
+            "deps/rust.MODULE.bazel",
+            "crate.from_cargo(cargo_lockfile = \"//:Cargo.lock\", lockfile = \"//:cargo-bazel-lock.json\")\n",
+        );
+        let (hubs, _) = module_inputs_of(workspace);
+        assert_eq!(
+            lock_inputs::classify("cargo-bazel-lock.json", &hubs),
+            LockKind::Unknown
+        );
     }
 
     fn crate_workspace(prefix: &str) -> tempfile::TempDir {

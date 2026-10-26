@@ -596,7 +596,7 @@ fn bazel_coverage_diagnostic(
     };
     use dx_audit::locks::BazelSource;
     let message = format!(
-        "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule); no advisory source maps Bazel module or archive identities",
+        "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule, {} module extension); no advisory source maps Bazel module or archive identities",
         set.name,
         inputs.len(),
         count(BazelSource::Registry),
@@ -605,6 +605,7 @@ fn bazel_coverage_diagnostic(
         count(BazelSource::GitOverride),
         count(BazelSource::LocalOverride),
         count(BazelSource::RepoRule),
+        count(BazelSource::Extension),
     );
     DiagnosticEvent {
         rule: Some(format!(

@@ -10,6 +10,11 @@ QualitySourcesInfo = provider(
     },
 )
 
+QualityToolsInfo = provider(
+    doc = "Quality tools a rule carries, keyed by tool ID.",
+    fields = {"tools": "Dict[str, FilesToRunProvider]: tool ID to executable."},
+)
+
 SOURCES_REGISTRY_SCHEMA_VERSION = 1
 
 KNOWN_SEMANTIC_FILE_CLASSES = [

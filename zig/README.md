@@ -34,11 +34,11 @@ multi-package app.
 
 ## Formatting
 
-`dx format` runs `zig fmt` when a `zig` family selects `zig_fmt`. The Zig SDK
-is fetched only when you set the tool flag:
+`dx format` runs `zig fmt` when a `zig` family selects `zig_fmt`. No flag is
+needed. The Zig SDK is fetched only for Zig targets:
 
 ```sh
-dx format --apply -- --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig
+dx format --apply
 ```
 
 ## Generating BUILD files

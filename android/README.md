@@ -115,17 +115,20 @@ rust_android_apk(
 The package links one `lib/<abi>/lib<name>_bin.so` per ABI from the
 static native deps and signs the APK with the debug key. Builds never
 use a release key. Build `:app_apk` for the installable `app_apk.apk`;
-it selects the platforms named in `abis`, and an unknown ABI fails. The native deps need
-`alwayslink = True` so `ANativeActivity_onCreate` stays exported, and
-`-landroid -llog` as link options when they use the NDK APIs. The
-default manifest launches a `NativeActivity` loading that library;
-pass `manifest` to package a custom one. A custom manifest must set
-`android.app.lib_name` to `<name>_bin`. `app_id`, `permissions`,
-`abis`, `api_level`, `version_code`, and `version_name` stay with the
-consumer; unknown ABIs, empty ABI sets, malformed app IDs, downgraded
-API levels, non-positive version codes, and empty launch activities
-fail at analysis, as do adb launchers without a serial. Package outputs are explicit-label only. See
-[App Bundles](#app-bundles) for the `.aab` output.
+it selects the platforms named in `abis`, and an unknown ABI fails. The
+native deps need `alwayslink = True` so `ANativeActivity_onCreate` stays
+exported, and `-landroid -llog` as link options when they use the NDK
+APIs. The default manifest launches a `NativeActivity` loading that
+library; pass `manifest` to package a custom one. Pass Java `srcs` and a
+`manifest` naming your own activity to package a Java bridge, and load
+the library with `System.loadLibrary("<name>_bin")`. A custom manifest
+must set `android.app.lib_name` to `<name>_bin`. `app_id`,
+`permissions`, `abis`, `api_level`, `version_code`, and `version_name`
+stay with the consumer; unknown ABIs, empty ABI sets, malformed app IDs,
+downgraded API levels, non-positive version codes, and empty launch
+activities fail at analysis, as do adb launchers without a serial.
+Package outputs are explicit-label only. See [App Bundles](#app-bundles)
+for the `.aab` output.
 
 A module that depends on `rules_dx` copies the
 rules_android override in [patches/README.md](../patches/README.md#rules_android).

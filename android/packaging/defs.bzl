@@ -353,7 +353,7 @@ def android_adb_install(name, apk, serial = "", visibility = None):
     )
     sh_binary(
         name = name,
-        srcs = ["//android/packaging:adb_ops.sh"],
+        srcs = [Label("//android/packaging:adb_ops.sh")],
         data = [":" + name + "_apk", ":" + name + "_selection"],
         env = {
             "DX_ADB_APK": "$(location :" + name + "_apk)",
@@ -377,7 +377,7 @@ def android_adb_start(name, app_id, activity = "android.app.NativeActivity", ser
     )
     sh_binary(
         name = name,
-        srcs = ["//android/packaging:adb_ops.sh"],
+        srcs = [Label("//android/packaging:adb_ops.sh")],
         data = [":" + name + "_selection"],
         env = {
             "DX_ADB_ACTIVITY": activity,
@@ -399,7 +399,7 @@ def android_adb_log(name, serial = "", visibility = None):
     )
     sh_binary(
         name = name,
-        srcs = ["//android/packaging:adb_ops.sh"],
+        srcs = [Label("//android/packaging:adb_ops.sh")],
         data = [":" + name + "_selection"],
         env = {
             "DX_ADB_OP": "log",

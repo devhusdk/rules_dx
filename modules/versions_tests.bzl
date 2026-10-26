@@ -1,6 +1,7 @@
 """Canonical version pins stay equal to MODULE.bazel literals."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_harness_test")
+load("//tools/testing:bazel_pins.bzl", "NESTED_BAZEL_SHA256", "NESTED_BAZEL_VERSION")
 load(":cuda.bzl", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_HOST_SYSROOT = "CUDA_HOST_SYSROOT", _MOD_CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _MOD_TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
 load(":dotnet.bzl", _MOD_DOTNET_VERSION = "DOTNET_VERSION", _MOD_RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION")
 load(":java-scala-kotlin.bzl", _JAVA_RUNTIME_VERSION = "JAVA_RUNTIME_VERSION", _JVM_TOOL_VERSIONS = "JVM_TOOL_VERSIONS", _MOD_SCALA_VERSION = "SCALA_VERSION")
@@ -60,6 +61,8 @@ def versions_contract_tests(name):
             expect_equal("cuda rules module follows canonical", _MOD_RULES_CUDA_VERSION, _RULES_CUDA_VERSION),
             expect_equal("cuda host llvm module follows canonical", _MOD_CUDA_HOST_LLVM_VERSION, _CUDA_HOST_LLVM_VERSION),
             expect_equal("toolchains_llvm module follows canonical", _MOD_TOOLCHAINS_LLVM_VERSION, _TOOLCHAINS_LLVM_VERSION),
+            expect_equal("nested bazel pin follows canonical", NESTED_BAZEL_VERSION, _BAZEL_VERSION),
+            expect_equal("nested bazel pins every platform", sorted(NESTED_BAZEL_SHA256.keys()), ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64"]),
         ],
         file_blocks = {
             "//:MODULE.bazel": [manifests_block],

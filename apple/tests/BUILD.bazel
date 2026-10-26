@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
 # keep
 rust_test(
@@ -57,7 +57,7 @@ rust_test(
     data = [
         "//apple/provisioning:probe.sh",
         "//cli/cli:dx",
-    ],
+    ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
@@ -84,7 +84,7 @@ rust_test(
         "macos_consumer_test.rs",
     ],
     crate_root = "macos_consumer_test.rs",
-    data = ["//apple/provisioning:probe.sh"],
+    data = ["//apple/provisioning:probe.sh"] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
@@ -108,7 +108,7 @@ rust_test(
         "macos_app_consumer_test.rs",
     ],
     crate_root = "macos_app_consumer_test.rs",
-    data = ["//apple/provisioning:probe.sh"],
+    data = ["//apple/provisioning:probe.sh"] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
@@ -135,7 +135,7 @@ rust_test(
     data = [
         "//apple/ios:xcframework_check.sh",
         "//apple/provisioning:probe.sh",
-    ],
+    ] + NESTED_BAZEL_DATA,
     env = {
         "DX_XCFRAMEWORK_CHECK": "$(rootpath //apple/ios:xcframework_check.sh)",
         "RUST_TEST_THREADS": "1",

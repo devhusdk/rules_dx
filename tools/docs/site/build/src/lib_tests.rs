@@ -122,6 +122,21 @@ fn readme_pages_get_the_alias_mdbook_own_rewriting_needs() {
     );
     assert_eq!(alias_route("docs/docs.md"), None);
     assert_eq!(alias_route("guide.txt"), None);
+    assert_eq!(alias_route("docs/MY_README.md"), None);
+    assert_eq!(alias_route("MY_README.md"), None);
+}
+
+#[test]
+fn alias_errors_leave_a_non_readme_page_alone() {
+    let dir = scratch("alias-other");
+    let out = dir.join("out");
+    fs::create_dir_all(out.join("docs")).expect("a writable output directory");
+    fs::write(out.join("docs/MY_README.html"), "kept").expect("a writable page");
+    let refusal = alias_errors(&[page("docs/MY_README.md", "a.md")], &out);
+    assert_eq!(refusal, "");
+    let kept = fs::read_to_string(out.join("docs/MY_README.html")).expect("the page");
+    assert_eq!(kept, "kept");
+    let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]

@@ -122,7 +122,7 @@ pub fn pages_error(pages: &[Page]) -> String {
 /// `dir/README.md` as `dir/README.html`, so the rendered index is copied.
 pub fn alias_route(route: &str) -> Option<String> {
     let name = route.strip_suffix(".md")?;
-    if !name.ends_with("README") {
+    if name != "README" && !name.ends_with("/README") {
         return None;
     }
     Some(format!("{name}.html"))

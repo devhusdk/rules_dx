@@ -34,16 +34,16 @@ def mdbook_chapters_error(chapters):
     sections = 0
     for index in range(len(chapters)):
         chapter = chapters[index]
+        if index == 0 and chapter.kind != "index":
+            errors.append("docs_site: the book must open with the generated index chapter")
         if chapter.kind == "section":
             sections += 1
             if chapter.title.strip() == "":
                 errors.append("docs_site: a sidebar section has no title")
-            if index == 0 or chapters[index - 1].kind == "section":
+            if index == len(chapters) - 1 or chapters[index + 1].kind == "section":
                 errors.append("docs_site: sidebar section '" + chapter.title + "' holds no page")
             continue
-        if index == 0 and chapter.kind != "index":
-            errors.append("docs_site: the book must open with the generated index chapter")
-        elif index != 0 and chapter.kind == "index":
+        if index != 0 and chapter.kind == "index":
             errors.append("docs_site: the book has more than one index chapter")
         error = mdbook_route_error(chapter.route)
         if error != "":

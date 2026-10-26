@@ -49,7 +49,11 @@ DISPLAY_PLUGINS = {
         "plugins/wayland-decoration-client/libbradient.so",
         "plugins/wayland-shell-integration/libxdg-shell.so",
     ],
-    "xcb": ["plugins/platforms/libqxcb.so"],
+    "xcb": [
+        "plugins/platforms/libqxcb.so",
+        "plugins/xcbglintegrations/libqxcb-egl-integration.so",
+        "plugins/xcbglintegrations/libqxcb-glx-integration.so",
+    ],
 }
 
 RUNTIME_PLUGINS = {

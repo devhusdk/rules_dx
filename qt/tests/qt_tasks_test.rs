@@ -271,12 +271,15 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "resources/plugins/platforms/libqwayland.so",
         "resources/plugins/wayland-decoration-client/libbradient.so",
         "resources/plugins/wayland-shell-integration/libxdg-shell.so",
+        "resources/plugins/xcbglintegrations/libqxcb-egl-integration.so",
+        "resources/plugins/xcbglintegrations/libqxcb-glx-integration.so",
         "resources/plugins/imageformats/libqgif.so",
         "resources/plugins/imageformats/libqico.so",
         "resources/plugins/imageformats/libqjpeg.so",
         "resources/lib/libQt6XcbQpa.so.6",
         "resources/lib/libQt6WaylandClient.so.6",
         "resources/lib/libxcb-cursor.so.0",
+        "resources/lib/libxcb-glx.so.0",
         "resources/lib/libxcb-xkb.so.1",
         "resources/lib/libxkbcommon-x11.so.0",
         "resources/lib/libX11-xcb.so.1",
@@ -296,6 +299,8 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "platforms/libqxcb.so",
         "platforms/libqwayland.so",
         "wayland-shell-integration/libxdg-shell.so",
+        "xcbglintegrations/libqxcb-egl-integration.so",
+        "xcbglintegrations/libqxcb-glx-integration.so",
     ] {
         assert_eq!(
             machine(&resources.join("plugins").join(plugin)).as_deref(),
@@ -314,12 +319,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
             "{library}"
         );
     }
-    for unwanted in [
-        "libQt6EglFS",
-        "libQt6WlShellIntegration",
-        "libwayland-egl",
-        "libxcb-glx",
-    ] {
+    for unwanted in ["libQt6EglFS", "libQt6WlShellIntegration", "libwayland-egl"] {
         assert!(
             !std::fs::read_dir(resources.join("lib"))
                 .expect("resources/lib")

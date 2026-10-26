@@ -144,7 +144,7 @@ struct FinishUpdate<'a> {
     err: &'a mut dyn std::io::Write,
     selected: Vec<String>,
     attempted: Vec<dx_update::outcome::SetOutcome>,
-    details: BTreeMap<String, String>,
+    details: BTreeMap<String, SetDetail>,
     verbose: bool,
     mode: RunMode,
     locks: BTreeMap<String, Vec<String>>,
@@ -187,7 +187,7 @@ fn finish_update(finish: FinishUpdate<'_>) -> i32 {
 
 pub(super) fn record_named(
     attempted: &mut Vec<dx_update::outcome::SetOutcome>,
-    details: &mut BTreeMap<String, String>,
+    details: &mut BTreeMap<String, SetDetail>,
     name: &str,
     status: dx_update::outcome::SetStatus,
     message: String,
@@ -196,7 +196,36 @@ pub(super) fn record_named(
         set: name.to_owned(),
         status,
     });
-    details.insert(name.to_owned(), message);
+    details.insert(
+        name.to_owned(),
+        SetDetail {
+            message,
+            failure_code: None,
+        },
+    );
+}
+
+/// What the emitters need to know about one set beyond its status.
+pub(super) struct SetDetail {
+    message: String,
+    /// Typed code for a `Failed` set; `None` falls back to `update_failed`.
+    failure_code: Option<&'static str>,
+}
+
+/// Record a backend error, keeping its typed code for failed sets.
+pub(super) fn record_backend_error(
+    attempted: &mut Vec<dx_update::outcome::SetOutcome>,
+    details: &mut BTreeMap<String, SetDetail>,
+    error: &dx_update::backend::BackendError,
+    verb: &str,
+    name: &str,
+) {
+    let (status, message) = backend_error_status(error, verb, name);
+    let failure_code = (status == dx_update::outcome::SetStatus::Failed).then(|| error.code());
+    record_named(attempted, details, name, status, message);
+    if let Some(detail) = details.get_mut(name) {
+        detail.failure_code = failure_code;
+    }
 }
 
 fn unavailable_message(name: &str) -> String {
@@ -271,7 +300,7 @@ impl SlotGate<'_> {
 
 type Outcomes = (
     Vec<dx_update::outcome::SetOutcome>,
-    BTreeMap<String, String>,
+    BTreeMap<String, SetDetail>,
 );
 
 fn run_backends(
@@ -283,7 +312,7 @@ fn run_backends(
     gate: &mut SlotGate<'_>,
 ) -> Result<Outcomes, i32> {
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<String, String> = BTreeMap::new();
+    let mut details: BTreeMap<String, SetDetail> = BTreeMap::new();
     let head = invocation.bazel_head();
     let verb = mode.verb();
     for (set, request) in resolved {
@@ -314,8 +343,7 @@ fn run_backends(
         };
         match planned {
             Err(error) => {
-                let (status, message) = backend_error_status(&error, verb, name);
-                record_named(&mut attempted, &mut details, name, status, message);
+                record_backend_error(&mut attempted, &mut details, &error, verb, name);
             }
             Ok(dx_update::backend::CheckPlan::Pinned) => {
                 record_named(
@@ -359,7 +387,7 @@ fn run_backends(
 
 struct BackendRun<'a> {
     attempted: &'a mut Vec<dx_update::outcome::SetOutcome>,
-    details: &'a mut BTreeMap<String, String>,
+    details: &'a mut BTreeMap<String, SetDetail>,
     set: dx_update::sets::SetId,
     request: &'a dx_update::selector::SetRequest,
     runner: &'a dyn dx_process::Runner,
@@ -405,7 +433,7 @@ fn emit_update_json(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     report: &dx_update::outcome::UpdateReport,
-    details: &BTreeMap<String, String>,
+    details: &BTreeMap<String, SetDetail>,
     verbose: bool,
     recovery: Option<&dx_update::recovery::RecoveryPlan>,
 ) -> i32 {
@@ -417,7 +445,7 @@ fn emit_update_json(
             dx_update::outcome::ReportedStatus::Updated => {
                 let message = details
                     .get(set_name)
-                    .cloned()
+                    .map(|detail| detail.message.clone())
                     .unwrap_or_else(|| format!("updated {set_name}"));
                 if let Ok(event) = notice_event(&NoticeEvent {
                     level: "info".to_owned(),
@@ -455,7 +483,10 @@ fn emit_update_json(
                         format!("{set_name} pins are manual; nothing to resolve"),
                     ),
                 };
-                let message = details.get(set_name).cloned().unwrap_or(fallback);
+                let message = details
+                    .get(set_name)
+                    .map(|detail| detail.message.clone())
+                    .unwrap_or(fallback);
                 if let Ok(event) = notice_event(&NoticeEvent {
                     level: "info".to_owned(),
                     code: code.to_owned(),
@@ -475,7 +506,7 @@ fn emit_update_json(
             dx_update::outcome::ReportedStatus::Unsupported => {
                 let message = details
                     .get(set_name)
-                    .cloned()
+                    .map(|detail| detail.message.clone())
                     .unwrap_or_else(|| format!("cannot update {set_name}"));
                 if let Ok(event) = error_event(
                     "update_set_unsupported",
@@ -494,15 +525,12 @@ fn emit_update_json(
             dx_update::outcome::ReportedStatus::Failed => {
                 let message = details
                     .get(set_name)
-                    .cloned()
+                    .map(|detail| detail.message.clone())
                     .unwrap_or_else(|| format!("failed to update {set_name}"));
-                let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-                    CODE_OFFLINE_REQUIRED
-                } else if message.contains(CODE_FROZEN_LOCKED) {
-                    CODE_FROZEN_LOCKED
-                } else {
-                    CODE_UPDATE_FAILED
-                };
+                let code = details
+                    .get(set_name)
+                    .and_then(|detail| detail.failure_code)
+                    .unwrap_or(CODE_UPDATE_FAILED);
                 if let Ok(event) = error_event(code, &message, None, None, Some("execute")) {
                     let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
                     if let Err(exit) = emit_event(out, &event) {
@@ -575,7 +603,7 @@ fn emit_update_text(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     report: &dx_update::outcome::UpdateReport,
-    details: &BTreeMap<String, String>,
+    details: &BTreeMap<String, SetDetail>,
     verbose: bool,
     recovery: Option<&dx_update::recovery::RecoveryPlan>,
     mode: RunMode,
@@ -587,7 +615,8 @@ fn emit_update_text(
             | dx_update::outcome::ReportedStatus::Current
             | dx_update::outcome::ReportedStatus::Pinned => {
                 if verbose {
-                    if let Some(message) = details.get(outcome.set.as_str()) {
+                    if let Some(detail) = details.get(outcome.set.as_str()) {
+                        let message = &detail.message;
                         if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
                             return exit;
                         }
@@ -595,17 +624,15 @@ fn emit_update_text(
                 }
             }
             dx_update::outcome::ReportedStatus::Unsupported => {
-                if let Some(message) = details.get(outcome.set.as_str()) {
+                if let Some(detail) = details.get(outcome.set.as_str()) {
+                    let message = &detail.message;
                     let _ = writeln!(err, "dx: update_set_unsupported: {message}");
                 }
             }
             dx_update::outcome::ReportedStatus::Failed => {
-                if let Some(message) = details.get(outcome.set.as_str()) {
-                    let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-                        CODE_OFFLINE_REQUIRED
-                    } else {
-                        CODE_UPDATE_FAILED
-                    };
+                if let Some(detail) = details.get(outcome.set.as_str()) {
+                    let code = detail.failure_code.unwrap_or(CODE_UPDATE_FAILED);
+                    let message = &detail.message;
                     let _ = writeln!(err, "dx: {code}: {message}");
                 }
             }

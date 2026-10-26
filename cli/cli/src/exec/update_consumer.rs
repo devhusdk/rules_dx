@@ -1,6 +1,7 @@
 use super::super::common::{check_stdout_write, frozen_summary, offline_summary, pre_exec, Env};
 use super::{
-    backend_error_status, record_named, runner_status, unavailable_message, RunMode, SlotGate,
+    record_backend_error, record_named, runner_status, unavailable_message, RunMode, SetDetail,
+    SlotGate,
 };
 use crate::args::Invocation;
 use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, ResolvedTarget, Selection};
@@ -38,7 +39,7 @@ pub(super) fn execute_configured(
         }
     }
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<String, String> = BTreeMap::new();
+    let mut details: BTreeMap<String, SetDetail> = BTreeMap::new();
     let mut gate = SlotGate {
         command: invocation.command,
         err: &mut *err,
@@ -86,7 +87,7 @@ pub(super) fn execute_configured(
 
 fn run_configured_target(
     attempted: &mut Vec<dx_update::outcome::SetOutcome>,
-    details: &mut BTreeMap<String, String>,
+    details: &mut BTreeMap<String, SetDetail>,
     target: &ResolvedTarget,
     runner: &dyn dx_process::Runner,
     workspace: &std::path::Path,
@@ -187,8 +188,7 @@ fn run_configured_target(
     };
     let (argv, extra) = match planned {
         Err(error) => {
-            let (status, message) = backend_error_status(&error, verb, &set.name);
-            record_named(attempted, details, &set.name, status, message);
+            record_backend_error(attempted, details, &error, verb, &set.name);
             return Ok(());
         }
         Ok(dx_update::backend::CheckPlan::Pinned) => {
@@ -454,6 +454,27 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("backend_unavailable"), "{err}");
         assert!(!out.contains("updated worker"), "{out}");
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_backend_unavailable_reports_its_code() {
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let (code, out, err, _) = run_consumer(&["update", "--check", "--output=json"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("\"code\":\"backend_unavailable\""), "{out}");
+        assert!(!out.contains("\"code\":\"update_failed\""), "{out}");
+        for args in [
+            &["update", "--check"][..],
+            &["update", "--apply", "worker"][..],
+        ] {
+            let mut runner = ScriptRunner::new(&[]);
+            runner.pinned = false;
+            let (code, out, err, _) = run_consumer(args, &runner);
+            assert_eq!(code, 1, "{out}{err}");
+            assert!(err.contains("dx: backend_unavailable:"), "{err}");
+            assert!(!err.contains("dx: update_failed:"), "{err}");
+        }
     }
 
     #[test]

@@ -276,9 +276,14 @@ change it. Combine both flags for both policies.
 `--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the cargo, maven, npm, npm-tools, and
 nuget sets, which run Bazel.
-Output: `--output text|json`. `json` reports one event per set plus
-`command_finished`. Text prints a per-set line for every failure plus a summary
-count of updated, current, pinned, unsupported, failed, and blocked sets.
+Output: `--output text|json`. `json` emits `command_started`, then per set
+either one `notice` (`update_set_success`, `update_set_current`,
+`update_set_pinned`, or `update_set_blocked`) or one `error` (`update_failed`,
+`update_set_unsupported`, `offline_required`, `frozen_locked`, or
+`backend_unavailable`). An applied set also emits one `change` event per edited
+file, before its success notice. A failed run then emits an `update_recovery`
+notice, and every run ends with `command_finished`. Text prints
+`dx: <code>: <message>` on stderr for every failure plus a summary count of updated, current, pinned, unsupported, failed, and blocked sets.
 A failed run prints an `update_recovery` notice with the rerun command. Text
 goes to stderr; JSON is a `notice` whose `scope` lists the sets to retry. After
 `--apply` the command is `dx update --apply <sets>`, plus
@@ -537,7 +542,7 @@ Unknown names and unowned paths fail with exit `2`.
 interpreter. A relative path is rejected and `PATH` is never searched. A uv
 that does not report `0.12.23` is rejected. Without a usable `DX_UV_BIN` or
 `DX_UV_PYTHON` the set fails with `backend_unavailable` and the run exits `1`;
-it is never reported current. In CI, `bazel run @rules_dx//cli/tool_resolve --
+JSON reports an `error` event with that code. It is never reported current. In CI, `bazel run @rules_dx//cli/tool_resolve --
 --label @dx_tools//:uv --var DX_UV_BIN` exports the uv path and the same
 command with `--label @rules_dx//cli/update:python_interpreter --var
 DX_UV_PYTHON` exports the interpreter.

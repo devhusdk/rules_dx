@@ -1,8 +1,9 @@
-"""Simulator applications and XCFrameworks over Rust static libraries."""
+"""Simulator and device applications and XCFrameworks over Rust static libraries."""
 
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_apple//apple:apple.bzl", "apple_xcframework")
 load("@rules_apple//apple:ios.bzl", "ios_application", "ios_unit_test")
+load("@rules_apple//apple:providers.bzl", "AppleBundleInfo")
 load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@rules_apple//apple/testing/default_runner:ios_xctestrun_runner.bzl", "ios_xctestrun_runner")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
@@ -41,6 +42,8 @@ _MACH_O_PLATFORMS = {
     "device": "2",
     "simulator": "7",
 }
+
+_SIGNING_CERTIFICATE = str(Label("@rules_apple//apple/build_settings:signing_certificate_name"))
 
 _APPLE_HOSTS = select({
     Label("@platforms//os:ios"): [],
@@ -139,7 +142,9 @@ def signing_errors(environment, provisioning_profile):
     """Returns one error string per rejected app signing selection."""
     if environment == "device":
         if provisioning_profile == "":
-            return ["apple_app: device distribution needs provisioning_profile; credentials travel by file only"]
+            return ["apple_app: device builds need provisioning_profile, a .mobileprovision file"]
+        if not provisioning_profile.endswith(".mobileprovision"):
+            return ["apple_app: provisioning_profile '" + provisioning_profile + "' must be a .mobileprovision file"]
         return []
     if provisioning_profile != "":
         return ["apple_app: simulator builds sign ad hoc; leave provisioning_profile empty"]
@@ -159,7 +164,6 @@ def default_app(environment):
         deployment = "",
         entitlements = "",
         environment = environment,
-        export_ipa = False,
         frameworks = [],
         library = "",
         provisioning_profile = "",
@@ -185,8 +189,6 @@ def app_errors(config):
     errors.extend(entry_errors(config.srcs))
     if config.library == "" and len(config.frameworks) == 0:
         errors.append("apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks")
-    if config.export_ipa:
-        errors.append("apple_app: export is a distinct explicitly applied operation; Check never exports an IPA")
     return errors
 
 def test_errors(device_type, os_version, deployment):
@@ -216,7 +218,6 @@ def _app_selection_impl(ctx):
         deployment = ctx.attr.deployment,
         entitlements = ctx.attr.entitlements,
         environment = ctx.attr.environment,
-        export_ipa = ctx.attr.export_ipa,
         frameworks = list(ctx.attr.framework_imports),
         library = ctx.attr.library,
         provisioning_profile = ctx.attr.provisioning_profile,
@@ -237,7 +238,6 @@ _app_selection = rule(
         "deployment": attr.string(mandatory = True),
         "entitlements": attr.string(mandatory = True),
         "environment": attr.string(mandatory = True),
-        "export_ipa": attr.bool(mandatory = True),
         "framework_imports": attr.string_list(mandatory = True),
         "library": attr.string(mandatory = True),
         "provisioning_profile": attr.string(mandatory = True),
@@ -460,6 +460,64 @@ _framework_cell = rule(
     fragments = ["apple"],
 )
 
+AppleIosDeviceAppInfo = provider(
+    doc = "One ad hoc signed device app ready for an explicit export.",
+    fields = {
+        "bundle_id": "The app bundle identifier.",
+        "ipa": "The ad hoc signed .ipa File.",
+        "profile": "The declared .mobileprovision File.",
+    },
+)
+
+def _device_signing_impl(_settings, _attr):
+    return {_SIGNING_CERTIFICATE: "-"}
+
+device_signing_transition = transition(
+    implementation = _device_signing_impl,
+    inputs = [],
+    outputs = [_SIGNING_CERTIFICATE],
+)
+
+def _device_app_impl(ctx):
+    bundle = ctx.attr.bundle[0] if type(ctx.attr.bundle) == "list" else ctx.attr.bundle
+    ipas = [file for file in bundle[DefaultInfo].files.to_list() if file.extension == "ipa"]
+    if len(ipas) != 1:
+        fail("apple_ios_app: '{}' built {} .ipa outputs, want exactly one".format(_display(bundle.label), len(ipas)))
+    ipa = ctx.actions.declare_file(ctx.label.name + ".ipa")
+    ctx.actions.symlink(output = ipa, target_file = ipas[0])
+    providers = [
+        DefaultInfo(
+            files = depset([ipa]),
+            runfiles = ctx.runfiles(files = [ipa]).merge(bundle[DefaultInfo].default_runfiles),
+        ),
+        AppleIosDeviceAppInfo(
+            bundle_id = bundle[AppleBundleInfo].bundle_id,
+            ipa = ipa,
+            profile = ctx.file.profile,
+        ),
+        bundle[AppleBundleInfo],
+    ]
+    if OutputGroupInfo in bundle:
+        providers.append(bundle[OutputGroupInfo])
+    return providers
+
+_device_app = rule(
+    implementation = _device_app_impl,
+    doc = "Builds one device app bundle signed ad hoc whatever signing flags are set.",
+    attrs = {
+        "bundle": attr.label(
+            doc = "The upstream ios_application.",
+            cfg = device_signing_transition,
+            mandatory = True,
+            providers = [AppleBundleInfo],
+        ),
+        "profile": attr.label(
+            doc = "The declared .mobileprovision file.",
+            allow_single_file = [".mobileprovision"],
+        ),
+    },
+)
+
 def _label_text(value):
     return "" if value == None else str(value)
 
@@ -481,7 +539,6 @@ def apple_ios_app(
         families = ["iphone"],
         entitlements = None,
         provisioning_profile = None,
-        export_ipa = False,
         tags = [],
         testonly = False,
         visibility = None):
@@ -494,7 +551,6 @@ def apple_ios_app(
         deployment = deployment,
         entitlements = _label_text(entitlements),
         environment = environment,
-        export_ipa = export_ipa,
         framework_imports = [_label_text(framework) for framework in frameworks],
         library = _label_text(library),
         provisioning_profile = _label_text(provisioning_profile),
@@ -550,6 +606,34 @@ def apple_ios_app(
             visibility = ["//visibility:private"],
         )
         infoplists = [":" + name + "_infoplist"]
+    if environment == "device":
+        ios_application(
+            name = name + "_bundle",
+            bundle_id = bundle_id,
+            entitlements = entitlements,
+            entitlements_validation = "error",
+            families = families,
+            infoplists = infoplists,
+            minimum_os_version = deployment,
+            provisioning_profile = provisioning_profile,
+            resources = resources,
+            version = ":" + name + "_version",
+            deps = [":" + name + "_entry"],
+            tags = ["manual"],
+            testonly = testonly,
+            target_compatible_with = _APPLE_HOSTS,
+            visibility = ["//visibility:private"],
+        )
+        _device_app(
+            name = name,
+            bundle = ":" + name + "_bundle",
+            profile = provisioning_profile,
+            tags = tags,
+            testonly = testonly,
+            target_compatible_with = _APPLE_HOSTS,
+            visibility = visibility,
+        )
+        return
     ios_application(
         name = name,
         bundle_id = bundle_id,

@@ -198,9 +198,35 @@ The build fails before linking when:
 - `srcs`, `deployment`, `bundle_id`, or `version` is missing or
   malformed, or both `library` and `frameworks` are empty.
 
-Simulator builds sign ad hoc; `provisioning_profile` fails there.
-Device builds need one. `export_ipa` fails. On non-Apple hosts the app
-targets are incompatible and skip.
+Simulator builds sign ad hoc; `provisioning_profile` fails there. On
+non-Apple hosts the app targets are incompatible and skip.
+
+### Device apps
+
+Set `environment = "device"` and `provisioning_profile` to a
+`.mobileprovision` file:
+
+```python
+apple_ios_app(
+    name = "ledger_device",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "17.0",
+    environment = "device",
+    library = ":ledger_rust",
+    provisioning_profile = "ledger_dev.mobileprovision",
+    version = "1.0",
+)
+```
+
+```sh
+bazel build //:ledger_device --ios_multi_cpus=arm64
+```
+
+Device builds always sign ad hoc and embed the profile. They never read
+a keychain, even when `signing_certificate_name` is set. The build fails
+when the profile has expired, does not cover `bundle_id`, or does not
+allow an entitlement. Rust needs the `aarch64-apple-ios` triple.
 
 ### Simulator operations
 
@@ -235,6 +261,61 @@ exits with:
   an input is missing;
 - `127` when `xcrun` is missing;
 - `simctl`'s own code when it fails.
+
+### Export a signed IPA
+
+Export is an explicit `bazel run` launcher over one device app:
+
+```python
+load("@rules_dx//apple/ios:device.bzl", "apple_ios_export")
+
+apple_ios_export(name = "export", app = ":ledger_device")
+```
+
+```sh
+bazel run //:export --ios_multi_cpus=arm64 -- \
+    --certificate dev.p12 --password-file dev.p12.pass --out dist/Ledger.ipa
+```
+
+Flags:
+
+- `--certificate`: the signing identity `.p12` file.
+- `--password-file`: the file holding the `.p12` password.
+- `--out`: the `.ipa` to write, outside `bazel-out`.
+
+Relative paths resolve against the directory you ran `bazel` from.
+`apple_ios_export` takes only a device `apple_ios_app`; other targets
+fail analysis.
+
+The launcher checks that:
+
+- the IPA embeds the declared profile;
+- the profile has not expired and covers the bundle id;
+- the app's entitlements are in the profile;
+- the certificate is in the profile's `DeveloperCertificates`.
+
+It signs `Frameworks/*`, then the app, and verifies the result with
+`codesign --verify --deep --strict`, the team, `arm64` only, the
+`iphoneos` platform, and an unchanged file list. Apps with extensions
+fail.
+
+It writes `<out>` and `<out>.txt`, which records the bundle id, team,
+profile name, UUID and expiry, certificate SHA-1, signing authority,
+entitlement keys, archs, platform, and minimum OS.
+
+The certificate and password are never Bazel inputs. The identity goes
+into a temporary keychain that is deleted on exit, and the keychain
+search list is restored. Override tools with `XCRUN`, `SECURITY`,
+`CODESIGN`, `OPENSSL`, `PLUTIL`, `DX_UNZIP`, `DITTO`, or `DX_ZIP`.
+
+The launcher exits with:
+
+- `0` when the IPA and report are written;
+- `1` when the signed app fails verification;
+- `2` when an input is missing or bad, or the profile or certificate is
+  rejected;
+- `127` when a tool is missing;
+- `codesign`'s own code when signing fails.
 
 ## XCFrameworks
 

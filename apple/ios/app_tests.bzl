@@ -29,7 +29,6 @@ def _app(**kwargs):
         "deployment",
         "entitlements",
         "environment",
-        "export_ipa",
         "frameworks",
         "library",
         "provisioning_profile",
@@ -122,9 +121,19 @@ def _app_checks():
     checks.append(expect_equal(
         "unprovisioned device fails",
         signing_errors("device", ""),
-        ["apple_app: device distribution needs provisioning_profile; credentials travel by file only"],
+        ["apple_app: device builds need provisioning_profile, a .mobileprovision file"],
     ))
     checks.append(expect_equal("provisioned device is clean", signing_errors("device", "share.mobileprovision"), []))
+    checks.append(expect_equal(
+        "plist profile on device fails",
+        signing_errors("device", "share.plist"),
+        ["apple_app: provisioning_profile 'share.plist' must be a .mobileprovision file"],
+    ))
+    checks.append(expect_equal(
+        "profile label on device fails",
+        signing_errors("device", "//share:profile"),
+        ["apple_app: provisioning_profile '//share:profile' must be a .mobileprovision file"],
+    ))
     checks.append(expect_equal(
         "app without entry source fails",
         entry_errors([]),
@@ -158,7 +167,12 @@ def _app_checks():
     checks.append(expect_contains(
         "unsigned device fails the app",
         app_errors(_app(environment = "device")),
-        "apple_app: device distribution needs provisioning_profile; credentials travel by file only",
+        "apple_app: device builds need provisioning_profile, a .mobileprovision file",
+    ))
+    checks.append(expect_contains(
+        "plist profile fails the device app",
+        app_errors(_app(environment = "device", provisioning_profile = "share.plist")),
+        "apple_app: provisioning_profile 'share.plist' must be a .mobileprovision file",
     ))
     checks.append(expect_contains(
         "missing deployment fails the app",
@@ -174,11 +188,6 @@ def _app_checks():
         "missing entry fails the app",
         app_errors(_app(srcs = [])),
         "apple_app: srcs needs the native entry point that calls UIApplicationMain",
-    ))
-    checks.append(expect_contains(
-        "export during check fails the app",
-        app_errors(_app(export_ipa = True)),
-        "apple_app: export is a distinct explicitly applied operation; Check never exports an IPA",
     ))
     checks.append(expect_contains(
         "device x86_64 names the simulator cell",

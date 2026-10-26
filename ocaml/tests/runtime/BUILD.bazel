@@ -1,0 +1,53 @@
+load("//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_signature", "ocaml_test")
+
+ocaml_module(
+    name = "shout",
+    struct = "shout.ml",
+)
+
+ocaml_signature(
+    name = "greet_sig",
+    src = "greet.mli",
+)
+
+ocaml_module(
+    name = "greet",
+    sig = ":greet_sig",
+    struct = "greet.ml",
+    deps = [":shout"],
+)
+
+ocaml_library(
+    name = "greeting",
+    manifest = [
+        ":greet",
+        ":shout",
+    ],
+)
+
+ocaml_module(
+    name = "main",
+    struct = "main.ml",
+    deps = [":greeting"],
+)
+
+ocaml_binary(
+    name = "app",
+    data = ["data.txt"],
+    main = ":main",
+)
+
+ocaml_module(
+    name = "greet_test_main",
+    testonly = True,
+    struct = "greet_test.ml",
+    deps = [":greeting"],
+)
+
+ocaml_test(
+    name = "greet_test",
+    size = "small",
+    env = {"DX_OCAML_PROBE": "env"},
+    main = ":greet_test_main",
+    opts = select({"//conditions:default": []}),
+)

@@ -406,6 +406,11 @@ use_repo(gleam, "dx_gleam_stdlib", "dx_gleam_toolchains", "dx_gleeunit", "rules_
 
 register_toolchains("@dx_gleam_toolchains//:all")
 
+ocaml = use_extension("//ocaml/toolchain:repos.bzl", "ocaml")
+use_repo(ocaml, "dx_ocaml_toolchains", "rules_ocaml")
+
+register_toolchains("@dx_ocaml_toolchains//:all")
+
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
     module_name = "aspect_rules_py",

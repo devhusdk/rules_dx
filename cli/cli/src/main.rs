@@ -527,8 +527,14 @@ fn run() -> i32 {
         }
     }
     dx_cli::slots::inherit_share(&env_get);
-    let gate =
-        dx_cli::slots::Gate::from_env(&workspace, &env_get, invocation.output == OutputMode::Json);
+    let mut slot_options = vec![invocation.profile().config_flag()];
+    slot_options.extend(invocation.bazel_options.iter().cloned());
+    let gate = dx_cli::slots::Gate::from_env(
+        &workspace,
+        &env_get,
+        invocation.output == OutputMode::Json,
+        &slot_options,
+    );
     let slot = match gate.as_ref().map_or(Ok(None), |gate| {
         gate.hold(invocation.command, &mut err, &mut pending)
     }) {

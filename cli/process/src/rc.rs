@@ -6,7 +6,7 @@ use std::sync::{OnceLock, RwLock};
 
 use crate::{is_ci_value, WORKFLOW_STARTUP_OPTS};
 
-const MAX_IMPORT_DEPTH: usize = 16;
+pub(crate) const MAX_IMPORT_DEPTH: usize = 16;
 
 /// The `--local_resources` values the vendored preset sets.
 pub const PRESET_LOCAL_RESOURCES: [&str; 2] = ["cpu=HOST_CPUS*.75", "memory=HOST_RAM*.5"];
@@ -436,7 +436,7 @@ fn scan(
     false
 }
 
-fn unquote(token: &str) -> &str {
+pub(crate) fn unquote(token: &str) -> &str {
     token
         .strip_prefix('"')
         .and_then(|inner| inner.strip_suffix('"'))
@@ -448,7 +448,7 @@ fn unquote(token: &str) -> &str {
         .unwrap_or(token)
 }
 
-fn import_path(raw: &str, workspace: &Path) -> PathBuf {
+pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
     let expanded = raw.replace("%workspace%", &workspace.to_string_lossy());
     let path = PathBuf::from(expanded);
     if path.is_absolute() {
@@ -457,6 +457,11 @@ fn import_path(raw: &str, workspace: &Path) -> PathBuf {
         workspace.join(path)
     }
 }
+
+#[path = "rc_sections.rs"]
+mod sections;
+
+pub use sections::remote_execution;
 
 #[cfg(test)]
 #[path = "rc_tests.rs"]

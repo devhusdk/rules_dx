@@ -1,6 +1,9 @@
 package common
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+)
 
 var jdkPackages = []string{
 	"java",
@@ -52,3 +55,42 @@ func InPackages(spec string, packages []string) bool {
 }
 
 func IsJDKPlatform(spec string) bool { return InPackages(spec, jdkPackages) }
+
+// PackageSet builds the lookup set InPlatformPackages expects.
+func PackageSet(packages ...string) map[string]bool {
+	set := make(map[string]bool, len(packages))
+	for _, pkg := range packages {
+		set[pkg] = true
+	}
+	return set
+}
+
+// InPlatformPackages reports whether spec is an exact platform package or a
+// member of one. It finds the longest known package prefix, so an unknown
+// subpackage such as kotlin.test.assertEquals is not claimed by kotlin.
+func InPlatformPackages(spec string, packages map[string]bool) bool {
+	for pkg := spec; ; {
+		if packages[pkg] {
+			return platformMember(strings.TrimPrefix(strings.TrimPrefix(spec, pkg), "."))
+		}
+		i := strings.LastIndexByte(pkg, '.')
+		if i < 0 {
+			return false
+		}
+		pkg = pkg[:i]
+	}
+}
+
+// platformMember accepts the package itself, one trailing segment (a class or
+// top-level function), or a capitalised class followed by nested members.
+func platformMember(rest string) bool {
+	if rest == "" {
+		return true
+	}
+	first, _, nested := strings.Cut(rest, ".")
+	if !nested {
+		return true
+	}
+	r := []rune(first)
+	return len(r) > 0 && unicode.IsUpper(r[0])
+}

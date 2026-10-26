@@ -72,8 +72,22 @@ func DefinesMain(content []byte) bool {
 	return mainRe.Match(common.MaskScalaStyle(content))
 }
 
+// normalizeImport keeps the qualified name of a single import so an exact
+// # gazelle:resolve mapping can match it. Wildcards still reduce to the
+// package's last segment. Local lookup by bare class name goes through
+// importCandidates.
 func normalizeImport(dotted string, onDemand bool) string {
+	if !onDemand {
+		return strings.TrimSpace(dotted)
+	}
 	return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+}
+
+func importCandidates(name string) []string {
+	if !strings.Contains(name, ".") {
+		return nil
+	}
+	return []string{common.SimpleName(name)}
 }
 
 func importClause(src []byte, start int) string {

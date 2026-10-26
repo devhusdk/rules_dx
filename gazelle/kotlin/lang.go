@@ -25,6 +25,7 @@ func NewLanguage() language.Language {
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,
 		IsStdLib:       IsStdLib,
+		Candidates:     importCandidates,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})
@@ -45,6 +46,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		MainPhrase:   "main-bearing sources",
 		ParseImports: ParseImports,
 		IsStdLib:     IsStdLib,
+		Candidates:   importCandidates,
 		Wrap:         common.WrapImportSet,
 	}, rep)
 }

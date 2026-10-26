@@ -7,7 +7,7 @@ import (
 
 func TestParseImportsSingleType(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget\nimport java.util.List\n"))
-	want := []string{"Widget", "java.util.List"}
+	want := []string{"com.example.Widget", "java.util.List"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -15,7 +15,7 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsAliasAndOnDemand(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget as W\nimport com.example.*\n"))
-	want := []string{"Widget", "example"}
+	want := []string{"com.example.Widget", "example"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -31,7 +31,7 @@ func TestParseImportsCommentsAndStringsInert(t *testing.T) {
 
 func TestParseImportsDedupedSorted(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Zeta\nimport com.example.Alpha\nimport com.example.Zeta\n"))
-	want := []string{"Alpha", "Zeta"}
+	want := []string{"com.example.Alpha", "com.example.Zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -39,7 +39,7 @@ func TestParseImportsDedupedSorted(t *testing.T) {
 
 func TestParseImportsBraceSelectors(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.{Widget, Gadget}\nimport com.other.{Tool}; import com.more.Thing\n"))
-	want := []string{"Gadget", "Thing", "Tool", "Widget"}
+	want := []string{"com.example.Gadget", "com.example.Widget", "com.more.Thing", "com.other.Tool"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -63,7 +63,7 @@ func TestParseImportsScala3StarAndGiven(t *testing.T) {
 
 func TestParseImportsRenameAndHide(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.{A => B}\nimport a.{C as D}\nimport b.{E => _, _}\nimport c.{F => _}\n"))
-	want := []string{"A", "C", "b"}
+	want := []string{"a.A", "a.C", "b"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -71,7 +71,7 @@ func TestParseImportsRenameAndHide(t *testing.T) {
 
 func TestParseImportsMultilineBraces(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.{\n  Widget,\n  // Commented,\n  Gadget => G\n}\nimport com.example.Tail\n"))
-	want := []string{"Gadget", "Tail", "Widget"}
+	want := []string{"com.example.Gadget", "com.example.Tail", "com.example.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -87,7 +87,7 @@ func TestParseImportsStdlibSelectors(t *testing.T) {
 
 func TestParseImportsCommaImporters(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.B, c.d._, e.{F, G}\n"))
-	want := []string{"B", "F", "G", "d"}
+	want := []string{"a.B", "d", "e.F", "e.G"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -132,12 +132,12 @@ func TestDefinesMainScala3(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"scala.collection.immutable.List", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"scala.collection.immutable.List", "scala.collection.mutable.Map", "scala.concurrent.Future", "scala.math.max", "scala.Option", "scala.collection", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar"} {
+	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "scala.xml.Elem", "scala.xml", "scala.util.parsing.combinator.Parsers", "scala.util.parsing", "scala.collection.parallel.CollectionConverters", "scala.collection.parallel", "scala.reflect.runtime.universe", "scala.reflect.runtime", "org.scalatest.funsuite.AnyFunSuite"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}

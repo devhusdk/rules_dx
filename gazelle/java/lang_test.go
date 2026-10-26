@@ -454,3 +454,38 @@ func TestGenerateRootPackage(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveQualifiedExternalImport(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		directives string
+		want       []string
+		failed     bool
+	}{
+		{"mapped", "# gazelle:resolve java javax.inject.Inject @maven//:javax_inject_javax_inject\n", []string{"@maven//:javax_inject_javax_inject"}, false},
+		{"unmapped", "", nil, true},
+	} {
+		lang := NewLanguage().(*common.SingleLang)
+		lang.Before(context.Background())
+		cfg := config.New()
+		resolver := &resolve.Configurer{}
+		resolver.RegisterFlags(nil, "update", cfg)
+		if err := resolver.CheckFlags(nil, cfg); err != nil {
+			t.Fatal(err)
+		}
+		f, err := rule.LoadData("BUILD.bazel", "", []byte(tc.directives))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resolver.Configure(cfg, "app", f)
+		index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+		r := rule.NewRule(LibraryKind, "app")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"javax.inject.Inject"}), label.New("", "app", "app"))
+		if lang.Failed() != tc.failed {
+			t.Errorf("%s: failed = %v, want %v", tc.name, lang.Failed(), tc.failed)
+		}
+		if got := r.AttrStrings("deps"); strings.Join(got, ",") != strings.Join(tc.want, ",") {
+			t.Errorf("%s: deps = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

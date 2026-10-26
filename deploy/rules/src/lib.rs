@@ -547,12 +547,15 @@ pub fn write_secure_file(
     content: &str,
 ) -> io::Result<std::path::PathBuf> {
     let path = directory.join(name);
-    std::fs::write(&path, content.as_bytes())?;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
     }
+    let mut file = options.open(&path)?;
+    file.write_all(content.as_bytes())?;
     Ok(path)
 }
 
@@ -1500,33 +1503,35 @@ pub fn crates_main(
     }
 }
 
+fn create_private_dir(path: &Path) -> io::Result<()> {
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt as _;
+        builder.mode(0o700);
+    }
+    builder.create(path)
+}
+
 fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
-    let mut dir = std::env::temp_dir().join(format!(
-        "{prefix}{}",
-        std::time::SystemTime::now()
+    for counter in 0..100 {
+        let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
-    let mut counter = 0;
-    while dir.exists() {
-        counter += 1;
-        dir = std::env::temp_dir().join(format!(
-            "{prefix}{}{counter}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0)
-        ));
-        if counter > 100 {
-            return Err(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "cannot stage tempdir",
-            ));
+            .unwrap_or(0);
+        let dir =
+            std::env::temp_dir().join(format!("{prefix}{}-{nanos}-{counter}", std::process::id()));
+        match create_private_dir(&dir) {
+            Ok(()) => return Ok(dir),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(error),
         }
     }
-    std::fs::create_dir_all(&dir)?;
-    Ok(dir)
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "cannot stage tempdir",
+    ))
 }
 
 /// Formats one GitHub release command.
@@ -3541,24 +3546,16 @@ pub fn npm_npmrc_line(host: &str, token: &str) -> String {
     format!("//{host}/:_authToken={token}\n")
 }
 
-/// Writes one owner-only npmrc.
+/// Writes one owner-only npmrc in a private staged dir.
 pub fn npm_write_npmrc(host: &str, token: &str) -> io::Result<std::path::PathBuf> {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        ".npmrc-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
-    std::fs::write(&path, npm_npmrc_line(host, token).as_bytes())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    let dir = tempfile_stage_dir("npm-publish-")?;
+    match write_secure_file(&dir, ".npmrc", &npm_npmrc_line(host, token)) {
+        Ok(path) => Ok(path),
+        Err(error) => {
+            let _ = std::fs::remove_dir_all(&dir);
+            Err(error)
+        }
     }
-    Ok(path)
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -3685,7 +3682,9 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
         .arg("--userconfig")
         .arg(&npmrc)
         .status();
-    let _ = std::fs::remove_file(&npmrc);
+    if let Some(dir) = npmrc.parent() {
+        let _ = std::fs::remove_dir_all(dir);
+    }
     match status {
         Ok(status) if status.success() => 0,
         Ok(status) => status.code().unwrap_or(1),
@@ -5177,6 +5176,12 @@ mod tests {
         let dir = tempfile_stage_dir("dx-deploy-stage-").expect("stage dir");
         assert!(dir.is_dir());
         assert!(dir.to_string_lossy().contains("dx-deploy-stage-"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&dir).expect("stat").permissions().mode();
+            assert_eq!(mode & 0o777, 0o700, "stage dir must stay owner-only");
+        }
         std::fs::remove_dir_all(&dir).expect("cleanup");
         assert!(tempfile_stage_dir("dx-deploy-stage-").is_ok());
     }
@@ -5594,7 +5599,64 @@ mod tests {
             let mode = std::fs::metadata(&path).expect("stat").permissions().mode();
             assert_eq!(mode & 0o777, 0o600, "npmrc must stay owner-only");
         }
-        std::fs::remove_file(&path).expect("cleanup");
+        let parent = path.parent().expect("npmrc parent");
+        assert_ne!(parent, std::env::temp_dir().as_path());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(parent)
+                .expect("stat")
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o700, "npmrc dir must stay owner-only");
+        }
+        std::fs::remove_dir_all(parent).expect("cleanup");
+    }
+
+    #[test]
+    fn secure_file_is_owner_only_and_refuses_existing() {
+        let scratch = scratch_dir();
+        let path = write_secure_file(scratch.path(), "secret", "one").expect("secure");
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), "one");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&path).expect("stat").permissions().mode();
+            assert_eq!(mode & 0o777, 0o600, "secret must stay owner-only");
+        }
+        let error = write_secure_file(scratch.path(), "secret", "two").expect_err("existing");
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), "one");
+        #[cfg(unix)]
+        {
+            let target = scratch.path().join("target");
+            std::fs::write(&target, "keep").expect("write target");
+            std::os::unix::fs::symlink(&target, scratch.path().join("link")).expect("symlink");
+            assert!(write_secure_file(scratch.path(), "link", "leak").is_err());
+            assert_eq!(
+                std::fs::read_to_string(&target).expect("read target"),
+                "keep"
+            );
+        }
+    }
+
+    #[test]
+    fn private_dir_refuses_existing_dir() {
+        let scratch = scratch_dir();
+        let error = create_private_dir(scratch.path()).expect_err("existing");
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        let child = scratch.path().join("child");
+        create_private_dir(&child).expect("child");
+        assert!(child.is_dir());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&child)
+                .expect("stat")
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o700, "private dir must stay owner-only");
+        }
     }
 
     #[test]

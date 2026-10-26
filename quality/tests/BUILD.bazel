@@ -742,8 +742,10 @@ rust_test(
     data = [
         "//:MODULE.bazel",
         "//third_party/powershell:PSGallery.lock.json",
+        "//third_party/powershell:PSGallery.requirements.psd1",
     ],
     env = {
+        "DX_GALLERY_REQUIREMENTS": "$(rootpath //third_party/powershell:PSGallery.requirements.psd1)",
         "DX_GALLERY_LOCK": "$(rootpath //third_party/powershell:PSGallery.lock.json)",
         "DX_MODULE_BAZEL": "$(rootpath //:MODULE.bazel)",
     },

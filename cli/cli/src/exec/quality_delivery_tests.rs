@@ -216,6 +216,8 @@ fn a_report_file_still_lands_beside_clean_output() {
     assert!(sink.names().contains(&"report".to_owned()));
 }
 
+#[test]
+#[cfg(any(unix, windows))]
 fn closed_pipe_starts_nothing() {
     let (reader, mut writer) = io::pipe().expect("pipe");
     drop(reader);
@@ -226,16 +228,4 @@ fn closed_pipe_starts_nothing() {
     assert_eq!(code, 141);
     assert_eq!(launches(&h), 0);
     assert_eq!(source(&h), b"x = 1\n");
-}
-
-#[test]
-#[cfg(unix)]
-fn unix_closed_pipe_starts_nothing() {
-    closed_pipe_starts_nothing();
-}
-
-#[test]
-#[cfg(windows)]
-fn windows_closed_pipe_starts_nothing() {
-    closed_pipe_starts_nothing();
 }

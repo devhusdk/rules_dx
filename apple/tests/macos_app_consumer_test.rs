@@ -439,6 +439,16 @@ fn unpack(ipa: &Path) -> PathBuf {
     dir.join("Payload/ledger_app.app")
 }
 
+/// Names of simulators created by `apple_ios_app_test` (`dx ... pgid N`).
+fn dx_owned_simulators() -> Vec<String> {
+    tool("xcrun", &["simctl", "list", "devices"])
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("dx ") && line.contains(" pgid "))
+        .map(str::to_string)
+        .collect()
+}
+
 fn plist(app: &Path, key: &str) -> String {
     tool(
         "plutil",
@@ -461,12 +471,20 @@ fn a_rust_app_builds_tests_installs_and_launches_on_a_simulator() {
     let simulator = Simulator::create("dx-ledger", &runtime);
     let root = ledger(&xcode, &runtime, &simulator.name);
 
+    let booted_before = tool("xcrun", &["simctl", "list", "devices", "booted"]);
     let built = bazel(&root, "build", &["//ledger:ledger_app"], &[]);
     passes(&built);
     let booted = tool("xcrun", &["simctl", "list", "devices", "booted"]);
+    assert_eq!(
+        booted, booted_before,
+        "building changed the booted simulators"
+    );
+    let listed = tool("xcrun", &["simctl", "list", "devices"]);
     assert!(
-        !booted.contains(&simulator.udid),
-        "building booted {}:\n{booted}",
+        listed
+            .lines()
+            .any(|line| line.contains(&simulator.udid) && line.contains("(Shutdown)")),
+        "{} should exist and be shut down:\n{listed}",
         simulator.udid
     );
 
@@ -511,6 +529,7 @@ fn a_rust_app_builds_tests_installs_and_launches_on_a_simulator() {
     assert!(symbols.contains(" _ledger_total"), "{symbols}");
     assert!(symbols.contains(" _ledger_platform"), "{symbols}");
 
+    let owned_before = dx_owned_simulators();
     let tested = bazel(
         &root,
         "test",
@@ -531,10 +550,14 @@ fn a_rust_app_builds_tests_installs_and_launches_on_a_simulator() {
         );
     }
 
-    let devices = tool("xcrun", &["simctl", "list", "devices"]);
+    let owned_after = dx_owned_simulators();
+    let leaked: Vec<&String> = owned_after
+        .iter()
+        .filter(|name| !owned_before.contains(name))
+        .collect();
     assert!(
-        !devices.contains(&format!("dx iPhone 16 iOS {runtime}")),
-        "the test simulator outlived its run:\n{devices}"
+        leaked.is_empty(),
+        "the test simulator outlived its run: {leaked:?}"
     );
 
     passes(&bazel(&root, "run", &["//ledger:boot"], &[]));

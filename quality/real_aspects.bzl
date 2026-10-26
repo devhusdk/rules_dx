@@ -215,12 +215,13 @@ _qml_context_aspect = aspect(
 )
 
 def _jvm_jar_key(jar):
-    """Returns the jar basename without its header or ijar marker."""
+    """Returns the jar path without its header or ijar marker."""
     name = jar.basename.removeprefix("header_")
     for suffix in ["-hjar.jar", "-ijar.jar"]:
         if name.endswith(suffix):
-            return "jar:" + name.removesuffix(suffix) + ".jar"
-    return "jar:" + name
+            name = name.removesuffix(suffix) + ".jar"
+            break
+    return "jar:" + jar.short_path.rpartition("/")[0] + "/" + name
 
 def _jvm_aux_jars(java_info, owned):
     """Returns the runtime classpath jars plus compile-only jars not in owned."""

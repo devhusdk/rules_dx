@@ -4,25 +4,10 @@ use std::path::Path;
 use crate::toml_util::{parse_toml_file, toml_bool, toml_string};
 use crate::{DepInfo, DepcheckError};
 
+use super::put;
+
 pub fn normalize_rs(name: &str) -> String {
     name.to_lowercase().replace('-', "_")
-}
-
-fn rank(cat: &str) -> u8 {
-    match cat {
-        "prod" => 3,
-        "build" => 2,
-        _ => 1,
-    }
-}
-
-fn put(deps: &mut BTreeMap<String, DepInfo>, key: String, info: DepInfo) {
-    match deps.get(&key) {
-        Some(old) if rank(&info.category) <= rank(&old.category) => {}
-        _ => {
-            deps.insert(key, info);
-        }
-    }
 }
 
 pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {

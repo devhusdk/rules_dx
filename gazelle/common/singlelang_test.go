@@ -726,3 +726,46 @@ func TestResolveSharedBasenamesStayIndependent(t *testing.T) {
 		t.Errorf("errors = %v", l.errors)
 	}
 }
+
+func TestOptInFieldsSplitLoadsAndIndexExtraKinds(t *testing.T) {
+	spec := dotSpec()
+	spec.ExtraKinds = []string{"dot_extra", "dot_gpu"}
+	spec.KindDefs = map[string]string{"dot_gpu": "gpu/rules:defs.bzl"}
+	spec.IndexKinds = []string{"dot_gpu"}
+	spec.IsIndexSource = func(name string) bool { return strings.HasSuffix(name, ".gdot") }
+	spec.Directives = []string{"dot_custom"}
+	var gotRel, gotValue string
+	spec.ConfigureExt = func(_ *config.Config, rel string, f *rule.File, _ Reporter) {
+		gotRel = rel
+		for _, d := range f.Directives {
+			if d.Key == "dot_custom" {
+				gotValue = d.Value
+			}
+		}
+	}
+	l := NewSingleLang(spec)
+
+	loads := l.Loads()
+	if len(loads) != 2 || loads[0].Name != "@rules_dx//dot/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "dot_library,dot_extra" ||
+		loads[1].Name != "@rules_dx//gpu/rules:defs.bzl" || strings.Join(loads[1].Symbols, ",") != "dot_gpu" {
+		t.Errorf("loads = %+v", loads)
+	}
+	if got := strings.Join(l.KnownDirectives(), ","); got != "dx_ignore_import,dot_custom" {
+		t.Errorf("directives = %q", got)
+	}
+	l.Configure(config.New(), "pkg", &rule.File{Directives: []rule.Directive{{Key: "dot_custom", Value: "v"}}})
+	if gotRel != "pkg" || gotValue != "v" {
+		t.Errorf("ConfigureExt saw rel=%q value=%q", gotRel, gotValue)
+	}
+
+	gpu := rule.NewRule("dot_gpu", "g")
+	gpu.SetAttr("srcs", []string{"a.dot", "b.gdot"})
+	if got := l.Imports(&config.Config{}, gpu, nil); len(got) != 1 || got[0].Imp != "b.gdot" {
+		t.Errorf("extra kind imports = %+v, want only b.gdot", got)
+	}
+	extra := rule.NewRule("dot_extra", "e")
+	extra.SetAttr("srcs", []string{"a.dot"})
+	if got := l.Imports(&config.Config{}, extra, nil); got != nil {
+		t.Errorf("unindexed kind imports = %+v", got)
+	}
+}

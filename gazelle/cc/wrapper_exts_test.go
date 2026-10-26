@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -74,12 +75,21 @@ func TestWrapperExtsMatchGazelle(t *testing.T) {
 	ccSrcs := readList(t, "CC_DEFS_BZL", "_CC_SRCS")
 	ccHdrs := readList(t, "CC_DEFS_BZL", "_CC_HDRS")
 	cudaSrcs := readList(t, "CUDA_DEFS_BZL", "_CUDA_SRCS")
+	cudaHdrs := readList(t, "CUDA_DEFS_BZL", "_CUDA_HDRS")
 
 	if !sameSet(ccSrcs, SupportedSrcExts) {
 		t.Errorf("_CC_SRCS %v differs from SupportedSrcExts %v", ccSrcs, SupportedSrcExts)
 	}
 	if !sameSet(ccHdrs, SupportedHdrExts) {
 		t.Errorf("_CC_HDRS %v differs from SupportedHdrExts %v", ccHdrs, SupportedHdrExts)
+	}
+	if !sameSet(cudaSrcs, SupportedCudaSrcExts) {
+		t.Errorf("_CUDA_SRCS %v differs from SupportedCudaSrcExts %v", cudaSrcs, SupportedCudaSrcExts)
+	}
+	for _, ext := range SupportedCudaHdrExts {
+		if !slices.Contains(cudaHdrs, ext) {
+			t.Errorf("SupportedCudaHdrExts %q is not in _CUDA_HDRS %v", ext, cudaHdrs)
+		}
 	}
 	for _, ext := range cudaSrcs {
 		for _, list := range [][]string{SupportedSrcExts, SupportedHdrExts} {

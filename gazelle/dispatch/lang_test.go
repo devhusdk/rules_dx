@@ -477,13 +477,15 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 			continue
 		}
 		kinds := lang.Kinds()
-		if len(kinds) != 1 {
-			t.Errorf("%s declares %d kinds, want exactly 1", name, len(kinds))
+		if len(kinds) == 0 {
+			t.Errorf("%s declares no kinds", name)
 			continue
 		}
 		kind := ""
-		for name := range kinds {
-			kind = name
+		for k := range kinds {
+			if kind == "" || k < kind {
+				kind = k
+			}
 		}
 		lang.Before(context.Background())
 		from := label.New("", "app", "app")

@@ -66,6 +66,17 @@ Accepted languages: `astro`, `cc`, `csharp`, `fsharp`, `gleam`, `go`, `java`,
 `javascript`, `kotlin`, `mdx`, `python`, `ruby`, `rust`, `scala`, `svelte`,
 `typescript`, `vue`, `zig`.
 
+`# gazelle:dx_cuda_archs <spec> <spec>...` sets the `archs` of a generated
+`cuda_library`. It applies to this directory and below, and a deeper directive
+replaces it. Separate specs with spaces, because a spec can contain commas, as
+in `compute_89:compute_89,sm_89`. The `cc` language generates a `<dir>_cuda`
+target for `.cu` and `.cuh` files that no hand-written CUDA rule lists, and it
+fails when the directive is missing. Gazelle never touches hand-written
+`cuda_library`, `cuda_binary`, `cuda_test` or `cuda_gpu_test` targets. It sets
+`archs` only when it creates the target, so a hand-edited value survives later
+runs. Sources named `*_test.cu` and sources that define `main` are not
+generated, and `main` fails the run.
+
 `# gazelle:lang` must list `dx_dispatch` (for example
 `# gazelle:lang go,dx_dispatch`), or `dx generate` fails.
 

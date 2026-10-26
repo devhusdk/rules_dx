@@ -1,0 +1,16 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_library")
+
+cc_library(
+    name = "newgpu",
+    srcs = ["host.cc"],
+    hdrs = ["host.h"],
+    deps = [":newgpu_cuda"],
+)
+
+cuda_library(
+    name = "newgpu_cuda",
+    srcs = ["kernel.cu"],
+    hdrs = ["kernel.cuh"],
+    archs = ["sm_89"],
+)

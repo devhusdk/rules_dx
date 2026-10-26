@@ -8,7 +8,6 @@ package(default_visibility = ["//:__subpackages__"])
 pwsh_binary(
     name = "version",
     srcs = ["Version.ps1"],
-    target_compatible_with = ["@platforms//os:linux"],
 )
 
 ide_acquisition_test(

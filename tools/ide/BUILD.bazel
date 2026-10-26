@@ -6,6 +6,7 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "ide_acquisition.bzl",
     "ide_acquisition_test.rs",
+    "ide_tool.bzl",
 ])
 
 # keep
@@ -41,6 +42,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "ide_acquisition.bzl",
+        "ide_tool.bzl",
     ],
     tags = ["corpus"],
 )

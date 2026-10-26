@@ -134,7 +134,7 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) planned_reports: &'a [PlannedReport],
     pub(crate) failure_reports: &'a [PlannedReport],
     pub(crate) results_reports: &'a [PlannedReport],
-    pub(crate) results_default: bool,
+    pub(crate) run_id: &'a str,
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
@@ -487,13 +487,19 @@ fn filtered_notice(
 }
 
 /// The results report: every outcome of the run, passed ones included.
-fn results_document(reported: &[TestOutcome], complete: bool, bazel_code: i32) -> String {
+fn results_document(
+    reported: &[TestOutcome],
+    complete: bool,
+    bazel_code: i32,
+    run_id: &str,
+) -> String {
     let results: Vec<serde_json::Value> = reported
         .iter()
         .filter_map(|outcome| test_result_record(outcome).ok())
         .collect();
     let document = serde_json::json!({
         "record_version": 1,
+        "run_id": run_id,
         "exit_code": bazel_code,
         "complete": complete,
         "results": results,
@@ -512,7 +518,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         planned_reports,
         failure_reports,
         results_reports,
-        results_default,
+        run_id,
         stdout_report,
         bazel_code,
         query_runner,
@@ -895,14 +901,12 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     }
     let mut reports_ok = failure_reports_ok;
     if !results_reports.is_empty() {
-        let document = results_document(&reported, complete, bazel_code);
+        let document = results_document(&reported, complete, bazel_code, run_id);
         for planned in results_reports {
             if let Err(error) =
                 write_report_document(out, workspace, &planned.destination, &document)
             {
-                if !results_default {
-                    reports_ok = false;
-                }
+                reports_ok = false;
                 report_failed(
                     out,
                     err,
@@ -1099,6 +1103,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 code,
                 &FinishedCounts {
                     results_complete: Some(*results_complete),
+                    run_id: (!results_reports.is_empty()).then(|| run_id.to_owned()),
                     tests: (!reported.is_empty()).then_some(TestCounts {
                         passed: passed_tests,
                         failed: failed_tests,
@@ -3768,7 +3773,7 @@ mod tests {
     }
 
     #[test]
-    fn default_results_report_failure_does_not_fail_the_run() {
+    fn default_results_report_failure_fails_the_run() {
         let harness = Harness::new("test-results-default-blocked");
         let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
         let harness = Harness {
@@ -3780,7 +3785,93 @@ mod tests {
         };
         std::fs::create_dir_all(harness.workspace.join(".dx/results.json")).expect("block");
         let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        assert!(
+            events.iter().any(|event| event["code"] == "report_failed"),
+            "{out}"
+        );
+        let finished = events.last().expect("command_finished");
+        assert_eq!(finished["event"], "command_finished", "{out}");
+        assert_eq!(finished["results_complete"], false, "{out}");
+    }
+
+    #[test]
+    fn default_results_report_failure_keeps_the_bazel_code() {
+        let harness = Harness::new("test-results-default-blocked-bazel");
+        let uri = write_bep_artifact(&harness, "bad.xml", MIXED_TEST_XML.as_bytes());
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t",
+                1,
+                1,
+                1,
+                "FAILED",
+                None,
+                None,
+                None,
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        std::fs::create_dir_all(harness.workspace.join(".dx/results.json")).expect("block");
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 3, "{out}");
+        let events = json_events(&out);
+        let finished = events.last().expect("command_finished");
+        assert_eq!(finished["results_complete"], false, "{out}");
+    }
+
+    #[test]
+    fn results_document_run_id_matches_command_finished() {
+        let harness = Harness::new("test-results-run-id");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
         assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let finished = events.last().expect("command_finished");
+        let run_id = finished["run_id"].as_str().expect("run_id in event");
+        let file = std::fs::read_to_string(harness.workspace.join(".dx/results.json"))
+            .expect("results file");
+        let document: serde_json::Value = serde_json::from_str(&file).expect("json");
+        assert_eq!(document["run_id"], run_id);
+        assert_eq!(document["record_version"], 1);
+    }
+
+    #[test]
+    fn explicit_results_report_carries_the_run_id() {
+        let harness = Harness::new("test-results-run-id-explicit");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&[
+            "test",
+            "--output=json",
+            "--report",
+            "results=elsewhere.json",
+        ]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let finished = events.last().expect("command_finished");
+        let run_id = finished["run_id"].as_str().expect("run_id in event");
+        let file = std::fs::read_to_string(harness.workspace.join("elsewhere.json"))
+            .expect("results file");
+        let document: serde_json::Value = serde_json::from_str(&file).expect("json");
+        assert_eq!(document["run_id"], run_id);
+        assert!(!harness.workspace.join(".dx/results.json").exists());
     }
 
     #[test]

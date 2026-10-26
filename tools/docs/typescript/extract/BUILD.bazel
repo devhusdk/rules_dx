@@ -1,0 +1,100 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files([
+    "Cargo.toml",
+    "src/convert.rs",
+    "src/lib.rs",
+    "src/lib_tests.rs",
+    "src/main.rs",
+    "src/types.rs",
+])
+
+rust_library(
+    name = "dx_docs_typescript_extract",
+    srcs = [
+        "src/convert.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/types.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/docs/typescript/typescript_extract",
+        normal = True,
+    ),
+    crate_name = "dx_docs_typescript_extract",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "tools/docs/typescript/typescript_extract",
+        normal = True,
+    ) + ["//tools/docs/ir/ir:documentation_ir"],
+)
+
+rust_binary(
+    name = "typescript_extract",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/typescript/typescript_extract",
+        normal = True,
+    ),
+    crate_name = "typescript_extract",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "tools/docs/typescript/typescript_extract",
+        normal = True,
+    ) + [":dx_docs_typescript_extract"],
+)
+
+rust_test(
+    name = "dx_docs_typescript_extract_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/docs/typescript/typescript_extract",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_docs_typescript_extract",
+    deps = all_crate_deps(
+        package_name = "tools/docs/typescript/typescript_extract",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/docs/ir/ir:documentation_ir"],
+)
+
+rustfmt_test(
+    name = "dx_docs_typescript_extract_fmt_test",
+    size = "small",
+    targets = [
+        ":dx_docs_typescript_extract",
+        ":dx_docs_typescript_extract_test",
+        ":typescript_extract",
+    ],
+)
+
+rust_clippy_test(
+    name = "dx_docs_typescript_extract_clippy_test",
+    size = "small",
+    targets = [
+        ":dx_docs_typescript_extract",
+        ":typescript_extract",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -87,7 +87,8 @@ Output: `--output text|diff|json`. JSON keeps one `command_started` and one
 `command_finished` for the run. Each phase sits between a `phase_started` and
 a `phase_finished`, and its events carry `command`, `phase`, and a
 `correlation` such as `check/format`. `dx fix --apply` verification phases use
-`verify/<phase>`. A phase that reported findings adds a correlated `notice`
+`verify/<phase>`. A `verify/<phase>` that writes events dx cannot read adds a
+correlated `collection_failed` error and fails the run. A phase that reported findings adds a correlated `notice`
 (`umbrella_phase_findings`), a skipped phase adds a correlated `notice`
 (`umbrella_phase_skipped`), and a capture the run could not collect adds a
 correlated `error`. `--include-edits` adds full edits to JSON `change` events

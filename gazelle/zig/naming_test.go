@@ -39,3 +39,24 @@ func TestOrderRootFirst(t *testing.T) {
 		t.Errorf("err = %v, want the root candidates named", err)
 	}
 }
+
+func TestManifestName(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"enum", ".{ .name = .demo }", "demo"},
+		{"string", ".{ .name = \"demo-pkg\" }", "demo-pkg"},
+		{"quoted", ".{ .name = .@\"x\" }", "x"},
+		{"comment", ".{\n // .name = .decoy\n .name = .real,\n}", "real"},
+		{"nested", ".{ .dependencies = .{ .foo = .{ .name = .decoy } }, .name = .real }", "real"},
+		{"braceInString", ".{ .description = \"}\", .name = .real }", "real"},
+		{"multiline", ".{ .description =\n \\\\ .name = .decoy }\n , .name = .real }", "real"},
+		{"number", ".{ .name = 12 }", ""},
+		{"absent", ".{ .version = \"1\" }", ""},
+		{"empty", "", ""},
+		{"bom", "\xEF\xBB\xBF.{ .name = .demo }", "demo"},
+	}
+	for _, tc := range cases {
+		if got := manifestName([]byte(tc.in)); got != tc.want {
+			t.Errorf("%s: manifestName(%q) = %q, want %q", tc.name, tc.in, got, tc.want)
+		}
+	}
+}

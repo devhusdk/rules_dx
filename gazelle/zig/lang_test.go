@@ -249,12 +249,19 @@ func TestGenerateRootPackage(t *testing.T) {
 	}{
 		{"demo-repo", "demo_repo", "demo_repo.zig"},
 		{"", "lib", "root.zig"},
+		{"demo-repo", "demo", "demo.zig"},
+		{"demo-repo", "demo_repo", "demo_repo.zig"},
 	}
-	for _, tc := range cases {
-		result := generateRoot(t, tc.repoName, map[string]string{
+	zons := []string{"", "", ".{ .name = .demo, }", ".{ .version = \"1\" }"}
+	for i, tc := range cases {
+		files := map[string]string{
 			tc.main:    "const util = @import(\"util.zig\");\n",
 			"util.zig": "const std = @import(\"std\");\n",
-		})
+		}
+		if zons[i] != "" {
+			files[ManifestFile] = zons[i]
+		}
+		result := generateRoot(t, tc.repoName, files)
 		if len(result.Gen) != 1 {
 			t.Fatalf("repo %q: generated %d rules, want 1", tc.repoName, len(result.Gen))
 		}

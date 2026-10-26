@@ -45,8 +45,8 @@ dx format --apply
 
 `dx generate` writes one `zig_library` per directory. The root is
 `<directory>.zig`, `root.zig`, `lib.zig` or the only `.zig` file. Other `.zig`
-files go to `srcs`. `*_test.zig` and `build.zig` are skipped, and
-`build.zig.zon` is never read. `@import("name")` adds the library whose import
+files go to `srcs`. `*_test.zig` and `build.zig` are skipped. The root package is named
+after `.name` in `build.zig.zon`, else the repo name, else `lib`. `@import("name")` adds the library whose import
 name is `name`. `@import` of `std`, `builtin`, `root`, `bazel_builtin` and
 `c` adds nothing. `.zon` imports and `@embedFile` files in the same directory
 go to `extra_srcs`. A file import or `@embedFile` that points outside the

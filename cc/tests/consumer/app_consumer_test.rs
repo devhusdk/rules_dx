@@ -426,6 +426,41 @@ fn the_cpp_binary_uses_templates_fmt_and_the_packaged_menu() {
 }
 
 #[test]
+fn dx_coverage_reports_c_and_cpp_lines() {
+    let case = consumer();
+    let report = case.root().join("coverage.lcov");
+    let arg = format!("lcov={}", report.display());
+    let covered = dx(
+        &case,
+        &[
+            "coverage",
+            "--report",
+            arg.as_str(),
+            "//examples/c-app/store:store_test",
+            "//examples/c-app/cli:cli_test",
+            "//examples/cpp-app/core:menu_test",
+        ],
+    );
+    assert!(covered.status.success(), "{}", covered.combined());
+    let lcov = read(&report);
+    for source in [
+        "examples/c-app/store/store.c",
+        "examples/c-app/cli/cli.c",
+        "examples/cpp-app/core/menu.cc",
+    ] {
+        let record = lcov
+            .split("end_of_record")
+            .find(|record| record.contains(&format!("SF:{source}")))
+            .unwrap_or_else(|| panic!("{source} missing from coverage:\n{lcov}"));
+        let hit = record
+            .lines()
+            .filter_map(|line| line.strip_prefix("LH:"))
+            .any(|count| count.trim().parse::<u32>().is_ok_and(|count| count > 0));
+        assert!(hit, "no {source} line was hit:\n{record}");
+    }
+}
+
+#[test]
 fn generated_headers_carry_the_version_file() {
     let case = consumer();
     let c_header = build(&case, "//examples/c-app/store:store_build_h");

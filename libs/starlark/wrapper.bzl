@@ -190,6 +190,58 @@ DxDataCoverageInfo = provider(
     },
 )
 
+def dx_native_coverage_attrs():
+    """Returns the attributes native (C/C++/LLVM) coverage collection needs."""
+    return dx_collect_cc_coverage_attr(Label("//tools/coverage/collect:collect_native")) | {
+        "_llvm_cov": attr.label(
+            default = Label("@llvm//tools:llvm-cov"),
+            executable = True,
+            allow_files = True,
+            cfg = config.exec(exec_group = "test"),
+        ),
+        "_llvm_profdata": attr.label(
+            default = Label("@llvm//tools:llvm-profdata"),
+            executable = True,
+            allow_files = True,
+            cfg = config.exec(exec_group = "test"),
+        ),
+    }
+
+def dx_native_test_coverage(ctx, upstream):
+    """Returns coverage providers that collect native LLVM coverage.
+
+    Covers native binaries in data when the data coverage aspect ran.
+    """
+    collector = ctx.executable._collect_cc_coverage
+    llvm_cov = ctx.executable._llvm_cov
+    llvm_profdata = ctx.executable._llvm_profdata
+    metadata = [collector, llvm_cov, llvm_profdata]
+    transitive = []
+    if DxDataCoverageInfo in upstream:
+        data = upstream[DxDataCoverageInfo]
+        transitive = [data.metadata_files, data.instrumented_files]
+    instrumented = coverage_common.instrumented_files_info(
+        ctx,
+        dependency_attributes = ["upstream"],
+        metadata_files = depset(metadata, transitive = transitive).to_list(),
+    )
+    env = {}
+    inherited = []
+    if RunEnvironmentInfo in upstream:
+        env.update(upstream[RunEnvironmentInfo].environment)
+        inherited = upstream[RunEnvironmentInfo].inherited_environment
+    if DxDataCoverageInfo not in upstream:
+        # The test binary itself carries the clang coverage map (no runtime objects list).
+        env["DX_COVERAGE_CLANG_OBJECTS"] = "test_binary"
+    env["CC_CODE_COVERAGE_SCRIPT"] = collector.path
+    env["LLVM_COV"] = llvm_cov.path
+    env["LLVM_PROFDATA"] = llvm_profdata.path
+    return struct(
+        instrumented = instrumented,
+        env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
+        runfiles = None,
+    )
+
 def _dx_data_coverage_aspect_impl(_target, ctx):
     infos = [dep[InstrumentedFilesInfo] for dep in getattr(ctx.rule.attr, "data", []) if InstrumentedFilesInfo in dep]
     return [DxDataCoverageInfo(

@@ -331,6 +331,7 @@ coverage collects without enforcing. A passing gate prints
 prints `coverage_below_minimum: coverage <percent>% (<covered>/<eligible> lines) below minimum <n>%`
 on stderr, or emits an `error` event with code `coverage_below_minimum` with
 `--output=json`. A collected LCOV with zero executable lines also fails.
+C and C++ tests report line coverage through LLVM, with no setup needed.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. Repeat the flag for more files. Use `-` for stdout. A relative

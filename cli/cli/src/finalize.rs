@@ -402,8 +402,7 @@ mod tests {
             dir.path()
                 .join("rust/tests/fixtures/hello/BUILD.bazel.dir/BUILD.bazel"),
         )
-        .unwrap()
-        .manifest;
+        .unwrap();
         std::fs::create_dir_all(dir.path().join("rust/tests/fixtures/hello/BUILD.bazel")).unwrap();
         let unreadable = run(dir.path());
         assert_eq!(unreadable.outcome, WriteOutcome::NotApplied as i32);

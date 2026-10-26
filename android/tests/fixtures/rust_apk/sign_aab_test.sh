@@ -56,6 +56,17 @@ cp "$work/signed.aab" "$work/presigned.aab"
     export DX_SIGN_OUT="$work/keypass.aab"
     "$signer" >"$work/log" 2>&1 || { echo "signing with a key password file failed"; cat "$work/log"; exit 1; }
 )
+(
+    "$javabase/bin/keytool" -genkeypair -keystore "$work/ec.jks" -storetype PKCS12 -alias dxec -keyalg EC -groupname secp256r1 \
+        -validity 2 -dname "CN=dx disposable ec key" -storepass "dx-store-secret" >/dev/null 2>&1
+    export DX_SIGN_KEYSTORE="$work/ec.jks"
+    export DX_SIGN_KEY_ALIAS="dxec"
+    export DX_SIGN_OUT="$work/ec.aab"
+    "$signer" >"$work/log" 2>&1 || { echo "signing with an EC key failed"; cat "$work/log"; exit 1; }
+    "$javabase/bin/jarsigner" -verify -verbose -certs "$work/ec.aab" >"$work/verify" 2>&1 || { echo "jarsigner rejects the EC-signed bundle"; cat "$work/verify"; exit 1; }
+    grep -q "CN=dx disposable ec key" "$work/verify" || { echo "signer is not the EC test identity"; cat "$work/verify"; exit 1; }
+    grep -q "Signature algorithm: SHA256withECDSA" "$work/verify" || { echo "signature is not SHA256withECDSA"; cat "$work/verify"; exit 1; }
+)
 
 expect_failure() {
     label="$1"
@@ -101,6 +112,12 @@ expect_failure() {
 (
     export DX_SIGN_OUT="$unsigned"
     expect_failure "overwrite input" "must not overwrite the input" 2
+)
+(
+    ln -s "$unsigned" "$work/link.aab"
+    export DX_SIGN_OUT="$work/link.aab"
+    expect_failure "overwrite input through a symlink" "must not overwrite the input" 2
+    cmp -s "$unsigned" "$work/link.aab" || { echo "overwrite through a symlink replaced the input"; exit 1; }
 )
 (
     export DX_SIGN_KEYSTORE="$work/missing.jks"

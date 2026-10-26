@@ -41,9 +41,10 @@ jarsigner="$javabase/bin/jarsigner"
 if [ -n "${DX_SIGN_KEY_PASS_FILE:-}" ] && [ ! -f "$DX_SIGN_KEY_PASS_FILE" ]; then
     fail "no key password file at $DX_SIGN_KEY_PASS_FILE"
 fi
-case "$(runfile "$DX_SIGN_AAB")" in
-    "$DX_SIGN_OUT") fail "DX_SIGN_OUT must not overwrite the input App Bundle" ;;
-esac
+# Under bazel run the input is a runfiles symlink, so compare files, not path strings.
+if [ "$(runfile "$DX_SIGN_AAB")" = "$DX_SIGN_OUT" ] || [ "$DX_SIGN_AAB" -ef "$DX_SIGN_OUT" ]; then
+    fail "DX_SIGN_OUT must not overwrite the input App Bundle"
+fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 if "$jarsigner" -verify "$DX_SIGN_AAB" 2>&1 | grep -q "^jar verified"; then
@@ -55,7 +56,8 @@ fi
     -alias "$DX_SIGN_KEY_ALIAS" >"$work/key" 2>&1 || fail "jarsigner could not sign $DX_SIGN_AAB: keystore or alias rejected" 1
 case "$(grep '^Subject Public Key Algorithm:' "$work/key")" in
     *" RSA key"*) sigalg="SHA256withRSA" ;;
-    *" EC key"*) sigalg="SHA256withECDSA" ;;
+    # keytool names the curve: "256-bit EC (secp256r1) key".
+    *" EC "* | *" EC key"*) sigalg="SHA256withECDSA" ;;
     *) fail "jarsigner could not sign $DX_SIGN_AAB: the upload key must be RSA or EC" 1 ;;
 esac
 cp "$DX_SIGN_AAB" "$work/in.aab"

@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use super::{
-    as_text, code_name, diff_paths, finding, known_relative, unformatted_at, FileFinding,
-    ParseError,
+    as_text, code_name, diff_paths, finding, known_relative, path_row_col, unformatted_at,
+    FileFinding, ParseError,
 };
 use crate::ToolSeverity;
 
@@ -28,17 +28,17 @@ pub fn parse_cue(
             }
             findings.extend(syntax_errors(errors, files, cwd)?);
             if findings.is_empty() {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: "exit 1 with no diff and no located errors".to_owned(),
-                });
+                return Err(ParseError::shape(
+                    TOOL,
+                    "exit 1 with no diff and no located errors",
+                ));
             }
             Ok(findings)
         }
-        _ => Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("unexpected exit {} with output", code_name(code)),
-        }),
+        _ => Err(ParseError::shape(
+            TOOL,
+            format!("unexpected exit {} with output", code_name(code)),
+        )),
     }
 }
 
@@ -56,12 +56,16 @@ fn syntax_errors(stderr: &str, files: &[&str], cwd: &Path) -> Result<Vec<FileFin
         let Some((path, row, column)) = lines[index..]
             .iter()
             .take_while(|next| next.starts_with(char::is_whitespace))
-            .find_map(|next| located(next.trim()))
+            .find_map(|next| {
+                let (path, row, column) = path_row_col(next.trim())?;
+                let path = path.strip_prefix("./").unwrap_or(path);
+                (!path.is_empty()).then_some((path, row, column))
+            })
         else {
-            return Err(ParseError::Shape {
-                tool: TOOL,
-                detail: format!("error without a location: {message}"),
-            });
+            return Err(ParseError::shape(
+                TOOL,
+                format!("error without a location: {message}"),
+            ));
         };
         let file = known_relative(TOOL, files, cwd, path)?;
         let (row, column) = within_file(file, row, column);
@@ -87,17 +91,6 @@ fn within_file(file: &str, row: u64, column: u64) -> (u64, u64) {
     let row = row.clamp(1, last);
     let width = rows.get(row as usize - 1).map_or(0, |line| line.len()) as u64;
     (row, column.clamp(1, width + 1))
-}
-
-/// The path, line and column from a `<path>:<line>:<column>` location.
-fn located(text: &str) -> Option<(&str, u64, u64)> {
-    let (rest, column) = text.rsplit_once(':')?;
-    let (path, row) = rest.rsplit_once(':')?;
-    let path = path.strip_prefix("./").unwrap_or(path);
-    if path.is_empty() {
-        return None;
-    }
-    Some((path, row.parse().ok()?, column.parse().ok()?))
 }
 
 #[cfg(test)]

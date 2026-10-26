@@ -35,29 +35,26 @@ fn qmllint_severity(level: &str) -> Result<ToolSeverity, ParseError> {
         "error" | "critical" => Ok(ToolSeverity::Error),
         "warning" => Ok(ToolSeverity::Warning),
         "info" | "note" | "none" => Ok(ToolSeverity::Info),
-        other => Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("unknown severity: {other}"),
-        }),
+        other => Err(ParseError::shape(
+            TOOL,
+            format!("unknown severity: {other}"),
+        )),
     }
-}
-
-fn shape(detail: String) -> ParseError {
-    ParseError::Shape { tool: TOOL, detail }
 }
 
 fn read_report(stdout: &[u8]) -> Result<QmlLintReport, ParseError> {
     check_output_size(TOOL, stdout)?;
-    let text = std::str::from_utf8(stdout).map_err(|err| shape(err.to_string()))?;
+    let text =
+        std::str::from_utf8(stdout).map_err(|err| ParseError::shape(TOOL, err.to_string()))?;
     let report: QmlLintReport = serde_json::from_str(text).map_err(|err| ParseError::Json {
         tool: TOOL,
         detail: err.to_string(),
     })?;
     if report.revision != REVISION {
-        return Err(shape(format!(
-            "unsupported report revision {}",
-            report.revision
-        )));
+        return Err(ParseError::shape(
+            TOOL,
+            format!("unsupported report revision {}", report.revision),
+        ));
     }
     Ok(report)
 }
@@ -82,7 +79,10 @@ fn convert(
         let normalized = file.filename.strip_prefix("./").unwrap_or(&file.filename);
         let checked = known(TOOL, files, normalized)?;
         if seen.contains(&checked) {
-            return Err(shape(format!("{} is reported twice", file.filename)));
+            return Err(ParseError::shape(
+                TOOL,
+                format!("{} is reported twice", file.filename),
+            ));
         }
         seen.push(checked);
         let mut failing = false;
@@ -90,13 +90,16 @@ fn convert(
             let severity = qmllint_severity(&record.severity)?;
             failing |= severity != ToolSeverity::Info;
             let (Some(line), Some(column)) = (record.line, record.column) else {
-                return Err(shape(format!(
-                    "{}: {} [{}]",
-                    file.filename, record.message, record.id
-                )));
+                return Err(ParseError::shape(
+                    TOOL,
+                    format!("{}: {} [{}]", file.filename, record.message, record.id),
+                ));
             };
             if record.id.is_empty() || line == 0 || column == 0 {
-                return Err(shape(format!("malformed record for {}", file.filename)));
+                return Err(ParseError::shape(
+                    TOOL,
+                    format!("malformed record for {}", file.filename),
+                ));
             }
             findings.push(FileFinding {
                 file: checked.to_owned(),
@@ -114,17 +117,20 @@ fn convert(
             });
         }
         if failing == file.success {
-            return Err(shape(format!(
-                "{} reports success {} with {} diagnostics",
-                file.filename,
-                file.success,
-                file.warnings.len()
-            )));
+            return Err(ParseError::shape(
+                TOOL,
+                format!(
+                    "{} reports success {} with {} diagnostics",
+                    file.filename,
+                    file.success,
+                    file.warnings.len()
+                ),
+            ));
         }
     }
     if require_all {
         if let Some(missing) = files.iter().find(|file| !seen.contains(file)) {
-            return Err(shape(format!("no report for {missing}")));
+            return Err(ParseError::shape(TOOL, format!("no report for {missing}")));
         }
     }
     Ok(findings)
@@ -136,17 +142,23 @@ pub fn parse_qmllint(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     if stdout.iter().all(u8::is_ascii_whitespace) {
-        return Err(shape(format!("exit {} with empty output", code_name(code))));
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} with empty output", code_name(code)),
+        ));
     }
     let report = read_report(stdout)?;
     let findings = convert(&report, files, true)?;
     let want = implied_code(&report);
     if code != Some(want) {
-        return Err(shape(format!(
-            "{} diagnostics with exit {} (want {want})",
-            findings.len(),
-            code_name(code)
-        )));
+        return Err(ParseError::shape(
+            TOOL,
+            format!(
+                "{} diagnostics with exit {} (want {want})",
+                findings.len(),
+                code_name(code)
+            ),
+        ));
     }
     Ok(findings)
 }

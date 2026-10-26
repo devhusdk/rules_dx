@@ -1,18 +1,13 @@
 use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
-fn shape(detail: impl Into<String>) -> ParseError {
-    ParseError::Shape {
-        tool: "psscriptanalyzer",
-        detail: detail.into(),
-    }
-}
+const TOOL: &str = "psscriptanalyzer";
 
 fn text<'a>(value: &'a serde_json::Value, key: &str) -> Result<&'a str, ParseError> {
     value
         .get(key)
         .and_then(serde_json::Value::as_str)
-        .ok_or_else(|| shape(format!("missing {key}")))
+        .ok_or_else(|| ParseError::shape(TOOL, format!("missing {key}")))
 }
 
 fn position(value: &serde_json::Value, key: &str) -> Result<u64, ParseError> {
@@ -20,7 +15,7 @@ fn position(value: &serde_json::Value, key: &str) -> Result<u64, ParseError> {
         .get(key)
         .and_then(serde_json::Value::as_u64)
         .map(|number| number.max(1))
-        .ok_or_else(|| shape(format!("missing {key}")))
+        .ok_or_else(|| ParseError::shape(TOOL, format!("missing {key}")))
 }
 
 pub fn parse_psscriptanalyzer(
@@ -28,10 +23,9 @@ pub fn parse_psscriptanalyzer(
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "psscriptanalyzer";
     check_output_size(TOOL, stdout)?;
     if code != Some(0) {
-        return Err(shape(format!("exit {}", code_name(code))));
+        return Err(ParseError::shape(TOOL, format!("exit {}", code_name(code))));
     }
     let report: serde_json::Value =
         serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
@@ -39,12 +33,12 @@ pub fn parse_psscriptanalyzer(
             detail: err.to_string(),
         })?;
     if let Some(error) = report.get("error").and_then(serde_json::Value::as_str) {
-        return Err(shape(error));
+        return Err(ParseError::shape(TOOL, error));
     }
     let entries = report
         .get("files")
         .and_then(serde_json::Value::as_array)
-        .ok_or_else(|| shape("missing files"))?;
+        .ok_or_else(|| ParseError::shape(TOOL, "missing files"))?;
     let mut findings = Vec::new();
     let mut reported: Vec<&str> = Vec::new();
     for entry in entries {
@@ -53,17 +47,22 @@ pub fn parse_psscriptanalyzer(
         let diagnostics = entry
             .get("diagnostics")
             .and_then(serde_json::Value::as_array)
-            .ok_or_else(|| shape("missing diagnostics"))?;
+            .ok_or_else(|| ParseError::shape(TOOL, "missing diagnostics"))?;
         for diagnostic in diagnostics {
             let severity = match text(diagnostic, "severity")? {
                 "Information" => ToolSeverity::Info,
                 "Warning" => ToolSeverity::Warning,
                 "Error" | "ParseError" => ToolSeverity::Error,
-                other => return Err(shape(format!("unknown severity {other:?}"))),
+                other => {
+                    return Err(ParseError::shape(
+                        TOOL,
+                        format!("unknown severity {other:?}"),
+                    ))
+                }
             };
             let message = text(diagnostic, "message")?;
             if message.is_empty() {
-                return Err(shape("missing message"));
+                return Err(ParseError::shape(TOOL, "missing message"));
             }
             let (start, end) = point(
                 position(diagnostic, "line")?,
@@ -86,7 +85,7 @@ pub fn parse_psscriptanalyzer(
         }
     }
     if let Some(missing) = files.iter().find(|file| !reported.contains(file)) {
-        return Err(shape(format!("no result for {missing}")));
+        return Err(ParseError::shape(TOOL, format!("no result for {missing}")));
     }
     Ok(findings)
 }

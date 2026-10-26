@@ -171,25 +171,37 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
 
 #[test]
 pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
-    for tool_id in [
-        "clang_tidy",
-        "cppcheck",
-        "djlint",
-        "errcheck",
-        "fsharplint",
-        "govet",
-        "keep_sorted",
-        "qmllint",
-        "roslyn",
-        "rubocop",
-        "shellcheck",
-        "staticcheck",
-        "yamllint",
+    for (tool_id, report) in [
+        ("clang_tidy", ""),
+        (
+            "cppcheck",
+            r#"<results version="2"><errors></errors></results>"#,
+        ),
+        ("djlint", ""),
+        ("errcheck", ""),
+        ("fsharplint", ""),
+        ("govet", ""),
+        ("keep_sorted", ""),
+        (
+            "qmllint",
+            r#"{"files":[{"filename":"a.txt","success":true,"warnings":[]}],"revision":4}"#,
+        ),
+        (
+            "roslyn",
+            r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[]}]}"#,
+        ),
+        ("rubocop", r#"{"files":[{"path":"a.txt","offenses":[]}]}"#),
+        ("shellcheck", ""),
+        ("staticcheck", ""),
+        ("yamllint", ""),
     ] {
-        let upstream = upstream_file(tool_id, "");
+        let upstream = upstream_file(tool_id, report);
         let tool = delegated_tool(upstream.path().to_path_buf());
         let backend = backend_for(tool_id, tool, must_not_spawn);
-        let _ = backend.diagnose(tool_id, "lint", &single("a.txt", "x\n"));
+        let found = backend
+            .diagnose(tool_id, "lint", &single("a.txt", "x\n"))
+            .unwrap_or_else(|err| panic!("{tool_id}: {err}"));
+        assert!(found.is_empty(), "{tool_id}");
     }
 }
 

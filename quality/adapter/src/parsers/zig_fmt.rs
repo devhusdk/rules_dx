@@ -1,6 +1,9 @@
 use crate::ToolSeverity;
 
-use super::{as_text, code_name, finding, listed_paths, FileFinding, ParseError, Spelling};
+use super::{
+    as_text, code_name, columned, finding, listed_paths, prefixed, FileFinding, ParseError,
+    Spelling,
+};
 
 const TOOL: &str = "zig_fmt";
 
@@ -16,10 +19,10 @@ pub fn parse_zig_fmt(
         return listed_paths(TOOL, stdout, code, files, &[], Spelling::Exact);
     }
     if code != Some(1) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with syntax errors (want 1)", code_name(code)),
-        });
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} with syntax errors (want 1)", code_name(code)),
+        ));
     }
     let mut findings = listed_paths(TOOL, stdout, Some(0), files, &[], Spelling::Exact)?;
     findings.extend(errors);
@@ -30,30 +33,22 @@ fn syntax_errors(stderr: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pars
     let text = as_text(TOOL, stderr)?;
     let mut out = Vec::new();
     for line in text.lines() {
-        for file in files {
-            let Some(rest) = line.strip_prefix(file).and_then(|r| r.strip_prefix(':')) else {
-                continue;
-            };
-            let mut parts = rest.splitn(3, ':');
-            let (Some(row), Some(col), Some(tail)) = (parts.next(), parts.next(), parts.next())
-            else {
-                continue;
-            };
-            let (Ok(row), Ok(col)) = (row.parse::<u64>(), col.parse::<u64>()) else {
-                continue;
-            };
-            if let Some(message) = tail.trim().strip_prefix("error:") {
-                out.push(finding(
-                    TOOL,
-                    file,
-                    "syntax".to_owned(),
-                    message.trim().to_owned(),
-                    ToolSeverity::Error,
-                    row,
-                    col,
-                ));
-            }
-            break;
+        let Some((file, rest)) = prefixed(line, files) else {
+            continue;
+        };
+        let Some((row, col, tail)) = columned(TOOL, line, rest).ok() else {
+            continue;
+        };
+        if let Some(message) = tail.strip_prefix("error:") {
+            out.push(finding(
+                TOOL,
+                file,
+                "syntax".to_owned(),
+                message.trim().to_owned(),
+                ToolSeverity::Error,
+                row,
+                col,
+            ));
         }
     }
     Ok(out)
@@ -96,5 +91,17 @@ mod tests {
         assert!(parse_zig_fmt(b"", BROKEN.as_bytes(), Some(0), &files).is_err());
         assert!(parse_zig_fmt(b"", BROKEN.as_bytes(), Some(1), &["src/other.zig"]).is_err());
         assert!(parse_zig_fmt(b"", &[0xff], Some(1), &files).is_err());
+    }
+
+    #[test]
+    fn zig_fmt_picks_the_longest_checked_file() {
+        let findings = parse_zig_fmt(
+            b"",
+            b"/s/a.b:1:2: error: bad\n",
+            Some(1),
+            &["/s/a", "/s/a.b"],
+        )
+        .expect("parsed");
+        assert_eq!(findings[0].file, "/s/a.b");
     }
 }

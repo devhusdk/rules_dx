@@ -17,10 +17,7 @@ pub fn parse_mix_format(
     cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
     if !as_text(TOOL, stdout)?.trim().is_empty() {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: "--check-formatted wrote to stdout".to_owned(),
-        });
+        return Err(ParseError::shape(TOOL, "--check-formatted wrote to stdout"));
     }
     let raw = as_text(TOOL, stderr)?;
     let lines: Vec<(bool, String)> = raw
@@ -53,10 +50,10 @@ pub fn parse_mix_format(
         _ => false,
     };
     if !shaped {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with {} findings", code_name(code), findings.len()),
-        });
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} with {} findings", code_name(code), findings.len()),
+        ));
     }
     Ok(findings)
 }

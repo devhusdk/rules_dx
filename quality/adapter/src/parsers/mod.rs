@@ -141,6 +141,16 @@ pub enum ParseError {
     },
 }
 
+impl ParseError {
+    /// The failure for output outside the pinned grammar.
+    fn shape(tool: &'static str, detail: impl Into<String>) -> Self {
+        Self::Shape {
+            tool,
+            detail: detail.into(),
+        }
+    }
+}
+
 pub const MAX_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 
 pub fn check_output_size(tool: &'static str, bytes: &[u8]) -> Result<(), ParseError> {
@@ -246,13 +256,8 @@ fn located<'a>(
     line: &'a str,
     files: &[&'a str],
 ) -> Result<(&'a str, &'a str), ParseError> {
-    let best = files
-        .iter()
-        .copied()
-        .filter(|file| line.strip_prefix(file).is_some_and(|r| r.starts_with(':')))
-        .max_by_key(|file| file.len());
-    if let Some(file) = best {
-        return Ok((file, &line[file.len() + 1..]));
+    if let Some(found) = prefixed(line, files) {
+        return Ok(found);
     }
     if !line.contains(':') {
         return Err(missing(tool, "location", line));
@@ -263,6 +268,32 @@ fn located<'a>(
         tool,
         path: line[..end].to_owned(),
     })
+}
+
+/// The checked file a line starts with (longest wins), followed by a colon, and the rest.
+fn prefixed<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)> {
+    files
+        .iter()
+        .copied()
+        .filter(|file| line.strip_prefix(file).is_some_and(|r| r.starts_with(':')))
+        .max_by_key(|file| file.len())
+        .map(|file| (file, &line[file.len() + 1..]))
+}
+
+/// Exactly `row<sep>col`, both numbers trimmed.
+fn row_col(text: &str, sep: char) -> Option<(u64, u64)> {
+    let (row, col) = text.split_once(sep)?;
+    Some((row.trim().parse().ok()?, col.trim().parse().ok()?))
+}
+
+/// A `path:row:col` triple split from the right, with a non-empty path.
+fn path_row_col(text: &str) -> Option<(&str, u64, u64)> {
+    let (rest, col) = text.rsplit_once(':')?;
+    let (path, row) = rest.rsplit_once(':')?;
+    if path.is_empty() {
+        return None;
+    }
+    Some((path, row.trim().parse().ok()?, col.trim().parse().ok()?))
 }
 
 /// The line and column of a diagnostic that spells both, with its tail.
@@ -328,10 +359,10 @@ fn require_findings(
     code: Option<i32>,
 ) -> Result<(), ParseError> {
     if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
+        return Err(ParseError::shape(
             tool,
-            detail: format!("exit {} with no diagnostics", code_name(code)),
-        });
+            format!("exit {} with no diagnostics", code_name(code)),
+        ));
     }
     Ok(())
 }
@@ -341,10 +372,7 @@ fn point(line: u64, column: u64) -> (TextPosition, Option<TextPosition>) {
 }
 
 fn missing(tool: &'static str, what: &str, line: &str) -> ParseError {
-    ParseError::Shape {
-        tool,
-        detail: format!("malformed {what}: {line}"),
-    }
+    ParseError::shape(tool, format!("malformed {what}: {line}"))
 }
 
 fn code_name(code: Option<i32>) -> String {
@@ -751,7 +779,8 @@ mod tests {
 
     use super::{
         check_output_size, code_name, columned, finding, lines, located, missing, numbered,
-        require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
+        path_row_col, prefixed, require_findings, row_col, FileFinding, ParseError, Spelling,
+        MAX_OUTPUT_BYTES,
     };
     use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
@@ -771,6 +800,44 @@ mod tests {
             lines("tsc", &big),
             Err(ParseError::TooLarge { tool: "tsc", .. })
         ));
+    }
+
+    #[test]
+    fn shape_builds_the_shape_variant() {
+        assert_eq!(
+            ParseError::shape("t", "d"),
+            ParseError::Shape {
+                tool: "t",
+                detail: "d".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn row_col_reads_exactly_two_numbers() {
+        assert_eq!(row_col("3:7", ':'), Some((3, 7)));
+        assert_eq!(row_col(" 3 , 7 ", ','), Some((3, 7)));
+        assert_eq!(row_col("3", ':'), None);
+        assert_eq!(row_col("a:7", ':'), None);
+        assert_eq!(row_col("3:7:", ':'), None);
+    }
+
+    #[test]
+    fn path_row_col_needs_a_path_line_and_column() {
+        assert_eq!(path_row_col("src/a.gleam:3:7"), Some(("src/a.gleam", 3, 7)));
+        assert_eq!(path_row_col(":3:7"), None);
+        assert_eq!(path_row_col("src/a.gleam:3"), None);
+        assert_eq!(path_row_col("src/a.gleam"), None);
+        assert_eq!(path_row_col(r"C:\a.x:3:7"), Some((r"C:\a.x", 3, 7)));
+    }
+
+    #[test]
+    fn prefixed_picks_the_longest_checked_file() {
+        let files = ["/s/a", "/s/a.b"];
+        assert_eq!(prefixed("/s/a.b:1: x", &files), Some(("/s/a.b", "1: x")));
+        assert_eq!(prefixed("/s/a:1: x", &files), Some(("/s/a", "1: x")));
+        assert_eq!(prefixed("/s/a.bc", &files), None);
+        assert_eq!(prefixed("/s/z:1: x", &files), None);
     }
 
     #[test]

@@ -11,7 +11,7 @@ use dx_setup::{
 use quality_result::proto;
 use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
 use quality_result::{encode_validated, SCHEMA_MAJOR, SCHEMA_MINOR};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::{self};
 use std::path::Path;
@@ -61,6 +61,7 @@ pub(crate) struct ScriptQuery {
     pub(crate) outputs: RefCell<Vec<QueryResult>>,
     pub(crate) info_calls: RefCell<Vec<Vec<String>>>,
     pub(crate) info: RefCell<Option<QueryResult>>,
+    pub(crate) free_disk_bytes: Cell<Option<u64>>,
 }
 
 impl ScriptQuery {
@@ -97,6 +98,10 @@ impl QueryRunner for ScriptQuery {
         self.expressions.borrow_mut().push(expression);
         self.calls.borrow_mut().push(argv.to_vec());
         Ok(self.outputs.borrow_mut().remove(0))
+    }
+
+    fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+        self.free_disk_bytes.get()
     }
 
     fn run_info(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
@@ -138,6 +143,7 @@ impl Harness {
                 outputs: RefCell::new(Vec::new()),
                 info_calls: RefCell::new(Vec::new()),
                 info: RefCell::new(None),
+                free_disk_bytes: Cell::new(None),
             },
             intended: None,
             patch: None,
@@ -429,6 +435,7 @@ impl Harness {
         out: &'a mut O,
         err: &'a mut E,
     ) -> Env<'a> {
+        self.query.free_disk_bytes.set(self.free_disk_bytes);
         Env {
             workspace: &self.workspace,
             runner,

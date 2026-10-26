@@ -231,6 +231,10 @@ impl Write for Captured {
 struct BinaryQueryRunner;
 
 impl QueryRunner for BinaryQueryRunner {
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        dx_process::disk_space(path).map(|space| space.free)
+    }
+
     fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
         let stdout = Captured::default();
         let stderr = Captured::default();

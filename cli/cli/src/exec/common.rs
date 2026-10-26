@@ -11,7 +11,7 @@ use dx_output::{
 };
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
 use std::io::{self, BufReader, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 
 pub(crate) use super::failure::{
     emit_failure_events, error_event_of, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED,
@@ -696,48 +696,6 @@ pub(crate) fn run_bazel_withdrawable(
     }
 }
 
-const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
-
-fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
-    let mut paths = vec![workspace.to_path_buf()];
-    for arg in argv {
-        for flag in ["--output_base=", "--output_user_root="] {
-            if let Some(value) = arg.strip_prefix(flag) {
-                paths.push(PathBuf::from(value));
-            }
-        }
-    }
-    paths.push(std::env::temp_dir());
-    if let Some(home) = std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .filter(|value| !value.is_empty())
-    {
-        paths.push(PathBuf::from(home));
-    }
-    let mut seen: Vec<std::ffi::OsString> = Vec::new();
-    paths.retain(|path| {
-        let key = match path.components().next() {
-            Some(Component::Prefix(prefix)) => prefix.as_os_str().to_ascii_uppercase(),
-            _ => path.as_os_str().to_owned(),
-        };
-        if seen.contains(&key) {
-            return false;
-        }
-        seen.push(key);
-        true
-    });
-    paths
-}
-
-/// The probed path with the least free space, when that is under `DISK_FULL_BYTES`.
-fn disk_shortage(runner: &dyn Runner, workspace: &Path, argv: &[String]) -> Option<(PathBuf, u64)> {
-    disk_paths(workspace, argv)
-        .into_iter()
-        .filter_map(|path| runner.free_disk_bytes(&path).map(|free| (path, free)))
-        .filter(|(_, free)| crate::disk::is_full(*free))
-        .min_by_key(|(_, free)| *free)
-}
-
 /// Warns on stderr, and with a JSON notice, when a disk Bazel writes to is nearly full.
 fn warn_low_disk(
     output: OutputMode,
@@ -747,7 +705,8 @@ fn warn_low_disk(
     workspace: &Path,
     argv: &[String],
 ) {
-    let Some((path, free)) = disk_shortage(runner, workspace, argv) else {
+    let Some((path, free)) = crate::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)
+    else {
         return;
     };
     let message = format!(
@@ -784,17 +743,13 @@ fn host_failure(
     argv: &[String],
     code: i32,
 ) -> Option<i32> {
-    if code != BAZEL_LOCAL_ENVIRONMENT_EXIT {
+    if code != crate::disk::BAZEL_LOCAL_ENVIRONMENT_EXIT {
         return None;
     }
-    let (path, free) = disk_shortage(runner, workspace, argv)?;
+    let (path, free) = crate::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)?;
     let mut failure = Failure::new(
         CODE_DISK_FULL,
-        &format!(
-            "Bazel exited {code} with {} free at {}; the disk is full",
-            size(free),
-            path.display()
-        ),
+        &crate::disk::full_message(code, &path, free),
         code,
     )
     .without_usage();
@@ -935,6 +890,7 @@ mod tests {
     use super::*;
     use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity};
     use std::cell::RefCell;
+    use std::path::PathBuf;
     use std::rc::Rc;
 
     struct Flaky {
@@ -1304,7 +1260,7 @@ mod tests {
         assert!(!err.contains("disk_full"), "{err}");
         assert_eq!(
             runner.probed.borrow().len(),
-            disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len()
+            crate::disk::disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len()
         );
     }
 
@@ -1315,38 +1271,6 @@ mod tests {
         assert_eq!(code, Ok(36));
         assert_eq!(out, "");
         assert_eq!(err, "");
-    }
-
-    #[test]
-    fn disk_paths_cover_the_workspace_output_roots_and_temp_dir() {
-        let paths = disk_paths(
-            Path::new("/ws"),
-            &[
-                "--output_user_root=/root".to_owned(),
-                "--output_base=/ob".to_owned(),
-                "build".to_owned(),
-            ],
-        );
-        assert_eq!(paths[0], PathBuf::from("/ws"));
-        assert!(paths.contains(&PathBuf::from("/root")), "{paths:?}");
-        assert!(paths.contains(&PathBuf::from("/ob")), "{paths:?}");
-        #[cfg(unix)]
-        assert!(paths.contains(&std::env::temp_dir()), "{paths:?}");
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn disk_paths_probe_one_windows_drive_once() {
-        let paths = disk_paths(Path::new("C:\\ws"), &["--output_base=c:\\ob".to_owned()]);
-        let on_c = paths
-            .iter()
-            .filter(|path| {
-                path.to_string_lossy()
-                    .to_ascii_uppercase()
-                    .starts_with("C:")
-            })
-            .count();
-        assert_eq!(on_c, 1, "{paths:?}");
     }
 
     #[test]

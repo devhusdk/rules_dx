@@ -319,8 +319,8 @@ configurations appear once, with a `count`.
   `operational`, or `unknown`. `bazel_failed` has cause `bazel`; `tests_failed`
   has cause `test`; `application_failed` is a
   `dx run` application that exited nonzero and has cause `application`.
-  `disk_full` has cause `host`: Bazel exited 36 and a disk it writes to has
-  under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
+  `disk_full` has cause `host`: a Bazel run or query exited 36 and a disk it
+  writes to has under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
   `dx worktree prune --apply`.
   `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.

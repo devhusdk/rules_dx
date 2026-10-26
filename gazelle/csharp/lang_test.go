@@ -177,6 +177,15 @@ func TestGenerateMainFails(t *testing.T) {
 	wantRefusal(t, got, "csharp: pkg/demo: Main.cs defines main;")
 }
 
+func TestGenerateTopLevelStatementsFail(t *testing.T) {
+	regular := []string{"Demo.cs", "Program.cs"}
+	got := refuseFixture(t, map[string]string{
+		"pkg/demo/Demo.cs":    "namespace Demo;\n\nclass Demo\n",
+		"pkg/demo/Program.cs": "using System;\n\nConsole.WriteLine(\"hi\");\n",
+	}, regular)
+	wantRefusal(t, got, "csharp: pkg/demo: Program.cs defines main;")
+}
+
 func TestGenerateKindMismatchFails(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/Demo.cs", "namespace Demo;\n\nclass Demo\n")

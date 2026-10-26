@@ -1,6 +1,7 @@
 package csharp
 
 import (
+	"bytes"
 	"github.com/devhusdk/rules_dx/gazelle/common"
 	"regexp"
 	"sort"
@@ -50,7 +51,72 @@ func (e *duplicatePackageError) Error() string {
 func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
 
 func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskCSharpStyle(content))
+	m := common.MaskCSharpStyle(content)
+	return mainRe.Match(m) || hasTopLevelStatement(m)
+}
+
+var (
+	usingDirectiveRe = regexp.MustCompile(`^(?:global\s+)?using\s+(?:static\s+)?(?:@?[A-Za-z_]\w*\s*=\s*[^;{}()]*|@?[A-Za-z_][\w.@]*(?:<[^;(){}]*>)?)\s*;`)
+	externAliasRe    = regexp.MustCompile(`^extern\s+alias\s+@?[A-Za-z_]\w*\s*;`)
+	identRe          = regexp.MustCompile(`^@?[A-Za-z_]\w*`)
+	declWords        = map[string]bool{
+		"namespace": true, "class": true, "struct": true, "interface": true, "enum": true, "record": true, "delegate": true,
+		"public": true, "internal": true, "private": true, "protected": true, "static": true, "sealed": true, "abstract": true,
+		"partial": true, "unsafe": true, "readonly": true, "ref": true, "file": true, "new": true,
+	}
+)
+
+// hasTopLevelStatement reports whether the masked source has a statement
+// before any namespace or type declaration, which makes the file a
+// top-level-statements entry point.
+func hasTopLevelStatement(m []byte) bool {
+	i := 0
+	if bytes.HasPrefix(m, []byte{0xEF, 0xBB, 0xBF}) {
+		i = 3
+	}
+	for i < len(m) {
+		switch c := m[i]; {
+		case c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\v':
+			i++
+		case c == '#':
+			for i < len(m) && m[i] != '\n' {
+				i++
+			}
+		case c == '[':
+			depth := 0
+			for i < len(m) {
+				if m[i] == '[' {
+					depth++
+				} else if m[i] == ']' {
+					depth--
+					if depth == 0 {
+						i++
+						break
+					}
+				}
+				i++
+			}
+		default:
+			rest := m[i:]
+			if loc := externAliasRe.FindIndex(rest); loc != nil {
+				i += loc[1]
+				continue
+			}
+			if loc := usingDirectiveRe.FindIndex(rest); loc != nil {
+				i += loc[1]
+				continue
+			}
+			word := identRe.Find(rest)
+			if word == nil {
+				return true
+			}
+			if string(word) == "global" && bytes.HasPrefix(bytes.TrimLeft(rest[len(word):], " \t\r\n"), []byte("::")) {
+				return true
+			}
+			return !declWords[string(word)]
+		}
+	}
+	return false
 }
 
 func normalizeImport(dotted string) string {

@@ -908,9 +908,7 @@ impl Gate {
                     notice(
                         &mut **events,
                         command,
-                        "info",
-                        "waiting_for_build_slot",
-                        message,
+                        dx_output::NoticeEvent::info("waiting_for_build_slot", message),
                     );
                 }
             },
@@ -934,9 +932,7 @@ impl Gate {
                     notice(
                         &mut **events,
                         command,
-                        "warning",
-                        "build_slot_skipped",
-                        message,
+                        dx_output::NoticeEvent::warning("build_slot_skipped", message),
                     );
                 }
             },
@@ -965,9 +961,7 @@ impl Gate {
                     notice(
                         &mut *events,
                         command,
-                        "warning",
-                        "build_slots_disabled",
-                        message,
+                        dx_output::NoticeEvent::warning("build_slots_disabled", message),
                     );
                 }
                 self.reclaim(command, err, events);
@@ -987,7 +981,11 @@ impl Gate {
         };
         let _ = writeln!(err, "dx: {message}");
         if self.json {
-            notice(events, command, "warning", "disk_low", message);
+            notice(
+                events,
+                command,
+                dx_output::NoticeEvent::warning("disk_low", message),
+            );
         }
     }
 }
@@ -1208,20 +1206,13 @@ impl<W: Warm> Drop for KeepWarm<W> {
     }
 }
 
-fn notice(events: &mut dyn Write, command: Command, level: &str, code: &str, message: String) {
-    if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
-        level: level.to_owned(),
-        code: code.to_owned(),
-        message,
+fn notice(events: &mut dyn Write, command: Command, notice: dx_output::NoticeEvent) {
+    let event = dx_output::notice_value(&dx_output::NoticeEvent {
         related_command: Some(command.name().to_owned()),
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
-    }) {
-        let _ = dx_output::lifecycle::write_event(&mut *events, &event);
-        let _ = events.flush();
-    }
+        ..notice
+    });
+    let _ = dx_output::lifecycle::write_event(&mut *events, &event);
+    let _ = events.flush();
 }
 
 thread_local! {

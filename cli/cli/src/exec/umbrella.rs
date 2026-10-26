@@ -341,97 +341,129 @@ fn forward_phase(
         };
         let name = event.get("event").and_then(Value::as_str);
         if !started && name != Some("phase_started") {
-            emit_event(out, &nest(command_started(phase, mode)).map_err(|_| 1)?)?;
+            emit_built(out, nest(command_started(phase, mode)))?;
         }
         started = true;
         finished |= name == Some("phase_finished");
         emit_event(out, &event)?;
     }
     if !started {
-        emit_event(out, &nest(command_started(phase, mode)).map_err(|_| 1)?)?;
+        emit_built(out, nest(command_started(phase, mode)))?;
     }
     if !readable {
         let message = format!("{phase} wrote an unreadable event");
         let _ = writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}");
-        if let Ok(event) = error_event(CODE_COLLECTION_FAILED, &message, None, None, Some(phase)) {
-            emit_event(out, &with_correlation(event, &correlation).map_err(|_| 1)?)?;
-        }
+        emit_built(
+            out,
+            error_event(CODE_COLLECTION_FAILED, &message, None, None, Some(phase))
+                .and_then(|event| with_correlation(event, &correlation)),
+        )?;
     }
     if !finished {
-        let event = nest_phase_event(
-            command_finished(code, &FinishedCounts::default()),
-            command,
-            phase,
-            &correlation,
-        )
-        .map_err(|_| 1)?;
-        emit_event(out, &event)?;
+        emit_built(
+            out,
+            nest_phase_event(
+                command_finished(code, &FinishedCounts::default()),
+                command,
+                phase,
+                &correlation,
+            ),
+        )?;
     }
     Ok(readable)
 }
 
+/// Adds the phase correlation, or keeps the event without it.
+fn correlated(
+    built: Result<Value, dx_output::OutputError>,
+    command: &str,
+    phase: &str,
+) -> Result<Value, dx_output::OutputError> {
+    built.map(|event| {
+        with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event)
+    })
+}
+
+/// Announces the phases with findings, the skipped phases, and the failed collections.
+fn announce_outcome(
+    out: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    collector: &PhaseCollector,
+    collection_failures: &[(&'static str, String)],
+) -> Result<(), i32> {
+    for phase in collector.with_findings() {
+        announce_findings(out, output, command, phase)?;
+    }
+    for phase in collector.skipped() {
+        announce_skip(out, output, command, phase, &collector.skip_cause)?;
+    }
+    for (phase, message) in collection_failures {
+        announce_collection_failure(out, output, command, phase, message)?;
+    }
+    Ok(())
+}
+
 /// Emits the JSON notice for one phase that never started.
-fn announce_skip(out: &mut dyn Write, output: OutputMode, command: &str, phase: &str, cause: &str) {
+fn announce_skip(
+    out: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    phase: &str,
+    cause: &str,
+) -> Result<(), i32> {
     if output != OutputMode::Json {
-        return;
+        return Ok(());
     }
     let notice = NoticeEvent {
-        level: "warning".to_owned(),
-        code: "umbrella_phase_skipped".to_owned(),
-        message: format!("{phase} skipped after {cause}"),
         related_command: Some(command.to_owned()),
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
+        ..NoticeEvent::warning(
+            "umbrella_phase_skipped",
+            format!("{phase} skipped after {cause}"),
+        )
     };
-    if let Ok(event) = notice_event(&notice) {
-        let correlated =
-            with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event);
-        let _ = write_event(out, &correlated);
-    }
+    emit_built(out, correlated(notice_event(&notice), command, phase))
 }
 
 /// Emits the JSON notice for one phase that finished with ordinary findings.
-fn announce_findings(out: &mut dyn Write, output: OutputMode, command: &str, phase: &str) {
+fn announce_findings(
+    out: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    phase: &str,
+) -> Result<(), i32> {
     if output != OutputMode::Json {
-        return;
+        return Ok(());
     }
     let notice = NoticeEvent {
-        level: "warning".to_owned(),
-        code: "umbrella_phase_findings".to_owned(),
-        message: format!("{phase} reported findings"),
         related_command: Some(command.to_owned()),
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
+        ..NoticeEvent::warning(
+            "umbrella_phase_findings",
+            format!("{phase} reported findings"),
+        )
     };
-    if let Ok(event) = notice_event(&notice) {
-        let correlated =
-            with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event);
-        let _ = write_event(out, &correlated);
-    }
+    emit_built(out, correlated(notice_event(&notice), command, phase))
 }
 
 /// Reports one phase capture the umbrella could not collect.
 fn announce_collection_failure(
     out: &mut dyn Write,
-    err: &mut dyn Write,
     output: OutputMode,
     command: &str,
     phase: &str,
-    reason: &str,
-) {
-    let message = format!("{phase} {reason}");
-    let _ = writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}");
-    if output == OutputMode::Json {
-        if let Ok(event) = error_event(CODE_COLLECTION_FAILED, &message, None, None, Some(phase)) {
-            let correlated = with_correlation(event.clone(), &phase_correlation(command, phase))
-                .unwrap_or(event);
-            let _ = write_event(out, &correlated);
-        }
+    message: &str,
+) -> Result<(), i32> {
+    if output != OutputMode::Json {
+        return Ok(());
     }
+    emit_built(
+        out,
+        correlated(
+            error_event(CODE_COLLECTION_FAILED, message, None, None, Some(phase)),
+            command,
+            phase,
+        ),
+    )
 }
 
 /// What re-checking the composed tree after a fix apply found.
@@ -441,6 +473,8 @@ struct Verification {
     out: Vec<u8>,
     err: Vec<u8>,
     readable: bool,
+    /// The exit code once the buffered stream already ended with `command_finished`.
+    ended: Option<i32>,
 }
 
 /// Runner that forwards every call and records whether Bazel failed to launch or was signalled.
@@ -593,6 +627,7 @@ fn verify_fix(
         out: Vec::new(),
         err: Vec::new(),
         readable: true,
+        ended: None,
     };
     let command = request.command.name();
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate().take(through + 1) {
@@ -646,14 +681,18 @@ fn verify_fix(
             Ok(readable) => outcome.readable &= readable,
             Err(_) => {
                 outcome.readable = false;
-                announce_collection_failure(
+                let message = format!("{verify_phase} events could not be forwarded");
+                let _ = writeln!(outcome.err, "dx: {CODE_COLLECTION_FAILED}: {message}");
+                if let Err(exit) = announce_collection_failure(
                     &mut outcome.out,
-                    &mut outcome.err,
                     request.common.output,
                     command,
                     &verify_phase,
-                    "events could not be forwarded",
-                );
+                    &message,
+                ) {
+                    outcome.ended = Some(exit);
+                    break;
+                }
             }
         }
         if code != 0 {
@@ -676,8 +715,11 @@ fn deliver_verification(
     }
     check_stdout_write(out.write_all(&verification.out))?;
     check_stdout_write(err.write_all(&verification.err))?;
+    if let Some(exit) = verification.ended {
+        return Err(exit);
+    }
     if let Some(failed) = verification.failed_phase {
-        announce_verification_failure(out, err, output, command, failed, &verification.skipped);
+        announce_verification_failure(out, err, output, command, failed, &verification.skipped)?;
     }
     Ok(())
 }
@@ -690,7 +732,7 @@ fn announce_verification_failure(
     command: &str,
     phase: &str,
     skipped: &[&str],
-) {
+) -> Result<(), i32> {
     let mut message = format!("{phase} failed verification after apply");
     if !skipped.is_empty() {
         message.push_str(&format!(
@@ -699,14 +741,17 @@ fn announce_verification_failure(
         ));
     }
     let _ = writeln!(err, "dx: {CODE_VERIFICATION_FAILED}: {message}");
-    if output == OutputMode::Json {
-        if let Ok(event) = error_event(CODE_VERIFICATION_FAILED, &message, None, None, Some(phase))
-        {
-            let correlated = with_correlation(event.clone(), &phase_correlation(command, phase))
-                .unwrap_or(event);
-            let _ = write_event(out, &correlated);
-        }
+    if output != OutputMode::Json {
+        return Ok(());
     }
+    emit_built(
+        out,
+        correlated(
+            error_event(CODE_VERIFICATION_FAILED, &message, None, None, Some(phase)),
+            command,
+            phase,
+        ),
+    )
 }
 
 /// Announces one written report and names why it is incomplete.
@@ -728,9 +773,7 @@ fn announce_report(
         )
     };
     if output == OutputMode::Json {
-        if let Ok(event) = report_event(format, destination, complete) {
-            emit_event(out, &event)?;
-        }
+        emit_built(out, report_event(format, destination, complete))?;
     } else if matches!(output, OutputMode::Text { .. }) {
         check_stdout_write(writeln!(out, "{note}"))?;
     } else if output == OutputMode::Diff {
@@ -824,10 +867,8 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         return exit;
     }
     if request.common.output == OutputMode::Json {
-        if let Ok(event) = command_started(command, mode) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(command, mode)) {
+            return exit;
         }
     }
     let mut phases: Vec<Command> = UMBRELLA_PHASES.to_vec();
@@ -959,33 +1000,42 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     collector.collect();
     let complete = collector.complete();
     let reasons = collector.reasons();
-    for phase in collector.with_findings() {
-        announce_findings(out, request.common.output, command, phase);
-    }
-    for phase in collector.skipped() {
-        announce_skip(
+    let collection_failures: Vec<(&'static str, String)> = collector
+        .collection_failures()
+        .into_iter()
+        .map(|(phase, reason)| {
+            let message = format!("{phase} {reason}");
+            let _ = writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}");
+            (phase, message)
+        })
+        .collect();
+    reports_ok &= collection_failures.is_empty();
+    if stdout_exit.is_none() {
+        let announced = announce_outcome(
             out,
             request.common.output,
             command,
-            phase,
-            &collector.skip_cause,
+            &collector,
+            &collection_failures,
         );
-    }
-    for (phase, reason) in collector.collection_failures() {
-        reports_ok = false;
-        announce_collection_failure(out, err, request.common.output, command, phase, reason);
+        if let Err(exit) = announced {
+            stdout_exit = Some(exit);
+        }
     }
     if stdout_exit.is_none() {
         let document = collector.document();
         for report in &request.common.reports {
             if let Err(error) = write_report_file(workspace, &report.destination, &document) {
                 reports_ok = false;
-                report_failed(
+                if let Err(exit) = report_failed(
                     out,
                     err,
                     request.common.output,
                     &format!("failed to write {} report to {error}", report.format),
-                );
+                ) {
+                    stdout_exit = Some(exit);
+                    break;
+                }
                 continue;
             }
             let announced = announce_report(
@@ -1048,7 +1098,10 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             },
         },
     };
-    if request.common.output == OutputMode::Json {
+    if request.common.output == OutputMode::Json
+        && stdout_exit.is_none()
+        && verify_forward_exit.is_none()
+    {
         let finished = command_finished(
             code,
             &FinishedCounts {
@@ -1967,6 +2020,7 @@ mod tests {
             out: vec![],
             err: vec![],
             readable: true,
+            ended: None,
         };
         let forwarded = forward_phase(
             &mut verification.out,
@@ -2007,6 +2061,7 @@ mod tests {
             out: b"buffered out\n".to_vec(),
             err: b"buffered err\n".to_vec(),
             readable: true,
+            ended: None,
         };
         let (mut out, mut err) = (Vec::new(), Vec::new());
         deliver_verification(&mut out, &mut err, OutputMode::Json, "fix", &verification)
@@ -2475,6 +2530,29 @@ mod tests {
         ]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("\"code\":\"report_failed\""), "{out}");
+    }
+
+    #[test]
+    fn umbrella_report_into_a_directory_ends_with_one_finished() {
+        let harness = umbrella_clean("umbrella-report-dir");
+        std::fs::create_dir(harness.workspace.join("out.sarif")).expect("directory");
+        let (code, out, _) = harness.run(&["check", "--output=json", "--report=sarif=out.sarif"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        let finished = events
+            .iter()
+            .filter(|event| event["event"] == "command_finished")
+            .count();
+        assert_eq!(finished, 1, "{out}");
+        assert_eq!(
+            events.last().expect("last")["event"],
+            "command_finished",
+            "{out}"
+        );
+        assert!(
+            events.iter().any(|event| event["code"] == "report_failed"),
+            "{out}"
+        );
     }
 
     #[test]

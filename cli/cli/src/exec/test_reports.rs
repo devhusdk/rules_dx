@@ -14,7 +14,7 @@ use dx_bep::{
 };
 use dx_output::{
     command_finished, notice_event, report_event, test_outcome_event, test_result_record,
-    write_event, FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
+    FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
 };
 use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
@@ -451,9 +451,9 @@ fn filtered_notice(
     out: &mut dyn Write,
     err: &mut dyn Write,
     filtered: &[dx_bep::UnbuiltTest],
-) {
+) -> Result<(), i32> {
     if filtered.is_empty() {
-        return;
+        return Ok(());
     }
     let labels: Vec<&str> = filtered
         .iter()
@@ -472,25 +472,17 @@ fn filtered_notice(
     }
     match output {
         OutputMode::Json => {
-            let notice = NoticeEvent {
-                level: "info".to_owned(),
-                code: "tests_filtered".to_owned(),
-                message,
-                related_command: None,
-                scope: None,
-                path: None,
-                language: None,
-                import: None,
-            };
-            if let Ok(event) = notice_event(&notice) {
-                let _ = write_event(out, &event);
-            }
+            emit_built(
+                out,
+                notice_event(&NoticeEvent::info("tests_filtered", message)),
+            )?;
         }
         OutputMode::Text { .. } => {
             let _ = writeln!(err, "dx: tests_filtered: {message}");
         }
         _ => {}
     }
+    Ok(())
 }
 
 /// The results report: every outcome of the run, passed ones included.
@@ -794,7 +786,7 @@ fn emit_outcomes(
     err: &mut dyn Write,
     reported: &[TestOutcome],
     filtered: &[dx_bep::UnbuiltTest],
-) -> TestCounts {
+) -> Result<TestCounts, i32> {
     let mut counts = TestCounts::default();
     if output == OutputMode::Json {
         for outcome in reported {
@@ -824,13 +816,11 @@ fn emit_outcomes(
             {
                 continue;
             }
-            if let Ok(event) = test_outcome_event(outcome) {
-                let _ = write_event(out, &event);
-            }
+            emit_built(out, test_outcome_event(outcome))?;
         }
-        filtered_notice(output, out, err, filtered);
+        filtered_notice(output, out, err, filtered)?;
     } else if matches!(output, OutputMode::Text { .. }) {
-        filtered_notice(output, out, err, filtered);
+        filtered_notice(output, out, err, filtered)?;
         for outcome in reported {
             if outcome.outcome == "passed_after_retry" {
                 let attempt = outcome
@@ -845,7 +835,7 @@ fn emit_outcomes(
             }
         }
     }
-    counts
+    Ok(counts)
 }
 
 /// Writes reports to their destinations and announces each one in the run's output mode.
@@ -865,15 +855,16 @@ impl ReportSink<'_> {
         destination: &Destination,
         document: &str,
         complete: bool,
-    ) -> bool {
+    ) -> Result<bool, i32> {
         if let Err(error) = write_report_document(self.out, self.workspace, destination, document) {
-            self.failed(&format!("failed to write {name} report to {error}"));
-            return false;
+            self.failed(&format!("failed to write {name} report to {error}"))?;
+            return Ok(false);
         }
         if self.output == OutputMode::Json {
-            if let Ok(event) = report_event(name, destination.display(), complete) {
-                let _ = write_event(self.out, &event);
-            }
+            emit_built(
+                self.out,
+                report_event(name, destination.display(), complete),
+            )?;
         } else if matches!(self.output, OutputMode::Text { .. }) && !self.stdout_report {
             let _ = writeln!(
                 self.out,
@@ -881,12 +872,12 @@ impl ReportSink<'_> {
                 destination.display()
             );
         }
-        true
+        Ok(true)
     }
 
     /// Reports one report that could not be produced.
-    fn failed(&mut self, detail: &str) {
-        report_failed(self.out, self.err, self.output, detail);
+    fn failed(&mut self, detail: &str) -> Result<(), i32> {
+        report_failed(self.out, self.err, self.output, detail)
     }
 }
 
@@ -915,17 +906,24 @@ fn render_report(
 }
 
 /// Reports why the results are incomplete, when evidence was missing or invalid.
-fn announce_incomplete(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, detail: &str) {
+fn announce_incomplete(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    detail: &str,
+) -> Result<(), i32> {
     if detail.is_empty() {
-        return;
+        return Ok(());
     }
     if output == OutputMode::Json {
-        if let Ok(event) = dx_output::error_event("incomplete_results", detail, None, None, None) {
-            let _ = write_event(out, &event);
-        }
+        emit_built(
+            out,
+            dx_output::error_event("incomplete_results", detail, None, None, None),
+        )?;
     } else {
         let _ = writeln!(err, "dx: incomplete_results: {detail}");
     }
+    Ok(())
 }
 
 /// Checks the collected line coverage against `--min_coverage`; true when there is no minimum.
@@ -937,12 +935,12 @@ fn coverage_threshold(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> bool {
+) -> Result<bool, i32> {
     let Some(minimum) = minimum else {
-        return true;
+        return Ok(true);
     };
     if !detail.is_empty() {
-        return false;
+        return Ok(false);
     }
     let mut threshold_ok = false;
     let summary = match coverage_line_rate(lcov_documents, &|path| {
@@ -966,16 +964,15 @@ fn coverage_threshold(
     };
     if output == OutputMode::Json {
         if !threshold_ok {
-            if let Ok(event) =
-                dx_output::error_event(CODE_COVERAGE_BELOW_MINIMUM, &summary, None, None, None)
-            {
-                let _ = write_event(out, &event);
-            }
+            emit_built(
+                out,
+                dx_output::error_event(CODE_COVERAGE_BELOW_MINIMUM, &summary, None, None, None),
+            )?;
         }
     } else {
         let _ = writeln!(err, "dx: {summary}");
     }
-    threshold_ok
+    Ok(threshold_ok)
 }
 
 /// Reads the run's test events; a stream Bazel cut short is a problem only when Bazel failed too.
@@ -1038,11 +1035,14 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         results_complete,
     } = request;
     let failure_count = if bazel_code != 0 {
-        report_build_failures(bep, invocation.output, out, err).count
+        match report_build_failures(bep, invocation.output, out, err) {
+            Ok(reported) => reported.count,
+            Err(exit) => return kept_child(err, bazel_code, exit),
+        }
     } else {
         0
     };
-    let failure_reports_ok = write_failure_reports(
+    let failure_reports_ok = match write_failure_reports(
         invocation,
         workspace,
         bep,
@@ -1050,7 +1050,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         failure_reports,
         out,
         err,
-    );
+    ) {
+        Ok(landed) => landed,
+        Err(exit) => return kept_child(err, bazel_code, exit),
+    };
     let read = read_events(invocation, workspace, verb, bep, bazel_code, query_runner);
     let _ = std::fs::remove_file(bep);
     let (events, stream_problem) = match read {
@@ -1080,7 +1083,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         suites.push(junit_infrastructure_case(&detail));
     }
     mark_superseded_attempts(&mut reported);
-    let counts = emit_outcomes(invocation.output, out, err, &reported, &events.filtered);
+    let counts = match emit_outcomes(invocation.output, out, err, &reported, &events.filtered) {
+        Ok(counts) => counts,
+        Err(exit) => return kept_child(err, bazel_code, exit),
+    };
     let mut reports_ok = failure_reports_ok;
     let mut sink = ReportSink {
         out: &mut *out,
@@ -1092,7 +1098,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     if !results_reports.is_empty() {
         let document = results_document(&reported, complete, bazel_code, run_id);
         for planned in results_reports {
-            reports_ok &= sink.write("results", &planned.destination, &document, complete);
+            match sink.write("results", &planned.destination, &document, complete) {
+                Ok(landed) => reports_ok &= landed,
+                Err(exit) => return kept_child(err, bazel_code, exit),
+            }
         }
     }
     for planned in planned_reports {
@@ -1101,16 +1110,24 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             Ok(document) => document,
             Err(reason) => {
                 reports_ok = false;
-                sink.failed(&format!("failed to render {name} report: {reason}"));
+                if let Err(exit) = sink.failed(&format!("failed to render {name} report: {reason}"))
+                {
+                    return kept_child(err, bazel_code, exit);
+                }
                 continue;
             }
         };
         let complete_so_far = complete && reports_ok;
-        reports_ok &= sink.write(name, &planned.destination, &document, complete_so_far);
+        match sink.write(name, &planned.destination, &document, complete_so_far) {
+            Ok(landed) => reports_ok &= landed,
+            Err(exit) => return kept_child(err, bazel_code, exit),
+        }
     }
-    announce_incomplete(invocation.output, out, err, &detail);
-    let threshold_ok = verb != WorkflowVerb::Coverage
-        || coverage_threshold(
+    if let Err(exit) = announce_incomplete(invocation.output, out, err, &detail) {
+        return kept_child(err, bazel_code, exit);
+    }
+    let threshold_ok = if verb == WorkflowVerb::Coverage {
+        match coverage_threshold(
             invocation.min_coverage,
             &detail,
             &lcov_documents,
@@ -1118,7 +1135,13 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             invocation.output,
             out,
             err,
-        );
+        ) {
+            Ok(met) => met,
+            Err(exit) => return kept_child(err, bazel_code, exit),
+        }
+    } else {
+        true
+    };
     let code = if bazel_code != 0 {
         bazel_code
     } else if complete && reports_ok && threshold_ok {
@@ -1137,13 +1160,14 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                     counts.failed
                 )
             };
-            if let Some(event) =
-                bazel_exit_event(CODE_TESTS_FAILED, &message, bazel_code, "execute")
-            {
-                let _ = write_event(out, &event);
+            if let Err(exit) = emit_built(
+                out,
+                bazel_exit_event(CODE_TESTS_FAILED, &message, bazel_code, "execute"),
+            ) {
+                return kept_child(err, bazel_code, exit);
             }
         } else if bazel_code != 0 {
-            if let Some(event) = bazel_exit_event(
+            if let Err(exit) = emit_built(out, bazel_exit_event(
                 CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
@@ -1151,22 +1175,22 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 ),
                 bazel_code,
                 "execute",
-            ) {
-                let _ = write_event(out, &event);
-            }
+            )) {
+return kept_child(err, bazel_code, exit);
+}
         }
-        let _ = write_event(
-            out,
-            &command_finished(
-                code,
-                &FinishedCounts {
-                    results_complete: Some(*results_complete),
-                    run_id: (!results_reports.is_empty()).then(|| run_id.to_owned()),
-                    tests: (!reported.is_empty()).then_some(counts),
-                    ..FinishedCounts::default()
-                },
-            ),
+        let finished = command_finished(
+            code,
+            &FinishedCounts {
+                results_complete: Some(*results_complete),
+                run_id: (!results_reports.is_empty()).then(|| run_id.to_owned()),
+                tests: (!reported.is_empty()).then_some(counts),
+                ..FinishedCounts::default()
+            },
         );
+        if let Err(exit) = emit_event(out, &finished) {
+            return kept_child(err, bazel_code, exit);
+        }
     }
     code
 }
@@ -3081,24 +3105,14 @@ mod tests {
         let mut err = Vec::new();
         let workspace = Path::new(".");
         let text = dx_output::OutputMode::Text { quiet: false };
-        assert!(super::coverage_threshold(
-            None,
-            "gap",
-            &[],
-            workspace,
-            text,
-            &mut out,
-            &mut err
-        ));
-        assert!(!super::coverage_threshold(
-            Some(80),
-            "gap",
-            &[],
-            workspace,
-            text,
-            &mut out,
-            &mut err
-        ));
+        assert_eq!(
+            super::coverage_threshold(None, "gap", &[], workspace, text, &mut out, &mut err),
+            Ok(true)
+        );
+        assert_eq!(
+            super::coverage_threshold(Some(80), "gap", &[], workspace, text, &mut out, &mut err),
+            Ok(false)
+        );
         assert!(out.is_empty() && err.is_empty());
     }
 
@@ -4493,5 +4507,84 @@ mod tests {
             err.contains("dx: incomplete_results: build events ended before Bazel's last event"),
             "{err}"
         );
+    }
+
+    struct BrokenPipe;
+
+    impl std::io::Write for BrokenPipe {
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "broken pipe",
+            ))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "broken pipe",
+            ))
+        }
+    }
+
+    #[test]
+    fn announce_incomplete_returns_the_stdout_code_when_stdout_breaks() {
+        let mut err = Vec::new();
+        assert_eq!(
+            super::announce_incomplete(
+                dx_output::OutputMode::Json,
+                &mut BrokenPipe,
+                &mut err,
+                "no test.xml"
+            ),
+            Err(dx_process::broken_pipe_code())
+        );
+    }
+
+    #[test]
+    fn coverage_threshold_returns_the_stdout_code_when_stdout_breaks() {
+        let workspace = tempfile::tempdir().expect("tempdir");
+        let mut err = Vec::new();
+        assert_eq!(
+            super::coverage_threshold(
+                Some(80),
+                "",
+                &[],
+                workspace.path(),
+                dx_output::OutputMode::Json,
+                &mut BrokenPipe,
+                &mut err,
+            ),
+            Err(dx_process::broken_pipe_code())
+        );
+    }
+
+    #[test]
+    fn an_outcome_that_fails_to_build_ends_the_stream_once() {
+        let outcome = dx_output::TestOutcome {
+            outcome: "failed".to_owned(),
+            ..dx_output::TestOutcome::default()
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let ended = super::emit_outcomes(
+            dx_output::OutputMode::Json,
+            &mut out,
+            &mut err,
+            &[outcome],
+            &[],
+        );
+        assert_eq!(ended.err(), Some(dx_process::operational_code()));
+        let events: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|event| event["event"].as_str().unwrap())
+            .collect();
+        assert_eq!(kinds, ["error", "command_finished"], "{events:?}");
+        assert_eq!(events[0]["code"], "invalid_result");
     }
 }

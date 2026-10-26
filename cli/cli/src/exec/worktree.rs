@@ -68,9 +68,7 @@ fn write_line(out: &mut dyn Write, text: &str) -> Result<(), i32> {
 
 fn start(out: &mut dyn Write, invocation: &Invocation, mode: &str) -> Result<(), i32> {
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), mode) {
-            emit_event(out, &event)?;
-        }
+        emit_built(out, command_started(invocation.command.name(), mode))?;
     }
     Ok(())
 }
@@ -222,18 +220,10 @@ fn add(
 fn warning_events(out: &mut dyn Write, warnings: &[Warning]) -> Result<(), i32> {
     for warning in warnings {
         let notice = NoticeEvent {
-            level: "warning".to_owned(),
-            code: warning.code.to_owned(),
-            message: warning.message.clone(),
             related_command: Some("worktree".to_owned()),
-            scope: None,
-            path: None,
-            language: None,
-            import: None,
+            ..NoticeEvent::warning(warning.code, warning.message.clone())
         };
-        if let Ok(event) = notice_event(&notice) {
-            emit_event(out, &event)?;
-        }
+        emit_built(out, notice_event(&notice))?;
     }
     Ok(())
 }

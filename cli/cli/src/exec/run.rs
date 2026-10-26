@@ -117,18 +117,19 @@ impl Launcher<'_> {
             return None;
         }
         if json {
-            if let Some(event) = bazel_exit_event(
-                CODE_BAZEL_FAILED,
-                &format!(
-                    "bazel build {} exited {code} (see stderr diagnostics)",
-                    targets.join(" ")
+            if let Err(exit) = emit_built(
+                out,
+                bazel_exit_event(
+                    CODE_BAZEL_FAILED,
+                    &format!(
+                        "bazel build {} exited {code} (see stderr diagnostics)",
+                        targets.join(" ")
+                    ),
+                    code,
+                    "execute",
                 ),
-                code,
-                "execute",
             ) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return Some(kept_child(err, code, exit));
-                }
+                return Some(kept_child(err, code, exit));
             }
             if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
             {
@@ -228,23 +229,25 @@ fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) -
     use dx_output::with_correlation;
     for target in targets {
         let scope = [target.clone()];
-        if let Ok(event) = operation_event(command, "execute", Some(&scope)) {
-            let correlation = format!("run:{target}");
-            let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-            emit_event(out, &event)?;
-        }
+        let correlation = format!("run:{target}");
+        let event = operation_event(command, "execute", Some(&scope))
+            .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
+        emit_built(out, event)?;
     }
     Ok(())
 }
 
-fn application_failed_event(target: &str, code: i32) -> Option<serde_json::Value> {
+fn application_failed_event(
+    target: &str,
+    code: i32,
+) -> Result<serde_json::Value, dx_output::OutputError> {
     let event = bazel_exit_event(
         CODE_APPLICATION_FAILED,
         &format!("bazel run {target} exited {code} (see stderr diagnostics)"),
         code,
         "execute",
     )?;
-    Some(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
+    Ok(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
 }
 
 /// Writes the ending for a run: the JSON failure event and `command_finished`, or just the code in text mode.
@@ -258,8 +261,8 @@ fn finish_run(
     if invocation.output != OutputMode::Json {
         return code;
     }
-    if let Some(event) = failed.and_then(|target| application_failed_event(target, code)) {
-        if let Err(exit) = emit_event(out, &event) {
+    if let Some(target) = failed {
+        if let Err(exit) = emit_built(out, application_failed_event(target, code)) {
             return kept_child(err, code, exit);
         }
     }
@@ -285,10 +288,8 @@ fn run_targets(
         }
     }
     if json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
         }
         if let Err(exit) = emit_run_operations(out, invocation.command.name(), targets) {
             return exit;

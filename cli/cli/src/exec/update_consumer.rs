@@ -1,4 +1,6 @@
-use super::super::common::{check_stdout_write, frozen_summary, offline_summary, pre_exec, Env};
+use super::super::common::{
+    check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec, Env,
+};
 use super::{
     record_backend_error, record_named, runner_status, unavailable_message, RunMode, SetDetail,
     SlotGate,
@@ -30,8 +32,11 @@ pub(super) fn execute_configured(
         invocation.frozen,
     );
     if invocation.output == dx_output::OutputMode::Json {
-        if let Ok(event) = dx_output::command_started(invocation.command.name(), mode.mode_text()) {
-            let _ = dx_output::write_event(out, &event);
+        if let Err(exit) = emit_built(
+            out,
+            dx_output::command_started(invocation.command.name(), mode.mode_text()),
+        ) {
+            return exit;
         }
     } else if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {

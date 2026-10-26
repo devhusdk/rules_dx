@@ -6,7 +6,7 @@ use dx_digest::blake3 as digest;
 use dx_output::{report_event, DiagnosticEvent, OutputMode, Snapshot};
 
 use super::common::{
-    apply_to_bytes, check_stdout_write, emit_event, report_failed, write_report_document,
+    apply_to_bytes, check_stdout_write, emit_built, report_failed, write_report_document,
     SourceRead,
 };
 use super::results::Collected;
@@ -189,17 +189,18 @@ pub(crate) fn write_standard_reports(
                             "failed to write {} report to {error}",
                             planned.format.name(),
                         ),
-                    );
+                    )?;
                     continue;
                 }
                 if *output == OutputMode::Json {
-                    if let Ok(event) = report_event(
-                        planned.format.name(),
-                        planned.destination.display(),
-                        collected.complete,
-                    ) {
-                        emit_event(out, &event)?;
-                    }
+                    emit_built(
+                        out,
+                        report_event(
+                            planned.format.name(),
+                            planned.destination.display(),
+                            collected.complete,
+                        ),
+                    )?;
                 } else if matches!(output, OutputMode::Text { .. }) && !stdout_report {
                     check_stdout_write(writeln!(
                         out,
@@ -223,7 +224,7 @@ pub(crate) fn write_standard_reports(
                     err,
                     *output,
                     &format!("failed to render SARIF report: {error}"),
-                );
+                )?;
             }
         }
     }

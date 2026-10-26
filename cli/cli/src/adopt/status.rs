@@ -4,7 +4,7 @@ use clap::ValueEnum;
 
 use crate::args::help::advertises_passthrough;
 use crate::args::{Command, Invocation};
-use crate::exec::common::{check_stdout_write, emit_event, emit_started};
+use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
 use dx_output::{
     capability_event, command_finished, command_started, status_event, CapabilityEvent,
     FinishedCounts, OutputMode, StatusEvent,
@@ -201,21 +201,20 @@ pub(crate) fn execute_status(
         checks.push(check);
     }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
         }
         for check in &checks {
-            if let Ok(event) = status_event(&StatusEvent {
-                name: check.name.clone(),
-                status: check.status.clone(),
-                detail: check.detail.clone(),
-                hint: check.hint.clone(),
-            }) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                status_event(&StatusEvent {
+                    name: check.name.clone(),
+                    status: check.status.clone(),
+                    detail: check.detail.clone(),
+                    hint: check.hint.clone(),
+                }),
+            ) {
+                return exit;
             }
         }
         for capability in &records {

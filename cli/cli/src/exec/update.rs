@@ -45,10 +45,11 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         invocation.frozen,
     );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), mode.mode_text()) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            out,
+            command_started(invocation.command.name(), mode.mode_text()),
+        ) {
+            return exit;
         }
     } else if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
@@ -447,29 +448,23 @@ fn emit_update_json(
                     .get(set_name)
                     .map(|detail| detail.message.clone())
                     .unwrap_or_else(|| format!("updated {set_name}"));
-                if let Ok(event) = notice_event(&NoticeEvent {
-                    level: "info".to_owned(),
-                    code: "update_set_success".to_owned(),
-                    message,
+                let built = notice_event(&NoticeEvent {
                     related_command: Some("update".to_owned()),
                     scope: Some(vec![set_name.to_owned()]),
-                    path: None,
-                    language: None,
-                    import: None,
-                }) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Some(manifest) = live_success_manifest(set_name) {
-                        if let Ok(file_events) = project_manifest_events(&manifest) {
-                            for file_event in &file_events {
-                                if let Err(exit) = emit_event(out, file_event) {
-                                    return exit;
-                                }
+                    ..NoticeEvent::info("update_set_success", message)
+                })
+                .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
+                if let Some(manifest) = live_success_manifest(set_name) {
+                    if let Ok(file_events) = project_manifest_events(&manifest) {
+                        for file_event in &file_events {
+                            if let Err(exit) = emit_event(out, file_event) {
+                                return exit;
                             }
                         }
                     }
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                }
+                if let Err(exit) = emit_built(out, built) {
+                    return exit;
                 }
             }
             dx_update::outcome::ReportedStatus::Current
@@ -487,20 +482,16 @@ fn emit_update_json(
                     .get(set_name)
                     .map(|detail| detail.message.clone())
                     .unwrap_or(fallback);
-                if let Ok(event) = notice_event(&NoticeEvent {
-                    level: "info".to_owned(),
-                    code: code.to_owned(),
-                    message,
-                    related_command: Some("update".to_owned()),
-                    scope: Some(vec![set_name.to_owned()]),
-                    path: None,
-                    language: None,
-                    import: None,
-                }) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(
+                    out,
+                    notice_event(&NoticeEvent {
+                        related_command: Some("update".to_owned()),
+                        scope: Some(vec![set_name.to_owned()]),
+                        ..NoticeEvent::info(code, message)
+                    })
+                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
+                ) {
+                    return exit;
                 }
             }
             dx_update::outcome::ReportedStatus::Unsupported => {
@@ -508,17 +499,18 @@ fn emit_update_json(
                     .get(set_name)
                     .map(|detail| detail.message.clone())
                     .unwrap_or_else(|| format!("cannot update {set_name}"));
-                if let Ok(event) = error_event(
-                    "update_set_unsupported",
-                    &message,
-                    None,
-                    None,
-                    Some("execute"),
+                if let Err(exit) = emit_built(
+                    out,
+                    error_event(
+                        "update_set_unsupported",
+                        &message,
+                        None,
+                        None,
+                        Some("execute"),
+                    )
+                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
                 ) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                    return exit;
                 }
                 let _ = writeln!(err, "dx: update_set_unsupported: {message}");
             }
@@ -531,30 +523,28 @@ fn emit_update_json(
                     .get(set_name)
                     .and_then(|detail| detail.failure_code)
                     .unwrap_or(CODE_UPDATE_FAILED);
-                if let Ok(event) = error_event(code, &message, None, None, Some("execute")) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(
+                    out,
+                    error_event(code, &message, None, None, Some("execute")).map(|event| {
+                        with_correlation(event.clone(), &correlation).unwrap_or(event)
+                    }),
+                ) {
+                    return exit;
                 }
                 let _ = writeln!(err, "dx: {code}: {message}");
             }
             dx_update::outcome::ReportedStatus::Blocked => {
                 let message = format!("blocked {set_name} (depends on a failed update)");
-                if let Ok(event) = notice_event(&NoticeEvent {
-                    level: "warning".to_owned(),
-                    code: "update_set_blocked".to_owned(),
-                    message: message.clone(),
-                    related_command: Some("update".to_owned()),
-                    scope: Some(vec![set_name.to_owned()]),
-                    path: None,
-                    language: None,
-                    import: None,
-                }) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(
+                    out,
+                    notice_event(&NoticeEvent {
+                        related_command: Some("update".to_owned()),
+                        scope: Some(vec![set_name.to_owned()]),
+                        ..NoticeEvent::warning("update_set_blocked", message.clone())
+                    })
+                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
+                ) {
+                    return exit;
                 }
                 if verbose {
                     if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
@@ -565,19 +555,15 @@ fn emit_update_json(
         }
     }
     if let Some(plan) = recovery {
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "warning".to_owned(),
-            code: dx_update::recovery::RECOVERY_CODE.to_owned(),
-            message: plan.message.clone(),
-            related_command: Some("update".to_owned()),
-            scope: Some(plan.retry_sets.clone()),
-            path: None,
-            language: None,
-            import: None,
-        }) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("update".to_owned()),
+                scope: Some(plan.retry_sets.clone()),
+                ..NoticeEvent::warning(dx_update::recovery::RECOVERY_CODE, plan.message.clone())
+            }),
+        ) {
+            return exit;
         }
         let _ = writeln!(
             err,

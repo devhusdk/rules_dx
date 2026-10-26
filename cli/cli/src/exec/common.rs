@@ -31,6 +31,27 @@ pub fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), 
     write_event(out, event).map_err(|error| stdout_output_code(&error))
 }
 
+/// Writes one built event, or ends the stream with `invalid_result` when it failed to build.
+pub(crate) fn emit_built(
+    out: &mut dyn Write,
+    built: Result<serde_json::Value, dx_output::OutputError>,
+) -> Result<(), i32> {
+    match built {
+        Ok(event) => emit_event(out, &event),
+        Err(error) => {
+            emit_failure_events(
+                out,
+                &Failure::new(
+                    CODE_INVALID_RESULT,
+                    &format!("dx built an invalid event: {error}"),
+                    operational_code(),
+                ),
+            )?;
+            Err(operational_code())
+        }
+    }
+}
+
 /// Drops every stdout write after the first failure, so no later record lands.
 pub struct LatchedOut<'a> {
     inner: &'a mut dyn Write,
@@ -131,9 +152,7 @@ pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
 }
 
 pub(crate) fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Result<(), i32> {
-    let event = command_started(invocation.command.name(), "default")
-        .map_err(|error| stdout_output_code(&error))?;
-    emit_event(out, &event)
+    emit_built(out, command_started(invocation.command.name(), "default"))
 }
 
 /// Writes the `error` event for a Bazel run that exited nonzero, keeping its native status.
@@ -143,14 +162,7 @@ pub(crate) fn emit_bazel_exit(
     message: &str,
     status: i32,
 ) -> Result<(), i32> {
-    let facts = dx_output::FailureFacts {
-        cause: Cause::of(code).name(),
-        status: Some(status),
-        excerpt: None,
-    };
-    let event = dx_output::failure_event(code, message, Some("execute"), &facts)
-        .map_err(|error| stdout_output_code(&error))?;
-    emit_event(out, &event)
+    emit_built(out, bazel_exit_event(code, message, status, "execute"))
 }
 
 pub const REASON_STALE_SOURCE: &str = "stale_source";
@@ -519,19 +531,17 @@ pub(crate) fn bazel_exit_event(
     message: &str,
     status: i32,
     phase: &'static str,
-) -> Option<serde_json::Value> {
-    let cause = Cause::of(code);
+) -> Result<serde_json::Value, dx_output::OutputError> {
     dx_output::failure_event(
         code,
         message,
         Some(phase),
         &dx_output::FailureFacts {
-            cause: cause.name(),
+            cause: Cause::of(code).name(),
             status: Some(status),
             excerpt: None,
         },
     )
-    .ok()
 }
 
 /// Reports one failed report as a `dx: report_failed:` line and, in JSON mode, an error event.
@@ -540,21 +550,23 @@ pub(crate) fn report_failed(
     err: &mut dyn Write,
     output: OutputMode,
     detail: &str,
-) {
+) -> Result<(), i32> {
     let _ = writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}");
     if let Some(next) = super::guidance::next_action(CODE_REPORT_FAILED) {
         let _ = writeln!(err, "{next}");
     }
-    if output == OutputMode::Json {
-        let facts = dx_output::FailureFacts {
-            cause: Cause::Report.name(),
-            status: None,
-            excerpt: None,
-        };
-        if let Ok(event) = dx_output::failure_event(CODE_REPORT_FAILED, detail, None, &facts) {
-            let _ = write_event(out, &event);
-        }
+    if output != OutputMode::Json {
+        return Ok(());
     }
+    let facts = dx_output::FailureFacts {
+        cause: Cause::Report.name(),
+        status: None,
+        excerpt: None,
+    };
+    emit_built(
+        out,
+        dx_output::failure_event(CODE_REPORT_FAILED, detail, None, &facts),
+    )
 }
 
 /// Writes one report document to its resolved destination and reports whether it landed.
@@ -669,7 +681,7 @@ pub(crate) fn run_bazel_output(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
-    warn_low_disk(output, out, err, runner, workspace, argv);
+    warn_low_disk(output, out, err, runner, workspace, argv)?;
     let status = runner.run(argv, workspace, env);
     bazel_exit(output, out, err, runner, workspace, argv, status)
 }
@@ -684,7 +696,7 @@ pub(crate) fn run_bazel_withdrawable(
     argv: &[String],
     withdraw: &dyn Fn() -> bool,
 ) -> Result<Option<i32>, i32> {
-    warn_low_disk(invocation.output, out, err, runner, workspace, argv);
+    warn_low_disk(invocation.output, out, err, runner, workspace, argv)?;
     match runner
         .run_withdrawable(argv, workspace, &[], withdraw)
         .transpose()
@@ -704,10 +716,10 @@ fn warn_low_disk(
     runner: &dyn Runner,
     workspace: &Path,
     argv: &[String],
-) {
+) -> Result<(), i32> {
     let Some((path, free)) = crate::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)
     else {
-        return;
+        return Ok(());
     };
     let message = format!(
         "{} free at {}; free disk space with `dx worktree prune --apply`",
@@ -716,21 +728,13 @@ fn warn_low_disk(
     );
     let _ = writeln!(err, "dx: {CODE_DISK_LOW}: {message}");
     if output != OutputMode::Json {
-        return;
+        return Ok(());
     }
-    if let Ok(event) = notice_event(&NoticeEvent {
-        level: "warning".to_owned(),
-        code: CODE_DISK_LOW.to_owned(),
-        message,
-        related_command: None,
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
-    }) {
-        let _ = write_event(out, &event);
-        let _ = out.flush();
-    }
+    emit_built(
+        out,
+        notice_event(&NoticeEvent::warning(CODE_DISK_LOW, message)),
+    )?;
+    flush_out(out)
 }
 
 /// Reports a Bazel host failure, such as a full disk, that the exit code alone cannot name.
@@ -1480,28 +1484,91 @@ mod tests {
     fn report_failed_writes_the_line_and_only_json_emits_the_event() {
         let mut out = Vec::new();
         let mut err = Vec::new();
-        report_failed(
-            &mut out,
-            &mut err,
-            OutputMode::Text { quiet: false },
-            "boom",
+        assert_eq!(
+            report_failed(
+                &mut out,
+                &mut err,
+                OutputMode::Text { quiet: false },
+                "boom",
+            ),
+            Ok(())
         );
         assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         assert!(out.is_empty());
 
         let mut out = Vec::new();
         let mut err = Vec::new();
-        report_failed(&mut out, &mut err, OutputMode::Diff, "boom");
+        assert_eq!(
+            report_failed(&mut out, &mut err, OutputMode::Diff, "boom"),
+            Ok(())
+        );
         assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         assert!(out.is_empty());
 
         let mut out = Vec::new();
         let mut err = Vec::new();
-        report_failed(&mut out, &mut err, OutputMode::Json, "boom");
+        assert_eq!(
+            report_failed(&mut out, &mut err, OutputMode::Json, "boom"),
+            Ok(())
+        );
         assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         let event: serde_json::Value = serde_json::from_slice(&out).unwrap();
         assert_eq!(event["code"], CODE_REPORT_FAILED);
         assert_eq!(event["message"], "boom");
+    }
+
+    #[test]
+    fn report_failed_returns_the_stdout_code_when_its_event_cannot_land() {
+        let mut err = Vec::new();
+        assert_eq!(
+            report_failed(&mut BrokenPipeWriter, &mut err, OutputMode::Json, "boom"),
+            Err(128 + 13)
+        );
+    }
+
+    #[test]
+    fn emit_built_writes_a_built_event_like_emit_event() {
+        let event = command_finished(0, &FinishedCounts::default());
+        let mut out = Vec::new();
+        assert_eq!(emit_built(&mut out, Ok(event.clone())), Ok(()));
+        let written: serde_json::Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(written, event);
+        assert_eq!(
+            emit_built(&mut BrokenPipeWriter, Ok(event.clone())),
+            emit_event(&mut BrokenPipeWriter, &event)
+        );
+        assert_eq!(emit_built(&mut BrokenPipeWriter, Ok(event)), Err(128 + 13));
+    }
+
+    #[test]
+    fn emit_built_returns_the_write_code_when_the_invalid_result_cannot_land() {
+        assert_eq!(
+            emit_built(&mut BrokenPipeWriter, command_started("", "default")),
+            Err(128 + 13)
+        );
+        assert_eq!(
+            emit_built(&mut FailingWriter, command_started("", "default")),
+            Err(operational_code())
+        );
+    }
+
+    #[test]
+    fn emit_built_ends_the_stream_when_an_event_fails_to_build() {
+        let mut out = Vec::new();
+        let built = command_started("", "default");
+        assert!(built.is_err());
+        assert_eq!(emit_built(&mut out, built), Err(operational_code()));
+        let lines: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert_eq!(lines[0]["event"], "error");
+        assert_eq!(lines[0]["code"], CODE_INVALID_RESULT);
+        assert_eq!(lines[1]["event"], "command_finished");
+        assert_eq!(lines[1]["results_complete"], false);
+        assert_eq!(lines[1]["exit_code"], operational_code());
     }
 
     #[test]
@@ -1711,8 +1778,16 @@ mod tests {
     fn startup_outcome_still_finishes_when_the_code_is_empty() {
         let mut out = Vec::new();
         emit_startup_outcome(&mut out, "", "boom", 2).expect("finished anyway");
-        let event: serde_json::Value = serde_json::from_slice(&out).expect("json");
-        assert_eq!(event["event"], "command_finished");
+        let lines: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert_eq!(lines[0]["event"], "error");
+        assert_eq!(lines[0]["code"], CODE_INVALID_RESULT);
+        assert_eq!(lines[1]["event"], "command_finished");
+        assert_eq!(lines[1]["exit_code"], 2);
     }
 
     #[test]

@@ -368,6 +368,31 @@ pub struct NoticeEvent {
     pub import: Option<String>,
 }
 
+impl NoticeEvent {
+    /// An `info` notice with no related command, scope, or path.
+    pub fn info(code: &str, message: impl Into<String>) -> Self {
+        Self::at_level("info", code, message.into())
+    }
+
+    /// A `warning` notice with no related command, scope, or path.
+    pub fn warning(code: &str, message: impl Into<String>) -> Self {
+        Self::at_level("warning", code, message.into())
+    }
+
+    fn at_level(level: &str, code: &str, message: String) -> Self {
+        NoticeEvent {
+            level: level.to_owned(),
+            code: code.to_owned(),
+            message,
+            related_command: None,
+            scope: None,
+            path: None,
+            language: None,
+            import: None,
+        }
+    }
+}
+
 pub fn notice_event(notice: &NoticeEvent) -> Result<Value, OutputError> {
     check_notice(notice)?;
     Ok(notice_value(notice))
@@ -662,6 +687,30 @@ mod tests {
         assert_eq!(event["related_command"], Value::from("lint"));
         assert_eq!(event["scope"][0], Value::from("//src/..."));
         assert!(event.get("path").is_none());
+    }
+
+    #[test]
+    fn notice_constructors_match_the_literal() {
+        for (level, notice) in [
+            ("info", NoticeEvent::info("other", "m")),
+            ("warning", NoticeEvent::warning("other", "m")),
+        ] {
+            let literal = NoticeEvent {
+                level: level.to_owned(),
+                code: "other".to_owned(),
+                message: "m".to_owned(),
+                related_command: None,
+                scope: None,
+                path: None,
+                language: None,
+                import: None,
+            };
+            assert_eq!(notice, literal);
+            assert_eq!(
+                notice_event(&notice).expect("constructed notice"),
+                notice_value(&literal)
+            );
+        }
     }
 
     #[test]

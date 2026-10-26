@@ -1,4 +1,4 @@
-use super::common::{refusal, resolve_failed, Env};
+use super::common::{emit_built, emit_event, refusal, resolve_failed, Env};
 use super::execute;
 use crate::args::{Command, Invocation};
 use crate::resolve::{
@@ -368,17 +368,19 @@ impl Write for InjectAffected<'_> {
 
 fn finished_empty(invocation: &Invocation, plan: &AffectedPlan, out: &mut dyn Write) -> i32 {
     if invocation.output == OutputMode::Json {
-        let Ok(Value::Object(mut started)) =
-            command_started(invocation.command.name(), invocation.started_mode())
-        else {
-            return 1;
-        };
-        started.insert("affected".to_owned(), plan.json(invocation.command));
-        let finished = command_finished(0, &FinishedCounts::default());
-        for event in [Value::Object(started), finished] {
-            if dx_output::write_event(out, &event).is_err() {
-                return 1;
-            }
+        let started = command_started(invocation.command.name(), invocation.started_mode()).map(
+            |mut started| {
+                if let Value::Object(map) = &mut started {
+                    map.insert("affected".to_owned(), plan.json(invocation.command));
+                }
+                started
+            },
+        );
+        if let Err(exit) = emit_built(out, started) {
+            return exit;
+        }
+        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            return exit;
         }
         return 0;
     }

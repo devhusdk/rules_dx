@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::{check_stdout_write, emit_event, emit_started};
+use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
 use dx_output::{command_finished, command_started, status_event, FinishedCounts, StatusEvent};
 
 use super::status::CODE_STATUS_PIN_MISMATCH;
@@ -13,17 +13,16 @@ fn json_pin(
     mode: &str,
     detail: &str,
 ) -> Result<(), i32> {
-    if let Ok(event) = command_started(invocation.command.name(), mode) {
-        emit_event(out, &event)?;
-    }
-    if let Ok(event) = status_event(&StatusEvent {
-        name: "pin".to_owned(),
-        status: "ok".to_owned(),
-        detail: detail.to_owned(),
-        hint: "dx rollback".to_owned(),
-    }) {
-        emit_event(out, &event)?;
-    }
+    emit_built(out, command_started(invocation.command.name(), mode))?;
+    emit_built(
+        out,
+        status_event(&StatusEvent {
+            name: "pin".to_owned(),
+            status: "ok".to_owned(),
+            detail: detail.to_owned(),
+            hint: "dx rollback".to_owned(),
+        }),
+    )?;
     emit_event(out, &command_finished(0, &FinishedCounts::default()))
 }
 

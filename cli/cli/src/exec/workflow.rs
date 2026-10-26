@@ -232,9 +232,12 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
     };
     if verb == WorkflowVerb::Build {
         if bazel_code != 0 {
-            report_build_failures(&bep, invocation.output, out, err);
+            if let Err(exit) = report_build_failures(&bep, invocation.output, out, err) {
+                let _ = std::fs::remove_file(&bep);
+                return kept_child(err, bazel_code, exit);
+            }
         }
-        let reports_ok = write_failure_reports(
+        let reports = write_failure_reports(
             invocation,
             workspace,
             &bep,
@@ -244,6 +247,10 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
             err,
         );
         let _ = std::fs::remove_file(&bep);
+        let reports_ok = match reports {
+            Ok(landed) => landed,
+            Err(exit) => return kept_child(err, bazel_code, exit),
+        };
         let code = if bazel_code == 0 && !reports_ok {
             1
         } else {

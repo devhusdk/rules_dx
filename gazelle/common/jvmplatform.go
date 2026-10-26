@@ -56,7 +56,6 @@ func InPackages(spec string, packages []string) bool {
 
 func IsJDKPlatform(spec string) bool { return InPackages(spec, jdkPackages) }
 
-// PackageSet builds the lookup set InPlatformPackages expects.
 func PackageSet(packages ...string) map[string]bool {
 	set := make(map[string]bool, len(packages))
 	for _, pkg := range packages {
@@ -65,9 +64,6 @@ func PackageSet(packages ...string) map[string]bool {
 	return set
 }
 
-// InPlatformPackages reports whether spec is an exact platform package or a
-// member of one. It finds the longest known package prefix, so an unknown
-// subpackage such as kotlin.test.assertEquals is not claimed by kotlin.
 func InPlatformPackages(spec string, packages map[string]bool) bool {
 	for pkg := spec; ; {
 		if packages[pkg] {
@@ -81,8 +77,6 @@ func InPlatformPackages(spec string, packages map[string]bool) bool {
 	}
 }
 
-// platformMember accepts the package itself, one trailing segment (a class or
-// top-level function), or a capitalised class followed by nested members.
 func platformMember(rest string) bool {
 	if rest == "" {
 		return true

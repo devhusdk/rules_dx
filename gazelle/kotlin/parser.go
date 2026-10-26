@@ -55,10 +55,6 @@ func DefinesMain(content []byte) bool {
 	return mainRe.Match(common.MaskKotlinStyle(content))
 }
 
-// normalizeImport keeps the qualified name of a single import so an exact
-// # gazelle:resolve mapping can match it. Wildcards still reduce to the
-// package's last segment. Local lookup by bare class name goes through
-// importCandidates.
 func normalizeImport(dotted string, onDemand bool) string {
 	if !onDemand {
 		return strings.TrimSpace(dotted)

@@ -2,11 +2,7 @@ package kotlin
 
 import "github.com/devhusdk/rules_dx/gazelle/common"
 
-// platformPackages lists the packages inside kotlin-stdlib 2.4.10, the stdlib
-// that rules_kotlin 2.4.10 puts on every compile classpath (from
-// `unzip -Z1 kotlin-stdlib.jar`; kotlin.streams is the Kotlin name of the
-// kotlin.streams.jdk8 JVM package). It is exact on purpose: kotlin.test,
-// kotlin.reflect.full and kotlin.script ship in separate artifacts.
+// Packages in kotlin-stdlib 2.4.10.
 var platformPackages = common.PackageSet(
 	"kotlin",
 	"kotlin.annotation",
@@ -57,8 +53,6 @@ var platformPackages = common.PackageSet(
 	"kotlin.uuid",
 )
 
-// externalPackages are packages that sit under a platform package but need a
-// separate dependency, so a wildcard or member import of them is not stdlib.
 var externalPackages = []string{
 	"kotlin.reflect.full",
 	"kotlin.reflect.jvm",

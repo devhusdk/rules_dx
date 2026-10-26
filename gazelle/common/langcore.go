@@ -182,12 +182,7 @@ type SingleFileSpec struct {
 	Wrap         func(imports []string) any
 }
 
-// mappedByOverride reports whether a # gazelle:resolve directive maps name or
-// one of its candidates. It lets an explicit mapping win over a stdlib
-// classification. It is a no-op when the config has no resolve directives.
 func mappedByOverride(c *config.Config, lang string, candidates func(string) []string, name string) bool {
-	// The resolve configurer registers this extension; a config without it has
-	// no directives, and FindRuleWithOverride would panic on it.
 	if c == nil || c.Exts["_resolve"] == nil {
 		return false
 	}

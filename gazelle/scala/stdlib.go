@@ -2,10 +2,7 @@ package scala
 
 import "github.com/devhusdk/rules_dx/gazelle/common"
 
-// platformPackages lists the packages inside scala-library 2.13.18, the
-// version the repo pins in MODULE.bazel (from `unzip -Z1 scala-library.jar`).
-// It is exact on purpose: scala.xml, scala.util.parsing and
-// scala.collection.parallel are separate artifacts.
+// Packages in scala-library 2.13.18.
 var platformPackages = common.PackageSet(
 	"scala",
 	"scala.annotation",
@@ -38,17 +35,12 @@ var platformPackages = common.PackageSet(
 	"scala.util.control",
 	"scala.util.hashing",
 	"scala.util.matching",
-	// Stdlib objects whose members are imported by name. Their names are
-	// lowercase, so without these entries platformMember would reject a
-	// nested member such as scala.language.implicitConversions.
 	"scala.Predef",
 	"scala.language",
 	"scala.language.experimental",
 	"scala.util.chaining",
 )
 
-// externalPackages are packages that sit under a platform package but need a
-// separate dependency, so a wildcard or member import of them is not stdlib.
 var externalPackages = []string{
 	"scala.collection.parallel",
 	"scala.reflect.api",

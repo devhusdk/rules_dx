@@ -342,6 +342,7 @@ func resolveImports(t *testing.T, directives string, srcs map[string]string, imp
 		t.Fatal(err)
 	}
 	resolver.Configure(cfg, "consumer", f)
+	lang.Configure(cfg, "consumer", f)
 	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
 	for pkg, src := range srcs {
 		r := rule.NewRule(LibraryKind, pkg)
@@ -379,6 +380,17 @@ func TestResolveExternalImportNeedsAMapping(t *testing.T) {
 			t.Fatalf("panic = %q, want the qualified name and the unresolved hint", msg)
 		}
 	}()
+	lang.AfterResolvingDeps(context.Background())
+}
+
+func TestBareNameIgnoreMatchesQualifiedImport(t *testing.T) {
+	r, lang := resolveImports(t, "# gazelle:dx_ignore_import kotlin Widget\n", nil, "com.example.Widget")
+	if lang.Failed() {
+		t.Fatal("a bare-name ignore did not cover the qualified import")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 0 {
+		t.Fatalf("deps = %v", got)
+	}
 	lang.AfterResolvingDeps(context.Background())
 }
 

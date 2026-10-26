@@ -160,8 +160,10 @@ android_apk_check(name = "sign_check", apk = ":app_apk_unsigned_file")
 be a readable zip with an `AndroidManifest.xml` and no existing
 signature. `schemes` picks from `v1`, `v2`, `v3` and `v4` (default
 `v1`, `v2`, `v3`) and `min_sdk` sets the signing minimum SDK (default
-the manifest value, at least 31). Unknown or duplicate schemes and a
-low `min_sdk` fail at analysis.
+the manifest value, at least 31). Unknown or duplicate schemes, `v4`
+without `v2` or `v3`, and a low `min_sdk` fail at analysis. A run with
+`v4` also writes the signature next to the APK as `<DX_SIGN_OUT>.idsig`;
+a run without `v4` deletes a stale one.
 
 Pass the key through the environment of the run, never through BUILD
 files:

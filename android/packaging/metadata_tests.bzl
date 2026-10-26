@@ -118,6 +118,26 @@ def _packaging_checks():
         ["android_apk_release_sign: schemes holds duplicates"],
     ))
     checks.append(expect_equal(
+        "v4 alone sign errors",
+        release_sign_errors(["v4"], 0),
+        ["android_apk_release_sign: scheme v4 needs v2 or v3"],
+    ))
+    checks.append(expect_equal(
+        "v1 and v4 sign errors",
+        release_sign_errors(["v1", "v4"], 0),
+        ["android_apk_release_sign: scheme v4 needs v2 or v3"],
+    ))
+    checks.append(expect_equal("v2 and v4 sign errors", release_sign_errors(["v2", "v4"], 0), []))
+    checks.append(expect_equal("v3 and v4 sign errors", release_sign_errors(["v3", "v4"], 0), []))
+    checks.append(expect_equal(
+        "unknown scheme with v4 sign errors",
+        release_sign_errors(["v9", "v4"], 0),
+        [
+            "android_apk_release_sign: scheme 'v9' is unknown: want v1, v2, v3, v4",
+            "android_apk_release_sign: scheme v4 needs v2 or v3",
+        ],
+    ))
+    checks.append(expect_equal(
         "low min sdk sign errors",
         release_sign_errors(["v2"], 21),
         ["android_apk_release_sign: min_sdk 21 is below 31"],

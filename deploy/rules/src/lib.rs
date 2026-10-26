@@ -535,6 +535,59 @@ pub fn minimal_env(
     env
 }
 
+/// Env names a publish child keeps; everything else is dropped.
+const PUBLISH_CHILD_ENV_KEEP: &[&str] = &[
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "TMPDIR",
+    "USER",
+    "LOGNAME",
+    "SystemRoot",
+    "SystemDrive",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "ProgramFiles",
+    "ProgramData",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+];
+
+/// Extra env names `dotnet` needs to find its SDK and caches.
+const DOTNET_CHILD_ENV_EXTRA: &[&str] = &[
+    "DOTNET_ROOT",
+    "DOTNET_CLI_HOME",
+    "NUGET_PACKAGES",
+    "DOTNET_CLI_TELEMETRY_OPTOUT",
+    "DOTNET_NOLOGO",
+];
+
+/// Builds a child command with a cleared env, the allowlisted vars, then extras.
+fn scrubbed_command(
+    program: &Path,
+    keep: &[&[&str]],
+    extra: &[(&str, &str)],
+) -> std::process::Command {
+    let names: Vec<&str> = keep.iter().flat_map(|list| list.iter().copied()).collect();
+    let mut cmd = std::process::Command::new(program);
+    cmd.env_clear();
+    for (key, value) in &minimal_env(&names, extra) {
+        cmd.env(key, value);
+    }
+    cmd
+}
+
 /// Serializes one JSON document pretty-printed with a trailing newline.
 fn render_json(value: &serde_json::Value) -> std::io::Result<String> {
     Ok(serde_json::to_string_pretty(value)? + "\n")
@@ -1099,6 +1152,87 @@ const NUGET_GATE: OwnerGate = OwnerGate {
     approved: "NUGET_PUBLISH_APPROVED",
 };
 
+/// Lowest NuGet version that reads the push key from `NUGET_API_KEY`.
+const NUGET_ENV_KEY_MIN: (u32, u32) = (7, 6);
+
+/// Reads `MAJOR.MINOR` from the last non-empty line of `dotnet nuget --version` output.
+fn nuget_parse_version(output: &str) -> Option<(u32, u32)> {
+    let last = output.lines().rev().find(|line| !line.trim().is_empty())?;
+    last.split_whitespace().find_map(|token| {
+        let mut parts = token.split('.');
+        let major = parts.next()?.parse::<u32>().ok()?;
+        let minor_raw = parts.next()?;
+        let digits: String = minor_raw.chars().take_while(char::is_ascii_digit).collect();
+        Some((major, digits.parse::<u32>().ok()?))
+    })
+}
+
+/// True when the reported NuGet version reads `NUGET_API_KEY` for push.
+pub fn nuget_reads_api_key_env(version_output: &str) -> bool {
+    nuget_parse_version(version_output).is_some_and(|version| version >= NUGET_ENV_KEY_MIN)
+}
+
+/// Pushes a nupkg with the key in the child env only, never in argv.
+pub fn nuget_live_push(
+    dotnet: &Path,
+    nupkg: &Path,
+    source: &str,
+    token: &str,
+    id: &str,
+    version: &str,
+) -> i32 {
+    let mut probe = scrubbed_command(
+        dotnet,
+        &[PUBLISH_CHILD_ENV_KEEP, DOTNET_CHILD_ENV_EXTRA],
+        &[
+            ("DOTNET_NOLOGO", "1"),
+            ("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1"),
+        ],
+    );
+    probe.arg("nuget").arg("--version");
+    let reported = match probe.output() {
+        Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
+        Err(error) => {
+            eprintln!("nuget_deploy: {error}");
+            return 1;
+        }
+    };
+    if !nuget_reads_api_key_env(&reported) {
+        eprintln!(
+            "nuget_deploy: NuGet {} does not read NUGET_API_KEY; need NuGet {}.{}+ (.NET SDK 10.0.300+); refusing to put the key on the command line",
+            reported.lines().last().unwrap_or("").trim(),
+            NUGET_ENV_KEY_MIN.0,
+            NUGET_ENV_KEY_MIN.1
+        );
+        return 1;
+    }
+    let mut cmd = scrubbed_command(
+        dotnet,
+        &[PUBLISH_CHILD_ENV_KEEP, DOTNET_CHILD_ENV_EXTRA],
+        &[("NUGET_API_KEY", token)],
+    );
+    cmd.arg("nuget")
+        .arg("push")
+        .arg(nupkg)
+        .arg("--source")
+        .arg(source)
+        .arg("--skip-duplicate");
+    match cmd.status() {
+        Ok(status) if status.success() => {
+            println!("nuget_deploy: pushed {id} {version}");
+            0
+        }
+        Ok(status) => {
+            eprintln!("nuget_deploy: dotnet failed with {status}");
+            1
+        }
+        Err(error) => {
+            eprintln!("nuget_deploy: {error}");
+            1
+        }
+    }
+}
+
 /// Runs the NuGet deploy launcher.
 pub fn nuget_main(
     nupkg_rloc: &str,
@@ -1152,30 +1286,14 @@ pub fn nuget_main(
             eprintln!("nuget_deploy: 'dotnet' CLI not found on PATH");
             return 1;
         };
-        let status = std::process::Command::new(dotnet)
-            .arg("nuget")
-            .arg("push")
-            .arg(&nupkg)
-            .arg("--source")
-            .arg(package_source)
-            .arg("--api-key")
-            .arg(&token)
-            .arg("--skip-duplicate")
-            .status();
-        match status {
-            Ok(status) if status.success() => {
-                println!("nuget_deploy: pushed {package_id} {package_version}");
-                return 0;
-            }
-            Ok(status) => {
-                eprintln!("nuget_deploy: dotnet failed with {status}");
-                return 1;
-            }
-            Err(error) => {
-                eprintln!("nuget_deploy: {error}");
-                return 1;
-            }
-        }
+        return nuget_live_push(
+            &dotnet,
+            &nupkg,
+            package_source,
+            &token,
+            package_id,
+            package_version,
+        );
     }
     match nuget_build_feed(&nupkg, &outdir, target_name) {
         Ok(feed) => {
@@ -2857,6 +2975,41 @@ const OCTOPUS_GATE: OwnerGate = OwnerGate {
     approved: "OCTOPUS_PUBLISH_APPROVED",
 };
 
+/// Pushes a package with `octo`, passing the key through env only.
+pub fn octopus_live_push(
+    octo: &Path,
+    package: &Path,
+    server: &str,
+    space: &str,
+    api_key: &str,
+    project: &str,
+    version: &str,
+) -> i32 {
+    let mut push = scrubbed_command(
+        octo,
+        &[PUBLISH_CHILD_ENV_KEEP],
+        &[("OCTOPUS_CLI_API_KEY", api_key)],
+    );
+    push.arg("push").arg(package).arg("--server").arg(server);
+    if !space.is_empty() {
+        push.arg("--space").arg(space);
+    }
+    match push.status() {
+        Ok(status) if status.success() => {
+            println!("octopus_deploy: pushed {project} {version}");
+            0
+        }
+        Ok(status) => {
+            eprintln!("octopus_deploy: octo push failed with {status}");
+            1
+        }
+        Err(error) => {
+            eprintln!("octopus_deploy: {error}");
+            1
+        }
+    }
+}
+
 /// Runs the Octopus deploy launcher.
 pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     if argv.len() > 2 {
@@ -2901,26 +3054,19 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
             eprintln!("{error}");
             return 1;
         }
-        let mut push = std::process::Command::new("octo");
-        push.arg("push").arg(&package).arg("--server").arg(&server);
-        if !space.is_empty() {
-            push.arg("--space").arg(&space);
-        }
-        push.arg("--apiKey").arg(&api_key);
-        match push.status() {
-            Ok(status) if status.success() => {
-                println!("octopus_deploy: pushed {} {}", spec.project, spec.version);
-                return 0;
-            }
-            Ok(status) => {
-                eprintln!("octopus_deploy: octo push failed with {status}");
-                return 1;
-            }
-            Err(error) => {
-                eprintln!("octopus_deploy: {error}");
-                return 1;
-            }
-        }
+        let Some(octo) = which_on_path("octo") else {
+            eprintln!("octopus_deploy: 'octo' CLI not found on PATH");
+            return 1;
+        };
+        return octopus_live_push(
+            &octo,
+            &package,
+            &server,
+            &space,
+            &api_key,
+            spec.project,
+            spec.version,
+        );
     }
     match octopus_build_drop(
         &package,
@@ -8375,6 +8521,176 @@ mod tests {
                 ("SIGSTORE_ID_TOKEN", None),
             ],
             || assert!(npm_provenance_unavailable("required").is_none()),
+        );
+    }
+
+    #[cfg(unix)]
+    fn fake_dotnet(dir: &Path, nuget_version: &str, exit: i32) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let path = dir.join("dotnet");
+        let d = dir.display();
+        let script = format!(
+            "#!/bin/sh\nif [ \"$2\" = \"--version\" ]; then printf 'NuGet Command Line\\n{nuget_version}\\n'; exit 0; fi\nprintf '%s\\n' \"$@\" > '{d}/args.txt'\nenv > '{d}/env.txt'\nexit {exit}\n"
+        );
+        std::fs::write(&path, script).expect("write dotnet");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        path
+    }
+
+    #[cfg(unix)]
+    fn fake_octo(dir: &Path, exit: i32) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let path = dir.join("octo");
+        let d = dir.display();
+        let script = format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{d}/args.txt'\nenv > '{d}/env.txt'\nexit {exit}\n"
+        );
+        std::fs::write(&path, script).expect("write octo");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        path
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nuget_live_push_keeps_the_key_out_of_argv() {
+        let scratch = scratch_dir();
+        let dotnet = fake_dotnet(scratch.path(), "7.6.0", 0);
+        with_env(&[("DX_LEAK_PROBE", Some("1"))], || {
+            assert_eq!(
+                nuget_live_push(
+                    &dotnet,
+                    Path::new("a.nupkg"),
+                    "https://n.invalid",
+                    "sekret",
+                    "a",
+                    "1.0.0"
+                ),
+                0
+            );
+        });
+        let args = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
+        let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
+        assert!(args.contains("push") && args.contains("--skip-duplicate"));
+        assert!(!args.contains("sekret") && !args.contains("--api-key"));
+        assert!(env.contains("NUGET_API_KEY=sekret"));
+        assert!(!env.contains("DX_LEAK_PROBE"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nuget_live_push_refuses_nuget_older_than_7_6() {
+        let scratch = scratch_dir();
+        let dotnet = fake_dotnet(scratch.path(), "6.14.0", 0);
+        assert_eq!(
+            nuget_live_push(
+                &dotnet,
+                Path::new("a.nupkg"),
+                "https://n.invalid",
+                "sekret",
+                "a",
+                "1.0.0"
+            ),
+            1
+        );
+        assert!(!scratch.path().join("args.txt").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nuget_live_push_surfaces_tool_failure() {
+        let scratch = scratch_dir();
+        let dotnet = fake_dotnet(scratch.path(), "7.6.0", 1);
+        assert_eq!(
+            nuget_live_push(
+                &dotnet,
+                Path::new("a.nupkg"),
+                "https://n.invalid",
+                "sekret",
+                "a",
+                "1.0.0"
+            ),
+            1
+        );
+    }
+
+    #[test]
+    fn nuget_api_key_env_needs_nuget_7_6() {
+        assert!(!nuget_reads_api_key_env("6.12.1"));
+        assert!(!nuget_reads_api_key_env("7.5.9"));
+        assert!(nuget_reads_api_key_env("7.6.0"));
+        assert!(nuget_reads_api_key_env("7.6.0-preview.1"));
+        assert!(nuget_reads_api_key_env("NuGet Command Line\n7.6.0\n"));
+        assert!(nuget_reads_api_key_env("8.0"));
+        assert!(!nuget_reads_api_key_env(
+            "Welcome to .NET 9.0!\nSDK Version: 9.0.100\n\nNuGet Command Line\n6.12.1\n"
+        ));
+        assert!(!nuget_reads_api_key_env(""));
+        assert!(!nuget_reads_api_key_env("garbage"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn octopus_live_push_keeps_the_key_out_of_argv() {
+        let scratch = scratch_dir();
+        let octo = fake_octo(scratch.path(), 0);
+        with_env(
+            &[
+                ("DX_LEAK_PROBE", Some("1")),
+                ("OCTOPUS_API_KEY", Some("leaky")),
+            ],
+            || {
+                assert_eq!(
+                    octopus_live_push(
+                        &octo,
+                        Path::new("p.nupkg"),
+                        "https://o.invalid",
+                        "S",
+                        "sekret",
+                        "p",
+                        "1.0.0"
+                    ),
+                    0
+                );
+            },
+        );
+        let args = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
+        let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
+        assert!(!args.contains("sekret") && !args.contains("--apiKey"));
+        assert!(args.contains("--space\nS"));
+        assert!(env.contains("OCTOPUS_CLI_API_KEY=sekret"));
+        assert!(!env.contains("OCTOPUS_API_KEY") && !env.contains("DX_LEAK_PROBE"));
+        assert_eq!(
+            octopus_live_push(
+                &octo,
+                Path::new("p.nupkg"),
+                "https://o.invalid",
+                "",
+                "sekret",
+                "p",
+                "1.0.0"
+            ),
+            0
+        );
+        let args = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
+        assert!(!args.contains("--space"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn octopus_live_push_surfaces_tool_failure() {
+        let scratch = scratch_dir();
+        let octo = fake_octo(scratch.path(), 1);
+        assert_eq!(
+            octopus_live_push(
+                &octo,
+                Path::new("p.nupkg"),
+                "https://o.invalid",
+                "",
+                "sekret",
+                "p",
+                "1.0.0"
+            ),
+            1
         );
     }
 

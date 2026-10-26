@@ -8,7 +8,8 @@ use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS, STARTUP_OPTIONS}
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
 use super::super::{parse, ArgsError, Command};
-use super::render_command_help;
+use super::super::tokenizer::REMOVED_COMMANDS;
+use super::{render_command_help, render_top_help, usage_banner};
 use crate::test_support::strings;
 
 const DX_PREFIX: &str = "bazel run @rules_dx//:dx --";
@@ -1157,6 +1158,34 @@ fn every_command_has_a_docs_page() {
             all.contains(&needle),
             "no docs/cli/commands page mentions {needle}"
         );
+    }
+}
+
+#[test]
+fn docs_and_help_never_name_removed_commands() {
+    let mut texts: Vec<(String, String)> = pages();
+    texts.push(("top help".into(), render_top_help()));
+    texts.push(("usage banner".into(), usage_banner()));
+    for command in Command::value_variants() {
+        texts.push((
+            format!("help {}", command.name()),
+            render_command_help(*command),
+        ));
+    }
+    for (name, text) in texts {
+        let words: Vec<&str> = text
+            .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
+            .filter(|word| !word.is_empty())
+            .collect();
+        for pair in words.windows(2) {
+            if pair[0] == "dx" {
+                assert!(
+                    !REMOVED_COMMANDS.iter().any(|(removed, _)| *removed == pair[1]),
+                    "{name} names the removed command dx {}",
+                    pair[1]
+                );
+            }
+        }
     }
 }
 

@@ -28,7 +28,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx watch`](watch.md)
 - [`dx worktree`](worktree.md)
 
-Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
+Scope rules live in [Scope Defaults](scope-defaults.md).
 
 A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
 from stops most commands. See [Version Skew](status-version.md#version-skew).
@@ -355,7 +355,7 @@ fail-on = "error"
 
 Values are TOML, so a boolean key takes `true` or `false`. An empty value is
 unset. Defaults live only under `[dx]` with the hyphenated flag names. A
-top-level default, `fail_on`, or `dry-run` in either spelling is a usage error.
+top-level default or `fail_on` is a usage error.
 An unknown key is a usage error that names the key and the keys it accepts.
 Other supported sections in the same file stay valid.
 

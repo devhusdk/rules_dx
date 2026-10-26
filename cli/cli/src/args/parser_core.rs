@@ -104,6 +104,17 @@ fn verify_and_rerun_are_rejected_with_direct_command_tips() {
 }
 
 #[test]
+fn every_removed_command_is_a_usage_error_with_its_tip() {
+    for (name, tip) in crate::args::tokenizer::REMOVED_COMMANDS {
+        assert_usage(
+            &[name],
+            parse(&strings(&[name])).unwrap_err(),
+            &["unsupported command", tip],
+        );
+    }
+}
+
+#[test]
 fn check_selects_check_mode() {
     let got = parse(&strings(&["format", "--check"])).expect("parse");
     assert_eq!(got.command, Command::Format);

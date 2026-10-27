@@ -244,6 +244,38 @@ pub trait Verifier {
 
 pub struct SystemVerifier;
 
+fn spawn_success(argv: &[String]) -> bool {
+    let Some((binary, args)) = argv.split_first() else {
+        return false;
+    };
+    std::process::Command::new(binary)
+        .args(args)
+        .output()
+        .is_ok_and(|out| out.status.success())
+}
+
+/// True when `bin` names a file inside one of the `path` directories, trying
+/// each of `suffixes` after the bare name.
+fn on_path(bin: &str, path: &std::ffi::OsStr, suffixes: &[&str]) -> bool {
+    std::env::split_paths(path).any(|dir| {
+        dir.join(bin).is_file()
+            || suffixes
+                .iter()
+                .any(|suffix| dir.join(format!("{bin}{suffix}")).is_file())
+    })
+}
+
+fn exe_available(bin: &str) -> bool {
+    let suffixes: &[&str] = if cfg!(windows) {
+        dx_path::host::EXECUTABLE_SUFFIXES
+    } else {
+        &[]
+    };
+    spawn_success(&[bin.to_owned(), "--help".to_owned()])
+        || Path::new(bin).is_file()
+        || std::env::var_os("PATH").is_some_and(|paths| on_path(bin, &paths, suffixes))
+}
+
 fn atomic_install_copy(src: &Path, dst: &Path) -> io::Result<()> {
     dx_atomic_fs::copy_atomic_executable(src, dst)
 }
@@ -265,7 +297,7 @@ impl Verifier for SystemVerifier {
         issuer: &str,
         subject: &Path,
     ) -> bool {
-        dx_process::spawn_success(&cosign_argv(cosign, bundle, identity, issuer, subject))
+        spawn_success(&cosign_argv(cosign, bundle, identity, issuer, subject))
     }
 
     fn gh_verify(
@@ -277,7 +309,7 @@ impl Verifier for SystemVerifier {
         issuer: &str,
         owner: &str,
     ) -> bool {
-        dx_process::spawn_success(&gh_argv(gh, subject, attestation, identity, issuer, owner))
+        spawn_success(&gh_argv(gh, subject, attestation, identity, issuer, owner))
     }
 
     fn cosign_bin(&self) -> String {
@@ -289,7 +321,7 @@ impl Verifier for SystemVerifier {
     }
 
     fn have(&self, bin: &str) -> bool {
-        dx_process::exe_available(bin)
+        exe_available(bin)
     }
 
     fn sha256_file(&self, path: &Path) -> io::Result<String> {
@@ -512,6 +544,42 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
 mod tests {
     use super::*;
     use std::collections::HashMap;
+
+    fn self_exe() -> String {
+        std::env::current_exe()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    #[test]
+    fn spawn_success_reports_exit_status() {
+        assert!(!spawn_success(&[]));
+        assert!(!spawn_success(&["/nonexistent-dx-tool".to_owned()]));
+        assert!(spawn_success(&[self_exe(), "--list".to_owned()]));
+    }
+
+    #[test]
+    fn exe_available_covers_help_and_file() {
+        assert!(!exe_available(""));
+        assert!(!exe_available("/nonexistent-dx-tool-xyz"));
+        assert!(exe_available(&self_exe()));
+    }
+
+    #[test]
+    fn on_path_finds_files_suffixes_and_ignores_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().as_os_str();
+        assert!(!on_path("tool", path, &[]));
+        std::fs::create_dir(dir.path().join("tool")).unwrap();
+        assert!(!on_path("tool", path, &[]));
+        std::fs::write(dir.path().join("plain"), b"x").unwrap();
+        assert!(on_path("plain", path, &[]));
+        std::fs::write(dir.path().join("tool.cmd"), b"x").unwrap();
+        assert!(!on_path("tool", path, &[]));
+        assert!(on_path("tool", path, &[".cmd"]));
+        assert!(!on_path("plain", std::ffi::OsStr::new(""), &[]));
+    }
 
     struct FakeVerifier {
         files: HashMap<PathBuf, Vec<u8>>,

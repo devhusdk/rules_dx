@@ -1175,23 +1175,6 @@ fn pinned_env_path_takes_absolute_paths_only() {
 }
 
 #[test]
-fn spawn_success_reports_status_without_triplication() {
-    assert!(spawn_success(&probe_argv(&["--exit-code=0"])));
-    assert!(!spawn_success(&probe_argv(&["--exit-code=1"])));
-    assert!(!spawn_success(&[]));
-    assert!(!spawn_success(&["/nonexistent-dx-tool".to_owned()]));
-}
-
-#[test]
-fn exe_available_covers_help_file_and_path() {
-    assert!(exe_available(
-        &dx_testing::process_probe().to_string_lossy().into_owned()
-    ));
-    assert!(!exe_available("/nonexistent-dx-tool-xyz"));
-    assert!(!exe_available(""));
-}
-
-#[test]
 fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
     assert_eq!(interrupted(), None);
     record_interrupt(2);

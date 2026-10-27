@@ -34,6 +34,7 @@ go_library(
         "naming.go",
         "nodestdlib.go",
         "singlelang.go",
+        "tsconfig.go",
         "webcomponent.go",
     ],
     embedsrcs = [
@@ -86,6 +87,7 @@ go_test(
         "manifest_test.go",
         "naming_test.go",
         "singlelang_test.go",
+        "tsconfig_test.go",
         "webcomponent_test.go",
     ],
     data = ["testdata/intended_manifest.json"],

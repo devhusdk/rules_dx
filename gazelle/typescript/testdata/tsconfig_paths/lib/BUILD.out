@@ -1,0 +1,6 @@
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+
+typescript_project(
+    name = "util",
+    srcs = ["util.ts"],
+)

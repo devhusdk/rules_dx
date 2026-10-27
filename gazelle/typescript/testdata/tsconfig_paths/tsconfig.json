@@ -1,0 +1,4 @@
+{
+  // Aliases come from the base config.
+  "extends": "./tsconfig.base.json",
+}

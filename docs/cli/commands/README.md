@@ -486,6 +486,7 @@ SDK and toolchain extensions:
 
 API docs:
 
+- `@rules_dx//tools/docs/go:defs.bzl`: Go API doc shards.
 - `@rules_dx//tools/docs/typescript:defs.bzl`: TypeScript API doc shards.
 
 Quality config:

@@ -26,6 +26,11 @@ options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`,
 `--output_base`, `--output_user_root`, `--host_jvm_args` and `--server_jvm_out`.
 Pass `--output_base` or `--output_user_root` with
 [`--bazel-startup-option`](README.md#global-flags) instead.
+Before the build, dx runs a cheap probe with the same flags. It names the
+language checks each target in scope needs, and the build then applies only
+those. A Rust-only change does not configure or fetch the C++, .NET, JVM, Node,
+PowerShell or Ruby tools. If the probe fails for any reason, dx applies every
+check, as it would without the probe.
 With `--@rules_rust//rust/settings:pipelined_compilation=true` in your `.bazelrc`,
 `dx typecheck` reads library diagnostics from the metadata build and skips their codegen.
 

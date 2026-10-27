@@ -5,20 +5,49 @@ use dx_process::{
 use super::{
     bazel_argv, bep_guards, bep_options, download_guards,
     registry::{spec, CommandSpec},
-    BuildPlan, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
+    BuildPlan, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
+    SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
+use std::collections::BTreeSet;
 
 pub fn required_options(entry: &CommandSpec, bep_path: &str) -> Vec<String> {
+    shaped_options(&entry.aspects.join(","), OUTPUT_GROUP, bep_path)
+}
+
+/// The required options of one quality build; probe and build differ only in these three values.
+fn shaped_options(aspects: &str, group: &str, bep_path: &str) -> Vec<String> {
     let mut required = vec![
-        format!("--aspects={}", entry.aspects.join(",")),
-        format!("--output_groups={OUTPUT_GROUP}"),
+        format!("--aspects={aspects}"),
+        format!("--output_groups={group}"),
         DOWNLOAD_ALL_FLAG.to_owned(),
         KEEP_GOING_FLAG.to_owned(),
     ];
     required.extend(bep_options(bep_path));
     required
+}
+
+/// The shard name of one real aspect label: `...real_aspects.bzl%real_rust_lint_aspect` is `real_rust_lint`.
+fn shard_name(aspect: &str) -> &str {
+    let name = aspect.rsplit_once('%').map_or(aspect, |(_, name)| name);
+    name.strip_suffix("_aspect").unwrap_or(name)
+}
+
+/// The core shard of each capability runs on every target, so the probe never drops it.
+const CORE_SHARDS: [&str; 3] = ["real_lint", "real_format", "real_typecheck"];
+
+/// The registry aspects to pass: all of them, or the core ones plus the shards the probe named.
+pub fn select_aspects(entry: &CommandSpec, shards: Option<&BTreeSet<String>>) -> Vec<&'static str> {
+    entry
+        .aspects
+        .iter()
+        .copied()
+        .filter(|aspect| {
+            let name = shard_name(aspect);
+            shards.is_none_or(|shards| CORE_SHARDS.contains(&name) || shards.contains(name))
+        })
+        .collect()
 }
 
 pub(crate) fn setting_name(option: &str) -> Result<String, ForwardError> {
@@ -86,16 +115,72 @@ pub fn plan_build(
     bep_path: &str,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
+    plan_build_with(
+        command,
+        resolved,
+        bazel_options,
+        bep_path,
+        startup_options,
+        None,
+    )
+}
+
+/// Plans the quality build over the shards the probe named; `None` passes every shard.
+pub fn plan_build_with(
+    command: Command,
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    bep_path: &str,
+    startup_options: &[String],
+    shards: Option<&BTreeSet<String>>,
+) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
-    let required = required_options(&entry, bep_path);
-    let protected = protected_flags(&required)?;
+    let aspects = select_aspects(&entry, shards).join(",");
+    shaped_plan(
+        command,
+        resolved,
+        bazel_options,
+        startup_options,
+        &shaped_options(&aspects, OUTPUT_GROUP, bep_path),
+    )
+}
+
+/// Plans the shard probe; its argv matches `plan_build`'s apart from the aspects, output group and event file.
+pub fn plan_probe(
+    command: Command,
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    bep_path: &str,
+    startup_options: &[String],
+) -> Result<Option<BuildPlan>, ForwardError> {
+    let Some(probe) = spec(command).probe else {
+        return Ok(None);
+    };
+    shaped_plan(
+        command,
+        resolved,
+        bazel_options,
+        startup_options,
+        &shaped_options(probe, SHARD_OUTPUT_GROUP, bep_path),
+    )
+    .map(Some)
+}
+
+fn shaped_plan(
+    command: Command,
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    startup_options: &[String],
+    required: &[String],
+) -> Result<BuildPlan, ForwardError> {
+    let protected = protected_flags(required)?;
     let (scope, labels) = workflow_scope_labels(resolved);
     let mut options = vec![SKIP_INCOMPATIBLE_FLAG.to_owned()];
     options.extend(bazel_options.iter().cloned());
     let argv = bazel_argv(
         "build",
         &options,
-        &required,
+        required,
         &protected,
         &labels,
         startup_options,
@@ -216,6 +301,92 @@ mod tests {
             },
             targets: strings(targets),
         }
+    }
+
+    #[test]
+    fn probe_argv_differs_from_build_argv_only_in_aspects_group_and_event_file() {
+        let user = strings(&["--config=ci", "--jobs=4"]);
+        let startup = strings(&["--output_base=/tmp/ob"]);
+        for command in [Command::Lint, Command::Format, Command::Typecheck] {
+            let scope = resolved(&["//pkg:lib"]);
+            let build =
+                plan_build(command, &scope, &user, "/tmp/bep.json", &startup).expect("build");
+            let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup)
+                .expect("probe")
+                .expect("quality commands carry a probe");
+            assert_eq!(build.argv.len(), probe.argv.len());
+            let differing: Vec<(&String, &String)> = build
+                .argv
+                .iter()
+                .zip(&probe.argv)
+                .filter(|(left, right)| left != right)
+                .collect();
+            let probe_label = spec(command).probe.expect("probe label");
+            assert_eq!(
+                differing,
+                vec![
+                    (
+                        &format!("--aspects={}", spec(command).aspects.join(",")),
+                        &format!("--aspects={probe_label}")
+                    ),
+                    (
+                        &"--output_groups=dx_results".to_owned(),
+                        &"--output_groups=dx_shards".to_owned()
+                    ),
+                    (
+                        &"--build_event_json_file=/tmp/bep.json".to_owned(),
+                        &"--build_event_json_file=/tmp/probe.json".to_owned()
+                    ),
+                ],
+                "{command:?}"
+            );
+        }
+        assert!(
+            plan_probe(Command::Build, &resolved(&[]), &[], "/tmp/p.json", &[])
+                .expect("plan")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn select_aspects_keeps_core_shards_and_the_probed_ones() {
+        let lint = spec(Command::Lint);
+        assert_eq!(select_aspects(&lint, None), lint.aspects.to_vec());
+        let rust: BTreeSet<String> = ["real_rust_lint".to_owned()].into();
+        assert_eq!(
+            select_aspects(&lint, Some(&rust)),
+            vec![
+                "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
+            ]
+        );
+        let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
+        assert_eq!(
+            select_aspects(&lint, Some(&unknown)),
+            vec!["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]
+        );
+        let format = spec(Command::Format);
+        assert_eq!(
+            select_aspects(&format, Some(&BTreeSet::new())),
+            vec!["@rules_dx//quality:real_aspects.bzl%real_format_aspect"]
+        );
+    }
+
+    #[test]
+    fn selected_shards_reach_the_build_argv() {
+        let rust: BTreeSet<String> = ["real_rust_lint".to_owned()].into();
+        let plan = plan_build_with(
+            Command::Lint,
+            &resolved(&[]),
+            &[],
+            "/tmp/bep.json",
+            &[],
+            Some(&rust),
+        )
+        .expect("plan");
+        assert!(plan.argv.contains(
+            &"--aspects=@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect".to_owned()
+        ));
     }
 
     #[test]

@@ -1271,6 +1271,9 @@ mod tests {
             cwd: &Path,
             env: &[(&str, &str)],
         ) -> io::Result<ChildStatus> {
+            if is_shard_probe(argv) {
+                return self.inner.run(argv, cwd, env);
+            }
             let launch = self.launches.get();
             self.launches.set(launch + 1);
             let status = self.inner.run(argv, cwd, env)?;
@@ -1300,6 +1303,9 @@ mod tests {
             cwd: &Path,
             env: &[(&str, &str)],
         ) -> io::Result<ChildStatus> {
+            if is_shard_probe(argv) {
+                return self.inner.run(argv, cwd, env);
+            }
             let launch = self.launches.get();
             self.launches.set(launch + 1);
             let status = self.inner.run(argv, cwd, env)?;
@@ -1395,6 +1401,9 @@ mod tests {
             _cwd: &Path,
             env: &[(&str, &str)],
         ) -> io::Result<ChildStatus> {
+            if is_shard_probe(argv) {
+                return Ok(ChildStatus { code: Some(1), signal: None });
+            }
             let launch = self.launches.get();
             self.launches.set(launch + 1);
             let (files, intended) = if launch >= self.verify_from {

@@ -10,13 +10,14 @@ use super::quality_reports::{
 };
 use super::results::collect_results;
 use crate::args::{Command, Invocation, QualityRequest};
-use crate::plan::{bep_path, plan_build};
+use crate::plan::{bep_path, plan_build_with, plan_probe, SHARD_OUTPUT_GROUP};
 use crate::reports::{plan_reports, BaselineReport, Destination};
 use crate::resolve::resolve;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
     command_finished, command_started, meets_threshold, FinishedCounts, OutputMode, Severity,
 };
+use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::Path;
 
@@ -157,6 +158,77 @@ pub(super) fn guard_build_output(
     }
 }
 
+/// Why a shard probe ended the phase instead of falling back to every shard.
+#[derive(Debug, PartialEq, Eq)]
+enum ProbeStop {
+    /// Bazel died by a signal.
+    Signalled,
+    /// dx recorded a stop signal or Bazel exited as interrupted.
+    Interrupted,
+}
+
+/// Runs the shard probe and returns the shards it named; `Ok(None)` means pass every shard.
+///
+/// Any failure (no probe for the command, a plan error, a non-zero exit, an unreadable or
+/// incomplete event file, a malformed shard file) falls back to every shard, so the probe can
+/// only make a run cheaper, never change its result. It writes nothing to stdout; Bazel's own
+/// progress goes to stderr. A stop signal or interrupted Bazel ends the run instead.
+fn probe_shards(
+    request: &QualityRequest,
+    resolved: &crate::resolve::ResolvedScope,
+    workspace: &Path,
+    runner: &dyn dx_process::Runner,
+    temp_dir: &Path,
+    pid: u32,
+    nonce: u64,
+) -> Result<Option<BTreeSet<String>>, ProbeStop> {
+    let bep = temp_dir.join(format!("dx-bep-{pid}-{nonce}-probe.json"));
+    let Some(bep_text) = bep.to_str() else {
+        return Ok(None);
+    };
+    let plan = match plan_probe(
+        request.command,
+        resolved,
+        &request.bazel_options,
+        bep_text,
+        &request.bazel_startup_options,
+    ) {
+        Ok(Some(plan)) => plan,
+        Ok(None) | Err(_) => return Ok(None),
+    };
+    let status = runner.run(&plan.argv, workspace, &[]);
+    let shards = match &status {
+        Ok(status) if status.code.is_none() => Err(ProbeStop::Signalled),
+        _ if dx_process::interrupted().is_some() => Err(ProbeStop::Interrupted),
+        Ok(status) if status.code == Some(BAZEL_INTERRUPTED) => Err(ProbeStop::Interrupted),
+        Ok(status) if status.code == Some(0) => Ok(read_probe_shards(&bep, workspace)),
+        _ => Ok(None),
+    };
+    let _ = std::fs::remove_file(&bep);
+    shards
+}
+
+/// Unions the shard names of every `{"shards":[...]}` file in the probe's event file.
+fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
+    let account = collect_output_account(bep, SHARD_OUTPUT_GROUP, workspace).ok()?;
+    if account.problem.is_some() || !account.gaps.is_empty() || !account.ended {
+        return None;
+    }
+    let mut shards = BTreeSet::new();
+    for target in &account.targets {
+        if !target.success || target.incomplete {
+            return None;
+        }
+        for artifact in &target.artifacts {
+            let value: serde_json::Value = serde_json::from_slice(&artifact.bytes).ok()?;
+            for name in value.get("shards")?.as_array()? {
+                shards.insert(name.as_str()?.to_owned());
+            }
+        }
+    }
+    Some(shards)
+}
+
 fn run_quality_request(
     request: &QualityRequest,
     env: Env<'_>,
@@ -212,12 +284,13 @@ fn run_quality_request(
         Ok(resolved) => resolved,
         Err(error) => return resolve_failed(request.common.output, out, err, &error),
     };
-    let build = match plan_build(
+    let mut build = match plan_build_with(
         request.command,
         &resolved,
         &request.bazel_options,
         bep_text,
         &request.bazel_startup_options,
+        None,
     )
     .map_err(|error| format!("{error}"))
     {
@@ -234,6 +307,42 @@ fn run_quality_request(
     } else if request.chatty() && !stdout_report {
         if let Err(exit) = check_stdout_write(writeln!(out, "{}", build.summary)) {
             return exit;
+        }
+    }
+    // The probe runs after the start event, so a run whose stdout already failed starts no Bazel.
+    match probe_shards(request, &resolved, workspace, runner, temp_dir, pid, nonce) {
+        Ok(Some(shards)) => {
+            if let Ok(narrowed) = plan_build_with(
+                request.command,
+                &resolved,
+                &request.bazel_options,
+                bep_text,
+                &request.bazel_startup_options,
+                Some(&shards),
+            ) {
+                build = narrowed;
+            }
+        }
+        Ok(None) => {}
+        Err(ProbeStop::Signalled) => {
+            *kind = PhaseKind::Host;
+            return operational_output(
+                request.common.output,
+                out,
+                err,
+                CODE_BAZEL_SIGNALLED,
+                "Bazel terminated by signal",
+            );
+        }
+        Err(ProbeStop::Interrupted) => {
+            *kind = PhaseKind::Cancelled;
+            return operational_output(
+                request.common.output,
+                out,
+                err,
+                CODE_BAZEL_FAILED,
+                "the shard probe was interrupted",
+            );
         }
     }
     let bazel_code = match run_bazel_output(
@@ -563,6 +672,9 @@ mod quality_json;
 #[cfg(test)]
 #[path = "quality_modes.rs"]
 mod quality_modes;
+#[cfg(test)]
+#[path = "quality_probe_tests.rs"]
+mod quality_probe_tests;
 #[cfg(test)]
 #[path = "quality_reporting.rs"]
 mod quality_reporting;

@@ -79,6 +79,14 @@ pub(crate) struct Harness {
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
+    /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
+    pub(crate) probe_shards: Option<Vec<String>>,
+    /// An exit code the fake shard probe returns instead of answering.
+    pub(crate) probe_code: Option<i32>,
+    /// Every shard probe argv the fake runner saw.
+    pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
+    /// Every other argv the fake runner saw.
+    pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
 }
 
 /// The audit date every test harness pins.
@@ -202,6 +210,10 @@ impl Harness {
             seen_env: Rc::new(RefCell::new(Vec::new())),
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
+            probe_shards: None,
+            probe_code: None,
+            probe_argv: Rc::new(RefCell::new(Vec::new())),
+            build_argv: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -368,6 +380,10 @@ impl Harness {
                 patch: self.patch.clone(),
                 seen_env: Rc::clone(&self.seen_env),
                 free_disk_bytes: self.free_disk_bytes,
+                probe_shards: self.probe_shards.clone(),
+                probe_code: self.probe_code,
+                probe_argv: Rc::clone(&self.probe_argv),
+                build_argv: Rc::clone(&self.build_argv),
             };
         }
         let staged = self.staged_artifacts();
@@ -424,6 +440,10 @@ impl Harness {
             patch: self.patch.clone(),
             seen_env: Rc::clone(&self.seen_env),
             free_disk_bytes: self.free_disk_bytes,
+            probe_shards: self.probe_shards.clone(),
+            probe_code: self.probe_code,
+            probe_argv: Rc::clone(&self.probe_argv),
+            build_argv: Rc::clone(&self.build_argv),
         }
     }
 
@@ -572,6 +592,7 @@ impl Harness {
             seen: Rc::new(RefCell::new(Vec::new())),
             seen_env: Rc::clone(&self.seen_env),
             free_disk_bytes: self.free_disk_bytes,
+            probe_argv: Rc::clone(&self.probe_argv),
         };
         let code = execute(inv, self.env_with(&probe, out, err));
         let argv = probe.seen.borrow().clone();
@@ -592,11 +613,18 @@ pub(crate) struct ProbeRun {
 }
 
 /// A runner that records each argv and environment and answers each launch with the next code.
+/// Shard probe launches go to `probe_argv` and exit 1, so `seen` and `codes` count only the real runs.
 struct ArgvProbe {
     codes: Vec<Option<i32>>,
     seen: Rc<RefCell<Vec<Vec<String>>>>,
     seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     free_disk_bytes: Option<u64>,
+    probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
+}
+
+/// Whether one argv is the quality shard probe.
+pub(crate) fn is_shard_probe(argv: &[String]) -> bool {
+    argv.iter().any(|arg| arg == "--output_groups=dx_shards")
 }
 
 impl Runner for ArgvProbe {
@@ -605,6 +633,10 @@ impl Runner for ArgvProbe {
     }
 
     fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        if is_shard_probe(argv) {
+            self.probe_argv.borrow_mut().push(argv.to_vec());
+            return Ok(ChildStatus { code: Some(1), signal: None });
+        }
         let launch = self.seen.borrow().len();
         let last = self.codes.len().saturating_sub(1);
         self.seen.borrow_mut().push(argv.to_vec());
@@ -631,6 +663,48 @@ pub(crate) struct FakeRunner {
     pub(crate) patch: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
+    pub(crate) probe_shards: Option<Vec<String>>,
+    pub(crate) probe_code: Option<i32>,
+    pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
+    pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
+}
+
+impl FakeRunner {
+    /// Answers one shard probe: a dx_shards file naming `probe_shards`, or exit 1 when unset.
+    fn run_shard_probe(&self, argv: &[String]) -> io::Result<ChildStatus> {
+        self.probe_argv.borrow_mut().push(argv.to_vec());
+        if let Some(code) = self.probe_code {
+            return Ok(ChildStatus { code: Some(code), signal: None });
+        }
+        let (Some(shards), Some(bep)) = (
+            &self.probe_shards,
+            argv.iter()
+                .find_map(|arg| arg.strip_prefix("--build_event_json_file=")),
+        ) else {
+            return Ok(ChildStatus { code: Some(1), signal: None });
+        };
+        let artifact = format!("{bep}.shards.json");
+        std::fs::write(
+            &artifact,
+            serde_json::json!({ "shards": shards }).to_string(),
+        )
+        .expect("shard file");
+        let lines = [
+            serde_json::json!({
+                "id": {"namedSet": {"id": "0"}},
+                "namedSetOfFiles": {"files": [{"uri": format!("file://{artifact}")}]},
+            })
+            .to_string(),
+            serde_json::json!({
+                "id": {"targetCompleted": {"label": "//test:corpus"}},
+                "completed": {"success": true, "outputGroup": [{"name": "dx_shards", "fileSets": [{"id": "0"}]}]},
+            })
+            .to_string(),
+            LAST_EVENT.to_owned(),
+        ];
+        std::fs::write(bep, lines.join("\n")).expect("probe BEP file");
+        Ok(ChildStatus { code: Some(0), signal: None })
+    }
 }
 
 impl Runner for FakeRunner {
@@ -642,6 +716,10 @@ impl Runner for FakeRunner {
         if self.io_error {
             return Err(io::Error::other("fake launch failure"));
         }
+        if is_shard_probe(argv) {
+            return self.run_shard_probe(argv);
+        }
+        self.build_argv.borrow_mut().push(argv.to_vec());
         self.seen_env.borrow_mut().push(
             env.iter()
                 .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))

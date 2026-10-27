@@ -13,8 +13,8 @@ load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":aspect_tests.bzl", "aspect_fixture_tests")
 load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes", "windows_failure_test")
-load(":real_aspect_subject.bzl", "real_aspect_subject")
-load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
+load(":real_aspect_subject.bzl", "real_aspect_subject", "real_shard_probe_subject")
+load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_shard_probe_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
@@ -1064,6 +1064,129 @@ real_aspect_fixture_tests(
         ":fixture_upstream_rust_subject",
         ":fixture_wrapped_cc_no_format_upstream_subject",
         ":real_plain_subject",
+    ],
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_cc_probe_subject",
+    format_probe = ":fixture_real_cc",
+    lint_probe = ":fixture_real_cc",
+    target = ":fixture_real_cc",
+    typecheck_probe = ":fixture_real_cc",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_graphql_probe_subject",
+    format_probe = ":fixture_real_graphql",
+    lint_probe = ":fixture_real_graphql",
+    target = ":fixture_real_graphql",
+    typecheck_probe = ":fixture_real_graphql",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_java_hinted_probe_subject",
+    format_probe = ":fixture_real_java_hinted",
+    lint_probe = ":fixture_real_java_hinted",
+    target = ":fixture_real_java_hinted",
+    typecheck_probe = ":fixture_real_java_hinted",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_mixed_probe_subject",
+    format_probe = ":fixture_real_mixed",
+    lint_probe = ":fixture_real_mixed",
+    target = ":fixture_real_mixed",
+    typecheck_probe = ":fixture_real_mixed",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_no_format_probe_subject",
+    format_probe = ":fixture_real_no_format",
+    lint_probe = ":fixture_real_no_format",
+    target = ":fixture_real_no_format",
+    typecheck_probe = ":fixture_real_no_format",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_python_probe_subject",
+    format_probe = ":fixture_real_python",
+    lint_probe = ":fixture_real_python",
+    target = ":fixture_real_python",
+    typecheck_probe = ":fixture_real_python",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_rust_probe_subject",
+    format_probe = ":fixture_real_rust",
+    lint_probe = ":fixture_real_rust",
+    target = ":fixture_real_rust",
+    typecheck_probe = ":fixture_real_rust",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_scala_probe_subject",
+    format_probe = ":fixture_real_scala",
+    lint_probe = ":fixture_real_scala",
+    target = ":fixture_real_scala",
+    typecheck_probe = ":fixture_real_scala",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_shell_probe_subject",
+    format_probe = ":fixture_real_shell",
+    lint_probe = ":fixture_real_shell",
+    target = ":fixture_real_shell",
+    typecheck_probe = ":fixture_real_shell",
+)
+
+real_shard_probe_subject(
+    name = "fixture_upstream_cc_probe_subject",
+    format_probe = ":fixture_upstream_cc",
+    lint_probe = ":fixture_upstream_cc",
+    target = ":fixture_upstream_cc",
+    typecheck_probe = ":fixture_upstream_cc",
+)
+
+real_shard_probe_subject(
+    name = "fixture_upstream_rust_probe_subject",
+    format_probe = ":fixture_upstream_rust",
+    lint_probe = ":fixture_upstream_rust",
+    target = ":fixture_upstream_rust",
+    typecheck_probe = ":fixture_upstream_rust",
+)
+
+real_shard_probe_subject(
+    name = "fixture_wrapped_cc_no_format_upstream_probe_subject",
+    format_probe = ":fixture_wrapped_cc_no_format_upstream",
+    lint_probe = ":fixture_wrapped_cc_no_format_upstream",
+    target = ":fixture_wrapped_cc_no_format_upstream",
+    typecheck_probe = ":fixture_wrapped_cc_no_format_upstream",
+)
+
+real_shard_probe_subject(
+    name = "plain_probe_subject",
+    format_probe = ":plain",
+    lint_probe = ":plain",
+    target = ":plain",
+    typecheck_probe = ":plain",
+)
+
+real_shard_probe_tests(
+    name = "real_shard_probe",
+    subjects = [
+        ":fixture_real_cc_probe_subject",
+        ":fixture_real_graphql_probe_subject",
+        ":fixture_real_java_hinted_probe_subject",
+        ":fixture_real_mixed_probe_subject",
+        ":fixture_real_no_format_probe_subject",
+        ":fixture_real_python_probe_subject",
+        ":fixture_real_rust_probe_subject",
+        ":fixture_real_scala_probe_subject",
+        ":fixture_real_shell_probe_subject",
+        ":fixture_upstream_cc_probe_subject",
+        ":fixture_upstream_rust_probe_subject",
+        ":fixture_wrapped_cc_no_format_upstream_probe_subject",
+        ":plain_probe_subject",
     ],
 )
 

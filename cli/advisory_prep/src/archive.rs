@@ -246,7 +246,11 @@ fn entry_bytes(archive: &[u8], entry: &CentralEntry) -> Result<Vec<u8>, ArchiveE
         .map_err(|_| unreadable("local header is truncated".to_owned()))?;
     let extra_len = u16_at(archive, local + 28)
         .map_err(|_| unreadable("local header is truncated".to_owned()))?;
-    let data_at = local + LOCAL_FIXED + usize::from(name_len) + usize::from(extra_len);
+    let data_at = local
+        .checked_add(LOCAL_FIXED)
+        .and_then(|at| at.checked_add(usize::from(name_len)))
+        .and_then(|at| at.checked_add(usize::from(extra_len)))
+        .ok_or_else(|| unreadable("local header runs past the end of the archive".to_owned()))?;
     let data_end = data_at
         .checked_add(usize::try_from(entry.compressed).map_err(|_| {
             unreadable("compressed size runs past the end of the archive".to_owned())

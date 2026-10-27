@@ -31,6 +31,8 @@ pub fn manifest_for(binary: &Path) -> PathBuf {
 pub struct Resolver {
     inner: Runfiles,
     source: PathBuf,
+    /// Keys read from a tree on disk, which need an existence check.
+    directory: bool,
 }
 
 impl Resolver {
@@ -38,19 +40,19 @@ impl Resolver {
     pub fn for_binary(binary: &Path) -> io::Result<Self> {
         let tree = tree_beside(binary);
         if let Some(tree) = tree.as_ref().filter(|tree| populated(tree)) {
-            return Resolver::new(Runfiles::builder().directory(tree), tree.clone());
+            return Resolver::new(Runfiles::builder().directory(tree), tree.clone(), true);
         }
         if let Some(manifest) = manifest_beside(binary) {
             let text = std::fs::read_to_string(&manifest)?;
-            return Resolver::new(Runfiles::builder().manifest(text), manifest);
+            return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
         }
         if let Some(tree) = tree {
             let manifest = tree.join("MANIFEST");
             if manifest.is_file() {
                 let text = std::fs::read_to_string(&manifest)?;
-                return Resolver::new(Runfiles::builder().manifest(text), manifest);
+                return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
             }
-            return Resolver::new(Runfiles::builder().directory(&tree), tree);
+            return Resolver::new(Runfiles::builder().directory(&tree), tree, true);
         }
         Err(io::Error::new(
             io::ErrorKind::NotFound,
@@ -75,7 +77,11 @@ impl Resolver {
                 format!("no runfiles tree at {}", tree.display()),
             ));
         }
-        Resolver::new(Runfiles::builder().directory(tree), tree.to_path_buf())
+        Resolver::new(
+            Runfiles::builder().directory(tree),
+            tree.to_path_buf(),
+            true,
+        )
     }
 
     /// Returns the file one key names, read as this runfiles' own repository.
@@ -85,19 +91,31 @@ impl Resolver {
 
     /// Returns the file one key names, read as `source_repo` spells it.
     pub fn lookup_from(&self, key: &str, source_repo: &str) -> io::Result<PathBuf> {
-        self.inner.rlocation_from(key, source_repo).ok_or_else(|| {
+        let not_found = || {
             io::Error::new(
                 io::ErrorKind::NotFound,
                 format!("{key} is not in {}", self.source.display()),
             )
-        })
+        };
+        let path = self
+            .inner
+            .rlocation_from(key, source_repo)
+            .ok_or_else(not_found)?;
+        if self.directory && !path.exists() {
+            return Err(not_found());
+        }
+        Ok(path)
     }
 
-    fn new(builder: RunfilesBuilder, source: PathBuf) -> io::Result<Self> {
+    fn new(builder: RunfilesBuilder, source: PathBuf, directory: bool) -> io::Result<Self> {
         let inner = builder
             .build()
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?;
-        Ok(Resolver { inner, source })
+        Ok(Resolver {
+            inner,
+            source,
+            directory,
+        })
     }
 }
 
@@ -450,6 +468,31 @@ mod tests {
         assert!(
             message.contains(&manifest.display().to_string()),
             "file missing from: {message}"
+        );
+    }
+
+    #[test]
+    fn a_directory_lookup_of_a_missing_key_reports_the_key_and_the_tree() {
+        let dir = scratch("directory-missing-key");
+        let tree = dir.join("tree");
+        write(&dir, "tree/_main/pkg/tool.txt", "from the tree\n");
+        let resolver = Resolver::for_tree(&tree).expect("resolver");
+        assert_eq!(
+            found(&resolver, "_main/pkg/tool.txt"),
+            tree.join("_main/pkg/tool.txt")
+        );
+        let error = resolver
+            .lookup("_main/pkg/absent.txt")
+            .expect_err("no such key");
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        let message = error.to_string();
+        assert!(
+            message.contains("_main/pkg/absent.txt"),
+            "key missing from: {message}"
+        );
+        assert!(
+            message.contains(&tree.display().to_string()),
+            "tree missing from: {message}"
         );
     }
 

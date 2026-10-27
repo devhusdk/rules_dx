@@ -400,10 +400,9 @@ fn json_apply_marks_remaining_resolution() {
         b"y = 1\n"
     );
     let events = json_events(&out);
-    assert_eq!(
-        event(&events, "diagnostic")["resolution"],
-        serde_json::json!("remaining")
-    );
+    let remaining = event(&events, "diagnostic");
+    assert_eq!(remaining["resolution"], serde_json::json!("remaining"));
+    assert!(remaining.get("range").is_none(), "{out}");
     let change = event(&events, "change");
     assert_eq!(change["effect"], serde_json::json!("applied"));
     assert_eq!(change["edit_count"], serde_json::json!(1));

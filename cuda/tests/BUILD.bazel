@@ -4,7 +4,7 @@ load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license
 load("//cuda/toolchain:repos.bzl", "UNACCEPTED")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":defs.bzl", "component_sources_test", "hermetic_toolchain_test", "with_clang_compiler")
 
@@ -243,9 +243,20 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )
 
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+rustfmt_test(
+    name = "tests_linux_x86_64_fmt_test",
+    size = "small",
+    targets = [
+        ":cublas_device_code_test",
+        ":saxpy_device_code_test",
+        ":saxpy_gpu_unavailable_test",
+    ],
 )

@@ -71,10 +71,7 @@ fn dx_new_erlang_scaffolds_a_project_that_builds_runs_and_tests() {
     let bazelrc = read(&root.join(".bazelrc"));
     std::fs::write(
         root.join(".bazelrc"),
-        format!(
-            "{bazelrc}{}",
-            dx_testing::preset_rc(&rules)
-        ),
+        format!("{bazelrc}{}", dx_testing::preset_rc(&rules)),
     )
     .unwrap_or_else(|error| panic!("write .bazelrc: {error}"));
 

@@ -4,7 +4,7 @@ load("//deploy/rules:resources.bzl", "dx_resources")
 load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test", "rustfmt_test")
 
 package(
     default_testonly = True,
@@ -422,4 +422,25 @@ rust_test(
     },
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "consumer_archive_fmt_test",
+    size = "small",
+    targets = [
+        ":consumer_app",
+        ":consumer_release_zip_verify",
+        ":consumer_runtime_release_verify",
+    ],
+)
+
+rustfmt_test(
+    name = "consumer_archive_linux_fmt_test",
+    size = "small",
+    targets = [
+        ":consumer_release_verify",
+        ":external_release_verify",
+        ":long_path_release_verify",
+        ":repo_release_verify",
+    ],
 )

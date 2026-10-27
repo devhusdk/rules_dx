@@ -585,7 +585,6 @@ fn inspect_framework(framework: &Path, supported: &str) {
     );
 }
 
-
 fn archive(dir: &Path, name: &str, target: &str, sdk: &str) {
     let source = dir.join("marker.c");
     write(&source, MARKER_C);

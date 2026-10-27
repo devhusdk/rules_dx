@@ -82,10 +82,7 @@ fn scaffold(scratch: &Path) -> PathBuf {
     let bazelrc = read(&root.join(".bazelrc"));
     write(
         &root.join(".bazelrc"),
-        &format!(
-            "{bazelrc}{}",
-            dx_testing::preset_rc(&rules)
-        ),
+        &format!("{bazelrc}{}", dx_testing::preset_rc(&rules)),
     );
     root
 }

@@ -84,10 +84,7 @@ fn consumer() -> Case {
             rules.display()
         ),
     );
-    write(
-        &root.join(".bazelrc"),
-        &dx_testing::preset_rc(&rules),
-    );
+    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(&root.join("BUILD.bazel"), "");
     write(&root.join("ocaml/BUILD.bazel"), BUILD);
     write(&root.join("ocaml/clean.ml"), CLEAN);

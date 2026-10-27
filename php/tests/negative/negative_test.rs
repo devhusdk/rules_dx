@@ -113,10 +113,7 @@ fn consumer() -> Case {
             rules.display()
         ),
     );
-    write(
-        &root.join(".bazelrc"),
-        &dx_testing::preset_rc(&rules),
-    );
+    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(&root.join("BUILD.bazel"), "");
     let pkg = root.join("app");
     write(&pkg.join("BUILD.bazel"), BUILD);

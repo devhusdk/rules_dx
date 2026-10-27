@@ -373,3 +373,12 @@ real_source_target(
         "testdata/ts/obsolete/depcheck_exceptions.toml",
     ],
 )
+
+rustfmt_test(
+    name = "depcheck_linux_fmt_test",
+    size = "small",
+    targets = [
+        ":adopt_locks_test",
+        ":repo_locks_test",
+    ],
+)

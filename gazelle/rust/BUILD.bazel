@@ -1,7 +1,7 @@
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -135,6 +135,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )
 
 real_source_target(
@@ -159,5 +160,15 @@ real_source_target(
         "testdata/native_config/crates/merge/rustfmt.toml",
         "testdata/native_config/crates/skip/rustfmt.toml",
         "testdata/native_config/crates/skip/taplo.toml",
+    ],
+)
+
+rustfmt_test(
+    name = "rust_linux_fmt_test",
+    size = "small",
+    targets = [
+        ":failure_test",
+        ":idempotent_test",
+        ":native_config_test",
     ],
 )

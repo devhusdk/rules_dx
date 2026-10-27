@@ -90,3 +90,11 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+rustfmt_test(
+    name = "native_lib_more_fmt_test",
+    size = "small",
+    targets = [
+        ":native_lib_build_script_",
+    ],
+)

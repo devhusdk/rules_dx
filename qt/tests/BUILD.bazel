@@ -563,6 +563,7 @@ real_source_target(
         "rules_tests.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )
 
 exports_files(

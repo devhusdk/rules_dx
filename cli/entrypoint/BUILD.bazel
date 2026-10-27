@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
 package(default_testonly = True)
 
@@ -143,4 +143,13 @@ real_source_target(
         "entrypoint_test.rs",
     ],
     tags = ["corpus"],
+)
+
+rustfmt_test(
+    name = "entrypoint_fmt_test",
+    size = "small",
+    targets = [
+        ":consumer_dx_completion",
+        ":consumer_dx_entry",
+    ],
 )

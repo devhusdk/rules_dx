@@ -5,7 +5,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//cc/rules:defs.bzl", "cc_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
 
 package(
     default_testonly = True,
@@ -97,4 +97,14 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+rustfmt_test(
+    name = "native_call_fmt_test",
+    size = "small",
+    targets = [
+        ":native_call",
+        ":native_call_build_script_",
+        ":native_call_test",
+    ],
 )

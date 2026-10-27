@@ -1267,3 +1267,17 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
 )
+
+rustfmt_test(
+    name = "rules_linux_fmt_test",
+    size = "small",
+    targets = [
+        ":cloudflare_demo_verify",
+        ":github_demo_verify",
+        ":oci_demo_layout_verify",
+        ":oci_demo_verify",
+        ":release_demo_debug_verify",
+        ":release_demo_verify",
+        ":resources_demo_verify",
+    ],
+)

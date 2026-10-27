@@ -20,7 +20,6 @@ pub fn tool(program: &str, args: &[&str]) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_owned()
 }
 
-
 pub fn outputs() -> Option<PathBuf> {
     let dir = std::env::var("TEST_UNDECLARED_OUTPUTS_DIR").ok()?;
     let test = std::thread::current().name().unwrap_or("main").to_owned();

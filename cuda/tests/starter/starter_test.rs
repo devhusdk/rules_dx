@@ -70,10 +70,7 @@ fn dx_new_cuda_scaffolds_a_project_that_builds_and_tests_without_a_gpu() {
     let bazelrc = read(&root.join(".bazelrc"));
     std::fs::write(
         root.join(".bazelrc"),
-        format!(
-            "{bazelrc}{}",
-            dx_testing::preset_rc(&rules)
-        ),
+        format!("{bazelrc}{}", dx_testing::preset_rc(&rules)),
     )
     .unwrap_or_else(|error| panic!("write .bazelrc: {error}"));
 

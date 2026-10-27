@@ -1,7 +1,7 @@
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
 load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//examples/node-app:__subpackages__"])
 
@@ -99,5 +99,17 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-    visibility = ["//examples:__pkg__"],
+    visibility = [
+        "//examples:__pkg__",
+        "//tools/ci:__pkg__",
+    ],
+)
+
+rustfmt_test(
+    name = "cli_fmt_test",
+    size = "small",
+    targets = [
+        ":coverage_test",
+        ":exit_codes_test",
+    ],
 )

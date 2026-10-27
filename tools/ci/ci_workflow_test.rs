@@ -148,9 +148,9 @@ fn the_network_job_selects_opted_in_consumers() {
         );
     }
     assert!(
-        steps(CI, "network")
-            .iter()
-            .any(|step| step["uses"].as_str().is_some_and(|uses| uses.starts_with("actions/cache/restore"))),
+        steps(CI, "network").iter().any(|step| step["uses"]
+            .as_str()
+            .is_some_and(|uses| uses.starts_with("actions/cache/restore"))),
         "{CI} job network must restore the repository cache"
     );
 }

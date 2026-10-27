@@ -55,7 +55,10 @@ fn bzl_sources() -> Vec<(String, String)> {
     for entry in std::fs::read_dir(&dir).expect("readable quality dir") {
         let path = entry.expect("dir entry").path();
         if path.extension().is_some_and(|e| e == "bzl") {
-            out.push((name(&path), std::fs::read_to_string(&path).expect("readable bzl")));
+            out.push((
+                name(&path),
+                std::fs::read_to_string(&path).expect("readable bzl"),
+            ));
         }
     }
     out
@@ -87,9 +90,15 @@ fn jvm_aux_jars_helper_exists_and_is_used() {
         .into_iter()
         .find(|(f, _)| f == "real_aspects.bzl")
         .expect("real_aspects.bzl scanned");
-    assert!(src.contains("def _jvm_aux_jars("), "_jvm_aux_jars helper was removed");
+    assert!(
+        src.contains("def _jvm_aux_jars("),
+        "_jvm_aux_jars helper was removed"
+    );
     let calls = src.matches("= _jvm_aux_jars(").count();
-    assert!(calls >= 2, "expected spotbugs and scalafix to call _jvm_aux_jars, found {calls}");
+    assert!(
+        calls >= 2,
+        "expected spotbugs and scalafix to call _jvm_aux_jars, found {calls}"
+    );
 }
 
 #[test]

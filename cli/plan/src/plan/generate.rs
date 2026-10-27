@@ -326,6 +326,18 @@ mod tests {
     }
 
     #[test]
+    fn scoped_all_targets_never_widen_to_the_root_package() {
+        let resolved = resolved(&["//cli/cli:all", "//docs:all"]);
+        assert_eq!(
+            generate_traversal_dirs(&resolved),
+            strings(&["cli/cli", "docs"])
+        );
+        let plan = plan_generate(&resolved, &[], false, &[], None).expect("plan");
+        let tail: Vec<&str> = plan.argv.iter().rev().take(3).map(String::as_str).collect();
+        assert_eq!(tail, ["docs", "cli/cli", "--"]);
+    }
+
+    #[test]
     fn generate_package_scope_collapses_labels_to_packages() {
         assert_eq!(
             generate_package_scope(&strings(&["//a:x", "//a:y", "//b/c:z"])),

@@ -313,6 +313,8 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
     if !symbol.doc_markdown.trim().is_empty() {
         text.push_str(&demote_headings(symbol.doc_markdown.trim_end()));
         text.push_str("\n\n");
+    } else {
+        text.push_str("Undocumented.\n\n");
     }
     if let Some(source) = &symbol.source {
         let place = format!("{}:{}", source.file, source.line);

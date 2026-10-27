@@ -217,6 +217,34 @@ fn every_symbol_and_alias_gets_a_page_index_entry_summary_line_and_record() {
 }
 
 #[test]
+fn a_symbol_without_docs_says_undocumented() {
+    let mut bare = symbol("rust:demo:bare", "pub fn bare()", "", 3);
+    bare.relations = Some(Relations {
+        reexported_as: vec!["rust:demo:alias".to_string()],
+        ..Relations::default()
+    });
+    let blank = symbol("rust:demo:blank", "pub fn blank()", " \n\t\n", 5);
+    let mut ir = shard();
+    ir.symbols = vec![bare, blank];
+    let rendered = render(&[ir], "").expect("render");
+    let bare_page = &rendered.pages["rust/demo/bare.md"];
+    assert_eq!(
+        bare_page,
+        "# `demo::bare`\n\n```rust,noplayground\npub fn bare()\n```\n\nUndocumented.\n\nSource: `pkg/src/lib.rs:3`\n\nAlso exported as: [`demo::alias`](alias.md)\n"
+    );
+    assert!(
+        rendered.pages["rust/demo/blank.md"].contains("\n\nUndocumented.\n\nSource:"),
+        "{}",
+        rendered.pages["rust/demo/blank.md"]
+    );
+    let alias = &rendered.pages["rust/demo/alias.md"];
+    assert!(alias.contains("Re-export of"), "{alias}");
+    assert!(alias.contains("\n\nUndocumented.\n\n"), "{alias}");
+    assert!(!rendered.api.contains("Undocumented"), "{}", rendered.api);
+    assert!(!rendered.records.contains("Undocumented"));
+}
+
+#[test]
 fn without_a_source_url_the_source_is_plain_text() {
     let rendered = render(&[shard()], "").expect("render");
     assert!(rendered.pages["rust/demo/add.md"].contains("Source: `pkg/src/lib.rs:7`\n"));

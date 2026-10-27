@@ -69,8 +69,17 @@ fsharp_library(
 )
 ```
 
-`dx generate` takes the order from the `<Compile Include="...">` items of the
-`.fsproj` file.
+`dx generate` works out the order from the sources themselves; it does not
+read `.fsproj` files. A file comes after every sibling it uses:
+
+- a type, exception or nested module that a sibling declares, named plainly
+  (`{ b: Item }`) or qualified (`Helper.suffix`);
+- a sibling's file-level module (`module Demo.Types`), by `open` or by name;
+- a sibling found by `open`, matched by file name.
+
+A `Name.fsi` signature file goes right before its `Name.fs`. A lone `.fsi` is
+refused. When two files need each other, generation stops and names one edge,
+for example `A.fs -> B.fs (B)`; split the directory or list `srcs` by hand.
 
 ## NuGet packages
 

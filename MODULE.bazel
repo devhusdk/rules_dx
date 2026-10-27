@@ -103,7 +103,10 @@ bazel_dep(name = "rules_dotnet", version = "0.22.1")
 single_version_override(
     module_name = "rules_dotnet",
     patch_strip = 1,
-    patches = ["//patches/rules_dotnet:reproducible.patch"],
+    patches = [
+        "//patches/rules_dotnet:reproducible.patch",
+        "//patches/rules_dotnet:fsharp_signature.patch",
+    ],
     version = "0.22.1",
 )
 

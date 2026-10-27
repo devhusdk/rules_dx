@@ -209,6 +209,16 @@ func orderSourcesByDependency(sources []string, contents map[string][]byte) ([]s
 			}
 		}
 	}
+	for _, n := range nodes {
+		for _, src := range n.files {
+			if full := TopModuleName(contents[src]); strings.Contains(full, ".") {
+				if _, taken := owner[full]; !taken {
+					owner[full] = n
+				}
+				n.declared[full] = true
+			}
+		}
+	}
 	for name, decl := range declaredBy {
 		if _, ok := owner[name]; !ok && len(decl) == 1 {
 			owner[name] = decl[0]
@@ -222,10 +232,8 @@ func orderSourcesByDependency(sources []string, contents map[string][]byte) ([]s
 			}
 			pkg, _ := ParsePackage(content)
 			names := ParseReferencedNames(content, pkg)
-			for _, imp := range ParseImports(content) {
-				if !IsStdLib(imp) {
-					names = append(names, imp)
-				}
+			for _, path := range ParseOpenPaths(content) {
+				names = append(names, localOpenKeys(path, pkg)...)
 			}
 			sort.Strings(names)
 			for _, name := range names {

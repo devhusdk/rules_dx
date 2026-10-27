@@ -194,6 +194,16 @@ func TestGenerateModulePerFile(t *testing.T) {
 	}
 }
 
+func TestGenerateDottedModulePerFile(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/App.fs":   "module Demo.App\n\nopen Demo.Types\n\nlet run (o: Order) = o.qty\n",
+		"pkg/demo/Model.fs": "module Demo.Types\n\ntype Order = { qty: int }\n",
+	})
+	if got != "Model.fs,App.fs" {
+		t.Errorf("library srcs = %q, want Model.fs,App.fs", got)
+	}
+}
+
 func TestGenerateUnqualifiedTypeRef(t *testing.T) {
 	got := generatedSrcs(t, map[string]string{
 		"pkg/demo/A.fs": "namespace Demo\n\ntype A = { b: Item }\n",
@@ -264,6 +274,17 @@ func TestOrderSourcesByDependencyUnit(t *testing.T) {
 	)
 	if err != nil || strings.Join(ordered, ",") != "Lib.fs,Demo.fs" {
 		t.Errorf("orderSourcesByDependency open = %v, %v; want Lib.fs,Demo.fs", ordered, err)
+	}
+	ordered, err = orderSourcesByDependency(
+		[]string{"App.fs", "Model.fs", "Root.fs"},
+		map[string][]byte{
+			"App.fs":   []byte("module Demo.App\n\nopen Demo.Types.Orders\n\nlet run (o: Order) = o.qty\n"),
+			"Model.fs": []byte("module Demo.Types\n\nmodule Orders =\n    type Order = { qty: int }\n"),
+			"Root.fs":  []byte("module Root\n\nopen Demo.Types\n\nlet zero: Orders.Order = { qty = 0 }\n"),
+		},
+	)
+	if err != nil || strings.Join(ordered, ",") != "Model.fs,App.fs,Root.fs" {
+		t.Errorf("orderSourcesByDependency dotted open = %v, %v; want Model.fs,App.fs,Root.fs", ordered, err)
 	}
 	if _, err := orderSourcesByDependency(
 		[]string{"A.fs", "B.fs"},

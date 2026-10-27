@@ -31,6 +31,45 @@ func ParseImports(content []byte) []string {
 	return sortedKeys(set)
 }
 
+// ParseOpenPaths returns the dotted paths of non-stdlib open declarations.
+func ParseOpenPaths(content []byte) []string {
+	set := make(map[string]struct{})
+	for _, m := range openRe.FindAllSubmatch(common.MaskFSharpStyle(content), -1) {
+		if dotted := string(m[1]); !IsStdLib(dotted) {
+			set[dotted] = struct{}{}
+		}
+	}
+	return sortedKeys(set)
+}
+
+// TopModuleName returns the fully qualified name of a file-level module, or "".
+func TopModuleName(content []byte) string {
+	if decl, ok := parseTopDecl(maskedLines(content)); ok && !decl.namespace {
+		return decl.name
+	}
+	return ""
+}
+
+// localOpenKeys returns the owner keys an open path can match: the full path,
+// its last segment (the file identity, as Imports reports it), and its head
+// segment after stripping the file's own namespace prefix.
+func localOpenKeys(dotted, pkg string) []string {
+	keys := []string{dotted}
+	if id := normalizeImport(dotted); id != dotted {
+		keys = append(keys, id)
+	}
+	chain := strings.Split(dotted, ".")
+	if pkg != "" && pkg != GlobalPackage {
+		if prefix := strings.Split(pkg, "."); len(chain) > len(prefix) && hasPrefix(chain, prefix) {
+			chain = chain[len(prefix):]
+		}
+	}
+	if head := chain[0]; head != dotted && head != keys[len(keys)-1] {
+		keys = append(keys, head)
+	}
+	return keys
+}
+
 type topDecl struct {
 	namespace bool
 	name      string

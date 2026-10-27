@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://devhusdk.github.io/rules_dx/
+    about: Guides and command reference.

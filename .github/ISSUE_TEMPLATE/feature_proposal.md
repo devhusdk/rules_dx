@@ -1,6 +1,7 @@
 ---
 name: Feature Proposal
 about: Propose a scoped change to the product or design.
+labels: enhancement
 ---
 
 # Feature Proposal

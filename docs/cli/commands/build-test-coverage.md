@@ -377,7 +377,9 @@ described above.
 
 `dx coverage` also lists the production sources each cell owns. The source
 list comes from the instrumented files of the targets in scope, so
-`--instrumentation_filter` decides which files count. Each source gets one
+`--instrumentation_filter` decides which files count. A scoped run counts the
+sources of every target in scope, including the transitive production
+dependencies of non-test targets in scope. Each source gets one
 disposition:
 
 - `eligible`: a production source in a covered language that the LCOV reports
@@ -401,15 +403,22 @@ dx: coverage sources <cell>: <raw> raw, <excluded> excluded, <eligible> eligible
 
 `<cell>` is `<os>_<cpu>`, such as `linux_x86_64`. A production source missing
 from the LCOV, or an LCOV path no target owns, prints
-`dx: coverage_sources_incomplete: <message>` on stderr, or emits a `notice`
-event with code `coverage_sources_incomplete` and level `warning` with
-`--output=json`. These notices do not change the exit code.
+`dx: coverage_sources_incomplete: <message>` on stderr. So does an invalid
+source manifest, manifests from more than one cell, or no manifests at all.
+Without `--min-coverage` these are notices: with `--output=json` each is a
+`notice` event with code `coverage_sources_incomplete` and level `warning`, and
+the exit code does not change. With `--min-coverage` each one fails the run,
+even when the line rate meets the minimum, and `--output=json` emits an `error`
+event with the same code. A repository that runs `--min-coverage` with an
+untested library therefore fails until that library has tests or a whole-file
+exclusion.
 `--build_tests_only` is refused, because it hides library targets from the
 source list. `dx coverage` also passes `--build_tests_only=false` after your
 options, so a `.bazelrc` entry or `--config` that turns it on has no effect.
 
 Exit codes: `0` success. `2` usage, scope or owner errors. `1` operational
-failures, coverage below minimum, or incomplete coverage. Bazel failures
+failures, coverage below minimum, unaccounted coverage sources with
+`--min-coverage`, or incomplete coverage. Bazel failures
 keep Bazel's code. Coverage is incomplete when Bazel reports a
 `coverage.dat` artifact that is missing or invalid, when no coverage
 artifacts are reported, when a target's coverage source list is missing or

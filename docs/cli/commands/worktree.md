@@ -282,18 +282,14 @@ build used since the check is kept without a line and is not counted in
 Tests that run Bazel inside Bazel keep their servers under the nested-Bazel
 root: `DX_NESTED_BAZEL_ROOT` when you export it, else `/tmp/dxnb-<uid>`. Each
 slot there has a `lock` file the test holds while it runs, an output user root
-`u`, and one workspace per test case under `w`. Bazel never cleans these output
-bases: it has no size limit for output bases, and its disk cache and install
-base garbage collection only run once a server has been idle for minutes, while
-nested servers exit after 5 seconds.
+`u`, and one workspace per test case under `w`.
 
 `prune` treats each test case, its output base and its workspace, as one item,
 printed as `output base of nested Bazel test <case>, <size>: <dir>`. It lists
 the cases whose workspace has not changed for 30 days, and with `--bases` or
 when the nested-Bazel root's disk is low, every case, least recently used
-first. It only looks at slots whose `lock` it can take without waiting, so a
-running test is never touched, and it never creates a `lock` file. `--apply`
-holds the slot's lock while it deletes, so no test can claim the slot halfway.
+first. It only looks at slots whose `lock` it can take without waiting, and
+never creates a `lock` file. `--apply` holds the slot's lock while it deletes.
 A case whose slot a test locked after the check is printed as
 `skipped output base of nested Bazel test <case> (busy): <dir>`; one whose Bazel
 server still runs is kept as

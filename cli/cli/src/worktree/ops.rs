@@ -1365,7 +1365,7 @@ impl NestedCase {
         }
     }
 
-    /// The case's workspace when it lies in its slot's `w`, so deleting it cannot reach anything else.
+    /// The case's workspace when it lies in its slot's `w`.
     fn own_workspace(&self) -> Option<&Path> {
         let workspaces = resolved(&self.slot.join(nested_bazel::WORKSPACES));
         let workspace = resolved(&self.base.workspace);
@@ -1421,10 +1421,7 @@ fn nested_cases(host: &dyn Host) -> Vec<NestedCase> {
     cases
 }
 
-/// Takes the lock a nested-Bazel test holds on its slot, without waiting and without creating the file.
-///
-/// `None` means a test holds the slot, or the slot has no lock to take. The slot stays locked until the
-/// returned file is dropped.
+/// Locks a nested-Bazel slot without waiting or creating the file; `None` when busy or missing.
 fn try_nested_lock(slot: &Path) -> Option<std::fs::File> {
     let file = std::fs::File::options()
         .write(true)

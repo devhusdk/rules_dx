@@ -1,7 +1,4 @@
-//! Where nested-Bazel tests keep their servers, so the harness and `dx worktree` agree on one layout.
-//!
-//! The root holds one directory per slot. Each slot has a `lock` file the harness holds while the slot is
-//! in use, an output user root `u`, and one workspace per test case under `w`.
+//! Where nested-Bazel tests keep their servers: one slot directory with `lock`, `u` and `w` per slot.
 
 use std::ffi::OsStr;
 use std::path::PathBuf;
@@ -16,8 +13,6 @@ pub const USER_ROOT: &str = "u";
 pub const WORKSPACES: &str = "w";
 
 /// The nested-Bazel root: `env` when set and non-empty, else `/tmp/dxnb-<uid>`, else `dxnb` in the temp dir.
-///
-/// The `/tmp` path stays short so the server socket path fits its length limit.
 pub fn root(env: Option<&OsStr>, uid: Option<u32>) -> PathBuf {
     if let Some(env) = env.filter(|value| !value.is_empty()) {
         return PathBuf::from(env);

@@ -97,6 +97,24 @@ rust_test(
     ),
 )
 
+rust_library(
+    name = "dx_lsp",
+    srcs = ["src/lsp.rs"],
+    crate_name = "dx_lsp",
+    crate_root = "src/lsp.rs",
+    edition = "2021",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/dx_testing",
+    ),
+)
+
+rust_test(
+    name = "dx_lsp_test",
+    size = "small",
+    crate = ":dx_lsp",
+)
+
 child_runfiles(
     name = "process_probe_child",
     testonly = True,
@@ -222,6 +240,7 @@ rustfmt_test(
     name = "dx_testing_fmt_test",
     size = "small",
     targets = [
+        ":dx_lsp",
         ":dx_nested",
         ":dx_testing",
         ":module_srcs_test",
@@ -239,6 +258,7 @@ rust_clippy_test(
     name = "dx_testing_clippy_test",
     size = "small",
     targets = [
+        ":dx_lsp",
         ":dx_nested",
         ":dx_testing",
         ":module_srcs_test",

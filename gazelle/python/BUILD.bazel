@@ -17,12 +17,7 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
-        "@gazelle//config",
         "@gazelle//language",
-        "@gazelle//repo",
-        "@gazelle//resolve",
-        "@gazelle//rule",
-        "@gazelle//v2/label",
         "@gazelle//v2/rule",
     ],
 )
@@ -49,6 +44,14 @@ go_test(
     ],
     embed = [":python"],
     pure = "on",
+    deps = [
+        "//gazelle/common",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/label",
+        "@gazelle//v2/rule",
+    ],
 )
 
 real_source_target(

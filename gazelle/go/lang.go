@@ -1,9 +1,6 @@
 package golang
 
 import (
-	"context"
-	"flag"
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -46,77 +43,22 @@ var goKinds = map[string]rule.KindInfo{
 }
 
 type goLang struct {
-	language.BaseLang
-	errors    []string
-	ignores   []*common.IgnoreEntry
-	generated common.GeneratedRels
+	*common.SingleLang
 }
 
-type targetImports struct {
-	imports []string
-}
+func NewLanguage() language.Language { return newLang() }
 
-type testTargetImports struct {
-	imports []string
-}
-
-func NewLanguage() language.Language { return &goLang{} }
-
-func (l *goLang) Before(context.Context) {
-	l.errors = nil
-	l.ignores = nil
-	l.generated = common.GeneratedRels{}
-	common.Errors.Reset()
-}
-
-func (l *goLang) DoneGeneratingRules() {}
-
-func (l *goLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
-
-func (l *goLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
-
-func (*goLang) KnownDirectives() []string { return []string{"dx_ignore_import"} }
-
-func (l *goLang) Configure(c *config.Config, rel string, f *rule.File) {
-	declared, errs := common.DeclaredIgnores(languageName, rel, f)
-	for _, msg := range errs {
-		l.fail("%s", msg)
-	}
-	l.ignores = append(l.ignores, declared...)
-	c.Exts[languageName] = &common.IgnoreConfig{Ignores: common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)}
-}
-
-func (l *goLang) fail(format string, args ...interface{}) {
-	l.errors = append(l.errors, fmt.Sprintf(format, args...))
-}
-
-func (l *goLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
-		l.fail("%s", msg)
-	}
-	common.Errors.Add(languageName, "", l.errors...)
-}
-
-func (*goLang) Name() string { return languageName }
-
-func (*goLang) Kinds() map[string]rule.KindInfo { return goKinds }
-
-func (*goLang) Loads() []rule.LoadInfo {
-	return goLoads("rules_dx")
-}
-
-func (l *goLang) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
-	repoName := moduleToApparentName("rules_dx")
-	if repoName == "" {
-		repoName = "rules_dx"
-	}
-	return goLoads(repoName)
-}
-
-func goLoads(rulesRepo string) []rule.LoadInfo {
-	return []rule.LoadInfo{
-		{Name: "@" + rulesRepo + "//go/rules:defs.bzl", Symbols: []string{LibraryKind, TestKind}},
-	}
+func newLang() *goLang {
+	return &goLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
+		LanguageName:   languageName,
+		LibraryKind:    LibraryKind,
+		ExtraKinds:     []string{TestKind},
+		Kinds:          goKinds,
+		DefsPackage:    "go/rules:defs.bzl",
+		IsStdLib:       IsStdLib,
+		UnresolvedHint: "add a go_library with that importpath or an exact # gazelle:resolve mapping",
+		Generate:       generateRules,
+	})}
 }
 
 func (*goLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
@@ -130,13 +72,6 @@ func (*goLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.I
 	return []resolve.ImportSpec{{Lang: languageName, Imp: importpath}}
 }
 
-func (*goLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
-
-func (l *goLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
-	l.generated.Add(args.Rel)
-	return l.generateRules(args)
-}
-
 func isSupported(name string) bool {
 	for _, ext := range SupportedExts {
 		if strings.HasSuffix(name, ext) {
@@ -146,7 +81,7 @@ func isSupported(name string) bool {
 	return false
 }
 
-func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResult {
+func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	var sources []string
 	var testSources []string
 	contents := make(map[string][]byte)
@@ -156,12 +91,12 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 		}
 		content, err := os.ReadFile(filepath.Join(args.Dir, name))
 		if err != nil {
-			l.fail("go: %s: read %s: %v", args.Rel, name, err)
+			rep.Fail("go: %s: read %s: %v", args.Rel, name, err)
 			continue
 		}
 		excluded, err := BuildExcluded(content)
 		if err != nil {
-			l.fail("go: %s: parse build constraint %s: %v", args.Rel, name, err)
+			rep.Fail("go: %s: parse build constraint %s: %v", args.Rel, name, err)
 			continue
 		}
 		if excluded {
@@ -176,20 +111,20 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 	}
 	sort.Strings(sources)
 	sort.Strings(testSources)
-	if len(l.errors) > 0 {
+	if rep.Failed() {
 		return language.GenerateResult{}
 	}
 	if len(sources) == 0 && len(testSources) == 0 {
 		return mergeStale(args.File, language.GenerateResult{})
 	}
 	if len(sources) == 0 {
-		l.fail("go: %s: test sources %s without non-test sources; add the package sources to this directory or split the tests before adopting generation", args.Rel, strings.Join(testSources, ", "))
+		rep.Fail("go: %s: test sources %s without non-test sources; add the package sources to this directory or split the tests before adopting generation", args.Rel, strings.Join(testSources, ", "))
 		return language.GenerateResult{}
 	}
 
 	name, err := common.PackageTargetName(args, goRootHint(args))
 	if err != nil {
-		l.fail("go: %s: %v", args.Rel, err)
+		rep.Fail("go: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 	testName := name + "_test"
@@ -202,23 +137,23 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 		content := contents[src]
 		pkg, err := ParsePackage(content)
 		if err != nil {
-			l.fail("go: %s: parse package %s: %v", args.Rel, src, err)
+			rep.Fail("go: %s: parse package %s: %v", args.Rel, src, err)
 			continue
 		}
 		if pkg == "main" {
-			l.fail("go: %s: %s declares package main; thin go_binary entries stay handwritten, so split package-main sources into their own directory before adopting generation", args.Rel, src)
+			rep.Fail("go: %s: %s declares package main; thin go_binary entries stay handwritten, so split package-main sources into their own directory before adopting generation", args.Rel, src)
 			continue
 		}
 		packages[pkg] = true
 		libPkg = pkg
 		roots, err := ParseImports(content)
 		if err != nil {
-			l.fail("go: %s: parse imports %s: %v", args.Rel, src, err)
+			rep.Fail("go: %s: parse imports %s: %v", args.Rel, src, err)
 			continue
 		}
 		for _, root := range roots {
 			if IsCgoImport(root) {
-				l.fail("go: %s: %s imports cgo (\"C\"); cgo stays handwritten, so split cgo sources into their own handwritten directory before adopting generation", args.Rel, src)
+				rep.Fail("go: %s: %s imports cgo (\"C\"); cgo stays handwritten, so split cgo sources into their own handwritten directory before adopting generation", args.Rel, src)
 				continue
 			}
 			if IsStdLib(root) || seen[root] {
@@ -228,7 +163,7 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 			imports = append(imports, root)
 		}
 	}
-	if len(l.errors) > 0 {
+	if rep.Failed() {
 		return language.GenerateResult{}
 	}
 	if len(packages) > 1 {
@@ -237,7 +172,7 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 			names = append(names, pkg)
 		}
 		sort.Strings(names)
-		l.fail("go: %s: mixed packages %s in one directory; split the directory before adopting generation", args.Rel, strings.Join(names, ", "))
+		rep.Fail("go: %s: mixed packages %s in one directory; split the directory before adopting generation", args.Rel, strings.Join(names, ", "))
 		return language.GenerateResult{}
 	}
 	for pkg := range packages {
@@ -251,21 +186,21 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 		content := contents[src]
 		pkg, err := ParsePackage(content)
 		if err != nil {
-			l.fail("go: %s: parse package %s: %v", args.Rel, src, err)
+			rep.Fail("go: %s: parse package %s: %v", args.Rel, src, err)
 			continue
 		}
 		if pkg != libPkg && pkg != libPkg+"_test" {
-			l.fail("go: %s: %s declares package %s, want %s or %s_test; split the directory before adopting generation", args.Rel, src, pkg, libPkg, libPkg)
+			rep.Fail("go: %s: %s declares package %s, want %s or %s_test; split the directory before adopting generation", args.Rel, src, pkg, libPkg, libPkg)
 			continue
 		}
 		roots, err := ParseImports(content)
 		if err != nil {
-			l.fail("go: %s: parse imports %s: %v", args.Rel, src, err)
+			rep.Fail("go: %s: parse imports %s: %v", args.Rel, src, err)
 			continue
 		}
 		for _, root := range roots {
 			if IsCgoImport(root) {
-				l.fail("go: %s: %s imports cgo (\"C\"); cgo stays handwritten, so split cgo sources into their own handwritten directory before adopting generation", args.Rel, src)
+				rep.Fail("go: %s: %s imports cgo (\"C\"); cgo stays handwritten, so split cgo sources into their own handwritten directory before adopting generation", args.Rel, src)
 				continue
 			}
 			if IsStdLib(root) || seen[root] || testSeen[root] {
@@ -275,7 +210,7 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 			testImports = append(testImports, root)
 		}
 	}
-	if len(l.errors) > 0 {
+	if rep.Failed() {
 		return language.GenerateResult{}
 	}
 	sort.Strings(testImports)
@@ -284,8 +219,8 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 	if len(testSources) > 0 {
 		claimants = append(claimants, Claimant{Name: testName, Source: args.Rel, Kind: TestKind})
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
-		l.fail("go: %s: %v", args.Rel, err)
+	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
+		rep.Fail("go: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 
@@ -296,13 +231,13 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 		r.SetAttr("importpath", importpath)
 	}
 	result.Gen = append(result.Gen, r)
-	result.Imports = append(result.Imports, targetImports{imports: imports})
+	result.Imports = append(result.Imports, common.WrapImportSet(imports))
 	if len(testSources) > 0 {
 		t := rule.NewRule(TestKind, testName)
 		t.SetAttr("srcs", testSources)
 		t.SetAttr("embed", []string{":" + name})
 		result.Gen = append(result.Gen, t)
-		result.Imports = append(result.Imports, testTargetImports{imports: testImports})
+		result.Imports = append(result.Imports, common.WrapImportSet(testImports))
 	}
 	if isFixturePath(args.Rel) {
 		for _, r := range result.Gen {
@@ -310,6 +245,10 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 		}
 	}
 	return mergeStale(args.File, result)
+}
+
+func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
+	return common.CheckClaims(file, other, claimants, nil)
 }
 
 func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
@@ -367,75 +306,19 @@ func embeds(r *rule.Rule, from, dep label.Label) bool {
 }
 
 func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
-	var roots []string
-	isTest := false
-	switch typed := raw.(type) {
-	case targetImports:
-		if r.Kind() != LibraryKind {
-			return
-		}
-		roots = typed.imports
-	case testTargetImports:
-		if r.Kind() != TestKind {
-			return
-		}
-		roots = typed.imports
-		isTest = true
-	default:
-		return
+	spec := l.ResolveSpecFor(c, r, from)
+	if r.Kind() == TestKind {
+		spec.SkipDep = func(dep label.Label) bool { return embeds(r, from, dep) }
 	}
-	deps := make(map[string]bool)
-	for _, name := range roots {
-		if IsStdLib(name) {
-			continue
+	unresolved := spec.FailUnresolved
+	spec.FailUnresolved = func(from label.Label, name string) {
+		if leaf := path.Base(name); leaf != name {
+			if override, found := resolve.FindRuleWithOverride(c, resolve.ImportSpec{Lang: languageName, Imp: leaf}, languageName); found {
+				l.Fail("go: %s: unresolved import %q; # gazelle:resolve go %s %s names only the last path element, so key it by the full import path", from, name, leaf, override)
+				return
+			}
 		}
-		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
-		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
-			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.MarkUsed(from.Pkg)
-				l.fail("go: %s: import %q has both an exact resolve mapping and ignore", from, name)
-				continue
-			}
-			if override == from || (isTest && embeds(r, from, override)) {
-				continue
-			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
-			continue
-		}
-		matches := ix.FindRulesByImportWithConfig(c, spec, languageName)
-		switch len(matches) {
-		case 1:
-			if matches[0].Label == from || (isTest && embeds(r, from, matches[0].Label)) {
-				continue
-			}
-			deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
-		case 0:
-			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.MarkUsed(from.Pkg)
-				continue
-			}
-			if leaf := path.Base(name); leaf != name {
-				if override, found := resolve.FindRuleWithOverride(c, resolve.ImportSpec{Lang: languageName, Imp: leaf}, languageName); found {
-					l.fail("go: %s: unresolved import %q; # gazelle:resolve go %s %s names only the last path element, so key it by the full import path", from, name, leaf, override)
-					continue
-				}
-			}
-			l.fail("%s", common.UnresolvedImport(c, "go", from, name, "add a go_library with that importpath or an exact # gazelle:resolve mapping"))
-		default:
-			l.fail("%s", common.AmbiguousImport(c, "go", from, name, formatMatches(matches)))
-		}
+		unresolved(from, name)
 	}
-	if len(deps) == 0 {
-		return
-	}
-	labels := make([]string, 0, len(deps))
-	for dep := range deps {
-		labels = append(labels, dep)
-	}
-	sort.Strings(labels)
-	r.SetAttr("deps", unionStrings(r.AttrStrings("deps"), labels))
+	common.ResolveSingle(c, ix, r, raw, from, spec)
 }
-
-func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
-
-func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }

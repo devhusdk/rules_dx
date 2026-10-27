@@ -394,11 +394,14 @@ type ResolveSpec struct {
 	UnwrapRefs func(raw any) ([]ImportRef, bool)
 	// Fallback lists the languages whose rule index and overrides a relative
 	// import searches, in order, when the own language has no match.
-	Fallback       []string
-	IsStdLib       func(name string) bool
-	Candidates     func(name string) []string
-	Lookups        func(pkg, name string) []string
-	MarkUsed       func(name string) bool
+	Fallback   []string
+	IsStdLib   func(name string) bool
+	Candidates func(name string) []string
+	Lookups    func(pkg, name string) []string
+	MarkUsed   func(name string) bool
+	// SkipDep, when set and true, drops a resolved dep. The rule itself is
+	// always dropped.
+	SkipDep        func(dep label.Label) bool
 	FailConflict   func(from label.Label, name string)
 	FailUnresolved func(from label.Label, name string)
 	FailAmbiguous  func(from label.Label, name string, matches string)
@@ -413,6 +416,12 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 		return
 	}
 	deps := make(map[string]bool)
+	add := func(dep label.Label) {
+		if dep == from || (spec.SkipDep != nil && spec.SkipDep(dep)) {
+			return
+		}
+		deps[dep.Rel(from.Repo, from.Pkg).String()] = true
+	}
 	for _, ref := range refs {
 		name := ref.Root
 		imp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: name}
@@ -425,7 +434,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 				spec.FailConflict(from, name)
 				continue
 			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
+			add(override)
 			continue
 		}
 		// A relative import naming a JavaScript or TypeScript extension can
@@ -444,7 +453,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			kimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: key}
 			if key != name {
 				if override, found := resolve.FindRuleWithOverride(c, kimp, spec.LanguageName); found {
-					deps[override.Rel(from.Repo, from.Pkg).String()] = true
+					add(override)
 					mappedKey = true
 					break
 				}
@@ -465,7 +474,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			for _, cand := range cands {
 				cimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: cand}
 				if override, found := resolve.FindRuleWithOverride(c, cimp, spec.LanguageName); found {
-					deps[override.Rel(from.Repo, from.Pkg).String()] = true
+					add(override)
 					mapped = true
 					break
 				}
@@ -480,7 +489,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 		if len(matches) == 0 && ref.Relative && len(spec.Fallback) > 0 {
 			fb, mapped := findFallback(c, ix, spec.Fallback, name, from)
 			if mapped {
-				deps[fb.Override.Rel(from.Repo, from.Pkg).String()] = true
+				add(fb.Override)
 				continue
 			}
 			matches = fb.Matches
@@ -496,9 +505,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 		}
 		switch len(matches) {
 		case 1:
-			if matches[0].Label != from {
-				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
-			}
+			add(matches[0].Label)
 		case 0:
 			if spec.MarkUsed(name) {
 				continue

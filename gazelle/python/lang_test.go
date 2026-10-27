@@ -16,6 +16,15 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+func importNames(t *testing.T, raw any) []string {
+	t.Helper()
+	names, ok := common.UnwrapImportSet(raw)
+	if !ok {
+		t.Fatalf("import set = %#v, want common.ImportSet", raw)
+	}
+	return names
+}
+
 func writeFixture(t *testing.T, root, name, content string) {
 	t.Helper()
 	file := filepath.Join(root, filepath.FromSlash(name))
@@ -79,16 +88,16 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 	if got := strings.Join(test.AttrStrings("srcs"), ","); got != "helper_test.py,helper_test.pyi" {
 		t.Errorf("test srcs = %q", got)
 	}
-	testImports := result.Imports[2].(targetImports)
-	if strings.Join(testImports.imports, ",") != "helper" {
+	testImports := importNames(t, result.Imports[2])
+	if strings.Join(testImports, ",") != "helper" {
 		t.Errorf("test imports = %+v, want [helper] (stub_only_dep ignored)", testImports)
 	}
-	libImports := result.Imports[0].(targetImports)
-	if strings.Join(libImports.imports, ",") != "helper" {
+	libImports := importNames(t, result.Imports[0])
+	if strings.Join(libImports, ",") != "helper" {
 		t.Errorf("library imports = %+v", libImports)
 	}
-	helperImports := result.Imports[1].(targetImports)
-	if len(helperImports.imports) != 0 {
+	helperImports := importNames(t, result.Imports[1])
+	if len(helperImports) != 0 {
 		t.Errorf("helper imports = %+v, want empty", helperImports)
 	}
 }
@@ -141,7 +150,7 @@ func TestGenerateFailures(t *testing.T) {
 		for name, content := range tc.files {
 			writeFixture(t, root, name, content)
 		}
-		l := &pythonLang{}
+		l := newLang()
 		result := l.GenerateRules(language.GenerateArgs{
 			Config:       &config.Config{RepoRoot: root},
 			Dir:          filepath.Join(root, "pkg", "demo"),
@@ -151,8 +160,8 @@ func TestGenerateFailures(t *testing.T) {
 		if len(result.Gen) != 0 {
 			t.Errorf("%s: generated %d rules, want none", tc.name, len(result.Gen))
 		}
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) {
-			t.Errorf("%s: errors = %v, want %q", tc.name, l.errors, tc.want)
+		if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], tc.want) {
+			t.Errorf("%s: errors = %v, want %q", tc.name, l.Errors(), tc.want)
 		}
 	}
 }
@@ -185,35 +194,35 @@ func TestGenerateFixturePathMarksTestonly(t *testing.T) {
 }
 
 func TestCheckClaims(t *testing.T) {
-	claimants := []Claimant{{Name: "demo", Source: "demo.py", Kind: libraryKind}}
-	if err := common.CheckClaims(nil, nil, claimants, claimAliases); err != nil {
+	claimants := []Claimant{{Name: "demo", Source: "demo.py"}}
+	if err := checkClaims(nil, nil, claimants); err != nil {
 		t.Errorf("unique claims = %v", err)
 	}
 	sameKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	sameKind.Rules = append(sameKind.Rules, rule.NewRule(libraryKind, "demo"))
-	if err := common.CheckClaims(sameKind, nil, claimants, claimAliases); err != nil {
+	if err := checkClaims(sameKind, nil, claimants); err != nil {
 		t.Errorf("same-kind handwritten claims = %v", err)
 	}
 	otherSame := []*rule.Rule{rule.NewRule(libraryKind, "demo")}
-	if err := common.CheckClaims(nil, otherSame, claimants, claimAliases); err != nil {
+	if err := checkClaims(nil, otherSame, claimants); err != nil {
 		t.Errorf("same-kind other claims = %v", err)
 	}
 	wrongKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "demo"))
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "a_b"))
-	if err := common.CheckClaims(wrongKind, nil, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := checkClaims(wrongKind, nil, claimants); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("kind mismatch = %v", err)
 	}
 	otherWrong := []*rule.Rule{rule.NewRule(testKind, "demo")}
-	if err := common.CheckClaims(nil, otherWrong, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing python_test") {
+	if err := checkClaims(nil, otherWrong, claimants); err == nil || !strings.Contains(err.Error(), "existing python_test") {
 		t.Errorf("other kind mismatch = %v", err)
 	}
-	dupes := []Claimant{{Name: "a_b", Source: "a-b.py", Kind: libraryKind}, {Name: "a_b", Source: "a_b.py", Kind: libraryKind}}
-	if err := common.CheckClaims(wrongKind, nil, dupes, claimAliases); err == nil || !strings.Contains(err.Error(), "handwritten") {
+	dupes := []Claimant{{Name: "a_b", Source: "a-b.py"}, {Name: "a_b", Source: "a_b.py"}}
+	if err := checkClaims(wrongKind, nil, dupes); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
 	}
-	testDupes := []Claimant{{Name: "a_test", Source: "a-test_test.py", Kind: testKind}, {Name: "a_test", Source: "a_test_test.py", Kind: testKind}}
-	if err := common.CheckClaims(nil, nil, testDupes, claimAliases); err == nil || !strings.Contains(err.Error(), "a_test") {
+	testDupes := []Claimant{{Name: "a_test", Source: "a-test_test.py"}, {Name: "a_test", Source: "a_test_test.py"}}
+	if err := checkClaims(nil, nil, testDupes); err == nil || !strings.Contains(err.Error(), "a_test") {
 		t.Errorf("test collision = %v", err)
 	}
 }
@@ -251,10 +260,10 @@ func TestImportsIndexesLibraries(t *testing.T) {
 }
 
 func TestErrorsAbortBeforeEmission(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	l.Before(context.Background())
-	l.fail("second")
-	l.fail("first")
+	l.Fail("second")
+	l.Fail("first")
 	l.AfterResolvingDeps(context.Background())
 	if message := strings.Join(common.Messages(common.Errors.Take()), "\n"); message != "first\nsecond" {
 		t.Errorf("errors were not deterministic: %s", message)
@@ -262,16 +271,16 @@ func TestErrorsAbortBeforeEmission(t *testing.T) {
 }
 
 func TestAfterResolvingDepsClean(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	l.Before(context.Background())
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("errors = %v", l.Errors())
 	}
 }
 
 func TestLanguageMetadata(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	if l.Name() != "python" || len(l.Kinds()) != 3 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
 		t.Fatal("invalid language metadata")
 	}
@@ -314,7 +323,7 @@ func resolverConfig(t *testing.T, directives []rule.Directive) *config.Config {
 	return cfg
 }
 
-func resolverIndex(lang *pythonLang, entries ...struct {
+func resolverIndex(lang *common.SingleLang, entries ...struct {
 	pkg  string
 	name string
 }) *resolve.RuleIndex {
@@ -334,75 +343,86 @@ func resolverIndex(lang *pythonLang, entries ...struct {
 }
 
 func TestResolveBranches(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		struct{ pkg, name string }{"lib/b", "b"},
 		struct{ pkg, name string }{"lib/a", "a"},
 	)
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"b", "a"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"b", "a"}), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/a,//lib/b" {
 		t.Errorf("resolved deps = %q", got)
 	}
 
 	self := rule.NewRule(libraryKind, "a")
-	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"a"}}, label.New("", "lib/a", "a"))
+	l.Resolve(cfg, index, nil, self, common.WrapImportSet([]string{"a"}), label.New("", "lib/a", "a"))
 	if self.Attr("deps") != nil {
 		t.Errorf("self dependency was emitted: %v", self.AttrStrings("deps"))
 	}
 
 	std := rule.NewRule(libraryKind, "uses_std")
-	l.Resolve(cfg, index, nil, std, targetImports{imports: []string{"os"}}, label.New("", "app", "uses_std"))
-	if std.Attr("deps") != nil || len(l.errors) != 0 {
-		t.Errorf("stdlib resolution = %v, errors = %v", std.AttrStrings("deps"), l.errors)
+	l.Resolve(cfg, index, nil, std, common.WrapImportSet([]string{"os"}), label.New("", "app", "uses_std"))
+	if std.Attr("deps") != nil || len(l.Errors()) != 0 {
+		t.Errorf("stdlib resolution = %v, errors = %v", std.AttrStrings("deps"), l.Errors())
 	}
 
 	hand := rule.NewRule(libraryKind, "hand")
 	hand.SetAttr("deps", []string{":kept"})
-	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"a"}}, label.New("", "app", "hand"))
+	l.Resolve(cfg, index, nil, hand, common.WrapImportSet([]string{"a"}), label.New("", "app", "hand"))
 	if got := strings.Join(hand.AttrStrings("deps"), ","); got != "//lib/a,:kept" {
 		t.Errorf("merged deps = %q", got)
 	}
 
-	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "unknown"), targetImports{imports: []string{"unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") || !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import python unknown" to app/BUILD.bazel`) {
-		t.Errorf("unresolved errors = %v", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "unknown"), common.WrapImportSet([]string{"unknown"}), label.New("", "app", "unknown"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "unresolved import") || !strings.Contains(l.Errors()[0], `or add "# gazelle:dx_ignore_import python unknown" to app/BUILD.bazel`) {
+		t.Errorf("unresolved errors = %v", l.Errors())
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
 }
 
 func TestResolveOverride(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "python python mapped //mapped:dep"}})
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"mapped"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"mapped"}), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" {
 		t.Errorf("override deps = %q", got)
 	}
 }
 
 func TestResolveAmbiguous(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	cfg := resolverConfig(t, nil)
 	index := resolverIndex(l,
 		struct{ pkg, name string }{"one", "same"},
 		struct{ pkg, name string }{"two", "same"},
 	)
-	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "app"), targetImports{imports: []string{"same"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous") || !strings.Contains(l.errors[0], "//one:same") || !strings.Contains(l.errors[0], "//two:same") {
-		t.Errorf("ambiguity = %v", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "app"), common.WrapImportSet([]string{"same"}), label.New("", "app", "app"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "ambiguous") || !strings.Contains(l.Errors()[0], "//one:same") || !strings.Contains(l.Errors()[0], "//two:same") {
+		t.Errorf("ambiguity = %v", l.Errors())
 	}
-	if len(l.errors) == 1 && !strings.Contains(l.errors[0], `; add "# gazelle:resolve python same <label>" to app/BUILD.bazel`) {
-		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0])
+}
+
+func TestResolveAmbiguousIncludingSelfPasses(t *testing.T) {
+	l := newLang()
+	cfg := resolverConfig(t, nil)
+	index := resolverIndex(l,
+		struct{ pkg, name string }{"one", "same"},
+		struct{ pkg, name string }{"two", "same"},
+	)
+	self := rule.NewRule(libraryKind, "same")
+	l.Resolve(cfg, index, nil, self, common.WrapImportSet([]string{"same"}), label.New("", "one", "same"))
+	if len(l.Errors()) != 0 || self.Attr("deps") != nil {
+		t.Errorf("ambiguous self match: errors = %v, deps = %v", l.Errors(), self.AttrStrings("deps"))
 	}
 }
 
 func TestUnionStrings(t *testing.T) {
-	if got := unionStrings([]string{"b", "a", "a"}, []string{"c", "a"}); strings.Join(got, ",") != "a,b,c" {
+	if got := common.UnionStrings([]string{"b", "a", "a"}, []string{"c", "a"}); strings.Join(got, ",") != "a,b,c" {
 		t.Errorf("union = %q", got)
 	}
-	if got := unionStrings(nil, nil); len(got) != 0 {
+	if got := common.UnionStrings(nil, nil); len(got) != 0 {
 		t.Errorf("empty union = %q", got)
 	}
 }
@@ -445,10 +465,10 @@ func TestGenerateEntryThinBinary(t *testing.T) {
 	if bin.Attr("srcs") != nil {
 		t.Errorf("thin binary must own no srcs, got %v", bin.AttrStrings("srcs"))
 	}
-	if raw := result.Imports[libIdx].(targetImports); strings.Join(raw.imports, ",") != "helper" {
+	if raw := importNames(t, result.Imports[libIdx]); strings.Join(raw, ",") != "helper" {
 		t.Errorf("library imports = %+v, want [helper]", raw)
 	}
-	if raw := result.Imports[binIdx].(targetImports); len(raw.imports) != 0 {
+	if raw := importNames(t, result.Imports[binIdx]); len(raw) != 0 {
 		t.Errorf("binary imports = %+v, want empty", raw)
 	}
 	if _, ok := byRule[libraryKind+"\x00helper"]; !ok {
@@ -467,7 +487,7 @@ func TestGenerateEntryCollision(t *testing.T) {
 	} {
 		writeFixture(t, root, name, content)
 	}
-	l := &pythonLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
@@ -477,8 +497,8 @@ func TestGenerateEntryCollision(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules, want none", len(result.Gen))
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "main_bin") {
-		t.Errorf("errors = %v, want main_bin collision", l.errors)
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "main_bin") {
+		t.Errorf("errors = %v, want main_bin collision", l.Errors())
 	}
 }
 
@@ -487,7 +507,7 @@ func TestGenerateEntryHandwrittenMismatch(t *testing.T) {
 	writeFixture(t, root, "pkg/demo/main.py", "x = 1\n")
 	f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	f.Rules = append(f.Rules, rule.NewRule("filegroup", "main_bin"))
-	l := &pythonLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
@@ -498,8 +518,20 @@ func TestGenerateEntryHandwrittenMismatch(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules, want none", len(result.Gen))
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "main_bin") {
-		t.Errorf("errors = %v, want main_bin kind mismatch", l.errors)
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "main_bin") {
+		t.Errorf("errors = %v, want main_bin kind mismatch", l.Errors())
+	}
+}
+
+func TestClaimKind(t *testing.T) {
+	if got := claimKind(Claimant{Name: "main_bin", Source: "main.py", Kind: binaryKind}); got != binaryKind {
+		t.Errorf("explicit kind = %q, want %q", got, binaryKind)
+	}
+	if got := claimKind(Claimant{Name: "a_test", Source: "a_test.py"}); got != testKind {
+		t.Errorf("inferred test kind = %q", got)
+	}
+	if got := claimKind(Claimant{Name: "demo", Source: "demo.py"}); got != libraryKind {
+		t.Errorf("inferred library kind = %q", got)
 	}
 }
 
@@ -508,12 +540,12 @@ func TestCheckClaimsBinary(t *testing.T) {
 	same := rule.EmptyFile("BUILD.bazel", "pkg")
 	same.Rules = append(same.Rules, bin)
 	claim := []Claimant{{Name: "main", Source: "main.py", Kind: libraryKind}, {Name: "main_bin", Source: "main.py", Kind: binaryKind}}
-	if err := common.CheckClaims(same, nil, claim, claimAliases); err != nil {
+	if err := checkClaims(same, nil, claim); err != nil {
 		t.Errorf("same-kind binary claims = %v", err)
 	}
 	wrong := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrong.Rules = append(wrong.Rules, rule.NewRule(libraryKind, "main_bin"))
-	if err := common.CheckClaims(wrong, nil, claim, claimAliases); err == nil || !strings.Contains(err.Error(), "main_bin") {
+	if err := checkClaims(wrong, nil, claim); err == nil || !strings.Contains(err.Error(), "main_bin") {
 		t.Errorf("binary kind mismatch = %v", err)
 	}
 }
@@ -540,17 +572,17 @@ func TestBinaryKindInfo(t *testing.T) {
 }
 
 func TestResolvePreservesBinaryDeps(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	cfg := resolverConfig(t, nil)
 	bin := rule.NewRule(binaryKind, "main_bin")
 	bin.SetAttr("main", "main.py")
 	bin.SetAttr("deps", []string{":main"})
-	l.Resolve(cfg, resolverIndex(l), nil, bin, targetImports{}, label.New("", "app", "main_bin"))
+	l.Resolve(cfg, resolverIndex(l), nil, bin, common.WrapImportSet(nil), label.New("", "app", "main_bin"))
 	if got := strings.Join(bin.AttrStrings("deps"), ","); got != ":main" {
 		t.Errorf("binary deps = %q, want preserved :main", got)
 	}
-	if len(l.errors) != 0 {
-		t.Errorf("binary resolve errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("binary resolve errors = %v", l.Errors())
 	}
 }
 
@@ -566,7 +598,7 @@ func TestMergeStaleCleansBinary(t *testing.T) {
 }
 
 func TestIgnoreDirectiveInheritanceAndStaleCheck(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	l.Before(context.Background())
 	root := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:dx_ignore_import python missing_dep\n"))
@@ -585,7 +617,7 @@ func TestIgnoreDirectiveInheritanceAndStaleCheck(t *testing.T) {
 }
 
 func TestStaleIgnoreFails(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import python stale\n"))
@@ -593,7 +625,7 @@ func TestStaleIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
-	l.generated.Add("pkg")
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: t.TempDir(), Rel: "pkg"})
 	l.AfterResolvingDeps(context.Background())
 	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(got, "stale") {
 		t.Errorf("stale ignore result = %q", got)
@@ -601,7 +633,7 @@ func TestStaleIgnoreFails(t *testing.T) {
 }
 
 func TestMalformedIgnoreFails(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import python\n"))
@@ -616,7 +648,7 @@ func TestMalformedIgnoreFails(t *testing.T) {
 }
 
 func TestConfigureDirectiveForms(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:other ignored\n# gazelle:dx_ignore_import python python external\n# gazelle:dx_ignore_import rust foreign\n"))
@@ -624,10 +656,11 @@ func TestConfigureDirectiveForms(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
-	if len(l.ignores) != 1 || l.ignores[0].Value != "external" {
-		t.Errorf("ignores = %+v", l.ignores)
+	ignores := cfg.Exts[languageName].(*common.IgnoreConfig).Ignores
+	if len(ignores) != 1 || ignores[0].Value != "external" {
+		t.Fatalf("ignores = %+v", ignores)
 	}
-	l.ignores[0].MarkUsed("pkg")
+	ignores[0].MarkUsed("pkg")
 	l.AfterResolvingDeps(context.Background())
 	if common.MatchingIgnore(config.New(), languageName, "none") != nil || common.MatchingIgnore(cfg, languageName, "none") != nil {
 		t.Error("nonmatching ignore found")
@@ -635,7 +668,7 @@ func TestConfigureDirectiveForms(t *testing.T) {
 }
 
 func TestResolveIgnore(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import python external\n"))
@@ -644,18 +677,18 @@ func TestResolveIgnore(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"external"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"external"}), label.New("", "app", "app"))
 	if r.Attr("deps") != nil {
 		t.Errorf("ignored import produced deps = %v", r.AttrStrings("deps"))
 	}
-	if len(l.errors) != 0 {
-		t.Errorf("ignored import errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("ignored import errors = %v", l.Errors())
 	}
 	l.AfterResolvingDeps(context.Background())
 }
 
 func TestResolveMappingIgnoreConflict(t *testing.T) {
-	l := &pythonLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "python python mapped //mapped:dep"}})
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import python mapped\n"))
@@ -664,19 +697,19 @@ func TestResolveMappingIgnoreConflict(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"mapped"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "both an exact resolve mapping and ignore") {
-		t.Errorf("conflict errors = %v", l.errors)
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"mapped"}), label.New("", "app", "app"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "both an exact resolve mapping and ignore") {
+		t.Errorf("conflict errors = %v", l.Errors())
 	}
 }
 
-func generatePlain(t *testing.T, file *rule.File, other []*rule.Rule, regular []string) (*pythonLang, language.GenerateResult) {
+func generatePlain(t *testing.T, file *rule.File, other []*rule.Rule, regular []string) (*common.SingleLang, language.GenerateResult) {
 	t.Helper()
 	root := t.TempDir()
 	for _, name := range regular {
 		writeFixture(t, root, "pkg/demo/"+name, "x = 1\n")
 	}
-	l := &pythonLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
@@ -694,8 +727,8 @@ func TestGeneratePreservesHandwrittenPlainTest(t *testing.T) {
 	plain.SetAttr("main", "smoke_test.py")
 	file.Rules = append(file.Rules, plain)
 	l, result := generatePlain(t, file, nil, []string{"smoke_test.py", "other_test.py"})
-	if len(l.errors) != 0 {
-		t.Fatalf("errors = %v, want none", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v, want none", l.Errors())
 	}
 	if len(result.Gen) != 1 || result.Gen[0].Kind() != testKind || result.Gen[0].Name() != "other_test" {
 		t.Fatalf("generated = %v, want only python_test(other_test)", result.Gen)
@@ -707,8 +740,8 @@ func TestGeneratePreservesHandwrittenPlainTest(t *testing.T) {
 		t.Fatalf("empty = %v, want none", result.Empty)
 	}
 	l2, again := generatePlain(t, file, nil, []string{"smoke_test.py", "other_test.py"})
-	if len(l2.errors) != 0 || len(again.Gen) != 1 || len(again.Empty) != 0 {
-		t.Fatalf("repeat generation changed: errors=%v gen=%d empty=%d", l2.errors, len(again.Gen), len(again.Empty))
+	if len(l2.Errors()) != 0 || len(again.Gen) != 1 || len(again.Empty) != 0 {
+		t.Fatalf("repeat generation changed: errors=%v gen=%d empty=%d", l2.Errors(), len(again.Gen), len(again.Empty))
 	}
 	if plain.AttrString("main") != "smoke_test.py" || plain.Kind() != plainKind {
 		t.Fatalf("handwritten rule modified: %s main=%q", plain.Kind(), plain.AttrString("main"))
@@ -718,8 +751,8 @@ func TestGeneratePreservesHandwrittenPlainTest(t *testing.T) {
 func TestGeneratePlainTestInOtherGen(t *testing.T) {
 	other := []*rule.Rule{rule.NewRule(plainKind, "smoke_test")}
 	l, result := generatePlain(t, nil, other, []string{"smoke_test.py"})
-	if len(l.errors) != 0 || len(result.Gen) != 0 {
-		t.Fatalf("errors=%v gen=%d, want none", l.errors, len(result.Gen))
+	if len(l.Errors()) != 0 || len(result.Gen) != 0 {
+		t.Fatalf("errors=%v gen=%d, want none", l.Errors(), len(result.Gen))
 	}
 }
 
@@ -727,13 +760,13 @@ func TestGeneratePlainTestNameCollisionsStillFail(t *testing.T) {
 	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	file.Rules = append(file.Rules, rule.NewRule(plainKind, "smoke"))
 	l, _ := generatePlain(t, file, nil, []string{"smoke.py"})
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "smoke") {
-		t.Fatalf("library over python_py_test: errors = %v, want collision", l.errors)
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "smoke") {
+		t.Fatalf("library over python_py_test: errors = %v, want collision", l.Errors())
 	}
 	file = rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	file.Rules = append(file.Rules, rule.NewRule("filegroup", "smoke_test"))
 	l, _ = generatePlain(t, file, nil, []string{"smoke_test.py"})
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "smoke_test") {
-		t.Fatalf("test over filegroup: errors = %v, want collision", l.errors)
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "smoke_test") {
+		t.Fatalf("test over filegroup: errors = %v, want collision", l.Errors())
 	}
 }

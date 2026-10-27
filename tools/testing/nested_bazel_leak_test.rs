@@ -1,15 +1,17 @@
 use std::time::{Duration, Instant};
 
 use dx_nested as nested;
-use dx_testing::{mkscratch, read_runfiles, resolve_runfiles, run};
+use dx_testing::{read_runfiles, resolve_runfiles, run};
 
 #[test]
 fn nested_servers_stop_when_their_test_binary_exits() {
     let rel = std::env::var("DX_NESTED_PROBE")
         .unwrap_or_else(|_| panic!("DX_NESTED_PROBE must name the probe"));
     let version = read_runfiles(".bazelversion");
-    let disk_cache = mkscratch("leak-disk-cache").expect("disk cache");
-    let repository_cache = mkscratch("leak-repo-cache").expect("repository cache");
+    let disk_cache_tmp = dx_test_scratch::scratch("leak-disk-cache");
+    let disk_cache = disk_cache_tmp.path().to_path_buf();
+    let repository_cache_tmp = dx_test_scratch::scratch("leak-repo-cache");
+    let repository_cache = repository_cache_tmp.path().to_path_buf();
     let probe = run(
         &resolve_runfiles(&rel),
         &[],

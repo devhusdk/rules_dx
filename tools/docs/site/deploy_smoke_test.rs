@@ -167,11 +167,9 @@ fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
 #[test]
 fn the_served_site_matches_the_staged_artifact_and_searches() {
     let staged = user_site();
-    let mut browser = {
-        let profile = dx_testing::mkscratch("firefox-profile").expect("a browser profile");
-        Browser::start(&firefox_binary(), &profile)
-            .unwrap_or_else(|error| panic!("start Firefox: {error}"))
-    };
+    let profile = dx_test_scratch::scratch("firefox-profile");
+    let mut browser = Browser::start(&firefox_binary(), profile.path())
+        .unwrap_or_else(|error| panic!("start Firefox: {error}"));
     browser
         .set_viewport(DESKTOP.0, DESKTOP.1)
         .expect("size the viewport");

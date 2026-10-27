@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use dx_testing::{mkscratch, read_runfiles, resolve_runfiles, runfiles_root};
+use dx_testing::{read_runfiles, resolve_runfiles, runfiles_root};
 
 const CONFIG: &str = ".github/actionlint.yaml";
 
@@ -45,15 +45,16 @@ fn tool(variable: &str) -> PathBuf {
 }
 
 /// Returns one staged project root holding every named file at its own path.
-fn stage(files: &[(String, String)]) -> PathBuf {
-    let root = mkscratch("actionlint").expect("scratch project root");
+fn stage(files: &[(String, String)]) -> dx_test_scratch::TempDir {
+    let staged = dx_test_scratch::scratch("actionlint");
+    let root = staged.path();
     std::fs::create_dir_all(root.join(PROJECT_MARKER)).expect("project marker");
     for (source, target) in files {
         let path = root.join(target);
         std::fs::create_dir_all(path.parent().expect("staged parent")).expect("staged directory");
         std::fs::copy(runfiles_root().join(source), &path).expect("staged workflow");
     }
-    root
+    staged
 }
 
 /// Returns one actionlint run over the named workflows of one staged project.
@@ -123,7 +124,8 @@ fn every_shipped_workflow_passes_actionlint() {
         exported + CALLERS.len(),
         "the sweep must cover every exported workflow plus both consumer starters"
     );
-    let root = stage(&files);
+    let staged = stage(&files);
+    let root = staged.path();
     let run = lint(&root, &targets);
     assert!(
         run.status.success(),
@@ -137,7 +139,8 @@ fn every_shipped_workflow_passes_actionlint() {
 fn the_invalid_fixture_reports_every_semantic_failure() {
     let files = fixture();
     let targets = workflows(&files);
-    let root = stage(&files);
+    let staged = stage(&files);
+    let root = staged.path();
     let run = lint(&root, &targets);
     let reported = findings(&run);
     assert!(

@@ -26,10 +26,10 @@ fn fixture_srcs() -> String {
         .unwrap_or_else(|error| panic!("read fixture srcs: {error}"))
 }
 
-fn scratch(name: &str, json: &str, srcs: &str) -> PathBuf {
-    let dir = dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"));
-    std::fs::write(dir.join("crate.json"), json).expect("write JSON");
-    std::fs::write(dir.join("srcs.tsv"), srcs).expect("write srcs");
+fn scratch(name: &str, json: &str, srcs: &str) -> dx_test_scratch::TempDir {
+    let dir = dx_test_scratch::scratch(name);
+    std::fs::write(dir.path().join("crate.json"), json).expect("write JSON");
+    std::fs::write(dir.path().join("srcs.tsv"), srcs).expect("write srcs");
     dir
 }
 
@@ -86,7 +86,8 @@ fn expect_failure(dir: &Path, run: &Run, detail: &str) {
 
 #[test]
 fn the_fixture_json_becomes_a_valid_shard() {
-    let dir = scratch("extract-ok", &fixture_json(), &fixture_srcs());
+    let dir_tmp = scratch("extract-ok", &fixture_json(), &fixture_srcs());
+    let dir = dir_tmp.path();
     let run = standard(&dir);
     assert_eq!(run.code, 0, "{}", run.stderr);
     assert!(!dir.join("shard.ir.pb.partial").exists());
@@ -101,7 +102,8 @@ fn the_fixture_json_becomes_a_valid_shard() {
 
 #[test]
 fn malformed_json_fails_without_a_shard() {
-    let dir = scratch("extract-malformed", "{", &fixture_srcs());
+    let dir_tmp = scratch("extract-malformed", "{", &fixture_srcs());
+    let dir = dir_tmp.path();
     let run = standard(&dir);
     expect_failure(&dir, &run, "docs_rust: malformed rustdoc JSON");
 }
@@ -120,7 +122,8 @@ fn another_format_version_fails_without_a_shard() {
         &format!("\"format_version\":{found}"),
         &format!("\"format_version\":{other}"),
     );
-    let dir = scratch("extract-version", &changed, &fixture_srcs());
+    let dir_tmp = scratch("extract-version", &changed, &fixture_srcs());
+    let dir = dir_tmp.path();
     let run = standard(&dir);
     expect_failure(
         &dir,
@@ -136,7 +139,8 @@ fn a_span_outside_the_crate_sources_fails_without_a_shard() {
         .filter(|line| !line.contains("shapes.rs"))
         .map(|line| format!("{line}\n"))
         .collect();
-    let dir = scratch("extract-source", &fixture_json(), &srcs);
+    let dir_tmp = scratch("extract-source", &fixture_json(), &srcs);
+    let dir = dir_tmp.path();
     let run = standard(&dir);
     expect_failure(
         &dir,
@@ -152,14 +156,16 @@ fn a_crate_without_public_items_fails_without_a_shard() {
     let start = json.find(marker).expect("crate root module") + marker.len();
     let end = start + json[start..].find(']').expect("item list end");
     let empty = format!("{}{}", &json[..start], &json[end..]);
-    let dir = scratch("extract-empty", &empty, &fixture_srcs());
+    let dir_tmp = scratch("extract-empty", &empty, &fixture_srcs());
+    let dir = dir_tmp.path();
     let run = standard(&dir);
     expect_failure(&dir, &run, "crate 'docs_fixture' has no public API");
 }
 
 #[test]
 fn a_missing_flag_is_a_usage_error() {
-    let dir = scratch("extract-usage", &fixture_json(), &fixture_srcs());
+    let dir_tmp = scratch("extract-usage", &fixture_json(), &fixture_srcs());
+    let dir = dir_tmp.path();
     let run = extract(
         &dir,
         &[

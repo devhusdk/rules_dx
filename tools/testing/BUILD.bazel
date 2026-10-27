@@ -81,6 +81,7 @@ rust_library(
         ":dx_testing",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
     ],
 )
 
@@ -198,6 +199,7 @@ rust_test(
     deps = [
         ":dx_nested",
         ":dx_testing",
+        "//cli/test_scratch:dx_test_scratch",
     ],
 )
 
@@ -320,7 +322,10 @@ rust_test(
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_ARCHITEW6432",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 exports_files(["Cargo.toml"])

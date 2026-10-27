@@ -88,7 +88,8 @@ fn run_extract(dir: &Path, typedoc: &Path) -> (i32, String) {
 
 #[test]
 fn the_binary_rejects_a_wrong_schema_version_and_writes_no_shard() {
-    let dir = dx_testing::mkscratch("ts-extract").expect("scratch");
+    let dir_tmp = dx_test_scratch::scratch("ts-extract");
+    let dir = dir_tmp.path().to_path_buf();
     let json = std::fs::read_to_string(runfile("DX_FIXTURE_TYPEDOC")).expect("typedoc json");
     assert!(json.contains("\"schemaVersion\": \"2.0\""));
     let old = dir.join("old.json");

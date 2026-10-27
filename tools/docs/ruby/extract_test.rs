@@ -323,20 +323,26 @@ fn crlf_sources_yield_the_same_shard() {
 }
 
 struct Driver {
+    _scratch: dx_test_scratch::TempDir,
     dir: PathBuf,
     root: PathBuf,
 }
 
 impl Driver {
     fn new(name: &str) -> Driver {
-        let dir = dx_testing::mkscratch(name).expect("scratch");
+        let dir_tmp = dx_test_scratch::scratch(name);
+        let dir = dir_tmp.path().to_path_buf();
         let broken = runfile("DX_TESTDATA_BROKEN");
         let root = broken
             .ancestors()
             .nth(6)
             .expect("the runfiles root")
             .to_path_buf();
-        Driver { dir, root }
+        Driver {
+            _scratch: dir_tmp,
+            dir,
+            root,
+        }
     }
 
     fn manifest(&self, name: &str, files: &[&str]) -> PathBuf {
@@ -578,7 +584,8 @@ fn extract(json: &Path, out: &Path) -> (i32, String) {
 
 #[test]
 fn the_converter_rejects_a_new_format_and_truncated_json() {
-    let dir = dx_testing::mkscratch("ruby-extract").expect("scratch");
+    let dir_tmp = dx_test_scratch::scratch("ruby-extract");
+    let dir = dir_tmp.path().to_path_buf();
     let json = std::fs::read_to_string(runfile("DX_FIXTURE_JSON")).expect("driver json");
     assert!(json.contains("\"format\": 1,"));
     let out = dir.join("shard.ir.pb");

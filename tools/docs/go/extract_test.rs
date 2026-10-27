@@ -161,7 +161,8 @@ fn run(var: &str, dir: &Path, args: &[&str]) -> (i32, String) {
 
 #[test]
 fn the_driver_fails_on_a_broken_package_and_writes_nothing() {
-    let dir = dx_testing::mkscratch("go-driver").expect("scratch");
+    let dir_tmp = dx_test_scratch::scratch("go-driver");
+    let dir = dir_tmp.path().to_path_buf();
     std::fs::write(dir.join("broken.go"), "package broken\n\nfunc Broken( {\n").expect("write");
     std::fs::write(dir.join("srcs.tsv"), "broken.go\tpkg/broken.go\t0\n").expect("write");
     let (code, stderr) = run(
@@ -183,7 +184,8 @@ fn the_driver_fails_on_a_broken_package_and_writes_nothing() {
 
 #[test]
 fn the_converter_rejects_bad_json_and_writes_no_shard() {
-    let dir = dx_testing::mkscratch("go-extract").expect("scratch");
+    let dir_tmp = dx_test_scratch::scratch("go-extract");
+    let dir = dir_tmp.path().to_path_buf();
     let json = std::fs::read_to_string(runfile("DX_FIXTURE_JSON")).expect("driver json");
     assert!(json.contains("\"schema\": 1,"));
     std::fs::write(

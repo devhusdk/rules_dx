@@ -377,6 +377,7 @@ const CPP_HEADER: &str = "inline int generated_helper(int value) {\n    return v
 const CPP_MAIN: &str = "#include \"probe_generated.h\"\n\nint main() {\n    int value = generated_helper(21);\n    int broken = value + unknown_identifier;\n    return broken;\n}\n";
 
 struct CppFixture {
+    _scratch: dx_test_scratch::TempDir,
     root: PathBuf,
     directory: PathBuf,
     main_uri: String,
@@ -385,7 +386,8 @@ struct CppFixture {
 }
 
 fn stage_cpp(tag: &str, clang: &Path) -> CppFixture {
-    let root = dx_testing::mkscratch(tag).expect("scratch dir builds");
+    let root_tmp = dx_test_scratch::scratch(tag);
+    let root = root_tmp.path().to_path_buf();
     let gen = root.join("gen");
     let header = gen.join("probe_generated.h");
     write_text(&header, CPP_HEADER);
@@ -416,6 +418,7 @@ fn stage_cpp(tag: &str, clang: &Path) -> CppFixture {
         main_text: CPP_MAIN.to_owned(),
         directory: root.clone(),
         root,
+        _scratch: root_tmp,
     }
 }
 
@@ -427,6 +430,7 @@ const RUST_TYPED: &str =
 const RUST_BROKEN: &str = "fn broken( {\n    let x =\n}\n";
 
 struct RustFixture {
+    _scratch: dx_test_scratch::TempDir,
     root: PathBuf,
     lib_uri: String,
     lib_text: String,
@@ -435,7 +439,8 @@ struct RustFixture {
 }
 
 fn stage_rust(tag: &str, feature: bool) -> RustFixture {
-    let root = dx_testing::mkscratch(tag).expect("scratch dir builds");
+    let root_tmp = dx_test_scratch::scratch(tag);
+    let root = root_tmp.path().to_path_buf();
     let src = root.join("src");
     let lib = src.join("lib.rs");
     write_text(&lib, RUST_LIB);
@@ -466,6 +471,7 @@ fn stage_rust(tag: &str, feature: bool) -> RustFixture {
         typed_uri: file_uri(&typed),
         broken_uri: file_uri(&broken),
         root,
+        _scratch: root_tmp,
     }
 }
 
@@ -648,13 +654,15 @@ fn clangd_reports_diagnostic_and_definition_for_generated_sources() {
 
 #[test]
 fn clangd_missing_context_is_explicit() {
-    let empty = dx_testing::mkscratch("lsp-clangd-empty").expect("scratch dir builds");
+    let empty_tmp = dx_test_scratch::scratch("lsp-clangd-empty");
+    let empty = empty_tmp.path().to_path_buf();
     let err =
         require_context(&empty, cc_context::DATABASE_FILE).expect_err("missing context must fail");
     assert!(matches!(err, Error::MissingContext(_)), "unexpected {err}");
     let clang = tool_path("DX_LSP_CLANG");
     let staged = stage_cpp("lsp-clangd-bare", &clang);
-    let bare = dx_testing::mkscratch("lsp-clangd-bare-tree").expect("scratch dir builds");
+    let bare_tmp = dx_test_scratch::scratch("lsp-clangd-bare-tree");
+    let bare = bare_tmp.path().to_path_buf();
     let main = bare.join("main.cc");
     write_text(&main, &staged.main_text);
     let main_uri = file_uri(&main);
@@ -698,7 +706,8 @@ fn clangd_missing_context_is_explicit() {
 
 #[test]
 fn clangd_unsupported_request_reports_method_not_found() {
-    let root = dx_testing::mkscratch("lsp-clangd-errors").expect("scratch dir builds");
+    let root_tmp = dx_test_scratch::scratch("lsp-clangd-errors");
+    let root = root_tmp.path().to_path_buf();
     let vars = scoped_env(&root);
     let clangd = tool_path("DX_LSP_CLANGD");
     let mut session = Session::spawn(&clangd, &[], &vars).expect("clangd starts");
@@ -719,7 +728,8 @@ fn clangd_unsupported_request_reports_method_not_found() {
 
 #[test]
 fn clangd_wrong_target_reports_server_error() {
-    let root = dx_testing::mkscratch("lsp-clangd-target").expect("scratch dir builds");
+    let root_tmp = dx_test_scratch::scratch("lsp-clangd-target");
+    let root = root_tmp.path().to_path_buf();
     let vars = scoped_env(&root);
     let clangd = tool_path("DX_LSP_CLANGD");
     let mut session = Session::spawn(&clangd, &[], &vars).expect("clangd starts");
@@ -746,7 +756,8 @@ fn clangd_wrong_target_reports_server_error() {
 
 #[test]
 fn lsp_wait_timeout_reports_cancellation() {
-    let root = dx_testing::mkscratch("lsp-quiet").expect("scratch dir builds");
+    let root_tmp = dx_test_scratch::scratch("lsp-quiet");
+    let root = root_tmp.path().to_path_buf();
     let vars = scoped_env(&root);
     let clangd = tool_path("DX_LSP_CLANGD");
     let mut session = Session::spawn(&clangd, &[], &vars).expect("clangd starts");

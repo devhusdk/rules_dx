@@ -65,6 +65,7 @@ rust_test(
     },
     tags = ["no-coverage"],
     deps = [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/ir/ir:documentation_ir",
         "//tools/testing:dx_testing",
     ],

@@ -160,7 +160,8 @@ fn dx_builds_and_executes() {
 #[test]
 fn dx_passes_host_check() {
     let dx = staged("DX_PREFLIGHT_DX");
-    let scratch = dx_testing::mkscratch("preflight-host").expect("scratch dir");
+    let scratch_tmp = dx_test_scratch::scratch("preflight-host");
+    let scratch = scratch_tmp.path().to_path_buf();
     let output = dx_testing::command_for(&dx, &[])
         .expect("dx command")
         .args(["completion", "bash"])

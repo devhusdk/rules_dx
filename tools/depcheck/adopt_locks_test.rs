@@ -84,7 +84,8 @@ fn adopt_locks_consistent() {
         "adopt-polyglot Cargo.toml plus Cargo.lock",
     );
 
-    let scratch = dx_testing::mkscratch("adopt-locks-").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("adopt-locks-");
+    let scratch = scratch_tmp.path().to_path_buf();
     let go_mod = data("DX_GO_MANIFEST");
     let go_sum = data("DX_GO_LOCK");
     let staged_mod = scratch.join("go.mod");

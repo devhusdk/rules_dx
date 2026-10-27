@@ -692,8 +692,8 @@ fn a_consumer_crate_renders_its_own_api_reference() {
 
 #[test]
 fn a_site_missing_a_route_is_refused_by_the_rendered_check() {
-    let scratch = dx_testing::mkscratch("rendered-missing-route")
-        .unwrap_or_else(|error| panic!("test scratch: {error}"));
+    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-route");
+    let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     let commands = scratch.join("docs/cli/commands/README.html");
     let body = std::fs::read_to_string(&commands).expect("read the command reference");
@@ -709,7 +709,8 @@ fn a_site_missing_a_route_is_refused_by_the_rendered_check() {
 
 #[test]
 fn a_site_with_a_dangling_anchor_is_refused_by_the_rendered_check() {
-    let scratch = dx_testing::mkscratch("rendered-missing-anchor").expect("test scratch");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-anchor");
+    let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     let index = std::fs::read_to_string(scratch.join("index.html")).expect("read index");
     std::fs::write(
@@ -722,7 +723,8 @@ fn a_site_with_a_dangling_anchor_is_refused_by_the_rendered_check() {
 
 #[test]
 fn a_site_that_demotes_its_navigation_widgets_is_refused() {
-    let scratch = dx_testing::mkscratch("rendered-missing-widgets").expect("test scratch");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-widgets");
+    let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     let index = std::fs::read_to_string(scratch.join("index.html")).expect("read index");
     std::fs::write(
@@ -737,7 +739,8 @@ fn a_site_that_demotes_its_navigation_widgets_is_refused() {
 
 #[test]
 fn a_site_without_its_stylesheet_is_refused() {
-    let scratch = dx_testing::mkscratch("rendered-missing-css").expect("test scratch");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-missing-css");
+    let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     std::fs::remove_file(scratch.join("css/general.css")).expect("remove the stylesheet");
     check_rendered(&scratch, &["--landing"]).expect_refusal("has no stylesheet");
@@ -745,7 +748,8 @@ fn a_site_without_its_stylesheet_is_refused() {
 
 #[test]
 fn a_site_with_a_root_relative_link_is_refused() {
-    let scratch = dx_testing::mkscratch("rendered-root-relative").expect("test scratch");
+    let scratch_tmp = dx_test_scratch::scratch("rendered-root-relative");
+    let scratch = scratch_tmp.path().to_path_buf();
     copy_tree(&site(USER_SITE), &scratch);
     let index = std::fs::read_to_string(scratch.join("index.html")).expect("read index");
     std::fs::write(

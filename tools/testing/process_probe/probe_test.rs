@@ -214,7 +214,8 @@ fn print_cwd_reports_the_working_directory() {
 
 #[test]
 fn a_shim_run_records_its_call_and_answers_from_the_environment() {
-    let scratch = dx_testing::mkscratch("probe-shim").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("probe-shim");
+    let scratch = scratch_tmp.path().to_path_buf();
     let log = scratch.join("argv.txt");
     let log_text = log.to_string_lossy().into_owned();
     let run = run_with(
@@ -274,7 +275,8 @@ fn a_descendant_sleeps_before_the_parent_exits() {
 
 #[test]
 fn a_waited_descendant_marker_records_a_normal_end() {
-    let scratch = dx_testing::mkscratch("dx-probe-waited-marker").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("dx-probe-waited-marker");
+    let scratch = scratch_tmp.path().to_path_buf();
     let marker = scratch.join("descendant.finished");
     let run = run(&[
         "--spawn-descendant",
@@ -291,7 +293,8 @@ fn a_waited_descendant_marker_records_a_normal_end() {
 
 #[test]
 fn a_detached_descendant_runs_without_supplying_the_exit_status() {
-    let scratch = dx_testing::mkscratch("dx-probe-detached-marker").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("dx-probe-detached-marker");
+    let scratch = scratch_tmp.path().to_path_buf();
     let marker = scratch.join("descendant.finished");
     let run = run(&[
         "--detached-descendant",
@@ -418,7 +421,8 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
     unsafe extern "C" {
         fn kill(pid: i32, signo: i32) -> i32;
     }
-    let scratch = dx_testing::mkscratch("dx-probe-sigint").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("dx-probe-sigint");
+    let scratch = scratch_tmp.path().to_path_buf();
     let log = scratch.join("sigint.log");
     let mut child = Probe(
         std::process::Command::new(probe())
@@ -446,7 +450,8 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
 
 #[test]
 fn an_own_group_descendant_does_not_hold_the_parent_output() {
-    let scratch = dx_testing::mkscratch("dx-probe-own-group").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("dx-probe-own-group");
+    let scratch = scratch_tmp.path().to_path_buf();
     let marker = scratch.join("descendant.finished");
     let lock = scratch.join("descendant.alive");
     let run = run(&[
@@ -472,7 +477,8 @@ fn an_own_group_descendant_does_not_hold_the_parent_output() {
 
 #[test]
 fn an_alive_lock_is_held_until_the_probe_dies() {
-    let scratch = dx_testing::mkscratch("dx-probe-alive-lock").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("dx-probe-alive-lock");
+    let scratch = scratch_tmp.path().to_path_buf();
     let lock = scratch.join("probe.alive");
     let mut child = std::process::Command::new(probe())
         .arg(format!("--alive-lock={}", lock.display()))
@@ -495,7 +501,8 @@ fn an_alive_lock_is_held_until_the_probe_dies() {
 
 #[test]
 fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
-    let scratch = dx_testing::mkscratch("dx-probe-descendant-lock").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("dx-probe-descendant-lock");
+    let scratch = scratch_tmp.path().to_path_buf();
     let lock = scratch.join("descendant.alive");
     let run = run(&[
         "--detached-descendant",

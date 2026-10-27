@@ -111,6 +111,7 @@ rust_test(
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/site/browser:dx_site_browser",
         "//tools/testing:dx_testing",
     ],
@@ -140,6 +141,7 @@ rust_test(
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/site/browser:dx_site_browser",
         "//tools/testing:dx_testing",
     ],
@@ -180,7 +182,10 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 # keep
@@ -193,6 +198,7 @@ rust_test(
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/ir/ir:documentation_ir",
         "//tools/testing:dx_testing",
     ],

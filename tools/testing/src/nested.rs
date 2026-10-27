@@ -118,16 +118,33 @@ fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<Pat
         .map(PathBuf::from)
 }
 
+/// Returns our effective uid, read from a file we create exclusively so a pre-made path cannot lie.
+#[cfg(unix)]
+fn current_uid() -> Result<u32, String> {
+    use std::os::unix::fs::MetadataExt;
+    let dir = crate::mkscratch("nested-bazel-uid")
+        .map_err(|error| format!("cannot create a scratch directory: {error}"))?;
+    let probe = dir.join("uid");
+    let result = File::options()
+        .write(true)
+        .create_new(true)
+        .open(&probe)
+        .and_then(|file| file.metadata())
+        .map(|meta| meta.uid())
+        .map_err(|error| {
+            format!(
+                "cannot probe the current uid at {}: {error}",
+                probe.display()
+            )
+        });
+    let _ = std::fs::remove_file(&probe);
+    let _ = std::fs::remove_dir(&dir);
+    result
+}
+
 #[cfg(unix)]
 fn default_base() -> Result<PathBuf, String> {
-    use std::os::unix::fs::MetadataExt;
-    let probe = crate::mkscratch("nested-bazel-uid")
-        .map_err(|error| format!("cannot create a scratch directory: {error}"))?;
-    let uid = std::fs::metadata(&probe)
-        .map_err(|error| format!("cannot stat {}: {error}", probe.display()))?
-        .uid();
-    let _ = std::fs::remove_dir(&probe);
-    Ok(nested_bazel::root(None, Some(uid)))
+    Ok(nested_bazel::root(None, Some(current_uid()?)))
 }
 
 #[cfg(not(unix))]
@@ -716,15 +733,71 @@ impl Drop for Server {
     }
 }
 
+/// Explains why `path` is not a private directory of `me`, or returns None when it is.
+#[cfg(unix)]
+fn private_dir_error(
+    path: &Path,
+    is_symlink: bool,
+    is_dir: bool,
+    owner: u32,
+    mode: u32,
+    me: u32,
+) -> Option<String> {
+    let fix = format!(
+        "remove it or point {} at a directory you own",
+        nested_bazel::ROOT_ENV
+    );
+    let shown = path.display();
+    if is_symlink {
+        Some(format!("{shown} is a symlink; {fix}"))
+    } else if !is_dir {
+        Some(format!("{shown} is not a directory; {fix}"))
+    } else if owner != me {
+        Some(format!(
+            "{shown} is owned by uid {owner}, not uid {me}; {fix}"
+        ))
+    } else if mode & 0o077 != 0 {
+        Some(format!(
+            "{shown} is accessible by other users (mode {:04o}); {fix}",
+            mode & 0o7777
+        ))
+    } else {
+        None
+    }
+}
+
+#[cfg(unix)]
+fn create_private(base: &Path) -> Result<(), String> {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+    if let Some(parent) = base.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("cannot create {}: {error}", parent.display()))?;
+    }
+    match std::fs::DirBuilder::new().mode(0o700).create(base) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(format!("cannot create {}: {error}", base.display())),
+    }
+    let meta = std::fs::symlink_metadata(base)
+        .map_err(|error| format!("cannot stat {}: {error}", base.display()))?;
+    let kind = meta.file_type();
+    match private_dir_error(
+        base,
+        kind.is_symlink(),
+        kind.is_dir(),
+        meta.uid(),
+        meta.mode(),
+        current_uid()?,
+    ) {
+        Some(reason) => Err(reason),
+        None => Ok(()),
+    }
+}
+
+#[cfg(not(unix))]
 fn create_private(base: &Path) -> Result<(), String> {
     std::fs::create_dir_all(base)
-        .map_err(|error| format!("cannot create {}: {error}", base.display()))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(base, std::fs::Permissions::from_mode(0o700));
-    }
-    Ok(())
+        .map_err(|error| format!("cannot create {}: {error}", base.display()))
 }
 
 const DOWNLOADER: &str = "allow bcr.bazel.build\nblock *\n";
@@ -986,10 +1059,14 @@ mod tests {
     use super::*;
 
     fn scratch(prefix: &str) -> tempfile::TempDir {
-        tempfile::Builder::new()
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::Builder::new()
             .prefix(prefix)
             .tempdir()
-            .expect("scratch tempdir")
+            .expect("scratch tempdir");
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700))
+            .expect("private scratch");
+        dir
     }
 
     fn config(base: &Path, bazel: &Path) -> Config {
@@ -1461,6 +1538,87 @@ common --repository_cache=/rc/repos
         reset(&root).expect("reset");
         assert_eq!(std::fs::read_dir(&root).expect("list").count(), 0);
         assert!(outside.join("keep").exists());
+    }
+
+    #[test]
+    fn acquire_refuses_a_base_other_users_can_write() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch("base-open");
+        let base = dir.path().join("base");
+        std::fs::create_dir(&base).unwrap();
+        std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o777)).unwrap();
+        let cfg = config(&base, Path::new("/bin/true"));
+        assert!(Server::acquire(cfg).is_err());
+        assert!(!base.join("0").exists());
+        let mode = std::fs::metadata(&base).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o777);
+    }
+
+    #[test]
+    fn acquire_refuses_a_base_that_is_a_symlink() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch("base-link");
+        let target = dir.path().join("target");
+        std::fs::create_dir(&target).unwrap();
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let base = dir.path().join("base");
+        std::os::unix::fs::symlink(&target, &base).unwrap();
+        let cfg = config(&base, Path::new("/bin/true"));
+        assert!(Server::acquire(cfg).is_err());
+        assert_eq!(std::fs::read_dir(&target).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn acquire_refuses_a_base_that_is_a_file() {
+        let dir = scratch("base-file");
+        let base = dir.path().join("base");
+        std::fs::write(&base, "x").unwrap();
+        let cfg = config(&base, Path::new("/bin/true"));
+        assert!(Server::acquire(cfg).is_err());
+    }
+
+    #[test]
+    fn acquire_creates_a_missing_base_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch("base-new");
+        let base = dir.path().join("missing").join("base");
+        create_private(&base).unwrap();
+        let mode = std::fs::metadata(&base).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
+    }
+
+    #[test]
+    fn acquire_reuses_an_existing_private_base() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch("base-reuse");
+        let base = dir.path().join("base");
+        std::fs::create_dir(&base).unwrap();
+        std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o700)).unwrap();
+        create_private(&base).unwrap();
+        create_private(&base).unwrap();
+    }
+
+    #[test]
+    fn private_dir_error_cases() {
+        let p = Path::new("/tmp/dxnb-1");
+        assert!(private_dir_error(p, false, true, 5, 0o40700, 5).is_none());
+        assert!(private_dir_error(p, false, true, 6, 0o40700, 5).is_some());
+        assert!(private_dir_error(p, false, true, 5, 0o40750, 5).is_some());
+        assert!(private_dir_error(p, false, true, 5, 0o40705, 5).is_some());
+        assert!(private_dir_error(p, true, false, 5, 0o40700, 5).is_some());
+        assert!(private_dir_error(p, false, false, 5, 0o100600, 5).is_some());
+        let msg = private_dir_error(p, false, true, 5, 0o40777, 5).unwrap();
+        assert!(msg.contains(nested_bazel::ROOT_ENV), "{msg}");
+    }
+
+    #[test]
+    fn current_uid_matches_a_fresh_dir_owner() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = scratch("uid");
+        assert_eq!(
+            current_uid().unwrap(),
+            std::fs::metadata(dir.path()).unwrap().uid()
+        );
     }
 
     #[test]

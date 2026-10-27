@@ -175,6 +175,18 @@ func TestGenerateSingleDirTestsGlobOwner(t *testing.T) {
 	}
 }
 
+func TestGenerateSingleDirTestsOtherKindGlobNotOwner(t *testing.T) {
+	sibling := rule.NewRule("sh_test", "scripts")
+	sibling.SetAttr("srcs", rule.GlobValue{Patterns: []string{"*.sh"}})
+	result, rep := runFakeDir(t, fakeTestSpec(), map[string]string{"ATest.fk": ""}, existingFile(sibling))
+	if rep.Failed() {
+		t.Fatal(rep.errs)
+	}
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != fakeTest || result.Gen[0].Name() != "a_test" {
+		t.Errorf("Gen = %s, want fake_test(a_test)", ruleSummary(result.Gen))
+	}
+}
+
 func TestGenerateSingleDirTestsClaimError(t *testing.T) {
 	_, rep := runFakeDir(t, fakeTestSpec(), map[string]string{"ATest.fk": ""}, existingFile(newRule("filegroup", "a_test", "other.txt")))
 	if len(rep.errs) != 1 || !strings.Contains(rep.errs[0], `target name "a_test" is claimed by generated fake_test(pkg/demo/ATest.fk) and existing filegroup`) {

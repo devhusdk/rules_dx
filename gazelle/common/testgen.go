@@ -54,8 +54,9 @@ func (t *TestSpec) generatedTest(r *rule.Rule) bool {
 }
 
 // testOwners returns the test sources that an existing test rule other than
-// the generated one already lists. A test rule whose srcs is not a plain list
-// (a glob, for example) owns every test source.
+// the generated one already lists. A rule of the generated test kind whose srcs
+// is not a plain list (a glob, for example) owns every test source; another
+// test kind (a sibling sh_test or py_test with a glob) owns only what it lists.
 func testOwners(file *rule.File, other []*rule.Rule, t *TestSpec, tests []string) map[string]bool {
 	isTest := make(map[string]bool, len(tests))
 	for _, src := range tests {
@@ -72,7 +73,7 @@ func testOwners(file *rule.File, other []*rule.Rule, t *TestSpec, tests []string
 			continue
 		}
 		srcs := r.AttrStrings("srcs")
-		if r.Attr("srcs") != nil && len(srcs) == 0 {
+		if r.Kind() == t.Kind && r.Attr("srcs") != nil && len(srcs) == 0 {
 			for _, src := range tests {
 				owned[src] = true
 			}

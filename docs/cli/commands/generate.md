@@ -137,8 +137,9 @@ like library imports, except JUnit 4 (`org.junit`), which the test runner
 already supplies. JUnit 5 imports still need a resolve mapping.
 
 A handwritten test rule that already lists a test source in `srcs` owns it.
-Generation then emits nothing for that source and keeps the rule. A test rule
-whose `srcs` is a glob owns every test source in the directory. Generation
+Generation then emits nothing for that source and keeps the rule. A `java_test`
+whose `srcs` is a glob owns every test source in the directory; other test
+kinds, such as an `sh_test`, own only the sources they list. Generation
 replaces `deps` on a generated test, so mark any dependency that no import
 gives, such as a runtime-only library, with `# keep`.
 

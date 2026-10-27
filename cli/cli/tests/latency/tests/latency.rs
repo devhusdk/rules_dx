@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use dx_testing::latency::{record, Class, Stats};
+use dx_testing::latency::{
+    judge, missing, record, Class, Host, Limits, Phase, Recorder, Stats, Verdict,
+};
 use dx_testing::{mkscratch, resolve_runfiles};
 
 const SAMPLES: usize = 40;
@@ -11,70 +13,72 @@ struct Operation {
     name: &'static str,
     args: &'static [&'static str],
     exit: i32,
-    median_ceiling: Duration,
-    p95_ceiling: Duration,
+    limits: &'static [Limits],
 }
 
-const fn ms(value: u64) -> Duration {
-    Duration::from_millis(value)
+const REQUIRED: &[Host] = &Host::ALL;
+
+const fn every(median_ms: u64, p95_ms: u64) -> [Limits; 5] {
+    [
+        Limits::warm(Host::LinuxX86_64, median_ms, p95_ms),
+        Limits::warm(Host::LinuxArm64, median_ms, p95_ms),
+        Limits::warm(Host::MacosArm64, median_ms, p95_ms),
+        Limits::warm(Host::WindowsX86_64, median_ms, p95_ms),
+        Limits::warm(Host::WindowsArm64, median_ms, p95_ms),
+    ]
 }
+
+const QUICK: [Limits; 5] = every(100, 250);
+const COMPLETION: [Limits; 5] = every(150, 400);
 
 const OPERATIONS: &[Operation] = &[
     Operation {
         name: "help",
         args: &["--help"],
         exit: 0,
-        median_ceiling: ms(100),
-        p95_ceiling: ms(250),
+        limits: &QUICK,
     },
     Operation {
         name: "version",
         args: &["--version"],
         exit: 0,
-        median_ceiling: ms(100),
-        p95_ceiling: ms(250),
+        limits: &QUICK,
     },
     Operation {
         name: "argument_error",
         args: &["--bogus"],
         exit: 2,
-        median_ceiling: ms(100),
-        p95_ceiling: ms(250),
+        limits: &QUICK,
     },
     Operation {
         name: "missing_shell",
         args: &["completion"],
         exit: 2,
-        median_ceiling: ms(100),
-        p95_ceiling: ms(250),
+        limits: &QUICK,
     },
     Operation {
         name: "completion_bash",
         args: &["completion", "bash"],
         exit: 0,
-        median_ceiling: ms(150),
-        p95_ceiling: ms(400),
+        limits: &COMPLETION,
     },
     Operation {
         name: "completion_zsh",
         args: &["completion", "zsh"],
         exit: 0,
-        median_ceiling: ms(150),
-        p95_ceiling: ms(400),
+        limits: &COMPLETION,
     },
     Operation {
         name: "completion_fish",
         args: &["completion", "fish"],
         exit: 0,
-        median_ceiling: ms(150),
-        p95_ceiling: ms(400),
+        limits: &COMPLETION,
     },
     Operation {
         name: "completion_powershell",
         args: &["completion", "powershell"],
         exit: 0,
-        median_ceiling: ms(150),
-        p95_ceiling: ms(400),
+        limits: &COMPLETION,
     },
 ];
 
@@ -113,7 +117,7 @@ fn make_executable(path: &Path) {
 #[cfg(not(unix))]
 fn make_executable(_path: &Path) {}
 
-fn once(sandbox: &Sandbox, op: &Operation) -> Duration {
+fn once(sandbox: &Sandbox, op: &Operation) -> (Duration, String) {
     let started = Instant::now();
     let output = std::process::Command::new(dx())
         .args(op.args)
@@ -129,7 +133,10 @@ fn once(sandbox: &Sandbox, op: &Operation) -> Duration {
         op.name,
         String::from_utf8_lossy(&output.stderr)
     );
-    elapsed
+    (
+        elapsed,
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+    )
 }
 
 #[test]
@@ -148,20 +155,30 @@ fn local_operations_never_launch_bazel() {
 #[test]
 fn local_operations_stay_inside_their_ceilings() {
     let sandbox = sandbox();
+    let mut recorder = Recorder::new("local_operations");
+    let version = OPERATIONS
+        .iter()
+        .find(|op| op.name == "version")
+        .map(|op| once(&sandbox, op).1)
+        .unwrap_or_default();
+    recorder.host(&[
+        ("samples", &SAMPLES.to_string()),
+        ("warmup", &WARMUP.to_string()),
+        ("dx", &version),
+    ]);
     let mut failures = Vec::new();
-    println!(
-        "samples={SAMPLES} warmup={WARMUP} os={} arch={}",
-        std::env::consts::OS,
-        std::env::consts::ARCH
-    );
     for op in OPERATIONS {
+        let mut timed = |phase| {
+            let elapsed = once(&sandbox, op).0;
+            recorder.sample(op.name, Class::Local, "local", "warm", phase, elapsed);
+            elapsed
+        };
         for _ in 0..WARMUP {
-            once(&sandbox, op);
+            timed(Phase::Warmup);
         }
-        let times: Vec<Duration> = (0..SAMPLES).map(|_| once(&sandbox, op)).collect();
+        let times: Vec<Duration> = (0..SAMPLES).map(|_| timed(Phase::Sample)).collect();
         let stats = Stats::of(times, true);
-        let median = stats.median;
-        let p95 = stats.p95.unwrap_or(stats.max);
+        let verdict = judge(&stats, op.limits);
         println!(
             "{}",
             record(
@@ -170,13 +187,20 @@ fn local_operations_stay_inside_their_ceilings() {
                 "local",
                 "warm",
                 &stats,
-                &[("median", op.median_ceiling), ("p95", op.p95_ceiling)],
+                op.limits,
+                &verdict
             )
         );
-        if median > op.median_ceiling || p95 > op.p95_ceiling {
-            failures.push(format!("{}: median {median:?} p95 {p95:?}", op.name));
+        if let Verdict::Over(why) = verdict {
+            failures.push(format!("{}: {why}", op.name));
         }
     }
     assert!(failures.is_empty(), "over ceiling: {failures:?}");
     assert!(!sandbox.marker.exists(), "bazel was launched");
+}
+
+#[test]
+fn every_ci_host_has_a_ceiling() {
+    let cells: Vec<(&str, &[Limits])> = OPERATIONS.iter().map(|op| (op.name, op.limits)).collect();
+    assert_eq!(missing(&cells, REQUIRED), Vec::<String>::new());
 }

@@ -1,5 +1,6 @@
 load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_py_tests", "thin_compare_subject")
 load("//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+load("//python/rules:windows_launcher_tests.bzl", "python_windows_launcher_tests")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -31,6 +32,8 @@ python_binary(
     main = "main.py",
     deps = [":hello_lib"],
 )
+
+python_windows_launcher_tests(name = "windows_launcher_tests")
 
 python_test(
     name = "hello_test",

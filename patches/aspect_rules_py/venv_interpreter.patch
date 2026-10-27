@@ -1,11 +1,209 @@
+diff --git a/py/private/py_venv/py_venv.bzl b/py/private/py_venv/py_venv.bzl
+--- a/py/private/py_venv/py_venv.bzl
++++ b/py/private/py_venv/py_venv.bzl
+@@ -115,6 +115,8 @@ def _common_providers(ctx, shared, executable = None):
+         # Deliberately no PyInfo: a venv is a terminal artifact, not a source of imports.
+         VirtualenvInfo(
+             bin_python = shared.venv.bin_python,
++            interpreter = shared.venv.interpreter,
++            run_script = shared.venv.run_script,
+             imports = shared.imports_depset,
+             transitive_sources = shared.srcs_depset,
+         ),
+diff --git a/py/private/py_venv/py_venv_exec.bzl b/py/private/py_venv/py_venv_exec.bzl
+--- a/py/private/py_venv/py_venv_exec.bzl
++++ b/py/private/py_venv/py_venv_exec.bzl
+@@ -88,13 +88,21 @@ def _py_venv_exec_impl(ctx):
+     # The launcher runtime resolves transformed-arg positions through
+     # the Bazel runfiles manifest, then `execve`s the venv python.
+     executable_launcher = ctx.actions.declare_file(ctx.attr.name)
+-    embedded_args, transformed_args = launcher.args_from_entrypoint(vinfo.bin_python)
++    run_script = getattr(vinfo, "run_script", None)
++    entrypoint = vinfo.interpreter if run_script else vinfo.bin_python
++    embedded_args, transformed_args = launcher.args_from_entrypoint(entrypoint)
+     for flag in flags:
+         embedded_args, transformed_args = launcher.append_embedded_arg(
+             arg = flag,
+             embedded_args = embedded_args,
+             transformed_args = transformed_args,
+         )
++    if run_script:
++        embedded_args, transformed_args = launcher.append_runfile(
++            file = run_script,
++            embedded_args = embedded_args,
++            transformed_args = transformed_args,
++        )
+     embedded_args, transformed_args = launcher.append_runfile(
+         file = main,
+         embedded_args = embedded_args,
+@@ -109,7 +117,7 @@ def _py_venv_exec_impl(ctx):
+ 
+     # Merge runfiles, supporting `py_venv_exec(main)` not being in the `py_venv` runfiles.
+     runfiles = ctx.runfiles(
+-        files = ctx.files.data + [main],
++        files = ctx.files.data + [main] + ([run_script] if run_script else []),
+     ).merge_all(
+         [target[DefaultInfo].default_runfiles for target in ctx.attr.data] +
+         [venv[DefaultInfo].default_runfiles],
+diff --git a/py/private/py_venv/types.bzl b/py/private/py_venv/types.bzl
+--- a/py/private/py_venv/types.bzl
++++ b/py/private/py_venv/types.bzl
+@@ -21,7 +21,9 @@ binary's launcher exec's the venv's `bin_python`.
+ """,
+     fields = {
+         "bin_python": "File — the venv's bin/python symlink. Callers needing a launcher target point here.",
++        "interpreter": "File or None — set only on Windows: the toolchain interpreter the launcher runs instead of `bin_python`.",
+         "imports": "depset[str] — rlocation-root-relative import paths covered by this venv. Mirrors `PyInfo.imports` of the venv's dep closure.",
++        "run_script": "File or None — set only on Windows: `bin/run.py`, which activates the venv inside the interpreter process and runs main.",
+         "transitive_sources": "depset[File] — first-party Python sources carried by this venv (its own `srcs` plus those of any `deps` that emit `PyInfo`). Surfaced by py_binary as `PyInfo.transitive_sources` so downstream consumers see the same source closure they'd see if srcs/deps lived on the binary directly.",
+     },
+ )
+diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
 --- a/py/private/py_venv/venv.bzl
 +++ b/py/private/py_venv/venv.bzl
-@@ -338,6 +338,7 @@
-         # exist inside an OCI container, leaving a dangling symlink. The
-         # target path itself is computed by resolve_venv_toolchain.
+@@ -35,6 +35,7 @@ Bazel's action cache treats each piece independently (no tree-artifact
+ + remote-exec materialisation surprises).
+ """
+ 
++load("@bazel_lib//lib:paths.bzl", "to_rlocation_path")
+ load("//py/private:py_library.bzl", _py_library = "py_library_utils")
+ load("//py/private/toolchain:types.bzl", "EXEC_TOOLS_TOOLCHAIN")
+ load(":toolchains_resolver.bzl", "resolve_venv_toolchain")
+@@ -67,6 +68,70 @@ _ADDSITEDIR_LINE = (
+     "vars().get(\"known_paths\"))"
+ )
+ 
++_WINDOWS_RUN_PY = """
++import os
++import runpy
++import site
++import sys
++
++VENV_RLOCATION = "{{VENV_RLOCATION}}"
++SITE_PACKAGES = "{{SITE_PACKAGES}}"
++INCLUDE_SYSTEM_SITE_PACKAGES = {{INCLUDE_SYSTEM_SITE_PACKAGES}}
++
++
++def runfiles_root():
++    root = os.environ.get("RUNFILES_DIR")
++    if root and os.path.isdir(root):
++        return root
++    manifest = os.environ.get("RUNFILES_MANIFEST_FILE")
++    if manifest:
++        if manifest.endswith(".runfiles_manifest"):
++            root = manifest[: -len("_manifest")]
++        else:
++            root = os.path.dirname(manifest)
++        if os.path.isdir(root):
++            return root
++    return None
++
++
++def activate(root):
++    venv = os.path.normpath(os.path.join(root, VENV_RLOCATION))
++    site_packages = os.path.join(venv, SITE_PACKAGES)
++    if not os.path.isdir(site_packages):
++        return False
++    if not INCLUDE_SYSTEM_SITE_PACKAGES:
++        base = set(
++            os.path.normcase(os.path.normpath(p))
++            for p in site.getsitepackages([sys.base_prefix])
++            if os.path.basename(os.path.normpath(p)).lower() == "site-packages"
++        )
++        sys.path[:] = [p for p in sys.path if os.path.normcase(os.path.normpath(p)) not in base]
++    sys.prefix = venv
++    sys.exec_prefix = venv
++    site.addsitedir(site_packages)
++    return True
++
++
++def main():
++    if len(sys.argv) < 2:
++        sys.stderr.write("run.py: missing main script argument\\n")
++        return 2
++    root = runfiles_root()
++    if root is None or not activate(root):
++        sys.stderr.write("run.py: no runfiles tree with venv " + VENV_RLOCATION + " found; Windows Python binaries need --enable_runfiles\\n")
++        return 2
++    script = sys.argv[1]
++    if sys.path and not sys.flags.isolated and not getattr(sys.flags, "safe_path", False):
++        sys.path[0] = os.path.dirname(os.path.abspath(script))
++    sys.argv[:] = sys.argv[1:]
++    runpy.run_path(script, run_name="__main__")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
++"""
++
+ def _dict_to_exports(env):
+     return ["export %s=\"%s\"" % (k, v) for (k, v) in env.items()]
+ 
+@@ -119,6 +184,10 @@ def assemble_venv(
+       struct with:
+         bin_python: File — the venv's bin/python symlink, for launchers
+             to rlocation-resolve and exec.
++        interpreter: File or None — on Windows, the toolchain interpreter
++            the launcher runs directly; None elsewhere.
++        run_script: File or None — on Windows, bin/run.py, which activates
++            the venv in-process and runs main; None elsewhere.
+         all_files: list[File] — every declared output, ready for runfiles
+             / DefaultInfo aggregation.
+     """
+@@ -337,17 +406,41 @@ def assemble_venv(
+     # absolute target bakes in the build-host execroot path that does not
+     # exist inside an OCI container, leaving a dangling symlink. The
+     # target path itself is computed by resolve_venv_toolchain.
 -    bin_python = ctx.actions.declare_symlink("{}/bin/python".format(venv_name))
-+    bin_python_name = "python.exe" if is_windows else "python"
-+    bin_python = ctx.actions.declare_symlink("{}/bin/{}".format(venv_name, bin_python_name))
-     ctx.actions.symlink(
-         output = bin_python,
-         target_path = tc.bin_python_target_path,
+-    ctx.actions.symlink(
+-        output = bin_python,
+-        target_path = tc.bin_python_target_path,
+-    )
++    run_script = None
++    if is_windows:
++        bin_python = ctx.actions.declare_file("{}/bin/python.exe".format(venv_name))
++        ctx.actions.symlink(
++            output = bin_python,
++            target_file = py_toolchain.python,
++            is_executable = True,
++        )
++        run_script = ctx.actions.declare_file("{}/bin/run.py".format(venv_name))
++        ctx.actions.write(
++            output = run_script,
++            content = _WINDOWS_RUN_PY.replace(
++                "{{VENV_RLOCATION}}",
++                to_rlocation_path(ctx, bin_python).rsplit("/", 2)[0],
++            ).replace(
++                "{{SITE_PACKAGES}}",
++                site_packages_rel[len(venv_name) + 1:],
++            ).replace(
++                "{{INCLUDE_SYSTEM_SITE_PACKAGES}}",
++                "True" if include_system_site_packages else "False",
++            ),
++        )
++        declared.append(run_script)
++    else:
++        bin_python = ctx.actions.declare_symlink("{}/bin/python".format(venv_name))
++        ctx.actions.symlink(
++            output = bin_python,
++            target_path = tc.bin_python_target_path,
++        )
+     declared.append(bin_python)
+ 
+     # Versioned python symlinks (python3, python3.<MAJ>.<MIN>, and
+     # python3.<MAJ>.<MIN>t for freethreaded) all point at the sibling
+     # `python`; names resolved by resolve_venv_toolchain.
+-    for versioned_name in tc.versioned_python_names:
++    for versioned_name in ([] if is_windows else tc.versioned_python_names):
+         sym = ctx.actions.declare_symlink("{}/bin/{}".format(venv_name, versioned_name))
+         ctx.actions.symlink(
+             output = sym,
+@@ -411,5 +504,7 @@ def assemble_venv(
+ 
+     return struct(
+         bin_python = bin_python,
++        interpreter = py_toolchain.python if is_windows else None,
++        run_script = run_script,
+         all_files = declared,
+     )

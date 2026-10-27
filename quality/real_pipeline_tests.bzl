@@ -4,7 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "go_lang_version", "real_allowed_tools_error", "real_quality_resource_set", "rustc_diagnostics_group")
+load(":real_aspects.bzl", "go_lang_version", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "rustc_diagnostics_group")
 
 _LINT_SELECTIONS = {
     "javascript": ["biome"],
@@ -61,6 +61,12 @@ _DIRECT_SOURCES = {
     "toml": ["Cargo.toml"],
     "typescript": ["src/main.ts", "src/app.tsx"],
 }
+
+_FILE_TOOL = {"attr": "sentinel", "capabilities": ["lint"], "kind": "file", "resources": "light", "shard": "core"}
+
+_TOOLCHAIN_TOOL = {"capabilities": ["lint"], "kind": "toolchain", "resources": "heavy", "shard": "rust", "toolchain_file": "clippy_driver"}
+
+_SETTING_TOOL = {"attr": "sentinel", "capabilities": ["format"], "kind": "setting", "resources": "light", "shard": "core"}
 
 def real_pipeline_unit_tests(name):
     starlark_test(
@@ -500,9 +506,79 @@ def real_pipeline_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "aspect shards stay registry subsets",
-                real_allowed_tools_error(),
+                "the real tool table is well formed and every tool capability has a shard",
+                real_tool_table_error(),
                 "",
+            ),
+            expect_equal(
+                "the table wires eslint for lint but not rustfmt",
+                ["eslint" in real_wired_tools()["lint"], "rustfmt" in real_wired_tools()["lint"]],
+                [True, False],
+            ),
+            expect_equal(
+                "a well-formed table passes",
+                real_tool_table_shape_error({"biome": _FILE_TOOL}),
+                "",
+            ),
+            expect_equal(
+                "an unknown kind is rejected",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"kind": "binary"}}),
+                "real aspects: table tool 'biome' names unknown kind 'binary'",
+            ),
+            expect_equal(
+                "a file tool needs an attr",
+                real_tool_table_shape_error({"biome": {k: v for k, v in _FILE_TOOL.items() if k != "attr"}}),
+                "real aspects: table tool 'biome' needs an attr for kind 'file'",
+            ),
+            expect_equal(
+                "a toolchain tool takes no attr",
+                real_tool_table_shape_error({"clippy": _TOOLCHAIN_TOOL | {"attr": "sentinel"}}),
+                "real aspects: table tool 'clippy' must not set an attr for kind 'toolchain'",
+            ),
+            expect_equal(
+                "a toolchain tool needs a known toolchain file",
+                real_tool_table_shape_error({"clippy": _TOOLCHAIN_TOOL | {"toolchain_file": "cargo"}}),
+                "real aspects: table tool 'clippy' needs a known toolchain_file exactly when its kind is toolchain",
+            ),
+            expect_equal(
+                "a setting tool needs a fallback or target_tool",
+                real_tool_table_shape_error({"qmlformat": _SETTING_TOOL}),
+                "real aspects: table tool 'qmlformat' needs exactly one of fallback or target_tool",
+            ),
+            expect_equal(
+                "a setting tool takes only one of fallback and target_tool",
+                real_tool_table_shape_error({"qmlformat": _SETTING_TOOL | {"fallback": "=x", "target_tool": True}}),
+                "real aspects: table tool 'qmlformat' needs exactly one of fallback or target_tool",
+            ),
+            expect_equal(
+                "fallback stays on setting tools",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"fallback": "=x"}}),
+                "real aspects: table tool 'biome' sets fallback or target_tool outside the setting kind",
+            ),
+            expect_equal(
+                "extra stays on executable tools",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"extra": "files"}}),
+                "real aspects: table tool 'biome' sets extra, run_tool or runfiles_env outside the executable kind",
+            ),
+            expect_equal(
+                "run_tool stays on executable tools",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"run_tool": False}}),
+                "real aspects: table tool 'biome' sets extra, run_tool or runfiles_env outside the executable kind",
+            ),
+            expect_equal(
+                "an unknown extra is rejected",
+                real_tool_table_shape_error({"eslint": _FILE_TOOL | {"capabilities": ["lint"], "extra": "all", "kind": "executable"}}),
+                "real aspects: table tool 'eslint' names unknown extra 'all'",
+            ),
+            expect_equal(
+                "env entries are string pairs",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"env": [["PATH"]]}}),
+                "real aspects: table tool 'biome' has an env entry that is not a pair of strings",
+            ),
+            expect_equal(
+                "table tools stay inside REAL_ADAPTERS",
+                real_tool_table_shape_error({"nope": _FILE_TOOL}),
+                "real aspects: table tool 'nope' is outside REAL_ADAPTERS",
             ),
             expect_equal(
                 "real quality actions reserve the costliest launched tool tier",

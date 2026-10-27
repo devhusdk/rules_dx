@@ -10,9 +10,10 @@ import (
 	"testing"
 )
 
-// readList reads a one-line Starlark list assignment such as
-// `_CC_SRCS = [".c", ".cc"]` from the file named by envVar. It fails the test
-// when the variable, file or list is missing or has an unexpected format.
+// readList reads a one-line Starlark list such as `_CUDA_SRCS = [".cu"]` or
+// the dict entry `"c": ["c", "h"],` from the file named by envVar. name is the
+// assignment target or the quoted dict key. It fails the test when the
+// variable, file or list is missing or has an unexpected format.
 func readList(t *testing.T, envVar, name string) []string {
 	t.Helper()
 	rel := os.Getenv(envVar)
@@ -30,7 +31,7 @@ func readList(t *testing.T, envVar, name string) []string {
 	if err != nil {
 		t.Fatalf("read %s: %v", rel, err)
 	}
-	re := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(name) + `\s*=\s*\[([^\]\n]*)\]\s*$`)
+	re := regexp.MustCompile(`(?m)^\s*` + regexp.QuoteMeta(name) + `\s*[=:]\s*\[([^\]\n]*)\],?\s*$`)
 	m := re.FindSubmatch(data)
 	if m == nil {
 		t.Fatalf("%s: no one-line list assignment for %s; update this test with the new format", rel, name)
@@ -72,17 +73,20 @@ func sameSet(a, b []string) bool {
 }
 
 func TestWrapperExtsMatchGazelle(t *testing.T) {
-	ccSrcs := readList(t, "CC_DEFS_BZL", "_CC_SRCS")
-	ccHdrs := readList(t, "CC_DEFS_BZL", "_CC_HDRS")
+	// The cc wrappers accept any file and leave the check to rules_cc, so
+	// every extension Gazelle writes into cc srcs or hdrs must have a C or
+	// C++ lint class in UPSTREAM_CC_CLASS_EXTENSIONS.
+	linted := append(readList(t, "QUALITY_SOURCES_BZL", `"c"`), readList(t, "QUALITY_SOURCES_BZL", `"cpp"`)...)
+	for _, list := range [][]string{SupportedSrcExts, SupportedHdrExts} {
+		for _, ext := range list {
+			if !slices.Contains(linted, strings.TrimPrefix(ext, ".")) {
+				t.Errorf("Gazelle cc extension %q has no c or cpp class in UPSTREAM_CC_CLASS_EXTENSIONS %v", ext, linted)
+			}
+		}
+	}
+
 	cudaSrcs := readList(t, "CUDA_DEFS_BZL", "_CUDA_SRCS")
 	cudaHdrs := readList(t, "CUDA_DEFS_BZL", "_CUDA_HDRS")
-
-	if !sameSet(ccSrcs, SupportedSrcExts) {
-		t.Errorf("_CC_SRCS %v differs from SupportedSrcExts %v", ccSrcs, SupportedSrcExts)
-	}
-	if !sameSet(ccHdrs, SupportedHdrExts) {
-		t.Errorf("_CC_HDRS %v differs from SupportedHdrExts %v", ccHdrs, SupportedHdrExts)
-	}
 	if !sameSet(cudaSrcs, SupportedCudaSrcExts) {
 		t.Errorf("_CUDA_SRCS %v differs from SupportedCudaSrcExts %v", cudaSrcs, SupportedCudaSrcExts)
 	}

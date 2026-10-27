@@ -1,4 +1,5 @@
 load("//go/rules:defs.bzl", "go_library", "go_test")
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -8,9 +9,25 @@ package(
 
 go_library(
     name = "cgo",
-    srcs = ["cgo.go"],
+    srcs = [
+        "add.c",
+        "add.h",
+        "cgo.go",
+    ],
     cgo = True,
     importpath = "rules_dx/go/tests/fixtures/cgo",
+)
+
+dx_direct_sources_test(
+    name = "cgo_sources_test",
+    expected = {
+        "c": [
+            "add.c",
+            "add.h",
+        ],
+        "go": ["cgo.go"],
+    },
+    target_under_test = ":cgo",
 )
 
 go_test(

@@ -8,7 +8,7 @@ def scala_wrapper_contract_tests(name):
     """Instantiates Scala wrapper contract tests."""
     dx_wrapper_contract_tests(
         name,
-        file_classes = ["scala"],
+        file_classes = ["scala", "java"],
         extra_checks = [
             expect_equal(
                 "empty gains fatal warnings",

@@ -159,6 +159,7 @@ real_source_target(
         "arithmetic_tests.bzl",
         "aspect_tests.bzl",
         "config_tests.bzl",
+        "direct_sources.bzl",
         "execution_tests.bzl",
         "matcher_tests.bzl",
         "matrix_tests.bzl",

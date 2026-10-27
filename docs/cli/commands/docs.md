@@ -140,11 +140,13 @@ bazel run @rules_dx//:dx -- docs //lib:api_docs
 Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
 failure. Bazel failures keep Bazel's code, so a TypeDoc error in the shard fails the build.
 
-The rule owns the options `plugin`, `options`, `tsconfig`, `entryPoints`, `json`,
-`out` and `basePath`, and fails at load time if `options` sets one of them. It also
-passes an empty `--options` file, so a stray `typedoc.json` is never read.
-`typedocOptions` in `tsconfig.json` or `package.json` is still loaded by TypeDoc,
-and it can load JavaScript plugins. Keep `plugin` out of those files.
+The rule runs TypeDoc through an isolated launcher. It never loads plugins, and it
+ignores `typedoc.json`, `package.json` and `typedocOptions` in `tsconfig.json`,
+including inherited ones. Only the compiler options of the given `tsconfig` are read.
+Put extra TypeDoc flags in `options`. The rule owns `plugin`, `options`, `tsconfig`,
+`entryPoints`, `json`, `out` and `basePath`, and fails at load time if `options` sets
+one of them. TypeDoc still reports an error if `typedocOptions` sets `options` or
+`tsconfig`.
 
 ## Go API reference
 

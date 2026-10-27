@@ -1,0 +1,61 @@
+load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+_SRCS = glob([
+    "plugins/*.mjs",
+    "src/*.ts",
+]) + [
+    "package.json",
+    "tsconfig.base.json",
+    "tsconfig.plain.json",
+]
+
+typescript_doc_shard(
+    name = "hostile_docs",
+    srcs = _SRCS,
+    entry_points = ["src/index.ts"],
+    package = "hostile",
+    tsconfig = "tsconfig.json",
+)
+
+# Controls: the stock CLI must load each fixture plugin, which proves the
+# fixture really tries to inject them. Each control isolates one config source.
+[
+    js_run_binary(
+        name = "hostile_control_" + marker,
+        testonly = True,
+        srcs = _SRCS + [
+            "tsconfig.json",
+        ],
+        outs = ["hostile_control_" + marker + ".typedoc.json"],
+        args = [
+            "--tsconfig",
+            tsconfig,
+            "--basePath",
+            ".",
+            "--entryPoints",
+            "src/index.ts",
+            "--json",
+            "hostile_control_" + marker + ".typedoc.json",
+        ],
+        chdir = package_name(),
+        mnemonic = "DxTypedocControl",
+        tool = "//quality/tools/javascript/bin:typedoc_stock",
+    )
+    for marker, tsconfig in {
+        "base": "tsconfig.base.json",
+        "package": "tsconfig.plain.json",
+        "tsconfig": "tsconfig.json",
+    }.items()
+]
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

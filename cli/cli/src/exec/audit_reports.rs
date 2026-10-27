@@ -1187,12 +1187,14 @@ fn audit_set_coverage_is_decided_once_and_matches_the_set_registry() {
     for name in &names {
         if *name == "powershell" {
             assert!(!dx_audit::backend::is_empty_set(name));
-            assert!(dx_audit::advisory::advisory_source(name).is_none());
+            assert!(dx_audit::advisory::advisory_family(name).is_none());
             continue;
         }
         assert_eq!(
             dx_audit::backend::is_empty_set(name),
-            dx_audit::advisory::advisory_source(name).is_none(),
+            dx_audit::advisory::advisory_family(name)
+                .and_then(dx_audit::advisory::advisory_source)
+                .is_none(),
             "{name} needs lock coverage and an advisory source together"
         );
     }

@@ -32,6 +32,7 @@ pub const CODE_ADVISORY_REFRESH_FAILED: &str = "advisory_refresh_failed";
 /// Command that creates or refreshes the advisory snapshots.
 pub const REFRESH_COMMAND: &str = "bazel run @rules_dx//cli/advisory_prep --";
 
+/// Maps a dependency set name to its advisory family; the sole set-to-family step.
 pub fn advisory_family(set: &str) -> Option<&'static str> {
     match set {
         "cargo" => Some("cargo"),
@@ -47,8 +48,8 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
 
 pub const PYPI_FAMILY: &str = "pypi";
 
-pub fn advisory_source(set: &str) -> Option<&'static str> {
-    match family_of(set) {
+pub fn advisory_source(family: &str) -> Option<&'static str> {
+    match family {
         "cargo" => Some("https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip"),
         "npm" => Some("https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"),
         "maven" => Some("https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip"),
@@ -64,16 +65,12 @@ pub fn is_accepted_url(url: &str) -> bool {
     (url.starts_with("https://") || url.starts_with("file://")) && url::Url::parse(url).is_ok()
 }
 
-pub fn snapshot_rel(set: &str) -> String {
-    format!(".dx/advisory/{}.json", family_of(set))
+pub fn snapshot_rel(family: &str) -> String {
+    format!(".dx/advisory/{family}.json")
 }
 
-pub fn identity_rel(set: &str) -> String {
-    format!(".dx/advisory/{}.meta.json", family_of(set))
-}
-
-fn family_of(set: &str) -> &str {
-    advisory_family(set).unwrap_or(set)
+pub fn identity_rel(family: &str) -> String {
+    format!(".dx/advisory/{family}.meta.json")
 }
 
 pub fn parse_identity(text: &str) -> Result<AdvisorySnapshot, String> {
@@ -262,7 +259,7 @@ mod tests {
             ("maven", "Maven"),
             ("nuget", "NuGet"),
             ("go", "Go"),
-            ("ruby", "RubyGems"),
+            ("rubygems", "RubyGems"),
         ] {
             let url = advisory_source(set).unwrap_or_else(|| panic!("{set} needs a source"));
             assert!(url.starts_with("https://"), "{set} must be https");
@@ -284,14 +281,15 @@ mod tests {
     fn every_npm_set_shares_the_npm_snapshot() {
         for set in ["npm", "npm-adopt", "npm-adopt-polyglot", "npm-tools"] {
             assert_eq!(advisory_family(set), Some("npm"), "{set} is npm");
-            assert_eq!(snapshot_rel(set), ".dx/advisory/npm.json", "{set}");
-            assert_eq!(identity_rel(set), ".dx/advisory/npm.meta.json", "{set}");
+            let family = advisory_family(set).expect("family");
+            assert_eq!(snapshot_rel(family), ".dx/advisory/npm.json", "{set}");
+            assert_eq!(identity_rel(family), ".dx/advisory/npm.meta.json", "{set}");
         }
         assert_eq!(advisory_family("cargo"), Some("cargo"));
         assert_eq!(advisory_family("ruby"), Some("rubygems"));
-        assert_eq!(snapshot_rel("ruby"), ".dx/advisory/rubygems.json");
         for key in ["ruby", "rubygems"] {
             assert_eq!(advisory_family(key), Some("rubygems"), "{key}");
+            let key = advisory_family(key).expect("family");
             assert_eq!(
                 advisory_source(key),
                 Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
@@ -306,6 +304,11 @@ mod tests {
         }
         assert_eq!(advisory_family("powershell"), None);
         assert_eq!(advisory_source("powershell"), None);
+        assert_eq!(
+            advisory_source("ruby"),
+            None,
+            "sets must map to a family first"
+        );
         assert_eq!(advisory_family("uv"), None);
         assert_eq!(advisory_family("unknown-set"), None);
     }

@@ -243,7 +243,9 @@ impl AuditTarget<'_> {
         match self {
             AuditTarget::Builtin(set) => {
                 !dx_audit::backend::is_empty_set(set.name())
-                    && dx_audit::advisory::advisory_source(set.name()).is_some()
+                    && dx_audit::advisory::advisory_family(set.name())
+                        .and_then(dx_audit::advisory::advisory_source)
+                        .is_some()
             }
             AuditTarget::Configured(set) => set.ecosystem.advisory_family().is_some(),
         }
@@ -330,12 +332,12 @@ fn load_advisories(
             set: set_name.clone(),
         })?
         .to_owned();
-    if dx_audit::advisory::advisory_source(key).is_none() {
+    if dx_audit::advisory::advisory_source(&family).is_none() {
         return Err(AuditError::AdvisoryUnsupported {
             set: set_name.clone(),
         });
     }
-    let rel = dx_audit::advisory::snapshot_rel(key);
+    let rel = dx_audit::advisory::snapshot_rel(&family);
     let bytes =
         match dx_path::workspace::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -368,7 +370,7 @@ fn load_advisories(
             rel: rel.clone(),
         });
     }
-    let meta_rel = dx_audit::advisory::identity_rel(key);
+    let meta_rel = dx_audit::advisory::identity_rel(&family);
     let meta_text = match read_workspace_text(workspace, &meta_rel) {
         Err(AuditError::Read { rel, error }) if error.kind() == std::io::ErrorKind::NotFound => {
             return Err(AuditError::AdvisoryMissingMeta {

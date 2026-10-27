@@ -230,19 +230,21 @@ pub(super) fn write_npm_locks(harness: &Harness) {
 }
 
 pub(super) fn write_advisory(harness: &Harness, set: &str, json: &str) {
-    let url = dx_audit::advisory::advisory_source(set)
+    let url = dx_audit::advisory::advisory_family(set)
+        .and_then(dx_audit::advisory::advisory_source)
         .expect("supported set needs a source")
         .to_owned();
     let sha = dx_digest::sha256_hex(json.as_bytes());
-    harness.write_source(&format!(".dx/advisory/{set}.json"), json);
+    let rel = dx_audit::advisory::snapshot_rel(set);
+    harness.write_source(&rel, json);
     let meta = serde_json::json!({
         "set": set,
         "url": url,
         "sha256": sha,
         "retrieved_at": TEST_AUDIT_TODAY,
-        "path": format!(".dx/advisory/{set}.json"),
+        "path": rel,
     });
-    harness.write_source(&format!(".dx/advisory/{set}.meta.json"), &meta.to_string());
+    harness.write_source(&dx_audit::advisory::identity_rel(set), &meta.to_string());
 }
 
 pub(super) fn write_all_empty_advisories(harness: &Harness) {

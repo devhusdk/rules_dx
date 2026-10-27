@@ -114,31 +114,42 @@ pub fn render_consumer_module_setup_with(triples: &[String]) -> String {
     )
 }
 
-/// Puts the CUDA stanza ahead of the consumer's `register_toolchains` lines.
+/// Puts the CUDA stanza ahead of the first `register_toolchains` call.
 ///
 /// The first registered toolchain wins, and the CUDA host compiler only applies when its
 /// flag is on. If `@llvm//toolchain:all` came first, it would also match for nvcc's host
 /// compilation and nvcc would get a clang it does not support.
-fn with_cuda_stanza(setup: &str) -> String {
+fn with_cuda_stanza(setup: &str) -> Result<String, AdoptError> {
     let stanza = format!(
         "# CUDA: this workspace has .cu sources, so the pinned toolkit and its host compiler follow.\n{}\n",
         crate::cuda_stanza::render_cuda_module_stanza("rules_dx"),
     );
-    match setup.find("register_toolchains(") {
+    let module = parse_init_snippet(setup)?;
+    let first = module
+        .calls_named("register_toolchains")
+        .next()
+        .map(|call| call.span.start);
+    Ok(match first {
         Some(at) => format!("{}{}{}", &setup[..at], stanza, &setup[at..]),
         None => format!("{setup}\n{stanza}"),
-    }
+    })
 }
 
 /// Adds the include of the dx-written overrides right after the rules_dx `bazel_dep`.
-fn with_overrides_include(setup: &str) -> String {
-    match setup.split_once('\n') {
-        Some((first, rest)) => format!(
-            "{first}\ninclude(\"{}\")\n{rest}",
-            crate::overrides::OVERRIDES_INCLUDE
-        ),
-        None => setup.to_owned(),
-    }
+fn with_overrides_include(setup: &str) -> Result<String, AdoptError> {
+    let module = parse_init_snippet(setup)?;
+    let included = module
+        .insert_include(crate::overrides::OVERRIDES_INCLUDE, "rules_dx")
+        .map_err(|error| AdoptError::InitSnippet {
+            detail: error.to_string(),
+        })?;
+    Ok(included)
+}
+
+fn parse_init_snippet(setup: &str) -> Result<dx_module_bazel::ModuleFile, AdoptError> {
+    dx_module_bazel::ModuleFile::parse(setup).map_err(|error| AdoptError::InitSnippet {
+        detail: error.to_string(),
+    })
 }
 
 pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
@@ -285,6 +296,12 @@ fn plan_init_files_full(
     triples: &[String],
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
+    let consumer_setup = if cuda {
+        with_cuda_stanza(&render_consumer_module_setup_with(triples))?
+    } else {
+        render_consumer_module_setup_with(triples)
+    };
+    let setup = with_overrides_include(&consumer_setup)?;
     let files = vec![
         ScaffoldFile {
             path: ".dx/version".to_owned(),
@@ -323,11 +340,6 @@ fn plan_init_files_full(
             path: "MODULE.bazel.snippet".to_owned(),
             content: format!(
                 "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
-                setup = with_overrides_include(&if cuda {
-                    with_cuda_stanza(&render_consumer_module_setup_with(triples))
-                } else {
-                    render_consumer_module_setup_with(triples)
-                }),
             ),
         },
     ];
@@ -1077,6 +1089,20 @@ mod tests {
             ]
         );
         assert!(cuda.contains("cuda-eula"));
+    }
+
+    #[test]
+    fn snippet_edits_follow_parsed_calls_not_text() {
+        let setup = "# register_toolchains(\nbazel_dep(name = \"rules_dx\", version = \"1\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
+        let included = super::with_overrides_include(setup).expect("include");
+        assert!(included.contains(&format!(
+            "bazel_dep(name = \"rules_dx\", version = \"1\")\ninclude(\"{}\")\n",
+            crate::overrides::OVERRIDES_INCLUDE
+        )));
+        let staged = super::with_cuda_stanza(&included).expect("stanza");
+        let stanza_at = staged.find("# CUDA:").expect("stanza");
+        assert!(stanza_at > staged.find("include(").expect("include"));
+        assert!(stanza_at < staged.find("register_toolchains(\"@llvm").expect("llvm"));
     }
 
     #[test]

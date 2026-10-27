@@ -411,8 +411,7 @@ fn run() -> i32 {
     }) {
         Ok(slot) => slot,
         Err(signo) => {
-            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
-            return dx_process::interrupted_code(signo);
+            return dx_cli::exec::cancelled(&mut err, signo);
         }
     };
     let gate = if let Some(slot) = &slot {

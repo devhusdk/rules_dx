@@ -1276,7 +1276,7 @@ pub fn with_gate<R>(gate: Option<Gate>, f: impl FnOnce() -> R) -> R {
 }
 
 /// Takes a per-phase slot from the installed gate; none when no gate is installed.
-pub fn take(
+fn take(
     command: Command,
     err: &mut dyn Write,
     events: &mut dyn Write,
@@ -1284,6 +1284,48 @@ pub fn take(
     match GATE.with(|cell| cell.borrow().clone()) {
         Some(gate) => gate.take(command, err, events),
         None => Ok(None),
+    }
+}
+
+/// One phase's lazily taken slot: taken at most once, on the first need.
+pub struct Phase {
+    command: Command,
+    asked: bool,
+    slot: Option<Slot>,
+}
+
+impl Phase {
+    /// Starts a phase for `command` holding nothing.
+    pub fn new(command: Command) -> Self {
+        Phase {
+            command,
+            asked: false,
+            slot: None,
+        }
+    }
+
+    /// Takes the slot on the first call with `needed`; never asks twice, even after none was granted.
+    pub fn need(
+        &mut self,
+        needed: bool,
+        err: &mut dyn Write,
+        events: &mut dyn Write,
+    ) -> Result<Option<&Slot>, i32> {
+        if needed && !self.asked {
+            self.asked = true;
+            self.slot = take(self.command, err, events)?;
+        }
+        Ok(self.slot.as_ref())
+    }
+
+    /// The slot held now, if any.
+    pub fn slot(&self) -> Option<&Slot> {
+        self.slot.as_ref()
+    }
+
+    /// Frees the slot held now.
+    pub fn release(&mut self) {
+        self.slot = None;
     }
 }
 
@@ -2200,6 +2242,58 @@ mod tests {
             .expect("none")
             .is_none());
         assert!(slot_settles_free(&dir, 1));
+    }
+
+    #[test]
+    fn a_phase_takes_nothing_until_needed() {
+        let scratch = dx_test_scratch::scratch("dx-slots-phase-lazy-");
+        let dir = scratch.path().join("slots");
+        let gate = Gate::new(dir.clone(), 1, "me".to_owned(), false);
+        with_gate(Some(gate), || {
+            let mut phase = Phase::new(Command::Run);
+            let (mut err, mut events) = (Vec::new(), Vec::new());
+            assert!(phase.need(false, &mut err, &mut events).unwrap().is_none());
+            assert!(phase.slot().is_none());
+            assert!(slot_settles_free(&dir, 1));
+        });
+    }
+
+    #[test]
+    fn a_phase_takes_once() {
+        let scratch = dx_test_scratch::scratch("dx-slots-phase-once-");
+        let dir = scratch.path().join("slots");
+        let gate = Gate::new(dir, 1, "me".to_owned(), false);
+        with_gate(Some(gate), || {
+            let mut phase = Phase::new(Command::Run);
+            let (mut err, mut events) = (Vec::new(), Vec::new());
+            assert!(phase.need(true, &mut err, &mut events).unwrap().is_some());
+            assert!(phase.need(true, &mut err, &mut events).unwrap().is_some());
+            assert!(err.is_empty());
+        });
+    }
+
+    #[test]
+    fn a_phase_without_a_gate_holds_nothing() {
+        let mut phase = Phase::new(Command::Run);
+        let (mut err, mut events) = (Vec::new(), Vec::new());
+        assert!(phase.need(true, &mut err, &mut events).unwrap().is_none());
+        assert!(phase.need(true, &mut err, &mut events).unwrap().is_none());
+        assert!(phase.slot().is_none());
+    }
+
+    #[test]
+    fn a_released_phase_frees_its_slot() {
+        let scratch = dx_test_scratch::scratch("dx-slots-phase-release-");
+        let dir = scratch.path().join("slots");
+        let gate = Gate::new(dir.clone(), 1, "me".to_owned(), false);
+        with_gate(Some(gate), || {
+            let mut phase = Phase::new(Command::Run);
+            let (mut err, mut events) = (Vec::new(), Vec::new());
+            assert!(phase.need(true, &mut err, &mut events).unwrap().is_some());
+            phase.release();
+            assert!(phase.slot().is_none());
+            assert!(slot_settles_free(&dir, 1));
+        });
     }
 
     #[test]

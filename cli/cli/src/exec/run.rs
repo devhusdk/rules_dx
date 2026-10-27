@@ -84,13 +84,10 @@ impl Launcher<'_> {
     ) -> Option<i32> {
         let invocation = self.invocation;
         let json = invocation.output == OutputMode::Json;
-        let slot = match dx_plan::slots::take(invocation.command, &mut *err, &mut *out) {
-            Ok(slot) => slot,
-            Err(signo) => {
-                let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
-                return Some(dx_process::interrupted_code(signo));
-            }
-        };
+        let mut phase = dx_plan::slots::Phase::new(invocation.command);
+        if let Err(signo) = phase.need(true, &mut *err, &mut *out) {
+            return Some(super::failure::cancelled(err, signo));
+        }
         let plan = match plan_run_build(
             targets,
             &invocation.quiet_bazel_options(),
@@ -100,7 +97,7 @@ impl Launcher<'_> {
             Ok(plan) => plan,
             Err(error) => return Some(pre_exec(invocation.output, out, err, &error.to_string())),
         };
-        let held = slot.as_ref().map(|slot| slot.runner(self.runner));
+        let held = phase.slot().map(|slot| slot.runner(self.runner));
         let builder = Launcher {
             runner: held
                 .as_ref()
@@ -108,7 +105,7 @@ impl Launcher<'_> {
             ..*self
         };
         let launched = builder.launch(out, err, &plan.argv);
-        drop(slot);
+        drop(phase);
         let code = match launched {
             Ok(Some(code)) => code,
             Ok(None) => return Some(withdrawn(invocation, out, err)),

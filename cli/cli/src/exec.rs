@@ -58,7 +58,7 @@ pub(crate) use umbrella::UMBRELLA_PHASES;
 
 pub use audit::AUDIT_TODAY_ENV;
 pub use common::{print_actions, ActionTally, Env};
-pub use failure::set_usage_command;
+pub use failure::{cancelled, set_usage_command};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 pub use worktree::{hook_kind, run_worktree_hook};
 

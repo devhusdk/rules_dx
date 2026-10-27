@@ -46,11 +46,9 @@ pub(super) fn execute_configured(
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
     let mut details: BTreeMap<String, SetDetail> = BTreeMap::new();
     let mut gate = SlotGate {
-        command: invocation.command,
         err: &mut *err,
         events: &mut *out,
-        asked: false,
-        slot: None,
+        phase: dx_plan::slots::Phase::new(invocation.command),
     };
     for target in &resolved {
         if let Err(signo) = run_configured_target(
@@ -63,11 +61,10 @@ pub(super) fn execute_configured(
             &mut gate,
         ) {
             drop(gate);
-            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
-            return dx_process::interrupted_code(signo);
+            return crate::exec::cancelled(err, signo);
         }
     }
-    drop(gate.slot.take());
+    gate.phase.release();
     drop(gate);
     let selected: Vec<String> = resolved
         .iter()
@@ -242,7 +239,7 @@ fn run_configured_target(
     gate.before(&argv)?;
     let guarded = (mode == RunMode::Check && bazel).then(|| CheckGuard::take(workspace, set));
     let launched = if bazel {
-        match gate.slot.as_ref() {
+        match gate.phase.slot() {
             Some(slot) => {
                 dx_process::Runner::run(&slot.runner(runner), &argv, workspace, &env_refs)
             }

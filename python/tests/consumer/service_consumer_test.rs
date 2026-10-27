@@ -193,6 +193,7 @@ fn consumer() -> Case {
                 &pin(&versions, "FLOOR_ASPECT_RULES_PY"),
             ),
     );
+    nested::seed_rules_dx_lock(&root, &rules);
     write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(&root.join("BUILD.bazel"), ROOT_BUILD);
     nested::stage_consumer_maven_lock(&root);

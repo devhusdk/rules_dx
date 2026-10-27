@@ -113,10 +113,8 @@ fn consumer() -> Case {
             root.join("third_party/assets").display()
         ),
     );
-    write(
-        &root.join(".bazelrc"),
-        &dx_testing::preset_rc(&rules),
-    );
+    nested::seed_rules_dx_lock(&root, &rules);
+    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(&root.join("BUILD.bazel"), BUILD);
     write(&root.join("main.rs"), "fn main() {}\n");
     write(&root.join("site.bzl"), SITE_BZL);
@@ -151,11 +149,7 @@ fn a_renamed_rules_dx_deploys_inputs_from_a_renamed_repository() {
         checked.combined()
     );
 
-    let applied = dx(
-        &root,
-        &["--apply", "//:bundle", "--", target.as_str()],
-        &[],
-    );
+    let applied = dx(&root, &["--apply", "//:bundle", "--", target.as_str()], &[]);
     assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
     assert!(
         applied.stdout.contains("publishing nothing"),

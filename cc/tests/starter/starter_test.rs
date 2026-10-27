@@ -117,13 +117,11 @@ fn point_at_this_checkout(root: &Path) {
             rules.display()
         ),
     );
+    nested::seed_rules_dx_lock(root, &rules);
     let bazelrc = read(&root.join(".bazelrc"));
     write(
         &root.join(".bazelrc"),
-        &format!(
-            "{bazelrc}{}",
-            dx_testing::preset_rc(&rules)
-        ),
+        &format!("{bazelrc}{}", dx_testing::preset_rc(&rules)),
     );
 }
 

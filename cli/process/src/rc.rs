@@ -25,6 +25,59 @@ const GC_IDLE_DELAY_FLAG: &str = "--experimental_disk_cache_gc_idle_delay";
 /// Bazel's default `--experimental_disk_cache_gc_idle_delay`, in seconds.
 const BAZEL_GC_IDLE_DELAY_SECS: u64 = 300;
 
+/// The Bazel verbs dx adds `--local_resources` caps to.
+const RESOURCE_VERBS: [&str; 4] = ["build", "test", "coverage", "run"];
+
+/// A set of the verbs in `RESOURCE_VERBS`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VerbMask(u8);
+
+impl VerbMask {
+    pub const ALL: VerbMask = VerbMask(0b1111);
+    pub const NONE: VerbMask = VerbMask(0);
+
+    /// Whether `verb` is in the set.
+    pub fn contains(self, verb: &str) -> bool {
+        RESOURCE_VERBS
+            .iter()
+            .position(|known| *known == verb)
+            .is_some_and(|bit| self.0 & (1 << bit) != 0)
+    }
+
+    /// The set with `verb` added; other verbs are ignored.
+    pub fn with(self, verb: &str) -> VerbMask {
+        match RESOURCE_VERBS.iter().position(|known| *known == verb) {
+            Some(bit) => VerbMask(self.0 | (1 << bit)),
+            None => self,
+        }
+    }
+
+    /// The verbs where the effective rc options do not already set `resource` to a non-preset value.
+    fn where_rc_leaves_free(lines: &[sections::Line], resource: &str) -> VerbMask {
+        RESOURCE_VERBS
+            .iter()
+            .filter(|verb| {
+                let options = sections::effective_options(lines, verb, &[]);
+                !rc_resource_in_effect(&options, resource)
+            })
+            .fold(VerbMask::NONE, |mask, verb| mask.with(verb))
+    }
+}
+
+/// Whether the last `resource` setting in `options` is not the preset default.
+fn rc_resource_in_effect(options: &[String], resource: &str) -> bool {
+    let mut in_effect = false;
+    for (index, token) in options.iter().enumerate() {
+        let next = options.get(index + 1).map(String::as_str);
+        if !sets_local_resource(token, next, resource) {
+            continue;
+        }
+        in_effect = !local_resources_value(token, next)
+            .is_some_and(|value| PRESET_LOCAL_RESOURCES.contains(&value));
+    }
+    in_effect
+}
+
 /// The rc files dx lets Bazel read, the disk cache it adds, and which resource caps it may add.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RcPolicy {
@@ -32,8 +85,10 @@ pub struct RcPolicy {
     pub disk_cache: Option<String>,
     /// The disk cache a plain `build` uses: the rc value when an rc sets one, else dx's own.
     pub bazel_disk_cache: Option<PathBuf>,
-    pub local_cpu: bool,
-    pub local_memory: bool,
+    /// The verbs for which dx may add its `--local_resources=cpu` cap.
+    pub local_cpu: VerbMask,
+    /// The verbs for which dx may add its `--local_resources=memory` cap.
+    pub local_memory: VerbMask,
     /// Whether dx bounds its disk cache with the gc max size and max age pair.
     pub disk_cache_gc: bool,
     /// The gc idle delay dx adds so cleanup can run before an idle server exits.
@@ -45,8 +100,8 @@ static HERMETIC: RcPolicy = RcPolicy {
     disk_cache: None,
     bazel_disk_cache: None,
     // CI and nested tests skip user rc files but still honor the slot share.
-    local_cpu: true,
-    local_memory: true,
+    local_cpu: VerbMask::ALL,
+    local_memory: VerbMask::ALL,
     disk_cache_gc: false,
     gc_idle_delay_secs: None,
 };
@@ -154,18 +209,25 @@ impl RcPolicy {
             return RcPolicy::hermetic();
         }
         let roots = rc_roots(env_get, workspace);
-        let settings = disk_cache_settings(&roots, workspace, read_file);
-        let (disk_cache, bazel_disk_cache) = if settings.is_empty() {
-            let default = user_cache_dir(env_get).map(|cache| default_disk_cache(&cache));
-            (
-                default
-                    .as_ref()
-                    .map(|path| path.to_string_lossy().into_owned()),
-                default,
-            )
-        } else {
-            (None, resolve_disk_cache(&settings, env_get, workspace))
-        };
+        let lines = sections::load_rc(env_get, workspace, read_file, true, &[]);
+        // Any rc line naming a disk cache flag, in any section, means dx adds no cache.
+        let (disk_cache, bazel_disk_cache) =
+            if sections::any_line_sets(&lines, &["--disk_cache", "--nodisk_cache"]) {
+                let build = sections::effective_options(&lines, "build", &[]);
+                let value = sections::last_disk_cache(&build).flatten();
+                (
+                    None,
+                    value.map(|value| expand_path(value, env_get, workspace)),
+                )
+            } else {
+                let default = user_cache_dir(env_get).map(|cache| default_disk_cache(&cache));
+                (
+                    default
+                        .as_ref()
+                        .map(|path| path.to_string_lossy().into_owned()),
+                    default,
+                )
+            };
         let disk_cache_gc =
             disk_cache.is_some() && !rc_sets_disk_cache_gc(&roots, workspace, read_file);
         let gc_idle_delay_secs = if rc_sets_flag(&roots, workspace, read_file, GC_IDLE_DELAY_FLAG) {
@@ -177,8 +239,8 @@ impl RcPolicy {
             read_user_rc: true,
             disk_cache,
             bazel_disk_cache,
-            local_cpu: !rc_sets_local_resource(&roots, workspace, read_file, "cpu"),
-            local_memory: !rc_sets_local_resource(&roots, workspace, read_file, "memory"),
+            local_cpu: VerbMask::where_rc_leaves_free(&lines, "cpu"),
+            local_memory: VerbMask::where_rc_leaves_free(&lines, "memory"),
             disk_cache_gc,
             gc_idle_delay_secs,
         }
@@ -236,10 +298,10 @@ impl RcPolicy {
                 sets_local_resource(token, next, resource)
             })
         };
-        if self.local_cpu && !user_sets("cpu") {
+        if self.local_cpu.contains(bazel_command) && !user_sets("cpu") {
             options.push(format!("--local_resources=cpu={}", share.cpus));
         }
-        if self.local_memory && !user_sets("memory") {
+        if self.local_memory.contains(bazel_command) && !user_sets("memory") {
             options.push(format!("--local_resources=memory={}", share.memory_mb));
         }
         options
@@ -285,14 +347,6 @@ fn sets_local_resource(token: &str, next: Option<&str>, resource: &str) -> bool 
     local_resources_value(flag, next)
         .and_then(|value| value.strip_prefix(resource))
         .is_some_and(|rest| rest.starts_with('='))
-}
-
-/// Whether a flag token sets `resource` to anything but the preset default.
-fn overrides_preset(token: &str, next: Option<&str>, resource: &str) -> bool {
-    let flag = token.trim_start_matches(['"', '\'']);
-    sets_local_resource(flag, next, resource)
-        && !local_resources_value(flag, next)
-            .is_some_and(|value| PRESET_LOCAL_RESOURCES.contains(&value))
 }
 
 /// Sets the policy for this process; the first call wins.
@@ -359,70 +413,6 @@ fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<P
         roots.push(home.join(".bazelrc"));
     }
     roots
-}
-
-/// One `--disk_cache` or `--nodisk_cache` token in an rc file, with the line it came from.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Setting {
-    /// The first token of the line: the command, optionally with a `:config` suffix.
-    command: String,
-    /// The flag token itself.
-    flag: String,
-    /// The token after the flag, for the split `--disk_cache /x` form.
-    next: Option<String>,
-}
-
-/// Every disk cache flag in the rc files reachable from `roots`, in the order Bazel reads them.
-fn disk_cache_settings(
-    roots: &[PathBuf],
-    workspace: &Path,
-    read_file: &dyn Fn(&Path) -> Option<String>,
-) -> Vec<Setting> {
-    let mut settings = Vec::new();
-    let mut visit = |tokens: &[&str]| {
-        let command = tokens.first().copied().unwrap_or_default();
-        for (index, token) in tokens.iter().enumerate() {
-            if token.starts_with("--disk_cache") || token.starts_with("--nodisk_cache") {
-                settings.push(Setting {
-                    command: command.to_owned(),
-                    flag: (*token).to_owned(),
-                    next: tokens.get(index + 1).map(|next| (*next).to_owned()),
-                });
-            }
-        }
-        false
-    };
-    visit_roots(roots, workspace, read_file, &mut visit);
-    settings
-}
-
-/// The disk cache a plain `build` uses: `build` beats `common`, and the last line read wins.
-/// Config groups and other commands are ignored.
-fn resolve_disk_cache(
-    settings: &[Setting],
-    env_get: &dyn Fn(&str) -> Option<String>,
-    workspace: &Path,
-) -> Option<PathBuf> {
-    let mut winner: Option<(u8, Option<&str>)> = None;
-    for setting in settings {
-        let tier = match setting.command.as_str() {
-            "build" => 2,
-            "common" | "always" => 1,
-            _ => continue,
-        };
-        let value = if sets_flag(&setting.flag, "--nodisk_cache") {
-            None
-        } else if sets_flag(&setting.flag, "--disk_cache") {
-            flag_value(&setting.flag, setting.next.as_deref(), "--disk_cache")
-        } else {
-            continue;
-        };
-        if winner.is_none_or(|(best, _)| tier >= best) {
-            winner = Some((tier, value));
-        }
-    }
-    let value = winner?.1.filter(|value| !value.is_empty())?;
-    Some(expand_path(value, env_get, workspace))
 }
 
 /// The repository cache directories Bazel may use, most likely first, without duplicates.
@@ -552,17 +542,6 @@ fn rc_min_max_idle_secs(
     };
     visit_roots(roots, workspace, read_file, &mut visit);
     least
-}
-
-/// Whether any rc file reachable from `roots` sets `resource` to anything but the preset default.
-pub fn rc_sets_local_resource(
-    roots: &[PathBuf],
-    workspace: &Path,
-    read_file: &dyn Fn(&Path) -> Option<String>,
-    resource: &str,
-) -> bool {
-    let sets = |token: &str, next: Option<&str>| overrides_preset(token, next, resource);
-    scan_roots(roots, workspace, read_file, &sets)
 }
 
 type Matcher<'a> = dyn Fn(&str, Option<&str>) -> bool + 'a;

@@ -24,7 +24,7 @@ pub mod slot_pool;
 pub use rc::{
     build_verb_options, clear_share, clear_share_source, configure, configure_real, current,
     default_disk_cache, repository_caches, set_share, set_share_source, share, user_cache_dir,
-    LocalShare, RcPolicy, ShareToken, DISK_CACHE_GC_MAX_AGE, DISK_CACHE_GC_MAX_SIZE,
+    LocalShare, RcPolicy, ShareToken, VerbMask, DISK_CACHE_GC_MAX_AGE, DISK_CACHE_GC_MAX_SIZE,
     PRESET_LOCAL_RESOURCES,
 };
 pub use runner::{BinaryRunner, Holding};

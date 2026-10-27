@@ -30,7 +30,7 @@ pub trait Host {
     fn process_alive(&self, pid: u32) -> bool;
     fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
-    fn output_roots(&self) -> Vec<PathBuf>;
+    fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf>;
     /// Runs `bazel shutdown` in workspace; callers decide whether a server runs there.
     fn bazel_shutdown(&self, workspace: &Path);
     /// Whether no Bazel client holds the server's output-base lock; `None` when unknown.
@@ -527,9 +527,9 @@ impl Host for SystemHost {
         }
     }
 
-    fn output_roots(&self) -> Vec<PathBuf> {
+    fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf> {
         let mut roots = default_output_roots(&|name| std::env::var(name).ok());
-        for server in self.servers() {
+        for server in servers.iter().cloned() {
             if let Some(root) = server.output_user_root {
                 if !roots.contains(&root) {
                     roots.push(root);

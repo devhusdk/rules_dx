@@ -178,7 +178,7 @@ impl Host for FakeHost {
         self.servers.lock().expect("servers").clone()
     }
 
-    fn output_roots(&self) -> Vec<PathBuf> {
+    fn output_roots(&self, _servers: &[Server]) -> Vec<PathBuf> {
         self.root_scans.fetch_add(1, Ordering::SeqCst);
         self.roots.lock().expect("roots").clone()
     }

@@ -679,7 +679,7 @@ pub(crate) fn lease(
         std::fs::create_dir_all(pool.slot_path(slot)).map_err(WorktreeError::io)?;
     }
     pool.write(&placeholder)?;
-    let bases = scan_output_bases(&host.output_roots());
+    let bases = scan_output_bases(&host.output_roots(&host.servers()));
     for slot in &stale {
         // A stale slot that cannot be deleted stays recorded as broken; `add` goes on with its own slot.
         let _ = delete_slot(pool, host, *slot, &bases);
@@ -742,7 +742,7 @@ fn make_room(
     };
     if let Some(slot) = reuse {
         let path = pool.slot_path(slot);
-        let bases = scan_output_bases(&host.output_roots());
+        let bases = scan_output_bases(&host.output_roots(&host.servers()));
         let owned: Vec<&OutputBase> = bases_of(&bases, &path)
             .into_iter()
             .filter(|base| disk_low(host, &base.dir))
@@ -1103,7 +1103,7 @@ fn release_external(
         }
     }
     let _lock = pool.lock()?;
-    let bases = scan_output_bases(&host.output_roots());
+    let bases = scan_output_bases(&host.output_roots(&host.servers()));
     let _ = remove_external(pool, host, &checkout.path, &bases)?;
     Ok(Released {
         slot: None,
@@ -1218,7 +1218,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
     pool.forget_missing();
     let servers = host.servers();
     let bases = if disk {
-        scan_output_bases(&host.output_roots())
+        scan_output_bases(&host.output_roots(&servers))
     } else {
         Vec::new()
     };
@@ -1443,7 +1443,7 @@ pub(crate) fn prune_plan(
     pool.forget_missing();
     let now = host.now();
     let servers = host.servers();
-    let roots = host.output_roots();
+    let roots = host.output_roots(&servers);
     let bases = scan_output_bases(&roots);
     let nested_root = host.nested_root().map(|root| resolved(&root));
     let mut plan = PrunePlan::default();
@@ -1739,7 +1739,7 @@ pub(crate) fn prune_apply(
     plan: &PrunePlan,
     _lock: &dx_atomic_fs::lease::ExclusiveLease,
 ) -> Result<Applied, WorktreeError> {
-    let bases = scan_output_bases(&host.output_roots());
+    let bases = scan_output_bases(&host.output_roots(&host.servers()));
     let mut skipped_slots = Vec::new();
     let mut skipped = Vec::new();
     for slot in &plan.slots {
@@ -1948,7 +1948,7 @@ fn low_disk_reading(
     }
     let nested = host.nested_root().filter(|root| root.is_dir());
     let low = host
-        .output_roots()
+        .output_roots(&host.servers())
         .into_iter()
         .filter(|root| root.is_dir())
         .chain(nested)
@@ -2030,9 +2030,9 @@ fn reclaim_host_wide(
     host: &dyn Host,
     (disk, before): (PathBuf, DiskSpace),
 ) -> Reclaim {
-    let roots = host.output_roots();
-    let bases = scan_output_bases(&roots);
     let servers = host.servers();
+    let roots = host.output_roots(&servers);
+    let bases = scan_output_bases(&roots);
     let nested_root = host.nested_root().map(|root| resolved(&root));
     let mut orphans = 0usize;
     let mut slots: Vec<u32> = Vec::new();

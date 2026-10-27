@@ -161,7 +161,11 @@ exit `2`).
   toolchain or platform package. Those packages are the ones named by
   `register_toolchains` or `register_execution_platforms` in `MODULE.bazel`,
   or by `--extra_toolchains`, `--extra_execution_platforms`, `--platforms`,
-  or `--host_platform` in `.bazelrc`. It also widens to `//...` when a BUILD
+  or `--host_platform` in `.bazelrc`. The same applies to the rule
+  implementation behind a `toolchain(toolchain = ...)` target in those
+  packages: the BUILD file of a workspace label, or, for an `@repo` label,
+  the loaded `.bzl` files that name the repo and the `.bzl` files they
+  reference through `Label(...)`. It also widens to `//...` when a BUILD
   or `.bzl` file does not parse. A `.bzl` or `.scl` file nothing loads selects nothing.
   A deleted `.bzl` or `.scl` file selects the packages that still load it, or nothing.
 - dx prints each widening and its reason on stderr:

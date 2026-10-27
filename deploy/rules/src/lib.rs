@@ -2420,10 +2420,14 @@ fn oci_read_descriptors(
         .collect::<io::Result<Vec<String>>>()?;
     let mut bodies = oci_read_members(image, links, &names)?;
     let mut read = Vec::with_capacity(names.len());
-    for (name, digest) in names.iter().zip(&digests) {
-        let body = bodies
-            .remove(name)
-            .ok_or_else(|| oci_invalid(format!("image archive is missing its blob '{digest}'")))?;
+    for (position, (name, digest)) in names.iter().zip(&digests).enumerate() {
+        // A digest listed twice shares one body: clone until its last use.
+        let body = if names[position + 1..].contains(name) {
+            bodies.get(name).cloned()
+        } else {
+            bodies.remove(name)
+        }
+        .ok_or_else(|| oci_invalid(format!("image archive is missing its blob '{digest}'")))?;
         if format!("sha256:{}", dx_digest::sha256_hex(&body)) != *digest {
             return Err(oci_invalid(format!(
                 "image archive blob '{digest}' does not match its digest"
@@ -2432,6 +2436,16 @@ fn oci_read_descriptors(
         read.push(body);
     }
     Ok(read)
+}
+
+/// Drops descriptors repeating an earlier digest; the same manifest under two
+/// `ref.name` tags or listed twice in an index is one image.
+fn oci_dedupe_by_digest(descriptors: &mut Vec<serde_json::Value>) {
+    let mut seen = std::collections::HashSet::new();
+    descriptors.retain(|descriptor| match descriptor["digest"].as_str() {
+        Some(digest) => seen.insert(digest.to_owned()),
+        None => true,
+    });
 }
 
 /// Builds the read plan from an OCI layout index.json.
@@ -2470,6 +2484,7 @@ fn oci_index_plan(image: &Path, index: &[u8], links: &OciLinks) -> io::Result<Oc
                 "image archive nests indexes deeper than {OCI_INDEX_DEPTH} levels"
             )));
         }
+        oci_dedupe_by_digest(&mut nested);
         level = Vec::new();
         for body in oci_read_descriptors(image, links, &nested)? {
             let parsed: serde_json::Value = serde_json::from_slice(&body)
@@ -2482,6 +2497,7 @@ fn oci_index_plan(image: &Path, index: &[u8], links: &OciLinks) -> io::Result<Oc
             );
         }
     }
+    oci_dedupe_by_digest(&mut images);
     if images.len() != 1 {
         return Err(oci_invalid(format!(
             "image archive holds {} images; want exactly one",
@@ -6847,7 +6863,8 @@ mod tests {
             descriptor["digest"] = serde_json::json!(digest);
             oci_index_body(&[descriptor])
         };
-        let two = oci_index_body(&[image.clone(), image.clone()]);
+        let other = oci_descriptor("application/vnd.oci.image.manifest.v1+json", b"other");
+        let two = oci_index_body(&[image.clone(), other]);
         let gone = oci_index_body(&[missing]);
         let md5 = with_digest("md5:0123456789abcdef0123456789abcdef");
         let escape = with_digest("sha256:../x");
@@ -6980,6 +6997,38 @@ mod tests {
             oci_declared_image_id(&archive, "linux/amd64").expect("valid"),
             oci_digest(&fixture.config)
         );
+        // The same manifest under two tags, or twice in a nested index, is one image.
+        let mut tagged = Vec::new();
+        for tag in ["one", "two"] {
+            let mut descriptor = image.clone();
+            descriptor["annotations"] = serde_json::json!({"org.opencontainers.image.ref.name": tag});
+            tagged.push(descriptor);
+        }
+        let tagged_index = oci_index_body(&tagged);
+        let nested_body = oci_index_body(&[image.clone(), image.clone()]);
+        let nested_blob = oci_blob(&nested_body);
+        let nested_index = oci_index_body(&[oci_descriptor(
+            "application/vnd.oci.image.index.v1+json",
+            &nested_body,
+        )]);
+        let positives: Vec<(&str, Vec<(&str, &[u8])>)> = vec![
+            ("two tags", vec![("index.json", tagged_index.as_slice())]),
+            (
+                "nested twice",
+                vec![
+                    ("index.json", nested_index.as_slice()),
+                    (nested_blob.as_str(), nested_body.as_slice()),
+                ],
+            ),
+        ];
+        for (case, extra) in positives {
+            oci_index_tar(&archive, &layers, "amd64", false, &extra, &[]);
+            assert_eq!(
+                oci_declared_image_id(&archive, "linux/amd64").expect(case),
+                oci_digest(&fixture.config),
+                "{case}"
+            );
+        }
     }
 
     #[test]

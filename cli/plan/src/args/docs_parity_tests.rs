@@ -1883,6 +1883,32 @@ fn docs_name_the_advisory_refresh_command_the_errors_print() {
 }
 
 #[test]
+fn docs_name_the_uv_resolve_commands() {
+    use dx_update::backend::{
+        UV_BIN_VAR, UV_LABEL, UV_PYTHON_LABEL, UV_PYTHON_RESOLVE_COMMAND, UV_PYTHON_VAR,
+        UV_RESOLVE_COMMAND,
+    };
+    assert!(
+        UV_RESOLVE_COMMAND.contains(UV_LABEL),
+        "{UV_RESOLVE_COMMAND}"
+    );
+    assert!(
+        UV_RESOLVE_COMMAND.contains(UV_BIN_VAR),
+        "{UV_RESOLVE_COMMAND}"
+    );
+    assert!(UV_PYTHON_RESOLVE_COMMAND.contains(UV_PYTHON_LABEL));
+    assert!(UV_PYTHON_RESOLVE_COMMAND.contains(UV_PYTHON_VAR));
+    let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
+        .expect("audit page ships as test data");
+    for command in [UV_RESOLVE_COMMAND, UV_PYTHON_RESOLVE_COMMAND] {
+        assert!(
+            audit.contains(command),
+            "audit-update.md never names {command}"
+        );
+    }
+}
+
+#[test]
 fn docs_name_the_gitleaks_resolve_command_the_error_prints() {
     use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
     assert!(RESOLVE_COMMAND.contains(TOOL_LABEL), "{RESOLVE_COMMAND}");

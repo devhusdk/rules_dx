@@ -3,6 +3,13 @@ use dx_output::{dx_text_visible, ColorMode, OutputMode, Threshold};
 use super::profile::{resolve_profile, Profile};
 use super::Command;
 
+/// Typed marker that an invocation was handed off from an affected plan,
+/// carrying the planned test targets.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AffectedHandoff {
+    pub tests: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReportRequest {
     pub format: String,
@@ -243,7 +250,7 @@ pub struct Invocation {
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
-    pub test_targets: Option<Vec<String>>,
+    pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
     pub host: Option<String>,
@@ -433,7 +440,7 @@ impl Invocation {
 
     /// Reports whether the targets came from an affected plan.
     pub fn is_affected_plan(&self) -> bool {
-        self.test_targets.is_some()
+        self.affected_handoff.is_some()
     }
 
     pub fn umbrella_request(&self) -> Result<UmbrellaRequest, String> {
@@ -444,8 +451,8 @@ impl Invocation {
             ));
         }
         let affected = self.is_affected_plan();
-        let test = match (&self.test_targets, self.command) {
-            (Some(tests), Command::Check) if !tests.is_empty() => {
+        let test = match (&self.affected_handoff, self.command) {
+            (Some(AffectedHandoff { tests }), Command::Check) if !tests.is_empty() => {
                 let mut test = self.clone();
                 test.command = Command::Test;
                 test.check = false;
@@ -453,7 +460,7 @@ impl Invocation {
                 test.reports = Vec::new();
                 test.include_edits = false;
                 test.targets = tests.clone();
-                test.test_targets = None;
+                test.affected_handoff = None;
                 Some(Box::new(test))
             }
             _ => None,
@@ -615,7 +622,7 @@ mod tests {
             to: None,
             here: true,
             affected: false,
-            test_targets: None,
+            affected_handoff: None,
             serve: false,
             port: None,
             host: None,
@@ -662,7 +669,7 @@ mod tests {
     #[test]
     fn umbrella_phases_carry_the_user_scope() {
         let mut affected = invocation_for(Command::Check, &["//a:x", "//a:y"]);
-        affected.test_targets = Some(Vec::new());
+        affected.affected_handoff = Some(AffectedHandoff::default());
         let request = affected.umbrella_request().expect("umbrella");
         assert_eq!(request.scope, HintScope::Affected);
         let phase = request
@@ -708,7 +715,7 @@ mod tests {
     fn affected_fix_scopes_generate_apply_and_verify_to_packages() {
         let mut fix = invocation_for(Command::Fix, &["//a:x", "//b:y"]);
         fix.apply = true;
-        fix.test_targets = Some(Vec::new());
+        fix.affected_handoff = Some(AffectedHandoff::default());
         let request = fix.umbrella_request().expect("umbrella");
         let want = vec!["//a/...".to_owned(), "//b/...".to_owned()];
         let phase = request.phase_generate_request(Vec::new());
@@ -722,7 +729,7 @@ mod tests {
     #[test]
     fn affected_repo_scope_keeps_generate_repo_wide() {
         let mut check = invocation_for(Command::Check, &["//..."]);
-        check.test_targets = Some(Vec::new());
+        check.affected_handoff = Some(AffectedHandoff::default());
         let request = check.umbrella_request().expect("umbrella");
         assert_eq!(
             request.phase_generate_request(Vec::new()).targets,

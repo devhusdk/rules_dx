@@ -3750,7 +3750,7 @@ mod tests {
         let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
         inv.affected = false;
         inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
-        inv.test_targets = Some(Vec::new());
+        inv.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
         let (code, out, err) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 1, "{out}{err}");
         assert!(
@@ -3768,7 +3768,7 @@ mod tests {
         let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
         inv.affected = false;
         inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
-        inv.test_targets = Some(Vec::new());
+        inv.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
         let (code, out, err) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("Running generate for //test/..."), "{out}");

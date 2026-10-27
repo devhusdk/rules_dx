@@ -179,11 +179,12 @@ apple_ios_app_test(
 )
 ```
 
-`srcs` holds the native entry point that calls `UIApplicationMain`.
+`srcs` holds the native entry point that calls `UIApplicationMain`; set
+`entry` instead for a Swift `@main` module, never both.
 `library` is any target with `CcInfo` that links one static archive,
 such as `rust_static_library`. `frameworks` takes XCFramework imports;
 see [Consume an XCFramework](#consume-an-xcframework). The app needs
-`library`, `frameworks`, or both. Without `infoplists`, the app gets a
+`library`, `frameworks`, `entry`, or a mix. Without `infoplists`, the app gets a
 default `Info.plist`.
 
 Your `MODULE.bazel` needs the Rust simulator triple and the Xcode C/C++
@@ -234,8 +235,42 @@ The build fails before linking when:
   error names;
 - no Xcode resolves, as on a Linux host, or Bazel resolved a different
   Xcode than `xcode_version`;
-- `srcs`, `deployment`, `bundle_id`, or `version` is missing or
-  malformed, or both `library` and `frameworks` are empty.
+- `srcs` and `entry` are both empty or both set, `deployment`,
+  `bundle_id`, or `version` is missing or malformed, or `library`,
+  `frameworks`, and `entry` are all empty.
+
+### Swift apps
+
+`entry` takes any `CcInfo` or `SwiftInfo` target that holds the `@main`
+module, such as a rules_swift `swift_library`. rules_dx adds no
+rules_swift dependency; pin `rules_swift` in your own `MODULE.bazel`.
+`swift_library` keeps `alwayslink` on, so the `@main` module stays
+linked. Name the file something other than `main.swift`.
+
+```python
+apple_ios_app(
+    name = "ledger_app",
+    entry = ":ledger_main",
+    library = ":ledger_rust",
+    environment = "simulator",
+    bundle_id = "com.example.ledger",
+    version = "1.0",
+    deployment = "17.0",
+    xcode_version = "16.4",
+)
+
+apple_ios_app_test(
+    name = "ledger_app_test",
+    app = ":ledger_app",
+    deps = [":ledger_xctests"],
+    deployment = "17.0",
+    device_type = "iPhone 16",
+    os_version = "18.5",
+)
+```
+
+`apple_ios_app_test` takes `srcs` for native XCTest sources, `deps` for
+Swift XCTest modules, or both. Device execution stays pending.
 
 Simulator builds sign ad hoc; `provisioning_profile` fails there. On
 non-Apple hosts the app targets are incompatible and skip.

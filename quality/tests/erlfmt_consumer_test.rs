@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, Run};
 
 const DIRTY: &str = "-module(math).\n-export([add/2]).\n\nadd(A,B)->A+B.\n";

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, Run};
 
 pub const APP: &str = "//examples/qt-tasks/app:tasks";

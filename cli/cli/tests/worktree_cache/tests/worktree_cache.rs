@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::serde_json::{Deserializer, Value};
 use dx_testing::{resolve_runfiles, Run};
 

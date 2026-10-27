@@ -97,6 +97,7 @@ rust_test(
     target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [
         "//cli/digest:dx_digest",
+        "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
     ],
 )

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const APP: &str = "defaults: &defaults\n  retries: 3\n  region: eu\nservice:\n  settings: *defaults\n  name: api\n---\nsecond: 2\n";

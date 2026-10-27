@@ -4,8 +4,8 @@ mod macos;
 use std::path::{Path, PathBuf};
 
 use consumer::{consumer, fails_with, read, write};
+use dx_nested::Case;
 use dx_testing::mkscratch;
-use dx_testing::nested::Case;
 use macos::{
     bazel, installed_xcode, keep, passed, passes, runtime_for, tool, version, wait_for, Simulator,
 };

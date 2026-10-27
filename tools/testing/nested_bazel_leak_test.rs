@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
-use dx_testing::{mkscratch, nested, read_runfiles, resolve_runfiles, run};
+use dx_nested as nested;
+use dx_testing::{mkscratch, read_runfiles, resolve_runfiles, run};
 
 #[test]
 fn nested_servers_stop_when_their_test_binary_exits() {

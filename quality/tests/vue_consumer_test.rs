@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const HELLO_VUE: &str = "<template>\n  <div class=\"hello\">{{ message }}</div>\n</template>\n\n<script setup lang=\"ts\">\nconst message: string = \"world\";\n</script>\n\n<style scoped>\n.hello {\n  color: black;\n}\n</style>\n";

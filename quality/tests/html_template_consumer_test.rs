@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const LAYOUT: &str = "<!DOCTYPE html>\n<html lang=\"en\">\n    <head>\n        <meta name=\"description\" content=\"demo\">\n        <title>\n            {% block title %}{% endblock %}\n        </title>\n    </head>\n    <body>\n        {% block content %}{% endblock %}\n    </body>\n</html>\n";

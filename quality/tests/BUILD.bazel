@@ -73,7 +73,10 @@ rust_test(
     # Fetches the Qt SDK.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -106,7 +109,10 @@ rust_test(
     # Fetches erlfmt.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -138,7 +144,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -170,7 +179,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -203,7 +215,10 @@ rust_test(
     # Fetches the Zig toolchain.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -236,7 +251,10 @@ rust_test(
     # Fetches the Qt SDK.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -268,7 +286,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -300,7 +321,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -332,7 +356,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -364,7 +391,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -396,7 +426,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -428,7 +461,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -460,7 +496,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -492,7 +531,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -524,7 +566,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -559,7 +604,10 @@ rust_clippy_test(
         ],
         tags = NESTED_BAZEL_NETWORK_TAGS,
         target_compatible_with = _LINUX_X86_64,
-        deps = ["//tools/testing:dx_testing"],
+        deps = [
+            "//tools/testing:dx_nested",
+            "//tools/testing:dx_testing",
+        ],
     )
     for case in _CHECK_CONTINUATION_CASES
 ]
@@ -593,7 +641,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -625,7 +676,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -689,7 +743,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -721,7 +778,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -753,7 +813,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -785,7 +848,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -818,7 +884,10 @@ rust_test(
     # Fetches CSharpier and builds with the SDK analyzers.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -850,7 +919,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -882,7 +954,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -914,7 +989,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -954,7 +1032,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 # keep

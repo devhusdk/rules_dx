@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, sha256_file};
 
 const FIXTURE: &str = "android/sdk/tests/fetch/fixtures/android-ndk-r27-linux.zip";

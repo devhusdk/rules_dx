@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, rules_dx_source, Run};
 
 const POLICY: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")

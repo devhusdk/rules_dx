@@ -1,7 +1,7 @@
 mod common;
 
 use common::{consumer, dx, error_codes, events, finished, of_kind, results_json, Tamper};
-use dx_testing::nested::Case;
+use dx_nested::Case;
 use dx_testing::serde_json::Value;
 
 const CONSUMER: [&str; 2] = ["--", "--config=consumer"];

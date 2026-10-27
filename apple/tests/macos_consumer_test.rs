@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use consumer::{consumer, fails_with, module, read, write};
-use dx_testing::nested;
+use dx_nested as nested;
 use dx_testing::Run;
 
 const TOOLCHAINS: &str = r#"
@@ -252,7 +252,7 @@ fn build_version(binary: &Path) -> String {
     load
 }
 
-fn ledger(xcode: &str) -> dx_testing::nested::Case {
+fn ledger(xcode: &str) -> dx_nested::Case {
     let root = consumer("apple-macos-consumer", TOOLCHAINS, BAZELRC);
     write(&root.join("BUILD.bazel"), &BUILD.replace("XCODE", xcode));
     write(&root.join("ledger/BUILD.bazel"), LEDGER_BUILD);

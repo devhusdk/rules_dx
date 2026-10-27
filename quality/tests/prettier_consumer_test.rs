@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const SETTINGS_JSON5: &str = "{\n  // service settings\n  name: \"app\",\n  retries: 3,\n}\n";

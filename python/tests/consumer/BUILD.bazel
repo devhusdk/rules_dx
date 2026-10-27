@@ -22,7 +22,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(

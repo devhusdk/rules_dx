@@ -1,7 +1,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const GREET: &str = "package greet\n\nconst Mode = 0o644\n\nfunc Greet(name string) string {\n\treturn \"hello \" + name\n}\n";

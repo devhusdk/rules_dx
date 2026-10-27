@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, serde_json, Run};
 
 /// Writes `$XML_OUTPUT_FILE` in one mode; the mode only reaches the action under `--config=consumer`.

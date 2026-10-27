@@ -1,4 +1,4 @@
-use dx_testing::nested;
+use dx_nested as nested;
 use dx_testing::Run;
 use qt_board_support::*;
 

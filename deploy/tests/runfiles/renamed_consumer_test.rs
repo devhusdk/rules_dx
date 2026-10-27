@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, rules_dx_source, Run};
 
 const BUILD: &str = r#"load("@my_dx//deploy/rules:archive.bzl", "archive_deploy")

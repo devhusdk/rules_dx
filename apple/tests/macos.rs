@@ -3,7 +3,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use crate::consumer::write;
-use dx_testing::nested;
+use dx_nested as nested;
 use dx_testing::Run;
 
 pub fn tool(program: &str, args: &[&str]) -> String {

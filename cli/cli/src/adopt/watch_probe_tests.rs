@@ -191,21 +191,6 @@ impl Probe {
         format!("{:?} from signal to exit", self.exited)
     }
 
-    fn settled(&self, what: &str, done: impl Fn(&Probe) -> bool) {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        while !done(self) {
-            assert!(
-                Instant::now() < deadline,
-                "timed out waiting for {what} after dx exited ({})\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
-                self.exit_time(),
-                self.log(),
-                self.stdout(),
-                self.stderr()
-            );
-            std::thread::sleep(Duration::from_millis(20));
-        }
-    }
-
     fn stop(&mut self) -> ExitStatus {
         self.signal(libc::SIGINT, false);
         self.exit()
@@ -444,12 +429,15 @@ fn ctrl_c_during_a_command_stops_it_its_descendants_and_the_watch() {
             probe.exit_time(),
             probe.stderr()
         );
-        probe.settled(&format!("group={group}: the trap line"), |probe| {
-            probe.count("interrupted ") >= 1
-        });
-        probe.settled(
-            &format!("group={group}: descendant {descendant} to be gone"),
-            |_| !alive(descendant),
+        assert!(
+            probe.count("interrupted ") >= 1,
+            "group={group}: dx exited before the trap ran\nlog:\n{}",
+            probe.log()
+        );
+        assert!(
+            !alive(descendant),
+            "group={group}: descendant {descendant} survived dx exit\nlog:\n{}",
+            probe.log()
         );
         std::thread::sleep(Duration::from_millis(400));
         assert_eq!(probe.count("start "), 1, "no launch after the signal");
@@ -568,9 +556,11 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         "{status:?}\n{}",
         probe.stderr()
     );
-    probe.settled(&format!("the last app {current} to be gone"), |_| {
-        !alive(current)
-    });
+    assert!(
+        !alive(current),
+        "last app {current} survived dx exit\nlog:\n{}",
+        probe.log()
+    );
     std::thread::sleep(Duration::from_millis(400));
     assert_eq!(probe.count("start "), 6, "no launch after the signal");
 }

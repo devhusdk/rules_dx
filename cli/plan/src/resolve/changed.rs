@@ -442,13 +442,12 @@ fn is_crate_lock_input(extension: &Option<(String, String)>, tag: &str) -> bool 
 
 fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
     let hubs_of = |path: &Path| {
-        std::fs::read_to_string(path)
-            .ok()
-            .and_then(|text| {
-                let mut hubs = lock_inputs::crate_hubs(&text).ok()?;
-                hubs.extend(lock_inputs::pip_hubs(&text));
-                Some(hubs)
-            })
+        std::fs::read_to_string(path).ok().and_then(|text| {
+            let mut hubs = lock_inputs::crate_hubs(&text).ok()?;
+            hubs.extend(lock_inputs::pip_hubs(&text));
+            hubs.extend(lock_inputs::maven_hubs(&text));
+            Some(hubs)
+        })
     };
     let root_hubs = hubs_of(&workspace.join("MODULE.bazel"));
     let mut hubs = root_hubs.clone().unwrap_or_default();
@@ -999,7 +998,17 @@ pub fn resolve_affected(
                     crates,
                     aliases,
                     pip,
+                    maven,
                 } = change;
+                if *maven {
+                    seeds.extend(lock_inputs::maven_seeds(
+                        loaded.external_inputs(),
+                        hub,
+                        crates,
+                    ));
+                    repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
+                    continue;
+                }
                 if *pip {
                     seeds.extend(lock_inputs::pip_seeds(
                         loaded.external_inputs(),
@@ -1585,7 +1594,6 @@ mod tests {
             "pnpm-lock.yaml",
             "third_party/go/go.mod",
             "third_party/go/go.sum",
-            "third_party/jvm/maven_install.json",
             "py/requirements_linux.txt",
             "deps/go.MODULE.bazel",
         ] {

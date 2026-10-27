@@ -15,6 +15,8 @@ pub(crate) struct LockChange {
     pub(crate) aliases: BTreeSet<String>,
     /// The names are Python packages of a `pip.parse` hub, not crates.
     pub(crate) pip: bool,
+    /// The names are Maven artifacts of a `maven.install` hub.
+    pub(crate) maven: bool,
 }
 
 /// One `crate.from_cargo` hub with the lock files it reads.
@@ -25,6 +27,8 @@ pub(crate) struct Hub {
     pub(crate) lockfile: Option<String>,
     /// A `pip.parse` hub; `cargo_lockfile` then holds a requirements file.
     pub(crate) pip: bool,
+    /// A `maven.install` hub; `cargo_lockfile` then holds `lock_file`.
+    pub(crate) maven: bool,
 }
 
 /// The lock format of one changed path and the hubs it feeds.
@@ -33,13 +37,17 @@ pub(crate) enum LockKind {
     Cargo(Vec<String>),
     CrateBazelLock(Vec<String>),
     Pip(Vec<String>),
+    Maven(Vec<String>),
     Unknown,
 }
 
 impl LockKind {
     pub(crate) fn hubs(&self) -> &[String] {
         match self {
-            LockKind::Cargo(hubs) | LockKind::CrateBazelLock(hubs) | LockKind::Pip(hubs) => hubs,
+            LockKind::Cargo(hubs)
+            | LockKind::CrateBazelLock(hubs)
+            | LockKind::Pip(hubs)
+            | LockKind::Maven(hubs) => hubs,
             LockKind::Unknown => &[],
         }
     }
@@ -50,11 +58,19 @@ impl LockKind {
                 crates: changed_crates(base, head)?,
                 aliases: BTreeSet::new(),
                 pip: false,
+                maven: false,
             }),
             LockKind::Pip(_) => Ok(LockChange {
                 crates: changed_requirements(base, head),
                 aliases: BTreeSet::new(),
                 pip: true,
+                maven: false,
+            }),
+            LockKind::Maven(_) => Ok(LockChange {
+                crates: changed_maven_artifacts(base, head)?,
+                aliases: BTreeSet::new(),
+                pip: false,
+                maven: true,
             }),
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
             LockKind::Unknown => Err("unknown lock format".to_owned()),
@@ -164,6 +180,7 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
             cargo_lockfile: workspace_path(&cargo_lockfile)?,
             lockfile,
             pip: false,
+            maven: false,
         });
     }
     Ok(hubs)
@@ -409,6 +426,7 @@ pub(crate) fn changed_crates_from_bazel_lock(base: &str, head: &str) -> Result<L
         crates,
         aliases,
         pip: false,
+        maven: false,
     })
 }
 
@@ -508,6 +526,7 @@ pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
                     cargo_lockfile: path,
                     lockfile: None,
                     pip: true,
+                    maven: false,
                 });
             }
         }
@@ -602,13 +621,133 @@ pub(crate) fn pip_seeds<'a>(
                 return false;
             };
             if apparent_repo_matches(repo, hub) {
-                let package = target.split_once(':').map_or(target, |(package, _)| package);
+                let package = target
+                    .split_once(':')
+                    .map_or(target, |(package, _)| package);
                 let top = package.split('/').next().unwrap_or_default();
                 return forms.contains(&pip_name(top)) || forms.contains(top);
             }
             let last = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+            last.strip_prefix(&format!("{hub}_")).is_some_and(|rest| {
+                forms
+                    .iter()
+                    .any(|form| rest.ends_with(&format!("_{form}")) || rest == form)
+            })
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+const MAVEN_EXTENSION: &str = "extensions.bzl";
+
+/// `maven.install` hubs and their literal `lock_file`. Calls with computed
+/// arguments are skipped, so their files keep the wide fallback.
+pub(crate) fn maven_hubs(module_text: &str) -> Vec<Hub> {
+    let Ok(module) = ModuleFile::parse(module_text) else {
+        return Vec::new();
+    };
+    let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    for call in module.calls_named("use_extension") {
+        if call.unpacked {
+            continue;
+        }
+        let bzl = literal(call, "extension_bzl_file", Some(0))
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        let name = literal(call, "extension_name", Some(1))
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        if bzl.contains("rules_jvm_external") && bzl.ends_with(MAVEN_EXTENSION) && name == "maven" {
+            if let Some(binding) = &call.binding {
+                bindings.insert(binding);
+            }
+        }
+    }
+    let mut hubs = Vec::new();
+    for call in module.calls() {
+        let Some((binding, "install")) = call.name.split_once('.') else {
+            continue;
+        };
+        if !bindings.contains(binding) || call.unpacked {
+            continue;
+        }
+        let Ok(name) = literal(call, "name", None) else {
+            continue;
+        };
+        let Ok(Some(label)) = literal(call, "lock_file", None) else {
+            continue;
+        };
+        if let Ok(path) = workspace_path(&label) {
+            hubs.push(Hub {
+                name: name.unwrap_or_else(|| "maven".to_owned()),
+                cargo_lockfile: path,
+                lockfile: None,
+                pip: false,
+                maven: true,
+            });
+        }
+    }
+    hubs
+}
+
+/// Underscore form of a Maven coordinate, as used in repo and target names.
+fn maven_name(coordinate: &str) -> String {
+    coordinate.replace(['.', '-', ':'], "_")
+}
+
+fn maven_artifacts(text: &str) -> Result<BTreeMap<String, String>, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(text).map_err(|error| format!("invalid JSON: {error}"))?;
+    let artifacts = value
+        .get("artifacts")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "no artifacts table".to_owned())?;
+    Ok(artifacts
+        .iter()
+        .map(|(key, entry)| (maven_name(key), entry.to_string()))
+        .collect())
+}
+
+/// Artifacts added, removed or changed (version or checksum) between two
+/// `maven_install.json` files, by underscore name.
+pub(crate) fn changed_maven_artifacts(base: &str, head: &str) -> Result<ChangedCrates, String> {
+    let (base, head) = (maven_artifacts(base)?, maven_artifacts(head)?);
+    let mut out = ChangedCrates::new();
+    for name in base.keys().chain(head.keys()) {
+        if base.get(name) != head.get(name) {
+            out.entry(name.clone()).or_default();
+        }
+    }
+    Ok(out)
+}
+
+/// Labels of the changed artifacts in a `maven.install` hub, and in its
+/// per artifact repos (`<hub>_<artifact>`).
+pub(crate) fn maven_seeds<'a>(
+    labels: impl Iterator<Item = &'a str>,
+    hub: &str,
+    artifacts: &ChangedCrates,
+) -> Vec<String> {
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            let Some((repo, target)) = label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+            else {
+                return false;
+            };
+            if apparent_repo_matches(repo, hub) {
+                let name = target.rsplit_once(':').map_or(target, |(_, name)| name);
+                return artifacts.contains_key(name);
+            }
+            let last = repo.rsplit(['+', '~']).next().unwrap_or(repo);
             last.strip_prefix(&format!("{hub}_"))
-                .is_some_and(|rest| forms.iter().any(|form| rest.ends_with(&format!("_{form}")) || rest == form))
+                .is_some_and(|rest| artifacts.contains_key(rest))
         })
         .map(str::to_owned)
         .collect();
@@ -618,6 +757,14 @@ pub(crate) fn pip_seeds<'a>(
 }
 
 pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
+    let maven: Vec<String> = hubs
+        .iter()
+        .filter(|hub| hub.maven && hub.cargo_lockfile == path)
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !maven.is_empty() {
+        return LockKind::Maven(maven);
+    }
     let pip: Vec<String> = hubs
         .iter()
         .filter(|hub| hub.pip && hub.cargo_lockfile == path)
@@ -628,7 +775,7 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
     }
     let cargo: Vec<String> = hubs
         .iter()
-        .filter(|hub| !hub.pip && hub.cargo_lockfile == path)
+        .filter(|hub| !hub.pip && !hub.maven && hub.cargo_lockfile == path)
         .map(|hub| hub.name.clone())
         .collect();
     if !cargo.is_empty() {
@@ -636,7 +783,7 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
     }
     let bazel: Vec<String> = hubs
         .iter()
-        .filter(|hub| !hub.pip && hub.lockfile.as_deref() == Some(path))
+        .filter(|hub| !hub.pip && !hub.maven && hub.lockfile.as_deref() == Some(path))
         .map(|hub| hub.name.clone())
         .collect();
     if !bazel.is_empty() {
@@ -694,6 +841,28 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     }
 
     #[test]
+    fn maven_artifacts_diff_by_entry() {
+        let base = r#"{"artifacts":{"com.a:b-c":{"version":"1","shasums":{"jar":"x"}},"d:e":{"version":"2"}}}"#;
+        let head = r#"{"artifacts":{"com.a:b-c":{"version":"1","shasums":{"jar":"x"}},"d:e":{"version":"3"},"f:g":{"version":"1"}}}"#;
+        let changed = changed_maven_artifacts(base, head).expect("diff");
+        assert_eq!(changed.keys().cloned().collect::<Vec<_>>(), ["d_e", "f_g"]);
+        assert!(changed_maven_artifacts("{}", head).is_err());
+        let labels = [
+            "@@//:x",
+            "@@maven//:d_e",
+            "@@maven//:other",
+            "@@rules_jvm_external++maven+maven_f_g//jar:jar",
+        ];
+        assert_eq!(
+            maven_seeds(labels.iter().copied(), "maven", &changed),
+            [
+                "@@maven//:d_e",
+                "@@rules_jvm_external++maven+maven_f_g//jar:jar"
+            ]
+        );
+    }
+
+    #[test]
     fn crate_hubs_read_literal_from_cargo_calls() {
         let hubs = crate_hubs(MODULE).expect("hubs");
         assert_eq!(
@@ -704,12 +873,14 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                     cargo_lockfile: "Cargo.lock".to_owned(),
                     lockfile: Some("cargo-bazel-lock.json".to_owned()),
                     pip: false,
+                    maven: false,
                 },
                 Hub {
                     name: "tools".to_owned(),
                     cargo_lockfile: "tools/rust/Cargo.lock".to_owned(),
                     lockfile: None,
                     pip: false,
+                    maven: false,
                 },
             ]
         );

@@ -100,9 +100,10 @@ exit `2`).
   Other `*.bazelrc` files do not widen. So does a file that `MODULE.bazel` or an
   included segment names by label in an extension tag, repo rule, or
   override, such as `pnpm-lock.yaml`, `go.mod` and its `go.sum`,
-  `maven_install.json`, `requirements_lock.txt`, or a patch, and the included
-  segment itself. A `crate.from_cargo` lockfile in an included segment counts
-  as a lock input. When dx cannot read every value in `MODULE.bazel`, any
+  `requirements_lock.txt`, or a patch, and the included segment itself. A
+  `crate.from_cargo` lockfile in an included segment counts as a lock input,
+  as does the `lock_file` of a `maven.install` with literal arguments: only the
+  users of artifacts whose entry changed in `maven_install.json` are selected. When dx cannot read every value in `MODULE.bazel`, any
   `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`,
   `go.work.sum`, `maven_install.json`, or `requirements_lock.txt`, at any
   depth, widens to `//...`. A deleted, removed, or renamed-from file

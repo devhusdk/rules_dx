@@ -106,8 +106,9 @@ exit `2`).
   depth, widens to `//...`. A deleted, removed, or renamed-from file
   selects the targets that still name it. If no target names it, it widens to
   its package (for example `//pkg:all`) plus that package's reverse
-  dependencies. A `.bzl` file follows the `.bzl` rule below. An unowned file, or one outside any package, widens to the package
-  tree around it, such as `//pkg/...`.
+  dependencies. A `.bzl` file follows the `.bzl` rule below. An unowned file widens to the package
+  tree around it, such as `//pkg/...`. A file outside any package widens to
+  `//...`.
 - A changed `BUILD` or `BUILD.bazel` file selects every target in its package,
   plus its reverse dependencies. An added `BUILD` file widens to `//...`; a
   deleted one, or a deleted file outside any package, widens to `//...`.

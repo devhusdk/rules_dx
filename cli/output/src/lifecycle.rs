@@ -214,6 +214,7 @@ pub struct SlotEvent {
     pub holder: Option<String>,
     pub state: String,
     pub reason: Option<String>,
+    pub base: Option<String>,
     pub server: bool,
     pub disk_bytes: Option<u64>,
 }
@@ -237,6 +238,9 @@ pub fn slot_event(slot: &SlotEvent) -> Result<Value, OutputError> {
     map.insert("state".to_owned(), Value::String(slot.state.clone()));
     if let Some(reason) = &slot.reason {
         map.insert("reason".to_owned(), Value::String(reason.clone()));
+    }
+    if let Some(base) = &slot.base {
+        map.insert("base".to_owned(), Value::String(base.clone()));
     }
     map.insert("server".to_owned(), Value::Bool(slot.server));
     if let Some(bytes) = slot.disk_bytes {
@@ -1110,6 +1114,7 @@ mod tests {
             holder: None,
             state: "free".to_owned(),
             reason: None,
+            base: Some("origin/main".to_owned()),
             server: false,
             disk_bytes: Some(12),
         })
@@ -1118,6 +1123,7 @@ mod tests {
         assert_eq!(event["slot"], 1);
         assert_eq!(event["branch"], "topic");
         assert_eq!(event["disk_bytes"], 12);
+        assert_eq!(event["base"], "origin/main");
         assert!(event.get("holder").is_none());
         let unmeasured = slot_event(&SlotEvent {
             action: "list".to_owned(),
@@ -1127,11 +1133,13 @@ mod tests {
             holder: None,
             state: "free".to_owned(),
             reason: None,
+            base: None,
             server: false,
             disk_bytes: None,
         })
         .expect("event");
         assert!(unmeasured.get("disk_bytes").is_none());
+        assert!(unmeasured.get("base").is_none());
         let bad = slot_event(&SlotEvent {
             action: "list".to_owned(),
             path: String::new(),
@@ -1140,6 +1148,7 @@ mod tests {
             holder: None,
             state: "free".to_owned(),
             reason: None,
+            base: None,
             server: false,
             disk_bytes: None,
         });

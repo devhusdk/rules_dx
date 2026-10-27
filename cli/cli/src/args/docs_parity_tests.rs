@@ -704,12 +704,12 @@ fn readme_slot_event_lists_every_emitted_field() {
         holder: Some("agent".to_owned()),
         state: "held".to_owned(),
         reason: Some("dirty".to_owned()),
+        base: Some("origin/main".to_owned()),
         server: true,
         disk_bytes: Some(1),
     })
     .expect("slot event");
-    let mut event = event.as_object().expect("slot event is an object").clone();
-    event.insert("base".to_owned(), "origin/main".into());
+    let event = event.as_object().expect("slot event is an object");
     let bullet = readme_event_bullet("slot");
     let missing: Vec<&String> = event
         .keys()

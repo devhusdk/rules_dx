@@ -35,6 +35,7 @@ fn row_event(action: &str, row: &Row) -> serde_json::Value {
         holder: row.holder.clone(),
         state: row.state.name().to_owned(),
         reason: row.reason.map(str::to_owned),
+        base: None,
         server: row.server,
         disk_bytes: row.disk_bytes,
     })
@@ -56,6 +57,7 @@ fn simple_event(
         holder: None,
         state: state.to_owned(),
         reason: None,
+        base: None,
         server: false,
         disk_bytes: None,
     })
@@ -238,16 +240,19 @@ fn add_output(
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
         warning_events(out, &added.warnings)?;
-        let mut event = simple_event(
-            "add",
-            Some(added.slot),
-            &added.path,
-            Some(branch.to_owned()),
-            "held",
-        );
-        if let Some(base) = &added.base {
-            event["base"] = base.as_str().into();
-        }
+        let event = slot_event(&SlotEvent {
+            action: "add".to_owned(),
+            path: added.path.to_string_lossy().into_owned(),
+            slot: Some(added.slot),
+            branch: Some(branch.to_owned()),
+            holder: None,
+            state: "held".to_owned(),
+            reason: None,
+            base: added.base.clone(),
+            server: false,
+            disk_bytes: None,
+        })
+        .unwrap_or(serde_json::Value::Null);
         emit_event(out, &event)?;
     } else if invocation.path_only {
         warn_lines(err, &added.warnings);

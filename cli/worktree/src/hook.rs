@@ -164,7 +164,7 @@ pub fn branch_for(name: &str) -> String {
 }
 
 /// The first agent branch name no pool record holds, no checkout has, and
-/// origin does not carry (unless it is also local). `remote` is the live
+/// origin does not carry (unless it is also local with unmerged work). `remote` is the live
 /// origin branch set, or `None` to fall back to local `origin/*` refs.
 fn free_branch(
     main: &Path,
@@ -173,6 +173,7 @@ fn free_branch(
     checkouts: &[git::Checkout],
     remote: Option<&HashSet<String>>,
 ) -> String {
+    let base = git::default_base(main).ok();
     (1..)
         .map(|n| {
             if n == 1 {
@@ -190,7 +191,11 @@ fn free_branch(
                 return false;
             }
             if git::branch_exists(main, candidate) {
-                return true;
+                // A leftover already merged into the base is stale; one with
+                // unmerged commits stays reusable so resume-by-name works.
+                return base
+                    .as_deref()
+                    .is_none_or(|base| !git::branch_behind(main, candidate, base));
             }
             let on_origin = match remote {
                 Some(set) => set.contains(candidate),

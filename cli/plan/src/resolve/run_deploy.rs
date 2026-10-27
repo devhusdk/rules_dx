@@ -509,6 +509,8 @@ mod tests {
             FakeQuery::ok("//a:two\n//a:one\n"),
             FakeQuery::ok("@@//a:two|True\n@@//a:one|True\n"),
         ]);
+        dx_test_scratch::write(&workspace, "a/BUILD.bazel", "");
+        dx_test_scratch::write(&workspace, "b/BUILD.bazel", "");
         let got = resolve_run(&strings(&["//b/...", "//a/..."]), &workspace, &query, &[])
             .expect("cross-pattern");
         assert_eq!(
@@ -522,6 +524,7 @@ mod tests {
             FakeQuery::ok("//a:bin\n//a:other\n"),
             FakeQuery::ok("@@//a:bin|True\n@@//a:other|True\n"),
         ]);
+        dx_test_scratch::write(&workspace, "a/BUILD.bazel", "");
         let got =
             resolve_run(&strings(&["//a:bin", "//a/..."]), &workspace, &query, &[]).expect("dedup");
         assert_eq!(got, strings(&["//a:bin", "//a:other"]));

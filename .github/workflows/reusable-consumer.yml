@@ -157,13 +157,6 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
@@ -214,13 +207,6 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
@@ -271,13 +257,6 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
@@ -318,13 +297,6 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
@@ -363,13 +335,6 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Prepare one advisory snapshot set
         id: prepare
         run: |
@@ -426,13 +391,6 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Resolve hermetic Gitleaks
         run: |
           # shellcheck disable=SC2086
@@ -488,13 +446,6 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       # Audit backends run no Bazel and take no passthrough flags.
       - run: |
           # shellcheck disable=SC2086
@@ -540,13 +491,6 @@ jobs:
         if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
@@ -629,13 +573,6 @@ jobs:
         if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
@@ -725,13 +662,6 @@ jobs:
         if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - name: Verify rules_dx pin
-        env:
-          RULES_DX_PIN: ${{ inputs.rules_dx_version }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Run coverage with optional threshold
         env:
           DX_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}

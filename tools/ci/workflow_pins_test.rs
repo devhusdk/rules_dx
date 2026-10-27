@@ -173,10 +173,52 @@ fn is_job_key_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_')
 }
 
+/// Returns the job names a job body lists under `needs:`, inline or as a block list.
+fn needs(body: &str) -> Vec<String> {
+    let lines: Vec<&str> = body.lines().collect();
+    let Some(index) = lines.iter().position(|line| line.starts_with("    needs:")) else {
+        return Vec::new();
+    };
+    let value = lines[index].trim_start_matches("    needs:").trim();
+    if !value.is_empty() {
+        return value
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .split(',')
+            .map(|name| name.trim().to_owned())
+            .filter(|name| !name.is_empty())
+            .collect();
+    }
+    lines[index + 1..]
+        .iter()
+        .map_while(|line| line.trim().strip_prefix("- "))
+        .map(|name| name.trim().to_owned())
+        .collect()
+}
+
 #[test]
-fn every_checkout_job_verifies_the_rules_dx_pin() {
+fn needs_reads_inline_and_block_lists() {
+    assert_eq!(
+        needs("  a:\n    needs: [validate, lint]\n"),
+        ["validate", "lint"]
+    );
+    assert_eq!(needs("  a:\n    needs: validate\n"), ["validate"]);
+    assert_eq!(
+        needs("  a:\n    needs:\n      - one\n      - two\n    if: x\n"),
+        ["one", "two"]
+    );
+    assert!(needs("  a:\n    runs-on: x\n").is_empty());
+}
+
+#[test]
+fn every_checkout_job_verifies_the_pin_or_needs_a_job_that_does() {
     for workflow in REUSABLE {
         let jobs = jobs(workflow);
+        let pinned: Vec<&str> = jobs
+            .iter()
+            .filter(|(_, body)| body.matches(PIN_STEP).count() == 1)
+            .map(|(name, _)| name.as_str())
+            .collect();
         let checkout_jobs: Vec<&(String, String)> = jobs
             .iter()
             .filter(|(_, body)| body.contains("uses: actions/checkout@"))
@@ -187,12 +229,35 @@ fn every_checkout_job_verifies_the_rules_dx_pin() {
         );
         for (name, body) in checkout_jobs {
             let pins = body.matches(PIN_STEP).count();
+            if pins == 1 {
+                continue;
+            }
             assert_eq!(
-                pins, 1,
-                "{workflow} job {name} must carry exactly one {PIN_STEP:?} step, found {pins}"
+                pins, 0,
+                "{workflow} job {name} must carry at most one {PIN_STEP:?} step, found {pins}"
+            );
+            let needs = needs(body);
+            assert!(
+                needs.iter().any(|need| pinned.contains(&need.as_str())),
+                "{workflow} job {name} carries no {PIN_STEP:?} step and needs no job that does \
+                 (needs: {needs:?}, pinned: {pinned:?})"
             );
         }
     }
+}
+
+#[test]
+fn the_consumer_verifies_the_pin_once_in_validate() {
+    let workflow = "reusable-consumer.yml";
+    let pinned: Vec<String> = jobs(workflow)
+        .into_iter()
+        .flat_map(|(name, body)| vec![name; body.matches(PIN_STEP).count()])
+        .collect();
+    assert_eq!(
+        pinned,
+        ["validate"],
+        "{workflow} must run {PIN_STEP:?} exactly once, in validate"
+    );
 }
 
 /// Returns every pin step of a workflow, as the file lines of the step block.

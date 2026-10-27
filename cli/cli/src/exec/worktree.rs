@@ -774,6 +774,13 @@ fn create_output(out: &mut dyn Write, err: &mut dyn Write, added: &Added) -> i32
     }
 }
 
+fn remove_output(err: &mut dyn Write, released: Option<&Released>) -> i32 {
+    if let Some(released) = released {
+        warn_lines(err, &released.warnings);
+    }
+    0
+}
+
 fn run_hook(
     kind: HookKind,
     stdin: &str,
@@ -791,8 +798,9 @@ fn run_hook(
         HookKind::Stop => pool_hook(kind, stdin, workspace, err, |pool, input, _| {
             hook::stop(pool, who, input).map(|_| 0)
         }),
-        HookKind::Remove => pool_hook(kind, stdin, workspace, err, |pool, input, _| {
-            hook::remove(pool, host, who, input).map(|_| 0)
+        HookKind::Remove => pool_hook(kind, stdin, workspace, err, |pool, input, err| {
+            hook::remove(pool, host, who, input)
+                .map(|released| remove_output(err, released.as_ref()))
         }),
     }
 }
@@ -1123,6 +1131,42 @@ mod tests {
             stderr,
             "dx worktree: cannot fetch origin, using local refs: offline\n"
         );
+    }
+
+    fn render_remove(released: Option<&Released>) -> (i32, String) {
+        let mut err = Vec::new();
+        let code = remove_output(&mut err, released);
+        (code, String::from_utf8(err).expect("utf8"))
+    }
+
+    #[test]
+    fn hook_remove_writes_every_warning_in_order_and_none_without_warnings() {
+        let mut released = Released {
+            slot: Some(4),
+            path: PathBuf::from("/cache/slots/4"),
+            branch: Some("x".to_owned()),
+            already_free: false,
+            removed: false,
+            warnings: vec![
+                Warning {
+                    code: "disk_low",
+                    message: "low disk: 1 GiB free".to_owned(),
+                },
+                Warning {
+                    code: "disk_low",
+                    message: "second".to_owned(),
+                },
+            ],
+        };
+        let (code, stderr) = render_remove(Some(&released));
+        assert_eq!(code, 0);
+        assert_eq!(
+            stderr,
+            "dx worktree: low disk: 1 GiB free\ndx worktree: second\n"
+        );
+        released.warnings.clear();
+        assert_eq!(render_remove(Some(&released)), (0, String::new()));
+        assert_eq!(render_remove(None), (0, String::new()));
     }
 
     #[test]

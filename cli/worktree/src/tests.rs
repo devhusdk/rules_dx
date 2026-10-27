@@ -2998,7 +2998,7 @@ mod hooks {
         );
         let removal = serde_json::json!({"worktree_path": path});
         let freed = hook::remove(&pool, &host, &me, &removal).expect("remove");
-        assert_eq!(freed, Some(path.clone()));
+        assert_eq!(freed.map(|released| released.path), Some(path.clone()));
         let again = hook::create(&pool, &host, &me, &input)
             .expect("create again")
             .path;

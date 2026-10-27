@@ -223,3 +223,37 @@ fn a_second_slot_on_the_same_commit_hits_the_shared_disk_cache() {
     let left = nested::servers_in_workspaces(&scratch.cache);
     assert!(left.is_empty(), "slot servers survived release: {left:?}");
 }
+
+#[test]
+fn changing_local_resources_keeps_the_analysis_cache() {
+    let case = nested::case("worktree-cache-resources");
+    let scratch = fixture(&case);
+    let slot = add(&case, &scratch, "one");
+
+    let first = dx(
+        &case,
+        &scratch,
+        &slot,
+        &["build", "//pkg:all", "--", "--local_resources=cpu=2"],
+    );
+    ok(&first, "first build");
+    let second = dx(
+        &case,
+        &scratch,
+        &slot,
+        &["build", "//pkg:all", "--", "--local_resources=cpu=1"],
+    );
+    ok(&second, "second build");
+    let output = second.combined();
+    assert!(
+        output.contains("0 targets configured"),
+        "changing --local_resources re-analyzed the targets:\n{output}"
+    );
+    assert!(
+        !output.contains("Discarding analysis cache"),
+        "changing --local_resources discarded the analysis cache:\n{output}"
+    );
+
+    let released = dx(&case, &scratch, &slot, &["worktree", "release", "--force"]);
+    ok(&released, "release");
+}

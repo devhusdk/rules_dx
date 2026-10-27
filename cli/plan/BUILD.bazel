@@ -117,6 +117,8 @@ dx_rust_crate(
         "src/args/strict_tests.rs",
         "src/resolve/fake_query.rs",
     ],
+    # repin_all spells its `bazel run` with the shared settings from plan::bazel_argv.
+    visibility = VIS_CLI + ["//tools/repin_all:__pkg__"],
     deps = [
         "base64",
         "clap",

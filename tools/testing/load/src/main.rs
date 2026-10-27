@@ -163,6 +163,8 @@ fn die_with_driver(command: &mut Command) {
     }
 }
 
+// Callers pass only `version` and `info`, which take no build settings.
+#[allow(clippy::disallowed_methods)]
 fn bazel(dir: &Path, output_base: &Path, policy: &RcPolicy) -> Command {
     let argv = dx_process::startup_argv_with(
         policy,

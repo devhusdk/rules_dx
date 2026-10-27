@@ -33,15 +33,14 @@ _DX_KOTLIN_LIBRARY_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_DX_KOTLIN_SOURCE_SPECS = [("kotlin", ["kt", "kts"])]
-_DX_KOTLIN_SOURCE_EXTS = [".kt", ".kts"]
+_DX_KOTLIN_SOURCE_SPECS = [("kotlin", ["kt", "kts"]), ("java", "java")]
 
 _kotlin_library_forward = dx_library_forward_rule(
     provides = _DX_KOTLIN_LIBRARY_PROVIDES,
     required_providers = [(JavaInfo, "JavaInfo")],
     quality_specs = _DX_KOTLIN_SOURCE_SPECS,
     what = "kotlin_*",
-    allow_files = _DX_KOTLIN_SOURCE_EXTS,
+    allow_files = True,
     upstream_providers = [[JavaInfo]],
 )
 
@@ -51,7 +50,7 @@ _kotlin_binary_forward = dx_executable_forward_rule(
     required_providers = [],
     quality_specs = _DX_KOTLIN_SOURCE_SPECS,
     what = "kotlin_*",
-    allow_files = _DX_KOTLIN_SOURCE_EXTS,
+    allow_files = True,
     upstream_providers = [[JavaInfo]],
     optional_providers = [JavaInfo],
     runtime = "besteffort",
@@ -65,7 +64,7 @@ _kotlin_forward_test = dx_executable_forward_rule(
     required_providers = [],
     quality_specs = _DX_KOTLIN_SOURCE_SPECS,
     what = "kotlin_*",
-    allow_files = _DX_KOTLIN_SOURCE_EXTS,
+    allow_files = True,
     upstream_providers = [[JavaInfo]],
     extra_attrs = dx_lcov_merger_attr(),
     optional_providers = [JavaInfo],

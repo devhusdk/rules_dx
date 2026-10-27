@@ -1,0 +1,10 @@
+// Java source that the generated_srcjar genrule zips into a .srcjar.
+package hello;
+
+public final class Generated {
+  private Generated() {}
+
+  public static String generated() {
+    return "generated";
+  }
+}

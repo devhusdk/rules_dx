@@ -8,7 +8,7 @@ def kotlin_wrapper_contract_tests(name):
     """Instantiates Kotlin wrapper contract tests."""
     dx_wrapper_contract_tests(
         name,
-        file_classes = ["kotlin"],
+        file_classes = ["kotlin", "java"],
         extra_checks = [
             expect_equal(
                 "empty gains warnings-as-errors",

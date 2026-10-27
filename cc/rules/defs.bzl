@@ -3,10 +3,7 @@
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_library", _cc_test = "cc_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_test_coverage", "dx_wrap", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
-
-_CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
-_CC_HDRS = [".h", ".hh", ".hpp", ".hxx"]
+load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
 _DX_CC_LIBRARY_PROVIDES = [
     CcInfo,
@@ -15,21 +12,18 @@ _DX_CC_LIBRARY_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_DX_CC_SOURCE_SPECS = [
-    ("c", ["c", "h"]),
-    ("cpp", ["cc", "cpp", "cxx", "hh", "hpp", "hxx"]),
-]
+_DX_CC_SOURCE_SPECS = [(k, UPSTREAM_CC_CLASS_EXTENSIONS[k]) for k in ("c", "cpp")]
 
 _cc_library_forward = dx_library_forward_rule(
     provides = _DX_CC_LIBRARY_PROVIDES,
     required_providers = [(CcInfo, "CcInfo")],
     quality_specs = _DX_CC_SOURCE_SPECS,
     what = "cc_*",
-    allow_files = _CC_SRCS,
+    allow_files = True,
     upstream_providers = [[CcInfo]],
     extra_attrs = {
         "hdrs": attr.label_list(
-            allow_files = _CC_HDRS,
+            allow_files = True,
         ),
     },
     extra_quality_attrs = ["hdrs"],
@@ -41,7 +35,7 @@ _cc_binary_forward = dx_executable_forward_rule(
     required_providers = [],
     quality_specs = _DX_CC_SOURCE_SPECS,
     what = "cc_*",
-    allow_files = _CC_SRCS,
+    allow_files = True,
     upstream_providers = [[CcInfo]],
     optional_providers = [CcInfo],
     runtime = "besteffort",
@@ -74,7 +68,7 @@ _cc_forward_test = dx_executable_forward_rule(
     required_providers = [],
     quality_specs = _DX_CC_SOURCE_SPECS,
     what = "cc_*",
-    allow_files = _CC_SRCS,
+    allow_files = True,
     upstream_providers = [[CcInfo]],
     extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs(),
     optional_providers = [CcInfo],

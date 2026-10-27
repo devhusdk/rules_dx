@@ -40,6 +40,8 @@ build:linux --linkopt=-Wno-unused-command-line-argument
 build:linux --host_linkopt=-Wno-unused-command-line-argument
 build:macos --@rules_rust//rust/settings:pipelined_compilation=true
 build:windows --@rules_rust//rust/settings:pipelined_compilation=true
+# Statically link the MSVC CRT so Windows binaries need no vcruntime DLLs (#4021).
+build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+crt-static
 
 build --javacopt=-Werror
 build --javacopt=-Xlint:all

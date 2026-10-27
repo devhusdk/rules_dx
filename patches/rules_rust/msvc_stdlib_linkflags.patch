@@ -5,7 +5,7 @@
          "gnu": ["-lws2_32", "-luserenv", "-lbcrypt", "-lntdll", "-lsynchronization"],
          "gnullvm": ["-lws2_32", "-luserenv", "-lbcrypt", "-lntdll", "-lsynchronization"],
 -        "msvc": ["advapi32.lib", "ws2_32.lib", "userenv.lib", "Bcrypt.lib"],
-+        "msvc": ["kernel32.lib", "advapi32.lib", "ntdll.lib", "ws2_32.lib", "userenv.lib", "Bcrypt.lib", "msvcrt.lib"],
++        "msvc": ["kernel32.lib", "advapi32.lib", "ntdll.lib", "ws2_32.lib", "userenv.lib", "Bcrypt.lib"],
      },
  }
  

@@ -271,9 +271,14 @@ fn execution(tool_id: &str, detail: String) -> RunnerError {
 }
 
 fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerError> {
-    result.map_err(|err| RunnerError::ToolOutput {
-        tool_id: tool_id.to_owned(),
-        detail: err.to_string(),
+    result.map_err(|err| match err {
+        // An incomplete analysis means the tool could not do its job, not that
+        // its output was malformed.
+        ParseError::Incomplete { .. } => execution(tool_id, err.to_string()),
+        other => RunnerError::ToolOutput {
+            tool_id: tool_id.to_owned(),
+            detail: other.to_string(),
+        },
     })
 }
 
@@ -424,12 +429,48 @@ mod real_tools;
 #[cfg(test)]
 mod tests {
     use super::{
-        absolute_argv, javascript_manifest, own_runfiles_manifest, reads_own_manifest,
+        absolute_argv, javascript_manifest, own_runfiles_manifest, parsed, reads_own_manifest,
         resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, STYLELINT_DEFAULTS_BYTES,
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
     use std::path::Path;
+
+    use crate::RunnerError;
+    use quality_adapter::parsers::ParseError;
+
+    /// An incomplete analysis is an execution failure for every tool, never "invalid tool output".
+    #[test]
+    fn incomplete_analysis_is_a_tool_execution_failure() {
+        for tool in ["buf", "fantomas", "roslyn", "sarif"] {
+            let err = parsed::<()>(
+                tool,
+                Err(ParseError::Incomplete {
+                    tool: "tool",
+                    detail: "import failed".to_owned(),
+                }),
+            )
+            .expect_err("incomplete fails");
+            assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
+            let text = err.to_string();
+            assert!(!text.contains("invalid tool output"), "{text}");
+            assert!(text.contains("analysis was incomplete: import failed"), "{text}");
+        }
+    }
+
+    /// Other parse errors stay malformed-output failures.
+    #[test]
+    fn other_parse_errors_stay_tool_output_failures() {
+        let err = parsed::<()>(
+            "taplo",
+            Err(ParseError::Json {
+                tool: "taplo",
+                detail: "bad".to_owned(),
+            }),
+        )
+        .expect_err("json fails");
+        assert!(matches!(err, RunnerError::ToolOutput { .. }), "{err}");
+    }
 
     /// A tool starts in a scratch directory, so its own name is not enough to find runfiles.
     #[test]

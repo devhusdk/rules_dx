@@ -517,22 +517,17 @@ pub(super) fn rubocop_json(
 ) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(tool, stdout)?;
     check_output_size(tool, stderr)?;
-    let stderr = String::from_utf8_lossy(stderr);
-    let lines: Vec<String> = stderr
-        .lines()
-        .map(|line| mix_format::strip_ansi(line).trim().to_owned())
-        .collect();
-    let inspecting = lines.iter().find(|line| {
-        line.contains("An error occurred while ") && line.contains(" cop was inspecting ")
-    });
-    if let Some(crash) =
-        inspecting.or_else(|| lines.iter().find(|line| rubocop_error_summary(line)))
-    {
+    if let Some(crash) = rubocop_crash(stderr) {
         return Err(ParseError::Shape {
             tool,
             detail: format!("cop crashed: {crash}"),
         });
     }
+    let stderr = String::from_utf8_lossy(stderr);
+    let lines: Vec<String> = stderr
+        .lines()
+        .map(|line| mix_format::strip_ansi(line).trim().to_owned())
+        .collect();
     if !matches!(code, Some(0) | Some(1)) {
         let first = lines
             .iter()
@@ -646,6 +641,21 @@ pub(super) fn rubocop_json(
         });
     }
     Ok(findings)
+}
+
+/// Find the stderr line that shows a RuboCop cop crashed, shared by the check and fix paths.
+pub fn rubocop_crash(stderr: &[u8]) -> Option<String> {
+    let stderr = String::from_utf8_lossy(stderr);
+    let lines: Vec<String> = stderr
+        .lines()
+        .map(|line| mix_format::strip_ansi(line).trim().to_owned())
+        .collect();
+    let inspecting = lines.iter().find(|line| {
+        line.contains("An error occurred while ") && line.contains(" cop was inspecting ")
+    });
+    inspecting
+        .or_else(|| lines.iter().find(|line| rubocop_error_summary(line)))
+        .cloned()
 }
 
 /// Whether a stderr line is RuboCop's `N error(s) occurred:` crash summary.

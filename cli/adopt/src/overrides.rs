@@ -54,17 +54,6 @@ pub const OVERRIDES: &[Override] = &[
         ],
     },
     Override {
-        module: "rules_rust_wasm_bindgen",
-        version: "0.74.0",
-        patch_strip: 1,
-        patches: &[OverridePatch {
-            file: "no_wasm_coverage.patch",
-            content: include_str!(
-                "../../../patches/rules_rust_wasm_bindgen/no_wasm_coverage.patch"
-            ),
-        }],
-    },
-    Override {
         module: "rules_android",
         version: "0.6.6",
         patch_strip: 1,

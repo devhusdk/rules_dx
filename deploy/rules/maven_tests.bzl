@@ -1,7 +1,7 @@
 """Unit and analysis tests for the Maven Central publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_pom_error", "maven_repository_error", "maven_version_error")
+load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL", "maven_artifact_error", "maven_group_error", "maven_javadoc_error", "maven_jar_error", "maven_pom_error", "maven_repository_error", "maven_sources_error", "maven_version_error")
 
 def maven_unit_tests(name):
     starlark_test(
@@ -157,6 +157,29 @@ def maven_unit_tests(name):
                 maven_jar_error("maven_demo-0.0.0.pom"),
                 "maven_deploy: invalid jar 'maven_demo-0.0.0.pom': want a " +
                 "filename ending in .jar",
+            ),
+            expect_equal(
+                "maven_sources_error accepts a jar filename",
+                maven_sources_error("maven_demo-sources.jar"),
+                "",
+            ),
+            expect_equal(
+                "maven_sources_error rejects a non-jar filename",
+                maven_sources_error("sources.zip"),
+                "maven_deploy: invalid sources jar 'sources.zip': want a " +
+                "filename ending in .jar",
+            ),
+            expect_equal(
+                "maven_javadoc_error accepts a jar filename",
+                maven_javadoc_error("maven_demo-javadoc.jar"),
+                "",
+            ),
+            expect_equal(
+                "maven_javadoc_error rejects an unsafe filename",
+                maven_javadoc_error("a b.jar"),
+                "maven_deploy: invalid javadoc jar 'a b.jar': want no quotes, " +
+                "backslashes, spaces, or newlines so the filename embeds " +
+                "safely in the deploy launcher",
             ),
             expect_equal(
                 "maven_pom_error accepts a pinned pom filename",

@@ -1094,8 +1094,39 @@ java_library(
     aspect_hints = ["//quality:corpus_checkstyle_config"],
 )
 
+genrule(
+    name = "maven_demo_readme",
+    outs = ["maven_demo_readme/README.txt"],
+    cmd = "echo 'placeholder' > $@",
+)
+
+[
+    genrule(
+        name = "maven_demo_" + kind + "_jar",
+        srcs = [":maven_demo_readme"],
+        outs = ["maven_demo-" + kind + ".jar"],
+        cmd = "$(execpath @bazel_tools//tools/zip:zipper) c $@ README.txt=$<",
+        tools = ["@bazel_tools//tools/zip:zipper"],
+    )
+    for kind in [
+        "sources",
+        "javadoc",
+    ]
+]
+
 maven_deploy(
     name = "maven_demo",
+    artifact = "maven_demo",
+    group = "com.example",
+    javadoc = ":maven_demo_javadoc_jar",
+    jar = ":maven_demo_lib",
+    pom = "testdata/maven/maven_demo-0.0.0.pom",
+    sources = ":maven_demo_sources_jar",
+    version = "0.0.0",
+)
+
+maven_deploy(
+    name = "maven_demo_plain",
     artifact = "maven_demo",
     group = "com.example",
     jar = ":maven_demo_lib",
@@ -1108,6 +1139,11 @@ maven_unit_tests(name = "maven_unit")
 deploy_analysis_test(
     name = "maven_analysis",
     subject = "maven_demo",
+)
+
+deploy_analysis_test(
+    name = "maven_plain_analysis",
+    subject = "maven_demo_plain",
 )
 
 genrule(

@@ -49,11 +49,61 @@ pub fn maven_coordinates_check(group: &str, artifact: &str, version: &str) -> io
     Ok(())
 }
 
+/// Classifiers Central requires on every non-pom upload.
+pub const MAVEN_CENTRAL_CLASSIFIERS: [&str; 2] = ["sources", "javadoc"];
+
+/// The files of one Maven deployment.
+pub struct MavenFiles<'a> {
+    pub jar: &'a Path,
+    pub pom: &'a Path,
+    /// Extra jars as `(classifier, path)`, staged as `{artifact}-{version}-{classifier}.jar`.
+    pub classified: &'a [(&'a str, &'a Path)],
+}
+
+/// Names the Central-required classifiers missing from a classifier list.
+pub fn maven_central_completeness_error(classified: &[&str]) -> Option<String> {
+    let missing: Vec<&str> = MAVEN_CENTRAL_CLASSIFIERS
+        .into_iter()
+        .filter(|c| !classified.contains(c))
+        .collect();
+    if missing.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "maven_deploy: Central requires a -sources.jar and a -javadoc.jar; missing: {}; set the maven_deploy attrs (a jar holding only a README is accepted as a placeholder)",
+        missing.join(", ")
+    ))
+}
+
+fn maven_classifiers_check(classified: &[(&str, &Path)]) -> io::Result<()> {
+    let bad = |message: String| Err(io::Error::new(io::ErrorKind::InvalidInput, message));
+    let mut seen = std::collections::HashSet::new();
+    for (classifier, _) in classified {
+        if classifier.is_empty()
+            || !classifier
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+            || classifier.chars().all(|c| c == '.')
+        {
+            return bad(format!(
+                "maven file repo: invalid classifier '{classifier}': want [A-Za-z0-9._-] that is not only dots"
+            ));
+        }
+        if !seen.insert(*classifier) {
+            return bad(format!(
+                "maven file repo: duplicate classifier '{classifier}'"
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn maven_reject_symlinks(
     outdir: &Path,
     rel: &Path,
     artifact: &str,
     version: &str,
+    classifiers: &[&str],
 ) -> io::Result<()> {
     let mut current = outdir.to_path_buf();
     let check = |path: &Path| -> io::Result<()> {
@@ -72,10 +122,14 @@ fn maven_reject_symlinks(
         current.push(component);
         check(&current)?;
     }
-    for base in [
+    let mut bases = vec![
         format!("{artifact}-{version}.jar"),
         format!("{artifact}-{version}.pom"),
-    ] {
+    ];
+    for classifier in classifiers {
+        bases.push(format!("{artifact}-{version}-{classifier}.jar"));
+    }
+    for base in bases {
         check(&current.join(&base))?;
         for suffix in MAVEN_CHECKSUMS.into_iter().chain(["asc"]) {
             check(&current.join(format!("{base}.{suffix}")))?;
@@ -111,8 +165,7 @@ pub fn maven_checksums(bytes: &[u8]) -> [(&'static str, String); 4] {
 
 /// Builds one Maven file repo.
 pub fn maven_build_file_repo(
-    jar_src: &Path,
-    pom_src: &Path,
+    files: &MavenFiles<'_>,
     outdir: &Path,
     group: &str,
     artifact: &str,
@@ -120,11 +173,19 @@ pub fn maven_build_file_repo(
     signer: Option<&MavenSigner>,
 ) -> io::Result<PathBuf> {
     maven_coordinates_check(group, artifact, version)?;
+    maven_classifiers_check(files.classified)?;
+    let mut all_classifiers: Vec<&str> = files.classified.iter().map(|(c, _)| *c).collect();
+    for known in MAVEN_CENTRAL_CLASSIFIERS {
+        if !all_classifiers.contains(&known) {
+            all_classifiers.push(known);
+        }
+    }
+    let (jar_src, pom_src) = (files.jar, files.pom);
     let rel = PathBuf::from(artifact.to_owned() + "-repo")
         .join(maven_group_path(group))
         .join(artifact)
         .join(version);
-    maven_reject_symlinks(outdir, &rel, artifact, version)?;
+    maven_reject_symlinks(outdir, &rel, artifact, version, &all_classifiers)?;
     let pom_bytes = std::fs::read(pom_src)?;
     if let Some(error) = maven_pom_metadata_error(&pom_bytes, group, artifact, version) {
         return Err(io::Error::new(
@@ -140,7 +201,29 @@ pub fn maven_build_file_repo(
     std::fs::create_dir_all(&dest_dir)?;
     let jar_base = format!("{artifact}-{version}.jar");
     let pom_base = format!("{artifact}-{version}.pom");
-    for (src, base) in [(jar_src, jar_base), (pom_src, pom_base)] {
+    // Drop stale Central classifier files that this run does not restage.
+    for known in MAVEN_CENTRAL_CLASSIFIERS {
+        if files.classified.iter().any(|(c, _)| *c == known) {
+            continue;
+        }
+        let base = format!("{artifact}-{version}-{known}.jar");
+        for name in std::iter::once(base.clone()).chain(
+            MAVEN_CHECKSUMS
+                .into_iter()
+                .chain(["asc"])
+                .map(|suffix| format!("{base}.{suffix}")),
+        ) {
+            let stale = dest_dir.join(name);
+            if stale.is_file() {
+                std::fs::remove_file(&stale)?;
+            }
+        }
+    }
+    let mut staged = vec![(jar_src, jar_base), (pom_src, pom_base)];
+    for (classifier, src) in files.classified {
+        staged.push((*src, format!("{artifact}-{version}-{classifier}.jar")));
+    }
+    for (src, base) in staged {
         let dest = dest_dir.join(&base);
         copy_verified(src, &dest)?;
         let bytes = std::fs::read(&dest)?;
@@ -559,16 +642,31 @@ pub fn maven_live_gate(
     })
 }
 
+/// The values a generated Maven launcher passes to [`maven_main`].
+/// An empty rlocation means the optional file is absent.
+pub struct MavenLaunch<'a> {
+    pub jar_rloc: &'a str,
+    pub pom_rloc: &'a str,
+    pub sources_rloc: &'a str,
+    pub javadoc_rloc: &'a str,
+    pub group: &'a str,
+    pub artifact: &'a str,
+    pub version: &'a str,
+    pub repository_url: &'a str,
+}
+
 /// Runs the Maven deploy launcher.
-pub fn maven_main(
-    jar_rloc: &str,
-    pom_rloc: &str,
-    group: &str,
-    artifact: &str,
-    version: &str,
-    repository_url: &str,
-    argv: &[String],
-) -> i32 {
+pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
+    let MavenLaunch {
+        jar_rloc,
+        pom_rloc,
+        sources_rloc,
+        javadoc_rloc,
+        group,
+        artifact,
+        version,
+        repository_url,
+    } = *spec;
     if argv.len() > 2 {
         eprintln!(
             "maven_deploy: this deploy target takes at most an output directory; the file repo is exactly the files pinned at analysis time"
@@ -593,6 +691,22 @@ pub fn maven_main(
     let Some(pom) = run.resolve(pom_rloc) else {
         return 1;
     };
+    let mut extra: Vec<(&str, PathBuf)> = Vec::new();
+    for (classifier, rloc) in [("sources", sources_rloc), ("javadoc", javadoc_rloc)] {
+        if rloc.is_empty() {
+            continue;
+        }
+        let Some(path) = run.resolve(rloc) else {
+            return 1;
+        };
+        extra.push((classifier, path));
+    }
+    let classified: Vec<(&str, &Path)> = extra.iter().map(|(c, p)| (*c, p.as_path())).collect();
+    let files = MavenFiles {
+        jar: &jar,
+        pom: &pom,
+        classified: &classified,
+    };
     if MAVEN_GATE.requested(env_or_empty) {
         let live = match maven_live_gate(&env_or_empty, version, repository_url) {
             Ok(live) => live,
@@ -601,6 +715,11 @@ pub fn maven_main(
                 return 1;
             }
         };
+        let names: Vec<&str> = classified.iter().map(|(c, _)| *c).collect();
+        if let Some(error) = maven_central_completeness_error(&names) {
+            eprintln!("{error}");
+            return 1;
+        }
         let workdir = match tempfile_stage_dir("maven-deploy-") {
             Ok(dir) => dir,
             Err(error) => {
@@ -609,8 +728,7 @@ pub fn maven_main(
             }
         };
         let bundle = maven_build_file_repo(
-            &jar,
-            &pom,
+            &files,
             &workdir,
             group,
             artifact,
@@ -667,8 +785,7 @@ pub fn maven_main(
         }
     };
     match maven_build_file_repo(
-        &jar,
-        &pom,
+        &files,
         outdir,
         group,
         artifact,
@@ -681,6 +798,10 @@ pub fn maven_main(
             println!("  repo: {}", house.display());
             println!("  url: file://{}", house.display());
             println!("  signed: {}", if signer.is_some() { "yes" } else { "no" });
+            for known in MAVEN_CENTRAL_CLASSIFIERS {
+                let present = classified.iter().any(|(c, _)| *c == known);
+                println!("  {known}: {}", if present { "yes" } else { "no" });
+            }
             0
         }
         Err(error) => {
@@ -790,9 +911,7 @@ pub(crate) mod tests {
         assert!(jar_bytes.starts_with(b"PK\x03\x04"), "jar is not a zip");
         let (secret, public) = test_key(true);
         let signer = MavenSigner::from_armored(&secret, PASSPHRASE).expect("signer");
-        let house = maven_build_file_repo(
-            &jar,
-            &pom,
+        let house = maven_build_file_repo(&MavenFiles { jar: &jar, pom: &pom, classified: &[] },
             scratch.path(),
             "com.example",
             "maven_demo",
@@ -822,9 +941,7 @@ pub(crate) mod tests {
             tampered[0] ^= 1;
             assert!(maven_verify_detached(&public, &tampered, &asc).is_err());
         }
-        let unsigned = maven_build_file_repo(
-            &jar,
-            &pom,
+        let unsigned = maven_build_file_repo(&MavenFiles { jar: &jar, pom: &pom, classified: &[] },
             scratch.path(),
             "com.example",
             "maven_demo",
@@ -1113,9 +1230,7 @@ pub(crate) mod tests {
         std::fs::write(&pom, central_pom("com.example", "maven_demo", "1.0.0")).expect("pom");
         let outdir = scratch.join("out");
         std::fs::create_dir_all(&outdir).expect("outdir");
-        maven_build_file_repo(
-            &jar,
-            &pom,
+        maven_build_file_repo(&MavenFiles { jar: &jar, pom: &pom, classified: &[] },
             &outdir,
             "com.example",
             "maven_demo",
@@ -1308,12 +1423,16 @@ pub(crate) mod tests {
         vars.push(("DX_PROFILE", Some("dx_dev")));
         let run = || {
             maven_main(
-                &jar,
-                &pom,
-                "com.example",
-                "maven_demo",
-                "0.0.0",
-                MAVEN_DEFAULT_REPOSITORY_URL,
+                &MavenLaunch {
+                    jar_rloc: &jar,
+                    pom_rloc: &pom,
+                    sources_rloc: "",
+                    javadoc_rloc: "",
+                    group: "com.example",
+                    artifact: "maven_demo",
+                    version: "0.0.0",
+                    repository_url: MAVEN_DEFAULT_REPOSITORY_URL,
+                },
                 &argv,
             )
         };
@@ -1357,9 +1476,7 @@ pub(crate) mod tests {
         std::fs::write(&pom, central_pom("com.example", "maven_demo", "0.0.0")).expect("write pom");
         let outdir = scratch.path().join("out");
         std::fs::create_dir_all(&outdir).expect("outdir");
-        let house = maven_build_file_repo(
-            &jar,
-            &pom,
+        let house = maven_build_file_repo(&MavenFiles { jar: &jar, pom: &pom, classified: &[] },
             &outdir,
             "com.example",
             "maven_demo",
@@ -1399,7 +1516,7 @@ pub(crate) mod tests {
         let outdir = scratch.path().join("out");
         std::fs::create_dir_all(&outdir).expect("outdir");
         for (group, artifact, version) in [("", "a", "1"), ("g", "", "1"), ("g", "a", "")] {
-            let error = maven_build_file_repo(&jar, &pom, &outdir, group, artifact, version, None)
+            let error = maven_build_file_repo(&MavenFiles { jar: &jar, pom: &pom, classified: &[] }, &outdir, group, artifact, version, None)
                 .expect_err("empty coordinate");
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
         }
@@ -1428,7 +1545,7 @@ pub(crate) mod tests {
             ("g", "a", ".."),
             ("g", "a", "../x"),
         ] {
-            let error = maven_build_file_repo(&jar, &pom, &outdir, group, artifact, version, None)
+            let error = maven_build_file_repo(&MavenFiles { jar: &jar, pom: &pom, classified: &[] }, &outdir, group, artifact, version, None)
                 .expect_err("escaping coordinate");
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
         }
@@ -1449,9 +1566,7 @@ pub(crate) mod tests {
             .expect("write pom");
         let outdir = scratch.path().join("out");
         std::fs::create_dir_all(&outdir).expect("outdir");
-        let house = maven_build_file_repo(
-            &jar,
-            &pom,
+        let house = maven_build_file_repo(&MavenFiles { jar: &jar, pom: &pom, classified: &[] },
             &outdir,
             "com.example",
             "demo",
@@ -1463,6 +1578,110 @@ pub(crate) mod tests {
         assert!(dir.join("demo-1.0-SNAPSHOT+b5.jar").is_file());
         assert!(dir.join("demo-1.0-SNAPSHOT+b5.pom.sha256").is_file());
         assert!(house.join("com/example/demo/maven-metadata.xml").is_file());
+    }
+
+    fn classified_inputs(scratch: &Path) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
+        let jar = scratch.join("in.jar");
+        std::fs::write(&jar, b"jar").expect("jar");
+        let pom = scratch.join("in.pom");
+        std::fs::write(&pom, central_pom("com.example", "demo", "1")).expect("pom");
+        let src = scratch.join("s.jar");
+        std::fs::write(&src, b"sources").expect("src");
+        let doc = scratch.join("d.jar");
+        std::fs::write(&doc, b"javadoc").expect("doc");
+        (jar, pom, src, doc)
+    }
+
+    #[test]
+    fn maven_classified_jars_are_staged_checksummed_and_bundled() {
+        let scratch = scratch_dir();
+        let (jar, pom, src, doc) = classified_inputs(scratch.path());
+        let out = scratch.path().join("out");
+        std::fs::create_dir_all(&out).expect("out");
+        let (secret, public) = test_key(true);
+        let signer = MavenSigner::from_armored(&secret, PASSPHRASE).expect("signer");
+        let classified = [("sources", src.as_path()), ("javadoc", doc.as_path())];
+        let files = MavenFiles { jar: &jar, pom: &pom, classified: &classified };
+        let house = maven_build_file_repo(&files, &out, "com.example", "demo", "1", Some(&signer))
+            .expect("repo");
+        let dir = house.join("com/example/demo/1");
+        for base in ["demo-1-sources.jar", "demo-1-javadoc.jar"] {
+            for suffix in MAVEN_CHECKSUMS {
+                assert!(dir.join(format!("{base}.{suffix}")).is_file(), "{base}.{suffix}");
+            }
+            let bytes = std::fs::read(dir.join(base)).expect("bytes");
+            let asc = std::fs::read_to_string(dir.join(format!("{base}.asc"))).expect("asc");
+            maven_verify_detached(&public, &bytes, &asc).expect("verifies");
+        }
+        let first = maven_bundle_zip(&house).expect("zip");
+        assert_eq!(first, maven_bundle_zip(&house).expect("zip again"));
+        let archive = zip::ZipArchive::new(std::io::Cursor::new(first)).expect("archive");
+        let names: Vec<String> = archive
+            .file_names()
+            .map(|n| n.expect("name").into_owned())
+            .collect();
+        for want in ["demo-1-sources.jar", "demo-1-javadoc.jar.asc", "demo-1-sources.jar.sha512"] {
+            assert!(names.iter().any(|n| n.ends_with(want)), "{want} in {names:?}");
+        }
+        // Restaging without sources removes the stale sources files.
+        let classified = [("javadoc", doc.as_path())];
+        let files = MavenFiles { jar: &jar, pom: &pom, classified: &classified };
+        maven_build_file_repo(&files, &out, "com.example", "demo", "1", None).expect("restage");
+        assert!(!dir.join("demo-1-sources.jar").exists());
+        assert!(!dir.join("demo-1-sources.jar.sha1").exists());
+        assert!(!dir.join("demo-1-sources.jar.asc").exists());
+        assert!(!dir.join("demo-1-javadoc.jar.asc").exists());
+        assert!(dir.join("demo-1-javadoc.jar").is_file());
+    }
+
+    #[test]
+    fn maven_bad_classifiers_are_rejected() {
+        let scratch = scratch_dir();
+        let (jar, pom, src, _) = classified_inputs(scratch.path());
+        let out = scratch.path().join("out");
+        std::fs::create_dir_all(&out).expect("out");
+        for classified in [
+            vec![("", src.as_path())],
+            vec![("..", src.as_path())],
+            vec![("a/b", src.as_path())],
+            vec![("sources", src.as_path()), ("sources", src.as_path())],
+        ] {
+            let files = MavenFiles { jar: &jar, pom: &pom, classified: &classified };
+            let error = maven_build_file_repo(&files, &out, "com.example", "demo", "1", None)
+                .expect_err("rejected");
+            assert!(error.to_string().contains("classifier"), "{error}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn maven_symlinked_classified_jar_is_refused() {
+        let scratch = scratch_dir();
+        let (jar, pom, src, _) = classified_inputs(scratch.path());
+        let out = scratch.path().join("out");
+        let dir = out.join("demo-repo/com/example/demo/1");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let victim = scratch.path().join("victim");
+        std::fs::write(&victim, b"keep").expect("victim");
+        std::os::unix::fs::symlink(&victim, dir.join("demo-1-sources.jar")).expect("link");
+        let classified = [("sources", src.as_path())];
+        let files = MavenFiles { jar: &jar, pom: &pom, classified: &classified };
+        let error = maven_build_file_repo(&files, &out, "com.example", "demo", "1", None)
+            .expect_err("symlink");
+        assert!(error.to_string().contains("refusing symlink"), "{error}");
+        assert_eq!(std::fs::read(&victim).expect("read"), b"keep");
+        // Also refused when the staged set omits sources.
+        let files = MavenFiles { jar: &jar, pom: &pom, classified: &[] };
+        assert!(maven_build_file_repo(&files, &out, "com.example", "demo", "1", None).is_err());
+    }
+
+    #[test]
+    fn maven_central_completeness_cases() {
+        assert_eq!(maven_central_completeness_error(&["javadoc", "sources"]), None);
+        let one = maven_central_completeness_error(&["sources"]).expect("error");
+        assert!(one.contains("missing: javadoc"), "{one}");
+        let both = maven_central_completeness_error(&[]).expect("error");
+        assert!(both.contains("missing: sources, javadoc"), "{both}");
     }
 
     #[cfg(unix)]
@@ -1479,7 +1698,7 @@ pub(crate) mod tests {
         std::fs::create_dir_all(&outside).expect("outside");
         std::fs::write(outside.join("sentinel"), b"keep").expect("sentinel");
         std::os::unix::fs::symlink(&outside, outdir.join("demo-repo")).expect("link");
-        let error = maven_build_file_repo(&jar, &pom, &outdir, "com.example", "demo", "1", None)
+        let error = maven_build_file_repo(&MavenFiles { jar: &jar, pom: &pom, classified: &[] }, &outdir, "com.example", "demo", "1", None)
             .expect_err("symlinked repo");
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
         assert_eq!(std::fs::read_dir(&outside).expect("list").count(), 1);

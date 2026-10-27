@@ -17,6 +17,12 @@ maven_deploy(
 
 - `jar`, `pom`: required. The files to upload.
 - `group`, `artifact`: required. The Maven coordinates.
+- `sources`, `javadoc`: optional single `.jar` targets staged as
+  `<artifact>-<version>-sources.jar` and `-javadoc.jar`, each with md5, sha1,
+  sha256, sha512 and (when signing) `.asc`. Central requires both, so a live
+  upload refuses before any network call when either is missing. Local staging
+  works without them and prints `sources: yes|no` and `javadoc: yes|no`. A jar
+  that holds only a README is accepted by Central as a placeholder.
 - `version`: defaults to `0.0.0`.
 - `repository_url`: defaults to the Central Portal Publisher API below. No
   other host is accepted.

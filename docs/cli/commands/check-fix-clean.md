@@ -31,8 +31,8 @@ output: a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
 - Outside a Git checkout the check is skipped.
 - If Git fails, the command exits `2` with code `build_output_git_failed`.
 
-Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
-`--affected` limits the first three to targets your git changes reach (see
+Runs `generate`, then `format`, then `lint`, then `typecheck` in order.
+`--affected` limits `format`, `lint`, and `typecheck` to targets your git changes reach (see
 [Scope Defaults](scope-defaults.md)), runs `generate` on the packages of those
 targets, or on the whole repo when the scope widens to `//...`, and makes
 `dx check` run the affected tests as a last `test` phase. It skips that phase when no test is affected. With
@@ -65,8 +65,8 @@ reports every phase. The run still exits nonzero, and a later clean phase
 never clears it. The run stops, and marks the remaining phases skipped, only
 on a bad scope or configuration, when Bazel cannot run (it fails to launch, is
 killed by a signal, or the disk is full), or on a cancel. A phase whose only
-failures are compile errors does not stop `dx check`, but it stops `dx fix`,
-`generate` included: the remaining phases are skipped with
+failures are compile errors does not stop `dx check`, but it stops `dx fix`:
+the remaining phases are skipped with
 `<phase> skipped after <phase> failed to compile`. The skipped phases are named
 in the JSON `umbrella_phase_skipped` notice events. In text output, a run with a failed
 phase ends with a `dx: phases:` line on stderr that says how each phase ended.
@@ -87,7 +87,10 @@ Output: `--output text|diff|json`. JSON keeps one `command_started` and one
 `command_finished` for the run. Each phase sits between a `phase_started` and
 a `phase_finished`, and its events carry `command`, `phase`, and a
 `correlation` such as `check/format`. `dx fix --apply` verification phases use
-`verify/<phase>`. A `verify/<phase>` that writes events dx cannot read adds a
+`verify/<phase>`. When `format`, `lint`, or `typecheck` wrote a file,
+`dx fix --apply` runs `generate` again after `typecheck` so new sources and
+imports reach the BUILD files; that phase uses `rerun/generate`. A
+`verify/<phase>` that writes events dx cannot read adds a
 correlated `collection_failed` error and fails the run. A phase that reported findings adds a correlated `notice`
 (`umbrella_phase_findings`), a skipped phase adds a correlated `notice`
 (`umbrella_phase_skipped`), and a capture the run could not collect adds a

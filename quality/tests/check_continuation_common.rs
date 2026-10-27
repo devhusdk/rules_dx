@@ -258,10 +258,10 @@ pub fn phase_exits(events: &[serde_json::Value]) -> Vec<(String, i64)> {
 
 pub fn exits(format: i64, lint: i64, typecheck: i64, generate: i64) -> Vec<(String, i64)> {
     vec![
+        ("generate".to_owned(), generate),
         ("format".to_owned(), format),
         ("lint".to_owned(), lint),
         ("typecheck".to_owned(), typecheck),
-        ("generate".to_owned(), generate),
     ]
 }
 

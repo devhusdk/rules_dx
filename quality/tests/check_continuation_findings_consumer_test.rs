@@ -75,10 +75,10 @@ fn one_check_returns_every_independent_finding_and_leaves_bytes_unchanged() {
     assert_eq!(
         noticed,
         [
+            "check/generate",
             "check/format",
             "check/lint",
-            "check/typecheck",
-            "check/generate"
+            "check/typecheck"
         ],
         "{}",
         run.stdout

@@ -86,7 +86,7 @@ exit `2`).
   dependencies inside `//...`. Targets tagged `manual` are left out.
 - `dx test`, `dx coverage`, and `dx list-tests` keep only test targets.
 - `dx security` and `dx license` keep only targets a dependency set owns.
-- `dx check --affected` runs format, lint, typecheck, and generate as usual,
+- `dx check --affected` runs generate, format, lint, and typecheck as usual,
   then the affected tests. `dx fix --affected` runs the same phases without
   tests and only reports fixes; `dx fix --apply --affected` writes them.
   Generate and its re-check run Gazelle on the directories of the affected

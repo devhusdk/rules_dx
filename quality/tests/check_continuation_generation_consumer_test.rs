@@ -3,7 +3,7 @@ mod check_continuation_common;
 use check_continuation_common::*;
 
 #[test]
-fn generation_drift_alone_fails_after_three_clean_phases() {
+fn generation_drift_alone_fails_before_three_clean_phases() {
     let root = consumer(&Sources {
         drift: true,
         ..CLEAN_SOURCES

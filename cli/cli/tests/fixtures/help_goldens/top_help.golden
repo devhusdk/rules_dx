@@ -20,8 +20,8 @@ Commands:
   coverage    collect LCOV coverage with optional threshold
   run         build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)
   deploy      build and run a single deployable target
-  check       run format+lint+typecheck+generate checks in order (non-mutating)
-  fix         apply format+lint+typecheck+generate fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)
+  check       run generate+format+lint+typecheck checks in order (non-mutating)
+  fix         apply generate+format+lint+typecheck fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)
   clean       prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
   update      update dependencies per set through qualified resolvers (check by default; --apply writes updates)
   bump        widen one declared requirement to a new version (check by default; --apply widens)

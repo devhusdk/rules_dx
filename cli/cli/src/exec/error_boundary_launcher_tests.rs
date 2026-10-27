@@ -43,7 +43,7 @@ case "$FAKE_BUILD" in
   done) printf '{"id":{"buildMetrics":{}},"lastMessage":true}\n' > "$bep" ;;
   nobep) rm -f "$bep" ;;
   cutbep) printf '%s\n{"id":{"testRes' '{"id":{"started":{}},"started":{}}' > "$bep" ;;
-  sleep) : > "$bep"; : > "$FAKE_LOG.started"; sleep 30 ;;
+  sleep) if [ -n "$bep" ]; then : > "$bep"; fi; : > "$FAKE_LOG.started"; sleep 30 ;;
   *) : > "$bep" ;;
 esac
 exit "${FAKE_EXIT:-0}"
@@ -707,10 +707,10 @@ fn check_keeps_every_phase_finding_when_the_report_cannot_be_written() {
     assert_eq!(
         finished,
         [
+            ("generate".to_owned(), 0),
             ("format".to_owned(), 1),
             ("lint".to_owned(), 1),
-            ("typecheck".to_owned(), 1),
-            ("generate".to_owned(), 0)
+            ("typecheck".to_owned(), 1)
         ],
         "{context}"
     );
@@ -752,7 +752,7 @@ fn check_cancellation_stops_before_any_later_phase() {
         let builds = outcome
             .bazel
             .iter()
-            .filter(|line| line.contains(" build "))
+            .filter(|line| line.contains(" build ") || line.contains(" run "))
             .count();
         assert_eq!(builds, 1, "{context}");
     }
@@ -779,8 +779,11 @@ fn check_cancellation_after_findings_stops_before_any_later_phase() {
             outcome.out.contains("\"correlation\":\"check/format\""),
             "{context}"
         );
+        assert!(
+            outcome.out.contains("\"correlation\":\"check/generate\""),
+            "{context}"
+        );
         assert!(!outcome.out.contains("check/typecheck"), "{context}");
-        assert!(!outcome.out.contains("check/generate"), "{context}");
         let builds = outcome
             .bazel
             .iter()

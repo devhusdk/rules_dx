@@ -11,7 +11,7 @@ fn text_and_report_views_agree_with_the_phase_outcomes() {
     assert_eq!(text.status.code(), Some(1), "{}", text.combined());
     assert!(
         text.stderr.contains(
-            "dx: phases: format findings, lint findings, typecheck findings, generate findings"
+            "dx: phases: generate findings, format findings, lint findings, typecheck findings"
         ),
         "{}",
         text.combined()

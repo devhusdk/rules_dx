@@ -7,4 +7,4 @@ _astro_library_forward = dx_framework_forward_rule("astro", ".astro")
 
 def astro_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over js_library for Astro components."""
-    dx_framework_library(name, srcs, _js_library, _astro_library_forward, skip = ["format", "lint", "typecheck"], visibility = visibility, **kwargs)
+    dx_framework_library(name, srcs, _js_library, _astro_library_forward, skip = [], visibility = visibility, **kwargs)

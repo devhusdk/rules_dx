@@ -21,6 +21,10 @@ const GREET_FEATURE: &str = "Feature: Greeting\n  As a user\n\n  @smoke\n  Scena
 
 const GREET_FEATURE_DIRTY: &str = "Feature:   Greeting\n  As a user\n\n @smoke\n  Scenario:   Say hello\n   Given a  user \"ann\"\n   When she greets\n   Then the reply is \"hello ann\"\n";
 
+const HELLO_ASTRO: &str = "---\nconst message: string = \"world\";\n---\n\n<div class=\"hello\">{message}</div>\n\n<style>\n  .hello {\n    color: black;\n  }\n</style>\n";
+
+const HELLO_ASTRO_DIRTY: &str = "---\nconst message: string = 'world'\n---\n\n<div   class=\"hello\">{message}</div>\n\n<style>\n.hello { color: black }\n</style>\n";
+
 const LIMITS_SQL: &str = "select\n  max(limit_value)\nfrom\n  limits;\n";
 
 const BROKEN_SQL: &str = "select 'abc from users;\n";
@@ -28,6 +32,8 @@ const BROKEN_SQL: &str = "select 'abc from users;\n";
 const BROKEN_XML: &str = "<settings>\n  <name>demo</settings>\n";
 
 const BROKEN_FEATURE: &str = "Scenario: no feature line\n  Given a user\n";
+
+const BROKEN_ASTRO: &str = "<div>\n  <span>hi\n</p>\n";
 
 const CLOSURE_REPOS: [&str; 5] = [
     "--repo=@@aspect_rules_js++npm+npm_tools__prettier__3.9.6",
@@ -44,6 +50,16 @@ local_path_override(module_name = "rules_dx", path = "RULES_DX")
 "#;
 
 const BUILD: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+
+quality_family(
+    name = "astro_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "astro",
+    format = ["prettier"],
+)
 
 quality_family(
     name = "sql_family",
@@ -78,6 +94,7 @@ quality_family(
 workspace_policy(
     name = "policy",
     families = [
+        ":astro_family",
         ":gherkin_family",
         ":sql_family",
         ":xml_family",
@@ -122,24 +139,35 @@ gherkin_library(
 )
 "#;
 
+const WEB_BUILD: &str = r#"load("@rules_dx//astro/rules:defs.bzl", "astro_library")
+
+astro_library(
+    name = "hello",
+    srcs = ["Hello.astro"],
+    visibility = ["//visibility:public"],
+)
+"#;
+
 const APP_BUILD: &str = r#"genrule(
     name = "bundle",
     srcs = [
         "//config:settings",
         "//db:schema",
         "//features:greet",
+        "//web:hello",
     ],
     outs = ["bundle.txt"],
     cmd = "cat $(SRCS) > $@",
 )
 "#;
 
-const FILES: [(&str, &str, &str); 5] = [
+const FILES: [(&str, &str, &str); 6] = [
     ("db/schema.sql", SCHEMA_SQL, SCHEMA_SQL_DIRTY),
     ("db/report.postgresql.sql", REPORT_SQL, REPORT_SQL_DIRTY),
     ("db/limits.sql", LIMITS_SQL, LIMITS_SQL),
     ("config/settings.xml", SETTINGS_XML, SETTINGS_XML_DIRTY),
     ("features/greet.feature", GREET_FEATURE, GREET_FEATURE_DIRTY),
+    ("web/Hello.astro", HELLO_ASTRO, HELLO_ASTRO_DIRTY),
 ];
 
 fn write(path: &Path, text: &str) {
@@ -179,6 +207,7 @@ fn consumer() -> Case {
     write(&root.join("db/BUILD.bazel"), DB_BUILD);
     write(&root.join("config/BUILD.bazel"), CONFIG_BUILD);
     write(&root.join("features/BUILD.bazel"), FEATURES_BUILD);
+    write(&root.join("web/BUILD.bazel"), WEB_BUILD);
     write(&root.join("app/BUILD.bazel"), APP_BUILD);
     for (path, clean, _) in FILES {
         write(&root.join(path), clean);
@@ -278,6 +307,7 @@ fn a_syntax_error_is_located_and_never_clean_in_every_class() {
             BROKEN_FEATURE,
             "features/greet.feature:1:1: error",
         ),
+        ("web/Hello.astro", BROKEN_ASTRO, "web/Hello.astro:3:3: error"),
     ] {
         let root = consumer();
         write(&root.join(path), broken);

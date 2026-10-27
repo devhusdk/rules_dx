@@ -2,7 +2,13 @@ import * as nodeModule from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const MANAGED = ["@typescript-eslint/parser", "eslint-plugin-vue", "vue-eslint-parser"];
+const MANAGED = [
+  "@typescript-eslint/parser",
+  "astro-eslint-parser",
+  "eslint-plugin-astro",
+  "eslint-plugin-vue",
+  "vue-eslint-parser",
+];
 const NOT_FOUND = ["ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND"];
 
 if (typeof nodeModule.registerHooks !== "function") {

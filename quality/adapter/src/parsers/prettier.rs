@@ -241,6 +241,37 @@ mod tests {
     }
 
     #[test]
+    fn prettier_check_locates_an_astro_syntax_error_beside_a_dirty_astro_file() {
+        let stderr = "[error] app/Broken.astro: SyntaxError: Closing tag '</p>' has no matching opening tag. (3:3)\n[error]   1 | <div>\n[error]   2 |   <span>hi\n[error] > 3 | </p>\n[error]     |   ^\n[error]   4 |\n[warn] app/Dirty.astro\n";
+        let findings = parse_prettier_check(
+            stderr.as_bytes(),
+            Some(2),
+            &["app/Broken.astro", "app/Dirty.astro"],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, "app/Broken.astro");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 3);
+        assert!(findings[0]
+            .finding
+            .message
+            .contains("Closing tag '</p>' has no matching opening tag."));
+        assert_eq!(findings[1].file, "app/Dirty.astro");
+        assert_eq!(findings[1].finding.message, "file is not formatted");
+        let unlocated = "[error] app/Broken.astro: SyntaxError: Unexpected end of frontmatter\n";
+        let findings = parse_prettier_check(unlocated.as_bytes(), Some(2), &["app/Broken.astro"])
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(
+            (findings[0].finding.start.line, findings[0].finding.start.column),
+            (1, 1)
+        );
+    }
+
+    #[test]
     fn prettier_check_fails_on_an_unnamed_error_after_a_syntax_error() {
         let stderr = "[error] a/bad.json5: SyntaxError: JSON5: invalid end of input at 2:1\n[error] No parser could be inferred for file \"/w/a/x.foo\".\n";
         assert!(

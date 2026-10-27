@@ -21,6 +21,10 @@ def settings_tests(name):
     )
 
 EXPECTED_WORKSPACE_POLICY_OBSERVATIONS = """subject //config:workspace_policy_under_test
+field disabled.astro.audit=False
+field disabled.astro.format=False
+field disabled.astro.lint=True
+field disabled.astro.typecheck=True
 field disabled.cc.audit=False
 field disabled.cc.format=False
 field disabled.cc.lint=True
@@ -93,6 +97,10 @@ field disabled.vue.audit=False
 field disabled.vue.format=False
 field disabled.vue.lint=True
 field disabled.vue.typecheck=True
+field family.astro.audit=
+field family.astro.format=prettier
+field family.astro.lint=
+field family.astro.typecheck=
 field family.cc.audit=
 field family.cc.format=clang_format
 field family.cc.lint=
@@ -166,7 +174,7 @@ field family.vue.format=prettier
 field family.vue.lint=
 field family.vue.typecheck=
 aspect_field aspect_seen=True
-aspect_field field_count=144
+aspect_field field_count=152
 aspect_field has_subject=True
 aspect_field subject_label=//config:workspace_policy_under_test
 aspect_field transitive_count=0"""

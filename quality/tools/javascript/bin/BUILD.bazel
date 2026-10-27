@@ -11,7 +11,9 @@ js_binary(
     name = "eslint_generated",
     data = [
         "//quality/tools/javascript:node_modules/@typescript-eslint/parser",
+        "//quality/tools/javascript:node_modules/astro-eslint-parser",
         "//quality/tools/javascript:node_modules/eslint",
+        "//quality/tools/javascript:node_modules/eslint-plugin-astro",
         "//quality/tools/javascript:node_modules/eslint-plugin-vue",
         "//quality/tools/javascript:node_modules/vue-eslint-parser",
     ],
@@ -35,6 +37,7 @@ js_binary(
         "prettier_options.json",
         "//quality/tools/javascript:node_modules/@prettier/plugin-xml",
         "//quality/tools/javascript:node_modules/prettier",
+        "//quality/tools/javascript:node_modules/prettier-plugin-astro",
         "//quality/tools/javascript:node_modules/prettier-plugin-gherkin",
         "//quality/tools/javascript:node_modules/prettier-plugin-sql",
     ],

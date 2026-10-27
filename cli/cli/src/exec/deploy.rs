@@ -140,7 +140,14 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         &run_plan.argv,
         &[(DX_PROFILE_ENV, profile_name)],
     ) {
-        Ok(code) => code,
+        Ok(AppExit {
+            code,
+            signal: Some(signo),
+        }) => {
+            app_signalled_line(err, &label, signo);
+            code
+        }
+        Ok(app) => app.code,
         Err(exit) => exit,
     }
 }
@@ -209,6 +216,19 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("Running deploy for //app:bin"), "{err}");
         assert!(err.contains("profile release"), "{err}");
+    }
+
+    #[test]
+    fn deploy_signalled_app_exits_128_plus_the_signal() {
+        let mut harness = harness_with_deploy("deploy-app-signal", "False|NONE|NONE|True");
+        harness.app_signal = Some(11);
+        let (code, _, err) = harness.run(&["deploy", "--apply", "//app:bin"]);
+        assert_eq!(code, 139, "{err}");
+        assert!(
+            err.contains("dx: application_failed: bazel run //app:bin terminated by signal 11"),
+            "{err}"
+        );
+        assert!(!err.contains("bazel_signalled"), "{err}");
     }
 
     #[test]

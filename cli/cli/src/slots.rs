@@ -1856,7 +1856,7 @@ mod tests {
             env: &[(&str, &str)],
         ) -> io::Result<dx_process::ChildStatus> {
             self.record("run", env);
-            Ok(dx_process::ChildStatus { code: Some(0) })
+            Ok(dx_process::ChildStatus::exited(0))
         }
 
         fn run_bounded(
@@ -1877,7 +1877,7 @@ mod tests {
             env: &[(&str, &str)],
         ) -> io::Result<dx_process::ChildStatus> {
             self.record("run_hermetic", env);
-            Ok(dx_process::ChildStatus { code: Some(3) })
+            Ok(dx_process::ChildStatus::exited(3))
         }
 
         fn run_withdrawable(
@@ -1888,7 +1888,7 @@ mod tests {
             _withdraw: &dyn Fn() -> bool,
         ) -> io::Result<Option<dx_process::ChildStatus>> {
             self.record("run_withdrawable", env);
-            Ok(Some(dx_process::ChildStatus { code: Some(4) }))
+            Ok(Some(dx_process::ChildStatus::exited(4)))
         }
 
         fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {

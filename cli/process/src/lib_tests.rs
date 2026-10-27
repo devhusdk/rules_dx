@@ -856,7 +856,7 @@ impl Runner for FakeRunner {
 #[test]
 fn fake_runner_substitutes_the_boundary() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(3) },
+        status: ChildStatus::exited(3),
     };
     let status = runner
         .run(
@@ -871,13 +871,13 @@ fn fake_runner_substitutes_the_boundary() {
 #[test]
 fn default_withdrawable_run_checks_withdraw_only_before_launch() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(3) },
+        status: ChildStatus::exited(3),
     };
     let argv = ["bazel".to_owned(), "run".to_owned()];
     let ran = runner
         .run_withdrawable(&argv, Path::new("."), &[], &|| false)
         .expect("fake");
-    assert_eq!(ran, Some(ChildStatus { code: Some(3) }));
+    assert_eq!(ran, Some(ChildStatus::exited(3)));
     let withdrawn = runner
         .run_withdrawable(&argv, Path::new("."), &[], &|| true)
         .expect("fake");
@@ -970,7 +970,7 @@ fn system_runner_bounded_run_reaps_a_hanging_descendant() {
 #[test]
 fn unbounded_fakes_keep_working_through_the_bounded_default() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(0) },
+        status: ChildStatus::exited(0),
     };
     let outcome = runner
         .run_bounded(
@@ -995,6 +995,50 @@ fn system_runner_preserves_exit_codes() {
         .run(&probe_argv(&["--exit-code=1"]), &cwd, &[])
         .expect("probe");
     assert_eq!(fail.code, Some(1));
+}
+
+#[test]
+fn child_status_from_exit_keeps_the_code_or_the_known_signal() {
+    assert_eq!(
+        ChildStatus::from(lifecycle::Exit::Code(3)),
+        ChildStatus {
+            code: Some(3),
+            signal: None
+        }
+    );
+    assert_eq!(
+        ChildStatus::from(lifecycle::Exit::Signal(11)),
+        ChildStatus {
+            code: None,
+            signal: Some(11)
+        }
+    );
+    assert_eq!(
+        ChildStatus::from(lifecycle::Exit::Signal(0)),
+        ChildStatus {
+            code: None,
+            signal: None
+        }
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn system_runner_reports_the_signal_that_ended_the_child() {
+    let argv: Vec<String> = ["/bin/sh", "-c", "kill -SEGV $$"]
+        .iter()
+        .map(|arg| (*arg).to_owned())
+        .collect();
+    let status = SystemRunner
+        .run(&argv, &std::env::temp_dir(), &[])
+        .expect("sh runs");
+    assert_eq!(
+        status,
+        ChildStatus {
+            code: None,
+            signal: Some(11)
+        }
+    );
 }
 
 /// A probe argv that runs the Bazel-built probe with the given flags.
@@ -1104,7 +1148,7 @@ fn hermetic_runner_sets_no_path() {
 #[test]
 fn gitleaks_tool_defaults_to_absent() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(0) },
+        status: ChildStatus::exited(0),
     };
     assert!(runner.gitleaks_tool().is_none());
 }
@@ -1112,7 +1156,7 @@ fn gitleaks_tool_defaults_to_absent() {
 #[test]
 fn pinned_tool_defaults_to_absent() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(0) },
+        status: ChildStatus::exited(0),
     };
     assert!(runner.pinned_tool("DX_UV_BIN").is_none());
 }
@@ -1330,7 +1374,7 @@ fn free_disk_bytes_defaults_to_unknown() {
     struct Plain;
     impl Runner for Plain {
         fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
-            Ok(ChildStatus { code: Some(0) })
+            Ok(ChildStatus::exited(0))
         }
     }
     assert_eq!(Plain.free_disk_bytes(Path::new("/")), None);

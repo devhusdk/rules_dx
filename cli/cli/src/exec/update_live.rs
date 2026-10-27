@@ -72,7 +72,7 @@ impl ScriptRunner {
         self.calls.borrow_mut().push(argv.to_vec());
         let key = Self::key_for(argv);
         let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));
-        Ok(ChildStatus { code })
+        Ok(ChildStatus { code, signal: None })
     }
 
     pub(super) fn key_for(argv: &[String]) -> String {

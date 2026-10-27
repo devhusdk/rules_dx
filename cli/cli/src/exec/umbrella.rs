@@ -496,7 +496,7 @@ impl<'a> LaunchWatch<'a> {
     }
 
     fn watch(&self, result: io::Result<ChildStatus>) -> io::Result<ChildStatus> {
-        if !matches!(result, Ok(ChildStatus { code: Some(_) })) {
+        if !matches!(result, Ok(ChildStatus { code: Some(_), .. })) {
             self.failed.set(true);
         }
         result
@@ -1275,9 +1275,7 @@ mod tests {
             self.launches.set(launch + 1);
             let status = self.inner.run(argv, cwd, env)?;
             if launch >= self.from && self.to.is_none_or(|to| launch < to) {
-                return Ok(ChildStatus {
-                    code: Some(self.code),
-                });
+                return Ok(ChildStatus::exited(self.code));
             }
             Ok(status)
         }
@@ -1315,7 +1313,7 @@ mod tests {
                 let rest = std::fs::read_to_string(bep).unwrap_or_default();
                 std::fs::write(bep, format!("{}\n{rest}", self.bep_line)).expect("BEP file");
             }
-            Ok(ChildStatus { code: Some(1) })
+            Ok(ChildStatus::exited(1))
         }
     }
 
@@ -1422,7 +1420,10 @@ mod tests {
             {
                 std::fs::write(bep, self.bep_lines.join("\n")).expect("BEP file");
             }
-            Ok(ChildStatus { code: self.code })
+            Ok(ChildStatus {
+                code: self.code,
+                signal: None,
+            })
         }
     }
 

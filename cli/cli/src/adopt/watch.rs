@@ -322,7 +322,7 @@ mod tests {
             {
                 passed_bep(bep, "//a:one");
             }
-            Ok(dx_process::ChildStatus { code: Some(0) })
+            Ok(dx_process::ChildStatus::exited(0))
         }
     }
 
@@ -703,7 +703,7 @@ mod tests {
                 self.seen.borrow_mut().push(argv.join(" "));
                 std::fs::write(self.workspace.join("trigger.txt"), "edited")
                     .expect("trigger write");
-                Ok(dx_process::ChildStatus { code: Some(0) })
+                Ok(dx_process::ChildStatus::exited(0))
             }
         }
 
@@ -1153,7 +1153,7 @@ mod tests {
             self.events
                 .borrow_mut()
                 .push(format!("exit {}", argv.join(" ")));
-            Ok(dx_process::ChildStatus { code: Some(0) })
+            Ok(dx_process::ChildStatus::exited(0))
         }
 
         fn run_withdrawable(
@@ -1167,7 +1167,7 @@ mod tests {
                 self.events
                     .borrow_mut()
                     .push(format!("build {}", argv.join(" ")));
-                return Ok(Some(dx_process::ChildStatus { code: Some(0) }));
+                return Ok(Some(dx_process::ChildStatus::exited(0)));
             }
             assert!(!self.running.get(), "app instances overlap");
             self.running.set(true);
@@ -1183,7 +1183,7 @@ mod tests {
             }
             self.events.borrow_mut().push("exited".to_owned());
             self.running.set(false);
-            Ok(Some(dx_process::ChildStatus { code: Some(0) }))
+            Ok(Some(dx_process::ChildStatus::exited(0)))
         }
     }
 

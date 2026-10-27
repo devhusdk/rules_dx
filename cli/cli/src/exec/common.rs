@@ -823,7 +823,43 @@ pub(crate) fn run_bazel(
     run_bazel_output(invocation.output, out, err, workspace, runner, argv, env)
 }
 
-/// Launches one `bazel run` app; its exit code is the app's.
+/// How one `bazel run` app went out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AppExit {
+    /// The app's exit code, or 128 plus the signal that ended it.
+    pub(crate) code: i32,
+    /// The signal that ended the app, when it died by one.
+    pub(crate) signal: Option<i32>,
+}
+
+fn app_exit(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    status: io::Result<dx_process::ChildStatus>,
+) -> Result<AppExit, i32> {
+    if let Ok(dx_process::ChildStatus {
+        code: None,
+        signal: Some(signo),
+    }) = status
+    {
+        return Ok(AppExit {
+            code: dx_process::interrupted_code(signo),
+            signal: Some(signo),
+        });
+    }
+    child_exit(output, out, err, status).map(|code| AppExit { code, signal: None })
+}
+
+/// Writes the text line for an app that died by `signo`.
+pub(crate) fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
+    let _ = writeln!(
+        err,
+        "dx: application_failed: bazel run {label} terminated by signal {signo}"
+    );
+}
+
+/// Launches one `bazel run` app; its exit is the app's, and a signalled app exits 128 plus the signal.
 pub(crate) fn run_bazel_app(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -832,9 +868,9 @@ pub(crate) fn run_bazel_app(
     runner: &dyn Runner,
     argv: &[String],
     env: &[(&str, &str)],
-) -> Result<i32, i32> {
+) -> Result<AppExit, i32> {
     let status = runner.run(argv, workspace, env);
-    child_exit(invocation.output, out, err, status)
+    app_exit(invocation.output, out, err, status)
 }
 
 /// Launches one `bazel run` app that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
@@ -846,13 +882,13 @@ pub(crate) fn run_bazel_app_withdrawable(
     runner: &dyn Runner,
     argv: &[String],
     withdraw: &dyn Fn() -> bool,
-) -> Result<Option<i32>, i32> {
+) -> Result<Option<AppExit>, i32> {
     match runner
         .run_withdrawable(argv, workspace, &[], withdraw)
         .transpose()
     {
         None => Ok(None),
-        Some(status) => child_exit(invocation.output, out, err, status).map(Some),
+        Some(status) => app_exit(invocation.output, out, err, status).map(Some),
     }
 }
 
@@ -990,6 +1026,7 @@ mod tests {
 
     struct ProbeRunner {
         code: Option<i32>,
+        signal: Option<i32>,
         spawn_error: bool,
         seen: Rc<RefCell<(Vec<String>, Vec<(String, String)>)>>,
         free: Option<u64>,
@@ -1017,7 +1054,10 @@ mod tests {
                     .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
                     .collect(),
             );
-            Ok(dx_process::ChildStatus { code: self.code })
+            Ok(dx_process::ChildStatus {
+                code: self.code,
+                signal: self.signal,
+            })
         }
     }
 
@@ -1030,6 +1070,7 @@ mod tests {
         let seen = Rc::new(RefCell::new((Vec::new(), Vec::new())));
         let runner = ProbeRunner {
             code: Some(7),
+            signal: None,
             spawn_error: false,
             seen: Rc::clone(&seen),
             free: None,
@@ -1062,6 +1103,7 @@ mod tests {
     fn run_bazel_reports_a_spawn_failure_and_asks_the_caller_to_stop() {
         let runner = ProbeRunner {
             code: Some(0),
+            signal: None,
             spawn_error: true,
             seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
             free: None,
@@ -1090,6 +1132,7 @@ mod tests {
     fn run_bazel_reports_a_signalled_bazel_and_asks_the_caller_to_stop() {
         let runner = ProbeRunner {
             code: None,
+            signal: None,
             spawn_error: false,
             seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
             free: None,
@@ -1117,6 +1160,7 @@ mod tests {
     fn disk_runner(code: i32, free: Option<u64>) -> ProbeRunner {
         ProbeRunner {
             code: Some(code),
+            signal: None,
             spawn_error: false,
             seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
             free,
@@ -1163,7 +1207,13 @@ mod tests {
                 &["bazel".to_owned(), "run".to_owned(), "//app".to_owned()],
                 &[],
             );
-            assert_eq!(code, Ok(36));
+            assert_eq!(
+                code,
+                Ok(AppExit {
+                    code: 36,
+                    signal: None
+                })
+            );
             assert!(out.is_empty(), "{}", String::from_utf8_lossy(&out));
             let err = String::from_utf8(err).expect("utf8");
             assert!(!err.contains("disk_"), "{err}");
@@ -1179,6 +1229,7 @@ mod tests {
         ] {
             let runner = ProbeRunner {
                 code,
+                signal: None,
                 spawn_error,
                 seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
                 free: Some(1 << 20),
@@ -1200,6 +1251,66 @@ mod tests {
             assert!(err.starts_with(&format!("dx: {expected}: ")), "{err}");
             assert!(runner.probed.borrow().is_empty());
         }
+    }
+
+    fn signal_runner(signal: Option<i32>) -> ProbeRunner {
+        ProbeRunner {
+            code: None,
+            signal,
+            spawn_error: false,
+            seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+            free: None,
+            probed: RefCell::new(Vec::new()),
+        }
+    }
+
+    #[test]
+    fn run_bazel_app_maps_a_signalled_app_to_128_plus_the_signal() {
+        for output in [OutputMode::Text { quiet: false }, OutputMode::Json] {
+            let runner = signal_runner(Some(11));
+            let mut invocation = bazel_invocation();
+            invocation.output = output;
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            let exit = run_bazel_app(
+                &invocation,
+                &mut out,
+                &mut err,
+                Path::new("/ws"),
+                &runner,
+                &["bazel".to_owned(), "run".to_owned(), "//app".to_owned()],
+                &[],
+            );
+            assert_eq!(
+                exit,
+                Ok(AppExit {
+                    code: 139,
+                    signal: Some(11)
+                })
+            );
+            assert!(out.is_empty(), "{}", String::from_utf8_lossy(&out));
+            assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
+        }
+    }
+
+    #[test]
+    fn run_bazel_keeps_bazel_signalled_when_the_signal_is_known() {
+        let runner = signal_runner(Some(11));
+        let invocation = bazel_invocation();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = run_bazel(
+            &invocation,
+            &mut out,
+            &mut err,
+            Path::new("/ws"),
+            &runner,
+            &["bazel".to_owned()],
+            &[],
+        );
+        assert_eq!(code, Err(operational_code()));
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx: bazel_signalled: Bazel terminated by signal\n"
+        );
     }
 
     #[test]

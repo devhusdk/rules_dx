@@ -115,7 +115,7 @@ Advisory freshness and exception windows are judged against today's UTC date. Se
 `DX_AUDIT_TODAY` to `YYYY-MM-DD` to pin that date and make a run reproducible.
 A value that is not ten digits and dashes is ignored.
 
-`dx security` scans secrets with the pinned `@dx_tools//:gitleaks` artifact.
+`dx security` scans secrets with the pinned `@rules_dx//quality/artifacts:gitleaks` artifact.
 When `DX_GITLEAKS_BIN` holds an absolute path, dx runs that file. When it is
 unset, dx resolves the label through Bazel in the workspace. A relative path is
 rejected and `PATH` is never searched. If no artifact is found, the run exits
@@ -123,7 +123,7 @@ rejected and `PATH` is never searched. If no artifact is found, the run exits
 the path in the current shell:
 
 ```text
-export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print)"
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)"
 ```
 
 `dx license` does not read it.
@@ -285,7 +285,7 @@ snapshot for that family.
 ## Hermetic Tool Resolution
 
 ```text
-bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print
+bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print
 ```
 
 The command runs `bazel cquery --output=files` for the label, takes the last

@@ -77,3 +77,9 @@ real_source_target(
     tags = ["corpus"],
     visibility = VIS_QUALITY + ["//tools/ci:__pkg__"],
 )
+
+alias(
+    name = "gitleaks",
+    actual = "@dx_tools//:gitleaks",
+    visibility = ["//visibility:public"],
+)

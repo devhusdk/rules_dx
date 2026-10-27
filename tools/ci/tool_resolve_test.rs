@@ -8,7 +8,7 @@ const AUDIT: &str = "security-audit";
 
 const RESOLVE_TARGET: &str = "@rules_dx//cli/tool_resolve";
 
-const TOOL_LABEL: &str = "@dx_tools//:gitleaks";
+const TOOL_LABEL: &str = "@rules_dx//quality/artifacts:gitleaks";
 
 const TOOL_VAR: &str = "DX_GITLEAKS_BIN";
 
@@ -35,7 +35,7 @@ fn one_resolve_step_runs_the_pinned_native_command() {
     );
     let script = resolve[0]["run"].as_str().unwrap_or_default();
     for needle in [
-        "--label @dx_tools//:gitleaks",
+        "--label @rules_dx//quality/artifacts:gitleaks",
         "--var DX_GITLEAKS_BIN",
         "bazel run",
     ] {

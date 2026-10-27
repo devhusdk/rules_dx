@@ -1,0 +1,15 @@
+[package]
+name = "python_extract"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+
+[lib]
+name = "dx_docs_python_extract"
+path = "src/lib.rs"
+
+[[bin]]
+name = "python_extract"
+path = "src/main.rs"

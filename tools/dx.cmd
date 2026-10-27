@@ -48,8 +48,20 @@ if not defined DX_RC call powershell -NoProfile -NonInteractive -Command "$w=[IO
 if exist "%DX_STATE%\dc.%DX_TAG%" set /p DX_DC=<"%DX_STATE%\dc.%DX_TAG%"
 del /q "%DX_STATE%\dc.%DX_TAG%" 2>nul
 echo dx: building //:dx 1>&2
+REM Exit 33 or 37 means the Bazel server crashed; retry once. Keep in sync with tools/dx.
+:dxbuildrun
 call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
-if errorlevel 1 (
+set "DX_EC=%errorlevel%"
+if not defined DX_BRETRY if "%DX_EC%"=="33" goto dxbcrash
+if not defined DX_BRETRY if "%DX_EC%"=="37" goto dxbcrash
+goto dxbdone
+:dxbcrash
+set "DX_BRETRY=1"
+echo dx: the Bazel server crashed (exit %DX_EC%); trying //:dx again 1>&2
+powershell -NoProfile -NonInteractive -Command "Start-Sleep 2"
+goto dxbuildrun
+:dxbdone
+if not "%DX_EC%"=="0" (
   popd
   if exist "%DX_STATE%\dx.exe" (
     echo dx: //:dx does not build; running the previous dx 1>&2
@@ -63,8 +75,19 @@ if errorlevel 1 (
 )
 call powershell -NoProfile -NonInteractive -Command "%DX_SYNC%"
 if not errorlevel 1 set "DX_COPY=1"
+:dxqueryrun
 call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query.%DX_TAG%"
-if errorlevel 1 (
+set "DX_EC=%errorlevel%"
+if not defined DX_QRETRY if "%DX_EC%"=="33" goto dxqcrash
+if not defined DX_QRETRY if "%DX_EC%"=="37" goto dxqcrash
+goto dxqdone
+:dxqcrash
+set "DX_QRETRY=1"
+echo dx: the Bazel server crashed (exit %DX_EC%); trying //:dx again 1>&2
+powershell -NoProfile -NonInteractive -Command "Start-Sleep 2"
+goto dxqueryrun
+:dxqdone
+if not "%DX_EC%"=="0" (
   popd
   echo dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway 1>&2
   del /q "%DX_STATE%\*.%DX_TAG%" 2>nul

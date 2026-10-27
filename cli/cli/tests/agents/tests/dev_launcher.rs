@@ -307,6 +307,32 @@ mod sh {
             std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
         }
 
+        /// Makes the first `times` runs of bazel `op` ("build" or "query") exit with `code`.
+        fn crash(&self, op: &str, code: i32, times: usize) {
+            let stub = self.base.join("stub/bazel");
+            let real = self.base.join("stub/bazel.real");
+            if !real.exists() {
+                std::fs::rename(&stub, &real).expect("keep the real stub");
+            }
+            let left = self.base.join(format!("crash-{op}"));
+            std::fs::write(&left, times.to_string()).expect("crash counter");
+            let log = if op == "build" {
+                "echo build >> \"$STUB_LOG\"\n      "
+            } else {
+                ""
+            };
+            std::fs::write(
+                &stub,
+                format!(
+                    "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    {op})\n      n=$(cat '{left}')\n      if [ \"$n\" -gt 0 ]; then\n        echo $((n - 1)) > '{left}'\n        {log}exit {code}\n      fi\n      ;;\n  esac\ndone\nexec '{real}' \"$@\"\n",
+                    left = left.display(),
+                    real = real.display(),
+                ),
+            )
+            .expect("crashing bazel stub");
+            std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        }
+
         fn run(&self) -> (Option<i32>, String, String) {
             let out = self.spawn().wait_with_output().expect("launcher runs");
             (
@@ -341,6 +367,57 @@ mod sh {
         let (code, out, err) = repo.run();
         assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert_eq!(repo.builds(), 3, "a failed build is tried again");
+    }
+
+    const CRASH_NOTICE: &str = "dx: the Bazel server crashed (exit";
+
+    #[test]
+    fn source_launcher_builds_again_after_a_server_crash() {
+        for code in [33, 37] {
+            let repo = source_repo("dx-launcher-crash-once-");
+            repo.crash("build", code, 1);
+            let (exit, out, err) = repo.run();
+            assert_eq!((exit, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert!(
+                err.contains(&format!("{CRASH_NOTICE} {code}); trying //:dx again\n")),
+                "{err}"
+            );
+            assert_eq!(repo.builds(), 2);
+            assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+        }
+    }
+
+    #[test]
+    fn source_launcher_retries_a_server_crash_once() {
+        let repo = source_repo("dx-launcher-crash-twice-");
+        repo.crash("build", 37, 10);
+        let (exit, out, err) = repo.run();
+        assert_eq!((exit, out.as_str()), (Some(1), ""), "{err}");
+        assert!(err.contains("dx: bazel build //:dx failed\n"), "{err}");
+        assert_eq!(repo.builds(), 2);
+
+        let repo = source_repo("dx-launcher-crash-twice-copy-");
+        repo.run_ok();
+        repo.crash("build", 33, 10);
+        repo.touch_build_file();
+        let (exit, out, err) = repo.run();
+        assert_eq!((exit, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert!(
+            err.contains("dx: //:dx does not build; running the previous dx\n"),
+            "{err}"
+        );
+        assert_eq!(repo.builds(), 3, "one build before, two after");
+    }
+
+    #[test]
+    fn source_launcher_queries_again_after_a_server_crash() {
+        let repo = source_repo("dx-launcher-query-crash-");
+        repo.crash("query", 37, 1);
+        let (exit, out, err) = repo.run();
+        assert_eq!((exit, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert!(err.contains(CRASH_NOTICE), "{err}");
+        assert!(!repo.inputs().contains("dx:"), "{}", repo.inputs());
+        assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
     }
 
     #[test]
@@ -413,6 +490,8 @@ mod sh {
         assert!(err.contains("dx: bazel build //:dx failed\n"), "{err}");
         assert!(!err.contains("bazel run @rules_dx"), "{err}");
         assert!(!err.contains("previous dx"), "{err}");
+        assert!(!err.contains("crashed"), "{err}");
+        assert_eq!(repo.builds(), 1, "a compile error is not tried again");
         assert_eq!(repo.state_files(), Vec::<String>::new());
     }
 
@@ -1193,6 +1272,42 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert_eq!(repo.builds(), 3, "a failed build is tried again");
+    }
+
+    fn crash_stub(repo: &SourceRepo, code: i32, times: usize) {
+        std::fs::write(repo.base.join("crash-left"), times.to_string()).expect("counter");
+        std::fs::write(
+            repo.base.join("stub/bazel.cmd"),
+            format!(
+                "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  set /p LEFT=<\"{left}\"\r\n  setlocal enabledelayedexpansion\r\n  if !LEFT! gtr 0 (\r\n    set /a LEFT=!LEFT!-1\r\n    echo !LEFT!>\"{left}\"\r\n    exit /b {code}\r\n  )\r\n  endlocal\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SystemRoot%\\System32\\hostname.exe\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n)\r\nexit /b 0\r\n",
+                left = repo.base.join("crash-left").display(),
+            ),
+        )
+        .expect("crashing bazel stub");
+    }
+
+    #[test]
+    fn cmd_launcher_builds_again_after_a_server_crash() {
+        let repo = source_repo("dx-launcher-cmd-crash-once-");
+        crash_stub(&repo, 37, 1);
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert!(
+            out.contains("dx: the Bazel server crashed (exit 37); trying //:dx again"),
+            "{out}"
+        );
+        assert_eq!(repo.builds(), 2);
+        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+    }
+
+    #[test]
+    fn cmd_launcher_retries_a_server_crash_once() {
+        let repo = source_repo("dx-launcher-cmd-crash-twice-");
+        crash_stub(&repo, 33, 10);
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(1), "{out}");
+        assert!(out.contains("dx: bazel build //:dx failed"), "{out}");
+        assert_eq!(repo.builds(), 2);
     }
 
     #[test]

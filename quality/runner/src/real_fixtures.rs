@@ -80,6 +80,7 @@ pub(super) fn backend_for(tool_id: &str, tool: RealTool, spawn: Spawn) -> RealBa
         tools,
         scratch_parent: std::env::temp_dir(),
         spawn,
+        argv_limit: quality_adapter::commands::windows_argv_limit,
     }
 }
 
@@ -1023,6 +1024,68 @@ pub(super) fn ruff_behavior(argv: &[OsString]) -> io::Result<ChildOutput> {
     Ok(ChildOutput {
         code: Some(0),
         stdout: b"[]".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+/// Ruff over every `.py` file in argv, the way a batched spawn hands them over.
+pub(super) fn ruff_multi_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_ruff_hermetic(argv, env);
+    let format = argv.iter().any(|arg| arg == "format");
+    let mut entries = Vec::new();
+    for file in argv
+        .iter()
+        .filter(|arg| arg.to_string_lossy().ends_with(".py"))
+    {
+        let name = file.to_string_lossy().into_owned();
+        let bytes = std::fs::read(&name).expect("checked file is materialized");
+        let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+        let template = if format {
+            let dirty = text
+                .lines()
+                .any(|line| line.ends_with(' ') || line.ends_with('\t'));
+            dirty.then_some(RUFF_UNFORMATTED)
+        } else {
+            text.contains("import os").then_some(RUFF_F401)
+        };
+        if let Some(template) = template {
+            let entry = template.replace("FILE", &json_escape(&name));
+            entries.push(entry[1..entry.len() - 1].to_owned());
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(!entries.is_empty())),
+        stdout: format!("[{}]", entries.join(",")).into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+/// Flake8 over every `.py` file in argv, the way a batched spawn hands them over.
+pub(super) fn flake8_multi_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let mut stdout = String::new();
+    for file in argv
+        .iter()
+        .filter(|arg| arg.to_string_lossy().ends_with(".py"))
+    {
+        let name = file.to_string_lossy().into_owned();
+        let bytes = std::fs::read(&name).expect("checked file is materialized");
+        let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+        if text.contains("import os") {
+            stdout.push_str(&format!("{name}:1:1:F401:'os' imported but unused\n"));
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(!stdout.is_empty())),
+        stdout: stdout.into_bytes(),
         stderr: Vec::new(),
     })
 }

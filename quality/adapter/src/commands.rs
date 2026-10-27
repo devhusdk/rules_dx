@@ -1092,6 +1092,65 @@ pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
 /// one conservative budget keeps every platform below its native limit.
 pub const ARGV_BATCH_BUDGET: usize = 24_000;
 
+/// Batch budget for a `.bat` or `.cmd` launcher, which cmd.exe re-parses under its 8,191 limit.
+pub const LAUNCHER_BATCH_BUDGET: usize = 6_000;
+
+/// cmd.exe command-line limit of 8,191 characters, less room for quoting.
+pub const LAUNCHER_COMMAND_LINE_LIMIT: usize = 8_000;
+
+/// CreateProcess command-line limit of 32,767 characters, less room for quoting.
+pub const WINDOWS_COMMAND_LINE_LIMIT: usize = 32_000;
+
+/// How a tool carries its input files across the process boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArgTransport {
+    Single,
+    Batched,
+}
+
+/// The transport a tool proved: Batched tools report each file independently of the others.
+pub fn transport_for(tool_id: &str) -> ArgTransport {
+    match tool_id {
+        "keep_sorted" | "ruff" | "flake8" | "pydoclint" | "buildifier" => ArgTransport::Batched,
+        _ => ArgTransport::Single,
+    }
+}
+
+/// Whether a program is a `.bat` or `.cmd` launcher that runs through cmd.exe.
+pub fn is_batch_launcher(program: &OsStr) -> bool {
+    Path::new(program)
+        .extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("bat") || ext.eq_ignore_ascii_case("cmd"))
+}
+
+/// The batch budget for spawns of one program.
+pub fn argv_budget(program: &OsStr) -> usize {
+    if is_batch_launcher(program) {
+        LAUNCHER_BATCH_BUDGET
+    } else {
+        ARGV_BATCH_BUDGET
+    }
+}
+
+/// The Windows command-line limit for spawns of one program.
+pub fn windows_argv_limit(program: &OsStr) -> Option<usize> {
+    if is_batch_launcher(program) {
+        Some(LAUNCHER_COMMAND_LINE_LIMIT)
+    } else {
+        Some(WINDOWS_COMMAND_LINE_LIMIT)
+    }
+}
+
+/// The host's command-line limit for one program: the Windows rule on Windows, none elsewhere.
+pub fn native_argv_limit(program: &OsStr) -> Option<usize> {
+    if cfg!(windows) {
+        windows_argv_limit(program)
+    } else {
+        None
+    }
+}
+
 /// The argv cost of one argument in bytes and UTF-16 code units.
 ///
 /// Byte length bounds Unix argv while UTF-16 units bound the Windows command line. Lossy
@@ -1102,7 +1161,8 @@ pub fn argv_sizes(arg: &OsStr) -> (usize, usize) {
     (bytes, units)
 }
 
-fn argv_cost(argv: &[OsString]) -> (usize, usize) {
+/// The argv cost of a whole command line in bytes and UTF-16 code units, one separator each.
+pub fn argv_cost(argv: &[OsString]) -> (usize, usize) {
     let mut bytes = 0usize;
     let mut units = 0usize;
     for arg in argv {
@@ -1113,13 +1173,16 @@ fn argv_cost(argv: &[OsString]) -> (usize, usize) {
     (bytes, units)
 }
 
-/// Splits input files into spawns that each fit the batch budget.
+/// Splits input files into spawns that each fit the program's batch budget.
 ///
 /// Batches keep input order, pass files as separate argv entries with no shell, and put an
 /// oversized single file in a batch of its own. An empty selection keeps one empty batch so
 /// callers spawn exactly as before.
 pub fn plan_batches<'a>(head: &[OsString], files: &[&'a Path]) -> Vec<Vec<&'a Path>> {
-    plan_batches_with_budget(head, files, ARGV_BATCH_BUDGET)
+    let budget = head
+        .first()
+        .map_or(ARGV_BATCH_BUDGET, |program| argv_budget(program));
+    plan_batches_with_budget(head, files, budget)
 }
 
 /// Splits input files against an explicit budget for tests.

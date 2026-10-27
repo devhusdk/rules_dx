@@ -31,15 +31,19 @@ impl RealBackend {
         let cwd_rel = Self::cwd_rel(tool_id, tool.config_rel.as_deref());
         match tool_id {
             "buildifier" => {
-                let invocation = commands::buildifier_check(
-                    &tool.binary,
-                    &refs,
-                    hint_dir(tool.config_rel.as_deref(), &cwd_rel),
-                );
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let reported = parsed(
+                let hint = hint_dir(tool.config_rel.as_deref(), &cwd_rel);
+                let reported = self.check_files(
                     tool_id,
-                    parsers::parse_buildifier(&out.stdout, &out.stderr, &strs),
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| Ok(commands::buildifier_check(&tool.binary, files, hint)),
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_buildifier(&out.stdout, &out.stderr, names),
+                        )
+                    },
                 )?;
                 let mut kept = Vec::with_capacity(reported.len());
                 for mut found in reported {
@@ -88,20 +92,30 @@ impl RealBackend {
             "rustfmt" => self.check_rustfmt(tool, staged),
             "ruff" => {
                 let config_ref = config.as_deref();
-                let invocation = if capability == "format" {
-                    commands::ruff_format_check(&tool.binary, &refs, config_ref)
-                } else {
-                    commands::ruff_check(&tool.binary, &refs, config_ref)
-                };
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                if capability == "format" {
-                    parsed(
-                        tool_id,
-                        parsers::parse_ruff_format(&out.stdout, out.code, &strs),
-                    )
-                } else {
-                    parsed(tool_id, parsers::parse_ruff(&out.stdout, out.code, &strs))
-                }
+                let format = capability == "format";
+                self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| {
+                        Ok(if format {
+                            commands::ruff_format_check(&tool.binary, files, config_ref)
+                        } else {
+                            commands::ruff_check(&tool.binary, files, config_ref)
+                        })
+                    },
+                    |out, names| {
+                        if format {
+                            parsed(
+                                tool_id,
+                                parsers::parse_ruff_format(&out.stdout, out.code, names),
+                            )
+                        } else {
+                            parsed(tool_id, parsers::parse_ruff(&out.stdout, out.code, names))
+                        }
+                    },
+                )
             }
             "ty" => {
                 let mut dirs: Vec<PathBuf> = Vec::new();
@@ -140,19 +154,27 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
-            "pydoclint" => {
-                let invocation = commands::pydoclint_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(
-                    tool_id,
-                    parsers::parse_pydoclint(&out.stderr, out.code, &strs),
-                )
-            }
-            "flake8" => {
-                let invocation = commands::flake8_check(&tool.binary, &refs);
-                let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(tool_id, parsers::parse_flake8(&out.stdout, out.code, &strs))
-            }
+            "pydoclint" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::pydoclint_check(&tool.binary, files)),
+                |out, names| {
+                    parsed(
+                        tool_id,
+                        parsers::parse_pydoclint(&out.stderr, out.code, names),
+                    )
+                },
+            ),
+            "flake8" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::flake8_check(&tool.binary, files)),
+                |out, names| parsed(tool_id, parsers::parse_flake8(&out.stdout, out.code, names)),
+            ),
             "pylint" => {
                 let invocation = commands::pylint_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -780,7 +802,19 @@ impl RealBackend {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)
                 } else {
-                    self.check_keep_sorted_batched(tool_id, tool, scratch, pairs, &strs)
+                    self.check_files(
+                        tool_id,
+                        tool,
+                        scratch,
+                        pairs,
+                        |files| Ok(commands::keep_sorted_check(&tool.binary, files)),
+                        |out, names| {
+                            parsed(
+                                tool_id,
+                                parsers::parse_keep_sorted_lint(&out.stdout, out.code, names),
+                            )
+                        },
+                    )
                 }
             }
             _ => Err(execution(
@@ -790,36 +824,45 @@ impl RealBackend {
         }
     }
 
-    fn check_keep_sorted_batched(
+    /// Runs one tool over the selection, in argv-budget batches when its transport allows.
+    ///
+    /// Findings merge in a stable order, and a failing batch names itself when there are
+    /// several so the error points at the spawn that broke.
+    fn check_files(
         &self,
         tool_id: &str,
         tool: &RealTool,
         scratch: &Scratch,
         pairs: &[(String, PathBuf)],
-        strs: &[&str],
+        build: impl Fn(&[&Path]) -> Result<Invocation, RunnerError>,
+        parse: impl Fn(&ChildOutput, &[&str]) -> Result<Vec<FileFinding>, RunnerError>,
     ) -> Result<Vec<FileFinding>, RunnerError> {
         let refs: Vec<&Path> = pairs
             .iter()
             .map(|(_, absolute)| absolute.as_path())
             .collect();
-        let head = commands::keep_sorted_check(&tool.binary, &[]);
-        let batches = commands::plan_batches(&head.argv, &refs);
+        let names: Vec<String> = pairs
+            .iter()
+            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
+            .collect();
+        let strs: Vec<&str> = names.iter().map(String::as_str).collect();
+        let batches = match commands::transport_for(tool_id) {
+            commands::ArgTransport::Batched => {
+                let head = spawn_argv(tool_id, &build(&[])?);
+                commands::plan_batches(&head, &refs)
+            }
+            commands::ArgTransport::Single => vec![refs.clone()],
+        };
         let total = batches.len();
+        let mut offset = 0usize;
         let mut merged: Vec<FileFinding> = Vec::new();
         for (index, batch) in batches.iter().enumerate() {
-            let invocation = commands::keep_sorted_check(&tool.binary, batch);
-            let out = self
-                .run(tool_id, tool, &invocation, scratch)
-                .map_err(|err| {
-                    execution(tool_id, format!("batch {}/{}: {err}", index + 1, total))
-                })?;
-            let report =
-                parsers::parse_keep_sorted_lint(&out.stdout, out.code, strs).map_err(|err| {
-                    RunnerError::ToolOutput {
-                        tool_id: tool_id.to_owned(),
-                        detail: format!("batch {}/{}: {err}", index + 1, total),
-                    }
-                })?;
+            let batch_names = &strs[offset..offset + batch.len()];
+            offset += batch.len();
+            let report = build(batch.as_slice())
+                .and_then(|invocation| self.run(tool_id, tool, &invocation, scratch))
+                .and_then(|out| parse(&out, batch_names))
+                .map_err(|err| in_batch(err, index + 1, total))?;
             merged.extend(report);
         }
         merged.sort_by(|left, right| {
@@ -839,6 +882,24 @@ impl RealBackend {
                 ))
         });
         Ok(merged)
+    }
+}
+
+/// Names the failing batch in an error when a selection ran as several spawns.
+fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
+    if total <= 1 {
+        return err;
+    }
+    match err {
+        RunnerError::ToolExecution { tool_id, detail } => RunnerError::ToolExecution {
+            tool_id,
+            detail: format!("batch {index}/{total}: {detail}"),
+        },
+        RunnerError::ToolOutput { tool_id, detail } => RunnerError::ToolOutput {
+            tool_id,
+            detail: format!("batch {index}/{total}: {detail}"),
+        },
+        other => other,
     }
 }
 

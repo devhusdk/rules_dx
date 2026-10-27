@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
 
-use quality_adapter::commands::Invocation;
+use quality_adapter::commands::{self, Invocation};
 use quality_adapter::exec::{self, ChildOutput, MirrorFile, Scratch};
 use quality_adapter::launch;
 use quality_adapter::parsers::ParseError;
@@ -200,6 +200,7 @@ pub struct RealBackend {
     tools: BTreeMap<String, RealTool>,
     scratch_parent: PathBuf,
     spawn: SpawnFn,
+    argv_limit: fn(&OsStr) -> Option<usize>,
 }
 
 pub fn real_spawn(
@@ -340,6 +341,7 @@ impl RealBackend {
             tools,
             scratch_parent,
             spawn: real_spawn,
+            argv_limit: commands::native_argv_limit,
         }
     }
 
@@ -377,16 +379,33 @@ impl RealBackend {
                 env.push(pair);
             }
         }
-        let mut argv = absolute_argv(&invocation.argv);
-        if resolves_launcher(tool_id) {
-            if let Some(first) = argv.first_mut() {
-                if let Ok(real) = std::fs::canonicalize(&*first) {
-                    *first = real.into_os_string();
-                }
+        let argv = spawn_argv(tool_id, invocation);
+        if let Some(max) = argv.first().and_then(|program| (self.argv_limit)(program)) {
+            let units = commands::argv_cost(&argv).1 + 2 * argv.len();
+            if units > max {
+                return Err(execution(
+                    tool_id,
+                    format!(
+                        "selection too large for one {tool_id} spawn: {units} of {max} command-line characters"
+                    ),
+                ));
             }
         }
         (self.spawn)(&argv, &cwd, &env).map_err(|err| execution(tool_id, format!("spawn: {err}")))
     }
+}
+
+/// The argv a tool is spawned with: an absolute binary, resolved for launchers that need it.
+fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
+    let mut argv = absolute_argv(&invocation.argv);
+    if resolves_launcher(tool_id) {
+        if let Some(first) = argv.first_mut() {
+            if let Ok(real) = std::fs::canonicalize(&*first) {
+                *first = real.into_os_string();
+            }
+        }
+    }
+    argv
 }
 
 mod check;
@@ -419,9 +438,9 @@ mod real_tools;
 mod tests {
     use super::{
         absolute_argv, javascript_manifest, keep_sorted_runner_present, keep_sorted_support_gap,
-        own_runfiles_manifest, reads_own_manifest, resolves_launcher, ALWAYS_OWN_MANIFEST,
-        KEEP_SORTED_CONTEXT, KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX, KEEP_SORTED_SUPPORT_STATE,
-        KEEP_SORTED_TRANSPORT, STYLELINT_DEFAULTS_BYTES,
+        own_runfiles_manifest, reads_own_manifest, resolves_launcher, spawn_argv,
+        ALWAYS_OWN_MANIFEST, KEEP_SORTED_CONTEXT, KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX,
+        KEEP_SORTED_SUPPORT_STATE, KEEP_SORTED_TRANSPORT, STYLELINT_DEFAULTS_BYTES,
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
@@ -440,6 +459,22 @@ mod tests {
         let already = [OsString::from("/out/bin/tool")];
         assert_eq!(absolute_argv(&already)[0], already[0]);
         assert!(absolute_argv(&[]).is_empty());
+    }
+
+    /// The planned spawn carries the absolute binary the guard and the batches measure.
+    #[test]
+    fn spawn_argv_makes_the_binary_absolute() {
+        let invocation = quality_adapter::commands::Invocation {
+            argv: vec![
+                OsString::from("bazel-out/bin/ruff"),
+                OsString::from("check"),
+            ],
+            cwd_rel: String::new(),
+        };
+        let argv = spawn_argv("ruff", &invocation);
+        assert!(Path::new(&argv[0]).is_absolute());
+        assert!(argv[0].len() > invocation.argv[0].len());
+        assert_eq!(argv[1], invocation.argv[1]);
     }
 
     /// The manifest sits beside the tool that reads it.

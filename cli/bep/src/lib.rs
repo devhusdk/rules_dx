@@ -345,15 +345,31 @@ pub fn testlog_path(
         Some(mnemonic) => locations.config_testlogs_root(mnemonic),
         None => locations.testlogs_root(),
     };
-    testlog_path_under(root, label, name, identity)
+    testlog_path_under(root, label, name, identity, false)
+}
+
+/// Whether a BEP path prefix already ends in the testlogs directory of the label's repository.
+///
+/// Under `--experimental_sibling_repository_layout` an external repository's test logs live in
+/// their own per-repository directory, and the prefix names it, so `external/<repo>` must not be
+/// added again.
+pub(crate) fn prefix_names_repo(prefix: &[String], label: &str) -> bool {
+    match (testlogs_label_parts(label), prefix.last()) {
+        (Some((Some(repo), _, _)), Some(last)) => last == repo,
+        _ => false,
+    }
 }
 
 /// Resolves one named test output under `root` for its label and identity.
+///
+/// `root_names_repo` is set when `root` already ends in the label's repository directory, in
+/// which case the `external/<repo>` segments are skipped.
 pub(crate) fn testlog_path_under(
     root: PathBuf,
     label: &str,
     name: &str,
     identity: TestOutputIdentity,
+    root_names_repo: bool,
 ) -> Result<PathBuf, BepError> {
     let (repo, package, target) = testlogs_label_parts(label).ok_or_else(|| {
         missing_test_output(
@@ -364,7 +380,7 @@ pub(crate) fn testlog_path_under(
         )
     })?;
     let mut path = root;
-    if let Some(repo) = repo {
+    if let (Some(repo), false) = (repo, root_names_repo) {
         path.push("external");
         path.push(repo);
     }

@@ -230,7 +230,7 @@ fn index<'a>(object: &'a Value, defs: &mut BTreeMap<String, &'a Value>) {
 /// Renders one parameter list into signature text, the self parameter dropped.
 fn render_parameters(parameters: &[Value], in_class: bool) -> String {
     let mut out: Vec<String> = Vec::new();
-    let mut keyword_marker_needed = false;
+    let mut keyword_marker_needed = true;
     let mut after_positional_only = false;
     let mut shown: Vec<&Value> = parameters.iter().collect();
     if in_class && matches!(shown.first().map(|p| text(p, "name")), Some("self" | "cls")) {

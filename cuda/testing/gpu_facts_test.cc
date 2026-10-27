@@ -94,6 +94,15 @@ TEST(Classify, AFailingCudaCallIsUnavailable) {
   EXPECT_EQ(verdict.reason, "cudaGetDeviceCount: cudaErrorInsufficientDriver");
 }
 
+TEST(Classify, AFailingCudaCallWithOldDriverIsUnsupported) {
+  Probe probe = Rtx();
+  probe.driver = 12090;
+  probe.error = "cudaGetDeviceCount: cudaErrorInsufficientDriver";
+  Verdict verdict = Classify(probe, Saxpy());
+  EXPECT_EQ(verdict.status, Status::kUnsupported);
+  EXPECT_EQ(verdict.reason, "driver 12.9 is below 13.0");
+}
+
 TEST(Classify, LowComputeCapabilityIsUnsupported) {
   Probe probe = Rtx();
   probe.cc_major = 8;

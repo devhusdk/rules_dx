@@ -108,12 +108,31 @@ std::string DeclaredError(const Declared &declared) {
   return "";
 }
 
+Verdict DriverVerdict(const Probe &probe, const Declared &declared) {
+  int major = 0;
+  int minor = 0;
+  ParseVersion(declared.min_driver, &major, &minor);
+  if (EncodedRank(probe.driver) < Rank(major, minor)) {
+    return {Status::kUnsupported, "driver " + CudaVersion(probe.driver) +
+                                      " is below " + declared.min_driver};
+  }
+  return {Status::kPass, ""};
+}
+
 Verdict CheckDevice(const Probe &probe, const Declared &declared) {
   std::string declared_error = DeclaredError(declared);
   if (!declared_error.empty()) {
     return {Status::kFail, declared_error};
   }
   if (!probe.error.empty()) {
+    // The driver is read before the device count, so a failed count (such as
+    // cudaErrorInsufficientDriver) still leaves a driver version to check.
+    if (probe.driver > 0) {
+      Verdict driver = DriverVerdict(probe, declared);
+      if (driver.status != Status::kPass) {
+        return driver;
+      }
+    }
     return {Status::kUnavailable, probe.error};
   }
   if (probe.device_count <= 0) {
@@ -128,10 +147,9 @@ Verdict CheckDevice(const Probe &probe, const Declared &declared) {
                 "." + std::to_string(probe.cc_minor) + " is below " +
                 declared.min_compute_capability};
   }
-  ParseVersion(declared.min_driver, &major, &minor);
-  if (EncodedRank(probe.driver) < Rank(major, minor)) {
-    return {Status::kUnsupported, "driver " + CudaVersion(probe.driver) +
-                                      " is below " + declared.min_driver};
+  Verdict driver = DriverVerdict(probe, declared);
+  if (driver.status != Status::kPass) {
+    return driver;
   }
   ParseVersion(declared.runtime, &major, &minor);
   if (EncodedRank(probe.runtime) != Rank(major, minor)) {

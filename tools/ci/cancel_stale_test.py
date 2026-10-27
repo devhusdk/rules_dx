@@ -24,9 +24,9 @@ def cases(kind):
     return sorted(path.name for path in directory.iterdir() if path.is_dir())
 
 
-def run_filter(script, home, args, env=None):
-    """Runs one filter in home and returns the ids it prints."""
-    done = subprocess.run(
+def start_filter(script, home, args, env=None):
+    """Runs one filter in home and returns the finished process."""
+    return subprocess.run(
         [sys.executable, "-", *args],
         input=script,
         cwd=home,
@@ -35,6 +35,11 @@ def run_filter(script, home, args, env=None):
         text=True,
         check=False,
     )
+
+
+def run_filter(script, home, args, env=None):
+    """Runs one filter in home and returns the ids it prints."""
+    done = start_filter(script, home, args, env)
     assert done.returncode == 0, done.stderr
     return done.stdout
 
@@ -66,12 +71,24 @@ def test_main_fixtures(tmp_path, case):
     assert got == (source / "expect.txt").read_text(encoding="utf-8")
 
 
-def test_missing_open_listing_cancels_every_run(tmp_path):
-    """A missing open-PR listing marks every run stale."""
-    script = embedded_script(WORKFLOW, PR_HEREDOC, PR_MARKER)
-    copy_fixture(tmp_path, "pr", "no_open_prs_cancels_all", ["runs.jsonl"])
-    got = run_filter(script, tmp_path, ["runs.jsonl", "open.jsonl"])
-    assert got == "71\n72\n"
+@pytest.mark.parametrize("case", ["pr_no_open", "pr_no_runs", "main_no_runs"])
+def test_missing_listing_fails(tmp_path, case):
+    """A missing listing fails the filter instead of cancelling runs."""
+    if case == "main_no_runs":
+        script = embedded_script(WORKFLOW, MAIN_HEREDOC, MAIN_MARKER)
+        source = ROOT / FIXTURE_DIR / "main" / "new_sha_is_kept"
+        env = json.loads((source / "env.json").read_text(encoding="utf-8"))
+        done = start_filter(script, tmp_path, ["runs.jsonl"], env)
+    else:
+        script = embedded_script(WORKFLOW, PR_HEREDOC, PR_MARKER)
+        if case == "pr_no_open":
+            copy_fixture(tmp_path, "pr", "no_open_prs_cancels_all", ["runs.jsonl"])
+        else:
+            copy_fixture(tmp_path, "pr", "run_of_open_pr_is_kept", ["open.jsonl"])
+        done = start_filter(script, tmp_path, ["runs.jsonl", "open.jsonl"])
+    assert done.returncode != 0
+    assert done.stdout == ""
+    assert "FileNotFoundError" in done.stderr
 
 
 def test_runs_are_listed_before_open_prs():

@@ -700,30 +700,135 @@ fn readme_event_bullet(event: &str) -> String {
 }
 
 #[test]
-fn readme_slot_event_lists_every_emitted_field() {
-    let event = dx_output::slot_event(&dx_output::SlotEvent {
-        action: "add".to_owned(),
-        path: "/slots/1".to_owned(),
-        slot: Some(1),
-        branch: Some("main".to_owned()),
-        holder: Some("agent".to_owned()),
-        state: "held".to_owned(),
-        reason: Some("dirty".to_owned()),
-        base: Some("origin/main".to_owned()),
-        server: true,
-        disk_bytes: Some(1),
-    })
-    .expect("slot event");
-    let event = event.as_object().expect("slot event is an object");
-    let bullet = readme_event_bullet("slot");
-    let missing: Vec<&String> = event
-        .keys()
-        .filter(|key| *key != "event" && *key != "schema")
-        .filter(|key| !bullet.contains(&format!("`{key}`")))
-        .collect();
+fn readme_events_list_every_emitted_field() {
+    let digest = "0".repeat(64);
+    let strings = |items: &[&str]| items.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+    let fixtures: Vec<(&str, serde_json::Value)> = vec![
+        (
+            "command_started",
+            dx_output::command_started("check", "default").expect("command_started"),
+        ),
+        (
+            "operation",
+            dx_output::operation_event("check", "plan", Some(&strings(&["//a"])))
+                .expect("operation"),
+        ),
+        (
+            "selection",
+            dx_output::selection_event(&digest, &digest, &digest).expect("selection"),
+        ),
+        (
+            "status",
+            dx_output::status_event(&dx_output::StatusEvent {
+                name: "n".to_owned(),
+                status: "ok".to_owned(),
+                detail: "d".to_owned(),
+                hint: "h".to_owned(),
+            })
+            .expect("status"),
+        ),
+        (
+            "slot",
+            dx_output::slot_event(&dx_output::SlotEvent {
+                action: "add".to_owned(),
+                path: "/slots/1".to_owned(),
+                slot: Some(1),
+                branch: Some("main".to_owned()),
+                holder: Some("agent".to_owned()),
+                state: "held".to_owned(),
+                reason: Some("dirty".to_owned()),
+                base: Some("origin/main".to_owned()),
+                server: true,
+                disk_bytes: Some(1),
+            })
+            .expect("slot"),
+        ),
+        (
+            "report",
+            dx_output::report_event("junit", "out.xml", true).expect("report"),
+        ),
+        (
+            "summary",
+            dx_output::summary_event(&dx_output::SummaryEvent {
+                slots: 1,
+                servers: 1,
+                servers_rss_bytes: 1,
+                disk_bytes: Some(1),
+                disk_cache_bytes: Some(1),
+            }),
+        ),
+        (
+            "notice",
+            dx_output::notice_event(&dx_output::NoticeEvent {
+                level: "info".to_owned(),
+                code: "c".to_owned(),
+                message: "m".to_owned(),
+                related_command: Some("check".to_owned()),
+                scope: Some(strings(&["//a"])),
+                path: Some("a.rs".to_owned()),
+                language: Some("rust".to_owned()),
+                import: Some("x".to_owned()),
+            })
+            .expect("notice"),
+        ),
+        (
+            "coverage",
+            dx_output::coverage_event(&dx_output::CoverageEvent {
+                cell: "c".to_owned(),
+                covered_lines: 1,
+                eligible_lines: 1,
+                raw_lines: 1,
+                excluded_lines: 0,
+                eligible_files: 1,
+                support_files: 0,
+                excluded_files: 0,
+                unsupported_files: 0,
+                minimum: Some(80),
+                passed: true,
+                errors: 0,
+                dx_version: "1".to_owned(),
+            })
+            .expect("coverage"),
+        ),
+        (
+            "capability",
+            dx_output::capability_value(&dx_output::CapabilityEvent {
+                name: "n".to_owned(),
+                source: "cli-grammar".to_owned(),
+                availability: "available".to_owned(),
+                detail: "d".to_owned(),
+                flags: strings(&["--f"]),
+                outputs: strings(&["o"]),
+                reports: strings(&["r"]),
+                scope_policy: "p".to_owned(),
+                effect: "e".to_owned(),
+                passthrough: false,
+            }),
+        ),
+        (
+            "error",
+            dx_output::error_event("c", "m", Some("a.rs"), Some("--f"), Some("plan"))
+                .expect("error"),
+        ),
+    ];
+    let mut problems = Vec::new();
+    for (name, event) in &fixtures {
+        assert!(
+            dx_output::EVENTS.contains(name),
+            "`{name}` is not a known event"
+        );
+        assert_eq!(event["event"], *name, "fixture for `{name}` emits another event");
+        let bullet = readme_event_bullet(name);
+        let object = event.as_object().expect("event is an object");
+        for key in object.keys().filter(|k| *k != "event" && *k != "schema") {
+            if !bullet.contains(&format!("`{key}`")) {
+                problems.push(format!("`{name}` omits `{key}`"));
+            }
+        }
+    }
     assert!(
-        missing.is_empty(),
-        "README.md `slot` event omits fields: {missing:?}"
+        problems.is_empty(),
+        "README.md event bullets omit emitted fields: {problems:?}"
     );
 }
 

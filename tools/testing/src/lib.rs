@@ -201,31 +201,49 @@ pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
 
 /// Resolves one `$(rootpath)` or `$(rlocationpath)` test input, panicking with its key when absent.
 pub fn resolve_runfiles(rel: &str) -> PathBuf {
+    find_runfile(rel).unwrap_or_else(|error| panic!("runfile {rel}: {error}"))
+}
+
+fn find_runfile(rel: &str) -> std::io::Result<PathBuf> {
     let direct = Path::new(rel);
     if direct.is_absolute() {
-        return direct.to_path_buf();
+        return Ok(direct.to_path_buf());
     }
     let key = rlocation_key(rel);
     let error = match rlocation(&key) {
-        Ok(found) => return found,
+        Ok(found) => return Ok(found),
         Err(error) => error,
     };
-    if let Some(found) = suffixed(&key)
+    suffixed(&key)
         .iter()
         .find_map(|candidate| rlocation(candidate).ok())
-    {
-        return found;
-    }
-    panic!("runfile {rel}: {error}");
+        .ok_or(error)
 }
 
 /// Names the rules_dx checkout behind the `//:MODULE.bazel` runfile of the calling test.
 pub fn rules_dx_source() -> PathBuf {
-    let module = resolve_runfiles("MODULE.bazel");
+    let module = find_runfile("MODULE.bazel").unwrap_or_else(|error| {
+        panic!(
+            "runfile MODULE.bazel: {error}; add //:module_srcs or an area module_srcs to the test's data"
+        )
+    });
     let real = std::fs::canonicalize(&module).unwrap_or_else(|error| panic!("{module:?}: {error}"));
     real.parent()
         .unwrap_or_else(|| panic!("no checkout above {real:?}"))
         .to_path_buf()
+}
+
+/// Writes `text` to `path`, creating its parent directories, and panics with the path on failure.
+pub fn write_text(path: &Path, text: &str) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
+    }
+    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+}
+
+/// Reads `path` as text and panics with the path on failure.
+pub fn read_text(path: &Path) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
 }
 
 /// Names the Bazel-built process probe from the runfiles of the calling test.
@@ -502,6 +520,14 @@ mod tests {
         let mut handle = std::fs::File::create(&path).expect("create");
         handle.write_all(text.as_bytes()).expect("write");
         path
+    }
+
+    #[test]
+    fn write_text_creates_parents_and_read_text_reads_it_back() {
+        let dir = scratch("dx-testing-text-");
+        let path = dir.path().join("a/b/c.txt");
+        write_text(&path, "hello\n");
+        assert_eq!(read_text(&path), "hello\n");
     }
 
     #[test]

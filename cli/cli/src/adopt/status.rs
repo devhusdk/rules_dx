@@ -151,8 +151,7 @@ fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
         name: "agents".to_owned(),
         status: status.to_owned(),
         detail,
-        hint: "dx init --apply writes the block, hooks and CLAUDE.md import; dx upgrade --apply refreshes the block"
-            .to_owned(),
+        hint: "dx init --apply writes the block, hooks and CLAUDE.md import".to_owned(),
     }
 }
 

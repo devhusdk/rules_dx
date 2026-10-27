@@ -7,7 +7,7 @@ use dx_plan::args::Invocation;
 use super::status::CODE_STATUS_PIN_MISMATCH;
 use super::{operational, summaries_suppressed};
 
-fn json_pin(
+pub(super) fn json_pin(
     invocation: &Invocation,
     out: &mut dyn Write,
     mode: &str,

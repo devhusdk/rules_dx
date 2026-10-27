@@ -200,7 +200,7 @@ fn removed_version_flag<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Opt
         return None;
     }
     let tip = if flag == "--pin" {
-        "run `dx upgrade --from <version> --to <version>` to change the pin"
+        "run `dx upgrade --from <version> --to <version> --apply` to change the pin"
     } else {
         "run `dx rollback --apply` to restore the previous pin"
     };

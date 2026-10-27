@@ -122,9 +122,10 @@ fn oci_stage_layout(
 ) -> io::Result<()> {
     let blobs = staging.join("blobs").join("sha256");
     std::fs::create_dir_all(&blobs)?;
-    let archive = oci_read_archive(image, Some(&blobs)).map_err(|error| {
-        io::Error::new(io::ErrorKind::InvalidData, format!("oci layout: {error}"))
-    })?;
+    let archive =
+        oci_read_archive(image, Some(&blobs), Some((os, architecture))).map_err(|error| {
+            io::Error::new(io::ErrorKind::InvalidData, format!("oci layout: {error}"))
+        })?;
     oci_check_config(&archive, os, architecture)?;
     std::fs::write(
         blobs.join(archive.config_digest.trim_start_matches("sha256:")),
@@ -699,7 +700,12 @@ fn oci_dedupe_by_digest(descriptors: &mut Vec<serde_json::Value>) {
 }
 
 /// Builds the read plan from an OCI layout index.json.
-fn oci_index_plan(source: OciSource<'_>, index: &[u8], links: &OciLinks) -> io::Result<OciPlan> {
+fn oci_index_plan(
+    source: OciSource<'_>,
+    index: &[u8],
+    links: &OciLinks,
+    target: Option<(&str, &str)>,
+) -> io::Result<OciPlan> {
     let parsed: serde_json::Value = serde_json::from_slice(index)
         .map_err(|error| oci_invalid(format!("malformed index.json: {error}")))?;
     let mut level = parsed["manifests"]
@@ -748,6 +754,19 @@ fn oci_index_plan(source: OciSource<'_>, index: &[u8], links: &OciLinks) -> io::
         }
     }
     oci_dedupe_by_digest(&mut images);
+    if let Some((os, architecture)) = target {
+        let matching: Vec<serde_json::Value> = images
+            .iter()
+            .filter(|descriptor| {
+                descriptor["platform"]["os"] == os
+                    && descriptor["platform"]["architecture"] == architecture
+            })
+            .cloned()
+            .collect();
+        if !matching.is_empty() {
+            images = matching;
+        }
+    }
     if images.len() != 1 {
         return Err(oci_invalid(format!(
             "image archive holds {} images; want exactly one",
@@ -793,19 +812,23 @@ fn oci_index_plan(source: OciSource<'_>, index: &[u8], links: &OciLinks) -> io::
 }
 
 /// Reads the single image in an image archive, copying layers into `blobs` when set.
-pub fn oci_read_archive(image: &Path, blobs: Option<&Path>) -> io::Result<OciArchive> {
+pub fn oci_read_archive(
+    image: &Path,
+    blobs: Option<&Path>,
+    target: Option<(&str, &str)>,
+) -> io::Result<OciArchive> {
     let source = OciSource::new(image);
-    let plan = oci_plan(source)?;
+    let plan = oci_plan(source, target)?;
     oci_read_plan(source, &plan, blobs)
 }
 
 /// Finds the single image in an image archive or layout directory.
-fn oci_plan(source: OciSource<'_>) -> io::Result<OciPlan> {
+fn oci_plan(source: OciSource<'_>, target: Option<(&str, &str)>) -> io::Result<OciPlan> {
     let scan = oci_scan(source)?;
     if let Some(manifest) = &scan.manifest_json {
         oci_docker_plan(manifest, &scan.links)
     } else if let Some(index) = &scan.index_json {
-        oci_index_plan(source, index, &scan.links)
+        oci_index_plan(source, index, &scan.links, target)
     } else if let OciSource::Dir(_) = source {
         Err(oci_invalid(
             "image directory has no index.json or manifest.json; want an OCI image layout directory",
@@ -945,7 +968,8 @@ fn oci_copy_layer(reader: impl Read, name: &str, blobs: Option<&Path>) -> io::Re
 pub fn oci_declared_image_id(image: &Path, platform: &str) -> Result<String, String> {
     let (os, architecture) =
         oci_check_source(image, platform).map_err(|error| error.to_string())?;
-    let archive = oci_read_archive(image, None).map_err(|error| error.to_string())?;
+    let archive = oci_read_archive(image, None, Some((os, architecture)))
+        .map_err(|error| error.to_string())?;
     oci_check_config(&archive, os, architecture).map_err(|error| error.to_string())?;
     Ok(archive.config_digest)
 }
@@ -1538,8 +1562,8 @@ mod tests {
                 "{name}"
             );
             assert_eq!(
-                oci_read_archive(&dir, None).expect(name),
-                oci_read_archive(&tar, None).expect(name),
+                oci_read_archive(&dir, None, None).expect(name),
+                oci_read_archive(&tar, None, None).expect(name),
                 "{name}"
             );
         }
@@ -1589,6 +1613,60 @@ mod tests {
             oci_declared_image_id(&dir, "linux/amd64").expect("docker25"),
             oci_digest(&fixture.config)
         );
+    }
+
+    #[test]
+    fn oci_archive_image_id_picks_the_deploy_platform_from_an_index() {
+        let scratch = scratch_dir();
+        let amd = oci_index_fixture(
+            &[oci_test_layer(false), oci_test_layer(true)],
+            "amd64",
+            false,
+        );
+        let arm = oci_index_fixture(&[oci_test_layer(false)], "arm64", false);
+        let mut by_name = std::collections::BTreeMap::new();
+        for (name, body) in amd.members.iter().chain(arm.members.iter()) {
+            if name != "index.json" {
+                by_name.insert(name.clone(), body.clone());
+            }
+        }
+        let image = |manifest: &[u8], architecture: &str| {
+            let mut descriptor =
+                oci_descriptor("application/vnd.oci.image.manifest.v1+json", manifest);
+            descriptor["platform"] =
+                serde_json::json!({"architecture": architecture, "os": "linux"});
+            descriptor
+        };
+        let index = oci_index_body(&[
+            image(amd.manifest.as_slice(), "amd64"),
+            image(arm.manifest.as_slice(), "arm64"),
+        ]);
+        by_name.insert("index.json".to_owned(), index);
+        let members: Vec<(String, Vec<u8>)> = by_name.into_iter().collect();
+        let dir = scratch.path().join("multi");
+        oci_write_dir(&dir, &members, &[]);
+        let tar = scratch.path().join("multi.tar");
+        let files: Vec<(&str, &[u8])> = members
+            .iter()
+            .map(|(name, body)| (name.as_str(), body.as_slice()))
+            .collect();
+        oci_tar(&tar, &files, &[]);
+        for path in [&dir, &tar] {
+            assert_eq!(
+                oci_declared_image_id(path, "linux/amd64").expect("amd64"),
+                oci_digest(&amd.config),
+                "{}",
+                path.display()
+            );
+            assert_eq!(
+                oci_declared_image_id(path, "linux/arm64").expect("arm64"),
+                oci_digest(&arm.config),
+                "{}",
+                path.display()
+            );
+        }
+        assert!(oci_read_archive(&dir, None, None).is_err());
+        assert!(oci_read_archive(&tar, None, None).is_err());
     }
 
     #[test]
@@ -2879,7 +2957,7 @@ mod tests {
             std::fs::read(&first).expect("first"),
             std::fs::read(&second).expect("second")
         );
-        let archive = oci_read_archive(&first, None).expect("read");
+        let archive = oci_read_archive(&first, None, None).expect("read");
         assert_eq!(archive.config_digest, id);
         let config: serde_json::Value = serde_json::from_slice(&archive.config).expect("config");
         assert_eq!(config["architecture"], "arm64");

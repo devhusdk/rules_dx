@@ -1,8 +1,8 @@
 use dx_process::{describe_scope, ForwardError, ProtectedFlag};
 
 use super::{
-    bazel_argv, bep_guards, bep_options, download_guards, profile_options, workflow_scope_labels,
-    BuildPlan, DOWNLOAD_ALL_FLAG, SKIP_INCOMPATIBLE_FLAG,
+    bazel_argv, bep_guards, bep_options, download_flag, download_guards, profile_options,
+    workflow_scope_labels, BuildPlan, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::resolve::ResolvedScope;
 
@@ -87,7 +87,11 @@ fn workflow_defaults(verb: WorkflowVerb) -> &'static [&'static str] {
     }
 }
 
-pub fn workflow_options(verb: WorkflowVerb, bep_path: Option<&str>) -> Vec<String> {
+pub fn workflow_options(
+    verb: WorkflowVerb,
+    bazel_options: &[String],
+    bep_path: Option<&str>,
+) -> Vec<String> {
     let mut required = Vec::new();
     if verb == WorkflowVerb::Coverage {
         required.push(COVERAGE_COMBINED_REPORT_FLAG.to_owned());
@@ -96,7 +100,7 @@ pub fn workflow_options(verb: WorkflowVerb, bep_path: Option<&str>) -> Vec<Strin
         required.push(COVERAGE_SOURCES_GROUP_FLAG.to_owned());
     }
     if verb.collects_reports() {
-        required.push(DOWNLOAD_ALL_FLAG.to_owned());
+        required.push(download_flag(bazel_options).to_owned());
     }
     if let Some(path) = bep_path {
         required.extend(bep_options(path));
@@ -137,7 +141,7 @@ pub fn plan_workflow(
     profile: Option<crate::args::Profile>,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
-    let required = workflow_options(verb, bep_path);
+    let required = workflow_options(verb, bazel_options, bep_path);
     let protected = workflow_protected(verb);
     let mut options: Vec<String> = workflow_defaults(verb)
         .iter()
@@ -211,7 +215,7 @@ mod tests {
                 "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--remote_download_outputs=all",
+                "--remote_download_outputs=toplevel",
                 "//...",
             ]
         );
@@ -707,13 +711,13 @@ mod tests {
         let remote = position("--config=remote");
         for flag in [
             COVERAGE_COMBINED_REPORT_FLAG,
-            DOWNLOAD_ALL_FLAG,
+            crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
             "--build_event_json_file=/tmp/bep.json",
             "--build_event_json_file_path_conversion=false",
         ] {
             assert!(position(flag) > remote, "{flag}: {plan:?}");
         }
-        assert!(position("--jobs=4") < position(DOWNLOAD_ALL_FLAG));
+        assert!(position("--jobs=4") < position(crate::plan::DOWNLOAD_TOPLEVEL_FLAG));
     }
 
     #[test]
@@ -742,7 +746,7 @@ mod tests {
                 crate::plan::VALIDATE_FLAG,
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
-                DOWNLOAD_ALL_FLAG,
+                crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
                 "//...",
             ]
         );
@@ -753,7 +757,6 @@ mod tests {
         for verb in [WorkflowVerb::Test, WorkflowVerb::Coverage] {
             for (option, flag) in [
                 ("--remote_download_minimal", "remote_download_minimal"),
-                ("--remote_download_toplevel", "remote_download_toplevel"),
                 (
                     "--remote_download_outputs=minimal",
                     "remote_download_outputs",
@@ -781,6 +784,58 @@ mod tests {
             )
             .expect("run forces no download mode");
             assert!(plan.argv.iter().any(|arg| arg == option), "{plan:?}");
+        }
+    }
+
+    #[test]
+    fn report_verbs_follow_last_download_choice() {
+        let last_download = |argv: &[String]| {
+            argv.iter()
+                .rev()
+                .find(|arg| arg.starts_with("--remote_download"))
+                .cloned()
+        };
+        for verb in [WorkflowVerb::Test, WorkflowVerb::Coverage] {
+            for (options, expected) in [
+                (
+                    vec!["--remote_download_toplevel"],
+                    crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+                (
+                    vec!["--remote_download_outputs=toplevel"],
+                    crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+                (
+                    vec!["--remote_download_all"],
+                    crate::plan::DOWNLOAD_ALL_FLAG,
+                ),
+                (
+                    vec!["--remote_download_outputs=all"],
+                    crate::plan::DOWNLOAD_ALL_FLAG,
+                ),
+                (
+                    vec!["--remote_download_all", "--remote_download_toplevel"],
+                    crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+            ] {
+                let plan = plan_workflow(verb, &resolved(&[]), &strings(&options), None, None, &[])
+                    .expect("plan");
+                assert_eq!(
+                    last_download(&plan.argv).as_deref(),
+                    Some(expected),
+                    "{verb:?} {options:?}"
+                );
+            }
+        }
+        for verb in [WorkflowVerb::Build, WorkflowVerb::Run] {
+            let plan = plan_workflow(verb, &resolved(&[]), &[], None, None, &[]).expect("plan");
+            assert!(
+                !plan
+                    .argv
+                    .iter()
+                    .any(|arg| arg.starts_with("--remote_download_outputs=")),
+                "{verb:?}: {plan:?}"
+            );
         }
     }
 

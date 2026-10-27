@@ -11,7 +11,9 @@ git changes reach (see [Scope Defaults](scope-defaults.md)). With nothing
 affected they print `no affected targets` and exit `0`. All three
 check files by default and report drift without writing. Pass `--apply` to
 write validated fixes. Args after `--` go to Bazel, and dx always adds
-`--keep_going` and `--remote_download_outputs=all` after them. All three also pass
+`--keep_going` and `--remote_download_outputs=toplevel` after them. Pass
+`--remote_download_outputs=all` or `--remote_download_all` to download all outputs instead;
+the last of these wins. All three also pass
 `--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
@@ -20,8 +22,8 @@ dx spells them with the name your MODULE.bazel gives rules_dx, for example
 These args fail the same way: `--aspects`, `--output_groups`,
 `--build_event_json_file`, any `--build_event_json_file_path_conversion` other
 than `false`, `--nokeep_going`, any `--keep_going` other than bare
-`--keep_going`, `--remote_download_minimal`, `--remote_download_toplevel`, any
-`--remote_download_outputs` other than `all`, `--test_arg`, and the startup
+`--keep_going`, `--remote_download_minimal`, any `--remote_download_outputs`
+other than `toplevel` or `all`, `--test_arg`, and the startup
 options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`,
 `--output_base`, `--output_user_root`, `--host_jvm_args` and `--server_jvm_out`.
 Pass `--output_base` or `--output_user_root` with

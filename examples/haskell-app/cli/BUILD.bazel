@@ -1,0 +1,88 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/haskell-app:__subpackages__"])
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "src/Cli.hs",
+        "src/Main.hs",
+        "src/ReportWithoutSplit.hs",
+        "test/CliTest.hs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+string_flag(
+    name = "limit",
+    build_setting_default = "60",
+    values = [
+        "60",
+        "144",
+    ],
+)
+
+config_setting(
+    name = "limit_144",
+    flag_values = {":limit": "144"},
+)
+
+haskell_library(
+    name = "cli",
+    srcs = ["src/Cli.hs"],
+    ghcopts = [
+        "-Wall",
+        "-Werror",
+    ] + select({
+        ":limit_144": ["-DSTOCK_LIMIT=144"],
+        "//conditions:default": [],
+    }),
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        "//examples/haskell-app/stock",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_binary(
+    name = "stockctl",
+    srcs = ["src/Main.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":cli",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_test(
+    name = "cli_test",
+    size = "small",
+    srcs = ["test/CliTest.hs"],
+    args = select({
+        ":limit_144": ["144"],
+        "//conditions:default": ["60"],
+    }),
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":cli",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_library(
+    name = "report_without_split",
+    srcs = ["src/ReportWithoutSplit.hs"],
+    tags = ["manual"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = ["@dx_haskell_toolchains//:base"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

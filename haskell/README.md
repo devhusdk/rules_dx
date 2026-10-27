@@ -96,3 +96,7 @@ No Haskell formatter or linter runs yet.
 | `windows_x86_64` | Not qualified |
 
 On other platforms Haskell targets fail toolchain resolution.
+
+## Example
+
+See [examples/haskell-app](../examples/haskell-app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.

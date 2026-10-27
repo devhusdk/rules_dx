@@ -371,12 +371,10 @@ mod tests {
             _cwd: &Path,
             env: &[(&str, &str)],
         ) -> std::io::Result<dx_process::ChildStatus> {
-            let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
+            let busy = !crate::test_support::slot_settles_free(&self.dir, 1);
             let launch = self.seen.borrow().len();
             let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
-            self.seen
-                .borrow_mut()
-                .push((argv.to_vec(), free.is_none(), marked));
+            self.seen.borrow_mut().push((argv.to_vec(), busy, marked));
             Ok(dx_process::ChildStatus::exited(
                 self.codes[launch.min(self.codes.len() - 1)],
             ))

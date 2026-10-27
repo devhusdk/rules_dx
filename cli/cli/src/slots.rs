@@ -1616,7 +1616,7 @@ mod tests {
         std::fs::write(holder_path(&dir, 2), "gone").expect("stale holder");
         assert!(holder_path(&dir, 0).exists());
         assert_eq!(held(&dir, 0..3, 1), 1);
-        assert!(try_take(&dir, 1, "after").expect("try").is_some());
+        assert!(crate::test_support::slot_settles_free(&dir, 1));
     }
 
     #[test]
@@ -2163,7 +2163,7 @@ mod tests {
         assert!(take(Command::Run, &mut Vec::new(), &mut Vec::new())
             .expect("none")
             .is_none());
-        assert!(try_take(&dir, 1, "after").expect("try").is_some());
+        assert!(crate::test_support::slot_settles_free(&dir, 1));
     }
 
     #[test]
@@ -2460,7 +2460,7 @@ mod tests {
         assert_eq!(err, "");
         assert!(try_take(&dir, 2, "c").expect("try").is_none());
         drop(slot);
-        assert!(try_take(&dir, 2, "c").expect("try").is_some());
+        assert!(crate::test_support::slot_settles_free(&dir, 2));
     }
 
     #[test]

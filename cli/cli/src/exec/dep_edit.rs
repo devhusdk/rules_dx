@@ -43,6 +43,24 @@ pub(crate) fn configured_bazel_set(
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
 ) -> Result<Option<(String, String)>, i32> {
+    Ok(
+        configured_set(verb, invocation, out, err, workspace, false)?
+            .map(|(name, manifest, _)| (name, manifest)),
+    )
+}
+
+/// The single manifest of a configured dx.toml set the selector names, if any.
+///
+/// Bazel sets always qualify; uv and npm sets only when `foreign` is set, and then
+/// their kind comes back (`None` is a bazel set).
+pub(crate) fn configured_set(
+    verb: &EditVerb,
+    invocation: &Invocation,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+    workspace: &std::path::Path,
+    foreign: bool,
+) -> Result<Option<(String, String, Option<dx_bump::ConfiguredKind>)>, i32> {
     let registry = match dx_adopt::dependency_sets::load(workspace) {
         Ok(Some(registry)) => registry,
         Ok(None) => return Ok(None),
@@ -56,8 +74,17 @@ pub(crate) fn configured_bazel_set(
     let Some(set) = registry.find(head) else {
         return Ok(None);
     };
-    match set.ecosystem {
-        dx_adopt::dependency_sets::Ecosystem::Bazel => {
+    let kind = match set.ecosystem {
+        dx_adopt::dependency_sets::Ecosystem::Uv if foreign => Some(dx_bump::ConfiguredKind::Uv),
+        dx_adopt::dependency_sets::Ecosystem::Npm if foreign => Some(dx_bump::ConfiguredKind::Npm),
+        _ => None,
+    };
+    match (set.ecosystem, kind) {
+        (dx_adopt::dependency_sets::Ecosystem::Bazel, _)
+        | (
+            dx_adopt::dependency_sets::Ecosystem::Uv | dx_adopt::dependency_sets::Ecosystem::Npm,
+            Some(_),
+        ) => {
             if !set.writable {
                 return Err(operational(
                     invocation,
@@ -77,18 +104,27 @@ pub(crate) fn configured_bazel_set(
                     err,
                     verb.failure_code,
                     &format!(
-                        "{} needs exactly one MODULE.bazel in set {}",
-                        verb.command, set.name
+                        "{} needs exactly one {} in set {}",
+                        verb.command,
+                        match kind {
+                            None => "MODULE.bazel",
+                            Some(dx_bump::ConfiguredKind::Npm) => "package.json",
+                            Some(dx_bump::ConfiguredKind::Uv) => "pyproject.toml",
+                        },
+                        set.name
                     ),
                 ));
             };
-            Ok(Some((set.name.clone(), manifest.clone())))
+            Ok(Some((set.name.clone(), manifest.clone(), kind)))
         }
-        dx_adopt::dependency_sets::Ecosystem::Uv
-        | dx_adopt::dependency_sets::Ecosystem::Npm
-        | dx_adopt::dependency_sets::Ecosystem::Ruby
-        | dx_adopt::dependency_sets::Ecosystem::PowerShell
-        | dx_adopt::dependency_sets::Ecosystem::Cargo => Err(operational(
+        (
+            dx_adopt::dependency_sets::Ecosystem::Uv
+            | dx_adopt::dependency_sets::Ecosystem::Npm
+            | dx_adopt::dependency_sets::Ecosystem::Ruby
+            | dx_adopt::dependency_sets::Ecosystem::PowerShell
+            | dx_adopt::dependency_sets::Ecosystem::Cargo,
+            _,
+        ) => Err(operational(
             invocation,
             out,
             err,
@@ -127,28 +163,19 @@ pub(crate) fn preflight(
         ));
     }
     if invocation.offline && target.needs_update_refresh() {
-        if let Some((set, req)) = refresh_target(target) {
-            if let Err(dx_update::backend::BackendError::OfflineRequired { .. }) =
-                dx_update::backend::plan(
-                    workspace,
-                    set,
-                    &req,
-                    true,
-                    invocation.frozen,
-                    &invocation.bazel_head(),
-                )
-            {
-                return Err(operational(
-                    invocation,
-                    out,
-                    err,
-                    CODE_OFFLINE_REQUIRED,
-                    &format!(
-                        "cannot refresh {selector} without network: re-run without --offline once connected (no {} performed)",
-                        verb.noun,
-                    ),
-                ));
-            }
+        if let Some((_, Err(dx_update::backend::BackendError::OfflineRequired { .. }))) =
+            refresh_plan(workspace, invocation, target, None)
+        {
+            return Err(operational(
+                invocation,
+                out,
+                err,
+                CODE_OFFLINE_REQUIRED,
+                &format!(
+                    "cannot refresh {selector} without network: re-run without --offline once connected (no {} performed)",
+                    verb.noun,
+                ),
+            ));
         }
     }
     Ok(())
@@ -158,6 +185,7 @@ pub(crate) fn preflight(
 pub(crate) struct EditIo<'a> {
     pub(crate) workspace: &'a std::path::Path,
     pub(crate) runner: &'a dyn dx_process::Runner,
+    pub(crate) query_runner: &'a dyn dx_plan::resolve::QueryRunner,
     pub(crate) out: &'a mut dyn std::io::Write,
     pub(crate) err: &'a mut dyn std::io::Write,
 }
@@ -173,6 +201,7 @@ pub(crate) fn write_and_refresh(
     let EditIo {
         workspace,
         runner,
+        query_runner,
         out,
         err,
     } = io;
@@ -231,30 +260,22 @@ pub(crate) fn write_and_refresh(
         }
         return 0;
     }
-    let (update_set, update_request) = match refresh_target(request) {
-        Some(target) => target,
-        None => {
-            return operational(
-                invocation,
-                out,
-                err,
-                verb.failure_code,
-                &format!(
-                    "failed to refresh {}: no refresh for file-only set",
-                    edit.selector
-                ),
-            );
-        }
+    let Some((update_name, planned_refresh)) =
+        refresh_plan(workspace, invocation, request, Some((runner, query_runner)))
+    else {
+        return operational(
+            invocation,
+            out,
+            err,
+            verb.failure_code,
+            &format!(
+                "failed to refresh {}: no refresh for file-only set",
+                edit.selector
+            ),
+        );
     };
     let update_selector = request.refresh_selector();
-    let plan = match dx_update::backend::plan(
-        workspace,
-        update_set,
-        &update_request,
-        invocation.offline,
-        invocation.frozen,
-        &invocation.bazel_head(),
-    ) {
+    let plan = match planned_refresh {
         Ok(plan) => plan,
         Err(error) => match error {
             dx_update::backend::BackendError::Unsupported { reason, .. } => {
@@ -275,7 +296,7 @@ pub(crate) fn write_and_refresh(
                     err,
                     manifest,
                     dx_update::backend::BackendError::OfflineRequired {
-                        set: request.set.name().to_owned(),
+                        set: update_name.clone(),
                     },
                 );
             }
@@ -287,7 +308,7 @@ pub(crate) fn write_and_refresh(
                     err,
                     manifest,
                     dx_update::backend::BackendError::FrozenLocked {
-                        set: request.set.name().to_owned(),
+                        set: update_name.clone(),
                     },
                 );
             }
@@ -323,7 +344,7 @@ pub(crate) fn write_and_refresh(
                 out,
                 manifest,
                 &message,
-                update_set.name(),
+                &update_name,
                 verbose,
             ) {
                 Ok(()) => 0,
@@ -355,7 +376,7 @@ pub(crate) fn write_and_refresh(
                             out,
                             manifest,
                             &message,
-                            update_set.name(),
+                            &update_name,
                             verbose,
                         ) {
                             Ok(()) => 0,
@@ -495,6 +516,77 @@ fn backend_failed(
     )
 }
 
+/// The updater plan that refreshes the locks of `target`'s set, with the set name.
+///
+/// `tools` resolves the pinned uv for a configured uv set; without it the plan is only
+/// a feasibility probe (offline and frozen are refused before any tool is needed).
+fn refresh_plan(
+    workspace: &std::path::Path,
+    invocation: &Invocation,
+    target: &dx_bump::DepTarget,
+    tools: Option<(&dyn dx_process::Runner, &dyn dx_plan::resolve::QueryRunner)>,
+) -> Option<(
+    String,
+    Result<dx_update::backend::BackendPlan, dx_update::backend::BackendError>,
+)> {
+    let Some(configured) = &target.configured else {
+        let (set, request) = refresh_target(target)?;
+        let plan = dx_update::backend::plan(
+            workspace,
+            set,
+            &request,
+            invocation.offline,
+            invocation.frozen,
+            &invocation.bazel_head(),
+        );
+        return Some((set.name().to_owned(), plan));
+    };
+    let name = configured.name.clone();
+    let gone = || dx_update::backend::BackendError::Unsupported {
+        set: name.clone(),
+        reason: "the dx.toml dependency set is no longer configured",
+    };
+    let resolved = match dx_adopt::dependency_sets::load(workspace) {
+        Ok(Some(registry)) => {
+            dx_adopt::dependency_sets::resolve(&registry, std::slice::from_ref(&name))
+        }
+        _ => return Some((name.clone(), Err(gone()))),
+    };
+    let Some(set) = resolved.ok().and_then(|mut all| all.pop()).map(|t| t.set) else {
+        return Some((name.clone(), Err(gone())));
+    };
+    let (request, closure) = match configured.kind {
+        dx_bump::ConfiguredKind::Npm => (
+            dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
+            dx_update::backend::UvClosure::default(),
+        ),
+        dx_bump::ConfiguredKind::Uv => (
+            dx_adopt::dependency_sets::Selection::Full,
+            match tools {
+                Some((runner, query_runner)) if !invocation.offline && !invocation.frozen => {
+                    super::update::configured_uv_closure(
+                        runner,
+                        query_runner,
+                        workspace,
+                        invocation,
+                    )
+                }
+                _ => dx_update::backend::UvClosure::default(),
+            },
+        ),
+    };
+    let plan = dx_update::backend::plan_configured(
+        workspace,
+        &set,
+        &request,
+        invocation.offline,
+        invocation.frozen,
+        &invocation.bazel_head(),
+        &closure,
+    );
+    Some((name, plan))
+}
+
 /// The `dx update` set and request that refresh the locks of `target`'s set.
 pub(crate) fn refresh_target(
     target: &dx_bump::DepTarget,
@@ -565,6 +657,7 @@ mod tests {
             set: dx_bump::BumpSet::Cargo,
             package: "anyhow".to_owned(),
             manifest: None,
+            configured: None,
         }
     }
 

@@ -76,6 +76,7 @@ fn hand_built_requests_reject_wrong_version_kinds() {
             selector: "demo".to_owned(),
             raw_version: "v2".to_owned(),
             manifest: None,
+            configured: None,
             dep_version: DepVersion::Tested,
         };
         assert!(matches!(

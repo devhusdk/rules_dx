@@ -15,6 +15,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         runner,
+        query_runner,
         out,
         err,
         bump_commit_json,
@@ -129,6 +130,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     let io = dep_edit::EditIo {
         workspace,
         runner,
+        query_runner,
         out,
         err,
     };
@@ -150,12 +152,13 @@ fn configured_request(
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
 ) -> Result<Option<dx_bump::BumpRequest>, i32> {
-    let Some((set_name, manifest)) =
-        dep_edit::configured_bazel_set(&BUMP_VERB, invocation, out, err, workspace)?
+    let Some((set_name, manifest, kind)) =
+        dep_edit::configured_set(&BUMP_VERB, invocation, out, err, workspace, true)?
     else {
         return Ok(None);
     };
-    dx_bump::BumpRequest::parse_configured(
+    dx_bump::BumpRequest::parse_configured_as(
+        kind,
         &set_name,
         &manifest,
         &invocation.targets[0],
@@ -494,27 +497,32 @@ dependencies = ["anyio>=4"]
 "#;
 
     #[test]
-    fn consumer_configured_set_reports_unsupported_bump_without_mutation() {
+    fn consumer_configured_uv_set_needs_a_package_and_widens_pyproject() {
         let harness = Harness::new("bump-consumer");
         harness.write_source("dx.toml", CONSUMER_DX_TOML);
         harness.write_source("apps/frontend/pyproject.toml", CONSUMER_PYPROJECT);
-        for selector in ["frontend", "frontend:anyio"] {
-            let (code, _, err) = harness.run(&["bump", selector, "4.1.0", "--apply"]);
-            assert_eq!(code, 1, "{err}");
-            assert!(
-                err.contains(
-                    "bump is not supported for ecosystem uv set frontend \
-(supported operations: check, update, audit)"
-                ),
-                "{err}"
-            );
-        }
+        let (code, _, err) = harness.run(&["bump", "frontend", "4.1.0", "--apply"]);
+        assert_ne!(code, 0, "{err}");
+        assert!(
+            err.contains("bump needs one package, not a whole set"),
+            "{err}"
+        );
         assert_eq!(
             std::fs::read(harness.workspace.join("apps/frontend/pyproject.toml"))
                 .expect("manifest"),
             CONSUMER_PYPROJECT.as_bytes()
         );
         assert!(harness.seen_env.borrow().is_empty());
+        // The refresh cannot run offline, but the widen is refused before any write.
+        let (code, _, err) =
+            harness.run(&["bump", "frontend:anyio", "4.1.0", "--apply", "--offline"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("without network"), "{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("apps/frontend/pyproject.toml"))
+                .expect("manifest"),
+            CONSUMER_PYPROJECT.as_bytes()
+        );
     }
 
     const PINNED_DX_TOML: &str = r#"

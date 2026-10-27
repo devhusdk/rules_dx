@@ -190,6 +190,16 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 	if err := validateCargoImports(cfg, manifest, testKind, targetImports{test: []string{"unknown"}}); err == nil {
 		t.Error("unknown test import accepted")
 	}
+	if err := validateCargoImports(cfg, manifest, libraryKind, targetImports{production: []string{"app_name"}}); err != nil {
+		t.Errorf("self import rejected: %v", err)
+	}
+	if err := validateExampleImports(cfg, manifest, targetImports{production: []string{"app_name"}}); err != nil {
+		t.Errorf("example self import rejected: %v", err)
+	}
+	bad := &cargoManifest{packageName: "a.b"}
+	if err := validateCargoImports(cfg, bad, libraryKind, targetImports{production: []string{"x"}}); err == nil || !strings.Contains(err.Error(), "not a Cargo crate name") {
+		t.Errorf("bad package name error = %v", err)
+	}
 	local := localCargoImports(cfg, manifest, imports, true)
 	if strings.Join(local.production, ",") != "local" || strings.Join(local.test, ",") != "local_dev" {
 		t.Errorf("local imports = %+v", local)

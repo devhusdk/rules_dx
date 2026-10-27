@@ -86,6 +86,9 @@ func TestParseCargoFailsClosed(t *testing.T) {
 		"[package]\nname = \"demo\"\n[lib]\nproc-macro = maybe\n",
 		"[package]\nname = \"demo\"\n[[bin]]\nname = \"b\"\nrequired-features = 42\n",
 		"[package]\nname = \"---\"\n",
+		"[package]\nname = \"café\"\n",
+		"[package]\nname = \"demo\"\n[lib]\nname = \"a.b\"\n",
+		"[package]\nname = \"demo\"\n[dependencies]\n\"a.b\" = \"1\"\n",
 		"[package]\nname = \"demo\"\n[[example]]\n",
 	}
 	for _, source := range cases {
@@ -121,6 +124,20 @@ func TestCargoCommentAndStringErrors(t *testing.T) {
 	manifest, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = 'demo'\nversion = '0.1.0'\n"))
 	if err != nil || manifest.packageName != "demo" || manifest.version != "0.1.0" {
 		t.Errorf("literal package = %+v, %v", manifest, err)
+	}
+}
+
+func TestCargoImplicitTargetsKeepCargoCrateName(t *testing.T) {
+	manifest, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"a--b\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manifest.withImplicitTargets(map[string]bool{"src/lib.rs": true, "src/main.rs": true}, ""); err != nil {
+		t.Fatal(err)
+	}
+	lib, bin := manifest.targets[0], manifest.targets[1]
+	if lib.name != "a_b_lib" || lib.crate() != "a__b" || bin.name != "a_b" || bin.crate() != "a__b" {
+		t.Errorf("a--b targets = %+v", manifest.targets)
 	}
 }
 
@@ -337,6 +354,17 @@ harness = false
 	bench := manifest.targets[3]
 	if bench.kind != benchKind || bench.name != "criterion_bench" || bench.logical != "criterion" || bench.harness {
 		t.Errorf("criterion bench = %+v", bench)
+	}
+}
+
+func TestParseCargoDashedExample(t *testing.T) {
+	manifest, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo\"\n[[example]]\nname = \"my-ex\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ex := manifest.targets[0]
+	if ex.name != "my_ex_example" || ex.crate() != "my_ex" {
+		t.Errorf("my-ex example = %+v", ex)
 	}
 }
 

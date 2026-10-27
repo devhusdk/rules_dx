@@ -318,7 +318,7 @@ func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath stri
 	rel := manifest.build.path
 	r.SetAttr("srcs", []string{rel})
 	r.SetAttr("crate_root", rel)
-	r.SetAttr("crate_name", strings.ReplaceAll(scriptName, "-", "_"))
+	r.SetAttr("crate_name", scriptName)
 	r.SetAttr("edition", manifest.edition)
 	if manifest.version != "" {
 		r.SetAttr("version", manifest.version)

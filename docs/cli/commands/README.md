@@ -78,6 +78,15 @@ more, or `MemAvailable` is below 1.5 GiB when that file is missing. macOS and
 Windows get no extra slots. A run that waits only because of memory pressure
 says so in its waiting notice.
 
+Regular slots have a softer rule, for `auto` and for `--build-slots <n>`. When
+another slot is held and the host is under memory pressure, a run that finds a
+free slot waits instead of taking it, and its notice ends with `; paused under
+memory pressure`. Here memory pressure means the same PSI reading, or
+`MemAvailable` below one slot's memory budget (3 GiB, or 1.5 GiB with a remote
+executor) when that file is missing. Each run waits at most 30 seconds, then
+takes the slot. A run that finds no other slot held never waits, and macOS and
+Windows have no signal and no pause.
+
 While a slot is held, dx adds two flags right after `build`, `test`,
 `coverage` and `run`:
 
@@ -147,7 +156,9 @@ dx: waiting for a build slot (held by /path/to/worktree); stopped 2 idle Bazel s
 ```
 
 The `waiting_for_build_slot` notice event carries the count in
-`reaped_servers`, also when it is 0.
+`reaped_servers`, also when it is 0. It also carries `reason`: `"pressure"`
+when dx is holding back from a free slot because of memory pressure, and
+`"held"` otherwise.
 
 If dx cannot write a slot file, it locks it read-only. If it still cannot use
 a slot file, it prints `dx: skipped build slot <path>: <error>` once and runs

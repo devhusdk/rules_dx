@@ -13,6 +13,10 @@ use std::time::{Duration, Instant, SystemTime};
 
 use crate::args::Command;
 use dx_adopt::defaults::BuildSlots;
+pub use dx_process::slot_pool::{
+    available_memory, cgroup_limit_in, lock_slot, parse_cgroup_limit, parse_meminfo, slot_count,
+    slot_path, slots_dir, BYTES_PER_NESTED_BAZEL, BYTES_PER_SLOT, MAX_SLOTS,
+};
 use dx_worktree::host::{self, Host, Server, SystemHost};
 
 /// Notice code for the one info notice a run prints while it waits for a free build slot.
@@ -37,9 +41,6 @@ pub const SHARE_ENV_VAR: &str = "DX_BUILD_SHARE";
 /// Set by Bazel in every test action, so dx inside a test takes no slot.
 pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 
-/// Memory one Bazel server plus its build is planned to use.
-pub const BYTES_PER_SLOT: u64 = 3 << 30;
-
 /// Memory one remote-execution Bazel server plus its build is planned to use.
 pub const BYTES_PER_REMOTE_SLOT: u64 = 3 << 29;
 
@@ -51,12 +52,6 @@ pub const NESTED_BAZEL_SLOTS_ENV: &str = dx_path::nested_bazel::SLOTS_ENV;
 
 /// Nested Bazel test servers rules_dx tests run at once by default.
 pub const DEFAULT_NESTED_BAZEL_SLOTS: u64 = dx_path::nested_bazel::DEFAULT_SLOTS as u64;
-
-/// Memory one nested Bazel test server is planned to use.
-pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
-
-/// Most slots dx ever offers.
-pub const MAX_SLOTS: usize = 16;
 
 const POLL: Duration = Duration::from_millis(200);
 
@@ -201,18 +196,8 @@ pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>
     if !is_rules_dx {
         return 0;
     }
-    let servers = env_get(NESTED_BAZEL_SLOTS_ENV)
-        .and_then(|value| value.parse::<u64>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(DEFAULT_NESTED_BAZEL_SLOTS);
-    servers.saturating_mul(BYTES_PER_NESTED_BAZEL)
-}
-
-/// Slots for a machine with `memory` bytes, `reserved` of them kept aside.
-pub fn slot_count(memory: u64, reserved: u64) -> usize {
-    usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_SLOT)
-        .unwrap_or(MAX_SLOTS)
-        .clamp(1, MAX_SLOTS)
+    let servers = dx_path::nested_bazel::servers(env_get(NESTED_BAZEL_SLOTS_ENV).as_deref());
+    u64::from(servers).saturating_mul(BYTES_PER_NESTED_BAZEL)
 }
 
 /// Slots for remote-execution runs on a machine with `memory` bytes, `reserved` of them kept aside.
@@ -269,16 +254,6 @@ pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_pro
     }
 }
 
-/// The slot directory under the user cache.
-pub fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
-    let cache = dx_process::user_cache_dir(env_get)?;
-    Some(cache.join("dx").join("slots"))
-}
-
-fn slot_path(dir: &Path, index: usize) -> PathBuf {
-    dir.join(format!("slot-{index}.lock"))
-}
-
 /// Lists the `slot-N.lock` files in `dir` that dx cannot open, without creating or locking anything.
 pub fn unusable_slot_files(dir: &Path) -> Vec<(PathBuf, io::Error)> {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -305,35 +280,6 @@ pub fn unusable_slot_files(dir: &Path) -> Vec<(PathBuf, io::Error)> {
         .collect();
     found.sort_by(|a, b| a.0.cmp(&b.0));
     found
-}
-
-/// Locks a slot file shared or exclusive, falling back to a read-only open when it cannot be written.
-fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
-    let locked = if shared {
-        dx_atomic_fs::lease::try_lock_file_shared(path, true)
-    } else {
-        dx_atomic_fs::lease::try_lock_file(path, true)
-    };
-    let error = match locked {
-        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => error,
-        other => return other,
-    };
-    let Ok(file) = OpenOptions::new().read(true).open(path) else {
-        return Err(error);
-    };
-    if !file.metadata().is_ok_and(|meta| meta.is_file()) {
-        return Err(error);
-    }
-    let locked = if shared {
-        file.try_lock_shared()
-    } else {
-        file.try_lock()
-    };
-    match locked {
-        Ok(()) => Ok(Some(file)),
-        Err(std::fs::TryLockError::WouldBlock) => Ok(None),
-        Err(std::fs::TryLockError::Error(_)) => Err(error),
-    }
 }
 
 fn holder_path(dir: &Path, index: usize) -> PathBuf {
@@ -996,77 +942,6 @@ pub fn wait_message(holder: &str) -> String {
     format!("waiting for a build slot (held by {holder})")
 }
 
-/// Total memory visible to this process, honoring a cgroup limit.
-pub fn available_memory() -> Option<u64> {
-    #[cfg(target_os = "linux")]
-    {
-        let total = std::fs::read_to_string("/proc/meminfo")
-            .ok()
-            .and_then(|text| parse_meminfo(&text));
-        let limit = cgroup_limit();
-        return match (total, limit) {
-            (Some(total), Some(limit)) => Some(total.min(limit)),
-            (total, limit) => total.or(limit),
-        };
-    }
-    #[cfg(target_os = "macos")]
-    {
-        let mut value: u64 = 0;
-        let mut size = std::mem::size_of::<u64>();
-        let name = c"hw.memsize";
-        let status = unsafe {
-            libc::sysctlbyname(
-                name.as_ptr(),
-                (&mut value as *mut u64).cast(),
-                &mut size,
-                std::ptr::null_mut(),
-                0,
-            )
-        };
-        return (status == 0).then_some(value);
-    }
-    #[cfg(windows)]
-    {
-        #[repr(C)]
-        struct MemoryStatus {
-            length: u32,
-            load: u32,
-            total_phys: u64,
-            avail_phys: u64,
-            total_page: u64,
-            avail_page: u64,
-            total_virtual: u64,
-            avail_virtual: u64,
-            avail_extended: u64,
-        }
-        extern "system" {
-            fn GlobalMemoryStatusEx(status: *mut MemoryStatus) -> i32;
-        }
-        let mut status = MemoryStatus {
-            length: std::mem::size_of::<MemoryStatus>() as u32,
-            load: 0,
-            total_phys: 0,
-            avail_phys: 0,
-            total_page: 0,
-            avail_page: 0,
-            total_virtual: 0,
-            avail_virtual: 0,
-            avail_extended: 0,
-        };
-        let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
-        return (ok != 0).then_some(status.total_phys);
-    }
-    #[allow(unreachable_code)]
-    None
-}
-
-/// Reads `MemTotal` from `/proc/meminfo` text, in bytes.
-pub fn parse_meminfo(text: &str) -> Option<u64> {
-    let line = text.lines().find(|line| line.starts_with("MemTotal:"))?;
-    let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
-    kib.checked_mul(1024)
-}
-
 /// Reads `MemAvailable` from `/proc/meminfo` text, in bytes.
 pub fn parse_mem_available(text: &str) -> Option<u64> {
     let line = text
@@ -1074,59 +949,6 @@ pub fn parse_mem_available(text: &str) -> Option<u64> {
         .find(|line| line.starts_with("MemAvailable:"))?;
     let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
     kib.checked_mul(1024)
-}
-
-/// Reads a cgroup memory limit; `max` or the v1 unlimited value means no limit.
-pub fn parse_cgroup_limit(text: &str) -> Option<u64> {
-    text.trim().parse().ok().filter(|value| *value < 1 << 62)
-}
-
-#[cfg(target_os = "linux")]
-fn cgroup_limit() -> Option<u64> {
-    let own = std::fs::read_to_string("/proc/self/cgroup").ok()?;
-    cgroup_limit_in(&own, Path::new("/sys/fs/cgroup"))
-}
-
-/// Reads the memory limit of the cgroup named in `own` under `root`.
-pub fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
-    let v2 = own
-        .lines()
-        .find_map(|line| line.strip_prefix("0::"))
-        .unwrap_or("/");
-    let v1 = own.lines().find_map(|line| {
-        let mut parts = line.splitn(3, ':');
-        parts.next()?;
-        let controllers = parts.next()?;
-        let path = parts.next()?;
-        controllers
-            .split(',')
-            .any(|c| c == "memory")
-            .then_some(path)
-    });
-    let v2_limit = walk_limit(root, v2, "memory.max");
-    let v1_limit =
-        v1.and_then(|path| walk_limit(&root.join("memory"), path, "memory.limit_in_bytes"));
-    match (v2_limit, v1_limit) {
-        (Some(a), Some(b)) => Some(a.min(b)),
-        (a, b) => a.or(b),
-    }
-}
-
-fn walk_limit(base: &Path, relative: &str, file: &str) -> Option<u64> {
-    let mut dir = base.join(relative.trim_start_matches('/'));
-    let mut limit: Option<u64> = None;
-    loop {
-        let found = std::fs::read_to_string(dir.join(file))
-            .ok()
-            .and_then(|text| parse_cgroup_limit(&text));
-        limit = match (limit, found) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, b) => a.or(b),
-        };
-        if dir == base || !dir.pop() || !dir.starts_with(base) {
-            return limit;
-        }
-    }
 }
 
 /// Where this dx process takes its slots, fixed at startup.
@@ -2483,6 +2305,35 @@ mod tests {
         assert_eq!(nested_reserve(scratch.path(), &with("5")), 10 << 30);
         for fallback in ["0", "x", ""] {
             assert_eq!(nested_reserve(scratch.path(), &with(fallback)), 6 << 30);
+        }
+    }
+
+    #[test]
+    fn auto_gate_reserve_is_the_shared_reserve_range() {
+        for gib in [4_u64, 8, 12, 16, 24, 64] {
+            let memory = gib << 30;
+            let reserved = u64::from(DEFAULT_NESTED_BAZEL_SLOTS as u16) * BYTES_PER_NESTED_BAZEL;
+            let size = sizing(BuildSlots::Auto, memory, reserved).expect("sizing");
+            let range = dx_process::slot_pool::reserve_range(memory, DEFAULT_NESTED_BAZEL_SLOTS);
+            assert_eq!(size.count..size.pool, range, "{gib} GiB");
+        }
+    }
+
+    #[test]
+    fn a_consumer_gate_leaves_the_held_reserve_alone() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reserve-held-");
+        let dir = scratch.path().join("dx").join("slots");
+        let memory = 16_u64 << 30;
+        let reserve = dx_process::slot_pool::reserve_range(memory, DEFAULT_NESTED_BAZEL_SLOTS);
+        let held = dx_process::slot_pool::hold_reserve(&dir, reserve.clone());
+        assert!(held.busy.is_empty());
+        let count = reserve.start;
+        let slots: Vec<Slot> = (0..count)
+            .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("slot"))
+            .collect();
+        assert!(slots.iter().all(|slot| slot.index < count));
+        for index in reserve {
+            assert!(!free(&dir, index), "reserve index {index} is held");
         }
     }
 

@@ -80,6 +80,8 @@ pub struct Config {
     pub offline: bool,
     /// The native `bazel` shim installed in each slot; without it Unix falls back to a sh wrapper.
     pub shim: Option<PathBuf>,
+    /// The dx slot directory and the slot indices this harness keeps back from consumer dx runs.
+    pub reserve: Option<(PathBuf, std::ops::Range<usize>)>,
 }
 
 impl Config {
@@ -110,10 +112,16 @@ impl Config {
             Some(base) => base,
             None => default_base()?,
         };
-        let slots = text(SLOTS_ENV)
-            .and_then(|slots| slots.parse::<usize>().ok())
-            .filter(|slots| *slots > 0)
-            .unwrap_or(DEFAULT_SLOTS);
+        let servers = nested_bazel::servers(text(SLOTS_ENV).as_deref());
+        let slots = usize::from(servers);
+        let reserve = dx_process::user_cache_dir(&|name| text(name))
+            .zip(dx_process::slot_pool::available_memory())
+            .map(|(cache, memory)| {
+                (
+                    cache.join("dx").join("slots"),
+                    dx_process::slot_pool::reserve_range(memory, u64::from(servers)),
+                )
+            });
         let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
@@ -146,6 +154,7 @@ impl Config {
             repository_cache,
             offline: lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
             shim,
+            reserve,
         })
     }
 }
@@ -913,6 +922,23 @@ fn stripped(key: &str) -> bool {
             .any(|prefix| key.starts_with(prefix))
 }
 
+/// Takes shared locks on the dx slot files in the configured reserve, so consumer dx runs leave
+/// those build slots to the nested servers. Busy indices are reported and never fail the test.
+fn hold_dx_reserve(config: &Config) -> Vec<File> {
+    let Some((dir, range)) = &config.reserve else {
+        return Vec::new();
+    };
+    let reserve = dx_process::slot_pool::hold_reserve(dir, range.clone());
+    if !reserve.busy.is_empty() {
+        eprintln!(
+            "dx build slots {:?} under {} are busy; continuing without them",
+            reserve.busy,
+            dir.display()
+        );
+    }
+    reserve.held
+}
+
 /// One nested Bazel server: a locked slot, its output user root and its workspace.
 pub struct Server {
     config: Config,
@@ -920,6 +946,8 @@ pub struct Server {
     workspace: Option<PathBuf>,
     _slot: File,
     reaper: Option<Child>,
+    /// Shared locks on the dx slot files kept for nested servers; released after the servers stop.
+    _reserve: Vec<File>,
 }
 
 impl Server {
@@ -940,7 +968,10 @@ impl Server {
                     .open(&lock)
                     .map_err(|error| format!("cannot open {}: {error}", lock.display()))?;
                 match file.try_lock() {
-                    Ok(()) => return Server::claim(config, home, file),
+                    Ok(()) => {
+                        let reserve = hold_dx_reserve(&config);
+                        return Server::claim(config, home, file, reserve);
+                    }
                     Err(std::fs::TryLockError::WouldBlock) => {}
                     Err(std::fs::TryLockError::Error(error)) => {
                         return Err(format!("cannot lock {}: {error}", lock.display()))
@@ -959,13 +990,19 @@ impl Server {
         }
     }
 
-    fn claim(config: Config, home: PathBuf, slot: File) -> Result<Server, String> {
+    fn claim(
+        config: Config,
+        home: PathBuf,
+        slot: File,
+        reserve: Vec<File>,
+    ) -> Result<Server, String> {
         let mut server = Server {
             config,
             home,
             workspace: None,
             _slot: slot,
             reaper: None,
+            _reserve: reserve,
         };
         kill_slot_servers(
             &server.user_root(),
@@ -1749,6 +1786,7 @@ mod tests {
             repository_cache: None,
             offline: false,
             shim: None,
+            reserve: None,
         }
     }
 
@@ -2366,6 +2404,86 @@ common --repository_cache=/rc/repos
         );
     }
 
+    fn exclusive_is_blocked(path: &Path) -> bool {
+        let file = File::options().write(true).open(path).expect("slot file");
+        matches!(file.try_lock(), Err(std::fs::TryLockError::WouldBlock))
+    }
+
+    #[test]
+    fn from_parts_plans_the_reserve_in_the_dx_slots_dir() {
+        let fixture = Fixture::new();
+        let cache = fixture.dir.path().join("cache");
+        let cache_text = cache.to_str().expect("utf8");
+        let config = fixture.config(&[("XDG_CACHE_HOME", cache_text)], "", None);
+        let Some(memory) = dx_process::slot_pool::available_memory() else {
+            return;
+        };
+        assert_eq!(
+            config.reserve,
+            Some((
+                cache.join("dx").join("slots"),
+                dx_process::slot_pool::reserve_range(memory, 3)
+            ))
+        );
+        let five = fixture.config(
+            &[("XDG_CACHE_HOME", cache_text), (SLOTS_ENV, "5")],
+            "",
+            None,
+        );
+        assert_eq!(five.slots, 5);
+        assert_eq!(
+            five.reserve.map(|(_, range)| range),
+            Some(dx_process::slot_pool::reserve_range(memory, 5))
+        );
+    }
+
+    #[test]
+    fn an_acquired_server_holds_the_reserve_shared_until_it_drops() {
+        let dir = scratch("nested-reserve-");
+        let (bazel, _log) = recorder(dir.path());
+        let slots = dir.path().join("dx-slots");
+        let mut cfg = config(&dir.path().join("base"), &bazel);
+        cfg.reserve = Some((slots.clone(), 0..2));
+        let server = Server::acquire(cfg).expect("slot");
+        for index in 0..2 {
+            let path = dx_process::slot_pool::slot_path(&slots, index);
+            assert!(exclusive_is_blocked(&path), "slot {index} is held");
+            assert!(matches!(
+                dx_process::slot_pool::lock_slot(&path, true),
+                Ok(Some(_))
+            ));
+        }
+        drop(server);
+        for index in 0..2 {
+            let path = dx_process::slot_pool::slot_path(&slots, index);
+            assert!(!exclusive_is_blocked(&path), "slot {index} is free");
+        }
+    }
+
+    #[test]
+    fn a_busy_reserve_index_does_not_block_acquire() {
+        let dir = scratch("nested-reserve-busy-");
+        let (bazel, _log) = recorder(dir.path());
+        let slots = dir.path().join("dx-slots");
+        std::fs::create_dir_all(&slots).expect("dir");
+        let _other =
+            dx_process::slot_pool::lock_slot(&dx_process::slot_pool::slot_path(&slots, 0), false)
+                .expect("lock")
+                .expect("free");
+        let mut cfg = config(&dir.path().join("base"), &bazel);
+        cfg.reserve = Some((slots, 0..2));
+        let server = Server::acquire(cfg).expect("slot");
+        assert_eq!(server._reserve.len(), 1);
+    }
+
+    #[test]
+    fn no_reserve_plan_takes_no_locks() {
+        let dir = scratch("nested-no-reserve-");
+        let (bazel, _log) = recorder(dir.path());
+        let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("slot");
+        assert!(server._reserve.is_empty());
+    }
+
     #[test]
     fn slots_are_exclusive_and_commands_go_through_the_wrapper() {
         let dir = scratch("nested-slot-");
@@ -2425,6 +2543,7 @@ common --repository_cache=/rc/repos
         let (bazel, log) = recorder(dir.path());
         let shimmed = Config {
             shim: Some(shim.clone()),
+            reserve: None,
             ..config(&dir.path().join("base"), &bazel)
         };
         let mut server = Server::acquire(shimmed).expect("slot");
@@ -2786,6 +2905,7 @@ mod portable_tests {
             repository_cache: None,
             offline: true,
             shim: None,
+            reserve: None,
         };
         let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         let text = shim_args(&argv).expect("args");

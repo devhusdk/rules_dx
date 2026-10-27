@@ -1135,10 +1135,14 @@ fn own_startup_options(args: &[OsString]) -> Option<Vec<String>> {
         .collect()
 }
 
-/// How often a waiting run pings a server with this idle limit.
-fn ping_interval(max_idle_secs: Option<u64>) -> Duration {
+/// How often a waiting run pings a server with this idle limit, or `None` when the
+/// server never idles out (`--max_idle_secs=0`) and needs no pings.
+fn ping_interval(max_idle_secs: Option<u64>) -> Option<Duration> {
     let idle = max_idle_secs.unwrap_or(10_800);
-    Duration::from_secs(idle / 3).clamp(Duration::from_secs(1), Duration::from_secs(60))
+    if idle == 0 {
+        return None;
+    }
+    Some(Duration::from_secs(idle / 3).clamp(Duration::from_secs(1), Duration::from_secs(60)))
 }
 
 /// Reads `--max_idle_secs` from a server's NUL-separated `cmdline` file.
@@ -1285,11 +1289,14 @@ impl<W: Warm> KeepWarm<W> {
     fn tick(&mut self, now: Instant) {
         if matches!(self.state, Warming::Unknown) {
             self.state = match self.warm.own_server() {
-                Some((pid, idle)) => Warming::On {
-                    pid,
-                    every: ping_interval(idle),
-                    due: now,
-                    ping: None,
+                Some((pid, idle)) => match ping_interval(idle) {
+                    Some(every) => Warming::On {
+                        pid,
+                        every,
+                        due: now,
+                        ping: None,
+                    },
+                    None => Warming::Off,
                 },
                 None => Warming::Off,
             };
@@ -3389,12 +3396,12 @@ mod tests {
 
     #[test]
     fn ping_interval_is_a_third_of_the_idle_limit_within_bounds() {
-        assert_eq!(ping_interval(Some(90)), Duration::from_secs(30));
-        assert_eq!(ping_interval(Some(300)), Duration::from_secs(60));
-        assert_eq!(ping_interval(Some(900)), Duration::from_secs(60));
-        assert_eq!(ping_interval(None), Duration::from_secs(60));
-        assert_eq!(ping_interval(Some(2)), Duration::from_secs(1));
-        assert_eq!(ping_interval(Some(0)), Duration::from_secs(1));
+        assert_eq!(ping_interval(Some(90)), Some(Duration::from_secs(30)));
+        assert_eq!(ping_interval(Some(300)), Some(Duration::from_secs(60)));
+        assert_eq!(ping_interval(Some(900)), Some(Duration::from_secs(60)));
+        assert_eq!(ping_interval(None), Some(Duration::from_secs(60)));
+        assert_eq!(ping_interval(Some(2)), Some(Duration::from_secs(1)));
+        assert_eq!(ping_interval(Some(0)), None);
     }
 
     #[test]
@@ -3550,6 +3557,20 @@ mod tests {
     #[test]
     fn no_running_server_means_no_ping() {
         let (mut keep, log) = keeper(None);
+        let start = Instant::now();
+        for step in 0..10 {
+            keep.tick(start + Duration::from_secs(step * 100));
+        }
+        drop(keep);
+        let log = log.borrow();
+        assert_eq!(log.lookups, 1);
+        assert_eq!(log.pings, 0);
+        assert_eq!(log.stopped, 0);
+    }
+
+    #[test]
+    fn a_server_that_never_idles_out_is_never_pinged() {
+        let (mut keep, log) = keeper(Some((7, Some(0))));
         let start = Instant::now();
         for step in 0..10 {
             keep.tick(start + Duration::from_secs(step * 100));

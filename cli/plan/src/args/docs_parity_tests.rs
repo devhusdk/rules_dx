@@ -164,6 +164,7 @@ const SHARED_FLAGS: &[(&str, Option<&str>)] = &[
     ("--open", None),
     ("--offline", None),
     ("--frozen", None),
+    ("--bazel-option", Some("--jobs=1")),
     ("-- <bazel-options>", None),
 ];
 
@@ -211,6 +212,9 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
     }
 }
 
+/// Flags a wrapped command takes that `dx watch` does not forward yet.
+const WATCH_WITHHELD_FLAGS: &[&str] = &["bazel-option"];
+
 #[test]
 fn watch_advertises_exactly_the_flags_its_wrapped_commands_take() {
     let mut union: Vec<String> = dx_adopt::WATCHABLE_COMMANDS
@@ -219,6 +223,7 @@ fn watch_advertises_exactly_the_flags_its_wrapped_commands_take() {
             let command = Command::parse(name).expect("watchable names parse");
             super::super::grammar::advertised_flags(command)
         })
+        .filter(|flag| !WATCH_WITHHELD_FLAGS.contains(&flag.as_str()))
         .collect();
     union.sort();
     union.dedup();

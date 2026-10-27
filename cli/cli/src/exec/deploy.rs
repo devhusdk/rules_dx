@@ -55,7 +55,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         plan_deploy_build(&label, profile, &invocation.bazel_startup_options).and_then(|build| {
             plan_deploy_run(
                 &label,
-                invocation.raw_bazel_options(),
+                invocation.app_args(),
                 profile,
                 &invocation.bazel_startup_options,
             )
@@ -93,10 +93,9 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
                 words.push("--release".to_owned());
             }
             words.push(label.clone());
-            if !invocation.raw_bazel_options().is_empty() {
-                let (safe, withheld) = dx_plan::plan::quality::partition_provenance_options(
-                    invocation.raw_bazel_options(),
-                );
+            if !invocation.app_args().is_empty() {
+                let (safe, withheld) =
+                    dx_plan::plan::quality::partition_provenance_options(invocation.app_args());
                 words.push("--".to_owned());
                 words.extend(safe);
                 words.extend(withheld);

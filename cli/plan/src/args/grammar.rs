@@ -82,6 +82,7 @@ pub(crate) struct Flags {
     pub(crate) disk: bool,
     pub(crate) bases: bool,
     pub(crate) bazel_startup_options: Vec<String>,
+    pub(crate) bazel_options: Vec<String>,
 }
 
 /// One flag group: a clap argument group that writes into the normalized invocation flags.
@@ -203,6 +204,14 @@ flag_group! {
     BazelStartupOptionFlag, {
         #[arg(long = "bazel-startup-option", value_name = "TOKEN", allow_hyphen_values = true)]
         bazel_startup_options: Vec<String>,
+    }
+}
+
+flag_group! {
+    /// Pass one Bazel option to the build and the run (repeatable).
+    BazelOptionFlag, {
+        #[arg(long = "bazel-option", value_name = "TOKEN", allow_hyphen_values = true)]
+        bazel_options: Vec<String>,
     }
 }
 
@@ -822,7 +831,11 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx run` accepts.
-    Run => 9, AppTail, { output: ReadOutputFlag, own: ProfileArgs, };
+    Run => 9, AppTail, {
+        output: ReadOutputFlag,
+        own: ProfileArgs,
+        bazel_option: BazelOptionFlag,
+    };
     /// The flags `dx deploy` accepts.
     Deploy => 10, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
     /// The flags `dx check` accepts.
@@ -968,6 +981,7 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--color",
     "--build-slots",
     "--bazel-startup-option",
+    "--bazel-option",
 ];
 
 /// Every short letter in the clap command tree.
@@ -1075,6 +1089,17 @@ pub fn advertises_passthrough(command: super::command::Command) -> bool {
         .any(|arg| arg.is_last_set() && !arg.is_hide_set())
 }
 
+/// Whether the `--` payload of `dx <command>` goes to the app rather than to Bazel.
+pub(crate) fn takes_app_args(command: super::command::Command) -> bool {
+    subcommand_args(command).get_arguments().any(|arg| {
+        arg.is_last_set()
+            && !arg.is_hide_set()
+            && arg
+                .get_value_names()
+                .is_some_and(|names| names.iter().any(|name| name.as_str() == "APP_ARGS"))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1111,6 +1136,34 @@ mod tests {
                 Some(command.describe()),
                 "{command:?} about"
             );
+        }
+    }
+
+    #[test]
+    fn takes_app_args_holds_for_run_and_deploy_only() {
+        use super::super::command::Command;
+        use clap::ValueEnum;
+        for command in Command::value_variants() {
+            assert_eq!(
+                takes_app_args(*command),
+                matches!(command, Command::Run | Command::Deploy),
+                "{command:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn bazel_option_parses_only_under_run() {
+        let parses = |words: &[&str]| {
+            Cli::try_parse_from(
+                std::iter::once(OsString::from("dx")).chain(words.iter().map(OsString::from)),
+            )
+            .is_ok()
+        };
+        assert!(parses(&["run", "--bazel-option=--jobs=4", "//a"]));
+        assert!(parses(&["run", "--bazel-option", "--config=ci", "//a"]));
+        for command in ["build", "test", "deploy", "watch", "lint"] {
+            assert!(!parses(&[command, "--bazel-option=--jobs=4"]), "{command}");
         }
     }
 

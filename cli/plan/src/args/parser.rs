@@ -522,9 +522,10 @@ fn parse_inner<S: AsRef<OsStr>>(
         disk,
         bases,
         bazel_startup_options: startup_tokens,
+        bazel_options: option_tokens,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
-    let bazel_options = tokenized.bazel_options;
+    let passthrough = tokenized.passthrough;
     let flag_workspace = match workspace_os {
         Some(value) => Some(decode_scope(value.as_os_str())?),
         None => None,
@@ -640,9 +641,14 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, scope.clone()));
         }
     }
-    if !bazel_options.is_empty() && !grammar::advertises_passthrough(command) {
+    if !passthrough.is_empty() && !grammar::advertises_passthrough(command) {
         return Err(unsupported(command, "--"));
     }
+    let (bazel_options, app_args) = if grammar::takes_app_args(command) {
+        (option_tokens, passthrough)
+    } else {
+        (passthrough, Vec::new())
+    };
     if command.is_managed() {
         if let Err(error) = dx_setup::resolve_scope(&targets) {
             return Err(match error {
@@ -783,6 +789,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         min_changed_line_coverage,
         targets,
         bazel_options,
+        app_args,
         prune_unobserved,
         configured,
         from,

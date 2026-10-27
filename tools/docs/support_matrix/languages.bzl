@@ -92,7 +92,7 @@ ROWS = [
     {"ci_tests": ["//fortran/tests/runtime:stats_test"], "name": "fortran", "section": "languages", "title": "Fortran"},
     {"ci_tests": _hello("fsharp"), "name": "fsharp", "section": "languages", "starters": ["fsharp"], "title": "F#"},
     {"ci_tests": _hello("go"), "name": "go", "section": "languages", "starters": ["go"], "title": "Go"},
-    {"ci_tests": ["//haskell/tests/runtime:probe_test"], "name": "haskell", "section": "languages", "title": "Haskell"},
+    {"ci_tests": ["//haskell/tests/runtime:probe_test"], "name": "haskell", "section": "languages", "starters": ["haskell"], "title": "Haskell"},
     {"ci_tests": _hello("java"), "name": "java", "section": "languages", "starters": ["java"], "title": "Java"},
     {"ci_tests": _hello("javascript"), "name": "javascript", "section": "languages", "starters": ["javascript"], "title": "JavaScript"},
     {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "families": [], "name": "julia", "section": "languages", "title": "Julia"},

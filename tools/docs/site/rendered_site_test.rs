@@ -8,6 +8,21 @@ const USER_SITE: &str = "DX_USER_SITE";
 const DEMO_SITE: &str = "DX_DEMO_SITE";
 const DEMO_CHANGED_SITE: &str = "DX_DEMO_CHANGED_SITE";
 const SITE_CHECK: &str = "DX_SITE_CHECK";
+const CONSUMER_SITE: &str = "DX_CONSUMER_SITE";
+const PUBLIC_RUST_CRATES: [&str; 12] = [
+    "dx_advisory_prep",
+    "dx_tool_resolve",
+    "dx_bootstrap",
+    "dx_deploy_tools",
+    "dx_js_launcher",
+    "dx_docs_rust_extract",
+    "dx_site_aggregate",
+    "dx_site_browser",
+    "dx_site_build",
+    "dx_site_check",
+    "dx_docs_typescript_extract",
+    "wasi_run",
+];
 
 struct Run {
     code: i32,
@@ -534,6 +549,98 @@ fn a_changed_signature_changes_the_rendered_page() {
     assert!(after.contains("pub fn add(left: u64, right: u64, carry: u32) -&gt; u64"));
     assert!(after.contains("Adds two lengths and a carry, wrapping on overflow."));
     check_rendered(&site(DEMO_CHANGED_SITE), &[]).expect_ok();
+}
+
+#[test]
+fn the_user_site_publishes_one_api_section_per_public_crate() {
+    let root = site(USER_SITE);
+    let api = read(&root, "api.html");
+    for krate in PUBLIC_RUST_CRATES {
+        assert!(
+            api.contains(&format!("Rust crate <code>{krate}</code>")),
+            "api.html has no section for {krate}"
+        );
+    }
+    let index = read(&root, "index.html");
+    assert!(
+        index.contains("href=\"api.html\""),
+        "the landing page never links the API reference"
+    );
+}
+
+#[test]
+fn a_user_api_page_renders_its_signature_docs_and_source() {
+    let root = site(USER_SITE);
+    let pages: Vec<String> = every_html(&root)
+        .into_iter()
+        .filter(|route| route.starts_with("api/rust/dx_site_build/"))
+        .collect();
+    let page = pages
+        .iter()
+        .map(|route| read(&root, route))
+        .find(|html| html.contains("pub fn "))
+        .unwrap_or_else(|| panic!("no dx_site_build page renders a pub fn: {pages:?}"));
+    assert!(
+        page.contains("<code class=\"language-rust noplayground\">pub fn "),
+        "the signature must render as a Rust code block"
+    );
+    assert!(
+        page.contains(
+            "href=\"https://github.com/devhusdk/rules_dx/blob/main/tools/docs/site/build/src/"
+        ),
+        "the page must link its source on GitHub"
+    );
+    assert!(
+        page.contains("<p>"),
+        "the page must render the item's doc text"
+    );
+}
+
+#[test]
+fn every_api_url_in_the_search_index_is_a_page() {
+    let root = site(USER_SITE);
+    let index = read(&root, "searchindex.js");
+    let mut urls = BTreeSet::new();
+    for (start, _) in index.match_indices("\"api/") {
+        let rest = &index[start + 1..];
+        let end = rest.find('"').expect("closed string");
+        let url = rest[..end].split('#').next().expect("url").to_string();
+        urls.insert(url);
+    }
+    assert!(!urls.is_empty(), "the search index names no API page");
+    for url in urls {
+        assert!(root.join(&url).is_file(), "search names {url}, no page");
+    }
+}
+
+#[test]
+fn a_consumer_crate_renders_its_own_api_reference() {
+    let root = site(CONSUMER_SITE);
+    check_rendered(&root, &[]).expect_ok();
+    let greet = read(&root, "api/rust/consumer_greeting/greet.html");
+    assert!(greet.contains("pub fn greet(name: &amp;str) -&gt; String"));
+    assert!(greet.contains("Greets one name with a fixed salutation."));
+    assert!(greet.contains("href=\"https://example.invalid/consumer/blob/main/src/lib.rs#L"));
+    let greeter = read(&root, "api/rust/consumer_greeting/words.Greeter.html");
+    assert!(greeter.contains("A greeter that remembers its salutation."));
+    assert!(greeter.contains("href=\"https://example.invalid/consumer/blob/main/src/words.rs#L"));
+    assert!(greeter.contains("href=\"words.Greeter.greet.html\""));
+    let alias = read(&root, "api/rust/consumer_greeting/Greeter.html");
+    assert!(
+        alias.contains("Re-export of <a href=\"words.Greeter.html\">"),
+        "a re-export page must link its canonical page"
+    );
+    let routes = every_html(&root);
+    assert!(
+        !routes.iter().any(|route| route.contains("salutation")),
+        "a private fn was published"
+    );
+    for route in routes {
+        let html = read(&root, &route);
+        for needle in ["external/", "_repo_rules"] {
+            assert!(!html.contains(needle), "{route} leaks {needle:?}");
+        }
+    }
 }
 
 #[test]

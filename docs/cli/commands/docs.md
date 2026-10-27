@@ -5,7 +5,8 @@ dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scop
 ```
 
 Builds the documentation site with Bazel and the pinned upstream mdBook:
-every `dx` command page, the GitHub CI guide, and the examples.
+every `dx` command page, the GitHub CI guide, the examples, and an API reference
+for every public Rust crate.
 With no scope it builds the repository site (`//tools/docs/site:user_site`,
 `//tools/docs/site:user_site_check` in `--check`). Args after `--` go to Bazel unchanged.
 The build also passes
@@ -69,6 +70,40 @@ bazel run @rules_dx//:dx -- docs --check -- --config=ci
 The build never changes sources. Serve runs a local preview only. The site
 renders Markdown to HTML with syntax-highlighted code, a sidebar, a search
 index, and one route per page.
+
+## Rust API reference
+
+`rust_doc_shard` from `@rules_dx//tools/docs/rust:defs.bzl` documents one Rust
+library. It builds the crate's rustdoc JSON with the pinned nightly rustdoc, not
+your compiler, and produces a docs IR shard with language `rust`. Only public
+items get pages. Symbol ids have the form `rust:<crate>:<path>`, where `<path>`
+joins the module path with `.`, for example `rust:mylib:shapes.Circle`. Pass the
+shard to `docs_site`. Source links use `source_url` plus the file's path in its
+repository.
+
+```starlark
+load("@rules_dx//tools/docs/rust:defs.bzl", "rust_doc_shard")
+load("@rules_dx//tools/docs/site:site.bzl", "docs_site")
+
+rust_doc_shard(
+    name = "api_docs",
+    crate = ":mylib",
+)
+
+docs_site(
+    name = "site",
+    book_toml = "book.toml",
+    prose = ["guide.md"],
+    shards = [":api_docs"],
+    source_url = "https://github.com/me/mylib/blob/main/",
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- docs //lib:site
+```
+
+A rustdoc or extraction error fails the build, and `dx docs` keeps Bazel's exit code.
 
 ## TypeScript API reference
 

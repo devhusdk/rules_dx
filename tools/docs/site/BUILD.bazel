@@ -1,8 +1,9 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
-load(":render.bzl", "mdbook_book", "mdbook_check")
-load(":site.bzl", "docs_site")
+load(":render.bzl", "mdbook_book", "mdbook_check", "mdbook_page_list")
+load(":site.bzl", "docs_api", "docs_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
+load(":user/api.bzl", "user_api_shards")
 load(":user/book.bzl", "USER_BOOK")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -13,6 +14,7 @@ exports_files(
         "render.bzl",
         "site.bzl",
         "site_tests.bzl",
+        "user/api.bzl",
         "user/book.bzl",
     ],
 )
@@ -55,8 +57,17 @@ docs_site(
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
+docs_api(
+    name = "user_api",
+    book_toml = "user/book.toml",
+    prose = [page for page in mdbook_page_list(USER_BOOK)[1] if page],
+    shards = user_api_shards(),
+    source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
+)
+
 mdbook_book(
     name = "user_site",
+    api = ":user_api",
     book_toml = "user/book.toml",
     chapters = USER_BOOK,
 )
@@ -153,8 +164,10 @@ rust_test(
         ":demo_site",
         ":user_site",
         "//tools/docs/site/check:site_check",
+        "@dx_docs_consumer//:site",
     ],
     env = {
+        "DX_CONSUMER_SITE": "$(rootpath @dx_docs_consumer//:site)",
         "DX_DEMO_CHANGED_SITE": "$(rootpath :demo_changed_site)",
         "DX_DEMO_SITE": "$(rootpath :demo_site)",
         "DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)",
@@ -237,6 +250,7 @@ real_source_target(
         "render.bzl",
         "site.bzl",
         "site_tests.bzl",
+        "user/api.bzl",
         "user/book.bzl",
     ],
     tags = ["corpus"],

@@ -69,6 +69,28 @@ def site_unit_tests(name):
                 ],
             ),
             expect_equal(
+                "an API title closes the summary with its own part",
+                [
+                    mdbook_summary_text(USER_BOOK).endswith("# API Reference\n"),
+                    mdbook_summary_text(USER_BOOK, "API Reference").split("\n")[-3:],
+                ],
+                [
+                    False,
+                    ["- [Zig App](examples/zig-app/README.md)", "# API Reference", ""],
+                ],
+            ),
+            expect_equal(
+                "an API title adds the API index to the landing page",
+                [
+                    "(api.md)" in mdbook_index_text(USER_BOOK),
+                    mdbook_index_text(USER_BOOK, "API Reference").split("\n")[-3:],
+                ],
+                [
+                    False,
+                    ["- [Examples](examples/README.md)", "- [API Reference](api.md)", ""],
+                ],
+            ),
+            expect_equal(
                 "the user book has no invalid chapter",
                 mdbook_chapters_error(USER_BOOK),
                 [],
@@ -280,7 +302,7 @@ def site_user_file_tests(name, summary, index):
         name = name,
         mode = "execution",
         file_checks = {
-            summary: "# Command Reference\n",
-            index: "# rules_dx\n",
+            summary: "# Command Reference\n# API Reference\n",
+            index: "# rules_dx\n- [API Reference](api.md)\n",
         },
     )

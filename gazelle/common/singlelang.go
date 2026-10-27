@@ -72,6 +72,8 @@ type SingleLangSpec struct {
 	// own index has no match.
 	Fallback []string
 	Lookups  func(pkg, name string) []string
+	// Find replaces Lookups and Candidates with one lookup of the whole ref.
+	Find func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup
 	Generate func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
 
 	// KindDefs maps a kind to the defs package that exports it. Kinds without
@@ -256,6 +258,12 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 	if slices.Contains(l.spec.ExtraKinds, r.Kind()) {
 		want = r.Kind()
 	}
+	attr := "deps"
+	if info, ok := l.spec.Kinds[want]; ok && len(info.ResolveAttrs) == 1 {
+		for a := range info.ResolveAttrs {
+			attr = a
+		}
+	}
 	var external func(name string) ([]label.Label, string)
 	if eco := l.spec.External; eco != "" {
 		external = func(name string) ([]label.Label, string) { return ExternalLabels(c, eco, name) }
@@ -263,13 +271,14 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 	return ResolveSpec{
 		LanguageName:   l.spec.LanguageName,
 		WantKind:       want,
-		Attr:           "deps",
+		Attr:           attr,
 		Unwrap:         UnwrapImportSet,
 		UnwrapRefs:     UnwrapRefImportSet,
 		Fallback:       l.spec.Fallback,
 		IsStdLib:       l.spec.IsStdLib,
 		Candidates:     l.spec.Candidates,
 		Lookups:        l.spec.Lookups,
+		Find:           l.spec.Find,
 		External:       external,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {

@@ -416,7 +416,10 @@ type ResolveSpec struct {
 	UnwrapRefs func(raw any) ([]ImportRef, bool)
 	// Fallback lists the languages whose rule index and overrides a relative
 	// import searches, in order, when the own language has no match.
-	Fallback   []string
+	Fallback []string
+	// Find, when set, replaces the own-name override, Lookups, Candidates and
+	// the own-index JS-extension skip with one lookup of the whole ref.
+	Find       func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup
 	IsStdLib   func(name string) bool
 	Candidates func(name string) []string
 	Lookups    func(pkg, name string) []string
@@ -449,65 +452,25 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 	}
 	for _, ref := range refs {
 		name := ref.Root
-		imp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: name}
-		override, found := resolve.FindRuleWithOverride(c, imp, spec.LanguageName)
-		if !found && !ref.Relative && spec.IsStdLib != nil && spec.IsStdLib(name) {
-			continue
-		}
-		if found {
-			if spec.MarkUsed(name) {
-				spec.FailConflict(from, name)
+		var matches []resolve.FindResult
+		if spec.Find != nil {
+			lk := spec.Find(c, ix, ref)
+			if lk.HasOverride {
+				if spec.MarkUsed(name) {
+					spec.FailConflict(from, name)
+					continue
+				}
+				add(lk.Override)
 				continue
 			}
-			add(override)
-			continue
-		}
-		// A relative import naming a JavaScript or TypeScript extension can
-		// never be a source of this language, so it skips the own index.
-		ownIndex := !ref.Relative || !slices.Contains(JSModuleExts, ref.ModuleExt)
-		keys := []string{name}
-		if spec.Lookups != nil {
-			keys = spec.Lookups(from.Pkg, name)
-		}
-		var matches []resolve.FindResult
-		mappedKey := false
-		for _, key := range keys {
-			if !ownIndex {
-				break
+			if !ref.Relative && spec.IsStdLib != nil && spec.IsStdLib(name) {
+				continue
 			}
-			kimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: key}
-			if key != name {
-				if override, found := resolve.FindRuleWithOverride(c, kimp, spec.LanguageName); found {
-					add(override)
-					mappedKey = true
-					break
-				}
-			}
-			if matches = ix.FindRulesByImportWithConfig(c, kimp, spec.LanguageName); len(matches) > 0 {
-				break
-			}
-		}
-		if mappedKey {
-			continue
-		}
-		if len(matches) == 0 && ownIndex {
-			var cands []string
-			if spec.Candidates != nil {
-				cands = spec.Candidates(name)
-			}
-			mapped := false
-			for _, cand := range cands {
-				cimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: cand}
-				if override, found := resolve.FindRuleWithOverride(c, cimp, spec.LanguageName); found {
-					add(override)
-					mapped = true
-					break
-				}
-				if matches = ix.FindRulesByImportWithConfig(c, cimp, spec.LanguageName); len(matches) > 0 {
-					break
-				}
-			}
-			if mapped {
+			matches = lk.Matches
+		} else {
+			var done bool
+			matches, done = lookupOwn(c, ix, spec, ref, from, add)
+			if done {
 				continue
 			}
 		}
@@ -522,7 +485,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 				continue
 			}
 		}
-		if len(matches) == 0 && ref.Relative && ref.Ext != "" && len(spec.Fallback) > 0 {
+		if len(matches) == 0 && ref.Relative && ref.Ext != "" {
 			// An asset no target owns is left to the bundler. A matching
 			// ignore is still marked used so it never reads as stale.
 			spec.MarkUsed(name)
@@ -567,6 +530,75 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 	}
 	sort.Strings(labels)
 	r.SetAttr(spec.Attr, UnionStrings(r.AttrStrings(spec.Attr), labels))
+}
+
+// lookupOwn resolves ref against overrides, the own rule index, Lookups and
+// Candidates. done reports that the ref is fully handled (override added,
+// conflict, or stdlib).
+func lookupOwn(c *config.Config, ix *resolve.RuleIndex, spec ResolveSpec, ref ImportRef, from label.Label, add func(label.Label)) (matches []resolve.FindResult, done bool) {
+	name := ref.Root
+	imp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: name}
+	override, found := resolve.FindRuleWithOverride(c, imp, spec.LanguageName)
+	if !found && !ref.Relative && spec.IsStdLib != nil && spec.IsStdLib(name) {
+		return nil, true
+	}
+	if found {
+		if spec.MarkUsed(name) {
+			spec.FailConflict(from, name)
+			return nil, true
+		}
+		add(override)
+		return nil, true
+	}
+	// A relative import naming a JavaScript or TypeScript extension can
+	// never be a source of this language, so it skips the own index.
+	ownIndex := !ref.Relative || !slices.Contains(JSModuleExts, ref.ModuleExt)
+	keys := []string{name}
+	if spec.Lookups != nil {
+		keys = spec.Lookups(from.Pkg, name)
+	}
+	mappedKey := false
+	for _, key := range keys {
+		if !ownIndex {
+			break
+		}
+		kimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: key}
+		if key != name {
+			if override, found := resolve.FindRuleWithOverride(c, kimp, spec.LanguageName); found {
+				add(override)
+				mappedKey = true
+				break
+			}
+		}
+		if matches = ix.FindRulesByImportWithConfig(c, kimp, spec.LanguageName); len(matches) > 0 {
+			break
+		}
+	}
+	if mappedKey {
+		return nil, true
+	}
+	if len(matches) == 0 && ownIndex {
+		var cands []string
+		if spec.Candidates != nil {
+			cands = spec.Candidates(name)
+		}
+		mapped := false
+		for _, cand := range cands {
+			cimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: cand}
+			if override, found := resolve.FindRuleWithOverride(c, cimp, spec.LanguageName); found {
+				add(override)
+				mapped = true
+				break
+			}
+			if matches = ix.FindRulesByImportWithConfig(c, cimp, spec.LanguageName); len(matches) > 0 {
+				break
+			}
+		}
+		if mapped {
+			return nil, true
+		}
+	}
+	return matches, false
 }
 
 func unwrapRefs(raw any, spec ResolveSpec) ([]ImportRef, bool) {

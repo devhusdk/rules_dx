@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
@@ -85,4 +86,42 @@ func IsAssetSource(src string) bool {
 		return false
 	}
 	return true
+}
+
+// JSFind returns a ResolveSpec.Find hook that looks refs up with FindJSImport.
+func JSFind(lang string) func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup {
+	return func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup {
+		return FindJSImport(c, ix, lang, ref.Root, ref.Relative)
+	}
+}
+
+// JSImportRefs drops Node builtins, merges refs by Root (a root is Relative if
+// any ref is, and keeps any non-empty Ext) and sorts the result.
+func JSImportRefs(refs []ImportRef) []ImportRef {
+	var out []ImportRef
+	index := make(map[string]int)
+	for _, ref := range refs {
+		if i, ok := index[ref.Root]; ok {
+			out[i].Relative = out[i].Relative || ref.Relative
+			if out[i].Ext == "" {
+				out[i].Ext = ref.Ext
+			}
+			continue
+		}
+		if !ref.Relative && IsNodeBuiltin(ref.Root) {
+			continue
+		}
+		index[ref.Root] = len(out)
+		out = append(out, ref)
+	}
+	SortRefs(out)
+	return out
+}
+
+// ConfigureTSPathsExt is a SingleLangSpec.ConfigureExt hook that loads the
+// nearest tsconfig/jsconfig paths.
+func ConfigureTSPathsExt(c *config.Config, rel string, _ *rule.File, rep Reporter) {
+	if err := ConfigureTSPaths(c, rel); err != nil {
+		rep.Fail("%v", err)
+	}
 }

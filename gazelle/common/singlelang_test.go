@@ -1461,3 +1461,141 @@ func TestResolveSpecForWantKind(t *testing.T) {
 		}
 	}
 }
+
+// findLang is a dot language whose lookups go through a counting Find hook, so
+// Lookups and Candidates must never run.
+func findLang(t *testing.T, find func(ref ImportRef) JSLookup) (*SingleLang, *int) {
+	t.Helper()
+	calls := 0
+	spec := dotSpec()
+	spec.Lookups = func(pkg, name string) []string { calls++; return []string{name} }
+	spec.Candidates = func(name string) []string { calls++; return nil }
+	spec.Find = func(_ *config.Config, _ *resolve.RuleIndex, ref ImportRef) JSLookup { return find(ref) }
+	return NewSingleLang(spec), &calls
+}
+
+func match(pkg, name string) resolve.FindResult {
+	return resolve.FindResult{Label: label.New("", pkg, name)}
+}
+
+func TestResolveFindHook(t *testing.T) {
+	from := label.New("", "app", "app")
+	lookups := map[string]JSLookup{
+		"Over":  {Override: label.New("", "o", "o"), HasOverride: true},
+		"One":   {Matches: []resolve.FindResult{match("one", "one")}},
+		"Self":  {Matches: []resolve.FindResult{match("app", "app")}},
+		"Amb":   {Matches: []resolve.FindResult{match("a", "a"), match("b", "b")}},
+		"Zero":  {},
+		"Ig":    {},
+		"dot.x": {Matches: []resolve.FindResult{match("never", "never")}},
+	}
+	l, calls := findLang(t, func(ref ImportRef) JSLookup { return lookups[ref.Root] })
+	cfg := resolverConfig(t, nil)
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot Ig\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	r := rule.NewRule(dotKind, "app")
+	refs := []ImportRef{{Root: "Over"}, {Root: "One"}, {Root: "Self"}, {Root: "Ig"}, {Root: "dot.x"}}
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapRefImportSet(refs), from)
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//o,//one" {
+		t.Errorf("deps = %q, want //o,//one", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v, want none", l.errors)
+	}
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "z"), WrapRefImportSet([]ImportRef{{Root: "Zero"}}), from)
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "a"), WrapRefImportSet([]ImportRef{{Root: "Amb"}}), from)
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0], "unresolved import") || !strings.Contains(l.errors[1], "ambiguous") {
+		t.Errorf("errors = %v, want unresolved then ambiguous", l.errors)
+	}
+	if *calls != 0 {
+		t.Errorf("Lookups/Candidates ran %d times with Find set", *calls)
+	}
+}
+
+func TestResolveFindOverrideAndIgnoreConflict(t *testing.T) {
+	l, _ := findLang(t, func(ImportRef) JSLookup {
+		return JSLookup{Override: label.New("", "o", "o"), HasOverride: true}
+	})
+	cfg := resolverConfig(t, nil)
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot Over\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapRefImportSet([]ImportRef{{Root: "Over"}}), label.New("", "app", "app"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "both an exact resolve mapping and ignore") || r.Attr("deps") != nil {
+		t.Errorf("errors = %v, deps = %v", l.errors, r.AttrStrings("deps"))
+	}
+}
+
+func TestResolveUnownedRelativeAssetSkipped(t *testing.T) {
+	l := newDotLang()
+	cfg := resolverConfig(t, nil)
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot app/a.json\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	l.generated.Add("app")
+	r := rule.NewRule(dotKind, "app")
+	asset := []ImportRef{{Root: "app/a.json", Relative: true, Ext: ".json"}, {Root: "app/b.json", Relative: true, Ext: ".json"}}
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapRefImportSet(asset), label.New("", "app", "app"))
+	if len(l.errors) != 0 || r.Attr("deps") != nil {
+		t.Errorf("errors = %v, deps = %v, want a silent skip", l.errors, r.AttrStrings("deps"))
+	}
+	l.AfterResolvingDeps(context.Background())
+	if len(l.errors) != 0 {
+		t.Errorf("matching ignore read as stale: %v", l.errors)
+	}
+}
+
+func TestResolveAttrFollowsResolveAttrs(t *testing.T) {
+	cases := []struct {
+		name  string
+		attrs map[string]bool
+		want  string
+	}{
+		{"none", nil, "deps"},
+		{"data", map[string]bool{"data": true}, "data"},
+		{"two", map[string]bool{"data": true, "deps": true}, "deps"},
+	}
+	for _, tc := range cases {
+		spec := dotSpec()
+		info := LibraryKindInfo()
+		info.ResolveAttrs = tc.attrs
+		spec.Kinds = map[string]rule.KindInfo{dotKind: info}
+		l := NewSingleLang(spec)
+		if got := l.ResolveSpecFor(config.New(), rule.NewRule(dotKind, "x"), label.New("", "p", "x")).Attr; got != tc.want {
+			t.Errorf("%s: attr = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestJSImportRefs(t *testing.T) {
+	got := JSImportRefs([]ImportRef{
+		{Root: "zeta"},
+		{Root: "fs"},
+		{Root: "node:sqlite"},
+		{Root: "sqlite"},
+		{Root: "fs", Relative: true},
+		{Root: "pkg"},
+		{Root: "pkg", Relative: true, Ext: ".json"},
+		{Root: "pkg"},
+	})
+	want := []ImportRef{
+		{Root: "fs", Relative: true},
+		{Root: "pkg", Relative: true, Ext: ".json"},
+		{Root: "sqlite"},
+		{Root: "zeta"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("refs = %+v, want %+v", got, want)
+	}
+	if got := JSImportRefs(nil); len(got) != 0 {
+		t.Errorf("empty = %+v", got)
+	}
+}

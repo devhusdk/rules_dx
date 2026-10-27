@@ -451,7 +451,9 @@ OCTOPUS_URL=https://octopus.example.com \
 dx deploy --apply //pkg:octopus_demo
 ```
 
-This runs `octo push`. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
+This runs `octo push --package`, then `octo create-release` with a
+`--deployTo` for each `deploy_to`. Deployments are queued, not awaited. A rerun
+after a failed `create-release` fails at push. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
 env, never the command line. A live run refuses version `0.0.0` and the default
 `octopus_url`.
 

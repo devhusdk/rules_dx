@@ -60,7 +60,7 @@ def octopus_version_error(version):
     return ""
 
 def octopus_environment_error(environment):
-    """Validates one Octopus environment (--deploy-to) value."""
+    """Validates one Octopus environment (--deployTo) value."""
     if type(environment) != "string" or environment == "":
         return ("octopus_deploy: invalid environment '" + str(environment) +
                 "': want a non-empty environment (for example 'Production')")

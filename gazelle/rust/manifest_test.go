@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -63,21 +64,16 @@ func TestBeforeWiresTheRecorder(t *testing.T) {
 
 func TestUsedImportsDropsStaleEntries(t *testing.T) {
 	got := common.UsedImports(languageName, []*common.IgnoreEntry{
-		{Value: "used_crate", Path: "pkg", Used: true},
+		{Value: "used_crate", Path: "pkg", UsedBy: []string{"pkg"}},
 		{Value: "stale_crate", Path: "pkg"},
-		{Value: "used_crate", Path: "other", Used: true},
+		{Value: "used_crate", Path: "other", UsedBy: []string{"other/sub"}},
 	})
 	want := []common.IgnoredImport{
-		{Path: "pkg", Language: languageName, Value: "used_crate"},
-		{Path: "other", Language: languageName, Value: "used_crate"},
+		{Path: "pkg", Language: languageName, Value: "used_crate", UsedBy: []string{"pkg"}},
+		{Path: "other", Language: languageName, Value: "used_crate", UsedBy: []string{"other/sub"}},
 	}
-	if len(got) != len(want) {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("used ignores = %+v, want %+v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("used ignore %d = %+v, want %+v", i, got[i], want[i])
-		}
 	}
 }
 
@@ -92,18 +88,41 @@ func TestUsedIgnoresReadsTheRustConfigExtension(t *testing.T) {
 	}
 	cfg.Exts[languageName] = &rustConfig{
 		IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
-			{Value: "used_crate", Path: "pkg", Used: true},
+			{Value: "used_crate", Path: "pkg", UsedBy: []string{"pkg"}},
 			{Value: "stale_crate", Path: "pkg"},
 		}},
 		tools: []string{"cargo"},
 	}
-	want := [][2]string{{"pkg", "used_crate"}}
+	want := []common.IgnoredImport{{Path: "pkg", Language: languageName, Value: "used_crate", UsedBy: []string{"pkg"}}}
 	got := common.UsedIgnores(cfg, languageName)
-	if len(got) != len(want) || got[0] != want[0] {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("used ignores = %v, want %v", got, want)
 	}
 	if tools := selectedNativeTools(cfg); len(tools) != 1 || tools[0] != "cargo" {
 		t.Fatalf("native tools = %v, want [cargo]", tools)
+	}
+}
+
+func TestAfterResolvingDepsEmitsInheritedIgnoreInScope(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	l := &rustLang{}
+	l.manifest = &common.ManifestRecorder{
+		Prefix:        "rust",
+		OutPath:       out,
+		Mode:          "default",
+		Scopes:        []common.ScopeElement{{Element: "//a/b/...", Dirs: []string{"a/b"}}},
+		ApparentLoads: l.ApparentLoads,
+	}
+	l.ignores = []*common.IgnoreEntry{{Value: "serde", Path: "a"}}
+	l.ignores[0].MarkUsed("a/b")
+	code := stubExitProcess(t)
+	l.AfterResolvingDeps(context.Background())
+	if *code != -1 || len(l.errors) != 0 {
+		t.Fatalf("exit = %d, errors = %v, want success", *code, l.errors)
+	}
+	want := []common.IntendedIgnoredImport{{Path: "a", Language: "rust", Import: "serde", ScopeIndex: 0}}
+	if got := readIntended(t, out).IgnoredImports; !reflect.DeepEqual(got, want) {
+		t.Fatalf("ignored imports = %+v, want %+v", got, want)
 	}
 }
 

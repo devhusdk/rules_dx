@@ -235,7 +235,7 @@ func (l *fsharpLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		IsStdLib: IsStdLib,
 		MarkUsed: func(name string) bool {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				return true
 			}
 			return false

@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -10,9 +11,28 @@ import (
 )
 
 type IgnoreEntry struct {
-	Value string
-	Path  string
-	Used  bool
+	Value  string
+	Path   string
+	UsedBy []string
+}
+
+// MarkUsed records rel as a package that used the entry, keeping UsedBy sorted and unique.
+func (e *IgnoreEntry) MarkUsed(rel string) {
+	e.UsedBy = insertSorted(e.UsedBy, rel)
+}
+
+// Used reports whether any package used the entry.
+func (e *IgnoreEntry) Used() bool { return len(e.UsedBy) > 0 }
+
+func insertSorted(list []string, value string) []string {
+	i := sort.SearchStrings(list, value)
+	if i < len(list) && list[i] == value {
+		return list
+	}
+	list = append(list, "")
+	copy(list[i+1:], list[i:])
+	list[i] = value
+	return list
 }
 
 type IgnoreConfig struct {
@@ -114,7 +134,7 @@ func (g GeneratedRels) Has(rel string) bool {
 func StaleIgnores(languageName string, declared []*IgnoreEntry, generated GeneratedRels) []string {
 	var errs []string
 	for _, ignore := range declared {
-		if ignore == nil || ignore.Used || !generated.Has(ignore.Path) {
+		if ignore == nil || ignore.Used() || !generated.Has(ignore.Path) {
 			continue
 		}
 		errs = append(errs, fmt.Sprintf("%s: //%s: stale # gazelle:dx_ignore_import %s %s matches no literal reference",
@@ -123,34 +143,37 @@ func StaleIgnores(languageName string, declared []*IgnoreEntry, generated Genera
 	return errs
 }
 
-func UsedIgnores(c *config.Config, languageName string) [][2]string {
-	return usedIgnorePairs(InheritedIgnores(c, languageName))
+// UsedIgnores returns the used entries visible from c, one per (Path, Value).
+func UsedIgnores(c *config.Config, languageName string) []IgnoredImport {
+	return usedImports(languageName, InheritedIgnores(c, languageName))
 }
 
+// UsedImports returns the used declared entries, one per (Path, Value).
 func UsedImports(languageName string, declared []*IgnoreEntry) []IgnoredImport {
-	var out []IgnoredImport
-	for _, ignore := range declared {
-		if ignore == nil || !ignore.Used {
-			continue
-		}
-		out = append(out, IgnoredImport{Path: ignore.Path, Language: languageName, Value: ignore.Value})
-	}
-	return out
+	return usedImports(languageName, declared)
 }
 
-func usedIgnorePairs(entries []*IgnoreEntry) [][2]string {
-	seen := map[[2]string]bool{}
-	var out [][2]string
+func usedImports(languageName string, entries []*IgnoreEntry) []IgnoredImport {
+	index := map[[2]string]int{}
+	var out []IgnoredImport
 	for _, ig := range entries {
-		if ig == nil || !ig.Used {
+		if ig == nil || !ig.Used() {
 			continue
 		}
 		key := [2]string{ig.Path, ig.Value}
-		if seen[key] {
+		if i, ok := index[key]; ok {
+			out[i].UsedBy = mergeSorted(out[i].UsedBy, ig.UsedBy)
 			continue
 		}
-		seen[key] = true
-		out = append(out, key)
+		index[key] = len(out)
+		out = append(out, IgnoredImport{Path: ig.Path, Language: languageName, Value: ig.Value, UsedBy: mergeSorted(nil, ig.UsedBy)})
 	}
 	return out
+}
+
+func mergeSorted(dst, src []string) []string {
+	for _, rel := range src {
+		dst = insertSorted(dst, rel)
+	}
+	return dst
 }

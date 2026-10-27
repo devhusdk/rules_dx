@@ -672,7 +672,7 @@ func TestIgnoreDirectiveInheritanceAndStaleCheck(t *testing.T) {
 	if ignore == nil || ignore.Path != "" {
 		t.Fatalf("inherited ignore = %+v", ignore)
 	}
-	ignore.Used = true
+	ignore.MarkUsed("pkg")
 	l.AfterResolvingDeps(context.Background())
 }
 
@@ -760,7 +760,7 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 	if ignore == nil || ignore.Value != "mydep" {
 		t.Fatalf("three-field ignore = %+v, want mydep", ignore)
 	}
-	ignore.Used = true
+	ignore.MarkUsed("pkg")
 
 	malformed := &javascriptLang{}
 	malformed.Before(context.Background())

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -213,6 +214,52 @@ func TestAfterResolvingDepsWritesManifest(t *testing.T) {
 	}
 }
 
+func TestAfterResolvingDepsEmitsInheritedIgnoreInScope(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateScope, `[{"element":"//a/b/...","dirs":["a/b"]}]`)
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	cfg := testConfig()
+	cfg.Exts = map[string]interface{}{"cc": &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+		{Value: "foo", Path: "a", UsedBy: []string{"a/b"}},
+	}}}
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: t.TempDir(), Rel: "a/b"})
+	oldExit := exitProcess
+	code := -1
+	exitProcess = func(c int) { code = c }
+	defer func() { exitProcess = oldExit }()
+	l.AfterResolvingDeps(context.Background())
+	if code != -1 {
+		t.Fatalf("exit code = %d, errors = %v, want no exit", code, l.errors)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	var manifest common.IntendedManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("decode manifest: %v", err)
+	}
+	want := []common.IntendedIgnoredImport{{Path: "a", Language: "cc", Import: "foo", ScopeIndex: 0}}
+	if !reflect.DeepEqual(manifest.IgnoredImports, want) {
+		t.Fatalf("ignored imports = %+v, want %+v", manifest.IgnoredImports, want)
+	}
+}
+
+func TestCollectUsedIgnoresMergesUsers(t *testing.T) {
+	parent := &common.IgnoreEntry{Value: "v", Path: "a", UsedBy: []string{"a/c"}}
+	twin := &common.IgnoreEntry{Value: "v", Path: "a", UsedBy: []string{"a/b"}}
+	one, two := testConfig(), testConfig()
+	one.Exts = map[string]interface{}{"cc": &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{parent}}}
+	two.Exts = map[string]interface{}{"cc": &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{parent, twin}}}
+	got := (&dispatchLang{configs: []*config.Config{one, two}}).collectUsedIgnores()
+	want := []common.IgnoredImport{{Path: "a", Language: "cc", Value: "v", UsedBy: []string{"a/b", "a/c"}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ignores = %+v, want %+v", got, want)
+	}
+}
+
 func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "intended.json")
 	t.Setenv(common.EnvIntendedManifest, out)
@@ -255,27 +302,27 @@ func TestCollectUsedIgnoresSortsAndFilters(t *testing.T) {
 	cfg := testConfig()
 	cfg.Exts = map[string]interface{}{}
 	cfg.Exts["cc"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
-		{Value: "zlib", Path: "pkg/z.cc", Used: true},
+		{Value: "zlib", Path: "pkg/z.cc", UsedBy: []string{"pkg/z.cc"}},
 		{Value: "stale", Path: "pkg/s.cc"},
 	}}
 	cfg.Exts["vue"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
-		{Value: "chart", Path: "pkg/a.vue", Used: true},
+		{Value: "chart", Path: "pkg/a.vue", UsedBy: []string{"pkg/a.vue"}},
 	}}
 	cfg.Exts["gleam"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
-		{Value: "gleam/io", Path: "pkg/app.gleam", Used: true},
+		{Value: "gleam/io", Path: "pkg/app.gleam", UsedBy: []string{"pkg/app.gleam"}},
 	}}
 	l := &dispatchLang{configs: []*config.Config{cfg, nil, cfg}}
 	want := []common.IgnoredImport{
-		{Path: "pkg/a.vue", Language: "vue", Value: "chart"},
-		{Path: "pkg/app.gleam", Language: "gleam", Value: "gleam/io"},
-		{Path: "pkg/z.cc", Language: "cc", Value: "zlib"},
+		{Path: "pkg/a.vue", Language: "vue", Value: "chart", UsedBy: []string{"pkg/a.vue"}},
+		{Path: "pkg/app.gleam", Language: "gleam", Value: "gleam/io", UsedBy: []string{"pkg/app.gleam"}},
+		{Path: "pkg/z.cc", Language: "cc", Value: "zlib", UsedBy: []string{"pkg/z.cc"}},
 	}
 	got := l.collectUsedIgnores()
 	if len(got) != len(want) {
 		t.Fatalf("ignores = %+v, want %+v", got, want)
 	}
 	for i := range want {
-		if got[i] != want[i] {
+		if !reflect.DeepEqual(got[i], want[i]) {
 			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want[i])
 		}
 	}
@@ -286,15 +333,15 @@ func TestCollectUsedIgnoresCoversEveryIgnoreLanguage(t *testing.T) {
 	cfg.Exts = map[string]interface{}{}
 	names := ignoreLanguages()
 	for _, name := range names {
-		cfg.Exts[name] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{{Value: "v", Path: "pkg/" + name, Used: true}}}
+		cfg.Exts[name] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{{Value: "v", Path: "pkg/" + name, UsedBy: []string{"pkg/" + name}}}}
 	}
 	got := (&dispatchLang{configs: []*config.Config{cfg}}).collectUsedIgnores()
 	if len(got) != len(names) {
 		t.Fatalf("ignores = %+v, want one per language in %v", got, names)
 	}
 	for i, name := range names {
-		want := common.IgnoredImport{Path: "pkg/" + name, Language: name, Value: "v"}
-		if got[i] != want {
+		want := common.IgnoredImport{Path: "pkg/" + name, Language: name, Value: "v", UsedBy: []string{"pkg/" + name}}
+		if !reflect.DeepEqual(got[i], want) {
 			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want)
 		}
 	}
@@ -387,24 +434,24 @@ func TestCollectUsedIgnoresTieBreaksOnLanguageAndValue(t *testing.T) {
 	cfg := testConfig()
 	cfg.Exts = map[string]interface{}{}
 	cfg.Exts["cc"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
-		{Value: "b", Path: "pkg/same", Used: true},
-		{Value: "a", Path: "pkg/same", Used: true},
+		{Value: "b", Path: "pkg/same", UsedBy: []string{"pkg/same"}},
+		{Value: "a", Path: "pkg/same", UsedBy: []string{"pkg/same"}},
 	}}
 	cfg.Exts["java"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
-		{Value: "c", Path: "pkg/same", Used: true},
+		{Value: "c", Path: "pkg/same", UsedBy: []string{"pkg/same"}},
 	}}
 	l := &dispatchLang{configs: []*config.Config{cfg}}
 	want := []common.IgnoredImport{
-		{Path: "pkg/same", Language: "cc", Value: "a"},
-		{Path: "pkg/same", Language: "cc", Value: "b"},
-		{Path: "pkg/same", Language: "java", Value: "c"},
+		{Path: "pkg/same", Language: "cc", Value: "a", UsedBy: []string{"pkg/same"}},
+		{Path: "pkg/same", Language: "cc", Value: "b", UsedBy: []string{"pkg/same"}},
+		{Path: "pkg/same", Language: "java", Value: "c", UsedBy: []string{"pkg/same"}},
 	}
 	got := l.collectUsedIgnores()
 	if len(got) != len(want) {
 		t.Fatalf("ignores = %+v, want %+v", got, want)
 	}
 	for i := range want {
-		if got[i] != want[i] {
+		if !reflect.DeepEqual(got[i], want[i]) {
 			t.Errorf("ignore %d = %+v, want %+v", i, got[i], want[i])
 		}
 	}

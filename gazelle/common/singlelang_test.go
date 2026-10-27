@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -85,11 +86,11 @@ func TestConfigureCollectsIgnoreWitness(t *testing.T) {
 	if entry == nil || entry.Path != "parent" {
 		t.Fatalf("inherited ignore: %+v", entry)
 	}
-	entry.Used = true
+	entry.MarkUsed("parent/child")
 	conf := cfg.Exts[dotLanguage].(*IgnoreConfig)
 	conf.Ignores = append(conf.Ignores, nil, entry, &IgnoreEntry{Value: "Unused", Path: "parent"})
 	got := UsedIgnores(cfg, dotLanguage)
-	if len(got) != 1 || got[0] != [2]string{"parent", "Widget"} {
+	if len(got) != 1 || got[0].Path != "parent" || got[0].Value != "Widget" || !reflect.DeepEqual(got[0].UsedBy, []string{"parent/child"}) {
 		t.Fatalf("used ignores: %v", got)
 	}
 	l.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot"}}})

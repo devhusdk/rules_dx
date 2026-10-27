@@ -283,7 +283,7 @@ func TestIgnoreDirectiveInheritanceAndStaleCheck(t *testing.T) {
 	if ignore == nil || ignore.Path != "" {
 		t.Fatalf("inherited ignore = %+v", ignore)
 	}
-	ignore.Used = true
+	ignore.MarkUsed("pkg")
 	l.AfterResolvingDeps(context.Background())
 }
 
@@ -411,7 +411,7 @@ func TestConfigureDirectiveForms(t *testing.T) {
 	if len(l.ignores) != 1 || l.ignores[0].Value != "external" {
 		t.Errorf("ignores = %+v", l.ignores)
 	}
-	l.ignores[0].Used = true
+	l.ignores[0].MarkUsed("pkg")
 	l.AfterResolvingDeps(context.Background())
 	if common.MatchingIgnore(config.New(), languageName, "none") != nil || common.MatchingIgnore(cfg, languageName, "none") != nil {
 		t.Error("nonmatching ignore found")

@@ -399,7 +399,7 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				l.fail("go: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
@@ -418,7 +418,7 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 			deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
 		case 0:
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				continue
 			}
 			if leaf := path.Base(name); leaf != name {

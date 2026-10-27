@@ -537,9 +537,12 @@ fn lock_change(
     let base = show_at_base(git, workspace, runner, base, path)
         .map_err(|detail| format!("cannot read {path}: {detail}"))?
         .ok_or_else(workspace_input)?;
-    let changed = kind
-        .changed(&base, &head)
-        .map_err(|detail| format!("cannot read {path}: {detail}"))?;
+    let changed = if matches!(kind, LockKind::Go(_)) {
+        lock_inputs::changed_go(path, &base, &head)
+    } else {
+        kind.changed(&base, &head)
+    }
+    .map_err(|detail| format!("cannot read {path}: {detail}"))?;
     Ok(kind
         .hubs()
         .iter()
@@ -993,12 +996,16 @@ pub fn resolve_affected(
         for (path, changed) in &narrowed {
             let mut repos: BTreeSet<String> = BTreeSet::new();
             let mut seeds: Vec<String> = Vec::new();
+            let go_changed = changed
+                .iter()
+                .any(|(_, change)| !change.go_repos.is_empty());
             for (hub, change) in changed {
                 let LockChange {
                     crates,
                     aliases,
                     pip,
                     maven,
+                    go_repos,
                 } = change;
                 if *maven {
                     seeds.extend(lock_inputs::maven_seeds(
@@ -1018,6 +1025,8 @@ pub fn resolve_affected(
                     repos.extend(crates.keys().map(|name| format!("@{hub}//{name}")));
                     continue;
                 }
+                seeds.extend(lock_inputs::go_seeds(loaded.external_inputs(), go_repos));
+                repos.extend(go_repos.iter().map(|name| format!("@{name}//...")));
                 seeds.extend(lock_inputs::seeds(
                     loaded.external_inputs(),
                     hub,
@@ -1044,7 +1053,11 @@ pub fn resolve_affected(
                 let repos: Vec<String> = repos.into_iter().collect();
                 widened.push(WidenedScope {
                     scope: rdeps_scope(&repos),
-                    reason: format!("changed crates in {path}"),
+                    reason: if go_changed {
+                        format!("changed Go modules in {path}")
+                    } else {
+                        format!("changed crates in {path}")
+                    },
                     repos,
                 });
             }
@@ -1592,8 +1605,6 @@ mod tests {
         );
         for changed in [
             "pnpm-lock.yaml",
-            "third_party/go/go.mod",
-            "third_party/go/go.sum",
             "py/requirements_linux.txt",
             "deps/go.MODULE.bazel",
         ] {

@@ -59,7 +59,8 @@ haskell_binary(
 ## Runtime libraries
 
 GHC and the programs it links load two shared libraries that are not in
-glibc. Both come from pinned Debian 10 packages and ship next to GHC with
+glibc. Both come from pinned Debian 10 `amd64` or `arm64` packages, one set
+per cell, and ship next to GHC with
 their license texts in `dx_closure/licenses`:
 
 | Library | Package | License |
@@ -87,13 +88,14 @@ No Haskell formatter or linter runs yet.
 
 ## Platforms
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Qualified |
-| `linux_arm64` | Not qualified |
-| `macos_x86_64` | Not qualified |
-| `macos_arm64` | Not qualified |
-| `windows_x86_64` | Not qualified |
+| Cell | Status | Reason |
+| --- | --- | --- |
+| `linux_x86_64` | Qualified | |
+| `linux_arm64` | Qualified | |
+| `macos_arm64` | Not qualified | Needs a Darwin bindist cell and patched `otool` tools. Tracked in a follow-up issue. |
+| `macos_x86_64` | Not qualified | No CI cell. |
+| `windows_x86_64` | Not qualified | rules_haskell has no hermetic Windows port. |
+| `windows_arm64` | Not qualified | rules_haskell has no hermetic Windows port. |
 
 On other platforms Haskell targets fail toolchain resolution.
 

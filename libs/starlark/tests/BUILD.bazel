@@ -9,6 +9,7 @@ load(":action_tests.bzl", "action_unit_tests")
 load(":analysis_tests.bzl", "observations_only_tests", "runner_shape_tests", "subject_analysis_tests")
 load(":arithmetic_tests.bzl", "arithmetic_load_tests", "arithmetic_unit_tests")
 load(":aspect_tests.bzl", "aspect_subject_tests")
+load(":cells_tests.bzl", "cells_tests")
 load(":config_tests.bzl", "config_subject_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
 load(":matcher_tests.bzl", "matcher_unit_tests")
@@ -64,6 +65,8 @@ config_group(
 arithmetic_unit_tests(name = "arithmetic_unit")
 
 arithmetic_load_tests(name = "arithmetic_load")
+
+cells_tests(name = "cells")
 
 action_unit_tests(name = "action_unit")
 
@@ -187,6 +190,7 @@ real_source_target(
         "arithmetic.bzl",
         "arithmetic_tests.bzl",
         "aspect_tests.bzl",
+        "cells_tests.bzl",
         "config_tests.bzl",
         "direct_sources.bzl",
         "execution_tests.bzl",

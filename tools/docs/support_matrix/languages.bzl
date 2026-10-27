@@ -6,7 +6,8 @@ load("//elixir/rules:defs.bzl", "ELIXIR_CELLS")
 load("//erlang/rules:defs.bzl", "ERLANG_CELLS")
 load("//erlang/toolchain:pins.bzl", OTP_CELLS = "CELLS")
 load("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
-load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH")
+load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
+load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
 load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
@@ -34,16 +35,16 @@ def _all_of(labels):
 def _os_cpu_pairs(platforms):
     return [["@platforms//os:" + os, "@platforms//cpu:" + cpu] for os, cpu in sorted(platforms.values())]
 
-def _otp_cells(cells):
-    return [OTP_CELLS[cell].exec_compatible_with for cell in cells]
+def _cells(pinned, cells):
+    return [pinned[cell].exec_compatible_with for cell in cells]
 
 COMPUTED_CONSTRAINTS = {
     "//cuda/rules:defs.bzl%CUDA_TARGET": _all_of(CUDA_TARGET),
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _all_of(D_COMPATIBLE_WITH),
-    "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _otp_cells(ELIXIR_CELLS),
-    "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _otp_cells(ERLANG_CELLS),
+    "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
+    "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
     "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": _all_of(FORTRAN_COMPATIBLE_WITH),
-    "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _all_of(HASKELL_COMPATIBLE_WITH),
+    "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
     "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _all_of(OCAML_COMPATIBLE_WITH),
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
     "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(RULES_PERL_PLATFORMS),

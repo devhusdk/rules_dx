@@ -102,6 +102,36 @@ func (l *rustLang) cargoManifestAt(repoRoot, rel string) (*cargoManifest, error)
 	return m, nil
 }
 
+func providerRelOf(rel, depPath string) string {
+	providerRel := path.Clean(path.Join(rel, depPath))
+	if providerRel == "." {
+		providerRel = ""
+	}
+	return providerRel
+}
+
+// resolveRenamedProviders records, for each renamed local path dep, the extern
+// crate name of the crate it points at. Only the consumer's maps are written.
+func (l *rustLang) resolveRenamedProviders(args language.GenerateArgs, m *cargoManifest) {
+	for _, depMap := range []map[string]cargoDependency{m.normalDeps, m.devDeps, m.buildDeps} {
+		for key, dep := range depMap {
+			if dep.external || !dep.renamed || dep.depPath == "" {
+				continue
+			}
+			providerRel := providerRelOf(args.Rel, dep.depPath)
+			if !escapesRepo(providerRel) {
+				if provider, _ := l.cargoManifestAt(args.Config.RepoRoot, providerRel); provider != nil {
+					dep.crate = provider.libCrateName()
+				}
+			}
+			if dep.crate == "" {
+				dep.crate, _ = CrateName(dep.label)
+			}
+			depMap[key] = dep
+		}
+	}
+}
+
 func (l *rustLang) checkPathDepVersions(args language.GenerateArgs, manifestPath string, m *cargoManifest) error {
 	for _, depMap := range []map[string]cargoDependency{m.normalDeps, m.devDeps, m.buildDeps} {
 		keys := make([]string, 0, len(depMap))
@@ -114,10 +144,7 @@ func (l *rustLang) checkPathDepVersions(args language.GenerateArgs, manifestPath
 			if dep.external || dep.version == "" || dep.depPath == "" {
 				continue
 			}
-			providerRel := path.Clean(path.Join(args.Rel, dep.depPath))
-			if providerRel == "." {
-				providerRel = ""
-			}
+			providerRel := providerRelOf(args.Rel, dep.depPath)
 			providerPath := path.Join(providerRel, "Cargo.toml")
 			var provider *cargoManifest
 			if !escapesRepo(providerRel) {
@@ -179,6 +206,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		l.fail("%v", err)
 		return language.GenerateResult{}
 	}
+	l.resolveRenamedProviders(args, manifest)
 	read := func(name string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(args.Config.RepoRoot, filepath.FromSlash(name)))
 	}
@@ -401,6 +429,30 @@ func (c crateDepsCall) Merge(other bzl.Expr) bzl.Expr {
 	}
 	return c.BzlExpr()
 }
+
+// aliasesUnionExpr renders base | {label: name} for the aliases attribute.
+type aliasesUnionExpr struct {
+	base  bzl.Expr
+	extra map[string]string
+}
+
+func (c aliasesUnionExpr) BzlExpr() bzl.Expr {
+	keys := make([]string, 0, len(c.extra))
+	for k := range c.extra {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	dict := &bzl.DictExpr{ForceMultiLine: false}
+	for _, k := range keys {
+		dict.List = append(dict.List, &bzl.KeyValueExpr{Key: &bzl.StringExpr{Value: k}, Value: &bzl.StringExpr{Value: c.extra[k]}})
+	}
+	if c.base == nil {
+		return dict
+	}
+	return &bzl.BinaryExpr{X: c.base, Op: "|", Y: dict}
+}
+
+func (c aliasesUnionExpr) Merge(bzl.Expr) bzl.Expr { return c.BzlExpr() }
 
 type depsConcatExpr struct {
 	base  bzl.Expr

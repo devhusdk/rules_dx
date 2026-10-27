@@ -742,6 +742,7 @@ func TestCargoDependencyForms(t *testing.T) {
 			for _, w := range tc.want {
 				got, ok := tables[w.table][w.key]
 				expected := cargoDependency{external: w.external, label: w.label, version: w.version, depPath: w.depPath, workspace: w.workspace}
+				got.renamed = false // covered by TestCargoRenamedFlag
 				if !ok || got != expected {
 					t.Errorf("%s[%s] = %+v (present %v), want %+v", w.table, w.key, got, ok, expected)
 				}
@@ -804,7 +805,7 @@ func TestCargoInheritWorkspaceDeps(t *testing.T) {
 	}
 	wants := map[string]cargoDependency{
 		"serde": {external: true, label: "serde", version: "1", workspace: true},
-		"json":  {external: true, label: "serde_json", version: "1.0", workspace: true},
+		"json":  {external: true, label: "serde_json", version: "1.0", workspace: true, renamed: true},
 		"local": {label: "local", depPath: "../local"},
 	}
 	for key, want := range wants {
@@ -873,5 +874,46 @@ func TestCargoInheritWorkspaceDeps(t *testing.T) {
 	}
 	if err := missing.inheritWorkspaceDeps("crates/app", "nested", root); err == nil || err.Error() != `dependency "rand-core" sets workspace = true but nested/Cargo.toml has no [workspace.dependencies] entry` {
 		t.Errorf("missing entry err = %v", err)
+	}
+}
+
+func TestCargoRenamedFlag(t *testing.T) {
+	root, err := parseCargoManifest("Cargo.toml", []byte("[workspace]\n[workspace.dependencies]\napiv = { path = \"crates/api\", package = \"api\", version = \"0.1.0\" }\nplain = { path = \"crates/plain\" }\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	member, err := parseCargoManifest("crates/app/Cargo.toml", []byte("[package]\nname = \"app\"\n[dependencies]\napiv.workspace = true\nplain.workspace = true\nother = { path = \"../o\", package = \"o\" }\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := member.inheritWorkspaceDeps("crates/app", "", root); err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]bool{"apiv": true, "plain": false, "other": true} {
+		if got := member.normalDeps[key].renamed; got != want {
+			t.Errorf("%s renamed = %v, want %v", key, got, want)
+		}
+	}
+	if _, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"x\"\n[target.'cfg(unix)'.dependencies]\nfoo = { path = \"../a\", package = \"a\" }\n[target.'cfg(windows)'.dependencies]\nfoo = { path = \"../a\" }\n")); err == nil {
+		t.Error("expected error for differing renamed flag between cfgs")
+	}
+}
+
+func TestLibCrateName(t *testing.T) {
+	cases := map[string]string{
+		"[package]\nname = \"my-pkg\"\n":                         "my_pkg",
+		"[package]\nname = \"my-pkg\"\n[lib]\nname = \"core_api\"\n": "core_api",
+	}
+	for src, want := range cases {
+		m, err := parseCargoManifest("Cargo.toml", []byte(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := m.libCrateName(); got != want {
+			t.Errorf("libCrateName(%q) = %q, want %q", src, got, want)
+		}
+	}
+	if got := (&cargoManifest{packageName: "bad name"}).libCrateName(); got != "" {
+		t.Errorf("bad name libCrateName = %q, want empty", got)
 	}
 }

@@ -54,6 +54,14 @@ Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 only. It does not start or attach a debugger. See
 [Supported Surface](README.md#supported-surface).
 Exec tools build at `fastbuild`; `--release` builds them at `opt`.
+When Bazel has no output base for the workspace yet, `dx build`, `dx test`,
+`dx coverage`, `dx run` and `dx deploy` print one line on stderr before Bazel
+starts. `--quiet` and `--output=json` drop it:
+
+```text
+dx: first run in this workspace; Bazel will fetch toolchains and dependencies and this can take several minutes
+```
+
 `--explain` saves the Bazel execution log under `.dx/explain/` for
 [`dx explain`](explain.md) and keeps the two newest logs. JSON adds a
 `notice` (`explain_log`) with the log path; text prints

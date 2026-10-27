@@ -423,6 +423,11 @@ fn run() -> i32 {
     } else {
         gate
     };
+    if let Some(notice) =
+        dx_cli::exec::first_run::first_run_notice(&invocation, &workspace, &env_get)
+    {
+        let _ = writeln!(err, "{notice}");
+    }
     let mut after_first = dx_plan::slots::AfterFirstLine::new(&mut out, pending);
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
     let actions = ActionTally::default();

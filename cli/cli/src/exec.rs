@@ -17,6 +17,7 @@ mod explain;
 mod explain_store;
 mod failure;
 mod failure_reports;
+pub mod first_run;
 mod generate;
 mod guidance;
 #[cfg(test)]

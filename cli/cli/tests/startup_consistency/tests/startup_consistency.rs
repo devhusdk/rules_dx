@@ -5,7 +5,7 @@ use dx_plan::plan::{
     plan_build, plan_deploy_build, plan_deploy_run, plan_generate, plan_managed_with_roots,
     plan_run_build, plan_run_targets, plan_workflow,
 };
-use dx_plan::resolve::ResolvedScope;
+use dx_plan::resolve::{ResolvedScope, SelectionContext};
 use dx_process::{RcPolicy, Scope};
 
 const OUTPUT_BASE: &str = "--output_base=/ob";
@@ -120,4 +120,9 @@ fn query_and_shutdown_share_the_startup_prefix() {
     local();
     assert_eq!(dx_process::startup_argv(&startup()), ["bazel", OUTPUT_BASE]);
     assert!(dx_process::current().startup_opts().is_empty());
+    let query = SelectionContext::unconfigured(&startup())
+        .selection_argv("query", &[], "//a:x")
+        .expect("query argv");
+    assert_eq!(query[..3], ["bazel", OUTPUT_BASE, "query"], "{query:?}");
+    assert_eq!(query.last().map(String::as_str), Some("//a:x"), "{query:?}");
 }

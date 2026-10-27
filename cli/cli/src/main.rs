@@ -16,7 +16,7 @@ use dx_cli::args::{
     early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
     load_startup_defaults, parse_with_ci, DX_WORKSPACE_ENV,
 };
-use dx_cli::exec::common::{flush_out, LatchedOut};
+use dx_cli::exec::common::flush_out;
 use dx_cli::plan::{create_run_temp_dir, remove_on_stop};
 use dx_cli::{execute, Env, QueryResult, QueryRunner};
 use dx_output::OutputMode;
@@ -551,7 +551,6 @@ fn run() -> i32 {
         gate
     };
     let mut after_first = dx_cli::slots::AfterFirstLine::new(&mut out, pending);
-    let mut latched = LatchedOut::new(&mut after_first);
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
     let code = dx_cli::slots::with_gate(gate, || {
         execute(
@@ -563,18 +562,13 @@ fn run() -> i32 {
                 temp_dir: temp_dir.path(),
                 pid,
                 nonce,
-                out: &mut latched,
+                out: &mut after_first,
                 err: &mut err,
                 ci: dx_process::is_ci(),
                 audit_today: audit_today.as_deref(),
             },
         )
     });
-    let code = if code == 0 {
-        latched.exit_code(code)
-    } else {
-        code
-    };
     let temp_display = temp_dir.path().display().to_string();
     if let Err(error) = temp_dir.close() {
         let _ = writeln!(

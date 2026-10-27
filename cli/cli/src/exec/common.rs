@@ -53,13 +53,13 @@ pub(crate) fn emit_built(
 }
 
 /// Drops every stdout write after the first failure, so no later record lands.
-pub struct LatchedOut<'a> {
+pub(crate) struct LatchedOut<'a> {
     inner: &'a mut dyn Write,
     failed: Option<(io::ErrorKind, String)>,
 }
 
 impl<'a> LatchedOut<'a> {
-    pub fn new(inner: &'a mut dyn Write) -> Self {
+    pub(crate) fn new(inner: &'a mut dyn Write) -> Self {
         LatchedOut {
             inner,
             failed: None,
@@ -67,7 +67,7 @@ impl<'a> LatchedOut<'a> {
     }
 
     /// The run's exit code, or the stdout failure code once a write failed.
-    pub fn exit_code(&mut self, code: i32) -> i32 {
+    pub(crate) fn exit_code(&mut self, code: i32) -> i32 {
         let _ = self.flush();
         match &self.failed {
             Some((kind, message)) => stdout_io_code(&io::Error::new(*kind, message.clone())),

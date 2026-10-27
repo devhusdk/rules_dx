@@ -57,7 +57,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) -> i32 {
-    run_generate(
+    run_generate_request(
         request,
         env,
         &mut PhaseKind::Selection,
@@ -68,54 +68,11 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
 pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
     let mut effects = PhaseEffects::default();
-    let code = run_generate(request, env, &mut kind, &mut effects);
+    let code = run_generate_request(request, env, &mut kind, &mut effects);
     PhaseRun {
         code,
         kind,
         effects,
-    }
-}
-
-fn run_generate(
-    request: &GenerateRequest,
-    env: Env<'_>,
-    kind: &mut PhaseKind,
-    effects: &mut PhaseEffects,
-) -> i32 {
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ci,
-        audit_today,
-    } = env;
-    let mut latched = LatchedOut::new(out);
-    let code = run_generate_request(
-        request,
-        Env {
-            workspace,
-            runner,
-            query_runner,
-            temp_dir,
-            pid,
-            nonce,
-            out: &mut latched,
-            err,
-            ci,
-            audit_today,
-        },
-        kind,
-        effects,
-    );
-    if code == 0 {
-        latched.exit_code(code)
-    } else {
-        code
     }
 }
 

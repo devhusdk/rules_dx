@@ -55,7 +55,6 @@ go_library(
         "//gazelle/dispatch:__pkg__",
         "//gazelle/elixir:__pkg__",
         "//gazelle/fsharp:__pkg__",
-        "//gazelle/gleam:__pkg__",
         "//gazelle/go:__pkg__",
         "//gazelle/java:__pkg__",
         "//gazelle/javascript:__pkg__",

@@ -307,13 +307,13 @@ func TestCollectUsedIgnoresSortsAndFilters(t *testing.T) {
 	cfg.Exts["vue"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
 		{Value: "chart", Path: "pkg/a.vue", UsedBy: []string{"pkg/a.vue"}},
 	}}
-	cfg.Exts["gleam"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
-		{Value: "gleam/io", Path: "pkg/app.gleam", UsedBy: []string{"pkg/app.gleam"}},
+	cfg.Exts["python"] = &common.IgnoreConfig{Ignores: []*common.IgnoreEntry{
+		{Value: "requests", Path: "pkg/m.py", UsedBy: []string{"pkg/m.py"}},
 	}}
 	l := &dispatchLang{configs: []*config.Config{cfg, nil, cfg}}
 	want := []common.IgnoredImport{
 		{Path: "pkg/a.vue", Language: "vue", Value: "chart", UsedBy: []string{"pkg/a.vue"}},
-		{Path: "pkg/app.gleam", Language: "gleam", Value: "gleam/io", UsedBy: []string{"pkg/app.gleam"}},
+		{Path: "pkg/m.py", Language: "python", Value: "requests", UsedBy: []string{"pkg/m.py"}},
 		{Path: "pkg/z.cc", Language: "cc", Value: "zlib", UsedBy: []string{"pkg/z.cc"}},
 	}
 	got := l.collectUsedIgnores()
@@ -557,7 +557,6 @@ func TestConfigureRejectsUnknownIgnoreLanguage(t *testing.T) {
 		{value: "ts react", want: `unknown language "ts"`},
 		{value: "", want: "malformed"},
 		{value: "python requests"},
-		{value: "gleam x"},
 		{value: "go a go b"},
 		{value: "rust a b c"},
 	}

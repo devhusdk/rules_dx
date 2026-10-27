@@ -21,7 +21,6 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/csharp"
 	"github.com/devhusdk/rules_dx/gazelle/elixir"
 	"github.com/devhusdk/rules_dx/gazelle/fsharp"
-	"github.com/devhusdk/rules_dx/gazelle/gleam"
 	"github.com/devhusdk/rules_dx/gazelle/go"
 	"github.com/devhusdk/rules_dx/gazelle/java"
 	"github.com/devhusdk/rules_dx/gazelle/javascript"
@@ -47,7 +46,6 @@ func composedLanguages() []language.Language {
 		csharp.NewLanguage(),
 		elixir.NewLanguage(),
 		fsharp.NewLanguage(),
-		gleam.NewLanguage(),
 		golang.NewLanguage(),
 		java.NewLanguage(),
 		javascript.NewLanguage(),

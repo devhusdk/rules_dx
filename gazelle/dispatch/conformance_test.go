@@ -64,14 +64,6 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "fsharp_library", target: "demo", defs: "fsharp/rules:defs.bzl",
 		symbols: []string{"fsharp_library"},
 	},
-	"gleam": {
-		files: map[string]string{
-			"gleam.toml":     "name = \"demo\"\n",
-			"src/demo.gleam": "import gleam/io\n",
-		},
-		kind: "gleam_library", target: "demo", defs: "gleam/rules:defs.bzl",
-		symbols: []string{"gleam_library", "gleam_test", "gleam_test_library"},
-	},
 	"go": {
 		files: map[string]string{"demo.go": "package demo\n"},
 		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",

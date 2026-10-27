@@ -29,6 +29,9 @@ JSON_CASES = [
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
         "expected_file": ":matrix/matrix_json_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_json_format_fail",

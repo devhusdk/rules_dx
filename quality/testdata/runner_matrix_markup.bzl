@@ -149,6 +149,9 @@ MARKUP_CASES = [
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
         "expected_file": ":matrix/matrix_html_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_html_format_fail",
@@ -297,6 +300,9 @@ MARKUP_CASES = [
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
         "expected_file": ":matrix/matrix_prettier_sql_dialect_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_prettier_config_sql_dialect_fail",

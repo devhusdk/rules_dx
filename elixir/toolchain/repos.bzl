@@ -123,6 +123,7 @@ def _elixir_impl(mctx):
     _rules_elixir(
         name = "rules_elixir",
         commit = RULES_ELIXIR_COMMIT,
+        # The combined diff of the upstream rules_elixir PRs drafted in #3744.
         patches = [Label("//patches/rules_elixir:hermetic_elixir.patch")],
         sha256 = RULES_ELIXIR_SHA256,
         url = RULES_ELIXIR_URL,

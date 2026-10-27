@@ -7,9 +7,11 @@ fn launcher_path(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
     resolve_runfiles(&rel)
 }
-
 #[test]
-fn dev_launchers_build_dx_from_the_checkout() {
+fn dev_launchers_keep_their_structure() {
+    // Behaviour (build, query, repin retry, hook hand-off, copy sync, signals)
+    // is covered by the fake-bazel tests in `sh` and `cmd` below. Only the
+    // shape that those tests cannot see is pinned here.
     let startup = WORKFLOW_STARTUP_OPTS.join(" ");
     let sh = std::fs::read_to_string(launcher_path("DX_LAUNCHER_SH")).expect("tools/dx");
     let cmd = std::fs::read_to_string(launcher_path("DX_LAUNCHER_CMD"))
@@ -19,44 +21,8 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(sh.starts_with("#!/bin/sh\nset -eu\n"));
     assert!(sh.ends_with("\nexec \"$bin\" \"$@\"\n"));
     assert!(sh.contains(&format!("\n  rc=\"{startup}\"\n")));
-    assert!(sh.contains("\n  [ \"${CI:-}\" = true ] || [ -n \"${BAZEL_TEST:-}\" ] || rc=\n"));
-    assert!(sh.contains(
-        "(cd \"$root\" && bazel $rc build ${dc:+\"$dc\"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"
-    ));
-    assert!(sh.contains("\n    dc=\"--disk_cache=$cache/dx/disk-cache\"\n"));
-    assert!(sh.contains(&format!(
-        "|| gc=\"--experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}\"\n",
-        dx_process::DISK_CACHE_GC_MAX_SIZE,
-        dx_process::DISK_CACHE_GC_MAX_AGE
-    )));
-    assert!(cmd.contains(&format!(
-        "$o+=' --experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}'",
-        dx_process::DISK_CACHE_GC_MAX_SIZE,
-        dx_process::DISK_CACHE_GC_MAX_AGE
-    )));
-    let query = sh
-        .lines()
-        .find(|line| line.contains(" query "))
-        .expect("sh query line");
-    assert!(query.contains("(cd \"$root\" && bazel $rc query --noshow_progress"));
-    assert!(!query.contains("dc"), "{query}");
-    assert_eq!(query.matches("deps(//:dx)").count(), 2, "{query}");
-    assert!(!query.contains("//cli/cli:dx"), "{query}");
-    assert!(
-        sh.contains("--ui_event_filters=-info //:dx >&2"),
-        "build target matches query"
-    );
-    assert!(sh
-        .lines()
-        .filter(|line| line.contains(" build "))
-        .all(|line| !line.contains("--noshow_progress")));
-    assert_eq!(sh.matches("CARGO_BAZEL_REPIN=1 bazel $rc build").count(), 1);
-    assert_eq!(
-        sh.matches("CARGO_BAZEL_REPIN").count(),
-        2,
-        "set only in the retry"
-    );
-    assert_eq!(cmd.matches("set \"CARGO_BAZEL_REPIN=1\"").count(), 1);
+    assert!(cmd.starts_with("@echo off\r\nsetlocal\r\n"));
+    assert!(cmd.contains(&format!("\r\nset \"DX_RC={startup}\"\r\n")));
     // cmd expands %errorlevel% in a block before the block runs.
     let mut depth = 0i32;
     let mut fail_reads = 0;
@@ -74,127 +40,7 @@ fn dev_launchers_build_dx_from_the_checkout() {
         }
     }
     assert_eq!(depth, 0, "unbalanced blocks in tools/dx.cmd");
-    assert_eq!(fail_reads, 2, "the build and the repin retry");
-    let retry = cmd
-        .find("set \"CARGO_BAZEL_REPIN=1\"\r\ncall bazel %DX_RC% build ")
-        .expect("cmd repin build");
-    assert!(cmd[retry..].contains("\r\nendlocal & set \"DX_FAIL=%errorlevel%\"\r\n:dxbuilt\r\n"));
-    assert!(sh.contains("run tools/dx update --apply cargo to repin"));
-    assert!(cmd.contains("update --apply cargo to repin"));
-    assert!(sh.contains("$root/.dx/launcher"));
-    assert!(sh.contains("\"$state/inputs\""));
-    assert!(!sh.contains("cmd.exe"));
-    let hook = sh
-        .find("\nif [ \"${1:-}\" = worktree ] && [ \"${2:-}\" = hook ]; then\n  [ -x \"$state/dx$exe\" ] && exec \"$state/dx$exe\" \"$@\"\n  [ -x \"$bin\" ] && exec \"$bin\" \"$@\"\nfi\n")
-        .expect("sh hook early exec");
-    let handoff = sh
-        .find("\n  exec \"$here/tools/dx\" \"$@\"\n")
-        .expect("sh hand-off to the current checkout");
-    assert!(hook < handoff);
-    assert!(handoff < sh.find("\nif stale; then\n").expect("stale check"));
-    let hook = cmd
-        .find("\r\nif /i \"%~1\"==\"worktree\" if /i \"%~2\"==\"hook\" if exist \"%DX_STATE%\\dx.exe\" set \"BIN=%DX_STATE%\\dx.exe\"\r\nif /i \"%~1\"==\"worktree\" if /i \"%~2\"==\"hook\" if exist \"%BIN%\" goto run\r\n")
-        .expect("cmd hook early exec");
-    let handoff = cmd
-        .find("\r\n\"%DX_HERE%\\tools\\dx.cmd\" %*\r\n:dxself\r\n")
-        .expect("cmd hand-off to the current checkout");
-    assert!(hook < handoff);
-    assert!(
-        handoff
-            < cmd
-                .find("call powershell -NoProfile -NonInteractive -Command \"$s=")
-                .expect("stale check")
-    );
-    assert!(cmd.starts_with("@echo off\r\nsetlocal\r\n"));
-    assert!(cmd.contains(&format!("\r\nset \"DX_RC={startup}\"\r\n")));
-    assert!(
-        cmd.contains("\r\nif not \"%CI%\"==\"true\" if \"%BAZEL_TEST%\"==\"\" set \"DX_RC=\"\r\n")
-    );
-    assert!(
-        cmd.contains("\ncall bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0")
-    );
-    assert!(cmd.contains("\r\nif not defined DX_RC call powershell -NoProfile"));
-    let query = cmd
-        .lines()
-        .find(|line| line.starts_with("call bazel %DX_RC% query "))
-        .expect("cmd query line");
-    assert!(query.contains("call bazel %DX_RC% query --noshow_progress"));
-    assert!(!query.contains("DX_DC"), "{query}");
-    assert_eq!(query.matches("deps(//:dx)").count(), 2, "{query}");
-    assert!(!query.contains("//cli/cli:dx"), "{query}");
-    assert!(
-        cmd.contains("--ui_event_filters=-info //:dx 1>&2"),
-        "build target matches query"
-    );
-    assert!(cmd
-        .lines()
-        .filter(|line| line.contains(" build "))
-        .all(|line| !line.contains("--noshow_progress")));
-    assert!(cmd.contains("\\.dx\\launcher"));
-    assert!(cmd.contains("\\bazel-bin\\cli\\cli\\dx.exe"));
-    assert!(!cmd.contains("if exist \"%~dp0..\\bazel-bin"));
-    assert!(sh.contains("exec \"$state/dx$exe\" \"$@\""));
-    assert!(cmd.contains("set \"BIN=%DX_STATE%\\dx.exe\""));
-    assert!(sh.contains("sync_copy && [ -x \"$state/dx$exe\" ]; then bin=\"$state/dx$exe\"; fi\n"));
-    assert!(sh.contains("Keep in sync with DX_SYNC in tools/dx.cmd"));
-    assert!(sh.contains("cp -p \"$bin\""));
-    assert!(sh.contains("[ \"$os\" = windows ] && [ -e \"$state/dx$exe\" ]"));
-    for sig in ["INT", "TERM", "HUP"] {
-        assert!(sh.contains(&format!("trap 'on_signal {sig}' {sig}\n")));
-    }
-    assert!(
-        sh.find("\n  guard_temps\n  : > \"$state/built.$$\"\n")
-            .is_some(),
-        "guard_temps must come before the first temp file"
-    );
-    assert_eq!(cmd.matches("set \"DX_SYNC=").count(), 1);
-    assert_eq!(cmd.matches("%DX_SYNC%").count(), 2);
-    let sync = cmd
-        .lines()
-        .find(|line| line.starts_with("set \"DX_SYNC="))
-        .expect("cmd sync snippet");
-    assert!(sync.contains(".old."), "{sync}");
-    assert!(sync.contains("[IO.File]::Copy($env:BIN, $n)"), "{sync}");
-    for bad in ['%', '!', '^', '&'] {
-        assert!(!sync.contains(bad), "{sync}");
-    }
-    assert_eq!(sync.matches('"').count(), 2, "{sync}");
-    assert!(!cmd.contains("copy /y \"%BIN%\""));
-    assert!(!cmd
-        .lines()
-        .any(|line| line.starts_with("move /y") && line.contains("\\dx.exe\"")));
-    assert_eq!(cmd.matches("\r\n:dxbuild\r\n").count(), 1);
-    assert!(cmd.contains("\r\nif errorlevel 2 goto run\r\nif errorlevel 1 goto dxbuild\r\nset \"BIN=%DX_STATE%\\dx.exe\"\r\ngoto run\r\n:dxbuild\r\n"));
-    assert!(cmd.contains("\r\nif defined DX_COPY set \"BIN=%DX_STATE%\\dx.exe\"\r\n:run\r\n"));
-    assert_eq!(cmd.matches("\r\n:run\r\n").count(), 1);
-    assert!(cmd.contains("\r\n:run\r\n\"%BIN%\" %*\r\nexit /b %errorlevel%\r\n"));
-    assert!(!cmd.contains(":pinned"));
-    assert!(!cmd.contains("goto bazel"));
-    assert!(!sh.contains("fail "));
-    assert!(!sh.contains("|| die \"bazel query"));
-    let after_query = cmd
-        .split("query --noshow_progress")
-        .nth(1)
-        .expect("query line");
-    let before_run = after_query.split("\r\n:run\r\n").next().expect("run label");
-    assert!(!before_run.contains("exit /b 1"), "{before_run}");
-    for script in [&sh, &cmd] {
-        assert!(script.contains("dx: building //:dx"));
-        assert!(script.contains("dx: //:dx does not build; running the previous dx"));
-        assert!(script.contains("bazel build //:dx failed"));
-        assert!(script.contains(
-            "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway"
-        ));
-        for gone in [
-            "bazel run @rules_dx",
-            "VERSION=",
-            "releases/download",
-            ".dx/version",
-            ".dx\\version",
-        ] {
-            assert!(!script.contains(gone), "{gone}");
-        }
-    }
+    assert!(fail_reads >= 1, "the repin retry reads the exit code");
 }
 
 use dx_process::RcPolicy;

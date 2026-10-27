@@ -186,6 +186,15 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_mdx_remark_format_fail.expected.txt",
     },
     {
+        "name": "matrix_mdx_remark_frontmatter_gfm_fail",
+        "srcs": [":real_gfm_dirty.mdx"],
+        "capability": "format",
+        "stages": ["remark;mdx;quality/testdata/real_gfm_dirty.mdx"],
+        "tool_names": ["remark"],
+        "tool_binaries": ["//quality/tools/javascript/bin:remark"],
+        "expected_file": ":matrix/matrix_mdx_remark_frontmatter_gfm_fail.expected.txt",
+    },
+    {
         "name": "matrix_mdx_remark_parse_fail",
         "srcs": [":real_broken.mdx"],
         "capability": "format",

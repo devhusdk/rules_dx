@@ -1,8 +1,6 @@
-// Formats MDX with remark: `remark.mjs [--settings file.json] (--check|--write) files...`.
-// Check prints a JSON array of {file, formatted} and exits 1 when any file is unformatted.
-// Write rewrites only the files that change. A parse error, a bad setting, or output whose
-// syntax tree differs from the input's prints `path:line:col: reason` and exits 2, writing nothing.
 import { readFileSync, writeFileSync } from "node:fs";
+import remarkFrontmatter from "remark-frontmatter";
+import remarkGfm from "remark-gfm";
 import remarkMdx from "remark-mdx";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
@@ -82,9 +80,14 @@ if (mode === undefined) {
 const defaults = JSON.parse(readFileSync(new URL("./remark_options.json", import.meta.url), "utf8"));
 const options = { ...defaults, ...(settingsFile === undefined ? {} : readSettings(settingsFile)) };
 
-const processor = unified().use(remarkParse).use(remarkMdx).use(remarkStringify, options).freeze();
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkFrontmatter, ["yaml", "toml"])
+  .use(remarkGfm)
+  .use(remarkMdx)
+  .use(remarkStringify, options)
+  .freeze();
 
-// The tree without positions or parser data, so two parses of the same document compare equal.
 const bare = (node) => {
   if (Array.isArray(node)) {
     return node.map(bare);
@@ -101,7 +104,6 @@ const bare = (node) => {
   return out;
 };
 
-// Some MDX messages carry no place and spell it in the reason instead, as `(5:1-5:25)`.
 const located = (file, error) => {
   const reason = String(error?.reason ?? error?.message ?? error).split("\n")[0];
   const spelled = /\((\d+):(\d+)(?:-\d+:\d+)?\)/.exec(reason);
@@ -109,6 +111,24 @@ const located = (file, error) => {
   const line = error?.line ?? start?.line ?? (spelled ? Number(spelled[1]) : 1);
   const column = error?.column ?? start?.column ?? (spelled ? Number(spelled[2]) : 1);
   return `${file}:${line}:${column}: ${reason}`;
+};
+
+const keepLiteralLinks = (node, input) => {
+  if (!Array.isArray(node.children)) {
+    return node;
+  }
+  const children = node.children.map((child) => {
+    const start = child.position?.start?.offset;
+    const end = child.position?.end?.offset;
+    if (child.type === "link" && start !== undefined && end !== undefined) {
+      const raw = input.slice(start, end);
+      if (!raw.startsWith("[") && !raw.startsWith("<")) {
+        return { type: "html", value: raw };
+      }
+    }
+    return keepLiteralLinks(child, input);
+  });
+  return { ...node, children };
 };
 
 const results = [];
@@ -127,7 +147,7 @@ for (const file of files) {
     errors.push(located(file, error));
     continue;
   }
-  const output = processor.stringify(tree);
+  const output = processor.stringify(keepLiteralLinks(tree, input));
   let reparsed;
   try {
     reparsed = processor.runSync(processor.parse(output));

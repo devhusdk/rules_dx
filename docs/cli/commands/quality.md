@@ -1254,7 +1254,8 @@ run. It never counts as clean.
 
 `mdx_library` from `@rules_dx//mdx/rules:defs.bzl` owns `.mdx` files. The
 default policy formats them with `remark` from the managed pin (remark-stringify
-11.0.0 with remark-mdx 3.1.1). It runs on Linux x86_64. MDX has no typecheck.
+11.0.0 with remark-mdx 3.1.1, remark-gfm 4.0.1 and remark-frontmatter 5.0.0). It
+runs on Linux x86_64. MDX has no typecheck.
 
 ```sh
 bazel run @rules_dx//:dx -- format //docs/...
@@ -1270,6 +1271,11 @@ The formatter parses its own output again and compares the syntax trees. If
 formatting would change what the document means, the run fails with "would
 change the document tree" and no file is written. `.remarkrc` files and remark
 plugins are ignored.
+
+The formatter reads GFM (task lists, strikethrough, tables, footnotes) and YAML
+`---` or TOML `+++` frontmatter, so it keeps them as written. It aligns table
+columns and leaves bare URLs such as `www.example.com` as they are. Compile with
+remark-gfm and remark-frontmatter so the page renders the same way.
 
 The default style matches Prettier's Markdown style: `-` bullets, `_emphasis_`,
 `**strong**`, `---` rules and backtick fences. To change it, bind a

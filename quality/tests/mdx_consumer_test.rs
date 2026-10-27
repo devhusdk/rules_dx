@@ -12,6 +12,10 @@ const HELLO_MDX_UNUSED: &str = "import { Chart } from \"./chart.js\";\nimport { 
 const BROKEN_MDX: &str =
     "# Broken\n\nSome text before the tag.\n\n<Chart data={[1, 2, 3]}>\n  The chart never closes.\n";
 
+const NOTES_MDX: &str = "---\ntitle: Notes\ntags: [a, b]\n---\n\n# Notes\n\n* [ ] Check the totals\n* [x] ~~Draft~~ the summary\n\n| Quarter | Revenue |\n| ------- | ------: |\n| Q3      |      12 |\n\nSources are on www.example.com.\n";
+
+const NOTES_MDX_DIRTY: &str = "---\ntitle: Notes\ntags: [a, b]\n---\n\n# Notes\n\n- [ ] Check the totals\n- [x] ~~Draft~~ the summary\n\n| Quarter | Revenue |\n|---|--:|\n| Q3 | 12 |\n\nSources are on www.example.com.\n";
+
 const REMARK_CONFIG: &str = "{\n  \"bullet\": \"*\"\n}\n";
 
 const ESLINT_CONFIG: &str = "import * as mdx from \"eslint-plugin-mdx\";\n\nexport default [\n  {\n    ...mdx.flat,\n    files: [\"**/*.mdx\"],\n    languageOptions: {\n      ...mdx.flat.languageOptions,\n      parserOptions: { ...mdx.flat.languageOptions.parserOptions, ignoreRemarkConfig: true },\n    },\n    rules: { ...mdx.flat.rules, \"mdx/remark\": \"off\", \"no-unused-vars\": \"error\" },\n  },\n];\n";
@@ -68,6 +72,7 @@ mdx_library(
 
 const HELLO: &str = "app/Hello.mdx";
 const BROKEN: &str = "app/Broken.mdx";
+const NOTES: &str = "app/Notes.mdx";
 
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
@@ -157,6 +162,18 @@ fn check_keeps_bytes_and_fix_formats_with_the_bound_settings() {
     assert_eq!(read(&root.join(HELLO)), HELLO_MDX);
     let check = dx(&root, "check", &[]);
     assert_eq!(check.status.code(), Some(0), "{}", check.combined());
+}
+
+#[test]
+fn fix_keeps_frontmatter_and_gfm_syntax() {
+    let root = consumer(&[(NOTES, NOTES_MDX_DIRTY)]);
+    let fixed = dx(&root, "fix", &["--apply"]);
+    assert_eq!(fixed.status.code(), Some(0), "{}", fixed.combined());
+    assert_eq!(read(&root.join(NOTES)), NOTES_MDX);
+
+    let check = dx(&root, "check", &[]);
+    assert_eq!(check.status.code(), Some(0), "{}", check.combined());
+    assert_eq!(read(&root.join(NOTES)), NOTES_MDX);
 }
 
 #[test]

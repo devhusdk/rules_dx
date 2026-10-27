@@ -51,6 +51,8 @@ js_binary(
     name = "remark_generated",
     data = [
         "remark_options.json",
+        "//quality/tools/javascript:node_modules/remark-frontmatter",
+        "//quality/tools/javascript:node_modules/remark-gfm",
         "//quality/tools/javascript:node_modules/remark-mdx",
         "//quality/tools/javascript:node_modules/remark-parse",
         "//quality/tools/javascript:node_modules/remark-stringify",

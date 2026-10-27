@@ -6,8 +6,6 @@ use crate::ToolSeverity;
 
 const TOOL: &str = "remark";
 
-/// Reads `remark.mjs --check`: a JSON array of `{file, formatted}` on stdout, and on exit 2
-/// one `path:line:col: reason` line per file it could not format on stderr.
 pub fn parse_remark(
     stdout: &[u8],
     stderr: &[u8],

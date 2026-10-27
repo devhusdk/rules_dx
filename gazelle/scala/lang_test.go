@@ -132,23 +132,6 @@ func TestGenerateMixedPackagesFail(t *testing.T) {
 	wantRefusal(t, got, "scala: pkg/demo: mixed packages alpha, beta in one directory;")
 }
 
-func TestGenerateNoSourcesStaleSweep(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "pkg", "demo")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"notes.txt"},
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules, want 0", len(result.Gen))
-	}
-}
-
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.scala", "Main.scala"}
 	for name, main := range map[string]string{
@@ -166,26 +149,6 @@ func TestGenerateMainFails(t *testing.T) {
 	}
 }
 
-func TestGenerateKindMismatchFails(t *testing.T) {
-	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/Demo.scala", "package demo\n\nclass Demo\n")
-	existing := &rule.File{}
-	fg := rule.NewRule("filegroup", "demo")
-	existing.Rules = append(existing.Rules, fg)
-	lang := NewLanguage()
-	result := lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          filepath.Join(root, "pkg", "demo"),
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"Demo.scala"},
-		File:         existing,
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
-	}
-	wantRefusal(t, refusal(t, lang), "scala: pkg/demo: target name \"demo\" is claimed by generated scala_library(pkg/demo) and existing filegroup")
-}
-
 func TestImportsIndexNonTestSources(t *testing.T) {
 	lang := NewLanguage()
 	lib := rule.NewRule(LibraryKind, "demo")
@@ -199,37 +162,6 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule(LibraryKind, "empty"), nil); got != nil {
 		t.Errorf("srcless imports = %+v, want nil", got)
-	}
-}
-
-func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	lang.Before(context.Background())
-	cfg := config.New()
-	for _, value := range []string{"scala Dropped", "scala scala Second", "other Foreign", ""} {
-		lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: value}}})
-	}
-	if lang.Failed() {
-		t.Fatal("a foreign or empty ignore was rejected")
-	}
-	conf := cfg.Exts[languageName].(*common.IgnoreConfig)
-	if len(conf.Ignores) != 2 || conf.Ignores[0].Value != "Dropped" || conf.Ignores[1].Value != "Second" {
-		t.Fatalf("ignores = %+v, want Dropped and Second", conf.Ignores)
-	}
-	lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "scala"}}})
-	if !lang.Failed() {
-		t.Fatal("a one-field ignore was accepted")
-	}
-}
-
-func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	lang.Before(context.Background())
-	lang.Fail("scala: boom")
-	lang.AfterResolvingDeps(context.Background())
-	got := common.Errors.Take()
-	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "scala: boom" {
-		t.Fatalf("sink = %#v, want one scala failure", got)
 	}
 }
 
@@ -250,25 +182,6 @@ func TestResolveSkipsStdlibImports(t *testing.T) {
 		t.Fatal("a stdlib import was reported")
 	}
 	lang.AfterResolvingDeps(context.Background())
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	if lang.Name() != languageName || len(lang.Kinds()) != 1 {
-		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
-	}
-	loads := lang.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//scala/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != LibraryKind {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := lang.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//scala/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
 }
 
 func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {

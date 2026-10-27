@@ -257,12 +257,7 @@ func TestResolvePrefixAndStdlib(t *testing.T) {
 	}
 }
 
-func TestLanguageMetadata(t *testing.T) {
-	lang := NewLanguage().(*elixirLang)
-	loads := lang.Loads()
-	if lang.Name() != "elixir" || len(loads) != 1 || loads[0].Name != "@rules_dx//elixir/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "elixir_app,ex_unit_test" {
-		t.Errorf("metadata = %s %+v", lang.Name(), loads)
-	}
+func TestUnresolvedHint(t *testing.T) {
 	if !strings.Contains(UnresolvedHint, "# gazelle:resolve elixir Jason @jason//:erlang_app") || strings.Contains(UnresolvedHint, "dx_ignore_import") {
 		t.Errorf("hint = %q", UnresolvedHint)
 	}

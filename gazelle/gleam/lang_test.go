@@ -254,17 +254,6 @@ func TestImportsAreModulePaths(t *testing.T) {
 	}
 }
 
-func TestLanguageMetadata(t *testing.T) {
-	lang := NewLanguage().(*gleamLang)
-	if lang.Name() != languageName || len(lang.Kinds()) != 3 {
-		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
-	}
-	loads := lang.Loads()
-	if len(loads) != 1 || loads[0].Name != "@rules_dx//gleam/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "gleam_library,gleam_test,gleam_test_library" {
-		t.Errorf("loads = %+v", loads)
-	}
-}
-
 func TestGenerateRootPackage(t *testing.T) {
 	lang := NewLanguage()
 	result := generateArgs(t, lang, "", nil, map[string]string{

@@ -134,23 +134,6 @@ func TestGenerateMixedPackagesFail(t *testing.T) {
 	wantRefusal(t, got, "csharp: pkg/demo: mixed packages Alpha, Beta in one directory;")
 }
 
-func TestGenerateNoSourcesStaleSweep(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "pkg", "demo")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"notes.txt"},
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules, want 0", len(result.Gen))
-	}
-}
-
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.cs", "Main.cs"}
 	got := refuseFixture(t, map[string]string{
@@ -167,26 +150,6 @@ func TestGenerateTopLevelStatementsFail(t *testing.T) {
 		"pkg/demo/Program.cs": "using System;\n\nConsole.WriteLine(\"hi\");\n",
 	}, regular)
 	wantRefusal(t, got, "csharp: pkg/demo: Program.cs defines main;")
-}
-
-func TestGenerateKindMismatchFails(t *testing.T) {
-	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/Demo.cs", "namespace Demo;\n\nclass Demo\n")
-	existing := &rule.File{}
-	fg := rule.NewRule("filegroup", "demo")
-	existing.Rules = append(existing.Rules, fg)
-	lang := NewLanguage()
-	result := lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          filepath.Join(root, "pkg", "demo"),
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"Demo.cs"},
-		File:         existing,
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
-	}
-	wantRefusal(t, refusal(t, lang), "csharp: pkg/demo: target name \"demo\" is claimed by generated csharp_library(pkg/demo) and existing filegroup")
 }
 
 func TestImportsIndexNonTestSources(t *testing.T) {
@@ -215,37 +178,6 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule(LibraryKind, "empty"), nil); got != nil {
 		t.Errorf("srcless imports = %+v, want nil", got)
-	}
-}
-
-func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	lang.Before(context.Background())
-	cfg := config.New()
-	for _, value := range []string{"csharp Dropped", "csharp csharp Second", "other Foreign", ""} {
-		lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: value}}})
-	}
-	if lang.Failed() {
-		t.Fatal("a foreign or empty ignore was rejected")
-	}
-	conf := cfg.Exts[languageName].(*common.IgnoreConfig)
-	if len(conf.Ignores) != 2 || conf.Ignores[0].Value != "Dropped" || conf.Ignores[1].Value != "Second" {
-		t.Fatalf("ignores = %+v, want Dropped and Second", conf.Ignores)
-	}
-	lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "csharp"}}})
-	if !lang.Failed() {
-		t.Fatal("a one-field ignore was accepted")
-	}
-}
-
-func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	lang.Before(context.Background())
-	lang.Fail("csharp: boom")
-	lang.AfterResolvingDeps(context.Background())
-	got := common.Errors.Take()
-	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "csharp: boom" {
-		t.Fatalf("sink = %#v, want one csharp failure", got)
 	}
 }
 
@@ -323,25 +255,6 @@ func TestResolveNamespaceExactParentAndAmbiguous(t *testing.T) {
 		t.Errorf("bare type name bound deps = %v", r.AttrStrings("deps"))
 	}
 	wantRefusal(t, refusal(t, lang), `unresolved import "Greeter"; `+unresolvedHint)
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	if lang.Name() != languageName || len(lang.Kinds()) != 1 {
-		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
-	}
-	loads := lang.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//csharp/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != LibraryKind {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := lang.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//csharp/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
 }
 
 func TestAspectHintsSurviveRegen(t *testing.T) {

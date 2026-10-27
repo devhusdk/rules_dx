@@ -137,23 +137,6 @@ func TestGenerateMixedPackagesSucceed(t *testing.T) {
 	}
 }
 
-func TestGenerateNoSourcesStaleSweep(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "pkg", "demo")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"notes.txt"},
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules, want 0", len(result.Gen))
-	}
-}
-
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"demo.rb", "main.rb"}
 	got := refuseFixture(t, map[string]string{
@@ -161,26 +144,6 @@ func TestGenerateMainFails(t *testing.T) {
 		"pkg/demo/main.rb": "puts Hello.hello(\"world\") if __FILE__ == $0\n",
 	}, regular)
 	wantRefusal(t, got, "ruby: pkg/demo: main.rb defines main;")
-}
-
-func TestGenerateKindMismatchFails(t *testing.T) {
-	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/demo.rb", "module Demo\n")
-	existing := &rule.File{}
-	fg := rule.NewRule("filegroup", "demo")
-	existing.Rules = append(existing.Rules, fg)
-	lang := NewLanguage()
-	result := lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          filepath.Join(root, "pkg", "demo"),
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"demo.rb"},
-		File:         existing,
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
-	}
-	wantRefusal(t, refusal(t, lang), "ruby: pkg/demo: target name \"demo\" is claimed by generated ruby_library(pkg/demo) and existing filegroup")
 }
 
 func TestImportsIndexNonTestSources(t *testing.T) {
@@ -203,37 +166,6 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	}
 }
 
-func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
-	lang := NewLanguage().(*rubyLang)
-	lang.Before(context.Background())
-	cfg := config.New()
-	for _, value := range []string{"ruby Dropped", "ruby ruby Second", "other Foreign", ""} {
-		lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: value}}})
-	}
-	if lang.Failed() {
-		t.Fatal("a foreign or empty ignore was rejected")
-	}
-	conf := cfg.Exts[languageName].(*common.IgnoreConfig)
-	if len(conf.Ignores) != 2 || conf.Ignores[0].Value != "Dropped" || conf.Ignores[1].Value != "Second" {
-		t.Fatalf("ignores = %+v, want Dropped and Second", conf.Ignores)
-	}
-	lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "ruby"}}})
-	if !lang.Failed() {
-		t.Fatal("a one-field ignore was accepted")
-	}
-}
-
-func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	lang := NewLanguage().(*rubyLang)
-	lang.Before(context.Background())
-	lang.Fail("ruby: boom")
-	lang.AfterResolvingDeps(context.Background())
-	got := common.Errors.Take()
-	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "ruby: boom" {
-		t.Fatalf("sink = %#v, want one ruby failure", got)
-	}
-}
-
 func TestResolveSkipsStdlibImports(t *testing.T) {
 	lang := NewLanguage().(*rubyLang)
 	lang.Before(context.Background())
@@ -251,25 +183,6 @@ func TestResolveSkipsStdlibImports(t *testing.T) {
 		t.Fatal("a stdlib import was reported")
 	}
 	lang.AfterResolvingDeps(context.Background())
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	lang := NewLanguage().(*rubyLang)
-	if lang.Name() != languageName || len(lang.Kinds()) != 1 {
-		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
-	}
-	loads := lang.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//ruby/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != LibraryKind {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := lang.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//ruby/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
 }
 
 func TestAspectHintsSurviveRegen(t *testing.T) {

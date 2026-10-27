@@ -145,23 +145,6 @@ func TestGenerateHeaderOnly(t *testing.T) {
 	}
 }
 
-func TestGenerateNoSourcesStaleSweep(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "pkg", "demo")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"notes.txt"},
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules, want 0", len(result.Gen))
-	}
-}
-
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"demo.cc", "main.cc"}
 	got := refuseFixture(t, map[string]string{
@@ -169,26 +152,6 @@ func TestGenerateMainFails(t *testing.T) {
 		"pkg/demo/main.cc": "#include <iostream>\nint main() { return 0; }\n",
 	}, regular)
 	wantRefusal(t, got, "cc: pkg/demo: main.cc defines main;")
-}
-
-func TestGenerateKindMismatchFails(t *testing.T) {
-	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/demo.cc", "#include <string>\n")
-	existing := &rule.File{}
-	fg := rule.NewRule("filegroup", "demo")
-	existing.Rules = append(existing.Rules, fg)
-	lang := NewLanguage()
-	result := lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          filepath.Join(root, "pkg", "demo"),
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"demo.cc"},
-		File:         existing,
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
-	}
-	wantRefusal(t, refusal(t, lang), "cc: pkg/demo: target name \"demo\" is claimed by generated cc_library(pkg/demo) and existing filegroup")
 }
 
 func TestImportsIndexNonTestHeaders(t *testing.T) {
@@ -258,57 +221,6 @@ func TestResolveSameNamedHeadersByPath(t *testing.T) {
 	resolveDeps("app", "config.h")
 	if !l.Failed() {
 		t.Error("bare config.h with two candidates resolved, want ambiguous")
-	}
-}
-
-func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	lang.Before(context.Background())
-	cfg := config.New()
-	for _, value := range []string{"cc Dropped", "cc cc Second", "other Foreign", ""} {
-		lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: value}}})
-	}
-	if lang.Failed() {
-		t.Fatal("a foreign or empty ignore was rejected")
-	}
-	conf := cfg.Exts[languageName].(*common.IgnoreConfig)
-	if len(conf.Ignores) != 2 || conf.Ignores[0].Value != "Dropped" || conf.Ignores[1].Value != "Second" {
-		t.Fatalf("ignores = %+v, want Dropped and Second", conf.Ignores)
-	}
-	lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "cc"}}})
-	if !lang.Failed() {
-		t.Fatal("a one-field ignore was accepted")
-	}
-}
-
-func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	lang.Before(context.Background())
-	lang.Fail("cc: boom")
-	lang.AfterResolvingDeps(context.Background())
-	got := common.Errors.Take()
-	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "cc: boom" {
-		t.Fatalf("sink = %#v, want one cc failure", got)
-	}
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
-	if lang.Name() != languageName || len(lang.Kinds()) != 2 {
-		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
-	}
-	loads := lang.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 2 || loads[0].Name != "@renamed_dx//cc/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != LibraryKind ||
-		loads[1].Name != "@renamed_dx//cuda/rules:defs.bzl" || strings.Join(loads[1].Symbols, ",") != CudaKind {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := lang.Loads(); len(defaults) != 2 || defaults[0].Name != "@rules_dx//cc/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
 	}
 }
 

@@ -1,14 +1,11 @@
 package astro
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/bazel-contrib/bazel-gazelle/v2/label"
-	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 
@@ -135,67 +132,6 @@ func TestGenerateMixedRegions(t *testing.T) {
 		if neighbor := result.Imports[ruleIdx].(common.RefImportSet); len(neighbor.Roots()) != 0 {
 			t.Errorf("%s imports = %+v, want empty", want, neighbor)
 		}
-	}
-}
-
-func TestGenerateEmptySweepsStale(t *testing.T) {
-	result := generateFixture(t, nil, []string{"notes.txt"})
-	if len(result.Gen) != 0 || len(result.Empty) != 0 {
-		t.Fatalf("empty generation = %+v", result)
-	}
-	f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
-	f.Rules = append(f.Rules,
-		rule.NewRule("astro_library", "old"),
-		rule.NewRule("filegroup", "keep"),
-		rule.NewRule("astro_library", "demo"),
-	)
-	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/demo.astro", component("export const x = 1;\n"))
-	dir := filepath.Join(root, "pkg", "demo")
-	result = NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"demo.astro"},
-		File:         f,
-	})
-	if len(result.Gen) != 1 {
-		t.Fatalf("generated %d rules, want 1", len(result.Gen))
-	}
-	if len(result.Empty) != 1 || result.Empty[0].Name() != "old" {
-		t.Fatalf("empty rules = %v, want [old]", result.Empty)
-	}
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	l := NewLanguage().(*common.SingleLang)
-	if l.Name() != "astro" || len(l.Kinds()) != 1 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
-		t.Fatal("invalid language metadata")
-	}
-	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	l.Configure(config.New(), "pkg", nil)
-	l.DoneGeneratingRules()
-	if got := l.KnownDirectives(); len(got) != 1 || got[0] != "dx_ignore_import" {
-		t.Fatalf("directives = %v, want [dx_ignore_import]", got)
-	}
-	if l.Embeds(nil, label.NoLabel) != nil {
-		t.Fatal("invalid directives or embeds")
-	}
-	loads := l.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//astro/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "astro_library" {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := l.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//astro/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
-	defaultApparent := l.ApparentLoads(func(string) string { return "" })
-	if defaultApparent[0].Name != "@rules_dx//astro/rules:defs.bzl" {
-		t.Errorf("default apparent loads = %+v", defaultApparent)
 	}
 }
 

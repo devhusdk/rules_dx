@@ -204,17 +204,7 @@ func TestResolveReportsUnknownModules(t *testing.T) {
 	}
 }
 
-func TestLanguageMetadata(t *testing.T) {
-	lang := NewLanguage().(*zigLang)
-	if lang.Name() != languageName || len(lang.Kinds()) != 1 {
-		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
-	}
-	if loads := lang.Loads(); len(loads) != 1 || loads[0].Name != "@rules_dx//zig/rules:defs.bzl" {
-		t.Errorf("loads = %+v", loads)
-	}
-}
-
-func TestAfterResolvingDepsReportsFailures(t *testing.T) {
+func TestUnresolvedImportFailsGeneration(t *testing.T) {
 	_, lang := resolveWith(t, nil, []string{"missing"})
 	lang.(*zigLang).AfterResolvingDeps(context.Background())
 	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")

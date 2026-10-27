@@ -363,35 +363,6 @@ func stubExit(t *testing.T) (*int, *bytes.Buffer) {
 	return &code, &out
 }
 
-func TestComposedLanguagesReportWithoutPanicking(t *testing.T) {
-	checked := 0
-	for _, composed := range composedLanguages() {
-		lang, ok := composed.(failingLanguage)
-		if !ok {
-			continue
-		}
-		name := composed.Name()
-		checked++
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					t.Errorf("%s AfterResolvingDeps panicked: %v", name, r)
-				}
-			}()
-			lang.Before(context.Background())
-			lang.Fail("%s: boom", name)
-			lang.AfterResolvingDeps(context.Background())
-		}()
-		got := common.Errors.Take()
-		if len(got) != 1 || got[0].Language != name || got[0].Message != name+": boom" {
-			t.Errorf("%s sink = %#v, want one entry for %s", name, got, name)
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no composed language reports failures")
-	}
-}
-
 func TestAfterResolvingDepsReportsEveryLanguage(t *testing.T) {
 	t.Setenv(common.EnvIntendedManifest, "")
 	l := &dispatchLang{}

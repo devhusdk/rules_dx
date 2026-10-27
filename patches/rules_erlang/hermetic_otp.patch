@@ -1,82 +1,34 @@
-diff --git a/private/ct.bzl b/private/ct.bzl
---- a/private/ct.bzl
-+++ b/private/ct.bzl
-@@ -190,9 +190,7 @@
-     -noinput \\
-     ${{FILTER}} \\
-     -dir test {pa_args} \\
--    -logdir "{log_dir}" \\
--    -hidden \\
--    -sname {sname} ${{COVER_ARGS}} {extra_args}
-+    -logdir "{log_dir}" ${{COVER_ARGS}} {extra_args}
- set +x
- if [ -n "${{COVERAGE}}" ]; then
-     "{erlang_home}"/bin/escript $TEST_SRCDIR/$TEST_WORKSPACE/{coverdata_to_lcov} \\
-@@ -214,7 +212,6 @@
-             pa_args = " ".join(pa_args),
-             dir = path_join(package, "test"),
-             log_dir = log_dir,
--            sname = sname(ctx),
-             extra_args = " ".join(extra_args),
-             test_env = "\n".join(test_env_commands),
-         )
-diff --git a/private/erlang_build.bzl b/private/erlang_build.bzl
---- a/private/erlang_build.bzl
-+++ b/private/erlang_build.bzl
-@@ -29,6 +29,8 @@
-         "version_file": """A file containing the version of this
- erlang, used to correctly invalidate the cache when an
- external erlang is used""",
-+        "tree": """Optional depset of every file of a relocatable
-+in-tree erlang whose root holds version_file""",
-     },
- )
+diff --git a/ct.bzl b/ct.bzl
+--- a/ct.bzl
++++ b/ct.bzl
+@@ -35,6 +35,7 @@ def ct_suite(
+         erlc_opts = DEFAULT_TEST_ERLC_OPTS,
+         deps = [],
+         runtime_deps = [],
++        target_compatible_with = None,
+         **kwargs):
+     if suite_name == "":
+         suite_name = name
+@@ -46,6 +47,7 @@ def ct_suite(
+         erlc_opts = erlc_opts,
+         dest = "test",
+         deps = [":test_erlang_app"] + deps,
++        target_compatible_with = target_compatible_with,
+         testonly = True,
+     )
  
-diff --git a/private/erlang_xrl_yrl.bzl b/private/erlang_xrl_yrl.bzl
---- a/private/erlang_xrl_yrl.bzl
-+++ b/private/erlang_xrl_yrl.bzl
-@@ -35,6 +35,7 @@
+@@ -54,6 +56,7 @@ def ct_suite(
+         suite_name = suite_name,
+         deps = deps,
+         runtime_deps = runtime_deps,
++        target_compatible_with = target_compatible_with,
+         **kwargs
+     )
  
-     script = """set -euo pipefail
- 
-+{maybe_install_erlang}
- 
- mkdir -p {out_dir}
- 
-diff --git a/tools/erlang_toolchain.bzl b/tools/erlang_toolchain.bzl
---- a/tools/erlang_toolchain.bzl
-+++ b/tools/erlang_toolchain.bzl
-@@ -38,9 +38,15 @@
- def _build_info(ctx):
-     return ctx.toolchains["//tools:toolchain_type"].otpinfo
- 
-+def _tree(info):
-+    return getattr(info, "tree", None)
-+
- def erlang_dirs(ctx):
-     info = _build_info(ctx)
--    if info.release_dir_tar != None:
-+    tree = _tree(info)
-+    if tree != None:
-+        runfiles = ctx.runfiles(transitive_files = tree)
-+    elif info.release_dir_tar != None:
-         runfiles = ctx.runfiles([
-             info.release_dir_tar,
-             info.version_file,
-@@ -53,6 +59,9 @@
- 
- def maybe_install_erlang(ctx, short_path = False):
-     info = _build_info(ctx)
-+    if _tree(info) != None:
-+        root = info.version_file.short_path if short_path else info.version_file.path
-+        return 'DX_ERLANG_HOME="$(cd "$(dirname "{}")" && pwd)"'.format(root)
-     release_dir_tar = info.release_dir_tar
-     if release_dir_tar == None:
-         return ""
 diff --git a/erlang_app.bzl b/erlang_app.bzl
 --- a/erlang_app.bzl
 +++ b/erlang_app.bzl
-@@ -50,7 +50,9 @@
+@@ -50,7 +50,9 @@ def _erlang_app(
          deps = [],
          runtime_deps = [],
          stamp = None,
@@ -86,7 +38,7 @@ diff --git a/erlang_app.bzl b/erlang_app.bzl
          # new attrs for gazelle extension
          beam_files = None,
          hdrs = None,
-@@ -114,6 +116,8 @@
+@@ -114,6 +116,8 @@ def _erlang_app(
              erlc_opts = erlc_opts,
              dest = "ebin" if not test else "test",
              deps = build_deps + deps,
@@ -95,7 +47,7 @@ diff --git a/erlang_app.bzl b/erlang_app.bzl
              testonly = test or testonly,
          )
  
-@@ -136,6 +140,8 @@
+@@ -136,6 +140,8 @@ def _erlang_app(
                  deps = deps + runtime_deps,
                  dest = "ebin",
                  stamp = stamp,
@@ -104,15 +56,16 @@ diff --git a/erlang_app.bzl b/erlang_app.bzl
                  testonly = testonly,
              )
          app = ":app_file"
-@@ -150,6 +156,7 @@
+@@ -150,6 +156,8 @@ def _erlang_app(
                  name = "appup",
                  src = "src/{}.appup".format(app_name),
                  out = "ebin/{}.appup".format(app_name),
++                target_compatible_with = target_compatible_with,
 +                tags = tags,
              )
          appup = ":appup"
      else:
-@@ -178,6 +185,8 @@
+@@ -178,6 +186,8 @@ def _erlang_app(
          license_files = license_files,
          srcs = srcs,
          deps = deps + runtime_deps,
@@ -121,30 +74,172 @@ diff --git a/erlang_app.bzl b/erlang_app.bzl
          visibility = ["//visibility:public"],
          testonly = test or testonly,
      )
-diff --git a/ct.bzl b/ct.bzl
---- a/ct.bzl
-+++ b/ct.bzl
-@@ -35,6 +35,7 @@
-         erlc_opts = DEFAULT_TEST_ERLC_OPTS,
-         deps = [],
-         runtime_deps = [],
-+        target_compatible_with = None,
-         **kwargs):
-     if suite_name == "":
-         suite_name = name
-@@ -46,6 +47,7 @@
-         erlc_opts = erlc_opts,
-         dest = "test",
-         deps = [":test_erlang_app"] + deps,
-+        target_compatible_with = target_compatible_with,
-         testonly = True,
-     )
+diff --git a/private/ct.bzl b/private/ct.bzl
+--- a/private/ct.bzl
++++ b/private/ct.bzl
+@@ -190,9 +190,7 @@ set -x
+     -noinput \\
+     ${{FILTER}} \\
+     -dir test {pa_args} \\
+-    -logdir "{log_dir}" \\
+-    -hidden \\
+-    -sname {sname} ${{COVER_ARGS}} {extra_args}
++    -logdir "{log_dir}"{node_args} ${{COVER_ARGS}} {extra_args}
+ set +x
+ if [ -n "${{COVERAGE}}" ]; then
+     "{erlang_home}"/bin/escript $TEST_SRCDIR/$TEST_WORKSPACE/{coverdata_to_lcov} \\
+@@ -214,7 +212,7 @@ fi
+             pa_args = " ".join(pa_args),
+             dir = path_join(package, "test"),
+             log_dir = log_dir,
+-            sname = sname(ctx),
++            node_args = " \\\n    -hidden \\\n    -sname {}".format(sname(ctx)) if ctx.attr.auto_sname else "",
+             extra_args = " ".join(extra_args),
+             test_env = "\n".join(test_env_commands),
+         )
+@@ -277,9 +275,7 @@ echo on
+     -noinput ^
+     %FILTER% ^
+     -dir test {pa_args} ^
+-    -logdir {drive_letter}: ^
+-    -hidden ^
+-    -sname {sname} {extra_args}
++    -logdir {drive_letter}:{node_args} {extra_args}
+ set CT_RUN_ERRORLEVEL=%ERRORLEVEL%
+ subst {drive_letter}: /d
+ exit /b %CT_RUN_ERRORLEVEL%
+@@ -295,7 +291,7 @@ exit /b %CT_RUN_ERRORLEVEL%
+             dir = path_join(package, "test"),
+             log_dir = log_dir,
+             drive_letter = ctx.attr._windows_logdir_drive_letter[BuildSettingInfo].value,
+-            sname = sname(ctx),
++            node_args = " ^\n    -hidden ^\n    -sname {}".format(sname(ctx)) if ctx.attr.auto_sname else "",
+             extra_args = " ".join(extra_args),
+             test_env = "\n".join(test_env_commands),
+         ).replace("\n", "\r\n")
+@@ -346,6 +342,15 @@ ct_test = rule(
+         ),
+         "ct_hooks": attr.string_list(),
+         "ct_run_extra_args": attr.string_list(),
++        "auto_sname": attr.bool(
++            default = True,
++            doc = """Start the test node as a hidden node with a short name
++generated from the label (-hidden -sname <name>). A named node needs
++epmd and a working loopback. Set to False to leave both flags out and
++choose node options in ct_run_extra_args instead. Without a -sname or
++-name there, ct_run falls back to its own default name (ct). To run
++without epmd, pass -sname undefined -start_epmd false.""",
++        ),
+         "data": attr.label_list(allow_files = True),
+         "deps": attr.label_list(providers = [ErlangAppInfo]),
+         "ez_deps": attr.label_list(
+diff --git a/private/erlang_build.bzl b/private/erlang_build.bzl
+--- a/private/erlang_build.bzl
++++ b/private/erlang_build.bzl
+@@ -29,6 +29,13 @@ installation""",
+         "version_file": """A file containing the version of this
+ erlang, used to correctly invalidate the cache when an
+ external erlang is used""",
++        "tree": """Optional. A depset of every file of a relocatable
++erlang installation whose root directory holds version_file. When set,
++rules put these files in their inputs and runfiles and find the
++installation next to version_file at run time, so erlang_home,
++release_dir_tar and install_path are not used by the rules. Only the
++POSIX shell scripts support it. Providers that do not set this field
++keep the current behaviour.""",
+     },
+ )
  
-@@ -54,6 +56,7 @@
-         suite_name = suite_name,
-         deps = deps,
-         runtime_deps = runtime_deps,
-+        target_compatible_with = target_compatible_with,
-         **kwargs
-     )
+diff --git a/private/erlang_xrl_yrl.bzl b/private/erlang_xrl_yrl.bzl
+--- a/private/erlang_xrl_yrl.bzl
++++ b/private/erlang_xrl_yrl.bzl
+@@ -35,6 +35,7 @@ def _impl(ctx):
  
+     script = """set -euo pipefail
+ 
++{maybe_install_erlang}
+ 
+ mkdir -p {out_dir}
+ 
+diff --git a/tools/erlang_headers.bzl b/tools/erlang_headers.bzl
+--- a/tools/erlang_headers.bzl
++++ b/tools/erlang_headers.bzl
+@@ -31,7 +31,7 @@ def _erlang_headers_impl(ctx):
+     outs = []
+     for f in ctx.attr.filenames:
+         dest = ctx.actions.declare_file(path_join(ctx.label.name, f))
+-        commands.append("cp '{erlang_home}'/usr/include/{f} {dest}".format(
++        commands.append("cp \"{erlang_home}\"/usr/include/{f} {dest}".format(
+             erlang_home = erlang_home,
+             f = f,
+             dest = dest.path,
+diff --git a/tools/erlang_toolchain.bzl b/tools/erlang_toolchain.bzl
+--- a/tools/erlang_toolchain.bzl
++++ b/tools/erlang_toolchain.bzl
+@@ -3,11 +3,24 @@ load(
+     "OtpInfo",
+ )
+ 
++# The erlang home that rules use when OtpInfo.tree is set. The shell
++# snippet from maybe_install_erlang assigns this variable.
++TREE_ERLANG_HOME = "${RULES_ERLANG_HOME}"
++
++def _tree(info):
++    return getattr(info, "tree", None)
++
++def template_erlang_home(otpinfo):
++    """The erlang home for make variables, which are not run through a shell."""
++    if _tree(otpinfo) != None:
++        return otpinfo.version_file.dirname
++    return otpinfo.erlang_home
++
+ def _impl(ctx):
+     otpinfo = ctx.attr.otp[OtpInfo]
+     vars = {
+         "OTP_VERSION": otpinfo.version,
+-        "ERLANG_HOME": otpinfo.erlang_home,
++        "ERLANG_HOME": template_erlang_home(otpinfo),
+     }
+     if otpinfo.release_dir_tar != None:
+         vars["ERLANG_RELEASE_TAR_PATH"] = otpinfo.release_dir_tar.path
+@@ -40,6 +53,12 @@ def _build_info(ctx):
+ 
+ def erlang_dirs(ctx):
+     info = _build_info(ctx)
++    tree = _tree(info)
++    if tree != None:
++        runfiles = ctx.runfiles(
++            transitive_files = depset([info.version_file], transitive = [tree]),
++        )
++        return (TREE_ERLANG_HOME, None, runfiles)
+     if info.release_dir_tar != None:
+         runfiles = ctx.runfiles([
+             info.release_dir_tar,
+@@ -53,6 +72,9 @@ def erlang_dirs(ctx):
+ 
+ def maybe_install_erlang(ctx, short_path = False):
+     info = _build_info(ctx)
++    if _tree(info) != None:
++        version_file = info.version_file.short_path if short_path else info.version_file.path
++        return 'RULES_ERLANG_HOME="$(cd "$(dirname "{}")" && pwd)"'.format(version_file)
+     release_dir_tar = info.release_dir_tar
+     if release_dir_tar == None:
+         return ""
+diff --git a/tools/erlang_vars.bzl b/tools/erlang_vars.bzl
+--- a/tools/erlang_vars.bzl
++++ b/tools/erlang_vars.bzl
+@@ -1,3 +1,5 @@
++load(":erlang_toolchain.bzl", "template_erlang_home")
++
+ ERLANG_VARS_ENV_MAP = {
+     "OTP_VERSION": "$(OTP_VERSION)",
+     "OTP_VERSION_FILE_PATH": "$(OTP_VERSION_FILE_PATH)",
+@@ -17,7 +19,7 @@ def _impl(ctx):
+         "OTP_VERSION": otpinfo.version,
+         "OTP_VERSION_FILE_PATH": otpinfo.version_file.path,
+         "OTP_VERSION_FILE_SHORT_PATH": otpinfo.version_file.short_path,
+-        "ERLANG_HOME": otpinfo.erlang_home,
++        "ERLANG_HOME": template_erlang_home(otpinfo),
+     }
+     if otpinfo.release_dir_tar != None:
+         vars["OTP_INSTALL_PATH"] = otpinfo.install_path

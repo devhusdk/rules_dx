@@ -28,9 +28,10 @@ typed `--bazel-startup-option` tokens before `query`. It gives up after about
 1.5 seconds or when another Bazel command holds the server, and then offers
 package patterns only. A cold `bazel query` can start a Bazel server that
 keeps running after completion gives up. On Windows that server outlives
-the terminal or tool that ran dx, unless that tool's job forbids breakaway. The query's client and any wrapper
-such as Bazelisk stop when completion gives up. Completion prints no errors
-while you type.
+the terminal or tool that ran dx, unless that tool's job forbids breakaway.
+When dx runs without a console (started detached), completion that gives up
+also stops that server. The query's client and any wrapper such as Bazelisk
+stop when completion gives up. Completion prints no errors while you type.
 
 Output: text only. `--output=json` and `--output=diff` are usage errors.
 `DX_OUTPUT=json` and `output = "json"` in `dx.toml` fall back to text.

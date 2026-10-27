@@ -320,6 +320,34 @@ fn a_detachable_run_reaps_an_attached_descendant() {
     assert_released(&lock);
 }
 
+#[test]
+fn attached_targets_is_none_without_a_console() {
+    assert_eq!(attached_targets(1, Some(&[2, 3]), &[]), None);
+}
+
+#[test]
+fn attached_targets_is_none_without_a_member_list() {
+    assert_eq!(attached_targets(1, None, &[2, 3]), None);
+}
+
+#[test]
+fn attached_targets_never_includes_dx() {
+    assert_eq!(attached_targets(1, Some(&[1, 2]), &[1, 2]), Some(vec![2]));
+}
+
+#[test]
+fn attached_targets_skips_members_outside_the_console() {
+    assert_eq!(attached_targets(1, Some(&[2, 9]), &[1, 2]), Some(vec![2]));
+}
+
+#[test]
+fn attached_targets_is_the_intersection_in_any_order() {
+    assert_eq!(
+        attached_targets(1, Some(&[5, 4, 3]), &[3, 9, 5]),
+        Some(vec![5, 3])
+    );
+}
+
 #[cfg(windows)]
 #[test]
 fn an_owned_run_kills_a_detached_server() {

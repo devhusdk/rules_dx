@@ -1,0 +1,10 @@
+{
+	"name": "astro-app-fixture",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@astrojs/preact": "6.0.6",
+		"astro": "7.3.8",
+		"preact": "10.29.8"
+	}
+}

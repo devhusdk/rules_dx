@@ -1,0 +1,14 @@
+---
+interface Props {
+  heading: string;
+  count: number;
+}
+
+const { heading, count } = Astro.props;
+---
+
+<article class="card">
+  <h2>{heading}</h2>
+  <p>Starts at {count}</p>
+  <slot />
+</article>

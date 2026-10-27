@@ -1,4 +1,4 @@
-"""Standalone quality-tool acquisition."""
+"""Standalone tool acquisition."""
 
 load("//quality/artifacts:acquire.bzl", "ACQUIRE_ATTRS", "acquire_tool")
 load("//quality/artifacts:actionlint.linux_arm64.bzl", _actionlint_linux_arm64 = "ARTIFACT")
@@ -38,6 +38,10 @@ load("//quality/artifacts:keep_sorted.linux_arm64.bzl", _keep_sorted_linux_arm64
 load("//quality/artifacts:keep_sorted.linux_x86_64.bzl", _keep_sorted_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.macos_arm64.bzl", _keep_sorted_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.windows_x86_64.bzl", _keep_sorted_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:mdbook.linux_arm64.bzl", _mdbook_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:mdbook.linux_x86_64.bzl", _mdbook_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:mdbook.macos_arm64.bzl", _mdbook_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:mdbook.windows_x86_64.bzl", _mdbook_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:pkl.linux_arm64.bzl", _pkl_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:pkl.linux_x86_64.bzl", _pkl_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:pkl.macos_arm64.bzl", _pkl_macos_arm64 = "ARTIFACT")
@@ -79,6 +83,11 @@ load("//quality/artifacts:vale.linux_arm64.bzl", _vale_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.linux_x86_64.bzl", _vale_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.windows_x86_64.bzl", _vale_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:wasmtime.linux_arm64.bzl", _wasmtime_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:wasmtime.linux_x86_64.bzl", _wasmtime_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:wasmtime.macos_arm64.bzl", _wasmtime_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:wasmtime.macos_x86_64.bzl", _wasmtime_macos_x86_64 = "ARTIFACT")
+load("//quality/artifacts:wasmtime.windows_x86_64.bzl", _wasmtime_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:yamlfmt.linux_arm64.bzl", _yamlfmt_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:yamlfmt.linux_x86_64.bzl", _yamlfmt_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:yamlfmt.macos_arm64.bzl", _yamlfmt_macos_arm64 = "ARTIFACT")
@@ -121,6 +130,10 @@ _ARTIFACTS = [
     _keep_sorted_linux_arm64,
     _keep_sorted_macos_arm64,
     _keep_sorted_windows_x86_64,
+    _mdbook_linux_x86_64,
+    _mdbook_linux_arm64,
+    _mdbook_macos_arm64,
+    _mdbook_windows_x86_64,
     _pkl_linux_x86_64,
     _pkl_linux_arm64,
     _pkl_macos_arm64,
@@ -161,6 +174,11 @@ _ARTIFACTS = [
     _vale_linux_arm64,
     _vale_macos_arm64,
     _vale_windows_x86_64,
+    _wasmtime_linux_x86_64,
+    _wasmtime_linux_arm64,
+    _wasmtime_macos_arm64,
+    _wasmtime_windows_x86_64,
+    _wasmtime_macos_x86_64,
     _yamlfmt_linux_x86_64,
     _yamlfmt_linux_arm64,
     _yamlfmt_macos_arm64,

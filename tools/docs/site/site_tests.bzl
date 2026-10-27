@@ -1,7 +1,7 @@
 """Unit plus execution tests for docs site execution."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//tools/docs/site/mdbook:repos.bzl", "MDBOOK_VERSION")
+load("//quality/artifacts:mdbook.linux_x86_64.bzl", _MDBOOK = "ARTIFACT")
 load(":render.bzl", "mdbook_chapters_error", "mdbook_index", "mdbook_index_text", "mdbook_page", "mdbook_page_list", "mdbook_route_error", "mdbook_section", "mdbook_summary_text")
 load(":site.bzl", "site_api_name", "site_api_path", "site_guide_step_error", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
 load(":user/book.bzl", "USER_BOOK")
@@ -13,7 +13,7 @@ def site_unit_tests(name):
         checks = [
             expect_equal(
                 "the pinned mdBook version stays explicit",
-                MDBOOK_VERSION,
+                _MDBOOK["upstream_version"],
                 "0.4.52",
             ),
             expect_equal(

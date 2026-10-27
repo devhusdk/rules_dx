@@ -18,6 +18,7 @@ SUCCESS_REPOS = [
     "dx_acquire_gzip_named",
     "dx_acquire_gzip_unnamed",
     "dx_acquire_tar",
+    "dx_acquire_tar_xz",
     "dx_acquire_zip",
 ]
 
@@ -83,7 +84,7 @@ def test_acquisition_names_no_host_utility():
 
 def test_fixture_covers_every_supported_archive_kind():
     kinds = {attrs["archive_format"] for _, attrs in declarations()}
-    assert kinds == {"none", "gzip", "tar.gz", "zip"}, f"fixture covers {sorted(kinds)}"
+    assert kinds == {"none", "gzip", "tar.gz", "tar.xz", "zip"}, f"fixture covers {sorted(kinds)}"
 
 
 def test_fixture_names_the_success_and_reject_repos():
@@ -113,8 +114,8 @@ def inner_bytes(name, attrs):
     if kind == "gzip":
         with gzip.open(asset, "rb") as handle:
             return handle.read()
-    if kind == "tar.gz":
-        with tarfile.open(asset, "r:gz") as archive:
+    if kind in ("tar.gz", "tar.xz"):
+        with tarfile.open(asset, "r:" + kind.split(".")[1]) as archive:
             member = archive.extractfile(attrs["executable"])
             assert member is not None, f"{name} ships no {attrs['executable']}"
             return member.read()

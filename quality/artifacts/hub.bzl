@@ -5,9 +5,22 @@ PLATFORM_CONSTRAINTS = {
     "linux_arm64": ["os_linux", "cpu_arm64"],
     "macos_arm64": ["os_macos", "cpu_arm64"],
     "windows_x86_64": ["os_windows", "cpu_x86_64"],
+    "macos_x86_64": ["os_macos", "cpu_x86_64"],
 }
 
-TOOL_PLATFORMS = list(PLATFORM_CONSTRAINTS.keys())
+# The qualified execution set: every dx tool ships for each of these, and
+# signing, remote execution and is_supported_key read it. Keep it explicit so a
+# selectable platform added to PLATFORM_CONSTRAINTS does not qualify itself.
+TOOL_PLATFORMS = [
+    "linux_x86_64",
+    "linux_arm64",
+    "macos_arm64",
+    "windows_x86_64",
+]
+
+# Every platform the hub renders a config_setting for and accepts artifacts on.
+# Platforms outside TOOL_PLATFORMS are selectable but unqualified.
+ARTIFACT_PLATFORMS = list(PLATFORM_CONSTRAINTS.keys())
 
 _ARTIFACT_KEYS = [
     "archive",
@@ -35,7 +48,7 @@ def decode_artifacts(raw):
 
 def ordered_platforms(entries):
     """Returns the platform keys one tool map holds, in platform order."""
-    return [platform for platform in TOOL_PLATFORMS if platform in entries]
+    return [platform for platform in ARTIFACT_PLATFORMS if platform in entries]
 
 def artifact_metadata_errors(artifacts):
     """Returns one error string per artifact with missing or duplicated metadata."""
@@ -115,12 +128,12 @@ def hub_build(artifacts, constraints):
     return "\n".join(lines)
 
 def _platform_names():
-    """Returns the supported platform names as one list."""
-    return ", ".join(TOOL_PLATFORMS)
+    """Returns the selectable platform names as one list."""
+    return ", ".join(ARTIFACT_PLATFORMS)
 
 def _config_settings(constraints):
     lines = []
-    for platform in TOOL_PLATFORMS:
+    for platform in ARTIFACT_PLATFORMS:
         lines.append("config_setting(")
         lines.append('    name = "%s",' % platform)
         lines.append("    constraint_values = [")

@@ -43,6 +43,16 @@ acquire_fixture_repo(
 )
 
 acquire_fixture_repo(
+    name = "dx_acquire_tar_xz",
+    archive_format = "tar.xz",
+    asset = "taplo-linux-x86_64.tar.xz",
+    executable = "taplo-linux-x86_64/taplo",
+    executable_sha256 = "2e4b3af2e20251d4418789bdb5ef57ed3b7b7c1410a442cb20527681bac1a768",
+    sha256 = "8c4cc1dfa2a98e9dee3b82b0ace83e30aea662077f6431755adddd637a875119",
+    url = "{fixtures}/taplo-linux-x86_64.tar.xz",
+)
+
+acquire_fixture_repo(
     name = "dx_acquire_zip",
     archive_format = "zip",
     asset = "taplo-windows-x86_64.zip",

@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "expect_contains", "expect_equal", "expect_false", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
-load("//quality/artifacts:hub.bzl", "PLATFORM_CONSTRAINTS", "TOOL_PLATFORMS", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "decode_artifacts", "encode_artifacts", "hub_build", "no_match_error", "ordered_platforms")
+load("//quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "PLATFORM_CONSTRAINTS", "TOOL_PLATFORMS", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "decode_artifacts", "encode_artifacts", "hub_build", "no_match_error", "ordered_platforms")
 
 _CONSTRAINT_LABELS = {
     "cpu_arm64": "@platforms//cpu:arm64",
@@ -23,12 +23,20 @@ _FIXTURE_REPOS = {
 
 _SPARSE = {
     _FIXTURE_TOOL: {
-        platform: _FIXTURE_REPOS[platform]
-        for platform in ["linux_x86_64", "macos_arm64", "windows_x86_64"]
+        "linux_x86_64": _FIXTURE_REPOS["linux_x86_64"],
+        "macos_arm64": _FIXTURE_REPOS["macos_arm64"],
+        "macos_x86_64": "dx_hub_fixture_taplo_macos_x86_64",
+        "windows_x86_64": _FIXTURE_REPOS["windows_x86_64"],
     },
 }
 
 _COMPLETE = {_FIXTURE_TOOL: dict(_FIXTURE_REPOS)}
+
+# Tools allowed to ship artifacts on selectable platforms outside the qualified
+# TOOL_PLATFORMS set, and the only such platforms each may use.
+_UNQUALIFIED_ALLOWLIST = {
+    "wasmtime": ["macos_x86_64"],
+}
 
 def _artifact_repo(artifact):
     """Returns the tool repository name one artifact is fetched into."""
@@ -41,11 +49,15 @@ def _released_map():
         by_tool.setdefault(artifact["tool"], {})[artifact["os"] + "_" + artifact["cpu"]] = _artifact_repo(artifact)
     return by_tool
 
-def _platform_branches(tool):
+def _platform_branches(tool, platforms):
     return {
         ":" + platform: "@dx_%s_%s//:tool" % (tool, platform)
-        for platform in TOOL_PLATFORMS
+        for platform in platforms
     }
+
+def _unqualified_platforms(entries):
+    """Returns the platforms one tool map holds outside the qualified set."""
+    return [platform for platform in ordered_platforms(entries) if platform not in TOOL_PLATFORMS]
 
 def _unit_checks():
     released = _released_map()
@@ -56,15 +68,19 @@ def _unit_checks():
     sample_platform = sample["os"] + "_" + sample["cpu"]
     checks = [
         expect_equal("the platform table is the supported set", TOOL_PLATFORMS, ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
-        expect_equal("the encoded map keys every platform explicitly", encode_artifacts(_SPARSE), '{"taplo":{"linux_x86_64":"dx_hub_fixture_taplo_linux_x86_64","macos_arm64":"dx_hub_fixture_taplo_macos_arm64","windows_x86_64":"dx_hub_fixture_taplo_windows_x86_64"}}'),
-        expect_equal("a sparse map keeps the platforms it declares", ordered_platforms(_SPARSE[_FIXTURE_TOOL]), ["linux_x86_64", "macos_arm64", "windows_x86_64"]),
+        expect_equal("the selectable platforms are the supported set plus intel macos", ARTIFACT_PLATFORMS, TOOL_PLATFORMS + ["macos_x86_64"]),
+        expect_equal("the encoded map keys every platform explicitly", encode_artifacts(_SPARSE), '{"taplo":{"linux_x86_64":"dx_hub_fixture_taplo_linux_x86_64","macos_arm64":"dx_hub_fixture_taplo_macos_arm64","macos_x86_64":"dx_hub_fixture_taplo_macos_x86_64","windows_x86_64":"dx_hub_fixture_taplo_windows_x86_64"}}'),
+        expect_equal("a sparse map keeps the platforms it declares", ordered_platforms(_SPARSE[_FIXTURE_TOOL]), ["linux_x86_64", "macos_arm64", "windows_x86_64", "macos_x86_64"]),
         expect_equal("a sparse map names the repository of every platform it declares", branch_labels(_SPARSE[_FIXTURE_TOOL]), {
             ":linux_x86_64": "@dx_hub_fixture_taplo_linux_x86_64//:tool",
             ":macos_arm64": "@dx_hub_fixture_taplo_macos_arm64//:tool",
             ":windows_x86_64": "@dx_hub_fixture_taplo_windows_x86_64//:tool",
+            ":macos_x86_64": "@dx_hub_fixture_taplo_macos_x86_64//:tool",
         }),
         expect_false("a sparse map selects no repository for the platform it lacks", '":linux_arm64": "@' in sparse_rendered),
-        expect_equal("a sparse map diagnostic names the tool and the platforms it has", no_match_error(_SPARSE[_FIXTURE_TOOL], _FIXTURE_TOOL), "rules_dx: no taplo artifact for this execution platform; want one of linux_x86_64, macos_arm64, windows_x86_64."),
+        expect_contains("a sparse map selects its unqualified platform", sparse_rendered, '":macos_x86_64": "@dx_hub_fixture_taplo_macos_x86_64//:tool",'),
+        expect_false("a complete map selects nothing outside the qualified set", '":macos_x86_64": "@' in hub_build(_COMPLETE, _CONSTRAINT_LABELS)),
+        expect_equal("a sparse map diagnostic names the tool and the platforms it has", no_match_error(_SPARSE[_FIXTURE_TOOL], _FIXTURE_TOOL), "rules_dx: no taplo artifact for this execution platform; want one of linux_x86_64, macos_arm64, windows_x86_64, macos_x86_64."),
         expect_equal("a sparse map is a valid repository map", artifact_map_errors(_SPARSE), []),
         expect_equal("a complete map keeps every supported platform", ordered_platforms(_COMPLETE[_FIXTURE_TOOL]), TOOL_PLATFORMS),
         expect_equal("a complete map names the repository of every platform", branch_labels(_COMPLETE[_FIXTURE_TOOL]), {
@@ -79,20 +95,22 @@ def _unit_checks():
         expect_equal("a decoded map has no diagnostic", decode_artifacts(encode_artifacts(released)).error, ""),
         expect_equal("a JSON array is not a tool map", decode_artifacts('["taplo"]').error, "artifacts must be a JSON object keyed by tool, got list"),
         expect_equal("one repository cannot serve two platforms", artifact_map_errors({"taplo": {"linux_x86_64": "dx_a", "macos_arm64": "dx_a"}}), ["repository 'dx_a' is selected by both 'taplo/linux_x86_64' and 'taplo/macos_arm64'"]),
-        expect_equal("an unsupported platform key is rejected", artifact_map_errors({"taplo": {"solaris_x86_64": "dx_a"}}), ["tool 'taplo' names unsupported platform 'solaris_x86_64'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64"]),
+        expect_equal("an unsupported platform key is rejected", artifact_map_errors({"taplo": {"solaris_x86_64": "dx_a"}}), ["tool 'taplo' names unsupported platform 'solaris_x86_64'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, macos_x86_64"]),
         expect_equal("a platform without a repository is rejected", artifact_map_errors({"taplo": {"macos_arm64": ""}}), ["tool 'taplo' platform 'macos_arm64' has no repository name"]),
         expect_equal("a tool without a platform map is rejected", artifact_map_errors({"taplo": ["dx_a"]}), ["tool 'taplo' maps platforms to a list, want an object keyed by platform"]),
         expect_equal("a tool without an artifact is rejected", artifact_map_errors({"taplo": {}}), ["tool 'taplo' has no artifact for any platform"]),
         expect_equal("an artifact without metadata is rejected", artifact_metadata_errors([dict(sample, executable_sha256 = "")]), ["artifact '" + sample_tool + "' is missing executable_sha256"]),
         expect_equal("an artifact without an archive format is rejected", artifact_metadata_errors([dict(sample, archive = {})]), ["artifact '" + sample_tool + "' is missing archive.format"]),
-        expect_equal("an artifact on an unsupported platform is rejected", artifact_metadata_errors([dict(sample, os = "solaris")]), ["artifact '" + sample_tool + "' names unsupported platform 'solaris_" + sample["cpu"] + "'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64"]),
+        expect_equal("an artifact on an unsupported platform is rejected", artifact_metadata_errors([dict(sample, os = "solaris")]), ["artifact '" + sample_tool + "' names unsupported platform 'solaris_" + sample["cpu"] + "'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, macos_x86_64"]),
         expect_equal("two artifacts for one platform are rejected", artifact_metadata_errors([sample, dict(sample, url = "https://example.invalid/other")]), ["artifact '" + sample_tool + "/" + sample_platform + "' is declared twice: '" + sample["url"] + "' and 'https://example.invalid/other'"]),
     ]
-    for platform in TOOL_PLATFORMS:
+    for platform in ARTIFACT_PLATFORMS:
         checks.append(expect_contains("the rendered hub declares the " + platform + " config_setting", rendered, '    name = "%s",' % platform))
     for tool in sorted(released.keys()):
-        checks.append(expect_equal(tool + " keeps one branch per supported platform", ordered_platforms(released[tool]), TOOL_PLATFORMS))
-        checks.append(expect_equal(tool + " keeps the repository of every platform", branch_labels(released[tool]), _platform_branches(tool)))
+        platforms = ordered_platforms(released[tool])
+        checks.append(expect_equal(tool + " keeps one branch per supported platform", [platform for platform in platforms if platform in TOOL_PLATFORMS], TOOL_PLATFORMS))
+        checks.append(expect_equal(tool + " ships outside the qualified set only where allowlisted", _unqualified_platforms(released[tool]), _UNQUALIFIED_ALLOWLIST.get(tool, [])))
+        checks.append(expect_equal(tool + " keeps the repository of every platform", branch_labels(released[tool]), _platform_branches(tool, platforms)))
         checks.append(expect_contains(tool + " renders its linux_x86_64 branch", rendered, '":linux_x86_64": "@dx_%s_linux_x86_64//:tool",' % tool))
     return checks
 
@@ -235,7 +253,7 @@ hub_exec_probe = rule(
 
 def hub_selection_tests(name):
     """Declares the standalone tool artifact selection tests."""
-    for platform in TOOL_PLATFORMS:
+    for platform in ARTIFACT_PLATFORMS:
         constraint_values = [_CONSTRAINT_LABELS[attr] for attr in PLATFORM_CONSTRAINTS[platform]]
         native.platform(
             name = "platform_" + platform,

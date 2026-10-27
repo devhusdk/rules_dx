@@ -952,6 +952,102 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "mdbook": {
+        "upstream_version": "0.4.52",
+        "release_page": "https://github.com/rust-lang/mdBook/releases/tag/v0.4.52",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/rust-lang/mdBook/blob/v0.4.52/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
+                "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
+                "kind": "tar.gz",
+                "executable": "mdbook",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
+                "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
+                "kind": "tar.gz",
+                "executable": "mdbook",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
+                "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
+                "kind": "tar.gz",
+                "executable": "mdbook",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
+                "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "mdbook.exe",
+            },
+        },
+    },
+    "wasmtime": {
+        "upstream_version": "49.0.2",
+        "release_page": "https://github.com/bytecodealliance/wasmtime/releases/tag/v49.0.2",
+        "licenses": [
+            {
+                "name": "Apache-2.0 WITH LLVM-exception",
+                "source": "https://github.com/bytecodealliance/wasmtime/blob/v49.0.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "wasmtime-v49.0.2-x86_64-linux.tar.xz",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-linux.tar.xz",
+                "kind": "tar.xz",
+                "executable": "wasmtime-v49.0.2-x86_64-linux/wasmtime",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "wasmtime-v49.0.2-aarch64-linux.tar.xz",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-linux.tar.xz",
+                "kind": "tar.xz",
+                "executable": "wasmtime-v49.0.2-aarch64-linux/wasmtime",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "wasmtime-v49.0.2-aarch64-macos.tar.xz",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-macos.tar.xz",
+                "kind": "tar.xz",
+                "executable": "wasmtime-v49.0.2-aarch64-macos/wasmtime",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "wasmtime-v49.0.2-x86_64-windows.zip",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-windows.zip",
+                "kind": "zip",
+                "executable": "wasmtime-v49.0.2-x86_64-windows/wasmtime.exe",
+            },
+            "macos_x86_64": {
+                "os": "macos",
+                "cpu": "x86_64",
+                "asset": "wasmtime-v49.0.2-x86_64-macos.tar.xz",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-macos.tar.xz",
+                "kind": "tar.xz",
+                "executable": "wasmtime-v49.0.2-x86_64-macos/wasmtime",
+            },
+        },
+    },
 }
 
 
@@ -1039,11 +1135,14 @@ def _stream_executable(asset, workdir, executable, source):
     return exe_path, digest.hexdigest()
 
 
-def _tar_members(asset, asset_path, workdir, executable):
+TAR_COMPRESSIONS = {"tar.gz": "gz", "tar.xz": "xz"}
+
+
+def _tar_members(asset, asset_path, workdir, executable, kind="tar.gz"):
     members = []
     seen = set()
     exe_member = None
-    with tarfile.open(asset_path, "r:gz") as archive_file:
+    with tarfile.open(asset_path, "r:" + TAR_COMPRESSIONS[kind]) as archive_file:
         infos = archive_file.getmembers()
         for member in infos:
             _check_member_name(asset, member.name)
@@ -1239,11 +1338,11 @@ def _collect(tool, platform_key, spec, workdir):
             "member_sha256": exe_digest,
             "member_size": len(inner),
         }
-    elif kind == "tar.gz":
+    elif kind in TAR_COMPRESSIONS:
         members, exe_path, exe_digest = _tar_members(
-            spec["asset"], asset_path, workdir, spec["executable"]
+            spec["asset"], asset_path, workdir, spec["executable"], kind
         )
-        archive = {"format": "tar.gz", "members": members}
+        archive = {"format": kind, "members": members}
     elif kind == "zip":
         members, exe_path, exe_digest = _zip_members(
             spec["asset"], asset_path, workdir, spec["executable"]

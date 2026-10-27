@@ -982,6 +982,10 @@ use_repo(
     "dx_keep_sorted_linux_x86_64",
     "dx_keep_sorted_macos_arm64",
     "dx_keep_sorted_windows_x86_64",
+    "dx_mdbook_linux_arm64",
+    "dx_mdbook_linux_x86_64",
+    "dx_mdbook_macos_arm64",
+    "dx_mdbook_windows_x86_64",
     "dx_pkl_linux_arm64",
     "dx_pkl_linux_x86_64",
     "dx_pkl_macos_arm64",
@@ -1023,20 +1027,15 @@ use_repo(
     "dx_vale_linux_x86_64",
     "dx_vale_macos_arm64",
     "dx_vale_windows_x86_64",
+    "dx_wasmtime_linux_arm64",
+    "dx_wasmtime_linux_x86_64",
+    "dx_wasmtime_macos_arm64",
+    "dx_wasmtime_macos_x86_64",
+    "dx_wasmtime_windows_x86_64",
     "dx_yamlfmt_linux_arm64",
     "dx_yamlfmt_linux_x86_64",
     "dx_yamlfmt_macos_arm64",
     "dx_yamlfmt_windows_x86_64",
-)
-
-mdbook = use_extension("//tools/docs/site/mdbook:repos.bzl", "mdbook")
-use_repo(
-    mdbook,
-    "dx_mdbook",
-    "dx_mdbook_linux_arm64",
-    "dx_mdbook_linux_x86_64",
-    "dx_mdbook_macos_arm64",
-    "dx_mdbook_windows_x86_64",
 )
 
 yard = use_extension("//tools/docs/ruby:repos.bzl", "yard")
@@ -1048,17 +1047,6 @@ use_repo(
     "dx_firefox",
     "dx_firefox_linux_arm64",
     "dx_firefox_linux_x86_64",
-)
-
-wasmtime = use_extension("//wasi/runtime:repos.bzl", "wasmtime")
-use_repo(
-    wasmtime,
-    "dx_wasmtime",
-    "dx_wasmtime_linux_arm64",
-    "dx_wasmtime_linux_x86_64",
-    "dx_wasmtime_macos_arm64",
-    "dx_wasmtime_macos_x86_64",
-    "dx_wasmtime_windows_x86_64",
 )
 
 cc_tools = use_extension("//quality/tools/cc:extension.bzl", "cc_tools")
@@ -1098,6 +1086,12 @@ _hub_fixture_repo(
 _hub_fixture_repo(
     name = "dx_hub_fixture_taplo_windows_x86_64",
     platform = "windows_x86_64",
+    tool = "taplo",
+)
+
+_hub_fixture_repo(
+    name = "dx_hub_fixture_taplo_macos_x86_64",
+    platform = "macos_x86_64",
     tool = "taplo",
 )
 

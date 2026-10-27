@@ -576,7 +576,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "5Y0oyKUwcZpb0bp/c03bVquxLAUBRlzEaQe0aduBeXM=",
+        "bzlTransitiveDigest": "kRBreJ08Oxwws8lO+WhhAmdBOBcLdLY9pW1ZJNDil+E=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -976,6 +976,50 @@
               "archive_format": "none",
               "executable": "keep-sorted_windows_amd64.exe",
               "executable_sha256": "adbbea4b3eac632fc5da1053b31377f74516a43fb3b00c325dbe37f3fc311e45"
+            }
+          },
+          "dx_mdbook_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
+              "sha256": "c0b903f01dd8f4edc644372ad2b80b1fdddd12552d37b6a098657cbd8eddd768",
+              "asset": "mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "29b7e5ba01321e3bbc4487012544cea516f01377ffd1e26b4adeed9b8ed875a9"
+            }
+          },
+          "dx_mdbook_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
+              "sha256": "7273dda980915a1e2f114d63d432aa6284551e37f0358e3ce7653d1e49e6fa3f",
+              "asset": "mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "207696773a2ce4f37c58782d0853f4179694a289cb7508eaa93e0dc595407294"
+            }
+          },
+          "dx_mdbook_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
+              "sha256": "4aee6a8ff54dc59fbe9bcf1c38b8f58583fba63535dff7a5ec8205f0cffc3fd4",
+              "asset": "mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "mdbook",
+              "executable_sha256": "80ca3d4d6dfc1a12d231b14ece0dd6bd9cf6233f74b45f3c7ff915b6923eeac5"
+            }
+          },
+          "dx_mdbook_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
+              "sha256": "33510a5745c593e06f4b8e21f531d9204c6f4444846b4bd57994e82a7bdfec98",
+              "asset": "mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
+              "archive_format": "zip",
+              "executable": "mdbook.exe",
+              "executable_sha256": "8400c017423686ad8025532baaf4b1683b8caf7147fbe6fc4cddf7a85902cbde"
             }
           },
           "dx_pkl_linux_x86_64": {
@@ -1418,6 +1462,61 @@
               "executable_sha256": "24ca0647d8b929d786cc371848fe1153e605361cd7dffa4badac9cdf33f99487"
             }
           },
+          "dx_wasmtime_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-linux.tar.xz",
+              "sha256": "a4d6e9e3a5a60f527cf7793d674c48930c80c2e8977995b8a275cad3254b9322",
+              "asset": "wasmtime-v49.0.2-x86_64-linux.tar.xz",
+              "archive_format": "tar.xz",
+              "executable": "wasmtime-v49.0.2-x86_64-linux/wasmtime",
+              "executable_sha256": "d0a014e0d5b0cf48dd3549c38e2e6ecd78ff09fb3e3f10d751b87b72bdfd8635"
+            }
+          },
+          "dx_wasmtime_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-linux.tar.xz",
+              "sha256": "ca14988c6da3d92512bd9c3bad6cbd06b1f5743b6911a9e709f1a6fa30637d7f",
+              "asset": "wasmtime-v49.0.2-aarch64-linux.tar.xz",
+              "archive_format": "tar.xz",
+              "executable": "wasmtime-v49.0.2-aarch64-linux/wasmtime",
+              "executable_sha256": "776cf37c495c70ee22144ff4c881bd18c1997edcb7a226dcc4583fd19cefc492"
+            }
+          },
+          "dx_wasmtime_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-macos.tar.xz",
+              "sha256": "ea5a79261caa39819b863fd850879428cf90548353e1e5cf9bcbcc4e7addf2c1",
+              "asset": "wasmtime-v49.0.2-aarch64-macos.tar.xz",
+              "archive_format": "tar.xz",
+              "executable": "wasmtime-v49.0.2-aarch64-macos/wasmtime",
+              "executable_sha256": "4408e44af098f7581366b0396088924d7e181720b9309574b4c30bac1c86b6dc"
+            }
+          },
+          "dx_wasmtime_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-windows.zip",
+              "sha256": "c95a3925acde6398808baabe5ad13d0b1df02b004bc256c00cf8e2a36daccea8",
+              "asset": "wasmtime-v49.0.2-x86_64-windows.zip",
+              "archive_format": "zip",
+              "executable": "wasmtime-v49.0.2-x86_64-windows/wasmtime.exe",
+              "executable_sha256": "51165ae46e2e4ca71b52efff33432d9e58db41bf236cb7c768adb03f653a7152"
+            }
+          },
+          "dx_wasmtime_macos_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-macos.tar.xz",
+              "sha256": "b24513efff6a5dbeb196e2a01097ba632a8b0ea1563ba297ada26ceb3aa067d9",
+              "asset": "wasmtime-v49.0.2-x86_64-macos.tar.xz",
+              "archive_format": "tar.xz",
+              "executable": "wasmtime-v49.0.2-x86_64-macos/wasmtime",
+              "executable_sha256": "3e4920a081ee945c7633ac82ad4cf8456551b1913586da77eea6c0520a32eadc"
+            }
+          },
           "dx_yamlfmt_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -1465,7 +1564,7 @@
           "dx_tools": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_hub_repo",
             "attributes": {
-              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buf\":{\"linux_arm64\":\"dx_buf_linux_arm64\",\"linux_x86_64\":\"dx_buf_linux_x86_64\",\"macos_arm64\":\"dx_buf_macos_arm64\",\"windows_x86_64\":\"dx_buf_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"cue\":{\"linux_arm64\":\"dx_cue_linux_arm64\",\"linux_x86_64\":\"dx_cue_linux_x86_64\",\"macos_arm64\":\"dx_cue_macos_arm64\",\"windows_x86_64\":\"dx_cue_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"hadolint\":{\"linux_arm64\":\"dx_hadolint_linux_arm64\",\"linux_x86_64\":\"dx_hadolint_linux_x86_64\",\"macos_arm64\":\"dx_hadolint_macos_arm64\",\"windows_x86_64\":\"dx_hadolint_windows_x86_64\"},\"jsonnetfmt\":{\"linux_arm64\":\"dx_jsonnetfmt_linux_arm64\",\"linux_x86_64\":\"dx_jsonnetfmt_linux_x86_64\",\"macos_arm64\":\"dx_jsonnetfmt_macos_arm64\",\"windows_x86_64\":\"dx_jsonnetfmt_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"pkl\":{\"linux_arm64\":\"dx_pkl_linux_arm64\",\"linux_x86_64\":\"dx_pkl_linux_x86_64\",\"macos_arm64\":\"dx_pkl_macos_arm64\",\"windows_x86_64\":\"dx_pkl_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"scalafmt\":{\"linux_arm64\":\"dx_scalafmt_linux_arm64\",\"linux_x86_64\":\"dx_scalafmt_linux_x86_64\",\"macos_arm64\":\"dx_scalafmt_macos_arm64\",\"windows_x86_64\":\"dx_scalafmt_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"uv\":{\"linux_arm64\":\"dx_uv_linux_arm64\",\"linux_x86_64\":\"dx_uv_linux_x86_64\",\"macos_arm64\":\"dx_uv_macos_arm64\",\"windows_x86_64\":\"dx_uv_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"},\"yamlfmt\":{\"linux_arm64\":\"dx_yamlfmt_linux_arm64\",\"linux_x86_64\":\"dx_yamlfmt_linux_x86_64\",\"macos_arm64\":\"dx_yamlfmt_macos_arm64\",\"windows_x86_64\":\"dx_yamlfmt_windows_x86_64\"}}",
+              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buf\":{\"linux_arm64\":\"dx_buf_linux_arm64\",\"linux_x86_64\":\"dx_buf_linux_x86_64\",\"macos_arm64\":\"dx_buf_macos_arm64\",\"windows_x86_64\":\"dx_buf_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"cue\":{\"linux_arm64\":\"dx_cue_linux_arm64\",\"linux_x86_64\":\"dx_cue_linux_x86_64\",\"macos_arm64\":\"dx_cue_macos_arm64\",\"windows_x86_64\":\"dx_cue_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"hadolint\":{\"linux_arm64\":\"dx_hadolint_linux_arm64\",\"linux_x86_64\":\"dx_hadolint_linux_x86_64\",\"macos_arm64\":\"dx_hadolint_macos_arm64\",\"windows_x86_64\":\"dx_hadolint_windows_x86_64\"},\"jsonnetfmt\":{\"linux_arm64\":\"dx_jsonnetfmt_linux_arm64\",\"linux_x86_64\":\"dx_jsonnetfmt_linux_x86_64\",\"macos_arm64\":\"dx_jsonnetfmt_macos_arm64\",\"windows_x86_64\":\"dx_jsonnetfmt_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"mdbook\":{\"linux_arm64\":\"dx_mdbook_linux_arm64\",\"linux_x86_64\":\"dx_mdbook_linux_x86_64\",\"macos_arm64\":\"dx_mdbook_macos_arm64\",\"windows_x86_64\":\"dx_mdbook_windows_x86_64\"},\"pkl\":{\"linux_arm64\":\"dx_pkl_linux_arm64\",\"linux_x86_64\":\"dx_pkl_linux_x86_64\",\"macos_arm64\":\"dx_pkl_macos_arm64\",\"windows_x86_64\":\"dx_pkl_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"scalafmt\":{\"linux_arm64\":\"dx_scalafmt_linux_arm64\",\"linux_x86_64\":\"dx_scalafmt_linux_x86_64\",\"macos_arm64\":\"dx_scalafmt_macos_arm64\",\"windows_x86_64\":\"dx_scalafmt_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"uv\":{\"linux_arm64\":\"dx_uv_linux_arm64\",\"linux_x86_64\":\"dx_uv_linux_x86_64\",\"macos_arm64\":\"dx_uv_macos_arm64\",\"windows_x86_64\":\"dx_uv_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"},\"wasmtime\":{\"linux_arm64\":\"dx_wasmtime_linux_arm64\",\"linux_x86_64\":\"dx_wasmtime_linux_x86_64\",\"macos_arm64\":\"dx_wasmtime_macos_arm64\",\"macos_x86_64\":\"dx_wasmtime_macos_x86_64\",\"windows_x86_64\":\"dx_wasmtime_windows_x86_64\"},\"yamlfmt\":{\"linux_arm64\":\"dx_yamlfmt_linux_arm64\",\"linux_x86_64\":\"dx_yamlfmt_linux_x86_64\",\"macos_arm64\":\"dx_yamlfmt_macos_arm64\",\"windows_x86_64\":\"dx_yamlfmt_windows_x86_64\"}}",
               "os_linux": "'@@platforms//os:linux'",
               "os_macos": "'@@platforms//os:macos'",
               "os_windows": "'@@platforms//os:windows'",
@@ -1601,131 +1700,6 @@
           },
           "dx_firefox": {
             "repoRuleId": "@@//tools/docs/site/browser:repos.bzl%_firefox_hub_repo",
-            "attributes": {}
-          }
-        }
-      }
-    },
-    "//tools/docs/site/mdbook:repos.bzl%mdbook": {
-      "general": {
-        "bzlTransitiveDigest": "fkNF169InPq2BmPkDlvZGnqjDzYNhXnrZbG+mYnx0Vc=",
-        "usagesDigest": "kCzlv/3igKpLbW/WzsBifuQV5jDsBbalAqm7I4HDquQ=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "dx_mdbook_linux_arm64": {
-            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_repo",
-            "attributes": {
-              "archive_format": "tar.gz",
-              "asset": "mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
-              "executable": "mdbook",
-              "executable_sha256": "207696773a2ce4f37c58782d0853f4179694a289cb7508eaa93e0dc595407294",
-              "sha256": "7273dda980915a1e2f114d63d432aa6284551e37f0358e3ce7653d1e49e6fa3f",
-              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz"
-            }
-          },
-          "dx_mdbook_linux_x86_64": {
-            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_repo",
-            "attributes": {
-              "archive_format": "tar.gz",
-              "asset": "mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
-              "executable": "mdbook",
-              "executable_sha256": "29b7e5ba01321e3bbc4487012544cea516f01377ffd1e26b4adeed9b8ed875a9",
-              "sha256": "c0b903f01dd8f4edc644372ad2b80b1fdddd12552d37b6a098657cbd8eddd768",
-              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz"
-            }
-          },
-          "dx_mdbook_macos_arm64": {
-            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_repo",
-            "attributes": {
-              "archive_format": "tar.gz",
-              "asset": "mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
-              "executable": "mdbook",
-              "executable_sha256": "80ca3d4d6dfc1a12d231b14ece0dd6bd9cf6233f74b45f3c7ff915b6923eeac5",
-              "sha256": "4aee6a8ff54dc59fbe9bcf1c38b8f58583fba63535dff7a5ec8205f0cffc3fd4",
-              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-apple-darwin.tar.gz"
-            }
-          },
-          "dx_mdbook_windows_x86_64": {
-            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_repo",
-            "attributes": {
-              "archive_format": "zip",
-              "asset": "mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
-              "executable": "mdbook.exe",
-              "executable_sha256": "8400c017423686ad8025532baaf4b1683b8caf7147fbe6fc4cddf7a85902cbde",
-              "sha256": "33510a5745c593e06f4b8e21f531d9204c6f4444846b4bd57994e82a7bdfec98",
-              "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-pc-windows-msvc.zip"
-            }
-          },
-          "dx_mdbook": {
-            "repoRuleId": "@@//tools/docs/site/mdbook:repos.bzl%_mdbook_hub_repo",
-            "attributes": {}
-          }
-        }
-      }
-    },
-    "//wasi/runtime:repos.bzl%wasmtime": {
-      "general": {
-        "bzlTransitiveDigest": "xuNIsE8A3KaLTZzaQ39lDiMARYikBQywj6EOSpElmnI=",
-        "usagesDigest": "u2by8yZ22Xs8W9YzwrgvD4aMnJU0Upk/yjwI0Mhd7G0=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "dx_wasmtime_linux_arm64": {
-            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
-            "attributes": {
-              "archive_format": "tar.xz",
-              "asset": "wasmtime-v49.0.2-aarch64-linux.tar.xz",
-              "directory": "wasmtime-v49.0.2-aarch64-linux",
-              "executable": "wasmtime",
-              "sha256": "ca14988c6da3d92512bd9c3bad6cbd06b1f5743b6911a9e709f1a6fa30637d7f",
-              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-linux.tar.xz"
-            }
-          },
-          "dx_wasmtime_linux_x86_64": {
-            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
-            "attributes": {
-              "archive_format": "tar.xz",
-              "asset": "wasmtime-v49.0.2-x86_64-linux.tar.xz",
-              "directory": "wasmtime-v49.0.2-x86_64-linux",
-              "executable": "wasmtime",
-              "sha256": "a4d6e9e3a5a60f527cf7793d674c48930c80c2e8977995b8a275cad3254b9322",
-              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-linux.tar.xz"
-            }
-          },
-          "dx_wasmtime_macos_arm64": {
-            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
-            "attributes": {
-              "archive_format": "tar.xz",
-              "asset": "wasmtime-v49.0.2-aarch64-macos.tar.xz",
-              "directory": "wasmtime-v49.0.2-aarch64-macos",
-              "executable": "wasmtime",
-              "sha256": "ea5a79261caa39819b863fd850879428cf90548353e1e5cf9bcbcc4e7addf2c1",
-              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-macos.tar.xz"
-            }
-          },
-          "dx_wasmtime_macos_x86_64": {
-            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
-            "attributes": {
-              "archive_format": "tar.xz",
-              "asset": "wasmtime-v49.0.2-x86_64-macos.tar.xz",
-              "directory": "wasmtime-v49.0.2-x86_64-macos",
-              "executable": "wasmtime",
-              "sha256": "b24513efff6a5dbeb196e2a01097ba632a8b0ea1563ba297ada26ceb3aa067d9",
-              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-macos.tar.xz"
-            }
-          },
-          "dx_wasmtime_windows_x86_64": {
-            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_repo",
-            "attributes": {
-              "archive_format": "zip",
-              "asset": "wasmtime-v49.0.2-x86_64-windows.zip",
-              "directory": "wasmtime-v49.0.2-x86_64-windows",
-              "executable": "wasmtime.exe",
-              "sha256": "c95a3925acde6398808baabe5ad13d0b1df02b004bc256c00cf8e2a36daccea8",
-              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-windows.zip"
-            }
-          },
-          "dx_wasmtime": {
-            "repoRuleId": "@@//wasi/runtime:repos.bzl%_wasmtime_hub_repo",
             "attributes": {}
           }
         }

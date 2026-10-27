@@ -723,37 +723,95 @@ fn materialize_reports_each_missing_input() {
     assert!(err.starts_with("cannot read "), "{err}");
 }
 
-#[test]
-fn plan_masks_host_tools_and_home_config_but_keeps_needed_paths() {
+struct FakeHost {
+    dir: tempfile::TempDir,
+    host: HostPaths,
+}
+
+fn fake_host() -> FakeHost {
     let dir = tempfile::tempdir().unwrap();
-    let home = dir.path().join("home");
+    let root = dir.path();
+    for sub in ["sbin", "bin", "sdk", "sdk/bin", "kept-sdk"] {
+        std::fs::create_dir_all(root.join(sub)).unwrap();
+    }
+    for file in ["sbin/ip", "bin/cc", "bin/gcc-13", "bin/git", "sdk/bin/node"] {
+        std::fs::write(root.join(file), "#!/bin/sh\n").unwrap();
+    }
+    let host = HostPaths {
+        ip_candidates: vec![root.join("missing/ip"), root.join("sbin/ip")],
+        sdk_candidates: vec![
+            root.join("sdk"),
+            root.join("absent-sdk"),
+            root.join("kept-sdk"),
+        ],
+        tool_dirs: vec![root.join("bin"), root.join("sdk/bin")],
+    };
+    FakeHost { dir, host }
+}
+
+#[test]
+fn plan_with_masks_fake_tools_sdks_and_home_config_but_keeps_needed_paths() {
+    let fake = fake_host();
+    let root = fake.dir.path();
+    let home = root.join("home");
     std::fs::create_dir_all(home.join(".cargo")).unwrap();
     std::fs::create_dir_all(home.join(".config")).unwrap();
     std::fs::write(home.join(".netrc"), "machine x\n").unwrap();
     std::fs::write(home.join(".npmrc"), "x\n").unwrap();
-    let shim = dir.path().join("shim");
-    let keep = vec![home.join(".config/dx"), home.join(".npmrc")];
-    let isolation = Isolation::plan(&shim, &keep, Some(&home)).unwrap();
+    let shim = root.join("shim");
+    let keep = vec![
+        home.join(".config/dx"),
+        home.join(".npmrc"),
+        root.join("kept-sdk"),
+        root.join("bin/git"),
+    ];
+    let isolation = Isolation::plan_with(&fake.host, &shim, &keep, Some(&home)).unwrap();
     assert_eq!(isolation.shim, shim);
     assert_eq!(isolation.home_dirs, vec![home.join(".cargo")]);
     assert_eq!(isolation.home_files, vec![home.join(".netrc")]);
     let status = std::fs::read_to_string("/proc/self/status").unwrap();
     assert_eq!(Some(isolation.uid), status_id(&status, "Uid:"));
     assert_eq!(Some(isolation.gid), status_id(&status, "Gid:"));
-    assert!(isolation.ip.is_file());
-    let candidates = sdk_candidates();
-    for sdk in &isolation.sdk_dirs {
-        assert!(candidates.contains(sdk), "{sdk:?}");
-    }
-    for tool in &isolation.tools {
-        assert!(
-            !isolation.sdk_dirs.iter().any(|sdk| tool.starts_with(sdk)),
-            "{tool:?} sits under a masked SDK directory"
-        );
-    }
-    let kept = Isolation::plan(&shim, &candidates, None).unwrap();
-    assert!(kept.sdk_dirs.is_empty());
-    assert!(kept.home_dirs.is_empty() && kept.home_files.is_empty());
+    assert_eq!(isolation.ip, root.join("sbin/ip"));
+    assert_eq!(isolation.sdk_dirs, vec![root.join("sdk")]);
+    let real = std::fs::canonicalize(root.join("bin")).unwrap();
+    assert_eq!(isolation.tools, vec![real.join("cc"), real.join("gcc-13")]);
+}
+
+#[test]
+fn plan_with_fails_without_ip() {
+    let mut fake = fake_host();
+    fake.host.ip_candidates = vec![fake.dir.path().join("none/ip")];
+    let err =
+        Isolation::plan_with(&fake.host, &fake.dir.path().join("shim"), &[], None).unwrap_err();
+    assert_eq!(
+        err,
+        "namespace isolation needs ip from iproute2 to raise loopback"
+    );
+}
+
+#[test]
+fn plan_with_keep_covering_every_sdk_masks_none() {
+    let fake = fake_host();
+    let keep = fake.host.sdk_candidates.clone();
+    let isolation =
+        Isolation::plan_with(&fake.host, &fake.dir.path().join("shim"), &keep, None).unwrap();
+    assert!(isolation.sdk_dirs.is_empty());
+    assert!(isolation.home_dirs.is_empty() && isolation.home_files.is_empty());
+}
+
+#[test]
+fn host_paths_detect_uses_the_host_constants() {
+    let host = HostPaths::detect();
+    let strs = |paths: &[PathBuf]| -> Vec<String> {
+        paths
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect()
+    };
+    assert_eq!(strs(&host.ip_candidates), IP_CANDIDATES);
+    assert_eq!(strs(&host.tool_dirs), TOOL_DIRS);
+    assert_eq!(strs(&host.sdk_candidates)[..SDK_DIRS.len()], *SDK_DIRS);
 }
 
 #[test]

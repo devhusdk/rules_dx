@@ -138,10 +138,23 @@ _javascript_web_app = rule(
     doc = "Stages one browser app directory from HTML, bindgen output and assets.",
     provides = [DefaultInfo, JavascriptWebAppInfo, QualitySourcesInfo],
     attrs = {
-        "assets": attr.label_keyed_string_dict(allow_files = True),
-        "bindgen": attr.label(mandatory = True),
-        "html": attr.label(mandatory = True, allow_single_file = True),
-        "threads": attr.bool(default = False),
+        "assets": attr.label_keyed_string_dict(
+            doc = "Asset targets mapped to the logical paths they are served at.",
+            allow_files = True,
+        ),
+        "bindgen": attr.label(
+            doc = "rust_wasm_bindgen target providing the Wasm and JS glue.",
+            mandatory = True,
+        ),
+        "html": attr.label(
+            doc = "HTML entry page copied into the staged app.",
+            mandatory = True,
+            allow_single_file = True,
+        ),
+        "threads": attr.bool(
+            doc = "Set when the Wasm build uses threads and needs cross origin isolation.",
+            default = False,
+        ),
     },
 )
 
@@ -253,11 +266,21 @@ javascript_web_server_launcher = rule(
     implementation = _javascript_web_server_launcher_impl,
     doc = "Writes the development-server launcher for one staged app.",
     attrs = {
-        "app": attr.label(mandatory = True, providers = [JavascriptWebAppInfo]),
-        "cross_origin_isolated": attr.bool(default = False),
-        "headers": attr.string_dict(),
-        "host": attr.string(default = "127.0.0.1"),
-        "port": attr.int(default = 8000),
+        "app": attr.label(
+            doc = "Staged browser app directory from javascript_web_app to serve.",
+            mandatory = True,
+            providers = [JavascriptWebAppInfo],
+        ),
+        "cross_origin_isolated": attr.bool(
+            doc = "Serve with cross-origin isolation headers enabled.",
+            default = False,
+        ),
+        "headers": attr.string_dict(doc = "Extra HTTP response headers sent with every response."),
+        "host": attr.string(
+            doc = "Host address the development server listens on.",
+            default = "127.0.0.1",
+        ),
+        "port": attr.int(doc = "TCP port the development server listens on.", default = 8000),
     },
 )
 
@@ -363,11 +386,28 @@ _javascript_web_bundle = rule(
     implementation = _javascript_web_bundle_impl,
     doc = "Bundles one staged app with a declared bundler.",
     attrs = {
-        "app": attr.label(mandatory = True, providers = [JavascriptWebAppInfo]),
-        "bundler": attr.label(mandatory = True, cfg = "exec", executable = True),
-        "bundler_args": attr.string_list(),
-        "config": attr.label(allow_single_file = True),
-        "entry": attr.label(allow_single_file = True),
+        "app": attr.label(
+            doc = "Staged browser app directory from javascript_web_app to bundle.",
+            mandatory = True,
+            providers = [JavascriptWebAppInfo],
+        ),
+        "bundler": attr.label(
+            doc = "Executable bundler tool run to produce the bundle.",
+            mandatory = True,
+            cfg = "exec",
+            executable = True,
+        ),
+        "bundler_args": attr.string_list(
+            doc = "Bundler arguments with path placeholders, one of which must stage the output.",
+        ),
+        "config": attr.label(
+            doc = "Optional config file substituted for the CONFIG placeholder.",
+            allow_single_file = True,
+        ),
+        "entry": attr.label(
+            doc = "Optional entry module substituted for the ENTRY placeholder.",
+            allow_single_file = True,
+        ),
     },
 )
 

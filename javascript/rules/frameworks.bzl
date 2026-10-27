@@ -53,8 +53,15 @@ _dx_framework_web_app = rule(
     doc = "Exposes one framework dist tree as a bundled web app.",
     provides = [DefaultInfo, JavascriptWebAppInfo],
     attrs = {
-        "dist": attr.label(mandatory = True, allow_files = True),
-        "what": attr.string(mandatory = True),
+        "dist": attr.label(
+            doc = "Framework dist directory exposed as the web app.",
+            mandatory = True,
+            allow_files = True,
+        ),
+        "what": attr.string(
+            doc = "Descriptive framework name used in error messages.",
+            mandatory = True,
+        ),
     },
 )
 

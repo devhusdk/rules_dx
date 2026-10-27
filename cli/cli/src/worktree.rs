@@ -1,3 +1,4 @@
+pub(crate) mod disk;
 mod git;
 pub(crate) mod hook;
 pub(crate) mod host;

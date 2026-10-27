@@ -360,7 +360,6 @@ mod tests {
 
     #[test]
     fn every_generated_hook_command_is_the_bare_fast_path() {
-        const LAUNCHER: &str = "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx ";
         for file in HOOK_FILES {
             let settings: Value =
                 serde_json::from_str(&settings_text(file)).expect("settings json");
@@ -382,12 +381,6 @@ mod tests {
                     HookKind::Guard => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard",
                 };
                 assert_eq!(commands(&settings, event), vec![expected.to_owned()]);
-                let argv: Vec<&str> = expected
-                    .strip_prefix(LAUNCHER)
-                    .expect("launcher prefix")
-                    .split_whitespace()
-                    .collect();
-                assert_eq!(crate::exec::hook_kind(&argv), Some(*kind));
             }
         }
     }

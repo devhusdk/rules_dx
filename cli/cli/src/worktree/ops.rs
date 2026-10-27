@@ -633,7 +633,7 @@ fn make_room(
     branch: &str,
     reuse: Option<u32>,
 ) -> Result<Option<String>, WorktreeError> {
-    let full = |space: Option<DiskSpace>| space.filter(|space| crate::disk::is_full(space.free));
+    let full = |space: Option<DiskSpace>| space.filter(|space| super::disk::is_full(space.free));
     let Some(mut space) = full(host.disk_space(&pool.base)) else {
         return Ok(None);
     };
@@ -1752,7 +1752,7 @@ fn drop_download(host: &dyn Host, entry: &Download) -> bool {
 }
 
 fn is_low(space: DiskSpace) -> bool {
-    crate::disk::is_low(space.free, space.total)
+    super::disk::is_low(space.free, space.total)
 }
 
 /// Whether the disk holding `path` has under 20 GiB and under 10% free, or under 1 GiB.

@@ -1611,6 +1611,36 @@ mod tests {
     }
 
     #[test]
+    fn every_generated_hook_command_parses_back_to_its_kind() {
+        const LAUNCHER: &str = "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx ";
+        for file in crate::worktree::setup::HOOK_FILES {
+            let settings: serde_json::Value =
+                serde_json::from_str(&crate::worktree::setup::settings_text(file))
+                    .expect("settings json");
+            let mut kinds: Vec<HookKind> = settings["hooks"]
+                .as_object()
+                .expect("hooks object")
+                .values()
+                .flat_map(|groups| groups.as_array().into_iter().flatten())
+                .flat_map(|group| group["hooks"].as_array().into_iter().flatten())
+                .filter_map(|hook| hook["command"].as_str())
+                .map(|command| {
+                    let argv: Vec<&str> = command
+                        .strip_prefix(LAUNCHER)
+                        .expect("launcher prefix")
+                        .split_whitespace()
+                        .collect();
+                    hook_kind(&argv).unwrap_or_else(|| panic!("{command} is not a hook argv"))
+                })
+                .collect();
+            kinds.sort_by_key(|kind| kind.word());
+            let mut want: Vec<HookKind> = file.hooks.iter().map(|(kind, _, _)| *kind).collect();
+            want.sort_by_key(|kind| kind.word());
+            assert_eq!(kinds, want, "{}", file.path);
+        }
+    }
+
+    #[test]
     fn guard_lets_unreadable_input_through_with_a_note() {
         let dir = tempfile::tempdir().expect("tempdir");
         for stdin in ["", "not json"] {

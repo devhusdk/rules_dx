@@ -697,11 +697,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         }
     }
     let mut output_name = if output_from_flag
-        || default_output_applies(
-            command,
-            &output_name,
-            targets.first().map(String::as_str),
-        )
+        || default_output_applies(command, &output_name, targets.first().map(String::as_str))
     {
         output_name
     } else {

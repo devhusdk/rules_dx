@@ -638,7 +638,10 @@ fn verify_fix(
     };
     let command = request.command.name();
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate().take(through + 1) {
-        if failed_during_apply.iter().any(|(failed, _)| *failed == index) {
+        if failed_during_apply
+            .iter()
+            .any(|(failed, _)| *failed == index)
+        {
             continue;
         }
         if outcome.failed_phase.is_some() {
@@ -2470,7 +2473,11 @@ mod tests {
                 && err.contains("failed during apply: lint"),
             "{err}"
         );
-        assert_eq!(events_of_kind(&events, "command_finished").len(), 1, "{out}");
+        assert_eq!(
+            events_of_kind(&events, "command_finished").len(),
+            1,
+            "{out}"
+        );
         assert_eq!(
             events.last().expect("last")["exit_code"],
             serde_json::json!(lint_code)

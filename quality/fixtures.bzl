@@ -97,130 +97,162 @@ real_source_target = rule(
     doc = "Sources by language for real quality aspects.",
     attrs = {
         "c_srcs": attr.label_list(
+            doc = "C source and header files checked by quality aspects.",
             allow_files = [".c", ".h"],
             default = [],
         ),
         "cpp_srcs": attr.label_list(
+            doc = "C++ source and header files checked by quality aspects.",
             allow_files = [".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx"],
             default = [],
         ),
         "java_srcs": attr.label_list(
+            doc = "Java source files checked by quality aspects.",
             allow_files = [".java"],
             default = [],
         ),
         "objc_srcs": attr.label_list(
+            doc = "Objective-C source files checked by quality aspects.",
             allow_files = [".m"],
             default = [],
         ),
         "objcpp_srcs": attr.label_list(
+            doc = "Objective-C++ source files checked by quality aspects.",
             allow_files = [".mm"],
             default = [],
         ),
         "javascript_srcs": attr.label_list(
+            doc = "JavaScript source files checked by quality aspects.",
             allow_files = [".js", ".mjs", ".cjs"],
             default = [],
         ),
         "kotlin_srcs": attr.label_list(
+            doc = "Kotlin source files checked by quality aspects.",
             allow_files = [".kt", ".kts"],
             default = [],
         ),
         "json_srcs": attr.label_list(
+            doc = "JSON files checked by quality aspects.",
             allow_files = [".json"],
             default = [],
         ),
         "jsx_srcs": attr.label_list(
+            doc = "JSX source files checked by quality aspects.",
             allow_files = [".jsx"],
             default = [],
         ),
         "dockerfile_srcs": attr.label_list(
+            doc = "Dockerfiles checked by quality aspects.",
             allow_files = True,
             default = [],
         ),
         "graphql_srcs": attr.label_list(
+            doc = "GraphQL files checked by quality aspects.",
             allow_files = [".graphql", ".gql"],
             default = [],
         ),
         "html_srcs": attr.label_list(
+            doc = "HTML files checked by quality aspects.",
             allow_files = [".html", ".htm"],
             default = [],
         ),
         "json5_srcs": attr.label_list(
+            doc = "JSON5 files checked by quality aspects.",
             allow_files = [".json5"],
             default = [],
         ),
         "jsonc_srcs": attr.label_list(
+            doc = "JSONC files checked by quality aspects.",
             allow_files = [".jsonc"],
             default = [],
         ),
         "markdown_siblings": attr.label_list(
+            doc = "Link target files referenced by markdown sources, never checked as sources.",
             allow_files = True,
             default = [],
         ),
         "markdown_srcs": attr.label_list(
+            doc = "Markdown files checked by quality aspects.",
             allow_files = [".md"],
             default = [],
         ),
         "python_srcs": attr.label_list(
+            doc = "Python source files checked by quality aspects.",
             allow_files = [".py"],
             default = [],
         ),
         "python_stub_srcs": attr.label_list(
+            doc = "Python stub files checked by quality aspects.",
             allow_files = [".pyi"],
             default = [],
         ),
         "rust_srcs": attr.label_list(
+            doc = "Rust source files checked by quality aspects.",
             allow_files = [".rs"],
             default = [],
         ),
         "scala_srcs": attr.label_list(
+            doc = "Scala source files checked by quality aspects.",
             allow_files = [".scala"],
             default = [],
         ),
         "shell_srcs": attr.label_list(
+            doc = "Shell script files checked by quality aspects.",
             allow_files = [".sh"],
             default = [],
         ),
         "starlark_srcs": attr.label_list(
+            doc = "Starlark files checked by quality aspects.",
             allow_files = [".bzl", ".bazel"],
             default = [],
         ),
         "cue_srcs": attr.label_list(
+            doc = "CUE files checked by quality aspects.",
             allow_files = [".cue"],
             default = [],
         ),
         "jsonnet_srcs": attr.label_list(
+            doc = "Jsonnet files checked by quality aspects.",
             allow_files = [".jsonnet", ".libsonnet"],
             default = [],
         ),
         "html_template_srcs": attr.label_list(
+            doc = "HTML template files checked by quality aspects.",
             allow_files = [".html", ".htm", ".jinja", ".jinja2", ".j2", ".njk", ".hbs", ".tmpl", ".gohtml"],
             default = [],
         ),
         "yaml_srcs": attr.label_list(
+            doc = "YAML files checked by quality aspects.",
             allow_files = [".yaml", ".yml"],
             default = [],
         ),
         "pkl_srcs": attr.label_list(
+            doc = "Pkl files checked by quality aspects.",
             allow_files = [".pkl"],
             default = [],
         ),
         "terraform_srcs": attr.label_list(
+            doc = "Terraform files checked by quality aspects.",
             allow_files = [".tf", ".tfvars", ".hcl"],
             default = [],
         ),
         "text_srcs": attr.label_list(
+            doc = "Plain text files checked by quality aspects.",
             allow_files = [".txt"],
             default = [],
         ),
         "toml_srcs": attr.label_list(
+            doc = "TOML files checked by quality aspects.",
             allow_files = [".toml"],
             default = [],
         ),
         "tsx_srcs": attr.label_list(
+            doc = "TSX source files checked by quality aspects.",
             allow_files = [".tsx"],
             default = [],
         ),
         "typescript_srcs": attr.label_list(
+            doc = "TypeScript source files checked by quality aspects.",
             allow_files = [".ts", ".mts", ".cts"],
             default = [],
         ),

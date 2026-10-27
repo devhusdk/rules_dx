@@ -200,12 +200,30 @@ def _hub_repo_impl(ctx):
 _hub_repo = repository_rule(
     implementation = _hub_repo_impl,
     attrs = {
-        "artifacts": attr.string(mandatory = True),
-        "cpu_arm64": attr.string(mandatory = True),
-        "cpu_x86_64": attr.string(mandatory = True),
-        "os_linux": attr.string(mandatory = True),
-        "os_macos": attr.string(mandatory = True),
-        "os_windows": attr.string(mandatory = True),
+        "artifacts": attr.string(
+            doc = "JSON map from tool name to platform repository names.",
+            mandatory = True,
+        ),
+        "cpu_arm64": attr.string(
+            doc = "Constraint value selecting arm64 CPUs for dx tools.",
+            mandatory = True,
+        ),
+        "cpu_x86_64": attr.string(
+            doc = "Constraint value selecting x86_64 CPUs for dx tools.",
+            mandatory = True,
+        ),
+        "os_linux": attr.string(
+            doc = "Constraint value selecting Linux for dx tools.",
+            mandatory = True,
+        ),
+        "os_macos": attr.string(
+            doc = "Constraint value selecting macOS for dx tools.",
+            mandatory = True,
+        ),
+        "os_windows": attr.string(
+            doc = "Constraint value selecting Windows for dx tools.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -250,11 +268,26 @@ def _dx_tools_impl(ctx):
     )
 
 _platform = tag_class(attrs = {
-    "cpu_arm64": attr.label(mandatory = True),
-    "cpu_x86_64": attr.label(mandatory = True),
-    "os_linux": attr.label(mandatory = True),
-    "os_macos": attr.label(mandatory = True),
-    "os_windows": attr.label(mandatory = True),
+    "cpu_arm64": attr.label(
+        doc = "Constraint value selecting arm64 CPUs for dx tools.",
+        mandatory = True,
+    ),
+    "cpu_x86_64": attr.label(
+        doc = "Constraint value selecting x86_64 CPUs for dx tools.",
+        mandatory = True,
+    ),
+    "os_linux": attr.label(
+        doc = "Constraint value selecting Linux for dx tools.",
+        mandatory = True,
+    ),
+    "os_macos": attr.label(
+        doc = "Constraint value selecting macOS for dx tools.",
+        mandatory = True,
+    ),
+    "os_windows": attr.label(
+        doc = "Constraint value selecting Windows for dx tools.",
+        mandatory = True,
+    ),
 })
 
 dx_tools = module_extension(

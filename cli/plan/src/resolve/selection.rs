@@ -424,8 +424,7 @@ mod tests {
             "--keep_going",
             "--platforms=//:x",
             "--override_module",
-            "m",
-            "/p",
+            "m=/p",
             "--jobs=2",
             "--nobuild_tests_only",
             "--config=dx_dev",
@@ -442,14 +441,13 @@ mod tests {
             "--repo_env=K=V",
             "--keep_going",
             "--override_module",
-            "m",
-            "/p",
+            "m=/p",
         ]);
         let argv = selection
             .selection_argv("query", &[], "tests(//...)")
             .expect("argv");
         assert_eq!(argv[3], "query");
-        assert_eq!(argv[4..10], expected, "{argv:?}");
+        assert_eq!(argv[4..9], expected, "{argv:?}");
         for dropped in [
             "--config=ci",
             "--config",
@@ -468,7 +466,7 @@ mod tests {
         let file_argv = selection
             .selection_query_file_argv("query", Path::new("/tmp/q.txt"))
             .expect("argv");
-        assert_eq!(file_argv[4..10], expected, "{file_argv:?}");
+        assert_eq!(file_argv[4..9], expected, "{file_argv:?}");
         assert!(!file_argv.contains(&"--config=dx_dev".to_owned()));
     }
 

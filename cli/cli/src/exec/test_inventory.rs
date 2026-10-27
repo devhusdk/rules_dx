@@ -1165,6 +1165,7 @@ mod tests {
         assert!(hints[0].contains("--token"), "{hints:?}");
         assert!(!hints[0].contains("abc"), "{hints:?}");
         let calls = harness.query.calls.borrow();
-        assert!(calls[0].contains(&"--token=abc".to_owned()), "{calls:?}");
+        assert!(!calls[0].contains(&"--token=abc".to_owned()), "{calls:?}");
+        assert!(calls[1].contains(&"--token=abc".to_owned()), "{calls:?}");
     }
 }

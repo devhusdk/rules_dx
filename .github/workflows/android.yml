@@ -117,6 +117,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel build --noshow_progress "$@" //:dx //android/tests/fixtures/rust_apk:app_apk_file //android/tests/fixtures/rust_apk:custom_apk_file 2>&1 | tail -n 40
+          bazel test --noshow_progress "$@" //android/tests/fixtures/rust_apk:sign_test 2>&1 | tail -n 20
       - name: Wait for the emulator to boot
         run: |
           timeout 600 adb -s emulator-5554 wait-for-device

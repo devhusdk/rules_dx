@@ -601,6 +601,7 @@ rust_test(
         "//modules:corpus_starlark",
         "//ocaml/tests/negative:corpus_starlark",
         "//perl/tests/negative:corpus_starlark",
+        "//php/composer:corpus_starlark",
         "//php/tests/negative:corpus_starlark",
         "//python/tests/consumer:corpus_starlark",
         "//qt/rust:corpus_starlark",

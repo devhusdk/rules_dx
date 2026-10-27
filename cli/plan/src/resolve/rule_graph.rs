@@ -256,13 +256,7 @@ impl RuleGraph {
                 input
                     .strip_prefix("@@")
                     .and_then(|canonical| canonical.split_once("//"))
-                    .is_some_and(|(repo, path)| {
-                        path == rest
-                            && (repo == name
-                                || repo.strip_suffix('+') == Some(name)
-                                || repo.ends_with(&format!("+{name}"))
-                                || repo.ends_with(&format!("~{name}")))
-                    })
+                    .is_some_and(|(repo, path)| path == rest && apparent_repo_matches(repo, name))
             })
             .map(str::to_owned)
             .collect();
@@ -308,6 +302,14 @@ impl RuleGraph {
         }
         seen
     }
+}
+
+/// Whether canonical repo `repo` is apparent repo `name` or a generated form of it.
+pub(crate) fn apparent_repo_matches(repo: &str, name: &str) -> bool {
+    repo == name
+        || repo.strip_suffix('+') == Some(name)
+        || repo.ends_with(&format!("+{name}"))
+        || repo.ends_with(&format!("~{name}"))
 }
 
 #[cfg(test)]
@@ -463,6 +465,16 @@ mod tests {
         assert!(graph
             .dependents_of_kind("@other//pkg:schema", dx_codegen::is_shard_kind)
             .is_empty());
+    }
+
+    #[test]
+    fn apparent_repo_matches_name_forms_only() {
+        for repo in ["repo", "repo+", "x+repo", "x~repo", "y++x+repo"] {
+            assert!(apparent_repo_matches(repo, "repo"), "{repo}");
+        }
+        for repo in ["myrepo+", "repo1", "x+repo+", "repo~x"] {
+            assert!(!apparent_repo_matches(repo, "repo"), "{repo}");
+        }
     }
 
     #[test]

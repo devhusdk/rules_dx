@@ -2,6 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use dx_module_bazel::{Call, ModuleFile, Value};
 
+use super::rule_graph::apparent_repo_matches;
+
 /// Changed crate names with every base and head version that changed.
 pub(crate) type ChangedCrates = BTreeMap<String, BTreeSet<String>>;
 
@@ -394,13 +396,6 @@ pub(crate) fn changed_crates_from_bazel_lock(base: &str, head: &str) -> Result<L
     Ok(LockChange { crates, aliases })
 }
 
-fn repo_is(repo: &str, name: &str) -> bool {
-    repo == name
-        || repo
-            .strip_suffix(name)
-            .is_some_and(|prefix| prefix.ends_with('+') || prefix.ends_with('~'))
-}
-
 pub(crate) fn seeds<'a>(
     labels: impl Iterator<Item = &'a str>,
     hub: &str,
@@ -427,12 +422,14 @@ pub(crate) fn seeds<'a>(
             else {
                 return false;
             };
-            if repo_is(repo, hub) {
+            if apparent_repo_matches(repo, hub) {
                 let name = target.rsplit_once(':').map_or(target, |(_, name)| name);
                 return names.contains(name)
                     || prefixes.iter().any(|prefix| name.starts_with(prefix));
             }
-            spokes.iter().any(|spoke| repo_is(repo, spoke))
+            spokes
+                .iter()
+                .any(|spoke| apparent_repo_matches(repo, spoke))
         })
         .map(str::to_owned)
         .collect();
@@ -706,6 +703,8 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             "@@rules_rust~~crate~crates__serde-1.0.2//:serde",
             "@@rules_rust++crate+my_crates//:serde",
             "@@crates//:serde",
+            "@@mycrates+//:serde",
+            "@@crates+//:serde",
             "//a:serde",
             "@@rules_rust++crate+crates//:serde__bin",
             "@@rules_rust++crate+crates//:serde-1.0.2__bin",
@@ -723,6 +722,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                 &names(&["serde1"])
             ),
             [
+                "@@crates+//:serde",
                 "@@crates//:serde",
                 "@@rules_rust++crate+crates//:serde",
                 "@@rules_rust++crate+crates//:serde-1.0.2",

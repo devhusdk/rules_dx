@@ -2192,7 +2192,7 @@ fn the_lease_is_found_from_a_path_inside_the_slot() {
 
 mod hooks {
     use super::*;
-    use crate::worktree::hook;
+    use crate::hook;
 
     fn blocked(command: &str) -> Option<String> {
         match hook::guard(&serde_json::json!({"tool_input": {"command": command}})) {

@@ -1152,8 +1152,21 @@ fn init_page_shows_the_agents_block() {
 #[test]
 fn worktree_page_shows_every_allow_rule() {
     let page = std::fs::read_to_string(docs_dir().join("worktree.md")).expect("worktree.md");
-    for rule in crate::worktree::setup::allow_rules() {
+    for rule in dx_worktree::setup::allow_rules() {
         assert!(page.contains(&rule), "worktree.md must show {rule}");
+    }
+}
+
+#[test]
+fn allowlisted_commands_are_read_only() {
+    for rule in dx_worktree::setup::allow_rules() {
+        let name = rule
+            .strip_prefix("Bash(tools/dx ")
+            .and_then(|r| r.strip_suffix(" *)"))
+            .expect("rule shape");
+        let command = Command::parse(name).expect("known command");
+        assert!(!command.supports_apply(), "{name} takes --apply");
+        assert!(parse(&[name]).is_ok(), "{name} must parse");
     }
 }
 

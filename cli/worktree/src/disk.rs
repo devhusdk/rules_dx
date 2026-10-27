@@ -17,7 +17,7 @@ pub(crate) fn is_low(free: u64, total: u64) -> bool {
 }
 
 /// Whether `free` bytes is under 1 GiB; the percentage rule does not apply.
-pub(crate) fn is_full(free: u64) -> bool {
+pub fn is_full(free: u64) -> bool {
     free < DISK_FULL_BYTES
 }
 

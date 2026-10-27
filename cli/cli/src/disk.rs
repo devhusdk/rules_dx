@@ -2,7 +2,7 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use crate::worktree::disk::is_full;
+use dx_worktree::disk::is_full;
 
 /// Bazel exit code for a failure of the local environment, such as a full disk.
 pub(crate) const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
@@ -56,7 +56,7 @@ pub(crate) fn shortage(
 pub(crate) fn full_message(code: i32, path: &Path, free: u64) -> String {
     format!(
         "Bazel exited {code} with {} free at {}; the disk is full",
-        crate::worktree::ops::size(free),
+        dx_worktree::ops::size(free),
         path.display()
     )
 }
@@ -65,7 +65,7 @@ pub(crate) fn full_message(code: i32, path: &Path, free: u64) -> String {
 pub(crate) fn low_message(path: &Path, free: u64) -> String {
     format!(
         "{} free at {}; free disk space with `dx worktree prune --apply`",
-        crate::worktree::ops::size(free),
+        dx_worktree::ops::size(free),
         path.display()
     )
 }

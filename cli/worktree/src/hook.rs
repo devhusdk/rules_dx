@@ -22,7 +22,7 @@ fn field(input: &Value, name: &str) -> Option<String> {
 /// `.claude/settings.json` and sends its own fields. Gemini CLI names the
 /// event `BeforeTool`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Dialect {
+pub enum Dialect {
     Claude,
     Cursor,
     Gemini,
@@ -30,7 +30,7 @@ pub(crate) enum Dialect {
 
 impl Dialect {
     /// The dialect of a hook payload.
-    pub(crate) fn of(input: &Value) -> Dialect {
+    pub fn of(input: &Value) -> Dialect {
         if input.get("hook_event_name").and_then(Value::as_str) == Some("BeforeTool") {
             Dialect::Gemini
         } else if input.get("cursor_version").is_some() || input.get("conversation_id").is_some() {
@@ -80,7 +80,7 @@ pub enum HookKind {
 
 impl HookKind {
     /// Every hook kind, in the order help text lists them.
-    pub(crate) const ALL: [HookKind; 4] = [
+    pub const ALL: [HookKind; 4] = [
         HookKind::Create,
         HookKind::Remove,
         HookKind::Stop,
@@ -88,12 +88,12 @@ impl HookKind {
     ];
 
     /// The hook kind a command-line word names.
-    pub(crate) fn from_word(word: &str) -> Option<HookKind> {
+    pub fn from_word(word: &str) -> Option<HookKind> {
         Self::ALL.into_iter().find(|kind| kind.word() == word)
     }
 
     /// The command-line word for this hook kind.
-    pub(crate) fn word(self) -> &'static str {
+    pub fn word(self) -> &'static str {
         match self {
             HookKind::Create => "create",
             HookKind::Remove => "remove",
@@ -103,7 +103,7 @@ impl HookKind {
     }
 
     /// The Claude Code event that runs this hook, for error text.
-    pub(crate) fn event(self) -> &'static str {
+    pub fn event(self) -> &'static str {
         match self {
             HookKind::Create => "WorktreeCreate",
             HookKind::Remove => "WorktreeRemove",
@@ -113,7 +113,7 @@ impl HookKind {
     }
 
     /// The hook words joined for a usage message.
-    pub(crate) fn names() -> String {
+    pub fn names() -> String {
         Self::ALL.map(HookKind::word).join(", ")
     }
 }
@@ -130,7 +130,7 @@ fn missing(kind: HookKind, field: &str) -> WorktreeError {
 }
 
 /// Reads the JSON a hook gets on stdin.
-pub(crate) fn parse(stdin: &str) -> Result<Value, WorktreeError> {
+pub fn parse(stdin: &str) -> Result<Value, WorktreeError> {
     serde_json::from_str(stdin).map_err(|error| {
         WorktreeError::usage(
             "bad_hook_input",
@@ -140,12 +140,12 @@ pub(crate) fn parse(stdin: &str) -> Result<Value, WorktreeError> {
 }
 
 /// The directory a hook payload says it runs in.
-pub(crate) fn cwd(input: &Value) -> Option<PathBuf> {
+pub fn cwd(input: &Value) -> Option<PathBuf> {
     field(input, "cwd").map(PathBuf::from)
 }
 
 /// The branch a named agent worktree uses.
-pub(crate) fn branch_for(name: &str) -> String {
+pub fn branch_for(name: &str) -> String {
     let cleaned: String = name
         .chars()
         .map(|c| {
@@ -214,7 +214,7 @@ fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
 }
 
 /// Leases a slot for a new agent worktree.
-pub(crate) fn create(
+pub fn create(
     pool: &Pool,
     host: &dyn Host,
     who: &Who,
@@ -239,7 +239,7 @@ pub(crate) fn create(
 }
 
 /// Frees the slot of an agent worktree. Paths outside the pool are left alone.
-pub(crate) fn remove(
+pub fn remove(
     pool: &Pool,
     host: &dyn Host,
     who: &Who,
@@ -262,14 +262,14 @@ pub(crate) fn remove(
 /// Whether a hook has nothing to do for this payload.
 ///
 /// Cursor runs `SubagentStop` without an `agent_id`; its subagents hold no slots.
-pub(crate) fn ignored(kind: HookKind, input: &Value) -> bool {
+pub fn ignored(kind: HookKind, input: &Value) -> bool {
     kind == HookKind::Stop
         && field(input, "agent_id").is_none()
         && Dialect::of(input) != Dialect::Claude
 }
 
 /// Marks the slots of a finished subagent as held by a gone holder.
-pub(crate) fn stop(pool: &Pool, who: &Who, input: &Value) -> Result<Vec<u32>, WorktreeError> {
+pub fn stop(pool: &Pool, who: &Who, input: &Value) -> Result<Vec<u32>, WorktreeError> {
     if ignored(HookKind::Stop, input) {
         return Ok(Vec::new());
     }
@@ -678,7 +678,7 @@ fn shell_quote(text: &str) -> String {
 
 /// What the Bash guard does with one command.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Guard {
+pub enum Guard {
     Allow,
     Block(String),
     Rewrite(Value),
@@ -686,7 +686,7 @@ pub(crate) enum Guard {
 
 /// Blocks `git worktree add|remove|prune`, names the subagent for every dx command,
 /// and names the session for dx when the agent's shells do not.
-pub(crate) fn guard(input: &Value) -> Guard {
+pub fn guard(input: &Value) -> Guard {
     if let Some(line) = blocked(input) {
         return Guard::Block(line);
     }

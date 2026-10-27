@@ -8,12 +8,12 @@ use dx_process::lifecycle::{
 
 /// One running Bazel server.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Server {
-    pub(crate) pid: u32,
-    pub(crate) rss_bytes: u64,
-    pub(crate) workspace: Option<PathBuf>,
-    pub(crate) output_base: Option<PathBuf>,
-    pub(crate) output_user_root: Option<PathBuf>,
+pub struct Server {
+    pub pid: u32,
+    pub rss_bytes: u64,
+    pub workspace: Option<PathBuf>,
+    pub output_base: Option<PathBuf>,
+    pub output_user_root: Option<PathBuf>,
 }
 
 /// One Bazel output base and the workspace it was made for.
@@ -26,7 +26,7 @@ pub(crate) struct OutputBase {
 pub(crate) use dx_process::DiskSpace;
 
 /// The machine facts the pool reads and the effects it has outside git.
-pub(crate) trait Host {
+pub trait Host {
     fn now(&self) -> u64;
     fn process_alive(&self, pid: u32) -> bool;
     fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
@@ -45,7 +45,7 @@ pub(crate) trait Host {
 }
 
 /// Compares two paths the way Bazel prints them.
-pub(crate) fn same_path(left: &Path, right: &Path) -> bool {
+pub fn same_path(left: &Path, right: &Path) -> bool {
     normalize(&resolved(left)) == normalize(&resolved(right))
 }
 
@@ -146,11 +146,11 @@ pub(crate) fn scan_output_bases(roots: &[PathBuf]) -> Vec<OutputBase> {
 
 /// One entry of Bazel's repository cache download store.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Download {
-    pub(crate) dir: PathBuf,
-    pub(crate) cache: PathBuf,
-    pub(crate) used: u64,
-    pub(crate) bytes: u64,
+pub struct Download {
+    pub dir: PathBuf,
+    pub cache: PathBuf,
+    pub used: u64,
+    pub bytes: u64,
 }
 
 /// Where Bazel keeps downloads under an output root when `--repository_cache` is not set.
@@ -268,7 +268,7 @@ fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
 }
 
 /// The machine this process runs on.
-pub(crate) struct SystemHost;
+pub struct SystemHost;
 
 #[cfg(unix)]
 fn pid_alive(pid: u32) -> bool {
@@ -326,7 +326,7 @@ fn user_name(env_get: &dyn Fn(&str) -> Option<String>) -> String {
 }
 
 /// Where Bazel keeps output bases when nothing moves them.
-pub(crate) fn default_output_roots(env_get: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
+pub fn default_output_roots(env_get: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
     let user = user_name(env_get);
     let mut roots = Vec::new();
     if let Some(cache) = dx_process::user_cache_dir(env_get) {

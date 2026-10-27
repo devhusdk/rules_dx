@@ -7,7 +7,7 @@ use super::grammar::{self, Flags};
 use super::scope_error;
 use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
-use crate::worktree::HookKind;
+use dx_worktree::HookKind;
 
 pub use super::grammar::cli_command;
 

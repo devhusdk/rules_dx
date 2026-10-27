@@ -138,7 +138,7 @@ fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
         Ok(State::Missing) => ("warn", format!("{FILE} has no dx block")),
         Err(error) => ("warn", format!("{FILE} is unreadable: {error}")),
     };
-    for (path, missing) in crate::worktree::setup::workspace_missing(workspace) {
+    for (path, missing) in dx_worktree::setup::workspace_missing(workspace) {
         status = "warn";
         detail = format!("{detail}; {path} lacks hooks: {}", missing.join("; "));
     }
@@ -157,7 +157,7 @@ fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
 }
 
 fn lease_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
-    let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
+    let (path, record) = dx_worktree::lease_for_workspace(workspace)?;
     let detail = match (record.holder(true), &record.branch) {
         (Some(holder), Some(branch)) => format!("{} held by {holder} on {branch}", path.display()),
         (Some(holder), None) => format!("{} held by {holder}", path.display()),
@@ -274,7 +274,7 @@ mod tests {
         let slot = pool.join("3");
         std::fs::create_dir_all(&slot).expect("slot");
         std::fs::create_dir_all(pool.join(".dx")).expect("meta");
-        let record = crate::worktree::pool::Record {
+        let record = dx_worktree::pool::Record {
             slot: 3,
             held: true,
             branch: Some("feature/a".to_owned()),
@@ -330,7 +330,7 @@ mod tests {
         std::fs::create_dir_all(root.join(".claude")).expect("dir");
         std::fs::write(
             root.join(".claude/settings.json"),
-            crate::worktree::setup::settings_text(&crate::worktree::setup::CLAUDE),
+            dx_worktree::setup::settings_text(&dx_worktree::setup::CLAUDE),
         )
         .expect("settings");
         let check = agents_check(root);
@@ -362,7 +362,7 @@ mod tests {
         assert!(!check.detail.contains(".claude"), "{}", check.detail);
         std::fs::write(
             root.join(".codex/hooks.json"),
-            crate::worktree::setup::settings_text(&crate::worktree::setup::CODEX),
+            dx_worktree::setup::settings_text(&dx_worktree::setup::CODEX),
         )
         .expect("codex");
         assert_eq!(agents_check(root).status, "ok");

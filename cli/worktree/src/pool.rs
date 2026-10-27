@@ -7,15 +7,15 @@ use super::git;
 use super::host;
 use super::WorktreeError;
 
-pub(crate) const POOL_LOCK_WAIT: Duration = Duration::from_secs(120);
+pub const POOL_LOCK_WAIT: Duration = Duration::from_secs(120);
 const QUIET_WAIT: Duration = Duration::from_millis(250);
 
 /// Who asks for a slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Who {
-    pub(crate) session: Option<String>,
-    pub(crate) agent: Option<String>,
-    pub(crate) pid: u32,
+pub struct Who {
+    pub session: Option<String>,
+    pub agent: Option<String>,
+    pub pid: u32,
 }
 
 /// The variable that names the agent inside a session.
@@ -26,7 +26,7 @@ pub(crate) const SESSION_ENV: &str = "DX_WORKTREE_SESSION";
 
 impl Who {
     /// The agent session and agent in the environment and the nearest non-shell ancestor.
-    pub(crate) fn from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Who {
+    pub fn from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Who {
         Who {
             session: session_from_env(env_get),
             agent: env_get(HOLDER_ENV).filter(|value| !value.is_empty()),
@@ -211,31 +211,31 @@ fn parent_pid(preferred: Option<u32>) -> u32 {
 
 /// One slot's lease file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct Record {
-    pub(crate) slot: u32,
-    pub(crate) held: bool,
-    pub(crate) branch: Option<String>,
-    pub(crate) last_branch: Option<String>,
-    pub(crate) session: Option<String>,
+pub struct Record {
+    pub slot: u32,
+    pub held: bool,
+    pub branch: Option<String>,
+    pub last_branch: Option<String>,
+    pub session: Option<String>,
     #[serde(default)]
-    pub(crate) agent: Option<String>,
-    pub(crate) pid: Option<u32>,
+    pub agent: Option<String>,
+    pub pid: Option<u32>,
     #[serde(default)]
-    pub(crate) gone: bool,
+    pub gone: bool,
     /// The first agent that runs `dx worktree` inside the slot takes the lease.
     #[serde(default)]
-    pub(crate) unclaimed: bool,
+    pub unclaimed: bool,
     /// A delete left part of the checkout on disk; `add` never leases it, `prune` deletes it again.
     #[serde(default)]
-    pub(crate) broken: bool,
-    pub(crate) leased_at: u64,
-    pub(crate) last_used: u64,
-    pub(crate) lock_digest: Option<String>,
+    pub broken: bool,
+    pub leased_at: u64,
+    pub last_used: u64,
+    pub lock_digest: Option<String>,
 }
 
 impl Record {
     /// Whether `who` is the session that holds this lease, whichever agent.
-    pub(crate) fn same_session(&self, who: &Who) -> bool {
+    pub fn same_session(&self, who: &Who) -> bool {
         match (&self.session, &who.session) {
             (Some(left), Some(right)) => left == right,
             (None, None) => self.pid == Some(who.pid),
@@ -246,7 +246,7 @@ impl Record {
     /// Whether `who` must stay out of this slot: another session holds it, or another agent
     /// of the same session does. Agent-less callers, unclaimed hook slots and agents that
     /// stopped keep the session rule.
-    pub(crate) fn refuses(&self, who: &Who) -> bool {
+    pub fn refuses(&self, who: &Who) -> bool {
         if !self.held || self.session.is_none() {
             return false;
         }
@@ -289,7 +289,7 @@ impl Record {
     }
 
     /// A short name for the holder, as `list` and refusals print it.
-    pub(crate) fn holder(&self, alive: bool) -> Option<String> {
+    pub fn holder(&self, alive: bool) -> Option<String> {
         if !self.held {
             return None;
         }
@@ -317,16 +317,14 @@ impl Record {
 
 /// The slots of one repository.
 #[derive(Debug, Clone)]
-pub(crate) struct Pool {
+pub struct Pool {
     pub(crate) main: PathBuf,
     pub(crate) base: PathBuf,
     pub(crate) lock_wait: Duration,
 }
 
 /// The directory every repository's slots live under.
-pub(crate) fn cache_base(
-    env_get: &dyn Fn(&str) -> Option<String>,
-) -> Result<PathBuf, WorktreeError> {
+pub fn cache_base(env_get: &dyn Fn(&str) -> Option<String>) -> Result<PathBuf, WorktreeError> {
     let cache = dx_process::user_cache_dir(env_get).ok_or_else(|| {
         WorktreeError::refused(
             "no_home",
@@ -399,7 +397,7 @@ fn pool_marker(dir: &Path) -> Option<PathBuf> {
 
 impl Pool {
     /// Opens the pool for the repository that holds `dir`.
-    pub(crate) fn open(dir: &Path, cache_base: &Path) -> Result<Pool, WorktreeError> {
+    pub fn open(dir: &Path, cache_base: &Path) -> Result<Pool, WorktreeError> {
         Pool::locate(dir, cache_base, true)?.ok_or_else(|| {
             WorktreeError::refused(
                 "pool_unavailable",
@@ -551,7 +549,7 @@ impl Pool {
     }
 
     /// The slot a path is, or is inside.
-    pub(crate) fn slot_of(&self, path: &Path) -> Option<u32> {
+    pub fn slot_of(&self, path: &Path) -> Option<u32> {
         let path = super::host::resolved(path);
         let base = super::host::resolved(&self.base);
         let rest = path.strip_prefix(&base).ok()?;
@@ -593,7 +591,7 @@ fn busy_file(base: &Path, slot: u32) -> PathBuf {
 }
 
 /// Holds the busy lock of the slot `workspace` is in; `None` outside a slot.
-pub(crate) fn hold_busy(
+pub fn hold_busy(
     workspace: &Path,
     wait: Duration,
 ) -> Option<Result<dx_atomic_fs::lease::SharedLease, String>> {
@@ -613,7 +611,7 @@ pub(crate) fn hold_busy(
 }
 
 /// The slot a workspace is in and its lease, found from the path alone.
-pub(crate) fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
+pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
     let mut current = Some(workspace);
     while let Some(dir) = current {
         let parent = dir.parent()?;

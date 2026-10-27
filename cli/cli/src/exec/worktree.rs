@@ -4,16 +4,14 @@ use std::path::{Path, PathBuf};
 
 use super::common::*;
 use crate::args::Invocation;
-use crate::worktree::host::{Host, SystemHost};
-use crate::worktree::ops::{
-    self, size, AddRequest, Added, Listing, PrunePlan, Released, Row, Warning,
-};
-use crate::worktree::pool::{cache_base, Pool, Who};
-use crate::worktree::{hook, HookKind, WorktreeError};
 use dx_output::{
     command_finished, command_started, notice_event, slot_event, summary_event, FinishedCounts,
     NoticeEvent, OutputMode, SlotEvent, SummaryEvent,
 };
+use dx_worktree::host::{Host, SystemHost};
+use dx_worktree::ops::{self, size, AddRequest, Added, Listing, PrunePlan, Released, Row, Warning};
+use dx_worktree::pool::{cache_base, Pool, Who};
+use dx_worktree::{hook, HookKind, WorktreeError};
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
 
@@ -806,8 +804,8 @@ fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
 mod tests {
     use super::*;
     use crate::args::parsed;
-    use crate::worktree::host::Download;
-    use crate::worktree::ops::State;
+    use dx_worktree::host::Download;
+    use dx_worktree::ops::State;
 
     #[test]
     fn bases_is_rejected_on_every_subcommand_but_prune() {
@@ -1613,9 +1611,9 @@ mod tests {
     #[test]
     fn every_generated_hook_command_parses_back_to_its_kind() {
         const LAUNCHER: &str = "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx ";
-        for file in crate::worktree::setup::HOOK_FILES {
+        for file in dx_worktree::setup::HOOK_FILES {
             let settings: serde_json::Value =
-                serde_json::from_str(&crate::worktree::setup::settings_text(file))
+                serde_json::from_str(&dx_worktree::setup::settings_text(file))
                     .expect("settings json");
             let mut kinds: Vec<HookKind> = settings["hooks"]
                 .as_object()

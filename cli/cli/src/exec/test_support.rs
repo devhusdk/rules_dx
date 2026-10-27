@@ -81,6 +81,8 @@ pub(crate) struct Harness {
     pub(crate) audit_today: Option<String>,
     /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
     pub(crate) probe_shards: Option<Vec<String>>,
+    /// An exit code the fake shard probe returns instead of answering.
+    pub(crate) probe_code: Option<i32>,
     /// Every shard probe argv the fake runner saw.
     pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
     /// Every other argv the fake runner saw.
@@ -209,6 +211,7 @@ impl Harness {
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
             probe_shards: None,
+            probe_code: None,
             probe_argv: Rc::new(RefCell::new(Vec::new())),
             build_argv: Rc::new(RefCell::new(Vec::new())),
         }
@@ -378,6 +381,7 @@ impl Harness {
                 seen_env: Rc::clone(&self.seen_env),
                 free_disk_bytes: self.free_disk_bytes,
                 probe_shards: self.probe_shards.clone(),
+                probe_code: self.probe_code,
                 probe_argv: Rc::clone(&self.probe_argv),
                 build_argv: Rc::clone(&self.build_argv),
             };
@@ -437,6 +441,7 @@ impl Harness {
             seen_env: Rc::clone(&self.seen_env),
             free_disk_bytes: self.free_disk_bytes,
             probe_shards: self.probe_shards.clone(),
+            probe_code: self.probe_code,
             probe_argv: Rc::clone(&self.probe_argv),
             build_argv: Rc::clone(&self.build_argv),
         }
@@ -659,6 +664,7 @@ pub(crate) struct FakeRunner {
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) probe_shards: Option<Vec<String>>,
+    pub(crate) probe_code: Option<i32>,
     pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
 }
@@ -667,6 +673,9 @@ impl FakeRunner {
     /// Answers one shard probe: a dx_shards file naming `probe_shards`, or exit 1 when unset.
     fn run_shard_probe(&self, argv: &[String]) -> io::Result<ChildStatus> {
         self.probe_argv.borrow_mut().push(argv.to_vec());
+        if let Some(code) = self.probe_code {
+            return Ok(ChildStatus { code: Some(code) });
+        }
         let (Some(shards), Some(bep)) = (
             &self.probe_shards,
             argv.iter()

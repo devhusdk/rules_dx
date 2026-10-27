@@ -307,12 +307,7 @@ def _tool_files_to_run(target, flag, tool, what):
     fail(what + ": " + tool + " has no executable; use zig_library, zig_binary or zig_test from @rules_dx//zig/rules:defs.bzl, or set --@rules_dx//config:tool_" + tool + "=@rules_dx//zig/tools:zig")
 
 def _real_resolved_stages(target, ctx, capability, what):
-    """Resolves the policy pipeline stages for one target before any shard filter.
-
-    The real shards and the shard probe share this, so the probe can never name
-    fewer shards than the real build would run. Returns (resolved, direct_files,
-    path_to_file); resolved is empty when the target has nothing to check.
-    """
+    """Resolves one target's pipeline stages for both the real shards and the probe."""
     policy = ctx.attr._policy[QualityPolicyInfo]
     policy_error = real_policy_error(policy, capability, what)
     if policy_error != "":
@@ -1324,12 +1319,7 @@ def _make_real_probe_impl(capability):
     return _impl
 
 def _make_real_probe_aspect(capability):
-    """Builds the cheap shard probe for one capability.
-
-    It shares the real shards' resolve logic and propagation but carries no
-    tool attrs, toolchains or required aspects, so analysing it never pulls a
-    tool closure. The CLI reads dx_shards and passes only those shards.
-    """
+    """Builds the tool-free shard probe aspect for one capability."""
     return aspect(
         implementation = _make_real_probe_impl(capability),
         attr_aspects = ["aspect_hints"],

@@ -361,9 +361,6 @@ def real_aspect_fixture_tests(name, subjects):
         expected_observations = EXPECTED_OBSERVATIONS,
     )
 
-# Filled from a first run, then checked by hand: every subject must report
-# missing=(none), Rust targets must name only real_rust_* shards beside the
-# core ones, and no-format targets must name no format shards.
 EXPECTED_PROBE_OBSERVATIONS = """subject //quality/testdata:fixture_real_cc_probe_subject
 field format_shards=real_cc_format
 field label=//quality/testdata:fixture_real_cc

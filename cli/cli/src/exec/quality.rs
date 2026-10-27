@@ -158,12 +158,21 @@ pub(super) fn guard_build_output(
     }
 }
 
+/// Why a shard probe ended the phase instead of falling back to every shard.
+#[derive(Debug, PartialEq, Eq)]
+enum ProbeStop {
+    /// Bazel died by a signal.
+    Signalled,
+    /// dx recorded a stop signal or Bazel exited as interrupted.
+    Interrupted,
+}
+
 /// Runs the shard probe and returns the shards it named; `Ok(None)` means pass every shard.
 ///
 /// Any failure (no probe for the command, a plan error, a non-zero exit, an unreadable or
 /// incomplete event file, a malformed shard file) falls back to every shard, so the probe can
 /// only make a run cheaper, never change its result. It writes nothing to stdout; Bazel's own
-/// progress goes to stderr. `Err(())` means Bazel was killed by a signal and the run must stop.
+/// progress goes to stderr. A stop signal or interrupted Bazel ends the run instead.
 fn probe_shards(
     request: &QualityRequest,
     resolved: &crate::resolve::ResolvedScope,
@@ -172,7 +181,7 @@ fn probe_shards(
     temp_dir: &Path,
     pid: u32,
     nonce: u64,
-) -> Result<Option<BTreeSet<String>>, ()> {
+) -> Result<Option<BTreeSet<String>>, ProbeStop> {
     let bep = temp_dir.join(format!("dx-bep-{pid}-{nonce}-probe.json"));
     let Some(bep_text) = bep.to_str() else {
         return Ok(None);
@@ -188,16 +197,15 @@ fn probe_shards(
         Ok(None) | Err(_) => return Ok(None),
     };
     let status = runner.run(&plan.argv, workspace, &[]);
-    let shards = match status {
-        Ok(status) if status.code.is_none() => {
-            let _ = std::fs::remove_file(&bep);
-            return Err(());
-        }
-        Ok(status) if status.code == Some(0) => read_probe_shards(&bep, workspace),
-        _ => None,
+    let shards = match &status {
+        Ok(status) if status.code.is_none() => Err(ProbeStop::Signalled),
+        _ if dx_process::interrupted().is_some() => Err(ProbeStop::Interrupted),
+        Ok(status) if status.code == Some(BAZEL_INTERRUPTED) => Err(ProbeStop::Interrupted),
+        Ok(status) if status.code == Some(0) => Ok(read_probe_shards(&bep, workspace)),
+        _ => Ok(None),
     };
     let _ = std::fs::remove_file(&bep);
-    Ok(shards)
+    shards
 }
 
 /// Unions the shard names of every `{"shards":[...]}` file in the probe's event file.
@@ -316,7 +324,7 @@ fn run_quality_request(
             }
         }
         Ok(None) => {}
-        Err(()) => {
+        Err(ProbeStop::Signalled) => {
             *kind = PhaseKind::Host;
             return operational_output(
                 request.common.output,
@@ -324,6 +332,16 @@ fn run_quality_request(
                 err,
                 CODE_BAZEL_SIGNALLED,
                 "Bazel terminated by signal",
+            );
+        }
+        Err(ProbeStop::Interrupted) => {
+            *kind = PhaseKind::Cancelled;
+            return operational_output(
+                request.common.output,
+                out,
+                err,
+                CODE_BAZEL_FAILED,
+                "the shard probe was interrupted",
             );
         }
     }

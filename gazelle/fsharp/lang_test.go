@@ -70,30 +70,12 @@ func refusal(t *testing.T, lang language.Language) string {
 	if !ok {
 		t.Fatalf("%T does not implement language.LifecycleManager", lang)
 	}
-	var msg string
-	func() {
-		defer func() {
-			r := recover()
-			if r == nil {
-				t.Fatal("AfterResolvingDeps did not fail the run")
-			}
-			s, ok := r.(string)
-			if !ok {
-				t.Fatalf("panic = %v, want a string", r)
-			}
-			msg = s
-		}()
-		lm.AfterResolvingDeps(context.Background())
-	}()
-	const header = "FSharp generation failed:\n"
-	if !strings.HasPrefix(msg, header) {
-		t.Fatalf("panic = %q, want prefix %q", msg, header)
+	lm.AfterResolvingDeps(context.Background())
+	got := common.Errors.Take()
+	if len(got) != 1 {
+		t.Fatalf("refusals = %#v, want exactly one", got)
 	}
-	lines := strings.Split(strings.TrimPrefix(msg, header), "\n")
-	if len(lines) != 1 {
-		t.Fatalf("refusals = %q, want exactly one", lines)
-	}
-	return lines[0]
+	return got[0].Message
 }
 
 func refuseFixture(t *testing.T, files map[string]string, regular []string) string {
@@ -323,16 +305,11 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 	l := &fsharpLang{}
 	l.Before(context.Background())
 	l.fail("fsharp: boom")
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("AfterResolvingDeps did not panic with recorded errors")
-		}
-		if msg, ok := r.(string); !ok || !strings.Contains(msg, "FSharp generation failed") {
-			t.Fatalf("panic = %v, want FSharp generation failure", r)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	got := common.Errors.Take()
+	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "fsharp: boom" {
+		t.Fatalf("sink = %#v, want one fsharp failure", got)
+	}
 }
 
 func TestAfterResolvingDepsClean(t *testing.T) {
@@ -486,16 +463,10 @@ func TestResolveStaleIgnoreFails(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	l.generated.Add("app")
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("stale ignore did not panic")
-		}
-		if msg, ok := r.(string); !ok || !strings.Contains(msg, "stale # gazelle:dx_ignore_import") {
-			t.Fatalf("panic = %v, want stale ignore failure", r)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	if msg := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(msg, "stale # gazelle:dx_ignore_import") {
+		t.Fatalf("errors = %q, want stale ignore failure", msg)
+	}
 }
 
 func TestResolveMappingIgnoreConflict(t *testing.T) {

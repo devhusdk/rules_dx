@@ -7,5 +7,5 @@ import (
 )
 
 func NewLanguage() language.Language {
-	return common.NewWebComponentLang("astro", "Astro", []string{".astro"}, ParseImports)
+	return common.NewWebComponentLang("astro", []string{".astro"}, ParseImports)
 }

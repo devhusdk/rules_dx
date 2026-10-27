@@ -18,7 +18,6 @@ var kotlinKinds = map[string]rule.KindInfo{
 func NewLanguage() language.Language {
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "Kotlin",
 		LibraryKind:    LibraryKind,
 		Kinds:          kotlinKinds,
 		DefsPackage:    "kotlin/rules:defs.bzl",

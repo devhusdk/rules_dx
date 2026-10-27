@@ -18,7 +18,6 @@ var scalaKinds = map[string]rule.KindInfo{
 func NewLanguage() language.Language {
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "Scala",
 		LibraryKind:    LibraryKind,
 		Kinds:          scalaKinds,
 		DefsPackage:    "scala/rules:defs.bzl",

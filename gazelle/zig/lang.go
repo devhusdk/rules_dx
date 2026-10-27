@@ -36,7 +36,6 @@ type zigLang struct {
 func NewLanguage() language.Language {
 	return &zigLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "Zig",
 		LibraryKind:    LibraryKind,
 		Kinds:          zigKinds,
 		DefsPackage:    "zig/rules:defs.bzl",

@@ -90,6 +90,7 @@ func (l *javascriptLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.generated = common.GeneratedRels{}
+	common.Errors.Reset()
 }
 
 func (l *javascriptLang) DoneGeneratingRules() {}
@@ -117,11 +118,7 @@ func (l *javascriptLang) AfterResolvingDeps(context.Context) {
 	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
-	if len(l.errors) == 0 {
-		return
-	}
-	sort.Strings(l.errors)
-	panic("JavaScript generation failed:\n" + strings.Join(l.errors, "\n"))
+	common.Errors.Add(languageName, "", l.errors...)
 }
 
 func (*javascriptLang) Name() string { return languageName }

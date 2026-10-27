@@ -216,13 +216,11 @@ func TestLanguageMetadata(t *testing.T) {
 
 func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 	_, lang := resolveWith(t, nil, []string{"missing"})
-	defer func() {
-		msg, ok := recover().(string)
-		if !ok || !strings.Contains(msg, "Zig generation failed:") || !strings.Contains(msg, `unresolved import "missing"`) {
-			t.Fatalf("panic = %q, want the Zig failure header and the unresolved import", msg)
-		}
-	}()
 	lang.(*zigLang).AfterResolvingDeps(context.Background())
+	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")
+	if !strings.Contains(msg, `unresolved import "missing"`) {
+		t.Fatalf("errors = %q, want the unresolved import", msg)
+	}
 }
 
 func generateRoot(t *testing.T, repoName string, files map[string]string) language.GenerateResult {

@@ -18,7 +18,6 @@ var javaKinds = map[string]rule.KindInfo{
 func NewLanguage() language.Language {
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "Java",
 		LibraryKind:    LibraryKind,
 		Kinds:          javaKinds,
 		DefsPackage:    "java/rules:defs.bzl",

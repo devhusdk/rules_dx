@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"sort"
@@ -104,10 +105,14 @@ type dispatchLang struct {
 
 func NewLanguage() language.Language { return &dispatchLang{} }
 
-var exitProcess = os.Exit
+var (
+	exitProcess           = os.Exit
+	stderr      io.Writer = os.Stderr
+)
 
 func (l *dispatchLang) Before(context.Context) {
 	l.errors = nil
+	common.Errors.Reset()
 	l.configs = nil
 	l.manifest = nil
 	if rec, err := common.LoadManifestRecorder("dispatch"); err != nil {
@@ -213,17 +218,27 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 	return out
 }
 
+// AfterResolvingDeps runs last in the dispatch gazelle_binary, after every
+// language has added its errors to common.Errors. It emits the manifest only
+// when no language failed, and otherwise reports every error once and exits 1.
 func (l *dispatchLang) AfterResolvingDeps(context.Context) {
-	if len(l.errors) == 0 && l.manifest != nil {
+	common.Errors.Add(languageName, "", l.errors...)
+	all := common.Errors.Take()
+	if len(all) == 0 && l.manifest != nil {
 		if err := l.manifest.Emit(l.collectUsedIgnores()); err != nil {
-			l.fail("%v", err)
+			common.Errors.Add(languageName, "", err.Error())
+			all = common.Errors.Take()
 		}
 	}
-	if len(l.errors) > 0 {
-		sort.Strings(l.errors)
-		fmt.Fprintln(os.Stderr, "Dispatch generation failed before BUILD emission:\n"+strings.Join(l.errors, "\n"))
-		exitProcess(1)
+	if len(all) > 0 {
+		reportFailure(all)
 	}
+}
+
+// reportFailure is the single failure exit for a generation run.
+func reportFailure(all []common.GenerationError) {
+	fmt.Fprintln(stderr, "Generation failed:\n"+strings.Join(common.Messages(all), "\n"))
+	exitProcess(1)
 }
 
 func (*dispatchLang) Name() string { return languageName }

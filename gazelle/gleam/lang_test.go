@@ -78,13 +78,11 @@ func expectFailure(t *testing.T, lang language.Language, result language.Generat
 	if !gl.Failed() {
 		t.Fatal("generation did not fail")
 	}
-	defer func() {
-		msg, ok := recover().(string)
-		if !ok || !strings.Contains(msg, "Gleam generation failed:") || !strings.Contains(msg, want) {
-			t.Fatalf("panic = %q, want it to contain %q", msg, want)
-		}
-	}()
 	gl.AfterResolvingDeps(context.Background())
+	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")
+	if !strings.Contains(msg, want) {
+		t.Fatalf("errors = %q, want it to contain %q", msg, want)
+	}
 }
 
 func TestGenerateFailsOnNameClaimedByHandwrittenRule(t *testing.T) {

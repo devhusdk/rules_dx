@@ -211,26 +211,13 @@ func TestImportsIndexesOnlyLibraries(t *testing.T) {
 	}
 }
 
-func stubExitProcess(t *testing.T) *int {
-	t.Helper()
-	old := exitProcess
-	code := -1
-	exitProcess = func(c int) { code = c }
-	t.Cleanup(func() { exitProcess = old })
-	return &code
-}
-
-func TestErrorsAbortBeforeEmission(t *testing.T) {
-	code := stubExitProcess(t)
+func TestErrorsReportToSinkWithoutExiting(t *testing.T) {
 	l := &rustLang{}
 	l.Before(context.Background())
 	l.fail("second")
 	l.fail("first")
 	l.AfterResolvingDeps(context.Background())
-	if *code != 1 {
-		t.Fatalf("exit code = %d, want 1", *code)
-	}
-	if got := strings.Join(l.errors, "\n"); got != "first\nsecond" {
+	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); got != "first\nsecond" {
 		t.Errorf("errors were not deterministic: %q", got)
 	}
 }
@@ -250,7 +237,7 @@ func TestBeforeRecordsRecorderError(t *testing.T) {
 }
 
 func TestAfterResolvingDepsReportsManifestError(t *testing.T) {
-	code := stubExitProcess(t)
+	common.Errors.Reset()
 	l := &rustLang{}
 	l.manifest = &common.ManifestRecorder{
 		Prefix:        "rust",
@@ -260,10 +247,7 @@ func TestAfterResolvingDepsReportsManifestError(t *testing.T) {
 		ApparentLoads: l.ApparentLoads,
 	}
 	l.AfterResolvingDeps(context.Background())
-	if *code != 1 {
-		t.Fatalf("exit code = %d, want 1", *code)
-	}
-	if got := strings.Join(l.errors, "\n"); !strings.Contains(got, "cannot write intended manifest") {
+	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(got, "cannot write intended manifest") {
 		t.Errorf("errors = %q, want write error", got)
 	}
 }
@@ -297,12 +281,8 @@ func TestStaleIgnoreFails(t *testing.T) {
 	}
 	l.Configure(cfg, "pkg", file)
 	l.generated.Add("pkg")
-	code := stubExitProcess(t)
 	l.AfterResolvingDeps(context.Background())
-	if *code != 1 {
-		t.Fatalf("exit code = %d, want 1", *code)
-	}
-	if got := strings.Join(l.errors, "\n"); !strings.Contains(got, "stale") {
+	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(got, "stale") {
 		t.Errorf("stale ignore errors = %q, want stale", got)
 	}
 }
@@ -316,12 +296,8 @@ func TestMalformedIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
-	code := stubExitProcess(t)
 	l.AfterResolvingDeps(context.Background())
-	if *code != 1 {
-		t.Fatalf("exit code = %d, want 1", *code)
-	}
-	if got := strings.Join(l.errors, "\n"); !strings.Contains(got, "malformed") {
+	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(got, "malformed") {
 		t.Errorf("malformed ignore errors = %q, want malformed", got)
 	}
 }

@@ -7,5 +7,5 @@ import (
 )
 
 func NewLanguage() language.Language {
-	return common.NewWebComponentLang("svelte", "Svelte", []string{".svelte"}, common.ParseScriptImports)
+	return common.NewWebComponentLang("svelte", []string{".svelte"}, common.ParseScriptImports)
 }

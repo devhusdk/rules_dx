@@ -48,30 +48,12 @@ func refusal(t *testing.T, lang language.Language) string {
 	if !ok {
 		t.Fatalf("%T does not implement language.LifecycleManager", lang)
 	}
-	var msg string
-	func() {
-		defer func() {
-			r := recover()
-			if r == nil {
-				t.Fatal("AfterResolvingDeps did not fail the run")
-			}
-			s, ok := r.(string)
-			if !ok {
-				t.Fatalf("panic = %v, want a string", r)
-			}
-			msg = s
-		}()
-		lm.AfterResolvingDeps(context.Background())
-	}()
-	const header = "Scala generation failed:\n"
-	if !strings.HasPrefix(msg, header) {
-		t.Fatalf("panic = %q, want prefix %q", msg, header)
+	lm.AfterResolvingDeps(context.Background())
+	got := common.Errors.Take()
+	if len(got) != 1 {
+		t.Fatalf("refusals = %#v, want exactly one", got)
 	}
-	lines := strings.Split(strings.TrimPrefix(msg, header), "\n")
-	if len(lines) != 1 {
-		t.Fatalf("refusals = %q, want exactly one", lines)
-	}
-	return lines[0]
+	return got[0].Message
 }
 
 func refuseFixture(t *testing.T, files map[string]string, regular []string) string {
@@ -244,16 +226,11 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 	lang := NewLanguage().(*common.SingleLang)
 	lang.Before(context.Background())
 	lang.Fail("scala: boom")
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("AfterResolvingDeps did not panic with recorded errors")
-		}
-		if msg, ok := r.(string); !ok || !strings.Contains(msg, "Scala generation failed") {
-			t.Fatalf("panic = %v, want Scala generation failure", r)
-		}
-	}()
 	lang.AfterResolvingDeps(context.Background())
+	got := common.Errors.Take()
+	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "scala: boom" {
+		t.Fatalf("sink = %#v, want one scala failure", got)
+	}
 }
 
 func TestResolveSkipsStdlibImports(t *testing.T) {
@@ -375,13 +352,11 @@ func TestResolveExternalImportNeedsAMapping(t *testing.T) {
 	if got := r.AttrStrings("deps"); len(got) != 0 {
 		t.Fatalf("deps = %v", got)
 	}
-	defer func() {
-		msg, _ := recover().(string)
-		if !strings.Contains(msg, "# gazelle:resolve mapping on the qualified import or its package") || !strings.Contains(msg, "cats.effect.IO") {
-			t.Fatalf("panic = %q, want the qualified name and the unresolved hint", msg)
-		}
-	}()
 	lang.AfterResolvingDeps(context.Background())
+	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")
+	if !strings.Contains(msg, "# gazelle:resolve mapping on the qualified import or its package") || !strings.Contains(msg, "cats.effect.IO") {
+		t.Fatalf("errors = %q, want the qualified name and the unresolved hint", msg)
+	}
 }
 
 func TestBareNameIgnoreNoLongerMatches(t *testing.T) {
@@ -392,13 +367,11 @@ func TestBareNameIgnoreNoLongerMatches(t *testing.T) {
 	if got := r.AttrStrings("deps"); len(got) != 0 {
 		t.Fatalf("deps = %v", got)
 	}
-	defer func() {
-		msg, _ := recover().(string)
-		if !strings.Contains(msg, `unresolved import "com.example.Widget"`) || !strings.Contains(msg, "stale # gazelle:dx_ignore_import scala Widget") {
-			t.Fatalf("panic = %q, want the unresolved import and the stale ignore", msg)
-		}
-	}()
 	lang.AfterResolvingDeps(context.Background())
+	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")
+	if !strings.Contains(msg, `unresolved import "com.example.Widget"`) || !strings.Contains(msg, "stale # gazelle:dx_ignore_import scala Widget") {
+		t.Fatalf("errors = %q, want the unresolved import and the stale ignore", msg)
+	}
 }
 
 func TestResolveQualifiedImportFindsLocalClass(t *testing.T) {

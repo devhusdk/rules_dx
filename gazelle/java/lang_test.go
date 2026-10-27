@@ -48,30 +48,12 @@ func refusal(t *testing.T, lang language.Language) string {
 	if !ok {
 		t.Fatalf("%T does not implement language.LifecycleManager", lang)
 	}
-	var msg string
-	func() {
-		defer func() {
-			r := recover()
-			if r == nil {
-				t.Fatal("AfterResolvingDeps did not fail the run")
-			}
-			s, ok := r.(string)
-			if !ok {
-				t.Fatalf("panic = %v, want a string", r)
-			}
-			msg = s
-		}()
-		lm.AfterResolvingDeps(context.Background())
-	}()
-	const header = "Java generation failed:\n"
-	if !strings.HasPrefix(msg, header) {
-		t.Fatalf("panic = %q, want prefix %q", msg, header)
+	lm.AfterResolvingDeps(context.Background())
+	got := common.Errors.Take()
+	if len(got) != 1 {
+		t.Fatalf("refusals = %#v, want exactly one", got)
 	}
-	lines := strings.Split(strings.TrimPrefix(msg, header), "\n")
-	if len(lines) != 1 {
-		t.Fatalf("refusals = %q, want exactly one", lines)
-	}
-	return lines[0]
+	return got[0].Message
 }
 
 func refuseFixture(t *testing.T, files map[string]string, regular []string) string {
@@ -236,16 +218,11 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 	lang := NewLanguage().(*common.SingleLang)
 	lang.Before(context.Background())
 	lang.Fail("java: boom")
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("AfterResolvingDeps did not panic with recorded errors")
-		}
-		if msg, ok := r.(string); !ok || !strings.Contains(msg, "Java generation failed") {
-			t.Fatalf("panic = %v, want Java generation failure", r)
-		}
-	}()
 	lang.AfterResolvingDeps(context.Background())
+	got := common.Errors.Take()
+	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "java: boom" {
+		t.Fatalf("sink = %#v, want one java failure", got)
+	}
 }
 
 func TestResolveSkipsStdlibImports(t *testing.T) {

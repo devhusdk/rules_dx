@@ -7,5 +7,5 @@ import (
 )
 
 func NewLanguage() language.Language {
-	return common.NewWebComponentLang("vue", "Vue", []string{".vue"}, common.ParseScriptImports)
+	return common.NewWebComponentLang("vue", []string{".vue"}, common.ParseScriptImports)
 }

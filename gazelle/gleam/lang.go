@@ -50,7 +50,6 @@ type gleamLang struct {
 func NewLanguage() language.Language {
 	return &gleamLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "Gleam",
 		LibraryKind:    LibraryKind,
 		ExtraKinds:     []string{TestKind, TestLibraryKind},
 		Kinds:          gleamKinds,

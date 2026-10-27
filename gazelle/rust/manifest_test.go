@@ -115,10 +115,9 @@ func TestAfterResolvingDepsEmitsInheritedIgnoreInScope(t *testing.T) {
 	}
 	l.ignores = []*common.IgnoreEntry{{Value: "serde", Path: "a"}}
 	l.ignores[0].MarkUsed("a/b")
-	code := stubExitProcess(t)
 	l.AfterResolvingDeps(context.Background())
-	if *code != -1 || len(l.errors) != 0 {
-		t.Fatalf("exit = %d, errors = %v, want success", *code, l.errors)
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v, want success", l.errors)
 	}
 	want := []common.IntendedIgnoredImport{{Path: "a", Language: "rust", Import: "serde", ScopeIndex: 0}}
 	if got := readIntended(t, out).IgnoredImports; !reflect.DeepEqual(got, want) {

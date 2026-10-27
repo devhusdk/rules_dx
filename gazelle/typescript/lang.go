@@ -91,6 +91,7 @@ func (l *typescriptLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.generated = common.GeneratedRels{}
+	common.Errors.Reset()
 }
 
 func (l *typescriptLang) DoneGeneratingRules() {}
@@ -118,11 +119,7 @@ func (l *typescriptLang) AfterResolvingDeps(context.Context) {
 	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
-	if len(l.errors) == 0 {
-		return
-	}
-	sort.Strings(l.errors)
-	panic("TypeScript generation failed:\n" + strings.Join(l.errors, "\n"))
+	common.Errors.Add(languageName, "", l.errors...)
 }
 
 func (*typescriptLang) Name() string { return languageName }

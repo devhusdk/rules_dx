@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
@@ -115,13 +114,12 @@ type targetImports struct {
 
 func NewLanguage() language.Language { return &rustLang{} }
 
-var exitProcess = os.Exit
-
 func (l *rustLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.generated = common.GeneratedRels{}
 	l.manifest = nil
+	common.Errors.Reset()
 	l.workspaceRoots = nil
 	if rec, err := common.LoadManifestRecorder("rust"); err != nil {
 		l.fail("%v", err)
@@ -205,11 +203,7 @@ func (l *rustLang) AfterResolvingDeps(context.Context) {
 			l.fail("%v", err)
 		}
 	}
-	if len(l.errors) > 0 {
-		sort.Strings(l.errors)
-		fmt.Fprintln(os.Stderr, "Rust generation failed before BUILD emission:\n"+strings.Join(l.errors, "\n"))
-		exitProcess(1)
-	}
+	common.Errors.Add(languageName, "", l.errors...)
 }
 
 func (*rustLang) Name() string { return languageName }

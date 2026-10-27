@@ -13,19 +13,19 @@ import (
 )
 
 var webComponentCases = []struct {
-	name, display, ext string
+	name, ext string
 }{
-	{"vue", "Vue", ".vue"},
-	{"svelte", "Svelte", ".svelte"},
-	{"astro", "Astro", ".astro"},
-	{"mdx", "MDX", ".mdx"},
+	{"vue", ".vue"},
+	{"svelte", ".svelte"},
+	{"astro", ".astro"},
+	{"mdx", ".mdx"},
 }
 
 func noImports([]byte, string) []string { return nil }
 
 func TestNewWebComponentLangMetadata(t *testing.T) {
 	for _, tc := range webComponentCases {
-		l := NewWebComponentLang(tc.name, tc.display, []string{tc.ext}, noImports)
+		l := NewWebComponentLang(tc.name, []string{tc.ext}, noImports)
 		kind := tc.name + "_library"
 		if l.Name() != tc.name || len(l.Kinds()) != 1 {
 			t.Fatalf("%s: name %q kinds %v", tc.name, l.Name(), l.Kinds())
@@ -42,7 +42,7 @@ func TestNewWebComponentLangMetadata(t *testing.T) {
 
 func TestWebComponentNaming(t *testing.T) {
 	for _, tc := range webComponentCases {
-		l := NewWebComponentLang(tc.name, tc.display, []string{tc.ext}, noImports)
+		l := NewWebComponentLang(tc.name, []string{tc.ext}, noImports)
 		kind := tc.name + "_library"
 		lib := rule.NewRule(kind, "x")
 		lib.SetAttr("srcs", []string{"archive.tar" + tc.ext, "my-mod" + tc.ext, "notes.txt"})
@@ -81,15 +81,10 @@ func TestWebComponentNaming(t *testing.T) {
 		if got := generate("---" + tc.ext).Gen; len(got) != 0 {
 			t.Errorf("%s: generated %d rules for ---%s", tc.name, len(got), tc.ext)
 		}
-		func() {
-			defer func() {
-				msg, _ := recover().(string)
-				if !strings.HasPrefix(msg, tc.display+" generation failed:") || !strings.Contains(msg, `"---" normalizes to an empty target name`) {
-					t.Errorf("%s: panic = %q", tc.name, msg)
-				}
-			}()
-			l.AfterResolvingDeps(context.Background())
-		}()
+		l.AfterResolvingDeps(context.Background())
+		if got := Errors.Take(); len(got) != 1 || got[0].Language != tc.name || !strings.Contains(got[0].Message, `"---" normalizes to an empty target name`) {
+			t.Errorf("%s: sink = %#v", tc.name, got)
+		}
 	}
 }
 

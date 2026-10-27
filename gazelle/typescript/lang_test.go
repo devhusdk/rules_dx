@@ -517,16 +517,10 @@ func TestErrorsAbortBeforeEmission(t *testing.T) {
 	l.Before(context.Background())
 	l.fail("second")
 	l.fail("first")
-	defer func() {
-		got := recover()
-		if got == nil {
-			t.Fatal("AfterResolvingDeps did not abort")
-		}
-		if message := got.(string); !strings.Contains(message, "first\nsecond") {
-			t.Errorf("errors were not deterministic: %s", message)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	if message := strings.Join(common.Messages(common.Errors.Take()), "\n"); message != "first\nsecond" {
+		t.Errorf("errors were not deterministic: %s", message)
+	}
 }
 
 func TestResolveIgnore(t *testing.T) {
@@ -556,12 +550,10 @@ func TestStaleIgnoreFails(t *testing.T) {
 	}
 	l.Configure(cfg, "pkg", file)
 	l.generated.Add("pkg")
-	defer func() {
-		if got := recover(); got == nil || !strings.Contains(got.(string), "stale") {
-			t.Errorf("stale ignore result = %v", got)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(got, "stale") {
+		t.Errorf("stale ignore result = %q", got)
+	}
 }
 
 func TestConfigureInheritanceAndOtherDirectives(t *testing.T) {

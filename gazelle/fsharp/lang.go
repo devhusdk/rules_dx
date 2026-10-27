@@ -40,6 +40,7 @@ func (l *fsharpLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.generated = common.GeneratedRels{}
+	common.Errors.Reset()
 }
 
 func (l *fsharpLang) DoneGeneratingRules() {}
@@ -67,11 +68,7 @@ func (l *fsharpLang) AfterResolvingDeps(context.Context) {
 	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
-	if len(l.errors) == 0 {
-		return
-	}
-	sort.Strings(l.errors)
-	panic("FSharp generation failed:\n" + strings.Join(l.errors, "\n"))
+	common.Errors.Add(languageName, "", l.errors...)
 }
 
 func (*fsharpLang) Name() string { return languageName }

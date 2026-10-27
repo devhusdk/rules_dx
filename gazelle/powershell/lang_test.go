@@ -141,15 +141,13 @@ func TestGenerateFailsOnNameClaimedByHandwrittenRule(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %s, want none", names(result))
 	}
-	defer func() {
-		msg, _ := recover().(string)
-		for _, want := range []string{"PowerShell generation failed:", `"greet" is claimed by generated pwsh_library(pkg/greet) and existing pwsh_binary`, "# gazelle:exclude"} {
-			if !strings.Contains(msg, want) {
-				t.Errorf("panic = %q, want it to contain %q", msg, want)
-			}
-		}
-	}()
 	lang.(*pwshLang).AfterResolvingDeps(context.Background())
+	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")
+	for _, want := range []string{`"greet" is claimed by generated pwsh_library(pkg/greet) and existing pwsh_binary`, "# gazelle:exclude"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("errors = %q, want it to contain %q", msg, want)
+		}
+	}
 }
 
 func TestImportsDedupeModuleAndManifest(t *testing.T) {
@@ -200,11 +198,9 @@ func TestResolveModuleNamesAreCaseSensitive(t *testing.T) {
 		t.Fatalf("deps = %s (failed=%v), want //pkg/greet with stdlib skipped", got, lang.Failed())
 	}
 	lang.Resolve(cfg, index, nil, rule.NewRule(TestKind, "lower_test"), common.WrapImportSet([]string{"greet"}), label.New("", "app", "lower_test"))
-	defer func() {
-		msg, _ := recover().(string)
-		if !strings.Contains(msg, `unresolved import "greet"`) || !strings.Contains(msg, UnresolvedHint) {
-			t.Errorf("panic = %q, want the unresolved hint for lowercase greet", msg)
-		}
-	}()
 	lang.AfterResolvingDeps(context.Background())
+	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")
+	if !strings.Contains(msg, `unresolved import "greet"`) || !strings.Contains(msg, UnresolvedHint) {
+		t.Errorf("errors = %q, want the unresolved hint for lowercase greet", msg)
+	}
 }

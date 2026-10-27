@@ -5,12 +5,11 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
-func NewWebComponentLang(name, displayName string, exts []string, parseImports func([]byte, string) []string) *SingleLang {
+func NewWebComponentLang(name string, exts []string, parseImports func([]byte, string) []string) *SingleLang {
 	kind := name + "_library"
 	isSource := func(n string) bool { return HasExt(n, exts) }
 	return NewSingleLang(SingleLangSpec{
 		LanguageName:   name,
-		DisplayName:    displayName,
 		LibraryKind:    kind,
 		Kinds:          map[string]rule.KindInfo{kind: LibraryKindInfo()},
 		DefsPackage:    name + "/rules:defs.bzl",

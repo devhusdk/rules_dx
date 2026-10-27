@@ -20,7 +20,6 @@ type rubyLang struct{ *common.SingleLang }
 func NewLanguage() language.Language {
 	return &rubyLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "Ruby",
 		LibraryKind:    LibraryKind,
 		Kinds:          rubyKinds,
 		DefsPackage:    "ruby/rules:defs.bzl",

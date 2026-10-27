@@ -23,6 +23,7 @@ go_library(
         "dotnetplatform.go",
         "embeddedscan.go",
         "htmlscripts.go",
+        "errors.go",
         "ignore.go",
         "jsresolve.go",
         "jsscan.go",
@@ -80,6 +81,7 @@ go_test(
     name = "common_test",
     srcs = [
         "common_test.go",
+        "errors_test.go",
         "ignore_test.go",
         "manifest_test.go",
         "naming_test.go",

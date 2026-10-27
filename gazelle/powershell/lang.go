@@ -35,7 +35,6 @@ type pwshLang struct {
 func NewLanguage() language.Language {
 	return &pwshLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "PowerShell",
 		LibraryKind:    LibraryKind,
 		ExtraKinds:     []string{TestKind},
 		Kinds:          pwshKinds,

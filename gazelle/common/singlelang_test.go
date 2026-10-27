@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,7 +29,6 @@ func isDotStdLib(name string) bool { return strings.HasPrefix(name, "dot.") }
 func dotSpec() SingleLangSpec {
 	return SingleLangSpec{
 		LanguageName:   dotLanguage,
-		DisplayName:    "Dot",
 		LibraryKind:    dotKind,
 		Kinds:          map[string]rule.KindInfo{dotKind: LibraryKindInfo()},
 		DefsPackage:    "dot/rules:defs.bzl",
@@ -149,20 +147,16 @@ func TestConfigurePicksTheNearestIgnore(t *testing.T) {
 	}
 }
 
-func TestAfterResolvingDepsPanicsOnRecordedErrors(t *testing.T) {
+func TestAfterResolvingDepsReportsToSink(t *testing.T) {
 	l := newDotLang()
 	l.Before(context.Background())
 	l.fail("dot: boom")
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("AfterResolvingDeps did not panic with recorded errors")
-		}
-		if msg, ok := r.(string); !ok || !strings.Contains(msg, "Dot generation failed") {
-			t.Fatalf("panic = %v, want Dot generation failure", r)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	got := Errors.Take()
+	want := []GenerationError{{Language: dotLanguage, Message: "dot: boom"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("sink = %#v, want %#v", got, want)
+	}
 }
 
 func TestAfterResolvingDepsSortsErrors(t *testing.T) {
@@ -170,25 +164,22 @@ func TestAfterResolvingDepsSortsErrors(t *testing.T) {
 	l.Before(context.Background())
 	l.fail("dot: second")
 	l.fail("dot: first")
-	defer func() {
-		r := recover()
-		msg, ok := r.(string)
-		if !ok {
-			t.Fatalf("panic = %v, want a string", r)
-		}
-		if strings.Index(msg, "first") > strings.Index(msg, "second") {
-			t.Fatalf("panic = %q, want sorted errors", msg)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	got := Errors.Take()
+	if len(got) != 2 || got[0].Message != "dot: first" || got[1].Message != "dot: second" {
+		t.Fatalf("sink = %#v, want sorted errors", got)
+	}
 }
 
-func TestAfterResolvingDepsCleanDoesNotPanic(t *testing.T) {
+func TestAfterResolvingDepsCleanReportsNothing(t *testing.T) {
 	l := newDotLang()
 	l.Before(context.Background())
 	l.AfterResolvingDeps(context.Background())
 	if len(l.errors) != 0 {
 		t.Errorf("errors = %v", l.errors)
+	}
+	if got := Errors.Take(); got != nil {
+		t.Errorf("sink = %#v, want empty", got)
 	}
 }
 
@@ -198,16 +189,11 @@ func TestAfterResolvingDepsReportsStaleIgnore(t *testing.T) {
 	cfg := config.New()
 	l.Configure(cfg, "pkg", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Unused"}}})
 	l.generated.Add("pkg")
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("stale ignore did not panic")
-		}
-		if msg, ok := r.(string); !ok || !strings.Contains(msg, "stale # gazelle:dx_ignore_import") {
-			t.Fatalf("panic = %v, want stale ignore failure", r)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	got := Errors.Take()
+	if len(got) != 1 || !strings.Contains(got[0].Message, "stale # gazelle:dx_ignore_import") {
+		t.Fatalf("sink = %#v, want stale ignore failure", got)
+	}
 }
 
 func TestAfterResolvingDepsSkipsIgnoresOutsideGeneratedPackages(t *testing.T) {
@@ -462,13 +448,11 @@ func TestGenerateExtendErrorRecordsAFailure(t *testing.T) {
 	if !l.Failed() || len(result.Gen) != 0 || len(result.Imports) != 0 {
 		t.Fatalf("generated %d rules (failed=%v), want 0 with a recorded failure", len(result.Gen), l.Failed())
 	}
-	defer func() {
-		msg, ok := recover().(string)
-		if !ok || !strings.Contains(msg, "dot: pkg/demo: embeds a missing file") {
-			t.Fatalf("panic = %q, want the hook error", msg)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	msg := strings.Join(Messages(Errors.Take()), "\n")
+	if !strings.Contains(msg, "dot: pkg/demo: embeds a missing file") {
+		t.Fatalf("errors = %q, want the hook error", msg)
+	}
 }
 
 func TestGenerateSingleFileRecordsAFailurePerPlan(t *testing.T) {
@@ -726,13 +710,11 @@ func TestResolveBareNameIgnoreNoLongerMatches(t *testing.T) {
 	l.Configure(cfg, "app", file)
 	l.generated.Add("app")
 	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"x.y.Dropped"}), label.New("", "app", "app"))
-	defer func() {
-		msg := fmt.Sprint(recover())
-		if !strings.Contains(msg, `unresolved import "x.y.Dropped"`) || !strings.Contains(msg, "stale # gazelle:dx_ignore_import dot Dropped") {
-			t.Errorf("panic = %q", msg)
-		}
-	}()
 	l.AfterResolvingDeps(context.Background())
+	msg := strings.Join(Messages(Errors.Take()), "\n")
+	if !strings.Contains(msg, `unresolved import "x.y.Dropped"`) || !strings.Contains(msg, "stale # gazelle:dx_ignore_import dot Dropped") {
+		t.Errorf("errors = %q", msg)
+	}
 }
 
 func TestJVMCandidates(t *testing.T) {

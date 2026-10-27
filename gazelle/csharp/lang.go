@@ -18,7 +18,6 @@ var csharpKinds = map[string]rule.KindInfo{
 func NewLanguage() language.Language {
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "CSharp",
 		LibraryKind:    LibraryKind,
 		Kinds:          csharpKinds,
 		DefsPackage:    "csharp/rules:defs.bzl",

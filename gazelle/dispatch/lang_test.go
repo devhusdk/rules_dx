@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -275,16 +276,13 @@ func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 		Rel:      "elsewhere",
 		OtherGen: []*rule.Rule{gen},
 	})
-	oldExit := exitProcess
-	code := -1
-	exitProcess = func(c int) { code = c }
-	defer func() { exitProcess = oldExit }()
+	code, errOut := stubExit(t)
 	l.AfterResolvingDeps(context.Background())
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	if *code != 1 {
+		t.Fatalf("exit code = %d, want 1", *code)
 	}
-	if len(l.errors) == 0 {
-		t.Fatal("scope mismatch must record an error")
+	if !strings.HasPrefix(errOut.String(), "Generation failed:\n") || strings.Count(errOut.String(), "\n") < 2 {
+		t.Fatalf("stderr = %q, want the scope mismatch under one header", errOut.String())
 	}
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatalf("manifest stat = %v, want no manifest written", err)
@@ -353,44 +351,63 @@ type failingLanguage interface {
 	AfterResolvingDeps(context.Context)
 }
 
-func TestSingleLanguageFailureHeaders(t *testing.T) {
-	headers := map[string]string{
-		"astro":  "Astro generation failed:",
-		"cc":     "CC generation failed:",
-		"csharp": "CSharp generation failed:",
-		"java":   "Java generation failed:",
-		"kotlin": "Kotlin generation failed:",
-		"mdx":    "MDX generation failed:",
-		"ruby":   "Ruby generation failed:",
-		"scala":  "Scala generation failed:",
-		"svelte": "Svelte generation failed:",
-		"vue":    "Vue generation failed:",
-	}
-	composed := map[string]language.Language{}
-	for _, lang := range composedLanguages() {
-		composed[lang.Name()] = lang
-		if _, single := lang.(*common.SingleLang); single && headers[lang.Name()] == "" {
-			t.Errorf("%s shares the single-language driver but pins no failure header", lang.Name())
-		}
-	}
-	for _, name := range sortedKeys(headers) {
-		lang, ok := composed[name].(failingLanguage)
+func stubExit(t *testing.T) (*int, *bytes.Buffer) {
+	t.Helper()
+	oldExit, oldStderr := exitProcess, stderr
+	code := -1
+	var out bytes.Buffer
+	exitProcess = func(c int) { code = c }
+	stderr = &out
+	t.Cleanup(func() { exitProcess, stderr = oldExit, oldStderr })
+	return &code, &out
+}
+
+func TestComposedLanguagesReportWithoutPanicking(t *testing.T) {
+	checked := 0
+	for _, composed := range composedLanguages() {
+		lang, ok := composed.(failingLanguage)
 		if !ok {
-			t.Errorf("%s is not composed into dispatch, or does not report failures", name)
 			continue
 		}
-		header := headers[name]
-		lang.Before(context.Background())
-		lang.Fail("%s: boom", name)
+		name := composed.Name()
+		checked++
 		func() {
 			defer func() {
-				msg, ok := recover().(string)
-				if !ok || !strings.HasPrefix(msg, header+"\n") {
-					t.Errorf("%s failure header = %v, want %q", name, msg, header)
+				if r := recover(); r != nil {
+					t.Errorf("%s AfterResolvingDeps panicked: %v", name, r)
 				}
 			}()
+			lang.Before(context.Background())
+			lang.Fail("%s: boom", name)
 			lang.AfterResolvingDeps(context.Background())
 		}()
+		got := common.Errors.Take()
+		if len(got) != 1 || got[0].Language != name || got[0].Message != name+": boom" {
+			t.Errorf("%s sink = %#v, want one entry for %s", name, got, name)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no composed language reports failures")
+	}
+}
+
+func TestAfterResolvingDepsReportsEveryLanguage(t *testing.T) {
+	t.Setenv(common.EnvIntendedManifest, "")
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	common.Errors.Add("go", "", "go: //b:b: unresolved import \"x\"")
+	common.Errors.Add("cc", "", "cc: //a:a: unresolved import \"y\"")
+	code, errOut := stubExit(t)
+	l.AfterResolvingDeps(context.Background())
+	if *code != 1 {
+		t.Fatalf("exit code = %d, want 1", *code)
+	}
+	want := "Generation failed:\ncc: //a:a: unresolved import \"y\"\ngo: //b:b: unresolved import \"x\"\n"
+	if errOut.String() != want {
+		t.Fatalf("stderr = %q, want %q", errOut.String(), want)
+	}
+	if got := common.Errors.Take(); got != nil {
+		t.Fatalf("sink after report = %#v, want empty", got)
 	}
 }
 
@@ -542,15 +559,10 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		lang.Resolve(resolverCfg, emptyIndex, nil, rule.NewRule(kind, "app"),
 			common.WrapImportSet([]string{"Missing"}), from)
 		want := name + ": " + from.String() + ": unresolved import \"Missing\"; " + hints[name]
-		func() {
-			defer func() {
-				got, ok := recover().(string)
-				if !ok || !strings.HasSuffix(got, want) {
-					t.Errorf("%s unresolved import = %v, want a line ending %q", name, got, want)
-				}
-			}()
-			lang.AfterResolvingDeps(context.Background())
-		}()
+		lang.AfterResolvingDeps(context.Background())
+		if got := common.Errors.Take(); len(got) != 1 || got[0].Message != want {
+			t.Errorf("%s unresolved import = %#v, want %q", name, got, want)
+		}
 	}
 }
 
@@ -634,16 +646,13 @@ func TestAfterResolvingDepsFailsOnUnknownIgnoreLanguage(t *testing.T) {
 	l := &dispatchLang{}
 	l.Before(context.Background())
 	l.Configure(testConfig(), "", ignoreFile("pyton requests"))
-	oldExit := exitProcess
-	code := -1
-	exitProcess = func(c int) { code = c }
-	defer func() { exitProcess = oldExit }()
+	code, errOut := stubExit(t)
 	l.AfterResolvingDeps(context.Background())
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	if *code != 1 {
+		t.Fatalf("exit code = %d, want 1", *code)
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown language "pyton"`) {
-		t.Fatalf("errors = %v, want the unknown language", l.errors)
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown language "pyton"`) || !strings.Contains(errOut.String(), `unknown language "pyton"`) {
+		t.Fatalf("errors = %v, stderr = %q, want the unknown language", l.errors, errOut.String())
 	}
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatalf("manifest stat = %v, want no manifest written", err)
@@ -699,13 +708,10 @@ func TestAfterResolvingDepsFailsOnLangWithoutDispatch(t *testing.T) {
 	c := testConfig()
 	c.Langs = []string{"go"}
 	l.Configure(c, "", langFile("go"))
-	oldExit := exitProcess
-	code := -1
-	exitProcess = func(c int) { code = c }
-	defer func() { exitProcess = oldExit }()
+	code, _ := stubExit(t)
 	l.AfterResolvingDeps(context.Background())
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	if *code != 1 {
+		t.Fatalf("exit code = %d, want 1", *code)
 	}
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatalf("manifest stat = %v, want no manifest written", err)

@@ -56,7 +56,6 @@ func configureCuda(c *config.Config, rel string, f *rule.File, rep common.Report
 func NewLanguage() language.Language {
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
-		DisplayName:    "CC",
 		LibraryKind:    LibraryKind,
 		Kinds:          ccKinds,
 		DefsPackage:    "cc/rules:defs.bzl",

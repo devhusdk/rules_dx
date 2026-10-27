@@ -78,6 +78,7 @@ func (l *SingleLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.generated = GeneratedRels{}
+	Errors.Reset()
 }
 
 func (l *SingleLang) DoneGeneratingRules() {}
@@ -110,11 +111,7 @@ func (l *SingleLang) AfterResolvingDeps(context.Context) {
 	for _, msg := range StaleIgnores(l.spec.LanguageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
-	if len(l.errors) == 0 {
-		return
-	}
-	sort.Strings(l.errors)
-	panic(l.spec.DisplayName + " generation failed:\n" + strings.Join(l.errors, "\n"))
+	Errors.Add(l.spec.LanguageName, "", l.errors...)
 }
 
 func (l *SingleLang) Name() string { return l.spec.LanguageName }

@@ -66,6 +66,7 @@ func (l *goLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.generated = common.GeneratedRels{}
+	common.Errors.Reset()
 }
 
 func (l *goLang) DoneGeneratingRules() {}
@@ -93,11 +94,7 @@ func (l *goLang) AfterResolvingDeps(context.Context) {
 	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
-	if len(l.errors) == 0 {
-		return
-	}
-	sort.Strings(l.errors)
-	panic("Go generation failed:\n" + strings.Join(l.errors, "\n"))
+	common.Errors.Add(languageName, "", l.errors...)
 }
 
 func (*goLang) Name() string { return languageName }

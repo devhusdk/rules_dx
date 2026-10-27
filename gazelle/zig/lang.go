@@ -2,6 +2,7 @@ package zig
 
 import (
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 
@@ -23,7 +24,7 @@ var zigKinds = map[string]rule.KindInfo{
 			"deps":       true,
 			"extra_srcs": true,
 			"main":       true,
-			"srcs": true,
+			"srcs":       true,
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
@@ -88,12 +89,14 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			}
 			return r
 		},
-		Extend: trackFileRefs,
+		Extend: func(r *rule.Rule, files []string, contents map[string][]byte) error {
+			return trackFileRefs(r, files, contents, args.File)
+		},
 		Wrap:   common.WrapImportSet,
 	}, rep)
 }
 
-func trackFileRefs(r *rule.Rule, files []string, contents map[string][]byte) error {
+func trackFileRefs(r *rule.Rule, files []string, contents map[string][]byte, build *rule.File) error {
 	tracked := map[string]bool{r.AttrString("main"): true}
 	for _, src := range r.AttrStrings("srcs") {
 		tracked[src] = true
@@ -102,6 +105,7 @@ func trackFileRefs(r *rule.Rule, files []string, contents map[string][]byte) err
 	for _, file := range files {
 		present[file] = true
 	}
+	genOuts := genruleOutputs(build)
 	sources := make([]string, 0, len(contents))
 	for src := range contents {
 		sources = append(sources, src)
@@ -109,18 +113,27 @@ func trackFileRefs(r *rule.Rule, files []string, contents map[string][]byte) err
 	sort.Strings(sources)
 	extra := make(map[string]bool)
 	for _, src := range sources {
-		for _, ref := range ParseFileRefs(contents[src]) {
+		for _, raw := range ParseFileRefs(contents[src]) {
+			ref := path.Clean(raw)
 			switch {
 			case strings.ContainsAny(ref, "/\\"):
-				return fmt.Errorf("%s reads %q outside this directory; move it here or write this zig_library by hand and add # gazelle:exclude", src, ref)
+				return fmt.Errorf("%s reads %q outside this directory; move it here or write this zig_library by hand and add # gazelle:exclude", src, raw)
 			case tracked[ref]:
+			case genOuts[ref]:
+				extra[ref] = true
 			case strings.HasSuffix(ref, ".zig") && present[ref]:
-				return fmt.Errorf("%s imports %q, which generation leaves out of srcs; rename it or write this zig_library by hand and add # gazelle:exclude", src, ref)
+				return fmt.Errorf("%s imports %q, which generation leaves out of srcs; rename it or write this zig_library by hand and add # gazelle:exclude", src, raw)
 			case !present[ref]:
-				return fmt.Errorf("%s reads %q, which is missing from this directory", src, ref)
+				return fmt.Errorf("%s reads %q, which is missing from this directory and is not a genrule output here", src, raw)
 			default:
 				extra[ref] = true
 			}
+		}
+	}
+	// Keep existing extra_srcs that still resolve in this package.
+	for _, old := range existingExtraSrcs(build, r.Name()) {
+		if !tracked[old] && (present[old] || genOuts[old] || strings.Contains(old, ":")) {
+			extra[old] = true
 		}
 	}
 	if len(extra) == 0 {
@@ -132,5 +145,34 @@ func trackFileRefs(r *rule.Rule, files []string, contents map[string][]byte) err
 	}
 	sort.Strings(names)
 	r.SetAttr("extra_srcs", names)
+	return nil
+}
+
+// genruleOutputs lists the outs of the genrules in build.
+func genruleOutputs(build *rule.File) map[string]bool {
+	outs := make(map[string]bool)
+	if build == nil {
+		return outs
+	}
+	for _, r := range build.Rules {
+		if r.Kind() == "genrule" {
+			for _, out := range r.AttrStrings("outs") {
+				outs[out] = true
+			}
+		}
+	}
+	return outs
+}
+
+// existingExtraSrcs returns the extra_srcs of the library named name in build.
+func existingExtraSrcs(build *rule.File, name string) []string {
+	if build == nil {
+		return nil
+	}
+	for _, r := range build.Rules {
+		if r.Kind() == LibraryKind && r.Name() == name {
+			return r.AttrStrings("extra_srcs")
+		}
+	}
 	return nil
 }

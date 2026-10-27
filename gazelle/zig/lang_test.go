@@ -18,6 +18,11 @@ import (
 
 func generate(t *testing.T, lang language.Language, files map[string]string) language.GenerateResult {
 	t.Helper()
+	return generateWithBuild(t, lang, files, "")
+}
+
+func generateWithBuild(t *testing.T, lang language.Language, files map[string]string, build string) language.GenerateResult {
+	t.Helper()
 	root := t.TempDir()
 	dir := filepath.Join(root, "pkg", "greet")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -30,12 +35,20 @@ func generate(t *testing.T, lang language.Language, files map[string]string) lan
 		}
 		regular = append(regular, name)
 	}
-	return lang.GenerateRules(language.GenerateArgs{
+	args := language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          dir,
 		Rel:          "pkg/greet",
 		RegularFiles: regular,
-	})
+	}
+	if build != "" {
+		f, err := rule.LoadData(filepath.Join(dir, "BUILD.bazel"), "pkg/greet", []byte(build))
+		if err != nil {
+			t.Fatal(err)
+		}
+		args.File = f
+	}
+	return lang.GenerateRules(args)
 }
 
 func failed(lang language.Language) bool { return lang.(*zigLang).Failed() }
@@ -94,6 +107,7 @@ func TestGenerateFailsOnUntrackableFileRefs(t *testing.T) {
 		"windowsPath":  {"greet.zig": "const logo = @embedFile(\"assets\\\\logo.png\");\n"},
 		"missingEmbed": {"greet.zig": "const m = @embedFile(\"missing.txt\");\n"},
 		"missingZig":   {"greet.zig": "const m = @import(\"gone.zig\");\n"},
+		"dotDotSubdir": {"greet.zig": "const logo = @embedFile(\"./assets/logo.png\");\n"},
 		"testImport": {
 			"greet.zig":      "const t = @import(\"greet_test.zig\");\n",
 			"greet_test.zig": "const std = @import(\"std\");\n",
@@ -109,6 +123,52 @@ func TestGenerateFailsOnUntrackableFileRefs(t *testing.T) {
 		if !failed(lang) || len(result.Gen) != 0 {
 			t.Errorf("%s: generated %d rules (failed=%v), want 0 with a recorded failure", name, len(result.Gen), failed(lang))
 		}
+	}
+}
+
+func TestGenerateResolvesDotSlashRefs(t *testing.T) {
+	lang := NewLanguage()
+	result := generate(t, lang, map[string]string{
+		"greet.zig": "const util = @import(\"./util.zig\");\nconst data = @embedFile(\"./data.txt\");\n",
+		"util.zig":  "const std = @import(\"std\");\n",
+		"data.txt":  "hi\n",
+	})
+	if failed(lang) || len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules (failed=%v), want 1", len(result.Gen), failed(lang))
+	}
+	lib := result.Gen[0]
+	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "util.zig" {
+		t.Errorf("srcs = %q, want util.zig", got)
+	}
+	if got := strings.Join(lib.AttrStrings("extra_srcs"), ","); got != "data.txt" {
+		t.Errorf("extra_srcs = %q, want data.txt", got)
+	}
+}
+
+func TestGenerateAcceptsGenruleOutputs(t *testing.T) {
+	lang := NewLanguage()
+	result := generateWithBuild(t, lang, map[string]string{
+		"greet.zig": "const s = @import(\"schema.zig\");\nconst c = @embedFile(\"catalog.txt\");\n",
+	}, "genrule(\n    name = \"gen\",\n    outs = [\"schema.zig\", \"catalog.txt\"],\n    cmd = \"touch $@\",\n)\n")
+	if failed(lang) || len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules (failed=%v), want 1", len(result.Gen), failed(lang))
+	}
+	if got := strings.Join(result.Gen[0].AttrStrings("extra_srcs"), ","); got != "catalog.txt,schema.zig" {
+		t.Errorf("extra_srcs = %q, want catalog.txt,schema.zig", got)
+	}
+}
+
+func TestGenerateKeepsHandWrittenExtraSrcs(t *testing.T) {
+	lang := NewLanguage()
+	result := generateWithBuild(t, lang, map[string]string{
+		"greet.zig": "const name = \"data.zon\";\nconst d = @embedFile(name);\n",
+		"data.zon":  ".{ .name = \"greet\" }\n",
+	}, "zig_library(\n    name = \"greet\",\n    main = \"greet.zig\",\n    extra_srcs = [\n        \"data.zon\",\n        \"gone.txt\",\n        \":schema_zig\",\n    ],\n)\n")
+	if failed(lang) || len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules (failed=%v), want 1", len(result.Gen), failed(lang))
+	}
+	if got := strings.Join(result.Gen[0].AttrStrings("extra_srcs"), ","); got != ":schema_zig,data.zon" {
+		t.Errorf("extra_srcs = %q, want :schema_zig,data.zon", got)
 	}
 }
 

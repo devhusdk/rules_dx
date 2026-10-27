@@ -15,6 +15,16 @@ pub trait Pressure: Debug + Send + Sync {
     fn high(&self) -> Option<bool>;
 }
 
+/// A reader with no signal: it never pauses base slots and never grants extras.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoSignal;
+
+impl Pressure for NoSignal {
+    fn high(&self) -> Option<bool> {
+        None
+    }
+}
+
 /// The pressure reader for this host; `low_available` is one slot's memory budget in bytes.
 #[derive(Debug, Clone, Copy)]
 pub struct HostPressure {
@@ -105,6 +115,11 @@ pub fn parse_psi(text: &str) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn no_signal_reads_nothing() {
+        assert_eq!(NoSignal.high(), None);
+    }
 
     const LOCAL: u64 = 3 << 30;
     const REMOTE: u64 = 3 << 29;

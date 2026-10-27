@@ -1,3 +1,4 @@
+use crate::locks::locks_spec::{indent_of, split_paren_spec};
 use crate::vuln::{split_gem_lock_version, LockedPackage};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -16,7 +17,7 @@ pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         if raw.trim().is_empty() {
             continue;
         }
-        let indent = raw.len() - raw.trim_start().len();
+        let indent = indent_of(raw);
         let trimmed = raw.trim();
         if indent == 0 {
             source = match trimmed {
@@ -68,19 +69,9 @@ pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
 }
 
 fn split_gem_spec(trimmed: &str) -> Option<(String, String)> {
-    let open = trimmed.find('(')?;
-    let close = trimmed.rfind(')')?;
-    if close < open {
+    let (name, version) = split_paren_spec(trimmed)?;
+    if name.contains(char::is_whitespace) || version.contains(char::is_whitespace) {
         return None;
     }
-    let name = trimmed[..open].trim().to_owned();
-    let version = trimmed[open + 1..close].trim().to_owned();
-    if name.is_empty()
-        || version.is_empty()
-        || name.contains(char::is_whitespace)
-        || version.contains(char::is_whitespace)
-    {
-        return None;
-    }
-    Some((name, version))
+    Some((name.to_owned(), version.to_owned()))
 }

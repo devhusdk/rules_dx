@@ -18,6 +18,8 @@ mod locks_pnpm;
 mod locks_powershell;
 #[path = "locks_ruby.rs"]
 mod locks_ruby;
+#[path = "locks_spec.rs"]
+pub(crate) mod locks_spec;
 #[path = "locks_uv.rs"]
 mod locks_uv;
 

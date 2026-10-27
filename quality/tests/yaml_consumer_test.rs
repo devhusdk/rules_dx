@@ -24,6 +24,16 @@ const LINT_DEFAULT: &str = "extends: default\nrules:\n  document-start: disable\
 const LINT_RELAXED: &str =
     "extends: default\nrules:\n  document-start: disable\n  trailing-spaces: disable\n";
 
+const YAMLFMT_REPO: &str = "--repo=@@rules_dx++dx_tools+dx_yamlfmt_linux_x86_64";
+
+const CLOSURE_REPOS: [&str; 5] = [
+    "--repo=@@aspect_rules_py++uv+whl__yamllint__fc394a5b3be980a4",
+    "--repo=@@aspect_rules_py++uv+whl__pyyaml__ba1cc08a7ccde2d2",
+    "--repo=@@aspect_rules_py++uv+whl__pathspec__a00ce642f577bf7f",
+    "--repo=@@aspect_rules_py++python_interpreters+python_3_12_x86_64_unknown_linux_gnu",
+    "--repo=@@aspect_rules_py++http_file+toml2json_linux_amd64",
+];
+
 const MODULE: &str = r#"module(name = "consumer")
 
 bazel_dep(name = "rules_dx", version = "0.0.0")
@@ -162,7 +172,7 @@ fn consumer() -> Case {
     root
 }
 
-fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
+fn dx_with(root: &Case, command: &str, args: &[&str], flags: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let home = mkscratch("yaml-home").unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -176,11 +186,16 @@ fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
         "--",
         "--@rules_dx//config:workspace=//:policy",
     ]);
+    argv.extend_from_slice(flags);
     root.run(
         &resolve_runfiles(&rel),
         &argv,
         &[("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")],
     )
+}
+
+fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
+    dx_with(root, command, args, &[])
 }
 
 #[test]
@@ -343,5 +358,77 @@ fn lint_without_a_bound_config_ignores_host_configs() {
         out.combined().contains("trailing-spaces"),
         "{}",
         out.combined()
+    );
+}
+
+#[test]
+fn the_declared_yamlfmt_and_yamllint_are_acquired_from_the_cache_with_the_network_denied() {
+    let root = consumer();
+    let fresh = root.bazel(&["clean", "--expunge"]);
+    assert!(fresh.status.success(), "{}", fresh.combined());
+    let warm = dx(&root, "format", &[]);
+    assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
+    let warm = dx(&root, "lint", &[]);
+    assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
+
+    let scratch = mkscratch("yaml-denied").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let denied = scratch.join("downloader.cfg");
+    write(&denied, "allow bcr.bazel.build\nblock *\n");
+    let denied_flag = format!("--downloader_config={}", denied.display());
+
+    write(&root.join("app/extra.yml"), DIRTY);
+    for command in ["format", "lint"] {
+        let built = dx_with(&root, command, &[], &[denied_flag.as_str()]);
+        assert_eq!(built.status.code(), Some(1), "{}", built.combined());
+        assert!(
+            built.combined().contains("app/extra.yml"),
+            "{}",
+            built.combined()
+        );
+    }
+
+    let lock = read(&root.join("MODULE.bazel.lock"));
+    assert!(
+        lock.contains("py:extensions.bzl%python_interpreters"),
+        "{lock}"
+    );
+
+    let expunged = root.bazel(&["clean", "--expunge"]);
+    assert!(expunged.status.success(), "{}", expunged.combined());
+    let mut fetch: Vec<&str> = vec!["fetch", YAMLFMT_REPO];
+    fetch.extend(CLOSURE_REPOS);
+    fetch.push(denied_flag.as_str());
+    let offline = root.bazel(&fetch);
+    assert!(offline.status.success(), "{}", offline.combined());
+
+    let empty = scratch.join("empty-cache");
+    let cache_flag = format!("--repository_cache={}", empty.display());
+    let expunged = root.bazel(&["clean", "--expunge"]);
+    assert!(expunged.status.success(), "{}", expunged.combined());
+    let miss = root.bazel(&[
+        "fetch",
+        YAMLFMT_REPO,
+        cache_flag.as_str(),
+        denied_flag.as_str(),
+    ]);
+    assert_ne!(miss.status.code(), Some(0), "{}", miss.combined());
+    assert!(
+        miss.combined().contains("yamlfmt_0.21.0_Linux_x86_64"),
+        "{}",
+        miss.combined()
+    );
+
+    let expunged = root.bazel(&["clean", "--expunge"]);
+    assert!(expunged.status.success(), "{}", expunged.combined());
+    let mut cold: Vec<&str> = vec!["fetch"];
+    cold.extend(CLOSURE_REPOS);
+    cold.push(cache_flag.as_str());
+    cold.push(denied_flag.as_str());
+    let miss = root.bazel(&cold);
+    assert_ne!(miss.status.code(), Some(0), "{}", miss.combined());
+    assert!(
+        miss.combined().contains("Cache miss"),
+        "{}",
+        miss.combined()
     );
 }

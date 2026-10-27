@@ -1076,6 +1076,21 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             if !kind.continues(request.command) {
                 stop_code = Some(code);
                 skip_cause = format!("{label} {}", kind.stop_reason());
+                if kind == PhaseKind::Compile
+                    && fix_apply
+                    && generate_clean
+                    && quality_applied
+                    && !rerun_planned
+                {
+                    // A compile error may need a dep that generate adds, so
+                    // skip only the phases after this one and rerun generate.
+                    rerun_planned = true;
+                    collector.skip_remaining(skip_cause.clone());
+                    phases.push((Command::Generate, RERUN_GENERATE));
+                    collector.plan(Command::Generate, RERUN_GENERATE);
+                    index = phases.len() - 1;
+                    continue;
+                }
                 break;
             }
             failed_code.get_or_insert(code);

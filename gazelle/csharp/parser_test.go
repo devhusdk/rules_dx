@@ -1,13 +1,15 @@
 package csharp
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
 
 func TestParseImportsSingleType(t *testing.T) {
 	got := ParseImports([]byte("namespace Demo;\n\nusing Acme.Widget;\nusing System.Collections.Generic;\n"))
-	want := []string{"System.Collections.Generic", "Widget"}
+	want := []string{"Acme.Widget", "System.Collections.Generic"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -15,7 +17,7 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsAliasAndStatic(t *testing.T) {
 	got := ParseImports([]byte("namespace Demo;\n\nusing static System.Math;\nusing W = Acme.Widget;\n"))
-	want := []string{"System.Math", "Widget"}
+	want := []string{"Acme.Widget", "System"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -31,7 +33,7 @@ func TestParseImportsCommentsAndStringsInert(t *testing.T) {
 
 func TestParseImportsDedupedSorted(t *testing.T) {
 	got := ParseImports([]byte("namespace Demo;\n\nusing Acme.Zeta;\nusing Acme.Alpha;\nusing Acme.Zeta;\n"))
-	want := []string{"Alpha", "Zeta"}
+	want := []string{"Acme.Alpha", "Acme.Zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -52,7 +54,7 @@ func TestParseImportsMultiLineLiteralsInert(t *testing.T) {
 
 func TestParseImportsKeepsCodeAfterMultiLineLiteral(t *testing.T) {
 	got := ParseImports([]byte("namespace Demo;\n\nclass C {\n  string s = @\"\nusing Ghost.Phantom;\n\";\n  void Run() { }\n}\n\nusing Acme.Widget;\n"))
-	want := []string{"Widget"}
+	want := []string{"Acme.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -86,13 +88,47 @@ func TestDefinesMain(t *testing.T) {
 	}
 }
 
+func TestDefinesMainTopLevelStatements(t *testing.T) {
+	for _, src := range []string{
+		"Console.WriteLine(\"hi\");\n",
+		"using System;\n\nConsole.WriteLine(1);\n",
+		"\xEF\xBB\xBF#nullable enable\nusing System;\nvar x = 1;\n",
+		"global::System.Console.WriteLine();\n",
+		"using var x = F();\n",
+		"using (var x = F()) {}\n",
+		"await using var x = F();\n",
+		"[assembly: Foo]\nusing A = System.Text;\nextern alias X;\nglobal using static System.Math;\nint y = 2;\n",
+		"return 1;\n",
+	} {
+		if !DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain missed top-level statements: %q", src)
+		}
+	}
+	for _, src := range []string{
+		"",
+		"using System;\n",
+		"namespace A { class B {} }\n",
+		"using System;\nnamespace A;\nclass B {}\n",
+		"[Serializable]\npublic class B {}\n",
+		"[assembly: Foo([1])]\nrecord R(int X);\n",
+		"#!/usr/bin/env x\n#nullable enable\ninternal sealed class C {}\n",
+		"global using System;\nextern alias Z;\nusing static System.Math;\nenum E {}\n",
+		"@class\n",
+	} {
+		want := src == "@class\n"
+		if got := DefinesMain([]byte(src)); got != want {
+			t.Errorf("DefinesMain(%q) = %v, want %v", src, got, want)
+		}
+	}
+}
+
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"System.Collections.Generic", "System.Text", "Microsoft.Extensions.Logging", "System", "Microsoft"} {
+	for _, imp := range []string{"System.Collections.Generic", "System.Text", "System", "Microsoft.CSharp.RuntimeBinder"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"Acme.Widget", "Widget"} {
+	for _, imp := range []string{"Acme.Widget", "Widget", "Microsoft.Extensions.Logging", "System.CommandLine", "System.IO.Abstractions"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}
@@ -108,10 +144,60 @@ func TestTruncatedLiteralsAndCommentsAreInert(t *testing.T) {
 			t.Errorf("unexpected entry point: %q", source)
 		}
 	}
-	if got := normalizeImport(" "); got != "" {
-		t.Fatalf("empty import: %q", got)
-	}
 	if _, err := ParsePackage([]byte("namespace A {}\nnamespace B {}\n")); err == nil || err.Error() != "csharp: duplicate namespace declaration A" {
 		t.Fatalf("duplicate: %v", err)
+	}
+}
+
+func TestParseImportsGlobalUsing(t *testing.T) {
+	got := ParseImports([]byte("global using Acme.Lib;\nglobal using static Acme.Tools.T;\nglobal using G = Acme.Gen.Thing;\n\nnamespace Demo;\n"))
+	want := []string{"Acme.Gen.Thing", "Acme.Lib", "Acme.Tools.T"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseImports = %v, want %v", got, want)
+	}
+}
+
+func TestNamespaceIDs(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) string {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	for _, tc := range []struct {
+		name, content string
+		want          []string
+	}{
+		{"Block.cs", "namespace Acme.Lib\n{\n  class Block {}\n}\n", []string{"Acme.Lib", "Acme.Lib.Block"}},
+		{"Scoped.cs", "namespace Acme.Lib;\n\nclass Scoped {}\n", []string{"Acme.Lib", "Acme.Lib.Scoped"}},
+		{"Bom.cs", "\xEF\xBB\xBFnamespace Acme.Bom;\n\nclass Bom {}\n", []string{"Acme.Bom", "Acme.Bom.Bom"}},
+		{"Global.cs", "class Global {}\n", nil},
+		{"Twice.cs", "namespace A {}\nnamespace B {}\n", nil},
+	} {
+		if got := namespaceIDs(write(tc.name, tc.content)); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("namespaceIDs(%s) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+	if got := namespaceIDs(filepath.Join(dir, "Missing.cs")); got != nil {
+		t.Errorf("namespaceIDs(missing) = %v, want nil", got)
+	}
+}
+
+func TestNamespaceCandidates(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want []string
+	}{
+		{"A.B.C", []string{"A.B"}},
+		{"A.B", []string{"A"}},
+		{"A", nil},
+		{"", nil},
+	} {
+		if got := namespaceCandidates(tc.in); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("namespaceCandidates(%q) = %v, want %v", tc.in, got, tc.want)
+		}
 	}
 }

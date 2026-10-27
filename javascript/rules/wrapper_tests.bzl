@@ -1,9 +1,11 @@
 """Wrapper-contract tests for the JavaScript wrappers (item 2)."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
+load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
 load(":defs.bzl", "javascript_binary_upstream_data", "javascript_js_test_rejection", "javascript_test_rejection")
-load(":node_test.bzl", "node_test_env")
+load(":node_test.bzl", "node_test_env", "node_test_upstream_data")
 
 def javascript_wrapper_contract_tests(name):
     """Instantiates JavaScript wrapper contract tests."""
@@ -72,6 +74,26 @@ def javascript_wrapper_contract_tests(name):
                 None,
             ),
             expect_equal(
+                "unset package_json adds no manifest",
+                node_test_upstream_data(["a.js"], None, native.package_relative_label),
+                ["a.js"],
+            ),
+            expect_equal(
+                "set package_json is appended",
+                node_test_upstream_data(["a.js"], "//:package_json", native.package_relative_label),
+                ["a.js", "//:package_json"],
+            ),
+            expect_equal(
+                "package_json already in data is not added twice",
+                node_test_upstream_data(["a.js", "//:package_json"], "//:package_json", native.package_relative_label),
+                ["a.js", "//:package_json"],
+            ),
+            expect_equal(
+                "relative and absolute spellings of one manifest are not added twice",
+                node_test_upstream_data(["a.js", "//javascript/rules:package_json"], ":package_json", native.package_relative_label),
+                ["a.js", "//javascript/rules:package_json"],
+            ),
+            expect_equal(
                 "missing env gains the filter channel",
                 node_test_env(None),
                 ["TESTBRIDGE_TEST_ONLY"],
@@ -106,5 +128,43 @@ def javascript_wrapper_contract_tests(name):
                 javascript_binary_upstream_data(["app.js"], None),
                 ["app.js"],
             ),
+            expect_equal(
+                "args scan finds location-style labels",
+                dx_args_label_references(["--a=$(rootpath :x)", "$(locations //p:y) $(execpath @r//:z)", "$(PATH)", "plain"]),
+                [":x", "//p:y", "@r//:z"],
+            ),
+            expect_equal(
+                "label only in deps is an error naming deps",
+                dx_args_label_error("t", ["$(rootpath :d)"], [":a.js"], {"deps": [":d"], "tools": None}),
+                "t: args names :d, which is only in deps; add it to data",
+            ),
+            expect_equal(
+                "label only in tools is an error naming tools",
+                dx_args_label_error("t", ["$(location //javascript/rules:d)"], [":a.js"], {"deps": [], "tools": [":d"]}),
+                "t: args names //javascript/rules:d, which is only in tools; add it to data",
+            ),
+            expect_equal(
+                "label also in data is accepted",
+                dx_args_label_error("t", ["$(rootpath :d)"], [":a.js", "//javascript/rules:d"], {"deps": [":d"]}),
+                None,
+            ),
+            expect_equal(
+                "no args is accepted",
+                dx_args_label_error("t", None, [], {"deps": [":d"]}),
+                None,
+            ),
         ],
     )
+
+def _run_environment_forward_impl(ctx):
+    env = analysistest.begin(ctx)
+    run_env = analysistest.target_under_test(env)[RunEnvironmentInfo]
+    asserts.equals(env, "1", run_env.environment.get("FOO"))
+    asserts.true(env, "TESTBRIDGE_TEST_ONLY" in run_env.inherited_environment, str(run_env.inherited_environment))
+    return analysistest.end(env)
+
+_run_environment_forward_test = analysistest.make(_run_environment_forward_impl)
+
+def javascript_run_environment_tests(name, target_under_test):
+    """Asserts the Node forwarder merges the upstream RunEnvironmentInfo."""
+    _run_environment_forward_test(name = name, target_under_test = target_under_test)

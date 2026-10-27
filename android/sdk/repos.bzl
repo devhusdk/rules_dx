@@ -10,13 +10,15 @@ ANDROID_API_LEVEL = 31
 
 ANDROID_TARGET = "aarch64-linux-android"
 
-SDK_PLATFORM = "android-34"
+DEFAULT_PLATFORM_LEVEL = 34
+
+SDK_PLATFORM = "android-%d" % DEFAULT_PLATFORM_LEVEL
 
 BUILD_TOOLS = "34.0.0"
 
-CMDLINE_TOOLS = "13.0"
+PLATFORM_TOOLS = "37.0.1"
 
-MIN_JDK_VERSION = 17
+EMULATOR_BUILD = "16428233"
 
 BUNDLETOOL_VERSION = "1.15.5"
 
@@ -61,9 +63,68 @@ BUILD_TOOLS_ARTIFACTS = {
     ),
 }
 
+PLATFORM_ARTIFACTS = {
+    31: struct(
+        anchor = "android.jar",
+        archive = "platform-31_r01.zip",
+        directory = "android-12",
+        sha1 = "ca5bcaa565cb37e9d287051d6dd0e49a5426ec29",
+        sha256 = "1d69fe1d7f9788d82ff3a374faf4f6ccc9d1d372aa84a86b5bcfb517523b0b3f",
+        size = 56475526,
+    ),
+    32: struct(
+        anchor = "android.jar",
+        archive = "platform-32_r01.zip",
+        directory = "android-12",
+        sha1 = "afae86ed55d29733d50996ffed832f2d1bd75b9a",
+        sha256 = "01d8da1c900e70fcf5da39767d5444e39928935b1a5927055ce749fc348ca7ae",
+        size = 66108299,
+    ),
+    33: struct(
+        anchor = "android.jar",
+        archive = "platform-33-ext3_r03.zip",
+        directory = "android-13",
+        sha1 = "394bc86d8d3452aa4d419b67743025a6fb2cd9d0",
+        sha256 = "b32b10f787867987f03ae8e101d217e053a9065b7136379fb353b388379aed1d",
+        size = 67334237,
+    ),
+    34: struct(
+        anchor = "android.jar",
+        archive = "platform-34-ext7_r03.zip",
+        directory = "android-34",
+        sha1 = "1f2e9478d6a7601425ceaa553311dc43191f103d",
+        sha256 = "16fdb74c55e59ae3ef52def135aec713508467bd56d7dabcd8c9be31fa8b20f3",
+        size = 63180081,
+    ),
+}
+
+PLATFORM_TOOLS_ARTIFACTS = {
+    "linux_x86_64": struct(
+        anchor = "adb",
+        archive = "platform-tools_r37.0.1-linux.zip",
+        directory = "platform-tools",
+        sha1 = "477254aa5f903c15cf51001717bdf347fb6b53e0",
+        sha256 = "d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1",
+        size = 9054187,
+    ),
+}
+
+EMULATOR_ARTIFACTS = {
+    "linux_x86_64": struct(
+        anchor = "emulator",
+        archive = "emulator-linux_x64-16428233.zip",
+        directory = "emulator",
+        sha1 = "cd7362ea55dfb86a418958138dc396e74165dd01",
+        sha256 = "b08fc43d8608d2955f607f1b287beb525041e730086bdca3af152accac3af9c1",
+        size = 349654171,
+    ),
+}
+
 NDK_ARCHIVE_PREFIX = "android-ndk-" + ANDROID_NDK_RELEASE
 
 BUILD_TOOLS_ARCHIVE_PREFIX = "build-tools_r" + BUILD_TOOLS.split(".")[0]
+
+PLATFORM_TOOLS_ARCHIVE_PREFIX = "platform-tools_r" + PLATFORM_TOOLS
 
 PLATFORM_CONSTRAINTS = {
     "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
@@ -74,6 +135,12 @@ HUB_NAME = "dx_android_sdk"
 _NDK_REPOSITORY_PREFIX = "dx_android_ndk_"
 
 _BUILD_TOOLS_REPOSITORY_PREFIX = "dx_android_build_tools_"
+
+_PLATFORM_REPOSITORY = "dx_android_platform"
+
+_PLATFORM_TOOLS_REPOSITORY_PREFIX = "dx_android_platform_tools_"
+
+_EMULATOR_REPOSITORY_PREFIX = "dx_android_emulator_"
 
 _ARTIFACT_KEYS = [
     "anchor",
@@ -102,6 +169,18 @@ def build_tools_repositories():
     """Returns the platform-keyed build-tools repository names."""
     return {platform: build_tools_repository_name(platform) for platform in sorted(BUILD_TOOLS_ARTIFACTS.keys())}
 
+def platform_repository_name():
+    """Returns the repository name the requested platform is acquired into."""
+    return _PLATFORM_REPOSITORY
+
+def platform_tools_repository_name(host):
+    """Returns the repository name one host's platform-tools are acquired into."""
+    return _PLATFORM_TOOLS_REPOSITORY_PREFIX + host
+
+def emulator_repository_name(host):
+    """Returns the repository name one host's emulator is acquired into."""
+    return _EMULATOR_REPOSITORY_PREFIX + host
+
 def bundletool_url():
     """Returns the download URL of the pinned bundletool jar."""
     return ("https://github.com/google/bundletool/releases/download/" + BUNDLETOOL_VERSION +
@@ -117,21 +196,28 @@ def build_tools_no_match_error():
     return ("rules_dx: no pinned Android build-tools " + BUILD_TOOLS + " artifact for this " +
             "platform; want one of " + ", ".join(sorted(BUILD_TOOLS_ARTIFACTS.keys())))
 
-def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX):
+def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, hosted = True):
     """Returns one error string per pinned artifact that is not ready to download."""
     errors = []
-    for platform in sorted(artifacts.keys()):
-        if platform not in PLATFORM_CONSTRAINTS:
+    for key in sorted(artifacts.keys()):
+        platform = str(key)
+        if hosted and key not in PLATFORM_CONSTRAINTS:
             errors.append("artifact '" + platform + "' names no platform constraints")
-        artifact = artifacts[platform]
-        missing = [key for key in _ARTIFACT_KEYS if getattr(artifact, key, "") == ""]
+        artifact = artifacts[key]
+        missing = [name for name in _ARTIFACT_KEYS if getattr(artifact, name, "") == ""]
         if len(missing) > 0:
             errors.append("artifact '" + platform + "' is missing " + ", ".join(missing))
             continue
-        expected = prefix + "-" + _release_suffix(platform)
-        if artifact.archive != expected:
-            errors.append("artifact '" + platform + "' archive is '" + artifact.archive +
-                          "', want the pinned '" + expected + "'")
+        if not hosted:
+            expected = "platform-" + platform
+            if not artifact.archive.startswith(expected):
+                errors.append("artifact '" + platform + "' archive is '" + artifact.archive +
+                              "', want one starting with '" + expected + "'")
+        elif prefix != "":
+            expected = prefix + "-" + _release_suffix(platform)
+            if artifact.archive != expected:
+                errors.append("artifact '" + platform + "' archive is '" + artifact.archive +
+                              "', want the pinned '" + expected + "'")
         if len(artifact.sha1) != 40:
             errors.append("artifact '" + platform + "' sha1 is not 40 hex characters")
         if len(artifact.sha256) != 64 or len([c for c in artifact.sha256.elems() if c not in _HEX]) > 0:
@@ -160,7 +246,7 @@ def default_request():
     """Returns the opt-in request enabling the qualified host NDK."""
     return struct(
         accept_licenses = list(REQUIRED_LICENSES),
-        api_level = ANDROID_API_LEVEL,
+        api_level = 0,
         enabled = True,
         extra_packages = [],
         local_path = "",
@@ -172,6 +258,18 @@ def request_errors(request):
     errors = []
     if not request.enabled:
         return errors
+    if request.api_level != 0 and request.api_level < ANDROID_API_LEVEL:
+        errors.append("android_sdk: api_level " + str(request.api_level) + " is below " + str(ANDROID_API_LEVEL))
+    elif request.api_level != 0 and request.api_level not in PLATFORM_ARTIFACTS:
+        levels = ", ".join([str(level) for level in sorted(PLATFORM_ARTIFACTS.keys())])
+        errors.append("android_sdk: api_level " + str(request.api_level) + " is not pinned; want one of " + levels)
+    seen = []
+    for package in request.extra_packages:
+        if package not in OPT_IN_PACKAGES:
+            errors.append("android_sdk: extra package '" + package + "' must be one of " + ", ".join(OPT_IN_PACKAGES))
+        elif package in seen:
+            errors.append("android_sdk: extra package '" + package + "' is listed twice")
+        seen.append(package)
     if request.local_path != "":
         return errors
     missing = [name for name in REQUIRED_LICENSES if name not in request.accept_licenses]
@@ -179,12 +277,39 @@ def request_errors(request):
         errors.append("android_sdk: accept " + ", ".join(missing) + " before acquisition")
     if request.mirror != "" and not request.mirror.startswith("https://"):
         errors.append("android_sdk: mirror '" + request.mirror + "' must use https")
-    if request.api_level != 0 and request.api_level < ANDROID_API_LEVEL:
-        errors.append("android_sdk: api_level " + str(request.api_level) + " is below " + str(ANDROID_API_LEVEL))
-    for package in request.extra_packages:
-        if package == "" or package in SDK_PACKAGES:
-            errors.append("android_sdk: extra package '" + package + "' is empty or already pinned")
     return errors
+
+def _level(request):
+    """Returns the platform API level one request resolves to."""
+    return request.api_level if request.api_level != 0 else DEFAULT_PLATFORM_LEVEL
+
+def package_repositories(request):
+    """Returns {kind: {host_or_level: repository}} for the packages one request fetches."""
+    if not request.enabled:
+        return {}
+    level = _level(request)
+    if request.local_path != "":
+        local = HUB_NAME + "_local"
+        repos = {
+            "build_tools": {"linux_x86_64": local},
+            "ndk": {"linux_x86_64": local},
+            "platform": {level: local},
+        }
+        if "platform-tools" in request.extra_packages:
+            repos["platform_tools"] = {"linux_x86_64": local}
+        if "emulator" in request.extra_packages:
+            repos["emulator"] = {"linux_x86_64": local}
+        return repos
+    repos = {
+        "build_tools": build_tools_repositories(),
+        "ndk": ndk_repositories(),
+        "platform": {level: platform_repository_name()},
+    }
+    if "platform-tools" in request.extra_packages:
+        repos["platform_tools"] = {host: platform_tools_repository_name(host) for host in sorted(PLATFORM_TOOLS_ARTIFACTS.keys())}
+    if "emulator" in request.extra_packages:
+        repos["emulator"] = {host: emulator_repository_name(host) for host in sorted(EMULATOR_ARTIFACTS.keys())}
+    return repos
 
 def fetches_payload(requests):
     """Returns whether any request downloads an NDK archive."""
@@ -211,7 +336,26 @@ def _hub_target(lines, name, repos, actual, error):
         lines.append('    visibility = ["//visibility:public"],')
         lines.append(")")
 
-def hub_build(ndk_repos, build_tools_repos = {}, bundletool_repo = ""):
+def _hub_alias(lines, name, label):
+    """Appends one plain hub alias, or an empty filegroup when there is no label."""
+    if label != "":
+        lines.append("alias(")
+        lines.append('    name = "%s",' % name)
+        lines.append('    actual = "%s",' % label)
+        lines.append('    visibility = ["//visibility:public"],')
+        lines.append(")")
+    else:
+        lines.append("filegroup(")
+        lines.append('    name = "%s",' % name)
+        lines.append("    srcs = [],")
+        lines.append('    visibility = ["//visibility:public"],')
+        lines.append(")")
+
+def package_no_match_error(package):
+    """Returns the diagnostic for a platform with no pinned opt-in package."""
+    return "rules_dx: no pinned Android " + package + " artifact for this platform; want one of linux_x86_64"
+
+def hub_build(ndk_repos, build_tools_repos = {}, bundletool_repo = "", *, platform_repo = "", platform_tools_repos = {}, emulator_repos = {}):
     """Returns the hub BUILD file for one acquisition state."""
     lines = []
     for platform in sorted(PLATFORM_CONSTRAINTS.keys()):
@@ -229,18 +373,13 @@ def hub_build(ndk_repos, build_tools_repos = {}, bundletool_repo = ""):
     lines.append("")
     _hub_target(lines, "apksigner_jar", build_tools_repos, "apksigner_jar", build_tools_no_match_error())
     lines.append("")
-    if bundletool_repo != "":
-        lines.append("alias(")
-        lines.append('    name = "bundletool_jar",')
-        lines.append('    actual = "@%s//file",' % bundletool_repo)
-        lines.append('    visibility = ["//visibility:public"],')
-        lines.append(")")
-    else:
-        lines.append("filegroup(")
-        lines.append('    name = "bundletool_jar",')
-        lines.append("    srcs = [],")
-        lines.append('    visibility = ["//visibility:public"],')
-        lines.append(")")
+    _hub_alias(lines, "bundletool_jar", "@%s//file" % bundletool_repo if bundletool_repo != "" else "")
+    lines.append("")
+    _hub_alias(lines, "android_jar", "@%s//:android_jar" % platform_repo if platform_repo != "" else "")
+    lines.append("")
+    _hub_target(lines, "adb", platform_tools_repos, "adb", package_no_match_error("platform-tools"))
+    lines.append("")
+    _hub_target(lines, "emulator", emulator_repos, "emulator", package_no_match_error("emulator"))
     return "\n".join(lines) + "\n"
 
 def ndk_build(anchor):
@@ -287,6 +426,58 @@ def build_tools_build(anchor):
         "",
     ])
 
+def platform_build(anchor):
+    """Returns the BUILD file exposing one acquired platform."""
+    return "\n".join([
+        "filegroup(",
+        '    name = "android_jar",',
+        '    srcs = ["extracted/android.jar"],',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "platform_anchor",',
+        '    srcs = ["extracted/%s"],' % anchor,
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+    ])
+
+def platform_tools_build(anchor):
+    """Returns the BUILD file exposing one acquired platform-tools archive."""
+    return "\n".join([
+        "filegroup(",
+        '    name = "adb",',
+        '    srcs = ["extracted/adb"],',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "platform_tools_anchor",',
+        '    srcs = ["extracted/%s"],' % anchor,
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+    ])
+
+def emulator_build(anchor):
+    """Returns the BUILD file exposing one acquired emulator archive."""
+    return "\n".join([
+        "filegroup(",
+        '    name = "emulator",',
+        '    srcs = ["extracted/emulator"],',
+        '    data = glob(["extracted/**"]),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "emulator_anchor",',
+        '    srcs = ["extracted/%s"],' % anchor,
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+    ])
+
 def _acquire(ctx, errors, build):
     """Downloads, verifies, and extracts one pinned archive."""
     if len(errors) > 0:
@@ -311,13 +502,34 @@ def acquire_build_tools(ctx):
     """Downloads, verifies, and extracts one pinned build-tools archive."""
     return _acquire(ctx, artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX), build_tools_build)
 
+def acquire_platform(ctx):
+    """Downloads, verifies, and extracts one pinned platform archive."""
+    return _acquire(ctx, artifact_errors(PLATFORM_ARTIFACTS, "", False), platform_build)
+
+def acquire_platform_tools(ctx):
+    """Downloads, verifies, and extracts one pinned platform-tools archive."""
+    return _acquire(ctx, artifact_errors(PLATFORM_TOOLS_ARTIFACTS, PLATFORM_TOOLS_ARCHIVE_PREFIX), platform_tools_build)
+
+def acquire_emulator(ctx):
+    """Downloads, verifies, and extracts one pinned emulator archive."""
+    return _acquire(ctx, artifact_errors(EMULATOR_ARTIFACTS, ""), emulator_build)
+
 def _android_sdk_hub_repo_impl(ctx):
     ctx.file("BUILD.bazel", hub_build(
         json.decode(ctx.attr.ndk_repos),
         json.decode(ctx.attr.build_tools_repos),
         ctx.attr.bundletool_repo,
+        platform_repo = ctx.attr.platform_repo,
+        platform_tools_repos = json.decode(ctx.attr.platform_tools_repos),
+        emulator_repos = json.decode(ctx.attr.emulator_repos),
     ))
     return ctx.repo_metadata(reproducible = True)
+
+def _require_local(ctx, package, path, required):
+    """Fails naming the missing path when a requested package is absent from a local SDK."""
+    full = ctx.attr.local_path + "/" + path
+    if required and not ctx.path(full).exists:
+        fail("android_sdk: '" + ctx.attr.local_path + "' holds no " + package + " at '" + full + "'")
 
 def _android_sdk_local_repo_impl(ctx):
     if not ctx.path(ctx.attr.local_path + "/licenses/android-sdk-license").exists:
@@ -325,6 +537,11 @@ def _android_sdk_local_repo_impl(ctx):
     anchor = ctx.attr.local_path + "/ndk/" + ANDROID_NDK_REVISION + "/source.properties"
     if not ctx.path(anchor).exists:
         fail("android_sdk: '" + ctx.attr.local_path + "' holds no pinned NDK " + ANDROID_NDK_REVISION)
+    level = ctx.attr.api_level if ctx.attr.api_level != 0 else DEFAULT_PLATFORM_LEVEL
+    jar = "platforms/android-" + str(level) + "/android.jar"
+    _require_local(ctx, "platform android-" + str(level), jar, ctx.attr.api_level != 0)
+    _require_local(ctx, "platform-tools", "platform-tools/adb", "platform-tools" in ctx.attr.extra_packages)
+    _require_local(ctx, "emulator", "emulator/emulator", "emulator" in ctx.attr.extra_packages)
     ctx.symlink(ctx.path(ctx.attr.local_path), "sdk")
     tools = "sdk/build-tools/" + BUILD_TOOLS + "/"
     ctx.file("BUILD.bazel", "\n".join([
@@ -359,6 +576,25 @@ def _android_sdk_local_repo_impl(ctx):
         '    visibility = ["//visibility:public"],',
         ")",
         "",
+        "filegroup(",
+        '    name = "android_jar",',
+        '    srcs = glob(["sdk/' + jar + '"], allow_empty = True),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "adb",',
+        '    srcs = glob(["sdk/platform-tools/adb"], allow_empty = True),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "emulator",',
+        '    srcs = glob(["sdk/emulator/emulator"], allow_empty = True),',
+        '    data = glob(["sdk/emulator/**"], allow_empty = True),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
     ]))
 
 NDK_REPOSITORY_ATTRS = {
@@ -380,18 +616,38 @@ _android_build_tools_repo = repository_rule(
     attrs = NDK_REPOSITORY_ATTRS,
 )
 
+_android_platform_repo = repository_rule(
+    implementation = acquire_platform,
+    attrs = NDK_REPOSITORY_ATTRS,
+)
+
+_android_platform_tools_repo = repository_rule(
+    implementation = acquire_platform_tools,
+    attrs = NDK_REPOSITORY_ATTRS,
+)
+
+_android_emulator_repo = repository_rule(
+    implementation = acquire_emulator,
+    attrs = NDK_REPOSITORY_ATTRS,
+)
+
 _android_sdk_hub_repo = repository_rule(
     implementation = _android_sdk_hub_repo_impl,
     attrs = {
         "build_tools_repos": attr.string(mandatory = True),
         "bundletool_repo": attr.string(default = ""),
+        "emulator_repos": attr.string(default = "{}"),
         "ndk_repos": attr.string(mandatory = True),
+        "platform_repo": attr.string(default = ""),
+        "platform_tools_repos": attr.string(default = "{}"),
     },
 )
 
 _android_sdk_local_repo = repository_rule(
     implementation = _android_sdk_local_repo_impl,
     attrs = {
+        "api_level": attr.int(default = 0),
+        "extra_packages": attr.string_list(default = []),
         "local_path": attr.string(mandatory = True),
     },
 )
@@ -406,10 +662,29 @@ def _configure_tag(request):
         mirror = request.mirror,
     )
 
+def _declare(rule, name, artifact, kind, mirror):
+    """Declares one pinned archive repository."""
+    url = url_for(artifact, mirror)
+    rule(
+        name = name,
+        anchor = artifact.anchor,
+        archive = artifact.archive,
+        canonical_id = canonical_id_for(url, kind),
+        directory = artifact.directory,
+        sha256 = artifact.sha256,
+        url = url,
+    )
+
 def _android_sdk_impl(module_ctx):
     if len(module_ctx.modules) == 0:
         fail("android_sdk: the extension is only reachable from a module graph")
-    errors = artifact_errors() + artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX)
+    errors = (
+        artifact_errors() +
+        artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX) +
+        artifact_errors(PLATFORM_ARTIFACTS, "", False) +
+        artifact_errors(PLATFORM_TOOLS_ARTIFACTS, PLATFORM_TOOLS_ARCHIVE_PREFIX) +
+        artifact_errors(EMULATOR_ARTIFACTS, "")
+    )
     if len(errors) > 0:
         fail("android_sdk: " + "; ".join(errors))
     http_file(
@@ -425,52 +700,41 @@ def _android_sdk_impl(module_ctx):
             requests.append(_configure_tag(tag))
     if len(requests) > 1:
         fail("android_sdk: configure the Android SDK once")
-    if len(requests) == 0:
-        _android_sdk_hub_repo(name = HUB_NAME, build_tools_repos = "{}", bundletool_repo = BUNDLETOOL_REPOSITORY, ndk_repos = "{}")
-        return
-    request = requests[0]
-    failures = request_errors(request)
-    if len(failures) > 0:
-        fail("android_sdk: " + "; ".join(failures))
-    if not request.enabled:
-        _android_sdk_hub_repo(name = HUB_NAME, build_tools_repos = "{}", bundletool_repo = BUNDLETOOL_REPOSITORY, ndk_repos = "{}")
-        return
-    if request.local_path != "":
-        local_repo = HUB_NAME + "_local"
-        _android_sdk_local_repo(name = local_repo, local_path = request.local_path)
-        local_repos = json.encode({"linux_x86_64": local_repo})
-        _android_sdk_hub_repo(name = HUB_NAME, build_tools_repos = local_repos, bundletool_repo = BUNDLETOOL_REPOSITORY, ndk_repos = local_repos)
-        return
-    mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
-    for platform in sorted(NDK_ARTIFACTS.keys()):
-        artifact = NDK_ARTIFACTS[platform]
-        url = url_for(artifact, mirror)
-        _android_ndk_repo(
-            name = ndk_repository_name(platform),
-            anchor = artifact.anchor,
-            archive = artifact.archive,
-            canonical_id = canonical_id_for(url),
-            directory = artifact.directory,
-            sha256 = artifact.sha256,
-            url = url,
-        )
-    for platform in sorted(BUILD_TOOLS_ARTIFACTS.keys()):
-        artifact = BUILD_TOOLS_ARTIFACTS[platform]
-        url = url_for(artifact, mirror)
-        _android_build_tools_repo(
-            name = build_tools_repository_name(platform),
-            anchor = artifact.anchor,
-            archive = artifact.archive,
-            canonical_id = canonical_id_for(url, "build-tools"),
-            directory = artifact.directory,
-            sha256 = artifact.sha256,
-            url = url,
-        )
+    repos = {}
+    if len(requests) == 1:
+        request = requests[0]
+        failures = request_errors(request)
+        if len(failures) > 0:
+            fail("android_sdk: " + "; ".join(failures))
+        repos = package_repositories(request)
+        if request.local_path != "":
+            _android_sdk_local_repo(
+                name = HUB_NAME + "_local",
+                api_level = request.api_level,
+                extra_packages = request.extra_packages,
+                local_path = request.local_path,
+            )
+        elif request.enabled:
+            mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
+            for platform in sorted(repos["ndk"].keys()):
+                _declare(_android_ndk_repo, repos["ndk"][platform], NDK_ARTIFACTS[platform], "ndk", mirror)
+            for platform in sorted(repos["build_tools"].keys()):
+                _declare(_android_build_tools_repo, repos["build_tools"][platform], BUILD_TOOLS_ARTIFACTS[platform], "build-tools", mirror)
+            for level in sorted(repos["platform"].keys()):
+                _declare(_android_platform_repo, repos["platform"][level], PLATFORM_ARTIFACTS[level], "platform", mirror)
+            for host in sorted(repos.get("platform_tools", {}).keys()):
+                _declare(_android_platform_tools_repo, repos["platform_tools"][host], PLATFORM_TOOLS_ARTIFACTS[host], "platform-tools", mirror)
+            for host in sorted(repos.get("emulator", {}).keys()):
+                _declare(_android_emulator_repo, repos["emulator"][host], EMULATOR_ARTIFACTS[host], "emulator", mirror)
+    platform_repos = repos.get("platform", {})
     _android_sdk_hub_repo(
         name = HUB_NAME,
-        build_tools_repos = json.encode(build_tools_repositories()),
+        build_tools_repos = json.encode(repos.get("build_tools", {})),
         bundletool_repo = BUNDLETOOL_REPOSITORY,
-        ndk_repos = json.encode(ndk_repositories()),
+        emulator_repos = json.encode(repos.get("emulator", {})),
+        ndk_repos = json.encode(repos.get("ndk", {})),
+        platform_repo = platform_repos[sorted(platform_repos.keys())[0]] if len(platform_repos) > 0 else "",
+        platform_tools_repos = json.encode(repos.get("platform_tools", {})),
     )
 
 android_sdk = module_extension(

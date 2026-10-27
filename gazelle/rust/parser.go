@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"regexp"
 	"fmt"
 	"path"
 	"strings"
@@ -27,12 +28,19 @@ type ExternCrate struct {
 	Name    string
 	As      string
 	CfgTest bool
+	Scope   string
+}
+
+type LocalName struct {
+	Name  string
+	Scope string
 }
 
 type FileFacts struct {
 	Modules      []ModuleDecl
 	Uses         []UseDecl
 	Externs      []ExternCrate
+	Locals       []LocalName
 	HasTestAttr  bool
 	HasCfgTest   bool
 	InnerCfgTest bool
@@ -60,6 +68,7 @@ type parser struct {
 	src   string
 	pos   int
 	facts FileFacts
+	fnDepth int
 }
 
 func cleanSource(s string) string {
@@ -115,7 +124,7 @@ func cleanSource(s string) string {
 			}
 			blank(i, j)
 			i = j
-		case c == '"' || (c == 'r' && i+1 < n && (out[i+1] == '"' || out[i+1] == '#')) || (c == 'b' && i+1 < n && (out[i+1] == '"' || out[i+1] == '\'' || out[i+1] == 'r')):
+		case c == '"' || (c == 'r' && i+1 < n && (out[i+1] == '"' || out[i+1] == '#')) || (c == 'b' && i+1 < n && (out[i+1] == '"' || out[i+1] == '\'' || (out[i+1] == 'r' && i+2 < n && (out[i+2] == '"' || out[i+2] == '#')))):
 			j := scanString(out, i)
 			blank(i, j)
 			i = j
@@ -323,7 +332,7 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 				continue
 			}
 			if inner {
-				if isCfgTest(attr) {
+				if p.fnDepth == 0 && isCfgTest(attr) {
 					facts.InnerCfgTest = true
 				}
 				continue
@@ -354,10 +363,17 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 				return err
 			}
 		case "fn":
-			if err := p.parseFn(attrs, testScope, facts); err != nil {
+			if err := p.parseFn(attrs, testScope, depth, facts); err != nil {
 				return err
 			}
-		case "pub", "unsafe", "const", "static", "struct", "enum", "trait", "impl", "type", "where":
+		case "enum":
+			p.skipSpace()
+			if name, ok := p.scanWord(); ok {
+				facts.Locals = append(facts.Locals, LocalName{Name: name})
+			}
+			attrs = attrs[:0]
+			continue
+		case "pub", "unsafe", "const", "static", "struct", "trait", "impl", "type", "where":
 			if word != "pub" {
 				attrs = attrs[:0]
 			} else {
@@ -365,6 +381,9 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 			}
 			continue
 		default:
+			if p.fnDepth > 0 {
+				p.skipMacroGroup()
+			}
 			attrs = attrs[:0]
 			continue
 		}
@@ -436,7 +455,14 @@ func (p *parser) parseMod(attrs []string, testScope bool, depth int, facts *File
 		}
 		facts.Modules = append(facts.Modules, sub.Modules...)
 		facts.Uses = append(facts.Uses, sub.Uses...)
+		for i := range sub.Externs {
+			sub.Externs[i].Scope = path.Join(name, sub.Externs[i].Scope)
+		}
+		for i := range sub.Locals {
+			sub.Locals[i].Scope = path.Join(name, sub.Locals[i].Scope)
+		}
 		facts.Externs = append(facts.Externs, sub.Externs...)
+		facts.Locals = append(facts.Locals, sub.Locals...)
 		if sub.HasTestAttr {
 			facts.HasTestAttr = true
 		}
@@ -469,6 +495,9 @@ func (p *parser) parseUse(attrs []string, testScope bool, facts *FileFacts) erro
 	p.pos = start + semi + 1
 	if raw == "" {
 		return fmt.Errorf("rust: %s: empty `use` declaration", p.path)
+	}
+	for _, m := range useAliasRe.FindAllStringSubmatch(raw, -1) {
+		facts.Locals = append(facts.Locals, LocalName{Name: m[1]})
 	}
 	for _, path := range expandUse(raw) {
 		decl := UseDecl{Path: path, CfgTest: cfgTest}
@@ -526,7 +555,25 @@ func (p *parser) parseExtern(attrs []string, testScope bool, facts *FileFacts) e
 	return nil
 }
 
-func (p *parser) parseFn(attrs []string, testScope bool, facts *FileFacts) error {
+func (p *parser) skipMacroGroup() {
+	if p.pos+1 >= len(p.src) || p.src[p.pos] != '!' || p.src[p.pos+1] == '=' {
+		return
+	}
+	save := p.pos
+	p.pos++
+	p.skipSpace()
+	if p.pos < len(p.src) && (p.src[p.pos] == '(' || p.src[p.pos] == '[' || p.src[p.pos] == '{') {
+		if end, ok := matchBalanced([]byte(p.src), p.pos); ok {
+			p.pos = end
+			return
+		}
+		p.pos = len(p.src)
+		return
+	}
+	p.pos = save
+}
+
+func (p *parser) parseFn(attrs []string, testScope bool, depth int, facts *FileFacts) error {
 	isTest := testScope
 	for _, a := range attrs {
 		kind, err := classifyTestAttr("function", a)
@@ -537,16 +584,34 @@ func (p *parser) parseFn(attrs []string, testScope bool, facts *FileFacts) error
 			isTest = true
 		}
 	}
-	for p.pos < len(p.src) && p.src[p.pos] != '{' && p.src[p.pos] != ';' {
+	p.skipSpace()
+	if p.pos < len(p.src) && p.src[p.pos] == '(' {
+		return nil
+	}
+	for p.pos < len(p.src) && p.src[p.pos] != '{' && p.src[p.pos] != ';' && p.src[p.pos] != '}' {
+		if c := p.src[p.pos]; c == '(' || c == '[' {
+			if end, ok := matchBalanced([]byte(p.src), p.pos); ok {
+				p.pos = end
+				continue
+			}
+			p.pos = len(p.src)
+			break
+		}
 		p.pos++
 	}
 	if p.pos < len(p.src) && p.src[p.pos] == '{' {
-		if end, ok := matchBalanced([]byte(p.src), p.pos); ok {
-			p.pos = end
-		} else {
-			p.pos = len(p.src)
+		p.pos++
+		p.fnDepth++
+		err := p.parseItems(depth+1, isTest, facts)
+		p.fnDepth--
+		if err != nil {
+			return err
 		}
-	} else if p.pos < len(p.src) {
+		p.skipSpace()
+		if p.pos < len(p.src) && p.src[p.pos] == '}' {
+			p.pos++
+		}
+	} else if p.pos < len(p.src) && p.src[p.pos] == ';' {
 		p.pos++
 	}
 	if isTest {
@@ -710,6 +775,8 @@ func expandUse(raw string) []string {
 	}
 	return []string{raw}
 }
+
+var useAliasRe = regexp.MustCompile(`\bas\s+([A-Za-z_][A-Za-z0-9_]*)`)
 
 func stripAlias(raw string) string {
 	if i := strings.LastIndex(raw, " as "); i >= 0 {

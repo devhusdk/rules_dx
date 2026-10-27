@@ -1,0 +1,2 @@
+build --config=consumer
+build:consumer --copt=-DDX_CONSUMER_PROBE

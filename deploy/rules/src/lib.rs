@@ -10,10 +10,17 @@
 
 mod cloudflare;
 mod maven;
+mod run;
 
 pub use cloudflare::*;
 pub use maven::*;
+pub use run::{deploy_profile, DeployRun};
 
+use run::{
+    env_or_empty, scrubbed_command, OwnerGate, DOTNET_CHILD_ENV_EXTRA, PUBLISH_CHILD_ENV_KEEP,
+};
+
+use std::ffi::OsString;
 use std::io::{self, Read, Write};
 use std::path::Path;
 
@@ -218,7 +225,7 @@ pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()
     Ok(())
 }
 
-/// Returns one zip image with a fixed DOS time, unix modes and a fixed Deflate level.
+/// Returns one zip image with a fixed DOS time, unix modes on every host and a fixed Deflate level.
 fn zip_archive(members: &[(&str, &[u8], u32)]) -> io::Result<Vec<u8>> {
     let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
     for (name, data, mode) in members {
@@ -227,6 +234,7 @@ fn zip_archive(members: &[(&str, &[u8], u32)]) -> io::Result<Vec<u8>> {
             .compression_level(Some(9))
             .last_modified_time(zip::DateTime::default())
             .unix_permissions(mode & 0o7777)
+            .system(zip::System::Unix)
             .large_file(false);
         writer
             .start_file(*name, options)
@@ -240,32 +248,80 @@ fn listing_error(message: String) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+fn is_zip(path: &Path) -> bool {
+    path.extension().is_some_and(|ext| ext == "zip")
+}
+
+/// Checks one member's type and uniqueness, then hands it to the visitor.
+fn archive_entry<T>(
+    seen: &mut std::collections::HashSet<String>,
+    name: String,
+    regular: bool,
+    mode: u32,
+    body: &mut dyn Read,
+    visit: &mut impl FnMut(String, u32, &mut dyn Read) -> io::Result<Option<T>>,
+) -> io::Result<Option<T>> {
+    if !regular {
+        return Err(listing_error(format!(
+            "archive listing: member {name:?} is not a regular file"
+        )));
+    }
+    if !seen.insert(name.clone()) {
+        return Err(listing_error(format!(
+            "archive listing: duplicate member {name:?}"
+        )));
+    }
+    visit(name, mode, body)
+}
+
 fn archive_entries<T>(
     path: &Path,
     mut visit: impl FnMut(String, u32, &mut dyn Read) -> io::Result<Option<T>>,
 ) -> io::Result<Vec<T>> {
     let file = std::fs::File::open(path)?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
+    if is_zip(path) {
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|error| listing_error(format!("archive listing: {error}")))?;
+        for index in 0..archive.len() {
+            let mut entry = archive
+                .by_index(index)
+                .map_err(|error| listing_error(format!("archive listing: {error}")))?;
+            let name = entry
+                .name()
+                .map_err(|error| listing_error(format!("archive listing: {error}")))?
+                .into_owned();
+            let unix = entry.system() == zip::System::Unix;
+            let Some(mode) = entry.unix_mode().filter(|_| unix) else {
+                return Err(listing_error(format!(
+                    "archive listing: member {name:?} has no unix mode"
+                )));
+            };
+            let regular = entry.is_file() && !entry.is_symlink();
+            if let Some(item) = archive_entry(
+                &mut seen,
+                name,
+                regular,
+                mode & 0o7777,
+                &mut entry,
+                &mut visit,
+            )? {
+                out.push(item);
+            }
+        }
+        return Ok(out);
+    }
+    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
     for entry in archive.entries()? {
         let mut entry = entry?;
         let name =
             entry.path()?.to_str().map(str::to_owned).ok_or_else(|| {
                 listing_error("archive listing: member name is not UTF-8".to_owned())
             })?;
-        if entry.header().entry_type() != tar::EntryType::Regular {
-            return Err(listing_error(format!(
-                "archive listing: member {name:?} is not a regular file"
-            )));
-        }
-        if !seen.insert(name.clone()) {
-            return Err(listing_error(format!(
-                "archive listing: duplicate member {name:?}"
-            )));
-        }
-        let mode = entry.header().mode()?;
-        if let Some(item) = visit(name, mode, &mut entry)? {
+        let regular = entry.header().entry_type() == tar::EntryType::Regular;
+        let mode = if regular { entry.header().mode()? } else { 0 };
+        if let Some(item) = archive_entry(&mut seen, name, regular, mode, &mut entry, &mut visit)? {
             out.push(item);
         }
     }
@@ -273,14 +329,14 @@ fn archive_entries<T>(
     Ok(out)
 }
 
-/// Lists name, mode and sha256 of every regular member of a tar.gz.
+/// Lists name, mode and sha256 of every regular member of a tar.gz or zip.
 pub fn archive_listing(path: &Path) -> io::Result<Vec<(String, u32, String)>> {
     archive_entries(path, |name, mode, body| {
         Ok(Some((name, mode, dx_digest::sha256_reader_hex(body)?)))
     })
 }
 
-/// Returns the bytes of one named member of a tar.gz.
+/// Returns the bytes of one named member of a tar.gz or zip.
 pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
     let mut found = archive_entries(path, |name, _, body| {
         if name != member {
@@ -296,6 +352,45 @@ pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
             format!("archive has no member {member:?}"),
         )
     })
+}
+
+/// Extracts every regular member of a tar.gz or zip into a new dir and lists name, mode and sha256.
+pub fn archive_extract(path: &Path, dir: &Path) -> io::Result<Vec<(String, u32, String)>> {
+    std::fs::create_dir_all(dir.parent().unwrap_or(dir))?;
+    std::fs::create_dir(dir)?;
+    archive_entries(path, |name, mode, body| {
+        if let Some(reason) = name_error(&name, true) {
+            return Err(listing_error(format!("archive extract: {reason}")));
+        }
+        if name.contains(':') {
+            return Err(listing_error(format!(
+                "archive extract: archive member name {name:?} must not contain ':'"
+            )));
+        }
+        let target = dir.join(&name);
+        std::fs::create_dir_all(target.parent().unwrap_or(dir))?;
+        let mut data = Vec::new();
+        body.read_to_end(&mut data)?;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&target)?;
+        file.write_all(&data)?;
+        drop(file);
+        set_member_mode(&target, mode)?;
+        Ok(Some((name, mode, dx_digest::sha256_hex(&data))))
+    })
+}
+
+#[cfg(unix)]
+fn set_member_mode(path: &Path, mode: u32) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode & 0o7777))
+}
+
+#[cfg(not(unix))]
+fn set_member_mode(_path: &Path, _mode: u32) -> io::Result<()> {
+    Ok(())
 }
 
 /// Archives one executable under its basename.
@@ -372,26 +467,20 @@ pub fn archive_image(
         layer_names.push(name);
         diff_ids.push(format!("sha256:{diff_id}"));
     }
-    let config = render_json(
-        &serde_json::json!({
-            "architecture": architecture,
-            "config": {"Entrypoint": entrypoint},
-            "created": "1970-01-01T00:00:00Z",
-            "os": os,
-            "rootfs": {"diff_ids": diff_ids, "type": "layers"},
-        }),
-        JsonLayout::Compact,
-    );
+    let config = serde_json::to_string(&serde_json::json!({
+        "architecture": architecture,
+        "config": {"Entrypoint": entrypoint},
+        "created": "1970-01-01T00:00:00Z",
+        "os": os,
+        "rootfs": {"diff_ids": diff_ids, "type": "layers"},
+    }))?;
     let config_hex = dx_digest::sha256_hex(config.as_bytes());
     let config_name = format!("blobs/sha256/{config_hex}");
-    let manifest = render_json(
-        &serde_json::json!([{
-            "Config": config_name,
-            "Layers": layer_names,
-            "RepoTags": [],
-        }]),
-        JsonLayout::Compact,
-    );
+    let manifest = serde_json::to_string(&serde_json::json!([{
+        "Config": config_name,
+        "Layers": layer_names,
+        "RepoTags": [],
+    }]))?;
     let members = [
         (config_name.as_str(), config.as_bytes(), 0o644),
         ("manifest.json", manifest.as_bytes(), 0o644),
@@ -466,7 +555,7 @@ pub fn resolve_runfile(rloc: &str) -> io::Result<std::path::PathBuf> {
 /// Returns the deploy output directory.
 pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
     if argv.len() >= 2 {
-        return std::path::PathBuf::from(&argv[1]);
+        return absolute_from_invocation(Path::new(&argv[1]));
     }
     std::env::var("BUILD_WORKSPACE_DIRECTORY")
         .map(std::path::PathBuf::from)
@@ -475,219 +564,22 @@ pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
         })
 }
 
-/// Owner approval gate for one live-publish launcher.
-struct OwnerGate {
-    /// Launcher name used as the message prefix.
-    tool: &'static str,
-    /// Live action named in refusals.
-    action: &'static str,
-    /// Env vars that must be non-empty.
-    credentials: &'static [&'static str],
-    /// Env var that must be exactly 1.
-    approved: &'static str,
+/// Resolves a relative path against the directory the user ran bazel from.
+fn absolute_from_invocation(path: &Path) -> std::path::PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    let base = std::env::var_os("BUILD_WORKING_DIRECTORY")
+        .filter(|dir| !dir.is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    base.join(path)
 }
 
-/// Reads an env var, empty when unset.
-fn env_or_empty(key: &str) -> String {
-    std::env::var(key).unwrap_or_default()
-}
-
-impl OwnerGate {
-    /// Returns the refusal message, or None when credentials and approval are present.
-    fn refusal(&self, var: impl Fn(&str) -> String) -> Option<String> {
-        let (tool, action, approved) = (self.tool, self.action, self.approved);
-        if self.credentials.iter().any(|key| var(key).is_empty()) {
-            let creds = self.credentials.join(" plus ");
-            return Some(format!(
-                "{tool}: live {action} needs {creds} plus explicit owner approval ({approved}=1); refusing"
-            ));
-        }
-        if var(approved) != "1" {
-            return Some(format!(
-                "{tool}: live {action} needs {approved}=1 (owner approval); refusing"
-            ));
-        }
-        None
-    }
-}
-
-/// Filters process env to an allowlist plus extras.
-pub fn minimal_env(
-    keep: &[&str],
-    extra: &[(&str, &str)],
-) -> std::collections::HashMap<String, String> {
-    let mut env = std::collections::HashMap::new();
-    for key in keep {
-        if let Ok(value) = std::env::var(key) {
-            env.insert((*key).to_owned(), value);
-        }
-    }
-    for (key, value) in extra {
-        env.insert((*key).to_owned(), (*value).to_owned());
-    }
-    env
-}
-
-/// Picks the whitespace a rendered JSON document uses.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum JsonLayout {
-    Compact,
-    InlineArrays,
-    BlockArrays,
-}
-
-/// Tracks one open JSON container while rendering.
-struct JsonFrame {
-    inline: bool,
-    array: bool,
-}
-
-/// Renders one JSON document the way the deploy outputs are laid out.
-struct DeployJson {
-    layout: JsonLayout,
-    frames: Vec<JsonFrame>,
-    depth: usize,
-    has_value: bool,
-}
-
-impl DeployJson {
-    fn new(layout: JsonLayout) -> Self {
-        Self {
-            layout,
-            frames: Vec::new(),
-            depth: 0,
-            has_value: false,
-        }
-    }
-
-    fn opens(&mut self, array: bool) -> bool {
-        let inline = self.layout == JsonLayout::Compact
-            || match self.frames.last() {
-                None => false,
-                Some(parent) => parent.array || (array && self.layout == JsonLayout::InlineArrays),
-            };
-        if !inline {
-            self.depth += 1;
-        }
-        self.frames.push(JsonFrame { inline, array });
-        self.has_value = false;
-        inline
-    }
-
-    fn closes<W: ?Sized + std::io::Write>(
-        &mut self,
-        writer: &mut W,
-        close: &[u8],
-    ) -> std::io::Result<()> {
-        let frame = self.frames.pop().unwrap_or(JsonFrame {
-            inline: false,
-            array: false,
-        });
-        if frame.inline {
-            writer.write_all(close)?;
-            return Ok(());
-        }
-        self.depth -= 1;
-        if self.has_value {
-            writer.write_all(b"\n")?;
-            for _ in 0..self.depth {
-                writer.write_all(b"  ")?;
-            }
-        }
-        writer.write_all(close)
-    }
-
-    fn write_break<W: ?Sized + std::io::Write>(
-        &mut self,
-        writer: &mut W,
-        first: bool,
-    ) -> std::io::Result<()> {
-        if self.frames.last().is_some_and(|frame| frame.inline) {
-            if !first {
-                writer.write_all(if self.layout == JsonLayout::Compact {
-                    b","
-                } else {
-                    b", "
-                })?;
-            }
-            return Ok(());
-        }
-        writer.write_all(if first { b"\n" } else { b",\n" })?;
-        for _ in 0..self.depth {
-            writer.write_all(b"  ")?;
-        }
-        Ok(())
-    }
-}
-
-impl serde_json::ser::Formatter for DeployJson {
-    fn begin_array<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
-        self.opens(true);
-        writer.write_all(b"[")
-    }
-
-    fn end_array<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
-        self.closes(writer, b"]")
-    }
-
-    fn begin_array_value<W: ?Sized + std::io::Write>(
-        &mut self,
-        writer: &mut W,
-        first: bool,
-    ) -> std::io::Result<()> {
-        self.write_break(writer, first)
-    }
-
-    fn end_array_value<W: ?Sized + std::io::Write>(&mut self, _: &mut W) -> std::io::Result<()> {
-        self.has_value = true;
-        Ok(())
-    }
-
-    fn begin_object<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
-        self.opens(false);
-        writer.write_all(b"{")
-    }
-
-    fn end_object<W: ?Sized + std::io::Write>(&mut self, writer: &mut W) -> std::io::Result<()> {
-        self.closes(writer, b"}")
-    }
-
-    fn begin_object_key<W: ?Sized + std::io::Write>(
-        &mut self,
-        writer: &mut W,
-        first: bool,
-    ) -> std::io::Result<()> {
-        self.write_break(writer, first)
-    }
-
-    fn begin_object_value<W: ?Sized + std::io::Write>(
-        &mut self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        writer.write_all(if self.layout == JsonLayout::Compact {
-            b":"
-        } else {
-            b": "
-        })
-    }
-
-    fn end_object_value<W: ?Sized + std::io::Write>(&mut self, _: &mut W) -> std::io::Result<()> {
-        self.has_value = true;
-        Ok(())
-    }
-}
-
-/// Serializes one JSON document plus a trailing newline.
-fn render_json(value: &serde_json::Value, layout: JsonLayout) -> String {
-    use serde::Serialize as _;
-    let mut serializer =
-        serde_json::Serializer::with_formatter(Vec::new(), DeployJson::new(layout));
-    if value.serialize(&mut serializer).is_err() {
-        return String::new();
-    }
-    let mut bytes = serializer.into_inner();
-    bytes.push(b'\n');
-    String::from_utf8(bytes).unwrap_or_default()
+/// Serializes one JSON document pretty-printed with a trailing newline.
+fn render_json(value: &serde_json::Value) -> std::io::Result<String> {
+    Ok(serde_json::to_string_pretty(value)? + "\n")
 }
 
 /// Writes one owner-only file.
@@ -697,12 +589,15 @@ pub fn write_secure_file(
     content: &str,
 ) -> io::Result<std::path::PathBuf> {
     let path = directory.join(name);
-    std::fs::write(&path, content.as_bytes())?;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
     }
+    let mut file = options.open(&path)?;
+    file.write_all(content.as_bytes())?;
     Ok(path)
 }
 
@@ -752,26 +647,23 @@ pub fn archive_main(
     checksum_rloc: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "archive_deploy: this deploy target takes at most an output directory; the release is exactly the files pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "archive_deploy",
+        "the release is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("archive_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
+    };
+    let outdir = run.outdir();
     let resolved = (|| -> io::Result<(String, std::path::PathBuf, std::path::PathBuf)> {
         let app = resolve_runfile(app_rloc)?;
         let tarball = resolve_runfile(tarball_rloc)?;
         let checksum = resolve_runfile(checksum_rloc)?;
-        archive_stage_release(&app, &tarball, &checksum, &outdir)
+        archive_stage_release(&app, &tarball, &checksum, outdir)
     })();
     match resolved {
         Ok((app_name, tarball_dest, checksum_dest)) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("archive_deploy: released {app_name} (profile: {profile})");
             println!("  tarball:  {}", tarball_dest.display());
             println!("  checksum: {}", checksum_dest.display());
@@ -892,7 +784,11 @@ const PYPI_GATE: OwnerGate = OwnerGate {
     action: "upload",
     credentials: &["PYPI_API_TOKEN"],
     approved: "PYPI_PUBLISH_APPROVED",
+    live: "PYPI_PUBLISH_LIVE",
 };
+
+/// Extra env names twine keeps beyond the publish base list.
+const TWINE_CHILD_ENV_EXTRA: &[&str] = &["REQUESTS_CA_BUNDLE"];
 
 /// Runs the PyPI deploy launcher.
 pub fn pypi_main(
@@ -902,72 +798,46 @@ pub fn pypi_main(
     repository_url: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "pypi_deploy: this deploy target takes at most an output directory; the wheelhouse is exactly the files pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "pypi_deploy",
+        "the wheelhouse is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("pypi_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
-    let wheel = match resolve_runfile(wheel_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("pypi_deploy: {error}");
-            return 1;
-        }
     };
-    let sdist = if sdist_rloc.is_empty() {
-        None
-    } else {
-        match resolve_runfile(sdist_rloc) {
-            Ok(path) => Some(path),
+    let outdir = run.outdir();
+    let Some(wheel) = run.resolve(wheel_rloc) else {
+        return 1;
+    };
+    let Some(sdist) = run.resolve_optional(sdist_rloc) else {
+        return 1;
+    };
+    if PYPI_GATE.requested(env_or_empty) {
+        let secrets = match PYPI_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
             Err(error) => {
-                eprintln!("pypi_deploy: {error}");
+                eprintln!("{error}");
                 return 1;
             }
-        }
-    };
-    if std::env::var("PYPI_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let token = std::env::var("PYPI_API_TOKEN").unwrap_or_default();
-        if let Some(error) = PYPI_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
+        };
         let mut files = vec![wheel.clone()];
         if let Some(sdist) = &sdist {
             files.push(sdist.clone());
         }
-        let keep = [
-            "HOME",
-            "LANG",
-            "LC_ALL",
-            "PATH",
-            "TMPDIR",
-            "USER",
-            "LOGNAME",
-            "SystemRoot",
-            "SystemDrive",
-            "PATHEXT",
-        ];
-        let env = minimal_env(
-            &keep,
-            &[("TWINE_USERNAME", "__token__"), ("TWINE_PASSWORD", &token)],
+        let mut cmd = scrubbed_command(
+            Path::new("twine"),
+            &[PUBLISH_CHILD_ENV_KEEP, TWINE_CHILD_ENV_EXTRA],
+            &[
+                ("TWINE_USERNAME", "__token__"),
+                ("TWINE_PASSWORD", secrets.get("PYPI_API_TOKEN")),
+            ],
         );
-        let mut cmd = std::process::Command::new("twine");
         cmd.arg("upload")
             .arg("--non-interactive")
             .arg("--repository-url")
             .arg(repository_url);
         for file in &files {
             cmd.arg(file);
-        }
-        cmd.env_clear();
-        for (key, value) in &env {
-            cmd.env(key, value);
         }
         match cmd.status() {
             Ok(status) if status.success() => {
@@ -985,7 +855,7 @@ pub fn pypi_main(
             }
         }
     }
-    match pypi_build_wheelhouse(&wheel, sdist.as_deref(), &outdir, dist_name) {
+    match pypi_build_wheelhouse(&wheel, sdist.as_deref(), outdir, dist_name) {
         Ok(house) => {
             let project = basename(&wheel)
                 .and_then(|base| {
@@ -994,7 +864,7 @@ pub fn pypi_main(
                 })
                 .map(|(project, _)| project)
                 .unwrap_or_default();
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("pypi_deploy: staged {dist_name} (profile: {profile})");
             println!("  wheelhouse: {}", house.display());
             println!(
@@ -1244,7 +1114,89 @@ const NUGET_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["NUGET_API_KEY"],
     approved: "NUGET_PUBLISH_APPROVED",
+    live: "NUGET_PUBLISH_LIVE",
 };
+
+/// Lowest NuGet version that reads the push key from `NUGET_API_KEY`.
+const NUGET_ENV_KEY_MIN: (u32, u32) = (7, 6);
+
+/// Reads `MAJOR.MINOR` from the last non-empty line of `dotnet nuget --version` output.
+fn nuget_parse_version(output: &str) -> Option<(u32, u32)> {
+    let last = output.lines().rev().find(|line| !line.trim().is_empty())?;
+    last.split_whitespace().find_map(|token| {
+        let mut parts = token.split('.');
+        let major = parts.next()?.parse::<u32>().ok()?;
+        let minor_raw = parts.next()?;
+        let digits: String = minor_raw.chars().take_while(char::is_ascii_digit).collect();
+        Some((major, digits.parse::<u32>().ok()?))
+    })
+}
+
+/// True when the reported NuGet version reads `NUGET_API_KEY` for push.
+pub fn nuget_reads_api_key_env(version_output: &str) -> bool {
+    nuget_parse_version(version_output).is_some_and(|version| version >= NUGET_ENV_KEY_MIN)
+}
+
+/// Pushes a nupkg with the key in the child env only, never in argv.
+pub fn nuget_live_push(
+    dotnet: &Path,
+    nupkg: &Path,
+    source: &str,
+    token: &str,
+    id: &str,
+    version: &str,
+) -> i32 {
+    let mut probe = scrubbed_command(
+        dotnet,
+        &[PUBLISH_CHILD_ENV_KEEP, DOTNET_CHILD_ENV_EXTRA],
+        &[
+            ("DOTNET_NOLOGO", "1"),
+            ("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1"),
+        ],
+    );
+    probe.arg("nuget").arg("--version");
+    let reported = match probe.output() {
+        Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
+        Err(error) => {
+            eprintln!("nuget_deploy: {error}");
+            return 1;
+        }
+    };
+    if !nuget_reads_api_key_env(&reported) {
+        eprintln!(
+            "nuget_deploy: NuGet {} does not read NUGET_API_KEY; need NuGet {}.{}+ (.NET SDK 10.0.300+); refusing to put the key on the command line",
+            reported.lines().last().unwrap_or("").trim(),
+            NUGET_ENV_KEY_MIN.0,
+            NUGET_ENV_KEY_MIN.1
+        );
+        return 1;
+    }
+    let mut cmd = scrubbed_command(
+        dotnet,
+        &[PUBLISH_CHILD_ENV_KEEP, DOTNET_CHILD_ENV_EXTRA],
+        &[("NUGET_API_KEY", token)],
+    );
+    cmd.arg("nuget")
+        .arg("push")
+        .arg(nupkg)
+        .arg("--source")
+        .arg(source)
+        .arg("--skip-duplicate");
+    match cmd.status() {
+        Ok(status) if status.success() => {
+            println!("nuget_deploy: pushed {id} {version}");
+            0
+        }
+        Ok(status) => {
+            eprintln!("nuget_deploy: dotnet failed with {status}");
+            1
+        }
+        Err(error) => {
+            eprintln!("nuget_deploy: {error}");
+            1
+        }
+    }
+}
 
 /// Runs the NuGet deploy launcher.
 pub fn nuget_main(
@@ -1255,23 +1207,16 @@ pub fn nuget_main(
     package_source: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "nuget_deploy: this deploy target takes at most an output directory; the feed is exactly the file pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "nuget_deploy",
+        "the feed is exactly the file pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("nuget_deploy: cannot create {}", outdir.display());
+    };
+    let outdir = run.outdir();
+    let Some(nupkg) = run.resolve(nupkg_rloc) else {
         return 1;
-    }
-    let nupkg = match resolve_runfile(nupkg_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("nuget_deploy: {error}");
-            return 1;
-        }
     };
     let identity = match nuget_read_identity(&nupkg).and_then(|identity| {
         nuget_check_identity(&identity, expected_id, expected_version).map(|()| identity)
@@ -1283,50 +1228,36 @@ pub fn nuget_main(
         }
     };
     let (package_id, package_version) = (identity.0.as_str(), identity.1.as_str());
-    if std::env::var("NUGET_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let token = std::env::var("NUGET_API_KEY").unwrap_or_default();
+    if NUGET_GATE.requested(env_or_empty) {
         if package_version == "0.0.0" {
             eprintln!(
                 "nuget_deploy: live push refuses {package_id} version {package_version}; set a real version in the nuspec"
             );
             return 1;
         }
-        if let Some(error) = NUGET_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
+        let secrets = match NUGET_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
         let Some(dotnet) = which_on_path("dotnet") else {
             eprintln!("nuget_deploy: 'dotnet' CLI not found on PATH");
             return 1;
         };
-        let status = std::process::Command::new(dotnet)
-            .arg("nuget")
-            .arg("push")
-            .arg(&nupkg)
-            .arg("--source")
-            .arg(package_source)
-            .arg("--api-key")
-            .arg(&token)
-            .arg("--skip-duplicate")
-            .status();
-        match status {
-            Ok(status) if status.success() => {
-                println!("nuget_deploy: pushed {package_id} {package_version}");
-                return 0;
-            }
-            Ok(status) => {
-                eprintln!("nuget_deploy: dotnet failed with {status}");
-                return 1;
-            }
-            Err(error) => {
-                eprintln!("nuget_deploy: {error}");
-                return 1;
-            }
-        }
+        return nuget_live_push(
+            &dotnet,
+            &nupkg,
+            package_source,
+            secrets.get("NUGET_API_KEY"),
+            package_id,
+            package_version,
+        );
     }
-    match nuget_build_feed(&nupkg, &outdir, target_name) {
+    match nuget_build_feed(&nupkg, outdir, target_name) {
         Ok(feed) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("nuget_deploy: staged {package_id} {package_version} (profile: {profile})");
             println!("  feed: {}", feed.display());
             if let Ok(base) = basename(&nupkg) {
@@ -1484,28 +1415,22 @@ pub fn crates_build_vendor(
     for (base, digest) in &entries {
         files.insert(base.clone(), serde_json::Value::String(digest.clone()));
     }
-    let checksum_body = render_json(
-        &serde_json::json!({
-            "files": serde_json::Value::Object(files),
-            "package": package_digest,
-        }),
-        JsonLayout::InlineArrays,
-    );
+    let checksum_body = render_json(&serde_json::json!({
+        "files": serde_json::Value::Object(files),
+        "package": package_digest,
+    }))?;
     std::fs::write(
         vendor_dir.join(".cargo-checksum.json"),
         checksum_body.as_bytes(),
     )?;
-    let index_body = render_json(
-        &serde_json::json!({
-            "files": entries
-                .iter()
-                .map(|(base, digest)| serde_json::json!({"name": base, "sha256": digest}))
-                .collect::<Vec<_>>(),
-            "name": crate_name,
-            "version": version,
-        }),
-        JsonLayout::BlockArrays,
-    );
+    let index_body = render_json(&serde_json::json!({
+        "files": entries
+            .iter()
+            .map(|(base, digest)| serde_json::json!({"name": base, "sha256": digest}))
+            .collect::<Vec<_>>(),
+        "name": crate_name,
+        "version": version,
+    }))?;
     std::fs::write(registry_dir.join("index.json"), index_body.as_bytes())?;
     Ok(house)
 }
@@ -1516,68 +1441,52 @@ const CRATES_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["CARGO_REGISTRY_TOKEN"],
     approved: "CRATES_PUBLISH_APPROVED",
+    live: "CRATES_PUBLISH_LIVE",
 };
+
+/// Extra env names cargo keeps beyond the publish base list.
+const CARGO_CHILD_ENV_EXTRA: &[&str] = &["CARGO_HOME", "RUSTUP_HOME"];
 
 /// Runs the crates deploy launcher.
 pub fn crates_main(
     crate_rlocs: &str,
     crate_name: &str,
     version: &str,
-    allow_dirty: bool,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "crates_deploy: this deploy target takes at most an output directory; the vendor tree is exactly the files pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "crates_deploy",
+        "the vendor tree is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("crates_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
+    };
+    let outdir = run.outdir();
     let mut files = Vec::new();
     for rloc in crate_rlocs.split(';').filter(|s| !s.is_empty()) {
-        match resolve_runfile(rloc) {
-            Ok(path) => files.push(path),
-            Err(error) => {
-                eprintln!("crates_deploy: {error}");
-                return 1;
-            }
-        }
+        let Some(path) = run.resolve(rloc) else {
+            return 1;
+        };
+        files.push(path);
     }
-    if std::env::var("CRATES_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        if std::env::var("CRATES_ALLOW_DIRTY").unwrap_or_default() == "1" || allow_dirty {
+    if CRATES_GATE.requested(env_or_empty) {
+        if std::env::var("CRATES_ALLOW_DIRTY").unwrap_or_default() == "1" {
             eprintln!(
                 "crates_deploy: --allow-dirty rejected by default; publish from a clean tree instead"
             );
             return 1;
         }
-        let token = std::env::var("CARGO_REGISTRY_TOKEN").unwrap_or_default();
         if version == "0.0.0" {
             eprintln!("crates_deploy: live publish refuses version 0.0.0; set a real version");
             return 1;
         }
-        if let Some(error) = CRATES_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
-        let keep = [
-            "HOME",
-            "LANG",
-            "LC_ALL",
-            "PATH",
-            "TMPDIR",
-            "USER",
-            "LOGNAME",
-            "SystemRoot",
-            "SystemDrive",
-            "PATHEXT",
-            "CARGO_HOME",
-            "RUSTUP_HOME",
-        ];
-        let env = minimal_env(&keep, &[("CARGO_REGISTRY_TOKEN", &token)]);
+        let secrets = match CRATES_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
         let staging = match tempfile_stage_dir("crates-publish-") {
             Ok(dir) => dir,
             Err(error) => {
@@ -1608,12 +1517,12 @@ pub fn crates_main(
             eprintln!("crates_deploy: staged crate is missing Cargo.toml; refusing");
             return 1;
         }
-        let mut cmd = std::process::Command::new("cargo");
+        let mut cmd = scrubbed_command(
+            Path::new("cargo"),
+            &[PUBLISH_CHILD_ENV_KEEP, CARGO_CHILD_ENV_EXTRA],
+            &[("CARGO_REGISTRY_TOKEN", secrets.get("CARGO_REGISTRY_TOKEN"))],
+        );
         cmd.arg("publish").arg("--manifest-path").arg(&manifest);
-        cmd.env_clear();
-        for (key, value) in &env {
-            cmd.env(key, value);
-        }
         let output = cmd.output();
         let _ = std::fs::remove_dir_all(&staging);
         match output {
@@ -1631,9 +1540,9 @@ pub fn crates_main(
             }
         }
     }
-    match crates_build_vendor(&files, &outdir, crate_name, version) {
+    match crates_build_vendor(&files, outdir, crate_name, version) {
         Ok(house) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("crates_deploy: staged {crate_name} {version} (profile: {profile})");
             println!(
                 "  vendor: {}",
@@ -1656,33 +1565,54 @@ pub fn crates_main(
     }
 }
 
+fn create_private_dir(path: &Path) -> io::Result<()> {
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt as _;
+        builder.mode(0o700);
+    }
+    builder.create(path)
+}
+
 fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
-    let mut dir = std::env::temp_dir().join(format!(
-        "{prefix}{}",
-        std::time::SystemTime::now()
+    for counter in 0..100 {
+        let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
-    let mut counter = 0;
-    while dir.exists() {
-        counter += 1;
-        dir = std::env::temp_dir().join(format!(
-            "{prefix}{}{counter}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0)
-        ));
-        if counter > 100 {
-            return Err(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "cannot stage tempdir",
-            ));
+            .unwrap_or(0);
+        let dir =
+            std::env::temp_dir().join(format!("{prefix}{}-{nanos}-{counter}", std::process::id()));
+        match create_private_dir(&dir) {
+            Ok(()) => return Ok(dir),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(error),
         }
     }
-    std::fs::create_dir_all(&dir)?;
-    Ok(dir)
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "cannot stage tempdir",
+    ))
+}
+
+/// Owner-only temp directory that is removed when dropped, including on panic.
+struct PrivateStageDir(std::path::PathBuf);
+
+impl PrivateStageDir {
+    fn new(prefix: &str) -> io::Result<Self> {
+        tempfile_stage_dir(prefix).map(Self)
+    }
+
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for PrivateStageDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 /// Formats one GitHub release command.
@@ -1746,30 +1676,40 @@ const GITHUB_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &[],
     approved: "GH_RELEASE_APPROVED",
+    live: "GH_RELEASE_LIVE",
 };
+
+/// Extra env names `gh` keeps: its auth, host, config and session bus.
+const GH_CHILD_ENV_EXTRA: &[&str] = &[
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "GH_ENTERPRISE_TOKEN",
+    "GITHUB_ENTERPRISE_TOKEN",
+    "GH_HOST",
+    "GH_REPO",
+    "GH_CONFIG_DIR",
+    "GH_PROMPT_DISABLED",
+    "XDG_CONFIG_HOME",
+    "XDG_RUNTIME_DIR",
+    "DBUS_SESSION_BUS_ADDRESS",
+];
 
 /// Runs the GitHub deploy launcher.
 pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "github_deploy: this deploy target takes at most an output directory; the release is exactly the artifacts pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "github_deploy",
+        "the release is exactly the artifacts pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("github_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
+    };
+    let outdir = run.outdir();
     let mut assets = Vec::new();
     for rloc in asset_rlocs.split(';').filter(|s| !s.is_empty()) {
-        match resolve_runfile(rloc) {
-            Ok(path) => assets.push(path),
-            Err(error) => {
-                eprintln!("github_deploy: {error}");
-                return 1;
-            }
-        }
+        let Some(path) = run.resolve(rloc) else {
+            return 1;
+        };
+        assets.push(path);
     }
     let mut sorted: Vec<&std::path::PathBuf> = assets.iter().collect();
     sorted.sort();
@@ -1780,7 +1720,7 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
             return 1;
         }
     };
-    if std::env::var("GH_RELEASE_LIVE").unwrap_or_default() == "1" {
+    if GITHUB_GATE.requested(env_or_empty) {
         if tag == "v0.0.0-dryrun" {
             eprintln!(
                 "github_deploy: live publish refuses placeholder tag v0.0.0-dryrun; push a real tag first"
@@ -1795,12 +1735,27 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
             eprintln!("github_deploy: 'gh' CLI not found on PATH");
             return 1;
         }
-        let mut cmd = std::process::Command::new("gh");
+        let mut cmd = scrubbed_command(
+            Path::new("gh"),
+            &[PUBLISH_CHILD_ENV_KEEP, GH_CHILD_ENV_EXTRA],
+            &[],
+        );
         cmd.arg("release").arg("create").arg(tag);
         for src in &assets {
-            cmd.arg(src);
+            match std::path::absolute(src) {
+                Ok(path) => cmd.arg(path),
+                Err(error) => {
+                    eprintln!("github_deploy: cannot resolve {}: {error}", src.display());
+                    return 1;
+                }
+            };
         }
         cmd.arg("--draft").arg("--verify-tag");
+        if let Some(workspace) =
+            std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty())
+        {
+            cmd.current_dir(workspace);
+        }
         match cmd.status() {
             Ok(status) if status.success() => {
                 println!("github_deploy: published draft {tag}");
@@ -1816,7 +1771,7 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
             }
         }
     }
-    match github_build_staging(&assets, &outdir, deploy_name, tag) {
+    match github_build_staging(&assets, outdir, deploy_name, tag) {
         Ok(staging) => {
             if std::env::var("GH_RELEASE_DRY_RUN").unwrap_or_default() == "1" {
                 println!("github_deploy: dry run (GH_RELEASE_DRY_RUN=1); would create a draft release, publishing nothing:");
@@ -1986,19 +1941,16 @@ fn oci_stage_layout(
             })
         })
         .collect();
-    let manifest_bytes = render_json(
-        &serde_json::json!({
-            "config": {
-                "digest": archive.config_digest,
-                "mediaType": "application/vnd.oci.image.config.v1+json",
-                "size": archive.config.len(),
-            },
-            "layers": layers,
-            "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "schemaVersion": 2,
-        }),
-        JsonLayout::Compact,
-    );
+    let manifest_bytes = serde_json::to_string(&serde_json::json!({
+        "config": {
+            "digest": archive.config_digest,
+            "mediaType": "application/vnd.oci.image.config.v1+json",
+            "size": archive.config.len(),
+        },
+        "layers": layers,
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "schemaVersion": 2,
+    }))?;
     let manifest_digest = format!(
         "sha256:{}",
         dx_digest::sha256_hex(manifest_bytes.as_bytes())
@@ -2007,19 +1959,16 @@ fn oci_stage_layout(
         blobs.join(manifest_digest.replace("sha256:", "")),
         manifest_bytes.as_bytes(),
     )?;
-    let index_body = render_json(
-        &serde_json::json!({
-            "manifests": [{
-                "annotations": {"org.opencontainers.image.ref.name": reference},
-                "digest": manifest_digest,
-                "mediaType": "application/vnd.oci.image.manifest.v1+json",
-                "size": manifest_bytes.len(),
-            }],
-            "mediaType": "application/vnd.oci.image.index.v1+json",
-            "schemaVersion": 2,
-        }),
-        JsonLayout::Compact,
-    );
+    let index_body = serde_json::to_string(&serde_json::json!({
+        "manifests": [{
+            "annotations": {"org.opencontainers.image.ref.name": reference},
+            "digest": manifest_digest,
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "size": manifest_bytes.len(),
+        }],
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "schemaVersion": 2,
+    }))?;
     std::fs::write(staging.join("index.json"), index_body.as_bytes())?;
     std::fs::write(
         staging.join("oci-layout"),
@@ -2428,10 +2377,14 @@ fn oci_read_descriptors(
         .collect::<io::Result<Vec<String>>>()?;
     let mut bodies = oci_read_members(image, links, &names)?;
     let mut read = Vec::with_capacity(names.len());
-    for (name, digest) in names.iter().zip(&digests) {
-        let body = bodies
-            .remove(name)
-            .ok_or_else(|| oci_invalid(format!("image archive is missing its blob '{digest}'")))?;
+    for (position, (name, digest)) in names.iter().zip(&digests).enumerate() {
+        // A digest listed twice shares one body: clone until its last use.
+        let body = if names[position + 1..].contains(name) {
+            bodies.get(name).cloned()
+        } else {
+            bodies.remove(name)
+        }
+        .ok_or_else(|| oci_invalid(format!("image archive is missing its blob '{digest}'")))?;
         if format!("sha256:{}", dx_digest::sha256_hex(&body)) != *digest {
             return Err(oci_invalid(format!(
                 "image archive blob '{digest}' does not match its digest"
@@ -2440,6 +2393,16 @@ fn oci_read_descriptors(
         read.push(body);
     }
     Ok(read)
+}
+
+/// Drops descriptors repeating an earlier digest; the same manifest under two
+/// `ref.name` tags or listed twice in an index is one image.
+fn oci_dedupe_by_digest(descriptors: &mut Vec<serde_json::Value>) {
+    let mut seen = std::collections::HashSet::new();
+    descriptors.retain(|descriptor| match descriptor["digest"].as_str() {
+        Some(digest) => seen.insert(digest.to_owned()),
+        None => true,
+    });
 }
 
 /// Builds the read plan from an OCI layout index.json.
@@ -2478,6 +2441,7 @@ fn oci_index_plan(image: &Path, index: &[u8], links: &OciLinks) -> io::Result<Oc
                 "image archive nests indexes deeper than {OCI_INDEX_DEPTH} levels"
             )));
         }
+        oci_dedupe_by_digest(&mut nested);
         level = Vec::new();
         for body in oci_read_descriptors(image, links, &nested)? {
             let parsed: serde_json::Value = serde_json::from_slice(&body)
@@ -2490,6 +2454,7 @@ fn oci_index_plan(image: &Path, index: &[u8], links: &OciLinks) -> io::Result<Oc
             );
         }
     }
+    oci_dedupe_by_digest(&mut images);
     if images.len() != 1 {
         return Err(oci_invalid(format!(
             "image archive holds {} images; want exactly one",
@@ -2687,8 +2652,105 @@ pub fn oci_declared_image_id(image: &Path, platform: &str) -> Result<String, Str
     Ok(archive.config_digest)
 }
 
-fn docker_image_id(reference: &str) -> Result<String, String> {
+/// The caller's docker daemon endpoint, carried over to the scoped config.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct DockerEndpoint {
+    host: Option<String>,
+    cert_path: Option<std::path::PathBuf>,
+}
+
+fn caller_docker_config_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("DOCKER_CONFIG")
+        .filter(|value| !value.is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .filter(|value| !value.is_empty())
+                .map(|home| std::path::PathBuf::from(home).join(".docker"))
+        })
+}
+
+/// Reads the caller's docker daemon endpoint.
+fn docker_endpoint() -> Result<DockerEndpoint, String> {
+    let cert_path = std::env::var_os("DOCKER_CERT_PATH")
+        .filter(|value| !value.is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("DOCKER_TLS_VERIFY")
+                .filter(|value| !value.is_empty())
+                .and_then(|_| caller_docker_config_dir())
+        });
+    if let Some(host) = std::env::var("DOCKER_HOST")
+        .ok()
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(DockerEndpoint {
+            host: Some(host),
+            cert_path,
+        });
+    }
     let output = std::process::Command::new("docker")
+        .args(["context", "inspect", "--format", "{{json .}}"])
+        .stderr(std::process::Stdio::null())
+        .output();
+    let value = output
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| serde_json::from_slice::<serde_json::Value>(&output.stdout).ok());
+    let Some(value) = value else {
+        return Ok(DockerEndpoint {
+            host: None,
+            cert_path,
+        });
+    };
+    let has_tls = value
+        .get("TLSMaterial")
+        .and_then(serde_json::Value::as_object)
+        .is_some_and(|material| {
+            material
+                .values()
+                .any(|files| files.as_array().is_some_and(|files| !files.is_empty()))
+        });
+    if has_tls {
+        return Err(
+            "the active docker context uses TLS, which a scoped docker config cannot carry; set DOCKER_HOST, DOCKER_TLS_VERIFY and DOCKER_CERT_PATH explicitly"
+                .to_owned(),
+        );
+    }
+    let host = value
+        .pointer("/Endpoints/docker/Host")
+        .and_then(serde_json::Value::as_str)
+        .filter(|host| !host.is_empty())
+        .map(str::to_owned);
+    Ok(DockerEndpoint { host, cert_path })
+}
+
+/// Extra env names `docker` keeps beyond the publish base list.
+const DOCKER_CHILD_ENV_EXTRA: &[&str] =
+    &["DOCKER_TLS_VERIFY", "DOCKER_API_VERSION", "XDG_RUNTIME_DIR"];
+
+/// Builds one docker command bound to the scoped config and the caller's daemon.
+fn docker_command(config: &Path, endpoint: &DockerEndpoint) -> std::process::Command {
+    let mut command = scrubbed_command(
+        Path::new("docker"),
+        &[PUBLISH_CHILD_ENV_KEEP, DOCKER_CHILD_ENV_EXTRA],
+        &[],
+    );
+    command.env("DOCKER_CONFIG", config);
+    if let Some(host) = &endpoint.host {
+        command.env("DOCKER_HOST", host);
+    }
+    if let Some(cert_path) = &endpoint.cert_path {
+        command.env("DOCKER_CERT_PATH", cert_path);
+    }
+    command
+}
+
+fn docker_image_id(
+    docker: &dyn Fn() -> std::process::Command,
+    reference: &str,
+) -> Result<String, String> {
+    let output = docker()
         .args(["image", "inspect", "--format", "{{.Id}}", reference])
         .output()
         .map_err(|error| error.to_string())?;
@@ -2699,8 +2761,8 @@ fn docker_image_id(reference: &str) -> Result<String, String> {
 }
 
 /// Loads a docker-save archive and returns the image reference docker reports.
-fn docker_load(image: &Path) -> Result<String, String> {
-    let output = std::process::Command::new("docker")
+fn docker_load(docker: &dyn Fn() -> std::process::Command, image: &Path) -> Result<String, String> {
+    let output = docker()
         .args(["load", "-q", "-i"])
         .arg(image)
         .stderr(std::process::Stdio::inherit())
@@ -2741,7 +2803,29 @@ fn oci_live_push(
         return 1;
     }
     let reference = format!("{registry}/{repository}:{tag}");
-    let mut login = std::process::Command::new("docker");
+    let endpoint = match docker_endpoint() {
+        Ok(endpoint) => endpoint,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+    };
+    let config_dir = match PrivateStageDir::new("oci-docker-config-") {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+    };
+    let config = serde_json::json!({ "auths": { registry: {} } });
+    if let Err(error) = render_json(&config)
+        .and_then(|text| write_secure_file(config_dir.path(), "config.json", &text))
+    {
+        eprintln!("oci_deploy: {error}");
+        return 1;
+    }
+    let docker = || docker_command(config_dir.path(), &endpoint);
+    let mut login = docker();
     login
         .arg("login")
         .arg(registry)
@@ -2762,23 +2846,22 @@ fn oci_live_push(
         eprintln!("oci_deploy: docker login failed");
         return 1;
     }
-    let loaded = match docker_load(image) {
+    let loaded = match docker_load(&docker, image) {
         Ok(loaded) => loaded,
         Err(error) => {
             eprintln!("oci_deploy: {error}; refusing to push");
             return 1;
         }
     };
-    let tagged = std::process::Command::new("docker")
-        .arg("tag")
-        .arg(&loaded)
-        .arg(&reference)
-        .status();
+    let tagged = docker().arg("tag").arg(&loaded).arg(&reference).status();
     if !tagged.map(|s| s.success()).unwrap_or(false) {
         eprintln!("oci_deploy: docker tag {loaded} {reference} failed");
         return 1;
     }
-    match (docker_image_id(&loaded), docker_image_id(&reference)) {
+    match (
+        docker_image_id(&docker, &loaded),
+        docker_image_id(&docker, &reference),
+    ) {
         (Ok(source), Ok(bound)) if source == bound => {
             println!("oci_deploy: bound {reference} to {bound} (config {image_id})");
         }
@@ -2793,11 +2876,7 @@ fn oci_live_push(
             return 1;
         }
     }
-    match std::process::Command::new("docker")
-        .arg("push")
-        .arg(&reference)
-        .status()
-    {
+    match docker().arg("push").arg(&reference).status() {
         Ok(status) if status.success() => {
             println!("oci_deploy: pushed {reference}");
             println!(
@@ -2822,6 +2901,7 @@ const OCI_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["OCI_REGISTRY_USER", "OCI_REGISTRY_TOKEN"],
     approved: "OCI_PUBLISH_APPROVED",
+    live: "OCI_PUBLISH_LIVE",
 };
 
 /// Runs the OCI deploy launcher.
@@ -2833,36 +2913,38 @@ pub fn oci_main(
     platform: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "oci_deploy: this deploy target takes at most an output directory; the layout is exactly the file pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "oci_deploy",
+        "the layout is exactly the file pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("oci_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
-    let image = match resolve_runfile(image_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("oci_deploy: {error}");
-            return 1;
-        }
     };
-    if std::env::var("OCI_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let user = std::env::var("OCI_REGISTRY_USER").unwrap_or_default();
-        let token = std::env::var("OCI_REGISTRY_TOKEN").unwrap_or_default();
+    let outdir = run.outdir();
+    let Some(image) = run.resolve(image_rloc) else {
+        return 1;
+    };
+    if OCI_GATE.requested(env_or_empty) {
         if tag == "0.0.0" || tag == "0.0.0-dryrun" {
             eprintln!("oci_deploy: live push refuses placeholder tag; set a real tag");
             return 1;
         }
-        if let Some(error) = OCI_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
-        return oci_live_push(&image, registry, repository, tag, platform, &user, &token);
+        let secrets = match OCI_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
+        return oci_live_push(
+            &image,
+            registry,
+            repository,
+            tag,
+            platform,
+            secrets.get("OCI_REGISTRY_USER"),
+            secrets.get("OCI_REGISTRY_TOKEN"),
+        );
     }
     if std::env::var("OCI_PUBLISH_DRY_RUN").unwrap_or_default() == "1" {
         println!(
@@ -2872,9 +2954,9 @@ pub fn oci_main(
             "oci_deploy: signing-first: verify SBOM/provenance plus signing_demo before any live push, then cosign sign <digest>"
         );
     }
-    match oci_build_layout(&image, &outdir, registry, repository, tag, platform) {
+    match oci_build_layout(&image, outdir, registry, repository, tag, platform) {
         Ok(layout) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("oci_deploy: staged {registry}/{repository}:{tag} (profile: {profile})");
             println!("  layout: {}", layout.display());
             println!("  index: {}", layout.join("index.json").display());
@@ -2887,38 +2969,6 @@ pub fn oci_main(
     }
 }
 
-/// Formats one Octopus push command.
-pub fn octopus_push_command(package_base: &str, server: &str, space: &str) -> String {
-    let mut cmd = format!("octo push {package_base} --server {server}");
-    if !space.is_empty() {
-        cmd.push_str(&format!(" --space {space}"));
-    }
-    cmd
-}
-
-/// Formats one Octopus release command.
-pub fn octopus_release_command(
-    project: &str,
-    channel: &str,
-    version: &str,
-    package_base: &str,
-    deploy_to: &[String],
-    space: &str,
-    server: &str,
-) -> String {
-    let mut cmd = format!(
-        "octo create-release --project {project} --channel {channel} --version {version} --package {package_base}"
-    );
-    for env in deploy_to {
-        cmd.push_str(&format!(" --deploy-to {env}"));
-    }
-    if !space.is_empty() {
-        cmd.push_str(&format!(" --space {space}"));
-    }
-    cmd.push_str(&format!(" --server {server}"));
-    cmd
-}
-
 /// Octopus drop inputs.
 pub struct OctopusDrop<'a> {
     pub deploy_name: &'a str,
@@ -2928,6 +2978,55 @@ pub struct OctopusDrop<'a> {
     pub deploy_to: &'a [String],
     pub space: &'a str,
     pub server: &'a str,
+}
+
+/// Builds the argv for `octo push`.
+pub fn octopus_push_args(package: &Path, spec: &OctopusDrop<'_>) -> Vec<OsString> {
+    let mut args: Vec<OsString> = vec![
+        "push".into(),
+        "--package".into(),
+        package.as_os_str().to_owned(),
+        "--server".into(),
+        spec.server.into(),
+    ];
+    if !spec.space.is_empty() {
+        args.push("--space".into());
+        args.push(spec.space.into());
+    }
+    args
+}
+
+/// Builds the argv for `octo create-release`.
+pub fn octopus_release_args(spec: &OctopusDrop<'_>) -> Vec<OsString> {
+    let mut args: Vec<OsString> = vec![
+        "create-release".into(),
+        "--project".into(),
+        spec.project.into(),
+        "--channel".into(),
+        spec.channel.into(),
+        "--version".into(),
+        spec.version.into(),
+    ];
+    for env in spec.deploy_to {
+        args.push("--deployTo".into());
+        args.push(env.into());
+    }
+    args.push("--server".into());
+    args.push(spec.server.into());
+    if !spec.space.is_empty() {
+        args.push("--space".into());
+        args.push(spec.space.into());
+    }
+    args
+}
+
+/// Renders an octo argv as one display line.
+fn octo_line(args: &[OsString]) -> String {
+    let words: Vec<String> = args
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    format!("octo {}", words.join(" "))
 }
 
 /// Octopus launcher inputs.
@@ -2988,8 +3087,8 @@ pub fn octopus_build_drop(
     let digest = copy_verified(package_src, &dest)?;
     let manifest = format!(
         "# would-run manifest for octopus_deploy (local default publishes nothing)\n{}\n{}\npackage-sha256: {digest}  {base}\n",
-        octopus_push_command(&base, spec.server, spec.space),
-        octopus_release_command(spec.project, spec.channel, spec.version, &base, spec.deploy_to, spec.space, spec.server),
+        octo_line(&octopus_push_args(Path::new(&base), spec)),
+        octo_line(&octopus_release_args(spec)),
     );
     std::fs::write(drop.join("would-run.txt"), manifest.as_bytes())?;
     Ok(drop)
@@ -3001,27 +3100,76 @@ const OCTOPUS_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["OCTOPUS_API_KEY"],
     approved: "OCTOPUS_PUBLISH_APPROVED",
+    live: "OCTOPUS_PUBLISH_LIVE",
 };
 
-/// Runs the Octopus deploy launcher.
-pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
-    if argv.len() > 2 {
+/// Runs one octo step with the key in env only; true on success.
+fn octo_run(octo: &Path, args: &[OsString], api_key: &str, step: &str) -> bool {
+    let mut cmd = scrubbed_command(
+        octo,
+        &[PUBLISH_CHILD_ENV_KEEP],
+        &[("OCTOPUS_CLI_API_KEY", api_key)],
+    );
+    cmd.args(args);
+    match cmd.status() {
+        Ok(status) if status.success() => true,
+        Ok(status) => {
+            eprintln!("octopus_deploy: octo {step} failed with {status}");
+            false
+        }
+        Err(error) => {
+            eprintln!("octopus_deploy: octo {step}: {error}");
+            false
+        }
+    }
+}
+
+/// Pushes the package, then creates the release and queues each deployment.
+pub fn octopus_live_publish(
+    octo: &Path,
+    package: &Path,
+    spec: &OctopusDrop<'_>,
+    api_key: &str,
+) -> i32 {
+    let name = package
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if !octo_run(octo, &octopus_push_args(package, spec), api_key, "push") {
+        return 1;
+    }
+    if !octo_run(octo, &octopus_release_args(spec), api_key, "create-release") {
         eprintln!(
-            "octopus_deploy: this deploy target takes at most an output directory; the drop is exactly the file pinned at analysis time"
+            "octopus_deploy: package {name} is already pushed; a rerun will fail on push (FailIfExists)"
         );
         return 1;
     }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("octopus_deploy: cannot create {}", outdir.display());
-        return 1;
+    println!("octopus_deploy: pushed package {name}");
+    println!(
+        "octopus_deploy: created release {} {} on channel {}",
+        spec.project, spec.version, spec.channel
+    );
+    for env in spec.deploy_to {
+        println!(
+            "octopus_deploy: queued deploy of {} {} to {env}",
+            spec.project, spec.version
+        );
     }
-    let package = match resolve_runfile(spec.package_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("octopus_deploy: {error}");
-            return 1;
-        }
+    0
+}
+
+/// Runs the Octopus deploy launcher.
+pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
+    let Some(run) = DeployRun::start(
+        "octopus_deploy",
+        "the drop is exactly the file pinned at analysis time",
+        argv,
+    ) else {
+        return 1;
+    };
+    let outdir = run.outdir();
+    let Some(package) = run.resolve(spec.package_rloc) else {
+        return 1;
     };
     let space = std::env::var("OCTOPUS_SPACE").unwrap_or_else(|_| spec.space_default.to_owned());
     let server = std::env::var("OCTOPUS_URL").unwrap_or_else(|_| spec.url_default.to_owned());
@@ -3031,8 +3179,16 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
         .filter(|s| !s.is_empty())
         .map(|s| s.to_owned())
         .collect();
-    if std::env::var("OCTOPUS_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let api_key = std::env::var("OCTOPUS_API_KEY").unwrap_or_default();
+    let drop_spec = OctopusDrop {
+        deploy_name: spec.deploy_name,
+        project: spec.project,
+        channel: spec.channel,
+        version: spec.version,
+        deploy_to: &deploy_to,
+        space: &space,
+        server: &server,
+    };
+    if OCTOPUS_GATE.requested(env_or_empty) {
         if spec.version == "0.0.0" {
             eprintln!("octopus_deploy: live push refuses version 0.0.0; set a real version");
             return 1;
@@ -3043,46 +3199,22 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
             );
             return 1;
         }
-        if let Some(error) = OCTOPUS_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
-        let mut push = std::process::Command::new("octo");
-        push.arg("push").arg(&package).arg("--server").arg(&server);
-        if !space.is_empty() {
-            push.arg("--space").arg(&space);
-        }
-        push.arg("--apiKey").arg(&api_key);
-        match push.status() {
-            Ok(status) if status.success() => {
-                println!("octopus_deploy: pushed {} {}", spec.project, spec.version);
-                return 0;
-            }
-            Ok(status) => {
-                eprintln!("octopus_deploy: octo push failed with {status}");
-                return 1;
-            }
+        let secrets = match OCTOPUS_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
             Err(error) => {
-                eprintln!("octopus_deploy: {error}");
+                eprintln!("{error}");
                 return 1;
             }
-        }
+        };
+        let Some(octo) = which_on_path("octo") else {
+            eprintln!("octopus_deploy: 'octo' CLI not found on PATH");
+            return 1;
+        };
+        return octopus_live_publish(&octo, &package, &drop_spec, secrets.get("OCTOPUS_API_KEY"));
     }
-    match octopus_build_drop(
-        &package,
-        &outdir,
-        &OctopusDrop {
-            deploy_name: spec.deploy_name,
-            project: spec.project,
-            channel: spec.channel,
-            version: spec.version,
-            deploy_to: &deploy_to,
-            space: &space,
-            server: &server,
-        },
-    ) {
+    match octopus_build_drop(&package, outdir, &drop_spec) {
         Ok(drop) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!(
                 "octopus_deploy: staged {} {} (profile: {profile})",
                 spec.project, spec.version
@@ -3115,7 +3247,36 @@ pub fn promotion_rollback_command(deploy_name: &str, rollback_to: &str) -> Strin
     )
 }
 
+/// Health result recorded for one promotion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PromotionHealth {
+    Passed,
+    NotRequired,
+    SkippedLocal,
+}
+
+impl PromotionHealth {
+    /// Returns the value written to promotion.json.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Passed => "passed",
+            Self::NotRequired => "not-required",
+            Self::SkippedLocal => "skipped-local",
+        }
+    }
+
+    /// Returns the health line written to would-run.txt.
+    pub fn manifest_line(self) -> &'static str {
+        match self {
+            Self::Passed => "health: passed (PROMOTION_HEALTH_CMD exited 0)",
+            Self::NotRequired => "health: not required; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check",
+            Self::SkippedLocal => "health: skipped locally; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check",
+        }
+    }
+}
+
 /// Builds one promotion staging dir.
+#[allow(clippy::too_many_arguments)]
 pub fn promotion_build(
     artifact_src: &Path,
     outdir: &Path,
@@ -3124,6 +3285,7 @@ pub fn promotion_build(
     to_env: &str,
     version: &str,
     secret_refs: &[String],
+    health: PromotionHealth,
 ) -> io::Result<std::path::PathBuf> {
     if !artifact_src.is_file() {
         return Err(io::Error::new(
@@ -3171,20 +3333,17 @@ pub fn promotion_build(
     let digest = copy_verified(artifact_src, &dest)?;
     let mut refs: Vec<String> = secret_refs.to_vec();
     refs.sort();
-    let record = render_json(
-        &serde_json::json!({
-            "artifact": base,
-            "artifact_sha256": digest,
-            "deploy": deploy_name,
-            "from_environment": from_env,
-            "health": "skipped-local",
-            "registry_auth": "env-only",
-            "secret_refs": refs,
-            "to_environment": to_env,
-            "version": version,
-        }),
-        JsonLayout::InlineArrays,
-    );
+    let record = render_json(&serde_json::json!({
+        "artifact": base,
+        "artifact_sha256": digest,
+        "deploy": deploy_name,
+        "from_environment": from_env,
+        "health": health.as_str(),
+        "registry_auth": "env-only",
+        "secret_refs": refs,
+        "to_environment": to_env,
+        "version": version,
+    }))?;
     std::fs::write(promotion.join("promotion.json"), record.as_bytes())?;
     let refs_line = if refs.is_empty() {
         "secret-refs: none".to_owned()
@@ -3192,8 +3351,9 @@ pub fn promotion_build(
         format!("secret-refs: {} (names only, never values)", refs.join(","))
     };
     let manifest = format!(
-        "# would-run manifest for promotion_deploy (local default publishes nothing; live needs PROMOTION_LIVE=1 plus PROMOTION_APPROVED=1)\n{}\nhealth: skipped locally; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check\nrollback: set PROMOTION_ROLLBACK=1 plus PROMOTION_ROLLBACK_TO=<version> to record a rollback pointer (history lives in the promotion dir or registry)\nartifact-sha256: {digest}  {base}\n{refs_line}\nregistry-auth: env-only (PROMOTION_REGISTRY_USER/PROMOTION_REGISTRY_TOKEN), never from BUILD\n",
+        "# would-run manifest for promotion_deploy (publishes nothing; live gates need PROMOTION_LIVE=1 plus PROMOTION_APPROVED=1)\n{}\n{}\nrollback: set PROMOTION_ROLLBACK=1 plus PROMOTION_ROLLBACK_TO=<version> to record a rollback pointer (history lives in the promotion dir or registry)\nartifact-sha256: {digest}  {base}\n{refs_line}\nregistry-auth: env-only (PROMOTION_REGISTRY_USER/PROMOTION_REGISTRY_TOKEN), never from BUILD\n",
         promotion_promote_command(&base, from_env, to_env, version),
+        health.manifest_line(),
     );
     std::fs::write(promotion.join("would-run.txt"), manifest.as_bytes())?;
     Ok(promotion)
@@ -3340,6 +3500,7 @@ const PROMOTION_GATE: OwnerGate = OwnerGate {
     action: "promote",
     credentials: &[],
     approved: "PROMOTION_APPROVED",
+    live: "PROMOTION_LIVE",
 };
 
 /// Runs the promotion deploy launcher.
@@ -3351,23 +3512,16 @@ pub fn promotion_main(
     version: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "promotion_deploy: this deploy target takes at most an output directory; the promotion is exactly the file pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "promotion_deploy",
+        "the promotion is exactly the file pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("promotion_deploy: cannot create {}", outdir.display());
+    };
+    let outdir = run.outdir();
+    let Some(artifact) = run.resolve(artifact_rloc) else {
         return 1;
-    }
-    let artifact = match resolve_runfile(artifact_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("promotion_deploy: {error}");
-            return 1;
-        }
     };
     let raw_refs = std::env::var("PROMOTION_SECRET_REFS").unwrap_or_default();
     let secret_refs: Vec<String> = raw_refs
@@ -3378,12 +3532,13 @@ pub fn promotion_main(
     if std::env::var("PROMOTION_ROLLBACK").unwrap_or_default() == "1" {
         let promotion = match promotion_build(
             &artifact,
-            &outdir,
+            outdir,
             deploy_name,
             from_env,
             to_env,
             version,
             &secret_refs,
+            PromotionHealth::SkippedLocal,
         ) {
             Ok(promotion) => promotion,
             Err(error) => {
@@ -3403,7 +3558,7 @@ pub fn promotion_main(
         println!("  promotion: {}", promotion.display());
         return 0;
     }
-    if std::env::var("PROMOTION_LIVE").unwrap_or_default() == "1" {
+    if PROMOTION_GATE.requested(env_or_empty) {
         if version == "0.0.0" {
             eprintln!("promotion_deploy: live promote refuses version 0.0.0; set a real version");
             return 1;
@@ -3429,6 +3584,7 @@ pub fn promotion_main(
             eprintln!("promotion_deploy: {error}");
             return 1;
         }
+        let mut health = PromotionHealth::NotRequired;
         if std::env::var("PROMOTION_REQUIRE_HEALTH").unwrap_or_default() == "1" {
             let health_cmd = std::env::var("PROMOTION_HEALTH_CMD").unwrap_or_default();
             if health_cmd.is_empty() {
@@ -3438,7 +3594,7 @@ pub fn promotion_main(
                 return 1;
             }
             match promotion_run_health_cmd(&health_cmd) {
-                Ok(0) => {}
+                Ok(0) => health = PromotionHealth::Passed,
                 Ok(code) => {
                     eprintln!(
                         "promotion_deploy: health check failed (exit {code}); refusing to promote"
@@ -3453,19 +3609,20 @@ pub fn promotion_main(
         }
         match promotion_build(
             &artifact,
-            &outdir,
+            outdir,
             deploy_name,
             from_env,
             to_env,
             version,
             &secret_refs,
+            health,
         ) {
             Ok(promotion) => {
-                println!(
-                    "promotion_deploy: promoted {from_env} -> {to_env} version {version} (secrets by reference only, registry auth env-only)"
+                eprintln!(
+                    "promotion_deploy: live promotion {from_env} -> {to_env} version {version} is not implemented; gates passed and nothing was published"
                 );
-                println!("  promotion: {}", promotion.display());
-                return 0;
+                eprintln!("  promotion: {}", promotion.display());
+                return 1;
             }
             Err(error) => {
                 eprintln!("promotion_deploy: {error}");
@@ -3482,15 +3639,16 @@ pub fn promotion_main(
     }
     match promotion_build(
         &artifact,
-        &outdir,
+        outdir,
         deploy_name,
         from_env,
         to_env,
         version,
         &secret_refs,
+        PromotionHealth::SkippedLocal,
     ) {
         Ok(promotion) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!(
                 "promotion_deploy: staged {from_env} -> {to_env} version {version} (profile: {profile})"
             );
@@ -3560,19 +3718,16 @@ pub fn npm_create_pack(
     let digest = dx_digest::sha256_file_hex(tgz_out)?;
     let names: Vec<String> = members.keys().cloned().collect();
     let tgz_base = basename(tgz_out)?;
-    let feed = render_json(
-        &serde_json::json!({
-            "access": access,
-            "files": names,
-            "name": package,
-            "provenance": provenance,
-            "registry": registry,
-            "sha256": digest,
-            "tag": tag,
-            "tarball": tgz_base,
-        }),
-        JsonLayout::InlineArrays,
-    );
+    let feed = render_json(&serde_json::json!({
+        "access": access,
+        "files": names,
+        "name": package,
+        "provenance": provenance,
+        "registry": registry,
+        "sha256": digest,
+        "tag": tag,
+        "tarball": tgz_base,
+    }))?;
     if let Some(parent) = feed_out.parent() {
         if !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent)?;
@@ -3698,24 +3853,16 @@ pub fn npm_npmrc_line(host: &str, token: &str) -> String {
     format!("//{host}/:_authToken={token}\n")
 }
 
-/// Writes one owner-only npmrc.
+/// Writes one owner-only npmrc in a private staged dir.
 pub fn npm_write_npmrc(host: &str, token: &str) -> io::Result<std::path::PathBuf> {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        ".npmrc-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
-    std::fs::write(&path, npm_npmrc_line(host, token).as_bytes())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    let dir = tempfile_stage_dir("npm-publish-")?;
+    match write_secure_file(&dir, ".npmrc", &npm_npmrc_line(host, token)) {
+        Ok(path) => Ok(path),
+        Err(error) => {
+            let _ = std::fs::remove_dir_all(&dir);
+            Err(error)
+        }
     }
-    Ok(path)
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -3828,7 +3975,33 @@ pub fn npm_pack_main(argv: &[String]) -> i32 {
     }
 }
 
-/// Runs npm publish with a temporary owner-only npmrc.
+/// Extra env names `npm` keeps: CA and node settings plus the CI identity for provenance.
+const NPM_CHILD_ENV_EXTRA: &[&str] = &[
+    "CI",
+    "NODE_EXTRA_CA_CERTS",
+    "NODE_OPTIONS",
+    "ComSpec",
+    "GITHUB_ACTIONS",
+    "GITHUB_WORKFLOW_REF",
+    "GITHUB_REPOSITORY",
+    "GITHUB_REPOSITORY_ID",
+    "GITHUB_REPOSITORY_OWNER_ID",
+    "GITHUB_SERVER_URL",
+    "GITHUB_EVENT_NAME",
+    "GITHUB_REF",
+    "GITHUB_SHA",
+    "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
+    "RUNNER_ENVIRONMENT",
+    "ACTIONS_ID_TOKEN_REQUEST_URL",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    "GITLAB_CI",
+    "SIGSTORE_ID_TOKEN",
+    "CI_",
+    "GITLAB_",
+];
+
+/// Runs npm publish with a temporary owner-only npmrc, in a cleared env.
 pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::OsString]) -> i32 {
     let npmrc = match npm_write_npmrc(host, token) {
         Ok(path) => path,
@@ -3837,12 +4010,14 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
             return 1;
         }
     };
-    let status = std::process::Command::new(npm)
+    let status = scrubbed_command(npm, &[PUBLISH_CHILD_ENV_KEEP, NPM_CHILD_ENV_EXTRA], &[])
         .args(args)
         .arg("--userconfig")
         .arg(&npmrc)
         .status();
-    let _ = std::fs::remove_file(&npmrc);
+    if let Some(dir) = npmrc.parent() {
+        let _ = std::fs::remove_dir_all(dir);
+    }
     match status {
         Ok(status) if status.success() => 0,
         Ok(status) => status.code().unwrap_or(1),
@@ -3859,6 +4034,7 @@ const NPM_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["NPM_TOKEN"],
     approved: "NPM_PUBLISH_APPROVED",
+    live: "NPM_PUBLISH_LIVE",
 };
 
 /// Runs the npm deploy launcher.
@@ -3869,11 +4045,14 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
         );
         return 1;
     }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("npm_deploy: cannot create {}", outdir.display());
+    let Some(run) = DeployRun::start(
+        "npm_deploy",
+        "the package is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
+    };
+    let outdir = run.outdir();
     let (feed_path, tgz_path) = match npm_find_pack_inputs(feed_rloc, tarball_rloc) {
         Ok(pair) => pair,
         Err(error) => {
@@ -3921,18 +4100,20 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
             return 1;
         }
     }
-    let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+    let profile = deploy_profile();
     println!("npm_deploy: released {name} (tag {tag}, access {access}, profile: {profile})");
     println!("  registry: {registry}");
     println!("  provenance: {provenance}");
     println!("  tarball: {}", outdir.join(&tgz_base).display());
     println!("  feed: {}", feed_dir.display());
-    if std::env::var("NPM_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let token = std::env::var("NPM_TOKEN").unwrap_or_default();
-        if let Some(error) = NPM_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
+    if NPM_GATE.requested(env_or_empty) {
+        let secrets = match NPM_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
         if let Some(error) = npm_provenance_unavailable(&provenance) {
             eprintln!("{error}");
             return 1;
@@ -3950,7 +4131,7 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
         return npm_run_publish(
             &npm,
             host,
-            &token,
+            secrets.get("NPM_TOKEN"),
             &npm_publish_args(&staged_tgz, &tag, &access, &registry, &provenance),
         );
     }
@@ -4376,28 +4557,16 @@ mod tests {
                 )
             })
             .collect::<std::collections::BTreeMap<_, _>>();
-        let package = checksum
-            .rsplit_once("\"package\": \"")
-            .expect("package")
-            .1
-            .trim_end_matches("\"\n}\n");
-        let want = [
-            "{",
-            "  \"files\": {",
-            "    \"Cargo.toml\": \"a\",",
-            "    \"lib.rs\": \"b\"",
-            "  },",
-            "  \"package\": \"c\"",
-            "}",
-            "",
-        ]
-        .join("\n");
-        assert_eq!(
-            checksum,
-            want.replace("\"a\"", &format!("\"{}\"", pairs["Cargo.toml"]))
-                .replace("\"b\"", &format!("\"{}\"", pairs["lib.rs"]))
-                .replace("\"c\"", &format!("\"{package}\""))
-        );
+        assert!(checksum.ends_with('\n'));
+        let parsed: serde_json::Value = serde_json::from_str(&checksum).expect("checksum parses");
+        let want_files = serde_json::json!({
+            "Cargo.toml": pairs["Cargo.toml"],
+            "lib.rs": pairs["lib.rs"],
+        });
+        assert_eq!(parsed["files"], want_files);
+        let package = parsed["package"].as_str().expect("package");
+        assert_eq!(package.len(), 64);
+        assert!(package.bytes().all(|b| b.is_ascii_hexdigit()));
         let index = std::fs::read_to_string(
             house
                 .join("registry")
@@ -4406,12 +4575,12 @@ mod tests {
                 .join("index.json"),
         )
         .expect("index");
-        assert!(
-            index.starts_with("{\n  \"files\": [\n    {\"name\": \"Cargo.toml\", \"sha256\": \"")
-                && index
-                    .ends_with("  ],\n  \"name\": \"crates_demo\",\n  \"version\": \"0.0.0\"\n}\n"),
-            "{index}"
-        );
+        assert!(index.ends_with('\n'));
+        let index: serde_json::Value = serde_json::from_str(&index).expect("index parses");
+        assert_eq!(index["name"], "crates_demo");
+        assert_eq!(index["version"], "0.0.0");
+        assert_eq!(index["files"][0]["name"], "Cargo.toml");
+        assert_eq!(index["files"][0]["sha256"], pairs["Cargo.toml"].as_str());
         assert!(crates_build_vendor(&[], &outdir, "crates_demo", "0.0.0").is_err());
     }
 
@@ -4855,8 +5024,7 @@ mod tests {
         assert!(layout.join("blobs").join("sha256").is_dir());
         assert!(!outdir.join("app-oci-layout.tmp").exists());
         let index = std::fs::read_to_string(layout.join("index.json")).expect("index");
-        assert!(index.ends_with('\n'), "index ends with a newline");
-        assert_eq!(index.matches('\n').count(), 1, "index is one compact line");
+        assert!(!index.contains('\n'), "index is compact");
         let parsed: serde_json::Value = serde_json::from_str(&index).expect("index parses");
         assert_eq!(parsed["schemaVersion"], 2);
         assert_eq!(
@@ -4870,7 +5038,12 @@ mod tests {
         let digest = parsed["manifests"][0]["digest"].as_str().expect("digest");
         let manifest = layout.join("blobs").join("sha256").join(&digest[7..]);
         let manifest_bytes = std::fs::read(&manifest).expect("manifest");
+        assert!(!manifest_bytes.contains(&b'\n'), "manifest is compact");
         assert_eq!(parsed["manifests"][0]["size"], manifest_bytes.len());
+        assert_eq!(
+            digest,
+            format!("sha256:{}", dx_digest::sha256_hex(&manifest_bytes))
+        );
         assert_eq!(
             digest,
             format!(
@@ -4916,7 +5089,30 @@ mod tests {
         )
         .expect("drop");
         assert!(drop.join("release_demo.tar.gz").is_file());
-        assert!(drop.join("would-run.txt").is_file());
+        let manifest = std::fs::read_to_string(drop.join("would-run.txt")).expect("manifest");
+        let spec = OctopusDrop {
+            deploy_name: "octopus_demo",
+            project: "octopus_demo",
+            channel: "Default",
+            version: "0.0.0",
+            deploy_to: &["Production".to_owned()],
+            space: "",
+            server: "https://octopus.example.invalid",
+        };
+        let lines: Vec<&str> = manifest.lines().collect();
+        assert_eq!(
+            lines[1],
+            "octo push --package release_demo.tar.gz --server https://octopus.example.invalid"
+        );
+        assert_eq!(
+            lines[2],
+            "octo create-release --project octopus_demo --channel Default --version 0.0.0 --deployTo Production --server https://octopus.example.invalid"
+        );
+        assert_eq!(
+            lines[1],
+            octo_line(&octopus_push_args(Path::new("release_demo.tar.gz"), &spec))
+        );
+        assert_eq!(lines[2], octo_line(&octopus_release_args(&spec)));
     }
 
     #[test]
@@ -4934,32 +5130,48 @@ mod tests {
             "production",
             "1.2.3",
             &[],
+            PromotionHealth::SkippedLocal,
         )
         .expect("promotion");
         let record = std::fs::read_to_string(promotion.join("promotion.json")).expect("record");
         let artifact_digest = dx_digest::sha256_file_hex(&artifact).expect("hex");
+        assert!(record.ends_with('\n'));
         assert_eq!(
-            record,
-            [
-                "{",
-                &format!(
-                    "  \"artifact\": \"{}\",",
-                    basename(&artifact).expect("base")
-                ),
-                &format!("  \"artifact_sha256\": \"{artifact_digest}\","),
-                "  \"deploy\": \"promotion_demo\",",
-                "  \"from_environment\": \"staging\",",
-                "  \"health\": \"skipped-local\",",
-                "  \"registry_auth\": \"env-only\",",
-                "  \"secret_refs\": [],",
-                "  \"to_environment\": \"production\",",
-                "  \"version\": \"1.2.3\"",
-                "}",
-                "",
-            ]
-            .join("\n")
+            serde_json::from_str::<serde_json::Value>(&record).expect("record parses"),
+            serde_json::json!({
+                "artifact": basename(&artifact).expect("base"),
+                "artifact_sha256": artifact_digest,
+                "deploy": "promotion_demo",
+                "from_environment": "staging",
+                "health": "skipped-local",
+                "registry_auth": "env-only",
+                "secret_refs": [],
+                "to_environment": "production",
+                "version": "1.2.3",
+            })
         );
         assert!(promotion.join("would-run.txt").is_file());
+        let passed_out = scratch.path().join("passed");
+        std::fs::create_dir_all(&passed_out).expect("passed outdir");
+        let passed = promotion_build(
+            &artifact,
+            &passed_out,
+            "promotion_demo",
+            "staging",
+            "production",
+            "1.2.3",
+            &[],
+            PromotionHealth::Passed,
+        )
+        .expect("passed promotion");
+        let passed_record: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(passed.join("promotion.json")).expect("passed record"),
+        )
+        .expect("passed record parses");
+        assert_eq!(passed_record["health"], "passed");
+        let manifest = std::fs::read_to_string(passed.join("would-run.txt")).expect("manifest");
+        assert!(manifest.contains("health: passed"));
+        assert!(!manifest.contains("local default"));
         let rollback =
             promotion_record_rollback(&promotion, "promotion_demo", "1.2.2", "").expect("rollback");
         assert!(rollback.is_file());
@@ -5000,22 +5212,19 @@ mod tests {
             "//registry.npmjs.org/:_authToken=tok\n"
         );
         let body = std::fs::read_to_string(&feed).expect("feed");
+        assert!(body.ends_with('\n'));
         assert_eq!(
-            body,
-            [
-                "{",
-                "  \"access\": \"public\",",
-                "  \"files\": [\"package/package.json\"],",
-                "  \"name\": \"npm-demo\",",
-                "  \"provenance\": \"required\",",
-                "  \"registry\": \"https://registry.npmjs.org\",",
-                &format!("  \"sha256\": \"{digest}\","),
-                "  \"tag\": \"latest\",",
-                "  \"tarball\": \"npm_demo.tgz\"",
-                "}",
-                "",
-            ]
-            .join("\n")
+            serde_json::from_str::<serde_json::Value>(&body).expect("feed parses"),
+            serde_json::json!({
+                "access": "public",
+                "files": ["package/package.json"],
+                "name": "npm-demo",
+                "provenance": "required",
+                "registry": "https://registry.npmjs.org",
+                "sha256": digest,
+                "tag": "latest",
+                "tarball": "npm_demo.tgz",
+            })
         );
     }
 
@@ -5258,8 +5467,8 @@ mod tests {
     #[test]
     fn render_json_escapes_control_and_markup() {
         let value = serde_json::json!({"k": "a\"b\\c\nd\u{1}<&>"});
-        let text = render_json(&value, JsonLayout::Compact);
-        assert_eq!(text, "{\"k\":\"a\\\"b\\\\c\\nd\\u0001<&>\"}\n");
+        let text = render_json(&value).expect("renders");
+        assert_eq!(text, "{\n  \"k\": \"a\\\"b\\\\c\\nd\\u0001<&>\"\n}\n");
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&text).expect("parses"),
             value
@@ -5267,64 +5476,6 @@ mod tests {
         assert_eq!(
             quick_xml::escape::escape("<a href=\"x\">&'</a>"),
             "&lt;a href=&quot;x&quot;&gt;&amp;&apos;&lt;/a&gt;"
-        );
-    }
-
-    #[test]
-    fn render_json_matches_the_previous_hand_rolled_layout() {
-        let inline = serde_json::json!({
-            "files": ["a", "b\"q"],
-            "name": "n",
-            "registry": "r",
-            "sha256": "d",
-            "tag": "t",
-            "tarball": "tb",
-        });
-        assert_eq!(
-            render_json(&inline, JsonLayout::InlineArrays),
-            "{\n  \"files\": [\"a\", \"b\\\"q\"],\n  \"name\": \"n\",\n  \"registry\": \"r\",\n  \"sha256\": \"d\",\n  \"tag\": \"t\",\n  \"tarball\": \"tb\"\n}\n"
-        );
-        let block = serde_json::json!({
-            "files": [{"name": "a", "sha256": "d"}],
-            "name": "n",
-            "version": "1.0.0",
-        });
-        assert_eq!(
-            render_json(&block, JsonLayout::BlockArrays),
-            "{\n  \"files\": [\n    {\"name\": \"a\", \"sha256\": \"d\"}\n  ],\n  \"name\": \"n\",\n  \"version\": \"1.0.0\"\n}\n"
-        );
-        let empty = serde_json::json!({"files": {}, "package": "p"});
-        assert_eq!(
-            render_json(&empty, JsonLayout::InlineArrays),
-            "{\n  \"files\": {},\n  \"package\": \"p\"\n}\n"
-        );
-        let oci = serde_json::json!({
-            "manifests": [{
-                "annotations": {"org.opencontainers.image.ref.name": "r/i:1"},
-                "digest": "sha256:0",
-                "mediaType": "application/vnd.oci.image.manifest.v1+json",
-                "size": 7,
-            }],
-            "mediaType": "application/vnd.oci.image.index.v1+json",
-            "schemaVersion": 2,
-        });
-        assert_eq!(
-            render_json(&oci, JsonLayout::Compact),
-            "{\"manifests\":[{\"annotations\":{\"org.opencontainers.image.ref.name\":\"r/i:1\"},\"digest\":\"sha256:0\",\"mediaType\":\"application/vnd.oci.image.manifest.v1+json\",\"size\":7}],\"mediaType\":\"application/vnd.oci.image.index.v1+json\",\"schemaVersion\":2}\n"
-        );
-    }
-
-    #[test]
-    fn render_json_orders_keys_and_keeps_empty_containers_tight() {
-        let value = serde_json::json!({"z": 1, "a": [], "m": {}});
-        assert_eq!(
-            render_json(&value, JsonLayout::InlineArrays),
-            "{\n  \"a\": [],\n  \"m\": {},\n  \"z\": 1\n}\n"
-        );
-        let nested = serde_json::json!({"outer": {"inner": [1, 2]}});
-        assert_eq!(
-            render_json(&nested, JsonLayout::BlockArrays),
-            "{\n  \"outer\": {\n    \"inner\": [\n      1,\n      2\n    ]\n  }\n}\n"
         );
     }
 
@@ -5372,28 +5523,47 @@ mod tests {
     }
 
     #[test]
-    fn command_formatters_cover_optional_segments() {
+    fn octopus_args_builders_cover_optional_segments() {
+        let envs = ["Production".to_owned(), "Staging".to_owned()];
+        let spec = |deploy_to: &'static [String], space: &'static str| OctopusDrop {
+            deploy_name: "demo",
+            project: "demo",
+            channel: "Default",
+            version: "1.0.0",
+            deploy_to,
+            space,
+            server: "https://octo.invalid",
+        };
+        let envs: &'static [String] = Box::leak(Box::new(envs));
+        let lines = |args: Vec<OsString>| octo_line(&args);
+        let pkg = Path::new("demo-1.0.0.tar.gz");
         assert_eq!(
-            octopus_push_command("demo-1.0.0", "https://octo.invalid", ""),
-            "octo push demo-1.0.0 --server https://octo.invalid"
+            lines(octopus_push_args(pkg, &spec(&[], ""))),
+            "octo push --package demo-1.0.0.tar.gz --server https://octo.invalid"
         );
         assert_eq!(
-            octopus_push_command("demo-1.0.0", "https://octo.invalid", "Spaces"),
-            "octo push demo-1.0.0 --server https://octo.invalid --space Spaces"
+            lines(octopus_push_args(pkg, &spec(&[], "Spaces"))),
+            "octo push --package demo-1.0.0.tar.gz --server https://octo.invalid --space Spaces"
         );
-        let release = octopus_release_command(
-            "demo",
-            "Default",
-            "1.0.0",
-            "demo-1.0.0",
-            &["Production".to_owned(), "Staging".to_owned()],
-            "Spaces",
-            "https://octo.invalid",
+        assert_eq!(
+            lines(octopus_release_args(&spec(&[], ""))),
+            "octo create-release --project demo --channel Default --version 1.0.0 --server https://octo.invalid"
         );
+        let release = lines(octopus_release_args(&spec(envs, "Spaces")));
         assert_eq!(
             release,
-            "octo create-release --project demo --channel Default --version 1.0.0 --package demo-1.0.0 --deploy-to Production --deploy-to Staging --space Spaces --server https://octo.invalid"
+            "octo create-release --project demo --channel Default --version 1.0.0 --deployTo Production --deployTo Staging --server https://octo.invalid --space Spaces"
         );
+        let push = lines(octopus_push_args(pkg, &spec(envs, "Spaces")));
+        for line in [&push, &release] {
+            assert!(!line.contains("--deploy-to") && !line.contains("--apiKey"));
+            assert!(!line.to_lowercase().contains("key"));
+        }
+        assert!(!release.contains("--package"));
+    }
+
+    #[test]
+    fn command_formatters_cover_optional_segments() {
         assert_eq!(
             promotion_rollback_command("demo", "1.0.1"),
             "rollback demo to 1.0.1 (restore the pinned artifact for that version)"
@@ -5409,6 +5579,12 @@ mod tests {
         let dir = tempfile_stage_dir("dx-deploy-stage-").expect("stage dir");
         assert!(dir.is_dir());
         assert!(dir.to_string_lossy().contains("dx-deploy-stage-"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&dir).expect("stat").permissions().mode();
+            assert_eq!(mode & 0o777, 0o700, "stage dir must stay owner-only");
+        }
         std::fs::remove_dir_all(&dir).expect("cleanup");
         assert!(tempfile_stage_dir("dx-deploy-stage-").is_ok());
     }
@@ -5516,29 +5692,6 @@ mod tests {
     }
 
     #[test]
-    fn minimal_env_keeps_allowlist_and_applies_extras() {
-        if env_test_in_child("tests::minimal_env_keeps_allowlist_and_applies_extras") {
-            return;
-        }
-        with_env(
-            &[
-                ("DX_TEST_KEEP", Some("kept")),
-                ("DX_TEST_DROP", Some("dropped")),
-            ],
-            || {
-                let env = minimal_env(
-                    &["DX_TEST_KEEP", "DX_TEST_ABSENT"],
-                    &[("DX_TEST_EXTRA", "extra")],
-                );
-                assert_eq!(env.get("DX_TEST_KEEP").map(String::as_str), Some("kept"));
-                assert_eq!(env.get("DX_TEST_EXTRA").map(String::as_str), Some("extra"));
-                assert!(!env.contains_key("DX_TEST_DROP"));
-                assert!(!env.contains_key("DX_TEST_ABSENT"));
-            },
-        );
-    }
-
-    #[test]
     fn deploy_outdir_prefers_arg_then_env_then_cwd() {
         if env_test_in_child("tests::deploy_outdir_prefers_arg_then_env_then_cwd") {
             return;
@@ -5561,6 +5714,26 @@ mod tests {
                 assert_eq!(deploy_outdir(&["prog".to_owned()]), from_env);
             },
         );
+        let relative = vec!["prog".to_owned(), "dist".to_owned()];
+        let invocation = scratch.path().join("inv");
+        with_env(
+            &[(
+                "BUILD_WORKING_DIRECTORY",
+                Some(invocation.to_string_lossy().as_ref()),
+            )],
+            || {
+                assert_eq!(deploy_outdir(&relative), invocation.join("dist"));
+                assert_eq!(deploy_outdir(&argv), explicit);
+            },
+        );
+        with_env(&[("BUILD_WORKING_DIRECTORY", None)], || {
+            let cwd = std::env::current_dir().expect("cwd");
+            assert_eq!(deploy_outdir(&relative), cwd.join("dist"));
+        });
+        with_env(&[("BUILD_WORKING_DIRECTORY", Some(""))], || {
+            let cwd = std::env::current_dir().expect("cwd");
+            assert_eq!(deploy_outdir(&relative), cwd.join("dist"));
+        });
     }
 
     #[test]
@@ -5806,7 +5979,64 @@ mod tests {
             let mode = std::fs::metadata(&path).expect("stat").permissions().mode();
             assert_eq!(mode & 0o777, 0o600, "npmrc must stay owner-only");
         }
-        std::fs::remove_file(&path).expect("cleanup");
+        let parent = path.parent().expect("npmrc parent");
+        assert_ne!(parent, std::env::temp_dir().as_path());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(parent)
+                .expect("stat")
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o700, "npmrc dir must stay owner-only");
+        }
+        std::fs::remove_dir_all(parent).expect("cleanup");
+    }
+
+    #[test]
+    fn secure_file_is_owner_only_and_refuses_existing() {
+        let scratch = scratch_dir();
+        let path = write_secure_file(scratch.path(), "secret", "one").expect("secure");
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), "one");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&path).expect("stat").permissions().mode();
+            assert_eq!(mode & 0o777, 0o600, "secret must stay owner-only");
+        }
+        let error = write_secure_file(scratch.path(), "secret", "two").expect_err("existing");
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(std::fs::read_to_string(&path).expect("read"), "one");
+        #[cfg(unix)]
+        {
+            let target = scratch.path().join("target");
+            std::fs::write(&target, "keep").expect("write target");
+            std::os::unix::fs::symlink(&target, scratch.path().join("link")).expect("symlink");
+            assert!(write_secure_file(scratch.path(), "link", "leak").is_err());
+            assert_eq!(
+                std::fs::read_to_string(&target).expect("read target"),
+                "keep"
+            );
+        }
+    }
+
+    #[test]
+    fn private_dir_refuses_existing_dir() {
+        let scratch = scratch_dir();
+        let error = create_private_dir(scratch.path()).expect_err("existing");
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        let child = scratch.path().join("child");
+        create_private_dir(&child).expect("child");
+        assert!(child.is_dir());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&child)
+                .expect("stat")
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o700, "private dir must stay owner-only");
+        }
     }
 
     #[test]
@@ -5882,6 +6112,7 @@ mod tests {
             "production",
             "1.0.2",
             &[],
+            PromotionHealth::SkippedLocal,
         )
         .expect("promotion");
         let missing_version =
@@ -6103,7 +6334,7 @@ mod tests {
             nuget_main("a", "b", "", "", "https://nuget.invalid", &argv),
             1
         );
-        assert_eq!(crates_main("a", "b", "1.0.0", false, &argv), 1);
+        assert_eq!(crates_main("a", "b", "1.0.0", &argv), 1);
         assert_eq!(github_main("a", "b", "v1.0.0", &argv), 1);
         assert_eq!(
             maven_main(
@@ -6133,6 +6364,7 @@ mod tests {
             promotion_main("a", "b", "staging", "production", "1.0.0", &argv),
             1
         );
+        assert_eq!(npm_deploy_main(&argv, "a", "b"), 1);
     }
 
     #[test]
@@ -6158,7 +6390,7 @@ mod tests {
                     nuget_main(missing, "demo", "", "", "https://nuget.invalid", &argv),
                     1
                 );
-                assert_eq!(crates_main(missing, "demo", "1.0.0", false, &argv), 1);
+                assert_eq!(crates_main(missing, "demo", "1.0.0", &argv), 1);
                 assert_eq!(github_main(missing, "demo", "v1.0.0", &argv), 1);
                 assert_eq!(
                     maven_main(
@@ -6598,7 +6830,8 @@ mod tests {
             descriptor["digest"] = serde_json::json!(digest);
             oci_index_body(&[descriptor])
         };
-        let two = oci_index_body(&[image.clone(), image.clone()]);
+        let other = oci_descriptor("application/vnd.oci.image.manifest.v1+json", b"other");
+        let two = oci_index_body(&[image.clone(), other]);
         let gone = oci_index_body(&[missing]);
         let md5 = with_digest("md5:0123456789abcdef0123456789abcdef");
         let escape = with_digest("sha256:../x");
@@ -6731,6 +6964,39 @@ mod tests {
             oci_declared_image_id(&archive, "linux/amd64").expect("valid"),
             oci_digest(&fixture.config)
         );
+        // The same manifest under two tags, or twice in a nested index, is one image.
+        let mut tagged = Vec::new();
+        for tag in ["one", "two"] {
+            let mut descriptor = image.clone();
+            descriptor["annotations"] =
+                serde_json::json!({"org.opencontainers.image.ref.name": tag});
+            tagged.push(descriptor);
+        }
+        let tagged_index = oci_index_body(&tagged);
+        let nested_body = oci_index_body(&[image.clone(), image.clone()]);
+        let nested_blob = oci_blob(&nested_body);
+        let nested_index = oci_index_body(&[oci_descriptor(
+            "application/vnd.oci.image.index.v1+json",
+            &nested_body,
+        )]);
+        let positives: Vec<(&str, Vec<(&str, &[u8])>)> = vec![
+            ("two tags", vec![("index.json", tagged_index.as_slice())]),
+            (
+                "nested twice",
+                vec![
+                    ("index.json", nested_index.as_slice()),
+                    (nested_blob.as_str(), nested_body.as_slice()),
+                ],
+            ),
+        ];
+        for (case, extra) in positives {
+            oci_index_tar(&archive, &layers, "amd64", false, &extra, &[]);
+            assert_eq!(
+                oci_declared_image_id(&archive, "linux/amd64").expect(case),
+                oci_digest(&fixture.config),
+                "{case}"
+            );
+        }
     }
 
     #[test]
@@ -6816,23 +7082,38 @@ mod tests {
         assert!(std::fs::read_dir(&outdir).expect("outdir").next().is_none());
     }
 
+    /// Quotes one value for a single-quoted sh word.
     #[cfg(unix)]
-    fn fake_docker(dir: &Path) {
+    fn sh_quote(value: &str) -> String {
+        format!("'{}'", value.replace('\'', "'\\''"))
+    }
+
+    /// Writes a fake docker with its settings baked in, since docker runs in a cleared env.
+    #[cfg(unix)]
+    fn fake_docker(dir: &Path, settings: &[(&str, &str)]) {
         use std::os::unix::fs::PermissionsExt;
         let script = dir.join("docker");
-        std::fs::write(
-            &script,
-            "#!/bin/sh\n\
-             echo \"$*\" >> \"$FAKE_DOCKER_LOG\"\n\
-             if [ \"$1\" = login ]; then cat > /dev/null; fi\n\
+        let mut text = "#!/bin/sh\n".to_owned();
+        for (key, value) in settings {
+            text.push_str(&format!("{key}={}\n", sh_quote(value)));
+        }
+        text.push_str(
+            "echo \"$*\" >> \"$FAKE_DOCKER_LOG\"\n\
+             echo \"$1|$DOCKER_CONFIG|${DOCKER_HOST-unset}|${DOCKER_CONTEXT-unset}|${DOCKER_CERT_PATH-unset}\" >> \"$FAKE_DOCKER_ENV_LOG\"\n\
+             if [ -n \"$DX_LEAK_PROBE\" ]; then echo \"$1\" >> \"$FAKE_DOCKER_LEAK_LOG\"; fi\n\
+             if [ \"$1 $2\" = \"context inspect\" ]; then\n\
+             if [ -z \"$FAKE_DOCKER_CONTEXT_JSON\" ]; then exit 1; fi\n\
+             echo \"$FAKE_DOCKER_CONTEXT_JSON\"; exit 0\n\
+             fi\n\
+             if [ \"$1\" = login ]; then cat > /dev/null; cp \"$DOCKER_CONFIG/config.json\" \"$FAKE_DOCKER_CONFIG_COPY\"; fi\n\
              if [ \"$1\" = \"$FAKE_DOCKER_FAIL\" ]; then exit 1; fi\n\
              if [ \"$1\" = load ] && [ -n \"$FAKE_LOADED\" ]; then echo \"$FAKE_LOADED\"; fi\n\
              if [ \"$1 $2\" = \"image inspect\" ]; then\n\
              case \"$5\" in sha256:*) echo \"$5\" ;; *) echo \"$FAKE_REF_ID\" ;; esac\n\
              fi\n\
              exit 0\n",
-        )
-        .expect("script");
+        );
+        std::fs::write(&script, text).expect("script");
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     }
 
@@ -6871,18 +7152,83 @@ mod tests {
         loaded: &str,
         platform: &str,
     ) -> (i32, Vec<String>) {
+        let run =
+            run_fake_live_push_env(archive, fail, ref_id, loaded, platform, &FakeEnv::default());
+        (run.code, run.calls)
+    }
+
+    /// Caller environment for one fake live push.
+    #[cfg(unix)]
+    #[derive(Default)]
+    struct FakeEnv<'a> {
+        docker_host: Option<&'a str>,
+        docker_context: Option<&'a str>,
+        tls_verify: Option<&'a str>,
+        cert_path: Option<&'a str>,
+        context_json: &'a str,
+    }
+
+    #[cfg(unix)]
+    struct FakeRun {
+        code: i32,
+        /// Docker calls, without the leading `context inspect`.
+        calls: Vec<String>,
+        inspected: bool,
+        /// `verb|DOCKER_CONFIG|DOCKER_HOST|DOCKER_CONTEXT|DOCKER_CERT_PATH` per call.
+        env: Vec<String>,
+        /// Verbs of the scoped docker calls that saw the caller's DX_LEAK_PROBE.
+        leaked: Vec<String>,
+        config_copy: Option<String>,
+        caller_config: std::path::PathBuf,
+    }
+
+    #[cfg(unix)]
+    fn run_fake_live_push_env(
+        archive: &Path,
+        fail: &str,
+        ref_id: &str,
+        loaded: &str,
+        platform: &str,
+        caller: &FakeEnv<'_>,
+    ) -> FakeRun {
         let scratch = scratch_dir();
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
-        fake_docker(&bin);
         let log = scratch.path().join("docker.log");
+        let env_log = scratch.path().join("docker.env.log");
+        let leak_log = scratch.path().join("docker.leak.log");
+        let copy = scratch.path().join("config.copy.json");
+        let caller_config = scratch.path().join("home-docker");
+        fake_docker(
+            &bin,
+            &[
+                ("FAKE_DOCKER_LOG", log.to_string_lossy().as_ref()),
+                ("FAKE_DOCKER_ENV_LOG", env_log.to_string_lossy().as_ref()),
+                ("FAKE_DOCKER_LEAK_LOG", leak_log.to_string_lossy().as_ref()),
+                ("FAKE_DOCKER_CONFIG_COPY", copy.to_string_lossy().as_ref()),
+                ("FAKE_DOCKER_FAIL", fail),
+                ("FAKE_REF_ID", ref_id),
+                ("FAKE_LOADED", loaded),
+                ("FAKE_DOCKER_CONTEXT_JSON", caller.context_json),
+            ],
+        );
+        let path = format!(
+            "{}:{}",
+            bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
         let code = with_env(
             &[
-                ("PATH", Some(bin.to_string_lossy().as_ref())),
-                ("FAKE_DOCKER_LOG", Some(log.to_string_lossy().as_ref())),
-                ("FAKE_DOCKER_FAIL", Some(fail)),
-                ("FAKE_REF_ID", Some(ref_id)),
-                ("FAKE_LOADED", Some(loaded)),
+                ("PATH", Some(path.as_str())),
+                ("DX_LEAK_PROBE", Some("1")),
+                (
+                    "DOCKER_CONFIG",
+                    Some(caller_config.to_string_lossy().as_ref()),
+                ),
+                ("DOCKER_HOST", caller.docker_host),
+                ("DOCKER_CONTEXT", caller.docker_context),
+                ("DOCKER_TLS_VERIFY", caller.tls_verify),
+                ("DOCKER_CERT_PATH", caller.cert_path),
             ],
             || {
                 oci_live_push(
@@ -6896,12 +7242,38 @@ mod tests {
                 )
             },
         );
-        let calls = std::fs::read_to_string(&log)
-            .unwrap_or_default()
-            .lines()
-            .map(str::to_owned)
+        let read = |path: &Path| -> Vec<String> {
+            std::fs::read_to_string(path)
+                .unwrap_or_default()
+                .lines()
+                .map(str::to_owned)
+                .collect()
+        };
+        let mut calls = read(&log);
+        let mut env = read(&env_log);
+        let leaked: Vec<String> = read(&leak_log)
+            .into_iter()
+            .filter(|verb| verb != "context")
             .collect();
-        (code, calls)
+        let inspected = calls
+            .first()
+            .is_some_and(|call| call.starts_with("context inspect"));
+        if inspected {
+            calls.remove(0);
+            env.remove(0);
+        }
+        assert!(calls
+            .iter()
+            .all(|call| !call.starts_with("context inspect")));
+        FakeRun {
+            code,
+            calls,
+            inspected,
+            env,
+            leaked,
+            config_copy: std::fs::read_to_string(&copy).ok(),
+            caller_config,
+        }
     }
 
     #[cfg(unix)]
@@ -6969,6 +7341,134 @@ mod tests {
         assert!(calls.contains(&"push registry.invalid/demo/app:1.2.3".to_owned()));
     }
 
+    #[cfg(unix)]
+    fn fake_push(fail: &str, caller: &FakeEnv<'_>) -> FakeRun {
+        let scratch = scratch_dir();
+        let (archive, id) = oci_save(
+            scratch.path(),
+            "image.tar",
+            &[oci_test_layer(false)],
+            "linux/amd64",
+        );
+        let loaded = format!("Loaded image ID: {id}");
+        run_fake_live_push_env(&archive, fail, &id, &loaded, "linux/amd64", caller)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_live_push_scopes_docker_config_to_a_temp_dir() {
+        for fail in ["", "login", "load", "tag", "push"] {
+            let run = fake_push(fail, &FakeEnv::default());
+            assert_eq!(run.code, i32::from(!fail.is_empty()), "{fail}");
+            assert!(!run.env.is_empty(), "{fail}");
+            assert!(run.leaked.is_empty(), "{fail}: {:?}", run.leaked);
+            let configs: std::collections::BTreeSet<&str> = run
+                .env
+                .iter()
+                .map(|line| line.split('|').nth(1).expect("config"))
+                .collect();
+            assert_eq!(configs.len(), 1, "{fail}: {configs:?}");
+            let config = Path::new(configs.iter().next().expect("one"));
+            assert!(!config.as_os_str().is_empty(), "{fail}");
+            assert_ne!(config, run.caller_config, "{fail}");
+            assert!(!config.exists(), "{fail}: temp config left behind");
+            assert!(!run.caller_config.join("config.json").exists(), "{fail}");
+            let copy = run.config_copy.expect("login saw a config");
+            let value: serde_json::Value = serde_json::from_str(&copy).expect("json");
+            assert!(value["auths"]["registry.invalid"].is_object(), "{fail}");
+            assert!(value.get("credsStore").is_none() && value.get("credHelpers").is_none());
+            assert!(!copy.contains("s3cret"), "{fail}");
+            assert!(
+                run.env.iter().all(|line| !line.contains("s3cret")),
+                "{fail}"
+            );
+            assert!(
+                run.calls.iter().all(|call| !call.contains("s3cret")),
+                "{fail}"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_live_push_forwards_the_callers_docker_endpoint() {
+        let colima = r#"{"Name":"colima","Endpoints":{"docker":{"Host":"unix:///tmp/colima.sock"}},"TLSMaterial":{}}"#;
+        let run = fake_push(
+            "",
+            &FakeEnv {
+                docker_context: Some("colima"),
+                context_json: colima,
+                ..FakeEnv::default()
+            },
+        );
+        assert_eq!(run.code, 0, "{:?}", run.calls);
+        assert!(run.inspected);
+        assert_eq!(run.env.len(), 6);
+        for line in &run.env {
+            let fields: Vec<&str> = line.split('|').collect();
+            assert_eq!(fields[2], "unix:///tmp/colima.sock", "{line}");
+            assert_eq!(fields[3], "unset", "{line}");
+        }
+
+        let run = fake_push(
+            "",
+            &FakeEnv {
+                docker_host: Some("tcp://example.invalid:2375"),
+                context_json: colima,
+                ..FakeEnv::default()
+            },
+        );
+        assert_eq!(run.code, 0);
+        assert!(!run.inspected);
+        assert!(run
+            .env
+            .iter()
+            .all(|line| line.split('|').nth(2) == Some("tcp://example.invalid:2375")));
+
+        let run = fake_push("", &FakeEnv::default());
+        assert_eq!(run.code, 0);
+        assert!(run.inspected);
+        assert!(run
+            .env
+            .iter()
+            .all(|line| line.split('|').nth(2) == Some("unset")));
+
+        let tls = r#"{"Endpoints":{"docker":{"Host":"tcp://tls.invalid:2376"}},"TLSMaterial":{"docker":["ca.pem","cert.pem","key.pem"]}}"#;
+        let run = fake_push(
+            "",
+            &FakeEnv {
+                context_json: tls,
+                ..FakeEnv::default()
+            },
+        );
+        assert_eq!(run.code, 1);
+        assert!(run.calls.is_empty() && run.env.is_empty());
+
+        let run = fake_push(
+            "",
+            &FakeEnv {
+                tls_verify: Some("1"),
+                ..FakeEnv::default()
+            },
+        );
+        assert_eq!(run.code, 0);
+        let expected = run.caller_config.to_string_lossy().into_owned();
+        assert!(run
+            .env
+            .iter()
+            .all(|line| line.split('|').nth(4) == Some(expected.as_str())));
+    }
+
+    #[test]
+    fn private_stage_dir_is_removed_on_drop() {
+        let dir = PrivateStageDir::new("dx-private-stage-test-").expect("dir");
+        let path = dir.path().to_path_buf();
+        write_secure_file(&path, "secret", "x").expect("write");
+        assert!(path.join("secret").exists());
+        drop(dir);
+        assert!(!path.exists());
+    }
+
     #[test]
     fn owner_gates_accept_only_exact_approval() {
         let gates = [
@@ -7027,7 +7527,32 @@ mod tests {
                     "{message}"
                 );
             }
+            let lookup = |env: &std::collections::HashMap<&str, &str>, key: &str| {
+                env.get(key).copied().unwrap_or_default().to_owned()
+            };
+            for env in [base.clone(), env.clone()] {
+                let refusal = run(&env);
+                match gate.authorize(|key| lookup(&env, key)) {
+                    Ok(secrets) => {
+                        assert_eq!(refusal, None, "{}", gate.tool);
+                        for credential in gate.credentials {
+                            assert_eq!(secrets.get(credential), "x");
+                        }
+                    }
+                    Err(error) => assert_eq!(Some(error), refusal, "{}", gate.tool),
+                }
+            }
+            for value in ["", "0", "true", "yes", " 1", "1 "] {
+                let mut env = base.clone();
+                env.insert(gate.live, value);
+                assert!(!gate.requested(|key| lookup(&env, key)), "{value:?}");
+            }
+            let mut env = base.clone();
+            env.insert(gate.live, "1");
+            assert!(gate.requested(|key| lookup(&env, key)), "{}", gate.tool);
         }
+        let lives: std::collections::BTreeSet<&str> = gates.iter().map(|gate| gate.live).collect();
+        assert_eq!(lives.len(), gates.len());
     }
 
     #[test]
@@ -7126,7 +7651,29 @@ mod tests {
                 ("CRATES_PUBLISH_APPROVED", Some("1")),
             ],
             || {
-                assert_eq!(crates_main(missing, "demo", "0.0.0", false, &argv), 1);
+                assert_eq!(crates_main(missing, "demo", "0.0.0", &argv), 1);
+            },
+        );
+        let crates_runfiles = outdir.join("crates_runfiles");
+        stage_runfiles_inputs(&crates_runfiles);
+        with_env(
+            &[
+                (
+                    "RUNFILES_DIR",
+                    Some(crates_runfiles.to_string_lossy().as_ref()),
+                ),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("CRATES_PUBLISH_LIVE", Some("1")),
+                ("CRATES_ALLOW_DIRTY", Some("1")),
+                ("CRATES_PUBLISH_APPROVED", None),
+                ("CARGO_REGISTRY_TOKEN", None),
+            ],
+            || {
+                assert_eq!(
+                    crates_main("Cargo.toml;lib.rs", "crates_demo", "1.0.0", &argv),
+                    1,
+                    "CRATES_ALLOW_DIRTY=1 must refuse a live publish"
+                );
             },
         );
         with_env(
@@ -7221,6 +7768,70 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn promotion_live_records_health_and_refuses() {
+        use std::os::unix::fs::PermissionsExt;
+        if env_test_in_child("tests::promotion_live_records_health_and_refuses") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        let tarball = runfiles.join("release_demo.tar.gz");
+        std::fs::write(
+            &tarball,
+            archive_bytes(b"payload", "release_demo.tar.gz", false).expect("tar"),
+        )
+        .expect("write tarball");
+        let bin = scratch.path().join("bin");
+        std::fs::create_dir_all(&bin).expect("bin");
+        let script = bin.join("dx_fake_health");
+        std::fs::write(&script, "#!/bin/sh\nexit 0\n").expect("write health");
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        for (require, expected) in [(Some("1"), "passed"), (None, "not-required")] {
+            with_env(
+                &[
+                    ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                    ("RUNFILES_MANIFEST_FILE", None),
+                    ("BUILD_WORKSPACE_DIRECTORY", None),
+                    ("PROMOTION_LIVE", Some("1")),
+                    ("PROMOTION_APPROVED", Some("1")),
+                    ("PROMOTION_REQUIRE_HEALTH", require),
+                    ("PROMOTION_HEALTH_CMD", Some("dx_fake_health")),
+                    ("PATH", Some(bin.to_string_lossy().as_ref())),
+                    ("PROMOTION_SECRET_REFS", None),
+                    ("PROMOTION_REGISTRY_REQUIRED", None),
+                    ("PROMOTION_ROLLBACK", None),
+                ],
+                || {
+                    let outdir = tempfile_stage_dir("dx-deploy-promotion-live-").expect("outdir");
+                    let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+                    assert_eq!(
+                        promotion_main(
+                            "release_demo.tar.gz",
+                            "promotion_demo",
+                            "staging",
+                            "production",
+                            "1.2.3",
+                            &argv
+                        ),
+                        1
+                    );
+                    let record: serde_json::Value = serde_json::from_str(
+                        &std::fs::read_to_string(
+                            outdir.join("promotion_demo-promotion/promotion.json"),
+                        )
+                        .expect("record"),
+                    )
+                    .expect("record parses");
+                    assert_eq!(record["health"], expected);
+                    std::fs::remove_dir_all(&outdir).expect("cleanup");
+                },
+            );
+        }
+    }
+
     fn stage_runfiles_inputs(root: &Path) {
         std::fs::create_dir_all(root).expect("runfiles");
         let maven_pom = crate::maven::tests::central_pom("com.example", "maven_demo", "1.0.0");
@@ -7305,7 +7916,7 @@ mod tests {
                     0
                 );
                 assert_eq!(
-                    crates_main("Cargo.toml;lib.rs", "crates_demo", "1.0.0", false, &argv),
+                    crates_main("Cargo.toml;lib.rs", "crates_demo", "1.0.0", &argv),
                     0
                 );
                 assert_eq!(
@@ -7356,6 +7967,114 @@ mod tests {
         assert!(outdir.join("octopus_demo-drop").is_dir());
         assert!(outdir.join("app-oci-layout").is_dir());
         std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
+    #[test]
+    fn launcher_relative_outdir_resolves_against_invocation_dir() {
+        if env_test_in_child("tests::launcher_relative_outdir_resolves_against_invocation_dir") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        stage_runfiles_inputs(&runfiles);
+        let cwd = scratch.path().join("cwd");
+        let invocation = scratch.path().join("inv");
+        std::fs::create_dir_all(&cwd).expect("cwd");
+        std::fs::create_dir_all(&invocation).expect("inv");
+        std::env::set_current_dir(&cwd).expect("chdir");
+        let argv = vec!["prog".to_owned(), "dist".to_owned()];
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                (
+                    "BUILD_WORKING_DIRECTORY",
+                    Some(invocation.to_string_lossy().as_ref()),
+                ),
+                ("GH_RELEASE_LIVE", None),
+                ("GH_RELEASE_DRY_RUN", Some("1")),
+            ],
+            || {
+                assert_eq!(
+                    github_main("release_demo.tar.gz", "demo", "v1.0.0", &argv),
+                    0
+                );
+            },
+        );
+        assert!(invocation.join("dist").join("demo-release").is_dir());
+        assert!(!cwd.join("dist").exists());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let bin = scratch.path().join("bin");
+            let workspace = scratch.path().join("ws");
+            std::fs::create_dir_all(&bin).expect("bin");
+            std::fs::create_dir_all(&workspace).expect("ws");
+            let log = scratch.path().join("gh.log");
+            let env_log = scratch.path().join("gh.env");
+            let script = bin.join("gh");
+            std::fs::write(
+                &script,
+                format!(
+                    "#!/bin/sh\npwd -P > '{}'\nprintf '%s\\n' \"$@\" >> '{}'\nenv > '{}'\n",
+                    log.display(),
+                    log.display(),
+                    env_log.display()
+                ),
+            )
+            .expect("script");
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
+                .expect("chmod");
+            std::env::set_current_dir(scratch.path()).expect("chdir");
+            let path = format!(
+                "{}:{}",
+                bin.display(),
+                std::env::var("PATH").unwrap_or_default()
+            );
+            with_env(
+                &[
+                    ("PATH", Some(path.as_str())),
+                    ("RUNFILES_DIR", Some("runfiles")),
+                    ("RUNFILES_MANIFEST_FILE", None),
+                    (
+                        "BUILD_WORKING_DIRECTORY",
+                        Some(invocation.to_string_lossy().as_ref()),
+                    ),
+                    (
+                        "BUILD_WORKSPACE_DIRECTORY",
+                        Some(workspace.to_string_lossy().as_ref()),
+                    ),
+                    ("GH_REPO", None),
+                    ("GH_RELEASE_LIVE", Some("1")),
+                    ("GH_RELEASE_APPROVED", Some("1")),
+                    ("GH_TOKEN", Some("gh-sekret")),
+                    ("DX_LEAK_PROBE", Some("1")),
+                ],
+                || {
+                    assert_eq!(
+                        github_main("release_demo.tar.gz", "demo", "v1.0.0", &argv),
+                        0
+                    );
+                },
+            );
+            let logged = std::fs::read_to_string(&log).expect("gh log");
+            let lines: Vec<&str> = logged.lines().collect();
+            let workspace_real = std::fs::canonicalize(&workspace).expect("canonical ws");
+            assert_eq!(lines[0], workspace_real.to_string_lossy(), "{logged}");
+            assert_eq!(&lines[1..4], ["release", "create", "v1.0.0"], "{logged}");
+            let asset = Path::new(lines[4]);
+            assert!(asset.is_absolute(), "{logged}");
+            assert_eq!(
+                std::fs::canonicalize(asset).expect("canonical asset"),
+                std::fs::canonicalize(runfiles.join("release_demo.tar.gz")).expect("canonical"),
+                "{logged}"
+            );
+            assert_eq!(&lines[5..], ["--draft", "--verify-tag"], "{logged}");
+            let env = std::fs::read_to_string(&env_log).expect("gh env");
+            assert!(env.lines().any(|line| line == "GH_TOKEN=gh-sekret"));
+            assert!(!env.contains("DX_LEAK_PROBE"), "{env}");
+            assert!(!logged.contains("gh-sekret"), "{logged}");
+        }
     }
 
     #[test]
@@ -8129,7 +8848,16 @@ mod tests {
         let artifact = scratch.path().join("release_demo.tar.gz");
         std::fs::write(&artifact, b"promotion-bytes-v1").expect("write artifact");
         let build = |deploy, from, to, version, src: &Path| {
-            promotion_build(src, &outdir, deploy, from, to, version, &[])
+            promotion_build(
+                src,
+                &outdir,
+                deploy,
+                from,
+                to,
+                version,
+                &[],
+                PromotionHealth::SkippedLocal,
+            )
         };
         let baseline = build(
             "promotion_demo",
@@ -8429,12 +9157,220 @@ mod tests {
     }
 
     #[cfg(unix)]
+    fn fake_dotnet(dir: &Path, nuget_version: &str, exit: i32) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let path = dir.join("dotnet");
+        let d = dir.display();
+        let script = format!(
+            "#!/bin/sh\nif [ \"$2\" = \"--version\" ]; then printf 'NuGet Command Line\\n{nuget_version}\\n'; exit 0; fi\nprintf '%s\\n' \"$@\" > '{d}/args.txt'\nenv > '{d}/env.txt'\nexit {exit}\n"
+        );
+        std::fs::write(&path, script).expect("write dotnet");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        path
+    }
+
+    #[cfg(unix)]
+    fn fake_octo(dir: &Path, fail_on: &str) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let path = dir.join("octo");
+        let d = dir.display();
+        let script = format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" '---' >> '{d}/args.txt'\nenv >> '{d}/env.txt'\nif [ \"$1\" = '{fail_on}' ]; then exit 1; fi\nexit 0\n"
+        );
+        std::fs::write(&path, script).expect("write octo");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        path
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nuget_live_push_keeps_the_key_out_of_argv() {
+        let scratch = scratch_dir();
+        let dotnet = fake_dotnet(scratch.path(), "7.6.0", 0);
+        with_env(&[("DX_LEAK_PROBE", Some("1"))], || {
+            assert_eq!(
+                nuget_live_push(
+                    &dotnet,
+                    Path::new("a.nupkg"),
+                    "https://n.invalid",
+                    "sekret",
+                    "a",
+                    "1.0.0"
+                ),
+                0
+            );
+        });
+        let args = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
+        let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
+        assert!(args.contains("push") && args.contains("--skip-duplicate"));
+        assert!(!args.contains("sekret") && !args.contains("--api-key"));
+        assert!(env.contains("NUGET_API_KEY=sekret"));
+        assert!(!env.contains("DX_LEAK_PROBE"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nuget_live_push_refuses_nuget_older_than_7_6() {
+        let scratch = scratch_dir();
+        let dotnet = fake_dotnet(scratch.path(), "6.14.0", 0);
+        assert_eq!(
+            nuget_live_push(
+                &dotnet,
+                Path::new("a.nupkg"),
+                "https://n.invalid",
+                "sekret",
+                "a",
+                "1.0.0"
+            ),
+            1
+        );
+        assert!(!scratch.path().join("args.txt").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nuget_live_push_surfaces_tool_failure() {
+        let scratch = scratch_dir();
+        let dotnet = fake_dotnet(scratch.path(), "7.6.0", 1);
+        assert_eq!(
+            nuget_live_push(
+                &dotnet,
+                Path::new("a.nupkg"),
+                "https://n.invalid",
+                "sekret",
+                "a",
+                "1.0.0"
+            ),
+            1
+        );
+    }
+
+    #[test]
+    fn nuget_api_key_env_needs_nuget_7_6() {
+        assert!(!nuget_reads_api_key_env("6.12.1"));
+        assert!(!nuget_reads_api_key_env("7.5.9"));
+        assert!(nuget_reads_api_key_env("7.6.0"));
+        assert!(nuget_reads_api_key_env("7.6.0-preview.1"));
+        assert!(nuget_reads_api_key_env("NuGet Command Line\n7.6.0\n"));
+        assert!(nuget_reads_api_key_env("8.0"));
+        assert!(!nuget_reads_api_key_env(
+            "Welcome to .NET 9.0!\nSDK Version: 9.0.100\n\nNuGet Command Line\n6.12.1\n"
+        ));
+        assert!(!nuget_reads_api_key_env(""));
+        assert!(!nuget_reads_api_key_env("garbage"));
+    }
+
+    #[cfg(unix)]
+    fn octo_spec<'a>(envs: &'a [String], space: &'a str) -> OctopusDrop<'a> {
+        OctopusDrop {
+            deploy_name: "p",
+            project: "p",
+            channel: "Default",
+            version: "1.0.0",
+            deploy_to: envs,
+            space,
+            server: "https://o.invalid",
+        }
+    }
+
+    #[cfg(unix)]
+    fn octo_calls(dir: &Path) -> Vec<Vec<String>> {
+        let text = std::fs::read_to_string(dir.join("args.txt")).unwrap_or_default();
+        let mut calls = vec![];
+        let mut cur = vec![];
+        for line in text.lines() {
+            if line == "---" {
+                calls.push(std::mem::take(&mut cur));
+            } else {
+                cur.push(line.to_owned());
+            }
+        }
+        calls
+    }
+
+    #[cfg(unix)]
+    fn strings(args: Vec<OsString>) -> Vec<String> {
+        args.iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn octopus_live_publish_runs_push_then_release() {
+        let scratch = scratch_dir();
+        let octo = fake_octo(scratch.path(), "none");
+        let package = Path::new("/stage/p-1.0.0.tar.gz");
+        let envs = ["Production".to_owned()];
+        with_env(
+            &[
+                ("DX_LEAK_PROBE", Some("1")),
+                ("OCTOPUS_API_KEY", Some("leaky")),
+            ],
+            || {
+                assert_eq!(
+                    octopus_live_publish(&octo, package, &octo_spec(&envs, "S"), "sekret"),
+                    0
+                );
+            },
+        );
+        let calls = octo_calls(scratch.path());
+        let spec = octo_spec(&envs, "S");
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0], strings(octopus_push_args(package, &spec)));
+        assert_eq!(calls[1], strings(octopus_release_args(&spec)));
+        assert!(calls[0].contains(&"S".to_owned()));
+        let args = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
+        let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
+        assert!(!args.contains("sekret") && !args.contains("--apiKey"));
+        assert!(env.contains("OCTOPUS_CLI_API_KEY=sekret"));
+        assert!(!env.contains("OCTOPUS_API_KEY") && !env.contains("DX_LEAK_PROBE"));
+        std::fs::remove_file(scratch.path().join("args.txt")).expect("rm");
+        assert_eq!(
+            octopus_live_publish(&octo, package, &octo_spec(&envs, ""), "sekret"),
+            0
+        );
+        let args = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
+        assert!(!args.contains("--space"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn octopus_live_publish_stops_after_failed_push() {
+        let scratch = scratch_dir();
+        let octo = fake_octo(scratch.path(), "push");
+        let code = octopus_live_publish(
+            &octo,
+            Path::new("p.tar.gz"),
+            &octo_spec(&["Production".to_owned()], ""),
+            "sekret",
+        );
+        assert_eq!(code, 1);
+        assert_eq!(octo_calls(scratch.path()).len(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn octopus_live_publish_surfaces_release_failure() {
+        let scratch = scratch_dir();
+        let octo = fake_octo(scratch.path(), "create-release");
+        let code = octopus_live_publish(
+            &octo,
+            Path::new("p.tar.gz"),
+            &octo_spec(&["Production".to_owned()], ""),
+            "sekret",
+        );
+        assert_eq!(code, 1);
+        assert_eq!(octo_calls(scratch.path()).len(), 2);
+    }
+
+    #[cfg(unix)]
     fn fake_npm(dir: &Path, exit: i32) -> std::path::PathBuf {
         use std::os::unix::fs::PermissionsExt as _;
         let path = dir.join("npm");
+        let d = dir.display();
         let script = format!(
-            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}/args.txt'\nexit {exit}\n",
-            dir.display()
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{d}/args.txt'\nenv > '{d}/env.txt'\nexit {exit}\n"
         );
         std::fs::write(&path, script).expect("write npm");
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -8453,14 +9389,34 @@ mod tests {
             "https://registry.npmjs.org",
             "required",
         );
-        assert_eq!(
-            npm_run_publish(&npm, "registry.npmjs.org", "sekret", &args),
-            0
+        let code = with_env(
+            &[
+                ("DX_LEAK_PROBE", Some("1")),
+                ("NPM_TOKEN", Some("sekret")),
+                ("GITHUB_TOKEN", Some("gh-sekret")),
+                ("CI_JOB_TOKEN", Some("job-sekret")),
+                ("CI_PROJECT_URL", Some("https://gitlab.example/p")),
+                (
+                    "ACTIONS_ID_TOKEN_REQUEST_URL",
+                    Some("https://ci.example/token"),
+                ),
+            ],
+            || npm_run_publish(&npm, "registry.npmjs.org", "sekret", &args),
         );
+        assert_eq!(code, 0);
         let seen = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
         assert!(seen.contains("--provenance\n"));
         assert!(seen.contains("--userconfig"));
         assert!(!seen.contains("sekret"));
+        let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
+        assert!(!env.contains("DX_LEAK_PROBE"), "{env}");
+        assert!(!env.contains("sekret"), "{env}");
+        assert!(env
+            .lines()
+            .any(|line| line == "ACTIONS_ID_TOKEN_REQUEST_URL=https://ci.example/token"));
+        assert!(env
+            .lines()
+            .any(|line| line == "CI_PROJECT_URL=https://gitlab.example/p"));
     }
 
     #[cfg(unix)]
@@ -8854,12 +9810,13 @@ mod tests {
         for index in 0..archive.len() {
             let mut entry = archive.by_index(index).expect("entry");
             assert_eq!(entry.compression(), zip::CompressionMethod::Deflated);
+            assert_eq!(entry.system(), zip::System::Unix);
             let stamp = entry.last_modified().expect("time");
             assert_eq!((stamp.year(), stamp.month(), stamp.day()), (1980, 1, 1));
             let mut body = Vec::new();
             std::io::Read::read_to_end(&mut entry, &mut body).expect("read entry");
             seen.push((
-                entry.name().to_owned(),
+                entry.name().expect("name").into_owned(),
                 entry.unix_mode().expect("mode") & 0o7777,
                 body,
             ));
@@ -8960,6 +9917,170 @@ mod tests {
         let cut = scratch.path().join("cut.tar.gz");
         std::fs::write(&cut, &bytes[..bytes.len() - 4]).expect("write");
         assert!(archive_listing(&cut).is_err());
+    }
+
+    fn zip_image(entries: &[(&str, Option<u32>, &[u8])]) -> Vec<u8> {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        for (name, mode, data) in entries {
+            let mut options = zip::write::SimpleFileOptions::default();
+            if let Some(mode) = mode {
+                options = options.unix_permissions(*mode);
+            }
+            writer.start_file(*name, options).expect("start");
+            writer.write_all(data).expect("data");
+        }
+        writer.finish().expect("finish").into_inner()
+    }
+
+    #[test]
+    fn archive_extract_round_trips_tar_gz_and_zip_with_modes() {
+        for suffix in ["tar.gz", "zip"] {
+            let scratch = scratch_dir();
+            let out = scratch.path().join(format!("cell.{suffix}"));
+            archive_tree(
+                &[
+                    ("dx", b"exe\n", 0o755),
+                    ("NOTICE", b"notice\n", 0o644),
+                    ("lib/run=time.dll", b"dll\n", 0o644),
+                ],
+                &out,
+            )
+            .expect("archive");
+            let listed = archive_listing(&out).expect("listing");
+            let dir = scratch.path().join("dx install \u{e9} \u{fc}");
+            let extracted = archive_extract(&out, &dir).expect("extract");
+            assert_eq!(extracted, listed, "{suffix}");
+            assert_eq!(
+                std::fs::read(dir.join("lib/run=time.dll")).expect("read"),
+                b"dll\n"
+            );
+            assert_eq!(
+                archive_read_member(&out, "NOTICE").expect("member"),
+                b"notice\n"
+            );
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+                let mode = |name: &str| {
+                    std::fs::metadata(dir.join(name))
+                        .expect("meta")
+                        .permissions()
+                        .mode()
+                        & 0o7777
+                };
+                assert_eq!(mode("dx"), 0o755, "{suffix}");
+                assert_eq!(mode("NOTICE"), 0o644, "{suffix}");
+            }
+            let error = archive_extract(&out, &dir).expect_err("dir exists");
+            assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        }
+    }
+
+    #[test]
+    fn archive_extract_rejects_traversal_duplicates_links_and_modeless_zip() {
+        let scratch = scratch_dir();
+        let cases: Vec<(&str, Vec<u8>, &str)> = vec![
+            (
+                "up.zip",
+                zip_image(&[("../escape", Some(0o644), b"x")]),
+                "must not contain '.' or '..'",
+            ),
+            (
+                "abs.zip",
+                zip_image(&[("/abs", Some(0o644), b"x")]),
+                "must be relative",
+            ),
+            (
+                "drive.zip",
+                zip_image(&[("C:evil", Some(0o644), b"x")]),
+                "must not contain ':'",
+            ),
+            (
+                "link.zip",
+                {
+                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+                    writer
+                        .add_symlink("link", "/etc", zip::write::SimpleFileOptions::default())
+                        .expect("symlink");
+                    writer.finish().expect("finish").into_inner()
+                },
+                "not a regular file",
+            ),
+            (
+                "dir.zip",
+                {
+                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+                    writer
+                        .add_directory("d/", zip::write::SimpleFileOptions::default())
+                        .expect("dir");
+                    writer.finish().expect("finish").into_inner()
+                },
+                "not a regular file",
+            ),
+            (
+                "modeless.zip",
+                {
+                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+                    writer
+                        .start_file(
+                            "x",
+                            zip::write::SimpleFileOptions::default().system(zip::System::Dos),
+                        )
+                        .expect("start");
+                    writer.finish().expect("finish").into_inner()
+                },
+                "has no unix mode",
+            ),
+            ("garbage.zip", b"not a zip".to_vec(), "archive listing"),
+        ];
+        for (name, bytes, want) in cases {
+            let path = scratch.path().join(name);
+            std::fs::write(&path, bytes).expect("write");
+            let dir = scratch.path().join(format!("{name}.out"));
+            let error = archive_extract(&path, &dir).expect_err(name);
+            assert!(error.to_string().contains(want), "{name}: {error}");
+            assert!(!scratch.path().join("escape").exists());
+            assert!(!Path::new("/abs").exists());
+        }
+        let mut builder = tar::Builder::new(Vec::new());
+        let mut link = tar::Header::new_ustar();
+        link.set_entry_type(tar::EntryType::Symlink);
+        link.set_size(0);
+        builder
+            .append_link(&mut link, "link", "/etc")
+            .expect("link");
+        let linked = scratch.path().join("link.tar.gz");
+        std::fs::write(
+            &linked,
+            gzip_compress(&builder.into_inner().expect("tar")).expect("gz"),
+        )
+        .expect("write");
+        let error = archive_extract(&linked, &scratch.path().join("tar.out")).expect_err("link");
+        assert!(error.to_string().contains("not a regular file"), "{error}");
+        let dup = tar_archive([("x", &b"1"[..], 0o644), ("x", &b"2"[..], 0o644)].into_iter())
+            .expect("tar");
+        let duplicated = scratch.path().join("dup.tar.gz");
+        std::fs::write(&duplicated, gzip_compress(&dup).expect("gz")).expect("write");
+        let error = archive_extract(&duplicated, &scratch.path().join("dup.out")).expect_err("dup");
+        assert!(error.to_string().contains("duplicate member"), "{error}");
+        let mut raw = tar::Header::new_gnu();
+        raw.set_entry_type(tar::EntryType::Regular);
+        raw.set_size(1);
+        raw.set_mode(0o644);
+        raw.as_gnu_mut().expect("gnu").name[..9].copy_from_slice(b"../escape");
+        raw.set_cksum();
+        let mut builder = tar::Builder::new(Vec::new());
+        builder.append(&raw, &b"x"[..]).expect("append");
+        let escaping = scratch.path().join("escape.tar.gz");
+        std::fs::write(
+            &escaping,
+            gzip_compress(&builder.into_inner().expect("tar")).expect("gz"),
+        )
+        .expect("write");
+        let error =
+            archive_extract(&escaping, &scratch.path().join("esc.out")).expect_err("escape");
+        assert!(error.to_string().contains("'..'"), "{error}");
+        assert!(!scratch.path().join("escape").exists());
     }
 
     #[test]

@@ -2,19 +2,22 @@
 
 load("@rules_erlang//:ct.bzl", _ct_suite = "ct_suite")
 load("@rules_erlang//:erlang_app.bzl", _DEFAULT_ERLC_OPTS = "DEFAULT_ERLC_OPTS", _DEFAULT_TEST_ERLC_OPTS = "DEFAULT_TEST_ERLC_OPTS", _erlang_app = "erlang_app", _test_erlang_app = "test_erlang_app")
-load("@rules_erlang//:erlang_app_info.bzl", _ErlangAppInfo = "ErlangAppInfo")
+load("@rules_erlang//:erlang_app_info.bzl", "flat_deps", _ErlangAppInfo = "ErlangAppInfo")
 load("@rules_erlang//:erlang_bytecode2.bzl", _erlang_bytecode = "erlang_bytecode", _erlc_opts = "erlc_opts")
 load("@rules_erlang//:erlang_xrl_yrl.bzl", _erlang_xrl_yrl = "erlang_xrl_yrl")
 load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")
 load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
+load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "CELLS")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ErlangAppInfo = _ErlangAppInfo
 
-ERLANG_COMPATIBLE_WITH = [Label(constraint) for constraint in CELLS["linux_amd64"].exec_compatible_with]
+ERLANG_CELLS = sorted(CELLS.keys())
+
+ERLANG_COMPATIBLE_WITH = otp_compatible_with(ERLANG_CELLS)
 
 DEFAULT_ERLC_OPTS = _DEFAULT_ERLC_OPTS
 
@@ -82,6 +85,9 @@ def _escript_binary_impl(ctx):
         root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0],
     ), is_executable = True)
     runfiles = ctx.runfiles([launcher, archive]).merge(erlang_runfiles).merge(ctx.attr.upstream[DefaultInfo].default_runfiles)
+    for dep in ctx.attr.data:
+        runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
+        runfiles = runfiles.merge(ctx.runfiles(transitive_files = dep[DefaultInfo].files))
     return [
         DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles),
         coverage_common.instrumented_files_info(ctx, source_attributes = ["srcs"], dependency_attributes = ["upstream"]),
@@ -92,13 +98,51 @@ _escript_binary = rule(
     implementation = _escript_binary_impl,
     doc = "Runs one escript archive on the resolved OTP runtime.",
     executable = True,
-    attrs = {
+    attrs = dict({
         "srcs": attr.label_list(allow_files = _EXTS, doc = "Direct Erlang sources owned by this binary."),
         "upstream": attr.label(executable = True, cfg = "target", mandatory = True, doc = "The rules_erlang escript archive."),
-    },
+    }, **dx_forward_data_attr()),
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     toolchains = ["@rules_erlang//tools:toolchain_type"],
 )
+
+def lcov_apps_dirs(short_paths):
+    """Returns the COVERDATA_TO_LCOV_APPS_DIRS value for `<root>/<app>/src/<mod>.erl` paths."""
+    roots = {}
+    for path in short_paths:
+        parts = path.split("/")
+        if len(parts) < 4 or not path.endswith(".erl") or parts[-2] != "src":
+            continue
+        roots["/".join(parts[:-3])] = True
+    return ":".join(sorted(roots.keys()))
+
+def _erlang_test_coverage(ctx, upstream):
+    """Returns coverage providers that put app sources where coverdata_to_lcov looks."""
+    seen = {}
+    for app in ctx.attr.apps + flat_deps(ctx.attr.apps):
+        for f in app[ErlangAppInfo].srcs:
+            if f.path.endswith(".erl") and f.owner != None and f.owner.workspace_name == "":
+                seen[f] = True
+    sources = sorted(seen.keys(), key = lambda f: f.short_path)
+    instrumented = coverage_common.instrumented_files_info(
+        ctx,
+        source_attributes = ["srcs"],
+        dependency_attributes = ["upstream", "apps"],
+        metadata_files = sources,
+    )
+    env = {}
+    inherited = []
+    if RunEnvironmentInfo in upstream:
+        env.update(upstream[RunEnvironmentInfo].environment)
+        inherited = upstream[RunEnvironmentInfo].inherited_environment
+    dirs = lcov_apps_dirs([f.short_path for f in sources])
+    if dirs:
+        env["COVERDATA_TO_LCOV_APPS_DIRS"] = dirs
+    return struct(
+        instrumented = instrumented,
+        env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
+        runfiles = None,
+    )
 
 _erlang_forward_test = dx_executable_forward_rule(
     kind = "test",
@@ -108,8 +152,9 @@ _erlang_forward_test = dx_executable_forward_rule(
     what = "erlang test",
     allow_files = _EXTS,
     upstream_providers = None,
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dx_lcov_merger_attr() | {"apps": attr.label_list(providers = [_ErlangAppInfo])},
     runtime = "besteffort",
+    coverage_providers = _erlang_test_coverage,
 )
 
 def ct_suite_source(suite_name):
@@ -179,7 +224,9 @@ def escript_archive(name, visibility = None, **kwargs):
 
 def eunit(name = "eunit", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang eunit test."""
-    dx_wrap_test(name, _eunit, _erlang_forward_test, None, visibility = visibility, **kwargs)
+    target = kwargs.get("target")
+    apps = ([target] if target else []) + (kwargs.get("deps") or [])
+    dx_wrap_test(name, _eunit, _erlang_forward_test, None, visibility = visibility, extra_forward_kwargs = {"apps": apps}, **kwargs)
 
 LOCAL_NODE_ARGS = ["-sname", "undefined", "-start_epmd", "false"]
 
@@ -202,6 +249,7 @@ def ct_suite(name, suite_name = "", visibility = None, **kwargs):
         testonly = True,
         upstream = ":" + name + "_upstream",
         srcs = [ct_suite_source(suite)],
+        apps = [":test_erlang_app"] + (kwargs.get("deps") or []) + (kwargs.get("runtime_deps") or []),
         visibility = visibility,
         **dx_test_forward_kwargs(kwargs)
     )

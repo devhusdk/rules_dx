@@ -30,7 +30,7 @@ OWNERSHIP_VISIBILITY = "emitted library flavors stay //visibility:public while b
 
 PUBLIC_SHAPE = "checked-in Cargo declarations parsed in the first-party extension"
 PUBLIC_INDEX = "path crates resolved through Gazelle's local rule index"
-PUBLIC_MACROS = "exact imported external names emitted through the public @crates//:crates.bzl crate_deps and aliases macros"
+PUBLIC_MACROS = "cfg-aware external deps emitted through the public @crates//:crates.bzl all_crate_deps and aliases macros"
 PUBLIC_PACKAGE_NAME = "parent Bazel directory joined with the Cargo package name"
 PUBLIC_NEVER_READS = "never reads Cargo.Bazel.lock plus cargo-bazel.json plus private dependency maps"
 PUBLIC_NO_PRIVATE_GRAPH = "without private serialized dependency-graph access"

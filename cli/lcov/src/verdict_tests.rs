@@ -2,6 +2,8 @@ use super::*;
 use crate::{find_ignores, parse_lcov, FileHits, LcovError, ELIGIBLE, SUPPORT};
 use std::collections::BTreeMap;
 
+type BranchHit = ((u32, u32, u32), Option<u64>);
+
 fn marker(kind: &str) -> String {
     ["LCOV", "_EXCL", kind].concat()
 }
@@ -20,7 +22,7 @@ fn hits(pairs: &[(u32, u64)]) -> FileHits {
     file
 }
 
-fn branch_file(lines: &[(u32, u64)], branches: &[((u32, u32, u32), Option<u64>)]) -> FileHits {
+fn branch_file(lines: &[(u32, u64)], branches: &[BranchHit]) -> FileHits {
     let mut file = hits(lines);
     for (id, taken) in branches {
         file.branches.insert(*id, *taken);
@@ -531,6 +533,10 @@ fn covered_languages_include_wrapped_langs() {
         "elf.hh",
         "elf.hpp",
         "elf.hxx",
+        "elf.kts",
+        "elf.rb",
+        "elf.erl",
+        "elf.hrl",
     ] {
         assert!(is_covered_language(path), "{path}");
     }
@@ -554,6 +560,7 @@ fn every_covered_language_is_scanned_with_its_own_comment_marker() {
         match syntax {
             LineComment::SlashSlash => "//",
             LineComment::Hash => "#",
+            LineComment::Percent => "%",
         }
     }
     for (extension, syntax) in COVERED_LANGUAGES {
@@ -685,7 +692,7 @@ fn modern_js_ts_extensions_route_to_files() {
         let owned = path.to_string();
         let verdict = evaluate(
             &eligible_inventory(&[path]),
-            &[owned.clone()],
+            std::slice::from_ref(&owned),
             &report_of(path, &[(1, 1)]),
             &loader(files),
         );
@@ -1105,7 +1112,8 @@ fn branch_data_with_both_outcomes_reports_taken_counts() {
         &loader(files),
     );
     assert!(verdict.passed, "{verdict:?}");
-    assert_eq!(verdict.branch_found, 2);
+    assert_eq!(verdict.branch_eligible, 2);
+    assert_eq!(verdict.branch_ignored, 0);
     assert_eq!(verdict.branch_hit, 2);
     assert_eq!(verdict.branch_files, 1);
     assert_eq!(verdict.branch_bare, 0);
@@ -1113,11 +1121,14 @@ fn branch_data_with_both_outcomes_reports_taken_counts() {
     let text = render(&verdict);
     assert!(
         text.contains(
-            "measured branches: 2 taken of 2 recorded (1 files with branch data, 0 without)"
+            "measured branches: 2 raw, 0 ignored, 2 eligible, 2 taken (1 files with branch data, 0 without)"
         ),
         "{text}"
     );
-    assert!(text.contains("elf.rs branches(rs): 2/2 taken"), "{text}");
+    assert!(
+        text.contains("elf.rs branches(rs): 2/2 taken (0 ignored)"),
+        "{text}"
+    );
     assert!(
         text.contains("informational branch rate: 100.00% (measured files only; never a gate)"),
         "{text}"
@@ -1146,12 +1157,12 @@ fn line_gate_passes_with_missed_branch_outcomes() {
         &loader(files),
     );
     assert!(verdict.passed, "{verdict:?}");
-    assert_eq!(verdict.branch_found, 3);
+    assert_eq!(verdict.branch_eligible, 3);
     assert_eq!(verdict.branch_hit, 1);
     assert_eq!(verdict.files[0].missed_branches, vec![(2, 0, 1), (2, 0, 2)]);
     let text = render(&verdict);
     assert!(
-        text.contains("measured branches: 1 taken of 3 recorded"),
+        text.contains("measured branches: 3 raw, 0 ignored, 3 eligible, 1 taken"),
         "{text}"
     );
     assert!(
@@ -1185,7 +1196,7 @@ fn unavailable_branch_data_reports_unknown_never_full() {
 }
 
 #[test]
-fn summary_only_branch_section_counts_zero_recorded() {
+fn summary_only_branch_section_counts_zero_eligible() {
     let files = BTreeMap::from([("elf.rs", "fn f() {}\n".to_string())]);
     let mut measured = hits(&[(1, 1)]);
     measured.branch_data = true;
@@ -1199,19 +1210,119 @@ fn summary_only_branch_section_counts_zero_recorded() {
     );
     assert!(verdict.passed, "{verdict:?}");
     assert_eq!(verdict.branch_files, 1);
-    assert_eq!(verdict.branch_found, 0);
+    assert_eq!(verdict.branch_eligible, 0);
     let text = render(&verdict);
     assert!(
         text.contains(
-            "measured branches: 0 taken of 0 recorded (1 files with branch data, 0 without)"
+            "measured branches: 0 raw, 0 ignored, 0 eligible, 0 taken (1 files with branch data, 0 without)"
         ),
         "{text}"
     );
-    assert!(text.contains("elf.rs branches(rs): 0/0 taken"), "{text}");
     assert!(
-        text.contains("informational branch rate: n/a (no recorded branches)"),
+        text.contains("elf.rs branches(rs): 0/0 taken (0 ignored)"),
         "{text}"
     );
+    assert!(
+        text.contains("informational branch rate: n/a (no eligible branches)"),
+        "{text}"
+    );
+}
+
+fn run_branch_fixture(source: String, branches: &[BranchHit], lines: &[(u32, u64)]) -> GateVerdict {
+    let files = BTreeMap::from([("elf.rs", source)]);
+    let mut report = BTreeMap::new();
+    report.insert("elf.rs".to_string(), branch_file(lines, branches));
+    evaluate(
+        &eligible_inventory(&["elf.rs"]),
+        &["elf.rs".to_string()],
+        &report,
+        &loader(files),
+    )
+}
+
+#[test]
+fn excluded_line_branch_is_ignored_not_missed() {
+    let source = file_lines(&[
+        "pub fn f(n: u32) -> u32 {".to_string(),
+        format!(
+            "    if n == 0 {{ return 0; }} // {} - reason: fixture defensive branch, issue: 2516.",
+            marker("_LINE")
+        ),
+        "    n".to_string(),
+        "}".to_string(),
+    ]);
+    let verdict = run_branch_fixture(
+        source,
+        &[
+            ((2, 0, 0), Some(4)),
+            ((2, 0, 1), Some(0)),
+            ((3, 0, 0), Some(1)),
+        ],
+        &[(1, 1), (2, 1), (3, 1)],
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert!(verdict.files[0].missed_branches.is_empty());
+    assert_eq!(verdict.branch_ignored, 2);
+    assert_eq!(verdict.branch_eligible, 1);
+    assert_eq!(verdict.branch_hit, 1);
+    let text = render(&verdict);
+    assert!(
+        text.contains("3 raw, 2 ignored, 1 eligible, 1 taken"),
+        "{text}"
+    );
+    assert!(text.contains("100.00%"), "{text}");
+}
+
+#[test]
+fn range_excluded_branches_are_ignored() {
+    let source = file_lines(&[
+        "pub fn f(n: u32) -> u32 {".to_string(),
+        format!("    // {} - reason: shim, issue: 2516.", marker("_START")),
+        "    if n == 0 { return 0; }".to_string(),
+        format!(
+            "    // {} - reason: shim end, issue: 2516.",
+            marker("_STOP")
+        ),
+        "    n".to_string(),
+        "}".to_string(),
+    ]);
+    let verdict = run_branch_fixture(
+        source,
+        &[
+            ((3, 0, 0), Some(0)),
+            ((3, 0, 1), Some(1)),
+            ((5, 0, 0), Some(0)),
+        ],
+        &[(1, 1), (3, 1), (5, 1)],
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branch_ignored, 2);
+    assert_eq!(verdict.branch_eligible, 1);
+    assert_eq!(verdict.branch_hit, 0);
+    assert_eq!(verdict.files[0].missed_branches, vec![(5, 0, 0)]);
+}
+
+#[test]
+fn all_branches_ignored_reports_no_eligible_rate() {
+    let source = file_lines(&[
+        "pub fn f(n: u32) -> u32 {".to_string(),
+        format!(
+            "    if n == 0 {{ return 0; }} // {} - reason: fixture defensive branch, issue: 2516.",
+            marker("_LINE")
+        ),
+        "    n".to_string(),
+        "}".to_string(),
+    ]);
+    let verdict = run_branch_fixture(
+        source,
+        &[((2, 0, 0), Some(0)), ((2, 0, 1), Some(1))],
+        &[(1, 1), (2, 1), (3, 1)],
+    );
+    assert!(verdict.passed, "{verdict:?}");
+    assert_eq!(verdict.branch_eligible, 0);
+    assert_eq!(verdict.branch_ignored, 2);
+    let text = render(&verdict);
+    assert!(text.contains("n/a (no eligible branches)"), "{text}");
 }
 
 #[test]
@@ -1368,4 +1479,16 @@ fn tracked_reconciliation_flags_path_aliases_and_duplicates() {
     assert!(errors.contains(
         &"path alias in tracked source list: sub\\b.rs and sub/b.rs name the same file".to_string()
     ));
+}
+
+#[test]
+fn language_label_names_new_covered_extensions() {
+    for (path, label) in [
+        ("a.kts", "kts"),
+        ("a.rb", "rb"),
+        ("a.erl", "erl"),
+        ("a.hrl", "hrl"),
+    ] {
+        assert_eq!(language_label(path), label, "{path}");
+    }
 }

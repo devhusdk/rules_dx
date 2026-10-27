@@ -1,9 +1,11 @@
 """Wrapper conformance tests."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_rust//rust:defs.bzl", "rust_common")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
+load(":crate.bzl", "dx_rust_crate_root")
 
 def dx_wrapper_registry_tests(name):
     """Instantiates Rust wrapper registry tests."""
@@ -13,6 +15,9 @@ def dx_wrapper_registry_tests(name):
         extra_checks = [
             expect_equal("RUST class id", RUST, "rust"),
             expect_equal("rust is a known class", RUST in KNOWN_SEMANTIC_FILE_CLASSES, True),
+            expect_equal("crate root default", dx_rust_crate_root(None), "src/lib.rs"),
+            expect_equal("crate root multi-file", dx_rust_crate_root(["src/a.rs", "src/lib.rs"]), "src/lib.rs"),
+            expect_equal("crate root missing", dx_rust_crate_root(["lib.rs"]), None),
         ],
     )
 
@@ -267,4 +272,64 @@ def dx_native_coverage_tests(name, target, objects_list):
         size = "small",
         target_under_test = target,
         objects_list = objects_list,
+    )
+
+def _default_crate_name_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    if rust_common.test_crate_info in target:
+        name = target[rust_common.test_crate_info].crate.name
+    else:
+        name = target[rust_common.crate_info].name
+    asserts.equals(env, ctx.attr.expected, name)
+    return analysistest.end(env)
+
+_default_crate_name_test = analysistest.make(
+    _default_crate_name_impl,
+    attrs = {"expected": attr.string(mandatory = True)},
+)
+
+def dx_default_crate_name_tests(name, target, expected):
+    """Asserts a Rust target defaults its crate name to the rewritten target name."""
+    _default_crate_name_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        expected = expected,
+    )
+
+def _crate_srcs(target):
+    if rust_common.test_crate_info in target:
+        crate = target[rust_common.test_crate_info].crate
+    else:
+        crate = target[rust_common.crate_info]
+    return crate.name, [src.short_path for src in crate.srcs.to_list()]
+
+def _test_srcs_split_impl(ctx):
+    env = analysistest.begin(ctx)
+    test_name, test_srcs = _crate_srcs(analysistest.target_under_test(env))
+    lib_name, lib_srcs = _crate_srcs(ctx.attr.lib)
+    asserts.equals(env, lib_name, test_name)
+    asserts.false(env, ctx.attr.test_src in lib_srcs, "{} is in the library srcs".format(ctx.attr.test_src))
+    asserts.true(env, ctx.attr.test_src in test_srcs, "{} is missing from the test srcs".format(ctx.attr.test_src))
+    for src in lib_srcs:
+        asserts.true(env, src in test_srcs, "{} is missing from the test srcs".format(src))
+    return analysistest.end(env)
+
+_test_srcs_split_test = analysistest.make(
+    _test_srcs_split_impl,
+    attrs = {
+        "lib": attr.label(mandatory = True),
+        "test_src": attr.string(mandatory = True),
+    },
+)
+
+def dx_test_srcs_split_tests(name, lib, test, test_src):
+    """Asserts a dx_rust_crate test_srcs file builds only into the unit test."""
+    _test_srcs_split_test(
+        name = name,
+        size = "small",
+        target_under_test = test,
+        lib = lib,
+        test_src = test_src,
     )

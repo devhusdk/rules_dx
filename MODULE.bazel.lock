@@ -161,6 +161,8 @@
     "https://bcr.bazel.build/modules/libxml2/2.15.3/source.json": "fd7c420cb14981416c9fadd0db555bd1e249355e0e5b63b2ce15b92996b5fbfb",
     "https://bcr.bazel.build/modules/llvm/0.8.23/MODULE.bazel": "315c8a46a968844d9bd70b06056110dcad9832882e5c9358eff66cebd4fb78d1",
     "https://bcr.bazel.build/modules/llvm/0.8.23/source.json": "0dca662d1d8a9fe12f44c68bbf27210f62898361226a2e2c95084815729af488",
+    "https://bcr.bazel.build/modules/lua/5.4.6.bcr.1/MODULE.bazel": "8e3b950c34f8963eb57cca78fa4d37d81bc703aca155a9ca659f2643d38b8e94",
+    "https://bcr.bazel.build/modules/lua/5.4.6.bcr.1/source.json": "5b09c069b5837ba333df2aaa9f82ab987365f07b0845d4d1029216e23f3721cf",
     "https://bcr.bazel.build/modules/mboworks_bzl/0.8.0/MODULE.bazel": "4d4bf94f5765d0380228fcde92513ca042ec1a1d369f59fc5dd0c68279cf78ff",
     "https://bcr.bazel.build/modules/mboworks_bzl/0.8.0/source.json": "82da3ae5eccccbfc12e6d3d3c0b5ad7efeee13941b3051defed4808d5bcaa318",
     "https://bcr.bazel.build/modules/nlohmann_json/3.12.0.bcr.1/MODULE.bazel": "a1c8bb07b5b91d971727c635f449d05623ac9608f6fe4f5f04254ea12f08e349",
@@ -221,7 +223,8 @@
     "https://bcr.bazel.build/modules/rules_apple/5.2.0/MODULE.bazel": "9b46da6889ba44e1b61dda2b4456f69606064cf38a95c1aacab5ae408f2aa735",
     "https://bcr.bazel.build/modules/rules_apple/5.2.0/source.json": "78c5c54eeabdae3e1dfd4f67f079c0672db5df715016fdce2b09bf9b4c88bedf",
     "https://bcr.bazel.build/modules/rules_batch/0.0.1/MODULE.bazel": "fd2b1ebe02a96f2ef3dea0b375b6f442db548e532fbd31e6c388e67239d83b76",
-    "https://bcr.bazel.build/modules/rules_batch/0.0.1/source.json": "74b403aa702f5c4398f375a883360f560d514160a7e3bb909c1845b2ad452a40",
+    "https://bcr.bazel.build/modules/rules_batch/0.1.1/MODULE.bazel": "d86a3773a3aed23878baaf7263917ea7dd71d2100934e989d2f303246389fdcb",
+    "https://bcr.bazel.build/modules/rules_batch/0.1.1/source.json": "7280584357144d887d386f436ea0e8f9629a68d6396458f65f5fb4e49d8a185d",
     "https://bcr.bazel.build/modules/rules_cc/0.0.1/MODULE.bazel": "cb2aa0747f84c6c3a78dad4e2049c154f08ab9d166b1273835a8174940365647",
     "https://bcr.bazel.build/modules/rules_cc/0.0.10/MODULE.bazel": "ec1705118f7eaedd6e118508d3d26deba2a4e76476ada7e0e3965211be012002",
     "https://bcr.bazel.build/modules/rules_cc/0.0.13/MODULE.bazel": "0e8529ed7b323dad0775ff924d2ae5af7640b23553dfcd4d34344c7e7a867191",
@@ -289,6 +292,8 @@
     "https://bcr.bazel.build/modules/rules_java/9.3.0/MODULE.bazel": "f657c72d65ac449caae9abf2e68e66c0d36f9416848c4c4903d0b3234229e7f2",
     "https://bcr.bazel.build/modules/rules_java/9.7.0/MODULE.bazel": "3ce6bd55fdd4fcb3323197736b7d976e0eedcc0eea78ca6186d20d314ba12e12",
     "https://bcr.bazel.build/modules/rules_java/9.7.0/source.json": "23b356565156e0fbc71e5dad7cf8e1b951466b7ae3fd731cb1d2c95ca82b1d70",
+    "https://bcr.bazel.build/modules/rules_julia/0.8.0/MODULE.bazel": "8d0283ad5e93092dcf7f1c6320c844b30cae1e1b52c7a15c221da090a98f02d4",
+    "https://bcr.bazel.build/modules/rules_julia/0.8.0/source.json": "8911ab3baabdf30d74a36423ab2890d9d6b32b0174afd1807b7ba7bfaee06a8b",
     "https://bcr.bazel.build/modules/rules_jvm_external/4.4.2/MODULE.bazel": "a56b85e418c83eb1839819f0b515c431010160383306d13ec21959ac412d2fe7",
     "https://bcr.bazel.build/modules/rules_jvm_external/5.1/MODULE.bazel": "33f6f999e03183f7d088c9be518a63467dfd0be94a11d0055fe2d210f89aa909",
     "https://bcr.bazel.build/modules/rules_jvm_external/5.2/MODULE.bazel": "d9351ba35217ad0de03816ef3ed63f89d411349353077348a45348b096615036",
@@ -317,6 +322,8 @@
     "https://bcr.bazel.build/modules/rules_nodejs/6.7.4/MODULE.bazel": "e6a241a55c82e999145553d2e00a08fc6ebadf62b63d108fb5e984696ffd0bd2",
     "https://bcr.bazel.build/modules/rules_nodejs/6.7.7/MODULE.bazel": "e80c95eebba3e38fa28ea0553ec580e4bffbbe8d0e8fa892457fa0e6b616f3d8",
     "https://bcr.bazel.build/modules/rules_nodejs/6.7.7/source.json": "60081c2448d70db3c5c0e75f55c0a55a22b2144646c21977c46c4986dacacdb6",
+    "https://bcr.bazel.build/modules/rules_perl/1.5.0/MODULE.bazel": "7a7cb1197e01287cded2c7c46a11e921ab5eb4a3a3b834dcf734740a5d656b02",
+    "https://bcr.bazel.build/modules/rules_perl/1.5.0/source.json": "d7d3504a77bb226609e4258033973b58d8ccc84acde048a08d825da84df5b197",
     "https://bcr.bazel.build/modules/rules_pkg/0.7.0/MODULE.bazel": "df99f03fc7934a4737122518bb87e667e62d780b610910f0447665a7e2be62dc",
     "https://bcr.bazel.build/modules/rules_pkg/1.0.1/MODULE.bazel": "5b1df97dbc29623bccdf2b0dcd0f5cb08e2f2c9050aab1092fd39a41e82686ff",
     "https://bcr.bazel.build/modules/rules_pkg/1.1.0/MODULE.bazel": "9db8031e71b6ef32d1846106e10dd0ee2deac042bd9a2de22b4761b0c3036453",
@@ -400,7 +407,8 @@
     "https://bcr.bazel.build/modules/tar.bzl/0.5.1/MODULE.bazel": "7c2eb3dcfc53b0f3d6f9acdfd911ca803eaf92aadf54f8ca6e4c1f3aee288351",
     "https://bcr.bazel.build/modules/tar.bzl/0.6.0/MODULE.bazel": "a3584b4edcfafcabd9b0ef9819808f05b372957bbdff41601429d5fd0aac2e7c",
     "https://bcr.bazel.build/modules/toml.bzl/0.3.0/MODULE.bazel": "5016e5dd1ad2200e119a4b28b2b3935e276c4b480f2fe3e952bea7eeba88f578",
-    "https://bcr.bazel.build/modules/toml.bzl/0.3.0/source.json": "0cf7c878c419b37ddb55f3dd93dd7c0c409bd7c4efacb3da504e0748780b2fa9",
+    "https://bcr.bazel.build/modules/toml.bzl/0.5.0/MODULE.bazel": "29c04b37a3f50c8dfcdc0c742eec7561ecb3d0cfea353bdb445ad8f6e0c81370",
+    "https://bcr.bazel.build/modules/toml.bzl/0.5.0/source.json": "a80e38d7d03cee9de004f49f0b817943332fc357ec0ca9b123a334ac6e9722ca",
     "https://bcr.bazel.build/modules/toolchains_llvm/1.12.0/MODULE.bazel": "229c2f3ad32d76f69ef1e83bb1bac80984893836f279e644d7698faf305c6ab7",
     "https://bcr.bazel.build/modules/toolchains_llvm/1.12.0/source.json": "4ebc975f57ccb23d313311e56ff49d2c7b83a2119054540fd9611ec4db0a2dc9",
     "https://bcr.bazel.build/modules/upb/0.0.0-20220923-a547704/MODULE.bazel": "7298990c00040a0e2f121f6c32544bab27d4452f80d9ce51349b1a28f3005c43",
@@ -430,7 +438,7 @@
   "moduleExtensions": {
     "//android/sdk:repos.bzl%android_sdk": {
       "general": {
-        "bzlTransitiveDigest": "wa3Ql5I2GPFteHKRqJ6zbJ8o4vkrkgQLnWhjXuH8IZU=",
+        "bzlTransitiveDigest": "bldZTTCJa9e1aPitvERli+bVA+WtVq3FiQ4cWqZ2Ktw=",
         "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -469,12 +477,26 @@
               "url": "https://dl.google.com/android/repository/build-tools_r34-linux.zip"
             }
           },
+          "dx_android_platform": {
+            "repoRuleId": "@@//android/sdk:repos.bzl%_android_platform_repo",
+            "attributes": {
+              "anchor": "android.jar",
+              "archive": "platform-34-ext7_r03.zip",
+              "canonical_id": "dx-android-platform-archive:https://dl.google.com/android/repository/platform-34-ext7_r03.zip",
+              "directory": "android-34",
+              "sha256": "16fdb74c55e59ae3ef52def135aec713508467bd56d7dabcd8c9be31fa8b20f3",
+              "url": "https://dl.google.com/android/repository/platform-34-ext7_r03.zip"
+            }
+          },
           "dx_android_sdk": {
             "repoRuleId": "@@//android/sdk:repos.bzl%_android_sdk_hub_repo",
             "attributes": {
               "build_tools_repos": "{\"linux_x86_64\":\"dx_android_build_tools_linux_x86_64\"}",
               "bundletool_repo": "dx_android_bundletool",
-              "ndk_repos": "{\"linux_x86_64\":\"dx_android_ndk_linux_x86_64\"}"
+              "emulator_repos": "{}",
+              "ndk_repos": "{\"linux_x86_64\":\"dx_android_ndk_linux_x86_64\"}",
+              "platform_repo": "dx_android_platform",
+              "platform_tools_repos": "{}"
             }
           }
         }
@@ -482,7 +504,7 @@
     },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "TXdapj7wyd3rZJMDHA4xsJY6uMvhaKIS3S8uQefXbHM=",
+        "bzlTransitiveDigest": "soaaKp6vBvTkiYsrbHEI4UvAfn/+fGEqaqQZRaehz3g=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -523,7 +545,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "Nf3XL2OzmwvEb5q9UprR2UHKv0+KH4No3eWtd49paIg=",
+        "bzlTransitiveDigest": "cOJwUXd7cYg8Tfln/tcAk/sjgMXHSwBi3vVUFqa6MBE=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -793,6 +815,50 @@
               "executable_sha256": "17157e2ee8b76fc8b1d8bee607a250e34b8a8023c8bc81822d4b5ee4d78fcb7c"
             }
           },
+          "dx_hadolint_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64",
+              "sha256": "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507",
+              "asset": "hadolint-linux-x86_64",
+              "archive_format": "none",
+              "executable": "hadolint-linux-x86_64",
+              "executable_sha256": "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
+            }
+          },
+          "dx_hadolint_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-arm64",
+              "sha256": "f6198ef8090f404dbb771abfee086eb8c48ac177f30da7fd3510aca35b344b5d",
+              "asset": "hadolint-linux-arm64",
+              "archive_format": "none",
+              "executable": "hadolint-linux-arm64",
+              "executable_sha256": "f6198ef8090f404dbb771abfee086eb8c48ac177f30da7fd3510aca35b344b5d"
+            }
+          },
+          "dx_hadolint_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-macos-arm64",
+              "sha256": "5c09f3213f8e40406abe048233d985eebef336d4a6a20021be47fadb6cf480a2",
+              "asset": "hadolint-macos-arm64",
+              "archive_format": "none",
+              "executable": "hadolint-macos-arm64",
+              "executable_sha256": "5c09f3213f8e40406abe048233d985eebef336d4a6a20021be47fadb6cf480a2"
+            }
+          },
+          "dx_hadolint_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-windows-x86_64.exe",
+              "sha256": "01d927294962b5387f9ead4f18679158452be4f17c765ad0bdffe5264b9c7b0a",
+              "asset": "hadolint-windows-x86_64.exe",
+              "archive_format": "none",
+              "executable": "hadolint-windows-x86_64.exe",
+              "executable_sha256": "01d927294962b5387f9ead4f18679158452be4f17c765ad0bdffe5264b9c7b0a"
+            }
+          },
           "dx_jsonnetfmt_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -879,6 +945,50 @@
               "archive_format": "none",
               "executable": "keep-sorted_windows_amd64.exe",
               "executable_sha256": "adbbea4b3eac632fc5da1053b31377f74516a43fb3b00c325dbe37f3fc311e45"
+            }
+          },
+          "dx_pkl_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-alpine-linux-amd64",
+              "sha256": "12e27f38bd2dccc0143ad5195de0f227584cee79aed4f10e8f34a51e429f7957",
+              "asset": "pkl-alpine-linux-amd64",
+              "archive_format": "none",
+              "executable": "pkl-alpine-linux-amd64",
+              "executable_sha256": "12e27f38bd2dccc0143ad5195de0f227584cee79aed4f10e8f34a51e429f7957"
+            }
+          },
+          "dx_pkl_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-linux-aarch64",
+              "sha256": "a76d2dd47da435a8f911b0347373f47c7e59ea54fb75ff846d20b8df10dba058",
+              "asset": "pkl-linux-aarch64",
+              "archive_format": "none",
+              "executable": "pkl-linux-aarch64",
+              "executable_sha256": "a76d2dd47da435a8f911b0347373f47c7e59ea54fb75ff846d20b8df10dba058"
+            }
+          },
+          "dx_pkl_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-macos-aarch64",
+              "sha256": "563eb51c9a20b16a3625464ed745c675ed9750381f2126722696a0d7cac1d9d3",
+              "asset": "pkl-macos-aarch64",
+              "archive_format": "none",
+              "executable": "pkl-macos-aarch64",
+              "executable_sha256": "563eb51c9a20b16a3625464ed745c675ed9750381f2126722696a0d7cac1d9d3"
+            }
+          },
+          "dx_pkl_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-windows-amd64.exe",
+              "sha256": "8550a00fcf027335e42c5e2cd553b88e98845408cb1880b3e3d1860caf46d22a",
+              "asset": "pkl-windows-amd64.exe",
+              "archive_format": "none",
+              "executable": "pkl-windows-amd64.exe",
+              "executable_sha256": "8550a00fcf027335e42c5e2cd553b88e98845408cb1880b3e3d1860caf46d22a"
             }
           },
           "dx_ruff_linux_x86_64": {
@@ -1324,12 +1434,34 @@
           "dx_tools": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_hub_repo",
             "attributes": {
-              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buf\":{\"linux_arm64\":\"dx_buf_linux_arm64\",\"linux_x86_64\":\"dx_buf_linux_x86_64\",\"macos_arm64\":\"dx_buf_macos_arm64\",\"windows_x86_64\":\"dx_buf_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"cue\":{\"linux_arm64\":\"dx_cue_linux_arm64\",\"linux_x86_64\":\"dx_cue_linux_x86_64\",\"macos_arm64\":\"dx_cue_macos_arm64\",\"windows_x86_64\":\"dx_cue_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"jsonnetfmt\":{\"linux_arm64\":\"dx_jsonnetfmt_linux_arm64\",\"linux_x86_64\":\"dx_jsonnetfmt_linux_x86_64\",\"macos_arm64\":\"dx_jsonnetfmt_macos_arm64\",\"windows_x86_64\":\"dx_jsonnetfmt_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"scalafmt\":{\"linux_arm64\":\"dx_scalafmt_linux_arm64\",\"linux_x86_64\":\"dx_scalafmt_linux_x86_64\",\"macos_arm64\":\"dx_scalafmt_macos_arm64\",\"windows_x86_64\":\"dx_scalafmt_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"uv\":{\"linux_arm64\":\"dx_uv_linux_arm64\",\"linux_x86_64\":\"dx_uv_linux_x86_64\",\"macos_arm64\":\"dx_uv_macos_arm64\",\"windows_x86_64\":\"dx_uv_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"},\"yamlfmt\":{\"linux_arm64\":\"dx_yamlfmt_linux_arm64\",\"linux_x86_64\":\"dx_yamlfmt_linux_x86_64\",\"macos_arm64\":\"dx_yamlfmt_macos_arm64\",\"windows_x86_64\":\"dx_yamlfmt_windows_x86_64\"}}",
+              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buf\":{\"linux_arm64\":\"dx_buf_linux_arm64\",\"linux_x86_64\":\"dx_buf_linux_x86_64\",\"macos_arm64\":\"dx_buf_macos_arm64\",\"windows_x86_64\":\"dx_buf_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"cue\":{\"linux_arm64\":\"dx_cue_linux_arm64\",\"linux_x86_64\":\"dx_cue_linux_x86_64\",\"macos_arm64\":\"dx_cue_macos_arm64\",\"windows_x86_64\":\"dx_cue_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"hadolint\":{\"linux_arm64\":\"dx_hadolint_linux_arm64\",\"linux_x86_64\":\"dx_hadolint_linux_x86_64\",\"macos_arm64\":\"dx_hadolint_macos_arm64\",\"windows_x86_64\":\"dx_hadolint_windows_x86_64\"},\"jsonnetfmt\":{\"linux_arm64\":\"dx_jsonnetfmt_linux_arm64\",\"linux_x86_64\":\"dx_jsonnetfmt_linux_x86_64\",\"macos_arm64\":\"dx_jsonnetfmt_macos_arm64\",\"windows_x86_64\":\"dx_jsonnetfmt_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"pkl\":{\"linux_arm64\":\"dx_pkl_linux_arm64\",\"linux_x86_64\":\"dx_pkl_linux_x86_64\",\"macos_arm64\":\"dx_pkl_macos_arm64\",\"windows_x86_64\":\"dx_pkl_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"scalafmt\":{\"linux_arm64\":\"dx_scalafmt_linux_arm64\",\"linux_x86_64\":\"dx_scalafmt_linux_x86_64\",\"macos_arm64\":\"dx_scalafmt_macos_arm64\",\"windows_x86_64\":\"dx_scalafmt_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"uv\":{\"linux_arm64\":\"dx_uv_linux_arm64\",\"linux_x86_64\":\"dx_uv_linux_x86_64\",\"macos_arm64\":\"dx_uv_macos_arm64\",\"windows_x86_64\":\"dx_uv_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"},\"yamlfmt\":{\"linux_arm64\":\"dx_yamlfmt_linux_arm64\",\"linux_x86_64\":\"dx_yamlfmt_linux_x86_64\",\"macos_arm64\":\"dx_yamlfmt_macos_arm64\",\"windows_x86_64\":\"dx_yamlfmt_windows_x86_64\"}}",
               "os_linux": "'@@platforms//os:linux'",
               "os_macos": "'@@platforms//os:macos'",
               "os_windows": "'@@platforms//os:windows'",
               "cpu_x86_64": "'@@platforms//cpu:x86_64'",
               "cpu_arm64": "'@@platforms//cpu:arm64'"
+            }
+          }
+        }
+      }
+    },
+    "//quality/tools/cc:extension.bzl%cc_tools": {
+      "general": {
+        "bzlTransitiveDigest": "pzoJZfW4B3cqmsWSlik3TsJEZDPdZiYVbIxYW6I9v7A=",
+        "usagesDigest": "2tD+jVcCspIFVPNckfkpDWXP63RsQnvm6pbA77k2ZQc=",
+        "recordedInputs": [
+          "REPO_MAPPING:,bazel_tools bazel_tools"
+        ],
+        "generatedRepoSpecs": {
+          "cc_cppcheck": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "build_file": "@@//quality/tools/cc:cppcheck.BUILD",
+              "sha256": "f028ff75ca5372738f3737c8b3e8611426a6526b6aea2ef01301ab0f5902f044",
+              "strip_prefix": "cppcheck-2.21.0",
+              "urls": [
+                "https://github.com/danmar/cppcheck/archive/refs/tags/2.21.0.tar.gz"
+              ]
             }
           }
         }
@@ -1588,7 +1720,7 @@
                 "aspect_rules_jest": "0.26.0",
                 "aspect_tools_telemetry": "0.5.2"
               },
-              "last_notice": 2
+              "last_notice": 3
             }
           }
         },
@@ -1678,7 +1810,7 @@
     "@@rules_cuda+//cuda:extensions.bzl%toolchain": {
       "general": {
         "bzlTransitiveDigest": "Vv990ZJAgjxlqfYBdx7RClmoNCQjuIFLIV+LhWA03lg=",
-        "usagesDigest": "dNSX3y1g8pIKF+l9BPDbOv+EYq7VinmNwgpKWF5jh8c=",
+        "usagesDigest": "1RTayofqLknzBQlES//G8h3c/vXe7dO+zWhmbWCXRfM=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
           "REPO_MAPPING:bazel_features+,bazel_features_version bazel_features++version_extension+bazel_features_version",
@@ -1720,6 +1852,19 @@
               "version": "13.4.92"
             }
           },
+          "cuda_cublas": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cublas",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "bd6ffcce561672da6abb928214a6694f392741e7d1e2d7dfde0da4bd651706b6",
+              "strip_prefix": "libcublas-linux-x86_64-13.8.0.4-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcublas/linux-x86_64/libcublas-linux-x86_64-13.8.0.4-archive.tar.xz",
+              "urls": [],
+              "version": "13.8.0.4"
+            }
+          },
           "cuda_cudart": {
             "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
             "attributes": {
@@ -1731,6 +1876,32 @@
               "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-13.4.92-archive.tar.xz",
               "urls": [],
               "version": "13.4.92"
+            }
+          },
+          "cuda_cufft": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "cufft",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "f7f8ac2cc67714989a3c8140cda39b1b7ed7d462a491e1ad3f53adb777f5070f",
+              "strip_prefix": "libcufft-linux-x86_64-12.4.0.43-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcufft/linux-x86_64/libcufft-linux-x86_64-12.4.0.43-archive.tar.xz",
+              "urls": [],
+              "version": "12.4.0.43"
+            }
+          },
+          "cuda_curand": {
+            "repoRuleId": "@@rules_cuda+//cuda/private:repositories.bzl%cuda_component",
+            "attributes": {
+              "component_name": "curand",
+              "descriptive_name": "",
+              "integrity": "",
+              "sha256": "6f725f9187dc5f675308b830f786c163f5b1b499d86986f94fb60aa701c13c0b",
+              "strip_prefix": "libcurand-linux-x86_64-10.4.4.72-archive",
+              "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcurand/linux-x86_64/libcurand-linux-x86_64-10.4.4.72-archive.tar.xz",
+              "urls": [],
+              "version": "10.4.4.72"
             }
           },
           "cuda_nvcc": {
@@ -1765,7 +1936,10 @@
               "components_mapping": {
                 "cccl": "@cuda_cccl",
                 "crt": "@cuda_crt",
+                "cublas": "@cuda_cublas",
                 "cudart": "@cuda_cudart",
+                "cufft": "@cuda_cufft",
+                "curand": "@cuda_curand",
                 "nvcc": "@cuda_nvcc",
                 "nvvm": "@cuda_nvvm"
               },

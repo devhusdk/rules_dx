@@ -225,7 +225,7 @@ fn native_config_case() {
             "name = \"vale_config\"",
             "aspect_hints = [",
             "\":rustfmt_config\"",
-            "data = [\"crate/styles/org/Example.yml\"]",
+            "data = [\"styles/org/Example.yml\"]",
             "//crate:__subpackages__",
         ],
     )

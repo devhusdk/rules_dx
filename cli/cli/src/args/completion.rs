@@ -10,7 +10,7 @@ use dx_process::lifecycle::{
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
 
 use super::command::{Command, FirstSlot, COMMANDS};
-use super::grammar::VALUE_OPTIONS;
+use super::grammar::consumes_next;
 use super::ArgsError;
 
 pub const COMPLETION_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
@@ -69,9 +69,6 @@ fn with_request(mut command: clap::Command, request: Request) -> clap::Command {
     let request = Arc::new(request);
     let selection: Arc<OnceLock<Selection>> = Arc::new(OnceLock::new());
     for entry in COMMANDS.iter() {
-        if entry.command.scope_policy() == "passthrough" {
-            continue;
-        }
         let completer = ArgValueCompleter::new(ScopeCompleter {
             command: entry.command,
             prior: prior.clone(),
@@ -136,8 +133,8 @@ fn prior_scopes(words: &[OsString]) -> Vec<String> {
             break;
         }
         if word.starts_with('-') {
-            let name = word.split_once('=').map_or(word.as_str(), |(name, _)| name);
-            if !word.contains('=') && VALUE_OPTIONS.contains(&name) {
+            let next = words.get(index).map(|next| next.to_string_lossy());
+            if consumes_next(&word, next.as_deref()) {
                 index += 1;
             }
             continue;
@@ -433,6 +430,10 @@ fn bump_set_hints(current: &str) -> Vec<String> {
     prefixed(&dx_bump::BumpSet::names(), current)
 }
 
+fn add_set_hints(current: &str) -> Vec<String> {
+    prefixed(&dx_bump::AddRequest::names(), current)
+}
+
 fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<String>, bool) {
     let meta = command.meta();
     let fixed = if prior.is_empty() {
@@ -440,6 +441,7 @@ fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<St
             FirstSlot::None => Vec::new(),
             FirstSlot::UpdateSets => update_set_hints(current),
             FirstSlot::BumpSets => bump_set_hints(current),
+            FirstSlot::AddSets => add_set_hints(current),
             FirstSlot::NewLanguages => prefixed(dx_adopt::SUPPORTED_NEW_LANGUAGES, current),
             FirstSlot::WatchTasks => prefixed(dx_adopt::WATCHABLE_COMMANDS, current),
             FirstSlot::CompletionShells => prefixed(COMPLETION_SHELLS, current),
@@ -595,6 +597,14 @@ mod tests {
     }
 
     #[test]
+    fn a_short_cluster_value_is_not_a_prior_scope() {
+        let words: Vec<OsString> = ["lint", "-qo", "json", "pkg", "x"]
+            .map(OsString::from)
+            .to_vec();
+        assert_eq!(prior_scopes(&words), vec!["pkg".to_owned()]);
+    }
+
+    #[test]
     fn fixed_tables_match_their_single_sources() {
         assert_eq!(COMPLETION_SHELLS, &["bash", "zsh", "fish", "powershell"]);
         let mut sets: Vec<&str> = dx_update::sets::SetId::ALL
@@ -680,6 +690,16 @@ mod tests {
                     assert!(fixed.contains(&String::from("github-actions")));
                     assert!(!labels);
                 }
+                Command::Add => {
+                    let mut want: Vec<String> = dx_bump::AddRequest::names()
+                        .into_iter()
+                        .map(String::from)
+                        .collect();
+                    want.sort();
+                    assert_eq!(fixed, want, "add must offer the add sets");
+                    assert!(!fixed.contains(&String::from("github-actions")));
+                    assert!(!labels);
+                }
                 Command::Clean
                 | Command::Init
                 | Command::Upgrade
@@ -715,6 +735,7 @@ mod tests {
             Command::Codegen,
             Command::Env,
             Command::Bump,
+            Command::Add,
             Command::New,
             Command::Completion,
             Command::Deploy,
@@ -1300,7 +1321,7 @@ mod tests {
     }
 
     #[test]
-    fn large_trees_stay_bounded() {
+    fn package_cap_stops_the_walk() {
         let scratch = module_workspace();
         let root = scratch.path();
         std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
@@ -1309,10 +1330,32 @@ mod tests {
             std::fs::create_dir_all(root.join(&dir)).expect("mkdir");
             std::fs::write(root.join(format!("{dir}/BUILD.bazel")), "").expect("marker");
         }
+        let expected = |count: usize| -> Vec<String> {
+            (0..count).map(|i| format!("//pkg/{i:03}/...")).collect()
+        };
         let got = label_candidates_from_workspace(root, "", 100);
-        assert_eq!(got.len(), 100, "candidates truncate: {got:?}");
-        let many = label_candidates_from_workspace(root, "//pkg/", 200);
-        assert!(many.len() <= 200, "package dirs bound: {many:?}");
+        assert_eq!(got, expected(100));
+        let many = label_candidates_from_workspace(root, "//pkg/", 250);
+        assert_eq!(many, expected(MAX_PACKAGE_DIRS));
+        assert!(!many.contains(&"//pkg/200/...".to_owned()), "{many:?}");
+    }
+
+    #[test]
+    fn visited_cap_stops_the_walk() {
+        let scratch = module_workspace();
+        let root = scratch.path();
+        std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
+        for index in 0..1997 {
+            std::fs::create_dir_all(root.join(format!("a/{index:04}"))).expect("mkdir");
+        }
+        std::fs::create_dir_all(root.join("z")).expect("mkdir");
+        std::fs::write(root.join("z/BUILD.bazel"), "").expect("marker");
+        assert_eq!(
+            label_candidates_from_workspace(root, "", 100),
+            vec!["//z/...".to_owned()]
+        );
+        std::fs::create_dir_all(root.join("a/1997")).expect("mkdir");
+        assert!(label_candidates_from_workspace(root, "", 100).is_empty());
     }
 
     #[test]

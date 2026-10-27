@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
@@ -18,15 +18,9 @@ rust_library(
     crate_name = "dx_env",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "serde",
-            "serde_json",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "cli/dx_env",
+        normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
@@ -48,15 +42,9 @@ rust_binary(
     data = ["//env:default_tree"],
     edition = "2021",
     visibility = ["//visibility:public"],
-    deps = crate_deps(
-        [
-            "clap",
-            "serde",
-            "serde_json",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "cli/dx_env",
+        normal = True,
     ) + [
         ":dx_env",
         "//cli/output:dx_output",
@@ -82,15 +70,10 @@ rust_test(
         "DX_POSIX_METADATA": "$(rootpath //env:posix_metadata)",
         "DX_WINDOWS_METADATA": "$(rootpath //env:windows_metadata)",
     },
-    deps = crate_deps(
-        [
-            "clap",
-            "serde",
-            "serde_json",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "cli/dx_env",
+        normal = True,
+        normal_dev = True,
     ) + ["//cli/test_scratch:dx_test_scratch"],
 )
 
@@ -146,7 +129,10 @@ rust_test(
         "DX_ENV_BIN": "$(rootpath :env)",
         "DX_STAGED_METADATA": "env/default_tree.metadata.json",
     },
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "no-remote-exec",
+    ],
     deps = ["//tools/testing:dx_testing"],
 )
 

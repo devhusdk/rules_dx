@@ -168,17 +168,10 @@ fn go_comparators_respect_partial_versions_and_zero_major_caret() {
     assert!(!version_affected("unknown", "", ""));
 }
 
-fn packages() -> Vec<LockedPackage> {
-    vec![
-        LockedPackage {
-            name: "serde".to_owned(),
-            version: "1.0.100".to_owned(),
-            set: "cargo".to_owned(),
-            is_git: false,
-            is_private: false,
-            location: None,
-            platform: None,
-        },
+#[test]
+fn locked_package_new_defaults_to_registry_package() {
+    assert_eq!(
+        LockedPackage::new("npm", "react", "18.2.0"),
         LockedPackage {
             name: "react".to_owned(),
             version: "18.2.0".to_owned(),
@@ -187,27 +180,49 @@ fn packages() -> Vec<LockedPackage> {
             is_private: false,
             location: None,
             platform: None,
-        },
+        }
+    );
+}
+
+fn advisory(set: &str, id: &str, package: &str, versions: &str) -> Advisory {
+    Advisory {
+        id: id.to_owned(),
+        package: package.to_owned(),
+        versions: versions.to_owned(),
+        severity: "medium".to_owned(),
+        fixed: vec![],
+        set: set.to_owned(),
+    }
+}
+
+fn exception(set: &str, advisory: &str, package: &str, versions: &str) -> RiskException {
+    RiskException {
+        advisory: advisory.to_owned(),
+        package: package.to_owned(),
+        set: set.to_owned(),
+        versions: versions.to_owned(),
+        reason: "Accepted for this release.".to_owned(),
+        expires: "2027-03-01".to_owned(),
+    }
+}
+
+fn packages() -> Vec<LockedPackage> {
+    vec![
+        LockedPackage::new("cargo", "serde", "1.0.100"),
+        LockedPackage::new("npm", "react", "18.2.0"),
     ]
 }
 
 fn advisories() -> Vec<Advisory> {
     vec![
         Advisory {
-            id: "GHSA-aaaa-bbbb-cccc".to_owned(),
-            package: "serde".to_owned(),
-            versions: ">=1.0.0, <1.0.150".to_owned(),
             severity: "high".to_owned(),
             fixed: vec!["1.0.150".to_owned()],
-            set: "cargo".to_owned(),
+            ..advisory("cargo", "GHSA-aaaa-bbbb-cccc", "serde", ">=1.0.0, <1.0.150")
         },
         Advisory {
-            id: "GHSA-nofix-0000".to_owned(),
-            package: "react".to_owned(),
-            versions: ">=18.0.0, <18.3.0".to_owned(),
             severity: String::new(),
-            fixed: vec![],
-            set: "npm".to_owned(),
+            ..advisory("npm", "GHSA-nofix-0000", "react", ">=18.0.0, <18.3.0")
         },
     ]
 }
@@ -372,31 +387,16 @@ fn npm_ranges_cover_star_or_hyphen_and_prerelease() {
 
 #[test]
 fn npm_range_advisories_report_findings() {
-    let packages = vec![LockedPackage {
-        name: "react".to_owned(),
-        version: "18.2.0".to_owned(),
-        set: "npm".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
+    let packages = vec![LockedPackage::new("npm", "react", "18.2.0")];
     let advisories = vec![
         Advisory {
-            id: "GHSA-npm-range".to_owned(),
-            package: "react".to_owned(),
-            versions: ">=18.0.0 <18.3.0".to_owned(),
             severity: "high".to_owned(),
             fixed: vec!["18.3.0".to_owned()],
-            set: "npm".to_owned(),
+            ..advisory("npm", "GHSA-npm-range", "react", ">=18.0.0 <18.3.0")
         },
         Advisory {
-            id: "GHSA-npm-miss".to_owned(),
-            package: "react".to_owned(),
-            versions: ">=18.3.0 <19.0.0".to_owned(),
             severity: "high".to_owned(),
-            fixed: vec![],
-            set: "npm".to_owned(),
+            ..advisory("npm", "GHSA-npm-miss", "react", ">=18.3.0 <19.0.0")
         },
     ];
     let (findings, unassessed) = match_packages(&packages, &advisories);
@@ -406,128 +406,74 @@ fn npm_range_advisories_report_findings() {
     assert_eq!(findings[0].version, "18.2.0");
 }
 
-#[test]
-fn npm_exceptions_narrow_with_npm_semantics() {
-    let packages = vec![LockedPackage {
-        name: "react".to_owned(),
-        version: "18.2.0".to_owned(),
-        set: "npm".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
-    let advisories = vec![Advisory {
-        id: "GHSA-npm-exception".to_owned(),
-        package: "react".to_owned(),
-        versions: ">=18.0.0 <18.3.0".to_owned(),
-        severity: "medium".to_owned(),
-        fixed: vec![],
-        set: "npm".to_owned(),
-    }];
+fn assert_exceptions_narrow(set: &str, name: &str, version: &str, covering: &str, outside: &str) {
+    let id = format!("GHSA-{set}-exception");
+    let packages = vec![LockedPackage::new(set, name, version)];
+    let advisories = vec![advisory(set, &id, name, covering)];
     let (findings, _) = match_packages(&packages, &advisories);
-    assert_eq!(findings.len(), 1);
-    let covering = RiskException {
-        advisory: "GHSA-npm-exception".to_owned(),
-        package: "react".to_owned(),
-        set: "npm".to_owned(),
-        versions: ">=18.0.0 <18.3.0".to_owned(),
-        reason: "Accepted for this release.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
-    let (unexempted, problems) = apply_exceptions(&findings, &[covering], "2026-09-18");
-    assert!(problems.is_empty());
-    assert!(unexempted.is_empty());
-    let missing = RiskException {
-        advisory: "GHSA-npm-exception".to_owned(),
-        package: "react".to_owned(),
-        set: "npm".to_owned(),
-        versions: ">=18.3.0 <19.0.0".to_owned(),
-        reason: "Wrong range.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
-    let (unexempted, problems) = apply_exceptions(&findings, &[missing], "2026-09-18");
-    assert!(problems.is_empty());
-    assert_eq!(unexempted.len(), 1);
+    assert_eq!(findings.len(), 1, "{set}");
+    let (unexempted, problems) = apply_exceptions(
+        &findings,
+        &[exception(set, &id, name, covering)],
+        "2026-09-18",
+    );
+    assert!(problems.is_empty(), "{set}");
+    assert!(unexempted.is_empty(), "{set}");
+    let (unexempted, problems) = apply_exceptions(
+        &findings,
+        &[exception(set, &id, name, outside)],
+        "2026-09-18",
+    );
+    assert!(problems.is_empty(), "{set}");
+    assert_eq!(unexempted.len(), 1, "{set}");
+}
+
+#[test]
+fn exceptions_narrow_with_ecosystem_semantics() {
+    for (set, name, version, covering, outside) in [
+        (
+            "npm",
+            "react",
+            "18.2.0",
+            ">=18.0.0 <18.3.0",
+            ">=18.3.0 <19.0.0",
+        ),
+        (
+            "go",
+            "example.com/mod",
+            "v1.2.4-0.20240101120000-abcdef123456",
+            ">=v1.0.0, <v2.0.0",
+            ">=v1.2.4, <v2.0.0",
+        ),
+        ("maven", "junit:junit", "4.13.2", "[4.0,5.0)", "[5.0,6.0)"),
+        (
+            "nuget",
+            "Newtonsoft.Json",
+            "13.0.1",
+            "[12.0,13.0.2)",
+            "[13.0.2,14.0)",
+        ),
+    ] {
+        assert_exceptions_narrow(set, name, version, covering, outside);
+    }
 }
 
 #[test]
 fn scoped_set_exceptions_exempt_a_base_ecosystem_finding() {
-    let packages = vec![LockedPackage {
-        name: "braces".to_owned(),
-        version: "3.0.3".to_owned(),
-        set: "npm".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
+    let packages = vec![LockedPackage::new("npm", "braces", "3.0.3")];
     let advisories = vec![Advisory {
-        id: "GHSA-npm-scoped".to_owned(),
-        package: "braces".to_owned(),
-        versions: "<=3.0.3".to_owned(),
         severity: "high".to_owned(),
-        fixed: vec![],
-        set: "npm".to_owned(),
+        ..advisory("npm", "GHSA-npm-scoped", "braces", "<=3.0.3")
     }];
     let (findings, _) = match_packages(&packages, &advisories);
     assert_eq!(findings.len(), 1);
     let scoped = RiskException {
-        advisory: "GHSA-npm-scoped".to_owned(),
-        package: "braces".to_owned(),
-        set: "npm-adopt".to_owned(),
-        versions: "<=3.0.3".to_owned(),
         reason: "No fixed release exists.".to_owned(),
-        expires: "2027-03-01".to_owned(),
+        ..exception("npm-adopt", "GHSA-npm-scoped", "braces", "<=3.0.3")
     };
     let (unexempted, problems) = apply_exceptions(&findings, &[scoped], "2026-09-18");
     assert!(problems.is_empty());
     assert!(unexempted.is_empty());
-}
-
-#[test]
-fn go_exceptions_narrow_with_go_semantics() {
-    let packages = vec![LockedPackage {
-        name: "example.com/mod".to_owned(),
-        version: "v1.2.4-0.20240101120000-abcdef123456".to_owned(),
-        set: "go".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
-    let advisories = vec![Advisory {
-        id: "GHSA-go-exception".to_owned(),
-        package: "example.com/mod".to_owned(),
-        versions: ">=v1.0.0, <v2.0.0".to_owned(),
-        severity: "medium".to_owned(),
-        fixed: vec![],
-        set: "go".to_owned(),
-    }];
-    let (findings, _) = match_packages(&packages, &advisories);
-    assert_eq!(findings.len(), 1);
-    let covering = RiskException {
-        advisory: "GHSA-go-exception".to_owned(),
-        package: "example.com/mod".to_owned(),
-        set: "go".to_owned(),
-        versions: ">=v1.0.0, <v2.0.0".to_owned(),
-        reason: "Accepted for this release.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
-    let (unexempted, problems) = apply_exceptions(&findings, &[covering], "2026-09-18");
-    assert!(problems.is_empty());
-    assert!(unexempted.is_empty());
-    let missing = RiskException {
-        advisory: "GHSA-go-exception".to_owned(),
-        package: "example.com/mod".to_owned(),
-        set: "go".to_owned(),
-        versions: ">=v1.2.4, <v2.0.0".to_owned(),
-        reason: "Wrong range: pseudo is below v1.2.4.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
-    let (unexempted, problems) = apply_exceptions(&findings, &[missing], "2026-09-18");
-    assert!(problems.is_empty());
-    assert_eq!(unexempted.len(), 1);
 }
 
 #[test]
@@ -634,31 +580,30 @@ fn maven_range_bounds_follow_comparable_version() {
 
 #[test]
 fn maven_range_advisories_report_findings() {
-    let packages = vec![LockedPackage {
-        name: "com.google.guava:guava".to_owned(),
-        version: "32.0.0".to_owned(),
-        set: "maven".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
+    let packages = vec![LockedPackage::new(
+        "maven",
+        "com.google.guava:guava",
+        "32.0.0",
+    )];
     let advisories = vec![
         Advisory {
-            id: "GHSA-maven-range".to_owned(),
-            package: "com.google.guava:guava".to_owned(),
-            versions: "[30.0,33.0)".to_owned(),
             severity: "high".to_owned(),
             fixed: vec!["33.0".to_owned()],
-            set: "maven".to_owned(),
+            ..advisory(
+                "maven",
+                "GHSA-maven-range",
+                "com.google.guava:guava",
+                "[30.0,33.0)",
+            )
         },
         Advisory {
-            id: "GHSA-maven-miss".to_owned(),
-            package: "com.google.guava:guava".to_owned(),
-            versions: "[33.0,34.0)".to_owned(),
             severity: "high".to_owned(),
-            fixed: vec![],
-            set: "maven".to_owned(),
+            ..advisory(
+                "maven",
+                "GHSA-maven-miss",
+                "com.google.guava:guava",
+                "[33.0,34.0)",
+            )
         },
     ];
     let (findings, unassessed) = match_packages(&packages, &advisories);
@@ -666,51 +611,6 @@ fn maven_range_advisories_report_findings() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].advisory, "GHSA-maven-range");
     assert_eq!(findings[0].version, "32.0.0");
-}
-
-#[test]
-fn maven_exceptions_narrow_with_maven_semantics() {
-    let packages = vec![LockedPackage {
-        name: "junit:junit".to_owned(),
-        version: "4.13.2".to_owned(),
-        set: "maven".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
-    let advisories = vec![Advisory {
-        id: "GHSA-maven-exception".to_owned(),
-        package: "junit:junit".to_owned(),
-        versions: "[4.0,5.0)".to_owned(),
-        severity: "medium".to_owned(),
-        fixed: vec![],
-        set: "maven".to_owned(),
-    }];
-    let (findings, _) = match_packages(&packages, &advisories);
-    assert_eq!(findings.len(), 1);
-    let covering = RiskException {
-        advisory: "GHSA-maven-exception".to_owned(),
-        package: "junit:junit".to_owned(),
-        set: "maven".to_owned(),
-        versions: "[4.0,5.0)".to_owned(),
-        reason: "Accepted for this release.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
-    let (unexempted, problems) = apply_exceptions(&findings, &[covering], "2026-09-18");
-    assert!(problems.is_empty());
-    assert!(unexempted.is_empty());
-    let missing = RiskException {
-        advisory: "GHSA-maven-exception".to_owned(),
-        package: "junit:junit".to_owned(),
-        set: "maven".to_owned(),
-        versions: "[5.0,6.0)".to_owned(),
-        reason: "Wrong range.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
-    let (unexempted, problems) = apply_exceptions(&findings, &[missing], "2026-09-18");
-    assert!(problems.is_empty());
-    assert_eq!(unexempted.len(), 1);
 }
 
 #[test]
@@ -829,31 +729,26 @@ fn nuget_prerelease_labels_compare_numeric_then_alpha_upstream() {
 
 #[test]
 fn nuget_range_advisories_report_findings() {
-    let packages = vec![LockedPackage {
-        name: "Newtonsoft.Json".to_owned(),
-        version: "13.0.1".to_owned(),
-        set: "nuget".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
+    let packages = vec![LockedPackage::new("nuget", "Newtonsoft.Json", "13.0.1")];
     let advisories = vec![
         Advisory {
-            id: "GHSA-nuget-range".to_owned(),
-            package: "Newtonsoft.Json".to_owned(),
-            versions: "[12.0,13.0.2)".to_owned(),
             severity: "high".to_owned(),
             fixed: vec!["13.0.2".to_owned()],
-            set: "nuget".to_owned(),
+            ..advisory(
+                "nuget",
+                "GHSA-nuget-range",
+                "Newtonsoft.Json",
+                "[12.0,13.0.2)",
+            )
         },
         Advisory {
-            id: "GHSA-nuget-miss".to_owned(),
-            package: "Newtonsoft.Json".to_owned(),
-            versions: "[13.0.2,14.0)".to_owned(),
             severity: "high".to_owned(),
-            fixed: vec![],
-            set: "nuget".to_owned(),
+            ..advisory(
+                "nuget",
+                "GHSA-nuget-miss",
+                "Newtonsoft.Json",
+                "[13.0.2,14.0)",
+            )
         },
     ];
     let (findings, unassessed) = match_packages(&packages, &advisories);
@@ -861,51 +756,6 @@ fn nuget_range_advisories_report_findings() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].advisory, "GHSA-nuget-range");
     assert_eq!(findings[0].version, "13.0.1");
-}
-
-#[test]
-fn nuget_exceptions_narrow_with_nuget_semantics() {
-    let packages = vec![LockedPackage {
-        name: "Newtonsoft.Json".to_owned(),
-        version: "13.0.1".to_owned(),
-        set: "nuget".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
-    let advisories = vec![Advisory {
-        id: "GHSA-nuget-exception".to_owned(),
-        package: "Newtonsoft.Json".to_owned(),
-        versions: "[12.0,13.0.2)".to_owned(),
-        severity: "medium".to_owned(),
-        fixed: vec![],
-        set: "nuget".to_owned(),
-    }];
-    let (findings, _) = match_packages(&packages, &advisories);
-    assert_eq!(findings.len(), 1);
-    let covering = RiskException {
-        advisory: "GHSA-nuget-exception".to_owned(),
-        package: "Newtonsoft.Json".to_owned(),
-        set: "nuget".to_owned(),
-        versions: "[12.0,13.0.2)".to_owned(),
-        reason: "Accepted for this release.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
-    let (unexempted, problems) = apply_exceptions(&findings, &[covering], "2026-09-18");
-    assert!(problems.is_empty());
-    assert!(unexempted.is_empty());
-    let missing = RiskException {
-        advisory: "GHSA-nuget-exception".to_owned(),
-        package: "Newtonsoft.Json".to_owned(),
-        set: "nuget".to_owned(),
-        versions: "[13.0.2,14.0)".to_owned(),
-        reason: "Wrong range.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
-    let (unexempted, problems) = apply_exceptions(&findings, &[missing], "2026-09-18");
-    assert!(problems.is_empty());
-    assert_eq!(unexempted.len(), 1);
 }
 
 #[test]
@@ -918,40 +768,20 @@ fn unassessed_reasons_are_pinned() {
 fn git_and_private_packages_are_incomplete_never_clean() {
     let pkgs = vec![
         LockedPackage {
-            name: "git-dep".to_owned(),
-            version: "abc123".to_owned(),
-            set: "cargo".to_owned(),
             is_git: true,
-            is_private: false,
-            location: None,
-            platform: None,
+            ..LockedPackage::new("cargo", "git-dep", "abc123")
         },
         LockedPackage {
-            name: "internal".to_owned(),
-            version: "0.1.0".to_owned(),
-            set: "npm".to_owned(),
-            is_git: false,
             is_private: true,
-            location: None,
-            platform: None,
+            ..LockedPackage::new("npm", "internal", "0.1.0")
         },
         LockedPackage {
-            name: "git-nuget-dep".to_owned(),
-            version: "1.0.0".to_owned(),
-            set: "nuget".to_owned(),
             is_git: true,
-            is_private: false,
-            location: None,
-            platform: None,
+            ..LockedPackage::new("nuget", "git-nuget-dep", "1.0.0")
         },
         LockedPackage {
-            name: "private-maven".to_owned(),
-            version: "2.0.0".to_owned(),
-            set: "maven".to_owned(),
-            is_git: false,
             is_private: true,
-            location: None,
-            platform: None,
+            ..LockedPackage::new("maven", "private-maven", "2.0.0")
         },
     ];
     let (findings, unassessed) = match_packages(&pkgs, &advisories());
@@ -964,15 +794,7 @@ fn git_and_private_packages_are_incomplete_never_clean() {
 
 #[test]
 fn clean_package_with_no_matching_advisory_is_clean() {
-    let pkgs = vec![LockedPackage {
-        name: "clean".to_owned(),
-        version: "9.9.9".to_owned(),
-        set: "cargo".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }];
+    let pkgs = vec![LockedPackage::new("cargo", "clean", "9.9.9")];
     let (findings, unassessed) = match_packages(&pkgs, &advisories());
     assert!(findings.is_empty());
     assert!(unassessed.is_empty());
@@ -981,14 +803,7 @@ fn clean_package_with_no_matching_advisory_is_clean() {
 #[test]
 fn exceptions_exempt_only_matching_versioned_findings() {
     let (findings, _) = match_packages(&packages(), &advisories());
-    let exception = RiskException {
-        advisory: "GHSA-aaaa-bbbb-cccc".to_owned(),
-        package: "serde".to_owned(),
-        set: "cargo".to_owned(),
-        versions: ">=1.0.0, <1.0.150".to_owned(),
-        reason: "Accepted for this release.".to_owned(),
-        expires: "2027-03-01".to_owned(),
-    };
+    let exception = exception("cargo", "GHSA-aaaa-bbbb-cccc", "serde", ">=1.0.0, <1.0.150");
     let (unexempted, problems) = apply_exceptions(&findings, &[exception], "2026-09-18");
     assert!(problems.is_empty());
     assert_eq!(unexempted.len(), 1);
@@ -999,22 +814,15 @@ fn exceptions_exempt_only_matching_versioned_findings() {
 fn exception_problems_fail_and_obsolete_is_reported() {
     let (findings, _) = match_packages(&packages(), &advisories());
     let expired = RiskException {
-        advisory: "GHSA-aaaa-bbbb-cccc".to_owned(),
-        package: "serde".to_owned(),
-        set: "cargo".to_owned(),
-        versions: ">=1.0.0, <1.0.150".to_owned(),
         reason: "Old.".to_owned(),
         expires: "2026-01-01".to_owned(),
+        ..exception("cargo", "GHSA-aaaa-bbbb-cccc", "serde", ">=1.0.0, <1.0.150")
     };
     let (_, problems) = apply_exceptions(&findings, &[expired], "2026-09-18");
     assert!(!problems.is_empty());
     let obsolete = RiskException {
-        advisory: "GHSA-gone".to_owned(),
-        package: "gone".to_owned(),
-        set: "cargo".to_owned(),
-        versions: "*".to_owned(),
         reason: "Stale.".to_owned(),
-        expires: "2027-03-01".to_owned(),
+        ..exception("cargo", "GHSA-gone", "gone", "*")
     };
     let (_, problems) = apply_exceptions(&findings, &[obsolete], "2026-09-18");
     assert!(problems
@@ -1282,25 +1090,13 @@ fn osv_typed_malformed_fails_closed() {
 }
 
 fn nuget_package(name: &str) -> LockedPackage {
-    LockedPackage {
-        name: name.to_owned(),
-        version: "12.0.1".to_owned(),
-        set: "nuget".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }
+    LockedPackage::new("nuget", name, "12.0.1")
 }
 
 fn nuget_advisory(package: &str) -> Advisory {
     Advisory {
-        id: "GHSA-nuget-case".to_owned(),
-        package: package.to_owned(),
-        versions: "(,13.0.1)".to_owned(),
         severity: "high".to_owned(),
-        fixed: vec![],
-        set: "nuget".to_owned(),
+        ..advisory("nuget", "GHSA-nuget-case", package, "(,13.0.1)")
     }
 }
 
@@ -1344,12 +1140,8 @@ fn nuget_exceptions_match_case_insensitively_without_widening() {
         &[nuget_advisory("Newtonsoft.Json")],
     );
     let exception = |package: &str, versions: &str| RiskException {
-        advisory: "GHSA-nuget-case".to_owned(),
-        package: package.to_owned(),
-        set: "nuget".to_owned(),
-        versions: versions.to_owned(),
         reason: "No fixed release exists.".to_owned(),
-        expires: "2027-03-01".to_owned(),
+        ..exception("nuget", "GHSA-nuget-case", package, versions)
     };
     let (left, problems) = apply_exceptions(
         &findings,
@@ -1434,12 +1226,8 @@ fn ruby_prerelease_and_bounds() {
 #[test]
 fn ruby_unsupported_syntax_is_incomplete_not_clean() {
     let bad_scope = vec![Advisory {
-        id: "GHSA-ruby-bad".to_owned(),
-        package: "nokogiri".to_owned(),
-        versions: ">=1.0, <banana".to_owned(),
         severity: "high".to_owned(),
-        fixed: Vec::new(),
-        set: "ruby".to_owned(),
+        ..advisory("ruby", "GHSA-ruby-bad", "nokogiri", ">=1.0, <banana")
     }];
     let (findings, unassessed) = match_packages(&ruby_lock("nokogiri (1.5.0)"), &bad_scope);
     assert!(findings.is_empty());
@@ -1477,12 +1265,9 @@ fn ruby_scoped_exceptions_cover_platform_findings() {
         &ruby_osv(events),
     );
     let exception = |versions: &str| RiskException {
-        advisory: "GHSA-ruby-range-0001".to_owned(),
-        package: "nokogiri".to_owned(),
-        set: "ruby".to_owned(),
-        versions: versions.to_owned(),
         reason: "accepted".to_owned(),
         expires: "2099-01-01".to_owned(),
+        ..exception("ruby", "GHSA-ruby-range-0001", "nokogiri", versions)
     };
     for covering in [">= 1.16.0, < 1.16.9", "1.16.8", "1.16.8-x86_64-linux"] {
         let (left, problems) = apply_exceptions(&findings, &[exception(covering)], "2026-10-22");
@@ -1497,22 +1282,16 @@ fn ruby_scoped_exceptions_cover_platform_findings() {
 
 #[test]
 fn a_nuget_advisory_never_matches_a_powershell_module_of_the_same_name_and_version() {
-    let module = LockedPackage {
-        name: "ExampleModule".to_owned(),
-        version: "1.2.3".to_owned(),
-        set: "powershell".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    };
+    let module = LockedPackage::new("powershell", "ExampleModule", "1.2.3");
     let advisory = Advisory {
-        id: "GHSA-collision-0001".to_owned(),
-        package: "ExampleModule".to_owned(),
-        versions: "[1.0.0, 2.0.0)".to_owned(),
         severity: "high".to_owned(),
         fixed: vec!["2.0.0".to_owned()],
-        set: "nuget".to_owned(),
+        ..advisory(
+            "nuget",
+            "GHSA-collision-0001",
+            "ExampleModule",
+            "[1.0.0, 2.0.0)",
+        )
     };
     let (findings, unassessed) = match_packages(&[module], &[advisory]);
     assert!(findings.is_empty());
@@ -1534,15 +1313,7 @@ fn pypi_osv(events: &str) -> Vec<Advisory> {
 }
 
 fn pypi_lock(name: &str, version: &str) -> Vec<LockedPackage> {
-    vec![LockedPackage {
-        name: name.to_owned(),
-        version: version.to_owned(),
-        set: "uv".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }]
+    vec![LockedPackage::new("uv", name, version)]
 }
 
 fn pypi_hits(events: &str, name: &str, version: &str) -> (usize, usize) {

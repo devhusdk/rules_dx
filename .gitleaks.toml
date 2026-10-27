@@ -2,9 +2,9 @@
 useDefault = true
 
 [[allowlists]]
-description = "docs SBOM prose is not a secret; dx audit offline OSV snapshots under .dx/ are data, not source"
+description = "docs SBOM prose is not a secret"
 regexes = ["SBOM/provenance"]
-paths = ["docs/.*\\.md$", "\\.dx/.*"]
+paths = ["docs/.*\\.md$"]
 regexTarget = "match"
 
 [[allowlists]]
@@ -15,8 +15,8 @@ regexes = ["\"actionKey\": \"[0-9a-f]{64}\""]
 regexTarget = "line"
 
 [[allowlists]]
-description = "Qt runtime library names are not secrets"
+description = "Qt runtime library names in the pinned SDK tables are not secrets"
 condition = "AND"
-paths = ["qt/sdk/needed\\.bzl$"]
+paths = ["qt/sdk/linux_arm64\\.bzl$", "qt/sdk/linux_x86_64\\.bzl$"]
 regexes = ["libxcb-keysyms\\.so"]
 regexTarget = "match"

@@ -1,4 +1,4 @@
-load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -27,14 +27,6 @@ go_library(
     ],
 )
 
-gazelle_binary(
-    name = "gazelle",
-    languages = [":ruby"],
-    tags = ["no-coverage"],
-    version = 1,
-    visibility = ["//dx:__pkg__"],
-)
-
 filegroup(
     name = "generation_testdata",
     srcs = glob(["testdata/**"]),
@@ -42,7 +34,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = ":gazelle",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],
@@ -63,7 +55,10 @@ go_test(
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
-    markdown_srcs = ["testdata/source_only/README.md"],
+    markdown_srcs = [
+        "testdata/load_path/README.md",
+        "testdata/source_only/README.md",
+    ],
     tags = ["corpus"],
 )
 

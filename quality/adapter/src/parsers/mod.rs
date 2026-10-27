@@ -10,7 +10,6 @@ pub mod cue;
 pub mod djlint;
 pub mod erlfmt;
 pub mod errcheck;
-pub mod error_prone;
 pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
@@ -19,6 +18,7 @@ pub mod gleam_format;
 pub mod gofumpt;
 pub mod google_java_format;
 pub mod govet;
+pub mod hadolint;
 pub mod jsonnetfmt;
 pub mod keep_sorted;
 pub mod ktfmt;
@@ -34,6 +34,8 @@ pub mod pydoclint;
 pub mod pylint;
 pub mod qmlformat;
 pub mod qmllint;
+pub mod redocly;
+pub mod remark;
 pub mod roslyn;
 pub mod rubocop;
 pub mod ruff;
@@ -50,7 +52,6 @@ pub mod staticcheck;
 pub mod stylelint;
 pub mod taplo;
 pub mod terraform;
-pub mod tsc;
 pub mod ty;
 pub mod vale;
 pub mod yamlfmt;
@@ -60,7 +61,7 @@ pub mod zig_fmt;
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
-pub use checkstyle::parse_checkstyle;
+pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
 pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
@@ -69,8 +70,7 @@ pub use cue::parse_cue;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
-pub use error_prone::parse_error_prone;
-pub use eslint::parse_eslint;
+pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
 pub use fsharplint::parse_fsharplint;
@@ -78,6 +78,7 @@ pub use gleam_format::parse_gleam_format;
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
+pub use hadolint::parse_hadolint;
 pub use jsonnetfmt::parse_jsonnetfmt;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
@@ -93,10 +94,12 @@ pub use pydoclint::parse_pydoclint;
 pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
 pub use qmllint::{parse_qmllint, parse_qmllint_report};
+pub use redocly::parse_redocly;
+pub use remark::parse_remark;
 pub use roslyn::parse_roslyn;
 pub use rubocop::parse_rubocop;
 pub use ruff::{parse_ruff, parse_ruff_format};
-pub use rust::{parse_clippy, parse_rustc, parse_rustc_action_output, ActionDiagnostic};
+pub use rust::{parse_clippy, parse_rustc};
 pub use rustfmt::parse_rustfmt;
 pub use scalafix::parse_scalafix;
 pub use scalafmt::parse_scalafmt;
@@ -108,7 +111,6 @@ pub use staticcheck::parse_staticcheck;
 pub use stylelint::parse_stylelint;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
-pub use tsc::parse_tsc;
 pub use ty::parse_ty;
 pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
@@ -145,6 +147,16 @@ pub enum ParseError {
     },
 }
 
+impl ParseError {
+    /// The failure for output outside the pinned grammar.
+    fn shape(tool: &'static str, detail: impl Into<String>) -> Self {
+        Self::Shape {
+            tool,
+            detail: detail.into(),
+        }
+    }
+}
+
 pub const MAX_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 
 pub fn check_output_size(tool: &'static str, bytes: &[u8]) -> Result<(), ParseError> {
@@ -170,12 +182,6 @@ fn known<'a>(tool: &'static str, files: &[&'a str], path: &str) -> Result<&'a st
 }
 
 /// The checked file a tool named, accepting a path spelled from the tool's working directory.
-///
-/// `terraform fmt -check` names each file it would rewrite by its path from the directory it
-/// ran in, while the runner hands every tool an absolute path. A reported path therefore
-/// matches when it equals a checked path outright or when it is that path below `cwd`. Only
-/// paths below `cwd` can match, so a reported path that climbs out of the run names no file
-/// the run was given.
 fn known_relative<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -199,12 +205,6 @@ fn known_relative<'a>(
 }
 
 /// The checked file a tool named, accepting either separator spelling.
-///
-/// `pydoclint` reports every path through `PurePath.as_posix()`, so on Windows it
-/// answers `C:/tmp/a.py` for the `C:\tmp\a.py` the runner handed it. A reported
-/// path matches when it equals a checked path once both are spelled with `/`.
-/// Comparing both sides that way stays exact: a path the run was never given
-/// still matches nothing.
 fn known_spelled<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -234,6 +234,32 @@ fn known_native<'a>(
     }
 }
 
+/// The checked file a tool named, matching the path after dropping `.` and `..` components.
+fn known_lexical<'a>(
+    tool: &'static str,
+    files: &[&'a str],
+    path: &str,
+) -> Result<&'a str, ParseError> {
+    use std::path::{Component, PathBuf};
+    let mut clean = PathBuf::new();
+    let mut valid = true;
+    for part in Path::new(path).components() {
+        match part {
+            Component::CurDir => {}
+            Component::ParentDir => valid &= clean.pop(),
+            other => clean.push(other.as_os_str()),
+        }
+    }
+    files
+        .iter()
+        .copied()
+        .find(|file| valid && Path::new(file) == clean)
+        .ok_or_else(|| ParseError::UnknownFile {
+            tool,
+            path: path.to_owned(),
+        })
+}
+
 /// The lines a tool wrote, blank ones dropped and each one trimmed.
 fn lines<'a>(tool: &'static str, raw: &'a [u8]) -> Result<Vec<&'a str>, ParseError> {
     Ok(as_text(tool, raw)?
@@ -243,16 +269,50 @@ fn lines<'a>(tool: &'static str, raw: &'a [u8]) -> Result<Vec<&'a str>, ParseErr
         .collect())
 }
 
-/// The checked file a line names, with everything after the first colon.
+/// The checked file a line starts with (longest wins), with everything after its colon.
 fn located<'a>(
     tool: &'static str,
     line: &'a str,
     files: &[&'a str],
 ) -> Result<(&'a str, &'a str), ParseError> {
-    let (path, rest) = line
-        .split_once(':')
-        .ok_or_else(|| missing(tool, "location", line))?;
-    Ok((known(tool, files, path)?, rest))
+    if let Some(found) = prefixed(line, files) {
+        return Ok(found);
+    }
+    if !line.contains(':') {
+        return Err(missing(tool, "location", line));
+    }
+    let skip = if dx_path::drive_rooted(line) { 2 } else { 0 };
+    let end = line[skip..].find(':').map_or(line.len(), |at| at + skip);
+    Err(ParseError::UnknownFile {
+        tool,
+        path: line[..end].to_owned(),
+    })
+}
+
+/// The checked file a line starts with (longest wins), followed by a colon, and the rest.
+fn prefixed<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)> {
+    files
+        .iter()
+        .copied()
+        .filter(|file| line.strip_prefix(file).is_some_and(|r| r.starts_with(':')))
+        .max_by_key(|file| file.len())
+        .map(|file| (file, &line[file.len() + 1..]))
+}
+
+/// Exactly `row<sep>col`, both numbers trimmed.
+fn row_col(text: &str, sep: char) -> Option<(u64, u64)> {
+    let (row, col) = text.split_once(sep)?;
+    Some((row.trim().parse().ok()?, col.trim().parse().ok()?))
+}
+
+/// A `path:row:col` triple split from the right, with a non-empty path.
+fn path_row_col(text: &str) -> Option<(&str, u64, u64)> {
+    let (rest, col) = text.rsplit_once(':')?;
+    let (path, row) = rest.rsplit_once(':')?;
+    if path.is_empty() {
+        return None;
+    }
+    Some((path, row.trim().parse().ok()?, col.trim().parse().ok()?))
 }
 
 /// The line and column of a diagnostic that spells both, with its tail.
@@ -318,10 +378,10 @@ fn require_findings(
     code: Option<i32>,
 ) -> Result<(), ParseError> {
     if findings.is_empty() && code != Some(0) {
-        return Err(ParseError::Shape {
+        return Err(ParseError::shape(
             tool,
-            detail: format!("exit {} with no diagnostics", code_name(code)),
-        });
+            format!("exit {} with no diagnostics", code_name(code)),
+        ));
     }
     Ok(())
 }
@@ -331,10 +391,7 @@ fn point(line: u64, column: u64) -> (TextPosition, Option<TextPosition>) {
 }
 
 fn missing(tool: &'static str, what: &str, line: &str) -> ParseError {
-    ParseError::Shape {
-        tool,
-        detail: format!("malformed {what}: {line}"),
-    }
+    ParseError::shape(tool, format!("malformed {what}: {line}"))
 }
 
 fn code_name(code: Option<i32>) -> String {
@@ -344,15 +401,6 @@ fn code_name(code: Option<i32>) -> String {
 const DEV_NULL: &str = "/dev/null";
 
 /// The paths a unified diff says were reformatted, in the order the diff names them.
-///
-/// Real producers disagree on the header. `git diff` writes `--- a/x` / `+++ b/x`;
-/// `gofumpt -d`, `shfmt -d` and `cue fmt --diff` all write
-/// `--- x.orig` / `+++ x`, and some add a tab-separated timestamp. A header is a
-/// `---`/`+++` pair, and only the new side names a file that exists after the run,
-/// so that side wins and the old side covers a deletion. A leading `a/` or `b/` is a
-/// `git diff` prefix only when the pair uses both; otherwise it is a real directory.
-/// A trailing `.orig` likewise belongs to the producer that writes one, so it comes
-/// off the old side only, and never off a `git diff` pair.
 fn diff_paths(text: &str) -> Vec<String> {
     let mut paths: Vec<String> = Vec::new();
     let lines: Vec<&str> = text.lines().collect();
@@ -389,10 +437,6 @@ fn diff_paths(text: &str) -> Vec<String> {
 }
 
 /// The old-side and new-side line counts a `@@` header declares, absent counts meaning 1.
-///
-/// A unified diff may name the enclosing section after the counts, as `git diff` does for
-/// every Go, C, Java or Ruby hunk: `@@ -8,5 +8,5 @@ func main() {`. Everything past the
-/// closing ` @@` is that name, so the counts end at the ` @@` and not at the end of the line.
 fn hunk_counts(line: &str) -> Option<(usize, usize)> {
     let rest = line.strip_prefix("@@ -")?;
     let (old, rest) = rest.split_once(" +")?;
@@ -408,9 +452,6 @@ fn range_count(range: &str) -> Option<usize> {
 }
 
 /// The index just past the hunk that starts at `index` with the given side counts.
-///
-/// The counts are what end a hunk, not the line prefixes: a removed line whose own
-/// text starts with `-` or `--- ` is body, and the next file's header must not be eaten.
 fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize) -> usize {
     let mut old_seen = 0;
     let mut new_seen = 0;
@@ -430,12 +471,6 @@ fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize
     index
 }
 /// Whether the `a/` and `b/` in a header are `git diff` prefixes rather than directories.
-///
-/// `git diff` writes `a/x` and `b/x`, but a repo may hold a real `a/` directory, and the
-/// `.orig` producers name the path itself: `gofumpt -d a/x.go` writes `a/x.go.orig`. So the
-/// prefixes are git's only when the pair uses `a/` and `b/` together, or when the side that
-/// names a real file is prefixed and the other side is the `/dev/null` of a deletion or a
-/// creation. A lone `---` line proves neither, so it keeps its path.
 fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
     match (old, new) {
         (Some(old), Some(new)) if new == DEV_NULL => old.starts_with("a/"),
@@ -446,9 +481,6 @@ fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
 }
 
 /// The path one side of a diff header names.
-///
-/// `git` marks an `a/`/`b/` prefix as `git diff`'s, and `orig` marks the `<path>.orig` copy
-/// that `gofumpt`, `shfmt`, `cue` and `djlint` leave for the pre-run text.
 fn diff_path(raw: &str, git: bool, orig: bool) -> Option<String> {
     let path = raw.split('\t').next().unwrap_or(raw).trim();
     let path = if git {
@@ -478,6 +510,8 @@ pub enum DiffExit {
     NonZero,
     /// `--check --diff` tools exit 1, but 0 is also pinned.
     ZeroOrOne,
+    /// gofmt-style `-d` exits exactly 1 once a diff exists; 2 is a parse error.
+    One,
 }
 
 impl DiffExit {
@@ -487,14 +521,12 @@ impl DiffExit {
             Self::Zero => code == Some(0),
             Self::NonZero => code != Some(0),
             Self::ZeroOrOne => code == Some(0) || code == Some(1),
+            Self::One => code == Some(1),
         }
     }
 }
 
 /// Report the offenses in the RuboCop JSON grammar, which `rubocop` and `standardrb` share.
-///
-/// `standardrb` wraps RuboCop and its `--format json` is RuboCop's own JSON formatter, so both
-/// tools name every offense with the same `cop_name`, `severity` and `location` fields.
 pub(super) fn rubocop_json(
     tool: &'static str,
     stdout: &[u8],
@@ -505,22 +537,17 @@ pub(super) fn rubocop_json(
 ) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(tool, stdout)?;
     check_output_size(tool, stderr)?;
-    let stderr = String::from_utf8_lossy(stderr);
-    let lines: Vec<String> = stderr
-        .lines()
-        .map(|line| mix_format::strip_ansi(line).trim().to_owned())
-        .collect();
-    let inspecting = lines.iter().find(|line| {
-        line.contains("An error occurred while ") && line.contains(" cop was inspecting ")
-    });
-    if let Some(crash) =
-        inspecting.or_else(|| lines.iter().find(|line| rubocop_error_summary(line)))
-    {
+    if let Some(crash) = rubocop_crash(stderr) {
         return Err(ParseError::Shape {
             tool,
             detail: format!("cop crashed: {crash}"),
         });
     }
+    let stderr = String::from_utf8_lossy(stderr);
+    let lines: Vec<String> = stderr
+        .lines()
+        .map(|line| mix_format::strip_ansi(line).trim().to_owned())
+        .collect();
     if !matches!(code, Some(0) | Some(1)) {
         let first = lines
             .iter()
@@ -636,6 +663,21 @@ pub(super) fn rubocop_json(
     Ok(findings)
 }
 
+/// Find the stderr line that shows a RuboCop cop crashed, shared by the check and fix paths.
+pub fn rubocop_crash(stderr: &[u8]) -> Option<String> {
+    let stderr = String::from_utf8_lossy(stderr);
+    let lines: Vec<String> = stderr
+        .lines()
+        .map(|line| mix_format::strip_ansi(line).trim().to_owned())
+        .collect();
+    let inspecting = lines.iter().find(|line| {
+        line.contains("An error occurred while ") && line.contains(" cop was inspecting ")
+    });
+    inspecting
+        .or_else(|| lines.iter().find(|line| rubocop_error_summary(line)))
+        .cloned()
+}
+
 /// Whether a stderr line is RuboCop's `N error(s) occurred:` crash summary.
 fn rubocop_error_summary(line: &str) -> bool {
     let Some((count, rest)) = line.split_once(' ') else {
@@ -684,15 +726,6 @@ pub(super) enum Spelling<'a> {
 }
 
 /// Report one "file is not formatted" finding per path a tool listed, one per line.
-///
-/// `jsonnetfmt --test`, `pkl format --diff-name-only` and `modfmt -c -l` name the files
-/// they would reformat instead of printing a diff, and so do `google-java-format`, `ktfmt`,
-/// `csharpier`, `qmlformat`, `yamlfmt -lint -q` and `terraform fmt -check`. A tool that runs
-/// in the directory it lists from spells a path below `./` or below its working directory,
-/// and `yamlfmt -lint -q` writes its list to stderr under a header, so `noise` names the
-/// lines that name no file. A path the run owns is reported once however often it is
-/// listed. The exit code is not pinned: `modfmt -l` lists and exits 0, while `pkl` exits 11,
-/// so only an empty list needs one.
 pub(super) fn listed_paths(
     tool: &'static str,
     bytes: &[u8],
@@ -778,7 +811,8 @@ mod tests {
 
     use super::{
         check_output_size, code_name, columned, finding, known_native, lines, located, missing,
-        numbered, require_findings, FileFinding, ParseError, Spelling, MAX_OUTPUT_BYTES,
+        numbered, path_row_col, prefixed, require_findings, row_col, FileFinding, ParseError,
+        Spelling, MAX_OUTPUT_BYTES,
     };
     use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
@@ -813,6 +847,44 @@ mod tests {
     }
 
     #[test]
+    fn shape_builds_the_shape_variant() {
+        assert_eq!(
+            ParseError::shape("t", "d"),
+            ParseError::Shape {
+                tool: "t",
+                detail: "d".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn row_col_reads_exactly_two_numbers() {
+        assert_eq!(row_col("3:7", ':'), Some((3, 7)));
+        assert_eq!(row_col(" 3 , 7 ", ','), Some((3, 7)));
+        assert_eq!(row_col("3", ':'), None);
+        assert_eq!(row_col("a:7", ':'), None);
+        assert_eq!(row_col("3:7:", ':'), None);
+    }
+
+    #[test]
+    fn path_row_col_needs_a_path_line_and_column() {
+        assert_eq!(path_row_col("src/a.gleam:3:7"), Some(("src/a.gleam", 3, 7)));
+        assert_eq!(path_row_col(":3:7"), None);
+        assert_eq!(path_row_col("src/a.gleam:3"), None);
+        assert_eq!(path_row_col("src/a.gleam"), None);
+        assert_eq!(path_row_col(r"C:\a.x:3:7"), Some((r"C:\a.x", 3, 7)));
+    }
+
+    #[test]
+    fn prefixed_picks_the_longest_checked_file() {
+        let files = ["/s/a", "/s/a.b"];
+        assert_eq!(prefixed("/s/a.b:1: x", &files), Some(("/s/a.b", "1: x")));
+        assert_eq!(prefixed("/s/a:1: x", &files), Some(("/s/a", "1: x")));
+        assert_eq!(prefixed("/s/a.bc", &files), None);
+        assert_eq!(prefixed("/s/z:1: x", &files), None);
+    }
+
+    #[test]
     fn located_splits_the_path_and_holds_it_to_the_run() {
         let files = ["/s/a.rs"];
         assert_eq!(
@@ -827,6 +899,35 @@ mod tests {
             .expect_err("no location")
             .to_string()
             .contains("malformed location: no-colon-here"));
+    }
+
+    #[test]
+    fn located_reads_colon_in_unix_path() {
+        assert_eq!(
+            located("tsc", "a:b.sh:1:2: x", &["a:b.sh"]).expect("located"),
+            ("a:b.sh", "1:2: x")
+        );
+    }
+
+    #[test]
+    fn located_matches_drive_rooted_paths() {
+        let files = [r"C:\a", r"C:\a:b"];
+        assert_eq!(
+            located("tsc", r"C:\a:b:1:2: x", &files).expect("located"),
+            (r"C:\a:b", "1:2: x")
+        );
+        assert_eq!(
+            located("tsc", r"C:\a:1:2: x", &files).expect("located"),
+            (r"C:\a", "1:2: x")
+        );
+        assert!(matches!(
+            located("tsc", r"C:\x\b.sh:1:1: m", &files),
+            Err(ParseError::UnknownFile { path, .. }) if path == r"C:\x\b.sh"
+        ));
+        assert!(located("tsc", "no-colon-here", &files)
+            .expect_err("no location")
+            .to_string()
+            .contains("malformed location"));
     }
 
     #[test]
@@ -967,11 +1068,11 @@ mod tests {
         let failed = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"t"}},"results":[],"invocations":[{"executionSuccessful":false,"toolConfigurationNotifications":[{"level":"error","message":{"text":"missing class"}}]}]}]}"#;
         let files = ["/s/a.java"];
         let results = [
-            super::checkstyle::parse_checkstyle(failed, Some(0), &files),
+            super::checkstyle::parse_checkstyle(failed, Some(0), &files, 8),
             super::pmd::parse_pmd(failed, Some(0), &files),
             super::spotbugs::parse_spotbugs(failed, Some(0), &files),
             super::ktlint::parse_ktlint(failed, Some(0), &files),
-            super::roslyn::parse_roslyn(failed, &files),
+            super::roslyn::parse_roslyn(failed, Some(0), &files),
         ];
         for result in results {
             let err = result.expect_err("incomplete");
@@ -993,7 +1094,6 @@ mod tests {
                 limit: MAX_OUTPUT_BYTES,
             })
         );
-        assert!(super::tsc::parse_tsc(&big, Some(2), &["/s/a.ts"]).is_err());
         assert!(super::sarif::parse_sarif("sarif-test", &big, Some(1), &["/s/a.java"]).is_err());
     }
 
@@ -1170,6 +1270,9 @@ mod tests {
             (super::DiffExit::ZeroOrOne, Some(0), true),
             (super::DiffExit::ZeroOrOne, Some(1), true),
             (super::DiffExit::ZeroOrOne, Some(3), false),
+            (super::DiffExit::One, Some(1), true),
+            (super::DiffExit::One, Some(0), false),
+            (super::DiffExit::One, Some(2), false),
         ] {
             let name = format!("{exit:?}");
             let got = super::diff_format("t", diff, code, &["x.go"], exit).is_ok();
@@ -1180,6 +1283,7 @@ mod tests {
             super::DiffExit::Zero,
             super::DiffExit::NonZero,
             super::DiffExit::ZeroOrOne,
+            super::DiffExit::One,
         ] {
             assert!(super::diff_format("t", b"", Some(0), &["x.go"], exit)
                 .expect("clean")
@@ -1326,6 +1430,7 @@ mod tests {
         "/s/a.html",
         "/s/a.txt",
         "/s/a.pp",
+        "/s/a.mdx",
     ];
 
     const FUZZ_SEEDS: &[&[u8]] = &[
@@ -1346,6 +1451,8 @@ mod tests {
         br#"{"files":[{"path":"/s/a.rb","offenses":[{"message":"m","severity":"convention","cop_name":"c","location":{"line":1,"column":1}}]}]}"#,
         br#"[{"code":"S1000","severity":"warning","location":{"file":"/s/a.go","line":1,"column":1},"message":"m"}]"#,
         br#"[{"source":"/s/a.css","warnings":[{"line":1,"column":2,"rule":"r","text":"m","severity":"error"}]}]"#,
+        br#"[{"file":"/s/a.mdx","formatted":false}]"#,
+        b"/s/a.mdx:5:1: Expected a closing tag\n",
         br#"{"diagnostics":[{"file":"/s/a.qml","line":1,"message":"m"}]}"#,
         br#"{"path":"/s/a.scala","line":1,"column":1,"rule":"r","message":"m","severity":"error"}"#,
         b"path:1:1: E100 message\n",
@@ -1418,7 +1525,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::checkstyle::parse_checkstyle(input, code, files)
+        super::checkstyle::parse_checkstyle(input, code, files, 8)
     }
 
     fn fuzz_clang_format(
@@ -1485,20 +1592,29 @@ mod tests {
         super::errcheck::parse_errcheck(input, code, files)
     }
 
-    fn fuzz_error_prone(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::error_prone::parse_error_prone(input, input, code, files)
-    }
-
     fn fuzz_eslint(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::eslint::parse_eslint(input, code, files)
+    }
+
+    fn fuzz_graphql_eslint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::eslint::parse_graphql_eslint(input, code, files)
+    }
+
+    fn fuzz_redocly(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let root = files.first().copied().unwrap_or("/scratch/openapi.yaml");
+        super::redocly::parse_redocly(input, code, root, Path::new("/"), files)
     }
 
     fn fuzz_fantomas(
@@ -1610,7 +1726,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::pkl::parse_pkl(input, code, files)
+        super::pkl::parse_pkl(input, input, code, files)
     }
 
     fn fuzz_pmd(
@@ -1703,10 +1819,18 @@ mod tests {
 
     fn fuzz_roslyn(
         input: &[u8],
-        _code: Option<i32>,
+        code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::roslyn::parse_roslyn(input, files)
+        super::roslyn::parse_roslyn(input, code, files)
+    }
+
+    fn fuzz_hadolint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::hadolint::parse_hadolint(input, input, code, files)
     }
 
     fn fuzz_rubocop(
@@ -1829,6 +1953,14 @@ mod tests {
         super::staticcheck::parse_staticcheck(input, code, files)
     }
 
+    fn fuzz_remark(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::remark::parse_remark(input, input, code, files)
+    }
+
     fn fuzz_stylelint(
         input: &[u8],
         code: Option<i32>,
@@ -1859,14 +1991,6 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::terraform::parse_terraform(input, input, code, files, std::path::Path::new("/"))
-    }
-
-    fn fuzz_tsc(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::tsc::parse_tsc(input, code, files)
     }
 
     fn fuzz_ty(
@@ -1916,7 +2040,6 @@ mod tests {
         ("djlint_format", fuzz_djlint_format),
         ("erlfmt", fuzz_erlfmt),
         ("errcheck", fuzz_errcheck),
-        ("error_prone", fuzz_error_prone),
         ("eslint", fuzz_eslint),
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
@@ -1924,7 +2047,9 @@ mod tests {
         ("gleam_format", fuzz_gleam_format),
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
+        ("graphql_eslint", fuzz_graphql_eslint),
         ("govet", fuzz_govet),
+        ("hadolint", fuzz_hadolint),
         ("jsonnetfmt", fuzz_jsonnetfmt),
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
@@ -1941,6 +2066,8 @@ mod tests {
         ("pylint", fuzz_pylint),
         ("qmlformat", fuzz_qmlformat),
         ("qmllint", fuzz_qmllint),
+        ("redocly", fuzz_redocly),
+        ("remark", fuzz_remark),
         ("roslyn", fuzz_roslyn),
         ("rubocop", fuzz_rubocop),
         ("ruff", fuzz_ruff),
@@ -1961,7 +2088,6 @@ mod tests {
         ("taplo_lint", fuzz_taplo_lint),
         ("taplo_format_check", fuzz_taplo_format_check),
         ("terraform", fuzz_terraform),
-        ("tsc", fuzz_tsc),
         ("ty", fuzz_ty),
         ("vale", fuzz_vale),
         ("yamlfmt", fuzz_yamlfmt),
@@ -1982,7 +2108,6 @@ mod tests {
         ("djlint", include_str!("djlint.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),
-        ("error_prone", include_str!("error_prone.rs")),
         ("eslint", include_str!("eslint.rs")),
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),
@@ -1991,6 +2116,7 @@ mod tests {
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),
         ("govet", include_str!("govet.rs")),
+        ("hadolint", include_str!("hadolint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
@@ -2006,6 +2132,8 @@ mod tests {
         ("pylint", include_str!("pylint.rs")),
         ("qmlformat", include_str!("qmlformat.rs")),
         ("qmllint", include_str!("qmllint.rs")),
+        ("redocly", include_str!("redocly.rs")),
+        ("remark", include_str!("remark.rs")),
         ("roslyn", include_str!("roslyn.rs")),
         ("rubocop", include_str!("rubocop.rs")),
         ("ruff", include_str!("ruff.rs")),
@@ -2022,7 +2150,6 @@ mod tests {
         ("stylelint", include_str!("stylelint.rs")),
         ("taplo", include_str!("taplo.rs")),
         ("terraform", include_str!("terraform.rs")),
-        ("tsc", include_str!("tsc.rs")),
         ("ty", include_str!("ty.rs")),
         ("vale", include_str!("vale.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
@@ -2050,7 +2177,7 @@ mod tests {
     fn every_declared_parser_is_in_the_fuzz_table() {
         let declared = declared_parser_names();
         assert!(
-            declared.len() >= 59,
+            declared.len() >= 57,
             "expected the full parser set, got {declared:?}"
         );
         let bare: Vec<String> = declared

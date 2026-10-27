@@ -40,17 +40,23 @@ pub fn render(verdict: &GateVerdict) -> String {
     ));
     if verdict.branch_files > 0 {
         out.push_str(&format!(
-            "measured branches: {} taken of {} recorded ({} files with branch data, {} without)\n",
-            verdict.branch_hit, verdict.branch_found, verdict.branch_files, verdict.branch_bare
+            "measured branches: {} raw, {} ignored, {} eligible, {} taken ({} files with branch data, {} without)\n",
+            verdict.branch_eligible + verdict.branch_ignored,
+            verdict.branch_ignored,
+            verdict.branch_eligible,
+            verdict.branch_hit,
+            verdict.branch_files,
+            verdict.branch_bare
         ));
         for file in &verdict.files {
             if file.branch_data {
                 out.push_str(&format!(
-                    "  {} branches({}): {}/{} taken",
+                    "  {} branches({}): {}/{} taken ({} ignored)",
                     file.path,
                     language_label(&file.path),
                     file.branch_hit,
-                    file.branch_found
+                    file.branch_eligible,
+                    file.branch_ignored
                 ));
                 if file.missed_branches.is_empty() {
                     out.push('\n');
@@ -66,13 +72,13 @@ pub fn render(verdict: &GateVerdict) -> String {
                 }
             }
         }
-        if verdict.branch_found > 0 {
-            let rate = verdict.branch_hit as f64 * 100.0 / verdict.branch_found as f64;
+        if verdict.branch_eligible > 0 {
+            let rate = verdict.branch_hit as f64 * 100.0 / verdict.branch_eligible as f64;
             out.push_str(&format!(
                 "informational branch rate: {rate:.2}% (measured files only; never a gate)\n"
             ));
         } else {
-            out.push_str("informational branch rate: n/a (no recorded branches)\n");
+            out.push_str("informational branch rate: n/a (no eligible branches)\n");
         }
     } else {
         out.push_str("measured branches: unavailable (no branch records in report; branch coverage unknown, never 100%)\n");

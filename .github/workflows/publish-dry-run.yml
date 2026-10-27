@@ -44,8 +44,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Build seed-host release binary and standalone archive
         run: bazel build //cli/cli:dx //cli/cli:dx_standalone //deploy/release:all //deploy/release:release_artifacts
       - name: Qualify exact owned line coverage
@@ -127,9 +127,3 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Prove checkout left clean
         run: test -z "$(git status --porcelain)"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}

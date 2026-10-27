@@ -1,10 +1,10 @@
 use super::common::*;
 use crate::args::{GenerateRequest, Invocation};
-use crate::finalize::{finalize, FinalizeError, FinalizeInput};
+use crate::finalize::{finalize, FinalizeError, FinalizeInput, GazelleStatus};
 use crate::generate::{project, refused_lines, render_diff, text_lines, ProjectedManifest};
 use crate::plan::{
-    generate_scope_json, intended_path, plan_generate, GENERATE_ENV_INTENDED, GENERATE_ENV_MODE,
-    GENERATE_ENV_SCOPE,
+    generate_scope_json, intended_path, patch_path, plan_generate, GENERATE_ENV_INTENDED,
+    GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
 };
 use crate::reports::plan_reports;
 use crate::resolve::resolve;
@@ -13,16 +13,8 @@ use dx_output::{
 };
 use std::io::Write;
 
-fn emit_bazel_failed(out: &mut dyn Write, code: i32) -> Result<(), i32> {
-    if let Some(event) = bazel_exit_event(
-        CODE_BAZEL_FAILED,
-        &format!("Bazel generate failed with exit {code}; results are incomplete"),
-        code,
-        "execute",
-    ) {
-        emit_event(out, &event)?;
-    }
-    Ok(())
+fn bazel_failed_message(code: i32) -> String {
+    format!("Bazel generate failed with exit {code}; results are incomplete")
 }
 
 fn finish_incomplete_generate(
@@ -33,7 +25,9 @@ fn finish_incomplete_generate(
 ) -> i32 {
     if output == OutputMode::Json {
         if code != 0 {
-            if let Err(exit) = emit_bazel_failed(out, code) {
+            if let Err(exit) =
+                emit_bazel_exit(out, CODE_BAZEL_FAILED, &bazel_failed_message(code), code)
+            {
                 return kept_child(err, code, exit);
             }
         }
@@ -63,7 +57,7 @@ pub(crate) fn execute_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
 }
 
 pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) -> i32 {
-    run_generate(
+    run_generate_request(
         request,
         env,
         &mut PhaseKind::Selection,
@@ -74,54 +68,11 @@ pub(crate) fn execute_generate_request(request: &GenerateRequest, env: Env<'_>) 
 pub(crate) fn execute_generate_phase(request: &GenerateRequest, env: Env<'_>) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
     let mut effects = PhaseEffects::default();
-    let code = run_generate(request, env, &mut kind, &mut effects);
+    let code = run_generate_request(request, env, &mut kind, &mut effects);
     PhaseRun {
         code,
         kind,
         effects,
-    }
-}
-
-fn run_generate(
-    request: &GenerateRequest,
-    env: Env<'_>,
-    kind: &mut PhaseKind,
-    effects: &mut PhaseEffects,
-) -> i32 {
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ci,
-        audit_today,
-    } = env;
-    let mut latched = LatchedOut::new(out);
-    let code = run_generate_request(
-        request,
-        Env {
-            workspace,
-            runner,
-            query_runner,
-            temp_dir,
-            pid,
-            nonce,
-            out: &mut latched,
-            err,
-            ci,
-            audit_today,
-        },
-        kind,
-        effects,
-    );
-    if code == 0 {
-        latched.exit_code(code)
-    } else {
-        code
     }
 }
 
@@ -150,11 +101,15 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
+    let patch = patch_path(env.temp_dir, env.pid, env.nonce);
+    let patch_arg = (!apply).then(|| patch.display().to_string());
+    let _ = std::fs::remove_file(&patch);
     let plan = match plan_generate(
         &resolved,
         &request.bazel_options,
         !apply,
         &request.bazel_startup_options,
+        patch_arg.as_deref(),
     ) {
         Ok(plan) => plan,
         Err(error) => {
@@ -164,13 +119,8 @@ fn run_generate_request(
     *kind = PhaseKind::Tool;
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        match command_started("generate", mode) {
-            Ok(event) => {
-                if let Err(exit) = emit_event(env.out, &event) {
-                    return exit;
-                }
-            }
-            Err(error) => return stdout_output_code(&error),
+        if let Err(exit) = emit_built(env.out, command_started("generate", mode)) {
+            return exit;
         }
     } else if request.chatty() {
         if let Err(exit) = check_stdout_write(writeln!(env.out, "{}", plan.summary)) {
@@ -197,12 +147,16 @@ fn run_generate_request(
         Ok(code) => code,
         Err(exit) => {
             let _ = std::fs::remove_file(&intended);
+            let _ = std::fs::remove_file(&patch);
             *kind = PhaseKind::Host;
             return exit;
         }
     };
+    let patch_written = std::fs::metadata(&patch).is_ok_and(|meta| meta.len() > 0);
+    let _ = std::fs::remove_file(&patch);
     let Some(witness) = std::fs::read(&intended).ok() else {
         if bazel_code != 0 {
+            *kind = PhaseKind::from_bazel_exit(bazel_code, false);
             return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
         }
         *kind = PhaseKind::Incomplete;
@@ -218,15 +172,22 @@ fn run_generate_request(
         intended_json: &witness,
         workspace: env.workspace,
         check: !apply,
-        gazelle_ok: bazel_code == 0,
+        bazel_code,
+        patch_written,
     })
-    .and_then(|manifest| project(&manifest).map_err(FinalizeError::Invalid));
-    let projected = match finalized {
-        Ok(projected) => projected,
+    .and_then(|finalized| {
+        project(&finalized.manifest)
+            .map(|projected| (projected, finalized.gazelle))
+            .map_err(FinalizeError::Invalid)
+    });
+    let (projected, gazelle) = match finalized {
+        Ok(result) => result,
         Err(FinalizeError::IncompleteCheck) => {
-            if bazel_code == 0 {
-                *kind = PhaseKind::Incomplete;
-            }
+            *kind = if bazel_code == 0 {
+                PhaseKind::Incomplete
+            } else {
+                PhaseKind::from_bazel_exit(bazel_code, false)
+            };
             return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
         }
         Err(error) => {
@@ -240,6 +201,11 @@ fn run_generate_request(
             );
         }
     };
+    let code = projected.exit_code(match gazelle {
+        GazelleStatus::Failed(failed) => failed,
+        GazelleStatus::Completed => 0,
+    });
+    let next_kind = generate_kind(code, gazelle, projected.results_complete);
     *effects = PhaseEffects {
         changes: projected.files.len() as u64,
         applied: projected.applied(),
@@ -259,19 +225,17 @@ fn run_generate_request(
                 return kept_child(env.err, bazel_code, exit);
             }
         }
-        if bazel_code != 0 && !projected.is_check {
-            if let Err(exit) = emit_bazel_failed(env.out, bazel_code) {
+        if let GazelleStatus::Failed(failed) = gazelle {
+            if let Err(exit) = emit_bazel_exit(
+                env.out,
+                CODE_BAZEL_FAILED,
+                &bazel_failed_message(failed),
+                failed,
+            ) {
                 return kept_child(env.err, bazel_code, exit);
             }
         }
-        let code = projected.exit_code(bazel_code);
-        *kind = generate_kind(
-            code,
-            bazel_code,
-            projected.results_complete && !projected.files.is_empty(),
-            projected.results_complete,
-            !apply,
-        );
+        *kind = next_kind;
         let finished = command_finished(code, &projected.finished_counts());
         if let Err(exit) = emit_event(env.out, &finished) {
             return kept_child(env.err, bazel_code, exit);
@@ -305,27 +269,13 @@ fn run_generate_request(
             let _ = writeln!(env.err, "{line}");
         }
     }
-    let code = projected.exit_code(bazel_code);
-    *kind = generate_kind(
-        code,
-        bazel_code,
-        projected.results_complete && !projected.files.is_empty(),
-        projected.results_complete,
-        !apply,
-    );
+    *kind = next_kind;
     code
 }
 
-fn generate_kind(
-    code: i32,
-    bazel_code: i32,
-    has_changes: bool,
-    results_complete: bool,
-    check: bool,
-) -> PhaseKind {
-    let diff_exit = check && bazel_code == 1 && has_changes;
-    if bazel_code != 0 && !diff_exit {
-        PhaseKind::Tool
+fn generate_kind(code: i32, gazelle: GazelleStatus, results_complete: bool) -> PhaseKind {
+    if let GazelleStatus::Failed(failed) = gazelle {
+        PhaseKind::from_bazel_exit(failed, false)
     } else if !results_complete {
         PhaseKind::Incomplete
     } else if code != 0 {
@@ -503,14 +453,92 @@ mod tests {
     }
 
     #[test]
-    fn generate_kind_treats_a_check_diff_exit_as_findings() {
-        assert_eq!(generate_kind(1, 1, true, true, true), PhaseKind::Findings);
-        assert_eq!(generate_kind(1, 1, false, true, true), PhaseKind::Tool);
-        assert_eq!(generate_kind(1, 1, false, false, true), PhaseKind::Tool);
-        assert_eq!(generate_kind(1, 1, true, true, false), PhaseKind::Tool);
-        assert_eq!(generate_kind(2, 2, true, true, true), PhaseKind::Tool);
-        assert_eq!(generate_kind(1, 0, true, true, true), PhaseKind::Findings);
-        assert_eq!(generate_kind(0, 0, false, true, true), PhaseKind::Clean);
+    fn generate_kind_follows_the_gazelle_status() {
+        use super::GazelleStatus::{Completed, Failed};
+        assert_eq!(generate_kind(1, Completed, true), PhaseKind::Findings);
+        assert_eq!(generate_kind(1, Completed, false), PhaseKind::Incomplete);
+        assert_eq!(generate_kind(1, Failed(1), true), PhaseKind::Incomplete);
+        assert_eq!(generate_kind(1, Failed(1), false), PhaseKind::Incomplete);
+        assert_eq!(generate_kind(2, Failed(2), true), PhaseKind::Selection);
+        assert_eq!(generate_kind(8, Failed(8), true), PhaseKind::Cancelled);
+        assert_eq!(generate_kind(36, Failed(36), true), PhaseKind::Tool);
+        assert_eq!(generate_kind(0, Completed, true), PhaseKind::Clean);
+    }
+
+    fn diff_exit_harness(name: &str, patch: Option<&[u8]>) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.generate_code = Some(1);
+        harness.patch = patch.map(<[u8]>::to_vec);
+        harness.intended = Some(intended_witness(
+            "check",
+            true,
+            &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
+            "",
+        ));
+        harness
+    }
+
+    #[test]
+    fn generate_check_exit_one_without_a_patch_is_a_tool_failure() {
+        for (name, patch) in [
+            ("generate-no-patch", None),
+            ("generate-empty-patch", Some(&b""[..])),
+        ] {
+            let harness = diff_exit_harness(name, patch);
+            let (_, out, err) = harness.run(&["generate", "--check", "--output=json"]);
+            assert!(out.contains("\"code\":\"bazel_failed\""), "{out}{err}");
+        }
+    }
+
+    #[test]
+    fn generate_check_exit_one_with_a_patch_is_findings() {
+        let harness = diff_exit_harness("generate-patch", Some(b"--- a\n+++ b\n"));
+        let (code, out, err) = harness.run(&["generate", "--check", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(!out.contains("bazel_failed"), "{out}");
+        assert!(out.contains("\"event\":\"change\""), "{out}");
+    }
+
+    #[test]
+    fn generate_check_failure_after_a_diff_reports_bazel_failed() {
+        let mut harness = diff_exit_harness("generate-diff-exit-two", Some(b"--- a\n+++ b\n"));
+        harness.generate_code = Some(2);
+        let (code, out, err) = harness.run(&["generate", "--check", "--output=json"]);
+        assert_eq!(code, 2, "{out}{err}");
+        assert!(out.contains("\"exit_code\":2"), "{out}");
+        let error_at = out.find("\"code\":\"bazel_failed\"").expect("bazel_failed");
+        let finished_at = out
+            .find("\"event\":\"command_finished\"")
+            .expect("command_finished");
+        assert!(error_at < finished_at, "{out}");
+    }
+
+    #[test]
+    fn generate_check_exit_one_with_a_clean_witness_is_a_failure() {
+        let mut harness = Harness::new("generate-clean-exit-one");
+        harness.generate_code = Some(1);
+        harness.patch = Some(b"--- a\n+++ b\n".to_vec());
+        harness.intended = Some(intended_witness("check", true, "", ""));
+        let (code, out, err) = harness.run(&["generate", "--check", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("\"code\":\"bazel_failed\""), "{out}");
+        assert!(out.contains("\"exit_code\":1"), "{out}");
+    }
+
+    #[test]
+    fn generate_witness_result_contradicting_files_fails_closed() {
+        let mut harness = Harness::new("generate-contradicting-result");
+        harness.intended = Some(intended_witness_with_result(
+            "check",
+            "clean",
+            true,
+            &intended_modify("rust/tests/fixtures/hello/BUILD.bazel", b"abc\n", b"xyz\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["generate", "--check", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("\"code\":\"invalid_result\""), "{out}");
+        assert!(!out.contains("\"event\":\"change\""), "{out}");
     }
 
     #[test]
@@ -542,6 +570,7 @@ mod tests {
             &intended_ignored("rust/tests/fixtures/hello/BUILD.bazel", "rust", "serde"),
         ));
         harness.bazel_code = 1;
+        harness.patch = Some(b"--- a\n+++ b\n".to_vec());
         let (code, out, err) = harness.run(&["generate", "--check", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(!out.contains("bazel_failed"), "{out}");
@@ -827,6 +856,14 @@ mod tests {
             assert_eq!(run.code, 1);
             assert_eq!(run.kind, PhaseKind::Host);
         }
+    }
+
+    #[test]
+    fn generate_interrupted_without_manifest_ends_the_phase_as_cancelled() {
+        let mut harness = Harness::new("generate-phase-interrupted");
+        harness.generate_code = Some(8);
+        let run = generate_phase(&harness, &["generate", "--output=text"]);
+        assert_eq!(run.kind, PhaseKind::Cancelled);
     }
 
     #[test]

@@ -2,7 +2,7 @@ use super::common::*;
 use crate::args::Invocation;
 use crate::plan::{plan_run, plan_run_build, BuildPlan};
 use crate::reports::plan_reports;
-use crate::resolve::{resolve_run, ResolveError};
+use crate::resolve::resolve_run;
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
 use std::io::Write;
 use std::path::Path;
@@ -53,14 +53,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
     ) {
         Ok(targets) => targets,
         Err(error) => {
-            let mut failure = Failure::resolve(&error);
-            if matches!(
-                error,
-                ResolveError::NoRunnable { .. } | ResolveError::AmbiguousRunnable { .. }
-            ) {
-                failure.exit = dx_process::operational_code();
-            }
-            return report_failure(invocation.output, out, err, &failure);
+            return resolve_failed(invocation.output, out, err, &error);
         }
     };
     let launcher = Launcher {
@@ -69,10 +62,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
         runner,
         withdraw,
     };
-    if targets.len() == 1 {
-        return execute_run_single(&launcher, out, err, &targets[0]);
-    }
-    execute_run_multi(&launcher, out, err, &targets)
+    run_targets(&launcher, out, err, &targets)
 }
 
 #[derive(Clone, Copy)]
@@ -127,18 +117,19 @@ impl Launcher<'_> {
             return None;
         }
         if json {
-            if let Some(event) = bazel_exit_event(
-                CODE_BAZEL_FAILED,
-                &format!(
-                    "bazel build {} exited {code} (see stderr diagnostics)",
-                    targets.join(" ")
+            if let Err(exit) = emit_built(
+                out,
+                bazel_exit_event(
+                    CODE_BAZEL_FAILED,
+                    &format!(
+                        "bazel build {} exited {code} (see stderr diagnostics)",
+                        targets.join(" ")
+                    ),
+                    code,
+                    "execute",
                 ),
-                code,
-                "execute",
             ) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return Some(kept_child(err, code, exit));
-                }
+                return Some(kept_child(err, code, exit));
             }
             if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default()))
             {
@@ -158,7 +149,7 @@ impl Launcher<'_> {
         plan_run(
             target,
             &invocation.agent_quiet_flags(),
-            &invocation.bazel_options,
+            invocation.raw_bazel_options(),
             invocation.profile(),
             &invocation.bazel_startup_options,
         )
@@ -170,7 +161,7 @@ impl Launcher<'_> {
         out: &mut dyn Write,
         err: &mut dyn Write,
         argv: &[String],
-    ) -> Result<Option<i32>, i32> {
+    ) -> Result<Option<AppExit>, i32> {
         match self.withdraw {
             Some(withdraw) => run_bazel_app_withdrawable(
                 self.invocation,
@@ -238,148 +229,97 @@ fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) -
     use dx_output::with_correlation;
     for target in targets {
         let scope = [target.clone()];
-        if let Ok(event) = operation_event(command, "execute", Some(&scope)) {
-            let correlation = format!("run:{target}");
-            let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-            emit_event(out, &event)?;
-        }
+        let correlation = format!("run:{target}");
+        let event = operation_event(command, "execute", Some(&scope))
+            .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
+        emit_built(out, event)?;
     }
     Ok(())
 }
 
-fn execute_run_single(
-    launcher: &Launcher<'_>,
+fn application_failed_event(
+    target: &str,
+    code: i32,
+    signal: Option<i32>,
+) -> Result<serde_json::Value, dx_output::OutputError> {
+    let message = match signal {
+        Some(signo) => format!("bazel run {target} terminated by signal {signo}"),
+        None => format!("bazel run {target} exited {code} (see stderr diagnostics)"),
+    };
+    let event = bazel_exit_event(CODE_APPLICATION_FAILED, &message, code, "execute")?;
+    Ok(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
+}
+
+/// Writes the ending for a run: the JSON failure event and `command_finished`, or just the code in text mode.
+fn finish_run(
+    invocation: &Invocation,
     out: &mut dyn Write,
     err: &mut dyn Write,
-    target: &str,
+    failed: Option<&str>,
+    exit: AppExit,
 ) -> i32 {
-    let invocation = launcher.invocation;
-    let plan = match launcher.plan(out, err, target) {
-        Ok(plan) => plan,
-        Err(exit) => return exit,
-    };
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+    let AppExit { code, signal } = exit;
+    if invocation.output != OutputMode::Json {
+        if let (Some(target), Some(signo)) = (failed, signal) {
+            app_signalled_line(err, target, signo);
         }
-        if let Err(exit) = emit_run_operations(out, invocation.command.name(), &[target.to_owned()])
-        {
-            return exit;
-        }
-        if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
-            return code;
-        }
-        let code = match launcher.launch_app(out, err, &plan.argv) {
-            Ok(Some(code)) => code,
-            Ok(None) => return withdrawn(invocation, out, err),
-            Err(exit) => return exit,
-        };
-        if code != 0 {
-            if let Some(event) = application_failed_event(target, code) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return kept_child(err, code, exit);
-                }
-            }
-        }
-        if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
+        return code;
+    }
+    if let Some(target) = failed {
+        if let Err(exit) = emit_built(out, application_failed_event(target, code, signal)) {
             return kept_child(err, code, exit);
         }
-        return code;
     }
-    if let Some(code) = launcher.prebuild(out, err, &[target.to_owned()]) {
-        return code;
+    if let Err(exit) = emit_event(out, &command_finished(code, &FinishedCounts::default())) {
+        return kept_child(err, code, exit);
     }
-    if !invocation.quiet {
-        let _ = writeln!(err, "{}", plan.summary);
-    }
-    match launcher.launch_app(out, err, &plan.argv) {
-        Ok(Some(code)) => code,
-        Ok(None) => withdrawn(invocation, out, err),
-        Err(exit) => exit,
-    }
+    code
 }
 
-fn application_failed_event(target: &str, code: i32) -> Option<serde_json::Value> {
-    let event = bazel_exit_event(
-        CODE_APPLICATION_FAILED,
-        &format!("bazel run {target} exited {code} (see stderr diagnostics)"),
-        code,
-        "execute",
-    )?;
-    Some(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
-}
-
-fn execute_run_multi(
+fn run_targets(
     launcher: &Launcher<'_>,
     out: &mut dyn Write,
     err: &mut dyn Write,
     targets: &[String],
 ) -> i32 {
     let invocation = launcher.invocation;
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+    let json = invocation.output == OutputMode::Json;
+    let mut plans = Vec::with_capacity(targets.len());
+    for target in targets {
+        match launcher.plan(out, err, target) {
+            Ok(plan) => plans.push(plan),
+            Err(exit) => return exit,
+        }
+    }
+    if json {
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
         }
         if let Err(exit) = emit_run_operations(out, invocation.command.name(), targets) {
             return exit;
         }
-        if let Some(code) = launcher.prebuild(out, err, targets) {
-            return code;
-        }
-        for target in targets {
-            let plan = match launcher.plan(out, err, target) {
-                Ok(plan) => plan,
-                Err(exit) => return exit,
-            };
-            let code = match launcher.launch_app(out, err, &plan.argv) {
-                Ok(Some(code)) => code,
-                Ok(None) => return withdrawn(invocation, out, err),
-                Err(exit) => return exit,
-            };
-            if code != 0 {
-                if let Some(event) = application_failed_event(target, code) {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return kept_child(err, code, exit);
-                    }
-                }
-                if let Err(exit) =
-                    emit_event(out, &command_finished(code, &FinishedCounts::default()))
-                {
-                    return kept_child(err, code, exit);
-                }
-                return code;
-            }
-        }
-        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
-            return exit;
-        }
-        return 0;
     }
     if let Some(code) = launcher.prebuild(out, err, targets) {
         return code;
     }
-    for target in targets {
-        let plan = match launcher.plan(out, err, target) {
-            Ok(plan) => plan,
-            Err(exit) => return exit,
-        };
-        if !invocation.quiet {
+    for (target, plan) in targets.iter().zip(&plans) {
+        if !json && !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
-        let code = match launcher.launch_app(out, err, &plan.argv) {
-            Ok(Some(code)) => code,
+        let app = match launcher.launch_app(out, err, &plan.argv) {
+            Ok(Some(app)) => app,
             Ok(None) => return withdrawn(invocation, out, err),
             Err(exit) => return exit,
         };
-        if code != 0 {
-            return code;
+        if app.code != 0 {
+            return finish_run(invocation, out, err, Some(target), app);
         }
     }
-    0
+    let success = AppExit {
+        code: 0,
+        signal: None,
+    };
+    finish_run(invocation, out, err, None, success)
 }
 
 #[cfg(test)]
@@ -388,6 +328,7 @@ mod tests {
     use super::*;
     use crate::args::parse;
     use crate::args::Command;
+    use crate::resolve::ResolveError;
 
     #[test]
     fn run_label_passthrough_preserves_status_on_stderr() {
@@ -430,15 +371,13 @@ mod tests {
             _cwd: &Path,
             env: &[(&str, &str)],
         ) -> std::io::Result<dx_process::ChildStatus> {
-            let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
+            let busy = !crate::test_support::slot_settles_free(&self.dir, 1);
             let launch = self.seen.borrow().len();
             let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
-            self.seen
-                .borrow_mut()
-                .push((argv.to_vec(), free.is_none(), marked));
-            Ok(dx_process::ChildStatus {
-                code: Some(self.codes[launch.min(self.codes.len() - 1)]),
-            })
+            self.seen.borrow_mut().push((argv.to_vec(), busy, marked));
+            Ok(dx_process::ChildStatus::exited(
+                self.codes[launch.min(self.codes.len() - 1)],
+            ))
         }
     }
 
@@ -813,6 +752,21 @@ mod tests {
     }
 
     #[test]
+    fn run_signalled_app_exits_128_plus_the_signal_and_stops() {
+        let mut harness = Harness::new("run-app-signal");
+        harness.app_signal = Some(11);
+        let (code, _, err) = harness.run(&["run", "//a:bin", "//b:bin"]);
+        assert_eq!(code, 139, "{err}");
+        assert!(
+            err.contains("dx: application_failed: bazel run //a:bin terminated by signal 11"),
+            "{err}"
+        );
+        assert!(!err.contains("bazel_signalled"), "{err}");
+        assert!(!err.contains("Running run for //b:bin"), "{err}");
+        assert_eq!(harness.seen_env.borrow().len(), 2, "build and one app");
+    }
+
+    #[test]
     fn run_multi_target_runs_sequential_single_plans() {
         let harness = Harness::new("run-multi");
         let (code, _, err) = harness.run(&["run", "//a:bin", "//b:bin"]);
@@ -890,44 +844,11 @@ mod tests {
         output: OutputMode,
         reports: Vec<crate::args::ReportRequest>,
     ) -> Invocation {
-        Invocation {
-            command,
-            check: false,
-            apply: false,
-            debug: false,
-            release: false,
-            workspace: None,
-            quiet: false,
-            verbose: false,
-            color: dx_output::ColorMode::Auto,
-            output,
-            reports,
-            fail_on: dx_output::Threshold::Warning,
-            include_edits: false,
-            min_coverage: None,
-            targets: vec!["//app:bin".to_owned()],
-            bazel_options: Vec::new(),
-            prune_unobserved: false,
-            configured: false,
-            from: None,
-            to: None,
-            here: false,
-            affected: false,
-            test_targets: None,
-            serve: false,
-            port: None,
-            host: None,
-            open: false,
-            offline: false,
-            frozen: false,
-            cases: false,
-            create: None,
-            force: false,
-            disk: false,
-            path_only: false,
-            agent: false,
-            bazel_startup_options: Vec::new(),
-        }
+        let mut invocation = crate::args::parsed(&["run", "//app:bin"]);
+        invocation.command = command;
+        invocation.output = output;
+        invocation.reports = reports;
+        invocation
     }
 
     #[test]
@@ -1020,10 +941,11 @@ mod tests {
     #[test]
     fn json_multirun_covers_success_and_process_failures() {
         for multiple in [false, true] {
-            for scenario in ["success", "exit", "signal", "spawn"] {
+            for scenario in ["success", "exit", "signal", "app_signal", "spawn"] {
                 let mut harness = Harness::new("run-json-matrix");
                 harness.bazel_code = if scenario == "exit" { 7 } else { 0 };
                 harness.signalled = scenario == "signal";
+                harness.app_signal = (scenario == "app_signal").then_some(11);
                 harness.io_error = scenario == "spawn";
                 let mut words = vec!["run", "//a:one", "--output=json"];
                 if multiple {
@@ -1032,6 +954,7 @@ mod tests {
                 let (code, out, err) = harness.run(&words);
                 let expected = match scenario {
                     "exit" => 7,
+                    "app_signal" => 139,
                     "signal" | "spawn" => 1,
                     _ => 0,
                 };
@@ -1045,6 +968,67 @@ mod tests {
                 if expected != 0 {
                     assert!(events.iter().any(|event| event["event"] == "error"));
                 }
+                if scenario == "app_signal" {
+                    let errors = events_of_kind(&events, "error");
+                    assert_eq!(errors.len(), 1, "{out}");
+                    assert_eq!(errors[0]["code"], "application_failed", "{out}");
+                    assert_eq!(errors[0]["cause"], "application", "{out}");
+                    assert_eq!(errors[0]["status"], 139, "{out}");
+                    assert_eq!(errors[0]["correlation"], "run://a:one", "{out}");
+                    assert_eq!(
+                        errors[0]["message"], "bazel run //a:one terminated by signal 11",
+                        "{out}"
+                    );
+                    assert!(!out.contains("bazel_signalled"), "{out}");
+                    assert_eq!(harness.seen_env.borrow().len(), 2, "{words:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn run_quiet_suppresses_the_plan_summary() {
+        for (words, expected) in [
+            (vec!["run", "//app:bin"], 1),
+            (vec!["run", "//app:bin", "--quiet"], 0),
+            (vec!["run", "//app:bin", "//app:other", "--quiet"], 0),
+        ] {
+            let harness = Harness::new("run-quiet-summary");
+            let (code, _out, err) = harness.run(&words);
+            assert_eq!(code, 0, "{words:?}: {err}");
+            assert_eq!(
+                err.matches("Running run for").count(),
+                expected,
+                "{words:?}: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn run_json_lifecycle_is_the_same_for_one_and_many_targets() {
+        for count in [1, 2] {
+            for failing in [false, true] {
+                let mut harness = Harness::new("run-json-lifecycle");
+                harness.bazel_code = if failing { 7 } else { 0 };
+                let mut words = vec!["run", "//a:one", "--output=json"];
+                if count == 2 {
+                    words.push("//b:two");
+                }
+                let (code, out, err) = harness.run(&words);
+                assert_eq!(code, if failing { 7 } else { 0 }, "{words:?}: {out}{err}");
+                let events: Vec<serde_json::Value> = out
+                    .lines()
+                    .map(|line| serde_json::from_str(line).expect("event"))
+                    .collect();
+                assert_eq!(events[0]["event"], "command_started");
+                let operations: Vec<&serde_json::Value> = events
+                    .iter()
+                    .filter(|event| event["event"] == "operation")
+                    .collect();
+                assert_eq!(operations.len(), count, "{out}");
+                let last = events.last().expect("finished");
+                assert_eq!(last["event"], "command_finished");
+                assert_eq!(last["exit_code"], code);
             }
         }
     }

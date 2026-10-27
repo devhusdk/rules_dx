@@ -17,7 +17,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx check`, `dx fix`, `dx clean`](check-fix-clean.md)
 - [`dx generate`](generate.md)
 - [`dx env`, `dx codegen`](environment-codegen.md)
-- [`dx security`, `dx license`, `dx update`, `dx bump`](audit-update.md)
+- [`dx security`, `dx license`, `dx update`, `dx bump`, `dx add`](audit-update.md)
 - [`dx docs`](docs.md)
 - [`dx init`](init.md)
 - [`dx status`, `dx version`](status-version.md)
@@ -28,7 +28,10 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx watch`](watch.md)
 - [`dx worktree`](worktree.md)
 
-Scope rules live in [Scope Defaults](scope-defaults.md). There is no `dx doctor`. Use `dx status`.
+Scope rules live in [Scope Defaults](scope-defaults.md).
+
+Airgapped hosts install from a vendored bundle: see
+[Offline Bundle](offline-bundle.md).
 
 A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
 from stops most commands. See [Version Skew](status-version.md#version-skew).
@@ -47,6 +50,16 @@ worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
 at least one and never more than 16. The count has no setting.
 
+When the Bazel config sets a non-empty `--remote_executor`, dx offers more
+slots: the memory divided by 1.5 GiB, at most 16. dx reads this from the rc
+files Bazel reads, their `--config` sections, and the flags you pass. A run
+takes an extra slot only when no regular slot is free, the host is not under
+memory pressure, and no other run took an extra slot in the last 10 seconds.
+On Linux, memory pressure means `/proc/pressure/memory` `some avg10` is 10 or
+more, or `MemAvailable` is below 1.5 GiB when that file is missing. macOS and
+Windows get no extra slots. A run that waits only because of memory pressure
+says so in its waiting notice.
+
 While a slot is held, dx adds two flags right after `build`, `test`,
 `coverage` and `run`:
 
@@ -54,8 +67,8 @@ While a slot is held, dx adds two flags right after `build`, `test`,
 --local_resources=cpu=<n> --local_resources=memory=<mb>
 ```
 
-`n` is the CPU count divided by the slots held right now, this one included,
-and never less than 2. `mb` is the memory, less the memory kept for nested
+`n` is the CPU count divided by the slots held right now, extra slots and
+this one included, and never less than 2. `mb` is the memory, less the memory kept for nested
 Bazel test servers, divided by the same number, in MiB. The values are fixed
 when dx takes the slot. Nested dx calls reuse them through `DX_BUILD_SHARE`.
 
@@ -126,10 +139,14 @@ and level `warning`.
 an app's exit code is never reported as `disk_full`.
 
 When the disk holding the worktree pool has under 20 GiB and under 10% free,
-commands that take a build slot, and `run`, first drop orphaned output bases
-and free slots' output bases. They never drop the output base of the workspace
-being built. dx prints one of these lines to stderr only when it removed
-something or could not reclaim:
+or under 1 GiB free,
+dx drops orphaned output bases, repository cache downloads unused for 30 days,
+the output bases of free nested-Bazel test slots, and free slots' output bases each time it
+takes a build slot: once for each command above, for each `watch` iteration,
+for the build `run` does before the app starts, and for `update` when it runs
+Bazel. This also happens when build slots are disabled. It never drops the
+output base of the workspace being built. dx prints one of these lines to
+stderr only when it removed something or could not reclaim:
 
 ```text
 dx: low disk: <free> free; removed <what>; <free> free now
@@ -137,7 +154,10 @@ dx: low disk, cannot reclaim output bases: <error>
 ```
 
 With `--output=json`, dx also writes one `notice` event with code `disk_low`
-and level `warning` after `command_started`.
+and level `warning`, after `command_started` and before that build's output.
+
+`dx worktree add` and `dx worktree hook create` also refuse with code
+`disk_full` when the pool's disk has under 1 GiB free after that reclaim.
 
 ## Inspecting The Graph
 
@@ -204,7 +224,8 @@ current directory tree. `--affected` limits it to targets your changes reach. `-
 Exit codes: `0` success, `2` usage error, `1` failed check.
 
 A usage error names the offending token, prints a `tip: a similar ...` line when
-a near match exists, then prints the usage line above.
+a near match exists, then prints the usage line above. With no command, the usage
+error prints the command list and a `see dx <command> --help` hint.
 
 ## JSON Output
 
@@ -214,7 +235,9 @@ Readers accept any `3.x` and reject other majors. The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries
-the process exit code and `results_complete: false`. `DX_OUTPUT=json` and
+the process exit code and `results_complete: false`. If dx cannot build an
+event, it writes `error` with code `invalid_result`, then `command_finished`,
+and exits `1`. `DX_OUTPUT=json` and
 `output = "json"` in `dx.toml` give the same stream, also when the rest of
 `dx.toml` is invalid. A stop signal ends the run with no `error` and no
 `command_finished`; dx exits `128` plus the signal number. A closed stdout
@@ -231,9 +254,10 @@ When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, or
 and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win, and
 so does `output` in `dx.toml`. In CI these variables are ignored.
 
-Empty optional fields are left out of `test_outcome` and `build_failure` events. A passed
-test is not an event. `dx test` and `dx coverage` count passed, failed, and cached tests
-in `command_finished` and write every test to the `results` report. Equal
+Empty optional fields are left out of `test_outcome` and `build_failure` events. A plain
+pass is not an event. `dx test` and `dx coverage` count passed, failed, cached, no_cases, and skipped tests
+in `command_finished` and write every test to the `results` report. Each count is
+per result, so a target with four shards counts four. Equal
 `build_failure` and `diagnostic` events from different targets and
 configurations appear once, with a `count`.
 
@@ -241,7 +265,7 @@ configurations appear once, with a `count`.
 - `build_failure`: one failure Bazel reported while building, from `dx build`,
   `dx test`, and `dx coverage`. It has `record_version`, `target`,
   `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`,
-  `message`, and `diagnostics`. Facts Bazel did not report read `unknown`. The
+  `message`, and `diagnostics`, whose items may carry a `related` list. Facts Bazel did not report read `unknown`. The
   same failure from several targets or configurations is one event with a
   `count` and up to 20 other `targets`.
 - `capability`: one declared capability, with `name`, `source`,
@@ -253,20 +277,24 @@ configurations appear once, with a `count`.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
 - `slot`: one worktree slot, with `action`, `path`, `state`, and `server`,
   plus optional `slot`, `branch`, `holder`, `reason`, `base`, and
-  `disk_bytes`. `reason` says why a slot or worktree was kept.
+  `disk_bytes`. `reason` says why a slot or worktree was kept, or that a held slot's
+  holder is gone.
 - `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
   and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
   `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
-  `resolution`, `baseline`, `origins`, and `related`. `location` is `unknown`,
-  `file`, `bytes`, or `lines`. A `range` with `lines` location adds
+  `package`, `resolution`, `baseline`, `origins`, and `related`. `location` is
+  `unknown`, `file`, `bytes`, or `lines`. A `range` with `lines` location adds
   `start_line`, `start_column`, `end_line`, and `end_column`, all 1-based.
   `count` is how many identical findings this one stands for. `baseline` is
   `suppressed` when the baseline holds the finding. Each of `origins` names the
-  `producer`, `target`, and `configuration` that reported it.
+  `producer`, `target`, and `configuration` that reported it. `package` names
+  the dependency of a `vuln` or `license` finding, with `name` and `version`,
+  plus `fixed` for a vulnerability and `license` for a license finding. An
+  empty `fixed` list means no fixed version exists.
 - `change`: one file edit, with `path`, `kind`, `edit_count`, and `effect`.
   `effect` is `proposed` in check mode, and `applied` or `refused` with
-  `--apply`. A `refused` change carries a `reason`. `--include-edits` adds
+  `--apply`. A `refused` change carries a `reason` and makes the run exit `1`. `--include-edits` adds
   `source_digest` and the full `edits`.
 - `phase_started`: a `dx check` or `dx fix` phase began, with `command`,
   `phase`, `mode`, and `correlation`. Every event of the phase carries the same
@@ -276,7 +304,7 @@ configurations appear once, with a `count`.
   `related_command`, `scope`, `path`, `language`, and `import`.
 - `report`: a report written, with `format`, `path`, and `results_complete`.
   `format` is `junit`, `lcov`, `failures`, or `results`.
-- `test_outcome`: one test result that did not pass, with `target` and
+- `test_outcome`: one test result except a plain pass, with `target` and
   `outcome`, plus optional `configuration`, `status`, `cached`, `run`, `shard`,
   `attempt`, `final`, `duration_millis`, `cases_total`, `cases_failed`,
   `cases_error`, `cases_skipped`, `cases_omitted`, `artifacts`, and
@@ -285,7 +313,7 @@ configurations appear once, with a `count`.
   attempt replaced.
   A failing result adds `failing_cases` (up to 10, each with `classname`,
   `name`, `outcome`, and a `message` cut to 1024 bytes),
-  `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines of the
+  `failing_cases_omitted`, `log_path`, and `log_tail` (the last 40 lines, at most 8 KiB of the
   test log).
 - `error`: a failure, with `code`, `message`, and optional `cause`, `status`,
   `excerpt`, `truncated`, `path`, `flag`, and `phase`. `cause` is one of
@@ -293,19 +321,23 @@ configurations appear once, with a `count`.
   `application`, `tool_unavailable`, `collection`, `report`, `host`,
   `operational`, or `unknown`. `bazel_failed` has cause `bazel`; `tests_failed`
   has cause `test`; `application_failed` is a
-  `dx run` application that exited nonzero and has cause `application`.
-  `disk_full` has cause `host`: Bazel exited 36 and a disk it writes to has
-  under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
+  `dx run` application that exited nonzero or died by a signal, and has cause
+  `application`. For a signal, `status` is `128` plus the signal number.
+  `disk_full` has cause `host`: a Bazel run or query exited 36 and a disk it
+  writes to has under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
   `dx worktree prune --apply`.
   `status` is the exit code of the failed Bazel run or application. `excerpt` holds the last
   lines Bazel printed to stderr, and `truncated` is `true` when lines were cut.
-- `command_finished`: the `exit_code`, plus any `results_complete`,
+- `command_finished`: the `exit_code`, plus any `results_complete`, `run_id`,
   `diagnostics`, `tests`, and `changes` counts. `tests` has `passed`,
-  `failed`, and `cached`. `failed` counts results whose final attempt has
+  `failed`, `cached`, `no_cases`, and `skipped`. Each counts results (per target,
+  configuration, run and shard), so a target with four shards counts four. `failed` counts results whose final attempt has
   outcome `failed` or `timeout`; earlier failed attempts of a retried test
   still appear as `test_outcome` events with `final: false` and are not
   counted. `cached` counts
-  the passed tests that came from the cache. `changes` has `create` and
+  the passed tests that came from the cache. `no_cases` counts passed tests
+  whose report had no test cases; they are also in `passed`. `skipped` counts tests
+  with outcome `skipped` or `filtered`. `changes` has `create` and
   `modify`, and with `--apply` also `applied` and `refused`.
 
 `dx run` and `dx update` add `correlation` to their events, so you can group
@@ -350,7 +382,7 @@ fail-on = "error"
 
 Values are TOML, so a boolean key takes `true` or `false`. An empty value is
 unset. Defaults live only under `[dx]` with the hyphenated flag names. A
-top-level default, `fail_on`, or `dry-run` in either spelling is a usage error.
+top-level default or `fail_on` is a usage error.
 An unknown key is a usage error that names the key and the keys it accepts.
 Other supported sections in the same file stay valid.
 
@@ -386,23 +418,32 @@ behavior. Read-only commands never rewrite config.
 Language rules:
 
 - `@rules_dx//android/rules:defs.bzl`: Android libraries.
+- `@rules_dx//api_spec/rules:defs.bzl`: OpenAPI and AsyncAPI specs.
 - `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
 - `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
 - `@rules_dx//csharp/rules:defs.bzl`: C#.
 - `@rules_dx//cuda/rules:defs.bzl`: CUDA.
 - `@rules_dx//cue/rules:defs.bzl`: CUE.
+- `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
+- `@rules_dx//d/rules:defs.bzl`: D.
 - `@rules_dx//elixir/rules:defs.bzl`: Elixir.
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.
 - `@rules_dx//fsharp/rules:defs.bzl`: F#.
+- `@rules_dx//gherkin/rules:defs.bzl`: Gherkin.
 - `@rules_dx//gleam/rules:defs.bzl`: Gleam.
 - `@rules_dx//go/rules:defs.bzl`: Go.
+- `@rules_dx//haskell/rules:defs.bzl`: Haskell.
 - `@rules_dx//html_template/rules:defs.bzl`: HTML templates.
 - `@rules_dx//java/rules:defs.bzl`: Java.
 - `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
 - `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
 - `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
 - `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
+- `@rules_dx//lua/rules:defs.bzl`: Lua.
+- `@rules_dx//perl/rules:defs.bzl`: Perl.
+- `@rules_dx//pkl/rules:defs.bzl`: Pkl.
+- `@rules_dx//php/rules:defs.bzl`: PHP.
 - `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
 - `@rules_dx//python/rules:defs.bzl`: Python.
 - `@rules_dx//qt/rules:defs.bzl`: Qt.
@@ -410,9 +451,11 @@ Language rules:
 - `@rules_dx//ruby/rules:defs.bzl`: Ruby.
 - `@rules_dx//rust/rules:defs.bzl`: Rust.
 - `@rules_dx//scala/rules:defs.bzl`: Scala.
+- `@rules_dx//sql/rules:defs.bzl`: SQL.
 - `@rules_dx//terraform/rules:defs.bzl`: Terraform.
 - `@rules_dx//typescript/rules:defs.bzl`: TypeScript.
 - `@rules_dx//vue/rules:defs.bzl`: Vue.
+- `@rules_dx//xml/rules:defs.bzl`: XML.
 - `@rules_dx//yaml/rules:defs.bzl`: YAML.
 - `@rules_dx//zig/rules:defs.bzl`: Zig.
 
@@ -420,8 +463,11 @@ Packaging and deploy:
 
 - `@rules_dx//android/packaging:defs.bzl`: APKs, App Bundles and adb.
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
+- `@rules_dx//apple/ios:device.bzl`: signed iOS IPA export.
 - `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
 - `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx//apple/signing:defs.bzl`: macOS app signing and notarization.
+- `@rules_dx//deploy/offline:offline.bzl`: offline bundles.
 - `@rules_dx//deploy/rules:archive.bzl`: release archives.
 - `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.
 - `@rules_dx//deploy/rules:crates.bzl`: crates.io publish.
@@ -440,10 +486,21 @@ SDK and toolchain extensions:
 - `@rules_dx//android/sdk:repos.bzl`: Android SDK.
 - `@rules_dx//android/toolchain:repos.bzl`: Android NDK toolchain.
 - `@rules_dx//apple/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx//cuda/toolchain:repos.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
 - `@rules_dx//gleam/rules:hex.bzl`: Hex packages for Gleam.
+- `@rules_dx//powershell/rules:gallery.bzl`: PowerShell Gallery modules.
 - `@rules_dx//msix:repos.bzl`: MSIX tools.
 - `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.
+
+API docs:
+
+- `@rules_dx//tools/docs/go:defs.bzl`: Go API doc shards.
+- `@rules_dx//tools/docs/ruby:defs.bzl`: Ruby API doc shards.
+- `@rules_dx//tools/docs/powershell:defs.bzl`: PowerShell API doc shards.
+- `@rules_dx//tools/docs/rust:defs.bzl`: Rust API doc shards.
+- `@rules_dx//tools/docs/site:site.bzl`: docs sites built from API doc shards.
+- `@rules_dx//tools/docs/typescript:defs.bzl`: TypeScript API doc shards.
 
 Quality config:
 
@@ -457,3 +514,9 @@ Minor releases add without breaking old uses.
 A breaking change needs a new major version and a migration.
 Readers tolerate added fields and fail on a new major schema.
 Bazel 9.2.0 is the tested baseline.
+
+rules_dx does not provide debugger acquisition, launch or attach integration,
+Debug Adapter Protocol adapters, or generated debugger configurations. These
+are unsupported and not planned. Debug build profiles and editor
+language-server settings do not imply debugger support. You can set up
+external debuggers yourself.

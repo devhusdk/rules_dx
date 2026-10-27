@@ -3,6 +3,7 @@ package ruby
 import (
 	"context"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -207,6 +208,10 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "demo" || imports[1].Imp != "helper" {
 		t.Errorf("imports = %+v, want demo+helper identities", imports)
 	}
+	nested := lang.Imports(&config.Config{}, lib, &rule.File{Pkg: "lib/acme"})
+	if len(nested) != 2 || nested[0].Imp != "acme/demo" || nested[1].Imp != "acme/helper" {
+		t.Errorf("lib imports = %+v, want acme/demo+acme/helper", nested)
+	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule("filegroup", "demo"), nil); got != nil {
 		t.Errorf("other-kind imports = %+v, want nil", got)
 	}
@@ -216,7 +221,7 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 }
 
 func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
+	lang := NewLanguage().(*rubyLang)
 	lang.Before(context.Background())
 	cfg := config.New()
 	for _, value := range []string{"ruby Dropped", "ruby ruby Second", "other Foreign", ""} {
@@ -233,13 +238,10 @@ func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
 	if !lang.Failed() {
 		t.Fatal("a one-field ignore was accepted")
 	}
-	if got := CollectUsedIgnores(cfg); got != nil {
-		t.Fatalf("unused ignores = %v, want none", got)
-	}
 }
 
 func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
+	lang := NewLanguage().(*rubyLang)
 	lang.Before(context.Background())
 	lang.Fail("ruby: boom")
 	defer func() {
@@ -255,7 +257,7 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 }
 
 func TestResolveSkipsStdlibImports(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
+	lang := NewLanguage().(*rubyLang)
 	lang.Before(context.Background())
 	cfg := config.New()
 	resolver := &resolve.Configurer{}
@@ -274,7 +276,7 @@ func TestResolveSkipsStdlibImports(t *testing.T) {
 }
 
 func TestLanguageMetadata(t *testing.T) {
-	lang := NewLanguage().(*common.SingleLang)
+	lang := NewLanguage().(*rubyLang)
 	if lang.Name() != languageName || len(lang.Kinds()) != 1 {
 		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
 	}
@@ -367,5 +369,33 @@ func TestGenerateRootPackage(t *testing.T) {
 		if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "lib.rb" {
 			t.Errorf("repo %q: srcs = %q, want lib.rb", tc.repoName, got)
 		}
+	}
+}
+
+func TestResolveLoadPath(t *testing.T) {
+	lang := NewLanguage().(*rubyLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "app", &rule.File{})
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	for _, pkg := range []string{"lib/acme", "tools/lib"} {
+		lib := rule.NewRule(LibraryKind, path.Base(pkg))
+		lib.SetAttr("srcs", []string{"widget.rb"})
+		index.AddRule(cfg, lib, &rule.File{Pkg: pkg})
+	}
+	index.Finish()
+	r := rule.NewRule(LibraryKind, "app")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"acme/widget", "widget"}), label.New("", "app", "app"))
+	if lang.Failed() {
+		t.Fatal("a load path was reported unresolved or ambiguous")
+	}
+	got := r.AttrStrings("deps")
+	if strings.Join(got, ",") != "//lib/acme,//tools/lib" {
+		t.Fatalf("deps = %v, want //lib/acme and //tools/lib", got)
 	}
 }

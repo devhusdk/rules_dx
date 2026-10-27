@@ -4,11 +4,12 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
-	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
 const languageName = "csharp"
+
+const unresolvedHint = "add a local library that declares the namespace or a # gazelle:resolve mapping on the full namespace"
 
 var csharpKinds = map[string]rule.KindInfo{
 	LibraryKind: common.LibraryKindInfo(),
@@ -22,16 +23,15 @@ func NewLanguage() language.Language {
 		Kinds:          csharpKinds,
 		DefsPackage:    "csharp/rules:defs.bzl",
 		ImportAttr:     "srcs",
-		Identity:       ClassIdentity,
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,
 		IsStdLib:       IsStdLib,
-		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
+		UnresolvedHint: unresolvedHint,
+		QualifiedIDs:   namespaceIDs,
+		Candidates:     namespaceCandidates,
 		Generate:       generateRules,
 	})
 }
-
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
 
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
@@ -48,6 +48,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		MainPhrase:   "main-bearing sources",
 		ParseImports: ParseImports,
 		IsStdLib:     IsStdLib,
+		Candidates:   namespaceCandidates,
 		Wrap:         common.WrapImportSet,
 	}, rep)
 }

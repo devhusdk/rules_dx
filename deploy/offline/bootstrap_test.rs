@@ -111,6 +111,16 @@ fn snapshot_names() -> Vec<String> {
         .collect()
 }
 
+fn meta_names() -> Vec<String> {
+    accepted_sets()
+        .into_iter()
+        .map(|set| format!("{set}.meta.json"))
+        .collect()
+}
+
+/// The date every fixture bundle records for its snapshots.
+const BUNDLE_DATE: &str = "2026-01-01";
+
 fn launcher_names() -> Vec<String> {
     LAUNCHERS.iter().map(|name| (*name).to_owned()).collect()
 }
@@ -129,6 +139,13 @@ fn manifest(dir: &Path, names: &[String], trailing_newline: bool) {
     std::fs::write(dir.join("SHA256SUMS"), text.as_bytes()).expect("write manifest");
 }
 
+/// Every advisory file the manifest pins: snapshots, then their identities.
+fn pinned_names() -> Vec<String> {
+    let mut names = snapshot_names();
+    names.extend(meta_names());
+    names
+}
+
 fn bundle(name: &str) -> Bundle {
     let parent = scratch();
     let staged = parent.join(name);
@@ -144,8 +161,21 @@ fn bundle(name: &str) -> Bundle {
             &format!("{{\"set\":\"{set}\",\"advisories\":[]}}\n"),
         );
     }
+    for set in accepted_sets() {
+        let snapshot = staged.join("advisory").join(format!("{set}.json"));
+        let sha = dx_digest::sha256_file_hex(&snapshot)
+            .unwrap_or_else(|error| panic!("hash {set}: {error}"));
+        write(
+            &staged.join("advisory").join(format!("{set}.meta.json")),
+            &format!(
+                "{{\n  \"set\": \"{set}\",\n  \"url\": \"https://osv.dev/{set}.json\",\n  \
+                 \"sha256\": \"{sha}\",\n  \"retrieved_at\": \"{BUNDLE_DATE}\",\n  \
+                 \"path\": \".dx/advisory/{set}.json\"\n}}\n"
+            ),
+        );
+    }
     manifest(&staged.join("bazelisk"), &launcher_names(), true);
-    manifest(&staged.join("advisory"), &snapshot_names(), true);
+    manifest(&staged.join("advisory"), &pinned_names(), true);
     let path = std::fs::canonicalize(&staged)
         .unwrap_or_else(|error| panic!("canonicalize {}: {error}", staged.display()));
     Bundle { parent, path }
@@ -193,6 +223,15 @@ fn identity(home: &Path, set: &str) -> String {
     .to_owned()
 }
 
+/// Returns the `url` field of one identity line.
+fn recorded_url(meta: &str) -> String {
+    meta.split("\"url\": \"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .unwrap_or_else(|| panic!("identity needs a url: {meta}"))
+        .to_owned()
+}
+
 fn assert_identity_binds_the_vendored_file(bundle: &Bundle, home: &Path, set: &str) {
     let meta = identity(home, set);
     let snapshot = bundle.advisory(&format!("{set}.json"));
@@ -202,14 +241,20 @@ fn assert_identity_binds_the_vendored_file(bundle: &Bundle, home: &Path, set: &s
         dx_digest::is_lower_hex(&digest, 32),
         "{set} digest must be 64 lowercase hex"
     );
+    let url = recorded_url(&meta);
+    let want = bundle.advisory(&format!("{set}.json"));
+    let read_back = dx_path::uri_to_path(&url)
+        .unwrap_or_else(|error| panic!("{set} url {url} is not a file URI: {error}"));
+    assert_eq!(
+        std::fs::canonicalize(&read_back).ok(),
+        std::fs::canonicalize(&want).ok(),
+        "{set} url {url} must name the vendored snapshot"
+    );
     for field in [
         format!("\"set\": \"{set}\""),
-        format!(
-            "\"url\": \"file://{}/advisory/{set}.json\"",
-            bundle.path().to_string_lossy()
-        ),
         format!("\"sha256\": \"{digest}\""),
         format!("\"path\": \".dx/advisory/{set}.json\""),
+        format!("\"retrieved_at\": \"{BUNDLE_DATE}\""),
     ] {
         assert!(
             meta.contains(&field),
@@ -297,7 +342,7 @@ fn a_tampered_snapshot_is_refused() {
 #[test]
 fn a_snapshot_the_manifest_omits_is_refused() {
     let bundle = bundle("bundle");
-    let pinned: Vec<String> = snapshot_names()
+    let pinned: Vec<String> = pinned_names()
         .into_iter()
         .filter(|name| name != "npm.json")
         .collect();
@@ -315,7 +360,7 @@ fn a_manifest_that_pins_nothing_is_refused() {
 #[test]
 fn the_last_manifest_line_is_verified_without_a_trailing_newline() {
     let bundle = bundle("bundle");
-    let names = snapshot_names();
+    let names = pinned_names();
     let last = names.last().expect("a curated set").clone();
     manifest(&bundle.path().join("advisory"), &names, false);
     assert!(
@@ -333,16 +378,74 @@ fn the_last_manifest_line_is_verified_without_a_trailing_newline() {
 fn an_unknown_advisory_set_is_refused() {
     let bundle = bundle("bundle");
     write(&bundle.advisory("pypi.json"), "{\"advisories\":[]}\n");
-    let mut names = snapshot_names();
+    let mut names = pinned_names();
     names.push("pypi.json".to_owned());
     manifest(&bundle.path().join("advisory"), &names, true);
     run(&bundle, &scratch()).expect_refusal("unknown advisory set: pypi");
 }
 
 #[test]
-fn a_bundle_path_it_cannot_spell_in_json_is_refused() {
-    let bundle = bundle("we\"ird/bundle");
-    run(&bundle, &scratch()).expect_refusal("bundle path must stay plain text");
+fn an_old_snapshot_keeps_its_bundle_date() {
+    let bundle = bundle("bundle");
+    let home = scratch();
+    let result = run(&bundle, &home);
+    result.expect_ok();
+    for set in accepted_sets() {
+        let meta = identity(&home, &set);
+        assert!(
+            meta.contains(&format!("\"retrieved_at\": \"{BUNDLE_DATE}\"")),
+            "{set} keeps the bundle date: {meta}"
+        );
+    }
+    assert!(!result.stdout.contains("retrieved_at"), "{}", result.stdout);
+}
+
+#[test]
+fn a_snapshot_without_a_bundle_date_is_refused() {
+    let bundle = bundle("bundle");
+    std::fs::remove_file(bundle.advisory("go.meta.json")).expect("remove identity");
+    let names: Vec<String> = pinned_names()
+        .into_iter()
+        .filter(|name| name != "go.meta.json")
+        .collect();
+    manifest(&bundle.path().join("advisory"), &names, true);
+    run(&bundle, &scratch()).expect_refusal(
+        "bundle has no recorded date for advisory snapshot: go.json (want advisory/go.meta.json)",
+    );
+}
+
+#[test]
+fn an_unpinned_bundle_identity_is_refused() {
+    let bundle = bundle("bundle");
+    manifest(&bundle.path().join("advisory"), &snapshot_names(), true);
+    run(&bundle, &scratch())
+        .expect_refusal("manifest does not pin advisory identity: cargo.meta.json");
+}
+
+#[test]
+fn a_bundle_identity_is_not_an_unknown_set() {
+    let bundle = bundle("bundle");
+    let result = run(&bundle, &scratch());
+    result.expect_ok();
+    assert!(
+        !result.stderr.contains("unknown advisory set"),
+        "{}",
+        result.stderr
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_bundle_path_with_a_quote_or_backslash_is_recorded_percent_encoded() {
+    let bundle = bundle("we\"ird\\bundle");
+    let home = scratch();
+    run(&bundle, &home).expect_ok();
+    let meta = identity(&home, "cargo");
+    let url = recorded_url(&meta);
+    assert!(url.contains("%22"), "quote is encoded: {url}");
+    assert!(url.contains("%5C"), "backslash is encoded: {url}");
+    assert!(!url.contains('\\'), "no raw backslash: {url}");
+    assert_identity_binds_the_vendored_file(&bundle, &home, "cargo");
 }
 
 #[test]
@@ -357,4 +460,103 @@ fn a_flag_without_its_value_is_refused() {
         bundle.path(),
     )
     .expect_refusal("--workspace needs a DIR");
+}
+
+#[test]
+fn a_bad_argument_prints_usage_to_stderr_only() {
+    let bundle = bundle("bundle");
+    let result = bootstrap_offline(&["--nope".to_owned()], bundle.path());
+    result.expect_refusal("unknown argument '--nope'");
+    assert_eq!(result.stdout, "", "a refusal prints nothing on stdout");
+    assert_eq!(
+        result.stderr.matches("usage:").count(),
+        1,
+        "{}",
+        result.stderr
+    );
+}
+
+#[test]
+fn help_prints_usage_once_and_exits_zero() {
+    let bundle = bundle("bundle");
+    let result = bootstrap_offline(&["--help".to_owned()], bundle.path());
+    result.expect_ok();
+    assert_eq!(
+        result.stdout.matches("usage:").count(),
+        1,
+        "{}",
+        result.stdout
+    );
+    assert_eq!(result.stderr, "");
+}
+
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap_or_else(|error| panic!("create {}: {error}", to.display()));
+    for entry in std::fs::read_dir(from)
+        .unwrap_or_else(|error| panic!("read {}: {error}", from.display()))
+        .flatten()
+    {
+        let target = to.join(entry.file_name());
+        if entry.path().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), &target)
+                .unwrap_or_else(|error| panic!("copy {}: {error}", entry.path().display()));
+        }
+    }
+}
+
+#[test]
+fn the_demo_offline_bundle_bootstraps() {
+    let rel = std::env::var("DX_OFFLINE_DEMO").expect("DX_OFFLINE_DEMO must name the demo bundle");
+    let manifest = dx_testing::resolve_runfiles(&rel);
+    let built = manifest
+        .parent()
+        .and_then(Path::parent)
+        .expect("the demo manifest sits two levels under the bundle");
+    let staged = scratch().join("offline_demo");
+    copy_tree(built, &staged);
+    let home = scratch();
+    let bundle = std::fs::canonicalize(&staged).expect("canonical demo bundle");
+    bootstrap(&bundle.to_string_lossy(), &home, &home).expect_ok();
+    assert!(home.join("workspace/.dx/advisory/cargo.json").is_file());
+    assert!(
+        identity(&home, "cargo").contains("\"retrieved_at\": \"2026-01-01\""),
+        "the demo bundle records its own date: {}",
+        identity(&home, "cargo")
+    );
+    assert!(
+        ["bazel", "bazel.exe"]
+            .iter()
+            .any(|name| home.join("install").join(name).is_file()),
+        "the demo launcher installs"
+    );
+}
+
+#[test]
+fn offline_bundle_knows_every_host_launcher() {
+    let rel = std::env::var("DX_OFFLINE_BZL").expect("DX_OFFLINE_BZL must name offline.bzl");
+    let bzl = read(&dx_testing::resolve_runfiles(&rel));
+    let start = bzl
+        .find("_LAUNCHERS = [")
+        .expect("offline.bzl lists launchers");
+    let list = &bzl[start..];
+    let list = &list[..list.find(']').expect("launcher list is closed")];
+    let mut in_bzl: Vec<String> = list
+        .split('"')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_owned)
+        .collect();
+    in_bzl.sort();
+    let mut in_rust: Vec<String> = read(&source())
+        .split("Some(\"")
+        .skip(1)
+        .filter_map(|rest| rest.split('"').next())
+        .filter(|name| name.starts_with("bazelisk-"))
+        .map(str::to_owned)
+        .collect();
+    in_rust.sort();
+    assert_eq!(in_bzl, in_rust);
+    assert_eq!(in_bzl, launcher_names());
 }

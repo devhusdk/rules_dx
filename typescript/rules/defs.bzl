@@ -4,8 +4,10 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript/rules:node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
-load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule")
+load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
+load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_TS_PROJECT_PROVIDES = [
@@ -67,7 +69,29 @@ def typescript_declaration_srcs_rejection(declaration_srcs):
 
 def typescript_upstream_srcs(srcs, declaration_srcs):
     """Returns the combined upstream sources for real plus declaration inputs."""
-    return list(srcs) + list(declaration_srcs or [])
+    return list(srcs or []) + list(declaration_srcs or [])
+
+def typescript_empty_project_rejection(srcs, declaration_srcs):
+    """Returns the rejection for a project with neither srcs nor declaration_srcs, or None."""
+    if not srcs and not declaration_srcs:
+        return "typescript_project needs srcs or declaration_srcs"
+    return None
+
+def typescript_transpiler(transpiler):
+    """Returns tsc when no transpiler is set, else the value unchanged."""
+    if transpiler == None:
+        return "tsc"
+    return transpiler
+
+def typescript_inner_kwargs(tags, kwargs):
+    """Returns the tags and target_compatible_with kwargs for inner targets."""
+    out = {}
+    inner_tags = tags if tags != None else kwargs.get("tags", None)
+    if inner_tags != None:
+        out["tags"] = list(inner_tags)
+    if kwargs.get("target_compatible_with", None) != None:
+        out["target_compatible_with"] = kwargs["target_compatible_with"]
+    return out
 
 _DX_TSCONFIG_EXTS = (".ts", ".tsx", ".mts", ".cts")
 
@@ -193,11 +217,15 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
         extends = tsconfig,
         out = generated + ".json",
         visibility = ["//visibility:private"],
+        **typescript_inner_kwargs(None, kwargs)
     )
 
     return dx_scoped_tsconfig_out(name, kwargs)
 
-def _typescript_wrap_project(name, srcs, declaration_srcs = None, visibility = None, **kwargs):
+def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
+    empty_rejection = typescript_empty_project_rejection(srcs, declaration_srcs)
+    if empty_rejection != None:
+        fail(empty_rejection)
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
@@ -208,10 +236,27 @@ def _typescript_wrap_project(name, srcs, declaration_srcs = None, visibility = N
     scoped = _dx_scoped_tsconfig(name, upstream_srcs, kwargs)
     upstream_kwargs = dict(scoped)
     upstream_kwargs["srcs"] = upstream_srcs
+    upstream_kwargs["transpiler"] = typescript_transpiler(scoped.get("transpiler", None))
     upstream_kwargs["visibility"] = ["//visibility:private"]
+    upstream_kwargs["tags"] = dx_upstream_tags(scoped.get("tags", None))
     _ts_project(
         name = name + "_upstream",
         **upstream_kwargs
+    )
+    inner_kwargs = typescript_inner_kwargs(None, scoped)
+    native.filegroup(
+        name = name + "_typecheck",
+        srcs = [":" + name + "_upstream"],
+        output_group = "typecheck",
+        visibility = ["//visibility:private"],
+        **dict(inner_kwargs, tags = upstream_kwargs["tags"], **({"testonly": scoped["testonly"]} if scoped.get("testonly", None) != None else {}))
+    )
+    build_test(
+        name = name + "_typecheck_test",
+        targets = [":" + name + "_typecheck"],
+        size = "small",
+        visibility = visibility,
+        **inner_kwargs
     )
     forward_kwargs = {}
     if scoped.get("aspect_hints", None) != None:
@@ -225,13 +270,13 @@ def _typescript_wrap_project(name, srcs, declaration_srcs = None, visibility = N
     _typescript_project_forward(
         name = name,
         upstream = name + "_upstream",
-        srcs = list(srcs),
+        srcs = list(srcs or []),
         visibility = visibility,
         **forward_kwargs
     )
 
-def typescript_project(name, srcs, declaration_srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over ts_project, isolated typecheck on by default; declaration_srcs holds declaration inputs outside quality ownership and tags reach the upstream targets too."""
+def typescript_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
+    """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags, and <name>_typecheck_test gets the user's tags."""
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 _typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
@@ -244,15 +289,17 @@ def typescript_js_test_rejection(kwargs):
     """Returns the rejection for forbidden typescript_js_test kwargs, or None."""
     return node_test_plain_rejection("typescript_test", "typescript_js_test", kwargs)
 
-def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs):
+def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs):
     """Declares the private test-only ts_project for one TypeScript test."""
     ts_kwargs = {}
     if deps != None:
         ts_kwargs["deps"] = list(deps)
     if tsconfig != None:
         ts_kwargs["tsconfig"] = tsconfig
-    if transpiler != None:
-        ts_kwargs["transpiler"] = transpiler
+    ts_kwargs["transpiler"] = typescript_transpiler(transpiler)
+    ts_kwargs.update(typescript_inner_kwargs(None, kwargs))
+    if ts_kwargs.get("tags") != None:
+        ts_kwargs["tags"] = upstream_tags(ts_kwargs["tags"])
     if declaration != None:
         ts_kwargs["declaration"] = declaration
     upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
@@ -264,7 +311,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
         **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
     )
 
-def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
@@ -275,10 +322,10 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
     reporter_rejection = typescript_test_rejection(kwargs)
     if reporter_rejection != None:
         fail(reporter_rejection)
-    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs)
-    node_wrap_test(name, _jest_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), {"node_modules": node_modules}, env_inherit, visibility, tags, kwargs)
+    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs)
+    node_wrap_test(name, _jest_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, {"node_modules": node_modules}, env_inherit, visibility, kwargs)
 
-def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over js_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
@@ -289,5 +336,5 @@ def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconf
     reporter_rejection = typescript_js_test_rejection(kwargs)
     if reporter_rejection != None:
         fail(reporter_rejection)
-    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs)
-    node_wrap_test(name, _js_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), {"entry_point": entry_point}, env_inherit, visibility, tags, kwargs)
+    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs)
+    node_wrap_test(name, _js_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, {"entry_point": entry_point}, env_inherit, visibility, kwargs)

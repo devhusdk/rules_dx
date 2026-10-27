@@ -289,13 +289,88 @@ fn hash_range_excludes_boundaries_for_python() {
 }
 
 #[test]
+fn percent_comment_markers_are_honored_for_erlang() {
+    for (path, prefix) in [("t.erl", "%"), ("t.erl", "%%"), ("t.hrl", "%")] {
+        let source = file_lines(&[
+            "f() ->".to_string(),
+            format!(
+                "    ok. {prefix} {} - reason: fixture, issue: 1055.",
+                marker("_LINE")
+            ),
+            "    done.".to_string(),
+        ]);
+        let ignores = find_ignores(path, &source).unwrap();
+        assert!(ignores.singles.contains_key(&2), "{path} {prefix}");
+        assert!(!is_ignored(&ignores, 3));
+    }
+}
+
+#[test]
+fn percent_markers_inside_erlang_strings_atoms_and_char_literals_are_ignored() {
+    let tail = format!("% {} - reason: real, issue: 1055.", marker("_LINE"));
+    for head in [
+        "X = \"a % b\"; ",
+        "X = 'a%b'; ",
+        "X = $%; ",
+        "X = $\\%; ",
+        "X = $\"; ",
+    ] {
+        let source = file_lines(&[format!("{head}{tail}")]);
+        let ignores = find_ignores("t.erl", &source).unwrap();
+        assert!(ignores.singles.contains_key(&1), "{head}");
+    }
+    let hidden = format!("X = \"% {} inside\".", marker("_LINE"));
+    let source = file_lines(&[hidden]);
+    assert!(find_ignores("t.erl", &source).unwrap().singles.is_empty());
+}
+
+#[test]
+fn percent_marker_without_reason_fails_for_erlang() {
+    let source = file_lines(&[format!("% {}", marker("_LINE")), "x.".to_string()]);
+    let err = find_ignores("t.erl", &source).unwrap_err();
+    assert!(
+        err.to_string().contains("t.erl:1") && err.to_string().contains("reason"),
+        "{err}"
+    );
+}
+
+#[test]
+fn slash_markers_are_not_honored_for_erlang() {
+    let source = file_lines(&[format!("// {} - reason: wrong style.", marker("_LINE"))]);
+    let ignores = find_ignores("t.erl", &source).unwrap();
+    assert!(ignores.singles.is_empty());
+    assert!(ignores.ranges.is_empty());
+}
+
+#[test]
+fn hash_comment_markers_are_honored_for_ruby() {
+    let source = file_lines(&[
+        "x = 1  # ".to_string() + &marker("_LINE") + " - reason: fixture, issue: 1055.",
+        "y = 2".to_string(),
+    ]);
+    let ignores = find_ignores("t.rb", &source).unwrap();
+    assert!(ignores.singles.contains_key(&1));
+    assert!(!is_ignored(&ignores, 2));
+}
+
+#[test]
+fn slash_comment_markers_are_honored_for_kts() {
+    let source = file_lines(&[
+        "val x = 1 // ".to_string() + &marker("_LINE") + " - reason: fixture, issue: 1055.",
+        "val y = 2".to_string(),
+    ]);
+    let ignores = find_ignores("t.kts", &source).unwrap();
+    assert!(ignores.singles.contains_key(&1));
+    assert!(!is_ignored(&ignores, 2));
+}
+
+#[test]
 fn comments_outside_covered_languages_are_never_scanned() {
     let hash = format!("# {} - reason: hash, issue: 1055.", marker("_LINE"));
     let html = format!("<!-- {} - reason: html, issue: 1055. -->", marker("_LINE"));
     for (path, line) in [
         ("t.bzl", hash.clone()),
         ("t.pyi", hash.clone()),
-        ("t.rb", hash.clone()),
         ("t.md", html),
     ] {
         let source = file_lines(&[line]);

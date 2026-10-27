@@ -56,6 +56,16 @@ pub(crate) fn execute_new(
     if !invocation.applies() {
         return check_new(invocation, workspace, language, name, out, err);
     }
+    let dest = match dx_adopt::plan_new_files(language, name)
+        .and_then(|_| dx_adopt::validate_new_destination(name))
+    {
+        Ok(dest) => dest,
+        Err(error) => return invalid_name_code(invocation, out, err, &error),
+    };
+    let root = workspace.join(&dest);
+    if let Err(error) = super::wiring::preflight(&root) {
+        return operational(invocation, out, err, CODE_NEW_FAILED, &error.to_string());
+    }
     match dx_adopt::apply_new(workspace, language, name) {
         Ok(entries) => {
             for entry in entries {
@@ -70,7 +80,11 @@ pub(crate) fn execute_new(
                     }
                 }
             }
-            0
+            let prefix = format!("{dest}/");
+            match super::wiring::apply(invocation, &root, &prefix, CODE_NEW_FAILED, out, err) {
+                Ok(()) => 0,
+                Err(code) => code,
+            }
         }
         Err(error) => invalid_name_code(invocation, out, err, &error),
     }
@@ -88,12 +102,17 @@ fn check_new(
         Ok(files) => files,
         Err(error) => return invalid_name_code(invocation, out, err, &error),
     };
-    let mut missing: Vec<String> = Vec::new();
-    for file in &files {
-        if !workspace.join(&file.path).exists() {
-            missing.push(file.path.clone());
-        }
-    }
+    let dest = match dx_adopt::validate_new_destination(name) {
+        Ok(dest) => dest,
+        Err(error) => return invalid_name_code(invocation, out, err, &error),
+    };
+    let mut paths: Vec<String> = files.iter().map(|file| file.path.clone()).collect();
+    paths.push(format!("{dest}/{}", dx_adopt::LAUNCHER_SH_REL));
+    paths.push(format!("{dest}/{}", dx_adopt::LAUNCHER_CMD_REL));
+    let missing: Vec<String> = paths
+        .into_iter()
+        .filter(|path| !workspace.join(path).exists())
+        .collect();
     if missing.is_empty() {
         if !summaries_suppressed(invocation) {
             if let Err(exit) = check_stdout_write(writeln!(out, "new current: {language} {name}")) {
@@ -352,6 +371,17 @@ mod tests {
             "demo-app",
             &["src/hello.erl", "src/hello_cli.erl", "test/hello_tests.erl"],
         ),
+        (
+            "cuda",
+            "demo-app",
+            &[
+                "scale.cu",
+                "scale.cuh",
+                "scale.h",
+                "main.cc",
+                "scale_test.cc",
+            ],
+        ),
     ];
 
     #[test]
@@ -388,7 +418,7 @@ mod tests {
                 build.contains("\"demo-app_bin\""),
                 matches!(
                     *language,
-                    "ruby" | "powershell" | "zig" | "elixir" | "gleam" | "erlang"
+                    "ruby" | "powershell" | "zig" | "elixir" | "gleam" | "erlang" | "cuda"
                 ),
                 "{language}: {build}"
             );
@@ -433,6 +463,7 @@ mod tests {
             assert_eq!(code, 0, "{language}");
             assert!(out.is_empty(), "{language}: {out}");
             assert!(root.join(name).join("MODULE.bazel").exists());
+            assert!(root.join(name).join("tools/dx").exists());
             let (code, out, _err) = run(&invocation(&["new", language, name, "--quiet"]), &root);
             assert_eq!(code, 0, "{language}");
             assert!(out.is_empty(), "{language}: {out}");
@@ -525,6 +556,92 @@ mod tests {
         assert!(!root.join("+").exists());
     }
 
+    #[test]
+    fn new_apply_wires_launcher_hooks_and_agents_so_init_is_current() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-wiring-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "--apply", "rust", "demo"]);
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{err}");
+        for path in [
+            "demo/tools/dx",
+            "demo/tools/dx.cmd",
+            "demo/.claude/settings.json",
+            "demo/AGENTS.md",
+            "demo/CLAUDE.md",
+        ] {
+            assert!(root.join(path).exists(), "{path}");
+        }
+        for line in [
+            "wrote demo/tools/dx\n",
+            "wrote demo/.claude/settings.json\n",
+            "wrote demo/AGENTS.md\n",
+        ] {
+            assert!(out.contains(line), "{out}");
+        }
+        let (code, out, err) = run(&invocation(&["init"]), &root.join("demo"));
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("init current"), "{out}");
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("demo/tools/dx (absent-only, left untouched)"),
+            "{err}"
+        );
+        assert!(!out.contains("AGENTS.md"), "{out}");
+    }
+
+    #[test]
+    fn new_apply_wires_nested_destinations() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-wiring-nested-");
+        let root = scratch.path().to_path_buf();
+        let (code, out, err) = run(
+            &invocation(&["new", "--apply", "rust", "teams/My App"]),
+            &root,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert!(root.join("teams/My App/tools/dx").exists());
+        assert!(root.join("teams/My App/AGENTS.md").exists());
+        assert!(out.contains("wrote teams/My App/tools/dx\n"), "{out}");
+    }
+
+    #[test]
+    fn new_check_requires_the_launcher() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-check-launcher-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&invocation(&["new", "--apply", "rust", "demo"]), &root);
+        assert_eq!(code, 0, "{err}");
+        std::fs::remove_file(root.join("demo/tools/dx")).expect("remove");
+        let (code, _out, err) = run(&invocation(&["new", "rust", "demo"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("new drift: missing demo/tools/dx"), "{err}");
+    }
+
+    #[test]
+    fn new_apply_refuses_a_bad_existing_pin_before_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-bad-pin-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join("demo/.dx")).expect("dx");
+        std::fs::write(root.join("demo/.dx/version"), "v1\n").expect("pin");
+        let (code, _out, err) = run(&invocation(&["new", "--apply", "rust", "demo"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("new_failed"), "{err}");
+        assert!(!root.join("demo/Cargo.toml").exists());
+        assert!(!root.join("demo/tools").exists());
+    }
+
+    #[test]
+    fn new_apply_keeps_the_scaffold_when_wiring_fails() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-wiring-fail-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join("demo")).expect("demo");
+        std::fs::write(root.join("demo/AGENTS.md"), "# Mine\n\n<!-- dx:begin -->\n").expect("seed");
+        let (code, _out, err) = run(&invocation(&["new", "--apply", "rust", "demo"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("new_failed"), "{err}");
+        assert!(root.join("demo/Cargo.toml").exists());
+    }
+
     fn workspace_root() -> PathBuf {
         let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
         let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
@@ -550,15 +667,13 @@ mod tests {
             .expect("package block is closed");
         let mut merged = build[..start].to_owned();
         merged.push_str(&build[end..]);
-        let corpus_load = "load(\"@rules_dx//quality:fixtures.bzl\", \"real_source_target\")\n\n";
-        let merged = merged.strip_prefix(corpus_load).unwrap_or(&merged);
-        let merged = match merged.find("\nreal_source_target(\n") {
-            Some(corpus) => &merged[..=corpus],
-            None => merged,
-        };
         merged
             .lines()
-            .filter(|line| *line != "    testonly = True," && *line != "# keep")
+            .filter(|line| {
+                *line != "    testonly = True,"
+                    && *line != "# keep"
+                    && *line != "# gazelle:dx_corpus false"
+            })
             .map(|line| format!("{line}\n"))
             .collect::<String>()
             .trim_end_matches('\n')

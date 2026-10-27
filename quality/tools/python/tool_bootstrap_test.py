@@ -1,9 +1,4 @@
-"""Covers the runfiles fallback that keeps the pinned wheels importable.
-
-The Windows launcher reaches the interpreter without the pinned venv, so
-`site_packages` is the only thing standing between the three quality tools
-and a ModuleNotFoundError before they parse anything.
-"""
+"""Covers the runfiles fallback that keeps the pinned wheels importable."""
 
 import os
 import pathlib

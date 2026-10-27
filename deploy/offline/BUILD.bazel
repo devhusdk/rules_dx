@@ -12,8 +12,13 @@ exports_files([
 
 exports_files(
     [
-        "demo/demo-bazelisk-linux-amd64",
-        "demo/demo-cargo.json",
+        "demo/bazelisk-darwin-amd64",
+        "demo/bazelisk-darwin-arm64",
+        "demo/bazelisk-linux-amd64",
+        "demo/bazelisk-linux-arm64",
+        "demo/bazelisk-windows-amd64.exe",
+        "demo/cargo.json",
+        "demo/cargo.meta.json",
     ],
     visibility = ["//visibility:private"],
 )
@@ -25,15 +30,23 @@ alias(
 
 offline_bundle(
     name = "offline_demo",
-    advisory = {"cargo": ":demo/demo-cargo.json"},
-    launchers = [":demo/demo-bazelisk-linux-amd64"],
+    advisory = {"cargo": ":demo/cargo.json"},
+    advisory_meta = {"cargo": ":demo/cargo.meta.json"},
+    launchers = [
+        ":demo/bazelisk-darwin-amd64",
+        ":demo/bazelisk-darwin-arm64",
+        ":demo/bazelisk-linux-amd64",
+        ":demo/bazelisk-linux-arm64",
+        ":demo/bazelisk-windows-amd64.exe",
+    ],
 )
 
 offline_unit_tests(name = "offline_unit")
 
 offline_file_tests(
     name = "offline_files",
-    manifest = ":offline_demo_manifest",
+    advisory = ":offline_demo/advisory/SHA256SUMS",
+    bazelisk = ":offline_demo/bazelisk/SHA256SUMS",
 )
 
 # keep
@@ -43,16 +56,22 @@ rust_test(
     srcs = ["bootstrap_test.rs"],
     data = [
         ":bootstrap_offline",
+        ":offline.bzl",
+        ":offline_demo",
+        ":offline_demo/advisory/SHA256SUMS",
+        ":offline_demo/bazelisk/SHA256SUMS",
         "//deploy/offline/bootstrap:src/lib.rs",
     ],
     env = {
         "DX_BOOTSTRAP": "$(rootpath :bootstrap_offline)",
+        "DX_OFFLINE_BZL": "$(rootpath :offline.bzl)",
+        "DX_OFFLINE_DEMO": "$(rootpath :offline_demo/bazelisk/SHA256SUMS)",
         "DX_BOOTSTRAP_SRC": "$(rootpath //deploy/offline/bootstrap:src/lib.rs)",
     },
     tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
         "//tools/testing:dx_testing",
     ],
 )
@@ -64,7 +83,6 @@ real_source_target(
         "BUILD.bazel",
         "offline.bzl",
         "offline_tests.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

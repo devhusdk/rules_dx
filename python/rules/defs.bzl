@@ -52,13 +52,51 @@ _python_forward_test = dx_executable_forward_rule(
     extra_attrs = dx_lcov_merger_attr(),
 )
 
+def _python_main_matches(name, srcs):
+    """Returns the srcs that end in the wrapper basename plus .py."""
+    proposed = name.split("/")[-1] + ".py"
+    return [src for src in srcs if str(src) == proposed or str(src).endswith(":" + proposed) or str(src).endswith("/" + proposed)]
+
+def python_main(name, srcs):
+    """Returns the src py_binary picks as main for the wrapper name, or None."""
+    if type(srcs) != "list" or len(srcs) <= 1:
+        return None
+    matches = _python_main_matches(name, srcs)
+    return matches[0] if len(matches) == 1 else None
+
+def python_main_rejection(name, srcs):
+    """Returns the rejection for multiple srcs without one main match, or None."""
+    if type(srcs) != "list" or len(srcs) <= 1:
+        return None
+    proposed = name.split("/")[-1] + ".py"
+    matches = _python_main_matches(name, srcs)
+    if not matches:
+        return "has multiple srcs and none is {}; set main.".format(proposed)
+    if len(matches) > 1:
+        return "has multiple srcs matching {}: {}; set main.".format(proposed, ", ".join([str(m) for m in matches]))
+    return None
+
+def _python_main_kwargs(kind, name, srcs, kwargs):
+    """Returns upstream kwargs with main set from the wrapper name, or None."""
+    if kwargs.get("main") != None:
+        return None
+    rejection = python_main_rejection(name, srcs)
+    if rejection != None:
+        fail("{} //{}:{} {}".format(kind, native.package_name(), name, rejection))
+    main = python_main(name, srcs)
+    if main == None:
+        return None
+    return dict(kwargs, main = main)
+
 def python_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over py_library."""
     dx_wrap(name, _py_library, _python_library_forward, srcs, visibility = visibility, **kwargs)
 
 def python_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over py_binary."""
-    dx_wrap(name, _py_binary, _python_binary_forward, srcs if srcs != None else [], visibility = visibility, **kwargs)
+    srcs = srcs if srcs != None else []
+    upstream_kwargs = _python_main_kwargs("python_binary", name, srcs, kwargs)
+    dx_wrap(name, _py_binary, _python_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, executable = True, **kwargs)
 
 def python_test_rejection(kwargs):
     """Returns the rejection for forbidden python_test kwargs, or None."""
@@ -77,4 +115,5 @@ def python_test(name, srcs, visibility = None, **kwargs):
 
 def python_py_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over py_test."""
-    dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, **kwargs)
+    upstream_kwargs = _python_main_kwargs("python_py_test", name, srcs, kwargs)
+    dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)

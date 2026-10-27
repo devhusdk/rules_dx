@@ -2,6 +2,7 @@ package common
 
 import (
 	"path"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -11,24 +12,8 @@ func Scan(src []byte, add func(string)) {
 	i := 0
 	for i < n {
 		c := src[i]
-		if c == '/' && i+1 < n && src[i+1] == '/' {
-			j := i + 2
-			for j < n && src[j] != '\n' {
-				j++
-			}
-			i = j
-			continue
-		}
-		if c == '/' && i+1 < n && src[i+1] == '*' {
-			j := i + 2
-			for j+1 < n && !(src[j] == '*' && src[j+1] == '/') {
-				j++
-			}
-			if j+1 < n {
-				i = j + 2
-			} else {
-				return
-			}
+		if np, ok := skipComment(src, i); ok {
+			i = np
 			continue
 		}
 		if c == '\'' || c == '"' {
@@ -74,15 +59,23 @@ func Scan(src []byte, add func(string)) {
 type ImportRef struct {
 	Spec     string
 	Root     string
+	Ext      string
 	Relative bool
 }
 
-func RelativeIdentity(dir, spec string) string {
+// JSModuleExts are the extensions stripped from a relative JavaScript or
+// TypeScript import to get its module identity.
+var JSModuleExts = []string{".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
+
+// relativeRef returns the workspace-relative identity of a relative spec with
+// any extension in exts stripped, and any other extension (such as .json or
+// .prod) left in the root and returned as ext.
+func relativeRef(dir, spec string, exts []string) (root, ext string) {
 	spec = strings.TrimSpace(spec)
 	trimmed := strings.TrimSuffix(spec, "/")
 	switch path.Base(trimmed) {
 	case "", ".", "..", "/":
-		return ""
+		return "", ""
 	}
 	var joined string
 	if strings.HasPrefix(spec, "/") {
@@ -90,19 +83,19 @@ func RelativeIdentity(dir, spec string) string {
 	} else {
 		joined = path.Join(dir, trimmed)
 	}
-	return stripModuleExt(joined)
+	base := path.Base(joined)
+	e := path.Ext(base)
+	if e == "" || e == "." || e == base {
+		return joined, ""
+	}
+	if slices.Contains(exts, e) {
+		return strings.TrimSuffix(joined, e), ""
+	}
+	return joined, e
 }
 
 func ModuleIdentity(pkg, stem string) string {
 	return path.Join(pkg, stem)
-}
-
-func stripModuleExt(p string) string {
-	base := path.Base(p)
-	if idx := strings.LastIndexByte(base, '.'); idx > 0 {
-		return p[:len(p)-len(base)+idx]
-	}
-	return p
 }
 
 func isRelativeSpec(spec string) bool {
@@ -118,9 +111,9 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 			return
 		}
 		relative := isRelativeSpec(spec)
-		root := spec
+		root, ext := spec, ""
 		if relative {
-			root = RelativeIdentity(dir, spec)
+			root, ext = relativeRef(dir, spec, JSModuleExts)
 		}
 		if root == "" {
 			return
@@ -128,7 +121,7 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 		if prev, ok := refs[root]; ok && (prev.Relative || !relative) {
 			return
 		}
-		refs[root] = ImportRef{Spec: spec, Root: root, Relative: relative}
+		refs[root] = ImportRef{Spec: spec, Root: root, Ext: ext, Relative: relative}
 	})
 	out := make([]ImportRef, 0, len(refs))
 	for _, ref := range refs {
@@ -137,6 +130,8 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })
 	return out
 }
+
+var specSetExts = append(slices.Clone(JSModuleExts), ".vue", ".svelte", ".astro", ".mdx")
 
 type SpecSet struct {
 	Dir   string
@@ -147,7 +142,7 @@ func (s *SpecSet) Add(spec string) {
 	spec = strings.TrimSpace(spec)
 	root := spec
 	if isRelativeSpec(spec) {
-		root = RelativeIdentity(s.Dir, spec)
+		root, _ = relativeRef(s.Dir, spec, specSetExts)
 	}
 	if root == "" {
 		return
@@ -189,8 +184,14 @@ func parseImport(src []byte, pos int, add func(string)) int {
 		}
 		return p
 	}
+	if np, ok := parseImportEquals(src, p, add); ok {
+		return np
+	}
 	if hasWordAt(src, p, "type") {
 		p = skipTrivia(src, p+4)
+		if np, ok := parseImportEquals(src, p, add); ok {
+			return np
+		}
 	}
 	if p < n && (src[p] == '\'' || src[p] == '"') {
 		if spec, next, ok := parseQuoted(src, p); ok {
@@ -200,6 +201,10 @@ func parseImport(src []byte, pos int, add func(string)) int {
 		return p + 1
 	}
 	for p < n {
+		if np, ok := skipComment(src, p); ok {
+			p = np
+			continue
+		}
 		if src[p] == '\'' || src[p] == '"' {
 			p = skipQuoted(src, p)
 			continue
@@ -245,8 +250,15 @@ func parseExport(src []byte, pos int, add func(string)) int {
 	if hasWordAt(src, p, "type") {
 		p = skipTrivia(src, p+4)
 	}
+	if hasWordAt(src, p, "import") {
+		return parseImport(src, p+6, add)
+	}
 	depth := 0
 	for p < n {
+		if np, ok := skipComment(src, p); ok {
+			p = np
+			continue
+		}
 		if src[p] == '\'' || src[p] == '"' {
 			p = skipQuoted(src, p)
 			continue
@@ -328,6 +340,54 @@ func parseRequire(src []byte, pos int, add func(string)) int {
 	return p
 }
 
+// skipComment reports whether a comment starts at p and returns the index just
+// past it. A line comment stops at the newline; an unclosed block comment runs
+// to the end of src.
+func skipComment(src []byte, p int) (int, bool) {
+	n := len(src)
+	if p+1 >= n || src[p] != '/' {
+		return p, false
+	}
+	switch src[p+1] {
+	case '/':
+		j := p + 2
+		for j < n && src[j] != '\n' {
+			j++
+		}
+		return j, true
+	case '*':
+		j := p + 2
+		for j+1 < n && !(src[j] == '*' && src[j+1] == '/') {
+			j++
+		}
+		if j+1 < n {
+			return j + 2, true
+		}
+		return n, true
+	}
+	return p, false
+}
+
+func parseImportEquals(src []byte, p int, add func(string)) (int, bool) {
+	n := len(src)
+	if p >= n || !isIdentStart(src[p]) {
+		return p, false
+	}
+	j := p + 1
+	for j < n && isIdentChar(src[j]) {
+		j++
+	}
+	q := skipTrivia(src, j)
+	if q >= n || src[q] != '=' || (q+1 < n && src[q+1] == '=') {
+		return p, false
+	}
+	r := skipTrivia(src, q+1)
+	if hasWordAt(src, r, "require") {
+		return parseRequire(src, r+7, add), true
+	}
+	return r, true
+}
+
 func skipTrivia(src []byte, pos int) int {
 	n := len(src)
 	p := pos
@@ -337,24 +397,9 @@ func skipTrivia(src []byte, pos int) int {
 			p++
 			continue
 		}
-		if c == '/' && p+1 < n && src[p+1] == '/' {
-			j := p + 2
-			for j < n && src[j] != '\n' {
-				j++
-			}
-			p = j
+		if np, ok := skipComment(src, p); ok {
+			p = np
 			continue
-		}
-		if c == '/' && p+1 < n && src[p+1] == '*' {
-			j := p + 2
-			for j+1 < n && !(src[j] == '*' && src[j+1] == '/') {
-				j++
-			}
-			if j+1 < n {
-				p = j + 2
-				continue
-			}
-			return n
 		}
 		return p
 	}

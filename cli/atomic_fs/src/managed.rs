@@ -146,7 +146,17 @@ pub fn replace_pointer(pointer: &Path, target: &Path, kind: PointerKind) -> io::
 }
 
 fn copy_file(source: &Path, destination: &Path) -> io::Result<Mechanism> {
-    std::fs::copy(source, destination).map(|_| Mechanism::Copied)
+    let input = std::fs::File::open(source)?;
+    let parent = destination
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let staging = tempfile::Builder::new()
+        .prefix(&crate::staging_prefix(destination))
+        .suffix(crate::STAGING_SUFFIX)
+        .tempfile_in(parent)?;
+    crate::persist_copy(input, staging, destination, crate::CopyMode::FromSource)
+        .map(|()| Mechanism::Copied)
 }
 
 fn link_file(target: &Path, link: &Path) -> io::Result<()> {
@@ -524,31 +534,63 @@ mod tests {
         scratch.close().expect("cleanup");
     }
 
+    fn mode_of(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::metadata(path)
+            .expect("metadata")
+            .permissions()
+            .mode()
+            & 0o777
+    }
+
+    fn chmod(path: &Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).expect("chmod");
+    }
+
     #[test]
     #[cfg(unix)]
-    fn preserves_the_error_of_a_read_only_destination() {
+    fn replaces_a_read_only_destination() {
         let scratch = scratch("dx-fs-readonly-");
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("locked.toml");
         std::fs::write(&destination, b"stale\n").expect("existing");
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o444))
-                .expect("chmod 444");
-        }
-        let err = materialize_file(&source, &destination, LinkPolicy::LinkOrCopy)
-            .expect_err("a read-only destination is not forced");
-        assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
+        chmod(&destination, 0o444);
+        let mechanism = materialize_file(&source, &destination, LinkPolicy::LinkOrCopy)
+            .expect("a read-only destination is replaced");
+        assert_eq!(mechanism, Mechanism::Copied);
         assert_eq!(
-            std::fs::read(&destination).expect("bytes kept"),
-            b"stale\n",
-            "the refused replacement leaves the file alone"
+            std::fs::read(&destination).expect("bytes"),
+            b"config = true\n"
         );
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o644))
-                .expect("chmod back");
+        assert_eq!(mode_of(&destination), 0o644);
+        let mut names: Vec<_> = std::fs::read_dir(scratch.path())
+            .expect("list")
+            .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        assert_eq!(names, ["locked.toml", "source.toml"]);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn copied_read_only_sources_can_be_restaged() {
+        let scratch = scratch("dx-fs-readonly-source-");
+        let refuse = |_: &Path, _: &Path| Err(io::Error::from(io::ErrorKind::PermissionDenied));
+        for (source_mode, expected) in [(0o444, 0o644), (0o555, 0o755)] {
+            let source = scratch.path().join(format!("source-{source_mode:o}"));
+            std::fs::write(&source, b"x\n").expect("source");
+            chmod(&source, source_mode);
+            let destination = scratch.path().join(format!("dest-{source_mode:o}"));
+            for _ in 0..2 {
+                let mechanism =
+                    materialize_file_with(&source, &destination, LinkPolicy::LinkOrCopy, &refuse)
+                        .expect("copy");
+                assert_eq!(mechanism, Mechanism::Copied);
+                assert_eq!(mode_of(&destination), expected);
+            }
         }
         scratch.close().expect("cleanup");
     }

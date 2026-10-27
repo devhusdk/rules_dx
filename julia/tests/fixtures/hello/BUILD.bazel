@@ -1,0 +1,40 @@
+load("@rules_julia//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+julia_library(
+    name = "Greet",
+    srcs = ["src/Greet.jl"],
+    data = ["Project.toml"],
+)
+
+julia_binary(
+    name = "hello",
+    srcs = ["main.jl"],
+    deps = [":Greet"],
+)
+
+julia_test(
+    name = "greet_test",
+    srcs = ["greet_test.jl"],
+    deps = [":Greet"],
+)
+
+dx_hello_output_test(
+    name = "hello_output_test",
+    binary = ":hello",
+    expected = "Hello, julia!",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

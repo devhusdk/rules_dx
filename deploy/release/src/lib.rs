@@ -12,8 +12,11 @@ use std::io;
 use std::path::Path;
 
 pub mod candidate;
+mod provenance;
+pub mod cell;
 mod publish;
 mod spdx;
+mod tool;
 
 macro_rules! release_repository {
     () => {
@@ -27,6 +30,8 @@ pub const RELEASE_REMOTE: &str = concat!(release_repository!(), ".git");
 pub use publish::{
     publish_dry_run_check, sha256sum_line, PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA,
 };
+
+pub use tool::release_tool_run;
 
 use spdx::SpdxDocument;
 
@@ -383,9 +388,6 @@ pub fn bcr_run(
                 .to_owned(),
         );
     }
-    if version == "0.0.0" {
-        return Err("bcr: version 0.0.0 is unpublishable even with approval".to_owned());
-    }
     let mut out = String::new();
     out.push_str(&format!(
         "bcr: owner-approved submission for {module}@{version} (human-run path only)\n"
@@ -410,6 +412,7 @@ pub fn render_signing_dry_run(
     issuer: &str,
     assets: &[String],
     cosign_version: &str,
+    outdir: &Path,
 ) -> String {
     let mut out = String::new();
     out.push_str("signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:\n");
@@ -424,12 +427,13 @@ pub fn render_signing_dry_run(
     ));
     for asset in assets {
         let base = basename_of(asset);
+        let bundle = signing_bundle_for(asset, outdir);
         out.push_str(&format!("  asset: {base} ({asset})\n"));
         out.push_str(&format!(
-            "  command: cosign sign-blob --yes --bundle {base}.bundle {asset}\n"
+            "  command: cosign sign-blob --yes --bundle {bundle} {asset}\n"
         ));
         out.push_str(&format!(
-            "  command: gh attestation create {asset} --bundle {base}.bundle\n"
+            "  command: gh attestation create {asset} --bundle {bundle}\n"
         ));
     }
     out.push_str(&format!(
@@ -444,6 +448,7 @@ pub fn signing_run(
     assets: &[String],
     dry_run: bool,
     pin: &CosignPin<'_>,
+    outdir: &Path,
 ) -> Result<String, String> {
     if assets.is_empty() {
         return Err("signing: need at least one artifact".to_owned());
@@ -460,9 +465,10 @@ pub fn signing_run(
             issuer,
             assets,
             pin.version,
+            outdir,
         ));
     }
-    signing_live(identity, issuer, assets, pin)
+    signing_live(identity, issuer, assets, pin, outdir)
 }
 
 pub fn signing_sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
@@ -507,8 +513,19 @@ pub fn signing_version_ok(version_output: &str, want: &str) -> bool {
     cosign_git_version(version_output) == Some(want)
 }
 
-fn signing_bundle_for(asset: &str) -> String {
-    format!("{}.bundle", basename_of(asset))
+fn signing_bundle_for(asset: &str, outdir: &Path) -> String {
+    outdir
+        .join(format!("{}.bundle", basename_of(asset)))
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// Runs `argv` with the inherited environment and working directory.
+fn run_output(argv: &[String]) -> io::Result<std::process::Output> {
+    let (binary, args) = argv
+        .split_first()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
+    std::process::Command::new(binary).args(args).output()
 }
 
 fn signing_live(
@@ -516,6 +533,7 @@ fn signing_live(
     issuer: &str,
     assets: &[String],
     pin: &CosignPin<'_>,
+    outdir: &Path,
 ) -> Result<String, String> {
     let actual = dx_digest::sha256_file_hex(std::path::Path::new(pin.path))
         .map_err(|error| format!("signing: cannot hash cosign at {}: {error}", pin.path))?;
@@ -526,9 +544,8 @@ fn signing_live(
         ));
     }
     let version_argv = vec![pin.path.to_owned(), "version".to_owned()];
-    let version_out =
-        dx_process::spawn_output(&version_argv, std::path::Path::new("."), &[], false)
-            .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
+    let version_out = run_output(&version_argv)
+        .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
     let version_text = String::from_utf8_lossy(&version_out.stdout).into_owned()
         + &String::from_utf8_lossy(&version_out.stderr);
     if !version_out.status.success() || !signing_version_ok(&version_text, pin.version) {
@@ -538,15 +555,17 @@ fn signing_live(
             cosign_git_version(&version_text).unwrap_or("none")
         ));
     }
+    std::fs::create_dir_all(outdir)
+        .map_err(|error| format!("signing: cannot create {}: {error}", outdir.display()))?;
     let mut out = String::new();
     out.push_str(&format!(
         "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:\n",
         pin.version
     ));
     for asset in assets {
-        let bundle = signing_bundle_for(asset);
+        let bundle = signing_bundle_for(asset, outdir);
         let sign_argv = signing_sign_argv(pin.path, asset, &bundle);
-        let sign_out = dx_process::spawn_output(&sign_argv, std::path::Path::new("."), &[], false)
+        let sign_out = run_output(&sign_argv)
             .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
         if !sign_out.status.success() {
             return Err(format!(
@@ -555,10 +574,8 @@ fn signing_live(
             ));
         }
         let verify_argv = signing_verify_argv(pin.path, asset, &bundle, identity, issuer);
-        let verify_out =
-            dx_process::spawn_output(&verify_argv, std::path::Path::new("."), &[], false).map_err(
-                |error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")),
-            )?;
+        let verify_out = run_output(&verify_argv)
+            .map_err(|error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")))?;
         if !verify_out.status.success() {
             return Err(format!(
                 "signing: '{}' failed for {asset}; bundle rejected, publishing nothing",
@@ -600,7 +617,7 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
         "    7. ghcr.yml dispatch + approve:true (separate workflow, push+cosign sign <digest>)\n",
     );
     out.push_str(
-        "    8. bazel run //deploy/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> (fail-before-install)\n",
+        "    8. bazel run //deploy/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> --notice-bundle <NOTICE.bundle> (fail-before-install)\n",
     );
     out.push_str(&format!(
         "  tag creation: git tag {tag} must already exist in the remote (pushed beforehand with owner approval); this program never creates or pushes tags\n"
@@ -688,7 +705,12 @@ pub fn release_run(
     Ok(out)
 }
 
-pub fn sbom_verify_files(artifact: &Path, spdx_path: &Path, prov: &Path) -> io::Result<String> {
+pub fn sbom_verify_files(
+    artifact: &Path,
+    spdx_path: &Path,
+    prov: &Path,
+    builder: &str,
+) -> io::Result<String> {
     let digest = dx_digest::sha256_file_hex(artifact)?;
     let base = basename(artifact)?;
     let spdx_text = std::fs::read_to_string(spdx_path)?;
@@ -700,32 +722,14 @@ pub fn sbom_verify_files(artifact: &Path, spdx_path: &Path, prov: &Path) -> io::
         )
     })?;
     spdx::document_error(&document, &base, &digest).map_err(io::Error::other)?;
-    if !prov_text.contains("\"_type\": \"https://in-toto.io/Statement/v1\"") {
-        return Err(io::Error::new(
+    let statement: provenance::Statement = serde_json::from_str(&prov_text).map_err(|error| {
+        io::Error::new(
             io::ErrorKind::InvalidData,
-            "provenance missing in-toto Statement v1",
-        ));
-    }
-    if !prov_text.contains("\"predicateType\": \"https://slsa.dev/provenance/v1\"") {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "provenance missing SLSA v1 predicate",
-        ));
-    }
-    if !prov_text.contains(&digest) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("provenance missing subject digest {digest}"),
-        ));
-    }
-    if !prov_text.contains(PROVENANCE_BUILDER_DRY_RUN)
-        && !prov_text.contains(PROVENANCE_BUILDER_RELEASE)
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "provenance builder.id is not an allowlisted workflow identity (forged builders fail closed)",
-        ));
-    }
+            format!("provenance is not an in-toto statement: {error}"),
+        )
+    })?;
+    provenance::statement_error(&statement, &base, &digest, builder)
+        .map_err(|problem| io::Error::new(io::ErrorKind::InvalidData, problem))?;
     Ok(format!("sbom OK: SPDX-2.3 + SLSA v1 bind {digest}\n"))
 }
 
@@ -736,6 +740,7 @@ pub struct NoticeEntry {
     pub version: String,
     pub license: String,
     pub text_basename: String,
+    pub text_sha256: String,
 }
 
 pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
@@ -746,9 +751,9 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
             continue;
         }
         let fields: Vec<&str> = line.split('|').collect();
-        if fields.len() != 5 {
+        if fields.len() != 6 {
             return Err(format!(
-                "notice manifest line {}: want 5 '|' fields 'package|set|version|license|text', got {}",
+                "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256', got {} (5-field manifests predate the text sha256 column; regenerate the inventory)",
                 index + 1,
                 fields.len()
             ));
@@ -759,6 +764,7 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
             version: fields[2].trim().to_owned(),
             license: fields[3].trim().to_owned(),
             text_basename: fields[4].trim().to_owned(),
+            text_sha256: fields[5].trim().to_owned(),
         };
         if entry.package.is_empty()
             || entry.set.is_empty()
@@ -768,6 +774,20 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
             return Err(format!(
                 "notice manifest line {}: package, set, version, and license must be non-empty",
                 index + 1
+            ));
+        }
+        if entry.text_basename.is_empty() {
+            if !entry.text_sha256.is_empty() {
+                return Err(format!(
+                    "notice manifest line {}: sha256 must be empty when no text file is named",
+                    index + 1
+                ));
+            }
+        } else if !dx_digest::is_lower_hex(&entry.text_sha256, 32) {
+            return Err(format!(
+                "notice manifest line {}: sha256 for text '{}' must be 64 lowercase hex characters",
+                index + 1,
+                entry.text_basename
             ));
         }
         entries.push(entry);
@@ -807,6 +827,67 @@ pub fn notice_entry_body<'a>(
         offset += line.len();
     }
     start.map(|begin| &notice_text[begin..])
+}
+
+/// The sha256 of the body `render_notice` writes under an entry header
+/// (the words with trailing newlines replaced by exactly one `\n`).
+pub fn notice_text_sha256(words: &str) -> String {
+    let mut body = words.trim_end_matches('\n').to_owned();
+    body.push('\n');
+    dx_digest::sha256_hex(body.as_bytes())
+}
+
+/// Shared NOTICE verifier for the release and install sides. Errors carry no
+/// prefix; callers add their own.
+pub fn verify_notice_text(notice_text: &str, entries: &[NoticeEntry]) -> Result<usize, String> {
+    if entries.is_empty() {
+        return Err("notice manifest lists no packages; refusing empty NOTICE".to_owned());
+    }
+    let first = notice_text.lines().next().unwrap_or("");
+    let Some(root) = first.strip_prefix("NOTICE for ") else {
+        return Err("NOTICE missing 'NOTICE for <root>' header".to_owned());
+    };
+    let root = root.trim_end_matches('\r');
+    for entry in entries {
+        if entry.text_basename.is_empty() {
+            return Err(format!(
+                "missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling",
+                entry.package, entry.version, entry.license
+            ));
+        }
+    }
+    let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
+    for header in &headers {
+        if notice_entry_body(notice_text, header, &headers).is_none() {
+            return Err(format!(
+                "NOTICE missing entry header '{header}' (fail closed before install)"
+            ));
+        }
+    }
+    let mut bodies = Vec::with_capacity(entries.len());
+    for (entry, header) in entries.iter().zip(&headers) {
+        let body = notice_entry_body(notice_text, header, &headers).ok_or_else(|| {
+            format!("NOTICE missing entry header '{header}' (fail closed before install)")
+        })?;
+        if body.trim().is_empty() {
+            return Err(format!(
+                "NOTICE missing words for {}@{} ({}): entry body is empty",
+                entry.package, entry.version, entry.license
+            ));
+        }
+        let got = dx_digest::sha256_hex(body.as_bytes());
+        if got != entry.text_sha256 {
+            return Err(format!(
+                "NOTICE missing words for {}@{} ({}): body sha256 {got}, manifest records {}",
+                entry.package, entry.version, entry.license, entry.text_sha256
+            ));
+        }
+        bodies.push((entry.clone(), body.to_owned()));
+    }
+    if render_notice(root, &bodies) != notice_text {
+        return Err("NOTICE has content outside the audited entries".to_owned());
+    }
+    Ok(entries.len())
 }
 
 pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
@@ -888,7 +969,20 @@ pub(crate) fn join_notice_entries(
             ));
         }
         match map.get(&entry.text_basename) {
-            Some(words) => joined.push((entry, words.clone())),
+            Some(words) => {
+                let got = notice_text_sha256(words);
+                if got != entry.text_sha256 {
+                    return Err(format!(
+                        "notice: notice-text-digest: {}@{} ({}) text '{}' sha256 {got}, manifest records {}",
+                        entry.package,
+                        entry.version,
+                        entry.license,
+                        entry.text_basename,
+                        entry.text_sha256
+                    ));
+                }
+                joined.push((entry, words.clone()));
+            }
             None => {
                 return Err(format!(
                     "notice: missing-notice-text: {}@{} ({}) names text '{}' with no matching input file",
@@ -932,47 +1026,9 @@ pub fn notice_verify_files(
             "notice: missing 'NOTICE for <root>' header",
         ));
     }
-    let map = read_text_map(text_files).map_err(io::Error::other)?;
-    let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
-    let mut bound = Vec::with_capacity(entries.len());
-    for (entry, header) in entries.iter().zip(&headers) {
-        if entry.text_basename.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "notice: missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words",
-                    entry.package, entry.version, entry.license
-                ),
-            ));
-        }
-        let words = map.get(&entry.text_basename).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "notice: missing-notice-text: {}@{} ({}) names text '{}' with no matching input file",
-                    entry.package, entry.version, entry.license, entry.text_basename
-                ),
-            )
-        })?;
-        let body = notice_entry_body(&notice_text, header, &headers).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("notice: NOTICE missing entry header '{header}'"),
-            )
-        })?;
-        bound.push((entry, body, words));
-    }
-    for (entry, body, words) in bound {
-        if body.trim() != words.trim() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "notice: NOTICE missing words for {}@{} ({})",
-                    entry.package, entry.version, entry.license
-                ),
-            ));
-        }
-    }
+    join_notice_entries(&manifest_text, text_files).map_err(io::Error::other)?;
+    verify_notice_text(&notice_text, &entries)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, format!("notice: {error}")))?;
     Ok(format!("notice OK: {} entries bundled\n", entries.len()))
 }
 
@@ -1124,7 +1180,8 @@ mod tests {
         assert!(ok.contains("would submit, submitting nothing"));
         assert!(bcr_run("other", "0.0.0", &[], true, false).is_err());
         assert!(bcr_run("rules_dx", "0.0.0", &[], false, false).is_err());
-        assert!(bcr_run("rules_dx", "0.0.0", &[], false, true).is_err());
+        let err = bcr_run("rules_dx", "0.0.0", &[], false, true).expect_err("0.0.0");
+        assert!(err.contains("unpublishable (shape check only)"));
         assert!(bcr_run("rules_dx", "1.2.3", &[], false, false).is_err());
         let live =
             bcr_run("rules_dx", "1.2.3", &["/x/y.json".to_owned()], false, true).expect("live");
@@ -1140,24 +1197,26 @@ mod tests {
             version: "v9.8.7",
             sha256: "0",
         };
-        let out = render_signing_dry_run("IDENT", "ISSUER", &assets, pin.version);
+        let outdir = Path::new("/out");
+        let out = render_signing_dry_run("IDENT", "ISSUER", &assets, pin.version, outdir);
         assert!(out.contains(
             "signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:"
         ));
         assert!(out.contains(&format!("trust root: {SIGNING_TRUST_ROOT}")));
-        assert!(out.contains("cosign sign-blob"));
-        assert!(out.contains("gh attestation create"));
+        assert!(out.contains("cosign sign-blob --yes --bundle /out/a.bin.bundle /tmp/a.bin"));
+        assert!(out.contains("gh attestation create /tmp/a.bin --bundle /out/a.bin.bundle"));
         assert!(out.contains("cosign verify-blob"));
         assert!(out.contains("cosign: v9.8.7 "));
         assert!(out.contains(SIGNING_BUNDLE_MEDIA_TYPE));
-        assert!(signing_run("", "ISSUER", &assets, true, &pin).is_err());
-        assert!(signing_run("ID", "ISS", &[], true, &pin).is_err());
-        let err = signing_run("ID", "ISS", &assets, false, &pin).expect_err("missing cosign");
+        assert!(signing_run("", "ISSUER", &assets, true, &pin, outdir).is_err());
+        assert!(signing_run("ID", "ISS", &[], true, &pin, outdir).is_err());
+        let err =
+            signing_run("ID", "ISS", &assets, false, &pin, outdir).expect_err("missing cosign");
         assert!(
             err.contains("cannot hash cosign at /nonexistent/cosign"),
             "got {err}"
         );
-        let ok = signing_run("ID", "ISS", &assets, true, &pin).expect("dry");
+        let ok = signing_run("ID", "ISS", &assets, true, &pin, outdir).expect("dry");
         assert!(ok.contains("would sign, publishing nothing"));
     }
 
@@ -1486,11 +1545,12 @@ mod tests {
         write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
         let prov = scratch.path().join("artifact.prov.json");
         write_provenance(&artifact, &prov, PROVENANCE_BUILDER_DRY_RUN).expect("prov");
-        let ok = sbom_verify_files(&artifact, &spdx, &prov).expect("verify");
+        let ok =
+            sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).expect("verify");
         assert!(ok.contains("sbom OK: SPDX-2.3 + SLSA v1 bind"));
         assert!(ok.contains(&digest));
         std::fs::write(&spdx, b"{\"spdxVersion\": \"SPDX-3.0\"}").expect("rewrite");
-        assert!(sbom_verify_files(&artifact, &spdx, &prov).is_err());
+        assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).is_err());
     }
 
     #[test]
@@ -1521,7 +1581,8 @@ mod tests {
             ),
         ] {
             std::fs::write(&spdx_path, text.as_bytes()).expect("rewrite");
-            let result = sbom_verify_files(&artifact, &spdx_path, &others);
+            let result =
+                sbom_verify_files(&artifact, &spdx_path, &others, PROVENANCE_BUILDER_DRY_RUN);
             assert_eq!(result.is_ok(), ok, "{label}: {result:?}");
         }
     }
@@ -1541,6 +1602,107 @@ mod tests {
             })
             .collect();
         format!("{{\n{}\n}}", entries.join(",\n"))
+    }
+
+    #[test]
+    fn sbom_verify_reads_provenance_fields_not_text() {
+        let scratch = scratch_dir();
+        let artifact = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
+        let digest = dx_digest::sha256_file_hex(&artifact).expect("digest");
+        let spdx = scratch.path().join("artifact.spdx.json");
+        write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
+        let prov = scratch.path().join("artifact.prov.json");
+        let base = render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_DRY_RUN);
+        let value: serde_json::Value = serde_json::from_str(&base).expect("json");
+        let with = |edit: &dyn Fn(&mut serde_json::Value)| {
+            let mut copy = value.clone();
+            edit(&mut copy);
+            serde_json::to_string(&copy).expect("compact")
+        };
+        let release = PROVENANCE_BUILDER_RELEASE;
+        let evil = format!("{release}.evil");
+        let duplicate = base.replacen(
+            "\"_type\"",
+            "\"_type\": \"https://in-toto.io/Statement/v1\",\n  \"_type\"",
+            1,
+        );
+        let cases: Vec<(&str, String, &str, Result<(), &str>)> = vec![
+            ("compact", with(&|_| {}), PROVENANCE_BUILDER_DRY_RUN, Ok(())),
+            (
+                "reordered",
+                reordered_spdx(&value),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Ok(()),
+            ),
+            (
+                "prefix builder",
+                with(&|v| v["predicate"]["runDetails"]["builder"]["id"] = evil.clone().into()),
+                release,
+                Err("is not an allowlisted"),
+            ),
+            (
+                "builder only in externalParameters",
+                with(&|v| {
+                    v["predicate"]["runDetails"]["builder"]["id"] = "https://evil.example".into();
+                    v["predicate"]["buildDefinition"]["externalParameters"]["b"] = release.into();
+                }),
+                release,
+                Err("is not an allowlisted"),
+            ),
+            (
+                "digest only in externalParameters",
+                with(&|v| {
+                    v["predicate"]["buildDefinition"]["externalParameters"]["d"] =
+                        digest.clone().into();
+                    v["subject"][0]["digest"]["sha256"] = "0".repeat(64).into();
+                }),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("missing subject digest"),
+            ),
+            (
+                "other subject name",
+                with(&|v| v["subject"][0]["name"] = "other.bin".into()),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("missing subject digest"),
+            ),
+            (
+                "dry-run provenance for release check",
+                with(&|_| {}),
+                release,
+                Err("want"),
+            ),
+            (
+                "missing _type",
+                with(&|v| {
+                    v.as_object_mut().expect("object").remove("_type");
+                }),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("missing in-toto Statement v1"),
+            ),
+            (
+                "not json",
+                "not json".to_owned(),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("not an in-toto statement"),
+            ),
+            (
+                "duplicate _type",
+                duplicate,
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("not an in-toto statement"),
+            ),
+        ];
+        for (label, text, builder, want) in cases {
+            std::fs::write(&prov, text.as_bytes()).expect("write");
+            let result = sbom_verify_files(&artifact, &spdx, &prov, builder);
+            match want {
+                Ok(()) => assert!(result.is_ok(), "{label}: {result:?}"),
+                Err(part) => {
+                    let err = result.expect_err(label).to_string();
+                    assert!(err.contains(part), "{label}: want {part}, got {err}");
+                }
+            }
+        }
     }
 
     fn replaced_digest(
@@ -1576,7 +1738,7 @@ mod tests {
         let prov = scratch.path().join("forged.prov.json");
         let forged = render_provenance("artifact.bin", &digest, FORGED_BUILDER_ID);
         std::fs::write(&prov, forged.as_bytes()).expect("write forged");
-        assert!(sbom_verify_files(&artifact, &spdx, &prov).is_err());
+        assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).is_err());
     }
 
     #[test]
@@ -1631,35 +1793,41 @@ mod tests {
         assert!(!signing_version_ok("", "v9.8.7"));
     }
 
+    const FIXTURE_WORDS_A: &str = "Fixture words for demo-lib-a (MIT placeholder).\n";
+    const FIXTURE_WORDS_B: &str = "Fixture words for demo-lib-b (Apache-2.0 placeholder).\n";
+
+    fn fixture_manifest() -> String {
+        format!(
+            "demo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt|{}\ndemo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+            notice_text_sha256(FIXTURE_WORDS_B),
+            notice_text_sha256(FIXTURE_WORDS_A)
+        )
+    }
+
     fn notice_fixture(dir: &Path) -> (std::path::PathBuf, Vec<std::path::PathBuf>) {
         let manifest = dir.join("inventory.txt");
-        std::fs::write(
-            &manifest,
-            "demo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt\ndemo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n",
-        )
-        .expect("manifest");
+        std::fs::write(&manifest, fixture_manifest()).expect("manifest");
         let a = dir.join("demo-lib-a.txt");
-        std::fs::write(&a, "Fixture words for demo-lib-a (MIT placeholder).\n").expect("words a");
+        std::fs::write(&a, FIXTURE_WORDS_A).expect("words a");
         let b = dir.join("demo-lib-b.txt");
-        std::fs::write(
-            &b,
-            "Fixture words for demo-lib-b (Apache-2.0 placeholder).\n",
-        )
-        .expect("words b");
+        std::fs::write(&b, FIXTURE_WORDS_B).expect("words b");
         (manifest, vec![a, b])
     }
 
     #[test]
     fn notice_manifest_parses_and_sorts() {
-        let entries = parse_notice_manifest(
-            "# invented distributed-tier root\n\ndemo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt\ndemo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n",
-        )
+        let entries = parse_notice_manifest(&format!(
+            "# invented distributed-tier root\n\n{}",
+            fixture_manifest()
+        ))
         .expect("parse");
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].package, "demo-lib-a");
         assert_eq!(entries[1].package, "demo-lib-b");
-        assert!(parse_notice_manifest("only|four|fields|here").is_err());
-        assert!(parse_notice_manifest("|npm|1.0.0|MIT|a.txt").is_err());
+        assert!(parse_notice_manifest("only|four|fields|here|x").is_err());
+        assert!(
+            parse_notice_manifest(&format!("|npm|1.0.0|MIT|a.txt|{}", "0".repeat(64))).is_err()
+        );
     }
 
     #[test]
@@ -1709,7 +1877,7 @@ mod tests {
     fn notice_missing_text_fails_actionable() {
         let scratch = scratch_dir();
         let manifest = scratch.path().join("inventory.txt");
-        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|\n").expect("manifest");
+        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
         let out = scratch.path().join("out.NOTICE");
         let err = write_notice(&manifest, &out, "//demo:root", &[]).expect_err("missing");
         assert!(err.to_string().contains("missing-notice-text"));
@@ -1723,10 +1891,13 @@ mod tests {
 
     #[test]
     fn bin_shims_share_failure_rendering() {
-        assert_eq!(bin_usage("sbom_spdx_gen", "<artifact> <spdx> <prov>"), 1);
+        assert_eq!(
+            bin_usage("release_tool spdx", "<artifact> <spdx> <prov>"),
+            1
+        );
         assert_eq!(
             bin_cannot_write(
-                "notice_gen",
+                "release_tool notice",
                 Path::new("/nope/notice.NOTICE"),
                 "read-only filesystem"
             ),
@@ -1758,7 +1929,8 @@ mod tests {
             render_spdx("artifact.bin", &zeros, "dx", "rules_dx"),
         )
         .expect("spdx bad");
-        let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok).expect_err("spdx digest");
+        let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok, PROVENANCE_BUILDER_DRY_RUN)
+            .expect_err("spdx digest");
         assert!(
             err.to_string().contains("SPDX missing artifact digest"),
             "got {err}"
@@ -1786,7 +1958,8 @@ mod tests {
         ] {
             let path = scratch.path().join("variant.prov.json");
             std::fs::write(&path, variant).expect("variant");
-            let err = sbom_verify_files(&artifact, &spdx_ok, &path).expect_err(want);
+            let err = sbom_verify_files(&artifact, &spdx_ok, &path, PROVENANCE_BUILDER_DRY_RUN)
+                .expect_err(want);
             assert!(err.to_string().contains(want), "want {want}, got {err}");
         }
     }
@@ -1806,7 +1979,10 @@ mod tests {
         let other_words = scratch.path().join("demo-lib-b.txt");
         std::fs::write(&other_words, "Fixture words for demo-lib-b.\n").expect("words b");
         let err = join_notice_entries(
-            "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n",
+            &format!(
+                "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+                "0".repeat(64)
+            ),
             &[other_words],
         )
         .expect_err("no matching input");
@@ -1819,8 +1995,14 @@ mod tests {
         }
         let both = [first.clone(), second.clone()];
         let read_err = read_text_map(&both).expect_err("duplicate basename");
-        let join_err = join_notice_entries("demo-lib-a|cargo|1.0.0|MIT|LICENSE\n", &both)
-            .expect_err("duplicate basename");
+        let join_err = join_notice_entries(
+            &format!(
+                "demo-lib-a|cargo|1.0.0|MIT|LICENSE|{}\n",
+                notice_text_sha256("Words for a.\n")
+            ),
+            &both,
+        )
+        .expect_err("duplicate basename");
         for err in [read_err, join_err] {
             assert!(err.contains("duplicate-notice-text"), "got {err}");
             let want = format!(
@@ -1836,13 +2018,17 @@ mod tests {
     fn notice_verify_rejects_drift_after_first_line() {
         let scratch = scratch_dir();
         let manifest = scratch.path().join("inventory.txt");
-        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n").expect("manifest");
-        let words = scratch.path().join("demo-lib-a.txt");
+        let drift_words = "First line of the words.\nSecond line of the words.\n";
         std::fs::write(
-            &words,
-            "First line of the words.\nSecond line of the words.\n",
+            &manifest,
+            format!(
+                "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+                notice_text_sha256(drift_words)
+            ),
         )
-        .expect("words");
+        .expect("manifest");
+        let words = scratch.path().join("demo-lib-a.txt");
+        std::fs::write(&words, drift_words).expect("words");
         let texts = [words];
         let notice = scratch.path().join("out.NOTICE");
         write_notice(&manifest, &notice, "//demo:root", &texts).expect("write");
@@ -1862,6 +2048,103 @@ mod tests {
             err.to_string().contains("NOTICE missing words for"),
             "got {err}"
         );
+    }
+
+    #[test]
+    fn notice_manifest_requires_six_fields() {
+        let err = parse_notice_manifest("demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n")
+            .expect_err("five fields");
+        assert!(err.contains("want 6"), "got {err}");
+        assert!(err.contains("line 1"), "got {err}");
+        assert!(err.contains("5-field manifests predate"), "got {err}");
+    }
+
+    #[test]
+    fn notice_manifest_rejects_bad_digest() {
+        for bad in ["", "abc", &"A".repeat(64), &"g".repeat(64)] {
+            let err = parse_notice_manifest(&format!("demo-lib-a|cargo|1.0.0|MIT|a.txt|{bad}\n"))
+                .expect_err("bad digest");
+            assert!(
+                err.contains("line 1") && err.contains("sha256"),
+                "got {err}"
+            );
+        }
+        let err =
+            parse_notice_manifest(&format!("demo-lib-a|cargo|1.0.0|MIT||{}\n", "0".repeat(64)))
+                .expect_err("digest without text");
+        assert!(err.contains("sha256 must be empty"), "got {err}");
+    }
+
+    #[test]
+    fn notice_text_sha256_matches_rendered_body() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        let manifest_text = std::fs::read_to_string(&manifest).expect("read");
+        let joined = join_notice_entries(&manifest_text, &texts).expect("join");
+        let text = render_notice("//demo:root", &joined);
+        let headers: Vec<String> = joined.iter().map(|(e, _)| notice_entry_header(e)).collect();
+        for (entry, _) in &joined {
+            let body =
+                notice_entry_body(&text, &notice_entry_header(entry), &headers).expect("body");
+            assert_eq!(dx_digest::sha256_hex(body.as_bytes()), entry.text_sha256);
+        }
+        assert_eq!(notice_text_sha256("x\n\n\n"), notice_text_sha256("x"));
+    }
+
+    #[test]
+    fn notice_gen_rejects_text_digest_drift() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        std::fs::write(&texts[0], "Edited words.\n").expect("drift");
+        let out = scratch.path().join("out.NOTICE");
+        let err = write_notice(&manifest, &out, "//demo:root", &texts).expect_err("drift");
+        let err = err.to_string();
+        assert!(err.contains("notice-text-digest"), "got {err}");
+        assert!(err.contains("demo-lib-a@1.0.0 (MIT)"), "got {err}");
+        assert!(err.contains("manifest records"), "got {err}");
+        assert!(!out.exists());
+    }
+
+    #[test]
+    fn verify_notice_text_binds_bodies_and_rejects_extras() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        let manifest_text = std::fs::read_to_string(&manifest).expect("read");
+        let entries = parse_notice_manifest(&manifest_text).expect("parse");
+        let joined = join_notice_entries(&manifest_text, &texts).expect("join");
+        let text = render_notice("//demo:root", &joined);
+        assert_eq!(verify_notice_text(&text, &entries), Ok(2));
+
+        let headers_only = "NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) ===\n=== demo-lib-b 2.3.4 (Apache-2.0) ===\n";
+        let err = verify_notice_text(headers_only, &entries).expect_err("headers only");
+        assert!(err.contains("entry body is empty"), "got {err}");
+
+        let changed = text.replace(
+            "Fixture words for demo-lib-a",
+            "Fixture word for demo-lib-a",
+        );
+        let err = verify_notice_text(&changed, &entries).expect_err("one word");
+        assert!(
+            err.contains("NOTICE missing words for demo-lib-a@1.0.0 (MIT)"),
+            "got {err}"
+        );
+        assert!(err.contains("manifest records"), "got {err}");
+
+        let extra = format!("{text}=== other 1.0.0 (MIT) ===\nSneaky.\n");
+        let err = verify_notice_text(&extra, &entries).expect_err("extra section");
+        assert!(err.contains("NOTICE missing words"), "got {err}");
+
+        let preamble = text.replacen("do not edit.", "do not edit. Extra.", 1);
+        let err = verify_notice_text(&preamble, &entries).expect_err("preamble");
+        assert!(err.contains("outside the audited entries"), "got {err}");
+
+        let crlf = text.replace('\n', "\r\n");
+        assert!(verify_notice_text(&crlf, &entries).is_err());
+
+        let err = verify_notice_text("plain\n", &entries).expect_err("no header");
+        assert!(err.contains("NOTICE for"), "got {err}");
+        let err = verify_notice_text(&text, &[]).expect_err("no entries");
+        assert!(err.contains("lists no packages"), "got {err}");
     }
 
     #[test]
@@ -1896,20 +2179,28 @@ mod tests {
         std::fs::write(&manifest, "# no packages\n").expect("manifest");
         let err = notice_verify_files(&notice, &manifest, &[]).expect_err("empty manifest");
         assert!(err.to_string().contains("lists no packages"), "got {err}");
-        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|\n").expect("manifest");
+        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
         let err = notice_verify_files(&notice, &manifest, &[]).expect_err("no words");
         assert!(
             err.to_string().contains("ships no LICENSE*/NOTICE* words"),
             "got {err}"
         );
-        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n").expect("manifest");
+        let bound_words = "Fixture words for demo-lib-a.\n";
+        std::fs::write(
+            &manifest,
+            format!(
+                "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+                notice_text_sha256(bound_words)
+            ),
+        )
+        .expect("manifest");
         let err = notice_verify_files(&notice, &manifest, &[]).expect_err("no matching input");
         assert!(
             err.to_string().contains("no matching input file"),
             "got {err}"
         );
         let words = scratch.path().join("demo-lib-a.txt");
-        std::fs::write(&words, "Fixture words for demo-lib-a.\n").expect("words");
+        std::fs::write(&words, bound_words).expect("words");
         let err = notice_verify_files(&notice, &manifest, &[words.clone()]).expect_err("no header");
         assert!(
             err.to_string().contains("missing entry header"),
@@ -1952,6 +2243,7 @@ mod tests {
         let asset = write_artifact(scratch.path(), "artifact.bin", b"artifact bytes\n");
         let assets = [asset.to_string_lossy().into_owned()];
         let good = "GitVersion:    v9.8.7";
+        let outdir = scratch.path().join("out");
         let scenario = |name: &str, body: &str, sha: Option<&str>| -> Result<String, String> {
             let script = write_fake_cosign(&scratch.path().join(name), body);
             let actual = dx_digest::sha256_file_hex(&script).expect("hash fake cosign");
@@ -1966,6 +2258,7 @@ mod tests {
                     version: "v9.8.7",
                     sha256: sha.unwrap_or(&actual),
                 },
+                &outdir,
             )
         };
         let ok_body = fake_cosign(good, "exit 0", "exit 0");
@@ -1994,9 +2287,19 @@ mod tests {
         let err = scenario("verify-fails", &fake_cosign(good, "exit 0", "exit 1"), None)
             .expect_err("verify fails");
         assert!(err.contains("bundle rejected"), "got {err}");
-        let ok = scenario("all-ok", &ok_body, None).expect("live sign");
+        let bundle = outdir.join("artifact.bin.bundle");
+        let ok = scenario(
+            "all-ok",
+            &fake_cosign(good, "touch \"$4\"; exit 0", "test -f \"$3\""),
+            None,
+        )
+        .expect("live sign");
+        assert!(bundle.is_file(), "missing {}", bundle.display());
         assert!(ok.contains("live sign with cosign v9.8.7"), "got {ok}");
-        assert!(ok.contains("signed: "), "got {ok}");
+        assert!(
+            ok.contains(&format!("signed: {} -> {}", assets[0], bundle.display())),
+            "got {ok}"
+        );
         assert!(ok.contains("(verified)"), "got {ok}");
         let err = scenario(
             "gone-at-sign",

@@ -1,73 +1,6 @@
+use super::super::delivery_sink::{Fault, Sink};
 use super::super::test_support::*;
-use std::io::{self, Write};
-
-#[derive(Clone, Copy)]
-enum Fault {
-    WriteFails(io::ErrorKind),
-    FlushFails(io::ErrorKind),
-    OneByteWrites,
-}
-
-struct Sink {
-    fault: Fault,
-    fail_from_write: usize,
-    writes: usize,
-    bytes: Vec<u8>,
-}
-
-impl Sink {
-    fn new(fault: Fault, fail_from_write: usize) -> Self {
-        Sink {
-            fault,
-            fail_from_write,
-            writes: 0,
-            bytes: Vec::new(),
-        }
-    }
-
-    fn lines(&self) -> Vec<String> {
-        String::from_utf8_lossy(&self.bytes)
-            .lines()
-            .map(str::to_owned)
-            .collect()
-    }
-}
-
-impl Write for Sink {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.writes += 1;
-        match self.fault {
-            Fault::WriteFails(kind) if self.writes >= self.fail_from_write => {
-                Err(io::Error::from(kind))
-            }
-            Fault::OneByteWrites if !buf.is_empty() => {
-                self.bytes.push(buf[0]);
-                Ok(1)
-            }
-            _ => {
-                self.bytes.extend_from_slice(buf);
-                Ok(buf.len())
-            }
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        match self.fault {
-            Fault::FlushFails(kind) => Err(io::Error::from(kind)),
-            _ => Ok(()),
-        }
-    }
-}
-
-fn event_names(sink: &Sink) -> Vec<String> {
-    sink.lines()
-        .iter()
-        .map(|line| {
-            let value: serde_json::Value = serde_json::from_str(line).expect("event line");
-            value["event"].as_str().expect("event name").to_owned()
-        })
-        .collect()
-}
+use std::io;
 
 fn run(
     name: &str,
@@ -129,7 +62,7 @@ fn a_failed_final_event_never_returns_success() {
         );
         assert_eq!(run.code, want, "{kind:?}");
         assert_eq!(run.argv.len(), 1, "the build ran once");
-        assert_eq!(event_names(&sink), ["command_started"]);
+        assert_eq!(sink.names(), ["command_started"]);
     }
 }
 
@@ -147,7 +80,7 @@ fn a_flush_failure_after_the_final_event_never_returns_success() {
             &mut sink,
         );
         assert_eq!(run.code, want, "{kind:?}");
-        assert_eq!(event_names(&sink), ["command_started", "command_finished"]);
+        assert_eq!(sink.names(), ["command_started", "command_finished"]);
     }
 }
 
@@ -163,7 +96,7 @@ fn a_child_failure_keeps_its_status_when_delivery_also_fails() {
         );
         assert_eq!(run.code, 3, "{kind:?}");
         assert!(err.contains("keeping exit 3"), "{err}");
-        assert_eq!(event_names(&sink), ["command_started"]);
+        assert_eq!(sink.names(), ["command_started"]);
     }
 }
 
@@ -178,7 +111,7 @@ fn a_child_failure_without_a_delivery_failure_keeps_its_status() {
     );
     assert_eq!(run.code, 3);
     assert_eq!(
-        event_names(&sink),
+        sink.names(),
         ["command_started", "notice", "error", "command_finished"]
     );
 }
@@ -193,7 +126,7 @@ fn partial_writes_deliver_every_event_whole() {
         &mut sink,
     );
     assert_eq!(run.code, 0);
-    assert_eq!(event_names(&sink), ["command_started", "command_finished"]);
+    assert_eq!(sink.names(), ["command_started", "command_finished"]);
 }
 
 #[test]
@@ -206,10 +139,12 @@ fn a_stdout_report_owns_stdout_so_no_summary_is_written() {
         &mut sink,
     );
     assert_eq!(run.code, 0);
-    let text = String::from_utf8_lossy(&sink.bytes);
+    let text = sink.text();
     assert!(!text.contains("Running build"), "{text}");
 }
 
+#[test]
+#[cfg(any(unix, windows))]
 fn closed_pipe_schedules_no_work() {
     let (reader, mut writer) = io::pipe().expect("pipe");
     drop(reader);
@@ -218,16 +153,4 @@ fn closed_pipe_schedules_no_work() {
     let run = harness.probe_streams(&inv, &[Some(0)], &mut writer, &mut Vec::new());
     assert_eq!(run.code, 141);
     assert!(run.argv.is_empty(), "{:?}", run.argv);
-}
-
-#[test]
-#[cfg(unix)]
-fn unix_closed_pipe_schedules_no_work() {
-    closed_pipe_schedules_no_work();
-}
-
-#[test]
-#[cfg(windows)]
-fn windows_closed_pipe_schedules_no_work() {
-    closed_pipe_schedules_no_work();
 }

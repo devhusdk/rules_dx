@@ -7,7 +7,7 @@ import (
 
 func TestParseImportsSingleType(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget\nimport java.util.List\n"))
-	want := []string{"Widget", "java.util.List"}
+	want := []string{"com.example.Widget", "java.util.List"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -15,7 +15,7 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsAliasAndOnDemand(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Widget as W\nimport com.example.*\n"))
-	want := []string{"Widget", "example"}
+	want := []string{"com.example.*", "com.example.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -31,7 +31,7 @@ func TestParseImportsCommentsAndStringsInert(t *testing.T) {
 
 func TestParseImportsDedupedSorted(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.Zeta\nimport com.example.Alpha\nimport com.example.Zeta\n"))
-	want := []string{"Alpha", "Zeta"}
+	want := []string{"com.example.Alpha", "com.example.Zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -39,7 +39,7 @@ func TestParseImportsDedupedSorted(t *testing.T) {
 
 func TestParseImportsBraceSelectors(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.{Widget, Gadget}\nimport com.other.{Tool}; import com.more.Thing\n"))
-	want := []string{"Gadget", "Thing", "Tool", "Widget"}
+	want := []string{"com.example.Gadget", "com.example.Widget", "com.more.Thing", "com.other.Tool"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -47,7 +47,7 @@ func TestParseImportsBraceSelectors(t *testing.T) {
 
 func TestParseImportsUnderscoreWildcard(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.b._\nimport c.D.{_}\n"))
-	want := []string{"D", "b"}
+	want := []string{"a.b.*", "c.D.*"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -55,7 +55,7 @@ func TestParseImportsUnderscoreWildcard(t *testing.T) {
 
 func TestParseImportsScala3StarAndGiven(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.B.*\nimport a.C.given\nimport a.D.{given, *}\nimport a.E.{given Ord[Int, String]}\nimport a.F.given Ord[Int]\n"))
-	want := []string{"B", "C", "D", "E", "F"}
+	want := []string{"a.B.*", "a.C.*", "a.D.*", "a.E.*", "a.F.*"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -63,7 +63,7 @@ func TestParseImportsScala3StarAndGiven(t *testing.T) {
 
 func TestParseImportsRenameAndHide(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.{A => B}\nimport a.{C as D}\nimport b.{E => _, _}\nimport c.{F => _}\n"))
-	want := []string{"A", "C", "b"}
+	want := []string{"a.A", "a.C", "b.*"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -71,7 +71,7 @@ func TestParseImportsRenameAndHide(t *testing.T) {
 
 func TestParseImportsMultilineBraces(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport com.example.{\n  Widget,\n  // Commented,\n  Gadget => G\n}\nimport com.example.Tail\n"))
-	want := []string{"Gadget", "Tail", "Widget"}
+	want := []string{"com.example.Gadget", "com.example.Tail", "com.example.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -87,7 +87,7 @@ func TestParseImportsStdlibSelectors(t *testing.T) {
 
 func TestParseImportsCommaImporters(t *testing.T) {
 	got := ParseImports([]byte("package demo\n\nimport a.B, c.d._, e.{F, G}\n"))
-	want := []string{"B", "F", "G", "d"}
+	want := []string{"a.B", "c.d.*", "e.F", "e.G"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -100,9 +100,6 @@ func TestParsePackage(t *testing.T) {
 	}
 	if got, err := ParsePackage([]byte("class Demo\n")); err != nil || got != "" {
 		t.Errorf("ParsePackage default = %q, %v; want empty", got, err)
-	}
-	if _, err := ParsePackage([]byte("package a\npackage b\n")); err == nil {
-		t.Fatal("ParsePackage succeeded on duplicate package clauses")
 	}
 }
 
@@ -121,21 +118,77 @@ func TestDefinesMain(t *testing.T) {
 	}
 }
 
+func TestDefinesMainScala3(t *testing.T) {
+	for _, src := range []string{"@main def run() = ()", "@main\ndef run() = ()", "object App extends App { }", "object M extends scala.App", "object M extends _root_.scala.App"} {
+		if !DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = false, want true", src)
+		}
+	}
+	for _, src := range []string{"class A extends AppConfig", "@mainly def run() = ()", "// @main def run()\nclass A", "val s = \"extends App\"", "/* @main def x */ class A"} {
+		if DefinesMain([]byte(src)) {
+			t.Errorf("DefinesMain(%q) = true, want false", src)
+		}
+	}
+}
+
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"scala.collection.immutable.List", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser"} {
+	for _, imp := range []string{"scala.collection.immutable.List", "scala.collection.mutable.Map", "scala.concurrent.Future", "scala.math.max", "scala.Option", "scala.collection", "java.util.List", "java.util", "javax.swing.JFrame", "javax.xml.parsers.DocumentBuilder", "jdk.internal.Foo", "org.w3c.dom.Node", "org.xml.sax.Parser", "scala.language.implicitConversions", "scala.language.postfixOps", "scala.language.higherKinds", "scala.language.experimental.macros", "scala.util.chaining.scalaUtilChainingOps", "scala.Predef.ArrowAssoc", "scala.Predef.augmentString"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar"} {
+	for _, imp := range []string{"com.example.Widget", "Widget", "javax.inject.Inject", "javax.servlet.Servlet", "javax.annotation.Nullable", "javax.xml.bind.JAXBContext", "javafx.application.Application", "javaxfoo.Bar", "com.sun.jna.Native", "sun.foo.Bar", "scala.xml.Elem", "scala.xml", "scala.util.parsing.combinator.Parsers", "scala.util.parsing", "scala.collection.parallel.CollectionConverters", "scala.collection.parallel", "scala.reflect.runtime.universe", "scala.reflect.runtime", "org.scalatest.funsuite.AnyFunSuite"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}
 	}
 }
 
-func TestParsePackageDuplicateFails(t *testing.T) {
-	if _, err := ParsePackage([]byte("package a;\npackage b;\n")); err == nil || err.Error() != "scala: duplicate package clause a" {
-		t.Fatalf("duplicate: %v", err)
+func TestScalaFeatureImportsAreStdLib(t *testing.T) {
+	src := "package demo\nimport scala.language.implicitConversions\nimport scala.language.{higherKinds, postfixOps}\nimport scala.util.chaining.scalaUtilChainingOps\nimport scala.util.chaining._\n"
+	for _, imp := range ParseImports([]byte(src)) {
+		if !IsStdLib(imp) {
+			t.Errorf("IsStdLib(%q) = false, want true", imp)
+		}
+	}
+}
+
+func TestParsePackageChained(t *testing.T) {
+	for _, src := range []string{"package com.example\npackage demo\n", "package com.example;\npackage demo;\n"} {
+		if got, err := ParsePackage([]byte(src)); err != nil || got != "com.example.demo" {
+			t.Errorf("ParsePackage(%q) = %q, %v; want com.example.demo", src, got, err)
+		}
+	}
+}
+
+func TestParsePackageBlock(t *testing.T) {
+	if got, err := ParsePackage([]byte("package demo {\n  class X\n}\n")); err != nil || got != "demo" {
+		t.Errorf("block = %q, %v; want demo", got, err)
+	}
+	if got, err := ParsePackage([]byte("package a {\n  package b {\n  }\n}\n")); err != nil || got != "a.b" {
+		t.Errorf("nested = %q, %v; want a.b", got, err)
+	}
+}
+
+func TestParsePackageSeparateFails(t *testing.T) {
+	for _, src := range []string{"package a {}\npackage b {}\n", "package a\nclass X\npackage b\n", "package a { class X }\npackage b\n"} {
+		if _, err := ParsePackage([]byte(src)); err == nil || err.Error() != "scala: separate package clauses a, b" {
+			t.Errorf("ParsePackage(%q) error = %v", src, err)
+		}
+	}
+}
+
+func TestParsePackageObjectIgnored(t *testing.T) {
+	if got, err := ParsePackage([]byte("package demo\npackage object util {\n}\n")); err != nil || got != "demo" {
+		t.Errorf("ParsePackage = %q, %v; want demo", got, err)
+	}
+}
+
+func TestNestedBlockCommentInert(t *testing.T) {
+	if got := ParseImports([]byte("/* outer /* inner */\nimport com.acme.Secret\n*/\npackage app\n")); len(got) != 0 {
+		t.Errorf("ParseImports = %v, want none", got)
+	}
+	if DefinesMain([]byte("/* a /* b */\ndef main() = 0\n*/\n")) {
+		t.Error("DefinesMain matched a main inside a nested comment")
 	}
 }

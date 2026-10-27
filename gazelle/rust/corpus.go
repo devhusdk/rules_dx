@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,6 +13,26 @@ import (
 )
 
 const corpusKind = "real_source_target"
+
+const corpusDirective = "dx_corpus"
+
+func parseCorpusDirective(value string) (bool, error) {
+	switch strings.TrimSpace(value) {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	}
+	return false, fmt.Errorf("rust: malformed # gazelle:%s: want true or false", corpusDirective)
+}
+
+func isGeneratedCorpusName(name string) bool {
+	switch name {
+	case "corpus", "corpus_markdown", "corpus_starlark", "corpus_toml", "corpus_json":
+		return true
+	}
+	return false
+}
 
 const corpusValeHint = "//quality:corpus_vale_config"
 
@@ -77,13 +98,7 @@ type corpusPlan struct {
 func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	plan := &corpusPlan{}
 	rel := args.Rel
-	if rel == ".opencode" || strings.HasPrefix(rel, ".opencode/") {
-		return plan
-	}
 	if rel == "node_modules" || strings.Contains(rel, "/node_modules/") || strings.HasPrefix(rel, "node_modules/") {
-		return plan
-	}
-	if rel == "tools/depcheck/testdata" || strings.HasPrefix(rel, "tools/depcheck/testdata/") {
 		return plan
 	}
 	if args.File == nil && !hasOtherGen {
@@ -172,15 +187,13 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 		}
 		slash := filepath.ToSlash(local)
 		if strings.HasPrefix(slash, "paket.") && strings.HasSuffix(slash, ".bzl") {
-			if rel == "third_party/dotnet/deps" {
-				return nil
-			}
+			return nil
 		}
 		if strings.HasSuffix(slash, ".lock") {
 			return nil
 		}
 		base := path.Base(slash)
-		if strings.HasPrefix(base, ".") && base != ".gitleaks.toml" {
+		if strings.HasPrefix(base, ".") {
 			return nil
 		}
 		if strings.Contains(slash, ".local.") {

@@ -159,7 +159,7 @@ pub fn parse_cppcheck(
     let decoder = reader.decoder();
     let mut findings: Vec<FileFinding> = Vec::new();
     let mut depth = 0usize;
-    let mut elements = 0usize;
+    let mut rooted = false;
     let mut open: Option<OpenError> = None;
     loop {
         let (element, empty) = match reader.read_event() {
@@ -182,7 +182,9 @@ pub fn parse_cppcheck(
             }
         };
         let name = element.local_name();
-        elements += 1;
+        if depth == 0 && name.as_ref() == b"results" {
+            rooted = true;
+        }
         if empty {
             if name.as_ref() == b"error" {
                 require_location(&open_error(&element, depth, decoder)?)?;
@@ -199,10 +201,10 @@ pub fn parse_cppcheck(
         depth += 1;
     }
     close_error(&mut open)?;
-    if elements == 0 && !text.trim().is_empty() {
+    if !rooted {
         return Err(ParseError::Shape {
             tool: TOOL,
-            detail: "no XML elements".to_owned(),
+            detail: "no <results> root".to_owned(),
         });
     }
     if findings.is_empty() && code != Some(0) {
@@ -349,19 +351,29 @@ mod tests {
     }
 
     #[test]
-    fn empty_output_is_clean_and_text_without_elements_is_not() {
-        assert!(parse_cppcheck(b"", Some(0), &["x"])
-            .expect("cppcheck writes nothing when clean")
-            .is_empty());
-        assert!(parse_cppcheck(b"   \n", Some(0), &["x"])
-            .expect("whitespace is clean")
-            .is_empty());
-        for text in ["garbage", "<results", "not xml at all"] {
-            assert!(
-                parse_cppcheck(text.as_bytes(), Some(0), &["x"]).is_err(),
-                "{text:?}"
-            );
+    fn output_without_a_results_root_is_rejected() {
+        for text in [
+            "",
+            "   \n",
+            "garbage",
+            "<results",
+            "not xml at all",
+            "<errors></errors>",
+            "cppcheck: Failed to load library configuration file 'std.cfg'. File not found\nFailed to load std.cfg. Your Cppcheck installation is broken, please re-install.\n",
+        ] {
+            for code in [Some(0), Some(1)] {
+                let error = parse_cppcheck(text.as_bytes(), code, &["x"]).expect_err(text);
+                assert!(!error.to_string().is_empty(), "{text:?}");
+            }
         }
+    }
+
+    #[test]
+    fn a_real_clean_report_is_clean() {
+        let clean = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<results version=\"2\">\n    <cppcheck version=\"2.21.0\"/>\n    <errors>\n    </errors>\n</results>\n";
+        assert!(parse_cppcheck(clean.as_bytes(), Some(0), &["x"])
+            .expect("clean 2.21.0 report")
+            .is_empty());
     }
 
     #[test]

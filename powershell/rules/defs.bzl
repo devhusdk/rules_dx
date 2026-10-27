@@ -51,13 +51,13 @@ _pwsh_forward_test = dx_executable_forward_rule(
 )
 
 def pwsh_library(name, srcs, visibility = None, **kwargs):
-    """Minimal wrapper over pwsh_library."""
+    """Minimal wrapper over pwsh_library; srcs are .ps1, .psm1 or .psd1 files."""
     dx_wrap(name, _pwsh_library, _pwsh_library_forward, srcs, visibility = visibility, **kwargs)
 
 def pwsh_binary(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over pwsh_binary."""
+    """Minimal wrapper over pwsh_binary; srcs are .ps1 files and optional."""
     dx_wrap_binary(name, _pwsh_binary, _pwsh_binary_forward, srcs, visibility = visibility, **kwargs)
 
 def pwsh_test(name, srcs, visibility = None, **kwargs):
-    """Minimal wrapper over pwsh_test."""
+    """Minimal wrapper over pwsh_test; srcs are .ps1 files."""
     dx_wrap_test(name, _pwsh_test, _pwsh_forward_test, srcs, visibility = visibility, **kwargs)

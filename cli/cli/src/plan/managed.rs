@@ -87,7 +87,7 @@ fn managed_argv(
     for group in &output_groups {
         required.push(format!("--output_groups={group}"));
     }
-    required.push(super::managed_download_flag(bazel_options).to_owned());
+    required.push(super::download_flag(bazel_options).to_owned());
     required.extend(bep_options(bep_path));
     let mut protected = vec![
         ProtectedFlag {
@@ -100,20 +100,8 @@ fn managed_argv(
             required: None,
             allowed: Vec::new(),
         },
-        ProtectedFlag {
-            name: "remote_download_minimal".to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        },
-        ProtectedFlag {
-            name: "remote_download_outputs".to_owned(),
-            required: None,
-            allowed: vec![
-                "--remote_download_outputs=toplevel".to_owned(),
-                "--remote_download_outputs=all".to_owned(),
-            ],
-        },
     ];
+    protected.extend(super::download_guards());
     protected.extend(bep_guards());
     super::bazel_argv(
         "build",
@@ -150,7 +138,6 @@ mod tests {
                 "--nosystem_rc",
                 "build",
                 "--jobs=4",
-                crate::plan::VALIDATE_FLAG,
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",

@@ -1,9 +1,52 @@
 """Unit tests for explicit tool support records."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":adapters.bzl", "real_supported_classes")
-load(":real_aspects.bzl", "real_wired_tools")
-load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSHARP_ROSLYN_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_LINT_SUPPORT", "JSONNET_FORMAT_SUPPORT", "POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "RUBY_RUBOCOP_SUPPORT", "RUBY_STANDARDRB_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "YAML_YAMLFMT_SUPPORT", "YAML_YAMLLINT_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_html_template_artifact_error", "support_html_template_cli_error", "support_html_template_wiring_error", "support_jsonnet_artifact_error", "support_jsonnet_cli_error", "support_jsonnet_wiring_error", "support_powershell_artifact_error", "support_powershell_cli_error", "support_powershell_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_ruby_artifact_error", "support_ruby_wiring_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error", "support_yaml_artifact_error", "support_yaml_cli_error", "support_yaml_wiring_error")
+load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
+load(":real_aspects.bzl", "real_wired_capabilities")
+load(":support.bzl", "SUPPORT_RECORDS", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state")
+
+def _without(wired, tool, capability):
+    """Returns a copy of the wired map with one tool capability removed."""
+    copy = {name: list(caps) for name, caps in wired.items()}
+    copy[tool] = [cap for cap in copy.get(tool, []) if cap != capability]
+    return copy
+
+def _artifact_platforms():
+    """Returns the pinned artifact platforms keyed by tool."""
+    by_tool = {}
+    for artifact in TOOL_ARTIFACTS:
+        by_tool.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
+    return by_tool
+
+def _record_checks(wired, artifact_platforms):
+    """Builds the per-record checks over every support record."""
+    checks = []
+    for record in SUPPORT_RECORDS:
+        tool = record["tool"]
+        capability = record["capability"]
+        label = record["family"] + " " + tool + " " + capability
+        checks.append(expect_equal(
+            label + " record is valid",
+            support_record_error(record),
+            "",
+        ))
+        checks.append(expect_equal(
+            label + " is a support tool in a gated state",
+            [is_support_tool(tool), record["state"] in ["qualified", "supported"]],
+            [True, True],
+        ))
+        checks.append(expect_equal(
+            label + " is checked for wiring",
+            support_record_gap_error(record, _without(wired, tool, capability)),
+            "support: " + tool + " " + capability + " is " + record["state"] + " but has no wired aspect (not silently clean)",
+        ))
+        if tool in artifact_platforms:
+            checks.append(expect_equal(
+                label + " platforms are pinned",
+                [platform for platform in record["platforms"] if platform not in artifact_platforms[tool]],
+                [],
+            ))
+    return checks
 
 def support_unit_tests(name):
     starlark_test(
@@ -16,14 +59,9 @@ def support_unit_tests(name):
                 "",
             ),
             expect_equal(
-                "keep_sorted adapter support stays text lint",
-                real_supported_classes("keep_sorted", "lint"),
-                ["text"],
-            ),
-            expect_equal(
-                "keep_sorted is a support tool with qualified state",
-                [is_support_tool("keep_sorted"), support_state("keep_sorted")],
-                [True, "qualified"],
+                "every supported record is wired and pinned",
+                support_gap_error(real_wired_capabilities()),
+                "",
             ),
             expect_equal(
                 "unknown tools stay outside support",
@@ -31,30 +69,21 @@ def support_unit_tests(name):
                 [False, "unknown"],
             ),
             expect_equal(
-                "missing aspect wiring is an actionable failure",
-                support_wiring_error([]),
-                "support: keep_sorted lint is qualified but has no wired aspect (missing real_text_lint_aspect; not silently clean)",
+                "supported record without a pinned artifact is an actionable failure",
+                support_record_gap_error({"artifact": "missing", "capability": "lint", "state": "supported", "tool": "keep_sorted"}, {"keep_sorted": ["lint"]}),
+                "support: keep_sorted lint is supported but has no pinned artifact",
             ),
             expect_equal(
-                "wired keep_sorted clears the aspect gap",
-                support_wiring_error(["keep_sorted"]),
+                "known record is not gated",
+                support_record_gap_error({"artifact": "missing", "capability": "lint", "state": "known", "tool": "keep_sorted"}, {}),
                 "",
             ),
             expect_equal(
-                "missing CLI aspect is an actionable failure",
-                support_cli_error(["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]),
-                "support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)",
+                "qualified record without wiring is an actionable failure",
+                support_record_gap_error({"artifact": "pinned", "capability": "lint", "state": "qualified", "tool": "keep_sorted"}, {}),
+                "support: keep_sorted lint is qualified but has no wired aspect (not silently clean)",
             ),
-            expect_equal(
-                "CLI text aspect clears the CLI gap",
-                support_cli_error(["@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "pinned artifact clears the artifact gap",
-                support_artifact_error(),
-                "",
-            ),
+
             expect_equal(
                 "unknown tool is rejected",
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "not_a_tool", "transport": "single"}),
@@ -105,470 +134,5 @@ def support_unit_tests(name):
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "parcel"}),
                 "support: tool 'keep_sorted' needs transport 'batched' or 'single', got 'parcel'",
             ),
-            expect_equal(
-                "record keeps the migrated platforms and fix",
-                [TEXT_KEEP_SORTED_SUPPORT["platforms"], TEXT_KEEP_SORTED_SUPPORT["fix"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], "supported"],
-            ),
-            expect_equal(
-                "record keeps the batched transport",
-                TEXT_KEEP_SORTED_SUPPORT["transport"],
-                "batched",
-            ),
-            expect_equal(
-                "shell records validate",
-                [support_record_error(SHELL_SHELLCHECK_SUPPORT), support_record_error(SHELL_SHFMT_SUPPORT)],
-                ["", ""],
-            ),
-            expect_equal(
-                "shell tools are support tools with qualified state",
-                [is_support_tool("shellcheck"), support_state("shellcheck"), is_support_tool("shfmt"), support_state("shfmt")],
-                [True, "qualified", True, "qualified"],
-            ),
-            expect_equal(
-                "shell records keep the direct single execution",
-                [[SHELL_SHELLCHECK_SUPPORT["execution"], SHELL_SHELLCHECK_SUPPORT["transport"]], [SHELL_SHFMT_SUPPORT["execution"], SHELL_SHFMT_SUPPORT["transport"]]],
-                [["direct", "single"], ["direct", "single"]],
-            ),
-            expect_equal(
-                "shell records keep the check and fix support",
-                [SHELL_SHELLCHECK_SUPPORT["fix"], SHELL_SHFMT_SUPPORT["fix"]],
-                ["check_only", "supported"],
-            ),
-            expect_equal(
-                "shell records keep the migrated platforms",
-                [SHELL_SHELLCHECK_SUPPORT["platforms"], SHELL_SHFMT_SUPPORT["platforms"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]],
-            ),
-            expect_equal(
-                "missing shell aspect wiring is an actionable failure",
-                support_shell_wiring_error([]),
-                "support: shellcheck lint is qualified but has no wired aspect (missing real_shell_lint_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "half-wired shell still names the missing aspect",
-                support_shell_wiring_error(["shellcheck"]),
-                "support: shfmt format is qualified but has no wired aspect (missing real_shell_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired shell clears the aspect gap",
-                support_shell_wiring_error(["shellcheck", "shfmt"]),
-                "",
-            ),
-            expect_equal(
-                "missing shell CLI aspect is an actionable failure",
-                support_shell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]),
-                "support: shellcheck lint is qualified but has no CLI lint aspect (missing real_shell_lint_aspect)",
-            ),
-            expect_equal(
-                "lint-only shell CLI still names the format gap",
-                support_shell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect"]),
-                "support: shfmt format is qualified but has no CLI format aspect (missing real_shell_format_aspect)",
-            ),
-            expect_equal(
-                "both shell CLI aspects clear the CLI gap",
-                support_shell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect", "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "scalafmt is a support tool with supported state",
-                [is_support_tool("scalafmt"), support_state("scalafmt")],
-                [True, "supported"],
-            ),
-            expect_equal(
-                "scalafmt record keeps the direct batched format with fix support",
-                [SCALA_SCALAFMT_SUPPORT["execution"], SCALA_SCALAFMT_SUPPORT["transport"], SCALA_SCALAFMT_SUPPORT["capability"], SCALA_SCALAFMT_SUPPORT["fix"]],
-                ["direct", "batched", "format", "supported"],
-            ),
-            expect_equal(
-                "missing scala aspect wiring is an actionable failure",
-                support_scala_wiring_error([]),
-                "support: scalafmt format is qualified but has no wired aspect (missing real_scala_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired scala clears the aspect gap",
-                support_scala_wiring_error(["scalafmt", "scalafix"]),
-                "",
-            ),
-            expect_equal(
-                "missing scala CLI aspect is an actionable failure",
-                support_scala_cli_error(["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]),
-                "support: scalafmt format is qualified but has no CLI format aspect (missing real_scala_format_aspect)",
-            ),
-            expect_equal(
-                "scala CLI aspect clears the CLI gap",
-                support_scala_cli_error(["@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect"]),
-                "support: scalafix lint is qualified but has no CLI lint aspect (missing real_scala_lint_aspect)",
-            ),
-            expect_equal(
-                "both scala CLI aspects clear the CLI gap",
-                support_scala_cli_error(["@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect", "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "scalafix is a target-coupled support tool with lint and fix",
-                [is_support_tool("scalafix"), support_state("scalafix"), support_record_error(SCALA_SCALAFIX_SUPPORT), SCALA_SCALAFIX_SUPPORT["context"], SCALA_SCALAFIX_SUPPORT["capability"], SCALA_SCALAFIX_SUPPORT["fix"]],
-                [True, "supported", "", "target_coupled", "lint", "supported"],
-            ),
-            expect_equal(
-                "pinned scala artifact clears the artifact gap",
-                support_scala_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "pinned shell artifacts clear the artifact gap",
-                support_shell_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "terraform record validates and is qualified",
-                [support_record_error(TERRAFORM_FORMAT_SUPPORT), is_support_tool("terraform"), support_state("terraform")],
-                ["", True, "qualified"],
-            ),
-            expect_equal(
-                "terraform record keeps direct single format with fix",
-                [TERRAFORM_FORMAT_SUPPORT["capability"], TERRAFORM_FORMAT_SUPPORT["execution"], TERRAFORM_FORMAT_SUPPORT["transport"], TERRAFORM_FORMAT_SUPPORT["fix"]],
-                ["format", "direct", "single", "supported"],
-            ),
-            expect_equal(
-                "missing terraform aspect wiring is an actionable failure",
-                support_terraform_wiring_error([]),
-                "support: terraform format is qualified but has no wired aspect (missing real_terraform_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired terraform clears the aspect gap",
-                support_terraform_wiring_error(["terraform"]),
-                "",
-            ),
-            expect_equal(
-                "missing terraform CLI aspect is an actionable failure",
-                support_terraform_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
-                "support: terraform format is qualified but has no CLI format aspect (missing real_terraform_format_aspect)",
-            ),
-            expect_equal(
-                "terraform CLI aspect clears the CLI gap",
-                support_terraform_cli_error(["@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "cue record validates as a direct batched format with fix",
-                [support_record_error(CUE_FORMAT_SUPPORT), is_support_tool("cue"), support_state("cue"), CUE_FORMAT_SUPPORT["execution"], CUE_FORMAT_SUPPORT["transport"], CUE_FORMAT_SUPPORT["fix"], CUE_FORMAT_SUPPORT["platforms"]],
-                ["", True, "qualified", "direct", "batched", "supported", ["linux_x86_64"]],
-            ),
-            expect_equal(
-                "missing cue aspect wiring is an actionable failure",
-                support_cue_wiring_error([]),
-                "support: cue format is qualified but has no wired aspect (missing real_cue_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired cue clears the aspect gap",
-                support_cue_wiring_error(["cue"]),
-                "",
-            ),
-            expect_equal(
-                "missing cue CLI aspect is an actionable failure",
-                support_cue_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
-                "support: cue format is qualified but has no CLI format aspect (missing real_cue_format_aspect)",
-            ),
-            expect_equal(
-                "cue CLI aspect clears the CLI gap",
-                support_cue_cli_error(["@rules_dx//quality:real_aspects.bzl%real_cue_format_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "pinned cue artifact clears the artifact gap",
-                support_cue_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "jsonnetfmt record validates as a direct batched format with fix",
-                [support_record_error(JSONNET_FORMAT_SUPPORT), is_support_tool("jsonnetfmt"), support_state("jsonnetfmt"), JSONNET_FORMAT_SUPPORT["execution"], JSONNET_FORMAT_SUPPORT["transport"], JSONNET_FORMAT_SUPPORT["fix"], JSONNET_FORMAT_SUPPORT["platforms"]],
-                ["", True, "qualified", "direct", "batched", "supported", ["linux_x86_64"]],
-            ),
-            expect_equal(
-                "missing jsonnetfmt aspect wiring is an actionable failure",
-                support_jsonnet_wiring_error([]),
-                "support: jsonnetfmt format is qualified but has no wired aspect (missing real_jsonnet_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired jsonnetfmt clears the aspect gap",
-                support_jsonnet_wiring_error(["jsonnetfmt"]),
-                "",
-            ),
-            expect_equal(
-                "missing jsonnetfmt CLI aspect is an actionable failure",
-                support_jsonnet_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
-                "support: jsonnetfmt format is qualified but has no CLI format aspect (missing real_jsonnet_format_aspect)",
-            ),
-            expect_equal(
-                "jsonnetfmt CLI aspect clears the CLI gap",
-                support_jsonnet_cli_error(["@rules_dx//quality:real_aspects.bzl%real_jsonnet_format_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "pinned jsonnetfmt artifact clears the artifact gap",
-                support_jsonnet_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "csharpier record validates as a direct batched format with fix",
-                [support_record_error(CSHARP_CSHARPIER_SUPPORT), is_support_tool("csharpier"), support_state("csharpier"), CSHARP_CSHARPIER_SUPPORT["execution"], CSHARP_CSHARPIER_SUPPORT["transport"], CSHARP_CSHARPIER_SUPPORT["fix"], CSHARP_CSHARPIER_SUPPORT["platforms"]],
-                ["", True, "supported", "direct", "batched", "supported", ["linux_x86_64"]],
-            ),
-            expect_equal(
-                "missing csharpier aspect wiring is an actionable failure",
-                support_csharp_wiring_error([]),
-                "support: csharpier format is qualified but has no wired aspect (missing real_dotnet_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired csharpier clears the aspect gap",
-                support_csharp_wiring_error(["csharpier", "roslyn"]),
-                "",
-            ),
-            expect_equal(
-                "csharpier alone leaves roslyn unwired",
-                support_csharp_wiring_error(["csharpier"]),
-                "support: roslyn lint is qualified but has no wired aspect (missing real_dotnet_lint_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "roslyn record validates as a direct batched check-only lint",
-                [support_record_error(CSHARP_ROSLYN_SUPPORT), is_support_tool("roslyn"), support_state("roslyn"), CSHARP_ROSLYN_SUPPORT["execution"], CSHARP_ROSLYN_SUPPORT["transport"], CSHARP_ROSLYN_SUPPORT["fix"], CSHARP_ROSLYN_SUPPORT["context"]],
-                ["", True, "supported", "direct", "batched", "check_only", "target_coupled"],
-            ),
-            expect_equal(
-                "the real aspects wire csharpier and roslyn",
-                support_csharp_wiring_error(real_wired_tools()),
-                "",
-            ),
-            expect_equal(
-                "missing csharpier CLI aspect is an actionable failure",
-                support_csharp_cli_error(["@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect"]),
-                "support: csharpier format is qualified but has no CLI format aspect (missing real_dotnet_format_aspect)",
-            ),
-            expect_equal(
-                "csharpier CLI aspect clears the CLI gap",
-                support_csharp_cli_error(["@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect", "@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "missing roslyn CLI aspect is an actionable failure",
-                support_csharp_cli_error(["@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect"]),
-                "support: roslyn lint is qualified but has no CLI lint aspect (missing real_dotnet_lint_aspect)",
-            ),
-            expect_equal(
-                "pinned csharpier artifact clears the artifact gap",
-                support_csharp_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "fantomas and fsharplint records validate as direct batched tools",
-                [support_record_error(FSHARP_FANTOMAS_SUPPORT), support_record_error(FSHARP_FSHARPLINT_SUPPORT), is_support_tool("fantomas"), is_support_tool("fsharplint"), support_state("fantomas"), support_state("fsharplint"), FSHARP_FANTOMAS_SUPPORT["fix"], FSHARP_FSHARPLINT_SUPPORT["fix"]],
-                ["", "", True, True, "supported", "supported", "supported", "check_only"],
-            ),
-            expect_equal(
-                "the real aspects wire fantomas and fsharplint",
-                support_fsharp_wiring_error(real_wired_tools()),
-                "",
-            ),
-            expect_equal(
-                "dropping fantomas from the real wiring is an actionable failure",
-                support_fsharp_wiring_error([tool for tool in real_wired_tools() if tool != "fantomas"]),
-                "support: fantomas format is qualified but has no wired aspect (missing real_dotnet_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "dropping fsharplint from the real wiring is an actionable failure",
-                support_fsharp_wiring_error([tool for tool in real_wired_tools() if tool != "fsharplint"]),
-                "support: fsharplint lint is qualified but has no wired aspect (missing real_dotnet_lint_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "pinned fsharp artifacts clear the artifact gap",
-                support_fsharp_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "rubocop and standardrb records validate as direct batched tools",
-                [support_record_error(RUBY_RUBOCOP_SUPPORT), support_record_error(RUBY_STANDARDRB_SUPPORT), is_support_tool("rubocop"), is_support_tool("standardrb"), support_state("rubocop"), support_state("standardrb"), RUBY_RUBOCOP_SUPPORT["fix"], RUBY_STANDARDRB_SUPPORT["fix"], RUBY_RUBOCOP_SUPPORT["platforms"], RUBY_STANDARDRB_SUPPORT["platforms"]],
-                ["", "", True, True, "supported", "supported", "check_only", "supported", ["linux_x86_64"], ["linux_x86_64"]],
-            ),
-            expect_equal(
-                "the real aspects wire rubocop and standardrb",
-                support_ruby_wiring_error(real_wired_tools()),
-                "",
-            ),
-            expect_equal(
-                "dropping rubocop from the real wiring is an actionable failure",
-                support_ruby_wiring_error([tool for tool in real_wired_tools() if tool != "rubocop"]),
-                "support: rubocop lint is qualified but has no wired aspect (missing real_ruby_lint_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "dropping standardrb from the real wiring is an actionable failure",
-                support_ruby_wiring_error([tool for tool in real_wired_tools() if tool != "standardrb"]),
-                "support: standardrb format is qualified but has no wired aspect (missing real_ruby_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "pinned ruby artifacts clear the artifact gap",
-                support_ruby_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "djlint records validate as direct single-file tools",
-                [support_record_error(HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT), support_record_error(HTML_TEMPLATE_DJLINT_LINT_SUPPORT), is_support_tool("djlint"), support_state("djlint"), HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT["fix"], HTML_TEMPLATE_DJLINT_LINT_SUPPORT["fix"], HTML_TEMPLATE_DJLINT_LINT_SUPPORT["platforms"]],
-                ["", "", True, "supported", "supported", "check_only", ["linux_x86_64"]],
-            ),
-            expect_equal(
-                "the real aspects wire djlint",
-                support_html_template_wiring_error(real_wired_tools()),
-                "",
-            ),
-            expect_equal(
-                "dropping djlint from the real wiring is an actionable failure",
-                support_html_template_wiring_error([tool for tool in real_wired_tools() if tool != "djlint"]),
-                "support: djlint format is qualified but has no wired aspect (missing real_html_template_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "missing html template CLI aspects are an actionable failure",
-                support_html_template_cli_error(["@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect"]),
-                "support: djlint format is qualified but has no CLI format aspect (missing real_html_template_format_aspect)",
-            ),
-            expect_equal(
-                "html template CLI aspects clear the CLI gap",
-                support_html_template_cli_error(["@rules_dx//quality:real_aspects.bzl%real_html_template_format_aspect", "@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "pinned djlint artifact clears the artifact gap",
-                support_html_template_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "yamlfmt and yamllint records validate as direct batched tools",
-                [support_record_error(YAML_YAMLFMT_SUPPORT), support_record_error(YAML_YAMLLINT_SUPPORT), is_support_tool("yamlfmt"), is_support_tool("yamllint"), support_state("yamlfmt"), support_state("yamllint"), YAML_YAMLFMT_SUPPORT["fix"], YAML_YAMLLINT_SUPPORT["fix"], YAML_YAMLFMT_SUPPORT["platforms"], YAML_YAMLLINT_SUPPORT["platforms"]],
-                ["", "", True, True, "supported", "supported", "supported", "check_only", ["linux_x86_64"], ["linux_x86_64"]],
-            ),
-            expect_equal(
-                "the real aspects wire yamlfmt and yamllint",
-                support_yaml_wiring_error(real_wired_tools()),
-                "",
-            ),
-            expect_equal(
-                "dropping yamlfmt from the real wiring is an actionable failure",
-                support_yaml_wiring_error([tool for tool in real_wired_tools() if tool != "yamlfmt"]),
-                "support: yamlfmt format is qualified but has no wired aspect (missing real_yaml_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "dropping yamllint from the real wiring is an actionable failure",
-                support_yaml_wiring_error([tool for tool in real_wired_tools() if tool != "yamllint"]),
-                "support: yamllint lint is qualified but has no wired aspect (missing real_yaml_lint_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "missing yaml CLI aspects are an actionable failure",
-                support_yaml_cli_error(["@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect"]),
-                "support: yamlfmt format is qualified but has no CLI format aspect (missing real_yaml_format_aspect)",
-            ),
-            expect_equal(
-                "yaml CLI aspects clear the CLI gap",
-                support_yaml_cli_error(["@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect", "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "pinned yaml artifacts clear the artifact gap",
-                support_yaml_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "pinned terraform artifact clears the artifact gap",
-                support_terraform_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "buf records validate as direct batched format and lint",
-                [support_record_error(PROTOBUF_BUF_FORMAT_SUPPORT), support_record_error(PROTOBUF_BUF_LINT_SUPPORT), is_support_tool("buf"), support_state("buf"), PROTOBUF_BUF_FORMAT_SUPPORT["fix"], PROTOBUF_BUF_LINT_SUPPORT["fix"]],
-                ["", "", True, "supported", "supported", "check_only"],
-            ),
-            expect_equal(
-                "missing buf aspect wiring is an actionable failure",
-                support_protobuf_wiring_error([]),
-                "support: buf format is qualified but has no wired aspect (missing real_protobuf_format_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired buf clears the aspect gap",
-                support_protobuf_wiring_error(["buf"]),
-                "",
-            ),
-            expect_equal(
-                "missing buf CLI aspect is an actionable failure",
-                support_protobuf_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
-                "support: buf format is qualified but has no CLI format aspect (missing real_protobuf_format_aspect)",
-            ),
-            expect_equal(
-                "buf CLI aspects clear the CLI gap",
-                support_protobuf_cli_error(["@rules_dx//quality:real_aspects.bzl%real_protobuf_format_aspect", "@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "stylelint record validates as direct batched check-only lint",
-                [support_record_error(CSS_STYLELINT_LINT_SUPPORT), is_support_tool("stylelint"), support_state("stylelint"), CSS_STYLELINT_LINT_SUPPORT["fix"]],
-                ["", True, "supported", "check_only"],
-            ),
-            expect_equal(
-                "missing stylelint aspect wiring is an actionable failure",
-                support_css_wiring_error([]),
-                "support: stylelint lint is qualified but has no wired aspect (missing real_js_lint_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired stylelint clears the aspect gap",
-                support_css_wiring_error(["stylelint"]),
-                "",
-            ),
-            expect_equal(
-                "missing stylelint CLI aspect is an actionable failure",
-                support_css_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
-                "support: stylelint lint is qualified but has no CLI lint aspect (missing real_js_lint_aspect)",
-            ),
-            expect_equal(
-                "stylelint CLI aspect clears the CLI gap",
-                support_css_cli_error(["@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "pinned stylelint artifact clears the artifact gap",
-                support_css_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "psscriptanalyzer record validates as direct batched check-only lint",
-                [support_record_error(POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT), is_support_tool("psscriptanalyzer"), support_state("psscriptanalyzer"), POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT["fix"]],
-                ["", True, "supported", "check_only"],
-            ),
-            expect_equal(
-                "missing psscriptanalyzer aspect wiring is an actionable failure",
-                support_powershell_wiring_error([]),
-                "support: psscriptanalyzer lint is qualified but has no wired aspect (missing real_powershell_lint_aspect; not silently clean)",
-            ),
-            expect_equal(
-                "wired psscriptanalyzer clears the aspect gap",
-                support_powershell_wiring_error(["psscriptanalyzer"]),
-                "",
-            ),
-            expect_equal(
-                "missing psscriptanalyzer CLI aspect is an actionable failure",
-                support_powershell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
-                "support: psscriptanalyzer lint is qualified but has no CLI lint aspect (missing real_powershell_lint_aspect)",
-            ),
-            expect_equal(
-                "psscriptanalyzer CLI aspect clears the CLI gap",
-                support_powershell_cli_error(["@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect"]),
-                "",
-            ),
-            expect_equal(
-                "pinned psscriptanalyzer artifact clears the artifact gap",
-                support_powershell_artifact_error(),
-                "",
-            ),
-            expect_equal(
-                "pinned buf artifact clears the artifact gap",
-                support_protobuf_artifact_error(),
-                "",
-            ),
-        ],
+        ] + _record_checks(real_wired_capabilities(), _artifact_platforms()),
     )

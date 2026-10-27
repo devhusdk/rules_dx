@@ -36,7 +36,7 @@ bazel_dep(name = "rules_apple", version = "5.2.0")
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
-use_repo(gazelle_go_deps, "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_pmezard_go_difflib", "com_github_rhysd_actionlint", "org_golang_x_mod")
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_pmezard_go_difflib", "com_github_yuin_goldmark", "org_golang_x_mod", "org_golang_x_net")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(
@@ -206,7 +206,7 @@ cuda_host_sysroot(
     urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz"],
 )
 
-cuda_host_llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+cuda_host_llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm", dev_dependency = True)
 cuda_host_llvm.toolchain(
     name = "cuda_host_llvm",
     llvm_version = "22.1.8",
@@ -219,7 +219,10 @@ cuda_host_llvm.sysroot(
 )
 use_repo(cuda_host_llvm, "cuda_host_llvm")
 
-register_toolchains("@cuda_host_llvm//:all")
+register_toolchains(
+    "@cuda_host_llvm//:all",
+    dev_dependency = True,
+)
 
 register_toolchains("@llvm//toolchain:all")
 
@@ -295,6 +298,20 @@ bazel_dep(name = "rules_zig", version = "0.14.0")
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.16.0")
 
+bazel_dep(name = "rules_julia", version = "0.8.0")
+
+julia = use_extension("@rules_julia//julia:extensions.bzl", "julia")
+julia.toolchain(version = "1.12.5")
+
+bazel_dep(name = "rules_perl", version = "1.5.0")
+
+cpan = use_extension("//perl/cpan:extensions.bzl", "cpan_dev", dev_dependency = True)
+cpan.install(
+    name = "perl_app_cpan",
+    lock = "//examples/perl-app/third_party:cpanfile.snapshot.lock.json",
+)
+use_repo(cpan, perl_cpan = "perl_app_cpan")
+
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.component(
     name = "cuda_cccl",
@@ -313,12 +330,36 @@ cuda.component(
     version = "13.4.92",
 )
 cuda.component(
+    name = "cuda_cublas",
+    component_name = "cublas",
+    sha256 = "bd6ffcce561672da6abb928214a6694f392741e7d1e2d7dfde0da4bd651706b6",
+    strip_prefix = "libcublas-linux-x86_64-13.8.0.4-archive",
+    url = "https://developer.download.nvidia.com/compute/cuda/redist/libcublas/linux-x86_64/libcublas-linux-x86_64-13.8.0.4-archive.tar.xz",
+    version = "13.8.0.4",
+)
+cuda.component(
     name = "cuda_cudart",
     component_name = "cudart",
     sha256 = "0ac5dbc538d04e9983bc493b410cce4b459e1ee9f5f6654b6464ef7b3e14a8b5",
     strip_prefix = "cuda_cudart-linux-x86_64-13.4.92-archive",
     url = "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-13.4.92-archive.tar.xz",
     version = "13.4.92",
+)
+cuda.component(
+    name = "cuda_cufft",
+    component_name = "cufft",
+    sha256 = "f7f8ac2cc67714989a3c8140cda39b1b7ed7d462a491e1ad3f53adb777f5070f",
+    strip_prefix = "libcufft-linux-x86_64-12.4.0.43-archive",
+    url = "https://developer.download.nvidia.com/compute/cuda/redist/libcufft/linux-x86_64/libcufft-linux-x86_64-12.4.0.43-archive.tar.xz",
+    version = "12.4.0.43",
+)
+cuda.component(
+    name = "cuda_curand",
+    component_name = "curand",
+    sha256 = "6f725f9187dc5f675308b830f786c163f5b1b499d86986f94fb60aa701c13c0b",
+    strip_prefix = "libcurand-linux-x86_64-10.4.4.72-archive",
+    url = "https://developer.download.nvidia.com/compute/cuda/redist/libcurand/linux-x86_64/libcurand-linux-x86_64-10.4.4.72-archive.tar.xz",
+    version = "10.4.4.72",
 )
 cuda.component(
     name = "cuda_nvcc",
@@ -341,7 +382,10 @@ cuda.toolkit(
     components_mapping = {
         "cccl": "@cuda_cccl",
         "crt": "@cuda_crt",
+        "cublas": "@cuda_cublas",
         "cudart": "@cuda_cudart",
+        "cufft": "@cuda_cufft",
+        "curand": "@cuda_curand",
         "nvcc": "@cuda_nvcc",
         "nvvm": "@cuda_nvvm",
     },
@@ -364,6 +408,34 @@ gleam = use_extension("//gleam/toolchain:repos.bzl", "gleam")
 use_repo(gleam, "dx_gleam_stdlib", "dx_gleam_toolchains", "dx_gleeunit", "rules_gleam")
 
 register_toolchains("@dx_gleam_toolchains//:all")
+
+ocaml = use_extension("//ocaml/toolchain:repos.bzl", "ocaml")
+use_repo(ocaml, "dx_ocaml_toolchains", "rules_ocaml")
+
+register_toolchains("@dx_ocaml_toolchains//:all")
+
+fortran = use_extension("//fortran/toolchain:repos.bzl", "fortran")
+use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
+
+register_toolchains("@dx_fortran_toolchains//:all")
+
+bazel_dep(name = "lua", version = "5.4.6.bcr.1")
+
+register_toolchains("//lua/toolchain:all")
+
+php = use_extension("//php/toolchain:repos.bzl", "php")
+use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpunit")
+
+register_toolchains("@dx_php_toolchains//:all")
+
+haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
+use_repo(haskell, "dx_haskell_toolchains", "rules_haskell")
+
+register_toolchains("@dx_haskell_toolchains//toolchains:all")
+d = use_extension("//d/toolchain:repos.bzl", "d")
+use_repo(d, "dx_d_toolchains", "rules_d")
+
+register_toolchains("@dx_d_toolchains//:all")
 
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
@@ -599,6 +671,7 @@ crate.from_cargo(
         "//cli/bump:Cargo.toml",
         "//cli/identity:Cargo.toml",
         "//cli/binfmt:Cargo.toml",
+        "//cli/worktree:Cargo.toml",
         "//deploy/rules:Cargo.toml",
         "//deploy/offline/bootstrap:Cargo.toml",
         "//deploy/release:Cargo.toml",
@@ -609,12 +682,15 @@ crate.from_cargo(
         "//generation/result:Cargo.toml",
         "//quality/adapter:Cargo.toml",
         "//quality/tools/javascript/launcher:Cargo.toml",
-        "//quality/evaluator:Cargo.toml",
         "//quality/markdown:Cargo.toml",
         "//quality/result:Cargo.toml",
         "//quality/runner:Cargo.toml",
         "//tools/docs/ir/ir:Cargo.toml",
         "//tools/docs/rust/extract:Cargo.toml",
+        "//tools/docs/typescript/extract:Cargo.toml",
+        "//tools/docs/go/extract:Cargo.toml",
+        "//tools/docs/ruby/extract:Cargo.toml",
+        "//tools/docs/powershell/extract:Cargo.toml",
         "//tools/docs/site/browser:Cargo.toml",
         "//tools/docs/site/aggregate:Cargo.toml",
         "//tools/docs/site/build:Cargo.toml",
@@ -646,6 +722,10 @@ _consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl
 _consumer_hub_repo(
     name = "consumer_hub",
 )
+
+_docs_consumer_repo = use_repo_rule("//tools/docs/rust/fixture/consumer:repos.bzl", "docs_consumer_repo")
+
+_docs_consumer_repo(name = "dx_docs_consumer")
 
 _consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_repo")
 
@@ -725,7 +805,10 @@ _web_consumer_repo(
 _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 cosign = use_extension("//deploy/release:repos.bzl", "cosign")
-use_repo(cosign, "cosign_linux_amd64")
+use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
+
+nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
+use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64")
 
 _http_archive(
     name = "shared_tasks_adler2",
@@ -849,6 +932,10 @@ use_repo(
     "dx_gitleaks_linux_x86_64",
     "dx_gitleaks_macos_arm64",
     "dx_gitleaks_windows_x86_64",
+    "dx_hadolint_linux_arm64",
+    "dx_hadolint_linux_x86_64",
+    "dx_hadolint_macos_arm64",
+    "dx_hadolint_windows_x86_64",
     "dx_jsonnetfmt_linux_arm64",
     "dx_jsonnetfmt_linux_x86_64",
     "dx_jsonnetfmt_macos_arm64",
@@ -857,6 +944,10 @@ use_repo(
     "dx_keep_sorted_linux_x86_64",
     "dx_keep_sorted_macos_arm64",
     "dx_keep_sorted_windows_x86_64",
+    "dx_pkl_linux_arm64",
+    "dx_pkl_linux_x86_64",
+    "dx_pkl_macos_arm64",
+    "dx_pkl_windows_x86_64",
     "dx_ruff_linux_arm64",
     "dx_ruff_linux_x86_64",
     "dx_ruff_macos_arm64",
@@ -910,6 +1001,9 @@ use_repo(
     "dx_mdbook_windows_x86_64",
 )
 
+yard = use_extension("//tools/docs/ruby:repos.bzl", "yard")
+use_repo(yard, "dx_yard")
+
 firefox = use_extension("//tools/docs/site/browser:repos.bzl", "firefox")
 use_repo(
     firefox,
@@ -928,6 +1022,9 @@ use_repo(
     "dx_wasmtime_macos_x86_64",
     "dx_wasmtime_windows_x86_64",
 )
+
+cc_tools = use_extension("//quality/tools/cc:extension.bzl", "cc_tools")
+use_repo(cc_tools, "cc_cppcheck")
 
 jvm_tools = use_extension("//quality/tools/jvm:extension.bzl", "jvm_tools")
 use_repo(

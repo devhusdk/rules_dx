@@ -1,8 +1,8 @@
 """Unit tests proving optional-provider forwarding warns instead of silently skipping."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 def wrapper_optional_forward_tests(name):
@@ -33,20 +33,20 @@ def wrapper_optional_forward_tests(name):
             expect_equal(
                 "partial skip reports only the missing provider",
                 dx_missing_optional_names(
-                    ["InstrumentedFilesInfo", "OutputGroupInfo"],
-                    ["OutputGroupInfo"],
+                    ["DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo"],
+                    ["DotnetAssemblyCompileInfo"],
                 ),
-                ["InstrumentedFilesInfo"],
+                ["DotnetAssemblyRuntimeInfo"],
             ),
             expect_equal(
                 "partial warning names the missing provider and the forward count",
                 dx_optional_forward_warning(
-                    "javascript_*",
-                    "//js:bin_upstream",
-                    ["InstrumentedFilesInfo", "OutputGroupInfo"],
-                    ["InstrumentedFilesInfo"],
+                    "csharp_*",
+                    "//cs:bin_upstream",
+                    ["DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo"],
+                    ["DotnetAssemblyRuntimeInfo"],
                 ),
-                "javascript_*: upstream //js:bin_upstream omits optional provider(s) InstrumentedFilesInfo (forwarded 1 of 2)",
+                "csharp_*: upstream //cs:bin_upstream omits optional provider(s) DotnetAssemblyRuntimeInfo (forwarded 1 of 2)",
             ),
             expect_equal(
                 "total skip reports every requested provider",
@@ -151,6 +151,46 @@ def wrapper_shape_kwargs_tests(name):
         mode = "unit",
         checks = [
             expect_equal(
+                "src path joins package",
+                dx_src_path("pkg", "a/B.java"),
+                "pkg/a/B.java",
+            ),
+            expect_equal(
+                "src path strips colon",
+                dx_src_path("pkg", ":a/B.java"),
+                "pkg/a/B.java",
+            ),
+            expect_equal(
+                "src path resolves absolute label",
+                dx_src_path("pkg", "//p:a/B.java"),
+                "p/a/B.java",
+            ),
+            expect_equal(
+                "src path resolves shorthand label",
+                dx_src_path("pkg", "//p/q"),
+                "p/q/q",
+            ),
+            expect_equal(
+                "src path resolves root label",
+                dx_src_path("pkg", "//:B.java"),
+                "B.java",
+            ),
+            expect_equal(
+                "src path at root has no leading slash",
+                dx_src_path("", "a/B.java"),
+                "a/B.java",
+            ),
+            expect_equal(
+                "src path skips external labels",
+                dx_src_path("pkg", "@x//p:B.java"),
+                None,
+            ),
+            expect_equal(
+                "src path skips non-strings",
+                dx_src_path("pkg", None),
+                None,
+            ),
+            expect_equal(
                 "library upstream without tags stays private",
                 dx_wrap_upstream_kwargs({}, ["lib.cc"]),
                 {"srcs": ["lib.cc"], "tags": ["manual"], "visibility": ["//visibility:private"]},
@@ -223,6 +263,31 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "binary drops non-forwarded attrs",
                 dx_binary_forward_kwargs({"timeout": "short", "copts": ["-Werror"]}),
+                {},
+            ),
+            expect_equal(
+                "binary testonly rides forwarder",
+                dx_binary_forward_kwargs({"testonly": True}),
+                {"testonly": True},
+            ),
+            expect_equal(
+                "binary args ride forwarder",
+                dx_binary_forward_kwargs({"args": ["--x"]}),
+                {"args": ["--x"]},
+            ),
+            expect_equal(
+                "binary args carry data",
+                dx_binary_forward_kwargs({"args": ["--x"], "data": [":d"]}),
+                {"args": ["--x"], "data": [":d"]},
+            ),
+            expect_equal(
+                "binary data alone stays upstream",
+                dx_binary_forward_kwargs({"data": [":d"]}),
+                {},
+            ),
+            expect_equal(
+                "binary none args stay empty",
+                dx_binary_forward_kwargs({"args": None, "data": [":d"]}),
                 {},
             ),
             expect_equal(
@@ -331,6 +396,11 @@ def wrapper_shape_kwargs_tests(name):
                 },
             ),
             expect_equal(
+                "library forward keeps select compatibility",
+                dx_wrap_forward_kwargs({"target_compatible_with": select({"//conditions:default": ["@platforms//:incompatible"]})}).keys(),
+                ["target_compatible_with"],
+            ),
+            expect_equal(
                 "library forward drops hdrs and copts",
                 dx_wrap_forward_kwargs({"copts": ["-Werror"], "hdrs": ["a.h"], "testonly": False}),
                 {"testonly": False},
@@ -414,6 +484,16 @@ def wrapper_shape_kwargs_tests(name):
                 "test forward rides exec_properties",
                 dx_test_forward_kwargs({"exec_properties": {"Pool": "gpu"}}),
                 {"exec_properties": {"Pool": "gpu"}},
+            ),
+            expect_equal(
+                "test forward drops other exec group properties",
+                dx_test_forward_kwargs({"exec_properties": {"cpp_link.Pool": "c"}}),
+                {},
+            ),
+            expect_equal(
+                "test forward keeps test and unprefixed properties",
+                dx_test_forward_kwargs({"exec_properties": {"Pool": "a", "test.Pool": "b", "cpp_link.Pool": "c"}}),
+                {"exec_properties": {"Pool": "a", "test.Pool": "b"}},
             ),
             expect_equal(
                 "test forward rides exec_compatible_with",
@@ -532,6 +612,26 @@ def wrapper_resource_tags_tests(name):
         mode = "unit",
         checks = [
             expect_equal(
+                "forward kwargs add resource tags to empty tags",
+                dx_test_forward_kwargs({"size": "large", "tags": []})["tags"],
+                ["resources:cpu:2", "resources:memory:2048"],
+            ),
+            expect_equal(
+                "forward kwargs add resource tags after user tags",
+                dx_test_forward_kwargs({"size": "large", "tags": ["x"]})["tags"],
+                ["x", "resources:cpu:2", "resources:memory:2048"],
+            ),
+            expect_equal(
+                "forward kwargs keep small empty tags empty",
+                dx_test_forward_kwargs({"size": "small", "tags": []})["tags"],
+                [],
+            ),
+            expect_equal(
+                "upstream kwargs keep size and hints and mark manual",
+                dx_test_upstream_kwargs({"tags": ["x"], "size": "large", "aspect_hints": ["//h"]}, None),
+                {"tags": ["x", "manual"], "size": "large", "aspect_hints": ["//h"], "visibility": ["//visibility:private"]},
+            ),
+            expect_equal(
                 "small tests declare nothing",
                 dx_test_resource_tags("small", ["a"]),
                 ["a"],
@@ -580,6 +680,24 @@ def wrapper_resource_tags_tests(name):
                 "bundler actions grow on macOS",
                 [dx_bundler_resources("linux", 0), dx_bundler_resources("osx", 0)],
                 [{"cpu": 1, "memory": 1536}, {"cpu": 1, "memory": 2048}],
+            ),
+            expect_equal(
+                "light quality actions grow on macOS",
+                [dx_quality_resource_set(["light"])("linux", 0), dx_quality_resource_set(["light"])("osx", 0)],
+                [{"cpu": 1, "memory": 512}, {"cpu": 1, "memory": 1024}],
+            ),
+            expect_equal(
+                "quality actions take the costliest tier",
+                [
+                    dx_quality_resource_set(["light", "heavy"])("linux", 0),
+                    dx_quality_resource_set(["medium", "light"])("linux", 0),
+                ],
+                [{"cpu": 2, "memory": 2048}, {"cpu": 1, "memory": 1024}],
+            ),
+            expect_equal(
+                "quality actions with no launched tool are light",
+                dx_quality_resource_set([])("linux", 0),
+                {"cpu": 1, "memory": 512},
             ),
         ],
     )

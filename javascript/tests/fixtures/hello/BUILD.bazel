@@ -26,6 +26,7 @@ javascript_test(
     data = [":hello_lib"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
 )
 
 dx_hello_output_test(
@@ -40,6 +41,25 @@ javascript_js_test(
     aspect_hints = ["//:biome_config"],
     data = [":hello_lib"],
     entry_point = "plain_test.js",
+)
+
+javascript_js_test(
+    name = "env_forward_test",
+    srcs = ["plain_test.js"],
+    aspect_hints = ["//:biome_config"],
+    entry_point = "plain_test.js",
+    env = {"FOO": "1"},
+    tags = ["manual"],
+)
+
+javascript_js_test(
+    name = "plain_large_test",
+    size = "large",
+    srcs = ["plain_test.js"],
+    aspect_hints = ["//:biome_config"],
+    data = [":hello_lib"],
+    entry_point = "plain_test.js",
+    tags = ["manual"],
 )
 
 real_source_target(

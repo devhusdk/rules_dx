@@ -8,4 +8,4 @@ initial 1
 initial WARNING gofumpt - matrix/gofumpt_dirty.go 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/gofumpt_dirty.go 76 82 "fixed"
+replacement matrix/gofumpt_dirty.go 58 114 "o644\n\nfunc greet(name string) string { return \"hello \" + name "

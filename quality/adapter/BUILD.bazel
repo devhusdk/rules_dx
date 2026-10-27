@@ -1,13 +1,14 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/visibility:visibility.bzl", "VIS_QUALITY_CLI")
+load("//tools/visibility:visibility.bzl", "VIS_QUALITY", "VIS_QUALITY_CLI")
 
-package(default_visibility = VIS_QUALITY_CLI)
+package(default_visibility = VIS_QUALITY)
 
 rust_library(
     name = "quality_adapter",
     srcs = [
+        "src/api_spec_preflight.rs",
         "src/commands.rs",
         "src/commands_tests.rs",
         "src/exec.rs",
@@ -26,7 +27,6 @@ rust_library(
         "src/parsers/djlint.rs",
         "src/parsers/erlfmt.rs",
         "src/parsers/errcheck.rs",
-        "src/parsers/error_prone.rs",
         "src/parsers/eslint.rs",
         "src/parsers/fantomas.rs",
         "src/parsers/flake8.rs",
@@ -35,6 +35,7 @@ rust_library(
         "src/parsers/gofumpt.rs",
         "src/parsers/google_java_format.rs",
         "src/parsers/govet.rs",
+        "src/parsers/hadolint.rs",
         "src/parsers/jsonnetfmt.rs",
         "src/parsers/keep_sorted.rs",
         "src/parsers/ktfmt.rs",
@@ -51,6 +52,8 @@ rust_library(
         "src/parsers/pylint.rs",
         "src/parsers/qmlformat.rs",
         "src/parsers/qmllint.rs",
+        "src/parsers/redocly.rs",
+        "src/parsers/remark.rs",
         "src/parsers/roslyn.rs",
         "src/parsers/rubocop.rs",
         "src/parsers/ruff.rs",
@@ -67,7 +70,6 @@ rust_library(
         "src/parsers/stylelint.rs",
         "src/parsers/taplo.rs",
         "src/parsers/terraform.rs",
-        "src/parsers/tsc.rs",
         "src/parsers/ty.rs",
         "src/parsers/vale.rs",
         "src/parsers/yamlfmt.rs",
@@ -81,19 +83,9 @@ rust_library(
     crate_name = "quality_adapter",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "line-index",
-            "normpath",
-            "quick-xml",
-            "serde",
-            "serde-sarif",
-            "serde_json",
-            "tempfile",
-            "thiserror",
-            "url",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_adapter",
+        normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
@@ -112,30 +104,20 @@ rust_test(
     ),
     crate = ":quality_adapter",
     data = [
+        "//javascript/ide:node_tool",
+        "//python/ide:python_tool",
         "//tools/testing/process_probe",
-        "@python_3_12//:files",
-        "@python_3_12//:python3",
-        "@rules_nodejs//nodejs:current_node_runtime",
     ],
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
-        "DX_TEST_NODE": "$(NODE_PATH)",
-        "DX_TEST_PYTHON": "$(rootpath @python_3_12//:python3)",
+        "DX_TEST_NODE": "$(rootpath //javascript/ide:node_tool)",
+        "DX_TEST_PYTHON": "$(rootpath //python/ide:python_tool)",
     },
-    toolchains = ["@rules_nodejs//nodejs:current_node_runtime"],
-    deps = crate_deps(
-        [
-            "line-index",
-            "normpath",
-            "quick-xml",
-            "serde",
-            "serde-sarif",
-            "serde_json",
-            "tempfile",
-            "thiserror",
-            "url",
-        ],
+    tags = ["no-remote-exec"],
+    deps = all_crate_deps(
         package_name = "quality/quality_adapter",
+        normal = True,
+        normal_dev = True,
     ) + [
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",
@@ -154,10 +136,13 @@ rust_clippy_test(
     targets = [":quality_adapter"],
 )
 
-exports_files([
-    "Cargo.toml",
-    "src/lib.rs",
-])
+exports_files(
+    [
+        "Cargo.toml",
+        "src/lib.rs",
+    ],
+    visibility = VIS_QUALITY_CLI,
+)
 
 real_source_target(
     name = "corpus_starlark",

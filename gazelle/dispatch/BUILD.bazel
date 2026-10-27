@@ -24,6 +24,7 @@ go_library(
         "//gazelle/javascript",
         "//gazelle/kotlin",
         "//gazelle/mdx",
+        "//gazelle/powershell",
         "//gazelle/python",
         "//gazelle/ruby",
         "//gazelle/rust",
@@ -51,6 +52,7 @@ gazelle_binary(
         "//gazelle/javascript",
         "//gazelle/kotlin",
         "//gazelle/mdx",
+        "//gazelle/powershell",
         "//gazelle/python",
         "//gazelle/ruby",
         "//gazelle/rust",
@@ -63,7 +65,10 @@ gazelle_binary(
     ],
     tags = ["no-coverage"],
     version = 1,
-    visibility = ["//dx:__pkg__"],
+    visibility = [
+        "//dx:__pkg__",
+        "//gazelle:__subpackages__",
+    ],
 )
 
 go_test(

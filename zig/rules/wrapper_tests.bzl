@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "zig_import_name", "zig_quality_srcs")
+load(":defs.bzl", "ZIG_QUALITY_TOOLS", "zig_import_name", "zig_quality_srcs")
 
 def zig_wrapper_contract_tests(name):
     """Instantiates Zig wrapper contract tests."""
@@ -10,6 +10,11 @@ def zig_wrapper_contract_tests(name):
         name,
         file_classes = ["zig"],
         extra_checks = [
+            expect_equal(
+                "wrappers carry zig_fmt",
+                sorted(ZIG_QUALITY_TOOLS.keys()),
+                ["zig_fmt"],
+            ),
             expect_equal(
                 "main leads the owned sources",
                 zig_quality_srcs("main.zig", ["util.zig"]),

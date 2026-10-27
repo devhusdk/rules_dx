@@ -8,6 +8,8 @@ pub enum AdoptError {
     ReadVersionPin { detail: String },
     #[error("read MODULE.bazel: {detail}")]
     ReadModuleFile { detail: String },
+    #[error("MODULE.bazel or its includes: {detail}")]
+    LoadModuleFile { detail: String },
     #[error("refuses empty version")]
     EmptyVersion,
     #[error("launcher version is not semver: {version:?}")]
@@ -61,6 +63,8 @@ pub enum AdoptError {
     InitInvalidModule { module: String, reason: String },
     #[error("scaffold path escapes the workspace root: {path}")]
     ScaffoldEscapesRoot { path: String },
+    #[error("scan workspace for CUDA sources: {detail}")]
+    WorkspaceScan { detail: String },
     #[error("invalid invocation defaults: {detail}")]
     InvalidDefaults { detail: String },
     /// A boolean environment default is neither a documented on nor a documented off.
@@ -74,17 +78,8 @@ pub enum AdoptError {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{plan_watch, AdoptError as FacadeError};
     use super::AdoptError;
-
-    #[test]
-    fn error_reexports_match_local_definitions() {
-        assert_eq!(FacadeError::EmptyVersion, AdoptError::EmptyVersion);
-        assert_eq!(
-            FacadeError::WatchRefusesCi.to_string(),
-            AdoptError::WatchRefusesCi.to_string()
-        );
-    }
+    use crate::watch::plan_watch;
 
     #[test]
     fn watch_errors_render_stably() {
@@ -177,6 +172,13 @@ mod tests {
             }
             .to_string(),
             "read MODULE.bazel: denied"
+        );
+        assert_eq!(
+            AdoptError::LoadModuleFile {
+                detail: "bad".to_owned()
+            }
+            .to_string(),
+            "MODULE.bazel or its includes: bad"
         );
         assert_eq!(
             plan_watch("docs", false).unwrap_err().to_string(),

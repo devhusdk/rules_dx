@@ -12,6 +12,7 @@
 
 pub mod adopt;
 pub mod args;
+mod disk;
 pub mod exec;
 pub mod finalize;
 pub mod generate;
@@ -23,13 +24,12 @@ pub mod skew;
 pub mod slots;
 #[cfg(test)]
 mod test_support;
-pub mod worktree;
 
 pub use args::{ArgsError, Command, Invocation, OperationMode, ReportRequest};
 pub use exec::{execute, Env};
 pub use finalize::{
-    finalize, FinalizeError, FinalizeInput, FAILURE_MISSING_FILE, FAILURE_UNREADABLE_FILE,
-    FAILURE_WRITE_MISMATCH,
+    finalize, FinalizeError, FinalizeInput, Finalized, GazelleStatus, IntendedResult,
+    FAILURE_MISSING_FILE, FAILURE_UNREADABLE_FILE, FAILURE_WRITE_MISMATCH,
 };
 pub use generate::{
     ensure_mode, manifest_is_check, project, refused_lines, render_diff, text_lines, ProjectedFile,

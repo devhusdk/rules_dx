@@ -13,7 +13,27 @@ pub struct FinalizeInput<'a> {
     pub intended_json: &'a [u8],
     pub workspace: &'a Path,
     pub check: bool,
-    pub gazelle_ok: bool,
+    pub bazel_code: i32,
+    pub patch_written: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GazelleStatus {
+    Completed,
+    Failed(i32),
+}
+
+#[derive(Debug)]
+pub struct Finalized {
+    pub manifest: GenerationManifest,
+    pub gazelle: GazelleStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IntendedResult {
+    Clean,
+    DiffFound,
 }
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
@@ -57,6 +77,7 @@ struct IntendedPayload {
     schema_major: u32,
     schema_minor: u32,
     mode: String,
+    result: IntendedResult,
     #[serde(default)]
     scopes: Vec<IntendedScope>,
     #[serde(default)]
@@ -134,7 +155,24 @@ fn default_outcome(workspace: &Path, path: &str, intended: &[u8]) -> (i32, Strin
     }
 }
 
-pub fn finalize(input: &FinalizeInput<'_>) -> Result<GenerationManifest, FinalizeError> {
+fn gazelle_status(
+    input: &FinalizeInput<'_>,
+    result: IntendedResult,
+    witnessed_complete: bool,
+) -> GazelleStatus {
+    let explained_diff = input.check
+        && input.bazel_code == 1
+        && input.patch_written
+        && result == IntendedResult::DiffFound
+        && witnessed_complete;
+    if input.bazel_code == 0 || explained_diff {
+        GazelleStatus::Completed
+    } else {
+        GazelleStatus::Failed(input.bazel_code)
+    }
+}
+
+pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
     let payload: IntendedPayload = serde_json::from_slice(input.intended_json)
         .map_err(|err| FinalizeError::Malformed(format!("invalid intended JSON: {err}")))?;
     if payload.schema_major != generation_result::SCHEMA_MAJOR {
@@ -152,8 +190,23 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<GenerationManifest, Finaliz
             payload.mode,
         )));
     }
+    match (payload.result, payload.files.is_empty()) {
+        (IntendedResult::DiffFound, true) => {
+            return Err(FinalizeError::Malformed(
+                "result diff_found lists no files".to_owned(),
+            ));
+        }
+        (IntendedResult::Clean, false) => {
+            return Err(FinalizeError::Malformed(format!(
+                "result clean lists {} files",
+                payload.files.len(),
+            )));
+        }
+        _ => {}
+    }
     let witnessed_complete = payload.scopes.iter().all(|s| s.results_complete);
-    if input.check && !witnessed_complete && !input.gazelle_ok {
+    let gazelle = gazelle_status(input, payload.result, witnessed_complete);
+    if input.check && !witnessed_complete && gazelle != GazelleStatus::Completed {
         return Err(FinalizeError::IncompleteCheck);
     }
     for file in &payload.files {
@@ -171,7 +224,7 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<GenerationManifest, Finaliz
             results_complete: Some(if input.check {
                 scope.results_complete
             } else {
-                input.gazelle_ok && scope.results_complete
+                gazelle == GazelleStatus::Completed && scope.results_complete
             }),
         })
         .collect();
@@ -250,7 +303,7 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<GenerationManifest, Finaliz
         ignored_imports,
     };
     generation_result::validate(&manifest).map_err(FinalizeError::Invalid)?;
-    Ok(manifest)
+    Ok(Finalized { manifest, gazelle })
 }
 
 #[cfg(test)]
@@ -261,7 +314,7 @@ mod tests {
     fn payload(mode: &str, results_complete: bool) -> Vec<u8> {
         format!(
             concat!(
-                r#"{{"schema_major":1,"schema_minor":0,"mode":"{mode}","#,
+                r#"{{"schema_major":1,"schema_minor":1,"mode":"{mode}","result":"diff_found","#,
                 r#""scopes":[{{"value":"//...","results_complete":{complete}}}],"#,
                 r#""files":[{{"path":"rust/tests/fixtures/hello/BUILD.bazel","scope_index":0,"#,
                 r#""original_content":"YWJjCg==","#,
@@ -290,9 +343,11 @@ mod tests {
             intended_json: &payload("default", true),
             workspace: dir.path(),
             check: false,
-            gazelle_ok: true,
+            bazel_code: 0,
+            patch_written: false,
         })
-        .unwrap();
+        .unwrap()
+        .manifest;
         assert_eq!(manifest.mode, Mode::Default as i32);
         let file = manifest.files.first().unwrap();
         assert_eq!(file.outcome, WriteOutcome::Applied as i32);
@@ -322,9 +377,11 @@ mod tests {
                 intended_json: &payload("default", true),
                 workspace,
                 check: false,
-                gazelle_ok: true,
+                bazel_code: 0,
+                patch_written: false,
             })
             .unwrap()
+            .manifest
             .files
             .pop()
             .unwrap()
@@ -359,9 +416,11 @@ mod tests {
             intended_json: &payload("check", true),
             workspace: dir.path(),
             check: true,
-            gazelle_ok: true,
+            bazel_code: 0,
+            patch_written: false,
         })
-        .unwrap();
+        .unwrap()
+        .manifest;
         assert_eq!(manifest.mode, Mode::Check as i32);
         let file = manifest.files.first().unwrap();
         assert_eq!(file.outcome, WriteOutcome::Unspecified as i32);
@@ -376,9 +435,11 @@ mod tests {
             intended_json: &payload("check", true),
             workspace: dir.path(),
             check: true,
-            gazelle_ok: false,
+            bazel_code: 2,
+            patch_written: false,
         })
-        .expect("complete check witness finalizes");
+        .expect("complete check witness finalizes")
+        .manifest;
         assert_eq!(manifest.mode, Mode::Check as i32);
         assert_eq!(manifest.scopes[0].results_complete, Some(true));
         let file = manifest.files.first().expect("witness file");
@@ -394,7 +455,8 @@ mod tests {
             intended_json: &payload("check", false),
             workspace: dir.path(),
             check: true,
-            gazelle_ok: true,
+            bazel_code: 0,
+            patch_written: false,
         })
         .unwrap_err();
         assert!(matches!(err, FinalizeError::Invalid(_)), "{err}");
@@ -403,7 +465,7 @@ mod tests {
     #[test]
     fn create_file_finalizes() {
         let json = concat!(
-            r#"{"schema_major":1,"schema_minor":0,"mode":"default","#,
+            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","#,
             r#""scopes":[{"value":"//...","results_complete":true}],"#,
             r#""files":[{"path":"new/BUILD.bazel","scope_index":0,"#,
             r#""create_content":"eAo="}],"ignored_imports":[]}"#,
@@ -415,9 +477,11 @@ mod tests {
             intended_json: json.as_bytes(),
             workspace: dir.path(),
             check: false,
-            gazelle_ok: true,
+            bazel_code: 0,
+            patch_written: false,
         })
-        .unwrap();
+        .unwrap()
+        .manifest;
         let file = manifest.files.first().unwrap();
         assert!(matches!(
             file.change,
@@ -429,12 +493,13 @@ mod tests {
     #[test]
     fn rejects_garbage_schema_mode_and_shape() {
         let dir = dx_test_scratch::scratch("dx-finalize-test-");
-        let run = |json: &[u8], check: bool, gazelle_ok: bool| {
+        let run = |json: &[u8], check: bool, completed: bool| {
             finalize(&FinalizeInput {
                 intended_json: json,
                 workspace: dir.path(),
                 check,
-                gazelle_ok,
+                bazel_code: if completed { 0 } else { 1 },
+                patch_written: false,
             })
             .unwrap_err()
         };
@@ -446,7 +511,8 @@ mod tests {
             run(br#"{"schema_major":1}"#, false, true),
             FinalizeError::Malformed(_)
         ));
-        let bad_schema = br#"{"schema_major":2,"schema_minor":0,"mode":"default"}"#;
+        let bad_schema =
+            br#"{"schema_major":2,"schema_minor":1,"mode":"default","result":"clean"}"#;
         assert!(matches!(
             run(bad_schema, false, true),
             FinalizeError::Malformed(_)
@@ -473,14 +539,14 @@ mod tests {
         ));
         assert!(matches!(
             run(
-                br#"{"schema_major":1,"schema_minor":0,"mode":"default","bogus":[]}"#,
+                br#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"clean","bogus":[]}"#,
                 false,
                 true
             ),
             FinalizeError::Malformed(_)
         ));
         let both = concat!(
-            r#"{"schema_major":1,"schema_minor":0,"mode":"default","scopes":[],"#,
+            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","scopes":[],"#,
             r#""files":[{"path":"a","create_content":"eA==","original_content":"eQ=="}],"#,
             r#""ignored_imports":[]}"#,
         );
@@ -491,7 +557,7 @@ mod tests {
             "unexpected message: {both_err}"
         );
         let bad_b64 = concat!(
-            r#"{"schema_major":1,"schema_minor":0,"mode":"default","scopes":[],"#,
+            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","scopes":[],"#,
             r#""files":[{"path":"a","create_content":"!!!"}],"ignored_imports":[]}"#,
         );
         assert!(matches!(
@@ -499,7 +565,7 @@ mod tests {
             FinalizeError::Malformed(_)
         ));
         let bad_edits = concat!(
-            r#"{"schema_major":1,"schema_minor":0,"mode":"default","scopes":[],"#,
+            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","scopes":[],"#,
             r#""files":[{"path":"a","original_content":"YWJjCg==","#,
             r#""edits":[{"start_byte":9,"end_byte":2,"replacement":"eA=="}]}],"#,
             r#""ignored_imports":[]}"#,
@@ -534,7 +600,7 @@ mod tests {
         ] {
             let json = format!(
                 concat!(
-                    r#"{{"schema_major":1,"schema_minor":0,"mode":"default","#,
+                    r#"{{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","#,
                     r#""scopes":[{{"value":"//...","results_complete":true}}],"#,
                     r#""files":[{{"path":{path:?},"scope_index":0,"#,
                     r#""create_content":"eHl6Cg=="}}],"#,
@@ -546,7 +612,8 @@ mod tests {
                 intended_json: json.as_bytes(),
                 workspace: dir.path(),
                 check: false,
-                gazelle_ok: true,
+                bazel_code: 0,
+                patch_written: false,
             })
             .unwrap_err();
             assert!(matches!(err, FinalizeError::Malformed(_)), "{path}: {err}");
@@ -564,7 +631,7 @@ mod tests {
     #[test]
     fn crate_validation_still_guards_structural_rules() {
         let json = concat!(
-            r#"{"schema_major":1,"schema_minor":0,"mode":"default","#,
+            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"diff_found","#,
             r#""scopes":[{"value":"//...","results_complete":true}],"#,
             r#""files":[{"path":"a","scope_index":7,"create_content":"eA=="}],"#,
             r#""ignored_imports":[]}"#,
@@ -574,7 +641,8 @@ mod tests {
             intended_json: json.as_bytes(),
             workspace: dir.path(),
             check: false,
-            gazelle_ok: true,
+            bazel_code: 0,
+            patch_written: false,
         })
         .unwrap_err();
         assert!(matches!(err, FinalizeError::Invalid(_)), "{err}");
@@ -589,7 +657,8 @@ mod tests {
             intended_json: &payload("check", false),
             workspace: dir.path(),
             check: true,
-            gazelle_ok: false,
+            bazel_code: 1,
+            patch_written: false,
         })
         .unwrap_err();
         assert_eq!(
@@ -603,9 +672,11 @@ mod tests {
             intended_json: &payload("default", false),
             workspace: dir.path(),
             check: false,
-            gazelle_ok: true,
+            bazel_code: 0,
+            patch_written: false,
         })
-        .unwrap();
+        .unwrap()
+        .manifest;
         assert_eq!(manifest.scopes[0].results_complete, Some(false));
     }
 
@@ -629,7 +700,7 @@ mod tests {
     #[test]
     fn scope_shape_round_trip() {
         let json = concat!(
-            r#"{"schema_major":1,"schema_minor":0,"mode":"default","#,
+            r#"{"schema_major":1,"schema_minor":1,"mode":"default","result":"clean","#,
             r#""scopes":[{"value":"//rust/...","results_complete":true}],"#,
             r#""files":[],"ignored_imports":[]}"#,
         );
@@ -638,9 +709,11 @@ mod tests {
             intended_json: json.as_bytes(),
             workspace: dir.path(),
             check: false,
-            gazelle_ok: true,
+            bazel_code: 0,
+            patch_written: false,
         })
-        .unwrap();
+        .unwrap()
+        .manifest;
         assert_eq!(
             manifest.scopes,
             vec![Scope {
@@ -659,6 +732,107 @@ mod tests {
         assert!(buf.contains("malformed intended manifest"));
     }
 
+    fn witness(mode: &str, result: &str, files: bool) -> Vec<u8> {
+        let files = if files {
+            r#"[{"path":"a/BUILD.bazel","scope_index":0,"create_content":"eAo="}]"#
+        } else {
+            "[]"
+        };
+        format!(
+            concat!(
+                r#"{{"schema_major":1,"schema_minor":1,"mode":"{mode}","result":"{result}","#,
+                r#""scopes":[{{"value":"//...","results_complete":true}}],"#,
+                r#""files":{files},"ignored_imports":[]}}"#
+            ),
+            mode = mode,
+            result = result,
+            files = files,
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn result_is_required_and_must_match_files() {
+        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        let run = |json: &[u8]| {
+            finalize(&FinalizeInput {
+                intended_json: json,
+                workspace: dir.path(),
+                check: true,
+                bazel_code: 0,
+                patch_written: false,
+            })
+        };
+        let missing = concat!(
+            r#"{"schema_major":1,"schema_minor":1,"mode":"check","#,
+            r#""scopes":[],"files":[],"ignored_imports":[]}"#,
+        );
+        let err = run(missing.as_bytes()).unwrap_err();
+        assert!(format!("{err}").contains("missing field `result`"), "{err}");
+        let err = run(&witness("check", "unknown", false)).unwrap_err();
+        assert!(matches!(err, FinalizeError::Malformed(_)), "{err}");
+        let err = run(&witness("check", "diff_found", false)).unwrap_err();
+        assert_eq!(
+            format!("{err}"),
+            "malformed intended manifest: result diff_found lists no files"
+        );
+        let err = run(&witness("check", "clean", true)).unwrap_err();
+        assert_eq!(
+            format!("{err}"),
+            "malformed intended manifest: result clean lists 1 files"
+        );
+        assert!(run(&witness("check", "clean", false)).is_ok());
+        assert!(run(&witness("check", "diff_found", true)).is_ok());
+    }
+
+    #[test]
+    fn gazelle_status_explains_only_a_witnessed_check_diff() {
+        let dir = workspace_with(b"");
+        std::fs::create_dir_all(dir.path().join("a")).unwrap();
+        std::fs::write(dir.path().join("a/BUILD.bazel"), b"x\n").unwrap();
+        let status = |mode: &str, result: &str, code: i32, patch: bool| {
+            let files = result == "diff_found";
+            finalize(&FinalizeInput {
+                intended_json: &witness(mode, result, files),
+                workspace: dir.path(),
+                check: mode == "check",
+                bazel_code: code,
+                patch_written: patch,
+            })
+            .unwrap()
+            .gazelle
+        };
+        use super::GazelleStatus::{Completed, Failed};
+        for (mode, result, code, patch, want) in [
+            ("check", "diff_found", 1, true, Completed),
+            ("check", "diff_found", 1, false, Failed(1)),
+            ("check", "clean", 1, true, Failed(1)),
+            ("check", "diff_found", 2, true, Failed(2)),
+            ("check", "diff_found", 2, false, Failed(2)),
+            ("default", "diff_found", 1, true, Failed(1)),
+            ("default", "diff_found", 1, false, Failed(1)),
+            ("check", "clean", 0, false, Completed),
+            ("check", "diff_found", 0, true, Completed),
+            ("default", "clean", 0, false, Completed),
+            ("default", "diff_found", 0, false, Completed),
+        ] {
+            assert_eq!(
+                status(mode, result, code, patch),
+                want,
+                "{mode} {result} exit {code} patch {patch}"
+            );
+        }
+        let incomplete = finalize(&FinalizeInput {
+            intended_json: &payload("check", false),
+            workspace: dir.path(),
+            check: true,
+            bazel_code: 1,
+            patch_written: true,
+        })
+        .unwrap_err();
+        assert_eq!(incomplete, FinalizeError::IncompleteCheck);
+    }
+
     #[test]
     fn go_emitted_golden_finalizes() {
         let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
@@ -668,13 +842,16 @@ mod tests {
             .join("gazelle/common/testdata/intended_manifest.json");
         let json = std::fs::read(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
         let dir = dx_test_scratch::scratch("dx-finalize-test-");
-        let manifest = finalize(&FinalizeInput {
+        let finalized = finalize(&FinalizeInput {
             intended_json: &json,
             workspace: dir.path(),
             check: true,
-            gazelle_ok: false,
+            bazel_code: 1,
+            patch_written: true,
         })
         .unwrap_or_else(|err| panic!("Go-emitted manifest does not finalize: {err}"));
+        assert_eq!(finalized.gazelle, GazelleStatus::Completed);
+        let manifest = finalized.manifest;
         assert_eq!(manifest.mode, Mode::Check as i32);
         assert_eq!(manifest.scopes.len(), 2);
         assert!(manifest

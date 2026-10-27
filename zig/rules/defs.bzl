@@ -2,28 +2,21 @@
 
 load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_library = "zig_library", _zig_test = "zig_test")
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 _DX_ZIG_LIBRARY_PROVIDES = [
     _ZigModuleInfo,
     DefaultInfo,
     InstrumentedFilesInfo,
     QualitySourcesInfo,
+    QualityToolsInfo,
 ]
 
+ZIG_QUALITY_TOOLS = {"zig_fmt": Label("//zig/tools:zig")}
+_DX_ZIG_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 _DX_ZIG_SOURCE_SPECS = [("zig", "zig")]
 _DX_ZIG_SOURCE_EXTS = [".zig"]
-
-def _no_coverage_transition_impl(_settings, _attr):
-    """Builds the linked Zig artifact without C coverage instrumentation."""
-    return {"//command_line_option:collect_code_coverage": False}
-
-_no_coverage_transition = transition(
-    implementation = _no_coverage_transition_impl,
-    inputs = [],
-    outputs = ["//command_line_option:collect_code_coverage"],
-)
 
 _zig_library_forward = dx_library_forward_rule(
     provides = _DX_ZIG_LIBRARY_PROVIDES,
@@ -33,23 +26,35 @@ _zig_library_forward = dx_library_forward_rule(
     allow_files = _DX_ZIG_SOURCE_EXTS,
     upstream_providers = [[_ZigModuleInfo]],
     runtime = "besteffort",
+    quality_tools = ZIG_QUALITY_TOOLS,
+)
+
+def _no_coverage_impl(_settings, _attr):
+    """Builds the Zig upstream without coverage instrumentation."""
+    return {"//command_line_option:collect_code_coverage": False}
+
+_no_coverage = transition(
+    implementation = _no_coverage_impl,
+    inputs = [],
+    outputs = ["//command_line_option:collect_code_coverage"],
 )
 
 _zig_binary_forward = dx_executable_forward_rule(
     kind = "executable",
-    provides = DX_EXEC_PROVIDES,
+    provides = _DX_ZIG_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_ZIG_SOURCE_SPECS,
     what = "zig_*",
     allow_files = _DX_ZIG_SOURCE_EXTS,
     upstream_providers = None,
     runtime = "besteffort",
-    upstream_cfg = _no_coverage_transition,
+    quality_tools = ZIG_QUALITY_TOOLS,
+    upstream_cfg = _no_coverage,
 )
 
 _zig_forward_test = dx_executable_forward_rule(
     kind = "test",
-    provides = DX_EXEC_PROVIDES,
+    provides = _DX_ZIG_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_ZIG_SOURCE_SPECS,
     what = "zig_*",
@@ -57,7 +62,8 @@ _zig_forward_test = dx_executable_forward_rule(
     upstream_providers = None,
     extra_attrs = dx_lcov_merger_attr(),
     runtime = "besteffort",
-    upstream_cfg = _no_coverage_transition,
+    quality_tools = ZIG_QUALITY_TOOLS,
+    upstream_cfg = _no_coverage,
 )
 
 def zig_quality_srcs(main, srcs):
@@ -75,19 +81,8 @@ def zig_library(name, main, srcs = None, import_name = None, visibility = None, 
 
 def zig_binary(name, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_binary."""
-    upstream = dx_binary_upstream_kwargs(dict(kwargs, main = main), srcs)
-    upstream["tags"] = dx_upstream_tags(kwargs.get("tags", None))
-    _zig_binary(
-        name = name + "_upstream",
-        **upstream
-    )
-    _zig_binary_forward(
-        name = name,
-        upstream = name + "_upstream",
-        srcs = zig_quality_srcs(main, srcs),
-        visibility = visibility,
-        **dx_binary_forward_kwargs(kwargs)
-    )
+    upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)))
+    dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = zig_quality_srcs(main, srcs), main = main, **kwargs)
 
 def zig_test(name, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_test."""

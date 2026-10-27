@@ -30,26 +30,6 @@ fn lock_fallback_parsers_match_normal_paths() {
             "{key}"
         );
     }
-    for line in [
-        "Demo (1.0.0)",
-        "Demo ()",
-        "(1.0.0)",
-        "Demo )1.0.0(",
-        "Demo",
-        "remote: foo (1.0.0)",
-        "remote (1.0.0)",
-        "remote:foo (1.0.0)",
-        "Demo remote (1.0.0)",
-        "Demo remote: (1.0.0)",
-        "Demo (1.0.0) remote",
-        "Demo (1.0.0) (2.0.0)",
-    ] {
-        assert_eq!(
-            split_paket_line_fallback(line),
-            split_paket_line(line),
-            "{line}"
-        );
-    }
     assert!(parse_cargo_lock(
         "[[package]]\nname = \"\"\nversion = \"1.0.0\"\nsource = \"registry+test\"\n"
     )
@@ -69,9 +49,133 @@ fn pnpm_git_resolution_forms_are_never_assessed_as_registry_packages() {
         assert_eq!(packages.len(), 1);
         assert!(packages[0].is_git, "{resolution}");
     }
-    let packages = parse_pnpm_lock("packages:\n  42: {}\n  'demo@': {}\n  'local@file:../local': {}\n  'linked@link:../local': {}\n  'registry@1.0.0': {}\n").expect("pnpm");
+    let packages = parse_pnpm_lock("packages:\n  'local@file:../local': {}\n  'linked@link:../local': {}\n  'registry@1.0.0': {}\n").expect("pnpm");
     assert_eq!(packages.len(), 1);
     assert_eq!(packages[0].name, "registry");
+    for bad in ["42: {}", "'demo@': {}", "'': {}"] {
+        let text = format!("packages:\n  {bad}\n  'registry@1.0.0': {{}}\n");
+        assert!(parse_pnpm_lock(&text).is_err(), "{bad}");
+    }
+}
+
+fn pnpm_pairs(text: &str) -> Vec<(String, String)> {
+    parse_pnpm_lock(text)
+        .expect("parses")
+        .into_iter()
+        .map(|p| (p.name, p.version))
+        .collect()
+}
+
+fn pair(name: &str, version: &str) -> (String, String) {
+    (name.to_owned(), version.to_owned())
+}
+
+#[test]
+fn pnpm_v6_keys_drop_the_leading_slash() {
+    let text = "lockfileVersion: '6.0'\npackages:\n  /react@18.2.0:\n    resolution: {integrity: sha512-a}\n  /@babel/core@7.0.0:\n    resolution: {integrity: sha512-b}\n  /react-dom@18.2.0(react@18.2.0):\n    resolution: {integrity: sha512-c}\n  /@emotion/react@11.0.0(@types/react@18.0.0)(react@18.2.0):\n    resolution: {integrity: sha512-d}\n";
+    assert_eq!(
+        pnpm_pairs(text),
+        vec![
+            pair("@babel/core", "7.0.0"),
+            pair("@emotion/react", "11.0.0"),
+            pair("react", "18.2.0"),
+            pair("react-dom", "18.2.0"),
+        ]
+    );
+    let lodash = "lockfileVersion: '6.0'\npackages:\n  /lodash@4.17.20:\n    resolution: {integrity: sha512-a}\n";
+    assert_eq!(pnpm_pairs(lodash), vec![pair("lodash", "4.17.20")]);
+}
+
+#[test]
+fn pnpm_v5_keys_split_on_the_last_slash_and_drop_peer_suffixes() {
+    for header in ["lockfileVersion: 5.4", "lockfileVersion: '5.3'"] {
+        let text = format!(
+            "{header}\npackages:\n  /react/18.2.0:\n    resolution: {{integrity: sha512-a}}\n  /@babel/core/7.0.0:\n    resolution: {{integrity: sha512-b}}\n  /react-dom/18.2.0_react@18.2.0:\n    resolution: {{integrity: sha512-c}}\n  /react-dom/18.2.0_react@17.0.0:\n    resolution: {{integrity: sha512-c}}\n  /@emotion/react/11.0.0_@types+react@18.0.0+react@18.2.0:\n    resolution: {{integrity: sha512-d}}\n  /webpack-cli/4.10.0_fzn43tb6bdtdxy2s3aqevve2su:\n    resolution: {{integrity: sha512-e}}\n"
+        );
+        assert_eq!(
+            pnpm_pairs(&text),
+            vec![
+                pair("@babel/core", "7.0.0"),
+                pair("@emotion/react", "11.0.0"),
+                pair("react", "18.2.0"),
+                pair("react-dom", "18.2.0"),
+                pair("webpack-cli", "4.10.0"),
+            ],
+            "{header}"
+        );
+    }
+}
+
+#[test]
+fn pnpm_legacy_git_keys_take_identity_from_the_detail() {
+    for header in ["lockfileVersion: 5.4", "lockfileVersion: '6.0'"] {
+        let text = format!(
+            "{header}\npackages:\n  github.com/owner/repo/abc123:\n    name: repo\n    version: 1.2.3\n    resolution: {{tarball: 'https://codeload.github.com/owner/repo/tar.gz/abc123'}}\n"
+        );
+        let packages = parse_pnpm_lock(&text).expect("parses");
+        assert_eq!(packages.len(), 1, "{header}");
+        assert_eq!(packages[0].name, "repo");
+        assert_eq!(packages[0].version, "1.2.3");
+        assert!(packages[0].is_git);
+    }
+}
+
+#[test]
+fn pnpm_unresolvable_keys_fail_closed_and_name_the_key() {
+    for (text, key) in [
+        (
+            "lockfileVersion: '6.0'\npackages:\n  /react: {}\n",
+            "/react",
+        ),
+        (
+            "lockfileVersion: 5.4\npackages:\n  /react/: {}\n",
+            "/react/",
+        ),
+        (
+            "lockfileVersion: 5.4\npackages:\n  /@scope/x: {}\n",
+            "/@scope/x",
+        ),
+        (
+            "lockfileVersion: 5.4\npackages:\n  github.com/o/r/sha: {}\n",
+            "github.com/o/r/sha",
+        ),
+    ] {
+        let error = parse_pnpm_lock(text).expect_err(key);
+        assert!(error.contains(key), "{error}");
+    }
+    assert!(parse_pnpm_lock("lockfileVersion: abc\npackages:\n  react@1.0.0: {}\n").is_err());
+}
+
+#[test]
+fn pnpm_multi_document_lock_uses_each_documents_key_style() {
+    let text = "---\nlockfileVersion: 5.4\npackages:\n  /pnpm-bin/1.0.0:\n    resolution: {integrity: sha512-a}\n---\nlockfileVersion: '9.0'\npackages:\n  'react@18.2.0':\n    resolution: {integrity: sha512-b}\n";
+    assert_eq!(
+        pnpm_pairs(text),
+        vec![pair("pnpm-bin", "1.0.0"), pair("react", "18.2.0")]
+    );
+}
+
+#[test]
+fn split_pnpm_v5_key_boundaries() {
+    assert_eq!(
+        split_pnpm_v5_key("react/18.2.0"),
+        Some(pair("react", "18.2.0"))
+    );
+    assert_eq!(
+        split_pnpm_v5_key("@a/b/1.0.0_c@2.0.0"),
+        Some(pair("@a/b", "1.0.0"))
+    );
+    for bad in [
+        "react",
+        "react/",
+        "react/1.0.0/x",
+        "@scope/x",
+        "@scope/x/",
+        "/1.0.0",
+        "react/_abc",
+    ] {
+        assert_eq!(split_pnpm_v5_key(bad), None, "{bad}");
+    }
 }
 
 #[test]
@@ -947,6 +1051,26 @@ fn regex_paket_line_keeps_greedy_paren_and_remote_guard() {
     );
     assert!(split_paket_line("remote: foo (1.2.3)").is_none());
     assert!(split_paket_line("no-parens-here").is_none());
+    for (line, expected) in [
+        ("Demo (1.0.0)", Some(("Demo", "1.0.0"))),
+        ("Demo (1.0.0) remote", Some(("Demo", "1.0.0"))),
+        ("Demo (1.0.0) (2.0.0)", Some(("Demo (1.0.0)", "2.0.0"))),
+        ("Demo ()", None),
+        ("(1.0.0)", None),
+        ("Demo )1.0.0(", None),
+        ("Demo", None),
+        ("remote: foo (1.0.0)", None),
+        ("remote (1.0.0)", None),
+        ("remote:foo (1.0.0)", None),
+        ("Demo remote (1.0.0)", None),
+        ("Demo remote: (1.0.0)", None),
+    ] {
+        assert_eq!(
+            split_paket_line(line),
+            expected.map(|(name, version)| (name.to_owned(), version.to_owned())),
+            "{line}"
+        );
+    }
 }
 
 #[test]

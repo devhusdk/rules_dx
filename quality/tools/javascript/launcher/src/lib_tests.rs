@@ -367,11 +367,14 @@ fn a_launcher_without_its_own_runfiles_says_so() {
         "entry=_main/pkg/bin/tool.mjs\nnode=_main/node/node\nrequire=_main/patches/bootstrap.cjs\nwrapper=_main/wrap/node\n",
     );
     let error = plan(&exe, &[]).expect_err("no runfiles");
+    let message = error.to_string();
     assert!(
-        error
-            .to_string()
-            .contains(&dir.join("tool.exe").display().to_string()),
-        "error: {error}"
+        message.contains(&dir.join("tool.exe").display().to_string()),
+        "error: {message}"
+    );
+    assert!(
+        message.contains(&dir.join("tool.exe.runfiles_manifest").display().to_string()),
+        "error: {message}"
     );
     cleanup(&dir);
 }
@@ -405,18 +408,6 @@ mod probe {
 
     use super::{cleanup, staged, temp, write};
 
-    const SCRIPT: &str = r#"#!/bin/sh
-out="${PROBE_OUT:?}"
-for a in "$@"; do printf 'A %s\n' "$a" >>"$out"; done
-printf 'C %s\n' "$(pwd)" >>"$out"
-for v in JS_BINARY__EXECROOT JS_BINARY__RUNFILES JS_BINARY__NODE_BINARY JS_BINARY__NODE_PATCHES JS_BINARY__NODE_WRAPPER JS_BINARY__FS_PATCH_ROOTS JS_BINARY__PATCH_NODE_FS NODE_DISABLE_COMPILE_CACHE; do
-    eval "val=\${$v-}"
-    printf 'E %s=%s\n' "$v" "$val" >>"$out"
-done
-printf 'P %s\n' "$PATH" >>"$out"
-exit "${PROBE_EXIT:-0}"
-"#;
-
     fn declared(key: &str) -> PathBuf {
         let relative = std::env::var(key).unwrap_or_else(|_| panic!("{key} names no binary"));
         let relative = Path::new(&relative);
@@ -430,6 +421,18 @@ exit "${PROBE_EXIT:-0}"
             .find(|candidate| candidate.is_file())
             .unwrap_or_else(|| panic!("{key} names no built binary"))
     }
+
+    const SCRIPT: &str = r#"#!/bin/sh
+out="${PROBE_OUT:?}"
+for a in "$@"; do printf 'A %s\n' "$a" >>"$out"; done
+printf 'C %s\n' "$(pwd)" >>"$out"
+for v in JS_BINARY__EXECROOT JS_BINARY__RUNFILES JS_BINARY__NODE_BINARY JS_BINARY__NODE_PATCHES JS_BINARY__NODE_WRAPPER JS_BINARY__FS_PATCH_ROOTS JS_BINARY__PATCH_NODE_FS NODE_DISABLE_COMPILE_CACHE; do
+    eval "val=\${$v-}"
+    printf 'E %s=%s\n' "$v" "$val" >>"$out"
+done
+printf 'P %s\n' "$PATH" >>"$out"
+exit "${PROBE_EXIT:-0}"
+"#;
 
     struct Run {
         argv: Vec<String>,

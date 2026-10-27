@@ -1,0 +1,2 @@
+# gazelle:resolve scala cats.effect //third_party:cats_effect
+# gazelle:resolve scala scala.xml.Elem //third_party:scala_xml

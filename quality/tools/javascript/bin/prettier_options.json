@@ -1,0 +1,135 @@
+{
+  "overrides": [
+    {
+      "files": "*.sql",
+      "options": {
+        "formatter": "sql-formatter",
+        "language": "sql",
+        "keywordCase": "preserve"
+      }
+    },
+    {
+      "files": "*.bigquery.sql",
+      "options": {
+        "language": "bigquery"
+      }
+    },
+    {
+      "files": "*.db2.sql",
+      "options": {
+        "language": "db2"
+      }
+    },
+    {
+      "files": "*.db2i.sql",
+      "options": {
+        "language": "db2i"
+      }
+    },
+    {
+      "files": "*.hive.sql",
+      "options": {
+        "language": "hive"
+      }
+    },
+    {
+      "files": "*.mariadb.sql",
+      "options": {
+        "language": "mariadb"
+      }
+    },
+    {
+      "files": "*.mysql.sql",
+      "options": {
+        "language": "mysql"
+      }
+    },
+    {
+      "files": "*.n1ql.sql",
+      "options": {
+        "language": "n1ql"
+      }
+    },
+    {
+      "files": "*.plsql.sql",
+      "options": {
+        "language": "plsql"
+      }
+    },
+    {
+      "files": "*.postgresql.sql",
+      "options": {
+        "language": "postgresql"
+      }
+    },
+    {
+      "files": "*.redshift.sql",
+      "options": {
+        "language": "redshift"
+      }
+    },
+    {
+      "files": "*.singlestoredb.sql",
+      "options": {
+        "language": "singlestoredb"
+      }
+    },
+    {
+      "files": "*.snowflake.sql",
+      "options": {
+        "language": "snowflake"
+      }
+    },
+    {
+      "files": "*.spark.sql",
+      "options": {
+        "language": "spark"
+      }
+    },
+    {
+      "files": "*.sqlite.sql",
+      "options": {
+        "language": "sqlite"
+      }
+    },
+    {
+      "files": "*.transactsql.sql",
+      "options": {
+        "language": "transactsql"
+      }
+    },
+    {
+      "files": "*.trino.sql",
+      "options": {
+        "language": "trino"
+      }
+    },
+    {
+      "files": "*.tsql.sql",
+      "options": {
+        "language": "tsql"
+      }
+    },
+    {
+      "files": "*.clickhouse.sql",
+      "options": {
+        "language": "clickhouse"
+      }
+    },
+    {
+      "files": "*.{xml,xsd,xsl,xslt,wsdl}",
+      "options": {
+        "xmlWhitespaceSensitivity": "strict",
+        "xmlQuoteAttributes": "preserve",
+        "xmlSortAttributesByKey": false
+      }
+    },
+    {
+      "files": "*.feature",
+      "options": {
+        "escapeBackslashes": false,
+        "forceNewlineBetweenStepBlocks": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "launcher",
+    srcs = ["launcher.cc"],
+    deps = [
+        "@lua//:liblua",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

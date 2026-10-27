@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-const BANNER_MARKER: &str = "dx-consumer-shared-marker";
-const GREET_MESSAGE: &str = "Hello from the consumer native library, consumer";
-const NOTICE_MARKER: &str = "consumer-release NOTICE";
+fn var(name: &str) -> String {
+    std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"))
+}
 
 fn data(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
@@ -56,9 +56,9 @@ fn host_glibc(stdout: &str) -> (u64, u64) {
 }
 
 #[test]
-fn consumer_archive_checksum_matches() {
-    let tarball = data("DX_CONSUMER_TARBALL");
-    let checksum = data("DX_CONSUMER_CHECKSUM");
+fn archive_checksum_matches() {
+    let tarball = data("DX_ARCHIVE_TARBALL");
+    let checksum = data("DX_ARCHIVE_CHECKSUM");
     let text = std::fs::read_to_string(&checksum).expect("read checksum");
     let expected = text.split_whitespace().next().expect("checksum field");
     let hashed = dx_testing::run(
@@ -87,8 +87,8 @@ fn consumer_archive_checksum_matches() {
 }
 
 #[test]
-fn consumer_archive_marks_only_the_app_executable() {
-    let tarball = data("DX_CONSUMER_TARBALL");
+fn archive_marks_only_the_app_executable() {
+    let tarball = data("DX_ARCHIVE_TARBALL");
     let listed = dx_testing::run(
         &PathBuf::from("tar"),
         &["-tvzf", tarball.to_string_lossy().as_ref()],
@@ -108,21 +108,21 @@ fn consumer_archive_marks_only_the_app_executable() {
         })
         .collect();
     modes.sort();
-    assert_eq!(
-        modes,
-        [
-            ("IDENTITY.txt".to_owned(), "-rw-r--r--".to_owned()),
-            ("NOTICE".to_owned(), "-rw-r--r--".to_owned()),
-            ("consumer_app".to_owned(), "-rwxr-xr-x".to_owned()),
-            ("resources/banner.txt".to_owned(), "-rw-r--r--".to_owned()),
-        ]
-    );
+    let mut expected = vec![
+        ("IDENTITY.txt".to_owned(), "-rw-r--r--".to_owned()),
+        ("NOTICE".to_owned(), "-rw-r--r--".to_owned()),
+        (var("DX_ARCHIVE_APP"), "-rwxr-xr-x".to_owned()),
+        ("resources/banner.txt".to_owned(), "-rw-r--r--".to_owned()),
+    ];
+    expected.sort();
+    assert_eq!(modes, expected);
 }
 
 #[test]
-fn consumer_archive_relocates_and_runs() {
-    let tarball = data("DX_CONSUMER_TARBALL");
-    let scratch = dx_testing::mkscratch("consumer-release").expect("scratch");
+fn archive_relocates_and_runs() {
+    let tarball = data("DX_ARCHIVE_TARBALL");
+    let app_name = var("DX_ARCHIVE_APP");
+    let scratch = dx_testing::mkscratch(&app_name).expect("scratch");
     let listed = dx_testing::run(
         &PathBuf::from("tar"),
         &["-tzf", tarball.to_string_lossy().as_ref()],
@@ -137,14 +137,16 @@ fn consumer_archive_relocates_and_runs() {
     );
     let mut members: Vec<&str> = listed.stdout.lines().collect();
     members.sort_unstable();
+    let mut expected = vec![
+        "IDENTITY.txt",
+        "NOTICE",
+        app_name.as_str(),
+        "resources/banner.txt",
+    ];
+    expected.sort_unstable();
     assert_eq!(
         members,
-        [
-            "IDENTITY.txt",
-            "NOTICE",
-            "consumer_app",
-            "resources/banner.txt"
-        ],
+        expected,
         "unexpected tarball members in {}",
         tarball.display()
     );
@@ -165,7 +167,7 @@ fn consumer_archive_relocates_and_runs() {
         tarball.display(),
         extracted.combined()
     );
-    let app = scratch.join("consumer_app");
+    let app = scratch.join(&app_name);
     let banner = scratch.join("resources").join("banner.txt");
     let notice = scratch.join("NOTICE");
     let identity_file = scratch.join("IDENTITY.txt");
@@ -218,16 +220,16 @@ fn consumer_archive_relocates_and_runs() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains(BANNER_MARKER),
+        stdout.contains(&var("DX_ARCHIVE_BANNER")),
         "relocated app must load its resource\n{stdout}"
     );
     assert!(
-        stdout.contains(GREET_MESSAGE),
+        stdout.contains(&var("DX_ARCHIVE_GREETING")),
         "relocated app must call its native dependency\n{stdout}"
     );
     let notice_text = std::fs::read_to_string(&notice).expect("read NOTICE");
     assert!(
-        notice_text.contains(NOTICE_MARKER),
+        notice_text.contains(&var("DX_ARCHIVE_NOTICE")),
         "archive must carry the license-words file\n{notice_text}"
     );
 }

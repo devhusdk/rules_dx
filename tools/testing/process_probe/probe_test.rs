@@ -26,12 +26,14 @@ fn help_names_every_flag_and_exits_zero() {
         "--stdout-text",
         "--stderr-text",
         "--sleep-ms",
+        "--gate",
         "--require-env",
         "--forbid-env",
         "--print-env",
         "--print-env-all",
         "--print-argv",
         "--print-cwd",
+        "--print-exe",
         "--spawn-descendant",
         "--detached-descendant",
         "--descendant-own-group",
@@ -88,6 +90,27 @@ fn sleeping_holds_the_child_before_it_exits() {
     assert_eq!(run.status.code(), Some(4));
     assert!(
         started.elapsed().as_millis() >= 200,
+        "probe exited after {:?}",
+        started.elapsed()
+    );
+}
+
+#[test]
+fn a_gate_file_ends_the_sleep() {
+    let dir = std::env::temp_dir().join(format!("probe-gate-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let gate = dir.join("gate");
+    std::fs::write(&gate, b"").expect("gate");
+    let started = Instant::now();
+    let run = run(&[
+        &format!("--gate={}", gate.display()),
+        "--sleep-ms=30000",
+        "--exit-code=5",
+    ]);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(run.status.code(), Some(5));
+    assert!(
+        started.elapsed().as_secs() < 10,
         "probe exited after {:?}",
         started.elapsed()
     );
@@ -213,6 +236,15 @@ fn a_shim_run_records_its_call_and_answers_from_the_environment() {
             cwd.to_string_lossy()
         )
     );
+}
+
+#[test]
+fn print_exe_reports_the_probe_binary() {
+    let run = run(&["--print-exe"]);
+    assert_eq!(run.status.code(), Some(0));
+    let printed = std::fs::canonicalize(run.stdout.trim()).expect("printed path exists");
+    let expected = std::fs::canonicalize(probe()).expect("probe path exists");
+    assert_eq!(printed, expected);
 }
 
 #[test]

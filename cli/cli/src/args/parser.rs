@@ -3,11 +3,11 @@ use std::ffi::OsStr;
 use dx_output::{OutputMode, Threshold};
 
 use super::command::Command;
-use super::grammar::Flags;
+use super::grammar::{self, Flags};
 use super::scope_error;
 use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
-use crate::worktree::HookKind;
+use dx_worktree::HookKind;
 
 pub use super::grammar::cli_command;
 
@@ -40,14 +40,6 @@ fn extra_positional(command: Command, token: &str) -> ArgsError {
     unsupported(command, token)
 }
 
-/// Rejects Bazel options passed after `--`.
-fn reject_passthrough(command: Command, bazel_options: &[String]) -> Result<(), ArgsError> {
-    if !bazel_options.is_empty() {
-        return Err(unsupported(command, "--"));
-    }
-    Ok(())
-}
-
 /// Names an environment default dx will not read.
 fn bad_default(error: dx_adopt::AdoptError) -> ArgsError {
     ArgsError::BadDefault {
@@ -57,13 +49,6 @@ fn bad_default(error: dx_adopt::AdoptError) -> ArgsError {
 
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
-}
-
-pub fn load_file_defaults(start: &std::path::Path) -> Result<super::FileDefaults, String> {
-    match dx_adopt::defaults::load_defaults(start) {
-        Ok((defaults, _)) => Ok(defaults),
-        Err(error) => Err(error.to_string()),
-    }
 }
 
 pub fn config_sources(start: &std::path::Path) -> dx_adopt::defaults::ConfigSources {
@@ -148,6 +133,42 @@ fn output_supported(command: Command, name: &str) -> bool {
     }
 }
 
+/// Whether a default output value applies to the command and worktree verb.
+///
+/// The path value is a default only for `worktree add`; the flag path keeps
+/// accepting it on every worktree verb.
+fn default_output_applies(command: Command, name: &str, worktree_verb: Option<&str>) -> bool {
+    match name {
+        "path" => command == Command::Worktree && worktree_verb == Some("add"),
+        _ => output_supported(command, name),
+    }
+}
+
+/// The first positional after the command word, skipping value options.
+fn verb_after_command<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
+    let mut positionals = 0;
+    let mut index = 0;
+    while index < args.len() {
+        let word = args[index].as_ref().to_str()?;
+        if word == "--" {
+            return None;
+        }
+        if word.starts_with('-') {
+            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
+            if super::grammar::consumes_next(word, next) {
+                index += 1;
+            }
+        } else {
+            positionals += 1;
+            if positionals == 2 {
+                return Some(word.to_owned());
+            }
+        }
+        index += 1;
+    }
+    None
+}
+
 /// Whether a startup failure may report structured JSON events on stdout.
 pub fn json_output_intent<S: AsRef<OsStr>>(
     args: &[S],
@@ -165,7 +186,8 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
         dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
     };
     if let Some(value) = env.as_deref().or(file.output.as_deref()) {
-        if command.is_none_or(|command| output_supported(command, value)) {
+        let verb = verb_after_command(args);
+        if command.is_none_or(|command| default_output_applies(command, value, verb.as_deref())) {
             return value == "json";
         }
     }
@@ -195,7 +217,7 @@ pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
         {
             return true;
         }
-        if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+        if super::grammar::consumes_next(word, words.get(index + 1).copied()) {
             index += 1;
         }
         index += 1;
@@ -500,6 +522,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         create,
         force,
         disk,
+        bases,
         bazel_startup_options: startup_tokens,
     } = tokenized.flags;
     let targets_os = tokenized.targets;
@@ -617,7 +640,9 @@ fn parse_inner<S: AsRef<OsStr>>(
         if let Some(scope) = targets.first() {
             return Err(unsupported(command, scope.clone()));
         }
-        reject_passthrough(command, &bazel_options)?;
+    }
+    if !bazel_options.is_empty() && !grammar::advertises_passthrough(command) {
+        return Err(unsupported(command, "--"));
     }
     if command.is_managed() {
         if let Err(error) = dx_setup::resolve_scope(&targets) {
@@ -634,16 +659,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             });
         }
     }
-    if (command == Command::Security || command == Command::License) && !bazel_options.is_empty() {
-        return Err(unsupported(command, "--"));
-    }
-    if matches!(
-        command,
-        Command::Update | Command::Bump | Command::Migrate | Command::Upgrade
-    ) {
-        reject_passthrough(command, &bazel_options)?;
-    }
-    if command == Command::Bump {
+    if matches!(command, Command::Bump | Command::Add) {
         if targets.len() > 2 {
             return Err(extra_positional(command, &targets[2]));
         }
@@ -655,6 +671,15 @@ fn parse_inner<S: AsRef<OsStr>>(
         return Err(ArgsError::MissingValue {
             option: "--from <version> --to <version>".to_owned(),
         });
+    }
+    if command == Command::Generate {
+        if let Some(scope) = targets.iter().find(|scope| {
+            scope.starts_with('@') && !scope.starts_with("@//") && !scope.starts_with("@@//")
+        }) {
+            return Err(ArgsError::InvalidScope {
+                scope: scope.clone(),
+            });
+        }
     }
     if command == Command::Upgrade {
         if let Some(scope) = targets.first() {
@@ -672,14 +697,15 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, "--open"));
         }
     }
-    let mut output_name = if output_from_flag || output_supported(command, &output_name) {
+    let mut output_name = if output_from_flag
+        || default_output_applies(command, &output_name, targets.first().map(String::as_str))
+    {
         output_name
     } else {
         default_output.to_owned()
     };
     let mut path_only = false;
     if command == Command::Worktree {
-        reject_passthrough(command, &bazel_options)?;
         validate_worktree(&targets)?;
         if output_name == "path" {
             if output_from_flag || targets.first().is_some_and(|verb| verb == "add") {
@@ -694,9 +720,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         value: output_name.clone(),
     })?;
     if command.is_adoption() {
-        if command != Command::Watch {
-            reject_passthrough(command, &bazel_options)?;
-        }
         match command {
             Command::Status => {
                 if !targets.is_empty() {
@@ -730,17 +753,11 @@ fn parse_inner<S: AsRef<OsStr>>(
                     return Err(missing_positional(command));
                 }
             }
-            Command::Upgrade if !targets.is_empty() => {
-                return Err(extra_positional(command, &targets[0]));
-            }
             _ => {}
         }
     }
     if output_from_flag && !output_supported(command, &output_name) {
         return Err(unsupported(command, format!("--output={output_name}")));
-    }
-    if cases && !command.supports_cases() {
-        return Err(unsupported(command, "--cases"));
     }
     if include_edits && output_name != "json" {
         return Err(ArgsError::NeedsJson {
@@ -760,6 +777,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         reports,
         fail_on,
+        baseline: file.baseline.clone(),
         include_edits,
         min_coverage,
         targets,
@@ -781,6 +799,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         create,
         force,
         disk,
+        bases,
         path_only,
         agent,
         bazel_startup_options,
@@ -993,6 +1012,28 @@ mod startup_tests {
             early_output_flag(&strings(&["lint", "-qojson", "-o", "text"])),
             Some("text".to_owned())
         );
+    }
+
+    #[test]
+    fn json_intent_ignores_path_default_for_non_add_worktree_verbs() {
+        let file = crate::args::FileDefaults::default();
+        let env = |name: &str| match name {
+            "DX_OUTPUT" => Some("path".to_owned()),
+            "CLAUDECODE" => Some("1".to_owned()),
+            _ => None,
+        };
+        assert!(json_output_intent(
+            &strings(&["worktree", "list"]),
+            &env,
+            &file,
+            false
+        ));
+        assert!(!json_output_intent(
+            &strings(&["worktree", "add", "x"]),
+            &env,
+            &file,
+            false
+        ));
     }
 
     #[test]
@@ -1225,6 +1266,7 @@ mod startup_tests {
             vec!["help", "lint"],
             vec!["lint", "--help"],
             vec!["lint", "--output", "json", "--help"],
+            vec!["lint", "-qo", "json", "-h"],
             vec!["version", "--workspace=/repo", "--help"],
         ] {
             assert!(is_help_request(&strings(&words)), "{words:?} asks for help");

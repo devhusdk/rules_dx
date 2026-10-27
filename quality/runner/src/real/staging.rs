@@ -15,7 +15,11 @@ pub(super) struct FsharplintInputs {
 }
 
 impl RealBackend {
-    pub(super) fn mirror_tool_files(tool_id: &str, tool: &RealTool) -> Vec<MirrorFile> {
+    pub(super) fn mirror_tool_files(
+        tool_id: &str,
+        tool: &RealTool,
+        staged: &[MirrorFile],
+    ) -> Vec<MirrorFile> {
         let mut mirrors = Vec::with_capacity(tool.tool_files.len() + 1);
         for (rel, bytes) in &tool.tool_files {
             mirrors.push(MirrorFile {
@@ -41,12 +45,35 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(KTLINT_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "hadolint" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(HADOLINT_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(HADOLINT_DEFAULTS_BYTES.to_vec()),
+            });
+        }
+        if tool_id == "redocly" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(REDOCLY_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(REDOCLY_DEFAULTS_BYTES.to_vec()),
+            });
+        }
+        if tool_id == "prettier" {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(PRETTIER_IGNORE_REL),
+                contents: MirrorContents::Bytes(Vec::new()),
+            });
+        }
         if tool_id == "stylelint" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(STYLELINT_DEFAULTS_REL),
                 contents: MirrorContents::Bytes(STYLELINT_DEFAULTS_BYTES.to_vec()),
             });
         }
+        mirrors.retain(|mirror| {
+            !staged
+                .iter()
+                .any(|done| done.mirror_rel == mirror.mirror_rel)
+        });
         mirrors
     }
 
@@ -95,7 +122,8 @@ impl RealBackend {
             });
             resolve_pairs.push((path.clone(), absolute));
         }
-        mirrors.extend(Self::mirror_tool_files(tool_id, tool));
+        let tools = Self::mirror_tool_files(tool_id, tool, &mirrors);
+        mirrors.extend(tools);
         write_all(&scratch, tool_id, &mirrors)?;
         Ok(StagedScratch {
             scratch,
@@ -103,6 +131,12 @@ impl RealBackend {
             sibling_pairs,
             resolve_pairs,
         })
+    }
+
+    pub(super) fn prettier_ignore_abs(scratch: &Scratch) -> Result<PathBuf, RunnerError> {
+        scratch
+            .resolve(Path::new(PRETTIER_IGNORE_REL))
+            .map_err(|err| execution("prettier", format!("scratch ignore: {err}")))
     }
 
     pub(super) fn config_abs(
@@ -120,6 +154,20 @@ impl RealBackend {
         }
         if tool_id == "ktlint" {
             let rel = tool.config_rel.as_deref().unwrap_or(KTLINT_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "hadolint" {
+            let rel = tool.config_rel.as_deref().unwrap_or(HADOLINT_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "redocly" {
+            let rel = tool.config_rel.as_deref().unwrap_or(REDOCLY_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)
@@ -231,7 +279,17 @@ impl RealBackend {
         tool.edition.as_deref().ok_or_else(|| {
             execution(
                 TOOL_ID,
-                "missing tool edition: the quality aspect must pass the CrateInfo edition via --tool-edition".to_owned(),
+                "missing tool edition: the quality aspect must pass the CrateInfo edition as the request tool edition".to_owned(),
+            )
+        })
+    }
+
+    pub(super) fn gofumpt_lang(tool: &RealTool) -> Result<&str, RunnerError> {
+        const TOOL_ID: &str = "gofumpt";
+        tool.edition.as_deref().ok_or_else(|| {
+            execution(
+                TOOL_ID,
+                "missing tool edition: the quality aspect must pass the Go language version via --tool-edition".to_owned(),
             )
         })
     }
@@ -316,7 +374,7 @@ pub(super) fn place_qmllint_settings(
         if target == config || placed.contains(&target) {
             continue;
         }
-        std::fs::copy(config, &target)
+        dx_atomic_fs::copy_atomic(config, &target)
             .map_err(|err| execution(tool_id, format!("place settings for {workspace}: {err}")))?;
         placed.push(target);
     }

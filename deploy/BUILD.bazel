@@ -2,6 +2,14 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "//:module_srcs",
+        "//deploy/rules:module_srcs",
+    ],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

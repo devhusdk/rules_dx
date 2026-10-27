@@ -1,4 +1,4 @@
-load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -17,7 +17,6 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
-        "@gazelle//config",
         "@gazelle//language",
         "@gazelle//repo",
         "@gazelle//resolve",
@@ -27,14 +26,6 @@ go_library(
     ],
 )
 
-gazelle_binary(
-    name = "gazelle",
-    languages = [":kotlin"],
-    tags = ["no-coverage"],
-    version = 1,
-    visibility = ["//dx:__pkg__"],
-)
-
 filegroup(
     name = "generation_testdata",
     srcs = glob(["testdata/**"]),
@@ -42,7 +33,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = ":gazelle",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],
@@ -57,6 +48,7 @@ go_test(
     ],
     embed = [":kotlin"],
     pure = "on",
+    deps = ["@gazelle//config"],
 )
 
 real_source_target(

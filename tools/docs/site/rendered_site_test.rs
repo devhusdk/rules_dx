@@ -7,7 +7,23 @@ use std::process::Command;
 const USER_SITE: &str = "DX_USER_SITE";
 const DEMO_SITE: &str = "DX_DEMO_SITE";
 const DEMO_CHANGED_SITE: &str = "DX_DEMO_CHANGED_SITE";
+const DEMO_POLYGLOT_SITE: &str = "DX_DEMO_POLYGLOT_SITE";
 const SITE_CHECK: &str = "DX_SITE_CHECK";
+const CONSUMER_SITE: &str = "DX_CONSUMER_SITE";
+const PUBLIC_RUST_CRATES: [&str; 12] = [
+    "dx_advisory_prep",
+    "dx_tool_resolve",
+    "dx_bootstrap",
+    "dx_deploy_tools",
+    "dx_js_launcher",
+    "dx_docs_rust_extract",
+    "dx_site_aggregate",
+    "dx_site_browser",
+    "dx_site_build",
+    "dx_site_check",
+    "dx_docs_typescript_extract",
+    "wasi_run",
+];
 
 struct Run {
     code: i32,
@@ -123,6 +139,7 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/init.html",
         "docs/cli/commands/migrate.html",
         "docs/cli/commands/new-upgrade.html",
+        "docs/cli/commands/offline-bundle.html",
         "docs/cli/commands/status-version.html",
         "docs/cli/commands/watch.html",
         "docs/cli/commands/completion.html",
@@ -430,7 +447,13 @@ fn nested_example_pages_render_their_own_route_and_links() {
         "the nested example page must render its own heading"
     );
     let examples = read(&root, "examples/index.html");
-    for target in ["mixed/hello/", "adopt-rust/", "consumer-ci/", "docs-ci/"] {
+    for target in [
+        "mixed/hello/",
+        "adopt-rust/",
+        "consumer-ci/",
+        "docs-ci/",
+        "gitlab-ci/",
+    ] {
         assert!(
             examples.contains(&format!("href=\"{target}")),
             "the examples page must link {target}"
@@ -520,6 +543,52 @@ fn a_demo_api_page_renders_its_signature_docs_source_and_relations() {
 }
 
 #[test]
+fn a_ruby_api_page_renders_its_signature_docs_source_and_relations() {
+    let root = site(DEMO_POLYGLOT_SITE);
+    let routes = every_html(&root);
+    let area = read(&root, "api/ruby/geometry/Geometry.Circle.area.html");
+    assert!(
+        area.contains("<code class=\"language-ruby\">def area"),
+        "the signature must render as a Ruby code block"
+    );
+    assert!(area.contains("Computes the area of the circle."));
+    let shapes = "tools/docs/ruby/fixture/lib/geometry/shapes.rb";
+    assert!(
+        area.contains(&format!(
+            "href=\"https://github.com/devhusdk/rules_dx/blob/main/{shapes}#L37\""
+        )),
+        "the page must link its source line"
+    );
+    let empty = read(&root, "api/ruby/geometry/Geometry.Circle.empty~3F.html");
+    assert!(
+        empty.contains("<code>Geometry::Circle#empty?</code>"),
+        "a Ruby page must be titled by its display name"
+    );
+    let square = read(&root, "api/ruby/geometry_ext/GeometryExt.Square.html");
+    assert!(
+        square.contains("href=\"../geometry/Geometry.Sized.html\""),
+        "the Square page never links the Sized page it includes"
+    );
+    for hidden in ["cache_key", "recompute"] {
+        assert!(
+            !routes.iter().any(|route| route.contains(hidden)),
+            "the non-public method {hidden} was published"
+        );
+    }
+    let index = read(&root, "searchindex.js");
+    let mut urls = BTreeSet::new();
+    for (start, _) in index.match_indices("\"api/ruby/") {
+        let rest = &index[start + 1..];
+        let end = rest.find('"').expect("closed string");
+        urls.insert(rest[..end].split('#').next().expect("url").to_string());
+    }
+    assert!(!urls.is_empty(), "the search index names no Ruby page");
+    for url in urls {
+        assert!(root.join(&url).is_file(), "search names {url}, no page");
+    }
+}
+
+#[test]
 fn a_changed_signature_changes_the_rendered_page() {
     let before = read(&site(DEMO_SITE), "api/rust/docs_fixture/add.html");
     let after = read(&site(DEMO_CHANGED_SITE), "api/rust/docs_fixture/add.html");
@@ -527,6 +596,98 @@ fn a_changed_signature_changes_the_rendered_page() {
     assert!(after.contains("pub fn add(left: u64, right: u64, carry: u32) -&gt; u64"));
     assert!(after.contains("Adds two lengths and a carry, wrapping on overflow."));
     check_rendered(&site(DEMO_CHANGED_SITE), &[]).expect_ok();
+}
+
+#[test]
+fn the_user_site_publishes_one_api_section_per_public_crate() {
+    let root = site(USER_SITE);
+    let api = read(&root, "api.html");
+    for krate in PUBLIC_RUST_CRATES {
+        assert!(
+            api.contains(&format!("Rust crate <code>{krate}</code>")),
+            "api.html has no section for {krate}"
+        );
+    }
+    let index = read(&root, "index.html");
+    assert!(
+        index.contains("href=\"api.html\""),
+        "the landing page never links the API reference"
+    );
+}
+
+#[test]
+fn a_user_api_page_renders_its_signature_docs_and_source() {
+    let root = site(USER_SITE);
+    let pages: Vec<String> = every_html(&root)
+        .into_iter()
+        .filter(|route| route.starts_with("api/rust/dx_site_build/"))
+        .collect();
+    let page = pages
+        .iter()
+        .map(|route| read(&root, route))
+        .find(|html| html.contains("pub fn "))
+        .unwrap_or_else(|| panic!("no dx_site_build page renders a pub fn: {pages:?}"));
+    assert!(
+        page.contains("<code class=\"language-rust noplayground\">pub fn "),
+        "the signature must render as a Rust code block"
+    );
+    assert!(
+        page.contains(
+            "href=\"https://github.com/devhusdk/rules_dx/blob/main/tools/docs/site/build/src/"
+        ),
+        "the page must link its source on GitHub"
+    );
+    assert!(
+        page.contains("<p>"),
+        "the page must render the item's doc text"
+    );
+}
+
+#[test]
+fn every_api_url_in_the_search_index_is_a_page() {
+    let root = site(USER_SITE);
+    let index = read(&root, "searchindex.js");
+    let mut urls = BTreeSet::new();
+    for (start, _) in index.match_indices("\"api/") {
+        let rest = &index[start + 1..];
+        let end = rest.find('"').expect("closed string");
+        let url = rest[..end].split('#').next().expect("url").to_string();
+        urls.insert(url);
+    }
+    assert!(!urls.is_empty(), "the search index names no API page");
+    for url in urls {
+        assert!(root.join(&url).is_file(), "search names {url}, no page");
+    }
+}
+
+#[test]
+fn a_consumer_crate_renders_its_own_api_reference() {
+    let root = site(CONSUMER_SITE);
+    check_rendered(&root, &[]).expect_ok();
+    let greet = read(&root, "api/rust/consumer_greeting/greet.html");
+    assert!(greet.contains("pub fn greet(name: &amp;str) -&gt; String"));
+    assert!(greet.contains("Greets one name with a fixed salutation."));
+    assert!(greet.contains("href=\"https://example.invalid/consumer/blob/main/src/lib.rs#L"));
+    let greeter = read(&root, "api/rust/consumer_greeting/words.Greeter.html");
+    assert!(greeter.contains("A greeter that remembers its salutation."));
+    assert!(greeter.contains("href=\"https://example.invalid/consumer/blob/main/src/words.rs#L"));
+    assert!(greeter.contains("href=\"words.Greeter.greet.html\""));
+    let alias = read(&root, "api/rust/consumer_greeting/Greeter.html");
+    assert!(
+        alias.contains("Re-export of <a href=\"words.Greeter.html\">"),
+        "a re-export page must link its canonical page"
+    );
+    let routes = every_html(&root);
+    assert!(
+        !routes.iter().any(|route| route.contains("salutation")),
+        "a private fn was published"
+    );
+    for route in routes {
+        let html = read(&root, &route);
+        for needle in ["external/", "_repo_rules"] {
+            assert!(!html.contains(needle), "{route} leaks {needle:?}");
+        }
+    }
 }
 
 #[test]
@@ -669,4 +830,50 @@ fn copy_dir(from: &Path, to: &Path) {
             write_copy(&path, &target);
         }
     }
+}
+
+#[test]
+fn a_powershell_api_page_renders_every_parameter_set_docs_and_source() {
+    let root = site(DEMO_POLYGLOT_SITE);
+    let add = read(&root, "api/powershell/Ledger/Add-LedgerEntry.html");
+    assert!(
+        add.contains(
+            "<code class=\"language-text\">Add-LedgerEntry [-Ledger] &lt;object&gt; [-Amount] &lt;int&gt; [-Memo &lt;string&gt;] [&lt;CommonParameters&gt;]\n\
+             Add-LedgerEntry [-Ledger] &lt;object&gt; [-Amount] &lt;int&gt; -Transfer -Account &lt;string&gt; [&lt;CommonParameters&gt;]\n"
+        ),
+        "the signature must list both parameter sets: {add}"
+    );
+    assert!(add.contains("Adds one entry to a ledger."), "{add}");
+    assert!(
+        add.contains(
+            "href=\"https://github.com/devhusdk/rules_dx/blob/main/tools/docs/powershell/fixture/Ledger/Public/Add-LedgerEntry.ps1#L1\""
+        ),
+        "{add}"
+    );
+    let mut pages: Vec<String> = std::fs::read_dir(root.join("api/powershell/Ledger"))
+        .unwrap_or_else(|error| panic!("read the PowerShell pages: {error}"))
+        .map(|entry| {
+            entry
+                .unwrap_or_else(|error| panic!("entry: {error}"))
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    pages.sort();
+    assert_eq!(
+        pages,
+        [
+            "Add-LedgerEntry.html",
+            "Get-LedgerBalance.html",
+            "Remove-LedgerEntry.html",
+            "Test-LedgerBalance.html",
+        ],
+        "only exported functions get pages"
+    );
+    let index = read(&root, "searchindex.js");
+    assert!(
+        index.contains("api/powershell/Ledger/Add-LedgerEntry.html"),
+        "the search index never names the PowerShell page"
+    );
 }

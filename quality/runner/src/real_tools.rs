@@ -41,6 +41,7 @@ fn unusable_scratch_parent_fails_the_action() {
         tools: BTreeMap::from([("rustfmt".to_owned(), rustfmt_tool())]),
         scratch_parent: PathBuf::from("/nonexistent-dx-scratch-parent"),
         spawn: roundtrip_rustfmt,
+        argv_limit: quality_adapter::commands::windows_argv_limit,
     };
     let err = backend
         .diagnose("rustfmt", "format", &single("src/main.rs", "x\n"))
@@ -108,6 +109,30 @@ fn non_utf8_fix_fails_the_action() {
         .apply_fix("rustfmt", "src/main.rs", "x\n", "format")
         .expect_err("encoding fails");
     assert!(matches!(err, RunnerError::ToolOutput { .. }));
+}
+
+fn standardrb_crash(
+    _argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: Vec::new(),
+        stderr: b"1 error occurred:\nAn error occurred while Style/Foo cop was inspecting a.rb.\n"
+            .to_vec(),
+    })
+}
+
+#[test]
+fn standardrb_fix_fails_on_a_cop_crash_despite_exit_one() {
+    let backend = backend_for("standardrb", plain_tool(), standardrb_crash);
+    let err = backend
+        .apply_fix("standardrb", "a.rb", "x = 1\n", "lint")
+        .expect_err("crash fails the fix");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
+    assert!(err.to_string().contains("cop crashed"), "{err}");
 }
 
 #[test]
@@ -691,6 +716,96 @@ fn eslint_without_config_fails_the_action() {
     assert!(err.to_string().contains("eslint requires a config"));
 }
 
+fn graphql_eslint_tool() -> RealTool {
+    RealTool {
+        config_rel: Some("api/graphql.json".to_owned()),
+        tool_files: vec![(
+            "api/graphql.json".to_owned(),
+            br#"{"schema":"api/schema.graphql"}"#.to_vec(),
+        )],
+        ..plain_tool()
+    }
+}
+
+#[test]
+fn graphql_eslint_reports_findings_and_never_fixes() {
+    let backend = backend_for(
+        "graphql_eslint",
+        graphql_eslint_tool(),
+        roundtrip_graphql_eslint,
+    );
+    let findings = backend
+        .diagnose(
+            "graphql_eslint",
+            "lint",
+            &single("api/query.graphql", "{ user { email } }\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "graphql_eslint");
+    assert_eq!(
+        findings[0].rule_id,
+        "@graphql-eslint/fields-on-correct-type"
+    );
+    assert_eq!(findings[0].path, "api/query.graphql");
+    assert!(backend
+        .diagnose(
+            "graphql_eslint",
+            "lint",
+            &single("api/query.graphql", "{ user { id } }\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+    assert_eq!(
+        backend
+            .apply_fix(
+                "graphql_eslint",
+                "api/query.graphql",
+                "{ user { email } }\n",
+                "lint"
+            )
+            .expect("check-only"),
+        "{ user { email } }\n"
+    );
+}
+
+#[test]
+fn graphql_eslint_without_config_fails_the_action() {
+    let backend = backend_for("graphql_eslint", plain_tool(), roundtrip_graphql_eslint);
+    let err = backend
+        .diagnose(
+            "graphql_eslint",
+            "lint",
+            &single("api/q.graphql", "{ a }\n"),
+        )
+        .expect_err("missing config fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("graphql_eslint requires a config"));
+    let err = backend
+        .apply_fix("graphql_eslint", "api/q.graphql", "{ a }\n", "lint")
+        .expect_err("missing config fails");
+    assert!(err.to_string().contains("graphql_eslint requires a config"));
+}
+
+#[test]
+fn graphql_eslint_usage_errors_are_never_clean() {
+    let backend = backend_for(
+        "graphql_eslint",
+        graphql_eslint_tool(),
+        roundtrip_graphql_eslint,
+    );
+    let err = backend
+        .diagnose(
+            "graphql_eslint",
+            "lint",
+            &single("api/q.graphql", "BROKEN\n"),
+        )
+        .expect_err("exit 2 fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("exit 2"), "{err}");
+    assert!(err.to_string().contains("matches no file"), "{err}");
+}
+
 fn recording_eslint(
     argv: &[OsString],
     cwd: &Path,
@@ -882,6 +997,41 @@ fn prettier_fix_failure_keeps_original_text() {
             .expect("failed fix keeps text"),
         text
     );
+}
+
+fn prettier_config_argv(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("hinted config passes --config");
+    assert!(!argv.iter().any(|arg| arg == "--no-config"));
+    let cfg = Path::new(&argv[at + 1]);
+    assert!(cfg.is_absolute());
+    assert!(cfg.ends_with("cfg/.prettierrc.json"));
+    assert!(cfg.exists());
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn prettier_hinted_config_reaches_the_tool() {
+    let tool = RealTool {
+        config_rel: Some("cfg/.prettierrc.json".to_owned()),
+        tool_files: vec![("cfg/.prettierrc.json".to_owned(), b"{}".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("prettier", tool, prettier_config_argv);
+    let findings = backend
+        .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
 }
 
 #[test]
@@ -1199,15 +1349,194 @@ fn batched_keep_sorted(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     BATCHED_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let mut bytes = 0usize;
-    for arg in argv {
-        bytes += arg.to_string_lossy().len() + 1;
-    }
-    assert!(
-        bytes <= quality_adapter::commands::ARGV_BATCH_BUDGET,
-        "spawn carries {bytes} argv bytes"
-    );
+    assert_within_budget(argv);
     keep_sorted_multi_behavior(argv, cwd, env)
+}
+
+fn assert_within_budget(argv: &[OsString]) {
+    let budget = quality_adapter::commands::argv_budget(&argv[0]);
+    let (bytes, units) = quality_adapter::commands::argv_cost(argv);
+    assert!(bytes <= budget, "spawn carries {bytes} argv bytes");
+    assert!(units <= budget, "spawn carries {units} argv units");
+}
+
+fn python_selection(count: usize, pad: usize) -> BTreeMap<String, String> {
+    let mut files = BTreeMap::new();
+    for index in 0..count {
+        let name = format!("pkg/mod_{index:04}_{}.py", "p".repeat(pad));
+        let body = if index % 2 == 0 {
+            "import os \n"
+        } else {
+            "\"\"\"Module.\"\"\"\n"
+        };
+        files.insert(name, body.to_owned());
+    }
+    files
+}
+
+static RUFF_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_ruff(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    RUFF_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_within_budget(argv);
+    ruff_multi_behavior(argv, cwd, env)
+}
+
+static RUFF_EQUAL_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_ruff_equal(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    RUFF_EQUAL_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_within_budget(argv);
+    ruff_multi_behavior(argv, cwd, env)
+}
+
+static FLAKE8_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_flake8(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    FLAKE8_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_within_budget(argv);
+    flake8_multi_behavior(argv, cwd, env)
+}
+
+static LAUNCHER_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_launcher(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    LAUNCHER_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(
+        quality_adapter::commands::argv_budget(&argv[0]),
+        quality_adapter::commands::LAUNCHER_BATCH_BUDGET
+    );
+    assert_within_budget(argv);
+    ruff_multi_behavior(argv, cwd, env)
+}
+
+static TY_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn counting_ty(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    TY_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    roundtrip_ty(argv, cwd, env)
+}
+
+#[test]
+fn ruff_large_selection_runs_batched() {
+    let files = python_selection(300, 96);
+    for (capability, kind) in [("lint", "F401"), ("format", "unformatted")] {
+        RUFF_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+        let backend = backend_for("ruff", plain_tool(), batched_ruff);
+        let first = backend
+            .diagnose("ruff", capability, &files)
+            .expect("batched ruff runs");
+        let spawns = RUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+        assert!(spawns > 1, "{capability} splits into {spawns} spawns");
+        assert_eq!(first.len(), 150, "every other file is dirty");
+        assert!(
+            first.iter().all(|found| found.rule_id.contains(kind)),
+            "{capability}"
+        );
+        let paths: Vec<&str> = first.iter().map(|found| found.path.as_str()).collect();
+        let mut ordered = paths.clone();
+        ordered.sort();
+        assert_eq!(paths, ordered, "merged findings stay ordered");
+        let second = backend
+            .diagnose("ruff", capability, &files)
+            .expect("batched ruff reruns");
+        assert_eq!(first, second, "rerun merges identically");
+    }
+}
+
+#[test]
+fn ruff_batches_match_single_file_results() {
+    let files = python_selection(120, 200);
+    RUFF_EQUAL_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let batched = backend_for("ruff", plain_tool(), batched_ruff_equal);
+    let merged = batched
+        .diagnose("ruff", "lint", &files)
+        .expect("batched ruff runs");
+    assert!(
+        RUFF_EQUAL_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 1,
+        "equivalence input spans batches"
+    );
+    let mut singles = Vec::new();
+    for (path, body) in &files {
+        let alone = backend_for("ruff", plain_tool(), roundtrip_ruff);
+        singles.extend(
+            alone
+                .diagnose("ruff", "lint", &single(path, body))
+                .expect("single runs"),
+        );
+    }
+    singles.sort_by(|left, right| left.path.cmp(&right.path));
+    assert_eq!(merged, singles);
+    assert_eq!(merged.len(), 60);
+}
+
+#[test]
+fn flake8_large_selection_runs_batched() {
+    FLAKE8_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = python_selection(300, 96);
+    let backend = backend_for("flake8", plain_tool(), batched_flake8);
+    let findings = backend
+        .diagnose("flake8", "lint", &files)
+        .expect("batched flake8 runs");
+    assert!(FLAKE8_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 1);
+    assert_eq!(findings.len(), 150);
+    let paths: Vec<&str> = findings.iter().map(|found| found.path.as_str()).collect();
+    let mut ordered = paths.clone();
+    ordered.sort();
+    assert_eq!(paths, ordered, "merged findings stay ordered");
+}
+
+#[test]
+fn ty_over_budget_selection_fails_before_spawn() {
+    TY_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = python_selection(300, 120);
+    let backend = backend_for("ty", plain_tool(), counting_ty);
+    let err = backend
+        .diagnose("ty", "lint", &files)
+        .expect_err("oversized ty selection fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(
+        err.to_string()
+            .contains("selection too large for one ty spawn"),
+        "{err}"
+    );
+    assert_eq!(TY_SPAWNS.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
+
+#[test]
+fn batch_launcher_splits_at_launcher_budget() {
+    LAUNCHER_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = python_selection(120, 96);
+    let tool = RealTool {
+        binary: PathBuf::from("/fake/bin/ruff.bat"),
+        ..plain_tool()
+    };
+    let backend = backend_for("ruff", tool, batched_launcher);
+    let findings = backend
+        .diagnose("ruff", "lint", &files)
+        .expect("launcher batches stay under the guard");
+    assert!(LAUNCHER_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 2);
+    assert_eq!(findings.len(), 60);
 }
 
 static FLAKY_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -1322,6 +1651,39 @@ fn keep_sorted_middle_batch_garbage_aborts() {
 }
 
 #[test]
+#[cfg(unix)]
+fn qmllint_settings_replace_read_only_copies_and_links() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = tempfile::tempdir().expect("scratch");
+    let config = dir.path().join("qmllint.ini");
+    std::fs::write(&config, b"[General]\n").expect("config");
+    std::fs::set_permissions(&config, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+    let source = dir.path().join("app").join("Main.qml");
+    std::fs::create_dir_all(source.parent().expect("parent")).expect("mkdir");
+    let sources = vec![("app/Main.qml".to_owned(), source.clone())];
+    let target = dir.path().join("app").join(".qmllint.ini");
+    for _ in 0..2 {
+        staging::place_qmllint_settings("qmllint", &config, &sources).expect("place");
+        let mode = std::fs::metadata(&target)
+            .expect("meta")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o644);
+    }
+    let outside = dir.path().join("outside.ini");
+    std::fs::write(&outside, b"keep\n").expect("outside");
+    std::fs::remove_file(&target).expect("remove");
+    std::os::unix::fs::symlink(&outside, &target).expect("plant link");
+    staging::place_qmllint_settings("qmllint", &config, &sources).expect("place over link");
+    assert_eq!(std::fs::read(&outside).expect("outside"), b"keep\n");
+    assert!(!std::fs::symlink_metadata(&target)
+        .expect("target")
+        .file_type()
+        .is_symlink());
+    assert_eq!(std::fs::read(&target).expect("target"), b"[General]\n");
+}
+
+#[test]
 fn qml_import_roots_come_from_declared_module_uris() {
     let dir = tempfile::tempdir().expect("scratch");
     let write = |rel: &str, text: &str| {
@@ -1384,8 +1746,266 @@ fn buf_lint_names_a_broken_import() {
             &resolve,
         )
         .expect_err("broken import fails");
-    assert!(matches!(err, RunnerError::ToolOutput { .. }), "{err}");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
     let text = err.to_string();
+    assert!(!text.contains("invalid tool output"), "{text}");
     assert!(text.contains("item/v1/item.proto:5:19"), "{text}");
     assert!(!text.contains("unchecked file"), "{text}");
+}
+
+fn hadolint_config_arg(argv: &[OsString]) -> PathBuf {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("hadolint always gets --config");
+    PathBuf::from(&argv[at + 1])
+}
+
+fn hadolint_report(argv: &[OsString], env: &[(OsString, OsString)]) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    for key in ["XDG_CONFIG_HOME", "HADOLINT_IGNORE"] {
+        assert!(
+            env.iter()
+                .all(|(known, _)| !known.to_string_lossy().eq_ignore_ascii_case(key)),
+            "{key} never reaches hadolint"
+        );
+    }
+    let file = last_file(argv);
+    assert_eq!(argv[argv.len() - 2], OsString::from("--"));
+    let dirty = std::fs::read_to_string(&file)
+        .expect("read staged Dockerfile")
+        .contains("| tar");
+    let stdout = if dirty {
+        serde_json::json!([{
+            "code": "DL4006",
+            "column": 1,
+            "file": file,
+            "level": "warning",
+            "line": 2,
+            "message": "Set the SHELL option -o pipefail before RUN with a pipe in it.",
+        }])
+        .to_string()
+    } else {
+        "[]".to_owned()
+    };
+    Ok(ChildOutput {
+        code: Some(i32::from(dirty)),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn hadolint_defaults(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let config = hadolint_config_arg(argv);
+    assert!(
+        config.ends_with("dx-hadolint-default/.hadolint.yaml"),
+        "unbound hadolint uses the scratch default, got {config:?}"
+    );
+    let staged = std::fs::read(&config).expect("default hadolint config is staged");
+    assert_eq!(staged, b"ignored: []\n");
+    hadolint_report(argv, env)
+}
+
+fn hadolint_bound(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let config = hadolint_config_arg(argv);
+    assert!(config.ends_with("cfg/.hadolint.yaml"), "{config:?}");
+    let staged = std::fs::read(&config).expect("bound hadolint config is staged");
+    assert_eq!(staged, b"ignored:\n  - DL3008\n");
+    hadolint_report(argv, env)
+}
+
+const HADOLINT_DIRTY: &str =
+    "FROM ubuntu:24.04\nRUN curl -sSL https://example.com/a.tgz | tar xz\n";
+
+#[test]
+fn hadolint_unbound_config_uses_the_scratch_default_and_is_check_only() {
+    let backend = backend_for("hadolint", plain_tool(), hadolint_defaults);
+    let findings = backend
+        .diagnose(
+            "hadolint",
+            "lint",
+            &single("img/Dockerfile", HADOLINT_DIRTY),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "hadolint");
+    assert_eq!(findings[0].rule_id, "DL4006");
+    assert_eq!(findings[0].path, "img/Dockerfile");
+    assert!(backend
+        .diagnose(
+            "hadolint",
+            "lint",
+            &single("img/Dockerfile", "FROM ubuntu:24.04\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+    assert_eq!(
+        backend
+            .apply_fix("hadolint", "img/Dockerfile", HADOLINT_DIRTY, "lint")
+            .expect("check-only"),
+        HADOLINT_DIRTY
+    );
+}
+
+#[test]
+fn hadolint_bound_config_reaches_the_tool() {
+    let tool = RealTool {
+        config_rel: Some("cfg/.hadolint.yaml".to_owned()),
+        tool_files: vec![(
+            "cfg/.hadolint.yaml".to_owned(),
+            b"ignored:\n  - DL3008\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let backend = backend_for("hadolint", tool, hadolint_bound);
+    let findings = backend
+        .diagnose("hadolint", "lint", &single("Dockerfile", HADOLINT_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "DL4006");
+}
+
+const REDOCLY_ROOT: &str = "openapi: 3.1.0\ninfo:\n  title: Pets\n  version: '1'\npaths: {}\n";
+
+fn redocly_files(root: &str) -> BTreeMap<String, String> {
+    single("api/openapi.yaml", root)
+}
+
+#[test]
+fn redocly_reports_root_findings_and_never_fixes() {
+    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    assert!(backend
+        .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
+        .expect("clean")
+        .is_empty());
+    let dupe = format!("{REDOCLY_ROOT}# dupe\n");
+    let findings = backend
+        .diagnose("redocly", "lint", &redocly_files(&dupe))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "redocly");
+    assert_eq!(findings[0].rule_id, "operation-operationId-unique");
+    assert_eq!(findings[0].path, "api/openapi.yaml");
+    assert_eq!(findings[0].start_byte, Some(56));
+    assert_eq!(
+        backend
+            .apply_fix("redocly", "api/openapi.yaml", &dupe, "lint")
+            .expect("check-only"),
+        dupe
+    );
+}
+
+#[test]
+fn redocly_places_fragment_findings_on_the_root() {
+    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    let root = format!(
+        "{REDOCLY_ROOT}components:\n  schemas:\n    Pet:\n      $ref: schemas/pet.yaml#/Pet\n# fragbad\n"
+    );
+    let fragment = single("api/schemas/pet.yaml", "Pet:\n  type: 7\n");
+    let findings = backend
+        .diagnose_with_siblings("redocly", "lint", &redocly_files(&root), &fragment)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "api/openapi.yaml");
+    assert_eq!(findings[0].start_byte, Some(0));
+    assert!(
+        findings[0]
+            .message
+            .starts_with("api/schemas/pet.yaml:2:3: "),
+        "{}",
+        findings[0].message
+    );
+    let findings = backend
+        .diagnose_with_resolve(
+            "redocly",
+            "lint",
+            &redocly_files(&root),
+            &BTreeMap::new(),
+            &fragment,
+        )
+        .expect("diagnosed through resolves");
+    assert_eq!(findings.len(), 1);
+}
+
+#[test]
+fn redocly_preflight_findings_skip_the_tool() {
+    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    for (root, rule) in [
+        ("swagger: '2.0'\n", "dx/api-spec-root"),
+        ("info: {}\n", "dx/api-spec-root"),
+        ("openapi: [3\n", "dx/api-spec-syntax"),
+        (
+            "openapi: 3.1.0\nx:\n  $ref: https://example.com/a.yaml\n",
+            "dx/api-spec-remote-ref",
+        ),
+        (
+            "openapi: 3.1.0\nx:\n  $ref: missing.yaml\n",
+            "dx/api-spec-unresolved-ref",
+        ),
+    ] {
+        let findings = backend
+            .diagnose(
+                "redocly",
+                "lint",
+                &redocly_files(&format!("{root}# BROKEN\n")),
+            )
+            .expect("preflight findings");
+        assert_eq!(findings.len(), 1, "{root}");
+        assert_eq!(findings[0].rule_id, rule, "{root}");
+        assert_eq!(findings[0].path, "api/openapi.yaml");
+    }
+}
+
+#[test]
+fn redocly_rejects_unsafe_configs_before_running() {
+    for config in [
+        "plugins:\n  - ./evil.js\n",
+        "resolve:\n  http:\n    headers: []\n",
+        "extends:\n  - ./other.yaml\n",
+    ] {
+        let tool = RealTool {
+            config_rel: Some("api/redocly.yaml".to_owned()),
+            tool_files: vec![("api/redocly.yaml".to_owned(), config.as_bytes().to_vec())],
+            ..plain_tool()
+        };
+        let backend = backend_for("redocly", tool, roundtrip_redocly);
+        let err = backend
+            .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
+            .expect_err("unsafe config fails");
+        assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
+    }
+}
+
+#[test]
+fn redocly_config_errors_are_never_clean() {
+    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    let err = backend
+        .diagnose(
+            "redocly",
+            "lint",
+            &redocly_files(&format!("{REDOCLY_ROOT}# BROKEN\n")),
+        )
+        .expect_err("exit 2 fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("exit 2"), "{err}");
+    assert!(err.to_string().contains("Unknown rule"), "{err}");
+}
+
+#[test]
+fn redocly_defaults_are_builtin_and_offline() {
+    let text = std::str::from_utf8(REDOCLY_DEFAULTS_BYTES).expect("utf-8");
+    assert_eq!(
+        quality_adapter::api_spec_preflight::check_config(text),
+        Ok(())
+    );
+    assert!(text.contains("telemetry: off"));
+    assert!(text.contains("no-unresolved-refs: error"));
 }

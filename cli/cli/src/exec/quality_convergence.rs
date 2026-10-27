@@ -129,6 +129,7 @@ fn severity_and_suppression_cannot_hide_nonconvergence() {
             tool: "lint-tool".to_owned(),
             rule: "lint-tool/rule".to_owned(),
             path: "src/a.py".to_owned(),
+            target: String::new(),
             message: normalize_message("unused"),
             context: dx_digest::blake3(b"x = 1"),
             count: 1,

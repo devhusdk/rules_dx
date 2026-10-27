@@ -11,42 +11,6 @@ use dx_process::ForwardError;
 use std::path::Path;
 
 pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ci,
-        audit_today,
-    } = env;
-    let mut latched = LatchedOut::new(out);
-    let code = run_managed(
-        invocation,
-        Env {
-            workspace,
-            runner,
-            query_runner,
-            temp_dir,
-            pid,
-            nonce,
-            out: &mut latched,
-            err,
-            ci,
-            audit_today,
-        },
-    );
-    if code == 0 {
-        latched.exit_code(code)
-    } else {
-        code
-    }
-}
-
-fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.command.is_managed(),
         "managed dispatch guards commands"
@@ -132,21 +96,14 @@ fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         (dx_setup::SetupScope::Repository, None) => None,
     };
     if json {
-        match command_started(invocation.command.name(), mode) {
-            Ok(event) => {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            Err(error) => return stdout_output_code(&error),
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+            return exit;
         }
-        match operation_event(invocation.command.name(), "collect", op_scope.as_deref()) {
-            Ok(event) => {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            Err(error) => return stdout_output_code(&error),
+        if let Err(exit) = emit_built(
+            out,
+            operation_event(invocation.command.name(), "collect", op_scope.as_deref()),
+        ) {
+            return exit;
         }
     }
     if !json && verbose {
@@ -168,18 +125,16 @@ fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 .as_deref()
                 .map(|scope| scope.join(" "))
                 .unwrap_or_else(|| "//...".to_owned());
-            if let Some(event) = bazel_exit_event(
+            if let Err(exit) = emit_built(out, bazel_exit_event(
                 CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel collection build failed with exit {bazel_code} for {scope_text} (see stderr diagnostics)"
                 ),
                 bazel_code,
                 "collect",
-            ) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return kept_child(err, bazel_code, exit);
-                }
-            }
+            )) {
+ return kept_child(err, bazel_code, exit);
+ }
             let finished = command_finished(bazel_code, &FinishedCounts::default());
             if let Err(exit) = emit_event(out, &finished) {
                 return kept_child(err, bazel_code, exit);
@@ -222,14 +177,15 @@ fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     let _ = std::fs::remove_file(&bep);
     if json {
         let setup_id = dx_setup::setup_hex(&pair);
-        if let Ok(event) = selection_event(
-            &setup_id,
-            pair.environment.as_str(),
-            pair.generated.as_str(),
+        if let Err(exit) = emit_built(
+            out,
+            selection_event(
+                &setup_id,
+                pair.environment.as_str(),
+                pair.generated.as_str(),
+            ),
         ) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+            return exit;
         }
         if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
             return exit;
@@ -379,19 +335,17 @@ fn check_managed(
     };
     let hint = apply_hint(invocation.command, scope);
     if json {
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: "managed_drift".to_owned(),
-            message: format!("dx {}: {detail}", invocation.command.name()),
-            related_command: Some(invocation.command.name().to_owned()),
-            scope: None,
-            path: None,
-            language: None,
-            import: None,
-        }) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some(invocation.command.name().to_owned()),
+                ..NoticeEvent::info(
+                    "managed_drift",
+                    format!("dx {}: {detail}", invocation.command.name()),
+                )
+            }),
+        ) {
+            return exit;
         }
         if let Err(exit) = emit_event(out, &command_finished(1, &FinishedCounts::default())) {
             return exit;

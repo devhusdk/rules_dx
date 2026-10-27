@@ -1,14 +1,22 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load(":cells.bzl", "otp_cell_settings")
+load(":cells_tests.bzl", "erlang_cell_tests")
 load(":metadata_tests.bzl", "erlang_metadata_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "cells.bzl",
+    "cells_tests.bzl",
     "metadata_tests.bzl",
     "otp.bzl",
     "pins.bzl",
     "repos.bzl",
 ])
+
+otp_cell_settings(name = "cell")
+
+erlang_cell_tests(name = "cells")
 
 erlang_metadata_tests(name = "metadata")
 
@@ -17,6 +25,8 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "cells.bzl",
+        "cells_tests.bzl",
         "metadata_tests.bzl",
         "otp.bzl",
         "pins.bzl",

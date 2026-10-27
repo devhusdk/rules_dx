@@ -1,0 +1,84 @@
+load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//fortran/rules:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+fortran_library(
+    name = "greet",
+    srcs = ["greet.f90"],
+)
+
+fortran_library(
+    name = "stats",
+    srcs = ["stats.f90"],
+    deps = [":greet"],
+)
+
+fortran_binary(
+    name = "hello",
+    srcs = ["main.f90"],
+    deps = [":greet"],
+)
+
+dx_hello_output_test(
+    name = "hello_output_test",
+    binary = ":hello",
+    expected = "Hello, fortran!",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+fortran_test(
+    name = "stats_test",
+    size = "small",
+    srcs = ["stats_test.f90"],
+    deps = [":stats"],
+)
+
+cc_library(
+    name = "c_add",
+    srcs = ["c_add.c"],
+    hdrs = ["c_add.h"],
+)
+
+fortran_test(
+    name = "calls_c_test",
+    size = "small",
+    srcs = ["calls_c_test.f90"],
+    deps = [":c_add"],
+)
+
+fortran_library(
+    name = "dot",
+    srcs = ["dot.f90"],
+)
+
+cc_test(
+    name = "dot_test",
+    size = "small",
+    srcs = ["dot_test.c"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = [":dot"],
+)
+
+fortran_test(
+    name = "io_test",
+    size = "small",
+    srcs = ["io_test.F90"],
+    copts = select({"//conditions:default": ["-DDX_FORTRAN_SELECT=7"]}),
+    env = {"DX_FORTRAN_PROBE": "env"},
+)
+
+fortran_test(
+    name = "same_basename_test",
+    size = "small",
+    srcs = ["same_basename_test.f90"],
+    deps = [
+        "//fortran/tests/runtime/kinds_a",
+        "//fortran/tests/runtime/kinds_b",
+    ],
+)

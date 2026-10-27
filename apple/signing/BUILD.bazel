@@ -1,0 +1,54 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "apple_macos_notarize", "apple_macos_sign")
+load(":signing_tests.bzl", "apple_signing_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "codesign_app.sh",
+    "defs.bzl",
+    "notarize_app.sh",
+    "signing_tests.bzl",
+])
+
+apple_signing_tests(name = "signing_metadata")
+
+filegroup(
+    name = "files",
+    srcs = ["defs.bzl"],
+    tags = ["manual"],
+)
+
+apple_macos_sign(
+    name = "sign_files",
+    app = ":files",
+)
+
+failure_test(
+    name = "sign_files_test",
+    expected_failure_substring = "apple_macos_sign: '//apple/signing:files' is not a macOS application",
+    target = ":sign_files_meta",
+)
+
+apple_macos_notarize(
+    name = "notarize_files",
+    app = ":files",
+)
+
+failure_test(
+    name = "notarize_files_test",
+    expected_failure_substring = "apple_macos_notarize: '//apple/signing:files' is not a macOS application",
+    target = ":notarize_files_meta",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "signing_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

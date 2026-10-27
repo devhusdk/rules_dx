@@ -4,21 +4,27 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# Reusable callers plus the self-called routes share one export list.
+filegroup(
+    name = "workflows",
+    srcs = glob(
+        [
+            "workflows/*.yml",
+            "workflows/*.yaml",
+        ],
+        allow_empty = True,
+    ),
+)
+
 exports_files([
     "actionlint.yaml",
-    "workflows/apple.yml",
     "workflows/README.md",
-    "workflows/bump.yml",
-    "workflows/cancel-stale.yml",
-    "workflows/ci.yml",
-    "workflows/evidence.yml",
-    "workflows/ghcr.yml",
-    "workflows/publish-dry-run.yml",
-    "workflows/release.yml",
-    "workflows/reusable-consumer.yml",
-    "workflows/reusable-docs.yml",
-])
+] + glob(
+    [
+        "workflows/*.yml",
+        "workflows/*.yaml",
+    ],
+    allow_empty = True,
+))
 
 real_source_target(
     name = "corpus_markdown",
@@ -40,7 +46,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

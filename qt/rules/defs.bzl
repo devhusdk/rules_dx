@@ -4,6 +4,7 @@ load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_libra
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
     "//libs/starlark:wrapper.bzl",
+    "dx_binary_forward_kwargs",
     "dx_forward_data_attr",
     "dx_forwarded_runtime_providers",
     "dx_lcov_merger_attr",
@@ -513,7 +514,7 @@ _qt_binary_forward = rule(
     doc = "Forwards a Qt executable and owns only its hand-written sources.",
     executable = True,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = False)),
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = False), **dx_forward_data_attr()),
 )
 
 _qt_forward_test = rule(
@@ -555,7 +556,7 @@ def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, 
         uic = qt + "//:uic",
         uri = uri if uses_qml else "",
         version = version,
-        tags = (tags or []) + ["manual"],
+        tags = dx_upstream_tags(tags),
         testonly = testonly,
         target_compatible_with = target_compatible_with,
         visibility = ["//visibility:private"],
@@ -564,7 +565,7 @@ def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, 
         name = name + "_qt_srcs",
         srcs = [":" + name + "_qt"],
         output_group = "qt_srcs",
-        tags = ["manual"],
+        tags = dx_upstream_tags(tags),
         testonly = testonly,
         visibility = ["//visibility:private"],
     )
@@ -572,7 +573,7 @@ def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, 
         name = name + "_qt_hdrs",
         srcs = [":" + name + "_qt"],
         output_group = "qt_hdrs",
-        tags = ["manual"],
+        tags = dx_upstream_tags(tags),
         testonly = testonly,
         visibility = ["//visibility:private"],
     )
@@ -681,9 +682,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
     )
     forward = dx_test_forward_kwargs(kwargs) if test else {}
     if not test:
-        for key in ["aspect_hints", "tags", "testonly", "target_compatible_with"]:
-            if kwargs.get(key, None) != None:
-                forward[key] = kwargs[key]
+        forward = dx_binary_forward_kwargs(kwargs)
     forward_rule = _qt_forward_test if test else _qt_binary_forward
     forward_rule(
         name = name,

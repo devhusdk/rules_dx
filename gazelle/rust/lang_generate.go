@@ -209,7 +209,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		if isLibraryKind(r.Kind()) && publicLibs {
 			r.SetAttr("visibility", []string{"//visibility:public"})
 		}
-		imports := importsFor(tree)
+		imports := importsForEdition(tree, manifest.edition, root)
 		if target.kind == exampleKind || target.kind == benchKind {
 			if err := validateExampleImports(args.Config, manifest, imports); err != nil {
 				l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
@@ -219,7 +219,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
 			continue
 		}
-		setCargoAttrs(r, args.Rel, manifest, imports, includeDev)
+		setCargoAttrs(r, args.Rel, manifest, includeDev)
 		var resultImports targetImports
 		if target.kind == exampleKind || target.kind == benchKind {
 			resultImports = localCargoExampleImports(args.Config, manifest, imports)
@@ -246,7 +246,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			}
 			t := rule.NewRule(testKind, testName)
 			t.SetAttr("crate", ":"+target.name)
-			setCargoAttrs(t, args.Rel, manifest, targetImports{test: imports.test}, true)
+			setCargoAttrs(t, args.Rel, manifest, true)
 			result.Gen = append(result.Gen, t)
 			wrapperImports := localCargoImports(args.Config, manifest, targetImports{test: imports.test}, true)
 			wrapperImports.mirrorPaths = nil
@@ -309,7 +309,7 @@ func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath stri
 		l.fail("%v", err)
 		return
 	}
-	imports := importsFor(tree)
+	imports := importsForEdition(tree, manifest.edition, root)
 	if err := validateBuildImports(args.Config, manifest, imports); err != nil {
 		l.fail("rust: %s: build script: %v", manifestPath, err)
 		return
@@ -318,7 +318,7 @@ func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath stri
 	rel := manifest.build.path
 	r.SetAttr("srcs", []string{rel})
 	r.SetAttr("crate_root", rel)
-	r.SetAttr("crate_name", strings.ReplaceAll(scriptName, "-", "_"))
+	r.SetAttr("crate_name", scriptName)
 	r.SetAttr("edition", manifest.edition)
 	if manifest.version != "" {
 		r.SetAttr("version", manifest.version)
@@ -380,23 +380,23 @@ func checkExistingClaims(file *rule.File, other, generated []*rule.Rule) error {
 }
 
 type crateDepsCall struct {
-	names       []string
-	packageName string
+	call     cargoCallExpr
+	external bool
 }
 
 func (c crateDepsCall) BzlExpr() bzl.Expr {
-	return &bzl.CallExpr{X: &bzl.Ident{Name: "crate_deps"}, List: []bzl.Expr{
-		rule.ExprFromValue(c.names),
-		&bzl.AssignExpr{LHS: &bzl.Ident{Name: "package_name"}, Op: "=", RHS: &bzl.StringExpr{Value: c.packageName}},
-	}}
+	if !c.external {
+		return &bzl.ListExpr{}
+	}
+	return c.call.BzlExpr()
 }
 
 func (c crateDepsCall) Merge(other bzl.Expr) bzl.Expr {
-	managed := make(map[string]bool, len(c.names))
-	for _, name := range c.names {
-		managed[name] = true
+	hand := unmanagedDepsLabels(other, nil)
+	if !c.external {
+		return rule.ExprFromValue(hand)
 	}
-	if hand := unmanagedDepsLabels(other, managed); len(hand) > 0 {
+	if len(hand) > 0 {
 		return depsConcatExpr{base: c.BzlExpr(), extra: hand}.BzlExpr()
 	}
 	return c.BzlExpr()
@@ -420,34 +420,7 @@ func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
 	for _, dep := range c.extra {
 		managed[dep] = true
 	}
-	for _, name := range cargoCallNames(c.base) {
-		managed[name] = true
-	}
 	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed))}.BzlExpr()
-}
-
-func cargoCallNames(base bzl.Expr) []string {
-	call, ok := base.(*bzl.CallExpr)
-	if !ok {
-		return nil
-	}
-	if ident, ok := call.X.(*bzl.Ident); !ok || ident.Name != "crate_deps" {
-		return nil
-	}
-	if len(call.List) == 0 {
-		return nil
-	}
-	list, ok := call.List[0].(*bzl.ListExpr)
-	if !ok {
-		return nil
-	}
-	var names []string
-	for _, item := range list.List {
-		if s, ok := item.(*bzl.StringExpr); ok {
-			names = append(names, s.Value)
-		}
-	}
-	return names
 }
 
 func unmanagedDepsLabels(other bzl.Expr, managed map[string]bool) []string {
@@ -565,6 +538,10 @@ func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, p
 }
 
 func importsFor(tree map[string]*FileFacts) targetImports {
+	return importsForEdition(tree, "2021", "")
+}
+
+func importsForEdition(tree map[string]*FileFacts, edition, crateRoot string) targetImports {
 	sets := [2]map[string]bool{{}, {}}
 	localModules := make(map[string]bool)
 	for file, facts := range tree {
@@ -573,9 +550,22 @@ func importsFor(tree map[string]*FileFacts) targetImports {
 		}
 	}
 	for file, facts := range tree {
+		for _, local := range facts.Locals {
+			localModules[file+"\x00"+local.Scope+"\x00"+local.Name] = true
+		}
+		for _, ext := range facts.Externs {
+			if ext.As != "" {
+				localModules[file+"\x00"+ext.Scope+"\x00"+ext.As] = true
+			}
+		}
+	}
+	for file, facts := range tree {
 		for _, use := range facts.Uses {
 			root := useRoot(use.Path)
 			if localModules[file+"\x00"+use.Scope+"\x00"+root] {
+				continue
+			}
+			if edition == "2015" && localModules[crateRoot+"\x00\x00"+root] {
 				continue
 			}
 			addImport(sets, root, use.CfgTest)
@@ -584,9 +574,6 @@ func importsFor(tree map[string]*FileFacts) targetImports {
 			name := ext.Name
 			if builtinRoot(name) {
 				continue
-			}
-			if ext.As != "" {
-				name = ext.As
 			}
 			addImport(sets, name, ext.CfgTest)
 		}
@@ -604,7 +591,7 @@ func importsFor(tree map[string]*FileFacts) targetImports {
 }
 
 func useRoot(raw string) string {
-	return strings.TrimPrefix(strings.Split(raw, "::")[0], "::")
+	return strings.Split(strings.TrimPrefix(raw, "::"), "::")[0]
 }
 
 func builtinRoot(root string) bool {
@@ -644,6 +631,9 @@ func staleRules(file *rule.File, desired map[string]bool) language.GenerateResul
 			continue
 		}
 		if _, owned := rustKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
+			continue
+		}
+		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
 			continue
 		}
 		empty := rule.NewRule(existing.Kind(), existing.Name())

@@ -1,0 +1,40 @@
+load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
+load("//kotlin/rules:defs.bzl", "kotlin_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":kotlinc_opts_tests.bzl", "werror_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+kt_kotlinc_options(
+    name = "custom",
+    api_version = "2.2",
+    language_version = "2.2",
+    warn = "report",
+    x_no_param_assertions = True,
+)
+
+werror_test(
+    name = "werror_test",
+    target_under_test = ":custom_opts_kotlinc_opts",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "kotlinc_opts_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+kotlin_library(
+    name = "custom_opts",
+    testonly = True,
+    srcs = ["Lib.kt"],
+    kotlinc_opts = ":custom",  # keep
+)

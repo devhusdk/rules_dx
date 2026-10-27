@@ -1,0 +1,8 @@
+load("//java/rules:defs.bzl", "java_library")
+
+java_library(
+    name = "lib",
+    srcs = ["Shape.java"],
+    tags = ["manual"],
+    visibility = ["//quality/testdata/spotbugs_owned:__pkg__"],
+)

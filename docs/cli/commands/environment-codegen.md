@@ -30,7 +30,7 @@ success. Checking never selects a new generation, populates managed
 bins, or commits records.
 
 Both commands also pass
-`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+`--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 These args fail the same way: `--aspects`, `--output_groups`,
@@ -55,9 +55,6 @@ To run both, run `env` first, then `codegen`. Stop on the first failure.
 bazel run @rules_dx//:dx -- env --apply
 bazel run @rules_dx//:dx -- codegen --apply
 ```
-
-`dx setup` is not a command. It exits `2` and names `dx env` and
-`dx codegen`.
 
 Output: `--output text|json`.
 
@@ -93,9 +90,9 @@ Codes include `invalid_arguments`, `invalid_result`, `no_capability`,
 `unreadable_bep` and `managed_commit_failed`.
 
 Exit codes: `0` success. `2` usage or scope errors: a bad scope, a
-conflicting validate or diagnostics flag, a rejected arg after `--`
+conflicting diagnostics flag, a rejected arg after `--`
 (`--aspects`, `--output_groups`, `--build_event_json_file`, `--test_arg` or a
-startup option), `dx setup`, or a failed codegen
+startup option), or a failed codegen
 label query. The JSON `error` keeps the query status. `1` drift, an
 invalid collection result (`invalid_result`), no capability
 (`no_capability`), a non-UTF-8 temporary event path (`unreadable_bep`),

@@ -1,0 +1,9 @@
+load("//java/rules:defs.bzl", "java_library")
+
+java_library(
+    name = "lib",
+    srcs = ["Sized.java"],
+    neverlink = True,
+    tags = ["manual"],
+    visibility = ["//quality/testdata/spotbugs_owned:__pkg__"],
+)

@@ -1,7 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::collections::BTreeSet;
+use std::path::Path;
 
 use dx_testing::nested::{self, Case};
-use dx_testing::{resolve_runfiles, Run};
+use dx_testing::{resolve_runfiles, rules_dx_source, Run};
 
 const POLICY: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 
@@ -354,6 +355,23 @@ void StockTest::evaluatesTheShelfModule() {
 QTEST_GUILESS_MAIN(StockTest)
 "#;
 
+/// Parses Qt's "Available platform plugins are: a, b." line into a set; empty if absent.
+fn available_platform_plugins(output: &str) -> BTreeSet<String> {
+    const MARKER: &str = "Available platform plugins are: ";
+    output
+        .lines()
+        .find_map(|line| line.find(MARKER).map(|i| &line[i + MARKER.len()..]))
+        .map(|rest| {
+            rest.trim()
+                .trim_end_matches('.')
+                .split(',')
+                .map(|name| name.trim().to_owned())
+                .filter(|name| !name.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn write(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
@@ -365,18 +383,8 @@ fn read(path: &Path) -> Vec<u8> {
     std::fs::read(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
 }
 
-fn rules_dx_root() -> PathBuf {
-    let fixture = resolve_runfiles("qt/tests/fixtures/ticker.h");
-    let real =
-        std::fs::canonicalize(&fixture).unwrap_or_else(|error| panic!("{fixture:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case("consumer");
     let version = std::fs::read_to_string(rules.join(".bazelversion"))
         .unwrap_or_else(|error| panic!("bazelversion: {error}"));
@@ -606,10 +614,14 @@ fn wrong_modules_resources_and_repositories_fail() {
     assert!(
         platform
             .combined()
-            .contains("Could not find the Qt platform plugin \"xcb\"")
-            && platform
-                .combined()
-                .contains("Available platform plugins are: offscreen, minimal."),
+            .contains("Could not find the Qt platform plugin \"xcb\""),
+        "{}",
+        platform.combined()
+    );
+    // Keep in sync with platform_plugins in qt/sdk/layout_linux.bzl.
+    assert_eq!(
+        available_platform_plugins(&platform.combined()),
+        BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]),
         "{}",
         platform.combined()
     );

@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":preset_tests.bzl", "preset_update_tests")
@@ -15,10 +15,7 @@ rust_library(
     crate_name = "dx_preset",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
-        package_name = "tools/dx_preset",
-    ),
+    deps = [],
 )
 
 rust_test(
@@ -30,9 +27,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_preset",
-    deps = crate_deps(
-        ["tempfile"],
+    deps = all_crate_deps(
         package_name = "tools/dx_preset",
+        normal = True,
+        normal_dev = True,
     ),
 )
 

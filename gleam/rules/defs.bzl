@@ -2,8 +2,10 @@
 
 load("@rules_gleam//gleam:defs.bzl", _gleam_binary = "gleam_binary", _gleam_erl_library = "gleam_erl_library", _gleam_library = "gleam_library", _gleam_test = "gleam_test")
 load("@rules_gleam//gleam:provider.bzl", _GleamErlPackageInfo = "GleamErlPackageInfo")
-load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap_binary", "dx_wrap_test")
+load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
+load("//erlang/toolchain:pins.bzl", "CELLS")
+load("//gleam/toolchain:pins.bzl", "GLEAM_CELLS")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":javascript.bzl", _GleamJsInfo = "GleamJsInfo", _gleam_js_binary = "gleam_js_binary", _gleam_js_library = "gleam_js_library", _gleam_js_test = "gleam_js_test", _package_name = "package_name")
 
@@ -11,7 +13,9 @@ GleamErlPackageInfo = _GleamErlPackageInfo
 
 GleamJsInfo = _GleamJsInfo
 
-GLEAM_COMPATIBLE_WITH = ERLANG_COMPATIBLE_WITH
+GLEAM_OTP_CELLS = [cell for cell in sorted(GLEAM_CELLS.keys()) if cell in CELLS]
+
+GLEAM_COMPATIBLE_WITH = otp_compatible_with(GLEAM_OTP_CELLS)
 
 GLEAM_SOURCE_GLOBS = ["src/**/*.gleam"]
 
@@ -155,8 +159,13 @@ def _forward_kwargs(kwargs, testonly):
             out[key] = kwargs[key]
     return out
 
+def _manual(upstream):
+    """Returns library upstream kwargs with the private upstream tags."""
+    upstream["tags"] = dx_upstream_tags(upstream.get("tags"))
+    return upstream
+
 def _library(name, srcs, directory, visibility, testonly, kwargs):
-    _gleam_library(name = name + "_upstream", testonly = testonly, visibility = ["//visibility:private"], **upstream_kwargs(kwargs, srcs, directory))
+    _gleam_library(name = name + "_upstream", testonly = testonly, visibility = ["//visibility:private"], **_manual(upstream_kwargs(kwargs, srcs, directory)))
     _library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))
 
 def gleam_library(name, srcs = None, visibility = None, testonly = False, **kwargs):
@@ -174,7 +183,7 @@ def gleam_test_library(name, srcs = None, visibility = None, **kwargs):
 def gleam_erl_library(name, srcs = None, visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_gleam gleam_erl_library rule."""
     srcs = owned_sources(srcs, ["src/**/*.erl"])
-    _gleam_erl_library(name = name + "_upstream", testonly = testonly, visibility = ["//visibility:private"], **upstream_kwargs(kwargs, srcs, "src"))
+    _gleam_erl_library(name = name + "_upstream", testonly = testonly, visibility = ["//visibility:private"], **_manual(upstream_kwargs(kwargs, srcs, "src")))
     _erl_library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))
 
 def gleam_binary(name, srcs, visibility = None, **kwargs):
@@ -194,7 +203,7 @@ def gleam_test(name, srcs = None, visibility = None, **kwargs):
 def gleam_js_library(name, srcs = None, visibility = None, testonly = False, **kwargs):
     """Compiles one Gleam package and its .mjs FFI files to JavaScript."""
     srcs = owned_sources(srcs, GLEAM_JS_SOURCE_GLOBS)
-    _gleam_js_library(name = name + "_upstream", testonly = testonly, visibility = ["//visibility:private"], **js_kwargs(kwargs, srcs, "src", name))
+    _gleam_js_library(name = name + "_upstream", testonly = testonly, visibility = ["//visibility:private"], **_manual(js_kwargs(kwargs, srcs, "src", name)))
     _js_library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))
 
 def gleam_js_binary(name, srcs, visibility = None, **kwargs):

@@ -71,6 +71,8 @@ gleam_js_binary(
 
 - Module names come from the path below `src/` or `test/`. Set
   `strip_src_prefix` to use another directory.
+- Library `tags` reach the library; the generated upstream target is
+  `manual`, so `//...` builds only the library.
 - A warning fails the build. Set `warnings_as_errors = False` to allow it.
 - Tests get the pinned gleeunit. A test that runs no tests fails.
 - Erlang tests take helper modules through a `gleam_test_library` in `deps`.

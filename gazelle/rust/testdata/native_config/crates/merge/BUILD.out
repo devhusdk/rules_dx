@@ -1,4 +1,3 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//quality:native_config.bzl", "rustfmt_config")
 load("@rules_dx//rust/rules:defs.bzl", "rust_library")
 
@@ -17,19 +16,4 @@ rust_library(
     crate_name = "merge",
     crate_root = "src/lib.rs",
     visibility = ["//visibility:public"],
-)
-
-real_source_target(
-    name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],
-)
-
-real_source_target(
-    name = "corpus_toml",
-    tags = ["corpus"],
-    toml_srcs = [
-        "custom.toml",
-        "rustfmt.toml",
-    ],
 )

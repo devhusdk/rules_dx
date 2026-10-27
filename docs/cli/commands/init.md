@@ -20,33 +20,56 @@ Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks b
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Writes each file only when it is missing. The exceptions are the marked
-block in `AGENTS.md` and stale launchers (see below). It writes `.dx/version`, `.gitignore`, `.envrc`, `.devcontainer/devcontainer.json`,
+block in `AGENTS.md` and stale launchers (see below). It writes `.dx/version`, `.gitignore`, `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
-(`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
-with the `dx worktree` hooks. The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
-creating the file when it is missing (see below). If `.claude/settings.json`
-already exists, it is left alone and the missing hook entries are printed to
+(`tools/dx` and `tools/dx.cmd`), and the `dx worktree` hooks for each agent:
+
+| Agent | Hooks file | Hooks |
+| --- | --- | --- |
+| Claude Code | `.claude/settings.json` | all four |
+| Cursor | `.claude/settings.json`, through Third-Party Imports | all four |
+| Codex | `.codex/hooks.json` | `guard`, after you trust it with `/hooks` |
+| Gemini CLI | `.gemini/settings.json` | `guard`, in a trusted folder |
+
+See [Hooks](worktree.md#hooks). The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
+creating the file when it is missing (see below). It writes `CLAUDE.md` with an
+`@AGENTS.md` import when the import is missing, so Claude Code reads the block.
+The new `.claude/settings.json` also carries a `permissions.allow` list for the
+read-only commands `tools/dx check *`, `test *`, `build *`, `list-tests *`,
+`status *` and `version *`. If a hooks file
+already exists, it is left alone and the missing hook and allow entries are printed to
 stderr. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
-`rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
-`__pycache__/`, `*.pyc`, `.gradle/` and `/build/`. Editor settings point at the managed
-interpreter and tools with host-native names.
+`rules_dx_version` matching the snippet. When the tree has `.cu` or `.cuh` files, the snippet also carries the pinned CUDA toolkit and host-compiler stanza and the opt-in `cuda-eula` license line (see `dx new cuda`). The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
+`__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/` and
+`/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`, so Bazel skips
+the IDE output bases. When a `.bazelignore` already exists it is left alone, and
+`dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
+to stderr if it does not list `.dx`. Editor settings point at the managed
+interpreter and tools with host-native names. For Rust they set up
+rust-analyzer with the `rules_rust` discover and flycheck targets. Both run
+with `bazel run` on separate output bases under `.dx/ide/`, and the file
+watcher and search exclude `bazel-*` and `.dx/ide/`. They configure language servers, not debuggers. See
+[Supported Surface](README.md#supported-surface).
 Flags: `--apply`.
 Scopes: optional single module name.
 
 Output: text only. Check mode looks for `.dx/version`,
-`.devcontainer/devcontainer.json`, `.gitignore`, `.envrc`,
+`.devcontainer/devcontainer.json`, `.gitignore`, `.bazelignore`, `.envrc`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
-`tools/dx.cmd`. It does not inspect `.claude/settings.json` or `AGENTS.md`.
-It also flags a dx-written launcher whose version differs from `.dx/version`.
-When all of them exist and no launcher is stale, it prints
+`tools/dx.cmd`. It does not inspect the hooks files, `AGENTS.md` or `CLAUDE.md`.
+It also flags a dx-written launcher whose version differs from `.dx/version`,
+and an empty or non-semver `.dx/version`.
+When all of them exist, no launcher is stale and the pin is valid, it prints
 `init current: <module>` to stdout. Otherwise it prints
-`dx: init_failed: init drift: missing <paths>; stale <paths>` to stderr (only
-the parts that apply), followed by the `dx init <module> --apply` command to run.
+`dx: init_failed: init drift: missing <paths>; stale <paths>; invalid .dx/version ("<pin>")`
+to stderr (only the parts that apply), followed by the `dx init <module> --apply`
+command to run. An invalid pin is not fixed by apply: write the module version to
+`.dx/version`, which the message names.
 Apply prints `wrote <path>` to stdout for each file it creates or refreshes,
-and `wrote AGENTS.md` when the block changes. For each scaffold or launcher file
+`wrote AGENTS.md` when the block changes, and `wrote CLAUDE.md` when the import is added. For each scaffold or launcher file
 that already exists and is kept, it prints `dx: <path> (absent-only, left untouched)` to
 stderr. `--quiet` hides the stdout lines. The stderr lines still print.
 
@@ -57,13 +80,14 @@ apply failed.
 ## Agent commands block
 
 `dx init --apply` writes this block between `<!-- dx:begin -->` and
-`<!-- dx:end -->` markers in `AGENTS.md`:
+`<!-- dx:end -->` markers in `AGENTS.md`. `dx new --apply` writes the same
+block in the new project:
 
 ```text
 <!-- dx:begin -->
 - Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`.
 - Fix first: `tools/dx fix --apply --affected`.
-- Then verify: `tools/dx check --affected`.
+- Then verify: `tools/dx test --affected`.
 - Read the `--output=json` result.
 <!-- dx:end -->
 ```
@@ -72,7 +96,9 @@ An existing file gets the block appended. A block that is out of date is
 replaced. Text outside the markers is never touched, and CRLF files keep CRLF.
 A begin marker without an end marker is an error and the file is left as is.
 `dx status` reports the `agents` check as `warn` when the block is missing or
-out of date, or a hook is missing from `.claude/settings.json`.
+out of date, `CLAUDE.md` does not import `AGENTS.md`, or a hook is missing from
+`.claude/settings.json`, or from `.codex/hooks.json` or `.gemini/settings.json`
+when they exist.
 
 ## Launcher
 
@@ -107,7 +133,7 @@ first three lines (`#!/bin/sh`, `set -eu`, `VERSION="<v>"`, or `@echo off`,
 touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
 When a launcher would change and `.dx/version` is not semver, init fails with
 `init_failed` before writing any file. `dx rollback --apply` refreshes existing launchers the
-same way.
+same way. `dx new --apply` writes the same launcher in the new project.
 
 ## Git hooks
 

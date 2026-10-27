@@ -34,16 +34,16 @@ def mdbook_chapters_error(chapters):
     sections = 0
     for index in range(len(chapters)):
         chapter = chapters[index]
+        if index == 0 and chapter.kind != "index":
+            errors.append("docs_site: the book must open with the generated index chapter")
         if chapter.kind == "section":
             sections += 1
             if chapter.title.strip() == "":
                 errors.append("docs_site: a sidebar section has no title")
-            if index == 0 or chapters[index - 1].kind == "section":
+            if index == len(chapters) - 1 or chapters[index + 1].kind == "section":
                 errors.append("docs_site: sidebar section '" + chapter.title + "' holds no page")
             continue
-        if index == 0 and chapter.kind != "index":
-            errors.append("docs_site: the book must open with the generated index chapter")
-        elif index != 0 and chapter.kind == "index":
+        if index != 0 and chapter.kind == "index":
             errors.append("docs_site: the book has more than one index chapter")
         error = mdbook_route_error(chapter.route)
         if error != "":
@@ -85,7 +85,7 @@ def mdbook_page_list(chapters):
         pages.append(None if chapter.kind == "index" else chapter.source)
     return routes, pages
 
-def mdbook_summary_text(chapters):
+def mdbook_summary_text(chapters, api_title = ""):
     """Returns the mdBook SUMMARY text one curated chapter list renders."""
     lines = ["# Summary", ""]
     for chapter in chapters:
@@ -93,9 +93,11 @@ def mdbook_summary_text(chapters):
             lines.append("# " + chapter.title)
         else:
             lines.append("- [" + chapter.title + "](" + chapter.route + ")")
+    if api_title != "":
+        lines.append("# " + api_title)
     return "\n".join(lines) + "\n"
 
-def mdbook_index_text(chapters):
+def mdbook_index_text(chapters, api_title = ""):
     """Returns the generated landing page that opens one book."""
     landing = chapters[0]
     lines = ["# " + landing.title, ""]
@@ -109,6 +111,8 @@ def mdbook_index_text(chapters):
         elif pending != "":
             lines.append("- [" + pending + "](" + chapter.route + ")")
             pending = ""
+    if api_title != "":
+        lines.append("- [" + api_title + "](api.md)")
     return "\n".join(lines) + "\n"
 
 def _mdbook_text_impl(ctx):
@@ -116,6 +120,7 @@ def _mdbook_text_impl(ctx):
 
 mdbook_text = rule(
     implementation = _mdbook_text_impl,
+    doc = "Writes one text file for the mdBook site.",
     attrs = {
         "out": attr.output(mandatory = True),
         "text": attr.string(mandatory = True),
@@ -157,6 +162,7 @@ def _mdbook_site_impl(ctx):
 
 mdbook_site = rule(
     implementation = _mdbook_site_impl,
+    doc = "Renders the documentation site with mdBook.",
     attrs = {
         "api": attr.label(doc = "The API reference to add under api/.", providers = [DocsApiInfo]),
         "book_toml": attr.label(allow_single_file = True, mandatory = True),
@@ -177,11 +183,12 @@ mdbook_site = rule(
     },
 )
 
-def mdbook_book(name, book_toml, chapters):
+def mdbook_book(name, book_toml, chapters, api = None):
     """Emits the generated book inputs and renders one complete site tree."""
-    mdbook_inputs(name, chapters)
+    mdbook_inputs(name, chapters, api_title = "API Reference" if api else "")
     mdbook_site(
         name = name,
+        api = api,
         book_toml = book_toml,
         pages = _book_pages(name, chapters),
         routes = mdbook_page_list(chapters)[0],
@@ -196,7 +203,7 @@ def mdbook_check(name, chapters):
         srcs = [":" + name + "_SUMMARY.md", ":" + name + "_index.md"],
     )
 
-def mdbook_inputs(name, chapters):
+def mdbook_inputs(name, chapters, api_title = ""):
     """Emits the SUMMARY and the landing page one curated chapter list renders."""
     errors = mdbook_chapters_error(chapters)
     if len(errors) > 0:
@@ -204,12 +211,12 @@ def mdbook_inputs(name, chapters):
     mdbook_text(
         name = name + "_SUMMARY",
         out = name + "_SUMMARY.md",
-        text = mdbook_summary_text(chapters),
+        text = mdbook_summary_text(chapters, api_title),
     )
     mdbook_text(
         name = name + "_index",
         out = name + "_index.md",
-        text = mdbook_index_text(chapters),
+        text = mdbook_index_text(chapters, api_title),
     )
 
 def _book_pages(name, chapters):

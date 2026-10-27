@@ -168,6 +168,8 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "gofumpt",
             "google_java_format",
             "govet",
+            "graphql_eslint",
+            "hadolint",
             "jsonnetfmt",
             "keep_sorted",
             "ktfmt",
@@ -183,6 +185,8 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "pylint",
             "qmlformat",
             "qmllint",
+            "redocly",
+            "remark",
             "roslyn",
             "rubocop",
             "ruff",
@@ -205,7 +209,6 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "zig_fmt",
         ]
     );
-    assert!(!REAL_TOOLS.contains(&"tsc"));
 }
 
 #[test]
@@ -410,20 +413,26 @@ pub(super) fn placeholders_cover_the_other_known_files_with_the_extensions() {
 }
 
 #[test]
-pub(super) fn rustfmt_unknown_diff_file_keeps_the_parser_detail() {
-    let backend = backend_for("rustfmt", rustfmt_tool(), dotted_path_rustfmt);
-    let stages = vec![stage("rustfmt", &["rust"], &["src/lib.rs"])];
-    let files = vec![file(
-        "src/lib.rs",
-        "#[path = \"../shared/util.rs\"]\nmod util;\n",
+pub(super) fn rustfmt_parent_relative_path_module_is_formatted() {
+    let backend = backend_for("rustfmt", rustfmt_tool(), module_rustfmt);
+    let stages = vec![stage(
+        "rustfmt",
+        &["rust"],
+        &["src/lib.rs", "shared/util.rs"],
     )];
-    let err = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
-        .expect_err("unknown diff file fails");
-    assert_eq!(
-        err.to_string(),
-        "tool execution failed for rustfmt: rustfmt failed with exit 1: \
-         rustfmt reported an unchecked file: src/../shared/util.rs"
-    );
+    let files = vec![
+        file("src/lib.rs", "#[path = \"../shared/util.rs\"]\nmod util;\n"),
+        file("shared/util.rs", "pub fn u() {}  \n"),
+    ];
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("path module is matched");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    let paths: Vec<&str> = result
+        .replacements
+        .iter()
+        .map(|replacement| replacement.path.as_str())
+        .collect();
+    assert_eq!(paths, ["shared/util.rs"]);
 }
 
 #[test]
@@ -852,6 +861,54 @@ pub(super) fn taplo_format_reports_unformatted_files() {
 }
 
 #[test]
+pub(super) fn taplo_config_that_is_a_source_uses_pipeline_text() {
+    let tool = RealTool {
+        config_rel: Some(".taplo.toml".to_owned()),
+        tool_files: vec![(".taplo.toml".to_owned(), b"a = 1\n".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("taplo", tool, taplo_reads_disk);
+    let findings = backend
+        .diagnose("taplo", "format", &single(".taplo.toml", "a=1\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+}
+
+#[test]
+pub(super) fn taplo_fix_of_a_config_source_uses_pipeline_text() {
+    let tool = RealTool {
+        config_rel: Some(".taplo.toml".to_owned()),
+        tool_files: vec![(".taplo.toml".to_owned(), b"b=2\n".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("taplo", tool, taplo_reads_disk);
+    let fixed = backend
+        .apply_fix("taplo", ".taplo.toml", "a=1\n", "format")
+        .expect("fixed");
+    assert_eq!(fixed, "a = 1\n");
+}
+
+#[test]
+pub(super) fn taplo_pipeline_formats_a_config_source_to_stable() {
+    let tool = RealTool {
+        config_rel: Some(".taplo.toml".to_owned()),
+        tool_files: vec![(".taplo.toml".to_owned(), b"a = 1\n".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("taplo", tool, taplo_reads_disk);
+    let stages = vec![stage("taplo", &["format"], &[".taplo.toml"])];
+    let files = vec![file(".taplo.toml", "a=1\n")];
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("real pipeline");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    assert!(result.terminal_diagnostics.is_empty());
+    assert_eq!(result.initial_diagnostics.len(), 1);
+    assert!(result.initial_diagnostics.iter().all(|d| d.fixable));
+    assert_eq!(result.replacements.len(), 1);
+    assert!(encode_validated(&result).is_ok());
+}
+
+#[test]
 pub(super) fn rustfmt_hinted_config_reaches_the_tool() {
     let tool = RealTool {
         config_rel: Some("hint.toml".to_owned()),
@@ -934,10 +991,55 @@ pub(super) fn rustfmt_without_edition_fails_the_action() {
         )
         .expect_err("missing edition fails");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
-    assert!(err.to_string().contains("--tool-edition"));
+    assert!(err.to_string().contains("request tool edition"));
     let err = backend
         .apply_fix("rustfmt", "src/main.rs", "fn main() {}\n", "format")
         .expect_err("missing edition fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("request tool edition"));
+}
+
+pub(super) fn gofumpt_lang_passthrough(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(
+        argv.get(1),
+        Some(&OsString::from("-lang=go1.26")),
+        "the aspect's Go language version reaches gofumpt"
+    );
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn gofumpt_check_and_fix_share_the_caller_lang() {
+    let backend = backend_for("gofumpt", gofumpt_tool(), gofumpt_lang_passthrough);
+    let findings = backend
+        .diagnose("gofumpt", "format", &single("a.go", "package a\n"))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
+    backend
+        .apply_fix("gofumpt", "a.go", "package a\n", "format")
+        .expect("fixed");
+}
+
+#[test]
+pub(super) fn gofumpt_without_lang_fails_the_action() {
+    let backend = backend_for("gofumpt", plain_tool(), gofumpt_lang_passthrough);
+    let err = backend
+        .diagnose("gofumpt", "format", &single("a.go", "package a\n"))
+        .expect_err("missing lang fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("--tool-edition"));
+    let err = backend
+        .apply_fix("gofumpt", "a.go", "package a\n", "format")
+        .expect_err("missing lang fails");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
     assert!(err.to_string().contains("--tool-edition"));
 }
@@ -1148,6 +1250,31 @@ pub(super) fn clang_tidy_without_upstream_context_fails_closed() {
                 .to_owned(),
         }
     );
+}
+
+#[test]
+pub(super) fn cppcheck_without_a_declared_binary_fails_closed() {
+    let scratch = tempfile::Builder::new()
+        .prefix("dx-cppcheck-missing-")
+        .tempdir_in(std::env::temp_dir())
+        .expect("scratch");
+    let tool = RealTool {
+        binary: scratch.path().join("cppcheck"),
+        ..plain_tool()
+    };
+    let backend = backend_for("cppcheck", tool, real_spawn);
+    let error = backend
+        .diagnose(
+            "cppcheck",
+            "lint",
+            &single("src/a.c", "int check(int value) {\n  return value;\n}\n"),
+        )
+        .expect_err("cppcheck without a binary is rejected");
+    assert!(
+        matches!(error, RunnerError::ToolExecution { .. }),
+        "{error}"
+    );
+    assert!(error.to_string().contains("cppcheck"), "{error}");
 }
 
 #[test]

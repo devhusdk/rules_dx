@@ -1,8 +1,9 @@
 use super::common::*;
+use super::failure::CODE_INVALID_SCOPE;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;
-use super::quality::{execute_quality_phase, operational_build_output};
+use super::quality::{execute_quality_phase, guard_build_output};
 use crate::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use crate::plan::spec;
 use crate::reports::plan_reports;
@@ -303,6 +304,93 @@ fn phase_correlation(command: &str, phase: &str) -> String {
 
 /// Forwards one finished phase's streams, nesting its JSON lifecycle under the parent command.
 /// Returns whether every child line was a readable event.
+/// Names the last stderr line of a phase, or says it wrote none.
+fn last_stderr_line(phase_err: &[u8]) -> String {
+    String::from_utf8_lossy(phase_err)
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map_or_else(|| "no stderr output".to_owned(), str::to_owned)
+}
+
+/// Makes a phase that stopped the run as a selection failure say why.
+///
+/// A phase that ends as `Selection` with a failing exit and no `error` event would otherwise
+/// leave only `umbrella_phase_skipped` notices behind. JSON streams gain an `invalid_scope`
+/// error before the phase's closing event; text runs gain a stderr line.
+fn explain_selection_stop(
+    output: OutputMode,
+    phase: &str,
+    code: i32,
+    streams: (&mut Vec<u8>, &mut Vec<u8>),
+) {
+    let (phase_out, phase_err) = streams;
+    let name_of = |line: &[u8]| {
+        serde_json::from_slice::<Value>(line)
+            .ok()
+            .and_then(|event| {
+                event
+                    .get("event")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+    };
+    if output == OutputMode::Json
+        && phase_out
+            .split(|byte| *byte == b'\n')
+            .any(|line| name_of(line).as_deref() == Some("error"))
+    {
+        return;
+    }
+    let message = format!(
+        "{phase} rejected its scope or configuration (exit {code}) without saying why; \
+         last stderr line: {}; pass a Bazel label or package such as //pkg, or use --affected",
+        last_stderr_line(phase_err)
+    );
+    if output != OutputMode::Json {
+        if !phase_err.is_empty() {
+            return;
+        }
+        let _ = writeln!(phase_err, "dx: {CODE_INVALID_SCOPE}: {message}");
+        return;
+    }
+    let Ok(event) = error_event(CODE_INVALID_SCOPE, &message, None, None, Some(phase)) else {
+        return;
+    };
+    let mut line = Vec::new();
+    if write_event(&mut line, &event).is_err() {
+        return;
+    }
+    let lines: Vec<&[u8]> = phase_out
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .collect();
+    let closing = lines.last().is_some_and(|last| {
+        matches!(
+            name_of(last).as_deref(),
+            Some("phase_finished" | "command_finished")
+        )
+    });
+    let keep = if closing {
+        lines.len() - 1
+    } else {
+        lines.len()
+    };
+    let mut rebuilt = Vec::new();
+    for (index, existing) in lines.iter().enumerate() {
+        if index == keep {
+            rebuilt.extend_from_slice(&line);
+        }
+        rebuilt.extend_from_slice(existing);
+        rebuilt.push(b'\n');
+    }
+    if keep == lines.len() {
+        rebuilt.extend_from_slice(&line);
+    }
+    *phase_out = rebuilt;
+}
+
 fn forward_phase(
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -341,113 +429,145 @@ fn forward_phase(
         };
         let name = event.get("event").and_then(Value::as_str);
         if !started && name != Some("phase_started") {
-            emit_event(out, &nest(command_started(phase, mode)).map_err(|_| 1)?)?;
+            emit_built(out, nest(command_started(phase, mode)))?;
         }
         started = true;
         finished |= name == Some("phase_finished");
         emit_event(out, &event)?;
     }
     if !started {
-        emit_event(out, &nest(command_started(phase, mode)).map_err(|_| 1)?)?;
+        emit_built(out, nest(command_started(phase, mode)))?;
     }
     if !readable {
         let message = format!("{phase} wrote an unreadable event");
         let _ = writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}");
-        if let Ok(event) = error_event(CODE_COLLECTION_FAILED, &message, None, None, Some(phase)) {
-            emit_event(out, &with_correlation(event, &correlation).map_err(|_| 1)?)?;
-        }
+        emit_built(
+            out,
+            error_event(CODE_COLLECTION_FAILED, &message, None, None, Some(phase))
+                .and_then(|event| with_correlation(event, &correlation)),
+        )?;
     }
     if !finished {
-        let event = nest_phase_event(
-            command_finished(code, &FinishedCounts::default()),
-            command,
-            phase,
-            &correlation,
-        )
-        .map_err(|_| 1)?;
-        emit_event(out, &event)?;
+        emit_built(
+            out,
+            nest_phase_event(
+                command_finished(code, &FinishedCounts::default()),
+                command,
+                phase,
+                &correlation,
+            ),
+        )?;
     }
     Ok(readable)
 }
 
+/// Adds the phase correlation, or keeps the event without it.
+fn correlated(
+    built: Result<Value, dx_output::OutputError>,
+    command: &str,
+    phase: &str,
+) -> Result<Value, dx_output::OutputError> {
+    built.map(|event| {
+        with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event)
+    })
+}
+
+/// Announces the phases with findings, the skipped phases, and the failed collections.
+fn announce_outcome(
+    out: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    collector: &PhaseCollector,
+    collection_failures: &[(&'static str, String)],
+) -> Result<(), i32> {
+    for phase in collector.with_findings() {
+        announce_findings(out, output, command, phase)?;
+    }
+    for phase in collector.skipped() {
+        announce_skip(out, output, command, phase, &collector.skip_cause)?;
+    }
+    for (phase, message) in collection_failures {
+        announce_collection_failure(out, output, command, phase, message)?;
+    }
+    Ok(())
+}
+
 /// Emits the JSON notice for one phase that never started.
-fn announce_skip(out: &mut dyn Write, output: OutputMode, command: &str, phase: &str, cause: &str) {
+fn announce_skip(
+    out: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    phase: &str,
+    cause: &str,
+) -> Result<(), i32> {
     if output != OutputMode::Json {
-        return;
+        return Ok(());
     }
     let notice = NoticeEvent {
-        level: "warning".to_owned(),
-        code: "umbrella_phase_skipped".to_owned(),
-        message: format!("{phase} skipped after {cause}"),
         related_command: Some(command.to_owned()),
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
+        ..NoticeEvent::warning(
+            "umbrella_phase_skipped",
+            format!("{phase} skipped after {cause}"),
+        )
     };
-    if let Ok(event) = notice_event(&notice) {
-        let correlated =
-            with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event);
-        let _ = write_event(out, &correlated);
-    }
+    emit_built(out, correlated(notice_event(&notice), command, phase))
 }
 
 /// Emits the JSON notice for one phase that finished with ordinary findings.
-fn announce_findings(out: &mut dyn Write, output: OutputMode, command: &str, phase: &str) {
+fn announce_findings(
+    out: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    phase: &str,
+) -> Result<(), i32> {
     if output != OutputMode::Json {
-        return;
+        return Ok(());
     }
     let notice = NoticeEvent {
-        level: "warning".to_owned(),
-        code: "umbrella_phase_findings".to_owned(),
-        message: format!("{phase} reported findings"),
         related_command: Some(command.to_owned()),
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
+        ..NoticeEvent::warning(
+            "umbrella_phase_findings",
+            format!("{phase} reported findings"),
+        )
     };
-    if let Ok(event) = notice_event(&notice) {
-        let correlated =
-            with_correlation(event.clone(), &phase_correlation(command, phase)).unwrap_or(event);
-        let _ = write_event(out, &correlated);
-    }
+    emit_built(out, correlated(notice_event(&notice), command, phase))
 }
 
 /// Reports one phase capture the umbrella could not collect.
 fn announce_collection_failure(
     out: &mut dyn Write,
-    err: &mut dyn Write,
     output: OutputMode,
     command: &str,
     phase: &str,
-    reason: &str,
-) {
-    let message = format!("{phase} {reason}");
-    let _ = writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}");
-    if output == OutputMode::Json {
-        if let Ok(event) = error_event(CODE_COLLECTION_FAILED, &message, None, None, Some(phase)) {
-            let correlated = with_correlation(event.clone(), &phase_correlation(command, phase))
-                .unwrap_or(event);
-            let _ = write_event(out, &correlated);
-        }
+    message: &str,
+) -> Result<(), i32> {
+    if output != OutputMode::Json {
+        return Ok(());
     }
+    emit_built(
+        out,
+        correlated(
+            error_event(CODE_COLLECTION_FAILED, message, None, None, Some(phase)),
+            command,
+            phase,
+        ),
+    )
 }
 
 /// What re-checking the composed tree after a fix apply found.
 struct Verification {
     failed_phase: Option<&'static str>,
     skipped: Vec<&'static str>,
+    /// Phases that failed during apply and so were not re-checked.
+    apply_failed: Vec<&'static str>,
+    /// Phases that were re-checked.
+    verified: Vec<&'static str>,
     out: Vec<u8>,
     err: Vec<u8>,
     readable: bool,
+    /// The exit code once the buffered stream already ended with `command_finished`.
+    ended: Option<i32>,
 }
-
-const BAZEL_BUILD_FAILED: i32 = 1;
-const BAZEL_USAGE: i32 = 2;
-const BAZEL_TESTS_FAILED: i32 = 3;
-const BAZEL_NO_TESTS: i32 = 4;
-const BAZEL_INTERRUPTED: i32 = 8;
 
 /// Runner that forwards every call and records whether Bazel failed to launch or was signalled.
 struct LaunchWatch<'a> {
@@ -468,7 +588,7 @@ impl<'a> LaunchWatch<'a> {
     }
 
     fn watch(&self, result: io::Result<ChildStatus>) -> io::Result<ChildStatus> {
-        if !matches!(result, Ok(ChildStatus { code: Some(_) })) {
+        if !matches!(result, Ok(ChildStatus { code: Some(_), .. })) {
             self.failed.set(true);
         }
         result
@@ -572,14 +692,7 @@ fn test_phase_kind(code: i32, complete: bool, launch_failed: bool) -> PhaseKind 
     if launch_failed && code != 0 {
         return PhaseKind::Host;
     }
-    match code {
-        0 => PhaseKind::Clean,
-        BAZEL_TESTS_FAILED if complete => PhaseKind::Findings,
-        BAZEL_BUILD_FAILED | BAZEL_TESTS_FAILED => PhaseKind::Incomplete,
-        BAZEL_USAGE | BAZEL_NO_TESTS => PhaseKind::Selection,
-        BAZEL_INTERRUPTED => PhaseKind::Cancelled,
-        _ => PhaseKind::Tool,
-    }
+    PhaseKind::from_bazel_exit(code, code == BAZEL_TESTS_FAILED && complete)
 }
 
 /// Where a `fix --apply` verification pass runs, minus its buffered streams.
@@ -599,20 +712,31 @@ fn verify_fix(
     request: &UmbrellaRequest,
     context: &VerifyContext<'_>,
     through: usize,
+    failed_during_apply: &[(usize, &'static str)],
 ) -> Verification {
     let mut outcome = Verification {
         failed_phase: None,
         skipped: Vec::new(),
+        apply_failed: failed_during_apply.iter().map(|(_, name)| *name).collect(),
+        verified: Vec::new(),
         out: Vec::new(),
         err: Vec::new(),
         readable: true,
+        ended: None,
     };
     let command = request.command.name();
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate().take(through + 1) {
+        if failed_during_apply
+            .iter()
+            .any(|(failed, _)| *failed == index)
+        {
+            continue;
+        }
         if outcome.failed_phase.is_some() {
             outcome.skipped.push(phase.name());
             continue;
         }
+        outcome.verified.push(phase.name());
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
         let code = {
@@ -655,12 +779,59 @@ fn verify_fix(
             (&phase_out, &phase_err),
             code,
         );
-        outcome.readable &= forwarded.unwrap_or(false);
+        match forwarded {
+            Ok(readable) => outcome.readable &= readable,
+            Err(_) => {
+                outcome.readable = false;
+                let message = format!("{verify_phase} events could not be forwarded");
+                let _ = writeln!(outcome.err, "dx: {CODE_COLLECTION_FAILED}: {message}");
+                if let Err(exit) = announce_collection_failure(
+                    &mut outcome.out,
+                    request.common.output,
+                    command,
+                    &verify_phase,
+                    &message,
+                ) {
+                    outcome.ended = Some(exit);
+                    break;
+                }
+            }
+        }
         if code != 0 {
             outcome.failed_phase = Some(phase.name());
         }
     }
     outcome
+}
+
+/// Delivers the buffered verification output when verification fails the run.
+fn deliver_verification(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    output: OutputMode,
+    command: &str,
+    verification: &Verification,
+) -> Result<(), i32> {
+    let partial = !verification.apply_failed.is_empty() && !verification.verified.is_empty();
+    if verification.failed_phase.is_none() && verification.readable && !partial {
+        return Ok(());
+    }
+    check_stdout_write(out.write_all(&verification.out))?;
+    check_stdout_write(err.write_all(&verification.err))?;
+    if let Some(exit) = verification.ended {
+        return Err(exit);
+    }
+    if let Some(failed) = verification.failed_phase {
+        announce_verification_failure(out, err, output, command, failed, &verification.skipped)?;
+    } else if partial {
+        let _ = writeln!(
+            err,
+            "dx: verification passed after apply for {}; not re-checked, failed during apply: {}",
+            verification.verified.join(", "),
+            verification.apply_failed.join(", ")
+        );
+    }
+    Ok(())
 }
 
 /// Announces one fix apply whose read-only verification found drift.
@@ -671,7 +842,7 @@ fn announce_verification_failure(
     command: &str,
     phase: &str,
     skipped: &[&str],
-) {
+) -> Result<(), i32> {
     let mut message = format!("{phase} failed verification after apply");
     if !skipped.is_empty() {
         message.push_str(&format!(
@@ -680,14 +851,17 @@ fn announce_verification_failure(
         ));
     }
     let _ = writeln!(err, "dx: {CODE_VERIFICATION_FAILED}: {message}");
-    if output == OutputMode::Json {
-        if let Ok(event) = error_event(CODE_VERIFICATION_FAILED, &message, None, None, Some(phase))
-        {
-            let correlated = with_correlation(event.clone(), &phase_correlation(command, phase))
-                .unwrap_or(event);
-            let _ = write_event(out, &correlated);
-        }
+    if output != OutputMode::Json {
+        return Ok(());
     }
+    emit_built(
+        out,
+        correlated(
+            error_event(CODE_VERIFICATION_FAILED, &message, None, None, Some(phase)),
+            command,
+            phase,
+        ),
+    )
 }
 
 /// Announces one written report and names why it is incomplete.
@@ -709,9 +883,7 @@ fn announce_report(
         )
     };
     if output == OutputMode::Json {
-        if let Ok(event) = report_event(format, destination, complete) {
-            emit_event(out, &event)?;
-        }
+        emit_built(out, report_event(format, destination, complete))?;
     } else if matches!(output, OutputMode::Text { .. }) {
         check_stdout_write(writeln!(out, "{note}"))?;
     } else if output == OutputMode::Diff {
@@ -801,19 +973,12 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             );
         }
     }
-    let build_output = dx_adopt::build_output::scan(workspace);
-    if !build_output.is_empty() {
-        let lines: Vec<String> = build_output
-            .iter()
-            .map(|finding| format!("{}: {}", finding.path, finding.reason))
-            .collect();
-        return operational_build_output(request.common.output, out, err, &lines);
+    if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
+        return exit;
     }
     if request.common.output == OutputMode::Json {
-        if let Ok(event) = command_started(command, mode) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(command, mode)) {
+            return exit;
         }
     }
     let mut phases: Vec<Command> = UMBRELLA_PHASES.to_vec();
@@ -830,6 +995,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     let mut stdout_exit: Option<i32> = None;
     let mut reports_ok = true;
     let mut last_touched: Option<usize> = None;
+    let mut failed_phases: Vec<(usize, &'static str)> = Vec::new();
     for (index, phase) in phases.iter().enumerate() {
         let phase_nonce = nonce.wrapping_add(index as u64);
         let mut phase_reports = Vec::new();
@@ -914,6 +1080,14 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         if effects.touched() {
             last_touched = Some(index);
         }
+        if kind == PhaseKind::Selection && code != 0 {
+            explain_selection_stop(
+                request.common.output,
+                phase.name(),
+                code,
+                (&mut phase_out, &mut phase_err),
+            );
+        }
         collector.record_exit(index, code, kind);
         match forward_phase(
             out,
@@ -934,6 +1108,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         if code != 0 {
             if kind.continues(request.command) {
                 failed_code.get_or_insert(code);
+                failed_phases.push((index, phase.name()));
                 continue;
             }
             stop_code = Some(code);
@@ -945,33 +1120,42 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     collector.collect();
     let complete = collector.complete();
     let reasons = collector.reasons();
-    for phase in collector.with_findings() {
-        announce_findings(out, request.common.output, command, phase);
-    }
-    for phase in collector.skipped() {
-        announce_skip(
+    let collection_failures: Vec<(&'static str, String)> = collector
+        .collection_failures()
+        .into_iter()
+        .map(|(phase, reason)| {
+            let message = format!("{phase} {reason}");
+            let _ = writeln!(err, "dx: {CODE_COLLECTION_FAILED}: {message}");
+            (phase, message)
+        })
+        .collect();
+    reports_ok &= collection_failures.is_empty();
+    if stdout_exit.is_none() {
+        let announced = announce_outcome(
             out,
             request.common.output,
             command,
-            phase,
-            &collector.skip_cause,
+            &collector,
+            &collection_failures,
         );
-    }
-    for (phase, reason) in collector.collection_failures() {
-        reports_ok = false;
-        announce_collection_failure(out, err, request.common.output, command, phase, reason);
+        if let Err(exit) = announced {
+            stdout_exit = Some(exit);
+        }
     }
     if stdout_exit.is_none() {
         let document = collector.document();
         for report in &request.common.reports {
             if let Err(error) = write_report_file(workspace, &report.destination, &document) {
                 reports_ok = false;
-                report_failed(
+                if let Err(exit) = report_failed(
                     out,
                     err,
                     request.common.output,
                     &format!("failed to write {} report to {error}", report.format),
-                );
+                ) {
+                    stdout_exit = Some(exit);
+                    break;
+                }
                 continue;
             }
             let announced = announce_report(
@@ -997,12 +1181,11 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     }
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
-    let verify_through =
-        if fix_apply && stdout_exit.is_none() && stop_code.is_none() && failed_code.is_none() {
-            last_touched
-        } else {
-            None
-        };
+    let verify_through = if fix_apply && stdout_exit.is_none() && stop_code.is_none() {
+        last_touched
+    } else {
+        None
+    };
     if let Some(through) = verify_through {
         let context = VerifyContext {
             workspace,
@@ -1014,24 +1197,13 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             ci,
             audit_today,
         };
-        let verification = verify_fix(request, &context, through);
+        let verification = verify_fix(request, &context, through, &failed_phases);
         reports_ok &= verification.readable;
-        if let Some(failed) = verification.failed_phase {
-            verification_failed = true;
-            if let Err(exit) = check_stdout_write(out.write_all(&verification.out))
-                .and_then(|()| check_stdout_write(err.write_all(&verification.err)))
-            {
-                verify_forward_exit = Some(exit);
-            } else {
-                announce_verification_failure(
-                    out,
-                    err,
-                    request.common.output,
-                    command,
-                    failed,
-                    &verification.skipped,
-                );
-            }
+        verification_failed = verification.failed_phase.is_some();
+        if let Err(exit) =
+            deliver_verification(out, err, request.common.output, command, &verification)
+        {
+            verify_forward_exit = Some(exit);
         }
     }
     let code = match stdout_exit {
@@ -1045,7 +1217,10 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             },
         },
     };
-    if request.common.output == OutputMode::Json {
+    if request.common.output == OutputMode::Json
+        && stdout_exit.is_none()
+        && verify_forward_exit.is_none()
+    {
         let finished = command_finished(
             code,
             &FinishedCounts {
@@ -1090,7 +1265,7 @@ mod tests {
         let mut argvs = Vec::new();
         for phase in UMBRELLA_PHASES {
             let plan = if phase == Command::Generate {
-                crate::plan::plan_generate(&resolved, &[], true, &[])
+                crate::plan::plan_generate(&resolved, &[], true, &[], Some("/tmp/dx.patch"))
             } else {
                 crate::plan::plan_build(phase, &resolved, &[], "/tmp/bep.json", &[])
             };
@@ -1215,13 +1390,14 @@ mod tests {
             cwd: &Path,
             env: &[(&str, &str)],
         ) -> io::Result<ChildStatus> {
+            if is_shard_probe(argv) {
+                return self.inner.run(argv, cwd, env);
+            }
             let launch = self.launches.get();
             self.launches.set(launch + 1);
             let status = self.inner.run(argv, cwd, env)?;
             if launch >= self.from && self.to.is_none_or(|to| launch < to) {
-                return Ok(ChildStatus {
-                    code: Some(self.code),
-                });
+                return Ok(ChildStatus::exited(self.code));
             }
             Ok(status)
         }
@@ -1246,6 +1422,9 @@ mod tests {
             cwd: &Path,
             env: &[(&str, &str)],
         ) -> io::Result<ChildStatus> {
+            if is_shard_probe(argv) {
+                return self.inner.run(argv, cwd, env);
+            }
             let launch = self.launches.get();
             self.launches.set(launch + 1);
             let status = self.inner.run(argv, cwd, env)?;
@@ -1259,7 +1438,7 @@ mod tests {
                 let rest = std::fs::read_to_string(bep).unwrap_or_default();
                 std::fs::write(bep, format!("{}\n{rest}", self.bep_line)).expect("BEP file");
             }
-            Ok(ChildStatus { code: Some(1) })
+            Ok(ChildStatus::exited(1))
         }
     }
 
@@ -1318,10 +1497,14 @@ mod tests {
     /// Serves apply content for the first `verify_from` launches, then
     /// verification content, so `fix --apply` tests can stage what the
     /// read-only re-check observes after the apply pass wrote sources.
+    /// Apply launches from `clean_from` on serve `clean_files` instead, so a
+    /// later phase does not re-offer an edit an earlier phase already wrote.
     struct StagedRunner {
         code: Option<i32>,
         bep_lines: Vec<String>,
         apply_files: Vec<(PathBuf, Vec<u8>)>,
+        clean_files: Vec<(PathBuf, Vec<u8>)>,
+        clean_from: usize,
         verify_files: Vec<(PathBuf, Vec<u8>)>,
         apply_intended: Option<Vec<u8>>,
         verify_intended: Option<Vec<u8>>,
@@ -1337,10 +1520,18 @@ mod tests {
             _cwd: &Path,
             env: &[(&str, &str)],
         ) -> io::Result<ChildStatus> {
+            if is_shard_probe(argv) {
+                return Ok(ChildStatus {
+                    code: Some(1),
+                    signal: None,
+                });
+            }
             let launch = self.launches.get();
             self.launches.set(launch + 1);
             let (files, intended) = if launch >= self.verify_from {
                 (&self.verify_files, &self.verify_intended)
+            } else if launch >= self.clean_from {
+                (&self.clean_files, &self.apply_intended)
             } else {
                 (&self.apply_files, &self.apply_intended)
             };
@@ -1366,7 +1557,10 @@ mod tests {
             {
                 std::fs::write(bep, self.bep_lines.join("\n")).expect("BEP file");
             }
-            Ok(ChildStatus { code: self.code })
+            Ok(ChildStatus {
+                code: self.code,
+                signal: None,
+            })
         }
     }
 
@@ -1404,6 +1598,8 @@ mod tests {
                 LAST_EVENT.to_owned(),
             ],
             apply_files: staged,
+            clean_files: Vec::new(),
+            clean_from: verify_from,
             verify_files,
             apply_intended: harness.intended.clone(),
             verify_intended,
@@ -1423,6 +1619,28 @@ mod tests {
         words: &[&str],
     ) -> (i32, String, String) {
         let runner = staged_runner(harness, verify_files, verify_intended, verify_from);
+        let inv = umbrella_invocation(harness, words);
+        harness.execute_with(&inv, &runner)
+    }
+
+    /// Like `fix_apply_with_staged_verify`, but only format (launch 0) sees
+    /// the harness edit; lint, typecheck and generate see a clean result, as
+    /// real tools would once format wrote the file.
+    fn fix_apply_format_edit_then_verify(
+        harness: &Harness,
+        verify_files: Vec<(PathBuf, Vec<u8>)>,
+        verify_intended: Option<Vec<u8>>,
+        verify_from: usize,
+        words: &[&str],
+    ) -> (i32, String, String) {
+        let mut runner = staged_runner(harness, verify_files, verify_intended, verify_from);
+        let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+        runner.clean_files = runner
+            .apply_files
+            .iter()
+            .map(|(path, _)| (path.clone(), clean.clone()))
+            .collect();
+        runner.clean_from = 1;
         let inv = umbrella_invocation(harness, words);
         harness.execute_with(&inv, &runner)
     }
@@ -1464,6 +1682,97 @@ mod tests {
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("cli/target/debug/dx"), "{out}{err}");
         assert!(!out.contains("Running format"), "{out}");
+        assert_eq!(harness.seen_env.borrow().len(), 0);
+    }
+
+    fn dirty_build_output(name: &str) -> Harness {
+        let harness = umbrella_clean(name);
+        let status = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&harness.workspace)
+            .args(["init", "-q"])
+            .status()
+            .expect("git");
+        assert!(status.success());
+        harness.write_source("cli/target/debug/dx", "binary");
+        harness
+    }
+
+    #[test]
+    fn lint_check_rejects_build_output_without_launching_bazel() {
+        let harness = dirty_build_output("umbrella-lint-build-output");
+        let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("cli/target/debug/dx"), "{out}{err}");
+        assert_eq!(harness.seen_env.borrow().len(), 0);
+    }
+
+    #[test]
+    fn lint_apply_is_not_refused_for_build_output() {
+        let harness = dirty_build_output("umbrella-lint-apply-build-output");
+        let (_, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        assert!(!err.contains("build output in change"), "{out}{err}");
+        assert!(!out.contains("build output in change"), "{out}{err}");
+    }
+
+    #[test]
+    fn check_and_fix_json_report_build_output_before_finishing() {
+        for command in ["check", "fix"] {
+            let harness = dirty_build_output(&format!("umbrella-{command}-json-build-output"));
+            let (code, out, err) = harness.run(&[command, "--output=json"]);
+            assert_eq!(code, 1, "{out}{err}");
+            let events = json_events(&out);
+            let error = events
+                .iter()
+                .position(|event| event["code"] == "build_output_in_change")
+                .unwrap_or_else(|| panic!("{out}"));
+            let last = events.len() - 1;
+            assert!(error < last, "{out}");
+            assert_eq!(events[last]["event"], "command_finished");
+            assert_eq!(events[last]["exit_code"], 1);
+            assert_eq!(harness.seen_env.borrow().len(), 0);
+        }
+    }
+
+    #[test]
+    fn check_ignores_source_named_target_committed_on_main() {
+        let harness = umbrella_clean("umbrella-check-source-target");
+        let git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&harness.workspace)
+                .args(["-c", "user.name=t", "-c", "user.email=t@t"])
+                .args(args)
+                .status()
+                .expect("git");
+            assert!(status.success());
+        };
+        git(&["init", "-q", "-b", "main"]);
+        harness.write_source("src/x/target/Foo.java", "class Foo {}");
+        git(&["add", "-A"]);
+        git(&["commit", "-q", "-m", "init"]);
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("Running format analysis"), "{out}");
+    }
+
+    #[test]
+    fn check_reports_a_git_failure_from_the_build_output_check() {
+        let harness = umbrella_clean("umbrella-check-git-failed");
+        let git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&harness.workspace)
+                .args(args)
+                .status()
+                .expect("git");
+            assert!(status.success());
+        };
+        git(&["init", "-q"]);
+        std::fs::write(harness.workspace.join(".git/index"), b"garbage").expect("index");
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 2, "{out}{err}");
+        assert!(err.contains("build-output check failed"), "{out}{err}");
         assert_eq!(harness.seen_env.borrow().len(), 0);
     }
 
@@ -1695,7 +2004,7 @@ mod tests {
             .iter()
             .map(|(path, _)| (path.clone(), clean.clone()))
             .collect();
-        let (code, out, err) = fix_apply_with_staged_verify(
+        let (code, out, err) = fix_apply_format_edit_then_verify(
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
@@ -1710,8 +2019,8 @@ mod tests {
         );
         assert!(out.contains("Applied 1 file(s)."), "{out}");
         assert!(
-            err.contains("Not applied: src/a.py (stale_source)"),
-            "later phases name the edit the first apply left stale: {err}"
+            !err.contains("Not applied"),
+            "later phases see the written file and offer no edit: {err}"
         );
         assert_eq!(
             out.matches("Running format analysis for //...").count(),
@@ -1721,12 +2030,12 @@ mod tests {
         assert_eq!(
             out.matches("Running generate").count(),
             1,
-            "generate touched nothing, so verification stops at typecheck: {out}"
+            "only format touched a file, so verification stops at format: {out}"
         );
         assert_eq!(
             harness.seen_env.borrow().len(),
-            7,
-            "four apply launches plus format, lint and typecheck verification"
+            5,
+            "four apply launches plus format verification; lint and typecheck touched nothing"
         );
     }
 
@@ -1787,7 +2096,7 @@ mod tests {
             .iter()
             .map(|(path, _)| (path.clone(), drift.clone()))
             .collect();
-        let (code, out, err) = fix_apply_with_staged_verify(
+        let (code, out, err) = fix_apply_format_edit_then_verify(
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
@@ -1805,8 +2114,8 @@ mod tests {
             "{err}"
         );
         assert!(
-            err.contains("verification skipped for lint, typecheck\n"),
-            "{err}"
+            !err.contains("verification skipped"),
+            "lint and typecheck touched nothing, so none is left to skip: {err}"
         );
         assert!(out.contains("Running format analysis for //..."), "{out}");
         assert_eq!(
@@ -1844,7 +2153,7 @@ mod tests {
             .iter()
             .map(|(path, _)| (path.clone(), drift.clone()))
             .collect();
-        let (code, out, _) = fix_apply_with_staged_verify(
+        let (code, out, _) = fix_apply_format_edit_then_verify(
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
@@ -1863,6 +2172,90 @@ mod tests {
             events.last().expect("last")["exit_code"],
             serde_json::json!(1)
         );
+    }
+
+    #[test]
+    fn verification_failure_names_the_skipped_phases() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        announce_verification_failure(
+            &mut out,
+            &mut err,
+            OutputMode::Json,
+            "fix",
+            "format",
+            &["lint", "typecheck"],
+        )
+        .expect("announced");
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(
+            err,
+            "dx: verification_failed: format failed verification after apply; verification skipped for lint, typecheck\n"
+        );
+        let events = json_events(&String::from_utf8(out).expect("stdout"));
+        assert_eq!(events[0]["code"], serde_json::json!("verification_failed"));
+        assert_eq!(events[0]["phase"], serde_json::json!("format"));
+    }
+
+    #[test]
+    fn verification_collection_failure_is_shown_without_a_failed_phase() {
+        let mut verification = Verification {
+            failed_phase: None,
+            skipped: vec![],
+            apply_failed: vec![],
+            verified: vec![],
+            out: vec![],
+            err: vec![],
+            readable: true,
+            ended: None,
+        };
+        let forwarded = forward_phase(
+            &mut verification.out,
+            &mut verification.err,
+            OutputMode::Json,
+            ("fix", "check"),
+            "verify/lint",
+            (b"not an event\n", b""),
+            0,
+        );
+        assert_eq!(forwarded, Ok(false));
+        verification.readable = false;
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        deliver_verification(&mut out, &mut err, OutputMode::Json, "fix", &verification)
+            .expect("delivered");
+        let err = String::from_utf8(err).expect("utf8");
+        assert!(
+            err.contains("dx: collection_failed: verify/lint wrote an unreadable event"),
+            "{err}"
+        );
+        let out = String::from_utf8(out).expect("utf8");
+        let events = json_events(&out);
+        let failures: Vec<_> = events.iter().filter(|e| e["event"] == "error").collect();
+        assert_eq!(failures.len(), 1, "{out}");
+        assert_eq!(failures[0]["code"], serde_json::json!("collection_failed"));
+        assert_eq!(
+            failures[0]["correlation"],
+            serde_json::json!("fix/verify/lint")
+        );
+        assert!(!out.contains("verification_failed"), "{out}");
+    }
+
+    #[test]
+    fn clean_verification_delivers_nothing() {
+        let verification = Verification {
+            failed_phase: None,
+            skipped: vec![],
+            apply_failed: vec![],
+            verified: vec![],
+            out: b"buffered out\n".to_vec(),
+            err: b"buffered err\n".to_vec(),
+            readable: true,
+            ended: None,
+        };
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        deliver_verification(&mut out, &mut err, OutputMode::Json, "fix", &verification)
+            .expect("delivered");
+        assert!(out.is_empty() && err.is_empty());
     }
 
     fn oscillating(harness: &Harness) -> Vec<u8> {
@@ -1944,7 +2337,7 @@ mod tests {
             .iter()
             .map(|(path, _)| (path.clone(), unstable.clone()))
             .collect();
-        let (code, out, err) = fix_apply_with_staged_verify(
+        let (code, out, err) = fix_apply_format_edit_then_verify(
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
@@ -1963,8 +2356,8 @@ mod tests {
             "{err}"
         );
         assert!(
-            err.contains("verification skipped for lint, typecheck\n"),
-            "{err}"
+            !err.contains("verification skipped"),
+            "lint and typecheck touched nothing, so none is left to skip: {err}"
         );
     }
 
@@ -1984,8 +2377,8 @@ mod tests {
         );
         assert_eq!(
             harness.seen_env.borrow().len(),
-            4,
-            "every phase launches once and no verification runs"
+            5,
+            "every phase launches once, then format is re-checked; stale lint is not"
         );
         assert!(
             harness
@@ -1996,6 +2389,68 @@ mod tests {
                 .any(|(key, _)| key == GENERATE_ENV_INTENDED),
             "generate dispatch ran"
         );
+    }
+
+    /// A `fix --apply` whose format edit goes stale before the apply pass.
+    fn refused_format(name: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        harness.write_source("src/a.py", "z = 2\n");
+        harness
+    }
+
+    #[test]
+    fn fix_apply_fails_when_format_refuses_a_stale_source() {
+        let harness = refused_format("umbrella-fix-refused");
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"z = 2\n"
+        );
+        assert!(
+            err.contains("Not applied: src/a.py (stale_source)"),
+            "{err}"
+        );
+        assert!(out.contains("Running lint analysis for //..."), "{out}");
+        assert!(out.contains("Running typecheck analysis"), "{out}");
+        assert!(out.contains("Running generate"), "{out}");
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            4,
+            "every phase launches once and no verification runs"
+        );
+
+        let harness = refused_format("umbrella-fix-refused-json");
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let format_finished = events_of_kind(&events, "phase_finished")
+            .into_iter()
+            .find(|event| event["phase"] == "format")
+            .expect("format finished");
+        assert_eq!(format_finished["exit_code"], 1, "{out}");
+        assert_eq!(
+            format_finished["changes"]["refused"],
+            serde_json::json!(1),
+            "{out}"
+        );
+        assert!(
+            events.iter().all(|event| !event["correlation"]
+                .as_str()
+                .is_some_and(|correlation| correlation.starts_with("verify/"))),
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("last")["exit_code"],
+            serde_json::json!(1)
+        );
+        assert_eq!(harness.seen_env.borrow().len(), 4);
     }
 
     #[test]
@@ -2036,8 +2491,116 @@ mod tests {
         assert_eq!(finished["results_complete"], serde_json::json!(false));
     }
 
+    /// Runs `fix --apply --output=<output>` where lint (launch 1) exits 7 and
+    /// the verification launches see `verify_result`; only format edits.
+    fn fix_apply_lint_fails(
+        harness: &Harness,
+        verify_result: Vec<u8>,
+        output: &str,
+    ) -> (i32, String, String) {
+        let mut staged = staged_runner(
+            harness,
+            harness
+                .staged_artifacts()
+                .iter()
+                .map(|(path, _)| (path.clone(), verify_result.clone()))
+                .collect(),
+            Some(intended_witness("check", true, "", "")),
+            4,
+        );
+        let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+        staged.clean_files = staged
+            .apply_files
+            .iter()
+            .map(|(path, _)| (path.clone(), clean.clone()))
+            .collect();
+        staged.clean_from = 1;
+        let runner = FailFrom {
+            inner: staged,
+            from: 1,
+            to: Some(2),
+            code: 7,
+            launches: Cell::new(0),
+        };
+        let output_flag = format!("--output={output}");
+        let inv = umbrella_invocation(harness, &["fix", "--apply", output_flag.as_str()]);
+        harness.execute_with(&inv, &runner)
+    }
+
+    fn partial_failure_harness(name: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        harness
+    }
+
     #[test]
-    fn fix_apply_skips_verification_after_a_failed_phase() {
+    fn fix_apply_partial_failure_rechecks_passing_phases() {
+        let harness = partial_failure_harness("umbrella-fix-partial-recheck");
+        let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+        let (code, out, err) = fix_apply_lint_fails(&harness, clean, "json");
+        let events = json_events(&out);
+        let lint_code = events
+            .iter()
+            .find(|event| event["event"] == "phase_finished" && event["phase"] == "lint")
+            .expect("lint finished")["exit_code"]
+            .as_i64()
+            .expect("lint code");
+        assert_ne!(lint_code, 0, "{out}");
+        assert_eq!(i64::from(code), lint_code, "{out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"y = 1\n",
+            "format applied before lint failed"
+        );
+        let verify: Vec<&str> = events
+            .iter()
+            .filter_map(|event| event["correlation"].as_str())
+            .filter(|correlation| correlation.starts_with("fix/verify/"))
+            .collect();
+        assert!(verify.contains(&"fix/verify/format"), "{out}{err}");
+        assert!(!verify.contains(&"fix/verify/lint"), "{out}");
+        assert!(
+            err.contains("verification passed after apply for format")
+                && err.contains("failed during apply: lint"),
+            "{err}"
+        );
+        assert_eq!(
+            events_of_kind(&events, "command_finished").len(),
+            1,
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("last")["exit_code"],
+            serde_json::json!(lint_code)
+        );
+    }
+
+    #[test]
+    fn fix_apply_partial_failure_reports_a_failing_recheck() {
+        let harness = partial_failure_harness("umbrella-fix-partial-recheck-fails");
+        let unstable =
+            quality_result::decode_validated(&harness.result_full(vec![], vec![], vec![], vec![]))
+                .map(|mut result| {
+                    result.convergence = quality_result::proto::Convergence::Oscillation as i32;
+                    result.completed_rounds = 2;
+                    quality_result::encode_validated(&result).expect("encode")
+                })
+                .expect("valid result");
+        let (code, out, err) = fix_apply_lint_fails(&harness, unstable, "text");
+        assert_eq!(code, 1, "the failed phase's code stays: {out}{err}");
+        assert!(
+            err.contains("dx: verification_failed: format failed verification after apply"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn fix_apply_does_not_recheck_the_failed_phase() {
         let mut harness = Harness::new("umbrella-fix-failed-no-verify");
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
@@ -2060,12 +2623,16 @@ mod tests {
             b"y = 1\n",
             "format applied before typecheck failed"
         );
-        assert_eq!(runner.launches.get(), 4, "only the four phase launches");
+        assert_eq!(
+            runner.launches.get(),
+            5,
+            "four phase launches plus the format recheck, never the failed typecheck"
+        );
         let events = json_events(&out);
         assert!(
             events.iter().all(|event| !event["correlation"]
                 .as_str()
-                .is_some_and(|correlation| correlation.starts_with("verify/"))),
+                .is_some_and(|correlation| correlation == "verify/typecheck")),
             "{out}"
         );
         assert_eq!(
@@ -2167,6 +2734,57 @@ mod tests {
                 .iter()
                 .any(|event| event["code"] == "bazel_failed" && event["correlation"] == "fix/lint"),
             "{out}"
+        );
+    }
+
+    #[test]
+    fn a_selection_stop_without_an_error_event_gains_one_before_the_closing_event() {
+        let started = br#"{"event":"phase_started","phase":"format"}"#;
+        let finished = br#"{"event":"phase_finished","phase":"format","exit_code":2}"#;
+        let mut out = [&started[..], b"\n", &finished[..], b"\n"].concat();
+        let mut err = b"ERROR: no such target\nINFO: done\n".to_vec();
+        explain_selection_stop(OutputMode::Json, "format", 2, (&mut out, &mut err));
+        let lines: Vec<Value> = String::from_utf8(out)
+            .expect("utf8")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("event"))
+            .collect();
+        assert_eq!(lines.len(), 3, "{lines:?}");
+        assert_eq!(lines[1]["event"], "error");
+        assert_eq!(lines[1]["code"], "invalid_scope");
+        assert_eq!(lines[2]["event"], "phase_finished");
+        let message = lines[1]["message"].as_str().expect("message");
+        assert!(message.contains("INFO: done"), "{message}");
+        assert!(
+            message.contains("pass a Bazel label or package"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn a_selection_stop_that_already_has_an_error_event_is_left_alone() {
+        let error = br#"{"event":"error","code":"invalid_arguments","message":"x"}"#;
+        let mut out = [&error[..], b"\n"].concat();
+        let before = out.clone();
+        let mut err = Vec::new();
+        explain_selection_stop(OutputMode::Json, "format", 2, (&mut out, &mut err));
+        assert_eq!(out, before);
+    }
+
+    #[test]
+    fn a_silent_text_selection_stop_writes_a_stderr_line() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        explain_selection_stop(
+            OutputMode::Text { quiet: false },
+            "format",
+            2,
+            (&mut out, &mut err),
+        );
+        let text = String::from_utf8(err).expect("utf8");
+        assert!(
+            text.starts_with("dx: invalid_scope: format rejected"),
+            "{text}"
         );
     }
 
@@ -2326,6 +2944,29 @@ mod tests {
         ]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("\"code\":\"report_failed\""), "{out}");
+    }
+
+    #[test]
+    fn umbrella_report_into_a_directory_ends_with_one_finished() {
+        let harness = umbrella_clean("umbrella-report-dir");
+        std::fs::create_dir(harness.workspace.join("out.sarif")).expect("directory");
+        let (code, out, _) = harness.run(&["check", "--output=json", "--report=sarif=out.sarif"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        let finished = events
+            .iter()
+            .filter(|event| event["event"] == "command_finished")
+            .count();
+        assert_eq!(finished, 1, "{out}");
+        assert_eq!(
+            events.last().expect("last")["event"],
+            "command_finished",
+            "{out}"
+        );
+        assert!(
+            events.iter().any(|event| event["code"] == "report_failed"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -3323,9 +3964,28 @@ mod tests {
     }
 
     #[test]
+    fn check_reports_a_generate_exit_with_changes_but_no_patch_as_a_tool_failure() {
+        let mut harness = umbrella_clean("umbrella-generate-no-patch");
+        harness.generate_code = Some(1);
+        harness.intended = Some(intended_witness(
+            "check",
+            true,
+            &intended_modify("src/BUILD.bazel", b"old\n", b"new\n"),
+            "",
+        ));
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("generate failed") && !err.contains("generate findings"),
+            "{out}{err}"
+        );
+    }
+
+    #[test]
     fn check_reports_generation_drift_after_clean_quality_phases() {
         let mut harness = umbrella_clean("umbrella-generate-drift");
         harness.generate_code = Some(1);
+        harness.patch = Some(b"--- a\n+++ b\n".to_vec());
         harness.intended = Some(intended_witness(
             "check",
             true,

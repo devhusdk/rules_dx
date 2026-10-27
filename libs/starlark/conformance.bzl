@@ -1,7 +1,7 @@
 """Shared wrapper conformance checks for language rules."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//libs/starlark:wrapper.bzl", "dx_effective_visibility", "dx_forwarded_test_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_effective_visibility", "dx_forwarded_test_kwargs")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES")
 
 def dx_file_class_checks(classes):
@@ -25,12 +25,18 @@ def dx_forwarder_checks():
         expect_equal("test kwargs keep env upstream", dx_forwarded_test_kwargs({"env": {"K": "1"}}), {}),
         expect_equal("test kwargs keep env_inherit upstream", dx_forwarded_test_kwargs({"env_inherit": ["HOME"]}), {}),
         expect_equal("test kwargs forward exec_properties", dx_forwarded_test_kwargs({"exec_properties": {"Pool": "gpu"}}), {"exec_properties": {"Pool": "gpu"}}),
+        expect_equal("test kwargs drop other exec group properties", dx_forwarded_test_kwargs({"exec_properties": {"cpp_link.Pool": "c"}}), {}),
+        expect_equal("test kwargs keep test and unprefixed properties", dx_forwarded_test_kwargs({"exec_properties": {"Pool": "a", "test.Pool": "b", "cpp_link.Pool": "c"}}), {"exec_properties": {"Pool": "a", "test.Pool": "b"}}),
         expect_equal("test kwargs forward exec_compatible_with", dx_forwarded_test_kwargs({"exec_compatible_with": ["@platforms//os:linux"]}), {"exec_compatible_with": ["@platforms//os:linux"]}),
         expect_equal("test kwargs forward test exec group", dx_forwarded_test_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}}), {"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}}),
         expect_equal("test kwargs keep other exec groups upstream", dx_forwarded_test_kwargs({"exec_group_compatible_with": {"cpp_link": ["@platforms//os:linux"]}}), {}),
         expect_equal("test kwargs forward only test exec group", dx_forwarded_test_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}), {"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}}),
         expect_equal("test kwargs forward local", dx_forwarded_test_kwargs({"local": True}), {"local": True}),
         expect_equal("test kwargs keep local False", dx_forwarded_test_kwargs({"local": False}), {"local": False}),
+        expect_equal("binary kwargs forward testonly", dx_binary_forward_kwargs({"testonly": True}), {"testonly": True}),
+        expect_equal("binary kwargs forward args with data", dx_binary_forward_kwargs({"args": ["--x"], "data": [":d"]}), {"args": ["--x"], "data": [":d"]}),
+        expect_equal("binary kwargs keep data upstream without args", dx_binary_forward_kwargs({"data": [":d"]}), {}),
+        expect_equal("binary kwargs drop none args", dx_binary_forward_kwargs({"args": None}), {}),
         expect_equal("test kwargs empty stays empty", dx_forwarded_test_kwargs({}), {}),
     ]
 

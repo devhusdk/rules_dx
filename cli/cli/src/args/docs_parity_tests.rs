@@ -7,8 +7,9 @@ use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS, STARTUP_OPTIONS}
 
 use super::super::command::SkewKind;
 use super::super::grammar::Cli;
-use super::super::{parse, ArgsError, Command};
-use super::render_command_help;
+use super::super::tokenizer::REMOVED_COMMANDS;
+use super::super::{parse, ArgsError, Command, Invocation};
+use super::{render_command_help, render_top_help, usage_banner};
 use crate::test_support::strings;
 
 const DX_PREFIX: &str = "bazel run @rules_dx//:dx --";
@@ -93,19 +94,6 @@ fn flag_tokens(text: &str) -> Vec<String> {
     flags
 }
 
-fn strip_backticks(text: &str) -> String {
-    let mut plain = String::with_capacity(text.len());
-    let mut quoted = false;
-    for ch in text.chars() {
-        match ch {
-            '`' => quoted = !quoted,
-            _ if !quoted => plain.push(ch),
-            _ => {}
-        }
-    }
-    plain
-}
-
 fn rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
     let mut words = vec![command.name()];
     if command == Command::Docs {
@@ -124,13 +112,12 @@ fn rejects(command: Command, flag: &str, payload: Option<&str>) -> bool {
 
 fn required_words(command: Command) -> Vec<String> {
     let required: &[&str] = match command.name() {
-        "bump" => &["cargo:demo", "1.0.0"],
+        "bump" | "add" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
         "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
-        "bazel" => &["info"],
         _ => &[],
     };
     strings(required)
@@ -196,7 +183,7 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
             }
             let refused = probe_rejects(command, flag, *payload);
             let advertised = if *flag == "-- <bazel-options>" {
-                super::advertises_passthrough(command)
+                super::super::grammar::advertises_passthrough(command)
             } else {
                 listed
                     .iter()
@@ -421,29 +408,6 @@ fn command_help_only_advertises_accepted_flags() {
                 command.name()
             );
         }
-        let prose = command.flags();
-        let plain = strip_backticks(prose);
-        let wrapped_flags = command == Command::Watch;
-        let clauses: Vec<&str> = plain
-            .split(", ")
-            .filter(|clause| flag_tokens(clause).contains(&"--fail-on".to_owned()))
-            .collect();
-        if let Some(first) = clauses.first().filter(|_| !wrapped_flags) {
-            let excluded = first.contains("do not apply");
-            assert!(
-                clauses
-                    .iter()
-                    .all(|clause| clause.contains("do not apply") == excluded),
-                "dx {} splits --fail-on across clauses that disagree:\n{prose}",
-                command.name()
-            );
-            assert_eq!(
-                excluded,
-                rejects(command, "--fail-on", Some("error")),
-                "dx {} prose and parser disagree on --fail-on:\n{prose}",
-                command.name()
-            );
-        }
         if usage.contains("[-- bazel-options") || usage.contains("[-- bazel-args") {
             assert!(
                 !rejects(command, "--", Some("--jobs=1")),
@@ -555,12 +519,6 @@ fn command_usage_advertises_apply_exactly_where_the_parser_accepts_it() {
             "dx {} accepts={accepted} advertises={advertised} for --apply: {words:?}\n{usage}",
             command.name()
         );
-        assert_eq!(
-            command.supports_apply(),
-            accepted,
-            "dx {} supports_apply disagrees with the parser for --apply",
-            command.name()
-        );
     }
 }
 
@@ -580,7 +538,11 @@ fn docs_usage_blocks_only_use_accepted_flags() {
                 });
                 let mut accepted = globals.clone();
                 accepted.extend(flag_tokens(command.usage()));
-                accepted.extend(flag_tokens(command.flags()));
+                accepted.extend(
+                    super::super::grammar::advertised_flags(command)
+                        .iter()
+                        .map(|name| format!("--{name}")),
+                );
                 for flag in flag_tokens(line) {
                     assert!(
                         accepted.contains(&flag),
@@ -742,12 +704,12 @@ fn readme_slot_event_lists_every_emitted_field() {
         holder: Some("agent".to_owned()),
         state: "held".to_owned(),
         reason: Some("dirty".to_owned()),
+        base: Some("origin/main".to_owned()),
         server: true,
         disk_bytes: Some(1),
     })
     .expect("slot event");
-    let mut event = event.as_object().expect("slot event is an object").clone();
-    event.insert("base".to_owned(), "origin/main".into());
+    let event = event.as_object().expect("slot event is an object");
     let bullet = readme_event_bullet("slot");
     let missing: Vec<&String> = event
         .keys()
@@ -1149,12 +1111,63 @@ fn every_command_has_a_docs_page() {
 }
 
 #[test]
+fn docs_and_help_never_name_removed_commands() {
+    let mut texts: Vec<(String, String)> = pages();
+    texts.push(("top help".into(), render_top_help()));
+    texts.push(("usage banner".into(), usage_banner()));
+    for command in Command::value_variants() {
+        texts.push((
+            format!("help {}", command.name()),
+            render_command_help(*command),
+        ));
+    }
+    for (name, text) in texts {
+        let words: Vec<&str> = text
+            .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
+            .filter(|word| !word.is_empty())
+            .collect();
+        for pair in words.windows(2) {
+            if pair[0] == "dx" {
+                assert!(
+                    !REMOVED_COMMANDS
+                        .iter()
+                        .any(|(removed, _)| *removed == pair[1]),
+                    "{name} names the removed command dx {}",
+                    pair[1]
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn init_page_shows_the_agents_block() {
     let page = std::fs::read_to_string(docs_dir().join("init.md")).expect("init.md");
     assert!(
         page.contains(&crate::adopt::agents::block()),
         "docs/cli/commands/init.md must show the block dx init writes to AGENTS.md"
     );
+}
+
+#[test]
+fn worktree_page_shows_every_allow_rule() {
+    let page = std::fs::read_to_string(docs_dir().join("worktree.md")).expect("worktree.md");
+    for rule in dx_worktree::setup::allow_rules() {
+        assert!(page.contains(&rule), "worktree.md must show {rule}");
+    }
+}
+
+#[test]
+fn allowlisted_commands_are_read_only() {
+    for rule in dx_worktree::setup::allow_rules() {
+        let name = rule
+            .strip_prefix("Bash(tools/dx ")
+            .and_then(|r| r.strip_suffix(" *)"))
+            .expect("rule shape");
+        let command = Command::parse(name).expect("known command");
+        assert!(!command.supports_apply(), "{name} takes --apply");
+        assert!(parse(&[name]).is_ok(), "{name} must parse");
+    }
 }
 
 #[test]
@@ -1184,6 +1197,40 @@ fn clean_page_names_every_clean_notice_code() {
             "check-fix-clean.md `dx clean` section never names `{name}`"
         );
     }
+}
+
+#[test]
+fn clean_section_describes_every_clean_flag() {
+    let page =
+        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
+    let (_, body) = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx clean`")
+        .expect("check-fix-clean.md has a `dx clean` section");
+    let mut prose = String::new();
+    let mut fenced = false;
+    for line in body.lines() {
+        if line.trim_start().starts_with("```") {
+            fenced = !fenced;
+        } else if !fenced {
+            prose.push_str(line);
+            prose.push('\n');
+        }
+    }
+    let tokens = backticked(&prose);
+    for flag in flag_tokens(Command::Clean.usage()) {
+        assert!(
+            tokens.iter().any(|token| token == &flag),
+            "check-fix-clean.md `dx clean` prose never names `{flag}` in backticks"
+        );
+    }
+    assert!(
+        shell_blocks(&body)
+            .iter()
+            .flatten()
+            .any(|line| line.contains("--prune-unobserved")),
+        "check-fix-clean.md `dx clean` section needs a shell example using `--prune-unobserved`"
+    );
 }
 
 #[test]
@@ -1260,16 +1307,6 @@ fn umbrella_phase_flag_routing_matches_docs() {
         sentence_names(&page, "`--report sarif=<dest>` merges"),
         sarif
     );
-    for command in [Command::Check, Command::Fix] {
-        let flags = command.flags();
-        let fail_on_clause = format!("--fail-on applies to {}", fail_on.join("/"));
-        let sarif_clause = format!("--report sarif merges {}", sarif.join("/"));
-        assert!(
-            flags.contains(&fail_on_clause) && flags.contains(&sarif_clause),
-            "dx {} help must say `{fail_on_clause}` and `{sarif_clause}`:\n{flags}",
-            command.name()
-        );
-    }
 }
 
 fn incomplete_result_clause(page: &str, name: &str) -> String {
@@ -1402,12 +1439,7 @@ fn command_reference_links_every_page_and_only_real_pages() {
 #[test]
 fn help_doc_anchors_resolve() {
     for command in Command::value_variants() {
-        let texts = [
-            command.describe(),
-            command.usage(),
-            command.flags(),
-            command.scopes_text(),
-        ];
+        let texts = [command.describe(), command.usage(), command.scopes_text()];
         for text in texts {
             let mut rest = text;
             while let Some(start) = rest.find("docs/") {
@@ -1627,6 +1659,46 @@ fn github_ci_page_matches_the_consumer_workflow() {
     }
 }
 
+#[test]
+fn github_ci_page_names_no_workflow_internals() {
+    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    let label_char = |c: char| c.is_ascii_alphanumeric() || "_.+@=,~/:-".contains(c);
+    let label_at = |text: &str, at: usize| {
+        let end = text[at..]
+            .find(|c: char| !label_char(c))
+            .map_or(text.len(), |offset| at + offset);
+        text[at..end].to_owned()
+    };
+    let refresh = dx_audit::advisory::REFRESH_COMMAND;
+    let refresh_label = refresh
+        .find("@rules_dx//")
+        .map(|at| label_at(refresh, at))
+        .unwrap_or_else(|| panic!("{refresh} names no @rules_dx label"));
+    let allowed = ["@rules_dx//:dx".to_owned(), refresh_label];
+    for (at, _) in page.match_indices("@rules_dx//") {
+        let label = label_at(&page, at);
+        assert!(
+            allowed.contains(&label),
+            "docs/github-ci.md names the workflow internal {label}; only {allowed:?} are user facing"
+        );
+    }
+    for internal in [
+        "tools/ci",
+        "python3",
+        "diff-cover",
+        "tool_resolve",
+        "evidence.yml",
+        "apple.yml",
+        "bump.yml",
+    ] {
+        assert!(
+            !page.contains(internal),
+            "docs/github-ci.md names the workflow internal {internal}"
+        );
+    }
+}
+
 fn workflow_call_secrets(workflow: &str) -> Vec<String> {
     let mut secrets: Vec<String> = Vec::new();
     let mut inside = false;
@@ -1811,6 +1883,19 @@ fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
                 "{name} requests no permissions, so {caller} job {id} grants none"
             );
             let granted = granted_scopes(&body);
+            if call.starts_with("./") {
+                for (scope, level) in &granted {
+                    let ceiling = requested
+                        .iter()
+                        .filter(|(name, _)| name == scope)
+                        .map(|(_, level)| permission_rank(level))
+                        .max();
+                    assert!(
+                        ceiling.is_some_and(|ceiling| permission_rank(level) <= ceiling),
+                        "{caller} job {id} grants {scope}: {level}, but {name} requests it at most at {ceiling:?}; grant exactly what the called jobs request"
+                    );
+                }
+            }
             for (scope, level) in requested {
                 let held = granted
                     .iter()
@@ -1887,6 +1972,84 @@ fn docs_page_names_every_workflow_input() {
                 page.contains(&format!("`{input}`")),
                 "docs/github-ci.md never names the {workflow} input {input}"
             );
+        }
+    }
+}
+
+fn reusable_calls(caller: &str) -> Vec<(String, String, Vec<String>)> {
+    let mut calls: Vec<(String, String, Vec<String>)> = Vec::new();
+    for (id, body) in job_blocks(caller) {
+        let Some(call) = body
+            .iter()
+            .find_map(|line| line.trim().strip_prefix("uses: "))
+        else {
+            continue;
+        };
+        if !call.contains("/.github/workflows/") {
+            continue;
+        }
+        let pinned = call.split('@').next().unwrap_or(call);
+        let workflow = pinned.rsplit('/').next().unwrap_or(pinned).to_owned();
+        let mut keys: Vec<String> = Vec::new();
+        let mut base: Option<usize> = None;
+        for line in &body {
+            if line.trim().is_empty() {
+                continue;
+            }
+            match base {
+                None if line.trim() == "with:" => base = Some(indent_of(line)),
+                None => {}
+                Some(with) if indent_of(line) <= with => break,
+                Some(with) if indent_of(line) == with + 2 => {
+                    if let Some((key, _)) = line.trim().split_once(':') {
+                        keys.push(key.to_owned());
+                    }
+                }
+                Some(_) => {}
+            }
+        }
+        calls.push((id, workflow, keys));
+    }
+    calls
+}
+
+#[test]
+fn reusable_calls_read_only_top_level_with_keys() {
+    let caller = "jobs:\n  a:\n    uses: o/r/.github/workflows/x.yml@abc\n    with:\n      one: \"1\"\n      two: |\n        nested: no\n    secrets: inherit\n  b:\n    runs-on: ubuntu-latest\n";
+    assert_eq!(
+        reusable_calls(caller),
+        [(
+            "a".to_owned(),
+            "x.yml".to_owned(),
+            vec!["one".to_owned(), "two".to_owned()]
+        )]
+    );
+}
+
+#[test]
+fn every_caller_input_is_a_workflow_input() {
+    let root = workspace_root();
+    let mut callers: Vec<&str> = workflow_callers()
+        .iter()
+        .map(|(_, caller)| *caller)
+        .collect();
+    callers.push(".github/workflows/ci.yml");
+    for caller in callers {
+        let text = std::fs::read_to_string(root.join(caller)).expect("caller ships as test data");
+        let calls = reusable_calls(&text);
+        assert!(!calls.is_empty(), "{caller} calls no reusable workflow");
+        for (id, workflow, keys) in calls {
+            let inputs = workflow_call_inputs(
+                &std::fs::read_to_string(root.join(".github/workflows").join(&workflow))
+                    .unwrap_or_else(|_| panic!("{caller} job {id} calls a missing {workflow}")),
+            );
+            assert!(!keys.is_empty(), "{caller} job {id} passes no inputs");
+            for key in keys {
+                assert!(
+                    inputs.contains(&key),
+                    "{caller} job {id} passes {key}, which {workflow} does not declare"
+                );
+            }
         }
     }
 }
@@ -2027,6 +2190,78 @@ fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
         biome.contains(&format!("\"!!**/{dir}\"")),
         "biome.json files.includes never force-ignores {dir}"
     );
+}
+
+const CI_EXAMPLES: &[(&str, &str, &[&str])] = &[(
+    "examples/gitlab-ci/.gitlab-ci.yml",
+    "examples/gitlab-ci/README.md",
+    &["build", "check", "coverage", "test"],
+)];
+
+fn ci_example_dx_lines(path: &str) -> Vec<String> {
+    let text = std::fs::read_to_string(workspace_root().join(path))
+        .unwrap_or_else(|error| panic!("{path} must ship as test data: {error}"));
+    text.lines()
+        .filter(|line| line.contains(DX_PREFIX))
+        .map(|line| {
+            line.trim()
+                .trim_start_matches("- ")
+                .trim_end_matches("|| status=$?")
+                .trim()
+                .to_owned()
+        })
+        .collect()
+}
+
+fn ci_example_invocations(path: &str) -> Vec<Invocation> {
+    let lines = ci_example_dx_lines(path);
+    assert!(!lines.is_empty(), "{path} runs no dx line");
+    lines
+        .iter()
+        .map(|line| {
+            let words: Vec<&str> = line
+                .strip_prefix(DX_PREFIX)
+                .unwrap_or_else(|| panic!("{path}: dx line must start with {DX_PREFIX}: {line}"))
+                .split_whitespace()
+                .collect();
+            parse(&words)
+                .unwrap_or_else(|error| panic!("{path}: dx line does not parse: {line}\n{error:?}"))
+        })
+        .collect()
+}
+
+#[test]
+fn gitlab_example_dx_commands_parse() {
+    for (pipeline, readme, commands) in CI_EXAMPLES {
+        let invocations = ci_example_invocations(pipeline);
+        let mut got: Vec<&str> = invocations
+            .iter()
+            .map(|invocation| invocation.command.name())
+            .collect();
+        got.sort_unstable();
+        assert_eq!(&got, commands, "{pipeline} must run exactly {commands:?}");
+        for invocation in invocations.iter().chain(&ci_example_invocations(readme)) {
+            let name = invocation.command.name();
+            assert!(!invocation.apply, "{pipeline}: dx {name} must not --apply");
+            assert_ne!(name, "fix", "{pipeline} must not run dx fix");
+            assert!(
+                !invocation.reports.is_empty(),
+                "{pipeline}: dx {name} writes no report"
+            );
+            for report in &invocation.reports {
+                assert!(
+                    report.destination.starts_with("reports/"),
+                    "{pipeline}: dx {name} report {} must land under reports/",
+                    report.destination
+                );
+            }
+        }
+        assert_eq!(
+            ci_example_dx_lines(pipeline),
+            ci_example_dx_lines(readme),
+            "{readme} must list the dx lines of {pipeline} in order"
+        );
+    }
 }
 
 #[test]
@@ -2475,6 +2710,20 @@ fn one_preparation_job_covers_every_curated_advisory_set() {
     }
 }
 
+/// Whether the text continues with a bare ` --` separator, not a longer flag.
+fn separator_follows(rest: &str) -> bool {
+    rest.strip_prefix(" --")
+        .is_some_and(|after| after.chars().next().is_none_or(char::is_whitespace))
+}
+
+#[test]
+fn the_separator_check_rejects_longer_flags() {
+    assert!(separator_follows(" -- --out x"));
+    assert!(separator_follows(" --"));
+    assert!(!separator_follows(" --workspace . --out x"));
+    assert!(!separator_follows(" x"));
+}
+
 #[test]
 fn docs_name_the_advisory_refresh_command_the_errors_print() {
     let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
@@ -2492,7 +2741,7 @@ fn docs_name_the_advisory_refresh_command_the_errors_print() {
         let runs = format!("bazel run {PREP_TARGET}");
         for (at, _) in text.match_indices(&runs) {
             assert!(
-                text[at + runs.len()..].starts_with(" --"),
+                separator_follows(&text[at + runs.len()..]),
                 "{name} runs {PREP_TARGET} without the -- separator"
             );
         }
@@ -2521,7 +2770,7 @@ fn docs_name_the_gitleaks_resolve_command_the_error_prints() {
     for (name, text) in [("audit-update.md", &audit), ("github-ci.md", &ci)] {
         for (at, _) in text.match_indices(runs) {
             assert!(
-                text[at + runs.len()..].starts_with(" --"),
+                separator_follows(&text[at + runs.len()..]),
                 "{name} runs tool_resolve without the -- separator"
             );
         }
@@ -2754,6 +3003,33 @@ fn bump_docs_page_names_exactly_the_bump_sets() {
                 .collect()
         ),
         "docs/cli/commands/audit-update.md must name every dx bump set, and nothing else"
+    );
+}
+
+#[test]
+fn add_docs_and_help_name_exactly_the_add_sets() {
+    let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
+        .expect("audit page ships as test data");
+    let body = sections(&page)
+        .into_iter()
+        .find(|(heading, _)| heading == "`dx add`")
+        .map(|(_, body)| body)
+        .expect("`dx add` section");
+    let sets = sorted(
+        dx_bump::AddRequest::SETS
+            .iter()
+            .map(|set| (*set).name().to_owned())
+            .collect(),
+    );
+    assert_eq!(
+        set_names_in_list(&body),
+        sets,
+        "docs/cli/commands/audit-update.md must name every dx add set, and nothing else"
+    );
+    assert_eq!(
+        sorted(scoped_set_list(Command::Add.scopes_text())),
+        sets,
+        "dx add --help must name every add set, and nothing else"
     );
 }
 
@@ -3088,12 +3364,18 @@ fn scope_page_affected_lists_match_the_registry() {
     };
     assert_eq!(
         scope_page_affected_sentence(&body, "accepted by"),
-        names(Command::supports_affected),
+        names(|command| {
+            command != Command::Watch && super::super::grammar::accepts_long(command, "affected")
+        }),
         "scope-defaults.md must name exactly the commands that accept `--affected`"
     );
     assert_eq!(
         scope_page_affected_sentence(&body, "reject `--affected`"),
-        names(|command| command.supports_here() && !command.supports_affected()),
+        names(|command| {
+            command.supports_here()
+                && command != Command::Watch
+                && !super::super::grammar::accepts_long(command, "affected")
+        }),
         "scope-defaults.md must name exactly the `--here` commands that reject `--affected`"
     );
 }
@@ -3206,7 +3488,7 @@ fn bullet_terms(page: &str) -> Vec<String> {
 fn watch_help_and_page_name_exactly_the_watchable_commands() {
     let registry = dx_adopt::WATCHABLE_COMMANDS;
     let command = Command::Watch;
-    for text in [command.usage(), command.flags(), command.scopes_text()] {
+    for text in [command.usage(), command.scopes_text()] {
         slot_lists(text, registry);
     }
     let page = std::fs::read_to_string(docs_dir().join("watch.md")).expect("watch page");
@@ -3217,13 +3499,7 @@ fn watch_help_and_page_name_exactly_the_watchable_commands() {
 fn completion_help_banner_and_page_name_exactly_the_shells() {
     let registry = super::super::completion::COMPLETION_SHELLS;
     let command = Command::Completion;
-    for text in [
-        command.describe(),
-        command.usage(),
-        command.flags(),
-        command.scopes_text(),
-        &banner(),
-    ] {
+    for text in [command.describe(), command.usage(), command.scopes_text()] {
         slot_lists(text, registry);
     }
     let page = std::fs::read_to_string(docs_dir().join("completion.md")).expect("completion page");
@@ -3233,7 +3509,7 @@ fn completion_help_banner_and_page_name_exactly_the_shells() {
 #[test]
 fn new_help_and_page_name_exactly_the_languages() {
     let registry = dx_adopt::SUPPORTED_NEW_LANGUAGES;
-    slot_lists(Command::New.flags(), registry);
+    slot_lists(Command::New.scopes_text(), registry);
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
     slot_lists(&page, registry);
     for entry in dx_adopt::NEW_LANGUAGES {
@@ -3284,63 +3560,42 @@ fn versions_pin(name: &str) -> String {
 
 #[test]
 fn status_toolchain_detail_tracks_the_canonical_rust_pins() {
-    let expected = format!(
-        "rust {} via rules_rust {} (MODULE.bazel)",
-        versions_pin("RUST_VERSION"),
-        versions_pin("RULES_RUST_VERSION")
-    );
-    let toolchain = dx_adopt::default_status_checks("0.0.0")
+    let rust = versions_pin("RUST_VERSION");
+    let rules_rust = versions_pin("RULES_RUST_VERSION");
+    let scratch = dx_test_scratch::scratch("dx-docs-toolchain-");
+    std::fs::write(
+        scratch.path().join("MODULE.bazel"),
+        dx_adopt::render_consumer_module_setup(),
+    )
+    .expect("module");
+    let tools = dx_adopt::StatusCheck {
+        name: "tools".to_owned(),
+        status: "warn".to_owned(),
+        detail: String::new(),
+        hint: String::new(),
+    };
+    let toolchain = dx_adopt::observed_status_checks(scratch.path(), "0.0.0", tools)
         .into_iter()
         .find(|check| check.name == "toolchain")
         .expect("dx status has a toolchain check");
+    let expected =
+        format!("available: rust {rust} via rules_rust {rules_rust} declared in MODULE.bazel");
+    assert_eq!(toolchain.status, "ok", "{}", toolchain.detail);
     assert_eq!(toolchain.detail, expected, "dx status toolchain detail");
+    let line = dx_adopt::render_status_text(&[toolchain]);
     let page = std::fs::read_to_string(docs_dir().join("status-version.md"))
         .expect("status page ships as test data");
     assert!(
-        page.contains(&expected),
-        "docs/cli/commands/status-version.md must show the canonical toolchain line: {expected}"
+        page.contains(&line),
+        "docs/cli/commands/status-version.md must show the canonical toolchain line: {line}"
     );
 }
 
-fn workflow_exports() -> Vec<String> {
-    let build = std::fs::read_to_string(workspace_root().join(".github/BUILD.bazel"))
-        .expect(".github/BUILD.bazel ships as test data");
-    let mut names: Vec<String> = Vec::new();
-    let mut in_exports = false;
-    for line in build.lines() {
-        if line.starts_with("exports_files(") {
-            in_exports = true;
-            continue;
-        }
-        if !in_exports {
-            continue;
-        }
-        if !line.starts_with(' ') {
-            break;
-        }
-        let trimmed = line.trim();
-        if !trimmed.starts_with('"') {
-            continue;
-        }
-        let name = trimmed
-            .trim_start_matches('"')
-            .split('"')
-            .next()
-            .unwrap_or_default();
-        if name.ends_with(".yml") {
-            names.push(name.to_owned());
-        }
-    }
-    assert!(!names.is_empty(), ".github/BUILD.bazel exports no workflow");
-    names
-}
-
 fn workflows() -> Vec<(String, String)> {
-    workflow_exports()
+    dx_testing::workflow_files()
         .into_iter()
         .map(|name| {
-            let text = std::fs::read_to_string(workspace_root().join(".github").join(&name))
-                .unwrap_or_else(|_| panic!("{name} must ship as dx_cli_test data"));
+            let text = dx_testing::read_runfiles(&name);
             (name, text)
         })
         .collect()

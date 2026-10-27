@@ -53,13 +53,10 @@ pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         let (version, platform) = split_gem_lock_version(&locked);
         let (version, platform) = (version.to_owned(), platform.map(str::to_owned));
         out.push(LockedPackage {
-            name,
-            version,
-            set: "ruby".to_owned(),
             is_git: source == Some(Source::Git),
             is_private: source == Some(Source::Path),
-            location: None,
             platform,
+            ..LockedPackage::new("ruby", name, version)
         });
     }
     if !saw_section {

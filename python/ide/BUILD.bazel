@@ -1,14 +1,15 @@
 load("//modules:python.bzl", "PYTHON_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("//tools/ide:ide_tool.bzl", "ide_python_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# buildifier: disable=canonical-repository
+ide_python_tool(name = "python_tool")
+
 ide_acquisition_test(
     name = "ide_acquisition_test",
-    arm64_binary = "@@aspect_rules_py++python_interpreters+python_3_12_aarch64_unknown_linux_gnu//:bin/python3",
-    binary = "@@aspect_rules_py++python_interpreters+python_3_12_x86_64_unknown_linux_gnu//:bin/python3",
+    binary = ":python_tool",
     expected = PYTHON_VERSION,
     version_args = ["--version"],
 )

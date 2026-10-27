@@ -1,3 +1,0 @@
-input {"DX_CODE_SCANNING_OPT_IN": "true"}
-exit 1
-says dx-ci: DX_CODE_SCANNING_OPT_IN=true is not implemented.

@@ -1,6 +1,6 @@
 //! Tests for the API aggregator.
 
-use super::{api_path, parse, relative, render, title, Options};
+use super::{api_path, code, parse, relative, render, title, Options};
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind};
 use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
 
@@ -217,6 +217,34 @@ fn every_symbol_and_alias_gets_a_page_index_entry_summary_line_and_record() {
 }
 
 #[test]
+fn a_symbol_without_docs_says_undocumented() {
+    let mut bare = symbol("rust:demo:bare", "pub fn bare()", "", 3);
+    bare.relations = Some(Relations {
+        reexported_as: vec!["rust:demo:alias".to_string()],
+        ..Relations::default()
+    });
+    let blank = symbol("rust:demo:blank", "pub fn blank()", " \n\t\n", 5);
+    let mut ir = shard();
+    ir.symbols = vec![bare, blank];
+    let rendered = render(&[ir], "").expect("render");
+    let bare_page = &rendered.pages["rust/demo/bare.md"];
+    assert_eq!(
+        bare_page,
+        "# `demo::bare`\n\n```rust,noplayground\npub fn bare()\n```\n\nUndocumented.\n\nSource: `pkg/src/lib.rs:3`\n\nAlso exported as: [`demo::alias`](alias.md)\n"
+    );
+    assert!(
+        rendered.pages["rust/demo/blank.md"].contains("\n\nUndocumented.\n\nSource:"),
+        "{}",
+        rendered.pages["rust/demo/blank.md"]
+    );
+    let alias = &rendered.pages["rust/demo/alias.md"];
+    assert!(alias.contains("Re-export of"), "{alias}");
+    assert!(alias.contains("\n\nUndocumented.\n\n"), "{alias}");
+    assert!(!rendered.api.contains("Undocumented"), "{}", rendered.api);
+    assert!(!rendered.records.contains("Undocumented"));
+}
+
+#[test]
 fn without_a_source_url_the_source_is_plain_text() {
     let rendered = render(&[shard()], "").expect("render");
     assert!(rendered.pages["rust/demo/add.md"].contains("Source: `pkg/src/lib.rs:7`\n"));
@@ -233,5 +261,183 @@ fn duplicate_pages_and_empty_shards_fail() {
     assert_eq!(
         render(&[empty], ""),
         Err("the shards name no symbols".to_string())
+    );
+}
+
+#[test]
+fn go_symbols_render_with_a_go_fence_under_their_import_path() {
+    let mut deposit = symbol(
+        "go:example.com/ledger/money:Account.Deposit",
+        "func (a *Account) Deposit(amount Amount)",
+        "Deposit adds money.",
+        47,
+    );
+    deposit.kind = SymbolKind::Method as i32;
+    deposit.relations = Some(Relations {
+        member_of: vec!["go:example.com/ledger/money:Account".to_string()],
+        ..Relations::default()
+    });
+    let account = symbol(
+        "go:example.com/ledger/money:Account",
+        "type Account struct{}",
+        "Account holds money.",
+        35,
+    );
+    let shard = DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "go".to_string(),
+        package: "example.com/ledger/money".to_string(),
+        symbols: vec![account, deposit],
+    };
+    let rendered = render(&[shard], "https://example.com/blob/main/").expect("render");
+    let page = &rendered.pages["go/example.com/ledger/money/Account.Deposit.md"];
+    assert!(
+        page.starts_with("# `example.com/ledger/money.Account.Deposit`\n\n```go\nfunc (a *Account) Deposit(amount Amount)\n```\n"),
+        "{page}"
+    );
+    assert!(
+        page.contains("Member of: [`example.com/ledger/money.Account`](Account.md)"),
+        "{page}"
+    );
+    assert!(
+        rendered
+            .api
+            .contains("## Go package `example.com/ledger/money`"),
+        "{}",
+        rendered.api
+    );
+    assert!(
+        rendered
+            .records
+            .contains("api/go/example.com/ledger/money/Account.html"),
+        "{}",
+        rendered.records
+    );
+}
+
+fn ruby_shard() -> DocIr {
+    let mut circle = symbol(
+        "ruby:geometry:Geometry.Circle",
+        "class Geometry::Circle < Geometry::Shape",
+        "A circle.",
+        16,
+    );
+    circle.display_name = "Geometry::Circle".to_string();
+    circle.relations = Some(Relations {
+        implements: vec!["ruby:geometry:Geometry.Sized".to_string()],
+        reexported_as: vec!["ruby:geometry:Circle".to_string()],
+        ..Relations::default()
+    });
+    let mut empty = symbol(
+        "ruby:geometry:Geometry.Circle.empty~3F",
+        "def empty?",
+        "Reports whether the circle has no area.",
+        51,
+    );
+    empty.display_name = "Geometry::Circle#empty?".to_string();
+    empty.relations = Some(Relations {
+        member_of: vec!["ruby:geometry:Geometry.Circle".to_string()],
+        ..Relations::default()
+    });
+    let mut tick = symbol(
+        "ruby:geometry:Geometry.Circle.~60",
+        "def `(command)",
+        "Runs.",
+        70,
+    );
+    tick.display_name = "Geometry::Circle#`".to_string();
+    let mut sized = symbol(
+        "ruby:geometry:Geometry.Sized",
+        "module Geometry::Sized",
+        "Sized.",
+        9,
+    );
+    sized.display_name = "Geometry::Sized".to_string();
+    DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "ruby".to_string(),
+        package: "geometry".to_string(),
+        symbols: vec![circle, empty, tick, sized],
+    }
+}
+
+#[test]
+fn display_names_title_ruby_pages_links_and_records() {
+    let rendered = render(&[ruby_shard()], "https://example.com/blob/main/").expect("render");
+    let page = &rendered.pages["ruby/geometry/Geometry.Circle.empty~3F.md"];
+    assert!(
+        page.starts_with("# `Geometry::Circle#empty?`\n\n```ruby\ndef empty?\n```\n"),
+        "{page}"
+    );
+    assert!(
+        page.contains("Member of: [`Geometry::Circle`](Geometry.Circle.md)"),
+        "{page}"
+    );
+    let circle = &rendered.pages["ruby/geometry/Geometry.Circle.md"];
+    assert!(
+        circle.contains("Implements: [`Geometry::Sized`](Geometry.Sized.md)"),
+        "{circle}"
+    );
+    assert!(
+        circle.contains("[`Geometry::Circle#empty?`](Geometry.Circle.empty~3F.md)"),
+        "{circle}"
+    );
+    assert!(
+        rendered.api.contains("## Ruby library `geometry`"),
+        "{}",
+        rendered.api
+    );
+    assert!(
+        rendered.api.contains(
+            "- [`Geometry::Circle#empty?`](api/ruby/geometry/Geometry.Circle.empty~3F.md): Reports"
+        ),
+        "{}",
+        rendered.api
+    );
+    assert!(
+        rendered.summary.contains(
+            "    - [Geometry::Circle#empty?](api/ruby/geometry/Geometry.Circle.empty~3F.md)\n"
+        ),
+        "{}",
+        rendered.summary
+    );
+    let records: serde_json::Value = serde_json::from_str(&rendered.records).expect("records");
+    let titles: Vec<&str> = records
+        .as_array()
+        .expect("records")
+        .iter()
+        .map(|r| r["title"].as_str().expect("title"))
+        .collect();
+    assert!(titles.contains(&"Geometry::Circle#empty?"), "{titles:?}");
+}
+
+#[test]
+fn alias_pages_fall_back_to_the_id_title() {
+    let rendered = render(&[ruby_shard()], "").expect("render");
+    let alias = &rendered.pages["ruby/geometry/Circle.md"];
+    assert!(alias.starts_with("# `geometry.Circle`\n"), "{alias}");
+    assert!(
+        alias.contains("Re-export of [`Geometry::Circle`](Geometry.Circle.md)."),
+        "{alias}"
+    );
+}
+
+#[test]
+fn a_title_with_a_backtick_gets_a_longer_code_fence() {
+    assert_eq!(code("plain"), "`plain`");
+    assert_eq!(code("a`b"), "``a`b``");
+    assert_eq!(code("Foo#`"), "`` Foo#` ``");
+    assert_eq!(code("``x"), "``` ``x ```");
+    let rendered = render(&[ruby_shard()], "").expect("render");
+    let page = &rendered.pages["ruby/geometry/Geometry.Circle.~60.md"];
+    assert!(page.starts_with("# `` Geometry::Circle#` ``\n"), "{page}");
+    assert!(
+        rendered
+            .summary
+            .contains("- [Geometry::Circle#\\`](api/ruby/geometry/Geometry.Circle.~60.md)"),
+        "{}",
+        rendered.summary
     );
 }

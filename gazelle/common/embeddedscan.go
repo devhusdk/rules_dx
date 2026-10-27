@@ -1,5 +1,7 @@
 package common
 
+import "bytes"
+
 func ScanEmbedded(src []byte, add func(string)) {
 	n := len(src)
 	i := 0
@@ -68,6 +70,9 @@ func ScanEmbedded(src []byte, add func(string)) {
 func parseEmbeddedImport(src []byte, j int, add func(string)) int {
 	n := len(src)
 	k := skipTrivia(src, j)
+	if k < n && src[k] == '.' {
+		return k + 1
+	}
 	if k < n && (src[k] == '\'' || src[k] == '"') {
 		if spec, next, ok := parseQuoted(src, k); ok {
 			add(spec)
@@ -136,49 +141,71 @@ func parseEmbeddedImport(src []byte, j int, add func(string)) int {
 
 func parseEmbeddedExport(src []byte, j int, add func(string)) int {
 	n := len(src)
-	depth := 0
 	p := skipTrivia(src, j)
+	if hasWordAt(src, p, "type") {
+		p = skipTrivia(src, p+4)
+	}
+	if p >= n || (src[p] != '{' && src[p] != '*') {
+		// A declaration (let, const, default, function, ...): let ScanEmbedded
+		// read it so a require( or import( inside it is still found.
+		return p
+	}
+	if src[p] == '*' {
+		p = skipTrivia(src, p+1)
+		if hasWordAt(src, p, "as") {
+			p = skipTrivia(src, p+2)
+			if p < n && (src[p] == '\'' || src[p] == '"') {
+				p = skipQuoted(src, p)
+			} else {
+				for p < n && isIdentChar(src[p]) {
+					p++
+				}
+			}
+			p = skipTrivia(src, p)
+		}
+		return parseEmbeddedFrom(src, p, add)
+	}
+	depth := 0
 	for p < n {
 		if p+1 < n && src[p] == '/' && (src[p+1] == '/' || src[p+1] == '*') {
 			p = skipTrivia(src, p)
 			continue
 		}
 		c := src[p]
-		if c == '{' {
-			depth++
-		} else if c == '}' {
-			if depth > 0 {
-				depth--
-			}
-		} else if c == '\'' || c == '"' {
+		if c == '\'' || c == '"' {
 			p = skipQuoted(src, p)
 			continue
-		} else if c == '`' {
+		}
+		if c == '`' {
 			p = skipTemplate(src, p)
-			continue
-		} else if c == ';' {
-			return p + 1
-		} else if depth == 0 && isIdentStart(c) {
-			q := p + 1
-			for q < n && isIdentChar(src[q]) {
-				q++
-			}
-			if string(src[p:q]) == "from" {
-				m := skipTrivia(src, q)
-				if m < n && (src[m] == '\'' || src[m] == '"') {
-					if spec, next, ok := parseQuoted(src, m); ok {
-						add(spec)
-						return next
-					}
-				}
-				return q
-			}
-			p = q
 			continue
 		}
 		p++
+		if c == '{' {
+			depth++
+		} else if c == '}' {
+			depth--
+			if depth <= 0 {
+				return parseEmbeddedFrom(src, skipTrivia(src, p), add)
+			}
+		}
 	}
 	return p
+}
+
+// parseEmbeddedFrom takes an optional `from '<spec>'` at p.
+func parseEmbeddedFrom(src []byte, p int, add func(string)) int {
+	if !hasWordAt(src, p, "from") {
+		return p
+	}
+	m := skipTrivia(src, p+4)
+	if m < len(src) && (src[m] == '\'' || src[m] == '"') {
+		if spec, next, ok := parseQuoted(src, m); ok {
+			add(spec)
+			return next
+		}
+	}
+	return m
 }
 
 func parseEmbeddedRequire(src []byte, j int, add func(string)) int {
@@ -201,183 +228,63 @@ func parseEmbeddedRequire(src []byte, j int, add func(string)) int {
 	return k + 1
 }
 
-func ExtractScripts(src []byte) [][]byte {
+// IncompleteJS is framing-only (it finds where an MDX ESM block ends; ScanEmbedded reads imports).
+// It reports whether src ends inside an open bracket, template
+// literal, or block comment, so later lines could still complete it.
+func IncompleteJS(src []byte) bool {
 	n := len(src)
-	var out [][]byte
+	var stack []byte
 	i := 0
 	for i < n {
-		after := skipHTMLComment(src, i)
-		if after < 0 {
-			break
-		}
-		if after > i {
-			i = after
-			continue
-		}
-		if src[i] != '<' {
-			i++
-			continue
-		}
-		if i+1 < n && src[i+1] == '/' {
-			i += 2
-			continue
-		}
-		name, after, ok := scanTagName(src, i+1)
-		if !ok {
-			i++
-			continue
-		}
-		if !equalFold(name, "script") {
-			i = after
-			continue
-		}
-		closePos, innerStart := scanTagEnd(src, after)
-		if closePos < 0 {
-			break
-		}
-		if src[closePos-1] == '/' {
-			i = innerStart
-			continue
-		}
-		end := findCloseTag(src, innerStart, "script")
-		if end < 0 {
-			break
-		}
-		out = append(out, src[innerStart:end])
-		i = end + len("</script>")
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-func OpensTag(src []byte, name string) bool {
-	n := len(src)
-	i := 0
-	for i < n {
-		after := skipHTMLComment(src, i)
-		if after < 0 {
-			return false
-		}
-		if after > i {
-			i = after
-			continue
-		}
-		if src[i] != '<' {
-			i++
-			continue
-		}
-		if i+1 < n && src[i+1] == '/' {
-			i += 2
-			continue
-		}
-		raw, next, ok := scanTagName(src, i+1)
-		if !ok {
-			i++
-			continue
-		}
-		if equalFold(raw, name) {
-			return true
-		}
-		i = next
-	}
-	return false
-}
-
-func skipHTMLComment(src []byte, i int) int {
-	n := len(src)
-	if i+4 > n || src[i] != '<' || src[i+1] != '!' || src[i+2] != '-' || src[i+3] != '-' {
-		return i
-	}
-	j := i + 4
-	for j+2 < n {
-		if src[j] == '-' && src[j+1] == '-' && src[j+2] == '>' {
-			return j + 3
-		}
-		j++
-	}
-	return -1
-}
-
-func scanTagName(src []byte, i int) ([]byte, int, bool) {
-	n := len(src)
-	j := i
-	for j < n && isTagNameChar(src[j]) {
-		j++
-	}
-	if j == i {
-		return nil, i, false
-	}
-	return src[i:j], j, true
-}
-
-func scanTagEnd(src []byte, i int) (int, int) {
-	n := len(src)
-	j := i
-	for j < n {
-		c := src[j]
-		if c == '"' || c == '\'' {
-			k := j + 1
-			for k < n && src[k] != c {
-				k++
+		c := src[i]
+		if len(stack) > 0 && stack[len(stack)-1] == '`' {
+			switch {
+			case c == '\\':
+				i += 2
+			case c == '`':
+				stack = stack[:len(stack)-1]
+				i++
+			case c == '$' && i+1 < n && src[i+1] == '{':
+				stack = append(stack, '}')
+				i += 2
+			default:
+				i++
 			}
-			if k >= n {
-				return -1, -1
-			}
-			j = k + 1
 			continue
 		}
-		if c == '>' {
-			return j, j + 1
-		}
-		j++
-	}
-	return -1, -1
-}
-
-func findCloseTag(src []byte, start int, name string) int {
-	n := len(src)
-	i := start
-	for i < n {
-		after := skipHTMLComment(src, i)
-		if after < 0 {
-			return -1
-		}
-		if after > i {
-			i = after
-			continue
-		}
-		if src[i] == '<' && i+1 < n && src[i+1] == '/' {
-			raw, _, ok := scanTagName(src, i+2)
-			if ok && equalFold(raw, name) {
-				return i
+		switch {
+		case c == '/' && i+1 < n && src[i+1] == '/':
+			for i < n && src[i] != '\n' {
+				i++
 			}
+		case c == '/' && i+1 < n && src[i+1] == '*':
+			end := bytes.Index(src[i+2:], []byte("*/"))
+			if end < 0 {
+				return true
+			}
+			i += end + 4
+		case c == '\'' || c == '"':
+			i = skipQuoted(src, i)
+		case c == '/' && isRegexStart(src, i):
+			i = skipRegex(src, i)
+		case c == '`':
+			stack = append(stack, '`')
+			i++
+		case c == '(':
+			stack = append(stack, ')')
+			i++
+		case c == '[':
+			stack = append(stack, ']')
+			i++
+		case c == '{':
+			stack = append(stack, '}')
+			i++
+		case len(stack) > 0 && c == stack[len(stack)-1]:
+			stack = stack[:len(stack)-1]
+			i++
+		default:
+			i++
 		}
-		i++
 	}
-	return -1
-}
-
-func isTagNameChar(c byte) bool {
-	return c == '_' || c == ':' || c == '-' ||
-		(c >= 'a' && c <= 'z') ||
-		(c >= 'A' && c <= 'Z') ||
-		(c >= '0' && c <= '9')
-}
-
-func equalFold(a []byte, b string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := 0; i < len(a); i++ {
-		ca := a[i]
-		if ca >= 'A' && ca <= 'Z' {
-			ca += 'a' - 'A'
-		}
-		if ca != b[i] {
-			return false
-		}
-	}
-	return true
+	return len(stack) > 0
 }

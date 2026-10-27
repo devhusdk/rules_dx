@@ -1,7 +1,5 @@
 use dx_testing::{read_runfiles, runfiles_root};
 
-const GITHUB_BUILD: &str = ".github/BUILD.bazel";
-
 fn squeezed(text: &str) -> String {
     text.chars().filter(|ch| !ch.is_whitespace()).collect()
 }
@@ -435,15 +433,10 @@ fn stacked_comments(name: &str, text: &str) -> Vec<String> {
     out
 }
 
-fn workflow_exports() -> Vec<String> {
-    dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD)
-}
-
 #[test]
 fn every_workflow_comment_is_one_line() {
     let mut comments = 0usize;
-    for name in workflow_exports() {
-        let rel = format!(".github/{name}");
+    for rel in dx_testing::workflow_files() {
         let text = read_runfiles(&rel);
         let stacked = stacked_comments(&rel, &text);
         assert!(
@@ -459,8 +452,7 @@ fn every_workflow_comment_is_one_line() {
 
 #[test]
 fn no_workflow_comment_names_an_issue_or_another_page() {
-    for name in workflow_exports() {
-        let rel = format!(".github/{name}");
+    for rel in dx_testing::workflow_files() {
         assert_comments_bare(&rel, &read_runfiles(&rel));
     }
 }

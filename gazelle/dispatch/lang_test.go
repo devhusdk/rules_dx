@@ -161,6 +161,7 @@ func TestUnionLoadsCoverAllExtensions(t *testing.T) {
 		seen[load.Name] = true
 	}
 	for _, want := range []string{
+		"//powershell/rules:defs.bzl",
 		"//python/rules:defs.bzl",
 		"//rust/rules:defs.bzl",
 	} {
@@ -439,15 +440,17 @@ func sortedKeys(m map[string]string) []string {
 func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	const oneSource = "add a local one-source library or an exact # gazelle:resolve mapping"
 	const oneSourceRelative = oneSource + " (relative imports use the workspace path without extension)"
+	const jvm = "add a local library or a # gazelle:resolve mapping on the qualified import or its package"
+	const csharp = "add a local library that declares the namespace or a # gazelle:resolve mapping on the full namespace"
 	hints := map[string]string{
 		"astro":  oneSourceRelative,
 		"cc":     "add a local one-header library or an exact # gazelle:resolve mapping",
-		"csharp": oneSource,
-		"java":   oneSource,
-		"kotlin": oneSource,
+		"csharp": csharp,
+		"java":   jvm,
+		"kotlin": jvm,
 		"mdx":    oneSourceRelative,
 		"ruby":   oneSource,
-		"scala":  oneSource,
+		"scala":  jvm,
 		"svelte": oneSourceRelative,
 		"vue":    oneSourceRelative,
 	}
@@ -468,19 +471,24 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	}
 	resolver.Configure(resolverCfg, "app", nil)
 	for _, name := range sortedKeys(hints) {
-		lang, ok := composed[name].(*common.SingleLang)
+		lang, ok := composed[name].(interface {
+			language.Language
+			failingLanguage
+		})
 		if !ok {
 			t.Errorf("%s is not composed into dispatch, or does not share the single-language driver", name)
 			continue
 		}
 		kinds := lang.Kinds()
-		if len(kinds) != 1 {
-			t.Errorf("%s declares %d kinds, want exactly 1", name, len(kinds))
+		if len(kinds) == 0 {
+			t.Errorf("%s declares no kinds", name)
 			continue
 		}
 		kind := ""
-		for name := range kinds {
-			kind = name
+		for k := range kinds {
+			if kind == "" || k < kind {
+				kind = k
+			}
 		}
 		lang.Before(context.Background())
 		from := label.New("", "app", "app")
@@ -589,6 +597,68 @@ func TestAfterResolvingDepsFailsOnUnknownIgnoreLanguage(t *testing.T) {
 	}
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown language "pyton"`) {
 		t.Fatalf("errors = %v, want the unknown language", l.errors)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("manifest stat = %v, want no manifest written", err)
+	}
+}
+
+func langFile(value string) *rule.File {
+	f := rule.EmptyFile("pkg/BUILD.bazel", "pkg")
+	f.Directives = append(f.Directives, rule.Directive{Key: "lang", Value: value})
+	return f
+}
+
+func TestConfigureRejectsLangWithoutDispatch(t *testing.T) {
+	cases := []struct {
+		name    string
+		langs   []string
+		file    *rule.File
+		wantErr bool
+	}{
+		{name: "go", langs: []string{"go"}, file: langFile("go"), wantErr: true},
+		{name: "go,python", langs: []string{"go", "python"}, file: langFile("go,python"), wantErr: true},
+		{name: "with dispatch", langs: []string{"go", languageName}, file: langFile("go," + languageName)},
+		{name: "empty", langs: nil, file: langFile("")},
+		{name: "inherited", langs: []string{"go"}, file: rule.EmptyFile("pkg/BUILD.bazel", "pkg")},
+	}
+	for _, tc := range cases {
+		l := &dispatchLang{}
+		c := testConfig()
+		c.Langs = tc.langs
+		l.Configure(c, "pkg", tc.file)
+		if !tc.wantErr {
+			if len(l.errors) != 0 {
+				t.Errorf("%s: errors = %v, want none", tc.name, l.errors)
+			}
+			continue
+		}
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0], "//pkg") || !strings.Contains(l.errors[0], languageName) {
+			t.Errorf("%s: errors = %v, want one naming //pkg and %s", tc.name, l.errors, languageName)
+		}
+	}
+	l := &dispatchLang{}
+	l.Configure(nil, "pkg", langFile("go"))
+	if len(l.errors) != 0 {
+		t.Errorf("nil config errors = %v, want none", l.errors)
+	}
+}
+
+func TestAfterResolvingDepsFailsOnLangWithoutDispatch(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	c := testConfig()
+	c.Langs = []string{"go"}
+	l.Configure(c, "", langFile("go"))
+	oldExit := exitProcess
+	code := -1
+	exitProcess = func(c int) { code = c }
+	defer func() { exitProcess = oldExit }()
+	l.AfterResolvingDeps(context.Background())
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
 	}
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatalf("manifest stat = %v, want no manifest written", err)

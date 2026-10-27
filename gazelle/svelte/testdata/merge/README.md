@@ -1,4 +1,4 @@
 # Svelte merge and cleanup
 
 Verifies generated attribute refresh, user-owned attribute preservation,
-and conservative stale-rule cleanup per `gazelle/svelte/lang.go`.
+and conservative stale-rule cleanup per `gazelle/common/webcomponent.go`.

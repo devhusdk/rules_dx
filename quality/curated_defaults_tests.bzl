@@ -45,13 +45,13 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "typescript curated defaults stay Biome + tsc",
+                "typescript curated defaults stay Biome-only",
                 CURATED_DEFAULTS["typescript"],
                 {
                     "audit": [],
                     "format": ["biome"],
                     "lint": ["biome"],
-                    "typecheck": ["tsc"],
+                    "typecheck": [],
                 },
             ),
             expect_equal(
@@ -93,6 +93,58 @@ def curated_defaults_unit_tests(name):
                     "lint": [],
                     "typecheck": [],
                 },
+            ),
+            expect_equal(
+                "astro curated defaults stay Prettier format only",
+                [CURATED_DEFAULTS["astro"], FORMAT_FROZEN["astro"]],
+                [
+                    {
+                        "audit": [],
+                        "format": ["prettier"],
+                        "lint": [],
+                        "typecheck": [],
+                    },
+                    ["prettier"],
+                ],
+            ),
+            expect_equal(
+                "mdx curated defaults stay remark format only",
+                [CURATED_DEFAULTS["mdx"], FORMAT_FROZEN["mdx"]],
+                [
+                    {
+                        "audit": [],
+                        "format": ["remark"],
+                        "lint": [],
+                        "typecheck": [],
+                    },
+                    ["remark"],
+                ],
+            ),
+            expect_equal(
+                "vue curated defaults stay Prettier format only",
+                [CURATED_DEFAULTS["vue"], FORMAT_FROZEN["vue"]],
+                [
+                    {
+                        "audit": [],
+                        "format": ["prettier"],
+                        "lint": [],
+                        "typecheck": [],
+                    },
+                    ["prettier"],
+                ],
+            ),
+            expect_equal(
+                "dockerfile curated defaults stay hadolint lint only (check-only, no formatter)",
+                [CURATED_DEFAULTS["dockerfile"], FORMAT_FROZEN["dockerfile"]],
+                [
+                    {
+                        "audit": [],
+                        "format": [],
+                        "lint": ["hadolint"],
+                        "typecheck": [],
+                    },
+                    [],
+                ],
             ),
             expect_equal(
                 "rust curated defaults stay rustfmt + Clippy + rustc",

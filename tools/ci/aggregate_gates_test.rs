@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use ci_workflow::document;
 use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
@@ -12,12 +13,8 @@ const GATE: &str = "ci";
 
 const AGGREGATE: &str = "dx-ci";
 
-/// Returns the parsed workflow, which must be valid Actions YAML.
-fn document(workflow: &str) -> Value {
-    let text = read_runfiles(workflow);
-    yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{workflow} is not valid workflow YAML: {error}"))
-}
+/// Runs a gate on every dependency outcome, except a cancelled run outside merge_group.
+const GATE_IF: &str = "${{ !cancelled() || github.event_name == 'merge_group' }}";
 
 /// Returns the aggregate run script of one job.
 fn aggregate_script(workflow: &str, job: &str) -> String {
@@ -75,8 +72,8 @@ fn the_outer_gate_requires_every_declared_dependency() {
     );
     assert_eq!(
         document["jobs"][GATE]["if"],
-        json!("${{ always() }}"),
-        "{CI_WORKFLOW} job {GATE} must run on every dependency outcome"
+        json!(GATE_IF),
+        "{CI_WORKFLOW} job {GATE} must run on every dependency outcome unless the run is cancelled outside merge_group"
     );
     let script = aggregate_script(CI_WORKFLOW, GATE);
     assert_eq!(
@@ -111,6 +108,11 @@ fn the_consumer_gate_requires_every_declared_check() {
         document["jobs"][AGGREGATE]["name"],
         json!("dx-ci (aggregate)"),
         "{CONSUMER_WORKFLOW} job {AGGREGATE} keeps the branch-protection check name"
+    );
+    assert_eq!(
+        document["jobs"][AGGREGATE]["if"],
+        json!(GATE_IF),
+        "{CONSUMER_WORKFLOW} job {AGGREGATE} must run on every dependency outcome unless the run is cancelled outside merge_group"
     );
     let wanted: Vec<String> = needs_of(CONSUMER_WORKFLOW, AGGREGATE)
         .into_iter()
@@ -301,7 +303,9 @@ fn cancel_failures_fail_the_job() {
 fn pull_request_comments_stay_pull_request_only() {
     let text = read_runfiles(CONSUMER_WORKFLOW);
     assert!(
-        text.contains("if: github.event_name == 'pull_request'\n        env:\n          GH_TOKEN"),
+        text.contains(
+            "if: always() && github.event_name == 'pull_request'\n        env:\n          GH_TOKEN"
+        ),
         "the PR comment step must stay gated to pull_request"
     );
 }

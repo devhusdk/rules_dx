@@ -1,18 +1,13 @@
 """Unit and analysis tests for the Octopus Deploy publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":octopus.bzl", "OCTOPUS_DEFAULT_URL", "octopus_channel_error", "octopus_environment_error", "octopus_package_error", "octopus_project_error", "octopus_schema_error", "octopus_space_error", "octopus_url_error", "octopus_version_error")
+load(":octopus.bzl", "OCTOPUS_DEFAULT_URL", "octopus_channel_error", "octopus_environment_error", "octopus_package_error", "octopus_project_error", "octopus_space_error", "octopus_url_error", "octopus_version_error")
 
 def octopus_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "octopus_schema_error accepts the v1 launcher-safe charset",
-                octopus_schema_error(),
-                "",
-            ),
             expect_equal(
                 "octopus_project_error accepts the demo project",
                 octopus_project_error("octopus_demo"),

@@ -143,6 +143,9 @@ fn package_validation_rejects_invalid_ecosystem_identities() {
         }
     }
     assert!(is_target_shape("unknown:a/b"));
+    assert!(is_target_shape("//x"));
+    assert!(is_target_shape("@r//:t"));
+    assert!(!is_target_shape("cargo:anyhow"));
 }
 
 #[test]
@@ -869,7 +872,7 @@ fn cargo_toml_preserves_format_and_fails_closed() {
 fn github_actions_needs_sha_for_tags() {
     let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let workflow = steps(&format!("      - uses: actions/checkout@{old} # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n", old = "3d3c42e5aac5ba805825da76410c181273ba90b1"));
-    let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("sha");
+    let bump = BumpRequest::parse("github-actions:actions/checkout", sha).expect("sha");
     let widened = bump.plan_edit(&workflow).expect("edit");
     assert!(
         widened.contains(&format!("actions/checkout@{sha}")),
@@ -885,7 +888,7 @@ fn github_actions_needs_sha_for_tags() {
 }
 
 #[test]
-fn regex_cargo_boundary_prefers_exact_table_key() {
+fn cargo_boundary_prefers_exact_table_key() {
     let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     let cargo = "[dependencies]\nmy-anyhow = \"1\"\n";
     assert!(matches!(

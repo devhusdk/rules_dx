@@ -10,6 +10,11 @@ QualitySourcesInfo = provider(
     },
 )
 
+QualityToolsInfo = provider(
+    doc = "Quality tools a rule carries, keyed by tool ID.",
+    fields = {"tools": "Dict[str, FilesToRunProvider]: tool ID to executable."},
+)
+
 SOURCES_REGISTRY_SCHEMA_VERSION = 1
 
 KNOWN_SEMANTIC_FILE_CLASSES = [
@@ -17,12 +22,15 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "c",
     "cpp",
     "cuda",
+    "objc",
+    "objcpp",
     "csharp",
     "fsharp",
     "powershell",
     "css",
     "less",
     "scss",
+    "dockerfile",
     "javascript",
     "jsx",
     "typescript",
@@ -41,18 +49,26 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "toml",
     "xml",
     "yaml",
+    "api_spec",
     "java",
     "kotlin",
     "scala",
     "python",
     "python_stub",
     "cue",
+    "d",
     "elixir",
     "erlang",
+    "fortran",
     "gherkin",
     "gleam",
     "go",
+    "haskell",
     "jsonnet",
+    "lua",
+    "ocaml",
+    "perl",
+    "php",
     "pkl",
     "protobuf",
     "qml",
@@ -78,6 +94,8 @@ UPSTREAM_CC_CLASS_EXTENSIONS = {
     "c": ["c", "h"],
     "cpp": ["cc", "cpp", "cxx", "hh", "hpp", "hxx"],
     "cuda": ["cu", "cuh"],
+    "objc": ["m"],
+    "objcpp": ["mm"],
 }
 
 def upstream_source_class(extension):
@@ -90,6 +108,41 @@ def upstream_source_class(extension):
         if extension in UPSTREAM_CC_CLASS_EXTENSIONS[class_id]:
             return class_id
     return ""
+
+DOCKERFILE_NAME_PATTERNS = [
+    "Dockerfile",
+    "Containerfile",
+    "Dockerfile.*",
+    "Containerfile.*",
+    "*.Dockerfile",
+    "*.dockerfile",
+    "*.Containerfile",
+    "*.containerfile",
+]
+
+_DOCKERFILE_STEMS = ["Dockerfile", "Containerfile"]
+
+_DOCKERFILE_SUFFIXES = [".Dockerfile", ".dockerfile", ".Containerfile", ".containerfile"]
+
+def is_dockerfile_name(basename):
+    """Reports whether one file basename names a Dockerfile; `*.dockerignore` never does."""
+    if basename.endswith(".dockerignore"):
+        return False
+    for stem in _DOCKERFILE_STEMS:
+        if basename == stem:
+            return True
+        if basename.startswith(stem + ".") and len(basename) > len(stem) + 1:
+            return True
+    for suffix in _DOCKERFILE_SUFFIXES:
+        if basename.endswith(suffix) and len(basename) > len(suffix):
+            return True
+    return False
+
+def dockerfile_name_error(basename):
+    """Returns the error for a basename the Dockerfile matcher rejects, or ""."""
+    if is_dockerfile_name(basename):
+        return ""
+    return "'" + basename + "' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)
 
 def is_known_semantic_class(class_id):
     """Reports whether a class ID is in the versioned registry."""

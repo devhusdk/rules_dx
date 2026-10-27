@@ -1,8 +1,7 @@
-use dx_testing::{read_runfiles, runfiles_root};
+use dx_testing::read_runfiles;
 
 const BAZELVERSION: &str = ".bazelversion";
 const DOCKERFILE: &str = ".devcontainer/Dockerfile.prebuilt";
-const GITHUB_BUILD: &str = ".github/BUILD.bazel";
 const VERSIONS_BZL: &str = "modules/versions.bzl";
 
 fn starlark_const(text: &str, name: &str) -> String {
@@ -13,16 +12,11 @@ fn bazelisk_pin() -> String {
     starlark_const(&read_runfiles(VERSIONS_BZL), "BAZELISK_VERSION")
 }
 
-fn workflow_exports() -> Vec<String> {
-    dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD)
-}
-
 fn workflows() -> Vec<(String, String)> {
-    workflow_exports()
+    dx_testing::workflow_files()
         .into_iter()
         .map(|name| {
-            let text = std::fs::read_to_string(runfiles_root().join(".github").join(&name))
-                .unwrap_or_else(|_| panic!("{name} must ship as bazelisk_pins_test data"));
+            let text = read_runfiles(&name);
             (name, text)
         })
         .collect()
@@ -94,42 +88,57 @@ fn setup_bazel_documents() -> Vec<(String, serde_json::Value)> {
         .collect()
 }
 
-fn saved_repo_cache_prefixes() -> Vec<String> {
-    let mut prefixes = Vec::new();
-    for (name, document) in setup_bazel_documents() {
-        let workflow = document["name"]
-            .as_str()
-            .unwrap_or_else(|| panic!("{name} has no top-level name"));
-        if document["on"].get("workflow_call").is_some() {
-            continue;
-        }
-        let jobs = document["jobs"]
-            .as_object()
-            .unwrap_or_else(|| panic!("{name} has no jobs"));
-        for (job, body) in jobs {
-            let steps = body["steps"].as_array().cloned().unwrap_or_default();
-            let setups = steps_using(&steps, "bazel-contrib/setup-bazel");
-            let saves = setups.first().is_some_and(|&setup| {
-                steps[setup]["with"]["cache-save"] != serde_json::Value::Bool(false)
-            }) && steps_using(&steps, "actions/cache/save").len() == 1;
-            if saves {
-                prefixes.push(format!(
-                    "dx-repo-${{{{ runner.os }}}}-${{{{ runner.arch }}}}-{workflow}-{job}-"
-                ));
-            }
-        }
-    }
-    prefixes
+/// The one job per platform that saves the shared repository cache, keyed on
+/// workflow file and job, with the guard that picks it.
+const SAVERS: &[(&str, &str, &str)] = &[
+    (
+        ".github/workflows/reusable-consumer.yml",
+        "coverage",
+        "needs.validate.outputs.cache_saver == github.job",
+    ),
+    (
+        ".github/workflows/reusable-consumer.yml",
+        "test",
+        "needs.validate.outputs.cache_saver == github.job",
+    ),
+    (
+        ".github/workflows/reusable-consumer.yml",
+        "build",
+        "needs.validate.outputs.cache_saver == github.job",
+    ),
+    (
+        ".github/workflows/ci.yml",
+        "preflight",
+        "matrix.platform == 'windows_arm64'",
+    ),
+];
+const STAMP: &str = "Stamp the restored Bazel repository cache";
+const PRUNE: &str = "Prune the Bazel repository cache to this run's downloads";
+const STAMP_FILE: &str = "$RUNNER_TEMP/dx-repo-cache.stamp";
+
+fn steps_named(steps: &[serde_json::Value], name: &str) -> Vec<usize> {
+    (0..steps.len())
+        .filter(|&i| steps[i]["name"].as_str() == Some(name))
+        .collect()
+}
+
+fn step_condition(step: &serde_json::Value) -> &str {
+    let actual = step["if"].as_str().unwrap_or_default().trim();
+    actual
+        .strip_prefix("${{")
+        .and_then(|inner| inner.strip_suffix("}}"))
+        .map_or(actual, str::trim)
 }
 
 #[test]
 fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
     let info = "bazel --nohome_rc --nosystem_rc info repository_cache";
-    let prefix =
-        "dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-";
+    let prefix = "dx-repo-${{ runner.os }}-${{ runner.arch }}-";
     let key = repo_cache_key(prefix);
-    let saved = saved_repo_cache_prefixes();
     let mut checked = 0;
+    let mut restore_only = 0;
+    let mut savers_seen = Vec::new();
+    let mut prune_runs = Vec::new();
     for (name, document) in setup_bazel_documents() {
         let jobs = document["jobs"]
             .as_object()
@@ -209,24 +218,6 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                 Some(path.as_str()),
                 "{name} job {job} step {restore} restores the wrong path"
             );
-            let saves = indices("actions/cache/save");
-            if with["cache-save"] == serde_json::Value::Bool(false) {
-                assert!(
-                    saves.is_empty(),
-                    "{name} job {job} saves a cache while setup-bazel cache-save is false"
-                );
-                let restored = step["with"]["restore-keys"].as_str().unwrap_or_default();
-                assert!(
-                    saved.iter().any(|donor| donor == restored),
-                    "{name} job {job} restores {restored}, which no job saves"
-                );
-                assert_eq!(
-                    step["with"]["key"].as_str(),
-                    Some(repo_cache_key(restored).as_str()),
-                    "{name} job {job} step {restore} restores under the wrong key"
-                );
-                continue;
-            }
             assert_eq!(
                 step["with"]["key"].as_str(),
                 Some(key.as_str()),
@@ -235,20 +226,79 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
             assert_eq!(
                 step["with"]["restore-keys"].as_str(),
                 Some(prefix),
-                "{name} job {job} step {restore} may fall back to another job's cache"
+                "{name} job {job} step {restore} falls back to the wrong prefix"
             );
+            let saves = indices("actions/cache/save");
+            let stamps = steps_named(&steps, STAMP);
+            let prunes = steps_named(&steps, PRUNE);
+            let Some(&(_, _, guard)) = SAVERS
+                .iter()
+                .find(|(file, saver, _)| *file == name && saver == job)
+            else {
+                assert!(
+                    saves.is_empty() && stamps.is_empty() && prunes.is_empty(),
+                    "{name} job {job} is not a listed saver but saves, stamps or prunes the repository cache"
+                );
+                restore_only += 1;
+                continue;
+            };
+            savers_seen.push((name.clone(), job.clone()));
             assert_eq!(
-                saves.len(),
-                1,
-                "{name} job {job} must save the repository cache once"
+                (saves.len(), stamps.len(), prunes.len()),
+                (1, 1, 1),
+                "{name} job {job} must stamp, prune and save the repository cache once each"
             );
-            let save = saves[0];
-            let step = &steps[save];
+            let (save, stamp, prune) = (saves[0], stamps[0], prunes[0]);
+            assert_eq!(
+                stamp,
+                restore + 1,
+                "{name} job {job} step {stamp} must directly follow the restore step"
+            );
             assert_eq!(
                 save,
                 steps.len() - 1,
                 "{name} job {job} step {save} must be the last step"
             );
+            assert_eq!(
+                prune + 1,
+                save,
+                "{name} job {job} step {prune} must directly precede the save step"
+            );
+            let condition = |first: &str| {
+                format!(
+                    "{first} && github.ref == format('refs/heads/{{0}}', github.event.repository.default_branch) && {guard} && steps.{restore_id}.outputs.cache-hit != 'true' && steps.{id}.outputs.path != ''"
+                )
+            };
+            for (index, first) in [
+                (stamp, "!cancelled()"),
+                (prune, "success()"),
+                (save, "!cancelled()"),
+            ] {
+                assert_eq!(
+                    step_condition(&steps[index]),
+                    condition(first),
+                    "{name} job {job} step {index} runs under the wrong condition"
+                );
+            }
+            assert!(
+                steps[stamp]["run"]
+                    .as_str()
+                    .is_some_and(|run| run.contains(STAMP_FILE)),
+                "{name} job {job} step {stamp} must write {STAMP_FILE}"
+            );
+            let step = &steps[prune];
+            assert_eq!(
+                step["env"]["DX_REPO_CACHE"].as_str(),
+                Some(path.as_str()),
+                "{name} job {job} step {prune} must take the cache path through env"
+            );
+            let run = step["run"].as_str().unwrap_or_default();
+            assert!(
+                run.contains(STAMP_FILE) && !run.contains("${{"),
+                "{name} job {job} step {prune} must read {STAMP_FILE} and no inline expression"
+            );
+            prune_runs.push(run.to_owned());
+            let step = &steps[save];
             assert_eq!(
                 step["with"]["path"].as_str(),
                 Some(path.as_str()),
@@ -259,21 +309,25 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                 Some(format!("${{{{ steps.{restore_id}.outputs.cache-primary-key }}}}").as_str()),
                 "{name} job {job} step {save} saves under the wrong key"
             );
-            let condition = format!(
-                "!cancelled() && github.event_name != 'pull_request' && steps.{restore_id}.outputs.cache-hit != 'true' && steps.{id}.outputs.path != ''"
-            );
-            let actual = step["if"].as_str().unwrap_or_default().trim();
-            let actual = actual
-                .strip_prefix("${{")
-                .and_then(|inner| inner.strip_suffix("}}"))
-                .map_or(actual, str::trim);
-            assert_eq!(
-                actual, condition,
-                "{name} job {job} step {save} saves under the wrong condition"
-            );
         }
     }
     assert!(checked > 0, "no workflow job runs setup-bazel");
+    assert!(
+        restore_only > 0,
+        "no setup-bazel job is restore-only, so the non-saver check never ran"
+    );
+    for (file, job, _) in SAVERS {
+        assert!(
+            savers_seen
+                .iter()
+                .any(|(name, seen)| name == file && seen == job),
+            "{file} job {job} is a listed repository cache saver but does not exist"
+        );
+    }
+    assert!(
+        prune_runs.windows(2).all(|pair| pair[0] == pair[1]),
+        "every saver must prune the repository cache with the same script"
+    );
 }
 
 #[test]

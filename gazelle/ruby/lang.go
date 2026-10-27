@@ -6,6 +6,7 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
 const languageName = "ruby"
@@ -14,8 +15,10 @@ var rubyKinds = map[string]rule.KindInfo{
 	LibraryKind: common.LibraryKindInfo(),
 }
 
+type rubyLang struct{ *common.SingleLang }
+
 func NewLanguage() language.Language {
-	return common.NewSingleLang(common.SingleLangSpec{
+	return &rubyLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
 		DisplayName:    "Ruby",
 		LibraryKind:    LibraryKind,
@@ -28,10 +31,27 @@ func NewLanguage() language.Language {
 		IsStdLib:       IsStdLib,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
-	})
+	})}
 }
 
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
+// Imports indexes each library source under its Ruby load path.
+func (l *rubyLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
+	if r.Kind() != LibraryKind {
+		return nil
+	}
+	pkg := ""
+	if f != nil {
+		pkg = f.Pkg
+	}
+	var specs []resolve.ImportSpec
+	for _, src := range r.AttrStrings("srcs") {
+		if !isSupported(src) || IsTestSource(src) {
+			continue
+		}
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: LoadPath(pkg, src)})
+	}
+	return specs
+}
 
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 

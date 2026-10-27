@@ -33,8 +33,6 @@ DX_CODEGEN_PLAN_OUTPUT_GROUP = "dx_codegen_plans"
 
 DX_CODEGEN_SHARD_SUFFIX = ".dxcodegen.pb"
 
-CODEGEN_SCHEMA_VERSION = 1
-
 DX_CODEGEN_ADMITTED_PAIRS = (
     ("protobuf", "rust"),
 )
@@ -168,128 +166,9 @@ def codegen_merge_records(records):
         codegen_record,
     )
 
-def codegen_merge_schema_error(records, merged):
-    """Validates merged is the normalized form of records."""
-    if type(merged) != "list":
-        return "codegen merge: want a list, got " + type(merged)
-    owners = []
-    for record in merged:
-        err = codegen_record_error(record)
-        if err != "":
-            return "codegen merge: " + err
-        owners.append((record.producer, record.language))
-    if owners != sorted(owners):
-        return "codegen merge: owners must sort by (producer, language): " + str(owners)
-    seen_owners = {}
-    for owner in owners:
-        if owner in seen_owners:
-            return "codegen merge: duplicate owner " + str(owner)
-        seen_owners[owner] = True
-    for record in merged:
-        keys = [_codegen_entry_key(e) for e in record.entries]
-        if keys != sorted(keys):
-            return "codegen merge: entries for " + record.producer + " must sort by (logical, root, namespace, exec, replaces)"
-        seen_keys = {}
-        for key in keys:
-            if key in seen_keys:
-                return "codegen merge: duplicate entry " + str(key) + " for " + record.producer
-            seen_keys[key] = True
-    input_by_owner = {}
-    for record in records:
-        owner = (record.producer, record.language)
-        owned = input_by_owner.setdefault(owner, {})
-        for entry in record.entries:
-            owned[_codegen_entry_key(entry)] = True
-    merged_by_owner = {}
-    for record in merged:
-        owner = (record.producer, record.language)
-        owned = merged_by_owner.setdefault(owner, {})
-        for entry in record.entries:
-            owned[_codegen_entry_key(entry)] = True
-    if sorted(input_by_owner.keys()) != sorted(merged_by_owner.keys()):
-        return "codegen merge: owners must match input owners: " + str(sorted(merged_by_owner.keys())) + " vs " + str(sorted(input_by_owner.keys()))
-    for owner in input_by_owner.keys():
-        if sorted(input_by_owner[owner].keys()) != sorted(merged_by_owner[owner].keys()):
-            return "codegen merge: entries for " + str(owner) + " must match deduped input entries"
-    return ""
-
 def codegen_plan_fingerprint(records):
     """Renders the normalized complete-plan hash input."""
     return plan_shard_fingerprint(records, codegen_merge_records, _codegen_encode_record)
-
-def codegen_fingerprint_schema_error(fingerprint):
-    """Validates a plan fingerprint JSON shape."""
-    decoded = json.decode(fingerprint)
-    if type(decoded) != "list" or len(decoded) == 0:
-        return "codegen fingerprint: want a non-empty list"
-    owners = []
-    for item in decoded:
-        if type(item) != "dict":
-            return "codegen fingerprint: want objects, got " + type(item)
-        for key in ("producer", "language", "entries"):
-            if key not in item:
-                return "codegen fingerprint: missing key '" + key + "'"
-        producer = item["producer"]
-        language = item["language"]
-        entries = item["entries"]
-        if type(producer) != "string" or producer == "":
-            return "codegen fingerprint: producer must be non-empty"
-        if not (producer.startswith("//") or producer.startswith("@")):
-            return "codegen fingerprint: producer '" + producer + "' must be a label"
-        if type(language) != "string" or language == "":
-            return "codegen fingerprint: language must be non-empty"
-        if type(entries) != "list" or len(entries) == 0:
-            return "codegen fingerprint: entries must be non-empty for " + producer
-        owners.append((producer, language))
-        keys = []
-        for entry in entries:
-            if type(entry) != "dict":
-                return "codegen fingerprint: want entry objects for " + producer
-            for ekey in ("exec_path", "import_root", "logical_path", "namespace", "read_only", "replaces"):
-                if ekey not in entry:
-                    return "codegen fingerprint: missing entry key '" + ekey + "' for " + producer
-            if entry["read_only"] != True:
-                return "codegen fingerprint: read_only must stay true for " + producer
-            err = codegen_path_error(entry["logical_path"])
-            if err != "":
-                return "codegen fingerprint: " + err
-            err = codegen_path_error(entry["import_root"])
-            if err != "":
-                return "codegen fingerprint: " + err
-            err = codegen_exec_error(entry["exec_path"])
-            if err != "":
-                return "codegen fingerprint: " + err
-            err = codegen_replaces_error(entry["logical_path"], entry["exec_path"], entry["replaces"])
-            if err != "":
-                return "codegen fingerprint: " + err
-            keys.append((entry["logical_path"], entry["import_root"], entry["namespace"], entry["exec_path"], entry["replaces"]))
-        if keys != sorted(keys):
-            return "codegen fingerprint: entries for " + producer + " must sort by (logical, root, namespace, exec, replaces)"
-    if owners != sorted(owners):
-        return "codegen fingerprint: records must sort by (producer, language): " + str(owners)
-    return ""
-
-def codegen_admitted_pairs():
-    """Returns the admitted generator/language pairs."""
-    return DX_CODEGEN_ADMITTED_PAIRS
-
-def codegen_schema_error():
-    """Validates the versioned codegen-pair schema."""
-    if CODEGEN_SCHEMA_VERSION != 1:
-        return "codegen: unsupported schema v" + str(CODEGEN_SCHEMA_VERSION) + " (want v1)"
-    if type(DX_CODEGEN_ADMITTED_PAIRS) != "tuple" or len(DX_CODEGEN_ADMITTED_PAIRS) == 0:
-        return "codegen: want a non-empty admitted-pair tuple (schema v1)"
-    seen = {}
-    for pair in DX_CODEGEN_ADMITTED_PAIRS:
-        if type(pair) != "tuple" or len(pair) != 2:
-            return "codegen: bad admitted pair '" + str(pair) + "': want (schema_kind, language)"
-        for token in pair:
-            if type(token) != "string" or token == "":
-                return "codegen: bad admitted pair '" + str(pair) + "': tokens must be non-empty strings"
-        if pair in seen:
-            return "codegen: duplicate admitted pair '" + str(pair) + "'"
-        seen[pair] = True
-    return ""
 
 def codegen_pair_error(schema_kind, language):
     """Validates one generator/language pair against the admitted pairs."""
@@ -370,6 +249,7 @@ def _dx_codegen_shard_impl(ctx):
 
 dx_codegen_shard = rule(
     implementation = _dx_codegen_shard_impl,
+    doc = "Declares codegen plan entries for dx codegen.",
     attrs = {
         "deps": attr.label_list(
             default = [],
@@ -412,6 +292,7 @@ def _dx_codegen_plan_aspect_impl(target, ctx):
 
 dx_codegen_plan_aspect = aspect(
     implementation = _dx_codegen_plan_aspect_impl,
+    doc = "Collects codegen plan shards through deps.",
     attr_aspects = _CODEGEN_ASPECT_ATTRS,
 )
 
@@ -484,6 +365,7 @@ def _prost_codegen_shard_impl(ctx):
 
 prost_codegen_shard = rule(
     implementation = _prost_codegen_shard_impl,
+    doc = "Declares codegen plan entries for the sources prost generates.",
     attrs = {
         "entries": attr.string_list(
             mandatory = True,
@@ -523,6 +405,7 @@ def _codegen_plan_subject_impl(ctx):
 
 codegen_plan_subject = rule(
     implementation = _codegen_plan_subject_impl,
+    doc = "Analysis subject reporting the codegen plan of one target.",
     attrs = {
         "target": attr.label(
             aspects = [dx_codegen_plan_aspect],

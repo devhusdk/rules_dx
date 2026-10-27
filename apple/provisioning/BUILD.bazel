@@ -382,3 +382,9 @@ probe_failure_test(
         "//conditions:default": [],
     }),
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 const MODULE: &str = "module(name = \"acme_renamed\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" --output_groups=dx_shards "*) exit 1 ;; esac
 printf '%s\n' "$*" >> "$FAKE_LOG"
 case " $* " in
   *" query "*|*" cquery "*)
@@ -203,8 +204,9 @@ impl Consumer {
         fs::write(&path, result).expect("result");
         let witness = serde_json::json!({
             "schema_major": 1,
-            "schema_minor": 0,
+            "schema_minor": 1,
             "mode": "check",
+            "result": "clean",
             "scopes": [{"value": "//...", "results_complete": true}],
             "files": [],
             "ignored_imports": [],
@@ -495,7 +497,7 @@ fn a_query_that_cannot_launch_is_not_an_empty_selection() {
     let consumer = Consumer::new();
     for (flags, env) in JSON_MODES {
         let outcome = consumer.run(&with_mode(&["build", "src/main.rs"], flags), env, false);
-        assert_terminal_failure(&outcome, "query_launch_failed", "query_launch", 2);
+        assert_terminal_failure(&outcome, "query_launch_failed", "query_launch", 1);
         assert_eq!(outcome.kinds(), ["error", "command_finished"]);
         assert!(outcome.events()[0].get("status").is_none());
     }

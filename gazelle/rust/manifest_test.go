@@ -81,13 +81,13 @@ func TestUsedImportsDropsStaleEntries(t *testing.T) {
 	}
 }
 
-func TestCollectUsedIgnoresReadsTheRustConfigExtension(t *testing.T) {
+func TestUsedIgnoresReadsTheRustConfigExtension(t *testing.T) {
 	cfg := config.New()
-	if got := CollectUsedIgnores(cfg); got != nil {
+	if got := common.UsedIgnores(cfg, languageName); got != nil {
 		t.Fatalf("absent: %v", got)
 	}
 	cfg.Exts[languageName] = &rustConfig{}
-	if got := CollectUsedIgnores(cfg); got != nil {
+	if got := common.UsedIgnores(cfg, languageName); got != nil {
 		t.Fatalf("empty: %v", got)
 	}
 	cfg.Exts[languageName] = &rustConfig{
@@ -98,7 +98,7 @@ func TestCollectUsedIgnoresReadsTheRustConfigExtension(t *testing.T) {
 		tools: []string{"cargo"},
 	}
 	want := [][2]string{{"pkg", "used_crate"}}
-	got := CollectUsedIgnores(cfg)
+	got := common.UsedIgnores(cfg, languageName)
 	if len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("used ignores = %v, want %v", got, want)
 	}
@@ -119,7 +119,7 @@ func TestAfterResolvingDepsEmits(t *testing.T) {
 	}
 	l.AfterResolvingDeps(context.Background())
 	manifest := readIntended(t, out)
-	if manifest.Mode != "default" || len(manifest.Files) != 0 || len(manifest.IgnoredImports) != 0 {
+	if manifest.Mode != "default" || manifest.Result != common.IntendedResultClean || len(manifest.Files) != 0 || len(manifest.IgnoredImports) != 0 {
 		t.Errorf("manifest = %+v", manifest)
 	}
 	if manifest.SchemaMajor != common.IntendedManifestSchemaMajor || manifest.SchemaMinor != common.IntendedManifestSchemaMinor {

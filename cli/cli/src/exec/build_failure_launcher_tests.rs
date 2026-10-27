@@ -6,6 +6,7 @@ use std::process::{Command, Stdio};
 const MODULE: &str = "module(name = \"acme_renamed\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" --output_groups=dx_shards "*) exit 1 ;; esac
 case " $* " in *" build "*|*" test "*|*" coverage "*) ;; *) exit 0 ;; esac
 for arg in "$@"; do
   case "$arg" in --build_event_json_file=*) bep="${arg#--build_event_json_file=}" ;; esac
@@ -14,7 +15,7 @@ printf '%s\n' "$FAKE_BEP_LINE" > "$bep"
 exit 1
 "#;
 
-const DIAGNOSTIC: &str = r#"{"$message_type":"diagnostic","message":"cannot find value `y` in this scope","code":{"code":"E0425","explanation":null},"level":"error","spans":[{"file_name":"ünï/src/main.rs","byte_start":30,"byte_end":31,"line_start":3,"line_end":3,"column_start":5,"column_end":6,"is_primary":true,"text":[],"label":null,"suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[],"rendered":null}"#;
+const DIAGNOSTIC: &str = r#"{"$message_type":"diagnostic","message":"cannot find value `y` in this scope","code":{"code":"E0425","explanation":null},"level":"error","spans":[{"file_name":"ünï/src/main.rs","byte_start":30,"byte_end":31,"line_start":3,"line_end":3,"column_start":5,"column_end":6,"is_primary":true,"text":[],"label":"not found in this scope","suggested_replacement":null,"suggestion_applicability":null,"expansion":null}],"children":[{"message":"a local variable with a similar name exists: `x`","level":"help","spans":[],"children":[]}],"rendered":null}"#;
 
 fn run(verb: &str) -> (Option<i32>, String, String) {
     let (code, out, err, _) = run_with(verb, &["--output=json"]);
@@ -94,6 +95,10 @@ fn the_launcher_reports_a_failed_rust_action_in_a_renamed_consumer() {
         assert_eq!(failures[0]["target"], "//ünï:bin");
         assert_eq!(failures[0]["stage"], "compilation");
         assert_eq!(failures[0]["diagnostics"]["items"][0]["code"], "E0425");
+        let related = &failures[0]["diagnostics"]["items"][0]["related"];
+        assert_eq!(related[0]["role"], "label");
+        assert_eq!(related[0]["message"], "not found in this scope");
+        assert_eq!(related[1]["role"], "help");
         assert_eq!(
             events.last().expect("events")["event"],
             "command_finished",
@@ -125,6 +130,10 @@ fn the_launcher_writes_the_failures_report_in_a_renamed_consumer() {
             report["failures"][0]["diagnostics"]["items"][0]["code"],
             "E0425"
         );
+        let related = &report["failures"][0]["diagnostics"]["items"][0]["related"];
+        assert_eq!(related[0]["role"], "label");
+        assert_eq!(related[0]["message"], "not found in this scope");
+        assert_eq!(related[1]["role"], "help");
         assert_eq!(report["failures"][0]["stderr"]["status"], "structured");
     }
 }

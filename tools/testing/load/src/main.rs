@@ -1085,8 +1085,11 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
         let local = RcPolicy {
             read_user_rc: true,
             disk_cache: None,
+            bazel_disk_cache: None,
             local_cpu: true,
             local_memory: true,
+            disk_cache_gc: false,
+            gc_idle_delay_secs: None,
         };
         assert_eq!(
             bazel_argv(&local),
@@ -1119,8 +1122,11 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             RcPolicy {
                 read_user_rc: true,
                 disk_cache: Some("/h/.cache/dx/disk-cache".to_string()),
+                bazel_disk_cache: Some("/h/.cache/dx/disk-cache".into()),
                 local_cpu: true,
                 local_memory: true,
+                disk_cache_gc: true,
+                gc_idle_delay_secs: None,
             }
         );
         let ci = rc_policy(
@@ -1136,8 +1142,11 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
         let shared = RcPolicy {
             read_user_rc: true,
             disk_cache: Some("/h/disk".to_string()),
+            bazel_disk_cache: Some("/h/disk".into()),
             local_cpu: true,
             local_memory: true,
+            disk_cache_gc: true,
+            gc_idle_delay_secs: None,
         };
         let Ok(Mode::Run(options)) = parse_args(&[]) else {
             panic!("expected run");

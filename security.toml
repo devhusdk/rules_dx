@@ -28,3 +28,19 @@ set = "cargo"
 versions = "=0.2.1"
 reason = "Unmaintained; pulled by starlark_map 0.14.2 through starlark_syntax, which has no release without it."
 expires = "2027-01-24"
+
+[[exception]]
+advisory = "RUSTSEC-2023-0071"
+package = "rsa"
+set = "cargo"
+versions = "=0.9.10"
+reason = "Marvin timing attack; the RustCrypto rsa crate has no fixed release. Pulled by pgp 0.21.0."
+expires = "2027-01-24"
+
+[[exception]]
+advisory = "RUSTSEC-2026-0387"
+package = "crypto-bigint"
+set = "cargo"
+versions = "=0.5.5"
+reason = "Pulled by elliptic-curve 0.13.8 and cx448 0.1.1, which need crypto-bigint 0.5; the fix needs 0.7."
+expires = "2027-01-24"

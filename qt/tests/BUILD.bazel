@@ -6,7 +6,7 @@ load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 load(":rules_tests.bzl", "qt_rules_tests")
 
 _LINUX = select({
@@ -110,7 +110,10 @@ rust_test(
         "DX_RCC": "$(rootpath @dx_qt//:rcc)",
         "DX_UIC": "$(rootpath @dx_qt//:uic)",
     },
-    tags = ["block-network"],
+    tags = [
+        "block-network",
+        "no-remote-exec",
+    ],
     target_compatible_with = _LINUX,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -130,9 +133,9 @@ rust_test(
     size = "enormous",
     srcs = ["qt_app_consumer_test.rs"],
     data = [
-        "fixtures/ticker.h",
         "//cli/cli:dx",
-    ],
+        "//qt:module_srcs",
+    ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
@@ -172,7 +175,7 @@ rust_test(
     name = "qt_tasks_test",
     size = "enormous",
     srcs = ["qt_tasks_test.rs"],
-    data = ["//tools/testing/hermetic:qt_tasks_manifest"],
+    data = ["//tools/testing/hermetic:qt_tasks_manifest"] + NESTED_BAZEL_DATA,
     env = {
         "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
         "RUST_TEST_THREADS": "1",
@@ -195,7 +198,7 @@ rust_test(
     name = "qt_display_test",
     size = "enormous",
     srcs = ["qt_display_test.rs"],
-    data = ["//tools/testing/hermetic:qt_tasks_manifest"],
+    data = ["//tools/testing/hermetic:qt_tasks_manifest"] + NESTED_BAZEL_DATA,
     env = {
         "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
         "RUST_TEST_THREADS": "1",
@@ -310,7 +313,7 @@ rust_test(
     data = [
         "//tools/testing/hermetic:qt_rust_manifest",
         "//tools/testing/hermetic:qt_tasks_manifest",
-    ],
+    ] + NESTED_BAZEL_DATA,
     env = {
         "DX_QT_RUST_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_rust_manifest)",
         "DX_QT_TASKS_MANIFEST": "$(rootpath //tools/testing/hermetic:qt_tasks_manifest)",
@@ -323,8 +326,8 @@ rust_test(
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = [
+        ":qt_board_support",
         "//tools/testing:dx_testing",
-        "//tools/testing/hermetic",
     ],
 )
 

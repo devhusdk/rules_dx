@@ -40,11 +40,16 @@ fn check_file(
             eligible += 1;
         }
     }
-    let mut branch_found = 0;
+    let mut branch_eligible = 0;
+    let mut branch_ignored = 0;
     let mut branch_hit = 0;
     let mut missed_branches = Vec::new();
     for ((line, block, branch), taken) in &hits.branches {
-        branch_found += 1;
+        if is_ignored(&ignores, *line) {
+            branch_ignored += 1;
+            continue;
+        }
+        branch_eligible += 1;
         if taken.is_some_and(|count| count > 0) {
             branch_hit += 1;
         } else {
@@ -89,7 +94,8 @@ fn check_file(
         eligible,
         uncovered,
         ignored,
-        branch_found,
+        branch_eligible,
+        branch_ignored,
         branch_hit,
         branch_data: hits.branch_data,
         missed_branches,
@@ -170,7 +176,8 @@ pub fn evaluate(
         verdict.covered += file.covered;
         verdict.eligible += file.eligible;
         verdict.ignored += file.ignored;
-        verdict.branch_found += file.branch_found;
+        verdict.branch_eligible += file.branch_eligible;
+        verdict.branch_ignored += file.branch_ignored;
         verdict.branch_hit += file.branch_hit;
         if file.branch_data {
             verdict.branch_files += 1;
@@ -195,7 +202,7 @@ pub fn evaluate(
     verdict
 }
 
-fn normalize_path(path: &str) -> String {
+pub(crate) fn normalize_path(path: &str) -> String {
     let slashed = path.replace('\\', "/");
     let mut rest = slashed.as_str();
     while let Some(stripped) = rest.strip_prefix("./") {
@@ -204,7 +211,7 @@ fn normalize_path(path: &str) -> String {
     rest.to_string()
 }
 
-fn alias_errors(label: &str, paths: &[&str], errors: &mut Vec<String>) {
+pub(crate) fn alias_errors(label: &str, paths: &[&str], errors: &mut Vec<String>) {
     let mut seen: BTreeMap<String, &str> = BTreeMap::new();
     for path in paths {
         let key = normalize_path(path);

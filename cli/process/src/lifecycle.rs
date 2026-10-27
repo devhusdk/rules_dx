@@ -125,6 +125,17 @@ pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
 /// are I/O errors. A tree that escapes its owner is reported as a timeout,
 /// never as success.
 pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildOutcome> {
+    run_within_until(spec, cleanup, &|| None)
+}
+
+/// Like `run_within`, and also stops the child once `stop` returns a signal.
+///
+/// A stopped child is reported as `TimedOut`.
+pub fn run_within_until(
+    spec: &SpawnSpec,
+    cleanup: CleanupBudget,
+    stop: &dyn Fn() -> Option<i32>,
+) -> io::Result<ChildOutcome> {
     let (program, args) = spec
         .argv
         .split_first()
@@ -143,10 +154,14 @@ pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildO
     let stderr_rx = drain_pipe(owned.take_stderr(), limit);
     let start = Instant::now();
     let soft = start + spec.timeout;
-    let hard = soft + cleanup.total();
+    let mut hard = soft + cleanup.total();
     let mut status = None;
     let mut wait_error = None;
     while Instant::now() < soft {
+        if stop().is_some() {
+            hard = Instant::now() + cleanup.total();
+            break;
+        }
         match owned.try_wait() {
             Ok(Some(exit)) => {
                 status = Some(exit);
@@ -216,7 +231,7 @@ fn apply_env(command: &mut Command, env: &EnvPolicy) {
     }
 }
 
-fn exit_of(status: &ExitStatus) -> Exit {
+pub(crate) fn exit_of(status: &ExitStatus) -> Exit {
     if let Some(code) = status.code() {
         Exit::Code(code)
     } else {
@@ -328,6 +343,21 @@ pub struct StreamSpec {
     pub stderr: StreamOutput,
     /// Who owns the process tree.
     pub group: StreamGroup,
+    /// Open files whose locks must last as long as the child tree.
+    ///
+    /// On Unix each handle is inherited by the child only (never by sibling
+    /// spawns), so a `flock` lock on it stays held by the child and every
+    /// descendant that keeps the descriptor, even after this process exits
+    /// or crashes. A child that closes inherited descriptors (some daemons
+    /// close everything above fd 2) drops that protection.
+    ///
+    /// On Windows a `LockFileEx` lock is not shared through inherited
+    /// handles, so this process keeps the handles until the run ends and
+    /// puts the child in a kill-on-close job: when the run ends, or this
+    /// process dies, the whole tree ends with the lock.
+    ///
+    /// The handles are dropped only after the tree is settled.
+    pub held: Vec<std::fs::File>,
 }
 
 /// How a streamed run ended.
@@ -474,7 +504,8 @@ pub(crate) fn run_streamed_in(
     let mut lease = lease_dir
         .filter(|_| owned)
         .and_then(crate::groups::GroupLease::acquire_in);
-    let mut child = backend::spawn_streamed(&mut command, owned)?;
+    let held = spec.held;
+    let (mut child, tree) = backend::spawn_streamed(&mut command, owned, &held)?;
     if let Some(lease) = lease.as_mut() {
         lease.record(child.id() as i32);
     }
@@ -562,6 +593,10 @@ pub(crate) fn run_streamed_in(
     }
     drop(forwarding);
     drop(lease);
+    // Only the Windows tree owns a job; the drop order matters there.
+    #[allow(clippy::drop_non_drop)]
+    drop(tree);
+    drop(held);
     Ok(match (stopped, waited) {
         (Some(signal), _) => StreamOutcome::Cancelled { signal },
         (None, Some(status)) if !withdrawn => StreamOutcome::Exited(exit_of(&status)),
@@ -712,13 +747,53 @@ mod backend {
             status.signal()
         }
 
-        pub fn spawn_streamed(command: &mut Command, owned: bool) -> io::Result<Child> {
+        /// Nothing beyond the inherited descriptors keeps a Unix tree's locks.
+        pub struct StreamTree;
+
+        const F_GETFD: i32 = 1;
+        const F_SETFD: i32 = 2;
+        const FD_CLOEXEC: i32 = 1;
+
+        unsafe extern "C" {
+            fn fcntl(fd: i32, cmd: i32, ...) -> i32;
+        }
+
+        /// Clears close-on-exec on the held descriptors in the child only,
+        /// so concurrent spawns from other threads never inherit them.
+        fn inherit_held(command: &mut Command, held: &[std::fs::File]) {
+            use std::os::fd::AsRawFd;
+            use std::os::unix::process::CommandExt;
+            if held.is_empty() {
+                return;
+            }
+            let fds: Vec<i32> = held.iter().map(AsRawFd::as_raw_fd).collect();
+            // SAFETY: the hook only calls fcntl on descriptors collected before
+            // the fork; it allocates nothing and takes no locks.
+            unsafe {
+                command.pre_exec(move || {
+                    for &fd in &fds {
+                        let flags = fcntl(fd, F_GETFD);
+                        if flags < 0 || fcntl(fd, F_SETFD, flags & !FD_CLOEXEC) < 0 {
+                            return Err(io::Error::last_os_error());
+                        }
+                    }
+                    Ok(())
+                });
+            }
+        }
+
+        pub fn spawn_streamed(
+            command: &mut Command,
+            owned: bool,
+            held: &[std::fs::File],
+        ) -> io::Result<(Child, StreamTree)> {
             use std::os::unix::process::CommandExt;
             if owned {
                 command.process_group(0);
                 stop_with_parent(command);
             }
-            command.spawn()
+            inherit_held(command, held);
+            Ok((command.spawn()?, StreamTree))
         }
 
         pub fn stream_target(child: &Child, owned: bool) -> i32 {
@@ -1103,6 +1178,34 @@ mod backend {
             Ok(OwnedChild { child, job })
         }
 
+        /// Keeps a streamed child's kill-on-close job open while the run lasts.
+        pub struct StreamTree {
+            _job: Option<Job>,
+        }
+
+        /// Spawns a streamed child; with held handles the child runs in a
+        /// kill-on-close job so the tree never outlives the handles' locks.
+        pub fn spawn_streamed(
+            command: &mut Command,
+            _owned: bool,
+            held: &[std::fs::File],
+        ) -> io::Result<(std::process::Child, StreamTree)> {
+            use std::os::windows::process::CommandExt;
+            if held.is_empty() {
+                return Ok((command.spawn()?, StreamTree { _job: None }));
+            }
+            let job = Job::create(Descendants::Owned)?;
+            let mut child = command.creation_flags(CREATE_SUSPENDED).spawn()?;
+            let started = job.assign(&child).and_then(|()| resume_threads(child.id()));
+            if let Err(err) = started {
+                job.terminate();
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(err);
+            }
+            Ok((child, StreamTree { _job: Some(job) }))
+        }
+
         pub fn terminate_graceful(owned: &mut OwnedChild) {
             terminate_forced(owned);
         }
@@ -1126,12 +1229,23 @@ mod backend {
 
     #[cfg(not(unix))]
     mod plain_stream {
+        #[cfg(not(windows))]
         use super::super::Command;
+        #[cfg(not(windows))]
         use std::io;
         use std::process::Child;
 
-        pub fn spawn_streamed(command: &mut Command, _owned: bool) -> io::Result<Child> {
-            command.spawn()
+        /// The parent's own handles are all that keep a portable tree's locks.
+        #[cfg(not(windows))]
+        pub struct StreamTree;
+
+        #[cfg(not(windows))]
+        pub fn spawn_streamed(
+            command: &mut Command,
+            _owned: bool,
+            _held: &[std::fs::File],
+        ) -> io::Result<(Child, StreamTree)> {
+            Ok((command.spawn()?, StreamTree))
         }
 
         pub fn stream_target(_child: &Child, _owned: bool) -> i32 {
@@ -1155,14 +1269,16 @@ mod backend {
         }
     }
 
+    #[cfg(not(any(unix, windows)))]
+    pub use plain_stream::spawn_streamed;
     #[cfg(not(unix))]
     pub use plain_stream::{
-        force_stream, send, send_kill, spawn_streamed, stream_target, terminal_foreground,
-        tree_alive,
+        force_stream, send, send_kill, stream_target, terminal_foreground, tree_alive,
     };
     #[cfg(windows)]
     pub use windows::{
-        spawn_owned, terminate_forced, terminate_graceful, termination_signal, OwnedChild,
+        spawn_owned, spawn_streamed, terminate_forced, terminate_graceful, termination_signal,
+        OwnedChild,
     };
 
     #[cfg(not(any(unix, windows)))]

@@ -132,6 +132,13 @@ func TestBuildExcluded(t *testing.T) {
 		{"android and linux", "//go:build android && linux\n\npackage demo\n", false, false},
 		{"amd64 and arm64", "//go:build amd64 && arm64\n\npackage demo\n", true, false},
 		{"after package clause", "package demo\n\n//go:build ignore\n", false, false},
+		{"custom tag", "//go:build integration\n\npackage demo\n", false, false},
+		{"custom tag and linux", "//go:build integration && linux\n\npackage demo\n", false, false},
+		{"not custom tag", "//go:build !integration\n\npackage demo\n", false, false},
+		{"ignore or custom tag", "//go:build ignore || integration\n\npackage demo\n", false, false},
+		{"plus build custom tag", "// +build integration\n\npackage demo\n", false, false},
+		{"tools and custom tag", "//go:build tools && integration\n\npackage tools\n", true, false},
+		{"two oses and custom tag", "//go:build linux && windows && integration\n\npackage demo\n", true, false},
 		{"malformed", "//go:build &&\n\npackage demo\n", false, true},
 	}
 	for _, tc := range cases {

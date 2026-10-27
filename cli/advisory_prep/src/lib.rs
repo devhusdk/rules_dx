@@ -173,15 +173,21 @@ fn read_archive(options: &PrepareOptions, family: &str, url: &str) -> Result<Vec
             detail: error.to_string(),
         });
     }
-    let destination = std::env::temp_dir().join(format!("dx-advisory-{family}.zip"));
+    let scratch = tempfile::Builder::new()
+        .prefix("dx-advisory-")
+        .tempdir()
+        .map_err(|error| PrepError::ArchiveRead {
+            family: family.to_owned(),
+            path: std::env::temp_dir().display().to_string(),
+            detail: error.to_string(),
+        })?;
+    let destination = scratch.path().join(format!("{family}.zip"));
     fetch(url, &destination, options.limits)?;
-    let archive = std::fs::read(&destination).map_err(|error| PrepError::ArchiveRead {
+    std::fs::read(&destination).map_err(|error| PrepError::ArchiveRead {
         family: family.to_owned(),
         path: destination.display().to_string(),
         detail: error.to_string(),
-    });
-    let _ = std::fs::remove_file(&destination);
-    archive
+    })
 }
 
 /// Runs the bounded download that fetches one snapshot archive.

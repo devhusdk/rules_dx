@@ -5,7 +5,7 @@ stage ruff classes=python sources=quality/testdata/real_dirty.py
 completed_rounds 2
 convergence STABLE
 initial 1
-initial ERROR ruff unformatted quality/testdata/real_dirty.py 282 286 fixable=true "File would be reformatted"
+initial ERROR ruff unformatted quality/testdata/real_dirty.py 276 280 fixable=true "File would be reformatted"
 terminal 0
 replacements 1
-replacement quality/testdata/real_dirty.py 282 286 " int = "
+replacement quality/testdata/real_dirty.py 276 280 " int = "

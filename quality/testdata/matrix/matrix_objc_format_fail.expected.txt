@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_objc_format_fail
+capability FORMAT
+stages 1
+stage clang_format classes=objc sources=matrix/clang_format_dirty.m
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING clang_format - matrix/clang_format_dirty.m 211 211 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/clang_format_dirty.m 211 254 "\n  return [name stringByAppendingString:@\"!\"];\n"

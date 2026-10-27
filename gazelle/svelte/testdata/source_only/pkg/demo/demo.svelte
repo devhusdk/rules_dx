@@ -1,8 +1,10 @@
 <script>
-  import helper from "./helper.svelte";
-  import fs from "fs";
+  import fs from "fs"
+  export let title = ""
+  const base = import.meta.env.BASE_URL
+  import "./helper.svelte"
 
-  let greeting = $derived(helper(fs.sep));
+  let greeting = fs.sep + base + title
 </script>
 
 <div class="demo">{greeting}</div>

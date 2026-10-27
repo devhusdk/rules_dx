@@ -8,11 +8,13 @@
     )
 )]
 
+pub mod add;
 pub mod gha;
 pub mod request;
 pub mod sets;
 pub mod version;
 
-pub use request::{BumpError, BumpPlanOutcome, BumpRequest};
+pub use add::{AddError, AddRequest};
+pub use request::{BumpError, BumpPlanOutcome, BumpRequest, DepTarget};
 pub use sets::BumpSet;
 pub use version::{compare, generic_major_bump_hint, is_stable, VersionError, WidenVersion};

@@ -1,11 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::ReportError;
+use super::{finding_identity, ReportError};
+use dx_fingerprint::baseline::finding_fingerprint;
 use dx_output::{sort_diagnostics, DiagnosticEvent, Severity, Snapshot};
 use line_index::{LineIndex, TextSize, WideEncoding};
+use serde_json::Value;
 use serde_sarif::sarif::{
-    ArtifactLocation, Invocation, Location, Message, Notification, PhysicalLocation, Region,
-    ReportingDescriptor, Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
+    ArtifactChange, ArtifactContent, ArtifactLocation, Fix, Invocation, Location, Message,
+    Notification, PhysicalLocation, Region, Replacement, ReportingDescriptor,
+    Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
 };
 
 pub fn byte_to_line(path: &str, text: &str, offset: u64) -> Result<(u64, u64), ReportError> {
@@ -143,9 +146,69 @@ fn related_locations(
     Ok(out)
 }
 
+fn machine_fix(
+    finding: &DiagnosticEvent,
+    snapshots: &BTreeMap<(Snapshot, String), String>,
+) -> Option<Fix> {
+    let mut by_path: BTreeMap<&str, Vec<(u64, u64, &str)>> = BTreeMap::new();
+    for item in &finding.related {
+        let Some(replacement) = item.replacement.as_deref() else {
+            continue;
+        };
+        if item.applicability.as_deref() != Some("MachineApplicable") {
+            continue;
+        }
+        let (Some(path), Some((start, end))) = (item.path.as_deref(), item.range) else {
+            return None;
+        };
+        by_path
+            .entry(path)
+            .or_default()
+            .push((start, end, replacement));
+    }
+    if by_path.is_empty() {
+        return None;
+    }
+    let mut changes = Vec::with_capacity(by_path.len());
+    for (path, mut edits) in by_path {
+        edits.sort_unstable();
+        if edits
+            .windows(2)
+            .any(|pair| pair[1].0 < pair[0].1 || pair[1].0 == pair[0].0)
+        {
+            return None;
+        }
+        let mut replacements = Vec::with_capacity(edits.len());
+        for (start, end, text) in edits {
+            let location = locate(
+                Some(&path.to_owned()),
+                Some((start, end)),
+                finding.snapshot,
+                snapshots,
+            )
+            .ok()??;
+            let region = location.physical_location?.region?;
+            replacements.push(
+                Replacement::builder()
+                    .deleted_region(region)
+                    .inserted_content(ArtifactContent::builder().text(text.to_owned()).build())
+                    .build(),
+            );
+        }
+        changes.push(
+            ArtifactChange::builder()
+                .artifact_location(ArtifactLocation::builder().uri(path.to_owned()).build())
+                .replacements(replacements)
+                .build(),
+        );
+    }
+    Some(Fix::builder().artifact_changes(changes).build())
+}
+
 fn result(
     finding: &DiagnosticEvent,
     snapshots: &BTreeMap<(Snapshot, String), String>,
+    rule_index: Option<i64>,
 ) -> Result<SarifResult, ReportError> {
     if finding.tool.is_empty() {
         return Err(ReportError::InvalidFinding {
@@ -181,6 +244,18 @@ fn result(
     };
     if !finding.related.is_empty() {
         built.related_locations = Some(related_locations(finding, snapshots)?);
+    }
+    built.rule_index = rule_index;
+    let bytes = finding
+        .path
+        .as_ref()
+        .and_then(|path| snapshots.get(&(finding.snapshot, path.clone())))
+        .map(String::as_bytes);
+    if let Some(fingerprint) = finding_fingerprint(&finding_identity(finding, bytes)) {
+        built.partial_fingerprints = Some(BTreeMap::from([("dx/v1".to_owned(), fingerprint)]));
+    }
+    if let Some(fix) = machine_fix(finding, snapshots) {
+        built.fixes = Some(vec![fix]);
     }
     Ok(built)
 }
@@ -265,13 +340,20 @@ fn render_inner(
     let mut runs = Vec::with_capacity(ordered.len());
     for tool in ordered {
         let tool_findings = by_tool.get(tool).cloned().unwrap_or_default();
-        let rules: BTreeSet<&str> = tool_findings
+        let rules: Vec<&str> = tool_findings
             .iter()
             .filter_map(|finding| finding.rule.as_deref())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
             .collect();
         let mut results = Vec::with_capacity(tool_findings.len());
         for finding in tool_findings {
-            results.push(result(finding, snapshots)?);
+            let index = finding
+                .rule
+                .as_deref()
+                .and_then(|rule| rules.binary_search(&rule).ok())
+                .map(|position| position as i64);
+            results.push(result(finding, snapshots, index)?);
         }
         let descriptors = rules
             .into_iter()
@@ -284,7 +366,9 @@ fn render_inner(
         let tool_value = Tool::builder().driver(driver).build();
         let failed = failures.get(tool);
         if complete && failed.is_none() {
-            runs.push(Run::builder().tool(tool_value).results(results).build());
+            let mut run = Run::builder().tool(tool_value).results(results).build();
+            run.column_kind = Some(Value::String("unicodeCodePoints".to_owned()));
+            runs.push(run);
         } else {
             let mut invocation = Invocation::builder().execution_successful(false).build();
             invocation.tool_execution_notifications = failed.map(|messages| {
@@ -298,13 +382,13 @@ fn render_inner(
                     })
                     .collect()
             });
-            runs.push(
-                Run::builder()
-                    .tool(tool_value)
-                    .results(results)
-                    .invocations(vec![invocation])
-                    .build(),
-            );
+            let mut run = Run::builder()
+                .tool(tool_value)
+                .results(results)
+                .invocations(vec![invocation])
+                .build();
+            run.column_kind = Some(Value::String("unicodeCodePoints".to_owned()));
+            runs.push(run);
         }
     }
     let document = Sarif::builder()
@@ -324,34 +408,134 @@ mod tests {
 
     fn finding(tool: &str, severity: Severity, path: Option<&str>) -> DiagnosticEvent {
         DiagnosticEvent {
-            severity,
-            tool: tool.to_owned(),
-            message: format!("{tool} finding"),
             rule: Some(format!("{tool}/rule")),
             path: path.map(str::to_owned),
-            range: None,
-            snapshot: Snapshot::Terminal,
-            fixable: false,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(severity, tool, format!("{tool} finding"))
         }
     }
 
     fn ranged(path: &str, start: u64, end: u64) -> DiagnosticEvent {
         DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "lint-tool".to_owned(),
-            message: "ranged finding".to_owned(),
             rule: Some("lint-tool/rule".to_owned()),
             path: Some(path.to_owned()),
             range: Some((start, end)),
-            snapshot: Snapshot::Terminal,
-            fixable: false,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(Severity::Warning, "lint-tool", "ranged finding")
         }
+    }
+
+    fn fix_finding(applicability: &str) -> DiagnosticEvent {
+        DiagnosticEvent {
+            related: vec![dx_output::RelatedEvent {
+                role: "suggestion".to_owned(),
+                message: "use y".to_owned(),
+                path: Some("src/a.py".to_owned()),
+                range: Some((0, 1)),
+                replacement: Some("y".to_owned()),
+                applicability: Some(applicability.to_owned()),
+            }],
+            ..ranged("src/a.py", 0, 1)
+        }
+    }
+
+    fn render_one(
+        finding: DiagnosticEvent,
+        snapshots: &BTreeMap<(Snapshot, String), String>,
+    ) -> Value {
+        let tools = [finding.tool.clone()];
+        let text = render_sarif(&tools, &[finding], snapshots, true).expect("render");
+        serde_json::from_str::<Value>(&text).expect("json")["runs"][0].clone()
+    }
+
+    #[test]
+    fn sarif_fixes_only_come_from_machine_applicable_items() {
+        let snapshots = BTreeMap::from([(
+            (Snapshot::Terminal, "src/a.py".to_owned()),
+            "x = 1\n".to_owned(),
+        )]);
+        let run = render_one(fix_finding("MachineApplicable"), &snapshots);
+        assert_eq!(
+            run["results"][0]["fixes"],
+            json!([{"artifactChanges": [{
+                "artifactLocation": {"uri": "src/a.py"},
+                "replacements": [{
+                    "deletedRegion": {
+                        "startLine": 1, "startColumn": 1, "endLine": 1, "endColumn": 2
+                    },
+                    "insertedContent": {"text": "y"}
+                }]
+            }]}])
+        );
+        let run = render_one(fix_finding("MaybeIncorrect"), &snapshots);
+        assert!(run["results"][0].get("fixes").is_none());
+    }
+
+    #[test]
+    fn sarif_drops_the_whole_fix_when_replacements_overlap_or_do_not_resolve() {
+        let snapshots = BTreeMap::from([(
+            (Snapshot::Terminal, "src/a.py".to_owned()),
+            "x = 1\n".to_owned(),
+        )]);
+        let mut overlapping = fix_finding("MachineApplicable");
+        let mut second = overlapping.related[0].clone();
+        second.range = Some((0, 3));
+        overlapping.related.push(second);
+        let run = render_one(overlapping, &snapshots);
+        assert!(run["results"][0].get("fixes").is_none());
+        let mut unresolved = fix_finding("MachineApplicable");
+        unresolved.related[0].range = Some((0, 99));
+        let run = render_one(unresolved, &snapshots);
+        assert!(run["results"][0].get("fixes").is_none());
+    }
+
+    #[test]
+    fn sarif_fingerprints_follow_the_baseline_identity() {
+        let snapshots = BTreeMap::from([(
+            (Snapshot::Terminal, "src/a.py".to_owned()),
+            "x = 1\n".to_owned(),
+        )]);
+        let origin = dx_output::Origin {
+            producer: "p".to_owned(),
+            target: "//a:b".to_owned(),
+            configuration: None,
+        };
+        let pathless = DiagnosticEvent {
+            origins: vec![origin],
+            ..finding("lint-tool", Severity::Error, None)
+        };
+        let pathed = DiagnosticEvent {
+            path: Some("src/a.py".to_owned()),
+            ..finding("lint-tool", Severity::Error, None)
+        };
+        for diagnostic in [pathless, pathed] {
+            let bytes = diagnostic
+                .path
+                .as_ref()
+                .and_then(|path| snapshots.get(&(diagnostic.snapshot, path.clone())))
+                .map(String::as_bytes);
+            let want = finding_fingerprint(&finding_identity(&diagnostic, bytes)).expect("key");
+            let run = render_one(diagnostic, &snapshots);
+            assert_eq!(
+                run["results"][0]["partialFingerprints"]["dx/v1"],
+                json!(want)
+            );
+        }
+        let bare = finding("lint-tool", Severity::Error, None);
+        let run = render_one(bare, &snapshots);
+        assert!(run["results"][0].get("partialFingerprints").is_none());
+    }
+
+    #[test]
+    fn sarif_columns_count_code_points() {
+        let snapshots = BTreeMap::from([(
+            (Snapshot::Terminal, "src/a.py".to_owned()),
+            "\u{1f600}x = 1\n".to_owned(),
+        )]);
+        let run = render_one(ranged("src/a.py", 4, 5), &snapshots);
+        assert_eq!(run["columnKind"], json!("unicodeCodePoints"));
+        assert_eq!(
+            run["results"][0]["locations"][0]["physicalLocation"]["region"]["startColumn"],
+            json!(2)
+        );
     }
 
     #[test]
@@ -426,17 +610,8 @@ mod tests {
             finding("other-tool", Severity::Error, None),
             ranged("src/a.py", 0, 5),
             DiagnosticEvent {
-                severity: Severity::Info,
-                tool: "lint-tool".to_owned(),
-                message: "note without rule".to_owned(),
-                rule: None,
                 path: Some("src/a.py".to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(Severity::Info, "lint-tool", "note without rule")
             },
         ];
         let document: Value = serde_json::from_str(
@@ -472,6 +647,8 @@ mod tests {
             .as_array()
             .expect("rules");
         assert_eq!(rules, &vec![json!({"id": "lint-tool/rule"})]);
+        let index = lint_results[0]["ruleIndex"].as_u64().expect("ruleIndex") as usize;
+        assert_eq!(rules[index]["id"], lint_results[0]["ruleId"]);
         assert_eq!(runs[1]["results"][0]["level"], json!("error"));
         assert!(runs[1]["results"][0].get("locations").is_none());
         assert!(document.get("invocations").is_none());
@@ -695,6 +872,7 @@ mod tests {
                     ..finding("lint-tool", Severity::Error, None)
                 },
                 &snapshots,
+                None,
             ),
             Err(ReportError::InvalidFinding {
                 detail: "empty tool"
@@ -707,6 +885,7 @@ mod tests {
                     ..finding("lint-tool", Severity::Error, None)
                 },
                 &snapshots,
+                None,
             ),
             Err(ReportError::InvalidFinding {
                 detail: "empty message"
@@ -724,13 +903,20 @@ mod tests {
         let findings = vec![
             finding("other-tool", Severity::Error, None),
             ranged("src/a.py", 0, 1),
+            fix_finding("MachineApplicable"),
         ];
         let text = render_sarif(&tools, &findings, &snapshots, false).expect("render");
         let typed: Sarif = serde_json::from_str(&text).expect("typed SARIF");
+        let results = typed.runs[0].results.as_ref().expect("results");
+        assert!(results.iter().any(|result| result.fixes.is_some()));
+        let first = &results[0];
+        assert!(first.partial_fingerprints.is_some());
+        assert!(first.rule_index.is_some());
+        assert!(typed.runs[0].column_kind.is_some());
         assert_eq!(typed.version, serde_json::Value::String("2.1.0".to_owned()));
         assert_eq!(typed.runs.len(), 2);
         assert_eq!(typed.runs[0].tool.driver.name, "lint-tool");
-        assert_eq!(typed.runs[0].results.as_ref().expect("results").len(), 1);
+        assert_eq!(typed.runs[0].results.as_ref().expect("results").len(), 2);
         assert!(typed.runs[0].invocations.is_some());
     }
 

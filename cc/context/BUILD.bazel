@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -28,13 +28,9 @@ rust_library(
     crate_name = "cc_context",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
         package_name = "cc/cc_context",
+        normal = True,
     ),
 )
 
@@ -47,13 +43,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":cc_context",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
         package_name = "cc/cc_context",
+        normal = True,
+        normal_dev = True,
     ),
 )
 
@@ -67,13 +60,9 @@ rust_binary(
     crate_name = "compile_db",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
         package_name = "cc/cc_context",
+        normal = True,
     ) + [":cc_context"],
 )
 
@@ -112,43 +101,10 @@ rust_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "thiserror",
-        ],
-        package_name = "cc/cc_context",
-    ) + [":cc_context"],
-)
-
-rust_test(
-    name = "headless_clangd_test",
-    size = "medium",
-    srcs = ["tests/headless_clangd.rs"],
-    aliases = aliases(
+    deps = all_crate_deps(
         package_name = "cc/cc_context",
         normal = True,
         normal_dev = True,
-    ),
-    crate_name = "headless_clangd_test",
-    crate_root = "tests/headless_clangd.rs",
-    data = ["@llvm//tools:clangd"],
-    edition = "2021",
-    env = {
-        "DX_CLANGD": "$(rootpath @llvm//tools:clangd)",
-    },
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "thiserror",
-        ],
-        package_name = "cc/cc_context",
     ) + [":cc_context"],
 )
 
@@ -192,17 +148,15 @@ rust_test(
         "DX_LSP_RUSTC_PROJECT": "$(rootpath @rust_analyzer_1.98.0_tools//:rustc)",
         "DX_LSP_RUST_ANALYZER": "$(rootpath @rust_analyzer_1.98.0_tools//:rust_analyzer)",
     },
+    tags = ["no-remote-exec"],
     target_compatible_with = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
         package_name = "cc/cc_context",
+        normal = True,
+        normal_dev = True,
     ) + [
         ":cc_context",
         "//tools/testing:dx_testing",

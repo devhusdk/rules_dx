@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::args::Invocation;
-use crate::exec::common::{check_stdout_write, emit_event, emit_started};
+use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
 use dx_output::{
     command_finished, command_started, status_event, FinishedCounts, OutputMode, StatusEvent,
 };
@@ -16,14 +16,15 @@ fn json_status(
     detail: &str,
     hint: &str,
 ) -> Result<(), i32> {
-    if let Ok(event) = status_event(&StatusEvent {
-        name: name.to_owned(),
-        status: status.to_owned(),
-        detail: detail.to_owned(),
-        hint: hint.to_owned(),
-    }) {
-        emit_event(out, &event)?;
-    }
+    emit_built(
+        out,
+        status_event(&StatusEvent {
+            name: name.to_owned(),
+            status: status.to_owned(),
+            detail: detail.to_owned(),
+            hint: hint.to_owned(),
+        }),
+    )?;
     Ok(())
 }
 
@@ -51,10 +52,10 @@ pub(crate) fn execute_version(
         let hint = dx_adopt::pin_fix_hint(&current, dx_adopt::MODULE_VERSION);
         if dx_adopt::version_pin_matches_module(&current, dx_adopt::MODULE_VERSION) {
             if is_json {
-                if let Ok(event) = command_started(invocation.command.name(), "default") {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) =
+                    emit_built(out, command_started(invocation.command.name(), "default"))
+                {
+                    return exit;
                 }
                 if let Err(exit) = json_status(out, "pin", "ok", &detail, &hint) {
                     return exit;
@@ -90,10 +91,10 @@ pub(crate) fn execute_version(
             Err(error) => (format!("unknown ({error})"), "warn"),
         };
         if is_json {
-            if let Ok(event) = command_started(invocation.command.name(), "default") {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) =
+                emit_built(out, command_started(invocation.command.name(), "default"))
+            {
+                return exit;
             }
             if let Err(exit) = json_status(out, "binary", "ok", dx_adopt::DX_VERSION, "dx version")
             {

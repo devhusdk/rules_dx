@@ -6,25 +6,47 @@ use std::sync::{OnceLock, RwLock};
 
 use crate::{is_ci_value, WORKFLOW_STARTUP_OPTS};
 
-const MAX_IMPORT_DEPTH: usize = 16;
+pub(crate) const MAX_IMPORT_DEPTH: usize = 16;
 
 /// The `--local_resources` values the vendored preset sets.
 pub const PRESET_LOCAL_RESOURCES: [&str; 2] = ["cpu=HOST_CPUS*.75", "memory=HOST_RAM*.5"];
+
+/// The `--experimental_disk_cache_gc_max_size` dx and the vendored preset set.
+pub const DISK_CACHE_GC_MAX_SIZE: &str = "20G";
+
+/// The `--experimental_disk_cache_gc_max_age` dx and the vendored preset set.
+pub const DISK_CACHE_GC_MAX_AGE: &str = "14d";
+
+const GC_MAX_SIZE_FLAG: &str = "--experimental_disk_cache_gc_max_size";
+const GC_MAX_AGE_FLAG: &str = "--experimental_disk_cache_gc_max_age";
+const GC_IDLE_DELAY_FLAG: &str = "--experimental_disk_cache_gc_idle_delay";
+
+/// Bazel's default `--experimental_disk_cache_gc_idle_delay`, in seconds.
+const BAZEL_GC_IDLE_DELAY_SECS: u64 = 300;
 
 /// The rc files dx lets Bazel read, the disk cache it adds, and which resource caps it may add.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RcPolicy {
     pub read_user_rc: bool,
     pub disk_cache: Option<String>,
+    /// The disk cache a plain `build` uses: the rc value when an rc sets one, else dx's own.
+    pub bazel_disk_cache: Option<PathBuf>,
     pub local_cpu: bool,
     pub local_memory: bool,
+    /// Whether dx bounds its disk cache with the gc max size and max age pair.
+    pub disk_cache_gc: bool,
+    /// The gc idle delay dx adds so cleanup can run before an idle server exits.
+    pub gc_idle_delay_secs: Option<u64>,
 }
 
 static HERMETIC: RcPolicy = RcPolicy {
     read_user_rc: false,
     disk_cache: None,
+    bazel_disk_cache: None,
     local_cpu: false,
     local_memory: false,
+    disk_cache_gc: false,
+    gc_idle_delay_secs: None,
 };
 
 static CURRENT: OnceLock<RcPolicy> = OnceLock::new();
@@ -91,17 +113,33 @@ impl RcPolicy {
             return RcPolicy::hermetic();
         }
         let roots = rc_roots(env_get, workspace);
-        let disk_cache = if rc_sets_disk_cache(&roots, workspace, read_file) {
+        let settings = disk_cache_settings(&roots, workspace, read_file);
+        let (disk_cache, bazel_disk_cache) = if settings.is_empty() {
+            let default = user_cache_dir(env_get).map(|cache| default_disk_cache(&cache));
+            (
+                default
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().into_owned()),
+                default,
+            )
+        } else {
+            (None, resolve_disk_cache(&settings, env_get, workspace))
+        };
+        let disk_cache_gc =
+            disk_cache.is_some() && !rc_sets_disk_cache_gc(&roots, workspace, read_file);
+        let gc_idle_delay_secs = if rc_sets_flag(&roots, workspace, read_file, GC_IDLE_DELAY_FLAG) {
             None
         } else {
-            user_cache_dir(env_get)
-                .map(|cache| default_disk_cache(&cache).to_string_lossy().into_owned())
+            rc_min_max_idle_secs(&roots, workspace, read_file).and_then(gc_idle_delay_for)
         };
         RcPolicy {
             read_user_rc: true,
             disk_cache,
+            bazel_disk_cache,
             local_cpu: !rc_sets_local_resource(&roots, workspace, read_file, "cpu"),
             local_memory: !rc_sets_local_resource(&roots, workspace, read_file, "memory"),
+            disk_cache_gc,
+            gc_idle_delay_secs,
         }
     }
 
@@ -114,7 +152,7 @@ impl RcPolicy {
         }
     }
 
-    /// The cache and resource flags added right after a build, test, coverage, or run verb.
+    /// The cache, cache gc, and resource flags added right after a build, test, coverage, or run verb.
     pub fn verb_options(
         &self,
         bazel_command: &str,
@@ -124,9 +162,29 @@ impl RcPolicy {
         if !matches!(bazel_command, "build" | "test" | "coverage" | "run") {
             return Vec::new();
         }
+        let user_sets_flag = |name: &str| {
+            user_options
+                .iter()
+                .any(|token| sets_flag(token.trim_start_matches(['"', '\'']), name))
+        };
         let mut options = Vec::new();
         if let Some(path) = &self.disk_cache {
             options.push(format!("--disk_cache={path}"));
+            let user_sets_cache =
+                user_sets_flag("--disk_cache") || user_sets_flag("--nodisk_cache");
+            if self.disk_cache_gc
+                && !user_sets_cache
+                && !user_sets_flag(GC_MAX_SIZE_FLAG)
+                && !user_sets_flag(GC_MAX_AGE_FLAG)
+            {
+                options.push(format!("{GC_MAX_SIZE_FLAG}={DISK_CACHE_GC_MAX_SIZE}"));
+                options.push(format!("{GC_MAX_AGE_FLAG}={DISK_CACHE_GC_MAX_AGE}"));
+            }
+        }
+        if let Some(secs) = self.gc_idle_delay_secs {
+            if !user_sets_flag(GC_IDLE_DELAY_FLAG) {
+                options.push(format!("{GC_IDLE_DELAY_FLAG}={secs}s"));
+            }
         }
         let Some(share) = share else {
             return options;
@@ -147,12 +205,29 @@ impl RcPolicy {
     }
 }
 
-/// The `--local_resources` value a flag token sets, reading the next token for the split form.
-fn local_resources_value<'a>(flag: &'a str, next: Option<&'a str>) -> Option<&'a str> {
-    match flag.strip_prefix("--local_resources")? {
+/// The value a flag token gives `name`, reading the next token for the split form.
+fn flag_value<'a>(flag: &'a str, next: Option<&'a str>, name: &str) -> Option<&'a str> {
+    match flag.strip_prefix(name)? {
         "" => next,
         rest => rest.strip_prefix('='),
     }
+}
+
+/// Whether a flag token is exactly `name`, alone or followed by `=`.
+fn sets_flag(flag: &str, name: &str) -> bool {
+    flag.strip_prefix(name)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('='))
+}
+
+/// The gc idle delay that fits under `max_idle_secs`, or `None` when Bazel's default already does.
+fn gc_idle_delay_for(max_idle_secs: u64) -> Option<u64> {
+    let delay = max_idle_secs / 3;
+    (max_idle_secs > 0 && delay < BAZEL_GC_IDLE_DELAY_SECS).then_some(delay.max(1))
+}
+
+/// The `--local_resources` value a flag token sets, reading the next token for the split form.
+fn local_resources_value<'a>(flag: &'a str, next: Option<&'a str>) -> Option<&'a str> {
+    flag_value(flag, next, "--local_resources")
 }
 
 /// Whether a flag token, with the token after it, sets `resource`.
@@ -220,32 +295,143 @@ pub fn default_disk_cache(cache: &Path) -> PathBuf {
     cache.join("dx").join("disk-cache")
 }
 
-fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<PathBuf> {
+/// The home directory Bazel expands `~` and finds the user rc in.
+fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    let mut roots = vec![workspace.join(".bazelrc")];
-    if let Some(home) = non_empty("HOME").or_else(|| non_empty("USERPROFILE")) {
-        roots.push(PathBuf::from(home).join(".bazelrc"));
-    }
+    non_empty("HOME")
+        .or_else(|| non_empty("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
+/// The rc files in the order Bazel reads them: system, workspace, then home. Later files win.
+fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
     if cfg!(windows) {
-        if let Some(data) = non_empty("ProgramData") {
+        if let Some(data) = env_get("ProgramData").filter(|value| !value.is_empty()) {
             roots.push(PathBuf::from(data).join("bazel.bazelrc"));
         }
     } else {
         roots.push(PathBuf::from("/etc/bazel.bazelrc"));
     }
+    roots.push(workspace.join(".bazelrc"));
+    if let Some(home) = home_dir(env_get) {
+        roots.push(home.join(".bazelrc"));
+    }
     roots
 }
 
-/// Whether any rc file reachable from `roots` mentions a disk cache flag.
-pub fn rc_sets_disk_cache(
+/// One `--disk_cache` or `--nodisk_cache` token in an rc file, with the line it came from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Setting {
+    /// The first token of the line: the command, optionally with a `:config` suffix.
+    command: String,
+    /// The flag token itself.
+    flag: String,
+    /// The token after the flag, for the split `--disk_cache /x` form.
+    next: Option<String>,
+}
+
+/// Every disk cache flag in the rc files reachable from `roots`, in the order Bazel reads them.
+fn disk_cache_settings(
+    roots: &[PathBuf],
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+) -> Vec<Setting> {
+    let mut settings = Vec::new();
+    let mut visit = |tokens: &[&str]| {
+        let command = tokens.first().copied().unwrap_or_default();
+        for (index, token) in tokens.iter().enumerate() {
+            if token.starts_with("--disk_cache") || token.starts_with("--nodisk_cache") {
+                settings.push(Setting {
+                    command: command.to_owned(),
+                    flag: (*token).to_owned(),
+                    next: tokens.get(index + 1).map(|next| (*next).to_owned()),
+                });
+            }
+        }
+        false
+    };
+    visit_roots(roots, workspace, read_file, &mut visit);
+    settings
+}
+
+/// The disk cache a plain `build` uses: `build` beats `common`, and the last line read wins.
+/// Config groups and other commands are ignored.
+fn resolve_disk_cache(
+    settings: &[Setting],
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+) -> Option<PathBuf> {
+    let mut winner: Option<(u8, Option<&str>)> = None;
+    for setting in settings {
+        let tier = match setting.command.as_str() {
+            "build" => 2,
+            "common" | "always" => 1,
+            _ => continue,
+        };
+        let value = if sets_flag(&setting.flag, "--nodisk_cache") {
+            None
+        } else if sets_flag(&setting.flag, "--disk_cache") {
+            flag_value(&setting.flag, setting.next.as_deref(), "--disk_cache")
+        } else {
+            continue;
+        };
+        if winner.is_none_or(|(best, _)| tier >= best) {
+            winner = Some((tier, value));
+        }
+    }
+    let value = winner?.1.filter(|value| !value.is_empty())?;
+    let expanded = match (value.strip_prefix('~'), home_dir(env_get)) {
+        (Some(rest), Some(home)) if rest.is_empty() || rest.starts_with('/') => {
+            home.join(rest.trim_start_matches('/'))
+        }
+        _ => PathBuf::from(value),
+    };
+    Some(import_path(&expanded.to_string_lossy(), workspace))
+}
+
+/// Whether any rc file reachable from `roots` sets the gc max size or max age.
+pub fn rc_sets_disk_cache_gc(
     roots: &[PathBuf],
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
 ) -> bool {
-    let sets = |token: &str, _: Option<&str>| {
-        token.starts_with("--disk_cache") || token.starts_with("--nodisk_cache")
-    };
+    rc_sets_flag(roots, workspace, read_file, GC_MAX_SIZE_FLAG)
+        || rc_sets_flag(roots, workspace, read_file, GC_MAX_AGE_FLAG)
+}
+
+fn rc_sets_flag(
+    roots: &[PathBuf],
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    name: &str,
+) -> bool {
+    let sets = |token: &str, _: Option<&str>| sets_flag(token, name);
     scan_roots(roots, workspace, read_file, &sets)
+}
+
+/// The smallest `startup --max_idle_secs` any rc file reachable from `roots` sets.
+fn rc_min_max_idle_secs(
+    roots: &[PathBuf],
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+) -> Option<u64> {
+    let mut least: Option<u64> = None;
+    let mut visit = |tokens: &[&str]| {
+        if tokens.first() != Some(&"startup") {
+            return false;
+        }
+        for (index, token) in tokens.iter().enumerate() {
+            let flag = token.trim_start_matches(['"', '\'']);
+            let value = flag_value(flag, tokens.get(index + 1).copied(), "--max_idle_secs");
+            if let Some(secs) = value.and_then(|value| value.parse::<u64>().ok()) {
+                least = Some(least.map_or(secs, |least| least.min(secs)));
+            }
+        }
+        false
+    };
+    visit_roots(roots, workspace, read_file, &mut visit);
+    least
 }
 
 /// Whether any rc file reachable from `roots` sets `resource` to anything but the preset default.
@@ -261,23 +447,41 @@ pub fn rc_sets_local_resource(
 
 type Matcher<'a> = dyn Fn(&str, Option<&str>) -> bool + 'a;
 
+/// Visits the tokens of each rc line; returning `true` stops the walk.
+type LineVisitor<'a> = dyn FnMut(&[&str]) -> bool + 'a;
+
 fn scan_roots(
     roots: &[PathBuf],
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
     matches: &Matcher<'_>,
 ) -> bool {
+    let mut visit = |tokens: &[&str]| {
+        tokens.iter().enumerate().any(|(index, token)| {
+            let flag = token.trim_start_matches(['"', '\'']);
+            matches(flag, tokens.get(index + 1).copied())
+        })
+    };
+    visit_roots(roots, workspace, read_file, &mut visit)
+}
+
+fn visit_roots(
+    roots: &[PathBuf],
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    visit: &mut LineVisitor<'_>,
+) -> bool {
     let mut seen = HashSet::new();
     roots
         .iter()
-        .any(|root| scan(root, workspace, read_file, matches, &mut seen, 0))
+        .any(|root| scan(root, workspace, read_file, visit, &mut seen, 0))
 }
 
 fn scan(
     path: &Path,
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
-    matches: &Matcher<'_>,
+    visit: &mut LineVisitor<'_>,
     seen: &mut HashSet<PathBuf>,
     depth: usize,
 ) -> bool {
@@ -292,27 +496,57 @@ fn scan(
         if line.starts_with('#') {
             continue;
         }
-        let tokens: Vec<&str> = line.split_whitespace().map(unquote).collect();
+        let owned = tokenize(line);
+        let tokens: Vec<&str> = owned.iter().map(String::as_str).collect();
         let first = tokens.first().copied().unwrap_or_default();
         if matches!(first, "import" | "try-import") {
             let rest = line[first.len()..].trim();
             let target = import_path(unquote(rest), workspace);
-            if scan(&target, workspace, read_file, matches, seen, depth + 1) {
+            if scan(&target, workspace, read_file, visit, seen, depth + 1) {
                 return true;
             }
             continue;
         }
-        if tokens.iter().enumerate().any(|(index, token)| {
-            let flag = token.trim_start_matches(['"', '\'']);
-            matches(flag, tokens.get(index + 1).copied())
-        }) {
+        if visit(&tokens) {
             return true;
         }
     }
     false
 }
 
-fn unquote(token: &str) -> &str {
+/// Splits an rc line on whitespace outside quotes, removing the quotes.
+fn tokenize(line: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut in_token = false;
+    let mut quote: Option<char> = None;
+    for ch in line.chars() {
+        match quote {
+            Some(open) if ch == open => quote = None,
+            Some(_) => current.push(ch),
+            None if ch == '"' || ch == '\'' => {
+                quote = Some(ch);
+                in_token = true;
+            }
+            None if ch.is_whitespace() => {
+                if in_token {
+                    tokens.push(std::mem::take(&mut current));
+                    in_token = false;
+                }
+            }
+            None => {
+                current.push(ch);
+                in_token = true;
+            }
+        }
+    }
+    if in_token {
+        tokens.push(current);
+    }
+    tokens
+}
+
+pub(crate) fn unquote(token: &str) -> &str {
     token
         .strip_prefix('"')
         .and_then(|inner| inner.strip_suffix('"'))
@@ -324,7 +558,7 @@ fn unquote(token: &str) -> &str {
         .unwrap_or(token)
 }
 
-fn import_path(raw: &str, workspace: &Path) -> PathBuf {
+pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
     let expanded = raw.replace("%workspace%", &workspace.to_string_lossy());
     let path = PathBuf::from(expanded);
     if path.is_absolute() {
@@ -333,6 +567,11 @@ fn import_path(raw: &str, workspace: &Path) -> PathBuf {
         workspace.join(path)
     }
 }
+
+#[path = "rc_sections.rs"]
+mod sections;
+
+pub use sections::remote_execution;
 
 #[cfg(test)]
 #[path = "rc_tests.rs"]

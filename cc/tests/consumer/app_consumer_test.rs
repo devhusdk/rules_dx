@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::OnceLock;
 
-use dx_testing::{mkscratch, resolve_runfiles, run};
+use dx_testing::nested::{self, Case};
+use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const MODULE: &str = r#"module(name = "shop")
 
@@ -206,18 +206,18 @@ fn copy_package(rules: &Path, root: &Path, package: &str) {
     }
 }
 
-fn consumer() -> &'static Path {
-    static ROOT: OnceLock<PathBuf> = OnceLock::new();
-    ROOT.get_or_init(write_consumer)
+fn consumer() -> Case {
+    let case = nested::case("consumer");
+    write_consumer(case.root());
+    case
 }
 
-fn write_consumer() -> PathBuf {
+fn write_consumer(root: &Path) {
     let rules = rules_dx_root();
     let module = read(&rules.join("MODULE.bazel"));
     let versions = pin(&module, "bazel_dep(name = \"googletest\", version");
     let rules_rust = pin(&module, "bazel_dep(name = \"rules_rust\", version");
     let rules_cc = pin(&module, "bazel_dep(name = \"rules_cc\", version");
-    let root = mkscratch("cc-app-consumer").unwrap_or_else(|error| panic!("scratch: {error}"));
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),
@@ -240,10 +240,7 @@ fn write_consumer() -> PathBuf {
     );
     write(
         &root.join(".bazelrc"),
-        &format!(
-            "{}startup --max_idle_secs=120\n",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
-        ),
+        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
     );
     write(&root.join("BUILD.bazel"), ROOT_BUILD);
     write(&root.join(".clang-format"), "BasedOnStyle: LLVM\n");
@@ -260,8 +257,8 @@ fn write_consumer() -> PathBuf {
         "examples/cpp-app/fmt.BUILD.bazel",
         &root.join("third_party/fmt.BUILD.bazel"),
     );
-    copy_package(&rules, &root, "c-app");
-    copy_package(&rules, &root, "cpp-app");
+    copy_package(&rules, root, "c-app");
+    copy_package(&rules, root, "cpp-app");
     write(&root.join("negative/BUILD.bazel"), NEGATIVE_BUILD);
     write(&root.join("negative/c_only.c"), C_ONLY);
     write(&root.join("negative/as_cxx.cc"), C_ONLY);
@@ -271,7 +268,6 @@ fn write_consumer() -> PathBuf {
     write(&root.join("negative/lint_error.c"), LINT_ERROR);
     write(&root.join("negative/failing_test.c"), FAILING_TEST);
     write(&root.join("negative/crashing_test.cc"), CRASHING_TEST);
-    root
 }
 
 struct Outcome {
@@ -280,82 +276,38 @@ struct Outcome {
     text: String,
 }
 
-fn home() -> &'static Path {
-    static HOME: OnceLock<PathBuf> = OnceLock::new();
-    HOME.get_or_init(|| mkscratch("cc-app-home").unwrap_or_else(|error| panic!("scratch: {error}")))
-}
-
-fn scrubbed_path() -> String {
-    let inherited = std::env::var("PATH").unwrap_or_default();
-    let bazel = inherited
-        .split(':')
-        .find(|dir| Path::new(dir).join("bazel").is_file())
-        .unwrap_or_else(|| panic!("bazel is not on PATH"));
-    format!("{bazel}:/usr/bin:/bin")
-}
-
-fn controlled_env() -> Vec<(String, String)> {
-    let real_home = std::env::var("HOME").unwrap_or_default();
-    let mut env = vec![
-        ("HOME".to_owned(), home().display().to_string()),
-        ("PATH".to_owned(), scrubbed_path()),
-    ];
-    let bazelisk =
-        std::env::var("BAZELISK_HOME").unwrap_or_else(|_| format!("{real_home}/.cache/bazelisk"));
-    env.push(("BAZELISK_HOME".to_owned(), bazelisk));
-    for key in ["USER", "LANG"] {
-        if let Ok(value) = std::env::var(key) {
-            env.push((key.to_owned(), value));
-        }
-    }
-    env
-}
-
-fn invoke(args: &[&str], envs: &[(&str, &str)]) -> Outcome {
-    let mut command = Command::new("bazel");
-    command
-        .current_dir(consumer())
-        .args(["--nohome_rc", "--nosystem_rc"])
-        .args(args)
-        .env_clear();
-    command.envs(controlled_env());
-    for (key, value) in envs {
-        command.env(key, value);
-    }
-    let output = command
-        .output()
-        .unwrap_or_else(|error| panic!("bazel runs: {error}"));
-    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+fn outcome(run: Run) -> Outcome {
     Outcome {
-        code: output.status.code(),
-        text: format!("{stdout}{}", String::from_utf8_lossy(&output.stderr)),
-        stdout,
+        code: run.status.code(),
+        text: run.combined(),
+        stdout: run.stdout,
     }
 }
 
-fn bazel(verb: &str, flags: &[&str], targets: &[&str]) -> Outcome {
+fn bazel(case: &Case, verb: &str, flags: &[&str], targets: &[&str]) -> Outcome {
     let mut args = vec![verb, "--color=no", "--curses=no"];
     args.extend_from_slice(flags);
     args.extend_from_slice(targets);
-    invoke(&args, &[])
+    outcome(case.bazel(&args))
 }
 
-fn launch(target: &str, args: &[&str], envs: &[(&str, &str)]) -> Outcome {
+fn launch(case: &Case, target: &str, args: &[&str], envs: &[(&str, &str)]) -> Outcome {
     let mut all = vec!["run", "--color=no", "--curses=no", target, "--"];
     all.extend_from_slice(args);
-    invoke(&all, envs)
+    outcome(case.bazel_with(&all, envs))
 }
 
-fn bin_path(target: &str) -> PathBuf {
-    let output = bazel("cquery", &["--output=files"], &[target]);
+fn bin_path(case: &Case, target: &str) -> PathBuf {
+    let output = bazel(case, "cquery", &["--output=files"], &[target]);
     assert_eq!(output.code, Some(0), "{}", output.text);
-    consumer().join(output.stdout.lines().last().expect("output path").trim())
+    case.root()
+        .join(output.stdout.lines().last().expect("output path").trim())
 }
 
-fn build(target: &str) -> PathBuf {
-    let built = bazel("build", &[], &[target]);
+fn build(case: &Case, target: &str) -> PathBuf {
+    let built = bazel(case, "build", &[], &[target]);
     assert_eq!(built.code, Some(0), "{}", built.text);
-    bin_path(target)
+    bin_path(case, target)
 }
 
 fn dx_bin() -> PathBuf {
@@ -363,17 +315,11 @@ fn dx_bin() -> PathBuf {
     resolve_runfiles(&dx)
 }
 
-fn dx(args: &[&str]) -> dx_testing::Run {
-    dx_in(consumer(), args)
-}
-
-fn dx_in(workspace: &Path, args: &[&str]) -> dx_testing::Run {
-    let workspace = workspace.to_string_lossy().into_owned();
+fn dx(case: &Case, args: &[&str]) -> Run {
+    let workspace = case.root().to_string_lossy().into_owned();
     let mut all = vec![args[0], "--workspace", workspace.as_str()];
     all.extend_from_slice(&args[1..]);
-    let env = controlled_env();
-    let pairs: Vec<(&str, &str)> = env.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-    run(&dx_bin(), &all, &pairs).unwrap_or_else(|error| panic!("run dx: {error}"))
+    case.run(&dx_bin(), &all, &[])
 }
 
 fn passed(tested: &Outcome, name: &str) {
@@ -387,6 +333,7 @@ fn passed(tested: &Outcome, name: &str) {
 
 #[test]
 fn every_test_of_both_applications_passes() {
+    let case = consumer();
     let targets = [
         "//examples/c-app/store:store_test",
         "//examples/c-app/store:linkage_test",
@@ -394,7 +341,7 @@ fn every_test_of_both_applications_passes() {
         "//examples/cpp-app/core:menu_test",
         "//examples/cpp-app/app:report_test",
     ];
-    let tested = bazel("test", &["--test_output=errors"], &targets);
+    let tested = bazel(&case, "test", &["--test_output=errors"], &targets);
     assert_eq!(tested.code, Some(0), "{}", tested.text);
     for name in targets {
         passed(&tested, name);
@@ -403,20 +350,22 @@ fn every_test_of_both_applications_passes() {
 
 #[test]
 fn the_c_binary_reads_the_packaged_resource_and_reports_each_exit_code() {
-    let listed = launch("//examples/c-app/cli:stock", &["list"], &[]);
+    let case = consumer();
+    let listed = launch(&case, "//examples/c-app/cli:stock", &["list"], &[]);
     assert_eq!(listed.code, Some(0), "{}", listed.text);
     assert_eq!(
         listed.stdout.lines().collect::<Vec<_>>(),
         ["bolt-m6 120 @ 35", "washer-m6 300 @ 8", "nut-m6 0 @ 22"]
     );
-    let total = launch("//examples/c-app/cli:stock", &["total"], &[]);
+    let total = launch(&case, "//examples/c-app/cli:stock", &["total"], &[]);
     assert_eq!(total.stdout, "total 6600\n", "{}", total.text);
-    let unknown = launch("//examples/c-app/cli:stock", &["get", "rivet"], &[]);
+    let unknown = launch(&case, "//examples/c-app/cli:stock", &["get", "rivet"], &[]);
     assert_eq!(unknown.code, Some(4), "{}", unknown.text);
     assert!(unknown.text.contains("stock: no item rivet"));
-    let usage = launch("//examples/c-app/cli:stock", &["sell"], &[]);
+    let usage = launch(&case, "//examples/c-app/cli:stock", &["sell"], &[]);
     assert_eq!(usage.code, Some(2), "{}", usage.text);
     let missing = launch(
+        &case,
         "//examples/c-app/cli:stock",
         &["--file", "absent.json", "list"],
         &[],
@@ -427,13 +376,15 @@ fn the_c_binary_reads_the_packaged_resource_and_reports_each_exit_code() {
 
 #[test]
 fn the_c_binary_rejects_malformed_data_from_the_consumer_tree() {
-    let root = consumer().join("examples/c-app/store/malformed");
+    let case = consumer();
+    let root = case.join("examples/c-app/store/malformed");
     for (file, message) in [
         ("negative.json", "stock item is malformed"),
         ("wrong_type.json", "stock item is malformed"),
     ] {
         let path = root.join(file).to_string_lossy().into_owned();
         let out = launch(
+            &case,
             "//examples/c-app/cli:stock",
             &["--file", &path, "list"],
             &[],
@@ -445,7 +396,8 @@ fn the_c_binary_rejects_malformed_data_from_the_consumer_tree() {
 
 #[test]
 fn the_cpp_binary_uses_templates_fmt_and_the_packaged_menu() {
-    let out = launch("//examples/cpp-app/app:pantry", &[], &[]);
+    let case = consumer();
+    let out = launch(&case, "//examples/cpp-app/app:pantry", &[], &[]);
     assert_eq!(out.code, Some(0), "{}", out.text);
     assert_eq!(
         out.stdout.lines().collect::<Vec<_>>(),
@@ -460,11 +412,11 @@ fn the_cpp_binary_uses_templates_fmt_and_the_packaged_menu() {
             "total starter 1370"
         ]
     );
-    let bad = consumer()
+    let bad = case
         .join("examples/cpp-app/core/bad_menu.csv")
         .to_string_lossy()
         .into_owned();
-    let rejected = launch("//examples/cpp-app/app:pantry", &[&bad], &[]);
+    let rejected = launch(&case, "//examples/cpp-app/app:pantry", &[&bad], &[]);
     assert_eq!(rejected.code, Some(4), "{}", rejected.text);
     assert!(
         rejected.text.contains("line 2: bad price"),
@@ -474,15 +426,51 @@ fn the_cpp_binary_uses_templates_fmt_and_the_packaged_menu() {
 }
 
 #[test]
+fn dx_coverage_reports_c_and_cpp_lines() {
+    let case = consumer();
+    let report = case.root().join("coverage.lcov");
+    let arg = format!("lcov={}", report.display());
+    let covered = dx(
+        &case,
+        &[
+            "coverage",
+            "--report",
+            arg.as_str(),
+            "//examples/c-app/store:store_test",
+            "//examples/c-app/cli:cli_test",
+            "//examples/cpp-app/core:menu_test",
+        ],
+    );
+    assert!(covered.status.success(), "{}", covered.combined());
+    let lcov = read(&report);
+    for source in [
+        "examples/c-app/store/store.c",
+        "examples/c-app/cli/cli.c",
+        "examples/cpp-app/core/menu.cc",
+    ] {
+        let record = lcov
+            .split("end_of_record")
+            .find(|record| record.contains(&format!("SF:{source}")))
+            .unwrap_or_else(|| panic!("{source} missing from coverage:\n{lcov}"));
+        let hit = record
+            .lines()
+            .filter_map(|line| line.strip_prefix("LH:"))
+            .any(|count| count.trim().parse::<u32>().is_ok_and(|count| count > 0));
+        assert!(hit, "no {source} line was hit:\n{record}");
+    }
+}
+
+#[test]
 fn generated_headers_carry_the_version_file() {
-    let c_header = build("//examples/c-app/store:store_build_h");
-    let c_version = read(&consumer().join("examples/c-app/store/VERSION"));
+    let case = consumer();
+    let c_header = build(&case, "//examples/c-app/store:store_build_h");
+    let c_version = read(&case.join("examples/c-app/store/VERSION"));
     assert_eq!(
         read(&c_header).trim(),
         format!("#define STORE_SCHEMA {}", c_version.trim())
     );
-    let cpp_header = build("//examples/cpp-app/core:build_config_h");
-    let cpp_version = read(&consumer().join("examples/cpp-app/core/VERSION"));
+    let cpp_header = build(&case, "//examples/cpp-app/core:build_config_h");
+    let cpp_version = read(&case.join("examples/cpp-app/core/VERSION"));
     assert_eq!(
         read(&cpp_header).trim(),
         format!(
@@ -492,9 +480,9 @@ fn generated_headers_carry_the_version_file() {
     );
 }
 
-fn compile_argv(target: &str, source: &str) -> String {
+fn compile_argv(case: &Case, target: &str, source: &str) -> String {
     let query = format!("mnemonic(\"CppCompile\", deps({target}))");
-    let out = bazel("aquery", &["--output=text"], &[&query]);
+    let out = bazel(case, "aquery", &["--output=text"], &[&query]);
     assert_eq!(out.code, Some(0), "{}", out.text);
     let head = format!("action 'Compiling {source}'");
     out.text
@@ -516,7 +504,9 @@ fn assert_hermetic_compiler(action: &str, tail: &str) {
 
 #[test]
 fn c_and_cpp_sources_keep_their_own_language_and_flags() {
+    let case = consumer();
     let c = compile_argv(
+        &case,
         "//examples/c-app/store:store",
         "examples/c-app/store/store.c",
     );
@@ -524,6 +514,7 @@ fn c_and_cpp_sources_keep_their_own_language_and_flags() {
     assert!(c.contains("'-std=c11'"), "{c}");
     assert!(!c.contains("-std=c++"), "{c}");
     let cpp = compile_argv(
+        &case,
         "//examples/cpp-app/core:core",
         "examples/cpp-app/core/menu.cc",
     );
@@ -534,9 +525,10 @@ fn c_and_cpp_sources_keep_their_own_language_and_flags() {
 
 #[test]
 fn c_only_code_builds_as_c_and_is_rejected_as_cpp() {
-    let c = bazel("build", &[], &["//negative:c_only"]);
+    let case = consumer();
+    let c = bazel(&case, "build", &[], &["//negative:c_only"]);
     assert_eq!(c.code, Some(0), "{}", c.text);
-    let cpp = bazel("build", &[], &["//negative:as_cxx"]);
+    let cpp = bazel(&case, "build", &[], &["//negative:as_cxx"]);
     assert_eq!(cpp.code, Some(1), "{}", cpp.text);
     assert!(
         cpp.text.contains("negative/as_cxx.cc:4:") && cpp.text.contains("cannot initialize"),
@@ -547,7 +539,8 @@ fn c_only_code_builds_as_c_and_is_rejected_as_cpp() {
 
 #[test]
 fn a_syntax_error_fails_the_build_at_its_position() {
-    let out = bazel("build", &[], &["//negative:syntax"]);
+    let case = consumer();
+    let out = bazel(&case, "build", &[], &["//negative:syntax"]);
     assert_eq!(out.code, Some(1), "{}", out.text);
     assert!(
         out.text.contains("negative/syntax_error.c:2:"),
@@ -559,7 +552,8 @@ fn a_syntax_error_fails_the_build_at_its_position() {
 
 #[test]
 fn a_type_error_fails_the_build_at_its_position() {
-    let out = bazel("build", &[], &["//negative:typed"]);
+    let case = consumer();
+    let out = bazel(&case, "build", &[], &["//negative:typed"]);
     assert_eq!(out.code, Some(1), "{}", out.text);
     assert!(
         out.text.contains("negative/type_error.cc:2:"),
@@ -570,7 +564,8 @@ fn a_type_error_fails_the_build_at_its_position() {
 
 #[test]
 fn an_undeclared_external_header_is_not_found() {
-    let out = bazel("build", &[], &["//negative:undeclared"]);
+    let case = consumer();
+    let out = bazel(&case, "build", &[], &["//negative:undeclared"]);
     assert_eq!(out.code, Some(1), "{}", out.text);
     assert!(
         out.text.contains("'cJSON.h' file not found"),
@@ -581,10 +576,17 @@ fn an_undeclared_external_header_is_not_found() {
 
 #[test]
 fn a_failing_test_and_a_crash_fail_with_their_output() {
-    let failed = bazel("test", &["--test_output=all"], &["//negative:failing_test"]);
+    let case = consumer();
+    let failed = bazel(
+        &case,
+        "test",
+        &["--test_output=all"],
+        &["//negative:failing_test"],
+    );
     assert_eq!(failed.code, Some(3), "{}", failed.text);
     assert!(failed.text.contains("stock mismatch"), "{}", failed.text);
     let crashed = bazel(
+        &case,
         "test",
         &["--test_output=all"],
         &["//negative:crashing_test"],
@@ -659,7 +661,8 @@ fn relocated(
 
 #[test]
 fn both_binaries_run_from_a_copied_tree_without_the_workspace() {
-    let stock = build("//examples/c-app/cli:stock");
+    let case = consumer();
+    let stock = build(&case, "//examples/c-app/cli:stock");
     let moved = relocated(&stock, "stock", &["total"], None);
     assert_eq!(moved.code, Some(0), "{}", moved.text);
     assert_eq!(moved.stdout, "total 6600\n");
@@ -670,7 +673,7 @@ fn both_binaries_run_from_a_copied_tree_without_the_workspace() {
         Some(("stock.json", "\"qty\": 120", "\"qty\": 121")),
     );
     assert_eq!(edited.stdout, "total 6635\n", "{}", edited.text);
-    let pantry = build("//examples/cpp-app/app:pantry");
+    let pantry = build(&case, "//examples/cpp-app/app:pantry");
     let moved = relocated(&pantry, "pantry", &[], None);
     assert_eq!(moved.code, Some(0), "{}", moved.text);
     assert!(moved.stdout.contains("total main 3830"), "{}", moved.stdout);
@@ -685,9 +688,13 @@ fn both_binaries_run_from_a_copied_tree_without_the_workspace() {
 
 #[test]
 fn format_check_passes_formatted_sources_and_flags_unformatted_ones() {
-    let clean = dx(&["format", "--check", "//examples/c-app/store:store"]);
+    let case = consumer();
+    let clean = dx(
+        &case,
+        &["format", "--check", "//examples/c-app/store:store"],
+    );
     assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
-    let dirty = dx(&["format", "--check", "//negative:lint_probe"]);
+    let dirty = dx(&case, &["format", "--check", "//negative:lint_probe"]);
     assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
     assert!(
         dirty.combined().contains("negative/lint_error.c:2:"),
@@ -704,21 +711,26 @@ fn format_check_passes_formatted_sources_and_flags_unformatted_ones() {
 const APPS: [&str; 2] = ["//examples/c-app/...", "//examples/cpp-app/..."];
 
 #[test]
-fn a_cold_scrubbed_environment_builds_both_applications() {
-    let built = bazel("build", &[], &APPS);
+fn both_applications_build_on_the_nested_server() {
+    let case = consumer();
+    let built = bazel(&case, "build", &[], &APPS);
     assert_eq!(built.code, Some(0), "{}", built.text);
+    let info = bazel(&case, "info", &[], &["output_base"]);
+    assert_eq!(info.code, Some(0), "{}", info.text);
+    let base = std::fs::canonicalize(info.stdout.trim()).expect("output_base");
+    let user_root = std::fs::canonicalize(case.user_root()).expect("user_root");
     assert!(
-        home().join(".cache").is_dir(),
-        "caches live under the controlled HOME"
+        base.starts_with(&user_root),
+        "{base:?} not under {user_root:?}"
     );
-    assert!(!home().join(".bazelrc").exists());
 }
 
 #[test]
 fn both_applications_build_and_run_with_the_network_denied() {
-    let warm = bazel("build", &[], &APPS);
+    let case = consumer();
+    let warm = bazel(&case, "build", &[], &APPS);
     assert_eq!(warm.code, Some(0), "{}", warm.text);
-    let cleaned = bazel("clean", &[], &[]);
+    let cleaned = bazel(&case, "clean", &[], &[]);
     assert_eq!(cleaned.code, Some(0), "{}", cleaned.text);
     let dead = "http://127.0.0.1:9";
     let denied = [
@@ -731,19 +743,20 @@ fn both_applications_build_and_run_with_the_network_denied() {
     ];
     let mut args = vec!["build", "--color=no", "--curses=no"];
     args.extend_from_slice(&APPS);
-    let built = invoke(&args, &denied);
+    let built = outcome(case.bazel_with(&args, &denied));
     assert_eq!(built.code, Some(0), "{}", built.text);
-    let total = launch("//examples/c-app/cli:stock", &["total"], &denied);
+    let total = launch(&case, "//examples/c-app/cli:stock", &["total"], &denied);
     assert_eq!(total.stdout, "total 6600\n", "{}", total.text);
-    let pantry = launch("//examples/cpp-app/app:pantry", &[], &denied);
+    let pantry = launch(&case, "//examples/cpp-app/app:pantry", &[], &denied);
     assert_eq!(pantry.code, Some(0), "{}", pantry.text);
 }
 
 #[test]
 fn lint_passes_the_applications_and_reports_a_clang_tidy_error() {
-    let clean = dx(&["lint", "//examples/c-app/store:store"]);
+    let case = consumer();
+    let clean = dx(&case, &["lint", "//examples/c-app/store:store"]);
     assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
-    let dirty = dx(&["lint", "//negative:lint_probe"]);
+    let dirty = dx(&case, &["lint", "//negative:lint_probe"]);
     assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
     assert!(
         dirty.combined().contains("negative/lint_error.c:2:"),
@@ -773,109 +786,64 @@ fn files_under(dir: &Path) -> Vec<(PathBuf, String)> {
     found
 }
 
-fn copy_tree(from: &Path, to: &Path) {
-    for entry in [
-        "MODULE.bazel",
-        ".bazelversion",
-        ".bazelrc",
-        "BUILD.bazel",
-        ".clang-format",
-        ".clang-tidy",
-        "third_party",
-        "examples",
-        "negative",
-    ] {
-        let copied = Command::new("cp")
-            .arg("-r")
-            .arg(from.join(entry))
-            .arg(to)
-            .status()
-            .unwrap_or_else(|error| panic!("cp: {error}"));
-        assert!(copied.success(), "{entry}");
-    }
-}
-
 #[test]
 fn init_adopts_the_c_and_cpp_applications_without_touching_sources() {
-    let dir = mkscratch("cc-app-adopt").unwrap_or_else(|error| panic!("scratch: {error}"));
-    copy_tree(consumer(), &dir);
-    let before = files_under(&dir);
-    let checked = dx_in(&dir, &["init", "shop"]);
+    let case = consumer();
+    let dir = case.root();
+    let before = files_under(dir);
+    let checked = dx(&case, &["init", "shop"]);
     assert_eq!(checked.status.code(), Some(1), "{}", checked.combined());
     assert!(
         checked.combined().contains("init drift"),
         "{}",
         checked.combined()
     );
-    assert_eq!(files_under(&dir), before);
-    let applied = dx_in(&dir, &["init", "--apply", "shop"]);
+    assert_eq!(files_under(dir), before);
+    let applied = dx(&case, &["init", "--apply", "shop"]);
     assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
     assert!(dir.join(".dx/version").is_file());
     assert!(dir.join("MODULE.bazel.snippet").is_file());
-    let after = files_under(&dir);
+    let after = files_under(dir);
     for (path, text) in &before {
         let now = after.iter().find(|(other, _)| other == path);
         assert_eq!(now.map(|(_, text)| text), Some(text), "{path:?} changed");
     }
-    let listed = Command::new("bazel")
-        .current_dir(&dir)
-        .args([
-            "--nohome_rc",
-            "--nosystem_rc",
-            "query",
-            "--color=no",
-            "//examples/c-app/cli:stock + //examples/cpp-app/app:pantry",
-        ])
-        .env_clear()
-        .envs(controlled_env())
-        .output()
-        .unwrap_or_else(|error| panic!("bazel query: {error}"));
-    assert_eq!(listed.status.code(), Some(0), "{listed:?}");
+    let listed = case.bazel(&[
+        "query",
+        "--color=no",
+        "//examples/c-app/cli:stock + //examples/cpp-app/app:pantry",
+    ]);
+    assert_eq!(listed.status.code(), Some(0), "{}", listed.combined());
 }
 
 #[test]
 fn a_renamed_rules_repository_builds_and_runs_both_applications() {
-    let dir = mkscratch("cc-app-renamed").unwrap_or_else(|error| panic!("scratch: {error}"));
-    copy_tree(consumer(), &dir);
+    let case = consumer();
+    let dir = case.root();
     let module = read(&dir.join("MODULE.bazel")).replace(
         "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")",
         "bazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"dxr\")",
     );
     write(&dir.join("MODULE.bazel"), &module);
-    for (path, text) in files_under(&dir) {
+    for (path, text) in files_under(dir) {
         if path.file_name().is_some_and(|name| name == "BUILD.bazel") {
             write(&path, &text.replace("@rules_dx//", "@dxr//"));
         }
     }
-    let run_in = |args: &[&str]| {
-        let output = Command::new("bazel")
-            .current_dir(&dir)
-            .args(["--nohome_rc", "--nosystem_rc"])
-            .args(args)
-            .env_clear()
-            .envs(controlled_env())
-            .output()
-            .unwrap_or_else(|error| panic!("bazel: {error}"));
-        (
-            output.status.code(),
-            String::from_utf8_lossy(&output.stdout).into_owned(),
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-        )
-    };
-    let (code, _, err) = run_in(&[
+    let built = case.bazel(&[
         "build",
         "--color=no",
         "//examples/c-app/...",
         "//examples/cpp-app/...",
     ]);
-    assert_eq!(code, Some(0), "{err}");
-    let (code, out, err) = run_in(&[
+    assert_eq!(built.status.code(), Some(0), "{}", built.combined());
+    let ran = case.bazel(&[
         "run",
         "--color=no",
         "//examples/c-app/cli:stock",
         "--",
         "total",
     ]);
-    assert_eq!(code, Some(0), "{err}");
-    assert_eq!(out, "total 6600\n");
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert_eq!(ran.stdout, "total 6600\n");
 }

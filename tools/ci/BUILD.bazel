@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -91,9 +91,42 @@ python_test(
         ":aggregate_fixtures",
         ":ci_gate_fixtures",
         ":input_validation_fixtures",
+        "//.github:workflows/apple.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/reusable-consumer.yml",
+    ],
+    dep_group = "hello",
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
+)
+
+# keep
+python_library(
+    name = "resource_peaks",
+    srcs = ["resource_peaks.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_binary(
+    name = "resource_peaks_bin",
+    main = "resource_peaks.py",
+    visibility = ["//visibility:public"],
+    deps = [":resource_peaks"],
+)
+
+# keep
+python_test(
+    name = "resource_peaks_test",
+    size = "small",
+    srcs = ["resource_peaks_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        "resource_peaks.py",
     ],
     dep_group = "hello",
     deps = [
@@ -224,6 +257,34 @@ python_test(
 )
 
 # keep
+rust_library(
+    name = "ci_workflow",
+    testonly = True,
+    srcs = ["ci_workflow.rs"],
+    crate_name = "ci_workflow",
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
+    name = "ci_workflow_test",
+    size = "small",
+    srcs = ["ci_workflow_test.rs"],
+    data = [
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/reusable-consumer.yml",
+    ],
+    deps = [
+        ":ci_workflow",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
 rust_test(
     name = "actionlint_test",
     size = "small",
@@ -231,26 +292,17 @@ rust_test(
     data = [
         "input_validation.py",
         ":actionlint_fixtures",
-        "//.github:BUILD.bazel",
         "//.github:actionlint.yaml",
-        "//.github:workflows/apple.yml",
-        "//.github:workflows/bump.yml",
-        "//.github:workflows/cancel-stale.yml",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/evidence.yml",
-        "//.github:workflows/ghcr.yml",
-        "//.github:workflows/publish-dry-run.yml",
-        "//.github:workflows/release.yml",
-        "//.github:workflows/reusable-consumer.yml",
-        "//.github:workflows/reusable-docs.yml",
+        "//.github:workflows",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
-        "@com_github_rhysd_actionlint//cmd/actionlint",
+        "@dx_tools//:actionlint",
         "@dx_tools//:shellcheck",
     ],
     env = {
-        "DX_ACTIONLINT": "$(rootpath @com_github_rhysd_actionlint//cmd/actionlint)",
+        "DX_ACTIONLINT": "$(rootpath @dx_tools//:actionlint)",
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
+        "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
     },
     deps = [
         "//tools/testing:dx_testing",
@@ -272,9 +324,9 @@ rust_test(
         "//examples:docs-ci/caller.yml",
     ],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -286,7 +338,6 @@ rust_test(
     data = [
         "//env/env_shard:src/main.rs",
         "//generation/codegen_shard:src/main.rs",
-        "//quality/evaluator:src/main.rs",
         "//quality/runner:src/main.rs",
     ],
     deps = ["//tools/testing:dx_testing"],
@@ -298,6 +349,37 @@ rust_test(
     size = "small",
     srcs = ["advisory_snapshots_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
+    deps = [
+        ":ci_workflow",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_test(
+    name = "consumer_reports_test",
+    size = "small",
+    srcs = ["consumer_reports_test.rs"],
+    data = [
+        "//.github:workflows/reusable-consumer.yml",
+        "//docs:github-ci.md",
+    ],
+    deps = [
+        ":ci_workflow",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_test(
+    name = "workflow_permissions_test",
+    size = "small",
+    srcs = ["workflow_permissions_test.rs"],
+    data = [
+        "//.github:workflows",
+    ],
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
@@ -329,9 +411,8 @@ rust_test(
     srcs = ["tool_resolve_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
-        "//tools/testing:dx_testing",
+        ":ci_workflow",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -341,18 +422,9 @@ rust_test(
     size = "small",
     srcs = ["action_pins_test.rs"],
     data = [
-        "//.github:BUILD.bazel",
-        "//.github:workflows/apple.yml",
-        "//.github:workflows/bump.yml",
-        "//.github:workflows/cancel-stale.yml",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/evidence.yml",
-        "//.github:workflows/ghcr.yml",
-        "//.github:workflows/publish-dry-run.yml",
-        "//.github:workflows/release.yml",
-        "//.github:workflows/reusable-consumer.yml",
-        "//.github:workflows/reusable-docs.yml",
+        "//.github:workflows",
     ],
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -366,9 +438,9 @@ rust_test(
         "//.github:workflows/bump.yml",
     ],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -380,19 +452,10 @@ rust_test(
     data = [
         "//:.bazelversion",
         "//.devcontainer:Dockerfile.prebuilt",
-        "//.github:BUILD.bazel",
-        "//.github:workflows/apple.yml",
-        "//.github:workflows/bump.yml",
-        "//.github:workflows/cancel-stale.yml",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/evidence.yml",
-        "//.github:workflows/ghcr.yml",
-        "//.github:workflows/publish-dry-run.yml",
-        "//.github:workflows/release.yml",
-        "//.github:workflows/reusable-consumer.yml",
-        "//.github:workflows/reusable-docs.yml",
+        "//.github:workflows",
         "//modules:versions.bzl",
     ],
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
@@ -407,9 +470,9 @@ rust_test(
     srcs = ["consumer_inputs_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -436,17 +499,7 @@ rust_test(
         "//:.shellcheckrc",
         "//:.vale.ini",
         "//:biome.json",
-        "//.github:BUILD.bazel",
-        "//.github:workflows/apple.yml",
-        "//.github:workflows/bump.yml",
-        "//.github:workflows/cancel-stale.yml",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/evidence.yml",
-        "//.github:workflows/ghcr.yml",
-        "//.github:workflows/publish-dry-run.yml",
-        "//.github:workflows/release.yml",
-        "//.github:workflows/reusable-consumer.yml",
-        "//.github:workflows/reusable-docs.yml",
+        "//.github:workflows",
         "//:ruff.toml",
         "//deploy/offline/bootstrap:src/lib.rs",
         "//deploy/rules:launcher.bzl",
@@ -461,8 +514,117 @@ rust_test(
         "//quality/testdata:ruff.toml",
         "//quality/testdata:styles/Dx/Markers.yml",
         "//quality/testdata:vale_test.ini",
+        "//quality/tools/dotnet/fsharplint:fsharplint.sh",
     ],
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "starlark_docs_test",
+    size = "small",
+    srcs = ["starlark_docs_test.rs"],
+    data = [
+        "//android/packaging:corpus_starlark",
+        "//android/platforms:corpus_starlark",
+        "//android/rules:corpus_starlark",
+        "//android/sdk:corpus_starlark",
+        "//android/toolchain:corpus_starlark",
+        "//appimage:corpus_starlark",
+        "//apple/bundle:corpus_starlark",
+        "//apple/ios:corpus_starlark",
+        "//apple/provisioning:corpus_starlark",
+        "//apple/signing:corpus_starlark",
+        "//astro/rules:corpus_starlark",
+        "//cc/rules:corpus_starlark",
+        "//cc/toolchains:corpus_starlark",
+        "//cli/entrypoint:corpus_starlark",
+        "//cli/roots:corpus_starlark",
+        "//config:corpus_starlark",
+        "//csharp/rules:corpus_starlark",
+        "//cuda/rules:corpus_starlark",
+        "//cuda/toolchain:corpus_starlark",
+        "//cue/rules:corpus_starlark",
+        "//deploy/offline:corpus_starlark",
+        "//deploy/release:corpus_starlark",
+        "//deploy/rules:corpus_starlark",
+        "//dockerfile/rules:corpus_starlark",
+        "//elixir/rules:corpus_starlark",
+        "//elixir/toolchain:corpus_starlark",
+        "//elixir/tools:corpus_starlark",
+        "//env:corpus_starlark",
+        "//erlang/rules:corpus_starlark",
+        "//erlang/toolchain:corpus_starlark",
+        "//examples/shared-rust:corpus_starlark",
+        "//fsharp/rules:corpus_starlark",
+        "//generation:corpus_starlark",
+        "//gherkin/rules:corpus_starlark",
+        "//gleam/rules:corpus_starlark",
+        "//gleam/toolchain:corpus_starlark",
+        "//gleam/tools:corpus_starlark",
+        "//go/rules:corpus_starlark",
+        "//html_template/rules:corpus_starlark",
+        "//java/rules:corpus_starlark",
+        "//javascript/rules:corpus_starlark",
+        "//jsonnet/rules:corpus_starlark",
+        "//kotlin/rules:corpus_starlark",
+        "//libs/starlark:corpus_starlark",
+        "//libs/testing:corpus_starlark",
+        "//lua/private:corpus_starlark",
+        "//lua/rules:corpus_starlark",
+        "//lua/toolchain:corpus_starlark",
+        "//mdx/rules:corpus_starlark",
+        "//modules:corpus_starlark",
+        "//msix:corpus_starlark",
+        "//ocaml/rules:corpus_starlark",
+        "//ocaml/toolchain:corpus_starlark",
+        "//perl/cpan:corpus_starlark",
+        "//perl/rules:corpus_starlark",
+        "//pkl/rules:corpus_starlark",
+        "//powershell/rules:corpus_starlark",
+        "//python/rules:corpus_starlark",
+        "//qt/rules:corpus_starlark",
+        "//qt/sdk:corpus_starlark",
+        "//quality:corpus_starlark",
+        "//quality/artifacts:corpus_starlark",
+        "//quality/artifacts/acquire_test:corpus_starlark",
+        "//quality/artifacts/hub_test:corpus_starlark",
+        "//quality/tools/cc:corpus_starlark",
+        "//quality/tools/dotnet/fsharplint:corpus_starlark",
+        "//quality/tools/javascript:corpus_starlark",
+        "//quality/tools/jvm:corpus_starlark",
+        "//quality/tools/ruby:corpus_starlark",
+        "//ruby/rules:corpus_starlark",
+        "//rust/rules:corpus_starlark",
+        "//rust/toolchains:corpus_starlark",
+        "//scala/rules:corpus_starlark",
+        "//sql/rules:corpus_starlark",
+        "//svelte/rules:corpus_starlark",
+        "//terraform/rules:corpus_starlark",
+        "//tools/docs/go:corpus_starlark",
+        "//tools/docs/ir:corpus_starlark",
+        "//tools/docs/rust:corpus_starlark",
+        "//tools/docs/site:corpus_starlark",
+        "//tools/docs/site/browser:corpus_starlark",
+        "//tools/docs/site/mdbook:corpus_starlark",
+        "//tools/docs/typescript:corpus_starlark",
+        "//tools/ide:corpus_starlark",
+        "//tools/testing:corpus_starlark",
+        "//tools/testing/hermetic:corpus_starlark",
+        "//tools/visibility:corpus_starlark",
+        "//typescript/rules:corpus_starlark",
+        "//vue/rules:corpus_starlark",
+        "//wasi/runtime:corpus_starlark",
+        "//xml/rules:corpus_starlark",
+        "//yaml/rules:corpus_starlark",
+        "//zig/rules:corpus_starlark",
+        "//zig/tools:corpus_starlark",
+    ],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:starlark_syntax",
+    ],
 )
 
 # keep
@@ -470,11 +632,14 @@ rust_test(
     name = "docs_deploy_test",
     size = "small",
     srcs = ["docs_deploy_test.rs"],
-    data = ["//.github:workflows/reusable-docs.yml"],
+    data = [
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/reusable-docs.yml",
+    ],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -514,14 +679,22 @@ rust_test(
     data = [
         "//:README.md",
         "//:android/README.md",
-        "//:apple/README.md",
+        "//:csharp/README.md",
         "//:cuda/README.md",
+        "//:d/README.md",
         "//:elixir/README.md",
         "//:erlang/README.md",
+        "//:fsharp/README.md",
         "//:gleam/README.md",
-        "//:qt/README.md",
+        "//:lua/README.md",
+        "//:haskell/README.md",
+        "//:perl/README.md",
+        "//:php/README.md",
+        "//:powershell/README.md",
+        "//:ruby/README.md",
         "//:zig/README.md",
         "//appimage:README.md",
+        "//apple:README.md",
         "//cc/rules:README.md",
         "//deploy/rules:README.md",
         "//docs:README.md",
@@ -531,10 +704,28 @@ rust_test(
         "//examples:example_readmes",
         "//examples:example_starlark",
         "//msix:README.md",
+        "//qt:README.md",
         "//rust/rules:README.md",
         "//tools/docs/site:user/book.bzl",
     ],
     deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "gitlab_example_test",
+    size = "small",
+    srcs = ["gitlab_example_test.rs"],
+    data = [
+        "//.devcontainer:Dockerfile.prebuilt",
+        "//examples:gitlab-ci/.gitlab-ci.yml",
+        "//examples:gitlab-ci/README.md",
+        "//modules:versions.bzl",
+    ],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:yaml_serde",
+    ],
 )
 
 # keep
@@ -547,12 +738,17 @@ rust_test(
         "docs_scope.py",
         "input_validation.py",
         "module_pin.py",
+        "starter_pin.sha256",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
+        "//docs:github-ci.md",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:yaml_serde",
+    ],
 )
 
 real_source_target(

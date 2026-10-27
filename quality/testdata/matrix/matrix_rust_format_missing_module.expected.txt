@@ -1,1 +1,11 @@
-pipeline failed: tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: failed to resolve mod `child`: matrix/rustfmt_missing/src/child.rs does not exist
+producer //quality/testdata:matrix_rust_format_missing_module
+capability FORMAT
+stages 1
+stage rustfmt classes=rust sources=matrix/rustfmt_missing/src/lib.rs
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING rustfmt - matrix/rustfmt_missing/src/lib.rs 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/rustfmt_missing/src/lib.rs 23 27 ") {"

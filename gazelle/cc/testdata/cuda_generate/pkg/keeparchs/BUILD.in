@@ -1,0 +1,7 @@
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_library")
+
+cuda_library(
+    name = "keeparchs_cuda",
+    srcs = ["a.cu"],
+    archs = ["sm_120"],
+)

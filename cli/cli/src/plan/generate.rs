@@ -16,13 +16,37 @@ pub struct GenerateScopeElement {
     pub dirs: Vec<String>,
 }
 
+/// Maps one scope label to the Gazelle directory it traverses ("" is repo-wide).
+///
+/// `@//` and `@@//` name the main repository and are read as `//`. Any other
+/// `@repo//` label falls back to repo-wide: Gazelle cannot walk an external
+/// repository, and `dx generate` refuses such labels at parse time, so only
+/// the `--affected` umbrella path reaches this fallback, where widening is
+/// the safe direction. `//:x` stays repo-wide because Gazelle directory
+/// arguments are recursive.
 fn generate_traversal_dir(target: &str) -> String {
-    if target == "//..." {
+    let label = target
+        .strip_prefix("@@")
+        .or_else(|| target.strip_prefix('@'))
+        .filter(|rest| rest.starts_with("//"))
+        .unwrap_or(target);
+    let label = ["all-targets", "all", "*"]
+        .iter()
+        .find_map(|name| {
+            label
+                .strip_suffix(name)
+                .and_then(|head| head.strip_suffix(':'))
+        })
+        .unwrap_or(label);
+    if label == "..." {
         return String::new();
     }
-    let Some(rest) = target.strip_prefix("//") else {
+    let Some(rest) = label.strip_prefix("//") else {
         return String::new();
     };
+    if rest == "..." {
+        return String::new();
+    }
     if let Some(dir) = rest.strip_suffix("/...") {
         return dir.to_owned();
     }
@@ -91,6 +115,7 @@ pub fn plan_generate(
     bazel_options: &[String],
     check: bool,
     startup_options: &[String],
+    patch: Option<&str>,
 ) -> Result<BuildPlan, ForwardError> {
     let required = Vec::new();
     let protected = Vec::new();
@@ -109,9 +134,15 @@ pub fn plan_generate(
     )?;
     let dirs = generate_traversal_dirs(resolved);
     let root_only = dirs.len() == 1 && dirs.first().is_some_and(String::is_empty);
-    if !dirs.is_empty() && !root_only {
+    let patch = patch.filter(|_| check);
+    if patch.is_some() || (!dirs.is_empty() && !root_only) {
         argv.push("--".to_owned());
-        argv.extend(dirs);
+        if let Some(patch) = patch {
+            argv.push(format!("-patch={patch}"));
+        }
+        if !root_only {
+            argv.extend(dirs);
+        }
     }
     let (scope, _) = workflow_scope_labels(resolved);
     let summary = format!("Running generate for {}", describe_scope(&scope));
@@ -140,7 +171,7 @@ mod tests {
         assert_eq!(GENERATE_TARGET, "//dx:generate");
         assert_eq!(GENERATE_CHECK_TARGET, "//dx:generate_check");
         let plan =
-            plan_generate(&resolved(&[]), &strings(&["--jobs=4"]), false, &[]).expect("plan");
+            plan_generate(&resolved(&[]), &strings(&["--jobs=4"]), false, &[], None).expect("plan");
         assert_eq!(
             plan.argv,
             strings(&[
@@ -149,14 +180,13 @@ mod tests {
                 "--nosystem_rc",
                 "run",
                 "--jobs=4",
-                "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
                 "//dx:generate",
             ])
         );
         assert_eq!(plan.summary, "Running generate for //...");
-        let bare = plan_generate(&resolved(&[]), &[], false, &[]).expect("plan");
+        let bare = plan_generate(&resolved(&[]), &[], false, &[], None).expect("plan");
         assert_eq!(
             bare.argv.last(),
             Some(&GENERATE_TARGET.to_owned()),
@@ -166,7 +196,7 @@ mod tests {
 
     #[test]
     fn generate_plan_check_selects_non_mutating_runner() {
-        let plan = plan_generate(&resolved(&[]), &[], true, &[]).expect("plan");
+        let plan = plan_generate(&resolved(&[]), &[], true, &[], None).expect("plan");
         assert_eq!(
             plan.argv,
             strings(&[
@@ -174,14 +204,13 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
-                "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
                 "//dx:generate_check",
             ])
         );
         assert_eq!(plan.summary, "Running generate for //...");
-        let scoped = plan_generate(&resolved(&["//a:one"]), &[], true, &[]).expect("plan");
+        let scoped = plan_generate(&resolved(&["//a:one"]), &[], true, &[], None).expect("plan");
         assert_eq!(
             scoped.argv.last(),
             Some(&"a".to_owned()),
@@ -194,9 +223,29 @@ mod tests {
     }
 
     #[test]
+    fn generate_plan_check_puts_the_patch_flag_before_the_dirs() {
+        let patch = "-patch=/t/x.patch".to_owned();
+        let root = plan_generate(&resolved(&[]), &[], true, &[], Some("/t/x.patch")).expect("plan");
+        assert_eq!(
+            root.argv[root.argv.len() - 2..],
+            ["--".to_owned(), patch.clone()]
+        );
+        let scoped = plan_generate(&resolved(&["//a:one"]), &[], true, &[], Some("/t/x.patch"))
+            .expect("plan");
+        assert_eq!(
+            scoped.argv[scoped.argv.len() - 3..],
+            ["--".to_owned(), patch, "a".to_owned()]
+        );
+        let apply =
+            plan_generate(&resolved(&[]), &[], false, &[], Some("/t/x.patch")).expect("plan");
+        assert!(!apply.argv.iter().any(|arg| arg.starts_with("-patch=")));
+    }
+
+    #[test]
     fn generate_plan_forwards_the_consumer_policy_selection() {
         let selection = "--@rules_dx//config:workspace=//consumer:policy";
-        let plan = plan_generate(&resolved(&[]), &strings(&[selection]), false, &[]).expect("plan");
+        let plan =
+            plan_generate(&resolved(&[]), &strings(&[selection]), false, &[], None).expect("plan");
         assert!(
             plan.argv.contains(&selection.to_owned()),
             "the consumer policy selection reaches bazel: {plan:?}"
@@ -205,7 +254,7 @@ mod tests {
 
     #[test]
     fn generate_plan_rejects_startup_options() {
-        let err = plan_generate(&resolved(&[]), &strings(&["--home_rc"]), false, &[])
+        let err = plan_generate(&resolved(&[]), &strings(&["--home_rc"]), false, &[], None)
             .expect_err("startup option must fail");
         assert!(matches!(err, ForwardError::StartupOption { .. }));
     }
@@ -213,7 +262,7 @@ mod tests {
     #[test]
     fn generate_plan_forwards_scoped_traversal_dirs() {
         let plan =
-            plan_generate(&resolved(&["//b/...", "//a:one"]), &[], false, &[]).expect("plan");
+            plan_generate(&resolved(&["//b/...", "//a:one"]), &[], false, &[], None).expect("plan");
         assert_eq!(
             plan.argv,
             strings(&[
@@ -221,7 +270,6 @@ mod tests {
                 "--nohome_rc",
                 "--nosystem_rc",
                 "run",
-                "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
                 "//dx:generate",
@@ -235,7 +283,7 @@ mod tests {
 
     #[test]
     fn generate_plan_root_package_label_stays_repo_wide() {
-        let plan = plan_generate(&resolved(&["//:foo"]), &[], false, &[]).expect("plan");
+        let plan = plan_generate(&resolved(&["//:foo"]), &[], false, &[], None).expect("plan");
         assert!(
             !plan.argv.contains(&"--".to_owned()),
             "root traversal needs no positional arguments: {plan:?}"
@@ -254,6 +302,27 @@ mod tests {
             generate_scope_json(&resolved(&[])),
             r#"[{"dirs":[""],"element":"//..."}]"#
         );
+    }
+
+    #[test]
+    fn generate_traversal_dir_reads_label_forms() {
+        for (label, dir) in [
+            ("//...", ""),
+            ("//...:all", ""),
+            ("...", ""),
+            ("//pkg/...:all", "pkg"),
+            ("//pkg/...:*", "pkg"),
+            ("//pkg:all", "pkg"),
+            ("//pkg:all-targets", "pkg"),
+            ("//pkg:x", "pkg"),
+            ("//pkg", "pkg"),
+            ("@//pkg:x", "pkg"),
+            ("@@//pkg/...", "pkg"),
+            ("//:x", ""),
+            ("@ext//p", ""),
+        ] {
+            assert_eq!(generate_traversal_dir(label), dir, "{label}");
+        }
     }
 
     #[test]

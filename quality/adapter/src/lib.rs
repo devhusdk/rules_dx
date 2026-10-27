@@ -11,6 +11,7 @@
 use line_index::LineIndex;
 use quality_result::proto::{self, Diagnostic, Severity};
 
+pub mod api_spec_preflight;
 pub mod commands;
 pub mod exec;
 pub mod launch;
@@ -82,6 +83,11 @@ pub enum ColumnEncoding {
     Scalars,
     Utf16,
     Utf8,
+    /// UTF-16 units with tabs expanded to the next multiple of `width`,
+    /// as Checkstyle reports columns. A width of 0 counts as 8.
+    Utf16Tabs {
+        width: u32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,10 +149,15 @@ fn column_to_offset(body: &str, units: u64, encoding: ColumnEncoding) -> Option<
         if seen > units {
             return None;
         }
-        seen += match encoding {
-            ColumnEncoding::Utf16 => ch.len_utf16() as u64,
-            _ => 1,
-        };
+        match encoding {
+            ColumnEncoding::Utf16 => seen += ch.len_utf16() as u64,
+            ColumnEncoding::Utf16Tabs { width } if ch == '\t' => {
+                let w = if width == 0 { 8 } else { u64::from(width) };
+                seen = (seen / w + 1) * w;
+            }
+            ColumnEncoding::Utf16Tabs { .. } => seen += ch.len_utf16() as u64,
+            _ => seen += 1,
+        }
     }
     (seen == units).then_some(body.len())
 }
@@ -452,6 +463,26 @@ mod tests {
         assert_eq!(at(1, 19, ColumnEncoding::Utf8), Some(18));
         assert_eq!(at(1, 26, ColumnEncoding::Utf8), Some(25));
         assert_eq!(at(1, 15, ColumnEncoding::Utf8), None);
+    }
+
+    #[test]
+    fn tab_expanded_columns_map_to_bytes() {
+        let text = "\t\treturn 42;\n";
+        let at =
+            |col, width| line_col_to_byte_in(text, 1, col, ColumnEncoding::Utf16Tabs { width });
+        assert_eq!(at(24, 8), Some(9));
+        assert_eq!(at(16, 4), Some(9));
+        assert_eq!(at(1, 8), Some(0));
+        assert_eq!(at(9, 8), Some(1));
+        assert_eq!(at(9, 0), Some(1));
+        assert_eq!(at(5, 8), None);
+        assert_eq!(at(3, 4), None);
+        let astral = "\t\u{1f600}x\n";
+        let astral_at =
+            |col| line_col_to_byte_in(astral, 1, col, ColumnEncoding::Utf16Tabs { width: 4 });
+        assert_eq!(astral_at(5), Some(1));
+        assert_eq!(astral_at(7), Some(5));
+        assert_eq!(astral_at(6), None);
     }
 
     #[test]

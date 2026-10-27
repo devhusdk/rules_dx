@@ -16,7 +16,6 @@ typescript_project(
     ],
     aspect_hints = ["//:biome_config"],
     declaration = True,
-    transpiler = "tsc",
     tsconfig = "tsconfig.json",
 )
 
@@ -34,7 +33,7 @@ typescript_test(
     declaration = True,
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
-    transpiler = "tsc",
+    package_json = "//:package_json",
     tsconfig = "tsconfig.json",
     deps = [":hello_lib"],
 )
@@ -51,7 +50,7 @@ typescript_js_test(
     aspect_hints = ["//:biome_config"],
     declaration = True,
     entry_point = "plain_test.js",
-    transpiler = "tsc",
+    package_json = "//:package_json",
     tsconfig = "tsconfig.json",
     deps = [":hello_lib"],
 )

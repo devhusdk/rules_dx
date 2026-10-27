@@ -7,17 +7,24 @@ const FAKE_XCRUN: &str = r#"#!/bin/sh
 printf '%s\n' "$*" >>"$FAKE_LOG"
 case "$1" in
     simctl)
+        if [ "$2" = "list" ] && [ -n "${FAKE_LIST_EXIT:-}" ]; then
+            exit "$FAKE_LIST_EXIT"
+        fi
         if [ "$2" = "list" ] && [ "$3" = "runtimes" ]; then
             cat "$FAKE_RUNTIMES"
             exit 0
         fi
         if [ "$2" = "list" ]; then
+            [ -z "${FAKE_DEVICES_EXIT:-}" ] || exit "$FAKE_DEVICES_EXIT"
             cat "$FAKE_DEVICES"
             exit 0
         fi
         if [ "$2" = "create" ]; then
             printf '%s\n' 3C9D2E71-5B8A-4F06-9D1C-2A7E4B6F8031
             exit 0
+        fi
+        if [ "$2" = "delete" ]; then
+            exit "${FAKE_DELETE_EXIT:-0}"
         fi
         if [ "$2" = "bootstatus" ]; then
             exit "${FAKE_BOOT_EXIT:-0}"
@@ -121,6 +128,21 @@ fn simctl(fake: &Fake, envs: &[(&str, &str)]) -> Run {
 
 fn create(fake: &Fake, envs: &[(&str, &str)]) -> Run {
     fake_run(fake, "DX_CREATE_TEST_SIMULATOR", envs)
+}
+
+fn own_pgid() -> String {
+    let out = std::process::Command::new("ps")
+        .args(["-o", "pgid=", "-p", &std::process::id().to_string()])
+        .output()
+        .unwrap_or_else(|error| panic!("ps: {error}"));
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+fn create_env<'a>() -> [(&'a str, &'a str); 2] {
+    [
+        ("SIMULATOR_DEVICE_TYPE", "iPhone 16"),
+        ("SIMULATOR_OS_VERSION", "18.5"),
+    ]
 }
 
 fn fails(ran: &Run, code: i32, stderr: &str) {
@@ -290,15 +312,15 @@ fn a_test_simulator_is_created_and_booted_on_the_exact_runtime() {
             ("SIMULATOR_DEVICE_TYPE", "iPhone 16"),
             ("SIMULATOR_OS_VERSION", "18.5"),
             ("SIMULATOR_SDK_VERSION", "18.5"),
-            ("XCTESTRUN_RUNNER_PID", "4242"),
         ],
     );
     assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
     assert_eq!(ran.stdout, format!("{CREATED}\n"), "{}", ran.combined());
+    let pgid = own_pgid();
     assert_eq!(
         fake.log(),
         format!(
-            "simctl list runtimes available\nsimctl create dx iPhone 16 iOS 18.5 4242 iPhone 16 com.apple.CoreSimulator.SimRuntime.iOS-18-5\nsimctl bootstatus {CREATED} -b\n"
+            "simctl list runtimes available\nsimctl list devices available\nsimctl create dx iPhone 16 iOS 18.5 pgid {pgid} iPhone 16 com.apple.CoreSimulator.SimRuntime.iOS-18-5\nsimctl bootstatus {CREATED} -b\n"
         )
     );
 }
@@ -346,16 +368,16 @@ fn a_test_simulator_that_cannot_boot_is_deleted() {
         &[
             ("SIMULATOR_DEVICE_TYPE", "iPhone 16"),
             ("SIMULATOR_OS_VERSION", "17.5"),
-            ("XCTESTRUN_RUNNER_PID", "7"),
             ("FAKE_BOOT_EXIT", "164"),
         ],
     );
     assert_eq!(ran.status.code(), Some(164), "{}", ran.combined());
     assert_eq!(ran.stdout, "", "{}", ran.combined());
+    let pgid = own_pgid();
     assert_eq!(
         fake.log(),
         format!(
-            "simctl list runtimes available\nsimctl create dx iPhone 16 iOS 17.5 7 iPhone 16 com.apple.CoreSimulator.SimRuntime.iOS-17-5\nsimctl bootstatus {CREATED} -b\nsimctl delete {CREATED}\n"
+            "simctl list runtimes available\nsimctl list devices available\nsimctl create dx iPhone 16 iOS 17.5 pgid {pgid} iPhone 16 com.apple.CoreSimulator.SimRuntime.iOS-17-5\nsimctl bootstatus {CREATED} -b\nsimctl delete {CREATED}\n"
         )
     );
 }
@@ -419,6 +441,17 @@ fn check_cell(
     loads: &str,
     inputs: &[&str],
 ) -> (Run, PathBuf) {
+    check_kind(fake, ["apple_ios_app", "17.0"], cell, archs, loads, inputs)
+}
+
+fn check_kind(
+    fake: &Fake,
+    kind: [&str; 2],
+    cell: [&str; 4],
+    archs: &str,
+    loads: &str,
+    inputs: &[&str],
+) -> (Run, PathBuf) {
     let loads_file = fake.root.join("loads.txt");
     std::fs::write(&loads_file, loads).unwrap_or_else(|error| panic!("write: {error}"));
     let bin = fake.root.join("bin");
@@ -437,9 +470,9 @@ fn check_cell(
     let log = fake.path("log.txt");
     let loads_path = loads_file.to_string_lossy().into_owned();
     let report_path = report.to_string_lossy().into_owned();
-    let mut args = vec!["apple_ios_app", report_path.as_str()];
+    let mut args = vec![kind[0], report_path.as_str()];
     args.extend_from_slice(&cell);
-    args.extend_from_slice(&["17.0", "16.4.0.16F6", "18.5"]);
+    args.extend_from_slice(&[kind[1], "16.4.0.16F6", "18.5"]);
     args.extend_from_slice(inputs);
     let ran = run(
         &script("DX_LIBRARY_CHECK"),
@@ -544,6 +577,47 @@ fn a_newer_framework_binary_fails_the_app_deployment() {
     assert!(!report.exists(), "a rejected framework leaves no report");
 }
 
+#[test]
+fn a_macos_archive_records_its_cell_and_names_macos() {
+    let fake = Fake::new("apple-cell-macos");
+    let loads = SIM_LOADS
+        .replace("platform 7", "platform 1")
+        .replace("minos 17.0", "minos 14.0");
+    let cell = ["macos/arm64", "macosx", "1", "arm64"];
+    let (ran, report) = check_kind(
+        &fake,
+        ["apple_macos_app", "14.0"],
+        cell,
+        "arm64",
+        &loads,
+        &["/out/libledger.a"],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert!(
+        std::fs::read_to_string(&report)
+            .unwrap_or_default()
+            .ends_with("archive=libledger.a arch=arm64 platform=macosx minos=14.0\n"),
+        "{}",
+        ran.combined()
+    );
+
+    std::fs::remove_file(&report).unwrap_or_else(|error| panic!("rm: {error}"));
+    let (ran, report) = check_kind(
+        &fake,
+        ["apple_macos_app", "14.0"],
+        cell,
+        "arm64",
+        &loads.replace("minos 14.0", "minos 15.0"),
+        &["/out/libledger.a"],
+    );
+    fails(
+        &ran,
+        1,
+        "apple_macos_app: library archive libledger.a needs macOS 15.0, above the app deployment 14.0",
+    );
+    assert!(!report.exists(), "a rejected cell leaves no report");
+}
+
 const LEGACY_LOADS: &str = "libledger.a(ledger.o):
 Load command 1
       cmd LC_VERSION_MIN_IPHONEOS
@@ -607,4 +681,100 @@ fn legacy_version_min_archives_resolve_by_arch() {
         "apple_ios_app: library archive libledger.a is built for macosx, want iphonesimulator for simulator/arm64",
     );
     assert!(!report.exists(), "a rejected cell leaves no report");
+}
+
+#[test]
+fn list_failures_keep_simctl_exit_code() {
+    let fake = Fake::new("apple-list-exit");
+    let ran = create(
+        &fake,
+        &[
+            ("SIMULATOR_DEVICE_TYPE", "iPhone 16"),
+            ("SIMULATOR_OS_VERSION", "18.5"),
+            ("FAKE_LIST_EXIT", "5"),
+        ],
+    );
+    assert_eq!(ran.status.code(), Some(5), "{}", ran.combined());
+    let ran = simctl(
+        &fake,
+        &[
+            ("DX_SIMCTL_OP", "boot"),
+            ("DX_SIMCTL_DEVICE", "iPhone 16"),
+            ("FAKE_LIST_EXIT", "5"),
+        ],
+    );
+    assert_eq!(ran.status.code(), Some(5), "{}", ran.combined());
+}
+
+#[test]
+fn a_reused_simulator_is_refused() {
+    let fake = Fake::new("apple-reuse");
+    let mut envs = create_env().to_vec();
+    envs.push(("SIMULATOR_REUSE_SIMULATOR", "1"));
+    let ran = create(&fake, &envs);
+    fails(
+        &ran,
+        2,
+        "dx-apple-test-simulator: test simulators are never reused; SIMULATOR_REUSE_SIMULATOR must be unset",
+    );
+    assert!(!fake.log().contains("create"), "{}", fake.log());
+}
+
+#[test]
+fn a_failed_delete_does_not_fail_the_test() {
+    let fake = Fake::new("apple-delete-fail");
+    let ran = fake_run(
+        &fake,
+        "DX_DELETE_TEST_SIMULATOR",
+        &[("SIMULATOR_UDID", CREATED), ("FAKE_DELETE_EXIT", "1")],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert!(
+        ran.stderr
+            .contains("dx-apple-test-simulator: warning: could not delete simulator"),
+        "{}",
+        ran.combined()
+    );
+}
+
+#[test]
+fn a_simulator_left_by_a_dead_run_is_swept() {
+    let fake = Fake::new("apple-sweep");
+    let pgid = own_pgid();
+    std::fs::write(
+        fake.root.join("devices.txt"),
+        format!(
+            "== Devices ==
+-- iOS 18.5 --
+    dx iPhone 16 iOS 18.5 pgid 999999999 (AAAAAAAA-1111-4111-8111-AAAAAAAAAAAA) (Booted)
+    dx iPhone 16 iOS 18.5 pgid {pgid} (BBBBBBBB-2222-4222-8222-BBBBBBBBBBBB) (Booted)
+    dx notes (CCCCCCCC-3333-4333-8333-CCCCCCCCCCCC) (Shutdown)
+    dx iPhone 16 iOS 18.5 pgid 12x (DDDDDDDD-4444-4444-8444-DDDDDDDDDDDD) (Shutdown)
+"
+        ),
+    )
+    .unwrap_or_else(|error| panic!("write: {error}"));
+    let ran = create(&fake, &create_env());
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert_eq!(
+        fake.log(),
+        format!(
+            "simctl list runtimes available\nsimctl list devices available\nsimctl shutdown AAAAAAAA-1111-4111-8111-AAAAAAAAAAAA\nsimctl delete AAAAAAAA-1111-4111-8111-AAAAAAAAAAAA\nsimctl create dx iPhone 16 iOS 18.5 pgid {pgid} iPhone 16 com.apple.CoreSimulator.SimRuntime.iOS-18-5\nsimctl bootstatus {CREATED} -b\n"
+        )
+    );
+}
+
+#[test]
+fn a_failed_sweep_still_creates() {
+    let fake = Fake::new("apple-sweep-fail");
+    let mut envs = create_env().to_vec();
+    envs.push(("FAKE_DEVICES_EXIT", "7"));
+    let ran = create(&fake, &envs);
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert_eq!(ran.stdout, format!("{CREATED}\n"), "{}", ran.combined());
+    assert!(
+        fake.log().contains("simctl create dx iPhone 16"),
+        "{}",
+        fake.log()
+    );
 }

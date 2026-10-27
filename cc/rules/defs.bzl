@@ -1,12 +1,11 @@
-"""Minimal C/C++ wrappers."""
+"""Minimal C, C++ and Objective-C wrappers."""
 
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_library", _cc_test = "cc_test")
+load("@rules_cc//cc:objc_library.bzl", _objc_library = "objc_library")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
-
-_CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
-_CC_HDRS = [".h", ".hh", ".hpp", ".hxx"]
+load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_test_coverage", "dx_wrap", "dx_wrap_test")
+load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
 _DX_CC_LIBRARY_PROVIDES = [
     CcInfo,
@@ -15,24 +14,42 @@ _DX_CC_LIBRARY_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_DX_CC_SOURCE_SPECS = [
-    ("c", ["c", "h"]),
-    ("cpp", ["cc", "cpp", "cxx", "hh", "hpp", "hxx"]),
-]
+_DX_CC_SOURCE_SPECS = [(k, UPSTREAM_CC_CLASS_EXTENSIONS[k]) for k in ("c", "cpp")]
+
+_DX_OBJC_SOURCE_SPECS = [(k, UPSTREAM_CC_CLASS_EXTENSIONS[k]) for k in ("c", "cpp", "objc", "objcpp")]
 
 _cc_library_forward = dx_library_forward_rule(
     provides = _DX_CC_LIBRARY_PROVIDES,
     required_providers = [(CcInfo, "CcInfo")],
     quality_specs = _DX_CC_SOURCE_SPECS,
     what = "cc_*",
-    allow_files = _CC_SRCS,
+    allow_files = True,
     upstream_providers = [[CcInfo]],
     extra_attrs = {
         "hdrs": attr.label_list(
-            allow_files = _CC_HDRS,
+            allow_files = True,
         ),
     },
     extra_quality_attrs = ["hdrs"],
+)
+
+_objc_library_forward = dx_library_forward_rule(
+    provides = [CcInfo, ObjcInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    required_providers = [(CcInfo, "CcInfo"), (ObjcInfo, "ObjcInfo")],
+    quality_specs = _DX_OBJC_SOURCE_SPECS,
+    what = "objc_library",
+    allow_files = True,
+    upstream_providers = [[CcInfo, ObjcInfo]],
+    extra_attrs = {
+        "hdrs": attr.label_list(
+            allow_files = True,
+        ),
+        "non_arc_srcs": attr.label_list(
+            allow_files = True,
+        ),
+    },
+    extra_quality_attrs = ["hdrs", "non_arc_srcs"],
+    runtime = "mandatory",
 )
 
 _cc_binary_forward = dx_executable_forward_rule(
@@ -41,10 +58,31 @@ _cc_binary_forward = dx_executable_forward_rule(
     required_providers = [],
     quality_specs = _DX_CC_SOURCE_SPECS,
     what = "cc_*",
-    allow_files = _CC_SRCS,
+    allow_files = True,
     upstream_providers = [[CcInfo]],
     optional_providers = [CcInfo],
     runtime = "besteffort",
+)
+
+_LLVM_COVERAGE_FEATURES = ["llvm_coverage_map_format", "-gcc_coverage_map_format"]
+
+def cc_coverage_features(features, collect_code_coverage):
+    """Returns the features a cc_test builds with: LLVM coverage maps only under coverage."""
+    if not collect_code_coverage:
+        return features
+    return features + [f for f in _LLVM_COVERAGE_FEATURES if f not in features]
+
+def _cc_coverage_transition_impl(settings, _attr):
+    features = cc_coverage_features(
+        settings["//command_line_option:features"],
+        settings["//command_line_option:collect_code_coverage"],
+    )
+    return {"//command_line_option:features": features}
+
+_cc_coverage_transition = transition(
+    implementation = _cc_coverage_transition_impl,
+    inputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage"],
+    outputs = ["//command_line_option:features"],
 )
 
 _cc_forward_test = dx_executable_forward_rule(
@@ -53,10 +91,12 @@ _cc_forward_test = dx_executable_forward_rule(
     required_providers = [],
     quality_specs = _DX_CC_SOURCE_SPECS,
     what = "cc_*",
-    allow_files = _CC_SRCS,
+    allow_files = True,
     upstream_providers = [[CcInfo]],
-    extra_attrs = dx_lcov_merger_attr(),
+    extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs(),
     optional_providers = [CcInfo],
+    upstream_cfg = _cc_coverage_transition,
+    coverage_providers = dx_native_test_coverage,
 )
 
 def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
@@ -65,9 +105,16 @@ def cc_library(name, srcs = None, hdrs = None, visibility = None, **kwargs):
     effective_hdrs = hdrs if hdrs != None else []
     dx_wrap(name, _cc_library, _cc_library_forward, effective_srcs, visibility = visibility, hdrs = effective_hdrs, extra_forward_kwargs = {"hdrs": effective_hdrs}, **kwargs)
 
+def objc_library(name, srcs = None, hdrs = None, non_arc_srcs = None, visibility = None, **kwargs):
+    """Minimal wrapper over objc_library."""
+    effective_srcs = srcs if srcs != None else []
+    effective_hdrs = hdrs if hdrs != None else []
+    effective_non_arc_srcs = non_arc_srcs if non_arc_srcs != None else []
+    dx_wrap(name, _objc_library, _objc_library_forward, effective_srcs, visibility = visibility, hdrs = effective_hdrs, non_arc_srcs = effective_non_arc_srcs, extra_forward_kwargs = {"hdrs": effective_hdrs, "non_arc_srcs": effective_non_arc_srcs}, **kwargs)
+
 def cc_binary(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over cc_binary."""
-    dx_wrap(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, **kwargs)
+    dx_wrap(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, executable = True, **kwargs)
 
 def cc_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over cc_test."""

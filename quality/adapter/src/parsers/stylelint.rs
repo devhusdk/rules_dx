@@ -111,7 +111,7 @@ pub fn parse_stylelint(
                     start,
                     end,
                     suggestions: Vec::new(),
-                    encoding: ColumnEncoding::Scalars,
+                    encoding: ColumnEncoding::Utf16,
                     related: Vec::new(),
                 },
             });
@@ -158,5 +158,19 @@ mod tests {
             .expect_err("invalid options");
         assert!(error.to_string().contains("Invalid option"), "{error}");
         assert!(parse_stylelint(CLEAN.as_bytes(), Some(0), &["style.css", "other.css"]).is_err());
+    }
+
+    #[test]
+    fn stylelint_columns_are_utf16_after_astral_characters() {
+        let source = "a { content: \"\u{1f600}\"; color: #ffg; }\n";
+        let report = r#"[{"source":"/s/a.css","warnings":[{"line":1,"column":27,"rule":"color-no-invalid-hex","text":"m","severity":"error"}]}]"#;
+        let findings = parse_stylelint(report.as_bytes(), Some(2), &["/s/a.css"]).expect("parsed");
+        let placed = crate::place_finding(&findings[0].finding, "a.css", source).expect("placed");
+        assert_eq!(placed.start_byte, Some(28));
+        let end = "x\u{1f600}\n";
+        let report = r#"[{"source":"/s/a.css","warnings":[{"line":1,"column":4,"rule":"r","text":"m","severity":"error"}]}]"#;
+        let findings = parse_stylelint(report.as_bytes(), Some(2), &["/s/a.css"]).expect("parsed");
+        let placed = crate::place_finding(&findings[0].finding, "a.css", end).expect("placed");
+        assert_eq!(placed.start_byte, Some(5));
     }
 }

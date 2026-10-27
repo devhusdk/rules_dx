@@ -3,18 +3,16 @@ load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//quality:aspect_subject.bzl", "aspect_subject")
-load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
-load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "ruff_config", "rustfmt_config", "scalafix_config", "scalafmt_config", "vale_config")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "pmd_config", "ruff_config", "rustfmt_config", "scalafix_config", "scalafmt_config", "vale_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
-load(":aspect_tests.bzl", "aspect_fixture_tests")
 load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes", "windows_failure_test")
-load(":real_aspect_subject.bzl", "real_aspect_subject")
-load(":real_aspect_tests.bzl", "real_aspect_fixture_tests")
+load(":real_aspect_subject.bzl", "real_aspect_subject", "real_shard_probe_subject")
+load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_shard_probe_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
@@ -22,32 +20,6 @@ load(":tool_override_tests.bzl", "elixir_subject", "erlang_subject", "erlfmt_fla
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
 
 package(default_visibility = VIS_QUALITY)
-
-quality_source_target(
-    name = "fixture_rust",
-    rust_srcs = ["clean.rs"],
-)
-
-quality_source_target(
-    name = "fixture_python",
-    aspect_hints = [":ruff_cfg"],
-    python_srcs = ["clean.py"],
-)
-
-quality_source_target(
-    name = "fixture_mixed_clean",
-    aspect_hints = [":ruff_cfg"],
-    python_srcs = ["clean.py"],
-    rust_srcs = ["clean.rs"],
-)
-
-quality_source_target(
-    name = "fixture_no_lint",
-    aspect_hints = [":ruff_cfg"],
-    python_srcs = ["clean.py"],
-    rust_srcs = ["clean.rs"],
-    tags = ["no-lint"],
-)
 
 filegroup(
     name = "plain",
@@ -71,42 +43,6 @@ exports_files(
         "//quality:__pkg__",
         "//quality:__subpackages__",
         "//tools/ci:__pkg__",
-    ],
-)
-
-aspect_subject(
-    name = "fixture_rust_subject",
-    target = ":fixture_rust",
-)
-
-aspect_subject(
-    name = "fixture_python_subject",
-    target = ":fixture_python",
-)
-
-aspect_subject(
-    name = "fixture_mixed_clean_subject",
-    target = ":fixture_mixed_clean",
-)
-
-aspect_subject(
-    name = "fixture_no_lint_subject",
-    target = ":fixture_no_lint",
-)
-
-aspect_subject(
-    name = "plain_subject",
-    target = ":plain",
-)
-
-aspect_fixture_tests(
-    name = "aspect_presence",
-    subjects = [
-        ":fixture_mixed_clean_subject",
-        ":fixture_no_lint_subject",
-        ":fixture_python_subject",
-        ":fixture_rust_subject",
-        ":plain_subject",
     ],
 )
 
@@ -775,7 +711,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_javascript_no_config_test",
-    expected_failure_substring = "applicable Biome requires declared config",
+    expected_failure_substring = "Biome needs a config. Declare biome_config(",
     target = ":fixture_real_javascript_no_config_subject",
 )
 
@@ -889,7 +825,10 @@ real_source_target(
 
 real_source_target(
     name = "fixture_real_java_hinted",
-    aspect_hints = [":checkstyle_cfg"],
+    aspect_hints = [
+        ":checkstyle_cfg",
+        ":pmd_cfg",
+    ],
     java_srcs = ["real_clean.java"],
 )
 
@@ -932,6 +871,11 @@ checkstyle_config(
     src = "checkstyle_cfg/checkstyle.xml",
 )
 
+pmd_config(
+    name = "pmd_cfg",
+    src = "pmd_cfg/pmd.xml",
+)
+
 real_aspect_subject(
     name = "fixture_real_java_subject",
     tags = ["manual"],
@@ -967,7 +911,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_scala_no_config_test",
-    expected_failure_substring = "applicable Scalafmt requires declared config",
+    expected_failure_substring = "Scalafmt needs a config. Declare scalafmt_config(",
     target = ":fixture_real_scala_no_config_subject",
 )
 
@@ -978,7 +922,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_java_no_config_test",
-    expected_failure_substring = "applicable Checkstyle requires declared config",
+    expected_failure_substring = "Checkstyle needs a config. Declare checkstyle_config(",
     target = ":fixture_real_java_subject",
 )
 
@@ -990,7 +934,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_markdown_no_config_test",
-    expected_failure_substring = "applicable Vale requires declared config",
+    expected_failure_substring = "Vale needs a config. Declare vale_config(",
     target = ":fixture_real_markdown_no_config_subject",
 )
 
@@ -1002,7 +946,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_starlark_no_config_test",
-    expected_failure_substring = "applicable Buildifier requires declared config",
+    expected_failure_substring = "Buildifier needs a config. Declare buildifier_config(",
     target = ":fixture_real_starlark_no_config_subject",
 )
 
@@ -1014,7 +958,7 @@ real_aspect_subject(
 
 failure_test(
     name = "fixture_real_python_no_config_test",
-    expected_failure_substring = "applicable Ruff requires declared config",
+    expected_failure_substring = "Ruff needs a config. Declare ruff_config(",
     target = ":fixture_real_python_no_config_subject",
 )
 
@@ -1056,6 +1000,129 @@ real_aspect_fixture_tests(
         ":fixture_upstream_rust_subject",
         ":fixture_wrapped_cc_no_format_upstream_subject",
         ":real_plain_subject",
+    ],
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_cc_probe_subject",
+    format_probe = ":fixture_real_cc",
+    lint_probe = ":fixture_real_cc",
+    target = ":fixture_real_cc",
+    typecheck_probe = ":fixture_real_cc",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_graphql_probe_subject",
+    format_probe = ":fixture_real_graphql",
+    lint_probe = ":fixture_real_graphql",
+    target = ":fixture_real_graphql",
+    typecheck_probe = ":fixture_real_graphql",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_java_hinted_probe_subject",
+    format_probe = ":fixture_real_java_hinted",
+    lint_probe = ":fixture_real_java_hinted",
+    target = ":fixture_real_java_hinted",
+    typecheck_probe = ":fixture_real_java_hinted",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_mixed_probe_subject",
+    format_probe = ":fixture_real_mixed",
+    lint_probe = ":fixture_real_mixed",
+    target = ":fixture_real_mixed",
+    typecheck_probe = ":fixture_real_mixed",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_no_format_probe_subject",
+    format_probe = ":fixture_real_no_format",
+    lint_probe = ":fixture_real_no_format",
+    target = ":fixture_real_no_format",
+    typecheck_probe = ":fixture_real_no_format",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_python_probe_subject",
+    format_probe = ":fixture_real_python",
+    lint_probe = ":fixture_real_python",
+    target = ":fixture_real_python",
+    typecheck_probe = ":fixture_real_python",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_rust_probe_subject",
+    format_probe = ":fixture_real_rust",
+    lint_probe = ":fixture_real_rust",
+    target = ":fixture_real_rust",
+    typecheck_probe = ":fixture_real_rust",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_scala_probe_subject",
+    format_probe = ":fixture_real_scala",
+    lint_probe = ":fixture_real_scala",
+    target = ":fixture_real_scala",
+    typecheck_probe = ":fixture_real_scala",
+)
+
+real_shard_probe_subject(
+    name = "fixture_real_shell_probe_subject",
+    format_probe = ":fixture_real_shell",
+    lint_probe = ":fixture_real_shell",
+    target = ":fixture_real_shell",
+    typecheck_probe = ":fixture_real_shell",
+)
+
+real_shard_probe_subject(
+    name = "fixture_upstream_cc_probe_subject",
+    format_probe = ":fixture_upstream_cc",
+    lint_probe = ":fixture_upstream_cc",
+    target = ":fixture_upstream_cc",
+    typecheck_probe = ":fixture_upstream_cc",
+)
+
+real_shard_probe_subject(
+    name = "fixture_upstream_rust_probe_subject",
+    format_probe = ":fixture_upstream_rust",
+    lint_probe = ":fixture_upstream_rust",
+    target = ":fixture_upstream_rust",
+    typecheck_probe = ":fixture_upstream_rust",
+)
+
+real_shard_probe_subject(
+    name = "fixture_wrapped_cc_no_format_upstream_probe_subject",
+    format_probe = ":fixture_wrapped_cc_no_format_upstream",
+    lint_probe = ":fixture_wrapped_cc_no_format_upstream",
+    target = ":fixture_wrapped_cc_no_format_upstream",
+    typecheck_probe = ":fixture_wrapped_cc_no_format_upstream",
+)
+
+real_shard_probe_subject(
+    name = "plain_probe_subject",
+    format_probe = ":plain",
+    lint_probe = ":plain",
+    target = ":plain",
+    typecheck_probe = ":plain",
+)
+
+real_shard_probe_tests(
+    name = "real_shard_probe",
+    subjects = [
+        ":fixture_real_cc_probe_subject",
+        ":fixture_real_graphql_probe_subject",
+        ":fixture_real_java_hinted_probe_subject",
+        ":fixture_real_mixed_probe_subject",
+        ":fixture_real_no_format_probe_subject",
+        ":fixture_real_python_probe_subject",
+        ":fixture_real_rust_probe_subject",
+        ":fixture_real_scala_probe_subject",
+        ":fixture_real_shell_probe_subject",
+        ":fixture_upstream_cc_probe_subject",
+        ":fixture_upstream_rust_probe_subject",
+        ":fixture_wrapped_cc_no_format_upstream_probe_subject",
+        ":plain_probe_subject",
     ],
 )
 
@@ -1307,9 +1374,7 @@ runner_matrix_cases(name = "runner_matrix")
 _FAKE_FORMAT_TOOLS = [
     "csharpier",
     "fantomas",
-    "gofumpt",
     "modfmt",
-    "pkl",
     "prettier_file_family",
     "standardrb",
 ]

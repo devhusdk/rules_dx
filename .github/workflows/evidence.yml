@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: "Space-separated Bazel target patterns; each must start with // (e.g. //cli/cli/...)."
+        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target."
         required: true
       task:
         description: "One of test or build."
@@ -44,6 +44,7 @@ jobs:
       runners: ${{ steps.inputs.outputs.runners }}
       scope: ${{ steps.inputs.outputs.scope }}
       task: ${{ steps.inputs.outputs.task }}
+      test_timeout: ${{ steps.inputs.outputs.test_timeout }}
     steps:
       - name: Validate workflow inputs
         id: inputs
@@ -52,34 +53,54 @@ jobs:
           DX_TASK: ${{ inputs.task }}
           DX_PLATFORMS: ${{ inputs.platforms }}
           DX_DISPLAYS: ${{ inputs.displays }}
+          DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
         run: |
           python3 - <<'DX_EVIDENCE_INPUTS'
           """Reads the dispatch inputs, rejects a bad one naming the accepted values."""
           import json
           import os
+          import re
           import sys
 
           PLATFORMS = {
               "linux_x86_64": "ubuntu-latest",
               "linux_arm64": "ubuntu-24.04-arm",
-              "macos_arm64": "macos-14",
+              "macos_arm64": "macos-15",
               "windows_x86_64": "windows-latest",
               "windows_arm64": "windows-11-arm",
           }
           TASKS = ("test", "build")
           DISPLAYS = ("", "xcb", "wayland", "xcb,wayland", "wayland,xcb")
+          PATTERN = re.compile(r"//[A-Za-z0-9_.+@=,~/-]*(?::(?:\*|[A-Za-z0-9_.+@=,~/-]+))?")
+          TIMEOUT = re.compile(r"[0-9]+")
 
           def fail(message):
               print(f"evidence input rejected: {message}")
               return 1
+
+          def json_type(value):
+              if value is None:
+                  return "null"
+              if isinstance(value, bool):
+                  return "boolean"
+              if isinstance(value, (int, float)):
+                  return "number"
+              if isinstance(value, str):
+                  return "string"
+              if isinstance(value, list):
+                  return "array"
+              return "object"
 
           def main():
               patterns = os.environ.get("DX_SCOPE", "").split()
               if not patterns:
                   return fail("scope must name at least one target pattern")
               for pattern in patterns:
-                  if not pattern.startswith("//"):
-                      return fail(f"scope pattern must start with //, got {pattern!r}")
+                  if PATTERN.fullmatch(pattern) is None:
+                      return fail(
+                          f"scope holds {pattern!r}, which is not a target pattern; "
+                          "write patterns such as //pkg/... or //pkg:target"
+                      )
               scope = " ".join(patterns)
               task = os.environ.get("DX_TASK", "")
               if task not in TASKS:
@@ -88,19 +109,31 @@ jobs:
                   platforms = json.loads(os.environ.get("DX_PLATFORMS", ""))
               except ValueError:
                   return fail("platforms must be a JSON array")
-              if not isinstance(platforms, list) or not platforms:
+              if not isinstance(platforms, list):
+                  return fail(f"platforms must be a JSON array, got a JSON {json_type(platforms)}")
+              if not platforms:
                   return fail("platforms must be a non-empty JSON array")
+              for platform in platforms:
+                  if not isinstance(platform, str):
+                      return fail(f"platforms must hold strings, got a JSON {json_type(platform)}")
               unknown = [p for p in platforms if p not in PLATFORMS]
               if unknown:
                   return fail(f"unknown platforms {unknown}; accepted {sorted(PLATFORMS)}")
+              for platform in platforms:
+                  if platforms.count(platform) > 1:
+                      return fail(f"platforms lists {platform!r} twice; list each platform once")
               displays = os.environ.get("DX_DISPLAYS", "")
               if displays not in DISPLAYS:
                   return fail(f"displays must be one of {list(DISPLAYS[1:])}, got {displays!r}")
+              test_timeout = os.environ.get("DX_TEST_TIMEOUT", "")
+              if TIMEOUT.fullmatch(test_timeout) is None:
+                  return fail(f"test_timeout must be whole seconds, got {test_timeout!r}")
               with open(os.environ["GITHUB_OUTPUT"], "a") as handle:
                   handle.write(f"scope={scope}\n")
                   handle.write(f"task={task}\n")
                   handle.write(f"platforms={json.dumps(platforms)}\n")
                   handle.write(f"runners={json.dumps(PLATFORMS)}\n")
+                  handle.write(f"test_timeout={test_timeout}\n")
               print(f"evidence inputs accepted: {task} {scope} on {platforms}")
               return 0
 
@@ -142,8 +175,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-ci-preflight-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-ci-preflight-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Start virtual displays
         if: ${{ inputs.displays != '' && startsWith(matrix.platform, 'linux') }}
         env:
@@ -183,12 +216,9 @@ jobs:
         env:
           DX_SCOPE: ${{ needs.validate.outputs.scope }}
           DX_TASK: ${{ needs.validate.outputs.task }}
-          DX_TEST_TIMEOUT: ${{ inputs.test_timeout }}
+          DX_TEST_TIMEOUT: ${{ needs.validate.outputs.test_timeout }}
         run: |
           set -o pipefail
-          case "$DX_TEST_TIMEOUT" in
-            ''|*[!0-9]*) echo "test_timeout must be a number of seconds, got '$DX_TEST_TIMEOUT'"; exit 1 ;;
-          esac
           read -ra patterns <<< "$DX_SCOPE"
           if [ "$DX_TASK" = "build" ]; then
             bazel build --noshow_progress "${patterns[@]}" 2>&1 | tee evidence.log
@@ -204,12 +234,16 @@ jobs:
       - name: Write job summary
         if: always()
         env:
+          DX_PLATFORM: ${{ matrix.platform }}
+          DX_TASK: ${{ needs.validate.outputs.task }}
           DX_SCOPE: ${{ needs.validate.outputs.scope }}
+          DX_DISPLAYS: ${{ inputs.displays }}
         run: |
           {
-            echo "## Evidence ${{ matrix.platform }}"
-            echo ""
-            echo "Task \`${{ needs.validate.outputs.task }}\` on \`$DX_SCOPE\`."
-            echo "Commit \`${{ github.sha }}\`, displays \`${{ inputs.displays }}\`."
-            tail -n 20 evidence.log
+            printf '## Evidence %s\n\n' "$DX_PLATFORM"
+            printf "Task \`%s\` on \`%s\`.\n" "$DX_TASK" "$DX_SCOPE"
+            printf "Commit \`%s\`, displays \`%s\`.\n" "$GITHUB_SHA" "$DX_DISPLAYS"
+            if [ -f evidence.log ]; then
+              tail -n 20 evidence.log
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

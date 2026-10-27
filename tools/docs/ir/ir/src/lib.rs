@@ -58,6 +58,9 @@ pub enum Error {
         id: String,
         alias: String,
     },
+    UnsafeDisplayName {
+        id: String,
+    },
 }
 
 pub fn source_path_reason(file: &str) -> Option<&'static str> {
@@ -98,6 +101,11 @@ pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
 fn validate_symbol(symbol: &Symbol, index: usize, prefix: &str) -> Result<(), Error> {
     if symbol.id.is_empty() {
         return Err(Error::EmptySymbolId { index });
+    }
+    if symbol.display_name.chars().any(char::is_control) {
+        return Err(Error::UnsafeDisplayName {
+            id: symbol.id.clone(),
+        });
     }
     if let Some(source) = symbol.source.as_ref() {
         if let Some(reason) = source_path_reason(&source.file) {
@@ -207,7 +215,36 @@ mod tests {
                     reexported_as: vec!["python:mylib:create".to_owned()],
                 }),
                 extensions: vec![],
+                display_name: String::new(),
             }],
+        }
+    }
+
+    #[test]
+    fn a_display_name_roundtrips_and_may_be_empty() {
+        let mut shard = example_shard();
+        shard.symbols[0].display_name = "AccountService#create?".to_owned();
+        let bytes = encode_shard(&shard).unwrap();
+        assert_eq!(decode_shard(&bytes).unwrap(), shard);
+        assert_eq!(encode_shard(&shard).unwrap(), bytes);
+        assert_eq!(example_shard().symbols[0].display_name, "");
+        assert!(encode_shard(&example_shard()).is_ok());
+    }
+
+    #[test]
+    fn a_display_name_with_a_control_character_is_rejected() {
+        for bad in ["Account\nService", "Account\u{7}", "\r", "tab\there"] {
+            let mut shard = example_shard();
+            shard.symbols[0].display_name = bad.to_owned();
+            let expected = Error::UnsafeDisplayName {
+                id: "python:mylib:AccountService.create".to_owned(),
+            };
+            assert_eq!(encode_shard(&shard), Err(expected.clone()), "{bad:?}");
+            assert_eq!(
+                decode_shard(&shard.encode_to_vec()),
+                Err(expected),
+                "{bad:?}"
+            );
         }
     }
 
@@ -217,6 +254,18 @@ mod tests {
         let bytes = encode_shard(&shard).unwrap();
         assert_eq!(decode_shard(&bytes).unwrap(), shard);
         assert_eq!(encode_shard(&shard).unwrap(), bytes);
+    }
+
+    #[test]
+    fn a_variable_symbol_roundtrips() {
+        let mut shard = example_shard();
+        shard.symbols[0].kind = SymbolKind::Variable as i32;
+        shard.symbols[0].relations = None;
+        let bytes = encode_shard(&shard).unwrap();
+        let decoded = decode_shard(&bytes).unwrap();
+        assert_eq!(decoded.symbols[0].kind(), SymbolKind::Variable);
+        assert_eq!(SymbolKind::Variable as i32, 13);
+        assert_eq!(decoded, shard);
     }
 
     #[test]

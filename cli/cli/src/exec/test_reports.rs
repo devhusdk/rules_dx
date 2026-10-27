@@ -5,16 +5,17 @@ use crate::args::Invocation;
 use crate::plan::WorkflowVerb;
 use crate::reports::{
     coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
-    JunitCase, JunitMessage, PlannedReport,
+    Destination, JunitCase, JunitMessage, PlannedReport, ReportError,
 };
 use crate::resolve::QueryRunner;
 use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
     TestResultRecord,
 };
+use dx_lcov::{parse_source_manifest, SourceManifest, SOURCES_OUTPUT_GROUP};
 use dx_output::{
-    command_finished, report_event, test_outcome_event, test_result_record, write_event,
-    FinishedCounts, OutputMode, TestCase, TestOutcome,
+    command_finished, notice_event, report_event, test_outcome_event, test_result_record,
+    FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
 };
 use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
@@ -134,7 +135,7 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) planned_reports: &'a [PlannedReport],
     pub(crate) failure_reports: &'a [PlannedReport],
     pub(crate) results_reports: &'a [PlannedReport],
-    pub(crate) results_default: bool,
+    pub(crate) run_id: &'a str,
     pub(crate) stdout_report: bool,
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
@@ -154,7 +155,7 @@ fn output_locations(
     if verb != WorkflowVerb::Coverage {
         argv.push(invocation.profile().config_flag());
     }
-    argv.extend(invocation.bazel_options.iter().cloned());
+    argv.extend(invocation.raw_bazel_options().iter().cloned());
     argv.push("bazel-testlogs".to_owned());
     argv.push("execution_root".to_owned());
     argv.push("output_path".to_owned());
@@ -220,7 +221,8 @@ const LOG_TAIL_LINES: usize = 40;
 
 const LOG_TAIL_BYTES: usize = 8192;
 
-/// The last lines of a test log, cut to a bounded size on a line boundary.
+/// The last `LOG_TAIL_LINES` lines of a test log. When those exceed `LOG_TAIL_BYTES`, the oldest
+/// whole lines are dropped; a single oversize line is cut at a char boundary instead.
 fn log_tail(bytes: &[u8]) -> Option<String> {
     let text = String::from_utf8_lossy(bytes);
     let lines: Vec<&str> = text.lines().collect();
@@ -231,9 +233,50 @@ fn log_tail(bytes: &[u8]) -> Option<String> {
         while !tail.is_char_boundary(from) {
             from += 1;
         }
-        tail = tail[from..].to_owned();
+        let at_line_start = tail.as_bytes()[from - 1] == b'\n';
+        let window = &tail[from..];
+        tail = match window.split_once('\n') {
+            _ if at_line_start => window.to_owned(),
+            Some((_, rest)) => rest.to_owned(),
+            None => window.to_owned(),
+        };
     }
     (!tail.trim().is_empty()).then_some(tail)
+}
+
+/// Adds one parsed test.xml's cases to the outcome's counts and bounded case list.
+fn tally_cases(outcome: &mut TestOutcome, cases: &[JunitCase], cases_seen: &mut Vec<TestCase>) {
+    outcome.cases_total = Some(outcome.cases_total.unwrap_or(0) + cases.len() as u64);
+    for case in cases {
+        if case.failure.is_some() {
+            outcome.cases_failed = Some(outcome.cases_failed.unwrap_or(0) + 1);
+        }
+        if case.error.is_some() {
+            outcome.cases_error = Some(outcome.cases_error.unwrap_or(0) + 1);
+        }
+        if case.skipped.is_some() {
+            outcome.cases_skipped = Some(outcome.cases_skipped.unwrap_or(0) + 1);
+        }
+        if cases_seen.len() < CASE_EVENT_LIMIT || case.failure.is_some() || case.error.is_some() {
+            cases_seen.push(test_case(case));
+        } else {
+            outcome.cases_omitted += 1;
+        }
+    }
+}
+
+/// Points a result that did not pass at its test.log and keeps the log's tail.
+fn attach_log(outcome: &mut TestOutcome, result: &TestResultRecord, reader: &dyn ArtifactReader) {
+    if outcome.outcome == "passed" {
+        return;
+    }
+    if let Some(log) = result.files.iter().find(|file| file.name == "test.log") {
+        outcome.log_path = Some(log.exec_path.to_string_lossy().into_owned());
+        outcome.log_tail = reader
+            .read_artifact(&log.exec_path)
+            .ok()
+            .and_then(|bytes| log_tail(&bytes));
+    }
 }
 
 /// Counts every missing or invalid piece of required evidence and keeps the first one.
@@ -388,24 +431,698 @@ fn account_stream(events: &TestEvents, evidence: &mut Evidence, reported: &mut V
             ..TestOutcome::default()
         });
     }
+    for target in &events.filtered {
+        reported.push(TestOutcome {
+            target: target.label.clone(),
+            configuration: target.configuration.clone(),
+            outcome: "filtered".to_owned(),
+            evidence_complete: true,
+            ..TestOutcome::default()
+        });
+    }
     if !events.ended {
         evidence.record("build events ended before Bazel's last event".to_owned());
     }
 }
 
+const FILTERED_LABELS_SHOWN: usize = 3;
+
+fn filtered_notice(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    filtered: &[dx_bep::UnbuiltTest],
+) -> Result<(), i32> {
+    if filtered.is_empty() {
+        return Ok(());
+    }
+    let labels: Vec<&str> = filtered
+        .iter()
+        .take(FILTERED_LABELS_SHOWN)
+        .map(|target| target.label.as_str())
+        .collect();
+    let more = filtered.len().saturating_sub(labels.len());
+    let mut message = format!(
+        "{} {} did not run: a test filter removed {}",
+        filtered.len(),
+        if filtered.len() == 1 { "test" } else { "tests" },
+        labels.join(", ")
+    );
+    if more > 0 {
+        message.push_str(&format!(" and {more} more"));
+    }
+    match output {
+        OutputMode::Json => {
+            emit_built(
+                out,
+                notice_event(&NoticeEvent::info("tests_filtered", message)),
+            )?;
+        }
+        OutputMode::Text { .. } => {
+            let _ = writeln!(err, "dx: tests_filtered: {message}");
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 /// The results report: every outcome of the run, passed ones included.
-fn results_document(reported: &[TestOutcome], complete: bool, bazel_code: i32) -> String {
+fn results_document(
+    reported: &[TestOutcome],
+    complete: bool,
+    bazel_code: i32,
+    run_id: &str,
+) -> String {
     let results: Vec<serde_json::Value> = reported
         .iter()
         .filter_map(|outcome| test_result_record(outcome).ok())
         .collect();
     let document = serde_json::json!({
         "record_version": 1,
+        "run_id": run_id,
         "exit_code": bazel_code,
         "complete": complete,
         "results": results,
     });
     serde_json::to_string_pretty(&document).unwrap_or_default()
+}
+
+/// `testSummary` overall statuses keyed by target and configuration.
+type Summaries<'a> = BTreeMap<(&'a str, Option<&'a str>), &'a str>;
+
+/// The outcome of one test result before any of its artifacts are read.
+fn outcome_for(result: &TestResultRecord, summaries: &Summaries) -> TestOutcome {
+    let summary = summaries
+        .get(&(result.label.as_str(), result.configuration.as_deref()))
+        .copied();
+    TestOutcome {
+        target: result.label.clone(),
+        configuration: result.configuration.clone(),
+        outcome: result_outcome(result.status.as_deref(), summary),
+        status: result.status.clone(),
+        cached: result.cached_locally,
+        run: Some(result.run),
+        shard: Some(result.shard),
+        attempt: Some(result.attempt),
+        duration_millis: result.duration_millis,
+        ..TestOutcome::default()
+    }
+}
+
+/// Reads one result artifact, or counts it missing and records why.
+fn read_or_record(
+    reader: &dyn ArtifactReader,
+    file: &TestResultFile,
+    where_: &str,
+    outcome: &mut TestOutcome,
+    evidence: &mut Evidence,
+) -> Option<Vec<u8>> {
+    match reader.read_artifact(&file.exec_path) {
+        Ok(bytes) => Some(bytes),
+        Err(error) => {
+            outcome.artifacts_missing += 1;
+            evidence.record(format!(
+                "unreadable {where_} at {}: {error}",
+                stable_exec_path(&file.exec_path)
+            ));
+            None
+        }
+    }
+}
+
+/// Parses one result's test.xml and stamps each case with the result's run and configuration.
+fn parse_cases(result: &TestResultRecord, bytes: &[u8]) -> Result<Vec<JunitCase>, ReportError> {
+    let shard = result.shard.saturating_sub(1);
+    let attempt = result.attempt.saturating_sub(1);
+    let mut cases = parse_test_xml(bytes, shard, attempt)?;
+    for case in &mut cases {
+        case.run = result.run.saturating_sub(1);
+        case.configuration = result.configuration.clone();
+    }
+    Ok(cases)
+}
+
+/// Why the results are incomplete: no artifacts at all, or any missing or invalid evidence.
+fn evidence_gap(empty: bool, evidence: &Evidence, missing_text: &str) -> Option<String> {
+    if empty {
+        Some(if evidence.first.is_empty() {
+            missing_text.to_owned()
+        } else {
+            evidence.first.clone()
+        })
+    } else if evidence.count > 0 {
+        Some(unusable_detail(evidence.count, &evidence.first))
+    } else {
+        None
+    }
+}
+
+/// The aspect that writes coverage source manifests, as the build events name it.
+const SOURCES_ASPECT_SUFFIX: &str = "coverage_sources.bzl%dx_coverage_sources_aspect";
+
+/// The coverage source manifests a run reported, and every problem that left one missing.
+#[derive(Default)]
+struct Sources {
+    manifests: Vec<SourceManifest>,
+    missing: Vec<String>,
+    invalid: Vec<String>,
+}
+
+/// Reads the coverage source manifests from the run's build events.
+fn collect_sources(bep: &Path, workspace: &Path) -> Sources {
+    let mut sources = Sources::default();
+    let account = match collect_output_account(bep, SOURCES_OUTPUT_GROUP, workspace) {
+        Ok(account) => account,
+        Err((_, message)) => {
+            sources.missing.push(format!(
+                "coverage source manifests are unreadable: {message}"
+            ));
+            return sources;
+        }
+    };
+    for target in &account.targets {
+        if !target
+            .aspect
+            .as_deref()
+            .is_some_and(|aspect| aspect.ends_with(SOURCES_ASPECT_SUFFIX))
+        {
+            continue;
+        }
+        if !target.success || target.incomplete {
+            sources.missing.push(format!(
+                "{} did not report its coverage source manifest",
+                target.label
+            ));
+            continue;
+        }
+        for artifact in &target.artifacts {
+            match parse_source_manifest(&String::from_utf8_lossy(&artifact.bytes)) {
+                Ok(manifest) => sources.manifests.push(manifest),
+                Err(error) => sources.invalid.push(format!(
+                    "invalid coverage source manifest {}: {error}",
+                    stable_exec_path(&artifact.exec_path)
+                )),
+            }
+        }
+    }
+    sources
+}
+
+/// Everything one run's results produced: report inputs, outcomes and the evidence gap.
+#[derive(Default)]
+struct Collected {
+    suites: Vec<(String, Vec<JunitCase>)>,
+    lcov_documents: Vec<String>,
+    sources: Sources,
+    reported: Vec<TestOutcome>,
+    gap: Option<String>,
+}
+
+/// Reads every result's test.xml into suites and outcomes for `dx test`.
+fn collect_test_xml(
+    events: &TestEvents,
+    summaries: &Summaries,
+    reader: &dyn ArtifactReader,
+    mut evidence: Evidence,
+    err: &mut dyn Write,
+) -> Collected {
+    let mut grouped: BTreeMap<String, Vec<JunitCase>> = BTreeMap::new();
+    let mut reported: Vec<TestOutcome> = Vec::new();
+    for result in &events.results {
+        let mut outcome = outcome_for(result, summaries);
+        let mut cases_seen: Vec<TestCase> = Vec::new();
+        let mut reports = 0usize;
+        for file in &result.files {
+            if file.name != "test.xml" {
+                continue;
+            }
+            reports += 1;
+            let where_ = result_where(
+                &result.label,
+                &file.name,
+                result.run,
+                result.shard,
+                result.attempt,
+            );
+            let Some(bytes) = read_or_record(reader, file, &where_, &mut outcome, &mut evidence)
+            else {
+                continue;
+            };
+            match parse_cases(result, &bytes) {
+                Ok(cases) => {
+                    if std::str::from_utf8(&bytes).is_err() {
+                        let _ = writeln!(
+                            err,
+                            "dx: warning: {where_} has invalid UTF-8; replaced invalid bytes"
+                        );
+                    }
+                    outcome.artifacts_collected += 1;
+                    tally_cases(&mut outcome, &cases, &mut cases_seen);
+                    grouped
+                        .entry(result.label.clone())
+                        .or_default()
+                        .extend(cases);
+                }
+                Err(error) => {
+                    outcome.artifacts_invalid += 1;
+                    evidence.record(format!(
+                        "invalid {where_} at {}: {error}",
+                        stable_exec_path(&file.exec_path)
+                    ));
+                }
+            }
+        }
+        if reports == 0 {
+            outcome.artifacts_missing += 1;
+            evidence.record(format!(
+                "{} was not reported",
+                result_where(
+                    &result.label,
+                    "test.xml",
+                    result.run,
+                    result.shard,
+                    result.attempt
+                )
+            ));
+        }
+        outcome.evidence_complete = outcome.artifacts_collected > 0
+            && outcome.artifacts_missing == 0
+            && outcome.artifacts_invalid == 0;
+        if outcome.evidence_complete
+            && outcome.outcome == "passed"
+            && outcome.cases_total == Some(0)
+        {
+            outcome.outcome = "no_cases".to_owned();
+        }
+        attach_log(&mut outcome, result, reader);
+        outcome.cases = cases_seen;
+        reported.push(outcome);
+    }
+    account_stream(events, &mut evidence, &mut reported);
+    let exempt =
+        events.results.is_empty() && (!events.skipped.is_empty() || !events.filtered.is_empty());
+    let gap = evidence_gap(
+        grouped.is_empty() && !exempt,
+        &evidence,
+        "no test.xml artifacts were reported",
+    );
+    Collected {
+        suites: grouped.into_iter().collect(),
+        reported,
+        gap,
+        ..Collected::default()
+    }
+}
+
+/// Reads every result's final coverage output into LCOV documents and outcomes for `dx coverage`.
+fn collect_lcov(
+    events: &TestEvents,
+    summaries: &Summaries,
+    reader: &dyn ArtifactReader,
+    mut evidence: Evidence,
+    sources: Sources,
+) -> Collected {
+    let finals = final_coverage_attempts(&events.results);
+    let mut lcov_documents: Vec<String> = Vec::new();
+    let mut reported: Vec<TestOutcome> = Vec::new();
+    for result in &events.results {
+        let mut required = Vec::new();
+        for file in &result.files {
+            if !is_coverage_output(&file.name) {
+                continue;
+            }
+            let key = (
+                result.label.as_str(),
+                result.run,
+                result.shard,
+                file.name.as_str(),
+            );
+            let Some(final_attempt) = finals.get(&key) else {
+                continue;
+            };
+            if result.attempt < *final_attempt {
+                continue;
+            }
+            required.push(file);
+        }
+        if result.files.iter().any(is_coverage_file) && required.is_empty() {
+            continue;
+        }
+        let mut outcome = outcome_for(result, summaries);
+        for file in required {
+            let where_ = result_where(
+                &result.label,
+                &file.name,
+                result.run,
+                result.shard,
+                result.attempt,
+            );
+            let Some(bytes) = read_or_record(reader, file, &where_, &mut outcome, &mut evidence)
+            else {
+                continue;
+            };
+            match validate_lcov(&bytes) {
+                Ok(()) => {
+                    outcome.artifacts_collected += 1;
+                    lcov_documents.push(String::from_utf8_lossy(&bytes).into_owned());
+                }
+                Err(error) => {
+                    if bytes.iter().all(|b| b.is_ascii_whitespace()) {
+                        outcome.artifacts_collected += 1;
+                        continue;
+                    }
+                    outcome.artifacts_invalid += 1;
+                    evidence.record(format!(
+                        "invalid {where_} at {}: {error}",
+                        stable_exec_path(&file.exec_path)
+                    ));
+                }
+            }
+        }
+        outcome.evidence_complete = (outcome.artifacts_collected > 0
+            && outcome.artifacts_missing == 0
+            && outcome.artifacts_invalid == 0)
+            || !result.files.iter().any(is_coverage_file);
+        if outcome.outcome != "passed" {
+            // Best effort: coverage completeness stays about the LCOV files only.
+            let mut cases_seen: Vec<TestCase> = Vec::new();
+            for file in result.files.iter().filter(|file| file.name == "test.xml") {
+                let Ok(bytes) = reader.read_artifact(&file.exec_path) else {
+                    continue;
+                };
+                if let Ok(cases) = parse_cases(result, &bytes) {
+                    tally_cases(&mut outcome, &cases, &mut cases_seen);
+                }
+            }
+            outcome.cases = cases_seen;
+            attach_log(&mut outcome, result, reader);
+        }
+        reported.push(outcome);
+    }
+    account_stream(events, &mut evidence, &mut reported);
+    for problem in &sources.missing {
+        evidence.record(problem.clone());
+    }
+    let gap = evidence_gap(
+        lcov_documents.is_empty(),
+        &evidence,
+        "no coverage.dat artifacts were reported",
+    );
+    Collected {
+        lcov_documents,
+        sources,
+        reported,
+        gap,
+        ..Collected::default()
+    }
+}
+
+/// Prints each outcome in the run's output mode and counts the ones that were not superseded.
+fn emit_outcomes(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    reported: &[TestOutcome],
+    filtered: &[dx_bep::UnbuiltTest],
+) -> Result<TestCounts, i32> {
+    let mut counts = TestCounts::default();
+    if output == OutputMode::Json {
+        for outcome in reported {
+            let passed = outcome.evidence_complete
+                && matches!(
+                    outcome.outcome.as_str(),
+                    "passed" | "passed_after_retry" | "no_cases"
+                );
+            if !outcome.superseded && passed {
+                counts.passed += 1;
+                if outcome.cached == Some(true) {
+                    counts.cached += 1;
+                }
+                if outcome.outcome == "no_cases" {
+                    counts.no_cases += 1;
+                }
+            } else if !outcome.superseded && is_failed(&outcome.outcome) {
+                counts.failed += 1;
+            } else if !outcome.superseded
+                && matches!(outcome.outcome.as_str(), "skipped" | "filtered")
+            {
+                counts.skipped += 1;
+            }
+            if outcome.evidence_complete
+                && (outcome.outcome == "passed"
+                    || (outcome.outcome == "no_cases" && !outcome.superseded))
+            {
+                continue;
+            }
+            emit_built(out, test_outcome_event(outcome))?;
+        }
+        filtered_notice(output, out, err, filtered)?;
+    } else if matches!(output, OutputMode::Text { .. }) {
+        filtered_notice(output, out, err, filtered)?;
+        for outcome in reported {
+            if outcome.outcome == "passed_after_retry" {
+                let attempt = outcome
+                    .attempt
+                    .map(|attempt| format!(" (attempt {attempt})"))
+                    .unwrap_or_default();
+                let _ = writeln!(
+                    err,
+                    "dx: flaky success (passed after retry): {}{attempt}",
+                    outcome.target
+                );
+            }
+        }
+    }
+    Ok(counts)
+}
+
+/// Writes reports to their destinations and announces each one in the run's output mode.
+struct ReportSink<'a> {
+    out: &'a mut dyn Write,
+    err: &'a mut dyn Write,
+    output: OutputMode,
+    workspace: &'a Path,
+    stdout_report: bool,
+}
+
+impl ReportSink<'_> {
+    /// Writes one named report and announces it; false when the write failed and was reported.
+    fn write(
+        &mut self,
+        name: &str,
+        destination: &Destination,
+        document: &str,
+        complete: bool,
+    ) -> Result<bool, i32> {
+        if let Err(error) = write_report_document(self.out, self.workspace, destination, document) {
+            self.failed(&format!("failed to write {name} report to {error}"))?;
+            return Ok(false);
+        }
+        if self.output == OutputMode::Json {
+            emit_built(
+                self.out,
+                report_event(name, destination.display(), complete),
+            )?;
+        } else if matches!(self.output, OutputMode::Text { .. }) && !self.stdout_report {
+            let _ = writeln!(
+                self.out,
+                "Wrote {name} report to {}.",
+                destination.display()
+            );
+        }
+        Ok(true)
+    }
+
+    /// Reports one report that could not be produced.
+    fn failed(&mut self, detail: &str) -> Result<(), i32> {
+        report_failed(self.out, self.err, self.output, detail)
+    }
+}
+
+/// The verb's report document, or why it could not be rendered.
+fn render_report(
+    verb: WorkflowVerb,
+    suites: &[(String, Vec<JunitCase>)],
+    lcov_documents: &[String],
+    detail: &str,
+) -> Result<String, String> {
+    match verb {
+        WorkflowVerb::Test => render_junit(suites).map_err(|error| error.to_string()),
+        WorkflowVerb::Coverage => {
+            if lcov_documents.is_empty() {
+                Err(detail.to_owned())
+            } else {
+                let mut combined = lcov_documents.join("\n");
+                if !combined.ends_with('\n') {
+                    combined.push('\n');
+                }
+                Ok(combined)
+            }
+        }
+        _ => Err(detail.to_owned()), // LCOV_EXCL_LINE - reason: defensive arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+    }
+}
+
+/// Reports why the results are incomplete, when evidence was missing or invalid.
+fn announce_incomplete(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    detail: &str,
+) -> Result<(), i32> {
+    if detail.is_empty() {
+        return Ok(());
+    }
+    if output == OutputMode::Json {
+        emit_built(
+            out,
+            dx_output::error_event("incomplete_results", detail, None, None, None),
+        )?;
+    } else {
+        let _ = writeln!(err, "dx: incomplete_results: {detail}");
+    }
+    Ok(())
+}
+
+/// Checks the collected line coverage against `--min_coverage`; true when there is no minimum.
+fn coverage_threshold(
+    minimum: Option<u32>,
+    detail: &str,
+    lcov_documents: &[String],
+    workspace: &Path,
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<bool, i32> {
+    let Some(minimum) = minimum else {
+        return Ok(true);
+    };
+    if !detail.is_empty() {
+        return Ok(false);
+    }
+    let mut threshold_ok = false;
+    let summary = match coverage_line_rate(lcov_documents, &|path| {
+        std::fs::read_to_string(workspace.join(path)).ok()
+    }) {
+        Ok((covered, eligible)) if eligible > 0 => {
+            let percent = 100.0 * covered as f64 / eligible as f64;
+            threshold_ok = covered * 100 >= u64::from(minimum) * eligible;
+            if threshold_ok {
+                format!(
+                    "coverage {percent:.2}% ({covered}/{eligible} lines) meets minimum {minimum}%"
+                )
+            } else {
+                format!(
+                    "coverage_below_minimum: coverage {percent:.2}% ({covered}/{eligible} lines) below minimum {minimum}%"
+                )
+            }
+        }
+        Ok(_) => "coverage_below_minimum: no executable lines in the collected LCOV".to_owned(),
+        Err(error) => format!("coverage_below_minimum: {error}"),
+    };
+    if output == OutputMode::Json {
+        if !threshold_ok {
+            emit_built(
+                out,
+                dx_output::error_event(CODE_COVERAGE_BELOW_MINIMUM, &summary, None, None, None),
+            )?;
+        }
+    } else {
+        let _ = writeln!(err, "dx: {summary}");
+    }
+    Ok(threshold_ok)
+}
+
+/// Accounts the run's owned sources against its coverage, prints the counts and every gap; true when none.
+fn coverage_sources(
+    sources: &Sources,
+    lcov_documents: &[String],
+    workspace: &Path,
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> bool {
+    let account = dx_lcov::account(&sources.manifests, lcov_documents, &|path| {
+        std::fs::read_to_string(workspace.join(path)).map_err(|error| dx_lcov::LcovError::Io {
+            message: format!("{path}: {error}"),
+        })
+    });
+    let summary = account.summary();
+    let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
+    let notices = std::iter::once(("info", CODE_COVERAGE_SOURCES, &summary)).chain(
+        errors
+            .iter()
+            .map(|message| ("warning", CODE_COVERAGE_SOURCES_INCOMPLETE, *message)),
+    );
+    for (level, code, message) in notices {
+        match output {
+            OutputMode::Json => {
+                let notice = NoticeEvent {
+                    level: level.to_owned(),
+                    code: code.to_owned(),
+                    message: message.clone(),
+                    related_command: None,
+                    scope: None,
+                    path: None,
+                    language: None,
+                    import: None,
+                };
+                if let Ok(event) = notice_event(&notice) {
+                    let _ = emit_event(out, &event);
+                }
+            }
+            OutputMode::Text { .. } if code == CODE_COVERAGE_SOURCES => {
+                let _ = writeln!(err, "dx: {message}");
+            }
+            OutputMode::Text { .. } => {
+                let _ = writeln!(err, "dx: {code}: {message}");
+            }
+            _ => {}
+        }
+    }
+    errors.is_empty()
+}
+
+/// Reads the run's test events; a stream Bazel cut short is a problem only when Bazel failed too.
+fn read_events(
+    invocation: &Invocation,
+    workspace: &Path,
+    verb: WorkflowVerb,
+    bep: &Path,
+    bazel_code: i32,
+    query_runner: &dyn QueryRunner,
+) -> Result<(TestEvents, Option<String>), (&'static str, String)> {
+    let file = match std::fs::File::open(bep) {
+        Ok(file) => file,
+        Err(error) if bazel_code != 0 => {
+            return Ok((
+                TestEvents::default(),
+                Some(format!("build events are unavailable: {error}")),
+            ));
+        }
+        Err(error) => {
+            return Err((
+                CODE_UNREADABLE_BEP,
+                format!("failed to read build events: {error}"),
+            ));
+        }
+    };
+    match collect_test_events(BufReader::new(file), || {
+        Some(output_locations(invocation, workspace, verb, query_runner))
+    }) {
+        Ok(events) => match events.problem.clone() {
+            Some(problem) if bazel_code == 0 => {
+                Err((CODE_INVALID_BEP, format!("invalid build events: {problem}")))
+            }
+            Some(problem) => Ok((events, Some(format!("build events end early: {problem}")))),
+            None => Ok((events, None)),
+        },
+        Err(error) if bazel_code != 0 => Ok((
+            TestEvents::default(),
+            Some(format!("invalid build events: {error}")),
+        )),
+        Err(error) => Err((CODE_INVALID_BEP, format!("invalid build events: {error}"))),
+    }
 }
 
 pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
@@ -419,18 +1136,21 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         planned_reports,
         failure_reports,
         results_reports,
-        results_default,
+        run_id,
         stdout_report,
         bazel_code,
         query_runner,
         results_complete,
     } = request;
     let failure_count = if bazel_code != 0 {
-        report_build_failures(bep, invocation.output, out, err).count
+        match report_build_failures(bep, invocation.output, out, err) {
+            Ok(reported) => reported.count,
+            Err(exit) => return kept_child(err, bazel_code, exit),
+        }
     } else {
         0
     };
-    let failure_reports_ok = write_failure_reports(
+    let failure_reports_ok = match write_failure_reports(
         invocation,
         workspace,
         bep,
@@ -438,525 +1158,116 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         failure_reports,
         out,
         err,
-    );
-    let (events, stream_problem) = match std::fs::File::open(bep) {
-        Ok(file) => {
-            let locations = output_locations(invocation, workspace, verb, query_runner);
-            match collect_test_events(BufReader::new(file), Some(&locations)) {
-                Ok(events) => match events.problem.clone() {
-                    Some(problem) if bazel_code == 0 => {
-                        let _ = std::fs::remove_file(bep);
-                        return operational(
-                            invocation,
-                            out,
-                            err,
-                            CODE_INVALID_BEP,
-                            &format!("invalid build events: {problem}"),
-                        );
-                    }
-                    Some(problem) => (events, Some(format!("build events end early: {problem}"))),
-                    None => (events, None),
-                },
-                Err(error) if bazel_code != 0 => (
-                    TestEvents::default(),
-                    Some(format!("invalid build events: {error}")),
-                ),
-                Err(error) => {
-                    let _ = std::fs::remove_file(bep);
-                    return operational(
-                        invocation,
-                        out,
-                        err,
-                        CODE_INVALID_BEP,
-                        &format!("invalid build events: {error}"),
-                    );
-                }
-            }
-        }
-        Err(error) if bazel_code != 0 => (
-            TestEvents::default(),
-            Some(format!("build events are unavailable: {error}")),
-        ),
-        Err(error) => {
-            let _ = std::fs::remove_file(bep);
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_UNREADABLE_BEP,
-                &format!("failed to read build events: {error}"),
-            );
-        }
+    ) {
+        Ok(landed) => landed,
+        Err(exit) => return kept_child(err, bazel_code, exit),
+    };
+    let read = read_events(invocation, workspace, verb, bep, bazel_code, query_runner);
+    let sources = if verb == WorkflowVerb::Coverage
+        && read.is_ok()
+        && (bazel_code == 0 || bazel_code == BAZEL_TESTS_FAILED)
+    {
+        collect_sources(bep, workspace)
+    } else {
+        Sources::default()
     };
     let _ = std::fs::remove_file(bep);
+    let (events, stream_problem) = match read {
+        Ok(read) => read,
+        Err((code, message)) => return operational(invocation, out, err, code, &message),
+    };
     let reader = FsArtifacts;
-    let mut complete = bazel_code == 0 || bazel_code == BAZEL_TESTS_FAILED;
-    let mut detail = String::new();
-    let mut suites: Vec<(String, Vec<JunitCase>)> = Vec::new();
-    let mut lcov_documents: Vec<String> = Vec::new();
-    let mut reported: Vec<TestOutcome> = Vec::new();
     let mut evidence = Evidence::default();
     if let Some(problem) = stream_problem {
         evidence.record(problem);
     }
     let summaries = summary_statuses(&events);
-    if verb == WorkflowVerb::Test {
-        let mut grouped: BTreeMap<String, Vec<JunitCase>> = BTreeMap::new();
-        for result in &events.results {
-            let summary = summaries
-                .get(&(result.label.as_str(), result.configuration.as_deref()))
-                .copied();
-            let mut outcome = TestOutcome {
-                target: result.label.clone(),
-                configuration: result.configuration.clone(),
-                outcome: result_outcome(result.status.as_deref(), summary),
-                status: result.status.clone(),
-                cached: result.cached_locally,
-                run: Some(result.run),
-                shard: Some(result.shard),
-                attempt: Some(result.attempt),
-                duration_millis: result.duration_millis,
-                ..TestOutcome::default()
-            };
-            let mut cases_seen: Vec<TestCase> = Vec::new();
-            let mut reports = 0usize;
-            for file in &result.files {
-                if file.name != "test.xml" {
-                    continue;
-                }
-                reports += 1;
-                let where_ = result_where(
-                    &result.label,
-                    &file.name,
-                    result.run,
-                    result.shard,
-                    result.attempt,
-                );
-                let bytes = match reader.read_artifact(&file.exec_path) {
-                    Ok(bytes) => bytes,
-                    Err(error) => {
-                        outcome.artifacts_missing += 1;
-                        evidence.record(format!(
-                            "unreadable {where_} at {}: {error}",
-                            stable_exec_path(&file.exec_path)
-                        ));
-                        continue;
-                    }
-                };
-                let shard = result.shard.saturating_sub(1);
-                let attempt = result.attempt.saturating_sub(1);
-                match parse_test_xml(&bytes, shard, attempt) {
-                    Ok(mut cases) => {
-                        if std::str::from_utf8(&bytes).is_err() {
-                            let _ = writeln!(
-                                err,
-                                "dx: warning: {where_} has invalid UTF-8; replaced invalid bytes"
-                            );
-                        }
-                        for case in &mut cases {
-                            case.run = result.run.saturating_sub(1);
-                            case.configuration = result.configuration.clone();
-                        }
-                        outcome.artifacts_collected += 1;
-                        outcome.cases_total =
-                            Some(outcome.cases_total.unwrap_or(0) + cases.len() as u64);
-                        for case in &cases {
-                            if case.failure.is_some() {
-                                outcome.cases_failed = Some(outcome.cases_failed.unwrap_or(0) + 1);
-                            }
-                            if case.error.is_some() {
-                                outcome.cases_error = Some(outcome.cases_error.unwrap_or(0) + 1);
-                            }
-                            if case.skipped.is_some() {
-                                outcome.cases_skipped =
-                                    Some(outcome.cases_skipped.unwrap_or(0) + 1);
-                            }
-                            if cases_seen.len() < CASE_EVENT_LIMIT
-                                || case.failure.is_some()
-                                || case.error.is_some()
-                            {
-                                cases_seen.push(test_case(case));
-                            } else {
-                                outcome.cases_omitted += 1;
-                            }
-                        }
-                        grouped
-                            .entry(result.label.clone())
-                            .or_default()
-                            .extend(cases);
-                    }
-                    Err(error) => {
-                        outcome.artifacts_invalid += 1;
-                        evidence.record(format!(
-                            "invalid {where_} at {}: {error}",
-                            stable_exec_path(&file.exec_path)
-                        ));
-                    }
-                }
-            }
-            if reports == 0 {
-                outcome.artifacts_missing += 1;
-                evidence.record(format!(
-                    "{} was not reported",
-                    result_where(
-                        &result.label,
-                        "test.xml",
-                        result.run,
-                        result.shard,
-                        result.attempt
-                    )
-                ));
-            }
-            outcome.evidence_complete = outcome.artifacts_collected > 0
-                && outcome.artifacts_missing == 0
-                && outcome.artifacts_invalid == 0;
-            if outcome.evidence_complete
-                && outcome.outcome == "passed"
-                && outcome.cases_total == Some(0)
-            {
-                outcome.outcome = "no_cases".to_owned();
-            }
-            if outcome.outcome != "passed" {
-                if let Some(log) = result.files.iter().find(|file| file.name == "test.log") {
-                    outcome.log_path = Some(log.exec_path.to_string_lossy().into_owned());
-                    outcome.log_tail = reader
-                        .read_artifact(&log.exec_path)
-                        .ok()
-                        .and_then(|bytes| log_tail(&bytes));
-                }
-            }
-            outcome.cases = cases_seen;
-            reported.push(outcome);
-        }
-        account_stream(&events, &mut evidence, &mut reported);
-        if grouped.is_empty() && !(events.results.is_empty() && !events.skipped.is_empty()) {
-            complete = false;
-            detail = if evidence.first.is_empty() {
-                "no test.xml artifacts were reported".to_owned()
-            } else {
-                evidence.first.clone()
-            };
-        } else if evidence.count > 0 {
-            complete = false;
-            detail = unusable_detail(evidence.count, &evidence.first);
-        }
-        suites = grouped.into_iter().collect();
+    let Collected {
+        mut suites,
+        lcov_documents,
+        sources,
+        mut reported,
+        gap,
+    } = if verb == WorkflowVerb::Test {
+        collect_test_xml(&events, &summaries, &reader, evidence, err)
     } else {
-        let finals = final_coverage_attempts(&events.results);
-        for result in &events.results {
-            let mut required = Vec::new();
-            for file in &result.files {
-                if !is_coverage_output(&file.name) {
-                    continue;
-                }
-                let key = (
-                    result.label.as_str(),
-                    result.run,
-                    result.shard,
-                    file.name.as_str(),
-                );
-                let Some(final_attempt) = finals.get(&key) else {
-                    continue;
-                };
-                if result.attempt < *final_attempt {
-                    continue;
-                }
-                required.push(file);
-            }
-            if result.files.iter().any(is_coverage_file) && required.is_empty() {
-                continue;
-            }
-            let mut outcome = TestOutcome {
-                target: result.label.clone(),
-                configuration: result.configuration.clone(),
-                outcome: result_outcome(
-                    result.status.as_deref(),
-                    summaries
-                        .get(&(result.label.as_str(), result.configuration.as_deref()))
-                        .copied(),
-                ),
-                status: result.status.clone(),
-                cached: result.cached_locally,
-                run: Some(result.run),
-                shard: Some(result.shard),
-                attempt: Some(result.attempt),
-                duration_millis: result.duration_millis,
-                ..TestOutcome::default()
-            };
-            for file in required {
-                let where_ = result_where(
-                    &result.label,
-                    &file.name,
-                    result.run,
-                    result.shard,
-                    result.attempt,
-                );
-                let bytes = match reader.read_artifact(&file.exec_path) {
-                    Ok(bytes) => bytes,
-                    Err(error) => {
-                        outcome.artifacts_missing += 1;
-                        evidence.record(format!(
-                            "unreadable {where_} at {}: {error}",
-                            stable_exec_path(&file.exec_path)
-                        ));
-                        continue;
-                    }
-                };
-                match validate_lcov(&bytes) {
-                    Ok(()) => {
-                        outcome.artifacts_collected += 1;
-                        lcov_documents.push(String::from_utf8_lossy(&bytes).into_owned());
-                    }
-                    Err(error) => {
-                        if bytes.iter().all(|b| b.is_ascii_whitespace()) {
-                            outcome.artifacts_collected += 1;
-                            continue;
-                        }
-                        outcome.artifacts_invalid += 1;
-                        evidence.record(format!(
-                            "invalid {where_} at {}: {error}",
-                            stable_exec_path(&file.exec_path)
-                        ));
-                    }
-                }
-            }
-            outcome.evidence_complete = (outcome.artifacts_collected > 0
-                && outcome.artifacts_missing == 0
-                && outcome.artifacts_invalid == 0)
-                || !result.files.iter().any(is_coverage_file);
-            reported.push(outcome);
-        }
-        account_stream(&events, &mut evidence, &mut reported);
-        if lcov_documents.is_empty() {
-            complete = false;
-            detail = if evidence.first.is_empty() {
-                "no coverage.dat artifacts were reported".to_owned()
-            } else {
-                evidence.first.clone()
-            };
-        } else if evidence.count > 0 {
-            complete = false;
-            detail = unusable_detail(evidence.count, &evidence.first);
-        }
-    }
+        collect_lcov(&events, &summaries, &reader, evidence, sources)
+    };
+    let complete = (bazel_code == 0 || bazel_code == BAZEL_TESTS_FAILED) && gap.is_none();
+    let detail = gap.unwrap_or_default();
     let nothing_ran = failure_count > 0 && events.results.is_empty();
     if verb == WorkflowVerb::Test && !complete && !nothing_ran {
         suites.push(junit_infrastructure_case(&detail));
     }
     mark_superseded_attempts(&mut reported);
-    let mut passed_tests = 0u64;
-    let mut failed_tests = 0u64;
-    let mut cached_tests = 0u64;
-    if invocation.output == OutputMode::Json {
-        for outcome in &reported {
-            let passed = outcome.evidence_complete
-                && matches!(
-                    outcome.outcome.as_str(),
-                    "passed" | "passed_after_retry" | "no_cases"
-                );
-            if !outcome.superseded && passed {
-                passed_tests += 1;
-                if outcome.cached == Some(true) {
-                    cached_tests += 1;
-                }
-            } else if !outcome.superseded && is_failed(&outcome.outcome) {
-                failed_tests += 1;
-            }
-            if outcome.outcome == "passed" && outcome.evidence_complete {
-                continue;
-            }
-            if let Ok(event) = test_outcome_event(outcome) {
-                let _ = write_event(out, &event);
-            }
-        }
-    } else if matches!(invocation.output, OutputMode::Text { .. }) {
-        for outcome in &reported {
-            if outcome.outcome == "passed_after_retry" {
-                match outcome.attempt {
-                    Some(attempt) => {
-                        let _ = writeln!(
-                            err,
-                            "dx: flaky success (passed after retry): {} (attempt {})",
-                            outcome.target, attempt
-                        );
-                    }
-                    None => {
-                        let _ = writeln!(
-                            err,
-                            "dx: flaky success (passed after retry): {}",
-                            outcome.target
-                        );
-                    }
-                }
-            }
-        }
-    }
+    let counts = match emit_outcomes(invocation.output, out, err, &reported, &events.filtered) {
+        Ok(counts) => counts,
+        Err(exit) => return kept_child(err, bazel_code, exit),
+    };
     let mut reports_ok = failure_reports_ok;
+    let mut sink = ReportSink {
+        out: &mut *out,
+        err: &mut *err,
+        output: invocation.output,
+        workspace,
+        stdout_report,
+    };
     if !results_reports.is_empty() {
-        let document = results_document(&reported, complete, bazel_code);
+        let document = results_document(&reported, complete, bazel_code, run_id);
         for planned in results_reports {
-            if let Err(error) =
-                write_report_document(out, workspace, &planned.destination, &document)
-            {
-                if !results_default {
-                    reports_ok = false;
-                }
-                report_failed(
-                    out,
-                    err,
-                    invocation.output,
-                    &format!("failed to write results report to {error}"),
-                );
-                continue;
-            }
-            if invocation.output == OutputMode::Json {
-                if let Ok(event) = report_event("results", planned.destination.display(), complete)
-                {
-                    let _ = write_event(out, &event);
-                }
-            } else if matches!(invocation.output, OutputMode::Text { .. }) && !stdout_report {
-                let _ = writeln!(
-                    out,
-                    "Wrote results report to {}.",
-                    planned.destination.display()
-                );
+            match sink.write("results", &planned.destination, &document, complete) {
+                Ok(landed) => reports_ok &= landed,
+                Err(exit) => return kept_child(err, bazel_code, exit),
             }
         }
     }
     for planned in planned_reports {
-        let document: Option<String> = match verb {
-            WorkflowVerb::Test => match render_junit(&suites) {
-                Ok(document) => Some(document),
-                Err(error) => {
-                    reports_ok = false;
-                    report_failed(
-                        out,
-                        err,
-                        invocation.output,
-                        &format!("failed to render {} report: {error}", planned.format.name()),
-                    );
-                    continue;
+        let name = planned.format.name();
+        let document = match render_report(verb, &suites, &lcov_documents, &detail) {
+            Ok(document) => document,
+            Err(reason) => {
+                reports_ok = false;
+                if let Err(exit) = sink.failed(&format!("failed to render {name} report: {reason}"))
+                {
+                    return kept_child(err, bazel_code, exit);
                 }
-            },
-            WorkflowVerb::Coverage => {
-                if lcov_documents.is_empty() {
-                    None
-                } else {
-                    let mut combined = lcov_documents.join("\n");
-                    if !combined.ends_with('\n') {
-                        combined.push('\n');
-                    }
-                    Some(combined)
-                }
+                continue;
             }
-            _ => None, // LCOV_EXCL_LINE - reason: defensive arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         };
-        let Some(document) = document else {
-            reports_ok = false;
-            report_failed(
-                out,
-                err,
-                invocation.output,
-                &format!(
-                    "failed to render {} report: {detail}",
-                    planned.format.name()
-                ),
-            );
-            continue;
-        };
-        let written = write_report_document(out, workspace, &planned.destination, &document);
-        if let Err(error) = written {
-            reports_ok = false;
-            report_failed(
-                out,
-                err,
-                invocation.output,
-                &format!(
-                    "failed to write {} report to {error}",
-                    planned.format.name(),
-                ),
-            );
-            continue;
-        }
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = report_event(
-                planned.format.name(),
-                planned.destination.display(),
-                complete && reports_ok,
-            ) {
-                let _ = write_event(out, &event);
-            }
-        } else if matches!(invocation.output, OutputMode::Text { .. }) && !stdout_report {
-            let _ = writeln!(
-                out,
-                "Wrote {} report to {}.",
-                planned.format.name(),
-                planned.destination.display()
-            );
+        let complete_so_far = complete && reports_ok;
+        match sink.write(name, &planned.destination, &document, complete_so_far) {
+            Ok(landed) => reports_ok &= landed,
+            Err(exit) => return kept_child(err, bazel_code, exit),
         }
     }
-    let evidence_detail = detail.as_str();
-    if !complete && !evidence_detail.is_empty() {
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) =
-                dx_output::error_event("incomplete_results", evidence_detail, None, None, None)
-            {
-                let _ = write_event(out, &event);
-            }
-        } else if !complete {
-            let _ = writeln!(err, "dx: incomplete_results: {evidence_detail}");
-        }
+    if let Err(exit) = announce_incomplete(invocation.output, out, err, &detail) {
+        return kept_child(err, bazel_code, exit);
     }
-    let mut threshold_ok = true;
-    if verb == WorkflowVerb::Coverage {
-        if let Some(minimum) = invocation.min_coverage {
-            if !detail.is_empty() {
-                threshold_ok = false;
-            } else {
-                let summary = match coverage_line_rate(&lcov_documents, &|path| {
-                    std::fs::read_to_string(workspace.join(path)).ok()
-                }) {
-                    Ok((covered, eligible)) if eligible > 0 => {
-                        let percent = 100.0 * covered as f64 / eligible as f64;
-                        let passed = covered * 100 >= u64::from(minimum) * eligible;
-                        threshold_ok = passed;
-                        if passed {
-                            format!(
-                                "coverage {percent:.2}% ({covered}/{eligible} lines) meets minimum {minimum}%"
-                            )
-                        } else {
-                            format!(
-                                "coverage_below_minimum: coverage {percent:.2}% ({covered}/{eligible} lines) below minimum {minimum}%"
-                            )
-                        }
-                    }
-                    Ok(_) => {
-                        threshold_ok = false;
-                        "coverage_below_minimum: no executable lines in the collected LCOV"
-                            .to_owned()
-                    }
-                    Err(error) => {
-                        threshold_ok = false;
-                        format!("coverage_below_minimum: {error}")
-                    }
-                };
-                if invocation.output == OutputMode::Json {
-                    if !threshold_ok {
-                        if let Ok(event) = dx_output::error_event(
-                            CODE_COVERAGE_BELOW_MINIMUM,
-                            &summary,
-                            None,
-                            None,
-                            None,
-                        ) {
-                            let _ = write_event(out, &event);
-                        }
-                    }
-                } else {
-                    let _ = writeln!(err, "dx: {summary}");
-                }
-            }
+    let threshold_ok = if verb == WorkflowVerb::Coverage {
+        match coverage_threshold(
+            invocation.min_coverage,
+            &detail,
+            &lcov_documents,
+            workspace,
+            invocation.output,
+            out,
+            err,
+        ) {
+            Ok(met) => met,
+            Err(exit) => return kept_child(err, bazel_code, exit),
         }
+    } else {
+        true
+    };
+    if verb == WorkflowVerb::Coverage && detail.is_empty() {
+        coverage_sources(
+            &sources,
+            &lcov_documents,
+            workspace,
+            invocation.output,
+            out,
+            err,
+        );
     }
     let code = if bazel_code != 0 {
         bazel_code
@@ -967,19 +1278,23 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     };
     *results_complete = complete && reports_ok;
     if invocation.output == OutputMode::Json {
-        if bazel_code == BAZEL_TESTS_FAILED && failed_tests > 0 {
-            let message = if failed_tests == 1 {
+        if bazel_code == BAZEL_TESTS_FAILED && counts.failed > 0 {
+            let message = if counts.failed == 1 {
                 "1 test failed; read the test_outcome events".to_owned()
             } else {
-                format!("{failed_tests} tests failed; read the test_outcome events")
+                format!(
+                    "{} tests failed; read the test_outcome events",
+                    counts.failed
+                )
             };
-            if let Some(event) =
-                bazel_exit_event(CODE_TESTS_FAILED, &message, bazel_code, "execute")
-            {
-                let _ = write_event(out, &event);
+            if let Err(exit) = emit_built(
+                out,
+                bazel_exit_event(CODE_TESTS_FAILED, &message, bazel_code, "execute"),
+            ) {
+                return kept_child(err, bazel_code, exit);
             }
         } else if bazel_code != 0 {
-            if let Some(event) = bazel_exit_event(
+            if let Err(exit) = emit_built(out, bazel_exit_event(
                 CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
@@ -987,31 +1302,76 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
                 ),
                 bazel_code,
                 "execute",
-            ) {
-                let _ = write_event(out, &event);
-            }
+            )) {
+return kept_child(err, bazel_code, exit);
+}
         }
-        let _ = write_event(
-            out,
-            &command_finished(
-                code,
-                &FinishedCounts {
-                    results_complete: Some(*results_complete),
-                    tests: (!reported.is_empty()).then_some([
-                        passed_tests,
-                        failed_tests,
-                        cached_tests,
-                    ]),
-                    ..FinishedCounts::default()
-                },
-            ),
+        let finished = command_finished(
+            code,
+            &FinishedCounts {
+                results_complete: Some(*results_complete),
+                run_id: (!results_reports.is_empty()).then(|| run_id.to_owned()),
+                tests: (!reported.is_empty()).then_some(counts),
+                ..FinishedCounts::default()
+            },
         );
+        if let Err(exit) = emit_event(out, &finished) {
+            return kept_child(err, bazel_code, exit);
+        }
     }
     code
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn log_tail_keeps_last_forty_lines() {
+        let text: String = (1..=50).map(|n| format!("line {n}\n")).collect();
+        let want: Vec<String> = (11..=50).map(|n| format!("line {n}")).collect();
+        assert_eq!(super::log_tail(text.as_bytes()), Some(want.join("\n")));
+    }
+
+    #[test]
+    fn log_tail_returns_short_logs_whole() {
+        assert_eq!(super::log_tail(b"a\nb\nc\n"), Some("a\nb\nc".to_owned()));
+    }
+
+    #[test]
+    fn log_tail_drops_partial_first_line_when_capped() {
+        let lines: Vec<String> = (0..40)
+            .map(|n| format!("{n:02}{}", "x".repeat(298)))
+            .collect();
+        let tail = super::log_tail(lines.join("\n").as_bytes()).unwrap();
+        assert!(tail.len() <= super::LOG_TAIL_BYTES);
+        let got: Vec<&str> = tail.split('\n').collect();
+        assert!(got.iter().all(|l| l.len() == 300));
+        assert_eq!(
+            got,
+            lines[40 - got.len()..]
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+        );
+        assert!(!tail.starts_with('\n'));
+    }
+
+    #[test]
+    fn log_tail_cuts_one_oversize_multibyte_line_at_char_boundary() {
+        let tail = super::log_tail("日".repeat(3500).as_bytes()).unwrap();
+        assert!(!tail.is_empty() && tail.len() <= super::LOG_TAIL_BYTES);
+    }
+
+    #[test]
+    fn log_tail_is_none_for_blank_input() {
+        assert_eq!(super::log_tail(b""), None);
+        assert_eq!(super::log_tail(b"  \n\t\n\n"), None);
+    }
+
+    #[test]
+    fn log_tail_tolerates_invalid_utf8() {
+        assert!(super::log_tail(b"ok\n\xff\xfe bad\n").is_some());
+    }
+
     use super::super::test_support::*;
     use super::stable_exec_path;
     use std::path::Path;
@@ -1262,6 +1622,167 @@ mod tests {
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=80"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("coverage_below_minimum"), "{err}");
+    }
+
+    const SOURCES_ASPECT: &str = "//quality:coverage_sources.bzl%dx_coverage_sources_aspect";
+
+    fn sources_completed(label: &str, success: bool, set: &str) -> String {
+        let mut completed = serde_json::json!({"success": success});
+        if success {
+            completed["outputGroup"] =
+                serde_json::json!([{"name": "dx_coverage_sources", "fileSets": [{"id": set}]}]);
+        }
+        serde_json::json!({
+            "id": {"targetCompleted": {"label": label, "aspect": SOURCES_ASPECT}},
+            "completed": completed,
+        })
+        .to_string()
+    }
+
+    fn sources_set(set: &str, uri: &str) -> String {
+        serde_json::json!({
+            "id": {"namedSet": {"id": set}},
+            "namedSetOfFiles": {"files": [{"name": "lib.dx_coverage_sources.txt", "uri": uri}]},
+        })
+        .to_string()
+    }
+
+    fn sources_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
+        let harness = Harness::new(name);
+        let lcov_uri = write_bep_artifact(&harness, "coverage.dat", lcov.as_bytes());
+        let manifest_uri = write_bep_artifact(&harness, "sources.txt", manifest.as_bytes());
+        Harness {
+            raw_bep: Some(vec![
+                sources_set("s1", &manifest_uri),
+                sources_completed("//a:lib", true, "s1"),
+                test_result_line("//a:t", &[(String::from("test.lcov"), lcov_uri)]),
+            ]),
+            ..harness
+        }
+    }
+
+    #[test]
+    fn coverage_absent_production_source_is_a_notice() {
+        let harness = sources_harness(
+            "cov-sources-absent",
+            "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("meets minimum 100%"), "{err}");
+        assert!(
+            err.contains(
+                "dx: coverage_sources_incomplete: production source absent from coverage report: src/b.py"
+            ),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_sources_counts_line_and_silent_test_sources() {
+        let harness = sources_harness(
+            "cov-sources-counts",
+            "v1 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains(
+                "dx: coverage sources linux_x86_64: 1 raw, 0 excluded, 1 eligible lines; 1 eligible, 1 support, 0 excluded, 0 unsupported files"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("coverage_sources_incomplete"), "{err}");
+    }
+
+    #[test]
+    fn coverage_sources_notice_is_a_json_event() {
+        let harness = sources_harness(
+            "cov-sources-json",
+            "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, out, _) = harness.run(&["coverage", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let notice = out
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find(|event| event["code"] == "coverage_sources_incomplete")
+            .unwrap_or_else(|| panic!("no notice: {out}"));
+        assert_eq!(notice["event"], "notice", "{notice}");
+        assert_eq!(notice["level"], "warning", "{notice}");
+        assert_eq!(
+            notice["message"],
+            "production source absent from coverage report: src/b.py"
+        );
+        let counts = out
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find(|event| event["code"] == "coverage_sources")
+            .unwrap_or_else(|| panic!("no counts notice: {out}"));
+        assert_eq!(counts["level"], "info", "{counts}");
+        assert!(
+            counts["message"]
+                .as_str()
+                .is_some_and(|message| message.starts_with("coverage sources linux_x86_64: ")),
+            "{counts}"
+        );
+    }
+
+    #[test]
+    fn coverage_invalid_source_manifest_is_a_notice() {
+        let harness = sources_harness("cov-sources-invalid", "v1 cell unknown\n", MINIMAL_LCOV);
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("dx: coverage_sources_incomplete: invalid coverage source manifest"),
+            "{err}"
+        );
+        assert!(err.contains("unknown cell"), "{err}");
+    }
+
+    #[test]
+    fn coverage_missing_source_manifest_blocks_min_coverage() {
+        let harness = Harness::new("cov-sources-missing");
+        let lcov_uri = write_bep_artifact(&harness, "coverage.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                sources_completed("//a:lib", false, "s1"),
+                test_result_line("//a:t", &[(String::from("test.lcov"), lcov_uri)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "dx: incomplete_results: //a:lib did not report its coverage source manifest"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("meets minimum"), "{err}");
+    }
+
+    #[test]
+    fn coverage_unreadable_source_manifest_is_incomplete() {
+        let harness = Harness::new("cov-sources-unreadable");
+        let lcov_uri = write_bep_artifact(&harness, "coverage.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                sources_set("s1", &missing_uri("sources.txt")),
+                sources_completed("//a:lib", true, "s1"),
+                test_result_line("//a:t", &[(String::from("test.lcov"), lcov_uri)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains("coverage source manifests are unreadable"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -2143,6 +2664,25 @@ mod tests {
     }
 
     #[test]
+    fn test_file_outputs_skip_bazel_info() {
+        let harness = Harness::new("test-file-no-info");
+        let uri = write_bep_artifact(&harness, "test.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, err) = harness.run(&["test", "--output=text", "--report=junit=out.xml"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let document = std::fs::read(harness.workspace.join("out.xml")).expect("junit");
+        let text = String::from_utf8(document).expect("utf8");
+        assert!(text.contains("tests=\"1\""), "{text}");
+        assert!(harness.query.info_calls.borrow().is_empty());
+    }
+
+    #[test]
     fn test_bytestream_outputs_resolve_through_info_testlogs() {
         let harness = Harness::new("test-info-roots");
         let testlogs = harness.temp.join("testlogs");
@@ -2472,7 +3012,7 @@ mod tests {
         let finished_event = event(&events, "command_finished");
         assert_eq!(
             finished_event["tests"],
-            serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 1, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         assert_eq!(finished_event["exit_code"], serde_json::json!(0));
         assert_eq!(finished_event["results_complete"], serde_json::json!(true));
@@ -2512,13 +3052,7 @@ mod tests {
         assert_eq!(code, 0, "{out}");
         let events = json_events(&out);
         let outcomes = events_of_kind(&events, "test_outcome");
-        assert_eq!(outcomes.len(), 4, "{out}");
-        assert!(
-            outcomes
-                .iter()
-                .all(|outcome| outcome["outcome"] == "no_cases"),
-            "{out}"
-        );
+        assert!(outcomes.is_empty(), "{out}");
         let results: serde_json::Value = serde_json::from_slice(
             &std::fs::read(harness.workspace.join("res.json")).expect("results report"),
         )
@@ -2529,9 +3063,14 @@ mod tests {
             entries.iter().all(|entry| entry["status"] == "PASSED"),
             "{results}"
         );
+        let no_cases = entries
+            .iter()
+            .filter(|entry| entry["outcome"] == "no_cases")
+            .count();
+        assert_eq!(no_cases, 4, "{results}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 7, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 7, "failed": 0, "cached": 0, "no_cases": 4, "skipped": 0})
         );
     }
 
@@ -2621,7 +3160,7 @@ mod tests {
         assert!(outcomes[1].get("final").is_none(), "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         let read_results = || -> serde_json::Value {
             serde_json::from_slice(
@@ -2693,7 +3232,7 @@ mod tests {
         assert_eq!(outcomes[1]["attempt"], serde_json::json!(2));
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
     }
 
@@ -2752,6 +3291,117 @@ mod tests {
         let (code, _, err) = harness.run(&["test", "--output=text"]);
         assert_eq!(code, 0, "{err}");
         assert!(!err.contains("flaky success"), "{err}");
+    }
+
+    #[test]
+    fn flaky_summary_without_result_prints_no_attempt() {
+        let harness = Harness {
+            raw_bep: Some(vec![test_flaky_summary_line("//a:t")]),
+            ..Harness::new("test-flaky-summary-only")
+        };
+        let (_, _, err) = harness.run(&["test", "--output=text"]);
+        assert!(
+            err.contains("dx: flaky success (passed after retry): //a:t\n"),
+            "{err}"
+        );
+        assert!(!err.contains("(attempt"), "{err}");
+    }
+
+    #[test]
+    fn later_planned_report_event_is_incomplete_after_an_earlier_write_failure() {
+        let harness = Harness::new("test-writefail-later");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&[
+            "test",
+            "--output=json",
+            "--report=results=missing-dir/r.json",
+            "--report=junit=j.xml",
+        ]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        let reports = events_of_kind(&events, "report");
+        assert_eq!(reports.len(), 1, "{out}");
+        assert_eq!(reports[0]["format"], serde_json::json!("junit"), "{out}");
+        assert_eq!(
+            reports[0]["results_complete"],
+            serde_json::json!(false),
+            "{out}"
+        );
+    }
+
+    fn evidence(problems: &[&str]) -> super::Evidence {
+        let mut evidence = super::Evidence::default();
+        for problem in problems {
+            evidence.record((*problem).to_owned());
+        }
+        evidence
+    }
+
+    #[test]
+    fn evidence_gap_names_what_made_results_incomplete() {
+        assert_eq!(
+            super::evidence_gap(true, &evidence(&[]), "none reported"),
+            Some("none reported".to_owned())
+        );
+        assert_eq!(
+            super::evidence_gap(true, &evidence(&["a", "b"]), "none reported"),
+            Some("a".to_owned())
+        );
+        assert_eq!(
+            super::evidence_gap(false, &evidence(&["a", "b"]), "none reported"),
+            Some("2 missing or invalid results: a".to_owned())
+        );
+        assert_eq!(
+            super::evidence_gap(false, &evidence(&[]), "none reported"),
+            None
+        );
+    }
+
+    #[test]
+    fn parse_cases_stamps_run_and_configuration() {
+        let result = dx_bep::TestResultRecord {
+            label: "//a:t".to_owned(),
+            configuration: Some("cfg".to_owned()),
+            run: 2,
+            shard: 3,
+            attempt: 1,
+            status: Some("PASSED".to_owned()),
+            cached_locally: None,
+            duration_millis: None,
+            strategy: None,
+            files: Vec::new(),
+        };
+        let cases = super::parse_cases(&result, MINIMAL_TEST_XML.as_bytes()).expect("cases");
+        assert!(!cases.is_empty());
+        for case in &cases {
+            assert_eq!(case.run, 1);
+            assert_eq!(case.configuration.as_deref(), Some("cfg"));
+        }
+        assert!(super::parse_cases(&result, b"no elements").is_err());
+    }
+
+    #[test]
+    fn coverage_threshold_passes_without_minimum_and_fails_on_incomplete_evidence() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let workspace = Path::new(".");
+        let text = dx_output::OutputMode::Text { quiet: false };
+        assert_eq!(
+            super::coverage_threshold(None, "gap", &[], workspace, text, &mut out, &mut err),
+            Ok(true)
+        );
+        assert_eq!(
+            super::coverage_threshold(Some(80), "gap", &[], workspace, text, &mut out, &mut err),
+            Ok(false)
+        );
+        assert!(out.is_empty() && err.is_empty());
     }
 
     #[test]
@@ -2830,18 +3480,52 @@ mod tests {
             )]),
             ..harness
         };
+        let (code, out, _) = harness.run(&["test", "--output=json", "--report=results=res.json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        assert!(events_of_kind(&events, "test_outcome").is_empty(), "{out}");
+        let results: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(harness.workspace.join("res.json")).expect("results report"),
+        )
+        .expect("results json");
+        let entry = &results["results"][0];
+        assert_eq!(entry["outcome"], serde_json::json!("no_cases"), "{results}");
+        assert_eq!(entry["cases_total"], serde_json::json!(0), "{results}");
+        assert_eq!(
+            event(&events, "command_finished")["tests"],
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0, "no_cases": 1, "skipped": 0})
+        );
+    }
+
+    #[test]
+    fn test_cached_no_cases_result_counts_cached_and_no_cases() {
+        let harness = Harness::new("test-outcome-cached-zero");
+        let uri = write_bep_artifact(
+            &harness,
+            "empty.xml",
+            "<testsuites></testsuites>".as_bytes(),
+        );
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t",
+                1,
+                1,
+                1,
+                "PASSED",
+                None,
+                Some(true),
+                None,
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
         let (code, out, _) = harness.run(&["test", "--output=json"]);
         assert_eq!(code, 0, "{out}");
         let events = json_events(&out);
-        let outcomes = events_of_kind(&events, "test_outcome");
-        assert_eq!(outcomes.len(), 1, "{out}");
-        assert_eq!(outcomes[0]["cases_total"], serde_json::json!(0));
-        assert_eq!(outcomes[0]["outcome"], serde_json::json!("no_cases"));
-        assert_eq!(outcomes[0]["status"], serde_json::json!("PASSED"));
-        assert!(outcomes[0].get("evidence_complete").is_none(), "{out}");
+        assert!(events_of_kind(&events, "test_outcome").is_empty(), "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 1, "no_cases": 1, "skipped": 0})
         );
     }
 
@@ -2899,7 +3583,7 @@ mod tests {
         assert_eq!(outcomes.len(), 1, "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 4, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 4, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         let missing = outcomes
             .iter()
@@ -2989,7 +3673,7 @@ mod tests {
         assert!(events_of_kind(&events, "test_outcome").is_empty(), "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         let failed: Vec<_> = events_of_kind(&events, "error")
             .into_iter()
@@ -3075,7 +3759,7 @@ mod tests {
         let finished = event(&events, "command_finished");
         assert_eq!(
             finished["tests"],
-            serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 1, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         assert_eq!(finished["exit_code"], serde_json::json!(3));
     }
@@ -3139,7 +3823,7 @@ mod tests {
         );
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 1, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 1, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         let outcomes = events_of_kind(&events, "test_outcome");
         assert_eq!(outcomes.len(), 3, "{out}");
@@ -3192,7 +3876,7 @@ mod tests {
         );
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 0, "failed": 1, "cached": 0})
+            serde_json::json!({"passed": 0, "failed": 1, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         let outcomes = events_of_kind(&events, "test_outcome");
         assert_eq!(outcomes.len(), 3, "{out}");
@@ -3221,7 +3905,7 @@ mod tests {
         );
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 0, "failed": 2, "cached": 0})
+            serde_json::json!({"passed": 0, "failed": 2, "cached": 0, "no_cases": 0, "skipped": 0})
         );
     }
 
@@ -3240,7 +3924,7 @@ mod tests {
         assert_eq!(failed[0]["status"], serde_json::json!(3), "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
     }
 
@@ -3283,7 +3967,7 @@ mod tests {
         assert!(events_of_kind(&events, "test_outcome").is_empty(), "{out}");
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         let results: serde_json::Value = serde_json::from_slice(
             &std::fs::read(harness.workspace.join("res.json")).expect("results report"),
@@ -3434,6 +4118,150 @@ mod tests {
         assert_eq!(reports[0]["path"], serde_json::json!("res.json"));
     }
 
+    fn failing_result_files(harness: &Harness, with_xml: bool) -> Vec<(String, String)> {
+        let mut files = vec![(
+            String::from("test.lcov"),
+            write_bep_artifact(harness, "coverage.dat", MINIMAL_LCOV.as_bytes()),
+        )];
+        if with_xml {
+            files.push((
+                String::from("test.xml"),
+                write_bep_artifact(harness, "cases.xml", MIXED_CASES_XML.as_bytes()),
+            ));
+        }
+        files.push((
+            String::from("test.log"),
+            write_bep_artifact(harness, "test.log", b"first\nboom happened\n"),
+        ));
+        files
+    }
+
+    #[test]
+    fn test_failing_outcome_carries_log_path_and_tail() {
+        let harness = Harness::new("test-failing-log");
+        let files = failing_result_files(&harness, true);
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t", 1, 1, 1, "FAILED", None, None, None, &files,
+            )]),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["test", "--output=json"]);
+        let events = json_events(&out);
+        let outcome = event(&events, "test_outcome");
+        assert!(outcome["log_path"].as_str().is_some(), "{out}");
+        assert!(
+            outcome["log_tail"]
+                .as_str()
+                .expect("tail")
+                .contains("boom happened"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn coverage_failing_outcome_carries_failing_cases_and_log() {
+        let harness = Harness::new("cov-failing-cases");
+        let files = failing_result_files(&harness, true);
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t", 1, 1, 1, "FAILED", None, None, None, &files,
+            )]),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["coverage", "--output=json"]);
+        let events = json_events(&out);
+        let outcome = event(&events, "test_outcome");
+        let failing = outcome["failing_cases"].as_array().expect("failing");
+        let names: Vec<&str> = failing
+            .iter()
+            .map(|case| case["name"].as_str().expect("name"))
+            .collect();
+        assert_eq!(names, vec!["fails", "errs"], "{out}");
+        assert!(outcome["log_path"].as_str().is_some(), "{out}");
+        assert!(
+            outcome["log_tail"]
+                .as_str()
+                .expect("tail")
+                .contains("boom happened"),
+            "{out}"
+        );
+        assert_eq!(
+            event(&events, "command_finished")["results_complete"],
+            serde_json::json!(true),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn coverage_failing_outcome_without_test_xml_stays_complete() {
+        let harness = Harness::new("cov-failing-no-xml");
+        let files = failing_result_files(&harness, false);
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t", 1, 1, 1, "FAILED", None, None, None, &files,
+            )]),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["coverage", "--output=json"]);
+        let events = json_events(&out);
+        let outcome = event(&events, "test_outcome");
+        assert!(outcome.get("failing_cases").is_none(), "{out}");
+        assert_eq!(
+            event(&events, "command_finished")["results_complete"],
+            serde_json::json!(true),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn passed_count_is_per_run_and_shard() {
+        let harness = Harness::new("test-count-unit");
+        let mut lines = Vec::new();
+        let xml = vec![(
+            String::from("test.xml"),
+            write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes()),
+        )];
+        for run in 1..=2 {
+            for shard in 1..=2 {
+                let attempt_two = run == 1 && shard == 1;
+                if attempt_two {
+                    lines.push(test_result_full_line(
+                        "//a:t", run, shard, 1, "FAILED", None, None, None, &xml,
+                    ));
+                    lines.push(test_result_full_line(
+                        "//a:t", run, shard, 2, "PASSED", None, None, None, &xml,
+                    ));
+                } else {
+                    lines.push(test_result_identity_line("//a:t", run, shard, 1, &xml));
+                }
+            }
+        }
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (_, out, _) = harness.run(&["test", "--output=json", "--report=results=res.json"]);
+        let events = json_events(&out);
+        let tests = &event(&events, "command_finished")["tests"];
+        assert_eq!(tests["passed"], serde_json::json!(4), "{out}");
+        assert_eq!(tests["failed"], serde_json::json!(0), "{out}");
+        let results: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(harness.workspace.join("res.json")).expect("results report"),
+        )
+        .expect("results json");
+        let passed = results["results"]
+            .as_array()
+            .expect("results")
+            .iter()
+            .filter(|entry| entry["status"] == "PASSED" && entry["final"] != false)
+            .count();
+        assert_eq!(passed, 4, "{results}");
+    }
+
     #[test]
     fn failing_case_past_the_case_limit_is_still_reported() {
         let harness = Harness::new("test-late-failure");
@@ -3468,7 +4296,7 @@ mod tests {
     }
 
     #[test]
-    fn default_results_report_failure_does_not_fail_the_run() {
+    fn default_results_report_failure_fails_the_run() {
         let harness = Harness::new("test-results-default-blocked");
         let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
         let harness = Harness {
@@ -3480,7 +4308,93 @@ mod tests {
         };
         std::fs::create_dir_all(harness.workspace.join(".dx/results.json")).expect("block");
         let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        assert!(
+            events.iter().any(|event| event["code"] == "report_failed"),
+            "{out}"
+        );
+        let finished = events.last().expect("command_finished");
+        assert_eq!(finished["event"], "command_finished", "{out}");
+        assert_eq!(finished["results_complete"], false, "{out}");
+    }
+
+    #[test]
+    fn default_results_report_failure_keeps_the_bazel_code() {
+        let harness = Harness::new("test-results-default-blocked-bazel");
+        let uri = write_bep_artifact(&harness, "bad.xml", MIXED_TEST_XML.as_bytes());
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t",
+                1,
+                1,
+                1,
+                "FAILED",
+                None,
+                None,
+                None,
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        std::fs::create_dir_all(harness.workspace.join(".dx/results.json")).expect("block");
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 3, "{out}");
+        let events = json_events(&out);
+        let finished = events.last().expect("command_finished");
+        assert_eq!(finished["results_complete"], false, "{out}");
+    }
+
+    #[test]
+    fn results_document_run_id_matches_command_finished() {
+        let harness = Harness::new("test-results-run-id");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
         assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let finished = events.last().expect("command_finished");
+        let run_id = finished["run_id"].as_str().expect("run_id in event");
+        let file = std::fs::read_to_string(harness.workspace.join(".dx/results.json"))
+            .expect("results file");
+        let document: serde_json::Value = serde_json::from_str(&file).expect("json");
+        assert_eq!(document["run_id"], run_id);
+        assert_eq!(document["record_version"], 1);
+    }
+
+    #[test]
+    fn explicit_results_report_carries_the_run_id() {
+        let harness = Harness::new("test-results-run-id-explicit");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&[
+            "test",
+            "--output=json",
+            "--report",
+            "results=elsewhere.json",
+        ]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let finished = events.last().expect("command_finished");
+        let run_id = finished["run_id"].as_str().expect("run_id in event");
+        let file = std::fs::read_to_string(harness.workspace.join("elsewhere.json"))
+            .expect("results file");
+        let document: serde_json::Value = serde_json::from_str(&file).expect("json");
+        assert_eq!(document["run_id"], run_id);
+        assert!(!harness.workspace.join(".dx/results.json").exists());
     }
 
     #[test]
@@ -3627,7 +4541,7 @@ mod tests {
         );
         assert_eq!(
             event(&events, "command_finished")["tests"],
-            serde_json::json!({"passed": 1, "failed": 0, "cached": 0})
+            serde_json::json!({"passed": 1, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         assert_eq!(
             event(&events, "command_finished")["results_complete"],
@@ -3789,6 +4703,88 @@ mod tests {
         );
     }
 
+    fn filtered_target_lines() -> Vec<String> {
+        vec![
+            serde_json::json!({
+                "id": {"targetConfigured": {"label": "//a:slow"}},
+                "configured": {"targetKind": "sh_test rule", "testSize": "LARGE"},
+            })
+            .to_string(),
+            serde_json::json!({
+                "id": {"targetCompleted": {"label": "//a:slow", "configuration": {"id": "cfg1"}}},
+                "completed": {"success": true},
+            })
+            .to_string(),
+        ]
+    }
+
+    #[test]
+    fn filtered_targets_are_reported_and_counted() {
+        let harness = Harness::new("test-filtered");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let mut lines = filtered_target_lines();
+        lines.push(test_result_line(
+            "//a:t",
+            &[(String::from("test.xml"), uri)],
+        ));
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert_eq!(outcomes.len(), 1, "{out}");
+        assert_eq!(outcomes[0]["target"], serde_json::json!("//a:slow"));
+        assert_eq!(outcomes[0]["outcome"], serde_json::json!("filtered"));
+        assert!(outcomes[0].get("evidence_complete").is_none(), "{out}");
+        let notices: Vec<_> = events_of_kind(&events, "notice")
+            .into_iter()
+            .filter(|notice| notice["code"] == serde_json::json!("tests_filtered"))
+            .collect();
+        assert_eq!(notices.len(), 1, "{out}");
+        let finished = event(&events, "command_finished");
+        assert_eq!(finished["tests"]["skipped"], serde_json::json!(1), "{out}");
+        assert_eq!(finished["tests"]["failed"], serde_json::json!(0), "{out}");
+    }
+
+    #[test]
+    fn filtered_targets_print_a_stderr_line_in_text_mode() {
+        let harness = Harness::new("test-filtered-text");
+        let uri = write_bep_artifact(&harness, "ok.xml", MINIMAL_TEST_XML.as_bytes());
+        let mut lines = filtered_target_lines();
+        lines.push(test_result_line(
+            "//a:t",
+            &[(String::from("test.xml"), uri)],
+        ));
+        let harness = Harness {
+            raw_bep: Some(lines),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(err.matches("dx: tests_filtered: ").count(), 1, "{err}");
+        assert!(err.contains("//a:slow"), "{err}");
+    }
+
+    #[test]
+    fn coverage_reports_filtered_targets() {
+        let mut harness = coverage_harness("cov-filtered", MINIMAL_LCOV.as_bytes());
+        let mut lines = filtered_target_lines();
+        lines.extend(harness.raw_bep.take().expect("bep"));
+        harness.raw_bep = Some(lines);
+        let (_, out, _) = harness.run(&["coverage", "--output=json"]);
+        let events = json_events(&out);
+        let outcomes = events_of_kind(&events, "test_outcome");
+        assert!(
+            outcomes
+                .iter()
+                .any(|outcome| outcome["outcome"] == serde_json::json!("filtered")),
+            "{out}"
+        );
+    }
+
     #[test]
     fn coverage_without_bazels_last_event_is_incomplete() {
         let mut harness = coverage_harness("cov-unterminated", MINIMAL_LCOV.as_bytes());
@@ -3799,5 +4795,84 @@ mod tests {
             err.contains("dx: incomplete_results: build events ended before Bazel's last event"),
             "{err}"
         );
+    }
+
+    struct BrokenPipe;
+
+    impl std::io::Write for BrokenPipe {
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "broken pipe",
+            ))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "broken pipe",
+            ))
+        }
+    }
+
+    #[test]
+    fn announce_incomplete_returns_the_stdout_code_when_stdout_breaks() {
+        let mut err = Vec::new();
+        assert_eq!(
+            super::announce_incomplete(
+                dx_output::OutputMode::Json,
+                &mut BrokenPipe,
+                &mut err,
+                "no test.xml"
+            ),
+            Err(dx_process::broken_pipe_code())
+        );
+    }
+
+    #[test]
+    fn coverage_threshold_returns_the_stdout_code_when_stdout_breaks() {
+        let workspace = tempfile::tempdir().expect("tempdir");
+        let mut err = Vec::new();
+        assert_eq!(
+            super::coverage_threshold(
+                Some(80),
+                "",
+                &[],
+                workspace.path(),
+                dx_output::OutputMode::Json,
+                &mut BrokenPipe,
+                &mut err,
+            ),
+            Err(dx_process::broken_pipe_code())
+        );
+    }
+
+    #[test]
+    fn an_outcome_that_fails_to_build_ends_the_stream_once() {
+        let outcome = dx_output::TestOutcome {
+            outcome: "failed".to_owned(),
+            ..dx_output::TestOutcome::default()
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let ended = super::emit_outcomes(
+            dx_output::OutputMode::Json,
+            &mut out,
+            &mut err,
+            &[outcome],
+            &[],
+        );
+        assert_eq!(ended.err(), Some(dx_process::operational_code()));
+        let events: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|event| event["event"].as_str().unwrap())
+            .collect();
+        assert_eq!(kinds, ["error", "command_finished"], "{events:?}");
+        assert_eq!(events[0]["code"], "invalid_result");
     }
 }

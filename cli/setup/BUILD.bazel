@@ -11,10 +11,7 @@ exports_files([
 dx_rust_crate(
     name = "dx_setup",
     package_name = "cli/dx_setup",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     dev_deps = ["insta"],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -22,6 +19,7 @@ dx_rust_crate(
         "//cli/roots:dx_roots",
     ],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
+    test_srcs = ["src/lib_tests.rs"],
     deps = ["thiserror"],
 )
 

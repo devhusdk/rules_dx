@@ -163,6 +163,46 @@ mod tests {
     }
 
     #[test]
+    fn coverage_rate_honors_markers_for_rb_kts_erl() {
+        for (path, source) in [
+            (
+                "src/a.rb",
+                "x = 1\ny = 2 # LCOV_EXCL_LINE - reason: fixture, issue: 1055.\n",
+            ),
+            (
+                "src/a.kts",
+                "val x = 1\nval y = 2 // LCOV_EXCL_LINE - reason: fixture, issue: 1055.\n",
+            ),
+            (
+                "src/a.erl",
+                "x.\ny. % LCOV_EXCL_LINE - reason: fixture, issue: 1055.\n",
+            ),
+        ] {
+            let document = format!("SF:{path}\nDA:1,1\nDA:2,0\nend_of_record\n");
+            assert_eq!(
+                rate(&[document.as_str()], &[(path, source)]),
+                Ok((1, 1)),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
+    fn coverage_rate_rejects_bare_markers_for_rb_kts_erl() {
+        for (path, source) in [
+            ("src/a.rb", "x = 1\ny = 2 # LCOV_EXCL_LINE\n"),
+            ("src/a.kts", "val x = 1\nval y = 2 // LCOV_EXCL_LINE\n"),
+            ("src/a.erl", "x.\ny. % LCOV_EXCL_LINE\n"),
+        ] {
+            let document = format!("SF:{path}\nDA:1,1\nDA:2,0\nend_of_record\n");
+            assert!(
+                rate(&[document.as_str()], &[(path, source)]).is_err(),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
     fn coverage_rate_counts_modern_js_ts_extensions() {
         for path in ["src/a.mjs", "src/a.cjs", "src/a.mts", "src/a.cts"] {
             let document = format!("SF:{path}\nDA:1,1\nDA:2,0\nend_of_record\n");

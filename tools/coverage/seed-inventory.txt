@@ -1,6 +1,9 @@
 # Seed cell exact-gate inventory: `<eligible|support> <path>` rows, one per gated file.
 # support marks declared-but-uncounted sources: cfg(test)-only modules, line-less declarations, and the fully excluded entry shim.
 eligible cli/lcov/src/lib.rs
+eligible cli/lcov/src/accounting.rs
+# tests-only module; never linked into production binaries.
+support cli/lcov/src/accounting_tests.rs
 eligible cli/lcov/src/ignores.rs
 eligible cli/lcov/src/ignores_find.rs
 eligible cli/lcov/src/ignores_policy.rs
@@ -17,8 +20,6 @@ eligible cli/lcov/src/verdict_lang.rs
 eligible cli/lcov/src/verdict_render.rs
 # tests-only module; never linked into production binaries.
 support cli/lcov/src/verdict_tests.rs
-eligible quality/evaluator/src/lib.rs
-eligible quality/evaluator/src/main.rs
 # process entry shim; behavior exercised through run() unit tests.
 support tools/coverage/src/main.rs
 # Go seed: the fully covered gazelle language packages in the measured
@@ -29,22 +30,18 @@ eligible gazelle/cc/naming.go
 eligible gazelle/cc/parser.go
 # package documentation only; ships no executable lines.
 support gazelle/cc/doc.go
+# shared vue, svelte, astro and mdx naming and script parsing.
+eligible gazelle/common/webcomponent.go
 eligible gazelle/astro/lang.go
-eligible gazelle/astro/naming.go
 eligible gazelle/astro/parser.go
 eligible gazelle/csharp/lang.go
 eligible gazelle/csharp/naming.go
 eligible gazelle/csharp/parser.go
 eligible gazelle/csharp/stdlib.go
 eligible gazelle/mdx/lang.go
-eligible gazelle/mdx/naming.go
 eligible gazelle/mdx/parser.go
 eligible gazelle/svelte/lang.go
-eligible gazelle/svelte/naming.go
-eligible gazelle/svelte/parser.go
 eligible gazelle/vue/lang.go
-eligible gazelle/vue/naming.go
-eligible gazelle/vue/parser.go
 # package documentation only; ships no executable lines.
 support gazelle/astro/doc.go
 # package documentation only; ships no executable lines.

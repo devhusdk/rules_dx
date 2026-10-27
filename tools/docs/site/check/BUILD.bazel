@@ -27,10 +27,7 @@ rust_library(
     crate_name = "dx_site_check",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
-        package_name = "tools/docs/site/site_check",
-    ) + ["//tools/docs/ir/ir:documentation_ir"],
+    deps = ["//tools/docs/ir/ir:documentation_ir"],
 )
 
 rust_binary(

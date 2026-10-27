@@ -87,25 +87,34 @@ pub struct Phase {
     pub exit_codes: Vec<i32>,
 }
 
+/// The metrics `--compare` looks at, in `Phase::scalars` order. Other fields
+/// in the JSON (such as `slot_waits`) are informational and never compared.
+const COMPARED: [&str; 9] = [
+    "wall_seconds",
+    "psi_some_avg10_peak",
+    "psi_full_avg10_peak",
+    "server_count_peak",
+    "server_rss_peak_total_kb",
+    "server_rss_peak_largest_kb",
+    "jvm_heap_after_gc_bytes",
+    "output_base_bytes",
+    "oom_kills",
+];
+
 impl Phase {
     pub fn scalars(&self) -> Vec<(&'static str, f64)> {
-        vec![
-            ("wall_seconds", self.wall_seconds),
-            ("psi_some_avg10_peak", self.peaks.psi_some_avg10),
-            ("psi_full_avg10_peak", self.peaks.psi_full_avg10),
-            ("server_count_peak", self.peaks.server_count as f64),
-            ("server_rss_peak_total_kb", self.peaks.total_rss_kb as f64),
-            (
-                "server_rss_peak_largest_kb",
-                self.peaks.largest_server_kb() as f64,
-            ),
-            (
-                "jvm_heap_after_gc_bytes",
-                self.jvm_heap_after_gc_bytes as f64,
-            ),
-            ("output_base_bytes", self.output_base_bytes as f64),
-            ("oom_kills", self.oom_kills as f64),
-        ]
+        let values = [
+            self.wall_seconds,
+            self.peaks.psi_some_avg10,
+            self.peaks.psi_full_avg10,
+            self.peaks.server_count as f64,
+            self.peaks.total_rss_kb as f64,
+            self.peaks.largest_server_kb() as f64,
+            self.jvm_heap_after_gc_bytes as f64,
+            self.output_base_bytes as f64,
+            self.oom_kills as f64,
+        ];
+        COMPARED.into_iter().zip(values).collect()
     }
 }
 
@@ -218,11 +227,15 @@ pub fn read_scalars(json: &str) -> BTreeMap<String, Scalars> {
         let Some((key, value)) = line.split_once("\": ") else {
             continue;
         };
+        let key = key.trim_start_matches('"');
+        if !COMPARED.contains(&key) {
+            continue;
+        }
         if let Ok(number) = value.trim_end_matches(',').parse::<f64>() {
             phases
                 .entry(name.clone())
                 .or_default()
-                .insert(key.trim_start_matches('"').to_string(), number);
+                .insert(key.to_string(), number);
         }
     }
     phases
@@ -427,6 +440,19 @@ mod tests {
             .unwrap();
         assert_eq!(rss.percent, 0.0);
         assert!(compare_table(&deltas, 15.0).contains("  !"));
+        assert!(deltas.iter().all(|d| d.metric != "slot_waits"));
+    }
+
+    #[test]
+    fn compare_ignores_slot_waits() {
+        let run = |waits: usize| {
+            let mut cold = phase(100.0, 1000);
+            cold.slot_waits = waits;
+            to_json(4, "//...", &local(), &cold, &phase(10.0, 1000))
+        };
+        let deltas = compare(&run(0), &run(9)).unwrap();
+        assert!(deltas.iter().all(|d| d.metric != "slot_waits"));
+        assert!(!compare_table(&deltas, 15.0).contains("  !"));
     }
 
     #[test]

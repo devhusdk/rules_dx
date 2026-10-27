@@ -5,9 +5,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
     USE_BAZEL_VERSION=9.2.0
 
 # Bootstrap tools only; toolchains resolve via Bazel.
+# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl git \
     && rm -rf /var/lib/apt/lists/*
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Pinned Bazelisk launcher.
 RUN curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 -o /tmp/bazelisk \
@@ -19,5 +22,6 @@ RUN curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 -o /tmp/baze
 
 # Non-root dev user matching the devcontainers convention.
 RUN useradd -m -s /bin/bash vscode
+# hadolint ignore=DL3066
 USER vscode
 WORKDIR /workspaces/rules_dx

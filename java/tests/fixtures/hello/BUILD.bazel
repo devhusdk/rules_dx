@@ -1,4 +1,5 @@
 load("//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -11,6 +12,25 @@ java_library(
     name = "hello_lib",
     srcs = ["Hello.java"],
     aspect_hints = ["//quality:corpus_checkstyle_config"],
+)
+
+genrule(
+    name = "generated_srcjar",
+    srcs = ["Generated.java.txt"],
+    outs = ["generated.srcjar"],
+    cmd = "$(execpath @bazel_tools//tools/zip:zipper) c $@ hello/Generated.java=$<",
+    tools = ["@bazel_tools//tools/zip:zipper"],
+)
+
+java_library(
+    name = "srcjar_lib",
+    srcs = [":generated_srcjar"],
+)
+
+dx_direct_sources_test(
+    name = "srcjar_sources_test",
+    expected = {},
+    target_under_test = ":srcjar_lib",
 )
 
 java_binary(
@@ -27,6 +47,26 @@ java_test(
     aspect_hints = ["//quality:corpus_checkstyle_config"],
     test_class = "hello.HelloTest",
     deps = [":hello_lib"],
+)
+
+java_test(
+    name = "InferredTest",
+    srcs = ["src/test/java/hello/InferredTest.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    deps = [":hello_lib"],
+)
+
+java_binary(
+    name = "InferredMain",
+    srcs = ["src/main/java/hello/InferredMain.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    deps = [":hello_lib"],
+)
+
+dx_hello_output_test(
+    name = "inferred_main_output_test",
+    binary = ":InferredMain",
+    expected = "hello world",
 )
 
 dx_hello_output_test(

@@ -1,6 +1,7 @@
 """Canonical version pins stay equal to MODULE.bazel literals."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_harness_test")
+load("//tools/testing:bazel_pins.bzl", "NESTED_BAZEL_SHA256", "NESTED_BAZEL_VERSION")
 load(":cuda.bzl", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_HOST_SYSROOT = "CUDA_HOST_SYSROOT", _MOD_CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _MOD_TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
 load(":dotnet.bzl", _MOD_DOTNET_VERSION = "DOTNET_VERSION", _MOD_RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION")
 load(":java-scala-kotlin.bzl", _JAVA_RUNTIME_VERSION = "JAVA_RUNTIME_VERSION", _JVM_TOOL_VERSIONS = "JVM_TOOL_VERSIONS", _MOD_SCALA_VERSION = "SCALA_VERSION")
@@ -10,7 +11,7 @@ load(":python.bzl", _MOD_PYTHON_VERSION = "PYTHON_VERSION")
 load(":ruby.bzl", _GEM_CHECKSUMS = "GEM_CHECKSUMS", _MOD_RUBY_VERSION = "RUBY_VERSION", _MOD_RULES_RUBY_VERSION = "RULES_RUBY_VERSION")
 load(":rust.bzl", _CRATE_BAZEL_LOCK = "CRATE_BAZEL_LOCK", _CRATE_CARGO_LOCK = "CRATE_CARGO_LOCK", _MOD_RUST_VERSION = "RUST_VERSION", _RUST_CRATE_MANIFESTS = "RUST_CRATE_MANIFESTS")
 load(":toolchains.bzl", _MOD_GO_LANGUAGE_FLOOR = "GO_LANGUAGE_FLOOR", _MOD_GO_SDK_VERSION = "GO_SDK_VERSION")
-load(":versions.bzl", _APPLE_SUPPORT_VERSION = "APPLE_SUPPORT_VERSION", _ASPECT_RULES_JEST_VERSION = "ASPECT_RULES_JEST_VERSION", _ASPECT_RULES_JS_VERSION = "ASPECT_RULES_JS_VERSION", _ASPECT_RULES_PY_VERSION = "ASPECT_RULES_PY_VERSION", _ASPECT_RULES_TS_VERSION = "ASPECT_RULES_TS_VERSION", _BAZELISK_VERSION = "BAZELISK_VERSION", _BAZEL_LIB_VERSION = "BAZEL_LIB_VERSION", _BAZEL_SKYLIB_VERSION = "BAZEL_SKYLIB_VERSION", _BAZEL_VERSION = "BAZEL_VERSION", _CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _CUDA_VERSION = "CUDA_VERSION", _DOTNET_VERSION = "DOTNET_VERSION", _GAZELLE_VERSION = "GAZELLE_VERSION", _GOOGLETEST_VERSION = "GOOGLETEST_VERSION", _GO_LANGUAGE_FLOOR = "GO_LANGUAGE_FLOOR", _GO_SDK_SDKS = "GO_SDK_SDKS", _GO_SDK_VERSION = "GO_SDK_VERSION", _LLVM_VERSION = "LLVM_VERSION", _PLATFORMS_VERSION = "PLATFORMS_VERSION", _PNPM_VERSION = "PNPM_VERSION", _PROTOBUF_VERSION = "PROTOBUF_VERSION", _PWSH_VERSION = "PWSH_VERSION", _PYTHON_VERSION = "PYTHON_VERSION", _RUBY_VERSION = "RUBY_VERSION", _RULES_ANDROID_VERSION = "RULES_ANDROID_VERSION", _RULES_APPLE_VERSION = "RULES_APPLE_VERSION", _RULES_CC_VERSION = "RULES_CC_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION", _RULES_GO_VERSION = "RULES_GO_VERSION", _RULES_JAVA_VERSION = "RULES_JAVA_VERSION", _RULES_JVM_EXTERNAL_VERSION = "RULES_JVM_EXTERNAL_VERSION", _RULES_KOTLIN_VERSION = "RULES_KOTLIN_VERSION", _RULES_NODEJS_VERSION = "RULES_NODEJS_VERSION", _RULES_POWERSHELL_VERSION = "RULES_POWERSHELL_VERSION", _RULES_PROTO_VERSION = "RULES_PROTO_VERSION", _RULES_PYTHON_VERSION = "RULES_PYTHON_VERSION", _RULES_RUBY_VERSION = "RULES_RUBY_VERSION", _RULES_RUST_PROST_VERSION = "RULES_RUST_PROST_VERSION", _RULES_RUST_VERSION = "RULES_RUST_VERSION", _RULES_RUST_WASM_BINDGEN_VERSION = "RULES_RUST_WASM_BINDGEN_VERSION", _RULES_SCALA_VERSION = "RULES_SCALA_VERSION", _RULES_SHELL_VERSION = "RULES_SHELL_VERSION", _RULES_ZIG_VERSION = "RULES_ZIG_VERSION", _RUSTFMT_VERSION = "RUSTFMT_VERSION", _RUST_EDITION = "RUST_EDITION", _RUST_VERSION = "RUST_VERSION", _SCALA_VERSION = "SCALA_VERSION", _TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION", _TYPESCRIPT_INTEGRITY = "TYPESCRIPT_INTEGRITY", _TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION", _ZIG_VERSION = "ZIG_VERSION")
+load(":versions.bzl", _APPLE_SUPPORT_VERSION = "APPLE_SUPPORT_VERSION", _ASPECT_RULES_JEST_VERSION = "ASPECT_RULES_JEST_VERSION", _ASPECT_RULES_JS_VERSION = "ASPECT_RULES_JS_VERSION", _ASPECT_RULES_PY_VERSION = "ASPECT_RULES_PY_VERSION", _ASPECT_RULES_TS_VERSION = "ASPECT_RULES_TS_VERSION", _BAZELISK_VERSION = "BAZELISK_VERSION", _BAZEL_LIB_VERSION = "BAZEL_LIB_VERSION", _BAZEL_SKYLIB_VERSION = "BAZEL_SKYLIB_VERSION", _BAZEL_VERSION = "BAZEL_VERSION", _CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _CUDA_VERSION = "CUDA_VERSION", _DOTNET_VERSION = "DOTNET_VERSION", _GAZELLE_VERSION = "GAZELLE_VERSION", _GOOGLETEST_VERSION = "GOOGLETEST_VERSION", _GO_LANGUAGE_FLOOR = "GO_LANGUAGE_FLOOR", _GO_SDK_SDKS = "GO_SDK_SDKS", _GO_SDK_VERSION = "GO_SDK_VERSION", _JULIA_VERSION = "JULIA_VERSION", _LLVM_VERSION = "LLVM_VERSION", _LUA_VERSION = "LUA_VERSION", _PLATFORMS_VERSION = "PLATFORMS_VERSION", _PNPM_VERSION = "PNPM_VERSION", _PROTOBUF_VERSION = "PROTOBUF_VERSION", _PWSH_VERSION = "PWSH_VERSION", _PYTHON_VERSION = "PYTHON_VERSION", _RUBY_VERSION = "RUBY_VERSION", _RULES_ANDROID_VERSION = "RULES_ANDROID_VERSION", _RULES_APPLE_VERSION = "RULES_APPLE_VERSION", _RULES_CC_VERSION = "RULES_CC_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION", _RULES_GO_VERSION = "RULES_GO_VERSION", _RULES_JAVA_VERSION = "RULES_JAVA_VERSION", _RULES_JULIA_VERSION = "RULES_JULIA_VERSION", _RULES_JVM_EXTERNAL_VERSION = "RULES_JVM_EXTERNAL_VERSION", _RULES_KOTLIN_VERSION = "RULES_KOTLIN_VERSION", _RULES_NODEJS_VERSION = "RULES_NODEJS_VERSION", _RULES_PERL_VERSION = "RULES_PERL_VERSION", _RULES_POWERSHELL_VERSION = "RULES_POWERSHELL_VERSION", _RULES_PROTO_VERSION = "RULES_PROTO_VERSION", _RULES_PYTHON_VERSION = "RULES_PYTHON_VERSION", _RULES_RUBY_VERSION = "RULES_RUBY_VERSION", _RULES_RUST_PROST_VERSION = "RULES_RUST_PROST_VERSION", _RULES_RUST_VERSION = "RULES_RUST_VERSION", _RULES_RUST_WASM_BINDGEN_VERSION = "RULES_RUST_WASM_BINDGEN_VERSION", _RULES_SCALA_VERSION = "RULES_SCALA_VERSION", _RULES_SHELL_VERSION = "RULES_SHELL_VERSION", _RULES_ZIG_VERSION = "RULES_ZIG_VERSION", _RUSTFMT_VERSION = "RUSTFMT_VERSION", _RUST_EDITION = "RUST_EDITION", _RUST_VERSION = "RUST_VERSION", _SCALA_VERSION = "SCALA_VERSION", _TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION", _TYPEDOC_VERSION = "TYPEDOC_VERSION", _TYPESCRIPT_INTEGRITY = "TYPESCRIPT_INTEGRITY", _TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION", _ZIG_VERSION = "ZIG_VERSION")
 
 def versions_contract_tests(name):
     """Fails when a tracked copy drifts from its canonical pin."""
@@ -42,6 +43,14 @@ def versions_contract_tests(name):
         ["use_repo(npm, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_HUBS]) + ")"] +
         ["pnpm_lock = \"" + lock + "\"," for lock in _NPM_LOCKS],
     )
+    cuda_stanza = "\n".join([
+        "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"",
+        "name = \"toolchains_llvm\", version = \"" + _TOOLCHAINS_LLVM_VERSION + "\"",
+        "llvm_version = \"" + _CUDA_HOST_LLVM_VERSION + "\"",
+        "nvcc_version = \"" + _CUDA_VERSION + "\"",
+        "sha256 = \"" + _CUDA_HOST_SYSROOT.sha256 + "\"",
+        _CUDA_HOST_SYSROOT.url,
+    ] + cuda_pins)
     starlark_harness_test(
         name = name,
         checks = [
@@ -60,6 +69,8 @@ def versions_contract_tests(name):
             expect_equal("cuda rules module follows canonical", _MOD_RULES_CUDA_VERSION, _RULES_CUDA_VERSION),
             expect_equal("cuda host llvm module follows canonical", _MOD_CUDA_HOST_LLVM_VERSION, _CUDA_HOST_LLVM_VERSION),
             expect_equal("toolchains_llvm module follows canonical", _MOD_TOOLCHAINS_LLVM_VERSION, _TOOLCHAINS_LLVM_VERSION),
+            expect_equal("nested bazel pin follows canonical", NESTED_BAZEL_VERSION, _BAZEL_VERSION),
+            expect_equal("nested bazel pins every platform", sorted(NESTED_BAZEL_SHA256.keys()), ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64"]),
         ],
         file_blocks = {
             "//:MODULE.bazel": [manifests_block],
@@ -69,7 +80,10 @@ def versions_contract_tests(name):
             "//:.bazelrc": "build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n" +
                            "build --tool_java_runtime_version=" + _JAVA_RUNTIME_VERSION,
             "//:.bazelversion": _BAZEL_VERSION,
+            "//:cuda/README.md": cuda_stanza,
+            "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
+            "//quality/tools/javascript:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
@@ -106,6 +120,10 @@ def versions_contract_tests(name):
                                "name = \"rules_ruby\", version = \"" + _RULES_RUBY_VERSION + "\"\n" +
                                "name = \"rules_zig\", version = \"" + _RULES_ZIG_VERSION + "\"\n" +
                                "zig.toolchain(zig_version = \"" + _ZIG_VERSION + "\")\n" +
+                               "name = \"rules_julia\", version = \"" + _RULES_JULIA_VERSION + "\"\n" +
+                               "julia.toolchain(version = \"" + _JULIA_VERSION + "\")\n" +
+                               "name = \"rules_perl\", version = \"" + _RULES_PERL_VERSION + "\"\n" +
+                               "name = \"lua\", version = \"" + _LUA_VERSION + "\"\n" +
                                "name = \"aspect_rules_py\", version = \"" + _ASPECT_RULES_PY_VERSION + "\"\n" +
                                "name = \"aspect_rules_js\", version = \"" + _ASPECT_RULES_JS_VERSION + "\"\n" +
                                "name = \"aspect_rules_ts\", version = \"" + _ASPECT_RULES_TS_VERSION + "\"\n" +

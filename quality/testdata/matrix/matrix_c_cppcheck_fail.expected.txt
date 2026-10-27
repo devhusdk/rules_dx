@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_c_cppcheck_fail
+capability LINT
+stages 1
+stage cppcheck classes=c sources=matrix/cppcheck_fail.c
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR cppcheck nullPointer matrix/cppcheck_fail.c 74 74 fixable=false "Null pointer dereference: slot"
+terminal 1
+terminal ERROR cppcheck nullPointer matrix/cppcheck_fail.c 74 74 fixable=false "Null pointer dereference: slot"
+replacements 0

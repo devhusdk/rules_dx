@@ -3,24 +3,18 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":codegen.bzl",
-    "CODEGEN_SCHEMA_VERSION",
-    "DX_CODEGEN_ADMITTED_PAIRS",
     "DX_CODEGEN_PLAN_OUTPUT_GROUP",
     "DX_CODEGEN_SHARD_SUFFIX",
-    "codegen_admitted_pairs",
     "codegen_conflict_error",
     "codegen_entry",
     "codegen_exec_error",
-    "codegen_fingerprint_schema_error",
     "codegen_merge_records",
-    "codegen_merge_schema_error",
     "codegen_pair_error",
     "codegen_path_error",
     "codegen_plan_fingerprint",
     "codegen_record",
     "codegen_record_error",
     "codegen_replaces_error",
-    "codegen_schema_error",
 )
 
 def _record_a():
@@ -43,16 +37,6 @@ def codegen_defs_unit_tests(name):
         mode = "unit",
         checks = [
             expect_equal(
-                "codegen schema version stays v1",
-                CODEGEN_SCHEMA_VERSION,
-                1,
-            ),
-            expect_equal(
-                "codegen admitted-pair schema validates",
-                codegen_schema_error(),
-                "",
-            ),
-            expect_equal(
                 "codegen freezes the private output group and shard suffix",
                 [
                     DX_CODEGEN_PLAN_OUTPUT_GROUP,
@@ -64,11 +48,6 @@ def codegen_defs_unit_tests(name):
                 "codegen first pair stays admitted (additions need no allowlist edit)",
                 codegen_pair_error("protobuf", "rust"),
                 "",
-            ),
-            expect_equal(
-                "codegen admitted query matches the registry data",
-                codegen_admitted_pairs(),
-                DX_CODEGEN_ADMITTED_PAIRS,
             ),
             expect_equal(
                 "codegen_path_error accepts relative paths",
@@ -277,24 +256,6 @@ def codegen_defs_unit_tests(name):
                 "codegen path conflict: logical path 'a' claimed by //gen:a, //gen:a",
             ),
             expect_equal(
-                "codegen_merge_records normalizes without pinning exact contents (schema)",
-                codegen_merge_schema_error(
-                    [
-                        codegen_record("//gen:b", "rust", [codegen_entry("z.rs", "s"), codegen_entry("a.rs", "s")]),
-                        _record_a(),
-                        _record_a(),
-                        codegen_record("//gen:a", "python", [codegen_entry("m.py", "s")]),
-                    ],
-                    codegen_merge_records([
-                        codegen_record("//gen:b", "rust", [codegen_entry("z.rs", "s"), codegen_entry("a.rs", "s")]),
-                        _record_a(),
-                        _record_a(),
-                        codegen_record("//gen:a", "python", [codegen_entry("m.py", "s")]),
-                    ]),
-                ),
-                "",
-            ),
-            expect_equal(
                 "codegen_merge_records groups by owner and sorts entries (snapshot)",
                 [
                     (record.producer, record.language, [entry.logical_path for entry in record.entries])
@@ -312,20 +273,10 @@ def codegen_defs_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "codegen_plan_fingerprint validates hash-input shape (schema)",
-                codegen_fingerprint_schema_error(codegen_plan_fingerprint([_record_b(), _record_a(), _record_a()])),
-                "",
-            ),
-            expect_equal(
                 "codegen_plan_fingerprint renders the normalized hash input (snapshot)",
                 codegen_plan_fingerprint([_record_b(), _record_a(), _record_a()]),
                 "[{\"entries\":[{\"exec_path\":\"\",\"import_root\":\"src\",\"logical_path\":\"src/alpha.rs\",\"namespace\":\"alpha\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//gen:alpha\"}," +
                 "{\"entries\":[{\"exec_path\":\"\",\"import_root\":\"src\",\"logical_path\":\"src/beta.rs\",\"namespace\":\"beta\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//gen:beta\"}]",
-            ),
-            expect_equal(
-                "codegen_plan_fingerprint exec paths validate shape (schema)",
-                codegen_fingerprint_schema_error(codegen_plan_fingerprint([codegen_record("//gen:a", "rust", [codegen_entry("a", "b", "", "out/a.rs")])])),
-                "",
             ),
             expect_equal(
                 "codegen_plan_fingerprint binds exec paths (snapshot)",
@@ -336,11 +287,6 @@ def codegen_defs_unit_tests(name):
                 "codegen_plan_fingerprint binds the replacement contract (snapshot)",
                 codegen_plan_fingerprint([codegen_record("//gen:a", "rust", [codegen_entry("a", "b", "", "out/a.rs", "a")])]),
                 "[{\"entries\":[{\"exec_path\":\"out/a.rs\",\"import_root\":\"b\",\"logical_path\":\"a\",\"namespace\":\"\",\"read_only\":true,\"replaces\":\"a\"}],\"language\":\"rust\",\"producer\":\"//gen:a\"}]",
-            ),
-            expect_equal(
-                "codegen_plan_fingerprint contracted entries validate shape (schema)",
-                codegen_fingerprint_schema_error(codegen_plan_fingerprint([codegen_record("//gen:a", "rust", [codegen_entry("a", "b", "", "out/a.rs", "a")])])),
-                "",
             ),
             expect_equal(
                 "codegen_pair_error defers non-admitted pairs (message lists the registry data)",

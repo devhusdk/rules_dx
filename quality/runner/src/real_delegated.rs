@@ -17,6 +17,7 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "rubocop",
         "shellcheck",
         "yamllint",
+        "hadolint",
     ] {
         let scratch = tempfile::tempdir().expect("scratch");
         let tool = delegated_tool(scratch.path().join("missing"));
@@ -61,6 +62,10 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ),
         ("shellcheck", "src/a.scala:1:1: warning: finding [SC2086]\n"),
         (
+            "hadolint",
+            r#"[{"code":"DL4006","column":1,"file":"src/a.scala","level":"warning","line":1,"message":"finding"}]"#,
+        ),
+        (
             "yamllint",
             "src/a.scala:1:1: [warning] finding (trailing-spaces)\n",
         ),
@@ -72,7 +77,7 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ),
         (
             "cppcheck",
-            r#"<error id="demo" severity="warning" msg="finding"><location file="src/a.scala" line="1" column="1"/></error>"#,
+            r#"<results version="2"><errors><error id="demo" severity="warning" msg="finding"><location file="src/a.scala" line="1" column="1"/></error></errors></results>"#,
         ),
         (
             "staticcheck",
@@ -161,7 +166,12 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "yamlfmt",
         "zig_fmt",
     ] {
-        let backend = backend_for(tool_id, plain_tool(), empty_report);
+        let tool = if tool_id == "gofumpt" {
+            gofumpt_tool()
+        } else {
+            plain_tool()
+        };
+        let backend = backend_for(tool_id, tool, empty_report);
         let fixed = backend
             .apply_fix(tool_id, "a.txt", "x\n", "format")
             .expect("fix round reaches the tool");
@@ -171,25 +181,38 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
 
 #[test]
 pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
-    for tool_id in [
-        "clang_tidy",
-        "cppcheck",
-        "djlint",
-        "errcheck",
-        "fsharplint",
-        "govet",
-        "keep_sorted",
-        "qmllint",
-        "roslyn",
-        "rubocop",
-        "shellcheck",
-        "staticcheck",
-        "yamllint",
+    for (tool_id, report) in [
+        ("clang_tidy", ""),
+        (
+            "cppcheck",
+            r#"<results version="2"><errors></errors></results>"#,
+        ),
+        ("djlint", ""),
+        ("errcheck", ""),
+        ("fsharplint", ""),
+        ("govet", ""),
+        ("keep_sorted", ""),
+        (
+            "qmllint",
+            r#"{"files":[{"filename":"a.txt","success":true,"warnings":[]}],"revision":4}"#,
+        ),
+        (
+            "roslyn",
+            r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[]}]}"#,
+        ),
+        ("rubocop", r#"{"files":[{"path":"a.txt","offenses":[]}]}"#),
+        ("shellcheck", ""),
+        ("hadolint", "[]"),
+        ("staticcheck", ""),
+        ("yamllint", ""),
     ] {
-        let upstream = upstream_file(tool_id, "");
+        let upstream = upstream_file(tool_id, report);
         let tool = delegated_tool(upstream.path().to_path_buf());
         let backend = backend_for(tool_id, tool, must_not_spawn);
-        let _ = backend.diagnose(tool_id, "lint", &single("a.txt", "x\n"));
+        let found = backend
+            .diagnose(tool_id, "lint", &single("a.txt", "x\n"))
+            .unwrap_or_else(|err| panic!("{tool_id}: {err}"));
+        assert!(found.is_empty(), "{tool_id}");
     }
 }
 
@@ -389,4 +412,35 @@ pub(super) fn gleam_format_fix_keeps_a_file_it_could_not_parse() {
         .apply_fix("gleam_format", "a.gleam", broken, "format")
         .expect("fix round");
     assert_eq!(kept, broken);
+}
+
+const ROSLYN_CLEAN: &str =
+    r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[]}]}"#;
+
+#[test]
+fn delegated_roslyn_fails_closed_without_the_csc_exit_status() {
+    for exit in [None, Some("oops")] {
+        let report = upstream_file("roslyn", ROSLYN_CLEAN);
+        let mut tool = delegated_tool(report.path().to_path_buf());
+        tool.tool_files = exit
+            .map(|text| vec![("dx-roslyn/exit".to_owned(), text.as_bytes().to_vec())])
+            .unwrap_or_default();
+        let backend = backend_for("roslyn", tool, must_not_spawn);
+        let error = backend
+            .diagnose("roslyn", "lint", &single("src/a.cs", "x\n"))
+            .expect_err("missing exit status");
+        assert!(error.to_string().contains("csc exit status"), "{error}");
+    }
+}
+
+#[test]
+fn delegated_roslyn_reports_a_nonzero_exit_without_errors() {
+    let report = upstream_file("roslyn", ROSLYN_CLEAN);
+    let mut tool = delegated_tool(report.path().to_path_buf());
+    tool.tool_files = vec![("dx-roslyn/exit".to_owned(), b"1\r\n".to_vec())];
+    let backend = backend_for("roslyn", tool, must_not_spawn);
+    let error = backend
+        .diagnose("roslyn", "lint", &single("src/a.cs", "x\n"))
+        .expect_err("incomplete");
+    assert!(error.to_string().contains("csc exit 1"), "{error}");
 }

@@ -80,10 +80,116 @@ impl PolicyTables {
 
 impl Distribution {
     pub fn tier_of(&self, label: &str) -> Tier {
-        if self.internal.contains(label) {
+        if self
+            .internal
+            .iter()
+            .any(|entry| pattern_covers(entry, label))
+        {
             Tier::Internal
         } else {
             Tier::Distributed
+        }
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum PatternKind {
+    Recursive,
+    Package,
+    Target,
+}
+
+struct ParsedPattern<'a> {
+    repo: &'a str,
+    package: &'a str,
+    name: &'a str,
+    kind: PatternKind,
+}
+
+fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
+    let (repo, rest) = if let Some(stripped) = text.strip_prefix('@') {
+        let stripped = stripped.strip_prefix('@').unwrap_or(stripped);
+        let (repo, rest) = stripped.split_once("//")?;
+        (repo, rest)
+    } else {
+        ("", text.strip_prefix("//")?)
+    };
+    let (path, name) = match rest.split_once(':') {
+        Some((path, name)) => (path, Some(name)),
+        None => (rest, None),
+    };
+    let all = matches!(name, Some("all" | "*" | "all-targets"));
+    if path == "..." || path.ends_with("/...") {
+        if name.is_some() && !all {
+            return None;
+        }
+        let package = path
+            .strip_suffix("...")
+            .unwrap_or(path)
+            .trim_end_matches('/');
+        return Some(ParsedPattern {
+            repo,
+            package,
+            name: "",
+            kind: PatternKind::Recursive,
+        });
+    }
+    if path.contains("...") || path.starts_with('/') || path.ends_with('/') {
+        return None;
+    }
+    match name {
+        Some(name) if all => Some(ParsedPattern {
+            repo,
+            package: path,
+            name,
+            kind: PatternKind::Package,
+        }),
+        Some("") => None,
+        Some(name) => Some(ParsedPattern {
+            repo,
+            package: path,
+            name,
+            kind: PatternKind::Target,
+        }),
+        None => {
+            let name = path.rsplit('/').next().unwrap_or(path);
+            if name.is_empty() {
+                return None;
+            }
+            Some(ParsedPattern {
+                repo,
+                package: path,
+                name,
+                kind: PatternKind::Target,
+            })
+        }
+    }
+}
+
+/// Whether the label pattern `entry` covers the scope `root`.
+fn pattern_covers(entry: &str, root: &str) -> bool {
+    let (Some(entry), Some(root)) = (parse_pattern(entry), parse_pattern(root)) else {
+        return false;
+    };
+    if entry.repo != root.repo {
+        return false;
+    }
+    match entry.kind {
+        PatternKind::Recursive => {
+            entry.package.is_empty()
+                || root.package == entry.package
+                || root
+                    .package
+                    .strip_prefix(entry.package)
+                    .is_some_and(|tail| tail.starts_with('/'))
+        }
+        PatternKind::Package => {
+            root.kind != PatternKind::Recursive && root.package == entry.package
+        }
+        PatternKind::Target => {
+            root.kind == PatternKind::Target
+                && root.package == entry.package
+                && root.name == entry.name
         }
     }
 }

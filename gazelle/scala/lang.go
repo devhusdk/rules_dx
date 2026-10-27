@@ -4,11 +4,12 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
-	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
 const languageName = "scala"
+
+const unresolvedHint = "add a local library or a # gazelle:resolve mapping on the qualified import or its package"
 
 var scalaKinds = map[string]rule.KindInfo{
 	LibraryKind: common.LibraryKindInfo(),
@@ -26,12 +27,12 @@ func NewLanguage() language.Language {
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,
 		IsStdLib:       IsStdLib,
-		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
+		UnresolvedHint: unresolvedHint,
+		QualifiedIDs:   qualifiedIDs,
+		Candidates:     common.JVMCandidates,
 		Generate:       generateRules,
 	})
 }
-
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
 
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
@@ -48,6 +49,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		MainPhrase:   "main-bearing sources",
 		ParseImports: ParseImports,
 		IsStdLib:     IsStdLib,
+		Candidates:   common.JVMCandidates,
 		Wrap:         common.WrapImportSet,
 	}, rep)
 }

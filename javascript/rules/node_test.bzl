@@ -1,6 +1,6 @@
 """Shared Jest and plain Node test core for the JavaScript and TypeScript wrappers."""
 
-load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_optional", "dx_lcov_merger_attr", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_forwarded_run_environment", "dx_lcov_merger_attr", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _JEST_ONLY_KEYS = [
@@ -46,14 +46,14 @@ def node_test_forward_rule(what, allow_files, quality_specs):
     def _impl(ctx):
         return [
             dx_symlink_default_info(ctx, what),
-            testing.TestEnvironment({}, node_test_env(ctx.attr.env_inherit)),
+            dx_forwarded_run_environment(ctx.attr.upstream, {}, node_test_env(ctx.attr.env_inherit)),
             dx_quality_sources(ctx.files.srcs, quality_specs, str(ctx.label)),
-        ] + dx_forwarded_optional(ctx.attr.upstream, [InstrumentedFilesInfo, OutputGroupInfo], what)
+        ] + dx_forwarded_quiet(ctx.attr.upstream, [InstrumentedFilesInfo, OutputGroupInfo])
 
     return rule(
         implementation = _impl,
         test = True,
-        provides = [DefaultInfo, QualitySourcesInfo],
+        provides = [DefaultInfo, RunEnvironmentInfo, QualitySourcesInfo],
         attrs = dx_forward_attrs(
             allow_files = allow_files,
             upstream_providers = [[DefaultInfo]],
@@ -63,28 +63,38 @@ def node_test_forward_rule(what, allow_files, quality_specs):
         ),
     )
 
-def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, upstream_attrs, env_inherit, visibility, tags, kwargs):
+def node_test_upstream_data(upstream_data, package_json, label_key):
+    """Returns upstream data plus package_json when set."""
+    data = list(upstream_data)
+    if package_json == None:
+        return data
+    if type(package_json) != "string" and type(package_json) != "Label":
+        fail("package_json must be a single label string, got %s: %r" % (type(package_json), package_json))
+    key = label_key(package_json)
+    for item in data:
+        if label_key(item) == key:
+            return data
+    data.append(package_json)
+    return data
+
+def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, package_json, upstream_attrs, env_inherit, visibility, kwargs):
     """Declares the manual upstream Node test and its forwarder."""
     effective_env = node_test_env(env_inherit)
-    data = list(upstream_data)
-    upstream_kwargs = dict(kwargs)
+    label_error = dx_args_label_error(
+        name,
+        kwargs.get("args"),
+        list(srcs) + list(upstream_data),
+        {"deps": kwargs.get("deps"), "tools": kwargs.get("tools")},
+    )
+    if label_error != None:
+        fail(label_error)
+    data = node_test_upstream_data(upstream_data, package_json, native.package_relative_label)
+    upstream_kwargs = dx_test_upstream_kwargs(kwargs)
     upstream_kwargs.pop("aspect_hints", None)
-    if tags != None:
-        upstream_tags = list(tags)
-        if "manual" not in upstream_tags:
-            upstream_tags.append("manual")
-        upstream_kwargs["tags"] = upstream_tags
-    elif upstream_kwargs.get("tags", None) == None:
-        upstream_kwargs["tags"] = ["manual"]
-    elif "manual" not in upstream_kwargs["tags"]:
-        upstream_kwargs["tags"] = upstream_kwargs["tags"] + ["manual"]
-    if "//:package_json" not in data:
-        data.append("//:package_json")
     upstream_rule(
         name = name + "_upstream",
         data = data,
         env_inherit = effective_env,
-        visibility = ["//visibility:private"],
         **(upstream_attrs | upstream_kwargs)
     )
     forward_kwargs = dx_test_forward_kwargs(kwargs)
@@ -96,6 +106,5 @@ def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, upstr
         srcs = srcs,
         env_inherit = effective_env,
         visibility = visibility,
-        tags = list(tags) if tags != None else forward_kwargs.pop("tags", None),
         **forward_kwargs
     )

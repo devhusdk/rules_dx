@@ -1,11 +1,12 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//apple/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_framework")
 load(":app_tests.bzl", "apple_ios_app_tests")
-load(":cell_tests.bzl", "cell_failure_test", "stub_library")
 load(":defs.bzl", "apple_ios_lib")
+load(":device.bzl", "apple_ios_export")
 load(":metadata_tests.bzl", "apple_ios_tests")
 load(":simulator.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
 
@@ -14,11 +15,11 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "app.bzl",
     "app_tests.bzl",
-    "cell_tests.bzl",
     "create_test_simulator.sh",
     "defs.bzl",
     "delete_test_simulator.sh",
-    "library_check.sh",
+    "device.bzl",
+    "export_ops.sh",
     "metadata_tests.bzl",
     "simctl_ops.sh",
     "simulator.bzl",
@@ -173,8 +174,8 @@ real_source_target(
         "BUILD.bazel",
         "app.bzl",
         "app_tests.bzl",
-        "cell_tests.bzl",
         "defs.bzl",
+        "device.bzl",
         "metadata_tests.bzl",
         "simulator.bzl",
     ],
@@ -305,8 +306,25 @@ apple_ios_app(
 
 failure_test(
     name = "device_no_provisioning_test",
-    expected_failure_substring = "needs provisioning_profile",
+    expected_failure_substring = "device builds need provisioning_profile",
     target = ":device_no_provisioning_selection",
+)
+
+apple_ios_app(
+    name = "device_plist_profile",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    environment = "device",
+    library = ":share_stub",
+    provisioning_profile = "share.plist",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "device_plist_profile_test",
+    expected_failure_substring = "must be a .mobileprovision file",
+    target = ":device_plist_profile_selection",
 )
 
 apple_ios_app(
@@ -341,23 +359,6 @@ failure_test(
     name = "plist_entitlements_test",
     expected_failure_substring = "must be an .entitlements file",
     target = ":plist_entitlements_selection",
-)
-
-apple_ios_app(
-    name = "export_on_check",
-    bundle_id = "com.example.share",
-    deployment = "17.0",
-    environment = "simulator",
-    export_ipa = True,
-    library = ":share_stub",
-    tags = ["manual"],
-    version = "1.0",
-)
-
-failure_test(
-    name = "export_on_check_test",
-    expected_failure_substring = "Check never exports an IPA",
-    target = ":export_on_check_selection",
 )
 
 apple_ios_app(
@@ -510,6 +511,45 @@ failure_test(
     name = "install_files_test",
     expected_failure_substring = "built 0 .ipa or .app outputs, want exactly one",
     target = ":install_files_app",
+)
+
+apple_ios_export(
+    name = "export_simulator",
+    app = ":simulator_app",
+)
+
+failure_test(
+    name = "export_simulator_test",
+    expected_failure_substring = "is not a device apple_ios_app",
+    target = ":export_simulator_meta",
+    target_compatible_with = ["@platforms//os:macos"],
+)
+
+apple_ios_export(
+    name = "export_files",
+    app = ":share_files",
+)
+
+failure_test(
+    name = "export_files_test",
+    expected_failure_substring = "is not a device apple_ios_app",
+    target = ":export_files_meta",
+)
+
+signing_probe(
+    name = "signing_probe",
+    tags = ["manual"],
+)
+
+signing_probe_device(
+    name = "signing_probe_device",
+    probe = ":signing_probe",
+    tags = ["manual"],
+)
+
+adhoc_signing_test(
+    name = "adhoc_signing_test",
+    target_under_test = ":signing_probe_device",
 )
 
 apple_ios_framework(
@@ -738,4 +778,10 @@ apple_ios_framework(
     slices = ["device/arm64"],
     tags = ["manual"],
     version = "1.0",
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

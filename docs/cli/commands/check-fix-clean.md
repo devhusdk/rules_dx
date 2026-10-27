@@ -13,12 +13,23 @@ dx check [--here] [--affected] [--check] [--fail-on info|warning|error] [--repor
 dx fix [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
-Before any phase, `dx check` and `dx fix` fail when the checkout holds build
-output: a file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
+Before any phase, `dx check` and `dx fix` fail when your change adds build
+output: a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
 `.gradle/`, or a `build/` directory outside a source tree, or a file over
-1 MiB. The error names each file and exits `1`. Only tracked and untracked,
-unignored files count. List an oversized file you want to keep in
-`.dx-large-files`, one path per line. Outside a Git checkout the scan is skipped.
+1 MiB. The error names each file and exits `1`.
+
+- Your change is untracked unignored files, staged and unstaged edits, and
+  commits since the merge base with the default branch (`origin/HEAD`,
+  `origin/main`, `main`, `origin/master`, `master`).
+- Ignored files never count.
+- A file that already exists at the merge base is only checked for size.
+- List a path or a `dir/` prefix you want to keep in `.dx-large-files`, one
+  per line. Listed paths skip both rules.
+- Symlinks and Git LFS files are skipped.
+- With no default branch or merge base (a shallow clone), only the working
+  tree is checked. In text output `dx` prints a note on stderr.
+- Outside a Git checkout the check is skipped.
+- If Git fails, the command exits `2` with code `build_output_git_failed`.
 
 Runs `format`, then `lint`, then `typecheck`, then `generate` in order.
 `--affected` limits the first three to targets your git changes reach (see
@@ -33,11 +44,11 @@ run no phase, `generate` included, and skip the build-output check. They print
 unless `--apply` is given. Affected targets that do not fit the host platform
 are skipped.
 Every phase, including `test`, passes the same Bazel settings:
-`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+`--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 dx spells them with the name your MODULE.bazel gives rules_dx, for example
-`--@my_dx//config:validate=false` when `repo_name = "my_dx"`.
+`--@my_dx//config:clippy_output_diagnostics=true` when `repo_name = "my_dx"`.
 `--check` passes through to every phase. `--fail-on` applies to `format`,
 `lint`, and `typecheck`. `--report sarif=<dest>` merges the `lint` and
 `typecheck` phases into one document. `generate` and `test` take neither. A
@@ -76,7 +87,8 @@ Output: `--output text|diff|json`. JSON keeps one `command_started` and one
 `command_finished` for the run. Each phase sits between a `phase_started` and
 a `phase_finished`, and its events carry `command`, `phase`, and a
 `correlation` such as `check/format`. `dx fix --apply` verification phases use
-`verify/<phase>`. A phase that reported findings adds a correlated `notice`
+`verify/<phase>`. A `verify/<phase>` that writes events dx cannot read adds a
+correlated `collection_failed` error and fails the run. A phase that reported findings adds a correlated `notice`
 (`umbrella_phase_findings`), a skipped phase adds a correlated `notice`
 (`umbrella_phase_skipped`), and a capture the run could not collect adds a
 correlated `error`. `--include-edits` adds full edits to JSON `change` events
@@ -86,6 +98,8 @@ Findings keep the tool's labels, notes, help, and related locations. Text
 prints them under the finding, JSON adds an ordered `related` list, and SARIF
 adds `relatedLocations`. They are never counted as findings or applied as
 edits.
+
+SARIF results carry `partialFingerprints` (`dx/v1`), `ruleIndex`, and `fixes` for machine-applicable replacements. Runs set `columnKind` to `unicodeCodePoints`.
 
 `dx check` only reports. `dx fix` checks by default; `dx fix --apply`
 writes validated fixes, then re-checks read-only every phase up to the last
@@ -129,11 +143,11 @@ dx clean [--check] [--apply] [--prune-unobserved]
 ```
 
 Reports unselected managed state under `.dx` by default and deletes
-nothing. Pass `--apply` to prune it. A generation a live reader still
-holds is never pruned. When process observation is unavailable, dx keeps
-unobserved state and reports it; pass `--prune-unobserved` to prune it
-anyway. Never touches Bazel outputs; run `bazel clean` for those. `--bazel` is
-rejected. Takes no scopes.
+nothing. `--check` is that default: it reports and deletes nothing. Pass `--apply` to prune it. A generation a live reader still
+holds is never pruned. When process observation is unavailable (`/proc` cannot be listed, or any
+process cannot be read, such as one owned by another user or blocked by ptrace
+restrictions), dx keeps unobserved state and reports it; pass `--prune-unobserved` to prune it
+anyway; this still keeps state used by readable processes and never overrides a held lease. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes.
 
 Output: `--output text|json`. `--quiet` silences text output.
 
@@ -177,11 +191,12 @@ Each notice has a `path` under `.dx/` and the byte size in `message`:
 A failure emits an `error` event with code `clean_failed`.
 `command_finished` ends the stream.
 
-Exit codes: `0` success, `2` usage errors including any scope or `--bazel`,
+Exit codes: `0` success, `2` usage errors including any scope,
 `1` drift or a prune failure. State kept only because process observation
 is unavailable exits `0`.
 
 ```sh
 bazel run @rules_dx//:dx -- clean --check
 bazel run @rules_dx//:dx -- clean --apply
+bazel run @rules_dx//:dx -- clean --apply --prune-unobserved
 ```

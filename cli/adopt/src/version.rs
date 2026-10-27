@@ -1,22 +1,35 @@
 use std::path::Path;
 
-use dx_module_bazel::{Call, ModuleFile, Value};
+use dx_module_bazel::ModuleFile;
 
 use super::AdoptError;
 
 pub const DX_VERSION: &str = "0.0.0";
 pub const MODULE_VERSION: &str = "0.0.0";
-pub const PREVIOUS_VERSION: &str = "0.0.0";
 
-pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
-    if pinned.is_empty() {
-        "dx init".to_owned()
-    } else if version_pin_matches_module(pinned, module_version) {
+pub fn pin_is_valid(pin: &str) -> bool {
+    !pin.is_empty() && semver::Version::parse(pin).is_ok()
+}
+
+pub fn pin_rewrite_hint(version: &str) -> String {
+    format!("write {version} to .dx/version")
+}
+
+pub fn version_move_hint(from: &str, to: &str) -> String {
+    if version_pin_matches_module(from, to) {
         "dx version --check".to_owned()
-    } else if super::migrate_is_upgrade(pinned, module_version) {
-        format!("dx upgrade --from {pinned} --to {module_version}")
+    } else if crate::migrate::migrate_is_upgrade(from, to) {
+        format!("dx upgrade --from {from} --to {to}")
     } else {
         "dx rollback".to_owned()
+    }
+}
+
+pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
+    if !pin_is_valid(pinned) {
+        pin_rewrite_hint(module_version)
+    } else {
+        version_move_hint(pinned, module_version)
     }
 }
 
@@ -33,10 +46,6 @@ pub fn version_pin_matches_module(dx_version: &str, module_version: &str) -> boo
         Err(_) => return false,
     };
     dx == module
-}
-
-pub fn rollback_re_pins_previous(current: &str, target: &str, known_previous: &str) -> bool {
-    !known_previous.is_empty() && target == known_previous && target != current
 }
 
 pub fn read_version_pin(root: &Path) -> Result<String, AdoptError> {
@@ -146,17 +155,19 @@ impl ModuleDependency {
     }
 }
 
-pub fn parse_module_dependency(text: &str) -> ModuleDependency {
+/// Reads the rules_dx dependency from MODULE.bazel and every file it includes.
+pub fn parse_module_dependency(
+    text: &str,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<ModuleDependency, String> {
     let mut dependency = ModuleDependency {
         workspace_module: None,
         declared: None,
         override_kind: None,
         override_source: None,
     };
-    let Ok(module) = ModuleFile::parse(text) else {
-        return dependency;
-    };
-    for call in module.calls() {
+    let modules = dx_module_bazel::load_with_includes(text, read_include)?;
+    for call in modules.iter().flat_map(ModuleFile::calls) {
         let name = call.name.as_str();
         if name == "module" {
             if dependency.workspace_module.is_none() {
@@ -192,7 +203,7 @@ pub fn parse_module_dependency(text: &str) -> ModuleDependency {
         dependency.override_kind = Some(name.to_owned());
         dependency.override_source = pinned.or_else(|| source.map(str::to_owned));
     }
-    dependency
+    Ok(dependency)
 }
 
 pub fn local_path_overrides(text: &str) -> Vec<String> {
@@ -205,110 +216,19 @@ pub fn local_path_overrides(text: &str) -> Vec<String> {
         .collect()
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConsumerSetup {
-    pub deps: Vec<(String, String)>,
-    pub extensions: Vec<(String, String)>,
-    pub repos: Vec<(String, String)>,
-    pub registered: Vec<String>,
-    pub tags: Vec<Call>,
-    pub repo_names: Vec<(String, String)>,
-}
-
-impl ConsumerSetup {
-    pub fn dep_version(&self, name: &str) -> Option<&str> {
-        self.deps
-            .iter()
-            .find(|(dep, _)| dep == name)
-            .map(|(_, version)| version.as_str())
-    }
-
-    pub fn repo_name(&self, name: &str) -> Option<&str> {
-        self.repo_names
-            .iter()
-            .find(|(dep, _)| dep == name)
-            .map(|(_, repo)| repo.as_str())
-    }
-
-    pub fn tag_arg(&self, tag: &str, key: &str) -> Option<String> {
-        self.tag(tag)
-            .and_then(|call| call.str(key))
-            .map(str::to_owned)
-    }
-
-    pub fn tag_list_arg(&self, tag: &str, key: &str) -> Vec<String> {
-        self.tag(tag)
-            .map(|call| call.str_list(key).into_iter().map(str::to_owned).collect())
-            .unwrap_or_default()
-    }
-
-    fn tag(&self, tag: &str) -> Option<&Call> {
-        self.tags.iter().find(|call| call.name == tag)
-    }
-}
-
-fn literal(value: &Value) -> Option<String> {
-    match value {
-        Value::Str(literal) => Some(literal.value.clone()),
-        _ => None,
-    }
-}
-
-pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
-    let mut setup = ConsumerSetup {
-        deps: Vec::new(),
-        extensions: Vec::new(),
-        repos: Vec::new(),
-        registered: Vec::new(),
-        tags: Vec::new(),
-        repo_names: Vec::new(),
-    };
-    let Ok(module) = ModuleFile::parse(text) else {
-        return setup;
-    };
-    for call in module.calls() {
-        match call.name.as_str() {
-            "bazel_dep" => {
-                if let (Some(dep), Some(version)) = (call.str("name"), call.str("version")) {
-                    setup.deps.push((dep.to_owned(), version.to_owned()));
-                    if let Some(repo) = call.str("repo_name") {
-                        setup.repo_names.push((dep.to_owned(), repo.to_owned()));
-                    }
-                }
-            }
-            "use_extension" => {
-                if let [label, tag, ..] = call.positional.as_slice() {
-                    if let (Some(label), Some(tag)) = (literal(label), literal(tag)) {
-                        setup.extensions.push((label, tag));
-                    }
-                }
-            }
-            "use_repo" => {
-                if let [Value::Ident(var), repos @ ..] = call.positional.as_slice() {
-                    for repo in repos.iter().filter_map(literal) {
-                        setup.repos.push((var.clone(), repo));
-                    }
-                }
-            }
-            "register_toolchains" => {
-                setup
-                    .registered
-                    .extend(call.positional.iter().filter_map(literal));
-            }
-            name if name.contains('.') => setup.tags.push(call.clone()),
-            _ => {}
-        }
-    }
-    setup
-}
-
 pub fn read_module_dependency(root: &Path) -> Result<ModuleDependency, AdoptError> {
     let text = std::fs::read_to_string(root.join("MODULE.bazel")).map_err(|e| {
         AdoptError::ReadModuleFile {
             detail: e.to_string(),
         }
     })?;
-    Ok(parse_module_dependency(&text))
+    let read_include = |label: &str| -> Result<String, String> {
+        let rel = dx_module_bazel::include_rel("", label)?;
+        std::fs::read_to_string(root.join(rel))
+            .map_err(|e| format!("cannot read included {label}: {e}"))
+    };
+    parse_module_dependency(&text, &read_include)
+        .map_err(|detail| AdoptError::LoadModuleFile { detail })
 }
 
 pub fn module_dependency_status(dependency: &ModuleDependency) -> &'static str {
@@ -356,7 +276,130 @@ pub fn render_module_dependency(dependency: &ModuleDependency) -> String {
 }
 
 #[cfg(test)]
+pub(crate) fn repo_text(path: &str) -> String {
+    let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+    std::fs::read_to_string(Path::new(&source).join(workspace).join(path))
+        .unwrap_or_else(|error| panic!("{path} ships as test data: {error}"))
+}
+
+#[cfg(test)]
+pub(crate) fn repo_module_version() -> String {
+    let module = ModuleFile::parse(&repo_text("MODULE.bazel")).expect("MODULE.bazel parses");
+    let call = module
+        .calls_named("module")
+        .next()
+        .expect("MODULE.bazel has a module() call");
+    call.str("version")
+        .expect("module() has a literal version argument")
+        .to_owned()
+}
+
+#[cfg(test)]
+pub(crate) mod consumer_setup {
+    use dx_module_bazel::{Call, ModuleFile, Value};
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct ConsumerSetup {
+        pub deps: Vec<(String, String)>,
+        pub extensions: Vec<(String, String)>,
+        pub repos: Vec<(String, String)>,
+        pub registered: Vec<String>,
+        pub tags: Vec<Call>,
+        pub repo_names: Vec<(String, String)>,
+    }
+
+    impl ConsumerSetup {
+        pub fn dep_version(&self, name: &str) -> Option<&str> {
+            self.deps
+                .iter()
+                .find(|(dep, _)| dep == name)
+                .map(|(_, version)| version.as_str())
+        }
+
+        pub fn repo_name(&self, name: &str) -> Option<&str> {
+            self.repo_names
+                .iter()
+                .find(|(dep, _)| dep == name)
+                .map(|(_, repo)| repo.as_str())
+        }
+
+        pub fn tag_arg(&self, tag: &str, key: &str) -> Option<String> {
+            self.tag(tag)
+                .and_then(|call| call.str(key))
+                .map(str::to_owned)
+        }
+
+        pub fn tag_list_arg(&self, tag: &str, key: &str) -> Vec<String> {
+            self.tag(tag)
+                .map(|call| call.str_list(key).into_iter().map(str::to_owned).collect())
+                .unwrap_or_default()
+        }
+
+        fn tag(&self, tag: &str) -> Option<&Call> {
+            self.tags.iter().find(|call| call.name == tag)
+        }
+    }
+
+    fn literal(value: &Value) -> Option<String> {
+        match value {
+            Value::Str(literal) => Some(literal.value.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
+        let mut setup = ConsumerSetup {
+            deps: Vec::new(),
+            extensions: Vec::new(),
+            repos: Vec::new(),
+            registered: Vec::new(),
+            tags: Vec::new(),
+            repo_names: Vec::new(),
+        };
+        let Ok(module) = ModuleFile::parse(text) else {
+            return setup;
+        };
+        for call in module.calls() {
+            match call.name.as_str() {
+                "bazel_dep" => {
+                    if let (Some(dep), Some(version)) = (call.str("name"), call.str("version")) {
+                        setup.deps.push((dep.to_owned(), version.to_owned()));
+                        if let Some(repo) = call.str("repo_name") {
+                            setup.repo_names.push((dep.to_owned(), repo.to_owned()));
+                        }
+                    }
+                }
+                "use_extension" => {
+                    if let [label, tag, ..] = call.positional.as_slice() {
+                        if let (Some(label), Some(tag)) = (literal(label), literal(tag)) {
+                            setup.extensions.push((label, tag));
+                        }
+                    }
+                }
+                "use_repo" => {
+                    if let [Value::Ident(var), repos @ ..] = call.positional.as_slice() {
+                        for repo in repos.iter().filter_map(literal) {
+                            setup.repos.push((var.clone(), repo));
+                        }
+                    }
+                }
+                "register_toolchains" => {
+                    setup
+                        .registered
+                        .extend(call.positional.iter().filter_map(literal));
+                }
+                name if name.contains('.') => setup.tags.push(call.clone()),
+                _ => {}
+            }
+        }
+        setup
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::consumer_setup::parse_consumer_setup;
     use super::*;
 
     #[test]
@@ -384,25 +427,26 @@ mod tests {
             "dx upgrade --from 1.2.3 --to 2.0.0"
         );
         assert_eq!(pin_fix_hint("2.0.0", "1.2.3"), "dx rollback");
-        assert_eq!(pin_fix_hint("", "1.2.3"), "dx init");
+        for bad in ["", "v1", "1.2", "garbage"] {
+            assert_eq!(pin_fix_hint(bad, "1.2.3"), "write 1.2.3 to .dx/version");
+        }
     }
 
     #[test]
-    fn rollback_re_pins_only_the_known_previous() {
-        assert!(rollback_re_pins_previous("1.2.4", "1.2.3", "1.2.3"));
-        assert!(!rollback_re_pins_previous("1.2.3", "1.2.3", "1.2.3"));
-        assert!(!rollback_re_pins_previous("1.2.4", "1.2.2", "1.2.3"));
-        assert!(!rollback_re_pins_previous("1.2.4", "", ""));
+    fn pin_is_valid_requires_semver() {
+        assert!(pin_is_valid("1.2.3"));
+        assert!(pin_is_valid("1.2.3-alpha.1"));
+        assert!(!pin_is_valid(""));
+        assert!(!pin_is_valid("v1.2.3"));
+        assert!(!pin_is_valid("1.2"));
     }
 
     #[test]
     fn delivered_version_matches_module() {
+        let module_version = repo_module_version();
+        assert_eq!(DX_VERSION, module_version);
+        assert_eq!(MODULE_VERSION, module_version);
         assert!(version_pin_matches_module(DX_VERSION, MODULE_VERSION));
-        assert!(!rollback_re_pins_previous(
-            DX_VERSION,
-            PREVIOUS_VERSION,
-            PREVIOUS_VERSION
-        ));
     }
 
     #[test]
@@ -583,9 +627,36 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    fn no_includes(label: &str) -> Result<String, String> {
+        Err(format!("unexpected include {label}"))
+    }
+
+    fn dep(text: &str) -> ModuleDependency {
+        parse_module_dependency(text, &no_includes).expect("parses")
+    }
+
+    #[test]
+    fn module_dependency_reads_includes_and_fails_loudly() {
+        let read = |_: &str| -> Result<String, String> {
+            Ok("bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\ngit_override(module_name = \"rules_dx\", remote = \"https://example.test/dx\", commit = \"abc123\")\n".to_owned())
+        };
+        let included =
+            parse_module_dependency("include(\"//:dx.MODULE.bazel\")\n", &read).expect("parses");
+        assert_eq!(
+            render_module_dependency(&included),
+            "rules_dx 1.2.3 via git_override https://example.test/dx@abc123"
+        );
+        let failing = |label: &str| -> Result<String, String> {
+            Err(format!("cannot read included {label}: gone"))
+        };
+        let error = parse_module_dependency("include(\"//:dx.MODULE.bazel\")\n", &failing)
+            .expect_err("fails");
+        assert!(error.contains("cannot read included"), "{error}");
+    }
+
     #[test]
     fn module_dependency_names_self_declared_and_overrides() {
-        let me = parse_module_dependency("module(name = \"rules_dx\", version = \"0.0.0\")\n");
+        let me = dep("module(name = \"rules_dx\", version = \"0.0.0\")\n");
         assert_eq!(
             me.workspace_module,
             Some(("rules_dx".to_owned(), Some("0.0.0".to_owned())))
@@ -594,18 +665,17 @@ mod tests {
             render_module_dependency(&me),
             "rules_dx 0.0.0 (workspace module)"
         );
-        let bare = parse_module_dependency("module(name = \"rules_dx\")\n");
+        let bare = dep("module(name = \"rules_dx\")\n");
         assert_eq!(
             render_module_dependency(&bare),
             "rules_dx unknown version (workspace module)"
         );
-        let consumer = parse_module_dependency(
-            "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n",
-        );
+        let consumer =
+            dep("module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n");
         assert_eq!(consumer.declared, Some("1.2.3".to_owned()));
         assert_eq!(consumer.override_kind, None);
         assert_eq!(render_module_dependency(&consumer), "rules_dx 1.2.3");
-        let local = parse_module_dependency(
+        let local = dep(
             "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nlocal_path_override(module_name = \"rules_dx\", path = \"../rules_dx\")\n",
         );
         assert_eq!(local.override_kind, Some("local_path_override".to_owned()));
@@ -614,14 +684,14 @@ mod tests {
             render_module_dependency(&local),
             "rules_dx 1.2.3 via local_path_override ../rules_dx"
         );
-        let git = parse_module_dependency(
+        let git = dep(
             "module(name = \"demo\")\ngit_override(module_name = \"rules_dx\", remote = \"https://example.test/dx\", commit = \"abc123\")\n",
         );
         assert_eq!(
             render_module_dependency(&git),
             "rules_dx unknown version via git_override https://example.test/dx@abc123"
         );
-        let single = parse_module_dependency(
+        let single = dep(
             "module(name = \"demo\")\nsingle_version_override(module_name = \"rules_dx\", version = \"2.0.0\")\n",
         );
         assert_eq!(
@@ -637,32 +707,32 @@ mod tests {
         assert_eq!(single.resolved_version(), Some("2.0.0"));
         assert_eq!(git.resolved_version(), None);
         assert_eq!(local.resolved_version(), Some("1.2.3"));
-        let pinned = parse_module_dependency(&format!(
+        let pinned = dep(&format!(
             "module(name = \"demo\")\nsingle_version_override(module_name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
         ));
         assert_eq!(module_dependency_status(&pinned), "ok");
-        let replaced = parse_module_dependency(&format!(
+        let replaced = dep(&format!(
             "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nsingle_version_override(module_name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
         ));
         assert_eq!(module_dependency_status(&replaced), "ok");
-        let skewed = parse_module_dependency(&format!(
+        let skewed = dep(&format!(
             "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", version = \"2.0.0\")\n"
         ));
         assert_eq!(module_dependency_status(&skewed), "warn");
-        let patched = parse_module_dependency(&format!(
+        let patched = dep(&format!(
             "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", patch_strip = 1)\n"
         ));
         assert_eq!(module_dependency_status(&patched), "ok");
-        let blank = parse_module_dependency(&format!(
+        let blank = dep(&format!(
             "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\nsingle_version_override(module_name = \"rules_dx\", version = \"\")\n"
         ));
         assert_eq!(blank.resolved_version(), Some(MODULE_VERSION));
         assert_eq!(module_dependency_status(&blank), "ok");
-        let matching = parse_module_dependency(&format!(
+        let matching = dep(&format!(
             "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
         ));
         assert_eq!(module_dependency_status(&matching), "ok");
-        let none = parse_module_dependency("module(name = \"demo\")\n");
+        let none = dep("module(name = \"demo\")\n");
         assert_eq!(module_dependency_status(&none), "warn");
     }
 
@@ -677,29 +747,24 @@ mod tests {
 
     #[test]
     fn module_dependency_ignores_noise_and_unknowns() {
-        let noisy = parse_module_dependency(
+        let noisy = dep(
             "# leading comment\nmodule( name = 'demo' ) # trailing\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nbazel_dep(\n    name = \"rules_dx\",\n    version = \"1.2.3\", # pinned\n)\nlocal_path_override(module_name = \"other\", path = \"elsewhere\")\n",
         );
         assert_eq!(noisy.workspace_module, Some(("demo".to_owned(), None)));
         assert_eq!(noisy.declared, Some("1.2.3".to_owned()));
         assert_eq!(noisy.override_kind, None);
         assert_eq!(render_module_dependency(&noisy), "rules_dx 1.2.3");
-        let quoted = parse_module_dependency(
+        let quoted = dep(
             "module(name = \"demo # not a comment\")\nbazel_dep(name = \"rules_dx\", version = \"1.2.3#kept\")\n",
         );
         assert_eq!(quoted.declared, Some("1.2.3#kept".to_owned()));
-        let empty = parse_module_dependency("");
+        let empty = dep("");
         assert_eq!(empty.declared, None);
         assert_eq!(
             render_module_dependency(&empty),
             "unknown (no rules_dx dependency in MODULE.bazel)"
         );
-        let broken = parse_module_dependency("bazel_dep(name = \"rules_dx\"");
-        assert_eq!(broken.declared, None);
-        assert_eq!(
-            render_module_dependency(&broken),
-            "unknown (no rules_dx dependency in MODULE.bazel)"
-        );
+        assert!(parse_module_dependency("bazel_dep(name = \"rules_dx\"", &no_includes).is_err());
         let root =
             std::env::temp_dir().join(format!("dx-adopt-moduledep-{}-missing", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
@@ -718,21 +783,20 @@ mod tests {
 
     #[test]
     fn module_dependency_reads_only_real_literal_declarations() {
-        let fake = parse_module_dependency(
+        let fake = dep(
             "\"\"\"bazel_dep(name = \"rules_dx\", version = \"9.9.9\")\"\"\"\n# bazel_dep(name = \"rules_dx\", version = \"8.8.8\")\nNOTE = 'local_path_override(module_name = \"rules_dx\", path = \"x\")'\nmodule(name = 'demo')\n",
         );
         assert_eq!(fake.declared, None);
         assert_eq!(fake.override_kind, None);
         assert_eq!(fake.workspace_module, Some(("demo".to_owned(), None)));
-        let multiline = parse_module_dependency(
+        let multiline = dep(
             "bazel_dep(\n    version = '''1.2.3''',  # ) ( \" '\n    repo_name = \"dx\",\n    name = 'rules_dx',\n)\ngit_override(\n    commit = \"abc123\",\n    module_name = \"rules_dx\",\n    remote = \"https://example.test/dx\",\n)\n",
         );
         assert_eq!(
             render_module_dependency(&multiline),
             "rules_dx 1.2.3 via git_override https://example.test/dx@abc123"
         );
-        let computed =
-            parse_module_dependency("V = \"1.2.3\"\nbazel_dep(name = \"rules_dx\", version = V)\n");
+        let computed = dep("V = \"1.2.3\"\nbazel_dep(name = \"rules_dx\", version = V)\n");
         assert_eq!(computed.declared, None);
         assert_eq!(
             render_module_dependency(&computed),
@@ -740,8 +804,9 @@ mod tests {
         );
         let unterminated = parse_module_dependency(
             "bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nbazel_dep(name = \"x\", version = \"1.0.0\"\n",
+            &no_includes,
         );
-        assert_eq!(unterminated.declared, None);
+        assert!(unterminated.is_err());
     }
 
     #[test]

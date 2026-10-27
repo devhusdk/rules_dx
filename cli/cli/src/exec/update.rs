@@ -22,11 +22,77 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
     }
     let verbose = invocation.chatty();
-    if invocation.applies() {
-        execute_update_default(invocation, env, verbose)
-    } else {
-        execute_update_check(invocation, env, verbose)
+    let mode = RunMode::of(invocation);
+    if let Some(registry) = match dx_adopt::dependency_sets::load(env.workspace) {
+        Ok(registry) => registry,
+        Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
+    } {
+        return update_consumer::execute_configured(invocation, env, &registry, verbose, mode);
     }
+    let Env {
+        workspace,
+        runner,
+        out,
+        err,
+        ..
+    } = env;
+    let resolved = match dx_update::selector::resolve(&invocation.targets) {
+        Ok(resolved) => resolved,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
+    let summary = frozen_summary(
+        offline_summary(display_summary(&resolved, mode), invocation.offline),
+        invocation.frozen,
+    );
+    if invocation.output == OutputMode::Json {
+        if let Err(exit) = emit_built(
+            out,
+            command_started(invocation.command.name(), mode.mode_text()),
+        ) {
+            return exit;
+        }
+    } else if verbose {
+        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+            return exit;
+        }
+    }
+    let mut gate = SlotGate {
+        command: invocation.command,
+        err: &mut *err,
+        events: &mut *out,
+        asked: false,
+        slot: None,
+    };
+    let outcomes = run_backends(&resolved, runner, workspace, invocation, mode, &mut gate);
+    drop(gate);
+    let (attempted, details) = match outcomes {
+        Ok(outcomes) => outcomes,
+        Err(signo) => {
+            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+            return dx_process::interrupted_code(signo);
+        }
+    };
+    let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
+    let locks: BTreeMap<String, Vec<String>> = resolved
+        .keys()
+        .map(|set| {
+            (
+                set.name().to_owned(),
+                set.locks().iter().map(|path| (*path).to_owned()).collect(),
+            )
+        })
+        .collect();
+    finish_update(FinishUpdate {
+        invocation,
+        out,
+        err,
+        selected,
+        attempted,
+        details,
+        verbose,
+        mode,
+        locks,
+    })
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -36,6 +102,21 @@ enum RunMode {
 }
 
 impl RunMode {
+    fn of(invocation: &Invocation) -> RunMode {
+        if invocation.applies() {
+            RunMode::Update
+        } else {
+            RunMode::Check
+        }
+    }
+
+    fn mode_text(self) -> &'static str {
+        match self {
+            RunMode::Update => "default",
+            RunMode::Check => "check",
+        }
+    }
+
     fn command_text(self) -> &'static str {
         match self {
             RunMode::Update => "dx update",
@@ -58,138 +139,16 @@ impl RunMode {
     }
 }
 
-fn execute_update_check(invocation: &Invocation, env: Env<'_>, verbose: bool) -> i32 {
-    if let Some(registry) = match dx_adopt::dependency_sets::load(env.workspace) {
-        Ok(registry) => registry,
-        Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
-    } {
-        return update_consumer::execute_configured(invocation, env, &registry, verbose);
-    }
-    let Env {
-        workspace,
-        runner,
-        out,
-        err,
-        ..
-    } = env;
-    let resolved = match dx_update::selector::resolve(&invocation.targets) {
-        Ok(resolved) => resolved,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let summary = frozen_summary(
-        offline_summary(
-            display_summary(&resolved, RunMode::Check),
-            invocation.offline,
-        ),
-        invocation.frozen,
-    );
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "check") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
-        }
-    } else if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-            return exit;
-        }
-    }
-    let (attempted, details) = run_update_check_backends(
-        &resolved,
-        runner,
-        workspace,
-        invocation.offline,
-        invocation.frozen,
-        &invocation.bazel_head(),
-    );
-    let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
-    finish_update(FinishUpdate {
-        invocation,
-        out,
-        err,
-        selected,
-        attempted,
-        details,
-        verbose,
-        mode: RunMode::Check,
-    })
-}
-
-fn execute_update_default(invocation: &Invocation, env: Env<'_>, verbose: bool) -> i32 {
-    if let Some(registry) = match dx_adopt::dependency_sets::load(env.workspace) {
-        Ok(registry) => registry,
-        Err(error) => return pre_exec(invocation.output, env.out, env.err, &error.to_string()),
-    } {
-        return update_consumer::execute_configured(invocation, env, &registry, verbose);
-    }
-    let Env {
-        workspace,
-        runner,
-        out,
-        err,
-        ..
-    } = env;
-    let resolved = match dx_update::selector::resolve(&invocation.targets) {
-        Ok(resolved) => resolved,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let summary = frozen_summary(
-        offline_summary(
-            display_summary(&resolved, RunMode::Update),
-            invocation.offline,
-        ),
-        invocation.frozen,
-    );
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
-        }
-    } else if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-            return exit;
-        }
-    }
-    let (attempted, details) = match run_update_backends(UpdateBackends {
-        resolved: &resolved,
-        runner,
-        workspace,
-        offline: invocation.offline,
-        frozen: invocation.frozen,
-        head: &invocation.bazel_head(),
-        command: invocation.command,
-        err: &mut *err,
-        events: &mut *out,
-    }) {
-        Ok(outcomes) => outcomes,
-        Err(signo) => {
-            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
-            return dx_process::interrupted_code(signo);
-        }
-    };
-    let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
-    finish_update(FinishUpdate {
-        invocation,
-        out,
-        err,
-        selected,
-        attempted,
-        details,
-        verbose,
-        mode: RunMode::Update,
-    })
-}
-
 struct FinishUpdate<'a> {
     invocation: &'a Invocation,
     out: &'a mut dyn std::io::Write,
     err: &'a mut dyn std::io::Write,
     selected: Vec<String>,
     attempted: Vec<dx_update::outcome::SetOutcome>,
-    details: BTreeMap<String, String>,
+    details: BTreeMap<String, SetDetail>,
     verbose: bool,
     mode: RunMode,
+    locks: BTreeMap<String, Vec<String>>,
 }
 
 fn finish_update(finish: FinishUpdate<'_>) -> i32 {
@@ -202,6 +161,7 @@ fn finish_update(finish: FinishUpdate<'_>) -> i32 {
         details,
         verbose,
         mode,
+        locks,
     } = finish;
     let depends: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let report = match dx_update::outcome::aggregate(&selected, &attempted, &depends) {
@@ -210,31 +170,25 @@ fn finish_update(finish: FinishUpdate<'_>) -> i32 {
             return operational(invocation, out, err, CODE_UPDATE_FAILED, &error.to_string());
         }
     };
-    let exit = dx_update::report::exit_code(&report);
+    let recovery = dx_update::recovery::plan(&report, mode.retry_mode(), &locks);
     if invocation.output == OutputMode::Json {
-        emit_update_json(out, err, &report, &details, verbose, exit, mode)
+        emit_update_json(out, err, &report, &details, verbose, recovery.as_ref())
     } else {
-        emit_update_text(out, err, &report, &details, verbose, exit, mode)
+        emit_update_text(
+            out,
+            err,
+            &report,
+            &details,
+            verbose,
+            recovery.as_ref(),
+            mode,
+        )
     }
-}
-
-fn record(
-    attempted: &mut Vec<dx_update::outcome::SetOutcome>,
-    details: &mut BTreeMap<String, String>,
-    set: dx_update::sets::SetId,
-    status: dx_update::outcome::SetStatus,
-    message: String,
-) {
-    attempted.push(dx_update::outcome::SetOutcome {
-        set: set.name().to_owned(),
-        status,
-    });
-    details.insert(set.name().to_owned(), message);
 }
 
 pub(super) fn record_named(
     attempted: &mut Vec<dx_update::outcome::SetOutcome>,
-    details: &mut BTreeMap<String, String>,
+    details: &mut BTreeMap<String, SetDetail>,
     name: &str,
     status: dx_update::outcome::SetStatus,
     message: String,
@@ -243,98 +197,176 @@ pub(super) fn record_named(
         set: name.to_owned(),
         status,
     });
-    details.insert(name.to_owned(), message);
+    details.insert(
+        name.to_owned(),
+        SetDetail {
+            message,
+            failure_code: None,
+        },
+    );
 }
 
-fn unavailable_message(set: dx_update::sets::SetId) -> String {
+/// What the emitters need to know about one set beyond its status.
+pub(super) struct SetDetail {
+    message: String,
+    /// Typed code for a `Failed` set; `None` falls back to `update_failed`.
+    failure_code: Option<&'static str>,
+}
+
+/// Record a backend error, keeping its typed code for failed sets.
+pub(super) fn record_backend_error(
+    attempted: &mut Vec<dx_update::outcome::SetOutcome>,
+    details: &mut BTreeMap<String, SetDetail>,
+    error: &dx_update::backend::BackendError,
+    verb: &str,
+    name: &str,
+) {
+    let (status, message) = backend_error_status(error, verb, name);
+    let failure_code = (status == dx_update::outcome::SetStatus::Failed).then(|| error.code());
+    record_named(attempted, details, name, status, message);
+    if let Some(detail) = details.get_mut(name) {
+        detail.failure_code = failure_code;
+    }
+}
+
+fn unavailable_message(name: &str) -> String {
     format!(
-        "cannot check {}: no qualified check backend; refresh with `dx update --apply {}`",
-        set.name(),
-        set.name()
+        "cannot check {name}: no qualified check backend; refresh with `dx update --apply {name}`"
     )
 }
 
-struct UpdateBackends<'a> {
-    resolved: &'a BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
-    runner: &'a dyn dx_process::Runner,
-    workspace: &'a std::path::Path,
-    offline: bool,
-    frozen: bool,
-    head: &'a dx_process::BazelHead,
+type Status = (dx_update::outcome::SetStatus, String);
+
+fn backend_error_status(
+    error: &dx_update::backend::BackendError,
+    verb: &str,
+    name: &str,
+) -> Status {
+    match error {
+        dx_update::backend::BackendError::Unsupported { .. } => (
+            dx_update::outcome::SetStatus::Unsupported,
+            format!("cannot {verb} {name}: {error}"),
+        ),
+        dx_update::backend::BackendError::OfflineRequired { .. }
+        | dx_update::backend::BackendError::FrozenLocked { .. }
+        | dx_update::backend::BackendError::BackendUnavailable { .. } => (
+            dx_update::outcome::SetStatus::Failed,
+            format!("failed to {verb} {name}: {error}"),
+        ),
+    }
+}
+
+fn runner_status(
+    launched: std::io::Result<dx_process::ChildStatus>,
+    verb: &str,
+    name: &str,
+    ok: Status,
+) -> Status {
+    match launched {
+        Err(error) => (
+            dx_update::outcome::SetStatus::Failed,
+            format!("failed to {verb} {name}: failed to launch updater: {error}"),
+        ),
+        Ok(status) => match status.code {
+            Some(0) => ok,
+            Some(code) => (
+                dx_update::outcome::SetStatus::Failed,
+                format!("failed to {verb} {name}: updater exited {code}"),
+            ),
+            None => (
+                dx_update::outcome::SetStatus::Failed,
+                format!("failed to {verb} {name}: updater terminated by signal"),
+            ),
+        },
+    }
+}
+
+struct SlotGate<'a> {
     command: Command,
     err: &'a mut dyn std::io::Write,
     events: &'a mut dyn std::io::Write,
+    asked: bool,
+    slot: Option<crate::slots::Slot>,
+}
+
+impl SlotGate<'_> {
+    fn before(&mut self, argv: &[String]) -> Result<(), i32> {
+        if !self.asked && dx_update::backend::runs_bazel(argv) {
+            self.asked = true;
+            self.slot = crate::slots::take(self.command, &mut *self.err, &mut *self.events)?;
+        }
+        Ok(())
+    }
 }
 
 type Outcomes = (
     Vec<dx_update::outcome::SetOutcome>,
-    BTreeMap<String, String>,
+    BTreeMap<String, SetDetail>,
 );
 
-fn run_update_backends(run: UpdateBackends<'_>) -> Result<Outcomes, i32> {
-    let UpdateBackends {
-        resolved,
-        runner,
-        workspace,
-        offline,
-        frozen,
-        head,
-        command,
-        err,
-        events,
-    } = run;
+fn run_backends(
+    resolved: &BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
+    runner: &dyn dx_process::Runner,
+    workspace: &std::path::Path,
+    invocation: &Invocation,
+    mode: RunMode,
+    gate: &mut SlotGate<'_>,
+) -> Result<Outcomes, i32> {
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<String, String> = BTreeMap::new();
-    let mut slot: Option<crate::slots::Slot> = None;
-    let mut asked = false;
+    let mut details: BTreeMap<String, SetDetail> = BTreeMap::new();
+    let head = invocation.bazel_head();
+    let verb = mode.verb();
     for (set, request) in resolved {
-        match dx_update::backend::plan(workspace, *set, request, offline, frozen, head) {
-            Err(error) => {
-                let message = format!("cannot update {}: {error}", set.name());
-                match error {
-                    dx_update::backend::BackendError::Unsupported { .. }
-                    | dx_update::backend::BackendError::UnsupportedOwned { .. } => record(
-                        &mut attempted,
-                        &mut details,
-                        *set,
-                        dx_update::outcome::SetStatus::Unsupported,
-                        message,
-                    ),
-                    dx_update::backend::BackendError::OfflineRequired { .. }
-                    | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => record(
-                        &mut attempted,
-                        &mut details,
-                        *set,
-                        dx_update::outcome::SetStatus::Failed,
-                        format!("failed to update {}: {error}", set.name()),
-                    ),
-                    dx_update::backend::BackendError::FrozenLocked { .. }
-                    | dx_update::backend::BackendError::FrozenLockedOwned { .. }
-                    | dx_update::backend::BackendError::BackendUnavailable { .. } => record(
-                        &mut attempted,
-                        &mut details,
-                        *set,
-                        dx_update::outcome::SetStatus::Failed,
-                        format!("failed to update {}: {error}", set.name()),
-                    ),
+        let name = set.name();
+        let planned = match mode {
+            RunMode::Update => dx_update::backend::plan(
+                workspace,
+                *set,
+                request,
+                invocation.offline,
+                invocation.frozen,
+                &head,
+            )
+            .map(|plan| match plan {
+                dx_update::backend::BackendPlan::Run { argv, env } => {
+                    dx_update::backend::CheckPlan::Run { argv, env }
                 }
-                continue;
+                dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
+            }),
+            RunMode::Check => dx_update::backend::check(
+                workspace,
+                *set,
+                request,
+                invocation.offline,
+                invocation.frozen,
+                &head,
+            ),
+        };
+        match planned {
+            Err(error) => {
+                record_backend_error(&mut attempted, &mut details, &error, verb, name);
             }
-            Ok(dx_update::backend::BackendPlan::Noop) => {
-                record(
+            Ok(dx_update::backend::CheckPlan::Pinned) => {
+                record_named(
                     &mut attempted,
                     &mut details,
-                    *set,
+                    name,
                     dx_update::outcome::SetStatus::Pinned,
                     pinned_line(*set),
                 );
             }
-            Ok(dx_update::backend::BackendPlan::Run { argv, env: extra }) => {
-                if !asked && dx_update::backend::runs_bazel(&argv) {
-                    asked = true;
-                    slot = crate::slots::take(command, &mut *err, &mut *events)?;
-                }
-                let held = slot.as_ref().map(|slot| slot.runner(runner));
+            Ok(dx_update::backend::CheckPlan::Unavailable) => {
+                record_named(
+                    &mut attempted,
+                    &mut details,
+                    name,
+                    dx_update::outcome::SetStatus::Unsupported,
+                    unavailable_message(name),
+                );
+            }
+            Ok(dx_update::backend::CheckPlan::Run { argv, env: extra }) => {
+                gate.before(&argv)?;
+                let held = gate.slot.as_ref().map(|slot| slot.runner(runner));
                 run_update_backend(BackendRun {
                     attempted: &mut attempted,
                     details: &mut details,
@@ -346,100 +378,17 @@ fn run_update_backends(run: UpdateBackends<'_>) -> Result<Outcomes, i32> {
                     workspace,
                     argv: &argv,
                     extra: &extra,
-                    mode: RunMode::Update,
+                    mode,
                 });
             }
         }
     }
-    drop(slot);
     Ok((attempted, details))
-}
-
-fn run_update_check_backends(
-    resolved: &BTreeMap<dx_update::sets::SetId, dx_update::selector::SetRequest>,
-    runner: &dyn dx_process::Runner,
-    workspace: &std::path::Path,
-    offline: bool,
-    frozen: bool,
-    head: &dx_process::BazelHead,
-) -> (
-    Vec<dx_update::outcome::SetOutcome>,
-    BTreeMap<String, String>,
-) {
-    let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<String, String> = BTreeMap::new();
-    for (set, request) in resolved {
-        match dx_update::backend::check(workspace, *set, request, offline, frozen, head) {
-            Err(error) => {
-                let message = format!("cannot check {}: {error}", set.name());
-                match error {
-                    dx_update::backend::BackendError::Unsupported { .. }
-                    | dx_update::backend::BackendError::UnsupportedOwned { .. } => record(
-                        &mut attempted,
-                        &mut details,
-                        *set,
-                        dx_update::outcome::SetStatus::Unsupported,
-                        message,
-                    ),
-                    dx_update::backend::BackendError::OfflineRequired { .. }
-                    | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => record(
-                        &mut attempted,
-                        &mut details,
-                        *set,
-                        dx_update::outcome::SetStatus::Failed,
-                        format!("failed to check {}: {error}", set.name()),
-                    ),
-                    dx_update::backend::BackendError::FrozenLocked { .. }
-                    | dx_update::backend::BackendError::FrozenLockedOwned { .. }
-                    | dx_update::backend::BackendError::BackendUnavailable { .. } => record(
-                        &mut attempted,
-                        &mut details,
-                        *set,
-                        dx_update::outcome::SetStatus::Failed,
-                        format!("failed to check {}: {error}", set.name()),
-                    ),
-                }
-                continue;
-            }
-            Ok(dx_update::backend::CheckPlan::Pinned) => {
-                record(
-                    &mut attempted,
-                    &mut details,
-                    *set,
-                    dx_update::outcome::SetStatus::Pinned,
-                    pinned_line(*set),
-                );
-            }
-            Ok(dx_update::backend::CheckPlan::Unavailable) => {
-                record(
-                    &mut attempted,
-                    &mut details,
-                    *set,
-                    dx_update::outcome::SetStatus::Unsupported,
-                    unavailable_message(*set),
-                );
-            }
-            Ok(dx_update::backend::CheckPlan::Run { argv, env: extra }) => {
-                run_update_backend(BackendRun {
-                    attempted: &mut attempted,
-                    details: &mut details,
-                    set: *set,
-                    request,
-                    runner,
-                    workspace,
-                    argv: &argv,
-                    extra: &extra,
-                    mode: RunMode::Check,
-                });
-            }
-        }
-    }
-    (attempted, details)
 }
 
 struct BackendRun<'a> {
     attempted: &'a mut Vec<dx_update::outcome::SetOutcome>,
-    details: &'a mut BTreeMap<String, String>,
+    details: &'a mut BTreeMap<String, SetDetail>,
     set: dx_update::sets::SetId,
     request: &'a dx_update::selector::SetRequest,
     runner: &'a dyn dx_process::Runner,
@@ -461,69 +410,35 @@ fn run_update_backend(run: BackendRun<'_>) {
         extra,
         mode,
     } = run;
-    let verb = mode.verb();
     let env_refs: Vec<(&str, &str)> = extra
         .iter()
         .map(|(key, value)| (key.as_str(), value.as_str()))
         .collect();
-    match runner.run(argv, workspace, &env_refs) {
-        Err(error) => {
-            record(
-                attempted,
-                details,
-                set,
-                dx_update::outcome::SetStatus::Failed,
-                format!(
-                    "failed to {verb} {}: failed to launch updater: {error}",
-                    set.name()
-                ),
-            );
-        }
-        Ok(status) => match status.code {
-            Some(0) => {
-                let (status, message) = match mode {
-                    RunMode::Update => (
-                        dx_update::outcome::SetStatus::Updated,
-                        success_line(set, request),
-                    ),
-                    RunMode::Check => (dx_update::outcome::SetStatus::Current, current_line(set)),
-                };
-                record(attempted, details, set, status, message);
-            }
-            Some(code) => {
-                record(
-                    attempted,
-                    details,
-                    set,
-                    dx_update::outcome::SetStatus::Failed,
-                    format!("failed to {verb} {}: updater exited {code}", set.name()),
-                );
-            }
-            None => {
-                record(
-                    attempted,
-                    details,
-                    set,
-                    dx_update::outcome::SetStatus::Failed,
-                    format!(
-                        "failed to {verb} {}: updater terminated by signal",
-                        set.name()
-                    ),
-                );
-            }
-        },
-    }
+    let ok = match mode {
+        RunMode::Update => (
+            dx_update::outcome::SetStatus::Updated,
+            success_line(set, request),
+        ),
+        RunMode::Check => (dx_update::outcome::SetStatus::Current, current_line(set)),
+    };
+    let (status, message) = runner_status(
+        runner.run(argv, workspace, &env_refs),
+        mode.verb(),
+        set.name(),
+        ok,
+    );
+    record_named(attempted, details, set.name(), status, message);
 }
 
 fn emit_update_json(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     report: &dx_update::outcome::UpdateReport,
-    details: &BTreeMap<String, String>,
+    details: &BTreeMap<String, SetDetail>,
     verbose: bool,
-    exit: i32,
-    mode: RunMode,
+    recovery: Option<&dx_update::recovery::RecoveryPlan>,
 ) -> i32 {
+    let exit = dx_update::report::exit_code(report);
     for outcome in &report.outcomes {
         let set_name = outcome.set.as_str();
         let correlation = format!("update:{set_name}");
@@ -531,31 +446,25 @@ fn emit_update_json(
             dx_update::outcome::ReportedStatus::Updated => {
                 let message = details
                     .get(set_name)
-                    .cloned()
+                    .map(|detail| detail.message.clone())
                     .unwrap_or_else(|| format!("updated {set_name}"));
-                if let Ok(event) = notice_event(&NoticeEvent {
-                    level: "info".to_owned(),
-                    code: "update_set_success".to_owned(),
-                    message,
+                let built = notice_event(&NoticeEvent {
                     related_command: Some("update".to_owned()),
                     scope: Some(vec![set_name.to_owned()]),
-                    path: None,
-                    language: None,
-                    import: None,
-                }) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Some(manifest) = live_success_manifest(set_name) {
-                        if let Ok(file_events) = project_manifest_events(&manifest) {
-                            for file_event in &file_events {
-                                if let Err(exit) = emit_event(out, file_event) {
-                                    return exit;
-                                }
+                    ..NoticeEvent::info("update_set_success", message)
+                })
+                .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
+                if let Some(manifest) = live_success_manifest(set_name) {
+                    if let Ok(file_events) = project_manifest_events(&manifest) {
+                        for file_event in &file_events {
+                            if let Err(exit) = emit_event(out, file_event) {
+                                return exit;
                             }
                         }
                     }
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                }
+                if let Err(exit) = emit_built(out, built) {
+                    return exit;
                 }
             }
             dx_update::outcome::ReportedStatus::Current
@@ -569,78 +478,73 @@ fn emit_update_json(
                         format!("{set_name} pins are manual; nothing to resolve"),
                     ),
                 };
-                let message = details.get(set_name).cloned().unwrap_or(fallback);
-                if let Ok(event) = notice_event(&NoticeEvent {
-                    level: "info".to_owned(),
-                    code: code.to_owned(),
-                    message,
-                    related_command: Some("update".to_owned()),
-                    scope: Some(vec![set_name.to_owned()]),
-                    path: None,
-                    language: None,
-                    import: None,
-                }) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                let message = details
+                    .get(set_name)
+                    .map(|detail| detail.message.clone())
+                    .unwrap_or(fallback);
+                if let Err(exit) = emit_built(
+                    out,
+                    notice_event(&NoticeEvent {
+                        related_command: Some("update".to_owned()),
+                        scope: Some(vec![set_name.to_owned()]),
+                        ..NoticeEvent::info(code, message)
+                    })
+                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
+                ) {
+                    return exit;
                 }
             }
             dx_update::outcome::ReportedStatus::Unsupported => {
                 let message = details
                     .get(set_name)
-                    .cloned()
+                    .map(|detail| detail.message.clone())
                     .unwrap_or_else(|| format!("cannot update {set_name}"));
-                if let Ok(event) = error_event(
-                    "update_set_unsupported",
-                    &message,
-                    None,
-                    None,
-                    Some("execute"),
+                if let Err(exit) = emit_built(
+                    out,
+                    error_event(
+                        "update_set_unsupported",
+                        &message,
+                        None,
+                        None,
+                        Some("execute"),
+                    )
+                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
                 ) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                    return exit;
                 }
                 let _ = writeln!(err, "dx: update_set_unsupported: {message}");
             }
             dx_update::outcome::ReportedStatus::Failed => {
                 let message = details
                     .get(set_name)
-                    .cloned()
+                    .map(|detail| detail.message.clone())
                     .unwrap_or_else(|| format!("failed to update {set_name}"));
-                let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-                    CODE_OFFLINE_REQUIRED
-                } else if message.contains(CODE_FROZEN_LOCKED) {
-                    CODE_FROZEN_LOCKED
-                } else {
-                    CODE_UPDATE_FAILED
-                };
-                if let Ok(event) = error_event(code, &message, None, None, Some("execute")) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                let code = details
+                    .get(set_name)
+                    .and_then(|detail| detail.failure_code)
+                    .unwrap_or(CODE_UPDATE_FAILED);
+                if let Err(exit) = emit_built(
+                    out,
+                    error_event(code, &message, None, None, Some("execute")).map(|event| {
+                        with_correlation(event.clone(), &correlation).unwrap_or(event)
+                    }),
+                ) {
+                    return exit;
                 }
                 let _ = writeln!(err, "dx: {code}: {message}");
             }
             dx_update::outcome::ReportedStatus::Blocked => {
                 let message = format!("blocked {set_name} (depends on a failed update)");
-                if let Ok(event) = notice_event(&NoticeEvent {
-                    level: "warning".to_owned(),
-                    code: "update_set_blocked".to_owned(),
-                    message: message.clone(),
-                    related_command: Some("update".to_owned()),
-                    scope: Some(vec![set_name.to_owned()]),
-                    path: None,
-                    language: None,
-                    import: None,
-                }) {
-                    let event = with_correlation(event.clone(), &correlation).unwrap_or(event);
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(
+                    out,
+                    notice_event(&NoticeEvent {
+                        related_command: Some("update".to_owned()),
+                        scope: Some(vec![set_name.to_owned()]),
+                        ..NoticeEvent::warning("update_set_blocked", message.clone())
+                    })
+                    .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
+                ) {
+                    return exit;
                 }
                 if verbose {
                     if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
@@ -650,20 +554,16 @@ fn emit_update_json(
             }
         }
     }
-    if let Some(plan) = dx_update::recovery::plan(report, mode.retry_mode()) {
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "warning".to_owned(),
-            code: dx_update::recovery::RECOVERY_CODE.to_owned(),
-            message: plan.message.clone(),
-            related_command: Some("update".to_owned()),
-            scope: Some(plan.retry_sets.clone()),
-            path: None,
-            language: None,
-            import: None,
-        }) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+    if let Some(plan) = recovery {
+        if let Err(exit) = emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("update".to_owned()),
+                scope: Some(plan.retry_sets.clone()),
+                ..NoticeEvent::warning(dx_update::recovery::RECOVERY_CODE, plan.message.clone())
+            }),
+        ) {
+            return exit;
         }
         let _ = writeln!(
             err,
@@ -689,18 +589,20 @@ fn emit_update_text(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     report: &dx_update::outcome::UpdateReport,
-    details: &BTreeMap<String, String>,
+    details: &BTreeMap<String, SetDetail>,
     verbose: bool,
-    exit: i32,
+    recovery: Option<&dx_update::recovery::RecoveryPlan>,
     mode: RunMode,
 ) -> i32 {
+    let exit = dx_update::report::exit_code(report);
     for outcome in &report.outcomes {
         match outcome.status {
             dx_update::outcome::ReportedStatus::Updated
             | dx_update::outcome::ReportedStatus::Current
             | dx_update::outcome::ReportedStatus::Pinned => {
                 if verbose {
-                    if let Some(message) = details.get(outcome.set.as_str()) {
+                    if let Some(detail) = details.get(outcome.set.as_str()) {
+                        let message = &detail.message;
                         if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
                             return exit;
                         }
@@ -708,17 +610,15 @@ fn emit_update_text(
                 }
             }
             dx_update::outcome::ReportedStatus::Unsupported => {
-                if let Some(message) = details.get(outcome.set.as_str()) {
+                if let Some(detail) = details.get(outcome.set.as_str()) {
+                    let message = &detail.message;
                     let _ = writeln!(err, "dx: update_set_unsupported: {message}");
                 }
             }
             dx_update::outcome::ReportedStatus::Failed => {
-                if let Some(message) = details.get(outcome.set.as_str()) {
-                    let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-                        CODE_OFFLINE_REQUIRED
-                    } else {
-                        CODE_UPDATE_FAILED
-                    };
+                if let Some(detail) = details.get(outcome.set.as_str()) {
+                    let code = detail.failure_code.unwrap_or(CODE_UPDATE_FAILED);
+                    let message = &detail.message;
                     let _ = writeln!(err, "dx: {code}: {message}");
                 }
             }
@@ -735,7 +635,7 @@ fn emit_update_text(
             }
         }
     }
-    if let Some(plan) = dx_update::recovery::plan(report, mode.retry_mode()) {
+    if let Some(plan) = recovery {
         let _ = writeln!(
             err,
             "dx: {}: {}",

@@ -19,7 +19,12 @@ const BUILDIFIER_CHECK_BARE_ARGS: &[&str] = &[
 const BUILDIFIER_FIX_ARGS: &[&str] = &["--mode=fix", "--lint=fix"];
 const BUILDIFIER_FIX_BARE_ARGS: &[&str] = &["--mode=fix", "--lint=fix", "--config=off"];
 const RUSTFMT_PREFIX: &[&str] = &["--edition"];
-const RUSTFMT_MIDDLE: &[&str] = &["--color=never", "--config-path"];
+const RUSTFMT_MIDDLE: &[&str] = &[
+    "--color=never",
+    "--config",
+    "skip_children=true",
+    "--config-path",
+];
 const RUSTFMT_CHECK_FLAG: &[&str] = &["--check"];
 const TAPLO_LINT_BASE: &[&str] = &["lint", "--colors=never", "--no-auto-config", "--no-schema"];
 const TAPLO_FORMAT_BASE: &[&str] = &["format", "--colors=never", "--no-auto-config"];
@@ -61,20 +66,21 @@ const BIOME_LINT_TAIL: &[&str] = &["--error-on-warnings", "--vcs-enabled=false"]
 const BIOME_FORMAT_FIX_TAIL: &[&str] = &["--write"];
 const ESLINT_MIDDLE: &[&str] = &["-f", "json"];
 const ESLINT_FIX_SUFFIX: &[&str] = &["-f", "json", "--fix"];
-const PRETTIER_BASE: &[&str] = &["--no-config", "--no-editorconfig"];
+const PRETTIER_NO_EDITORCONFIG: &str = "--no-editorconfig";
 const PRETTIER_CHECK_TAIL: &[&str] = &["--check"];
 const PRETTIER_FIX_TAIL: &[&str] = &["--write"];
+const REMARK_CHECK_TAIL: &[&str] = &["--check"];
+const REMARK_FIX_TAIL: &[&str] = &["--write"];
 const SCALAFMT_CHECK_PREFIX: &[&str] = &["--list"];
 const SCALAFMT_EMPTY: &[&str] = &[];
 const CSHARPIER_CHECK_PREFIX: &[&str] = &["check"];
-const CSHARPIER_FIX_PREFIX: &[&str] = &["format"];
+const CSHARPIER_FIX_PREFIX: &[&str] = &["format", "--no-cache"];
 const FANTOMAS_CHECK_ARGS: &[&str] = &["check", "--json"];
 const FANTOMAS_FIX_ARGS: &[&str] = &[];
 const GOFUMPT_CHECK_ARGS: &[&str] = &["-d"];
 const GOFUMPT_FIX_ARGS: &[&str] = &["-w"];
 const STATICCHECK_ARGS: &[&str] = &["-f", "json"];
 const EMPTY_ARGS: &[&str] = &[];
-const ERROR_PRONE_ARGS: &[&str] = &["-Xplugin:ErrorProne"];
 const GOOGLE_JAVA_FORMAT_CHECK_ARGS: &[&str] = &["--dry-run", "--set-exit-if-changed"];
 const GOOGLE_JAVA_FORMAT_FIX_ARGS: &[&str] = &["--replace"];
 const KTFMT_CHECK_ARGS: &[&str] = &["--kotlinlang-style", "--dry-run", "--set-exit-if-changed"];
@@ -130,6 +136,8 @@ const STYLELINT_PREFIX: &[&str] = &["--formatter", "json"];
 const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
+const SHELLCHECK_NORC: &[&str] = &["--norc"];
+const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
@@ -272,10 +280,9 @@ pub fn rustfmt(
         binary.as_os_str().to_owned(),
         OsString::from(RUSTFMT_PREFIX[0]),
         OsString::from(edition),
-        OsString::from(RUSTFMT_MIDDLE[0]),
-        OsString::from(RUSTFMT_MIDDLE[1]),
-        config.as_os_str().to_owned(),
     ];
+    head.extend(RUSTFMT_MIDDLE.iter().map(OsString::from));
+    head.push(config.as_os_str().to_owned());
     if check {
         head.push(OsString::from(RUSTFMT_CHECK_FLAG[0]));
     }
@@ -425,19 +432,64 @@ pub fn eslint_fix(
     launch.resolve(&args, files)
 }
 
-fn prettier_args(tail: &[&str]) -> Vec<OsString> {
-    let mut args = Vec::with_capacity(PRETTIER_BASE.len() + tail.len());
-    args.extend(PRETTIER_BASE.iter().map(OsString::from));
+fn prettier_args(config: Option<&Path>, ignore: &Path, tail: &[&str]) -> Vec<OsString> {
+    let mut args = Vec::with_capacity(tail.len() + 5);
+    match config {
+        Some(cfg) => {
+            args.push(OsString::from("--config"));
+            args.push(cfg.as_os_str().to_owned());
+        }
+        None => args.push(OsString::from("--no-config")),
+    }
+    args.push(OsString::from(PRETTIER_NO_EDITORCONFIG));
+    args.push(OsString::from("--ignore-path"));
+    args.push(ignore.as_os_str().to_owned());
     args.extend(tail.iter().map(OsString::from));
     args
 }
 
-pub fn prettier_check(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(PRETTIER_CHECK_TAIL), files)
+pub fn prettier_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: Option<&Path>,
+    ignore: &Path,
+) -> Result<Invocation, LaunchError> {
+    launch.resolve(&prettier_args(config, ignore, PRETTIER_CHECK_TAIL), files)
 }
 
-pub fn prettier_fix(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(PRETTIER_FIX_TAIL), files)
+pub fn prettier_fix(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: Option<&Path>,
+    ignore: &Path,
+) -> Result<Invocation, LaunchError> {
+    launch.resolve(&prettier_args(config, ignore, PRETTIER_FIX_TAIL), files)
+}
+
+fn remark_args(tail: &[&str], settings: Option<&Path>) -> Vec<OsString> {
+    let mut args = Vec::with_capacity(2 + tail.len());
+    if let Some(settings) = settings {
+        args.push(OsString::from("--settings"));
+        args.push(settings.as_os_str().to_owned());
+    }
+    args.extend(tail.iter().map(OsString::from));
+    args
+}
+
+pub fn remark_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    settings: Option<&Path>,
+) -> Result<Invocation, LaunchError> {
+    launch.resolve(&remark_args(REMARK_CHECK_TAIL, settings), files)
+}
+
+pub fn remark_fix(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    settings: Option<&Path>,
+) -> Result<Invocation, LaunchError> {
+    launch.resolve(&remark_args(REMARK_FIX_TAIL, settings), files)
 }
 
 pub fn markdown_check(
@@ -625,12 +677,22 @@ pub fn clang_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -
     )
 }
 
-pub fn gofumpt_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, GOFUMPT_CHECK_ARGS, files, "")
+pub fn gofumpt_check(binary: &Path, files: &[&Path], lang: &str) -> Invocation {
+    gofumpt(binary, GOFUMPT_CHECK_ARGS, files, lang)
 }
 
-pub fn gofumpt_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, GOFUMPT_FIX_ARGS, files, "")
+pub fn gofumpt_fix(binary: &Path, files: &[&Path], lang: &str) -> Invocation {
+    gofumpt(binary, GOFUMPT_FIX_ARGS, files, lang)
+}
+
+/// Pins `-lang` so the sandboxed check and the in-place fix never fall back to go.mod discovery.
+fn gofumpt(binary: &Path, args: &[&str], files: &[&Path], lang: &str) -> Invocation {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from(format!("-lang={lang}")),
+    ];
+    head.extend(args.iter().map(OsString::from));
+    assemble(binary, head, files, "")
 }
 
 pub fn clang_tidy_check(
@@ -686,12 +748,6 @@ pub fn errcheck_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, EMPTY_ARGS, files, "")
 }
 
-pub const ERROR_PRONE_PATCH_FILE: &str = "error-prone.patch";
-
-pub fn error_prone_check(javac: &Path, files: &[&Path]) -> Invocation {
-    fixed(javac, ERROR_PRONE_ARGS, files, "")
-}
-
 pub fn google_java_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, GOOGLE_JAVA_FORMAT_CHECK_ARGS, files, "")
 }
@@ -738,25 +794,23 @@ pub fn pmd_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invoc
     }
 }
 
-pub const CLASSPATH_SEPARATOR: &str = if cfg!(windows) { ";" } else { ":" };
-
-pub fn spotbugs_check(binary: &Path, files: &[&Path], auxiliary: &[&Path]) -> Invocation {
+pub fn spotbugs_check(
+    binary: &Path,
+    files: &[&Path],
+    auxiliary: &[&Path],
+) -> Result<Invocation, std::env::JoinPathsError> {
     let mut argv = vec![binary.as_os_str().to_owned()];
     argv.extend(SPOTBUGS_ARGS.iter().map(OsString::from));
     if !auxiliary.is_empty() {
-        let joined = auxiliary
-            .iter()
-            .map(|p| p.to_string_lossy().into_owned())
-            .collect::<Vec<_>>()
-            .join(CLASSPATH_SEPARATOR);
+        let joined = std::env::join_paths(auxiliary)?;
         argv.push(OsString::from("-auxclasspath"));
-        argv.push(OsString::from(joined));
+        argv.push(joined);
     }
     argv.extend(files.iter().map(|f| f.as_os_str().to_owned()));
-    Invocation {
+    Ok(Invocation {
         argv,
         cwd_rel: String::new(),
-    }
+    })
 }
 
 pub fn ktlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
@@ -781,21 +835,6 @@ pub fn ktlint_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invo
         files,
         "",
     )
-}
-
-pub fn error_prone_patch(
-    javac: &Path,
-    files: &[&Path],
-    patch_dir: &Path,
-    checks: &str,
-) -> Invocation {
-    let head = vec![
-        javac.as_os_str().to_owned(),
-        OsString::from(ERROR_PRONE_ARGS[0]),
-        OsString::from(format!("-XepPatchChecks:{checks}")),
-        OsString::from(format!("-XepPatchLocation:{}", patch_dir.to_string_lossy())),
-    ];
-    assemble(javac, head, files, "")
 }
 
 fn buf(
@@ -1032,6 +1071,42 @@ pub fn stylelint_check(
     launch.resolve(&args, files)
 }
 
+pub fn graphql_eslint_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: &Path,
+    root: &Path,
+) -> Result<Invocation, LaunchError> {
+    let args = vec![
+        OsString::from("--config"),
+        config.as_os_str().to_owned(),
+        OsString::from("--root"),
+        root.as_os_str().to_owned(),
+        OsString::from("--"),
+    ];
+    launch.resolve(&args, files)
+}
+
+/// The problem cap passed to Redocly, far above any real report so totals stay comparable.
+pub const REDOCLY_MAX_PROBLEMS: &str = "1000000";
+
+/// One `redocly lint` over a single API root, with a JSON report on stdout.
+pub fn redocly_check(
+    launch: &ResolvedTool,
+    root: &Path,
+    config: &Path,
+) -> Result<Invocation, LaunchError> {
+    let args = vec![
+        OsString::from("lint"),
+        OsString::from("--format=json"),
+        OsString::from(format!("--max-problems={REDOCLY_MAX_PROBLEMS}")),
+        OsString::from("--lint-config=error"),
+        OsString::from("--config"),
+        config.as_os_str().to_owned(),
+    ];
+    launch.resolve(&args, &[root])
+}
+
 pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -1083,8 +1158,35 @@ pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> 
     }
 }
 
-pub fn shellcheck_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, SHELLCHECK_ARGS, files, "")
+/// `--rcfile=<config>` when one is declared, else `--norc`; never both, as `--norc` drops an explicit rcfile.
+pub fn shellcheck_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    let suffix = if config.is_some() {
+        &[][..]
+    } else {
+        SHELLCHECK_NORC
+    };
+    optional_joined(
+        binary,
+        SHELLCHECK_ARGS,
+        "--rcfile=",
+        config,
+        suffix,
+        files,
+        "",
+    )
+}
+
+/// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.
+pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        EMPTY_ARGS,
+        "--config",
+        Some(config),
+        HADOLINT_TAIL,
+        files,
+        "",
+    )
 }
 
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
@@ -1101,6 +1203,15 @@ pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
 /// one conservative budget keeps every platform below its native limit.
 pub const ARGV_BATCH_BUDGET: usize = 24_000;
 
+/// Batch budget for a `.bat` or `.cmd` launcher, which cmd.exe re-parses under its 8,191 limit.
+pub const LAUNCHER_BATCH_BUDGET: usize = 6_000;
+
+/// cmd.exe command-line limit of 8,191 characters, less room for quoting.
+pub const LAUNCHER_COMMAND_LINE_LIMIT: usize = 8_000;
+
+/// CreateProcess command-line limit of 32,767 characters, less room for quoting.
+pub const WINDOWS_COMMAND_LINE_LIMIT: usize = 32_000;
+
 /// How a tool carries its input files across the process boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArgTransport {
@@ -1108,15 +1219,46 @@ pub enum ArgTransport {
     Batched,
 }
 
-/// Names the argument transport one tool proved.
-///
-/// keep_sorted documents no response-file dialect and checks each file on its own, so
-/// semantics-preserving file batches carry large selections. Every other tool stays on one
-/// spawn until it records its own dialect or batching proof.
+/// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "keep_sorted" => ArgTransport::Batched,
+        "keep_sorted" | "ruff" | "flake8" | "pydoclint" | "buildifier" => ArgTransport::Batched,
         _ => ArgTransport::Single,
+    }
+}
+
+/// Whether a program is a `.bat` or `.cmd` launcher that runs through cmd.exe.
+pub fn is_batch_launcher(program: &OsStr) -> bool {
+    Path::new(program)
+        .extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("bat") || ext.eq_ignore_ascii_case("cmd"))
+}
+
+/// The batch budget for spawns of one program.
+pub fn argv_budget(program: &OsStr) -> usize {
+    if is_batch_launcher(program) {
+        LAUNCHER_BATCH_BUDGET
+    } else {
+        ARGV_BATCH_BUDGET
+    }
+}
+
+/// The Windows command-line limit for spawns of one program.
+pub fn windows_argv_limit(program: &OsStr) -> Option<usize> {
+    if is_batch_launcher(program) {
+        Some(LAUNCHER_COMMAND_LINE_LIMIT)
+    } else {
+        Some(WINDOWS_COMMAND_LINE_LIMIT)
+    }
+}
+
+/// The host's command-line limit for one program: the Windows rule on Windows, none elsewhere.
+pub fn native_argv_limit(program: &OsStr) -> Option<usize> {
+    if cfg!(windows) {
+        windows_argv_limit(program)
+    } else {
+        None
     }
 }
 
@@ -1130,7 +1272,8 @@ pub fn argv_sizes(arg: &OsStr) -> (usize, usize) {
     (bytes, units)
 }
 
-fn argv_cost(argv: &[OsString]) -> (usize, usize) {
+/// The argv cost of a whole command line in bytes and UTF-16 code units, one separator each.
+pub fn argv_cost(argv: &[OsString]) -> (usize, usize) {
     let mut bytes = 0usize;
     let mut units = 0usize;
     for arg in argv {
@@ -1141,13 +1284,16 @@ fn argv_cost(argv: &[OsString]) -> (usize, usize) {
     (bytes, units)
 }
 
-/// Splits input files into spawns that each fit the batch budget.
+/// Splits input files into spawns that each fit the program's batch budget.
 ///
 /// Batches keep input order, pass files as separate argv entries with no shell, and put an
 /// oversized single file in a batch of its own. An empty selection keeps one empty batch so
 /// callers spawn exactly as before.
 pub fn plan_batches<'a>(head: &[OsString], files: &[&'a Path]) -> Vec<Vec<&'a Path>> {
-    plan_batches_with_budget(head, files, ARGV_BATCH_BUDGET)
+    let budget = head
+        .first()
+        .map_or(ARGV_BATCH_BUDGET, |program| argv_budget(program));
+    plan_batches_with_budget(head, files, budget)
 }
 
 /// Splits input files against an explicit budget for tests.

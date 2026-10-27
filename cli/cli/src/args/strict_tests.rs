@@ -331,13 +331,7 @@ fn strict_help_is_generated_from_the_same_grammar() {
             Err(ArgsError::Help { text }) => text,
             other => panic!("{argv:?}: want Help, got {other:?}"),
         };
-        for needle in [
-            "Usage:",
-            "Scopes:",
-            "Exit codes:",
-            "Output:",
-            "Per-command flags:",
-        ] {
+        for needle in ["Usage:", "Scopes:", "Exit codes:", "Output:"] {
             assert!(text.contains(needle), "{argv:?}: missing {needle:?}");
         }
         for long in GLOBAL_LONGS {
@@ -380,13 +374,7 @@ fn strict_every_command_help_pins_usage_scopes_exits_output() {
             Err(ArgsError::Help { text }) => text,
             other => panic!("{:?}: want Help, got {other:?}", command.name()),
         };
-        for needle in [
-            "Usage:",
-            "Scopes:",
-            "Exit codes:",
-            "Output:",
-            "Per-command flags:",
-        ] {
+        for needle in ["Usage:", "Scopes:", "Exit codes:", "Output:"] {
             assert!(
                 text.contains(needle),
                 "{:?}: missing {needle:?}",

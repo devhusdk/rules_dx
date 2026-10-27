@@ -18,5 +18,6 @@ def _cc_toolchain_identity_subject_impl(ctx):
 
 cc_toolchain_identity_subject = rule(
     implementation = _cc_toolchain_identity_subject_impl,
+    doc = "Analysis subject reporting the selected C/C++ toolchain.",
     toolchains = cc_toolchain_toolchains(),
 )

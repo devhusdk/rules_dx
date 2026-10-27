@@ -52,8 +52,20 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		"pkg/demo/widget.d.ts":     "export declare const x: number;\n",
 		"pkg/demo/orphan.d.mts":    "export declare const y: number;\n",
 	}, regular)
-	if len(result.Gen) != 3 || len(result.Imports) != 3 {
-		t.Fatalf("generated %d rules and %d import sets, want 3 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 5 || len(result.Imports) != 5 {
+		t.Fatalf("generated %d rules and %d import sets, want 5 each", len(result.Gen), len(result.Imports))
+	}
+	for i, want := range []string{"orphan", "widget"} {
+		decl := result.Gen[3+i]
+		if decl.Kind() != projectKind || decl.Name() != want || len(decl.AttrStrings("srcs")) != 0 {
+			t.Errorf("declaration rule %d = %s(%s) srcs %v", i, decl.Kind(), decl.Name(), decl.AttrStrings("srcs"))
+		}
+	}
+	if got := strings.Join(result.Gen[3].AttrStrings("declaration_srcs"), ","); got != "orphan.d.mts" {
+		t.Errorf("orphan declaration_srcs = %q", got)
+	}
+	if got := strings.Join(result.Gen[4].AttrStrings("declaration_srcs"), ","); got != "widget.d.ts" {
+		t.Errorf("widget declaration_srcs = %q", got)
 	}
 	demo := result.Gen[0]
 	if demo.Kind() != projectKind || demo.Name() != "demo" {
@@ -215,6 +227,9 @@ func TestGenerateEntryThinBinary(t *testing.T) {
 	if got := result.Gen[testIdx].AttrString("node_modules"); got != rootNodeModules {
 		t.Errorf("test node_modules = %q, want %q", got, rootNodeModules)
 	}
+	if got := result.Gen[testIdx].Attr("package_json"); got != nil {
+		t.Errorf("test package_json = %v, want unset without a root package.json", got)
+	}
 	lib := result.Gen[libIdx]
 	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "main.ts" {
 		t.Errorf("library srcs = %q, want main.ts", got)
@@ -332,7 +347,7 @@ func TestImportsIndexesNonTestOnly(t *testing.T) {
 	lib := rule.NewRule(projectKind, "demo")
 	lib.SetAttr("srcs", []string{"demo.ts", "notes.txt"})
 	imports := lang.Imports(&config.Config{}, lib, nil)
-	if len(imports) != 1 || imports[0].Lang != languageName || imports[0].Imp != "demo" {
+	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "demo" || imports[1].Imp != "notes.txt" {
 		t.Errorf("imports = %+v", imports)
 	}
 	testRule := rule.NewRule(projectKind, "demo_test")
@@ -749,5 +764,220 @@ func TestRepeatedBasenamesKeepSourceIdentity(t *testing.T) {
 	l.Resolve(cfg, index, nil, r, imports, label.New("", "pkg/demo", "main"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:a,//pkg/b:util" {
 		t.Errorf("override deps = %q, want //mapped:a,//pkg/b:util", got)
+	}
+}
+
+func TestResolveIndexDottedAndAssets(t *testing.T) {
+	files := map[string]string{
+		"pkg/demo/app.ts": "import c from \"./components\";\nimport p from \"./config.prod\";\nimport d from \"./data.json\";\nimport s from \"./styles.module.css\";\nimport x from \"./x\";\n",
+	}
+	result := generateFixture(t, files, []string{"app.ts"})
+	if len(result.Imports) == 0 {
+		t.Fatal("no imports generated")
+	}
+	imports, ok := result.Imports[0].(targetImports)
+	if !ok {
+		t.Fatalf("imports = %T", result.Imports[0])
+	}
+	l := &typescriptLang{}
+	index := resolverIndex(l,
+		struct{ pkg, name, ext string }{"pkg/demo/components", "index", ""},
+		struct{ pkg, name, ext string }{"pkg/demo", "config.prod", ""},
+		struct{ pkg, name, ext string }{"pkg/demo", "config", ""},
+		struct{ pkg, name, ext string }{"pkg/demo", "x", ""},
+		struct{ pkg, name, ext string }{"pkg/demo/x", "index", ""},
+	)
+	cfg := resolverConfig(t, nil)
+	r := rule.NewRule(projectKind, "app")
+	l.Resolve(cfg, index, nil, r, imports, label.New("", "pkg/demo", "app"))
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//pkg/demo/components:index,:config.prod,:x" {
+		t.Errorf("deps = %q", got)
+	}
+
+	owned := rule.NewRule(projectKind, "data")
+	owned.SetAttr("srcs", []string{"data.json", "data.d.ts"})
+	specs := l.Imports(cfg, owned, rule.EmptyFile("pkg/demo/BUILD.bazel", "pkg/demo"))
+	if len(specs) != 1 || specs[0].Imp != "pkg/demo/data.json" {
+		t.Fatalf("asset imports = %v", specs)
+	}
+	handIndex := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
+	handIndex.AddRule(config.New(), owned, rule.EmptyFile("pkg/demo/BUILD.bazel", "pkg/demo"))
+	handIndex.Finish()
+	r = rule.NewRule(projectKind, "app")
+	l.Resolve(cfg, handIndex, nil, r, targetImports{imports: []string{"pkg/demo/data.json"}, local: map[string]bool{"pkg/demo/data.json": true}, asset: map[string]bool{"pkg/demo/data.json": true}}, label.New("", "pkg/demo", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != ":data" {
+		t.Errorf("owned asset deps = %q", got)
+	}
+
+	missing := rule.NewRule(projectKind, "missing")
+	l.Resolve(cfg, index, nil, missing, targetImports{imports: []string{"pkg/demo/nope"}, local: map[string]bool{"pkg/demo/nope": true}}, label.New("", "pkg/demo", "missing"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
+		t.Errorf("missing errors = %v", l.errors)
+	}
+}
+
+func declNames(result language.GenerateResult) string {
+	var out []string
+	for _, r := range result.Gen {
+		out = append(out, r.Kind()+":"+r.Name())
+	}
+	return strings.Join(out, ",")
+}
+
+func generateWithFile(t *testing.T, files map[string]string, regular []string, f *rule.File) (language.GenerateResult, *typescriptLang) {
+	t.Helper()
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	l := &typescriptLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: regular,
+		File:         f,
+	})
+	return result, l
+}
+
+func TestGenerateDeclarations(t *testing.T) {
+	const decl = "export declare const x: number;\n"
+	const src = "export const y = 1;\n"
+	t.Run("mts and cts", func(t *testing.T) {
+		result, _ := generateWithFile(t, map[string]string{
+			"pkg/demo/a.ts": src, "pkg/demo/b.d.mts": decl, "pkg/demo/c.d.cts": decl,
+		}, []string{"a.ts", "b.d.mts", "c.d.cts"}, nil)
+		if got := declNames(result); got != "typescript_project:a,typescript_project:b,typescript_project:c" {
+			t.Fatalf("rules = %s", got)
+		}
+		if got := result.Gen[2].AttrStrings("declaration_srcs"); strings.Join(got, ",") != "c.d.cts" {
+			t.Errorf("c declaration_srcs = %v", got)
+		}
+	})
+	t.Run("source with same stem owns it", func(t *testing.T) {
+		result, _ := generateWithFile(t, map[string]string{
+			"pkg/demo/foo.ts": src, "pkg/demo/foo.d.ts": decl,
+		}, []string{"foo.ts", "foo.d.ts"}, nil)
+		if got := declNames(result); got != "typescript_project:foo" {
+			t.Fatalf("rules = %s", got)
+		}
+		if len(result.Gen[0].AttrStrings("declaration_srcs")) != 0 {
+			t.Errorf("source rule gained declaration_srcs")
+		}
+	})
+	t.Run("stem collision", func(t *testing.T) {
+		result, l := generateWithFile(t, map[string]string{
+			"pkg/demo/a.ts": src, "pkg/demo/foo.d.ts": decl, "pkg/demo/foo.d.mts": decl,
+		}, []string{"a.ts", "foo.d.ts", "foo.d.mts"}, nil)
+		if len(result.Gen) != 0 || len(l.errors) != 1 || !strings.Contains(l.errors[0], "claimed by") {
+			t.Fatalf("gen %d errors %v", len(result.Gen), l.errors)
+		}
+	})
+	t.Run("hand rule owns it", func(t *testing.T) {
+		f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+		types := rule.NewRule(projectKind, "types")
+		types.SetAttr("declaration_srcs", []string{"widget.d.ts"})
+		f.Rules = append(f.Rules, types)
+		result, _ := generateWithFile(t, map[string]string{
+			"pkg/demo/a.ts": src, "pkg/demo/widget.d.ts": decl,
+		}, []string{"a.ts", "widget.d.ts"}, f)
+		if got := declNames(result); got != "typescript_project:a" {
+			t.Fatalf("rules = %s", got)
+		}
+	})
+	t.Run("own earlier output is regenerated", func(t *testing.T) {
+		f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+		w := rule.NewRule(projectKind, "widget")
+		w.SetAttr("declaration_srcs", []string{"widget.d.ts"})
+		f.Rules = append(f.Rules, w)
+		result, _ := generateWithFile(t, map[string]string{
+			"pkg/demo/a.ts": src, "pkg/demo/widget.d.ts": decl,
+		}, []string{"a.ts", "widget.d.ts"}, f)
+		if got := declNames(result); got != "typescript_project:a,typescript_project:widget" || len(result.Empty) != 0 {
+			t.Fatalf("rules = %s, empty = %v", got, result.Empty)
+		}
+	})
+	t.Run("main declaration gets no binary", func(t *testing.T) {
+		result, _ := generateWithFile(t, map[string]string{
+			"pkg/demo/a.ts": src, "pkg/demo/main.d.ts": decl,
+		}, []string{"a.ts", "main.d.ts"}, nil)
+		if got := declNames(result); got != "typescript_project:a,typescript_project:main" {
+			t.Fatalf("rules = %s", got)
+		}
+	})
+	t.Run("source rule keeps declaration_srcs", func(t *testing.T) {
+		f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
+		a := rule.NewRule(projectKind, "a")
+		a.SetAttr("srcs", []string{"a.ts"})
+		a.SetAttr("declaration_srcs", []string{"shared.d.ts"})
+		f.Rules = append(f.Rules, a)
+		result, _ := generateWithFile(t, map[string]string{
+			"pkg/demo/a.ts": src, "pkg/demo/shared.d.ts": decl,
+		}, []string{"a.ts", "shared.d.ts"}, f)
+		if got := declNames(result); got != "typescript_project:a" {
+			t.Fatalf("rules = %s", got)
+		}
+		if got := strings.Join(result.Gen[0].AttrStrings("declaration_srcs"), ","); got != "shared.d.ts" {
+			t.Errorf("declaration_srcs = %q", got)
+		}
+	})
+}
+
+func TestImportsIndexesDeclarations(t *testing.T) {
+	lang := NewLanguage()
+	r := rule.NewRule(projectKind, "types")
+	r.SetAttr("srcs", []string{"widget.ts"})
+	r.SetAttr("declaration_srcs", []string{"widget.d.ts", ":bindings", "sub/x.d.ts", "other.d.mts"})
+	f := rule.EmptyFile("pkg/BUILD.bazel", "pkg")
+	var got []string
+	for _, spec := range lang.Imports(&config.Config{}, r, f) {
+		got = append(got, spec.Imp)
+	}
+	if strings.Join(got, ",") != "pkg/widget,pkg/other" {
+		t.Errorf("imports = %v", got)
+	}
+}
+
+func TestGenerateTestPackageJSONFollowsRootManifest(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"package.json":            "{\"type\": \"module\"}\n",
+		"pkg/demo/helper.ts":      "export const helper = 1;\n",
+		"pkg/demo/helper_test.ts": "import { helper } from \"./helper\";\n",
+	}, []string{"helper.ts", "helper_test.ts"})
+	var test *rule.Rule
+	for _, r := range result.Gen {
+		if r.Kind() == testKind {
+			test = r
+		}
+	}
+	if test == nil {
+		t.Fatalf("missing %s in %v", testKind, result.Gen)
+	}
+	if got := test.AttrString("package_json"); got != rootPackageJSON {
+		t.Errorf("test package_json = %q, want %q", got, rootPackageJSON)
+	}
+}
+
+func TestMergeKeepsHandSetPackageJSON(t *testing.T) {
+	info := testKindInfo()
+	if info.MergeableAttrs["package_json"] {
+		t.Fatal("package_json must not be mergeable, or Gazelle overwrites a hand-set nearest manifest")
+	}
+	gen := rule.NewRule(testKind, "helper_test")
+	gen.SetAttr("package_json", rootPackageJSON)
+	hand := rule.NewRule(testKind, "helper_test")
+	hand.SetAttr("package_json", "//pkg:package_json")
+	rule.MergeRules(gen, hand, info.MergeableAttrs, "BUILD.bazel")
+	if got := hand.AttrString("package_json"); got != "//pkg:package_json" {
+		t.Errorf("merged package_json = %q, want the hand-set //pkg:package_json", got)
+	}
+	missing := rule.NewRule(testKind, "helper_test")
+	rule.MergeRules(gen, missing, info.MergeableAttrs, "BUILD.bazel")
+	if got := missing.AttrString("package_json"); got != rootPackageJSON {
+		t.Errorf("merged package_json = %q, want %q added to a rule without one", got, rootPackageJSON)
 	}
 }

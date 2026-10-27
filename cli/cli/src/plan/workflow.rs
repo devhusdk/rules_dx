@@ -1,8 +1,8 @@
 use dx_process::{describe_scope, ForwardError, ProtectedFlag};
 
 use super::{
-    bazel_argv, bep_guards, bep_options, download_guards, profile_options, workflow_scope_labels,
-    BuildPlan, DOWNLOAD_ALL_FLAG, SKIP_INCOMPATIBLE_FLAG,
+    bazel_argv, bep_guards, bep_options, download_flag, download_guards, profile_options,
+    workflow_scope_labels, BuildPlan, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::resolve::ResolvedScope;
 
@@ -10,61 +10,15 @@ pub use crate::args::WorkflowVerb;
 
 pub const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
 
-fn is_dx_profile_config(value: &str) -> bool {
-    [
-        crate::args::Profile::Debug,
-        crate::args::Profile::Dev,
-        crate::args::Profile::Release,
-    ]
-    .iter()
-    .any(|profile| profile.config() == value)
-}
+pub const COVERAGE_SOURCES_GROUP_FLAG: &str = "--output_groups=+dx_coverage_sources";
+pub const COVERAGE_ALL_TARGETS_FLAG: &str = "--build_tests_only=false";
 
-fn filter_configs(
-    options: &[String],
-    profile: Option<crate::args::Profile>,
-) -> Result<Vec<String>, ForwardError> {
-    let Some(profile) = profile else {
-        return Ok(options.to_vec());
-    };
-    let required = profile.config_flag();
-    let mut kept = Vec::with_capacity(options.len());
-    let mut index = 0;
-    while index < options.len() {
-        let arg = &options[index];
-        if arg == &required {
-            index += 1;
-            continue;
-        }
-        let (value, consumed) = if let Some(value) = arg.strip_prefix("--config=") {
-            (Some(value.to_owned()), 1)
-        } else if arg == "--config" {
-            match options.get(index + 1) {
-                Some(value) => (Some(value.clone()), 2),
-                None => (None, 1),
-            }
-        } else {
-            kept.push(arg.clone());
-            index += 1;
-            continue;
-        };
-        if consumed == 2 && Some(profile.config()) == value.as_deref() {
-            index += consumed;
-            continue;
-        }
-        if let Some(value) = value {
-            if is_dx_profile_config(&value) {
-                return Err(ForwardError::ConflictingOption {
-                    flag: "config".to_owned(),
-                });
-            }
-        }
-        for offset in 0..consumed {
-            kept.push(options[index + offset].clone());
-        }
-        index += consumed;
-    }
-    Ok(kept)
+/// The `--aspects` flag that writes the coverage source manifests.
+pub fn coverage_sources_aspect_flag() -> String {
+    format!(
+        "--aspects={}",
+        super::rules_dx_label(dx_lcov::SOURCES_ASPECT)
+    )
 }
 
 fn workflow_defaults(verb: WorkflowVerb) -> &'static [&'static str] {
@@ -76,13 +30,20 @@ fn workflow_defaults(verb: WorkflowVerb) -> &'static [&'static str] {
     }
 }
 
-pub fn workflow_options(verb: WorkflowVerb, bep_path: Option<&str>) -> Vec<String> {
+pub fn workflow_options(
+    verb: WorkflowVerb,
+    bazel_options: &[String],
+    bep_path: Option<&str>,
+) -> Vec<String> {
     let mut required = Vec::new();
     if verb == WorkflowVerb::Coverage {
         required.push(COVERAGE_COMBINED_REPORT_FLAG.to_owned());
+        required.push(COVERAGE_ALL_TARGETS_FLAG.to_owned());
+        required.push(coverage_sources_aspect_flag());
+        required.push(COVERAGE_SOURCES_GROUP_FLAG.to_owned());
     }
     if verb.collects_reports() {
-        required.push(DOWNLOAD_ALL_FLAG.to_owned());
+        required.push(download_flag(bazel_options).to_owned());
     }
     if let Some(path) = bep_path {
         required.extend(bep_options(path));
@@ -97,6 +58,15 @@ pub fn workflow_protected(verb: WorkflowVerb) -> Vec<ProtectedFlag> {
             name: "combined_report".to_owned(),
             required: Some(COVERAGE_COMBINED_REPORT_FLAG.to_owned()),
             allowed: Vec::new(),
+        });
+        protected.push(ProtectedFlag {
+            name: "build_tests_only".to_owned(),
+            required: None,
+            allowed: vec![
+                "--build_tests_only=false".to_owned(),
+                "--build_tests_only=0".to_owned(),
+                "--build_tests_only=no".to_owned(),
+            ],
         });
     }
     if verb.collects_reports() {
@@ -114,13 +84,13 @@ pub fn plan_workflow(
     profile: Option<crate::args::Profile>,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
-    let required = workflow_options(verb, bep_path);
+    let required = workflow_options(verb, bazel_options, bep_path);
     let protected = workflow_protected(verb);
     let mut options: Vec<String> = workflow_defaults(verb)
         .iter()
         .map(ToString::to_string)
         .collect();
-    options.extend(filter_configs(bazel_options, profile)?);
+    options.extend(crate::args::filter_profile_configs(bazel_options, profile)?);
     let bazel_options = profile_options(profile, &options);
     let (scope, labels) = workflow_scope_labels(resolved);
     let argv = bazel_argv(
@@ -185,10 +155,9 @@ mod tests {
                 "test",
                 "--config=dx_dev",
                 SKIP_INCOMPATIBLE_FLAG,
-                "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--remote_download_outputs=all",
+                "--remote_download_outputs=toplevel",
                 "//...",
             ]
         );
@@ -233,7 +202,6 @@ mod tests {
         for conflicting in [
             "--@rules_rust//rust/settings:rustc_output_diagnostics=false",
             "--@rules_dx//config:clippy_output_diagnostics=false",
-            "--@rules_dx//config:validate=true",
         ] {
             let err = plan_workflow(
                 WorkflowVerb::Build,
@@ -253,7 +221,7 @@ mod tests {
         let plan = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
-            &strings(&[same, crate::plan::VALIDATE_FLAG]),
+            &strings(&[same, crate::plan::CLIPPY_DIAGNOSTICS_FLAG]),
             None,
             Some(Profile::Dev),
             &[],
@@ -387,7 +355,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[
                     "--keep_going",
-                    "--config=ci",
+                    "--config=mine",
                     "--config=ci-pr",
                     "--config=sanitizer",
                 ]),
@@ -407,7 +375,7 @@ mod tests {
                 .expect("keep_going is planned");
             let ci = argv
                 .iter()
-                .position(|arg| *arg == "--config=ci")
+                .position(|arg| *arg == "--config=mine")
                 .expect("ci is planned");
             let ci_pr = argv
                 .iter()
@@ -569,6 +537,102 @@ mod tests {
     }
 
     #[test]
+    fn coverage_plan_requests_the_source_manifests() {
+        let aspect = coverage_sources_aspect_flag();
+        assert_eq!(
+            aspect,
+            "--aspects=@rules_dx//quality:coverage_sources.bzl%dx_coverage_sources_aspect"
+        );
+        let user = strings(&[
+            "--aspects=//tools:mine.bzl%mine",
+            "--output_groups=default",
+            "--nobuild_tests_only",
+            "--build_tests_only=false",
+        ]);
+        let plan = plan_workflow(
+            WorkflowVerb::Coverage,
+            &resolved(&[]),
+            &user,
+            None,
+            None,
+            &[],
+        )
+        .expect("plan");
+        let position = |flag: &str| {
+            plan.argv
+                .iter()
+                .position(|arg| arg == flag)
+                .unwrap_or_else(|| panic!("{flag} is planned: {plan:?}"))
+        };
+        assert!(position(&aspect) > position("--aspects=//tools:mine.bzl%mine"));
+        assert!(position(COVERAGE_SOURCES_GROUP_FLAG) > position("--output_groups=default"));
+        let forced_last = plan
+            .argv
+            .iter()
+            .rposition(|arg| arg == COVERAGE_ALL_TARGETS_FLAG)
+            .expect("build_tests_only forced off");
+        assert!(forced_last > position("--build_tests_only=false"));
+        let bare = plan_workflow(
+            WorkflowVerb::Coverage,
+            &resolved(&[]),
+            &strings(&["--config=mine"]),
+            None,
+            None,
+            &[],
+        )
+        .expect("plan");
+        let forced = bare
+            .argv
+            .iter()
+            .position(|arg| arg == COVERAGE_ALL_TARGETS_FLAG)
+            .unwrap_or_else(|| panic!("rc build_tests_only is overridden: {bare:?}"));
+        let config = bare
+            .argv
+            .iter()
+            .position(|arg| arg == "--config=mine")
+            .expect("user config kept");
+        assert!(forced > config, "forced after rc expansion: {bare:?}");
+        for verb in [WorkflowVerb::Build, WorkflowVerb::Test] {
+            let plan = plan_workflow(verb, &resolved(&[]), &[], None, None, &[]).expect("plan");
+            assert!(
+                !plan
+                    .argv
+                    .iter()
+                    .any(|arg| arg == &aspect || arg == COVERAGE_SOURCES_GROUP_FLAG),
+                "{verb:?} writes no source manifests: {plan:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn coverage_plan_refuses_build_tests_only() {
+        for flag in ["--build_tests_only", "--build_tests_only=true"] {
+            let err = plan_workflow(
+                WorkflowVerb::Coverage,
+                &resolved(&[]),
+                &strings(&[flag]),
+                None,
+                None,
+                &[],
+            )
+            .expect_err("build_tests_only hides sources");
+            assert!(
+                matches!(err, ForwardError::ConflictingOption { ref flag } if flag == "build_tests_only"),
+                "{flag}: {err:?}"
+            );
+        }
+        plan_workflow(
+            WorkflowVerb::Test,
+            &resolved(&[]),
+            &strings(&["--build_tests_only"]),
+            None,
+            Some(Profile::Dev),
+            &[],
+        )
+        .expect("test keeps build_tests_only");
+    }
+
+    #[test]
     fn workflow_required_flags_follow_user_config() {
         let plan = plan_workflow(
             WorkflowVerb::Coverage,
@@ -588,13 +652,13 @@ mod tests {
         let remote = position("--config=remote");
         for flag in [
             COVERAGE_COMBINED_REPORT_FLAG,
-            DOWNLOAD_ALL_FLAG,
+            crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
             "--build_event_json_file=/tmp/bep.json",
             "--build_event_json_file_path_conversion=false",
         ] {
             assert!(position(flag) > remote, "{flag}: {plan:?}");
         }
-        assert!(position("--jobs=4") < position(DOWNLOAD_ALL_FLAG));
+        assert!(position("--jobs=4") < position(crate::plan::DOWNLOAD_TOPLEVEL_FLAG));
     }
 
     #[test]
@@ -620,10 +684,9 @@ mod tests {
                 SKIP_INCOMPATIBLE_FLAG,
                 "--config=remote",
                 "--jobs=4",
-                crate::plan::VALIDATE_FLAG,
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
-                DOWNLOAD_ALL_FLAG,
+                crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
                 "//...",
             ]
         );
@@ -634,7 +697,6 @@ mod tests {
         for verb in [WorkflowVerb::Test, WorkflowVerb::Coverage] {
             for (option, flag) in [
                 ("--remote_download_minimal", "remote_download_minimal"),
-                ("--remote_download_toplevel", "remote_download_toplevel"),
                 (
                     "--remote_download_outputs=minimal",
                     "remote_download_outputs",
@@ -666,6 +728,58 @@ mod tests {
     }
 
     #[test]
+    fn report_verbs_follow_last_download_choice() {
+        let last_download = |argv: &[String]| {
+            argv.iter()
+                .rev()
+                .find(|arg| arg.starts_with("--remote_download"))
+                .cloned()
+        };
+        for verb in [WorkflowVerb::Test, WorkflowVerb::Coverage] {
+            for (options, expected) in [
+                (
+                    vec!["--remote_download_toplevel"],
+                    crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+                (
+                    vec!["--remote_download_outputs=toplevel"],
+                    crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+                (
+                    vec!["--remote_download_all"],
+                    crate::plan::DOWNLOAD_ALL_FLAG,
+                ),
+                (
+                    vec!["--remote_download_outputs=all"],
+                    crate::plan::DOWNLOAD_ALL_FLAG,
+                ),
+                (
+                    vec!["--remote_download_all", "--remote_download_toplevel"],
+                    crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+            ] {
+                let plan = plan_workflow(verb, &resolved(&[]), &strings(&options), None, None, &[])
+                    .expect("plan");
+                assert_eq!(
+                    last_download(&plan.argv).as_deref(),
+                    Some(expected),
+                    "{verb:?} {options:?}"
+                );
+            }
+        }
+        for verb in [WorkflowVerb::Build, WorkflowVerb::Run] {
+            let plan = plan_workflow(verb, &resolved(&[]), &[], None, None, &[]).expect("plan");
+            assert!(
+                !plan
+                    .argv
+                    .iter()
+                    .any(|arg| arg.starts_with("--remote_download_outputs=")),
+                "{verb:?}: {plan:?}"
+            );
+        }
+    }
+
+    #[test]
     fn workflow_profile_pins_config_flag_in_order() {
         for (profile, flag) in [
             (Profile::Debug, "--config=dx_debug"),
@@ -683,7 +797,7 @@ mod tests {
             .expect("plan");
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             assert_eq!(
-                argv[..9],
+                argv[..8],
                 [
                     "bazel",
                     "--nohome_rc",
@@ -691,7 +805,6 @@ mod tests {
                     "build",
                     flag,
                     SKIP_INCOMPATIBLE_FLAG,
-                    crate::plan::VALIDATE_FLAG,
                     crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                     crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 ],

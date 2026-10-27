@@ -120,6 +120,7 @@ javascript_js_test(
     aspect_hints = ["//:biome_config"],
     data = [":wasm_hello_web_js"],
     entry_point = "wasm_node_test.js",
+    package_json = "//:package_json",
 )
 
 genrule(

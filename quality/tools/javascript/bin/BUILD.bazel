@@ -1,17 +1,72 @@
-load("@npm_tools//quality/tools/javascript:eslint/package_json.bzl", eslint_bin = "bin")
-load("@npm_tools//quality/tools/javascript:prettier/package_json.bzl", prettier_bin = "bin")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@npm_tools//quality/tools/javascript:@redocly/cli/package_json.bzl", redocly_bin = "bin")
 load("@npm_tools//quality/tools/javascript:stylelint/package_json.bzl", stylelint_bin = "bin")
+load("@npm_tools//quality/tools/javascript:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@npm_tools//quality/tools/javascript:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality/tools/javascript:defs.bzl", "js_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
-eslint_bin.eslint_binary(name = "eslint_generated")
+js_binary(
+    name = "eslint_generated",
+    data = [
+        "//quality/tools/javascript:node_modules/@typescript-eslint/parser",
+        "//quality/tools/javascript:node_modules/astro-eslint-parser",
+        "//quality/tools/javascript:node_modules/eslint",
+        "//quality/tools/javascript:node_modules/eslint-plugin-astro",
+        "//quality/tools/javascript:node_modules/eslint-plugin-mdx",
+        "//quality/tools/javascript:node_modules/eslint-plugin-vue",
+        "//quality/tools/javascript:node_modules/vue-eslint-parser",
+    ],
+    entry_point = "eslint.mjs",
+)
 
-prettier_bin.prettier_binary(name = "prettier_generated")
+js_binary(
+    name = "graphql_eslint_generated",
+    data = [
+        "//quality/tools/javascript:node_modules/@graphql-eslint/eslint-plugin",
+        "//quality/tools/javascript:node_modules/eslint",
+        "//quality/tools/javascript:node_modules/graphql",
+    ],
+    entry_point = "graphql_eslint.mjs",
+)
+
+js_binary(
+    name = "prettier_generated",
+    data = [
+        "prettier_ignore",
+        "prettier_options.json",
+        "//quality/tools/javascript:node_modules/@prettier/plugin-xml",
+        "//quality/tools/javascript:node_modules/prettier",
+        "//quality/tools/javascript:node_modules/prettier-plugin-astro",
+        "//quality/tools/javascript:node_modules/prettier-plugin-gherkin",
+        "//quality/tools/javascript:node_modules/prettier-plugin-sql",
+    ],
+    entry_point = "prettier.mjs",
+)
+
+redocly_bin.redocly_binary(name = "redocly_generated")
+js_binary(
+    name = "remark_generated",
+    data = [
+        "remark_options.json",
+        "//quality/tools/javascript:node_modules/remark-frontmatter",
+        "//quality/tools/javascript:node_modules/remark-gfm",
+        "//quality/tools/javascript:node_modules/remark-mdx",
+        "//quality/tools/javascript:node_modules/remark-parse",
+        "//quality/tools/javascript:node_modules/remark-stringify",
+        "//quality/tools/javascript:node_modules/unified",
+    ],
+    entry_point = "remark.mjs",
+)
 
 stylelint_bin.stylelint_binary(name = "stylelint_generated")
+
+typedoc_bin.typedoc_binary(
+    name = "typedoc",
+    visibility = ["//visibility:public"],
+)
 
 wrangler_bin.wrangler_binary(
     name = "wrangler",
@@ -20,8 +75,20 @@ wrangler_bin.wrangler_binary(
 
 js_tool(
     name = "eslint",
-    entry_point = ":eslint_generated__entry_point",
+    entry_point = "eslint.mjs",
     js_binary = ":eslint_generated",
+)
+
+js_tool(
+    name = "graphql_eslint",
+    entry_point = "graphql_eslint.mjs",
+    js_binary = ":graphql_eslint_generated",
+)
+
+js_tool(
+    name = "redocly",
+    entry_point = ":redocly_generated__entry_point",
+    js_binary = ":redocly_generated",
 )
 
 js_tool(
@@ -32,8 +99,14 @@ js_tool(
 
 js_tool(
     name = "prettier",
-    entry_point = ":prettier_generated__entry_point",
+    entry_point = "prettier.mjs",
     js_binary = ":prettier_generated",
+)
+
+js_tool(
+    name = "remark",
+    entry_point = "remark.mjs",
+    js_binary = ":remark_generated",
 )
 
 real_source_target(
@@ -41,7 +114,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

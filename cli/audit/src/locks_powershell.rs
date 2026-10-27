@@ -18,15 +18,7 @@ pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         if name.is_empty() || version.is_empty() {
             return Err("invalid PSGallery.lock.json: module without a version".to_owned());
         }
-        out.push(LockedPackage {
-            name: name.to_owned(),
-            version: version.to_owned(),
-            set: "powershell".to_owned(),
-            is_git: false,
-            is_private: false,
-            location: None,
-            platform: None,
-        });
+        out.push(LockedPackage::new("powershell", name, version));
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     Ok(out)

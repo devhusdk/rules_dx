@@ -1,0 +1,13 @@
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_library")
+
+cuda_library(
+    name = "stale_cuda",
+    srcs = ["gone.cu"],
+    archs = ["sm_89"],
+)
+
+cuda_library(
+    name = "kernel",
+    srcs = ["hand.cu"],
+    archs = ["sm_89"],
+)

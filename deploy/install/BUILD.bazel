@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//deploy/release:cosign_pins.bzl", "COSIGN_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -15,12 +15,10 @@ rust_library(
     crate_name = "dx_install_tools",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [],
-        package_name = "deploy/dx_install_tools",
-    ) + [
+    deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
-        "//cli/process:dx_process",
+        "//cli/path:dx_path",
         "//deploy/release:dx_release_tools",
     ],
 )
@@ -50,9 +48,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_install_tools",
-    deps = crate_deps(
-        ["tempfile"],
+    deps = all_crate_deps(
         package_name = "deploy/dx_install_tools",
+        normal = True,
+        normal_dev = True,
     ),
 )
 
@@ -72,23 +71,24 @@ rust_test(
         "tests/fixtures/artifact.bundle",
         "tests/fixtures/ca.pem",
         ":dx_verify",
-        "@cosign_linux_amd64//file",
+        "//deploy/release:cosign",
     ],
     edition = "2021",
     env = {
-        "DX_COSIGN_BIN": "$(rootpath @cosign_linux_amd64//file)",
+        "DX_COSIGN_BIN": "$(rootpath //deploy/release:cosign)",
         "DX_COSIGN_VERSION": COSIGN_VERSION,
         "DX_VERIFY_BIN": "$(rootpath :dx_verify)",
         "DX_COSIGN_FIXTURES": "$(rootpath tests/fixtures/ca.pem)",
     },
     tags = ["no-coverage"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-    deps = crate_deps(
-        ["tempfile"],
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    deps = all_crate_deps(
         package_name = "deploy/dx_install_tools",
+        normal = True,
+        normal_dev = True,
     ) + [
         ":dx_install_tools",
         "//deploy/release:dx_release_tools",
@@ -131,7 +131,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

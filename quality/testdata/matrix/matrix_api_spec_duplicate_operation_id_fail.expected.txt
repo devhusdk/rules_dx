@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_api_spec_duplicate_operation_id_fail
+capability LINT
+stages 1
+stage redocly classes=api_spec sources=matrix/api_spec_duplicate_operation_id.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR redocly operation-operationId-unique matrix/api_spec_duplicate_operation_id.yaml 192 192 fixable=false "Every operation must have a unique `operationId`."
+terminal 1
+terminal ERROR redocly operation-operationId-unique matrix/api_spec_duplicate_operation_id.yaml 192 192 fixable=false "Every operation must have a unique `operationId`."
+replacements 0

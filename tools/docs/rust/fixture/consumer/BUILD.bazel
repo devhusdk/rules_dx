@@ -1,0 +1,13 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(["repos.bzl"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

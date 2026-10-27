@@ -3,10 +3,10 @@ package scala
 import "testing"
 
 func TestIsTestSource(t *testing.T) {
-	if !IsTestSource("DemoTest.scala") || !IsTestSource("pkg/DemoTest.scala") {
+	if !IsTestSource("FooSpec.scala") || !IsTestSource("FooSuite.scala") || !IsTestSource("DemoTest.scala") || !IsTestSource("pkg/DemoTest.scala") {
 		t.Fatal("IsTestSource missed a *Test.scala file")
 	}
-	for _, name := range []string{"Demo.scala", "TestHelper.scala", "Contest.scala", "DemoTest.scala.bak"} {
+	for _, name := range []string{"Demo.scala", "TestHelper.scala", "Contest.scala", "Inspect.scala", "Suites.scala", "SpecHelper.scala", "DemoTest.scala.bak"} {
 		if IsTestSource(name) {
 			t.Errorf("IsTestSource(%q) = true, want false", name)
 		}

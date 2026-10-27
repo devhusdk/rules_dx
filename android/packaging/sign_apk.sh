@@ -44,6 +44,16 @@ fi
 case "$DX_SIGN_OUT" in
     "$DX_SIGN_APK") fail "DX_SIGN_OUT must not overwrite the input APK" ;;
 esac
+schemes=",${DX_SIGN_SCHEMES:-v1,v2,v3},"
+v4=0
+case "$schemes" in
+    *,v4,*)
+        case "$schemes" in
+            *,v2,* | *,v3,*) v4=1 ;;
+            *) fail "scheme v4 needs v2 or v3" ;;
+        esac
+        ;;
+esac
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 "$zipalign" -f -p 4 "$DX_SIGN_APK" "$work/aligned.apk" || fail "zipalign rejected $DX_SIGN_APK" 1
@@ -52,7 +62,7 @@ set -- sign --ks "$DX_SIGN_KEYSTORE" --ks-pass "file:$DX_SIGN_STORE_PASS_FILE"
 [ -z "${DX_SIGN_KEY_PASS_FILE:-}" ] || set -- "$@" --key-pass "file:$DX_SIGN_KEY_PASS_FILE"
 [ -z "${DX_SIGN_MIN_SDK:-}" ] || set -- "$@" --min-sdk-version "$DX_SIGN_MIN_SDK"
 for scheme in v1 v2 v3 v4; do
-    case ",${DX_SIGN_SCHEMES:-v1,v2,v3}," in
+    case "$schemes" in
         *",$scheme,"*) set -- "$@" "--$scheme-signing-enabled" true ;;
         *) set -- "$@" "--$scheme-signing-enabled" false ;;
     esac
@@ -61,7 +71,16 @@ set -- "$@" --out "$work/signed.apk" "$work/aligned.apk"
 "$java" -Xmx1024M -jar "$jar" "$@" || fail "apksigner could not sign $DX_SIGN_APK" 1
 set -- verify
 [ -z "${DX_SIGN_MIN_SDK:-}" ] || set -- "$@" --min-sdk-version "$DX_SIGN_MIN_SDK"
+if [ "$v4" = 1 ]; then
+    [ -f "$work/signed.apk.idsig" ] || fail "apksigner wrote no v4 signature" 1
+    set -- "$@" --v4-signature-file "$work/signed.apk.idsig"
+fi
 "$java" -Xmx1024M -jar "$jar" "$@" "$work/signed.apk" || fail "signed APK failed verification" 1
 mkdir -p "$(dirname "$DX_SIGN_OUT")"
+rm -f "$DX_SIGN_OUT.idsig"
 mv "$work/signed.apk" "$DX_SIGN_OUT"
 echo "dx-android-sign: wrote $DX_SIGN_OUT"
+if [ "$v4" = 1 ]; then
+    mv "$work/signed.apk.idsig" "$DX_SIGN_OUT.idsig"
+    echo "dx-android-sign: wrote $DX_SIGN_OUT.idsig"
+fi

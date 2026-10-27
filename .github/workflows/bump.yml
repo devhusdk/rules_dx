@@ -11,7 +11,7 @@ on:
         required: false
         default: ""
       version:
-        description: "New version for the single selector (exact semver, or SHA for github-actions)."
+        description: "Exact semver, or tag or SHA for github-actions."
         required: false
         default: ""
       automerge:
@@ -38,8 +38,7 @@ jobs:
     name: widen-one-requirement loop (one dep per PR)
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -77,110 +76,103 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
-      - name: Check single widen (never batch)
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Scheduled discovery (never widens)
+        if: inputs.selector == '' || inputs.version == ''
         env:
-          SELECTOR: ${{ inputs.selector }}
-          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          if [[ -z "${SELECTOR:-}" || -z "${VERSION:-}" ]]; then
-            echo "Scheduled discovery (issue #639): enumerating outdated via upstream registry clients (stable only, never custom HTTP)."
-            echo "Discovery policy: stable only; prerelease follows upstream resolver/project config, never a private policy; transitives stay resolver-governed."
-            echo "Registry clients: BCR / crates.io / npm registry / Go proxy / Maven Central / NuGet / GitHub releases (planned in dx_bump::discovery; manual selector only rejected)."
-            echo "Fixtures: cli/bump/tests/fixtures/bump_discovery/ (pins.bzl plus bump_discovery.expected)."
-            echo ""
-            echo "Declared requirements (manifest scan, no fetch):"
-            if [[ -f MODULE.bazel ]]; then
-              grep -E -e 'bazel_dep\(|maven\.install|artifacts' MODULE.bazel | head -n 20 || true
-              grep -E -o -e '"[^"]+:[^"]+:[^"]+"' MODULE.bazel | head -n 20 || true
-            fi
-            if [[ -f rust/tests/fixtures/hello/Cargo.toml ]]; then
-              echo "--- rust/tests/fixtures/hello/Cargo.toml ---"
-              grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml | head -n 20 || true
-            fi
-            if [[ -f package.json ]]; then
-              echo "--- package.json ---"
-              grep -E -e '"[^"]+" *: *"[^"]+"' package.json | head -n 20 || true
-            fi
-            if [[ -f third_party/go/go.mod ]]; then
-              echo "--- third_party/go/go.mod ---"
-              grep -E -e '^require |^\s+[a-zA-Z0-9./_-]+ v' third_party/go/go.mod | head -n 20 || true
-            fi
-            if [[ -f third_party/dotnet/paket.dependencies ]]; then
-              echo "--- third_party/dotnet/paket.dependencies ---"
-              grep -E -e '^nuget ' third_party/dotnet/paket.dependencies | head -n 20 || true
-            fi
-            if [[ -f .bazelversion ]]; then
-              echo "--- .bazelversion ---"
-              cat .bazelversion || true
-            fi
-            echo ""
-            echo "Upstream outdated enumeration (best-effort, never custom HTTP; offline prints declared only):"
-            if command -v cargo >/dev/null 2>&1 && [[ -f rust/tests/fixtures/hello/Cargo.toml ]]; then
-              echo "--- crates.io (cargo) ---"
-              while IFS= read -r line; do
-                crate="$(echo "$line" | sed -E 's/^([A-Za-z0-9_-]+) *=.*/\1/; s/^[[:space:]]+//')"
-                if [[ -n "$crate" ]]; then
-                  latest="$(cargo search "$crate" --limit 1 2>/dev/null | head -n 1 || true)"
-                  if [[ -n "$latest" ]]; then echo "cargo:$crate $latest"; else echo "cargo:$crate (declared only; crates.io unreachable)"; fi
-                fi
-              done < <(grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml || true)
-            else
-              echo "(cargo client unavailable: Cargo outdated deferred to crates.io on next run)"
-            fi
-            if command -v npm >/dev/null 2>&1 && [[ -f package.json ]]; then
-              echo "--- npm registry (npm view) ---"
-              for pkg in $(grep -E -o -e '"[A-Za-z0-9_.-]+" *:' package.json 2>/dev/null | tr -d '": ' | head -n 10 || true); do
-                if [[ -n "$pkg" && "$pkg" != "name" && "$pkg" != "version" && "$pkg" != "dependencies" && "$pkg" != "devDependencies" ]]; then
-                  latest="$(npm view "$pkg" version 2>/dev/null || true)"
-                  if [[ -n "$latest" ]]; then echo "npm:$pkg $latest (stable only)"; else echo "npm:$pkg (declared only; npm registry unreachable)"; fi
-                fi
-              done
-            else
-              echo "(npm client unavailable: npm outdated deferred to npm registry on next run)"
-            fi
-            if command -v go >/dev/null 2>&1 && [[ -f third_party/go/go.mod ]]; then
-              echo "--- Go proxy (go list) ---"
-              while IFS= read -r mod; do
-                if [[ -n "$mod" ]]; then
-                  latest="$(go list -m -versions "$mod" 2>/dev/null | tr ' ' '\n' | grep -E -e '^v[0-9]' | grep -E -v -e '-' | tail -n 1 || true)"
-                  if [[ -n "$latest" ]]; then echo "go:$mod $latest (stable only)"; else echo "go:$mod (declared only; Go proxy unreachable)"; fi
-                fi
-              done < <(grep -E -o -e '[a-zA-Z0-9./_-]+\.[a-zA-Z]+/[a-zA-Z0-9./_~-]+' third_party/go/go.mod 2>/dev/null | head -n 10 || true)
-            else
-              echo "(go client unavailable: Go outdated deferred to Go proxy on next run)"
-            fi
-            if command -v gh >/dev/null 2>&1; then
-              echo "--- GitHub releases (gh) ---"
-              grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 10 || echo "(no pinned actions found)"
-              echo "(tags auto-resolve to SHA via the upstream GitHub releases client before the file edit, planned in dx_bump::gha, issue #640; fixtures in cli/bump/tests/fixtures/bump_gha/; manual SHA only rejected)"
-              for pin in $(grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 5 || true); do
-                repo="$(echo "$pin" | sed -E 's/.*uses: *([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@.*/\1/')"
-                tag="$(echo "$pin" | sed -E 's/.*@([A-Za-z0-9_.-]+).*/\1/')"
-                if [[ -n "$repo" && -n "$tag" ]]; then
-                  sha="$(gh api "repos/$repo/commits/$tag" --jq .sha 2>/dev/null || true)"
-                  if [[ -n "$sha" ]]; then echo "github-actions:$repo $tag -> $sha (auto via gh api, never invent)"; else echo "github-actions:$repo $tag (declared only; GitHub releases unreachable; unknown tags fail closed, never invent a SHA)"; fi
-                fi
-              done
-            else
-              echo "(gh client unavailable: GitHub Actions outdated deferred to GitHub releases on next run)"
-            fi
-            echo "--- BCR / Maven Central / NuGet ---"
-            echo "(BCR, Maven Central, and NuGet enumerate through their upstream clients on runs with those backends; this run lists declared MODULE.bazel plus paket.dependencies above without custom HTTP.)"
-            echo ""
-            echo "Next step: dispatch this workflow with selector plus version for the first outdated candidate above (one dep per run, never batch; e.g. cargo:anyhow 1.2.3). Manual selector only is rejected as the sole discovery route: scheduled runs must enumerate above."
-            echo "This run plans the loop without widening."
-            exit 0
+          echo "Scheduled discovery (issue #639): enumerating outdated via upstream registry clients (stable only, never custom HTTP)."
+          echo "Discovery policy: stable only; prerelease follows upstream resolver/project config, never a private policy; transitives stay resolver-governed."
+          echo "Registry clients: BCR / crates.io / npm registry / Go proxy / Maven Central / NuGet / GitHub releases (planned in dx_bump::discovery; manual selector only rejected)."
+          echo ""
+          echo "Declared requirements (manifest scan, no fetch):"
+          if [[ -f MODULE.bazel ]]; then
+            grep -E -e 'bazel_dep\(|maven\.install|artifacts' MODULE.bazel | head -n 20 || true
+            grep -E -o -e '"[^"]+:[^"]+:[^"]+"' MODULE.bazel | head -n 20 || true
           fi
-          # Exactly one requirement per invocation, never batch.
-          bazel run "$@" --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$VERSION" -- "$@"
+          if [[ -f rust/tests/fixtures/hello/Cargo.toml ]]; then
+            echo "--- rust/tests/fixtures/hello/Cargo.toml ---"
+            grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml | head -n 20 || true
+          fi
+          if [[ -f package.json ]]; then
+            echo "--- package.json ---"
+            grep -E -e '"[^"]+" *: *"[^"]+"' package.json | head -n 20 || true
+          fi
+          if [[ -f third_party/go/go.mod ]]; then
+            echo "--- third_party/go/go.mod ---"
+            grep -E -e '^require |^\s+[a-zA-Z0-9./_-]+ v' third_party/go/go.mod | head -n 20 || true
+          fi
+          if [[ -f third_party/dotnet/paket.dependencies ]]; then
+            echo "--- third_party/dotnet/paket.dependencies ---"
+            grep -E -e '^nuget ' third_party/dotnet/paket.dependencies | head -n 20 || true
+          fi
+          if [[ -f .bazelversion ]]; then
+            echo "--- .bazelversion ---"
+            cat .bazelversion || true
+          fi
+          echo ""
+          echo "Upstream outdated enumeration (best-effort, never custom HTTP; offline prints declared only):"
+          if command -v cargo >/dev/null 2>&1 && [[ -f rust/tests/fixtures/hello/Cargo.toml ]]; then
+            echo "--- crates.io (cargo) ---"
+            while IFS= read -r line; do
+              crate="$(echo "$line" | sed -E 's/^([A-Za-z0-9_-]+) *=.*/\1/; s/^[[:space:]]+//')"
+              if [[ -n "$crate" ]]; then
+                latest="$(cargo search "$crate" --limit 1 2>/dev/null | head -n 1 || true)"
+                if [[ -n "$latest" ]]; then echo "cargo:$crate $latest"; else echo "cargo:$crate (declared only; crates.io unreachable)"; fi
+              fi
+            done < <(grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml || true)
+          else
+            echo "(cargo client unavailable: Cargo outdated deferred to crates.io on next run)"
+          fi
+          if command -v npm >/dev/null 2>&1 && [[ -f package.json ]]; then
+            echo "--- npm registry (npm view) ---"
+            for pkg in $(grep -E -o -e '"[A-Za-z0-9_.-]+" *:' package.json 2>/dev/null | tr -d '": ' | head -n 10 || true); do
+              if [[ -n "$pkg" && "$pkg" != "name" && "$pkg" != "version" && "$pkg" != "dependencies" && "$pkg" != "devDependencies" ]]; then
+                latest="$(npm view "$pkg" version 2>/dev/null || true)"
+                if [[ -n "$latest" ]]; then echo "npm:$pkg $latest (stable only)"; else echo "npm:$pkg (declared only; npm registry unreachable)"; fi
+              fi
+            done
+          else
+            echo "(npm client unavailable: npm outdated deferred to npm registry on next run)"
+          fi
+          if command -v go >/dev/null 2>&1 && [[ -f third_party/go/go.mod ]]; then
+            echo "--- Go proxy (go list) ---"
+            while IFS= read -r mod; do
+              if [[ -n "$mod" ]]; then
+                latest="$(go list -m -versions "$mod" 2>/dev/null | tr ' ' '\n' | grep -E -e '^v[0-9]' | grep -E -v -e '-' | tail -n 1 || true)"
+                if [[ -n "$latest" ]]; then echo "go:$mod $latest (stable only)"; else echo "go:$mod (declared only; Go proxy unreachable)"; fi
+              fi
+            done < <(grep -E -o -e '[a-zA-Z0-9./_-]+\.[a-zA-Z]+/[a-zA-Z0-9./_~-]+' third_party/go/go.mod 2>/dev/null | head -n 10 || true)
+          else
+            echo "(go client unavailable: Go outdated deferred to Go proxy on next run)"
+          fi
+          if command -v gh >/dev/null 2>&1; then
+            echo "--- GitHub releases (gh) ---"
+            grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 10 || echo "(no pinned actions found)"
+            while IFS= read -r pin; do
+              repo="$(echo "$pin" | sed -E 's/.*uses: *([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@.*/\1/')"
+              tag="$(echo "$pin" | sed -E 's/.*@([A-Za-z0-9_.-]+).*/\1/')"
+              if [[ -n "$repo" && -n "$tag" ]]; then
+                sha=""
+                if out="$(gh api "repos/$repo/commits/$tag" --jq .sha)"; then sha="$out"; fi
+                if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "github-actions:$repo $tag -> $sha (auto via gh api, never invent)"; else echo "github-actions:$repo $tag (declared only; GitHub releases unreachable; unknown tags fail closed, never invent a SHA)"; fi
+              fi
+            done < <(grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 5 || true)
+          else
+            echo "(gh client unavailable: GitHub Actions outdated deferred to GitHub releases on next run)"
+          fi
+          echo "--- BCR / Maven Central / NuGet ---"
+          echo "(BCR, Maven Central, and NuGet enumerate through their upstream clients on runs with those backends; this run lists declared MODULE.bazel plus paket.dependencies above without custom HTTP.)"
+          echo ""
+          echo "Next step: dispatch this workflow with selector plus version for the first outdated candidate above (one dep per run, never batch; e.g. cargo:anyhow 1.2.3). Manual selector only is rejected as the sole discovery route: scheduled runs must enumerate above."
+          echo "This run plans the loop without widening."
       - name: Widen one requirement plus resolver-owned refresh
         if: inputs.selector != '' && inputs.version != ''
         env:
+          GH_TOKEN: ${{ github.token }}
           SELECTOR: ${{ inputs.selector }}
           VERSION: ${{ inputs.version }}
         run: |
@@ -193,15 +185,14 @@ jobs:
             echo "Resolving GHA ref $VERSION for $package via the upstream GitHub releases client (gh api); dx bump parses the snapshot, never shell regex."
             commit_json="$(mktemp)"
             export DX_BUMP_GITHUB_COMMIT_JSON="$commit_json"
-            if ! gh api "repos/$package/commits/$VERSION" >"$commit_json" 2>/dev/null; then
+            if ! gh api "repos/$package/commits/$VERSION" >"$commit_json"; then
               echo "Unknown ref $VERSION for $package: no upstream GitHub commit snapshot (nothing widened; never invent a SHA)."
               exit 1
             fi
           fi
           bazel run "$@" --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$VERSION" --apply -- "$@"
-          set_name="${SELECTOR%%:*}"
           case "$set_name" in
-            cargo|npm|go|gomod|maven|nuget) bazel run "$@" --noshow_progress //cli/cli:dx -- update "$set_name" -- "$@" || exit 1 ;;
+            cargo|npm|go|maven|nuget) bazel run "$@" --noshow_progress //cli/cli:dx -- update "$set_name" -- "$@" || exit 1 ;;
             *) echo "File-only set ($set_name): no resolver refresh; preset flag-diff review plus build below." ;;
           esac
       - name: Bump-PR verification (regen, flag-diff, build, test, coverage, dogfood)
@@ -220,7 +211,7 @@ jobs:
           bazel run "$@" --noshow_progress //cli/cli:dx -- format --check //... -- "$@"
           bazel run "$@" --noshow_progress //cli/cli:dx -- security //...
           bazel run "$@" --noshow_progress //cli/cli:dx -- license //...
-      - name: Open one PR if green (fork-safe, no retry-until-green)
+      - name: Open one PR if green (no retry-until-green)
         if: inputs.selector != '' && inputs.version != ''
         env:
           GH_TOKEN: ${{ steps.bump-app.outputs.token }}
@@ -229,12 +220,6 @@ jobs:
           AUTOMERGE: ${{ inputs.automerge }}
         run: |
           set -euo pipefail
-          head_repo="${{ github.event.pull_request.head.repo.full_name || github.repository }}"
-          base_repo="${{ github.repository }}"
-          if [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" && "$head_repo" != "$base_repo" ]]; then
-            echo "Fork PR detected ($head_repo != $base_repo): plan only, never push or open PRs with write credentials (fork-safety)."
-            exit 0
-          fi
           if [[ -z "$(git status --porcelain)" ]]; then
             echo "Nothing widened: record and stop (failures never retry-until-green)."
             exit 0
@@ -244,8 +229,8 @@ jobs:
           case "$set_name" in
             bazel) allowed=(.bazelversion MODULE.bazel MODULE.bazel.lock) ;;
             cargo) allowed=(rust/tests/fixtures/hello/Cargo.toml rust/tests/fixtures/hello/Cargo.lock cargo-bazel-lock.json) ;;
-            github-actions|gha) allowed=(.github/workflows) ;;
-            go|gomod) allowed=(third_party/go/go.mod third_party/go/go.sum) ;;
+            github-actions) allowed=(.github/workflows) ;;
+            go) allowed=(third_party/go/go.mod third_party/go/go.sum) ;;
             maven) allowed=(MODULE.bazel third_party/jvm/maven_install.json MODULE.bazel.lock) ;;
             npm) allowed=(package.json pnpm-lock.yaml) ;;
             nuget) allowed=(third_party/dotnet/paket.dependencies third_party/dotnet/paket.lock third_party/dotnet/deps) ;;
@@ -305,10 +290,4 @@ jobs:
         if: always()
         run: |
           echo "### bump widen-one — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 100 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + App token + fork-safety + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
+          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 100 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + App token + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"

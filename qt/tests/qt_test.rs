@@ -99,6 +99,23 @@ fn host_leaks(paths: &BTreeSet<String>) -> Vec<String> {
         .collect()
 }
 
+/// Parses Qt's "Available platform plugins are: a, b." line into a set; empty if absent.
+fn available_platform_plugins(output: &str) -> BTreeSet<String> {
+    const MARKER: &str = "Available platform plugins are: ";
+    output
+        .lines()
+        .find_map(|line| line.find(MARKER).map(|i| &line[i + MARKER.len()..]))
+        .map(|rest| {
+            rest.trim()
+                .trim_end_matches('.')
+                .split(',')
+                .map(|name| name.trim().to_owned())
+                .filter(|name| !name.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn initialized_objects(stderr: &str) -> BTreeSet<String> {
     stderr
         .lines()
@@ -219,9 +236,10 @@ fn gui_refuses_a_platform_plugin_it_does_not_pin() {
         "{}",
         run.stderr
     );
-    assert!(
-        run.stderr
-            .contains("Available platform plugins are: offscreen, minimal."),
+    // Keep in sync with platform_plugins in qt/sdk/layout_linux.bzl.
+    assert_eq!(
+        available_platform_plugins(&run.stderr),
+        BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]),
         "{}",
         run.stderr
     );
@@ -590,6 +608,8 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
         "tls/libqopensslbackend.so",
         "wayland-decoration-client/libbradient.so",
         "wayland-shell-integration/libxdg-shell.so",
+        "xcbglintegrations/libqxcb-egl-integration.so",
+        "xcbglintegrations/libqxcb-glx-integration.so",
     ]
     .into_iter()
     .map(|name| (name.to_owned(), known(&cell.join("plugins").join(name))))

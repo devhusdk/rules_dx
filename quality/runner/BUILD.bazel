@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
@@ -16,6 +16,7 @@ rust_library(
         "src/real/check.rs",
         "src/real/delegated.rs",
         "src/real/pipeline.rs",
+        "src/real/redocly.rs",
         "src/real/rustfmt.rs",
         "src/real/staging.rs",
         "src/real_core.rs",
@@ -32,18 +33,11 @@ rust_library(
     crate_name = "quality_runner",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "serde",
-            "serde_json",
-            "tempfile",
-            "thiserror",
-            "tracing",
-            "zip",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_runner",
+        normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//quality/adapter:quality_adapter",
@@ -61,17 +55,9 @@ rust_binary(
     crate_name = "quality_runner",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "serde",
-            "serde_json",
-            "tempfile",
-            "thiserror",
-            "tracing",
-            "zip",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_runner",
+        normal = True,
     ) + [
         ":quality_runner_lib",
         "//cli/atomic_fs:dx_atomic_fs",
@@ -141,17 +127,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":quality_runner_lib",
-    deps = crate_deps(
-        [
-            "clap",
-            "serde",
-            "serde_json",
-            "tempfile",
-            "thiserror",
-            "tracing",
-            "zip",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_runner",
+        normal = True,
+        normal_dev = True,
     ) + [
         "//cli/digest:dx_digest",
         "//quality/adapter:quality_adapter",
@@ -198,6 +177,7 @@ rust_test(
         ],
         package_name = "quality/quality_runner",
     ) + [
+        ":quality_runner_lib",
         "//cli/path:dx_path",
         "//quality/result:quality_result",
         "@rules_rust_prost//private/3rdparty/crates:prost",

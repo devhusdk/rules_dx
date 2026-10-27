@@ -1,5 +1,7 @@
 //! Version satisfaction, one grammar per ecosystem.
 
+use std::cmp::Ordering;
+
 use semver::{Version, VersionReq};
 
 use crate::ecosystem::python;
@@ -53,23 +55,94 @@ fn normalize(spec: &str) -> String {
     strip_v_prefix(&text)
 }
 
-fn split_version_parts(value: &str, count: usize) -> Vec<String> {
-    value
-        .split(['.', '-'])
-        .take(count)
-        .map(|s| s.to_owned())
-        .collect()
+const PRERELEASE_MARKERS: [&str; 9] = [
+    "alpha",
+    "beta",
+    "rc",
+    "cr",
+    "pre",
+    "preview",
+    "snapshot",
+    "dev",
+    "milestone",
+];
+
+fn parse_version(value: &str) -> Option<(Vec<u64>, bool)> {
+    let base = value.split('+').next().unwrap_or(value);
+    let mut numbers = Vec::new();
+    let mut suffix = String::new();
+    for segment in base.split(['.', '-']) {
+        let digits: String = segment.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if !digits.is_empty() {
+            numbers.push(digits.parse::<u64>().ok()?);
+        }
+        suffix = segment[digits.len()..].to_ascii_lowercase();
+        if !suffix.is_empty() {
+            break;
+        }
+    }
+    if numbers.is_empty() {
+        return None;
+    }
+    let prerelease = PRERELEASE_MARKERS
+        .iter()
+        .any(|marker| suffix.starts_with(marker));
+    Some((numbers, prerelease))
 }
 
-fn version_tuple(value: &str) -> Vec<i64> {
-    let base = value.split('+').next().unwrap_or(value);
-    base.split(['.', '-'])
-        .take(3)
-        .map(|part| {
-            let digits: String = part.chars().take_while(|c| c.is_ascii_digit()).collect();
-            digits.parse::<i64>().unwrap_or(0)
-        })
-        .collect()
+fn cmp_versions(a: &(Vec<u64>, bool), b: &(Vec<u64>, bool)) -> Ordering {
+    let len = a.0.len().max(b.0.len());
+    let pad = |parts: &[u64]| {
+        let mut padded = parts.to_vec();
+        padded.resize(len, 0);
+        padded
+    };
+    pad(&a.0).cmp(&pad(&b.0)).then_with(|| b.1.cmp(&a.1))
+}
+
+fn upper_bound(parts: &[u64], pessimistic: bool) -> (Vec<u64>, bool) {
+    let keep = match (parts.len(), pessimistic) {
+        (0 | 1, _) => 1,
+        (len, true) => len - 1,
+        (_, false) => 2,
+    };
+    let mut bound = parts[..keep].to_vec();
+    bound[keep - 1] += 1;
+    (bound, true)
+}
+
+fn satisfies_range(spec: &str, locked: &(Vec<u64>, bool)) -> Option<bool> {
+    for part in spec.split(',') {
+        let part = part.trim();
+        let (op, rest) = ["<=", ">=", "<", ">"]
+            .iter()
+            .find_map(|op| part.strip_prefix(op).map(|rest| (*op, rest)))?;
+        let want = parse_version(rest.trim())?;
+        let ordering = cmp_versions(locked, &want);
+        let holds = match op {
+            ">=" => ordering != Ordering::Less,
+            "<=" => ordering != Ordering::Greater,
+            ">" => ordering == Ordering::Greater,
+            _ => ordering == Ordering::Less,
+        };
+        if !holds {
+            return Some(false);
+        }
+    }
+    Some(true)
+}
+
+fn satisfies_tilde(spec: &str, locked: &(Vec<u64>, bool)) -> Option<bool> {
+    let (pessimistic, rest) = match spec.strip_prefix('>') {
+        Some(rest) => (true, rest),
+        None => (false, spec),
+    };
+    let want = parse_version(rest.trim())?;
+    let upper = upper_bound(&want.0, pessimistic);
+    Some(
+        cmp_versions(locked, &want) != Ordering::Less
+            && cmp_versions(locked, &upper) == Ordering::Less,
+    )
 }
 
 pub(crate) fn versions_equal(spec: &str, locked: &str) -> bool {
@@ -127,38 +200,14 @@ pub(crate) fn satisfies_non_semver(spec: &str, locked: &str) -> bool {
     } else if let Some(rest) = s.strip_prefix('^') {
         s = rest.trim().to_owned();
     } else if let Some(rest) = s.strip_prefix('~') {
-        s = rest.trim().to_owned();
-        let lv = locked_norm
-            .split('+')
-            .next()
-            .unwrap_or(&locked_norm)
-            .to_owned();
-        let sp = split_version_parts(&s, 2);
-        let lp = split_version_parts(&lv, 2);
-        if sp.len() == 2 && lp.len() == 2 {
-            let parse_pair = |pair: &[String]| -> Option<(i64, i64)> {
-                let a = pair[0].parse::<i64>().ok()?;
-                let b = pair[1].parse::<i64>().ok()?;
-                Some((a, b))
-            };
-            if let (Some(a), Some(b)) = (parse_pair(&sp), parse_pair(&lp)) {
-                return a == b;
-            }
-            return s == lv;
-        }
-        return s == lv;
-    } else if s.starts_with(">=") || s.starts_with("<=") {
-        let op = s[..2].to_owned();
-        let mut rest = s[2..].trim().to_owned();
-        if let Some(first) = rest.split(',').next() {
-            rest = first.trim().to_owned();
-        }
-        let locked_t = version_tuple(&locked_norm);
-        let want_t = version_tuple(&rest);
-        if op == ">=" {
-            return locked_t >= want_t;
-        }
-        return locked_t <= want_t;
+        let rest = rest.trim().to_owned();
+        return parse_version(&locked_norm)
+            .and_then(|locked| satisfies_tilde(&rest, &locked))
+            .unwrap_or(rest == locked_norm);
+    } else if s.starts_with(['<', '>']) {
+        return parse_version(&locked_norm)
+            .and_then(|locked| satisfies_range(&s, &locked))
+            .unwrap_or(s == locked_norm);
     }
     if s == "*" || s.is_empty() {
         return true;

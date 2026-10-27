@@ -75,15 +75,7 @@ impl RuleGraph {
         startup_options: &[String],
     ) -> Result<RuleGraph, ResolveError> {
         let argv = query_argv(startup_options);
-        let result = runner.run_query(&argv, workspace).map_err(|error| {
-            ResolveError::query(EXPRESSION, super::QueryFailure::launch(&error))
-        })?;
-        if result.code != Some(0) {
-            return Err(ResolveError::query(
-                EXPRESSION,
-                super::QueryFailure::exited(&result),
-            ));
-        }
+        let result = ResolveError::run(runner, &argv, workspace, EXPRESSION)?;
         let text = String::from_utf8(result.stdout).map_err(|_| {
             ResolveError::query(
                 EXPRESSION,
@@ -216,6 +208,17 @@ impl RuleGraph {
         kind: impl Fn(&str) -> bool,
     ) -> Vec<String> {
         self.keep(self.reach(&self.seeds_for(label)), |rule| {
+            self.kinds.get(rule).is_some_and(|class| kind(class))
+        })
+    }
+
+    /// Rules of the kind reached from the seed labels, keeping manual rules.
+    pub(crate) fn reached_of_kind(
+        &self,
+        seeds: &[String],
+        kind: impl Fn(&str) -> bool,
+    ) -> Vec<String> {
+        self.keep(self.reach(seeds), |rule| {
             self.kinds.get(rule).is_some_and(|class| kind(class))
         })
     }
@@ -376,6 +379,22 @@ mod tests {
                 &[],
             ),
         ])
+    }
+
+    #[test]
+    fn reached_of_kind_walks_from_seeds_to_rules_of_the_kind() {
+        let graph = shard_graph();
+        let seeds = strings(&["//gen:schema"]);
+        assert_eq!(
+            graph.reached_of_kind(&seeds, |kind| kind == "rust_binary"),
+            ["//gen:bin"]
+        );
+        assert!(graph
+            .reached_of_kind(&seeds, |kind| kind == "toolchain")
+            .is_empty());
+        assert!(graph
+            .reached_of_kind(&[], |kind| kind == "rust_binary")
+            .is_empty());
     }
 
     #[test]

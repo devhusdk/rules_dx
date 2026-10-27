@@ -1,14 +1,15 @@
 load("//modules:js.bzl", "NODE_VERSION_PREFIX")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("//tools/ide:ide_tool.bzl", "ide_node_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# buildifier: disable=canonical-repository
+ide_node_tool(name = "node_tool")
+
 ide_acquisition_test(
     name = "ide_acquisition_test",
-    arm64_binary = "@@rules_nodejs++node+nodejs_linux_arm64//:bin/nodejs/bin/node",
-    binary = "@@rules_nodejs++node+nodejs_linux_amd64//:bin/nodejs/bin/node",
+    binary = ":node_tool",
     expected = NODE_VERSION_PREFIX,
     version_args = ["--version"],
 )

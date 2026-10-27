@@ -1,14 +1,15 @@
 load("//modules:toolchains.bzl", "GO_SDK_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("//tools/ide:ide_tool.bzl", "ide_go_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# buildifier: disable=canonical-repository
+ide_go_tool(name = "go_tool")
+
 ide_acquisition_test(
     name = "ide_acquisition_test",
-    arm64_binary = "@@rules_go++go_sdk+main___download_0_linux_arm64//:bin/go",
-    binary = "@@rules_go++go_sdk+main___download_0_linux_amd64//:bin/go",
+    binary = ":go_tool",
     expected = "go" + GO_SDK_VERSION,
     version_args = ["version"],
 )

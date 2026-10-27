@@ -693,6 +693,17 @@ fn rust_reports_check_diagnostic_and_definition() {
     }
     let fresh = std::fs::read_to_string(work.join("src/lib.rs")).expect("source must reread");
     assert_eq!(fresh, RUST_LIB, "check mode must preserve source bytes");
+    let unknown = server
+        .request("dx/doesNotExist", json!({}))
+        .expect("request must send");
+    let response = server
+        .wait_response(unknown, REQUEST_SECS)
+        .expect("error must arrive");
+    assert_eq!(
+        error_code(&response),
+        Some(-32601),
+        "unsupported method must fail: {response}"
+    );
     server.shutdown().expect("rust shutdown must succeed");
 }
 

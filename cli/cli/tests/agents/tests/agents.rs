@@ -262,6 +262,21 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         named.stdout
     );
 
+    let test = run_with(
+        "sh",
+        &["-c", &guard],
+        &root,
+        &env,
+        "{\"agent_id\":\"a1\",\"tool_input\":{\"command\":\"tools/dx test //x\"}}",
+    );
+    assert_eq!(test.code, 0, "{}{}", test.stdout, test.stderr);
+    assert!(
+        test.stdout
+            .contains("export DX_WORKTREE_HOLDER='a1'\\ntools/dx test //x"),
+        "{}",
+        test.stdout
+    );
+
     let added = run_with(
         launcher,
         &[
@@ -558,12 +573,12 @@ fn touch_later(path: &Path) {
     if !path.exists() {
         write(path, "\n");
     }
-    let touched = Command::new("touch")
-        .args(["-d", "+1 hour"])
-        .arg(path)
-        .status()
+    let file = std::fs::File::options()
+        .write(true)
+        .open(path)
+        .expect("open");
+    file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
         .expect("touch");
-    assert!(touched.success());
 }
 
 fn built_launcher_root(name: &str, rewrite: bool) -> (PathBuf, PathBuf) {
@@ -645,6 +660,28 @@ fn the_launcher_rebuilds_after_a_preset_bazelrc_edit() {
 fn the_launcher_rebuilds_after_a_non_cli_input_edit() {
     let (root, fakes) = built_launcher_root("dx-agents-launcher-input-", true);
     touch_later(&root.join("tools/bazelrc/src/lib.rs"));
+    let out = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert_eq!(bazel_calls(&root, "build"), 2);
+}
+
+#[test]
+fn the_launcher_detects_a_newer_input_with_a_posix_only_find() {
+    let (root, fakes) = built_launcher_root("dx-agents-launcher-posix-find-", true);
+    script(
+        &fakes.join("find"),
+        r#"for arg in "$@"; do
+  case "$arg" in
+    -quit|-maxdepth|-mindepth|-print0|-printf|-newer?*) echo "find: unsupported $arg" >&2; exit 1 ;;
+  esac
+done
+if [ -x /usr/bin/find ]; then exec /usr/bin/find "$@"; fi
+exec /bin/find "$@""#,
+    );
+    let quiet = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(quiet.code, 0, "{}{}", quiet.stdout, quiet.stderr);
+    assert_eq!(bazel_calls(&root, "build"), 1);
+    touch_later(&root.join("cli/cli/src/main.rs"));
     let out = launcher_run(&root, &fakes, &["version"]);
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
     assert_eq!(bazel_calls(&root, "build"), 2);

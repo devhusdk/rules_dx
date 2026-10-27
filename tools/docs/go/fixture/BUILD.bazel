@@ -1,0 +1,101 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_go//go:def.bzl", "go_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/go:defs.bzl", "go_doc_shard")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "money.go",
+    "money_changed.go",
+    "windows.go",
+])
+
+go_library(
+    name = "money",
+    srcs = [
+        "money.go",
+        "windows.go",
+    ],
+    importpath = "example.com/ledger/money",
+)
+
+go_library(
+    name = "money_changed",
+    srcs = [
+        "money_changed.go",
+        "windows.go",
+    ],
+    importpath = "example.com/ledger/money",
+)
+
+go_doc_shard(
+    name = "money_docs",
+    library = ":money",
+)
+
+go_doc_shard(
+    name = "money_windows_docs",
+    goos = "windows",
+    library = ":money",
+)
+
+go_doc_shard(
+    name = "money_changed_docs",
+    library = ":money_changed",
+)
+
+write_file(
+    name = "broken_src",
+    out = "broken/broken.go",
+    content = [
+        "package broken",
+        "",
+        "func Broken( {",
+    ],
+    tags = ["manual"],
+)
+
+go_library(
+    name = "broken",
+    srcs = ["broken/broken.go"],
+    importpath = "example.com/ledger/broken",
+    tags = ["manual"],
+)
+
+go_doc_shard(
+    name = "broken_docs",
+    library = ":broken",
+    tags = ["manual"],
+)
+
+write_file(
+    name = "empty_src",
+    out = "empty/empty.go",
+    content = [
+        "package empty",
+        "",
+        "func hidden() {}",
+    ],
+    tags = ["manual"],
+)
+
+go_library(
+    name = "empty",
+    srcs = ["empty/empty.go"],
+    importpath = "example.com/ledger/empty",
+    tags = ["manual"],
+)
+
+go_doc_shard(
+    name = "empty_docs",
+    library = ":empty",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

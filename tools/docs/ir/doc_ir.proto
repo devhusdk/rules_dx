@@ -18,7 +18,8 @@ enum SymbolKind {
   ENUM_VARIANT = 10;
   TYPE_ALIAS = 11;
   MACRO = 12;
-  reserved 13 to 15;
+  VARIABLE = 13;
+  reserved 14 to 15;
 }
 
 enum Visibility {
@@ -78,7 +79,10 @@ message Symbol {
   Relations relations = 10;
   // Language-specific payloads, strictly increasing key order, never dropped.
   repeated Extension extensions = 11;
-  reserved 12 to 15;
+  // Reader-facing title when the id cannot spell it, such as Foo#empty?.
+  // Empty means the renderer derives the title from the id.
+  string display_name = 12;
+  reserved 13 to 15;
 }
 
 message DocIr {

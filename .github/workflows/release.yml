@@ -10,6 +10,10 @@ on:
         description: "Existing release tag to upload dx binaries to."
         required: true
         type: string
+      commit:
+        description: "Full SHA of the commit the release tag points at."
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -21,6 +25,7 @@ concurrency:
 env:
   BAZELISK_VERSION: "1.29.0"
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  CANDIDATE_COMMIT: ${{ inputs.commit || github.sha }}
   MSYS2_ARG_CONV_EXCL: "//"
 
 jobs:
@@ -34,7 +39,7 @@ jobs:
           - name: dx-linux-arm64
             runner: ubuntu-24.04-arm
           - name: dx-macos-arm64
-            runner: macos-14
+            runner: macos-15
           - name: dx-windows-x86_64
             runner: windows-latest
           - name: dx-windows-arm64
@@ -66,8 +71,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-ci-preflight-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-ci-preflight-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Build and checksum dx
         env:
           ASSET: ${{ matrix.name }}
@@ -91,8 +96,53 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  source:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Check the tag names the candidate commit
+        run: |
+          set -euo pipefail
+          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT"
+      - name: Build and verify the source archive
+        env:
+          SOURCE_DIR: ${{ runner.temp }}/source
+        run: |
+          set -euo pipefail
+          bazel run //deploy/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR"
+          ls -l "$SOURCE_DIR"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: source
+          path: ${{ runner.temp }}/source/*
+          if-no-files-found: error
+          retention-days: 7
+
   upload:
-    needs: build
+    needs: [build, source]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -111,8 +161,28 @@ jobs:
             test -s "out/$asset"
             test -s "out/$asset.sha256"
           done
+          version="${RELEASE_TAG#v}"
+          src="rules_dx-$version.tar.gz"
+          test -s "out/$src"
+          test -s "out/$src.sha256"
+          test -s out/source.json
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "No release for $RELEASE_TAG. Run //cli/cli:github_draft, then re-run this workflow with the tag." >&2
             exit 1
           fi
           gh release upload "$RELEASE_TAG" out/dx-* --clobber
+          mkdir -p existing
+          for file in "$src" "$src.sha256" source.json; do
+            if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$file"; then
+              gh release download "$RELEASE_TAG" --pattern "$file" --dir existing --clobber
+              if ! cmp -s "existing/$file" "out/$file"; then
+                echo "Release $RELEASE_TAG already holds a different $file; refusing to replace it." >&2
+                exit 1
+              fi
+            else
+              gh release upload "$RELEASE_TAG" "out/$file"
+            fi
+          done
+          mkdir -p verify
+          gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --dir verify
+          (cd verify && sha256sum -c "$src.sha256")

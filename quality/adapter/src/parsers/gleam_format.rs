@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use super::{as_text, code_name, finding, known_relative, unformatted_at, FileFinding, ParseError};
+use super::{
+    as_text, code_name, finding, known_relative, path_row_col, unformatted_at, FileFinding,
+    ParseError,
+};
 use crate::ToolSeverity;
 
 const TOOL: &str = "gleam_format";
@@ -19,10 +22,7 @@ pub fn parse_gleam_format(
     cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
     if !as_text(TOOL, stdout)?.trim().is_empty() {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: "--check wrote to stdout".to_owned(),
-        });
+        return Err(ParseError::shape(TOOL, "--check wrote to stdout"));
     }
     let raw = as_text(TOOL, stderr)?;
     let lines: Vec<&str> = raw.lines().collect();
@@ -38,10 +38,10 @@ pub fn parse_gleam_format(
         _ => false,
     };
     if !shaped {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} with {} findings", code_name(code), findings.len()),
-        });
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} with {} findings", code_name(code), findings.len()),
+        ));
     }
     Ok(findings)
 }
@@ -64,14 +64,9 @@ fn syntax_error(files: &[&str], cwd: &Path, rest: &[&str]) -> Result<FileFinding
     let location = rest
         .iter()
         .find_map(|line| line.trim().strip_prefix(LOCATION_PREFIX))
-        .ok_or_else(|| ParseError::Shape {
-            tool: TOOL,
-            detail: "syntax error without a location".to_owned(),
-        })?;
-    let (path, line, column) = position(location).ok_or_else(|| ParseError::Shape {
-        tool: TOOL,
-        detail: format!("unreadable location {location}"),
-    })?;
+        .ok_or_else(|| ParseError::shape(TOOL, "syntax error without a location"))?;
+    let (path, line, column) = path_row_col(location.trim())
+        .ok_or_else(|| ParseError::shape(TOOL, format!("unreadable location {location}")))?;
     let file = known_relative(TOOL, files, cwd, path)?;
     Ok(finding(
         TOOL,
@@ -82,15 +77,6 @@ fn syntax_error(files: &[&str], cwd: &Path, rest: &[&str]) -> Result<FileFinding
         line,
         column,
     ))
-}
-
-/// The path, line and column from a `<path>:<line>:<column>` location.
-fn position(location: &str) -> Option<(&str, u64, u64)> {
-    let mut parts = location.trim().rsplitn(3, ':');
-    let column = parts.next()?.parse().ok()?;
-    let line = parts.next()?.parse().ok()?;
-    let path = parts.next().filter(|path| !path.is_empty())?;
-    Some((path, line, column))
 }
 
 /// The caret label, followed by the `Found ...` explanation when Gleam gives one.
@@ -260,13 +246,5 @@ mod tests {
             parse_gleam_format(b"", UNEXPECTED.as_bytes(), Some(1), &files, cwd()),
             Err(ParseError::UnknownFile { path, .. }) if path == "/s/src/c.gleam"
         ));
-    }
-
-    #[test]
-    fn position_needs_a_path_line_and_column() {
-        assert_eq!(position("src/a.gleam:3:7"), Some(("src/a.gleam", 3, 7)));
-        assert_eq!(position(":3:7"), None);
-        assert_eq!(position("src/a.gleam:3"), None);
-        assert_eq!(position("src/a.gleam"), None);
     }
 }

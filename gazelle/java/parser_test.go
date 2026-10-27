@@ -15,7 +15,7 @@ func TestParseImportsSingleType(t *testing.T) {
 
 func TestParseImportsStaticAndOnDemand(t *testing.T) {
 	got := ParseImports([]byte("package demo;\n\nimport static com.example.Widget.create;\nimport com.example.*;\n"))
-	want := []string{"com.example.Widget", "example"}
+	want := []string{"com.example.*", "com.example.Widget"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
@@ -90,13 +90,10 @@ func TestParseImportsStaticDeclaringType(t *testing.T) {
 	}
 }
 
-func TestImportCandidates(t *testing.T) {
-	got := importCandidates("com.example.Outer.Inner")
-	want := []string{"com.example.Outer", "com.example"}
+func TestParseImportsWildcardStaysQualified(t *testing.T) {
+	got := ParseImports([]byte("package demo;\n\nimport com.example.*;\nimport java.util.*;\nimport static com.example.Widget.*;\n"))
+	want := []string{"com.example.*", "com.example.Widget", "java.util"}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("importCandidates = %v, want %v", got, want)
-	}
-	if got := importCandidates("Widget"); len(got) != 0 {
-		t.Errorf("importCandidates(Widget) = %v, want none", got)
+		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
 }

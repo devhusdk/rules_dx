@@ -65,6 +65,8 @@ fn rustfmt_passes_caller_edition_and_config() {
             "--edition",
             "2021",
             "--color=never",
+            "--config",
+            "skip_children=true",
             "--config-path",
             "/scratch/r.toml",
             "--check",
@@ -435,25 +437,32 @@ fn eslint_without_a_program_fails_before_any_spawn() {
 fn prettier_check_and_fix_are_hermetic() {
     let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
-    let check = prettier_check(&launch, &[file]).expect("resolves");
+    let ignore = Path::new("/scratch/dx-prettier/ignore");
+    let cfg = Path::new("/scratch/cfg/.prettierrc.json");
+    let check = prettier_check(&launch, &[file], None, ignore).expect("resolves");
     assert_eq!(
         argv_strings(&check),
         vec![
             BIN,
             "--no-config",
             "--no-editorconfig",
+            "--ignore-path",
+            "/scratch/dx-prettier/ignore",
             "--check",
             "/scratch/src/a.js"
         ]
     );
     assert_eq!(check.cwd_rel, "");
-    let fix = prettier_fix(&launch, &[file]).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], Some(cfg), ignore).expect("resolves");
     assert_eq!(
         argv_strings(&fix),
         vec![
             BIN,
-            "--no-config",
+            "--config",
+            "/scratch/cfg/.prettierrc.json",
             "--no-editorconfig",
+            "--ignore-path",
+            "/scratch/dx-prettier/ignore",
             "--write",
             "/scratch/src/a.js"
         ]
@@ -462,43 +471,34 @@ fn prettier_check_and_fix_are_hermetic() {
 }
 
 #[test]
-fn error_prone_check_is_plugin_only() {
-    let file = Path::new("/scratch/src/Hello.java");
-    let invocation = error_prone_check(Path::new(BIN), &[file]);
+fn remark_check_and_fix_pass_settings_only_when_bound() {
+    let launch = ResolvedTool::javascript("remark", Path::new(BIN));
+    let file = Path::new("/scratch/docs/a.mdx");
+    let check = remark_check(&launch, &[file], None).expect("resolves");
     assert_eq!(
-        argv_strings(&invocation),
-        vec![BIN, "-Xplugin:ErrorProne", "/scratch/src/Hello.java"]
+        argv_strings(&check),
+        vec![BIN, "--check", "/scratch/docs/a.mdx"]
     );
-    assert_eq!(invocation.cwd_rel, "");
-}
-
-#[test]
-fn error_prone_patch_declares_a_directory_never_in_place() {
-    let file = Path::new("/scratch/src/Hello.java");
-    let dir = Path::new("/scratch/patch-out");
-    let invocation = error_prone_patch(
-        Path::new(BIN),
-        &[file],
-        dir,
-        "MissingOverride,DefaultCharset",
-    );
-    let argv = argv_strings(&invocation);
+    assert_eq!(check.cwd_rel, "");
+    let settings = Path::new("/scratch/remark.json");
+    let fix = remark_fix(&launch, &[file], Some(settings)).expect("resolves");
     assert_eq!(
-        argv,
+        argv_strings(&fix),
         vec![
             BIN,
-            "-Xplugin:ErrorProne",
-            "-XepPatchChecks:MissingOverride,DefaultCharset",
-            "-XepPatchLocation:/scratch/patch-out",
-            "/scratch/src/Hello.java"
+            "--settings",
+            "/scratch/remark.json",
+            "--write",
+            "/scratch/docs/a.mdx"
         ]
     );
-    assert_eq!(invocation.cwd_rel, "");
-    assert!(
-        !argv.iter().any(|arg| arg.contains("IN_PLACE")),
-        "patch location is a declared dir, never IN_PLACE",
+    let blank = ResolvedTool::javascript("remark", Path::new(""));
+    assert_eq!(
+        remark_check(&blank, &[file], None),
+        Err(LaunchError::MissingProgram {
+            tool: "remark".to_owned()
+        })
     );
-    assert_eq!(ERROR_PRONE_PATCH_FILE, "error-prone.patch");
 }
 
 #[test]
@@ -569,10 +569,29 @@ fn csharpier_check_and_fix_share_config() {
         Some(Path::new("/scratch/.csharpierrc")),
     );
     assert!(argv_strings(&hinted).contains(&"--config-path".to_owned()));
+    for flag in ["--no-cache", "--use-cache"] {
+        assert!(!argv_strings(&check).contains(&flag.to_owned()));
+    }
     let fix = csharpier_fix(Path::new(BIN), &[file], None);
     assert_eq!(
         argv_strings(&fix),
-        vec![BIN, "format", "/scratch/Sample.cs"]
+        vec![BIN, "format", "--no-cache", "/scratch/Sample.cs"]
+    );
+    let fix_hinted = csharpier_fix(
+        Path::new(BIN),
+        &[file],
+        Some(Path::new("/scratch/.csharpierrc")),
+    );
+    assert_eq!(
+        argv_strings(&fix_hinted),
+        vec![
+            BIN,
+            "format",
+            "--no-cache",
+            "--config-path",
+            "/scratch/.csharpierrc",
+            "/scratch/Sample.cs"
+        ]
     );
 }
 
@@ -699,9 +718,23 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "rulesets/java/quickstart.xml"
         ]
     );
-    let hinted = pmd_check(Path::new(BIN), &[java], Some(cfg));
-    assert!(argv_strings(&hinted).contains(&"--rulesets".to_owned()));
-    let spot = spotbugs_check(Path::new(BIN), &[java], &[]);
+    let pmd_cfg = Path::new("/scratch/pmd.xml");
+    let hinted = pmd_check(Path::new(BIN), &[java], Some(pmd_cfg));
+    assert_eq!(
+        argv_strings(&hinted),
+        vec![
+            BIN,
+            "check",
+            "--dir",
+            "/scratch/src/Hello.java",
+            "--format",
+            "sarif",
+            "--rulesets",
+            "/scratch/pmd.xml"
+        ]
+    );
+    assert!(!argv_strings(&hinted).contains(&"rulesets/java/quickstart.xml".to_owned()));
+    let spot = spotbugs_check(Path::new(BIN), &[java], &[]).expect("spot");
     assert_eq!(
         argv_strings(&spot),
         vec![
@@ -716,8 +749,10 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
         Path::new(BIN),
         &[java],
         &[Path::new("/scratch/a.jar"), Path::new("/scratch/b.jar")],
-    );
-    let aux = format!("/scratch/a.jar{CLASSPATH_SEPARATOR}/scratch/b.jar");
+    )
+    .expect("with_aux");
+    let joined_aux = std::env::join_paths(["/scratch/a.jar", "/scratch/b.jar"]).expect("join");
+    let joined_aux = joined_aux.to_str().expect("utf8").to_owned();
     assert_eq!(
         argv_strings(&with_aux),
         vec![
@@ -726,7 +761,7 @@ fn jvm_lint_checks_use_sarif_with_explicit_config() {
             "-effort:default",
             "-sarif",
             "-auxclasspath",
-            aux.as_str(),
+            &joined_aux,
             "/scratch/src/Hello.java"
         ]
     );
@@ -786,11 +821,17 @@ fn clang_format_check_and_fix_share_style() {
 #[test]
 fn gofumpt_check_is_diff_and_fix_is_write() {
     let file = Path::new("/scratch/Sample.go");
-    let check = gofumpt_check(Path::new(BIN), &[file]);
-    assert_eq!(argv_strings(&check), vec![BIN, "-d", "/scratch/Sample.go"]);
+    let check = gofumpt_check(Path::new(BIN), &[file], "go1.26");
+    assert_eq!(
+        argv_strings(&check),
+        vec![BIN, "-lang=go1.26", "-d", "/scratch/Sample.go"]
+    );
     assert_eq!(check.cwd_rel, "");
-    let fix = gofumpt_fix(Path::new(BIN), &[file]);
-    assert_eq!(argv_strings(&fix), vec![BIN, "-w", "/scratch/Sample.go"]);
+    let fix = gofumpt_fix(Path::new(BIN), &[file], "go1.26");
+    assert_eq!(
+        argv_strings(&fix),
+        vec![BIN, "-lang=go1.26", "-w", "/scratch/Sample.go"]
+    );
 }
 
 #[test]
@@ -1196,6 +1237,70 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
 }
 
 #[test]
+fn graphql_eslint_check_passes_config_root_and_files_after_a_separator() {
+    let query = Path::new("/scratch/api/query.graphql");
+    let launch = ResolvedTool::javascript("graphql_eslint", Path::new(BIN));
+    let check = graphql_eslint_check(
+        &launch,
+        &[query],
+        Path::new("/scratch/api/graphql.json"),
+        Path::new("/scratch"),
+    )
+    .expect("resolves");
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/api/graphql.json",
+            "--root",
+            "/scratch",
+            "--",
+            "/scratch/api/query.graphql"
+        ]
+    );
+    let blank = ResolvedTool::javascript("graphql_eslint", Path::new(""));
+    assert_eq!(
+        graphql_eslint_check(
+            &blank,
+            &[query],
+            Path::new("/scratch/api/graphql.json"),
+            Path::new("/scratch"),
+        ),
+        Err(LaunchError::MissingProgram {
+            tool: "graphql_eslint".to_owned()
+        })
+    );
+}
+
+#[test]
+fn redocly_check_lints_one_root_with_a_json_report_and_strict_config() {
+    let root = Path::new("/scratch/api/openapi.yaml");
+    let launch = ResolvedTool::javascript("redocly", Path::new(BIN));
+    let check = redocly_check(&launch, root, Path::new("/scratch/redocly.yaml")).expect("resolves");
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "lint",
+            "--format=json",
+            "--max-problems=1000000",
+            "--lint-config=error",
+            "--config",
+            "/scratch/redocly.yaml",
+            "/scratch/api/openapi.yaml"
+        ]
+    );
+    let blank = ResolvedTool::javascript("redocly", Path::new(""));
+    assert_eq!(
+        redocly_check(&blank, root, Path::new("/scratch/redocly.yaml")),
+        Err(LaunchError::MissingProgram {
+            tool: "redocly".to_owned()
+        })
+    );
+}
+
+#[test]
 fn file_family_lint_checks_are_check_only() {
     let css = Path::new("/scratch/style.css");
     let launch = ResolvedTool::javascript("stylelint", Path::new(BIN));
@@ -1268,8 +1373,39 @@ fn file_family_lint_checks_are_check_only() {
     );
     let sh = Path::new("/scratch/run.sh");
     assert_eq!(
-        argv_strings(&shellcheck_check(Path::new(BIN), &[sh])),
-        vec![BIN, "--format=gcc", "/scratch/run.sh"]
+        argv_strings(&shellcheck_check(Path::new(BIN), &[sh], None)),
+        vec![BIN, "--format=gcc", "--norc", "/scratch/run.sh"]
+    );
+    assert_eq!(
+        argv_strings(&shellcheck_check(
+            Path::new(BIN),
+            &[sh],
+            Some(Path::new("/scratch/.shellcheckrc"))
+        )),
+        vec![
+            BIN,
+            "--format=gcc",
+            "--rcfile=/scratch/.shellcheckrc",
+            "/scratch/run.sh"
+        ]
+    );
+    let dockerfile = Path::new("/scratch/Dockerfile");
+    assert_eq!(
+        argv_strings(&hadolint_check(
+            Path::new(BIN),
+            &[dockerfile],
+            Path::new("/scratch/.hadolint.yaml")
+        )),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/.hadolint.yaml",
+            "--no-color",
+            "-f",
+            "json",
+            "--",
+            "/scratch/Dockerfile"
+        ]
     );
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
@@ -1283,10 +1419,31 @@ fn file_family_lint_checks_are_check_only() {
 }
 
 #[test]
+fn hadolint_never_overrides_the_user_policy() {
+    let invocation = hadolint_check(
+        Path::new(BIN),
+        &[Path::new("-t")],
+        Path::new("/scratch/.hadolint.yaml"),
+    );
+    let argv = argv_strings(&invocation);
+    let flags = &argv[..argv.len() - 1];
+    for banned in [
+        "-t",
+        "--failure-threshold",
+        "--no-fail",
+        "--ignore",
+        "--disable-ignore-pragma",
+    ] {
+        assert!(!flags.contains(&banned.to_owned()), "{banned} in {argv:?}");
+    }
+    assert_eq!(argv[argv.len() - 2], "--");
+    assert_eq!(invocation.cwd_rel, "");
+}
+
+#[test]
 fn fixed_args_match_recorded_invocations() {
     let file = Path::new(FILE);
     let cases: &[(&[&str], Invocation)] = &[
-        (GOFUMPT_CHECK_ARGS, gofumpt_check(Path::new(BIN), &[file])),
         (
             GOOGLE_JAVA_FORMAT_CHECK_ARGS,
             google_java_format_check(Path::new(BIN), &[file]),
@@ -1296,7 +1453,6 @@ fn fixed_args_match_recorded_invocations() {
             ktlint_check(Path::new(BIN), &[file], None),
         ),
         (RUBOCOP_ARGS, rubocop_check(Path::new(BIN), &[file], None)),
-        (SHELLCHECK_ARGS, shellcheck_check(Path::new(BIN), &[file])),
         (
             KEEP_SORTED_CHECK_ARGS,
             keep_sorted_check(Path::new(BIN), &[file]),
@@ -1323,25 +1479,6 @@ fn batch_argv_counts_bytes_and_utf16_units() {
     assert_eq!(argv_sizes(OsStr::new("é")), (2, 1));
     assert_eq!(argv_sizes(OsStr::new("字")), (3, 1));
     assert_eq!(argv_sizes(OsStr::new("🦀")), (4, 2));
-}
-
-#[test]
-fn only_keep_sorted_batches_until_proved() {
-    assert_eq!(transport_for("keep_sorted"), ArgTransport::Batched);
-    for tool in [
-        "buildifier",
-        "rustfmt",
-        "ruff",
-        "biome",
-        "eslint",
-        "prettier",
-        "ty",
-        "clippy",
-        "clang_tidy",
-        "staticcheck",
-    ] {
-        assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
-    }
 }
 
 fn batch_cost(head: &[OsString], batch: &[&Path]) -> (usize, usize) {
@@ -1410,6 +1547,82 @@ fn an_oversized_file_travels_alone() {
     assert_eq!(batches.len(), 2);
     assert_eq!(batches[0], vec![big.as_path()]);
     assert_eq!(batches[1], vec![small.as_path()]);
+}
+
+#[test]
+fn argv_budget_shrinks_behind_batch_launchers() {
+    assert_eq!(
+        argv_budget(OsStr::new("/bin/tool.bat")),
+        LAUNCHER_BATCH_BUDGET
+    );
+    assert_eq!(
+        argv_budget(OsStr::new("C:\\bin\\TOOL.CMD")),
+        LAUNCHER_BATCH_BUDGET
+    );
+    assert_eq!(
+        argv_budget(OsStr::new("C:\\bin\\tool.exe")),
+        ARGV_BATCH_BUDGET
+    );
+    assert_eq!(argv_budget(OsStr::new("/bin/tool")), ARGV_BATCH_BUDGET);
+    assert!(!is_batch_launcher(OsStr::new("/bin/bat")));
+}
+
+#[test]
+fn windows_limit_is_tighter_for_launchers() {
+    assert_eq!(
+        windows_argv_limit(OsStr::new("tool.bat")),
+        Some(LAUNCHER_COMMAND_LINE_LIMIT)
+    );
+    assert_eq!(
+        windows_argv_limit(OsStr::new("tool.exe")),
+        Some(WINDOWS_COMMAND_LINE_LIMIT)
+    );
+    assert!(ARGV_BATCH_BUDGET < WINDOWS_COMMAND_LINE_LIMIT);
+    assert!(LAUNCHER_BATCH_BUDGET < LAUNCHER_COMMAND_LINE_LIMIT);
+    assert!(LAUNCHER_COMMAND_LINE_LIMIT < WINDOWS_COMMAND_LINE_LIMIT);
+    assert_eq!(
+        native_argv_limit(OsStr::new("tool")).is_some(),
+        cfg!(windows)
+    );
+}
+
+#[test]
+fn plan_batches_honours_launcher_budget() {
+    let head = vec![OsString::from("/bin/tool.bat"), OsString::from("--check")];
+    let owned: Vec<PathBuf> = (0..200)
+        .map(|index| PathBuf::from(format!("/s/{index:04}-{}.txt", "p".repeat(60))))
+        .collect();
+    let refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
+    let batches = plan_batches(&head, &refs);
+    assert!(batches.len() > 2, "launcher budget forces batches");
+    let roundtrip: Vec<&Path> = batches.iter().flatten().copied().collect();
+    assert_eq!(roundtrip, refs);
+    for batch in &batches {
+        let (bytes, units) = batch_cost(&head, batch);
+        assert!(bytes <= LAUNCHER_BATCH_BUDGET, "bytes {bytes} fit");
+        assert!(units <= LAUNCHER_BATCH_BUDGET, "units {units} fit");
+    }
+}
+
+#[test]
+fn file_independent_tools_batch() {
+    for tool in ["keep_sorted", "ruff", "flake8", "pydoclint", "buildifier"] {
+        assert_eq!(transport_for(tool), ArgTransport::Batched, "{tool}");
+    }
+    for tool in [
+        "ty",
+        "pylint",
+        "scalafix",
+        "spotbugs",
+        "fsharplint",
+        "rustfmt",
+        "clang_tidy",
+        "staticcheck",
+        "biome",
+        "eslint",
+    ] {
+        assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
+    }
 }
 
 #[test]
@@ -1489,4 +1702,17 @@ fn probe_spawn_preserves_shell_metacharacters() {
         .chain(tricky.iter().map(|arg| arg.to_string_lossy().into_owned()))
         .collect();
     assert_eq!(lines, expected);
+}
+
+#[test]
+fn spotbugs_check_rejects_aux_jar_that_cannot_be_joined() {
+    let bad = if cfg!(windows) {
+        "/scratch/a\".jar"
+    } else {
+        "/scratch/a:b.jar"
+    };
+    let java = Path::new("/scratch/src/Hello.java");
+    assert!(spotbugs_check(Path::new(BIN), &[java], &[Path::new(bad)]).is_err());
+    let colon_target = Path::new("/scratch/src/He:llo.java");
+    assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[]).is_ok());
 }

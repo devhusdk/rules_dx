@@ -1,0 +1,32 @@
+load("//modules:versions.bzl", "LUA_VERSION")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":toolchain.bzl", "lua_toolchain")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["toolchain.bzl"])
+
+toolchain_type(name = "toolchain_type")
+
+lua_toolchain(
+    name = "lua",
+    launcher = "//lua/runtime:launcher",
+    luac = "@lua//:bin/luac",
+    version = LUA_VERSION,
+)
+
+toolchain(
+    name = "lua_toolchain",
+    toolchain = ":lua",
+    toolchain_type = ":toolchain_type",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "toolchain.bzl",
+    ],
+    tags = ["corpus"],
+)

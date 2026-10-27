@@ -9,6 +9,7 @@ dx_rust_crate(
     package_name = "cli/dx_adopt",
     srcs = [
         "src/build_output.rs",
+        "src/cuda_stanza.rs",
         "src/defaults.rs",
         "src/dependency_sets.rs",
         "src/error.rs",
@@ -19,7 +20,6 @@ dx_rust_crate(
         "src/migrate.rs",
         "src/new.rs",
         "src/new_locks.rs",
-        "src/policy.rs",
         "src/preset_fragment.rs",
         "src/scaffold.rs",
         "src/status.rs",
@@ -32,7 +32,6 @@ dx_rust_crate(
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/fingerprint:dx_fingerprint",
         "//cli/identity:dx_identity",
         "//cli/path:dx_path",
         "//libs/module_bazel:dx_module_bazel",
@@ -44,9 +43,11 @@ dx_rust_crate(
     test_data = [
         ":python_files",
         ":python_interpreter",
+        "//:.bazelversion",
         "//:MODULE.bazel",
         "//:package.json",
         "//examples:consumer-ci/caller.yml",
+        "//modules:cuda.bzl",
         "//modules:versions.bzl",
     ],
     test_env = {"DX_PYTHON": "$(rootpath :python_interpreter)"},

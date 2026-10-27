@@ -20,7 +20,12 @@ func IsTestFile(name string) bool {
 	return !IsDeclaration(name) && common.HasExt(path.Base(name), SupportedExts) && common.IsTestSource(name, SupportedExts, TestSourceSuffixes)
 }
 
-func ModuleName(name string) string { return common.Stem(name, SupportedExts) }
+func ModuleName(name string) string {
+	if IsDeclaration(name) {
+		return common.Stem(name, DeclarationExts)
+	}
+	return common.Stem(name, SupportedExts)
+}
 
 func TargetName(name string) (string, error) { return common.Normalize(ModuleName(name)) }
 

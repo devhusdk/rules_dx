@@ -73,6 +73,7 @@ fn equivalent(a: &DiagnosticEvent, b: &DiagnosticEvent) -> bool {
         && a.fixable == b.fixable
         && a.resolution == b.resolution
         && a.related == b.related
+        && a.package == b.package
 }
 
 /// Folds findings proven equal on one verified snapshot and attaches their verified lines.

@@ -1,4 +1,4 @@
-load("@rules_dx//go/rules:defs.bzl", "go_library")
+load("@rules_dx//go/rules:defs.bzl", "go_library", "go_test")
 
 go_library(
     name = "lib",
@@ -6,4 +6,10 @@ go_library(
         "lib.go",
         "lib_linux.go",
     ],
+)
+
+go_test(
+    name = "lib_test",
+    srcs = ["integration_test.go"],
+    embed = [":lib"],
 )

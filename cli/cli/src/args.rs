@@ -18,7 +18,7 @@ pub enum ArgsError {
     Usage { text: String },
     /// No command was named.
     #[error(
-        "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree"
+        "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree"
     )]
     MissingCommand,
     /// The command does not take this flag.
@@ -107,17 +107,18 @@ pub use command::{Command, WorkflowVerb};
 pub use completion::{
     registers_callback, render_completion, try_complete, COMPLETE_VAR, COMPLETION_SHELLS,
 };
-pub use grammar::cli_command;
+pub use grammar::{cli_command, man_page};
 pub use invocation::{
     apply_here, here_scope, CommonOptions, GenerateRequest, HintScope, Invocation, OperationMode,
     QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest, AGENT_QUIET_FLAGS,
 };
 pub use parser::{
     ci_ignores_env, config_sources, early_output_flag, early_workspace_flag, freeze_workspace,
-    is_discovery_exempt, is_help_request, json_output_intent, load_file_defaults,
-    load_startup_defaults, parse, parse_with, parse_with_ci, select_startup_defaults,
-    select_startup_defaults_with_ci, startup_workspace, DefaultsFailure, StartupDefaults,
+    is_discovery_exempt, is_help_request, json_output_intent, load_startup_defaults, parse,
+    parse_with, parse_with_ci, select_startup_defaults, select_startup_defaults_with_ci,
+    startup_workspace, DefaultsFailure, StartupDefaults,
 };
+pub(crate) use profile::filter_profile_configs;
 pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 
 pub use dx_adopt::defaults::FileDefaults;

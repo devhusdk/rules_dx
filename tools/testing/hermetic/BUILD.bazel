@@ -6,7 +6,10 @@ load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["qualification_test.rs"])
+exports_files([
+    "consumers/cuda/module_fragment.bazel",
+    "qualification_test.rs",
+])
 
 LINUX = ["@platforms//os:linux"]
 
@@ -48,6 +51,7 @@ rust_test(
     crate = ":hermetic",
     data = [":cpp_rust_manifest"],
     env = {"DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)"},
+    tags = ["no-remote-exec"],
     target_compatible_with = LINUX,
     deps = crate_deps(
         [
@@ -251,6 +255,31 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "perl",
+    files = {
+        "//examples/perl-app/cli:BUILD.bazel": "examples/perl-app/cli/BUILD.bazel",
+        "//examples/perl-app/cli:stockctl.pl": "examples/perl-app/cli/stockctl.pl",
+        "//examples/perl-app/cli:t/launcher.t": "examples/perl-app/cli/t/launcher.t",
+        "//examples/perl-app/inventory:BUILD.bazel": "examples/perl-app/inventory/BUILD.bazel",
+        "//examples/perl-app/inventory:lib/Inventory/Item.pm": "examples/perl-app/inventory/lib/Inventory/Item.pm",
+        "//examples/perl-app/inventory:lib/Inventory/Ledger.pm": "examples/perl-app/inventory/lib/Inventory/Ledger.pm",
+        "//examples/perl-app/inventory:t/item.t": "examples/perl-app/inventory/t/item.t",
+        "//examples/perl-app/inventory:t/ledger.t": "examples/perl-app/inventory/t/ledger.t",
+        "//examples/perl-app/report:BUILD.bazel": "examples/perl-app/report/BUILD.bazel",
+        "//examples/perl-app/report:data/units.csv": "examples/perl-app/report/data/units.csv",
+        "//examples/perl-app/report:lib/Report.pm": "examples/perl-app/report/lib/Report.pm",
+        "//examples/perl-app/report:t/report.t": "examples/perl-app/report/t/report.t",
+        "//examples/perl-app/third_party:BUILD.bazel": "examples/perl-app/third_party/BUILD.bazel",
+        "//examples/perl-app/third_party:cpanfile": "examples/perl-app/third_party/cpanfile",
+        "//examples/perl-app/third_party:cpanfile.snapshot": "examples/perl-app/third_party/cpanfile.snapshot",
+        "//examples/perl-app/third_party:cpanfile.snapshot.lock.json": "examples/perl-app/third_party/cpanfile.snapshot.lock.json",
+    },
+    languages = ["perl"],
+    module_fragment = "consumers/perl/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "erlang",
     files = {
         "//examples/erlang-app/proto:BUILD.bazel": "examples/erlang-app/proto/BUILD.bazel",
@@ -276,6 +305,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "qt_tasks",
+    srcs = ["//qt:module_srcs"],
     files = {
         "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
         "consumers/qt_tasks/root.BUILD.bazel": "BUILD.bazel",
@@ -358,6 +388,31 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "cuda",
+    files = {
+        "consumers/cuda/apps/format.BUILD.bazel": "examples/cuda-app/format/BUILD.bazel",
+        "consumers/cuda/apps/format_test.sh": "examples/cuda-app/format/format_test.sh",
+        "//:.clang-format": "examples/cuda-app/format/.clang-format",
+        "//examples/cuda-app/app:BUILD.bazel": "examples/cuda-app/app/BUILD.bazel",
+        "//examples/cuda-app/app:main.cc": "examples/cuda-app/app/main.cc",
+        "//examples/cuda-app/app:output_test.sh": "examples/cuda-app/app/output_test.sh",
+        "//examples/cuda-app/kernels:BUILD.bazel": "examples/cuda-app/kernels/BUILD.bazel",
+        "//examples/cuda-app/kernels:common.cuh": "examples/cuda-app/kernels/common.cuh",
+        "//examples/cuda-app/kernels:kernels.h": "examples/cuda-app/kernels/kernels.h",
+        "//examples/cuda-app/kernels:reduce.cu": "examples/cuda-app/kernels/reduce.cu",
+        "//examples/cuda-app/kernels:stencil.cu": "examples/cuda-app/kernels/stencil.cu",
+        "//examples/cuda-app/kernels:vector_add.cu": "examples/cuda-app/kernels/vector_add.cu",
+    },
+    fragment_before_toolchains = True,
+    languages = [
+        "cpp",
+        "cuda",
+    ],
+    module_fragment = "consumers/cuda/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "msix",
     files = {
         "consumers/msix/apps/app.BUILD.bazel": "examples/msix-app/app/BUILD.bazel",
@@ -421,6 +476,7 @@ pwsh_test(
 
 hermetic_qualification(
     name = "qt_rust",
+    srcs = ["//qt:module_srcs"],
     files = {
         "consumers/qt_rust/consumer.bazelrc": ".bazelrc",
         "consumers/qt_rust/root.BUILD.bazel": "BUILD.bazel",
@@ -467,17 +523,83 @@ hermetic_qualification(
     rust_target_triples = ["wasm32-wasip1"],
 )
 
+hermetic_qualification(
+    name = "adopt_android",
+    files = {
+        "//examples/adopt-android/app:BUILD.bazel": "examples/adopt-android/app/BUILD.bazel",
+        "//examples/adopt-android/app:inspect_apk.sh": "examples/adopt-android/app/inspect_apk.sh",
+        "//examples/adopt-android/app:src/main/AndroidManifest.xml": "examples/adopt-android/app/src/main/AndroidManifest.xml",
+        "//examples/adopt-android/app:src/main/assets/greeting.txt": "examples/adopt-android/app/src/main/assets/greeting.txt",
+        "//examples/adopt-android/app:src/main/java/org/example/adoptandroid/MainActivity.java": "examples/adopt-android/app/src/main/java/org/example/adoptandroid/MainActivity.java",
+        "//examples/adopt-android/app:src/main/java/org/example/adoptandroid/NativeBridge.java": "examples/adopt-android/app/src/main/java/org/example/adoptandroid/NativeBridge.java",
+        "//examples/adopt-android/app:src/main/java/org/example/adoptandroid/Report.java": "examples/adopt-android/app/src/main/java/org/example/adoptandroid/Report.java",
+        "//examples/adopt-android/app:src/main/res/values/strings.xml": "examples/adopt-android/app/src/main/res/values/strings.xml",
+        "//examples/adopt-android/app:src/test/java/org/example/adoptandroid/ReportTest.java": "examples/adopt-android/app/src/test/java/org/example/adoptandroid/ReportTest.java",
+        "//examples/adopt-android/native:BUILD.bazel": "examples/adopt-android/native/BUILD.bazel",
+        "//examples/adopt-android/native:jni_bridge.cc": "examples/adopt-android/native/jni_bridge.cc",
+        "//examples/adopt-android/native:src/lib.rs": "examples/adopt-android/native/src/lib.rs",
+        "//examples/adopt-android/native:summary.cc": "examples/adopt-android/native/summary.cc",
+        "//examples/adopt-android/native:summary.h": "examples/adopt-android/native/summary.h",
+        "//examples/adopt-android/native:summary_test.cc": "examples/adopt-android/native/summary_test.cc",
+        "//examples/adopt-android:BUILD.bazel": "examples/adopt-android/BUILD.bazel",
+        "//patches/rules_android:rules_android.patch": "third_party/rules_dx/rules_android.rules_android.patch",
+        "consumers/adopt_android/consumer.bazelrc": ".bazelrc",
+        "consumers/adopt_android/third_party.BUILD.bazel": "third_party/rules_dx/BUILD.bazel",
+    },
+    languages = [
+        "cpp",
+        "java",
+        "rust",
+    ],
+    module_fragment = "consumers/adopt_android/module_fragment.bazel",
+    patterns = [
+        "//examples/adopt-android/native/...",
+        "//examples/adopt-android/app:log",
+        "//examples/adopt-android/app:report",
+        "//examples/adopt-android/app:report_test",
+        "//examples/adopt-android/app:start",
+    ],
+    rust_target_triples = [
+        "aarch64-linux-android",
+        "x86_64-linux-android",
+    ],
+)
+
+hermetic_qualification(
+    name = "appimage",
+    files = {
+        "consumers/appimage/consumer.bazelrc": ".bazelrc",
+        "//examples/appimage-app/app:BUILD.bazel": "examples/appimage-app/app/BUILD.bazel",
+        "//examples/appimage-app/app:NOTICE.txt": "examples/appimage-app/app/NOTICE.txt",
+        "//examples/appimage-app/app:dxappimage.desktop": "examples/appimage-app/app/dxappimage.desktop",
+        "//examples/appimage-app/app:dxappimage.png": "examples/appimage-app/app/dxappimage.png",
+        "//examples/appimage-app/app:greeting.txt": "examples/appimage-app/app/greeting.txt",
+        "//examples/appimage-app/app:main.c": "examples/appimage-app/app/main.c",
+        "//examples/appimage-app/app:run_test.sh": "examples/appimage-app/app/run_test.sh",
+        "//examples/appimage-app/greet:BUILD.bazel": "examples/appimage-app/greet/BUILD.bazel",
+        "//examples/appimage-app/greet:greet.c": "examples/appimage-app/greet/greet.c",
+        "//examples/appimage-app/greet:greet.h": "examples/appimage-app/greet/greet.h",
+    },
+    languages = ["appimage"],
+    module_fragment = "consumers/appimage/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
     target_compatible_with = LINUX,
     targets = [
+        ":adopt_android",
+        ":appimage",
         ":cpp_rust",
+        ":cuda",
         ":elixir",
         ":erlang",
         ":gleam",
         ":hermetic",
         ":msix",
+        ":perl",
         ":qt_rust",
         ":qt_tasks",
         ":rust_wasi",
@@ -493,12 +615,16 @@ rust_clippy_test(
     size = "small",
     target_compatible_with = LINUX,
     targets = [
+        ":adopt_android",
+        ":appimage",
         ":cpp_rust",
+        ":cuda",
         ":elixir",
         ":erlang",
         ":gleam",
         ":hermetic",
         ":msix",
+        ":perl",
         ":qt_rust",
         ":qt_tasks",
         ":rust_wasi",
@@ -514,6 +640,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "consumers/adopt_android/third_party.BUILD.bazel",
         "consumers/cpp_rust/apps/c_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/c_store.BUILD.bazel",
         "consumers/cpp_rust/apps/cpp_app.BUILD.bazel",
@@ -526,6 +653,7 @@ real_source_target(
         "consumers/cpp_rust/apps/node_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/node_registry.BUILD.bazel",
         "consumers/cpp_rust/root.BUILD.bazel",
+        "consumers/cuda/apps/format.BUILD.bazel",
         "consumers/msix/apps/app.BUILD.bazel",
         "consumers/msix/apps/greet.BUILD.bazel",
         "consumers/qt_rust/root.BUILD.bazel",

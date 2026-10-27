@@ -40,6 +40,12 @@ for abi in $abis; do
     echo "$badging" | grep -q "native-code: .*$abi" || { echo "badging misses abi $abi"; exit 1; }
     echo "$listing" | grep -q "lib/$abi/lib$lib.so" || { echo "apk misses lib/$abi/lib$lib.so"; exit 1; }
     unzip -oq "$apk" "lib/$abi/lib$lib.so" -d "$work"
+    case "$abi" in
+        arm64-v8a) machine="AArch64" ;;
+        x86_64) machine="Advanced Micro Devices X86-64" ;;
+        *) echo "unknown abi $abi"; exit 1 ;;
+    esac
+    "$readelf" -h "$work/lib/$abi/lib$lib.so" | grep -q "Machine:.*$machine" || { echo "lib/$abi/lib$lib.so is not built for $abi"; exit 1; }
     symbols="$("$readelf" --dyn-syms "$work/lib/$abi/lib$lib.so")"
     echo "$symbols" | grep -q "ANativeActivity_onCreate" || { echo "lib/$abi/lib$lib.so does not export ANativeActivity_onCreate"; exit 1; }
     needed="$("$readelf" -d "$work/lib/$abi/lib$lib.so" | grep NEEDED | sed 's/.*\[\(.*\)\]/\1/')"

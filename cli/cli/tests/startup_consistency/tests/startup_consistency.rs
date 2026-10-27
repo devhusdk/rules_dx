@@ -12,8 +12,11 @@ fn local() {
     dx_process::configure(RcPolicy {
         read_user_rc: true,
         disk_cache: Some("/c/dx/disk-cache".to_owned()),
+        bazel_disk_cache: Some(std::path::PathBuf::from("/c/dx/disk-cache")),
         local_cpu: true,
         local_memory: true,
+        disk_cache_gc: true,
+        gc_idle_delay_secs: None,
     });
 }
 
@@ -72,7 +75,7 @@ fn quality_builds_share_the_startup_prefix() {
 fn generate_shares_the_startup_prefix() {
     local();
     for check in [false, true] {
-        let plan = plan::plan_generate(&resolved(), &[], check, &startup()).expect("plan");
+        let plan = plan::plan_generate(&resolved(), &[], check, &startup(), None).expect("plan");
         assert_prefix(&plan.argv, "run");
     }
 }

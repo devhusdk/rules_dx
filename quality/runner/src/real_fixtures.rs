@@ -54,6 +54,13 @@ pub(super) fn rustfmt_tool() -> RealTool {
     }
 }
 
+pub(super) fn gofumpt_tool() -> RealTool {
+    RealTool {
+        edition: Some("go1.26".to_owned()),
+        ..plain_tool()
+    }
+}
+
 pub(super) fn upstream_file(name: &str, body: &str) -> tempfile::NamedTempFile {
     let mut file = tempfile::Builder::new()
         .prefix(format!("dx-delegated-{name}-").as_str())
@@ -67,6 +74,7 @@ pub(super) fn upstream_file(name: &str, body: &str) -> tempfile::NamedTempFile {
 pub(super) fn delegated_tool(path: PathBuf) -> RealTool {
     RealTool {
         binary: PathBuf::new(),
+        tool_files: vec![("dx-roslyn/exit".to_owned(), b"0\n".to_vec())],
         upstream_diagnostics: vec![path],
         ..plain_tool()
     }
@@ -79,6 +87,7 @@ pub(super) fn backend_for(tool_id: &str, tool: RealTool, spawn: Spawn) -> RealBa
         tools,
         scratch_parent: std::env::temp_dir(),
         spawn,
+        argv_limit: quality_adapter::commands::windows_argv_limit,
     }
 }
 
@@ -221,8 +230,17 @@ fn module_tree(file: &Path, tree: &mut Vec<PathBuf>) -> Result<(), String> {
     } else {
         dir.join(stem.as_ref())
     };
+    let mut path_attr: Option<String> = None;
     for line in text.lines() {
         let line = line.trim_end();
+        if let Some(value) = line
+            .strip_prefix("#[path = \"")
+            .and_then(|rest| rest.strip_suffix("\"]"))
+        {
+            path_attr = Some(value.to_owned());
+            continue;
+        }
+        let attr = path_attr.take();
         let Some(name) = line
             .strip_prefix("mod ")
             .or_else(|| line.strip_prefix("pub mod "))
@@ -230,7 +248,10 @@ fn module_tree(file: &Path, tree: &mut Vec<PathBuf>) -> Result<(), String> {
         else {
             continue;
         };
-        let flat = base.join(format!("{name}.rs"));
+        let flat = match attr {
+            Some(value) => dir.join(value),
+            None => base.join(format!("{name}.rs")),
+        };
         if !flat.is_file() {
             return Err(format!(
                 "failed to resolve mod `{name}`: {} does not exist",
@@ -327,26 +348,6 @@ pub(super) fn placeholder_children_rustfmt(
         }
     }
     module_rustfmt(argv, cwd, env)
-}
-
-/// Reports a diff under an unnormalized `#[path]` module name.
-pub(super) fn dotted_path_rustfmt(
-    argv: &[OsString],
-    _cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    let file = argv
-        .iter()
-        .map(Path::new)
-        .find(|path| path.extension() == Some(OsStr::new("rs")))
-        .expect("a Rust file is checked");
-    let dir = file.parent().unwrap_or(Path::new(""));
-    Ok(ChildOutput {
-        code: Some(1),
-        stdout: format!("Diff in {}/../shared/util.rs:1:\n-x  \n+x\n", dir.display()).into_bytes(),
-        stderr: Vec::new(),
-    })
 }
 
 /// Reports an unclosed delimiter for every module containing `( {`.
@@ -719,6 +720,52 @@ pub(super) fn biome_hinted(
     roundtrip_biome(argv, cwd, env)
 }
 
+pub(super) fn roundtrip_graphql_eslint(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let value = |flag: &str| {
+        argv.windows(2)
+            .find(|pair| pair[0] == flag)
+            .map(|pair| PathBuf::from(&pair[1]))
+            .expect("graphql_eslint takes --config and --root")
+    };
+    assert!(value("--config").is_file(), "config is materialized");
+    assert!(value("--root").is_dir(), "root is the scratch directory");
+    assert!(cwd.is_dir());
+    let separator = argv
+        .iter()
+        .position(|arg| arg == "--")
+        .expect("files follow --");
+    let file = last_file(argv);
+    assert_eq!(separator + 2, argv.len(), "one file after --");
+    let text = std::fs::read_to_string(&file).expect("checked file is materialized");
+    if text.contains("BROKEN") {
+        return Ok(ChildOutput {
+            code: Some(2),
+            stdout: b"[]".to_vec(),
+            stderr: b"graphql_eslint: schema pointer api/missing.graphql matches no file\n"
+                .to_vec(),
+        });
+    }
+    let messages = if text.contains("email") {
+        r#"{"ruleId":"@graphql-eslint/fields-on-correct-type","severity":2,"message":"Cannot query field \"email\" on type \"User\".","line":1,"column":9,"endLine":1,"endColumn":14}"#
+    } else {
+        ""
+    };
+    Ok(ChildOutput {
+        code: Some(i32::from(!messages.is_empty())),
+        stdout: format!(
+            r#"[{{"filePath":"{}","messages":[{messages}],"errorCount":0,"warningCount":0}}]"#,
+            json_escape(&file)
+        )
+        .into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn roundtrip_eslint(
     argv: &[OsString],
     _cwd: &Path,
@@ -777,9 +824,20 @@ pub(super) fn roundtrip_prettier(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    assert!(
-        argv.iter().any(|arg| arg == "--no-config"),
-        "prettier never observes config files"
+    let has_config = argv.iter().any(|arg| arg == "--config");
+    let has_no_config = argv.iter().any(|arg| arg == "--no-config");
+    assert!(has_config != has_no_config, "exactly one config mode");
+    let ignore_at = argv
+        .iter()
+        .position(|arg| arg == "--ignore-path")
+        .expect("ignore path is always passed");
+    let ignore = Path::new(&argv[ignore_at + 1]);
+    assert_eq!(
+        std::fs::metadata(ignore)
+            .expect("ignore file is staged")
+            .len(),
+        0,
+        "ignore file is empty"
     );
     assert!(
         argv.iter().any(|arg| arg == "--no-editorconfig"),
@@ -869,6 +927,38 @@ pub(super) fn taplo_either(
         code: Some(1),
         stdout: Vec::new(),
         stderr: stderr.into_bytes(),
+    })
+}
+
+pub(super) fn taplo_reads_disk(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let bytes = std::fs::read(&file).expect("checked file is materialized");
+    if argv.iter().any(|arg| arg == "--check") {
+        let dirty = String::from_utf8_lossy(&bytes).contains("a=1");
+        let stderr = if dirty {
+            format!(
+                "ERROR taplo:format_files: the file is not properly formatted path=\"{file}\"\n"
+            )
+            .into_bytes()
+        } else {
+            Vec::new()
+        };
+        return Ok(ChildOutput {
+            code: Some(i32::from(dirty)),
+            stdout: Vec::new(),
+            stderr,
+        });
+    }
+    std::fs::write(&file, b"a = 1\n").expect("formatted file is writable");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
     })
 }
 
@@ -998,6 +1088,68 @@ pub(super) fn ruff_behavior(argv: &[OsString]) -> io::Result<ChildOutput> {
     Ok(ChildOutput {
         code: Some(0),
         stdout: b"[]".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+/// Ruff over every `.py` file in argv, the way a batched spawn hands them over.
+pub(super) fn ruff_multi_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_ruff_hermetic(argv, env);
+    let format = argv.iter().any(|arg| arg == "format");
+    let mut entries = Vec::new();
+    for file in argv
+        .iter()
+        .filter(|arg| arg.to_string_lossy().ends_with(".py"))
+    {
+        let name = file.to_string_lossy().into_owned();
+        let bytes = std::fs::read(&name).expect("checked file is materialized");
+        let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+        let template = if format {
+            let dirty = text
+                .lines()
+                .any(|line| line.ends_with(' ') || line.ends_with('\t'));
+            dirty.then_some(RUFF_UNFORMATTED)
+        } else {
+            text.contains("import os").then_some(RUFF_F401)
+        };
+        if let Some(template) = template {
+            let entry = template.replace("FILE", &json_escape(&name));
+            entries.push(entry[1..entry.len() - 1].to_owned());
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(!entries.is_empty())),
+        stdout: format!("[{}]", entries.join(",")).into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+/// Flake8 over every `.py` file in argv, the way a batched spawn hands them over.
+pub(super) fn flake8_multi_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let mut stdout = String::new();
+    for file in argv
+        .iter()
+        .filter(|arg| arg.to_string_lossy().ends_with(".py"))
+    {
+        let name = file.to_string_lossy().into_owned();
+        let bytes = std::fs::read(&name).expect("checked file is materialized");
+        let text = String::from_utf8(bytes).expect("checked bytes stay UTF-8");
+        if text.contains("import os") {
+            stdout.push_str(&format!("{name}:1:1:F401:'os' imported but unused\n"));
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(!stdout.is_empty())),
+        stdout: stdout.into_bytes(),
         stderr: Vec::new(),
     })
 }
@@ -1163,6 +1315,74 @@ pub(super) fn vale_hinted(
     Ok(ChildOutput {
         code: Some(1),
         stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+pub(super) fn roundtrip_redocly(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let has = |key: &str, value: &str| env.iter().any(|(k, v)| k == key && v == value);
+    assert!(has("REDOCLY_TELEMETRY", "off"), "telemetry is off");
+    assert!(
+        has("REDOCLY_SUPPRESS_UPDATE_NOTICE", "true"),
+        "update notices are off"
+    );
+    let args: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        args[1..5],
+        [
+            "lint",
+            "--format=json",
+            "--max-problems=1000000",
+            "--lint-config=error"
+        ]
+    );
+    let config = args
+        .windows(2)
+        .find(|pair| pair[0] == "--config")
+        .map(|pair| PathBuf::from(&pair[1]))
+        .expect("redocly takes --config");
+    assert!(config.is_file(), "config is materialized");
+    let root = last_file(argv);
+    assert!(
+        Path::new(&root).is_relative(),
+        "the root is named from the cwd"
+    );
+    let text = std::fs::read_to_string(cwd.join(&root)).expect("root is materialized");
+    if text.contains("BROKEN") {
+        return Ok(ChildOutput {
+            code: Some(2),
+            stdout: Vec::new(),
+            stderr: b"Unknown rule: not-a-rule\n".to_vec(),
+        });
+    }
+    let mut problems = Vec::new();
+    if text.contains("dupe") {
+        problems.push(format!(
+            r##"{{"ruleId":"operation-operationId-unique","severity":"error","message":"Every operation must have a unique `operationId`.","location":[{{"source":{{"ref":"{root}"}},"pointer":"#/paths","reportOnKey":true,"start":{{"line":5,"col":7}},"end":{{"line":5,"col":18}}}}],"suggest":[]}}"##
+        ));
+    }
+    if text.contains("fragbad") {
+        problems.push(
+            r##"{"ruleId":"struct","severity":"error","message":"Expected type `Schema` (object) but got `string`","location":[{"source":{"ref":"api/schemas/pet.yaml"},"pointer":"#/Pet","reportOnKey":false,"start":{"line":2,"col":3},"end":{"line":2,"col":9}}],"suggest":[]}"##
+                .to_owned(),
+        );
+    }
+    let count = problems.len();
+    Ok(ChildOutput {
+        code: Some(i32::from(count > 0)),
+        stdout: format!(
+            r#"{{"totals":{{"errors":{count},"warnings":0,"ignored":0}},"version":"2.71.1","problems":[{}]}}"#,
+            problems.join(",")
+        )
+        .into_bytes(),
         stderr: Vec::new(),
     })
 }

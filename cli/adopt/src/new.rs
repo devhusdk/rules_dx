@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use super::{AdoptError, ScaffoldFile};
+use super::AdoptError;
+use crate::scaffold::ScaffoldFile;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum IdentityRule {
@@ -142,6 +143,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         name: "erlang",
         identity: IdentityRule::BazelModule,
     },
+    NewLanguage {
+        name: "cuda",
+        identity: IdentityRule::BazelModule,
+    },
 ];
 
 const NEW_LANGUAGE_COUNT: usize = NEW_LANGUAGES.len();
@@ -224,14 +229,21 @@ pub fn plan_new_files(language: &str, name: &str) -> Result<Vec<ScaffoldFile>, A
         })?;
     let destination = validate_new_destination(name)?;
     let identity = derive_new_identity(canonical, &destination)?;
+    let language_files = new_language_files(canonical, &identity)?;
     let mut files = Vec::new();
     for file in super::plan_init_files(&identity)? {
+        if language_files
+            .iter()
+            .any(|(suffix, _)| *suffix == file.path)
+        {
+            continue;
+        }
         files.push(ScaffoldFile {
             path: format!("{destination}/{}", file.path),
             content: file.content,
         });
     }
-    for (suffix, content) in new_language_files(canonical, &identity)? {
+    for (suffix, content) in language_files {
         files.push(ScaffoldFile {
             path: format!("{destination}/{suffix}"),
             content,
@@ -670,6 +682,100 @@ bazel test //...
     ]
 }
 
+/// Kernel archs of the starter: the pinned nvcc's list, `modules/cuda.bzl` `CUDA_ARCHS`.
+const CUDA_STARTER_ARCHS: [&str; 2] = ["compute_89:compute_89,sm_89", "sm_120"];
+
+fn cuda_files(identity: &str) -> Vec<(String, String)> {
+    let archs: String = CUDA_STARTER_ARCHS
+        .iter()
+        .map(|arch| format!("        \"{arch}\",\n"))
+        .collect();
+    let build = r#"load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_test")
+load("@rules_dx//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+
+cuda_library(
+    name = "IDENTITY",
+    srcs = ["scale.cu"],
+    hdrs = [
+        "scale.cuh",
+        "scale.h",
+    ],
+    archs = [
+ARCHS    ],
+)
+
+cc_binary(
+    name = "IDENTITY_bin",
+    srcs = ["main.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":IDENTITY"],
+)
+
+# Checks the host-side logic only; it launches no kernel, so it passes without a GPU.
+cc_test(
+    name = "IDENTITY_test",
+    srcs = ["scale_test.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":IDENTITY"],
+)
+"#
+    .replace("IDENTITY", identity)
+    .replace("ARCHS", &archs);
+    let readme = r#"# IDENTITY
+
+A CUDA starter. The toolkit (13.4) and its host compiler are pinned in `MODULE.bazel`,
+so no CUDA install is needed to build. Linux x86_64 only.
+
+```sh
+bazel build //...
+bazel test //...
+bazel run :IDENTITY_bin
+```
+
+The binary runs the kernel when a GPU and driver are present and falls back to the CPU
+otherwise. The test checks host-side logic only and launches no kernel.
+
+## License
+
+`MODULE.bazel` contains `cuda_license.license(accept = ["cuda-eula"])`. That line accepts
+the NVIDIA CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) on your behalf.
+Remove it to decline; CUDA targets then fail to build with a message that names the license.
+"#
+    .replace("IDENTITY", identity);
+    let module = format!(
+        "{}\n{}",
+        consumer_module_bazel(identity, false),
+        super::cuda_stanza::render_cuda_module_stanza("rules_dx"),
+    );
+    vec![
+        ("MODULE.bazel".to_owned(), module),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "scale.cuh".to_owned(),
+            "#pragma once\n\n__host__ __device__ inline float scale_one(float a, float x) {\n  return a * x;\n}\n".to_owned(),
+        ),
+        (
+            "scale.h".to_owned(),
+            "#pragma once\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\nint scale_device_count(void);\nint scale_gpu(int n, float a, const float *x, float *y);\nvoid scale_cpu(int n, float a, const float *x, float *y);\n\n#ifdef __cplusplus\n}\n#endif\n".to_owned(),
+        ),
+        (
+            "scale.cu".to_owned(),
+            "#include <cuda_runtime.h>\n\n#include \"scale.cuh\"\n#include \"scale.h\"\n\n__global__ void scale_kernel(int n, float a, const float* x, float* y) {\n  int i = blockIdx.x * blockDim.x + threadIdx.x;\n  if (i < n) {\n    y[i] = scale_one(a, x[i]);\n  }\n}\n\nextern \"C\" int scale_device_count(void) {\n  int count = 0;\n  if (cudaGetDeviceCount(&count) != cudaSuccess) {\n    return 0;\n  }\n  return count;\n}\n\nextern \"C\" int scale_gpu(int n, float a, const float* x, float* y) {\n  size_t bytes = static_cast<size_t>(n) * sizeof(float);\n  float* dx = nullptr;\n  float* dy = nullptr;\n  if (cudaMalloc(&dx, bytes) != cudaSuccess) {\n    return 1;\n  }\n  if (cudaMalloc(&dy, bytes) != cudaSuccess) {\n    cudaFree(dx);\n    return 1;\n  }\n  cudaMemcpy(dx, x, bytes, cudaMemcpyHostToDevice);\n  scale_kernel<<<(n + 255) / 256, 256>>>(n, a, dx, dy);\n  cudaError_t status = cudaDeviceSynchronize();\n  cudaMemcpy(y, dy, bytes, cudaMemcpyDeviceToHost);\n  cudaFree(dx);\n  cudaFree(dy);\n  return status == cudaSuccess ? 0 : 1;\n}\n\nextern \"C\" void scale_cpu(int n, float a, const float* x, float* y) {\n  for (int i = 0; i < n; ++i) {\n    y[i] = scale_one(a, x[i]);\n  }\n}\n".to_owned(),
+        ),
+        (
+            "main.cc".to_owned(),
+            "#include <cstdio>\n#include <vector>\n\n#include \"scale.h\"\n\nint main() {\n  const int n = 8;\n  std::vector<float> x(n);\n  std::vector<float> y(n, 0.0f);\n  for (int i = 0; i < n; ++i) {\n    x[i] = static_cast<float>(i);\n  }\n  if (scale_device_count() == 0 || scale_gpu(n, 2.0f, x.data(), y.data()) != 0) {\n    scale_cpu(n, 2.0f, x.data(), y.data());\n  }\n  float sum = 0.0f;\n  for (int i = 0; i < n; ++i) {\n    sum += y[i];\n  }\n  std::printf(\"scaled sum=%g\\n\", sum);\n  return 0;\n}\n".to_owned(),
+        ),
+        (
+            "scale_test.cc".to_owned(),
+            "#include <cstdio>\n#include <vector>\n\n#include \"scale.h\"\n\nint main() {\n  const std::vector<float> x = {1.0f, 2.0f, 3.0f};\n  std::vector<float> y(x.size(), 0.0f);\n  scale_cpu(static_cast<int>(x.size()), 2.0f, x.data(), y.data());\n  for (size_t i = 0; i < x.size(); ++i) {\n    if (y[i] != 2.0f * x[i]) {\n      std::fprintf(stderr, \"unexpected value at %zu: %g\\n\", i, y[i]);\n      return 1;\n    }\n  }\n  return 0;\n}\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
 fn c_files(identity: &str) -> Vec<(String, String)> {
     cc_starter(
         identity,
@@ -1017,6 +1123,7 @@ javascript_js_test(
         ":node_modules/{package}",
     ],
     entry_point = "hello.test.js",
+    package_json = ":package_json",
 )
 "#,
         rule = starter.rule,
@@ -1035,7 +1142,7 @@ javascript_js_test(
         ("MODULE.bazel".to_owned(), module),
         (".bazelversion".to_owned(), consumer_bazelversion()),
         (".bazelrc".to_owned(), consumer_bazelrc()),
-        (".bazelignore".to_owned(), "node_modules\n".to_owned()),
+        (".bazelignore".to_owned(), ".dx\nnode_modules\n".to_owned()),
         (".npmrc".to_owned(), "hoist=false\n".to_owned()),
         ("BUILD.bazel".to_owned(), build),
         ("package.json".to_owned(), package_json),
@@ -1274,6 +1381,7 @@ fn new_language_files(
         "elixir" => elixir_files(identity),
         "gleam" => gleam_files(identity),
         "erlang" => erlang_files(identity),
+        "cuda" => cuda_files(identity),
         "c" => c_files(identity),
         "cpp" => cpp_files(identity),
         _ => {
@@ -1286,7 +1394,7 @@ fn new_language_files(
 }
 
 pub fn apply_new(root: &Path, language: &str, name: &str) -> Result<Vec<String>, AdoptError> {
-    super::apply_scaffold(root, &plan_new_files(language, name)?)
+    crate::scaffold::apply_scaffold(root, &plan_new_files(language, name)?)
 }
 
 #[cfg(test)]
@@ -1294,12 +1402,7 @@ mod tests {
     use super::super::DX_VERSION;
     use super::*;
 
-    fn workspace_text(path: &str) -> String {
-        let source = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-        std::fs::read_to_string(Path::new(&source).join(workspace).join(path))
-            .expect("file ships as test data")
-    }
+    use super::super::version::repo_text as workspace_text;
 
     #[test]
     fn js_starter_pins_match_repository_pins() {
@@ -1341,6 +1444,10 @@ mod tests {
             let build = read("BUILD.bazel");
             assert!(build.contains(&format!("{language}_library(")), "{build}");
             assert!(build.contains("javascript_js_test("), "{build}");
+            assert!(
+                build.contains("package_json = \":package_json\""),
+                "{build}"
+            );
             assert!(!build.contains("jest"), "{build}");
             let module = read("MODULE.bazel");
             assert!(module.contains("module(name = \"demo-app\")"), "{module}");
@@ -1365,6 +1472,54 @@ mod tests {
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("gleam"), Some("gleam"));
         assert_eq!(normalize_new_language("erlang"), Some("erlang"));
+        assert_eq!(normalize_new_language("cuda"), Some("cuda"));
+    }
+
+    #[test]
+    fn cuda_starter_carries_the_pinned_stanza_and_known_archs() {
+        let files = plan_new_files("cuda", "demo-app").expect("plans");
+        let text = |name: &str| {
+            files
+                .iter()
+                .find(|file| file.path == format!("demo-app/{name}"))
+                .unwrap_or_else(|| panic!("{name} planned"))
+                .content
+                .clone()
+        };
+        let module = text("MODULE.bazel");
+        assert!(module.starts_with("module(name = \"demo-app\")"));
+        assert!(module.ends_with(&crate::cuda_stanza::render_cuda_module_stanza("rules_dx")));
+        assert!(text("README.md").contains("https://docs.nvidia.com/cuda/eula/index.html"));
+        let cuda = workspace_text("modules/cuda.bzl");
+        let build = text("BUILD.bazel");
+        for arch in CUDA_STARTER_ARCHS {
+            for part in arch.split([':', ',']) {
+                assert!(
+                    cuda.contains(&format!("\"{part}\"")),
+                    "{part} is not in CUDA_ARCHS"
+                );
+            }
+            assert!(build.contains(arch));
+        }
+    }
+
+    #[test]
+    fn new_plan_paths_are_unique_and_js_starters_ignore_dx_and_node_modules() {
+        for language in SUPPORTED_NEW_LANGUAGES {
+            let files = plan_new_files(language, "demo").expect("plans");
+            let mut paths: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
+            let total = paths.len();
+            paths.sort_unstable();
+            paths.dedup();
+            assert_eq!(paths.len(), total, "{language} plans a path twice");
+        }
+        let files = plan_new_files("astro", "demo").expect("plans");
+        let ignores: Vec<&ScaffoldFile> = files
+            .iter()
+            .filter(|file| file.path == "demo/.bazelignore")
+            .collect();
+        assert_eq!(ignores.len(), 1);
+        assert_eq!(ignores[0].content, ".dx\nnode_modules\n");
     }
 
     #[test]
@@ -1908,10 +2063,10 @@ mod tests {
     fn scaffold_dest_within_root_refuses_non_normal_paths() {
         let scratch = dx_test_scratch::scratch("dx-new-dest-");
         let root = scratch.path();
-        assert!(super::super::scaffold_dest_within_root(root, "demo/a").is_ok());
+        assert!(crate::scaffold::scaffold_dest_within_root(root, "demo/a").is_ok());
         for hostile in ["../evil", "/absolute", "", "a/../../b"] {
             assert!(
-                super::super::scaffold_dest_within_root(root, hostile).is_err(),
+                crate::scaffold::scaffold_dest_within_root(root, hostile).is_err(),
                 "{hostile:?} escapes"
             );
         }

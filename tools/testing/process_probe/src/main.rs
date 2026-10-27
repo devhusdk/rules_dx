@@ -28,12 +28,14 @@ Usage: process_probe [options]
   --stdout-text=TEXT            write TEXT to stdout
   --stderr-text=TEXT            write TEXT to stderr
   --sleep-ms=N                  sleep N milliseconds before exiting
+  --gate=PATH                   end the sleep early once PATH exists
   --require-env=NAME[=VALUE]    exit 70 unless NAME holds VALUE
   --forbid-env=NAME             exit 71 unless NAME is unset
   --print-env=NAME              write NAME's value or <unset> to stdout
   --print-env-all               write every variable to stdout as KEY=VALUE lines
   --print-argv                  write each argument to stdout, one per line
   --print-cwd                   write the working directory to stdout
+  --print-exe                   write this probe's executable path to stdout
   --spawn-descendant            run a descendant probe and exit with its status
   --detached-descendant         start the descendant before sleeping; do not wait
   --descendant-own-group        detach the descendant like a daemon, with no output
@@ -77,12 +79,14 @@ struct Plan {
     stdout_text: Vec<u8>,
     stderr_text: Vec<u8>,
     sleep: Duration,
+    gate: Option<String>,
     required: Vec<(String, Option<String>)>,
     forbidden: Vec<String>,
     print_env: Vec<String>,
     print_env_all: bool,
     print_argv: bool,
     print_cwd: bool,
+    print_exe: bool,
     spawn_descendant: bool,
     detached_descendant: bool,
     descendant_own_group: bool,
@@ -111,6 +115,7 @@ const VALUE_FLAGS: &[&str] = &[
     "--stdout-text",
     "--stderr-text",
     "--sleep-ms",
+    "--gate",
     "--require-env",
     "--forbid-env",
     "--print-env",
@@ -130,6 +135,7 @@ const SWITCH_FLAGS: &[&str] = &[
     "--print-env-all",
     "--print-argv",
     "--print-cwd",
+    "--print-exe",
     "--spawn-descendant",
     "--detached-descendant",
     "--descendant-own-group",
@@ -147,6 +153,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 "--print-env-all" => plan.print_env_all = true,
                 "--print-argv" => plan.print_argv = true,
                 "--print-cwd" => plan.print_cwd = true,
+                "--print-exe" => plan.print_exe = true,
                 "--detached-descendant" => {
                     plan.detached_descendant = true;
                     plan.spawn_descendant = true;
@@ -175,6 +182,12 @@ fn parse(args: &[String]) -> Result<Plan, String> {
             "--stdout-text" => plan.stdout_text = value.as_bytes().to_vec(),
             "--stderr-text" => plan.stderr_text = value.as_bytes().to_vec(),
             "--sleep-ms" => plan.sleep = Duration::from_millis(count(value, flag)?),
+            "--gate" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.gate = Some(value.to_owned());
+            }
             "--require-env" => {
                 let (name, expected) = match value.split_once('=') {
                     Some((name, expected)) => (name, Some(expected.to_owned())),
@@ -284,6 +297,10 @@ fn write_report(plan: &Plan, out: &mut impl Write) -> io::Result<()> {
     if plan.print_cwd {
         let cwd = env::current_dir().map_err(|err| io::Error::other(err.to_string()))?;
         writeln!(out, "{}", cwd.to_string_lossy())?;
+    }
+    if plan.print_exe {
+        let exe = env::current_exe().map_err(|err| io::Error::other(err.to_string()))?;
+        writeln!(out, "{}", exe.to_string_lossy())?;
     }
     Ok(())
 }
@@ -424,6 +441,17 @@ fn start_counting_sigint(path: &str) -> io::Result<()> {
         signal(SIGINT, count_sigint as *const () as usize);
     }
     std::fs::rename(&staging, path)
+}
+
+fn sleep_until_gate(plan: &Plan) {
+    let Some(gate) = &plan.gate else {
+        std::thread::sleep(plan.sleep);
+        return;
+    };
+    let deadline = std::time::Instant::now() + plan.sleep;
+    while !std::path::Path::new(gate).exists() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 fn fail(code: i32, message: &str) -> ! {
@@ -568,7 +596,7 @@ fn main() {
         exit_code = start_descendant(&plan);
     }
     if !plan.sleep.is_zero() {
-        std::thread::sleep(plan.sleep);
+        sleep_until_gate(&plan);
     }
     if plan.spawn_descendant && !plan.detached_descendant {
         exit_code = start_descendant(&plan);

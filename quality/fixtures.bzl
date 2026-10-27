@@ -1,33 +1,6 @@
-"""Source fixtures for aspects (synthetic, real)."""
+"""Source fixtures for real aspects."""
 
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
-
-def _quality_source_target_impl(ctx):
-    direct_sources = {}
-    if len(ctx.files.python_srcs) > 0:
-        direct_sources["python"] = depset(ctx.files.python_srcs)
-    if len(ctx.files.rust_srcs) > 0:
-        direct_sources["rust"] = depset(ctx.files.rust_srcs)
-    check_direct_sources(direct_sources, str(ctx.label))
-    all_files = list(ctx.files.python_srcs) + list(ctx.files.rust_srcs)
-    return [
-        DefaultInfo(files = depset(all_files)),
-        QualitySourcesInfo(direct_sources = direct_sources),
-    ]
-
-quality_source_target = rule(
-    implementation = _quality_source_target_impl,
-    attrs = {
-        "python_srcs": attr.label_list(
-            allow_files = [".py"],
-            default = [],
-        ),
-        "rust_srcs": attr.label_list(
-            allow_files = [".rs"],
-            default = [],
-        ),
-    },
-)
+load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "dockerfile_name_error")
 
 def markdown_sibling_error(what, siblings, markdown_srcs):
     """Returns the validation error for markdown_siblings, or "" when valid."""
@@ -65,12 +38,20 @@ def _real_source_target_impl(ctx):
         direct_sources["rust"] = depset(ctx.files.rust_srcs)
     if len(ctx.files.shell_srcs) > 0:
         direct_sources["shell"] = depset(ctx.files.shell_srcs)
+    for dockerfile in ctx.files.dockerfile_srcs:
+        error = dockerfile_name_error(dockerfile.basename)
+        if error != "":
+            fail("real_source_target %s: %s" % (ctx.label, error))
+    if len(ctx.files.dockerfile_srcs) > 0:
+        direct_sources["dockerfile"] = depset(ctx.files.dockerfile_srcs)
     if len(ctx.files.starlark_srcs) > 0:
         direct_sources["starlark"] = depset(ctx.files.starlark_srcs)
     if len(ctx.files.cue_srcs) > 0:
         direct_sources["cue"] = depset(ctx.files.cue_srcs)
     if len(ctx.files.jsonnet_srcs) > 0:
         direct_sources["jsonnet"] = depset(ctx.files.jsonnet_srcs)
+    if len(ctx.files.pkl_srcs) > 0:
+        direct_sources["pkl"] = depset(ctx.files.pkl_srcs)
     if len(ctx.files.yaml_srcs) > 0:
         direct_sources["yaml"] = depset(ctx.files.yaml_srcs)
     if len(ctx.files.html_template_srcs) > 0:
@@ -87,6 +68,10 @@ def _real_source_target_impl(ctx):
         direct_sources["c"] = depset(ctx.files.c_srcs)
     if len(ctx.files.cpp_srcs) > 0:
         direct_sources["cpp"] = depset(ctx.files.cpp_srcs)
+    if len(ctx.files.objc_srcs) > 0:
+        direct_sources["objc"] = depset(ctx.files.objc_srcs)
+    if len(ctx.files.objcpp_srcs) > 0:
+        direct_sources["objcpp"] = depset(ctx.files.objcpp_srcs)
     if len(ctx.files.java_srcs) > 0:
         direct_sources["java"] = depset(ctx.files.java_srcs)
     if len(ctx.files.kotlin_srcs) > 0:
@@ -101,7 +86,7 @@ def _real_source_target_impl(ctx):
     )
     if sibling_error != "":
         fail(sibling_error)
-    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.html_template_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs)
+    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.objc_srcs) + list(ctx.files.objcpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.dockerfile_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.pkl_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.html_template_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs)
     return [
         DefaultInfo(files = depset(all_files)),
         QualitySourcesInfo(direct_sources = direct_sources),
@@ -109,6 +94,7 @@ def _real_source_target_impl(ctx):
 
 real_source_target = rule(
     implementation = _real_source_target_impl,
+    doc = "Sources by language for real quality aspects.",
     attrs = {
         "c_srcs": attr.label_list(
             allow_files = [".c", ".h"],
@@ -120,6 +106,14 @@ real_source_target = rule(
         ),
         "java_srcs": attr.label_list(
             allow_files = [".java"],
+            default = [],
+        ),
+        "objc_srcs": attr.label_list(
+            allow_files = [".m"],
+            default = [],
+        ),
+        "objcpp_srcs": attr.label_list(
+            allow_files = [".mm"],
             default = [],
         ),
         "javascript_srcs": attr.label_list(
@@ -136,6 +130,10 @@ real_source_target = rule(
         ),
         "jsx_srcs": attr.label_list(
             allow_files = [".jsx"],
+            default = [],
+        ),
+        "dockerfile_srcs": attr.label_list(
+            allow_files = True,
             default = [],
         ),
         "graphql_srcs": attr.label_list(
@@ -200,6 +198,10 @@ real_source_target = rule(
         ),
         "yaml_srcs": attr.label_list(
             allow_files = [".yaml", ".yml"],
+            default = [],
+        ),
+        "pkl_srcs": attr.label_list(
+            allow_files = [".pkl"],
             default = [],
         ),
         "terraform_srcs": attr.label_list(

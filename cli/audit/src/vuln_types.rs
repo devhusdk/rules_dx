@@ -12,6 +12,25 @@ pub struct LockedPackage {
     pub platform: Option<String>,
 }
 
+impl LockedPackage {
+    /// Builds a registry package: not git, not private, no location or platform.
+    pub fn new(
+        set: impl Into<String>,
+        name: impl Into<String>,
+        version: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            version: version.into(),
+            set: set.into(),
+            is_git: false,
+            is_private: false,
+            location: None,
+            platform: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Advisory {
     pub id: String,

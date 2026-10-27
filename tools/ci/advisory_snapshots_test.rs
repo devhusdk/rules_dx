@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use dx_testing::read_runfiles;
+use ci_workflow::{document, job, scripts, steps, text_at};
 
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
@@ -16,45 +16,12 @@ const RETRIEVED_AT: &str = "${{ needs.advisory-snapshots.outputs.retrieved_at }}
 
 const PREP_TARGET: &str = "@rules_dx//cli/advisory_prep";
 
-/// Returns the parsed workflow, which must be valid Actions YAML.
-fn document() -> Value {
-    let text = read_runfiles(WORKFLOW);
-    yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{WORKFLOW} is not valid workflow YAML: {error}"))
-}
-
-/// Returns one job of the parsed workflow.
-fn job(name: &str) -> Value {
-    let found = document()["jobs"][name].clone();
-    assert!(
-        found.is_object(),
-        "{WORKFLOW} names no {name:?} job: {}",
-        document()["jobs"]
-    );
-    found
-}
-
-/// Returns the steps of one job, which must declare some.
-fn steps(name: &str) -> Vec<Value> {
-    let found = job(name)["steps"].as_array().cloned();
-    found.unwrap_or_else(|| panic!("{WORKFLOW} job {name} declares no steps"))
-}
-
 /// Returns the `uses` action of every step that names one.
 fn actions(name: &str) -> Vec<String> {
-    steps(name)
+    steps(WORKFLOW, name)
         .iter()
         .filter_map(|step| step["uses"].as_str().map(str::to_owned))
         .collect()
-}
-
-/// Returns the `run` scripts of one job, joined.
-fn scripts(name: &str) -> String {
-    steps(name)
-        .iter()
-        .filter_map(|step| step["run"].as_str())
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 /// Returns the one step of a job that uses `action`, with its pin.
@@ -78,12 +45,15 @@ fn action_step<'a>(steps: &'a [Value], action: &str) -> &'a Value {
 
 /// Returns the `if` gate of one job.
 fn gate_of(name: &str) -> String {
-    job(name)["if"].as_str().unwrap_or_default().to_owned()
+    job(WORKFLOW, name)["if"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned()
 }
 
 #[test]
 fn one_preparation_job_runs_per_run_and_not_per_platform() {
-    let prep = job(PREP);
+    let prep = job(WORKFLOW, PREP);
     assert_eq!(prep["needs"], json!([VALIDATE]));
     assert!(
         prep.get("strategy").is_none(),
@@ -104,7 +74,7 @@ fn one_preparation_job_runs_per_run_and_not_per_platform() {
 
 /// Returns the one run script of a job that mentions `needle`.
 fn script_running(name: &str, needle: &str) -> String {
-    let found = steps(name);
+    let found = steps(WORKFLOW, name);
     let found: Vec<&Value> = found
         .iter()
         .filter(|step| {
@@ -143,19 +113,19 @@ fn the_preparation_runs_the_pinned_native_command_once() {
         );
     }
     assert!(
-        !scripts(PREP).contains("osv-vulnerabilities"),
+        !scripts(WORKFLOW, PREP).contains("osv-vulnerabilities"),
         "{WORKFLOW} job {PREP} names no advisory database URL: {}",
-        scripts(PREP)
+        scripts(WORKFLOW, PREP)
     );
     assert!(
-        !scripts(PREP).contains("secrets."),
+        !scripts(WORKFLOW, PREP).contains("secrets."),
         "{WORKFLOW} job {PREP} must need no secret, so fork pull requests run it"
     );
 }
 
 #[test]
 fn the_preparation_publishes_one_run_artifact() {
-    let prep = steps(PREP);
+    let prep = steps(WORKFLOW, PREP);
     let upload = action_step(&prep, "actions/upload-artifact");
     assert_eq!(upload["with"]["name"], json!(ARTIFACT));
     assert_eq!(upload["with"]["path"], json!(".dx/advisory"));
@@ -165,11 +135,11 @@ fn the_preparation_publishes_one_run_artifact() {
 #[test]
 fn the_preparation_stamps_every_snapshot_with_the_run_date() {
     assert_eq!(
-        job(PREP)["outputs"]["retrieved_at"],
+        job(WORKFLOW, PREP)["outputs"]["retrieved_at"],
         json!("${{ steps.prepare.outputs.retrieved_at }}"),
         "{WORKFLOW} job {PREP} must publish the date it stamped"
     );
-    let prep = steps(PREP);
+    let prep = steps(WORKFLOW, PREP);
     let dated: Vec<&Value> = prep
         .iter()
         .filter(|step| step["id"] == json!("prepare"))
@@ -190,17 +160,9 @@ fn the_preparation_stamps_every_snapshot_with_the_run_date() {
     );
 }
 
-/// Returns one string value of the parsed workflow.
-fn text_at(value: &Value, what: &str) -> String {
-    value
-        .as_str()
-        .unwrap_or_else(|| panic!("{what} is not a string: {value}"))
-        .to_owned()
-}
-
 #[test]
 fn every_audit_cell_restores_that_artifact_instead_of_downloading() {
-    let audit = steps(AUDIT);
+    let audit = steps(WORKFLOW, AUDIT);
     let download = action_step(&audit, "actions/download-artifact");
     assert_eq!(download["with"]["name"], json!(ARTIFACT));
     assert_eq!(download["with"]["path"], json!(".dx/advisory"));
@@ -222,15 +184,15 @@ fn every_audit_cell_restores_that_artifact_instead_of_downloading() {
         "{WORKFLOW} job {AUDIT} must still audit every scope: {script}"
     );
     assert!(
-        !scripts(AUDIT).contains("osv-vulnerabilities"),
+        !scripts(WORKFLOW, AUDIT).contains("osv-vulnerabilities"),
         "{WORKFLOW} job {AUDIT} names no advisory database URL: {}",
-        scripts(AUDIT)
+        scripts(WORKFLOW, AUDIT)
     );
 }
 
 #[test]
 fn every_audit_cell_judges_freshness_against_the_shared_date() {
-    let audit = steps(AUDIT);
+    let audit = steps(WORKFLOW, AUDIT);
     let dated: Vec<&Value> = audit
         .iter()
         .filter(|step| step["env"].get("DX_AUDIT_TODAY").is_some())
@@ -254,11 +216,11 @@ fn every_audit_cell_judges_freshness_against_the_shared_date() {
 #[test]
 fn a_failed_preparation_skips_the_audit_and_fails_the_aggregate() {
     assert_eq!(
-        job(AUDIT)["needs"],
+        job(WORKFLOW, AUDIT)["needs"],
         json!([VALIDATE, PREP]),
         "{WORKFLOW} job {AUDIT} must wait for the prepared snapshots"
     );
-    let aggregate_needs: Vec<String> = document()["jobs"]["dx-ci"]["needs"]
+    let aggregate_needs: Vec<String> = document(WORKFLOW)["jobs"]["dx-ci"]["needs"]
         .as_array()
         .unwrap_or_else(|| panic!("{WORKFLOW} job dx-ci declares no needs"))
         .iter()
@@ -272,7 +234,7 @@ fn a_failed_preparation_skips_the_audit_and_fails_the_aggregate() {
         aggregate_needs.contains(&AUDIT.to_owned()),
         "{WORKFLOW} job dx-ci must need {AUDIT}"
     );
-    let aggregate = scripts("dx-ci");
+    let aggregate = scripts(WORKFLOW, "dx-ci");
     for needle in [
         "result == \"skipped\" and name not in disabled",
         "skipped without disabled_checks",
@@ -286,7 +248,7 @@ fn a_failed_preparation_skips_the_audit_and_fails_the_aggregate() {
 
 #[test]
 fn a_disabled_audit_disables_its_preparation_too() {
-    let aggregate = scripts("dx-ci");
+    let aggregate = scripts(WORKFLOW, "dx-ci");
     assert!(
         aggregate.contains("if \"security-audit\" in disabled:")
             && aggregate.contains("disabled.add(\"advisory-snapshots\")"),
@@ -301,14 +263,14 @@ fn a_disabled_audit_disables_its_preparation_too() {
 #[test]
 fn the_shared_artifact_needs_no_token_scope_or_secret() {
     assert_eq!(
-        job(PREP)["permissions"],
+        job(WORKFLOW, PREP)["permissions"],
         json!({"contents": "read"}),
         "{WORKFLOW} job {PREP} must read the repository and nothing else"
     );
     assert_eq!(
-        job(AUDIT)["permissions"],
-        json!({"contents": "read", "checks": "write"}),
-        "{WORKFLOW} job {AUDIT} keeps the check-run scope it already had"
+        job(WORKFLOW, AUDIT)["permissions"],
+        json!({"contents": "read"}),
+        "{WORKFLOW} job {AUDIT} must read the repository and nothing else"
     );
     assert!(
         !actions(PREP)
@@ -327,14 +289,14 @@ fn the_shared_artifact_needs_no_token_scope_or_secret() {
 #[test]
 fn an_empty_preparation_skips_the_upload_and_the_download() {
     assert_eq!(
-        job(PREP)["outputs"]["status"],
+        job(WORKFLOW, PREP)["outputs"]["status"],
         json!("${{ steps.prepare.outputs.status }}")
     );
     assert_eq!(
-        job(PREP)["outputs"]["ecosystems"],
+        job(WORKFLOW, PREP)["outputs"]["ecosystems"],
         json!("${{ steps.prepare.outputs.ecosystems }}")
     );
-    let prep = steps(PREP);
+    let prep = steps(WORKFLOW, PREP);
     let upload = action_step(&prep, "actions/upload-artifact");
     assert_eq!(
         upload["if"],
@@ -345,7 +307,7 @@ fn an_empty_preparation_skips_the_upload_and_the_download() {
         script.contains("--status-file \"$GITHUB_OUTPUT\""),
         "{WORKFLOW} job {PREP} must publish the native status: {script}"
     );
-    let audit = steps(AUDIT);
+    let audit = steps(WORKFLOW, AUDIT);
     let download = action_step(&audit, "actions/download-artifact");
     assert_eq!(
         download["if"],
@@ -355,7 +317,7 @@ fn an_empty_preparation_skips_the_upload_and_the_download() {
 
 #[test]
 fn the_audit_still_runs_when_the_preparation_is_empty() {
-    let audit = steps(AUDIT);
+    let audit = steps(WORKFLOW, AUDIT);
     let run = audit
         .iter()
         .find(|step| {
@@ -374,7 +336,7 @@ fn the_audit_still_runs_when_the_preparation_is_empty() {
 
 #[test]
 fn the_artifact_name_and_concurrency_carry_the_validated_invocation() {
-    let document = document();
+    let document = document(WORKFLOW);
     let group = document["concurrency"]["group"]
         .as_str()
         .expect("concurrency group");
@@ -383,7 +345,7 @@ fn the_artifact_name_and_concurrency_carry_the_validated_invocation() {
         "{WORKFLOW} concurrency group must separate sibling calls: {group}"
     );
     assert_eq!(
-        job(VALIDATE)["outputs"]["snapshot_artifact"],
+        job(WORKFLOW, VALIDATE)["outputs"]["snapshot_artifact"],
         json!("${{ steps.validate.outputs.snapshot_artifact }}")
     );
     assert!(

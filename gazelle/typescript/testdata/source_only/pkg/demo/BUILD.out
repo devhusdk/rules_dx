@@ -9,7 +9,10 @@ filegroup(
 typescript_project(
     name = "demo",
     srcs = ["demo.ts"],
-    deps = [":helper"],
+    deps = [
+        ":helper",
+        ":widget",
+    ],
 )
 
 typescript_project(
@@ -22,4 +25,14 @@ typescript_test(
     srcs = ["helper_test.mts"],
     node_modules = "//:node_modules",
     deps = [":helper"],
+)
+
+typescript_project(
+    name = "orphan",
+    declaration_srcs = ["orphan.d.mts"],
+)
+
+typescript_project(
+    name = "widget",
+    declaration_srcs = ["widget.d.ts"],
 )

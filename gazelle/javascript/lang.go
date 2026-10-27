@@ -26,6 +26,7 @@ const (
 	plainTestKind   = "javascript_js_test"
 	binaryKind      = "javascript_binary"
 	rootNodeModules = "//:node_modules"
+	rootPackageJSON = "//:package_json"
 )
 
 var javascriptKinds = map[string]rule.KindInfo{
@@ -79,6 +80,7 @@ type javascriptLang struct {
 type targetImports struct {
 	imports []string
 	local   map[string]bool
+	asset   map[string]bool
 }
 
 func NewLanguage() language.Language { return &javascriptLang{} }
@@ -145,6 +147,10 @@ func (*javascriptLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []r
 	}
 	var specs []resolve.ImportSpec
 	for _, src := range r.AttrStrings("srcs") {
+		if common.IsAssetSource(src) && !isSupported(src) {
+			specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), src)})
+			continue
+		}
 		if !isSupported(src) {
 			continue
 		}
@@ -194,10 +200,11 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 		entry   bool
 		imports []string
 		local   map[string]bool
+		asset   map[string]bool
 	}
 	var plans []plan
 	for _, src := range sources {
-		content, err := os.ReadFile(filepath.Join(args.Dir, src))
+		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
 			l.fail("javascript: %s: read %s: %v", args.Rel, src, err)
 			continue
@@ -209,7 +216,7 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
 		p.entry = !p.test && IsEntryFile(src)
-		p.imports, p.local = accumulateImports(common.ParseImportRefs(content, path.Join(args.Rel, path.Dir(src))))
+		p.imports, p.local, p.asset = accumulateImports(common.ParseImportRefs(content, path.Join(args.Rel, path.Dir(src))))
 		sort.Strings(p.imports)
 		plans = append(plans, p)
 	}
@@ -234,6 +241,7 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 	}
 
 	plain := handPlainTests(args.File, args.OtherGen)
+	hasRootPackageJSON := rootPackageJSONExists(args.Config.RepoRoot)
 	var result language.GenerateResult
 	for _, p := range plans {
 		if p.test {
@@ -243,14 +251,17 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 			r := rule.NewRule(testKind, p.name)
 			r.SetAttr("srcs", []string{p.src})
 			r.SetAttr("node_modules", rootNodeModules)
+			if hasRootPackageJSON {
+				r.SetAttr("package_json", rootPackageJSON)
+			}
 			result.Gen = append(result.Gen, r)
-			result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local})
+			result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local, asset: p.asset})
 			continue
 		}
 		r := rule.NewRule(libraryKind, p.name)
 		r.SetAttr("srcs", []string{p.src})
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local})
+		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local, asset: p.asset})
 		if p.entry {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("entry_point", p.src)
@@ -267,11 +278,15 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 	return mergeStale(args.File, result)
 }
 
-func accumulateImports(refs []common.ImportRef) ([]string, map[string]bool) {
+func accumulateImports(refs []common.ImportRef) ([]string, map[string]bool, map[string]bool) {
 	seen := make(map[string]bool)
 	local := make(map[string]bool)
+	asset := make(map[string]bool)
 	var imports []string
 	for _, ref := range refs {
+		if ref.Relative && ref.Ext != "" {
+			asset[ref.Root] = true
+		}
 		if seen[ref.Root] {
 			if ref.Relative {
 				local[ref.Root] = true
@@ -287,7 +302,7 @@ func accumulateImports(refs []common.ImportRef) ([]string, map[string]bool) {
 		}
 		imports = append(imports, ref.Root)
 	}
-	return imports, local
+	return imports, local, asset
 }
 
 func claimKind(c Claimant) string {
@@ -371,17 +386,17 @@ func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 		if !imports.local[name] && common.IsNodeBuiltin(name) {
 			continue
 		}
-		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
-		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
+		found := common.FindJSImport(c, ix, languageName, name, imports.local[name])
+		if found.HasOverride {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
 				ignore.Used = true
 				l.fail("javascript: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
+			deps[found.Override.Rel(from.Repo, from.Pkg).String()] = true
 			continue
 		}
-		matches := ix.FindRulesByImportWithConfig(c, spec, languageName)
+		matches := found.Matches
 		switch len(matches) {
 		case 1:
 			if matches[0].Label != from {
@@ -392,7 +407,10 @@ func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 				ignore.Used = true
 				continue
 			}
-			l.fail("javascript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path without extension)", from, name)
+			if imports.asset[name] {
+				continue
+			}
+			l.fail("javascript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path, with the module extension removed, or <path>/index)", from, name)
 		default:
 			l.fail("javascript: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
 		}
@@ -416,4 +434,8 @@ func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
 func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
 
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
+// rootPackageJSONExists reports whether the repo root has a package.json file.
+func rootPackageJSONExists(repoRoot string) bool {
+	info, err := os.Stat(filepath.Join(repoRoot, "package.json"))
+	return err == nil && !info.IsDir()
+}

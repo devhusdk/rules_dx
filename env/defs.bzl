@@ -67,14 +67,21 @@ def env_name_error(name):
     return ""
 
 def env_tool_error(bin_name, aliases):
-    """Validates one tool record."""
+    """Validates one tool record.
+
+    Host names (bin_name and aliases) must be unique within the record without regard to case.
+    """
     primary_error = env_name_error(bin_name)
     if primary_error != "":
         return "invalid bin_name: " + primary_error
+    seen = {bin_name.lower(): True}
     for alias in aliases:
         alias_error = env_name_error(alias)
         if alias_error != "":
             return "invalid alias '" + alias + "': " + alias_error
+        if alias.lower() in seen:
+            return "duplicate host name '" + alias + "'"
+        seen[alias.lower()] = True
     return ""
 
 def env_tool_record(owner, bin_name, aliases):
@@ -105,12 +112,9 @@ def env_collision_error(records):
     """Detects host-name collisions across tool records."""
     owners_by_key = {}
     for record in records:
-        seen = {}
+        # Records are checked by env_tool_error; owners_by_key dedupes per owner.
         for name in [record.bin_name] + list(record.aliases):
             key = name.lower()
-            if key in seen:
-                continue
-            seen[key] = True
             if key not in owners_by_key:
                 owners_by_key[key] = {}
             owners_by_key[key][record.owner] = True
@@ -143,6 +147,7 @@ def _environment_tool_impl(ctx):
 
 environment_tool = rule(
     implementation = _environment_tool_impl,
+    doc = "One tool that dx env puts on PATH under its names.",
     attrs = {
         "aliases": attr.string_list(
             default = [],
@@ -193,6 +198,7 @@ def _environment_config_impl(ctx):
 
 environment_config = rule(
     implementation = _environment_config_impl,
+    doc = "Collects environment tools and rejects host-name collisions.",
     attrs = {
         "tools": attr.label_list(
             default = [],
@@ -240,6 +246,7 @@ def _environment_tree_impl(ctx):
 
 environment_tree = rule(
     implementation = _environment_tree_impl,
+    doc = "Builds the bin directory of tool links for one environment.",
     attrs = {
         "_windows_os": attr.label(
             default = "@platforms//os:windows",
@@ -259,6 +266,7 @@ def _environment_metadata_impl(ctx):
 
 environment_metadata = rule(
     implementation = _environment_metadata_impl,
+    doc = "Writes the metadata JSON of one environment.",
     attrs = {
         "config": attr.label(
             mandatory = True,

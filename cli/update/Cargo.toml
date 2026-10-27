@@ -4,7 +4,6 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-regex = "1"
 thiserror = "2"
 
 [lib]

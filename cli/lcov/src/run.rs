@@ -397,7 +397,8 @@ mod tests {
         assert!(
             printed
                 .iter()
-                .any(|line| line.contains("measured branches: 2 taken of 2 recorded")),
+                .any(|line| line
+                    .contains("measured branches: 2 raw, 0 ignored, 2 eligible, 2 taken")),
             "{printed:?}"
         );
         assert!(
@@ -430,7 +431,8 @@ mod tests {
         assert!(
             printed
                 .iter()
-                .any(|line| line.contains("measured branches: 0 taken of 1 recorded")),
+                .any(|line| line
+                    .contains("measured branches: 1 raw, 0 ignored, 1 eligible, 0 taken")),
             "{printed:?}"
         );
         assert!(

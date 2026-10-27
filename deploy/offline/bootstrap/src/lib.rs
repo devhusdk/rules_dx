@@ -29,8 +29,17 @@ pub struct Options {
     pub workspace: String,
 }
 
-/// Parses argv, or returns the refusal text and whether usage belongs with it.
-pub fn parse_args(args: &[String]) -> Result<Options, (String, bool)> {
+/// What one invocation asks for.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Command {
+    /// Print the usage line and succeed.
+    Help,
+    /// Run the bootstrap with these options.
+    Bootstrap(Options),
+}
+
+/// Parses argv, or returns the plain refusal text of a bad argument.
+pub fn parse_args(args: &[String]) -> Result<Command, String> {
     let home = std::env::var("HOME")
         .ok()
         .filter(|h| !h.is_empty())
@@ -46,18 +55,18 @@ pub fn parse_args(args: &[String]) -> Result<Options, (String, bool)> {
     while index < args.len() {
         let flag = args[index].as_str();
         if matches!(flag, "--bundle" | "--install-dir" | "--workspace") && args.len() < index + 2 {
-            return Err((format!("{flag} needs a DIR"), true));
+            return Err(format!("{flag} needs a DIR"));
         }
         match flag {
             "--bundle" => options.bundle = args.get(index + 1).cloned(),
             "--install-dir" => options.install_dir = args[index + 1].clone(),
             "--workspace" => options.workspace = args[index + 1].clone(),
-            "-h" | "--help" => return Err((usage(), false)),
-            _ => return Err((format!("unknown argument '{flag}'"), true)),
+            "-h" | "--help" => return Ok(Command::Help),
+            _ => return Err(format!("unknown argument '{flag}'")),
         }
         index += 2;
     }
-    Ok(options)
+    Ok(Command::Bootstrap(options))
 }
 
 /// Returns the launcher file name this host needs from the bundle.
@@ -104,6 +113,59 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
     (if month <= 2 { year + 1 } else { year }, month, day)
 }
 
+/// Returns whether one value is a real calendar day written `YYYY-MM-DD`.
+pub fn is_plain_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if !value.is_ascii() || bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return false;
+    }
+    let digits = |range: std::ops::Range<usize>| -> Option<u32> {
+        let part = &value[range];
+        part.bytes()
+            .all(|b| b.is_ascii_digit())
+            .then(|| part.parse().ok())
+            .flatten()
+    };
+    let (Some(year), Some(month), Some(day)) = (digits(0..4), digits(5..7), digits(8..10)) else {
+        return false;
+    };
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let last = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=last).contains(&day)
+}
+
+/// Reads the first quoted string value of `key` from one identity file.
+///
+/// This is not a JSON reader: it takes `"key"`, optional whitespace, a colon,
+/// optional whitespace and a quoted value with no backslash. It matches the
+/// pretty and compact forms `advisory_prep` writes. The first match wins.
+pub fn recorded_field(text: &str, key: &str) -> Option<String> {
+    let needle = format!("\"{key}\"");
+    let mut from = 0usize;
+    while let Some(found) = text[from..].find(&needle) {
+        let start = from + found;
+        let after = &text[start + needle.len()..];
+        let before = text[..start].trim_end();
+        // A key opens an object or follows a comma; a value never does.
+        if before.ends_with('{') || before.ends_with(',') {
+            if let Some(rest) = after.trim_start().strip_prefix(':') {
+                let rest = rest.trim_start();
+                let body = rest.strip_prefix('"')?;
+                let value = &body[..body.find('"')?];
+                return (!value.contains('\\')).then(|| value.to_string());
+            }
+        }
+        from = start + needle.len();
+    }
+    None
+}
+
 /// One `SHA256SUMS` line: the wanted digest and the file it names.
 pub fn manifest_entry(line: &str) -> Option<(String, String)> {
     let line = line.trim();
@@ -131,26 +193,20 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
     };
     let bundle = match std::fs::canonicalize(raw) {
         Ok(path) if path.is_dir() => path,
-        Ok(_) => return format!("bundle dir does not exist: {raw}"),
-        Err(_) => return format!("bundle dir does not exist: {raw}"),
+        _ => return format!("bundle dir does not exist: {raw}"),
     };
-    let bundle = if cfg!(windows) {
-        dx_path::manifest(&bundle)
-    } else {
-        bundle.to_string_lossy().into_owned()
+    let url = match dx_path::uri(&bundle) {
+        Ok(url) => url,
+        Err(error) => return format!("bundle path has no file URI: {error}"), // LCOV_EXCL_LINE - reason: a canonical absolute path always has a file URI, issue: 2550, policy: docs/cli/commands/build-test-coverage.md
     };
-    if bundle.contains(['"', '\\']) || bundle.chars().any(char::is_control) {
-        return format!("bundle path must stay plain text: {bundle}");
-    }
-    let root = PathBuf::from(&bundle);
-    let rooted = if bundle.starts_with('/') { "" } else { "/" };
+    let root = bundle.clone();
     let bazelisk = root.join("bazelisk");
     if !bazelisk.is_dir() {
-        return format!("bundle has no bazelisk/ dir: {bundle}");
+        return format!("bundle has no bazelisk/ dir: {raw}");
     }
     let advisory = root.join("advisory");
     if !advisory.is_dir() {
-        return format!("bundle has no advisory/ dir: {bundle}");
+        return format!("bundle has no advisory/ dir: {raw}");
     }
     let Some(asset) = host_launcher(os, arch) else {
         return format!("unsupported host {os}-{arch}");
@@ -187,8 +243,17 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         .flatten()
         .map(|entry| entry.path())
         .filter(|path| path.extension().is_some_and(|e| e == "json"))
+        .filter(|path| !is_identity(path))
         .collect();
     snapshots.sort();
+    let mut identities: Vec<String> = std::fs::read_dir(&advisory)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.ends_with(".meta.json"))
+        .collect();
+    identities.sort();
     let populated = PathBuf::from(&options.workspace)
         .join(".dx")
         .join("advisory");
@@ -214,19 +279,69 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
             );
         }
         let sha = digest(snapshot);
+        let identity = format!("{set}.meta.json");
+        let identity_path = advisory.join(&identity);
+        if !identity_path.is_file() {
+            return format!(
+                "bundle has no recorded date for advisory snapshot: {named} \
+                 (want advisory/{identity})"
+            );
+        }
+        if pinned(&advisory_manifest, &identity).is_none() {
+            return format!(
+                "manifest does not pin advisory identity: {identity} (in {})",
+                advisory.join("SHA256SUMS").display()
+            );
+        }
+        let recorded = read(&identity_path);
+        let retrieved = match recorded_field(&recorded, "retrieved_at") {
+            Some(date) if is_plain_date(&date) => date,
+            _ => {
+                return format!(
+                    "advisory identity {identity} has no valid retrieved_at; want YYYY-MM-DD"
+                )
+            }
+        };
+        if retrieved.as_str() > today {
+            return format!(
+                "advisory identity {identity} retrieved_at {retrieved} is after today {today}; \
+                 check this host's clock or rebuild the bundle"
+            );
+        }
+        match recorded_field(&recorded, "sha256") {
+            Some(bound) if bound == sha => {}
+            Some(bound) => {
+                return format!(
+                    "advisory identity {identity} is for other bytes: \
+                     sha256 {bound} but {named} is {sha}"
+                )
+            }
+            None => return format!("advisory identity {identity} has no sha256"),
+        }
         let target = populated.join(&named);
         if let Err(detail) = copy(snapshot, &target) {
             return detail;
         }
         let meta = format!(
-            "{{\"set\": \"{set}\", \"url\": \"file://{rooted}{bundle}/advisory/{named}\", \
-             \"sha256\": \"{sha}\", \"retrieved_at\": \"{today}\", \
+            "{{\"set\": \"{set}\", \"url\": \"{url}/advisory/{named}\", \
+             \"sha256\": \"{sha}\", \"retrieved_at\": \"{retrieved}\", \
              \"path\": \".dx/advisory/{named}\"}}"
         );
         if let Err(detail) = write(&populated.join(format!("{set}.meta.json")), &meta) {
             return detail;
         }
         count += 1;
+    }
+    for identity in &identities {
+        let stem = identity.trim_end_matches(".meta.json");
+        if !snapshots
+            .iter()
+            .any(|path| path.file_stem().is_some_and(|s| s == stem))
+        {
+            return format!(
+                "advisory identity {identity} has no snapshot; want advisory/{stem}.json"
+            );
+        }
     }
     if count == 0 {
         return "bundle carries no advisory snapshots".to_string();
@@ -237,7 +352,7 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
         installed.display()
     );
     println!(
-        "bootstrap-offline: populated {count} advisory snapshots under {} (retrieved_at {today})",
+        "bootstrap-offline: populated {count} advisory snapshots under {}",
         populated.display()
     );
     println!(
@@ -245,6 +360,11 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
          steady-state offline after"
     );
     String::new()
+}
+
+fn is_identity(path: &Path) -> bool {
+    path.file_name()
+        .is_some_and(|name| name.to_string_lossy().ends_with(".meta.json"))
 }
 
 fn verify(dir: &Path, manifest: &str) -> Option<String> {

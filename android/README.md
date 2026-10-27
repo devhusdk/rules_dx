@@ -1,24 +1,49 @@
 # Android
 
-Acquire one pinned NDK archive and pinned build-tools 34.0.0 on an
-opt-in basis. Disabled setups fetch no Android payload.
+Acquire pinned Android SDK packages on an opt-in basis. Disabled setups
+fetch no Android payload.
 
 ```python
 android_sdk = use_extension("@rules_dx//android/sdk:repos.bzl", "android_sdk")
 
 android_sdk.configure(
     accept_licenses = ["android-sdk-license"],
+    # api_level = 31,                       # 31-34, default 34
+    # extra_packages = ["platform-tools"],  # and/or "emulator"
 )
 
-use_repo(android_sdk, "dx_android_sdk", "dx_android_ndk_linux_x86_64")
+use_repo(
+    android_sdk,
+    "dx_android_sdk",
+    "dx_android_ndk_linux_x86_64",
+    "dx_android_build_tools_linux_x86_64",
+    "dx_android_platform",
+)
 ```
 
-The `dx_android_sdk` hub exposes `ndk`, `zipalign` and `apksigner_jar`.
-Each archive downloads only when a build needs it. Without a
-`configure` tag only the hub exists and its targets are empty. Pass
-`mirror` to override the download host, `local_path` to use an
-installed SDK with an accepted license instead of downloading, and
-`extra_packages` for `platform-tools` or `emulator`.
+What is fetched, each only when a build needs it:
+
+- NDK r27 (`dx_android_ndk_linux_x86_64`)
+- build-tools 34.0.0 (`dx_android_build_tools_linux_x86_64`)
+- `platforms;android-<api_level>` for `api_level` 31 to 34, default 34
+  (`dx_android_platform`; the name does not depend on the level)
+- opt-in through `extra_packages`: `platform-tools` r37.0.1
+  (`dx_android_platform_tools_linux_x86_64`) and `emulator` 16428233
+  (`dx_android_emulator_linux_x86_64`, about 350 MB). The emulator ships
+  no system image.
+
+Any other `extra_packages` entry, a repeated entry, or an `api_level`
+other than 31 to 34 fails with an error naming the allowed values.
+
+The `dx_android_sdk` hub exposes `ndk`, `zipalign`, `apksigner_jar`,
+`bundletool_jar`, `android_jar`, `adb` and `emulator`. Targets for packages
+that were not requested are empty. Without a `configure` tag only the hub
+exists. Pass `mirror` to override the download host.
+
+`local_path` uses an installed SDK with an accepted license instead of
+downloading. The NDK must be present. An explicit `api_level` or a requested
+extra package must exist in the SDK, otherwise the error names the missing
+path. Without them a missing android-34 platform leaves `android_jar` empty.
 The qualified host is Linux x86_64 with NDK r27 targeting API 31.
 
 ## Native platforms
@@ -87,23 +112,27 @@ rust_android_apk(
 )
 ```
 
-The upstream `android_binary` links one `lib/<abi>/lib<name>.so` per ABI
-from the static native deps and signs the APK with the debug key. Builds
-never use a release key. Build
-`:app_apk_file` for the installable `app_apk.apk`; it selects the
-`arm64-v8a` and `x86_64` platforms from `abis`. The native deps need
-`alwayslink = True` so `ANativeActivity_onCreate` stays exported, and
-`-landroid -llog` as link options when they use the NDK APIs. The
-default manifest launches a `NativeActivity` loading that library;
-pass `manifest` to package a custom one. `app_id`, `permissions`,
-`abis`, `api_level`, `version_code`, and `version_name` stay with the
-consumer; unknown ABIs, empty ABI sets, malformed app IDs, downgraded
-API levels, non-positive version codes, and empty launch activities
-fail at analysis, as do adb launchers without a serial. Package outputs are explicit-label only. See
-[App Bundles](#app-bundles) for the `.aab` output.
+The package links one `lib/<abi>/lib<name>_bin.so` per ABI from the
+static native deps and signs the APK with the debug key. Builds never
+use a release key. Build `:app_apk` for the installable `app_apk.apk`;
+it selects the platforms named in `abis`, and an unknown ABI fails. The
+native deps need `alwayslink = True` so `ANativeActivity_onCreate` stays
+exported, and `-landroid -llog` as link options when they use the NDK
+APIs. The default manifest launches a `NativeActivity` loading that
+library; pass `manifest` to package a custom one. Pass Java `srcs` and a
+`manifest` naming your own activity to package a Java bridge, and load
+the library with `System.loadLibrary("<name>_bin")`. A custom
+`NativeActivity` manifest must set `android.app.lib_name` to
+`<name>_bin`. `app_id`, `permissions`, `abis`, `api_level`,
+`version_code`, and `version_name` stay with the consumer; unknown
+ABIs, empty ABI sets, malformed app IDs, downgraded API levels,
+non-positive version codes, and empty launch activities fail at
+analysis, as do adb launchers without a serial.
+Package outputs are explicit-label only. See [App Bundles](#app-bundles)
+for the `.aab` output.
 
 A module that depends on `rules_dx` copies the
-rules_android override in [patches/README.md](../patches/README.md).
+rules_android override in [patches/README.md](../patches/README.md#rules_android).
 
 Device operations are explicit launchers that never run at build time:
 
@@ -135,8 +164,10 @@ android_apk_check(name = "sign_check", apk = ":app_apk_unsigned_file")
 be a readable zip with an `AndroidManifest.xml` and no existing
 signature. `schemes` picks from `v1`, `v2`, `v3` and `v4` (default
 `v1`, `v2`, `v3`) and `min_sdk` sets the signing minimum SDK (default
-the manifest value, at least 31). Unknown or duplicate schemes and a
-low `min_sdk` fail at analysis.
+the manifest value, at least 31). Unknown or duplicate schemes, `v4`
+without `v2` or `v3`, and a low `min_sdk` fail at analysis. A run with
+`v4` also writes the signature next to the APK as `<DX_SIGN_OUT>.idsig`;
+a run without `v4` deletes a stale one.
 
 Pass the key through the environment of the run, never through BUILD
 files:
@@ -219,6 +250,45 @@ bazel test //android/tests/fixtures/rust_apk:check_app_aab_test \
 The inspect tests read the package, version, SDK floors and library
 name from the bundle manifest, and check the asset, the resource table,
 the dex and the ELF machine of each `base/lib/<abi>/lib<name>.so`.
+
+### Upload signing
+
+Sign a bundle with your upload key through an explicit launcher:
+
+```python
+load("@rules_dx//android/packaging:defs.bzl", "android_aab_release_sign")
+
+android_aab_release_sign(name = "sign_aab", aab = ":app_apk_aab_file")
+```
+
+Pass the key through the environment of the run:
+
+```sh
+export DX_SIGN_KEYSTORE=upload.jks DX_SIGN_STORE_PASS_FILE=store.pass
+export DX_SIGN_KEY_ALIAS=upload DX_SIGN_KEY_PASS_FILE=key.pass DX_SIGN_OUT=app-release.aab
+bazel run //path:sign_aab --java_runtime_version=remotejdk_21
+```
+
+The variables match APK signing, except that `DX_SIGN_KEY_ALIAS` is
+required. `DX_SIGN_KEY_PASS_FILE` is optional. Passwords are read from
+the named files only, and relative paths resolve against the directory
+you ran from.
+
+App Bundles carry a JAR signature, so the launcher uses `jarsigner`
+and `keytool` from the selected JDK, not `apksigner`. It rejects a
+bundle that is already signed, runs `bundletool validate`, signs with
+`SHA256withRSA` or `SHA256withECDSA` and a SHA-256 digest, verifies the
+result with `jarsigner -verify -strict`, and only then writes
+`DX_SIGN_OUT`. Upload keys are self-signed, so the self-signed warning
+passes; an expired or not yet valid certificate fails. The upload key
+must be RSA or EC.
+
+Missing inputs or variables exit 2. A missing bundletool or
+`jarsigner` exits 127. A wrong password, wrong alias, already-signed or
+invalid bundle exits 1 without writing a bundle.
+
+Run `bazel test //android/tests/fixtures/rust_apk:sign_aab_test` to
+sign a generated test bundle with a disposable key and verify it.
 
 ## Qualified SDK for packaging builds
 

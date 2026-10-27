@@ -1,42 +1,21 @@
-use super::super::common::{check_stdout_write, frozen_summary, offline_summary, pre_exec, Env};
-use super::{record_named, RunMode};
+use super::super::common::{
+    check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec, Env,
+};
+use super::{
+    record_backend_error, record_named, runner_status, unavailable_message, RunMode, SetDetail,
+    SlotGate,
+};
 use crate::args::Invocation;
 use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, ResolvedTarget, Selection};
 use std::collections::BTreeMap;
-
-struct SlotGate<'a> {
-    command: crate::args::Command,
-    err: &'a mut dyn std::io::Write,
-    events: &'a mut dyn std::io::Write,
-    asked: bool,
-    slot: Option<crate::slots::Slot>,
-}
-
-impl SlotGate<'_> {
-    fn before(&mut self, argv: &[String]) -> Result<(), i32> {
-        if !self.asked && dx_update::backend::runs_bazel(argv) {
-            self.asked = true;
-            self.slot = crate::slots::take(self.command, &mut *self.err, &mut *self.events)?;
-        }
-        Ok(())
-    }
-}
 
 pub(super) fn execute_configured(
     invocation: &Invocation,
     env: Env<'_>,
     registry: &dependency_sets::Registry,
     verbose: bool,
+    mode: RunMode,
 ) -> i32 {
-    let mode = if invocation.applies() {
-        RunMode::Update
-    } else {
-        RunMode::Check
-    };
-    let mode_text = match mode {
-        RunMode::Update => "default",
-        RunMode::Check => "check",
-    };
     let Env {
         workspace,
         runner,
@@ -53,8 +32,11 @@ pub(super) fn execute_configured(
         invocation.frozen,
     );
     if invocation.output == dx_output::OutputMode::Json {
-        if let Ok(event) = dx_output::command_started(invocation.command.name(), mode_text) {
-            let _ = dx_output::write_event(out, &event);
+        if let Err(exit) = emit_built(
+            out,
+            dx_output::command_started(invocation.command.name(), mode.mode_text()),
+        ) {
+            return exit;
         }
     } else if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
@@ -62,7 +44,7 @@ pub(super) fn execute_configured(
         }
     }
     let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<String, String> = BTreeMap::new();
+    let mut details: BTreeMap<String, SetDetail> = BTreeMap::new();
     let mut gate = SlotGate {
         command: invocation.command,
         err: &mut *err,
@@ -91,6 +73,10 @@ pub(super) fn execute_configured(
         .iter()
         .map(|target| target.set.name.clone())
         .collect();
+    let locks: BTreeMap<String, Vec<String>> = resolved
+        .iter()
+        .map(|target| (target.set.name.clone(), target.set.locks.clone()))
+        .collect();
     super::finish_update(super::FinishUpdate {
         invocation,
         out,
@@ -100,23 +86,20 @@ pub(super) fn execute_configured(
         details,
         verbose,
         mode,
+        locks,
     })
 }
 
 fn run_configured_target(
     attempted: &mut Vec<dx_update::outcome::SetOutcome>,
-    details: &mut BTreeMap<String, String>,
+    details: &mut BTreeMap<String, SetDetail>,
     target: &ResolvedTarget,
     runner: &dyn dx_process::Runner,
     workspace: &std::path::Path,
     invocation: &Invocation,
     gate: &mut SlotGate<'_>,
 ) -> Result<(), i32> {
-    let mode = if invocation.applies() {
-        RunMode::Update
-    } else {
-        RunMode::Check
-    };
+    let mode = RunMode::of(invocation);
     let set = &target.set;
     let verb = mode.verb();
     if mode == RunMode::Update {
@@ -153,7 +136,8 @@ fn run_configured_target(
     if let Err(error) = dependency_sets::check_backend_settings(workspace, set) {
         let status = match error {
             dependency_sets::DependencySetsError::UnsupportedSettings { .. }
-            | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. } => {
+            | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. }
+            | dependency_sets::DependencySetsError::MissingPinnedLock { .. } => {
                 dx_update::outcome::SetStatus::Unsupported
             }
             _ => dx_update::outcome::SetStatus::Failed,
@@ -179,7 +163,9 @@ fn run_configured_target(
             }),
             python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
         },
-        Ecosystem::Npm | Ecosystem::Bazel => dx_update::backend::UvClosure::default(),
+        Ecosystem::Npm | Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => {
+            dx_update::backend::UvClosure::default()
+        }
     };
     let head = invocation.bazel_head();
     let planned = match mode {
@@ -193,8 +179,10 @@ fn run_configured_target(
             &closure,
         )
         .map(|plan| match plan {
-            dx_update::backend::BackendPlan::Run { argv, env } => (argv, env),
-            dx_update::backend::BackendPlan::Noop => (Vec::new(), Vec::new()),
+            dx_update::backend::BackendPlan::Run { argv, env } => {
+                dx_update::backend::CheckPlan::Run { argv, env }
+            }
+            dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
         }),
         RunMode::Check => dx_update::backend::check_configured(
             workspace,
@@ -204,52 +192,35 @@ fn run_configured_target(
             invocation.frozen,
             &head,
             &closure,
-        )
-        .map(|plan| match plan {
-            dx_update::backend::CheckPlan::Run { argv, env } => (argv, env),
-            dx_update::backend::CheckPlan::Pinned => (Vec::new(), Vec::new()),
-            dx_update::backend::CheckPlan::Unavailable => (Vec::new(), Vec::new()),
-        }),
+        ),
     };
     let (argv, extra) = match planned {
         Err(error) => {
-            let message = format!("cannot {verb} {}: {error}", set.name);
-            let status = match error {
-                dx_update::backend::BackendError::Unsupported { .. }
-                | dx_update::backend::BackendError::UnsupportedOwned { .. } => {
-                    dx_update::outcome::SetStatus::Unsupported
-                }
-                dx_update::backend::BackendError::OfflineRequired { .. }
-                | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => {
-                    dx_update::outcome::SetStatus::Failed
-                }
-                dx_update::backend::BackendError::FrozenLocked { .. }
-                | dx_update::backend::BackendError::FrozenLockedOwned { .. }
-                | dx_update::backend::BackendError::BackendUnavailable { .. } => {
-                    dx_update::outcome::SetStatus::Failed
-                }
-            };
-            let message = match status {
-                dx_update::outcome::SetStatus::Failed => {
-                    format!("failed to {verb} {}: {error}", set.name)
-                }
-                _ => message,
-            };
-            record_named(attempted, details, &set.name, status, message);
+            record_backend_error(attempted, details, &error, verb, &set.name);
             return Ok(());
         }
-        Ok((argv, extra)) => (argv, extra),
+        Ok(dx_update::backend::CheckPlan::Pinned) => {
+            record_named(
+                attempted,
+                details,
+                &set.name,
+                dx_update::outcome::SetStatus::Pinned,
+                pinned_line(set),
+            );
+            return Ok(());
+        }
+        Ok(dx_update::backend::CheckPlan::Unavailable) => {
+            record_named(
+                attempted,
+                details,
+                &set.name,
+                dx_update::outcome::SetStatus::Unsupported,
+                unavailable_message(&set.name),
+            );
+            return Ok(());
+        }
+        Ok(dx_update::backend::CheckPlan::Run { argv, env }) => (argv, env),
     };
-    if argv.is_empty() {
-        record_named(
-            attempted,
-            details,
-            &set.name,
-            dx_update::outcome::SetStatus::Pinned,
-            pinned_line(set),
-        );
-        return Ok(());
-    }
     let mut env_refs: Vec<(&str, &str)> = extra
         .iter()
         .map(|(key, value)| (key.as_str(), value.as_str()))
@@ -277,53 +248,15 @@ fn run_configured_target(
     } else {
         runner.run_hermetic(&argv, workspace, &env_refs)
     };
-    match launched {
-        Err(error) => {
-            record_named(
-                attempted,
-                details,
-                &set.name,
-                dx_update::outcome::SetStatus::Failed,
-                format!(
-                    "failed to {verb} {}: failed to launch updater: {error}",
-                    set.name
-                ),
-            );
-        }
-        Ok(status) => match status.code {
-            Some(0) => {
-                let (status, message) = match mode {
-                    RunMode::Update => (
-                        dx_update::outcome::SetStatus::Updated,
-                        success_line(set, &target.request),
-                    ),
-                    RunMode::Check => (dx_update::outcome::SetStatus::Current, current_line(set)),
-                };
-                record_named(attempted, details, &set.name, status, message);
-            }
-            Some(code) => {
-                record_named(
-                    attempted,
-                    details,
-                    &set.name,
-                    dx_update::outcome::SetStatus::Failed,
-                    format!("failed to {verb} {}: updater exited {code}", set.name),
-                );
-            }
-            None => {
-                record_named(
-                    attempted,
-                    details,
-                    &set.name,
-                    dx_update::outcome::SetStatus::Failed,
-                    format!(
-                        "failed to {verb} {}: updater terminated by signal",
-                        set.name
-                    ),
-                );
-            }
-        },
-    }
+    let ok = match mode {
+        RunMode::Update => (
+            dx_update::outcome::SetStatus::Updated,
+            success_line(set, &target.request),
+        ),
+        RunMode::Check => (dx_update::outcome::SetStatus::Current, current_line(set)),
+    };
+    let (status, message) = runner_status(launched, verb, &set.name, ok);
+    record_named(attempted, details, &set.name, status, message);
     Ok(())
 }
 
@@ -532,6 +465,27 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     #[test]
+    fn consumer_backend_unavailable_reports_its_code() {
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let (code, out, err, _) = run_consumer(&["update", "--check", "--output=json"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("\"code\":\"backend_unavailable\""), "{out}");
+        assert!(!out.contains("\"code\":\"update_failed\""), "{out}");
+        for args in [
+            &["update", "--check"][..],
+            &["update", "--apply", "worker"][..],
+        ] {
+            let mut runner = ScriptRunner::new(&[]);
+            runner.pinned = false;
+            let (code, out, err, _) = run_consumer(args, &runner);
+            assert_eq!(code, 1, "{out}{err}");
+            assert!(err.contains("dx: backend_unavailable:"), "{err}");
+            assert!(!err.contains("dx: update_failed:"), "{err}");
+        }
+    }
+
+    #[test]
     fn consumer_uv_of_another_version_is_unavailable_and_never_clean() {
         for version in [None, Some("uv 0.11.0".to_owned())] {
             let mut runner = ScriptRunner::new(&[]);
@@ -604,6 +558,37 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("update_set_unsupported"), "{err}");
         assert!(err.contains("[tool.uv] index-url"), "{err}");
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_partial_update_restores_its_own_locks() {
+        let runner = ScriptRunner::new(&[("consumer-uv:services/worker", Some(1))]);
+        let (code, out, err, _) = run_consumer(&["update", "--apply"], &runner);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("update_recovery"), "{err}");
+        assert!(err.contains("dx update --apply worker"), "{err}");
+        assert!(
+            err.contains("git checkout -- apps/frontend/uv.lock"),
+            "{err}"
+        );
+        assert!(!err.contains("nothing to roll back"), "{err}");
+    }
+
+    #[test]
+    fn consumer_set_named_like_builtin_restores_dx_toml_locks() {
+        let toml = DX_TOML
+            .replace("name = \"frontend\"", "name = \"uv\"")
+            .replace("name = \"worker\"", "name = \"cargo\"");
+        let harness = consumer_harness("builtin-names", &toml, true);
+        let runner = ScriptRunner::new(&[("consumer-uv:services/worker", Some(1))]);
+        let (code, out, err) = run_with(&["update", "--apply"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("git checkout -- apps/frontend/uv.lock"),
+            "{err}"
+        );
+        assert!(!err.contains("python/tests/fixtures"), "{err}");
+        assert!(!err.contains("Cargo.lock"), "{err}");
     }
 
     #[test]
@@ -1008,6 +993,24 @@ scopes = ["consumer-npm/web"]
     }
 
     #[test]
+    fn consumer_npm_bazel_run_sees_the_held_slot() {
+        let harness = mixed_harness("npm-slot");
+        let scratch = dx_test_scratch::scratch("dx-update-consumer-slot-");
+        let gate = crate::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = crate::slots::with_gate(Some(gate), || {
+            run_with(&["update", "--check", "web"], &runner, &harness)
+        });
+        assert_eq!(code, 0, "{out}{err}");
+        let marked = (crate::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
+        let launches = runner.launches.borrow();
+        assert!(!launches.is_empty());
+        for launch in launches.iter() {
+            assert!(launch.env.contains(&marked), "{launch:?}");
+        }
+    }
+
+    #[test]
     fn consumer_npm_failures_stay_with_their_own_set() {
         let harness = mixed_harness("npm-fail");
         let runner = ScriptRunner::new(&[("consumer-npm:web", Some(1))]);
@@ -1083,6 +1086,155 @@ scopes = ["consumer-npm/web"]
             "{err}"
         );
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    const PINNED_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "frontend"
+ecosystem = "uv"
+manifests = ["apps/frontend/pyproject.toml"]
+locks = ["apps/frontend/uv.lock"]
+scopes = ["apps/frontend"]
+
+[[dependency_set]]
+name = "gems"
+ecosystem = "ruby"
+manifests = ["apps/rb/Gemfile"]
+locks = ["apps/rb/Gemfile.lock"]
+scopes = ["apps/rb"]
+
+[[dependency_set]]
+name = "modules"
+ecosystem = "powershell"
+manifests = ["tools/ps/PSGallery.requirements.psd1"]
+locks = ["tools/ps/PSGallery.lock.json"]
+scopes = ["tools/ps"]
+"#;
+
+    const PINNED_FILES: [(&str, &str); 4] = [
+        (
+            "apps/rb/Gemfile",
+            "source \"https://rubygems.org\"\ngem \"rspec-core\"\n",
+        ),
+        (
+            "apps/rb/Gemfile.lock",
+            "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n",
+        ),
+        (
+            "tools/ps/PSGallery.requirements.psd1",
+            "@{ Pester = '5.5.0' }\n",
+        ),
+        ("tools/ps/PSGallery.lock.json", "{}\n"),
+    ];
+
+    fn pinned_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, PINNED_TOML, true);
+        for (rel, text) in PINNED_FILES {
+            harness.write_source(rel, text);
+        }
+        harness
+    }
+
+    fn assert_pinned_files_unchanged(harness: &Harness) {
+        for (rel, text) in PINNED_FILES {
+            assert_eq!(read_bytes(harness, rel), text.as_bytes(), "{rel}");
+        }
+    }
+
+    #[test]
+    fn consumer_ruby_and_powershell_sets_report_pinned_and_launch_nothing() {
+        for (argv, uv) in [
+            (vec!["update", "--check"], uv_call(true, "apps/frontend")),
+            (
+                vec!["update", "--check", "--offline", "--frozen"],
+                uv_call(true, "apps/frontend"),
+            ),
+            (vec!["update", "--apply"], uv_call(false, "apps/frontend")),
+        ] {
+            let harness = pinned_harness("pinned");
+            let runner = ScriptRunner::new(&[]);
+            let mut json = argv.clone();
+            json.push("--output=json");
+            let (code, out, err) = run_with(&json, &runner, &harness);
+            let launches: Vec<Vec<String>> = runner
+                .launches
+                .borrow()
+                .iter()
+                .map(|launch| launch.argv.clone())
+                .collect();
+            assert!(
+                launches.iter().all(|argv| argv[0] == fake_pinned("uv")),
+                "only uv runs: {launches:?}"
+            );
+            if !argv.contains(&"--offline") {
+                assert_eq!(code, 0, "{argv:?} {out}{err}");
+                assert_eq!(launches, vec![uv.clone()], "{argv:?}");
+            }
+            let events = json_events(&out);
+            for set in ["gems", "modules"] {
+                assert!(
+                    events
+                        .iter()
+                        .any(|event| event["code"] == "update_set_pinned"
+                            && event["correlation"] == format!("update:{set}")),
+                    "{argv:?} {set}: {out}"
+                );
+            }
+            assert!(!out.contains("gems lockfile current"), "{out}");
+            assert!(!out.contains("updated gems"), "{out}");
+            assert_pinned_files_unchanged(&harness);
+        }
+        let harness = pinned_harness("pinned-text");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("gems pins are manual; nothing to resolve"),
+            "{out}"
+        );
+        assert!(
+            out.contains("modules pins are manual; nothing to resolve"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn consumer_pinned_package_selection_is_unsupported_without_fallback() {
+        for (selector, regenerate) in [
+            ("gems:rspec-core", "bundle lock"),
+            ("modules:Pester", "PSGallery.lock.json by hand"),
+        ] {
+            for mode in ["--apply", "--check"] {
+                let harness = pinned_harness("pinned-selective");
+                let runner = ScriptRunner::new(&[]);
+                let (code, out, err) = run_with(&["update", mode, selector], &runner, &harness);
+                assert_ne!(code, 0, "{selector} {mode}: {out}{err}");
+                assert!(err.contains("update_set_unsupported"), "{err}");
+                assert!(err.contains(regenerate), "{err}");
+                assert!(!out.contains("pins are manual"), "{out}");
+                assert!(runner.launches.borrow().is_empty());
+                assert_pinned_files_unchanged(&harness);
+            }
+        }
+    }
+
+    #[test]
+    fn consumer_pinned_set_without_its_lock_declared_is_unsupported() {
+        let harness = consumer_harness(
+            "pinned-lock",
+            "schema_version = 1\n[[dependency_set]]\nname = \"gems\"\necosystem = \"ruby\"\nmanifests = [\"apps/rb/Gemfile\"]\nlocks = [\"apps/rb/gems.locked\"]\nscopes = [\"apps/rb\"]\n",
+            true,
+        );
+        harness.write_source("apps/rb/Gemfile", PINNED_FILES[0].1);
+        harness.write_source("apps/rb/gems.locked", PINNED_FILES[1].1);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("apps/rb/Gemfile.lock"), "{err}");
+        assert!(!out.contains("pins are manual"), "{out}");
+        assert!(runner.launches.borrow().is_empty());
     }
 
     #[test]

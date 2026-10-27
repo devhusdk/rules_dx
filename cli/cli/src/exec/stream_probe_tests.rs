@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 const MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const FAKE_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" --output_groups=dx_shards "*) exit 1 ;; esac
 case " $* " in *" query "*|*" cquery "*|*" info "*)
   [ -n "$FAKE_QUERY_PROBE_ARGS" ] || exit 0
   echo "query $$" >> "$FAKE_BAZEL_LOG"
@@ -500,8 +501,9 @@ fn a_terminal_child_gets_each_sigint_once() {
             &["build", "//..."],
             &|dir| {
                 format!(
-                    "--count-sigint={} --sleep-ms=1500",
-                    dir.join("sigint").display()
+                    "--count-sigint={} --gate={} --sleep-ms=30000",
+                    dir.join("sigint").display(),
+                    dir.join("gate").display()
                 )
             },
             Some(&pty),
@@ -523,6 +525,17 @@ fn a_terminal_child_gets_each_sigint_once() {
             #[cfg(target_os = "linux")]
             Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
         }
+        let expected = expected_sigints(sender);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while fs::read(&log).map_or(0, |bytes| bytes.len()) < expected.len()
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if expected.is_empty() {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        fs::write(run.dir().join("gate"), b"").expect("open the gate");
         let status = run.exit();
         assert_eq!(
             status.signal(),
@@ -532,7 +545,7 @@ fn a_terminal_child_gets_each_sigint_once() {
         );
         assert_eq!(
             fs::read(&log).expect("sigint log"),
-            expected_sigints(sender),
+            expected,
             "{sender:?}: wrong SIGINT count\n{}",
             run.context()
         );
@@ -651,6 +664,8 @@ fn the_next_run_stops_what_a_killed_dx_left_behind() {
         std::thread::sleep(Duration::from_millis(300));
         run.signal(libc::SIGKILL);
         let _ = run.exit();
+        let leftover_dirs = run_dirs(&run);
+        assert_eq!(leftover_dirs.len(), 1, "{leftover_dirs:?}");
         assert!(group_alive(build), "the descendant should outlive dx");
         let next_words: Vec<&str> = words
             .iter()
@@ -663,6 +678,9 @@ fn the_next_run_stops_what_a_killed_dx_left_behind() {
         kill_group(build);
         assert_eq!(next.status.code(), Some(0), "{next:?}");
         assert!(gone, "{words:?}: leftovers survived the next run");
+        for dir in &leftover_dirs {
+            assert!(!dir.exists(), "{} must be swept", dir.display());
+        }
         let stderr = String::from_utf8_lossy(&next.stderr);
         assert!(
             stderr.contains("stopped leftover process group"),
@@ -739,11 +757,14 @@ fn stopping_one_worktree_leaves_another_running() {
         format!("--sleep-ms=30000 --marker={}", dir.join("build").display())
     });
     let mut kept = Run::start("dx-stream-two-", &["build", "//..."], &|dir| {
-        format!("--sleep-ms=2000 --marker={}", dir.join("build").display())
+        format!(
+            "--gate={} --sleep-ms=30000 --marker={}",
+            dir.join("gate").display(),
+            dir.join("build").display()
+        )
     });
     let stopped_build = stopped.build_pid();
     let kept_build = kept.build_pid();
-    std::thread::sleep(Duration::from_millis(300));
     stopped.signal(libc::SIGTERM);
     let status = stopped.exit();
     let stopped_alive = group_alive(stopped_build);
@@ -759,12 +780,14 @@ fn stopping_one_worktree_leaves_another_running() {
         group_alive(kept_build),
         "the other worktree's build was hit"
     );
+    fs::write(kept.dir().join("gate"), b"").expect("open the gate");
     assert_eq!(kept.exit().code(), Some(0), "{}", kept.context());
     assert!(kept.dir().join("build").exists());
     assert!(!stopped.dir().join("build").exists());
 }
 
 const GATED_BAZEL: &str = r#"#!/bin/sh
+case " $* " in *" --output_groups=dx_shards "*) exit 1 ;; esac
 case " $* " in *" build "*|*" run "*) ;; *) exit 0 ;; esac
 echo "start $$" >> "$FAKE_BAZEL_LOG"
 while [ ! -e "$FAKE_GATE" ]; do sleep 0.05; done

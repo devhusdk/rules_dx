@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
 
@@ -16,17 +16,9 @@ rust_binary(
     crate_name = "qt_rust_bridge",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "cxx",
-            "cxx-gen",
-            "cxx-qt",
-            "cxx-qt-gen",
-            "proc-macro2",
-            "quote",
-            "syn",
-        ],
+    deps = all_crate_deps(
         package_name = "qt/qt_rust_bridge",
+        normal = True,
     ),
 )
 
@@ -76,17 +68,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":qt_rust_bridge",
-    deps = crate_deps(
-        [
-            "cxx",
-            "cxx-gen",
-            "cxx-qt",
-            "cxx-qt-gen",
-            "proc-macro2",
-            "quote",
-            "syn",
-        ],
+    deps = all_crate_deps(
         package_name = "qt/qt_rust_bridge",
+        normal = True,
+        normal_dev = True,
     ),
 )
 
@@ -94,4 +79,10 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

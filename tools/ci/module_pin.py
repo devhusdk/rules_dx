@@ -1,11 +1,4 @@
-"""Reports whether a MODULE.bazel declares rules_dx at one expected version.
-
-The consumer and docs workflows pass the expected version through the
-RULES_DX_PIN environment variable and run this with bazel run.
-The module is read as text: the file is never imported, executed or
-evaluated. Only a top-level `bazel_dep` or `module` call naming rules_dx
-counts as a declaration, and its version must be a quoted string literal.
-"""
+"""Reports whether a MODULE.bazel declares rules_dx at one expected version."""
 
 import os
 import re

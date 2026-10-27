@@ -1,0 +1,23 @@
+load("//cc/rules:defs.bzl", "cc_binary")
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+
+package(default_visibility = ["//cuda/tests:__subpackages__"])
+
+cuda_library(
+    name = "cublas",
+    srcs = ["cublas_saxpy.cu"],
+    hdrs = ["cublas_saxpy.h"],
+    archs = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+    # The license-gated pinned component, never @cuda//:cublas.
+    deps = ["//cuda/components:cublas"],
+)
+
+cc_binary(
+    name = "cublas_app",
+    srcs = ["main.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":cublas"],
+)

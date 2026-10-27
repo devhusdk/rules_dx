@@ -143,6 +143,80 @@ rust_wasi_test(
 )
 
 rust_wasi_test(
+    name = "preopen_in_data",
+    ambient = {"DX_WASI_HOSTILE": "1"},
+    args = [
+        "one",
+        "two",
+    ],
+    binary = ":consumer_wasi",
+    data = [":data/input.txt"],
+    env = {
+        "DX_WASI_DECLARED": "declared-value",
+        "DX_WASI_PROBE": "/data/input.txt",
+    },
+    expected_stdout = "\n".join([
+        'argv=["one", "two"]',
+        "declared=declared-value",
+        "wrapped=<unset>",
+        "hostile=hidden",
+        "data=staged input",
+        "probe=staged input",
+    ] + _TOOLCHAIN_LINES),
+    preopens = {"/data": ":data/input.txt"},
+)
+
+rust_wasi_test(
+    name = "shared_preopen",
+    ambient = {"DX_WASI_HOSTILE": "1"},
+    args = [
+        "one",
+        "two",
+    ],
+    binary = ":consumer_wasi",
+    env = {
+        "DX_WASI_DECLARED": "declared-value",
+        "DX_WASI_PROBE": "/b/input.txt",
+    },
+    expected_stdout = "\n".join([
+        'argv=["one", "two"]',
+        "declared=declared-value",
+        "wrapped=<unset>",
+        "hostile=hidden",
+        "data=no-access",
+        "probe=staged input",
+    ] + _TOOLCHAIN_LINES),
+    preopens = {
+        "/a": ":data/input.txt",
+        "/b": ":data/input.txt",
+    },
+)
+
+rust_wasi_test(
+    name = "dollar_literals",
+    ambient = {"DX_WASI_HOSTILE": "1"},
+    args = [
+        "--price",
+        "$5",
+        "$(BINDIR)",
+    ],
+    binary = ":consumer_wasi",
+    env = {
+        "DX_WASI_DECLARED": "$HOME",
+        "DX_WASI_PROBE": "/d$ta/input.txt",
+    },
+    expected_stdout = "\n".join([
+        'argv=["--price", "$5", "$(BINDIR)"]',
+        "declared=$HOME",
+        "wrapped=<unset>",
+        "hostile=hidden",
+        "data=no-access",
+        "probe=staged input",
+    ] + _TOOLCHAIN_LINES),
+    preopens = {"/d$ta": ":data/input.txt"},
+)
+
+rust_wasi_test(
     name = "custom_exit",
     binary = ":consumer_wasi",
     env = {"DX_WASI_EXIT": "3"},

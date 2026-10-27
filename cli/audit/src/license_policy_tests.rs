@@ -103,6 +103,44 @@ fn unlisted_distributables_default_distributed() {
 }
 
 #[test]
+fn internal_entries_match_as_label_patterns() {
+    let tier = |entry: &str, root: &str| {
+        Distribution {
+            internal: [entry].iter().map(|item| (*item).to_owned()).collect(),
+        }
+        .tier_of(root)
+    };
+    for root in [
+        "//...",
+        "//cli/...",
+        "//cli/cli:dx_cli",
+        "//:root",
+        "@//cli:x",
+        "@@//cli/...",
+    ] {
+        assert_eq!(tier("//...", root), Tier::Internal, "{root}");
+    }
+    assert_eq!(tier("//...", "@other//a:b"), Tier::Distributed);
+    for root in ["//cli:x", "//cli/...", "//cli/cli/...", "//cli/cli:dx"] {
+        assert_eq!(tier("//cli/...", root), Tier::Internal, "{root}");
+    }
+    for root in ["//client:x", "//...", "//other/..."] {
+        assert_eq!(tier("//cli/...", root), Tier::Distributed, "{root}");
+    }
+    for root in ["//cli:x", "//cli:all"] {
+        assert_eq!(tier("//cli:all", root), Tier::Internal, "{root}");
+    }
+    for root in ["//cli/...", "//cli/sub:x"] {
+        assert_eq!(tier("//cli:all", root), Tier::Distributed, "{root}");
+    }
+    assert_eq!(tier("//cli:dx", "//cli:dx"), Tier::Internal);
+    assert_eq!(tier("//cli:dx", "//cli:other"), Tier::Distributed);
+    assert_eq!(tier("@repo//...", "@repo//a:b"), Tier::Internal);
+    assert_eq!(tier("@repo//...", "//a:b"), Tier::Distributed);
+    assert_eq!(tier("//...", "cargo"), Tier::Distributed);
+}
+
+#[test]
 fn promotion_to_distributed_requalifies_under_strict_table() {
     let internal = Distribution {
         internal: ["//cli:dx"].iter().map(|item| (*item).to_owned()).collect(),
@@ -178,8 +216,9 @@ fn upgrade_within_range_retains_acceptance_at_identity_match() {
         version: "1.9.0".to_owned(),
         ..finding()
     };
-    assert!(!is_obsolete(&exception(), &[upgraded.clone()]));
-    check_applies(&exception(), &[upgraded.clone()]).expect("upgrade retains acceptance");
+    assert!(!is_obsolete(&exception(), std::slice::from_ref(&upgraded)));
+    check_applies(&exception(), std::slice::from_ref(&upgraded))
+        .expect("upgrade retains acceptance");
     assert!(license_exception_covers(&exception(), &upgraded));
 }
 
@@ -189,8 +228,12 @@ fn out_of_range_versions_do_not_inherit_acceptance() {
         version: "2.0.0".to_owned(),
         ..finding()
     };
-    assert!(!is_obsolete(&exception(), &[out_of_range.clone()]));
-    check_applies(&exception(), &[out_of_range.clone()]).expect("identity still applies");
+    assert!(!is_obsolete(
+        &exception(),
+        std::slice::from_ref(&out_of_range)
+    ));
+    check_applies(&exception(), std::slice::from_ref(&out_of_range))
+        .expect("identity still applies");
     assert!(!license_exception_covers(&exception(), &out_of_range));
     let bad_scope = LicenseException {
         versions: "not a range".to_owned(),

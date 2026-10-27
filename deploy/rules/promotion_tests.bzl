@@ -1,18 +1,13 @@
 """Unit and analysis tests for the promotion publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":promotion.bzl", "promotion_artifact_error", "promotion_edge_error", "promotion_environment_error", "promotion_schema_error", "promotion_version_error")
+load(":promotion.bzl", "promotion_artifact_error", "promotion_edge_error", "promotion_environment_error", "promotion_version_error")
 
 def promotion_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "promotion_schema_error accepts the v1 launcher-safe charset",
-                promotion_schema_error(),
-                "",
-            ),
             expect_equal(
                 "promotion_environment_error accepts the staging source",
                 promotion_environment_error("staging"),

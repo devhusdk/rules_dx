@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY_CLI")
@@ -15,13 +15,9 @@ rust_library(
     crate_name = "quality_result",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_result",
+        normal = True,
     ) + [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
@@ -41,13 +37,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":quality_result",
-    deps = crate_deps(
-        [
-            "clap",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_result",
+        normal = True,
+        normal_dev = True,
     ) + ["@rules_rust_prost//private/3rdparty/crates:prost"],
 )
 
@@ -85,13 +78,9 @@ rust_binary(
     crate_name = "print_result",
     crate_root = "src/print.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "thiserror",
-            "tracing",
-        ],
+    deps = all_crate_deps(
         package_name = "quality/quality_result",
+        normal = True,
     ) + [
         ":quality_result",
         "//cli/output:dx_output",

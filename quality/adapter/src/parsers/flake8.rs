@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
+use super::{check_output_size, code_name, located, point, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 fn flake8_severity(code: &str) -> Result<ToolSeverity, ParseError> {
@@ -13,12 +13,14 @@ fn flake8_severity(code: &str) -> Result<ToolSeverity, ParseError> {
     }
 }
 
-fn flake8_line(line: &str) -> Result<(&str, u64, u64, &str, &str), ParseError> {
+fn flake8_line<'a>(
+    line: &'a str,
+    files: &[&'a str],
+) -> Result<(&'a str, u64, u64, &'a str, &'a str), ParseError> {
     const TOOL: &str = "flake8";
-    let drive = if dx_path::drive_rooted(line) { 2 } else { 0 };
-    let mut parts = line[drive..].splitn(5, ':');
-    let (path, row_text, column_text, code, message) = (
-        parts.next().map_or("", |rest| &line[..drive + rest.len()]),
+    let (path, rest) = located(TOOL, line, files)?;
+    let mut parts = rest.splitn(4, ':');
+    let (row_text, column_text, code, message) = (
         parts.next().unwrap_or_default(),
         parts.next().unwrap_or_default(),
         parts.next().unwrap_or_default(),
@@ -58,11 +60,10 @@ pub fn parse_flake8(
         if line.trim().is_empty() {
             continue;
         }
-        let (path, row, column, rule, message) = flake8_line(line)?;
-        let checked = known(TOOL, files, path)?;
+        let (path, row, column, rule, message) = flake8_line(line, files)?;
         let (start, end) = point(row, column);
         findings.push(FileFinding {
-            file: checked.to_owned(),
+            file: path.to_owned(),
             finding: Finding {
                 tool_id: TOOL.to_owned(),
                 rule_id: rule.to_owned(),
@@ -159,5 +160,20 @@ mod tests {
         let findings =
             parse_flake8(blanked_flake8.as_bytes(), Some(1), &["/s/dirty.py"]).expect("parsed");
         assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn flake8_reads_drive_rooted_paths() {
+        let file = "C:\\tmp\\a.py";
+        let findings = parse_flake8(
+            "C:\\tmp\\a.py:3:1:E501:line too long\n".as_bytes(),
+            Some(1),
+            &[file],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, file);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 1);
     }
 }

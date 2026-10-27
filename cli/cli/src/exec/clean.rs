@@ -20,15 +20,14 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let apply = invocation.applies();
     let mode = if apply { "default" } else { "check" };
     if json {
-        if let Ok(event) = command_started(invocation.command.name(), mode) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+            return exit;
         }
-        if let Ok(event) = operation_event(invocation.command.name(), "collect", None) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            out,
+            operation_event(invocation.command.name(), "collect", None),
+        ) {
+            return exit;
         }
     }
     let unobserved = if invocation.prune_unobserved {
@@ -240,34 +239,26 @@ fn emit_prune_notices(
     for hex in setup_records {
         let size = setup_record_size(bytes, hex);
         let path = format!(".dx/setups/{hex}");
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: code.to_owned(),
-            message: format!("{verb} setup record {path} ({size} bytes)"),
-            related_command: Some("clean".to_owned()),
-            scope: None,
-            path: Some(path),
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("clean".to_owned()),
+                path: Some(path.clone()),
+                ..NoticeEvent::info(code, format!("{verb} setup record {path} ({size} bytes)"))
+            }),
+        )?;
     }
     for generation in generations {
         let size = generation_size(bytes, generation);
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: code.to_owned(),
-            message: format!("{verb} generation {path} ({size} bytes)"),
-            related_command: Some("clean".to_owned()),
-            scope: None,
-            path: Some(path),
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("clean".to_owned()),
+                path: Some(path.clone()),
+                ..NoticeEvent::info(code, format!("{verb} generation {path} ({size} bytes)"))
+            }),
+        )?;
     }
     Ok(())
 }
@@ -280,38 +271,26 @@ fn emit_preserved_unobserved(
     for hex in &plan.preserved_unobserved_setup_records {
         let size = setup_record_size(preserved, hex);
         let path = format!(".dx/setups/{hex}");
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: CODE_CLEAN_PRESERVED_UNOBSERVED.to_owned(),
-            message: format!(
-                "preserved unobserved setup record {path} (observation unavailable, {size} bytes)"
-            ),
-            related_command: Some("clean".to_owned()),
-            scope: None,
-            path: Some(path),
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("clean".to_owned()),
+                path: Some(path.clone()),
+                ..NoticeEvent::info(CODE_CLEAN_PRESERVED_UNOBSERVED, format!("preserved unobserved setup record {path} (observation unavailable, {size} bytes)"))
+            }),
+        )?;
     }
     for generation in &plan.preserved_unobserved_generations {
         let size = generation_size(preserved, generation);
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: CODE_CLEAN_PRESERVED_UNOBSERVED.to_owned(),
-            message: format!(
-                "preserved unobserved generation {path} (observation unavailable, {size} bytes)"
-            ),
-            related_command: Some("clean".to_owned()),
-            scope: None,
-            path: Some(path),
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("clean".to_owned()),
+                path: Some(path.clone()),
+                ..NoticeEvent::info(CODE_CLEAN_PRESERVED_UNOBSERVED, format!("preserved unobserved generation {path} (observation unavailable, {size} bytes)"))
+            }),
+        )?;
     }
     Ok(())
 }
@@ -332,20 +311,19 @@ fn emit_clean_pruned(
     for generation in &outcome.skipped_leased_generations {
         let size = generation_size(bytes, generation);
         let path = format!(".dx/{}/{}", generation.kind.dir_name(), generation.hex);
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: CODE_CLEAN_PRESERVED_LEASED.to_owned(),
-            message: format!(
-                "preserved leased generation {path} (a live reader holds it, {size} bytes)"
-            ),
-            related_command: Some("clean".to_owned()),
-            scope: None,
-            path: Some(path),
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("clean".to_owned()),
+                path: Some(path.clone()),
+                ..NoticeEvent::info(
+                    CODE_CLEAN_PRESERVED_LEASED,
+                    format!(
+                        "preserved leased generation {path} (a live reader holds it, {size} bytes)"
+                    ),
+                )
+            }),
+        )?;
     }
     Ok(())
 }

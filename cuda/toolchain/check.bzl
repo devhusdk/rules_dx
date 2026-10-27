@@ -101,6 +101,16 @@ def toolkit_errors(nvcc_path, toolkit_path, version):
         return ["dx_cuda: the CUDA toolkit is " + version + "; dx CUDA targets need " + CUDA_VERSION]
     return []
 
+def component_errors(name, paths):
+    """Returns errors for a library component whose files are not from the pinned redistributable."""
+    marker = "+cuda_" + name + "/"
+    if not paths:
+        return ["dx_cuda: component '" + name + "' has no files; declare the cuda.component tags from the dx CUDA README"]
+    for path in paths:
+        if marker not in path:
+            return ["dx_cuda: component '" + name + "' is not the pinned redistributable (file '" + path + "'); declare the cuda.component and cuda.toolkit tags from the dx CUDA README"]
+    return []
+
 def _check_impl(ctx):
     license = ctx.attr.license[CudaLicenseInfo]
     if license.error:

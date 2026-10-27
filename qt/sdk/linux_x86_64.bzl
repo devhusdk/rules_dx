@@ -1,5 +1,7 @@
 """Pinned Qt archives and AlmaLinux 9.6 runtime closure of the linux_x86_64 cell."""
 
+load(":layout_linux.bzl", "LAYOUT")
+
 _RELEASE = "6.11.3-0-202610220312"
 
 QT_LIBRARY_NEEDS = {
@@ -112,6 +114,7 @@ QT_LIBRARY_NEEDS = {
     "libwayland-client.so.0": ["libffi.so.8"],
     "libwayland-cursor.so.0": ["libwayland-client.so.0"],
     "libxcb-cursor.so.0": ["libxcb-image.so.0", "libxcb-render-util.so.0", "libxcb-render.so.0", "libxcb-shm.so.0", "libxcb.so.1"],
+    "libxcb-glx.so.0": ["libXau.so.6", "libxcb.so.1"],
     "libxcb-icccm.so.4": ["libxcb.so.1"],
     "libxcb-image.so.0": ["libxcb-shm.so.0", "libxcb-util.so.1", "libxcb.so.1"],
     "libxcb-keysyms.so.1": ["libxcb.so.1"],
@@ -145,6 +148,8 @@ QT_RUNTIME_PLUGIN_NEEDS = {
     "tls/libqopensslbackend.so": ["libQt6Core.so.6", "libQt6Network.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "wayland-decoration-client/libbradient.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6WaylandClient.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libwayland-client.so.0", "libwayland-cursor.so.0", "libxkbcommon.so.0"],
     "wayland-shell-integration/libxdg-shell.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6WaylandClient.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libwayland-client.so.0", "libwayland-cursor.so.0", "libxkbcommon.so.0"],
+    "xcbglintegrations/libqxcb-egl-integration.so": ["libEGL.so.1", "libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6XcbQpa.so.6", "libX11-xcb.so.1", "libX11.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxcb-cursor.so.0", "libxcb-icccm.so.4", "libxcb-image.so.0", "libxcb-keysyms.so.1", "libxcb-randr.so.0", "libxcb-render-util.so.0", "libxcb-render.so.0", "libxcb-shape.so.0", "libxcb-shm.so.0", "libxcb-sync.so.1", "libxcb-util.so.1", "libxcb-xfixes.so.0", "libxcb-xkb.so.1", "libxcb.so.1", "libxkbcommon-x11.so.0", "libxkbcommon.so.0"],
+    "xcbglintegrations/libqxcb-glx-integration.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6XcbQpa.so.6", "libX11-xcb.so.1", "libX11.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxcb-cursor.so.0", "libxcb-glx.so.0", "libxcb-icccm.so.4", "libxcb-image.so.0", "libxcb-keysyms.so.1", "libxcb-randr.so.0", "libxcb-render-util.so.0", "libxcb-render.so.0", "libxcb-shape.so.0", "libxcb-shm.so.0", "libxcb-sync.so.1", "libxcb-util.so.1", "libxcb-xfixes.so.0", "libxcb-xkb.so.1", "libxcb.so.1", "libxkbcommon-x11.so.0", "libxkbcommon.so.0"],
 }
 
 QT_PLUGIN_NEEDS = {
@@ -536,7 +541,7 @@ _PACKAGES = [
         closure = "gui",
         file = "libxcb-1.13.1-9.el9.x86_64.rpm",
         libraries = ["usr/lib64/libxcb.so.1"],
-        display_libraries = ["usr/lib64/libxcb-randr.so.0", "usr/lib64/libxcb-render.so.0", "usr/lib64/libxcb-shape.so.0", "usr/lib64/libxcb-shm.so.0", "usr/lib64/libxcb-sync.so.1", "usr/lib64/libxcb-xfixes.so.0", "usr/lib64/libxcb-xkb.so.1"],
+        display_libraries = ["usr/lib64/libxcb-glx.so.0", "usr/lib64/libxcb-randr.so.0", "usr/lib64/libxcb-render.so.0", "usr/lib64/libxcb-shape.so.0", "usr/lib64/libxcb-shm.so.0", "usr/lib64/libxcb-sync.so.1", "usr/lib64/libxcb-xfixes.so.0", "usr/lib64/libxcb-xkb.so.1"],
         license = "MIT",
         license_dir = "",
         license_from = "",
@@ -786,6 +791,7 @@ CELL = struct(
     blocker = "",
     constraints = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
     directory = "linux_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_64",
+    layout = LAYOUT,
     release = _RELEASE,
     runtime = struct(
         arch = "x86_64",

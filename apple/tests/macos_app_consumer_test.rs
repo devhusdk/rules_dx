@@ -1,12 +1,14 @@
 mod consumer;
+mod macos;
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{Duration, Instant};
 
 use consumer::{consumer, fails_with, read, write};
-use dx_testing::nested::{self, Case};
-use dx_testing::{mkscratch, Run};
+use dx_testing::mkscratch;
+use dx_testing::nested::Case;
+use macos::{
+    bazel, installed_xcode, keep, passed, passes, runtime_for, tool, version, wait_for, Simulator,
+};
 
 const MODULE_EXTRA: &str = r#"
 bazel_dep(name = "rules_rust", version = "0.74.0")
@@ -319,6 +321,28 @@ apple_ios_app(
     version = "1.0",
 )
 
+apple_ios_app(
+    name = "device_app",
+    srcs = ["main.m"],
+    bundle_id = "com.example.device",
+    deployment = "17.0",
+    environment = "device",
+    library = ":device_lib",
+    provisioning_profile = "dev.mobileprovision",
+    version = "1.0",
+)
+
+apple_ios_app(
+    name = "expired_device_app",
+    srcs = ["main.m"],
+    bundle_id = "com.example.device",
+    deployment = "17.0",
+    environment = "device",
+    library = ":device_lib",
+    provisioning_profile = "expired.mobileprovision",
+    version = "1.0",
+)
+
 apple_ios_app_test(
     name = "missing_runtime_test",
     srcs = ["empty_test.m"],
@@ -353,129 +377,6 @@ const BAD_TEST_M: &str = r#"#import <XCTest/XCTest.h>
 "#;
 
 const MARKER_C: &str = "int ledger_marker(void) { return 7; }\n";
-
-fn tool(program: &str, args: &[&str]) -> String {
-    let output = Command::new(program)
-        .args(args)
-        .output()
-        .unwrap_or_else(|error| panic!("{program}: {error}"));
-    assert!(
-        output.status.success(),
-        "{program} {args:?}: {}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8_lossy(&output.stdout).trim().to_owned()
-}
-
-fn keep(name: &str, text: &str) {
-    if let Ok(dir) = std::env::var("TEST_UNDECLARED_OUTPUTS_DIR") {
-        let test = std::thread::current().name().unwrap_or("main").to_owned();
-        write(&Path::new(&dir).join(test).join(name), text);
-    }
-}
-
-fn bazel(root: &Path, command: &str, targets: &[&str], flags: &[&str]) -> Run {
-    let args: Vec<&str> = std::iter::once(command)
-        .chain(flags.iter().copied())
-        .chain(targets.iter().copied())
-        .collect();
-    let run = nested::bazel_in(root, &args);
-    let name: String = [command]
-        .iter()
-        .chain(flags)
-        .chain(targets)
-        .flat_map(|part| part.chars().chain(['-']))
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-        .collect();
-    keep(&format!("bazel-{name}log.txt"), &run.combined());
-    run
-}
-
-fn passes(run: &Run) {
-    assert_eq!(run.status.code(), Some(0), "{}", run.combined());
-}
-
-fn passed(run: &Run, case: &str) -> bool {
-    run.combined()
-        .lines()
-        .any(|line| line.contains(case) && line.contains("' passed"))
-}
-
-fn installed_xcode() -> String {
-    let version = tool("xcodebuild", &["-version"]);
-    let first = version.lines().next().unwrap_or_default();
-    let number = first
-        .strip_prefix("Xcode ")
-        .unwrap_or_else(|| panic!("xcodebuild -version: {version}"));
-    assert!(
-        number.starts_with("16."),
-        "the qualified cell runs Xcode 16; this executor selects {number}"
-    );
-    number.to_owned()
-}
-
-fn version(text: &str) -> Vec<u32> {
-    text.split('.')
-        .filter_map(|part| part.parse().ok())
-        .collect()
-}
-
-fn runtime_for(sdk_version: &str) -> String {
-    let listing = tool("xcrun", &["simctl", "list", "runtimes", "available"]);
-    keep("runtimes.txt", &listing);
-    let major = sdk_version.split('.').next().unwrap_or_default();
-    let mut found: Vec<Vec<u32>> = listing
-        .lines()
-        .filter_map(|line| line.strip_prefix("iOS "))
-        .filter_map(|rest| rest.split_whitespace().next())
-        .filter(|found| found.split('.').next() == Some(major))
-        .map(version)
-        .collect();
-    found.sort();
-    let wanted = version(sdk_version);
-    let chosen = if found.contains(&wanted) {
-        wanted
-    } else {
-        found
-            .pop()
-            .unwrap_or_else(|| panic!("no iOS {major} simulator runtime in:\n{listing}"))
-    };
-    chosen
-        .iter()
-        .take(2)
-        .map(u32::to_string)
-        .collect::<Vec<_>>()
-        .join(".")
-}
-
-struct Simulator {
-    name: String,
-    udid: String,
-}
-
-impl Simulator {
-    fn create(runtime: &str) -> Simulator {
-        let name = format!("dx-ledger-{}", std::process::id());
-        let id = format!(
-            "com.apple.CoreSimulator.SimRuntime.iOS-{}",
-            runtime.replace('.', "-")
-        );
-        let udid = tool("xcrun", &["simctl", "create", &name, "iPhone 16", &id]);
-        Simulator { name, udid }
-    }
-}
-
-impl Drop for Simulator {
-    fn drop(&mut self) {
-        let _ = Command::new("xcrun")
-            .args(["simctl", "shutdown", &self.udid])
-            .output();
-        let _ = Command::new("xcrun")
-            .args(["simctl", "delete", &self.udid])
-            .output();
-    }
-}
 
 fn ledger(xcode: &str, runtime: &str, simulator: &str) -> Case {
     let root = consumer("apple-app-consumer", MODULE_EXTRA, BAZELRC);
@@ -538,6 +439,16 @@ fn unpack(ipa: &Path) -> PathBuf {
     dir.join("Payload/ledger_app.app")
 }
 
+/// Names of simulators created by `apple_ios_app_test` (`dx ... pgid N`).
+fn dx_owned_simulators() -> Vec<String> {
+    tool("xcrun", &["simctl", "list", "devices"])
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("dx ") && line.contains(" pgid "))
+        .map(str::to_string)
+        .collect()
+}
+
 fn plist(app: &Path, key: &str) -> String {
     tool(
         "plutil",
@@ -552,33 +463,28 @@ fn plist(app: &Path, key: &str) -> String {
     )
 }
 
-fn wait_for(path: &Path) -> String {
-    let start = Instant::now();
-    while start.elapsed() < Duration::from_secs(60) {
-        if let Ok(text) = std::fs::read_to_string(path) {
-            if !text.is_empty() {
-                return text;
-            }
-        }
-        std::thread::sleep(Duration::from_millis(500));
-    }
-    panic!("the launched app wrote no {path:?}");
-}
-
 #[test]
 fn a_rust_app_builds_tests_installs_and_launches_on_a_simulator() {
     let xcode = installed_xcode();
     let sdk_version = tool("xcrun", &["--sdk", "iphonesimulator", "--show-sdk-version"]);
     let runtime = runtime_for(&sdk_version);
-    let simulator = Simulator::create(&runtime);
+    let simulator = Simulator::create("dx-ledger", &runtime);
     let root = ledger(&xcode, &runtime, &simulator.name);
 
+    let booted_before = tool("xcrun", &["simctl", "list", "devices", "booted"]);
     let built = bazel(&root, "build", &["//ledger:ledger_app"], &[]);
     passes(&built);
     let booted = tool("xcrun", &["simctl", "list", "devices", "booted"]);
+    assert_eq!(
+        booted, booted_before,
+        "building changed the booted simulators"
+    );
+    let listed = tool("xcrun", &["simctl", "list", "devices"]);
     assert!(
-        !booted.contains(&simulator.udid),
-        "building booted {}:\n{booted}",
+        listed
+            .lines()
+            .any(|line| line.contains(&simulator.udid) && line.contains("(Shutdown)")),
+        "{} should exist and be shut down:\n{listed}",
         simulator.udid
     );
 
@@ -623,6 +529,7 @@ fn a_rust_app_builds_tests_installs_and_launches_on_a_simulator() {
     assert!(symbols.contains(" _ledger_total"), "{symbols}");
     assert!(symbols.contains(" _ledger_platform"), "{symbols}");
 
+    let owned_before = dx_owned_simulators();
     let tested = bazel(
         &root,
         "test",
@@ -643,10 +550,14 @@ fn a_rust_app_builds_tests_installs_and_launches_on_a_simulator() {
         );
     }
 
-    let devices = tool("xcrun", &["simctl", "list", "devices"]);
+    let owned_after = dx_owned_simulators();
+    let leaked: Vec<&String> = owned_after
+        .iter()
+        .filter(|name| !owned_before.contains(name))
+        .collect();
     assert!(
-        !devices.contains(&format!("dx iPhone 16 iOS {runtime}")),
-        "the test simulator outlived its run:\n{devices}"
+        leaked.is_empty(),
+        "the test simulator outlived its run: {leaked:?}"
     );
 
     passes(&bazel(&root, "run", &["//ledger:boot"], &[]));
@@ -689,6 +600,165 @@ fn a_rust_app_builds_tests_installs_and_launches_on_a_simulator() {
         &missing,
         "dx-apple-simctl: no available simulator named 'dx-no-such-simulator'",
     );
+}
+
+const TEAM: &str = "DXTEST0001";
+
+fn profile(dir: &Path, name: &str, expires: &str) {
+    let key = dir.join("signer.key");
+    let cert = dir.join("signer.pem");
+    let der = dir.join("signer.der");
+    if !cert.exists() {
+        tool(
+            "openssl",
+            &[
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-days",
+                "2",
+                "-subj",
+                "/CN=dx device test",
+                "-keyout",
+                &key.to_string_lossy(),
+                "-out",
+                &cert.to_string_lossy(),
+            ],
+        );
+        tool(
+            "openssl",
+            &[
+                "x509",
+                "-in",
+                &cert.to_string_lossy(),
+                "-outform",
+                "DER",
+                "-out",
+                &der.to_string_lossy(),
+            ],
+        );
+    }
+    let encoded = tool("openssl", &["base64", "-A", "-in", &der.to_string_lossy()]);
+    let plist = dir.join(format!("{name}.plist"));
+    write(
+        &plist,
+        &format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>AppIDName</key>
+  <string>dx device test</string>
+  <key>ApplicationIdentifierPrefix</key>
+  <array><string>{TEAM}</string></array>
+  <key>CreationDate</key>
+  <date>2020-01-01T00:00:00Z</date>
+  <key>DeveloperCertificates</key>
+  <array><data>{encoded}</data></array>
+  <key>Entitlements</key>
+  <dict>
+    <key>application-identifier</key>
+    <string>{TEAM}.com.example.device</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>{TEAM}</string>
+    <key>get-task-allow</key>
+    <true/>
+  </dict>
+  <key>ExpirationDate</key>
+  <date>{expires}</date>
+  <key>Name</key>
+  <string>dx device test</string>
+  <key>Platform</key>
+  <array><string>iOS</string></array>
+  <key>TeamIdentifier</key>
+  <array><string>{TEAM}</string></array>
+  <key>UUID</key>
+  <string>2F6C1D7A-0B3E-4C5D-8E9F-1A2B3C4D5E6F</string>
+  <key>Version</key>
+  <integer>1</integer>
+</dict>
+</plist>
+"#
+        ),
+    );
+    tool(
+        "openssl",
+        &[
+            "smime",
+            "-sign",
+            "-nodetach",
+            "-binary",
+            "-outform",
+            "DER",
+            "-in",
+            &plist.to_string_lossy(),
+            "-signer",
+            &cert.to_string_lossy(),
+            "-inkey",
+            &key.to_string_lossy(),
+            "-out",
+            &dir.join(format!("{name}.mobileprovision"))
+                .to_string_lossy(),
+        ],
+    );
+}
+
+#[test]
+fn a_device_app_signs_ad_hoc_with_its_declared_profile() {
+    let xcode = installed_xcode();
+    let root = ledger(&xcode, "18.0", "unused");
+    archive(&root, "device", "arm64-apple-ios17.0", "iphoneos");
+    archive(
+        &root,
+        "simulator",
+        "arm64-apple-ios17.0-simulator",
+        "iphonesimulator",
+    );
+    write(&root.join("bad/BUILD.bazel"), BAD_BUILD);
+    write(&root.join("bad/main.m"), BAD_MAIN_M);
+    write(&root.join("bad/empty_test.m"), BAD_TEST_M);
+    profile(&root.join("bad"), "dev", "2099-01-01T00:00:00Z");
+    profile(&root.join("bad"), "expired", "2021-01-01T00:00:00Z");
+
+    let built = bazel(
+        &root,
+        "build",
+        &["//bad:device_app"],
+        &[
+            "--ios_multi_cpus=arm64",
+            "--@rules_apple//apple/build_settings:signing_certificate_name=Apple Development",
+        ],
+    );
+    passes(&built);
+    let ipa = root.join("bazel-bin/bad/device_app.ipa");
+    assert!(ipa.is_file(), "{}", built.combined());
+    let dir = mkscratch("apple-device-ipa").unwrap_or_else(|error| panic!("scratch: {error}"));
+    tool(
+        "unzip",
+        &["-q", &ipa.to_string_lossy(), "-d", &dir.to_string_lossy()],
+    );
+    let app = dir.join("Payload/device_app.app");
+    assert_eq!(
+        std::fs::read(app.join("embedded.mobileprovision")).ok(),
+        std::fs::read(root.join("bad/dev.mobileprovision")).ok(),
+        "the declared profile is embedded"
+    );
+    let signature = std::process::Command::new("codesign")
+        .args(["-dv", &app.to_string_lossy()])
+        .output()
+        .unwrap_or_else(|error| panic!("codesign: {error}"));
+    let details = String::from_utf8_lossy(&signature.stderr);
+    assert!(details.contains("Signature=adhoc"), "{details}");
+
+    let expired = bazel(
+        &root,
+        "build",
+        &["//bad:expired_device_app"],
+        &["--ios_multi_cpus=arm64"],
+    );
+    fails_with(&expired, "is in the past");
 }
 
 #[test]

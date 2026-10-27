@@ -4,7 +4,7 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
 
@@ -45,7 +45,6 @@ _javascript_binary_forward = dx_executable_forward_rule(
     what = "javascript_*",
     allow_files = _JS_EXTS,
     upstream_providers = [[DefaultInfo]],
-    optional_providers = [_JsInfo],
     runtime = "besteffort",
 )
 
@@ -57,13 +56,12 @@ def javascript_binary_upstream_data(srcs, data):
     return list(srcs or []) + list(data or [])
 
 def _javascript_wrap_binary(name, srcs, visibility = None, **kwargs):
-    upstream_kwargs = dict(kwargs)
+    upstream_kwargs = dx_binary_upstream_kwargs(kwargs, None)
     upstream_kwargs.pop("aspect_hints", None)
     if len(srcs) > 0:
         upstream_kwargs["data"] = javascript_binary_upstream_data(srcs, upstream_kwargs.get("data"))
     _js_binary(
         name = name + "_upstream",
-        visibility = ["//visibility:private"],
         **upstream_kwargs
     )
     _javascript_binary_forward(
@@ -125,6 +123,7 @@ def _javascript_wasm_bindgen_library_impl(ctx):
 
 _javascript_wasm_bindgen_library = rule(
     implementation = _javascript_wasm_bindgen_library_impl,
+    doc = "Adapts one rust_wasm_bindgen target to JsInfo.",
     provides = [_JsInfo, DefaultInfo, _RustWasmBindgenInfo],
     attrs = {
         "bindgen": attr.label(mandatory = True, allow_files = True),
@@ -157,16 +156,16 @@ def javascript_js_test_rejection(kwargs):
     """Returns the rejection for forbidden javascript_js_test kwargs, or None."""
     return node_test_plain_rejection("javascript_test", "javascript_js_test", kwargs)
 
-def javascript_test(name, srcs, node_modules, data = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+def javascript_test(name, srcs, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test."""
     rejection = javascript_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
-    node_wrap_test(name, _jest_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), {"node_modules": node_modules}, env_inherit, visibility, tags, kwargs)
+    node_wrap_test(name, _jest_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, {"node_modules": node_modules}, env_inherit, visibility, kwargs)
 
-def javascript_js_test(name, srcs, entry_point, data = None, visibility = None, tags = None, env_inherit = None, **kwargs):
+def javascript_js_test(name, srcs, entry_point, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over js_test."""
     rejection = javascript_js_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
-    node_wrap_test(name, _js_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), {"entry_point": entry_point}, env_inherit, visibility, tags, kwargs)
+    node_wrap_test(name, _js_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, {"entry_point": entry_point}, env_inherit, visibility, kwargs)

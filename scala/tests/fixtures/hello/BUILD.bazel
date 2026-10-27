@@ -1,3 +1,4 @@
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//scala/rules:defs.bzl", "scala_binary", "scala_library", "scala_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -11,6 +12,27 @@ scala_library(
     name = "hello_lib",
     srcs = ["Hello.scala"],
     aspect_hints = ["//:scalafmt_config"],
+)
+
+scala_library(
+    name = "mixed_lib",
+    srcs = [
+        "Greeter.java",
+        "Mixed.scala",
+    ],
+    aspect_hints = [
+        "//:scalafmt_config",
+        "//quality:corpus_checkstyle_config",
+    ],
+)
+
+dx_direct_sources_test(
+    name = "mixed_sources_test",
+    expected = {
+        "java": ["Greeter.java"],
+        "scala": ["Mixed.scala"],
+    },
+    target_under_test = ":mixed_lib",
 )
 
 scala_binary(

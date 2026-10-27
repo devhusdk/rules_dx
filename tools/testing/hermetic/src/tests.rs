@@ -68,6 +68,7 @@ fn module_renames_rules_dx_and_overrides_it_locally() {
         "hermetic_consumer",
         "my_dx",
         "bazel_dep(name = \"googletest\", version = \"1.18.0\")\n",
+        false,
         Path::new("/src/rules dx"),
     )
     .unwrap();
@@ -79,14 +80,14 @@ fn module_renames_rules_dx_and_overrides_it_locally() {
 
 #[test]
 fn module_keeps_the_default_name_unrenamed() {
-    let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/src")).unwrap();
+    let module = compose_module(SNIPPET, "m", "rules_dx", "", false, Path::new("/src")).unwrap();
     assert!(module.contains("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")"));
     assert!(!module.contains("repo_name"));
 }
 
 #[test]
 fn module_escapes_quotes_in_the_override_path() {
-    let module = compose_module(SNIPPET, "m", "my_dx", "", Path::new("/a\"b\\c")).unwrap();
+    let module = compose_module(SNIPPET, "m", "my_dx", "", false, Path::new("/a\"b\\c")).unwrap();
     assert!(module.contains("path = \"/a\\\"b\\\\c\","), "{module}");
 }
 
@@ -97,11 +98,53 @@ fn module_rejects_a_snippet_without_exactly_one_rules_dx() {
         "m",
         "x",
         "",
+        false,
         Path::new("/"),
     );
     assert!(missing.unwrap_err().contains("exactly once"));
     let twice = format!("{SNIPPET}{SNIPPET}");
-    assert!(compose_module(&twice, "m", "x", "", Path::new("/")).is_err());
+    assert!(compose_module(&twice, "m", "x", "", false, Path::new("/")).is_err());
+}
+
+#[test]
+fn module_puts_the_fragment_before_the_first_toolchain_registration_on_request() {
+    let module = compose_module(
+        SNIPPET,
+        "m",
+        "my_dx",
+        "register_toolchains(\"@cuda_host_llvm//:all\")\n\n",
+        true,
+        Path::new("/src"),
+    )
+    .unwrap();
+    assert_eq!(
+        module,
+        "module(name = \"m\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@cuda_host_llvm//:all\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src\",\n)\n"
+    );
+}
+
+#[test]
+fn module_appends_the_fragment_unchanged_without_the_flag() {
+    let fragment = "register_toolchains(\"@cuda_host_llvm//:all\")\n";
+    let module = compose_module(SNIPPET, "m", "my_dx", fragment, false, Path::new("/src")).unwrap();
+    assert!(
+        module.find("@llvm//toolchain:all").unwrap() < module.find("@cuda_host_llvm").unwrap(),
+        "{module}"
+    );
+}
+
+#[test]
+fn module_rejects_the_flag_when_the_snippet_registers_no_toolchain() {
+    let err = compose_module(
+        "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        "m",
+        "my_dx",
+        "bazel_dep(name = \"rules_cuda\", version = \"0.3.0\")\n",
+        true,
+        Path::new("/"),
+    )
+    .unwrap_err();
+    assert!(err.contains("no register_toolchains"), "{err}");
 }
 
 #[test]
@@ -155,6 +198,14 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
         )]
     );
     assert_eq!(manifest.dx, PathBuf::from("/run/cli/cli/dx"));
+    assert!(
+        !manifest.fragment_before_toolchains,
+        "a manifest without the key appends the fragment"
+    );
+    let mut flagged: Value = serde_json::from_str(&text).unwrap();
+    flagged["fragment_before_toolchains"] = json!(true);
+    let manifest = parse_manifest(&flagged.to_string(), Path::new("/run")).unwrap();
+    assert!(manifest.fragment_before_toolchains);
 }
 
 #[test]
@@ -552,6 +603,43 @@ fn verify_accepts_tool_only_msix_evidence() {
     .unwrap();
 }
 
+fn appimage_evidence() -> Value {
+    let mut ev = good_evidence();
+    ev["qualification"] = json!("//tools/testing/hermetic:appimage");
+    ev["languages"] = json!(["appimage"]);
+    ev["artifacts"] = json!([
+        {"path": "bazel-out/k8-fastbuild/bin/app/dxappimage.AppImage", "sha256": sha256_hex(b"img"), "machine": null},
+    ]);
+    ev["target"]["machines"] = json!([]);
+    ev
+}
+
+#[test]
+fn verify_requires_a_native_machine_for_appimage() {
+    let err = verify_evidence(
+        &appimage_evidence(),
+        "abc123",
+        "//tools/testing/hermetic:appimage",
+        &["appimage".to_owned()],
+    )
+    .unwrap_err();
+    assert!(err.contains("no native artifact machine"), "{err}");
+}
+
+#[test]
+fn verify_accepts_appimage_evidence_with_an_elf_machine() {
+    let mut ev = appimage_evidence();
+    ev["artifacts"][0]["machine"] = json!("x86_64");
+    ev["target"]["machines"] = json!(["x86_64"]);
+    verify_evidence(
+        &ev,
+        "abc123",
+        "//tools/testing/hermetic:appimage",
+        &["appimage".to_owned()],
+    )
+    .unwrap();
+}
+
 fn runfiles_manifest() -> Manifest {
     let rel =
         std::env::var("DX_HERMETIC_MANIFEST").expect("DX_HERMETIC_MANIFEST names the manifest");
@@ -686,37 +774,95 @@ fn materialize_reports_each_missing_input() {
     assert!(err.starts_with("cannot read "), "{err}");
 }
 
-#[test]
-fn plan_masks_host_tools_and_home_config_but_keeps_needed_paths() {
+struct FakeHost {
+    dir: tempfile::TempDir,
+    host: HostPaths,
+}
+
+fn fake_host() -> FakeHost {
     let dir = tempfile::tempdir().unwrap();
-    let home = dir.path().join("home");
+    let root = dir.path();
+    for sub in ["sbin", "bin", "sdk", "sdk/bin", "kept-sdk"] {
+        std::fs::create_dir_all(root.join(sub)).unwrap();
+    }
+    for file in ["sbin/ip", "bin/cc", "bin/gcc-13", "bin/git", "sdk/bin/node"] {
+        std::fs::write(root.join(file), "#!/bin/sh\n").unwrap();
+    }
+    let host = HostPaths {
+        ip_candidates: vec![root.join("missing/ip"), root.join("sbin/ip")],
+        sdk_candidates: vec![
+            root.join("sdk"),
+            root.join("absent-sdk"),
+            root.join("kept-sdk"),
+        ],
+        tool_dirs: vec![root.join("bin"), root.join("sdk/bin")],
+    };
+    FakeHost { dir, host }
+}
+
+#[test]
+fn plan_with_masks_fake_tools_sdks_and_home_config_but_keeps_needed_paths() {
+    let fake = fake_host();
+    let root = fake.dir.path();
+    let home = root.join("home");
     std::fs::create_dir_all(home.join(".cargo")).unwrap();
     std::fs::create_dir_all(home.join(".config")).unwrap();
     std::fs::write(home.join(".netrc"), "machine x\n").unwrap();
     std::fs::write(home.join(".npmrc"), "x\n").unwrap();
-    let shim = dir.path().join("shim");
-    let keep = vec![home.join(".config/dx"), home.join(".npmrc")];
-    let isolation = Isolation::plan(&shim, &keep, Some(&home)).unwrap();
+    let shim = root.join("shim");
+    let keep = vec![
+        home.join(".config/dx"),
+        home.join(".npmrc"),
+        root.join("kept-sdk"),
+        root.join("bin/git"),
+    ];
+    let isolation = Isolation::plan_with(&fake.host, &shim, &keep, Some(&home)).unwrap();
     assert_eq!(isolation.shim, shim);
     assert_eq!(isolation.home_dirs, vec![home.join(".cargo")]);
     assert_eq!(isolation.home_files, vec![home.join(".netrc")]);
     let status = std::fs::read_to_string("/proc/self/status").unwrap();
     assert_eq!(Some(isolation.uid), status_id(&status, "Uid:"));
     assert_eq!(Some(isolation.gid), status_id(&status, "Gid:"));
-    assert!(isolation.ip.is_file());
-    let candidates = sdk_candidates();
-    for sdk in &isolation.sdk_dirs {
-        assert!(candidates.contains(sdk), "{sdk:?}");
-    }
-    for tool in &isolation.tools {
-        assert!(
-            !isolation.sdk_dirs.iter().any(|sdk| tool.starts_with(sdk)),
-            "{tool:?} sits under a masked SDK directory"
-        );
-    }
-    let kept = Isolation::plan(&shim, &candidates, None).unwrap();
-    assert!(kept.sdk_dirs.is_empty());
-    assert!(kept.home_dirs.is_empty() && kept.home_files.is_empty());
+    assert_eq!(isolation.ip, root.join("sbin/ip"));
+    assert_eq!(isolation.sdk_dirs, vec![root.join("sdk")]);
+    let real = std::fs::canonicalize(root.join("bin")).unwrap();
+    assert_eq!(isolation.tools, vec![real.join("cc"), real.join("gcc-13")]);
+}
+
+#[test]
+fn plan_with_fails_without_ip() {
+    let mut fake = fake_host();
+    fake.host.ip_candidates = vec![fake.dir.path().join("none/ip")];
+    let err =
+        Isolation::plan_with(&fake.host, &fake.dir.path().join("shim"), &[], None).unwrap_err();
+    assert_eq!(
+        err,
+        "namespace isolation needs ip from iproute2 to raise loopback"
+    );
+}
+
+#[test]
+fn plan_with_keep_covering_every_sdk_masks_none() {
+    let fake = fake_host();
+    let keep = fake.host.sdk_candidates.clone();
+    let isolation =
+        Isolation::plan_with(&fake.host, &fake.dir.path().join("shim"), &keep, None).unwrap();
+    assert!(isolation.sdk_dirs.is_empty());
+    assert!(isolation.home_dirs.is_empty() && isolation.home_files.is_empty());
+}
+
+#[test]
+fn host_paths_detect_uses_the_host_constants() {
+    let host = HostPaths::detect();
+    let strs = |paths: &[PathBuf]| -> Vec<String> {
+        paths
+            .iter()
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect()
+    };
+    assert_eq!(strs(&host.ip_candidates), IP_CANDIDATES);
+    assert_eq!(strs(&host.tool_dirs), TOOL_DIRS);
+    assert_eq!(strs(&host.sdk_candidates)[..SDK_DIRS.len()], *SDK_DIRS);
 }
 
 #[test]

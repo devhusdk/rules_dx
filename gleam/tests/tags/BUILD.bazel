@@ -1,0 +1,112 @@
+load("//gleam/rules:defs.bzl", "GLEAM_COMPATIBLE_WITH", "gleam_erl_library", "gleam_js_library", "gleam_library")
+load("//libs/starlark:defs.bzl", "starlark_test")
+load("//libs/starlark:tag_probe.bzl", "tag_subject")
+load("//quality:fixtures.bzl", "real_source_target")
+
+# keep
+gleam_library(
+    name = "tagged_lib",
+    srcs = ["src/tagged_lib.gleam"],
+    tags = [
+        "manual",
+        "no-lint",
+        "no-remote-exec",
+    ],
+    target_compatible_with = GLEAM_COMPATIBLE_WITH,
+)
+
+# keep
+gleam_library(
+    name = "plain_lib",
+    srcs = ["src/plain_lib.gleam"],
+    target_compatible_with = GLEAM_COMPATIBLE_WITH,
+)
+
+# keep
+gleam_erl_library(
+    name = "tagged_erl",
+    srcs = ["src/tagged_erl.erl"],
+    tags = [
+        "manual",
+        "no-lint",
+        "no-remote-exec",
+    ],
+    target_compatible_with = GLEAM_COMPATIBLE_WITH,
+)
+
+# keep
+gleam_erl_library(
+    name = "plain_erl",
+    srcs = ["src/plain_erl.erl"],
+    target_compatible_with = GLEAM_COMPATIBLE_WITH,
+)
+
+# keep
+gleam_js_library(
+    name = "tagged_js",
+    srcs = ["src/tagged_js.gleam"],
+    tags = [
+        "manual",
+        "no-lint",
+        "no-remote-exec",
+    ],
+    target_compatible_with = GLEAM_COMPATIBLE_WITH,
+)
+
+# keep
+gleam_js_library(
+    name = "plain_js",
+    srcs = ["src/plain_js.gleam"],
+    target_compatible_with = GLEAM_COMPATIBLE_WITH,
+)
+
+tag_subject(
+    name = "tags_subject",
+    targets = [
+        ":plain_erl",
+        ":plain_erl_upstream",
+        ":plain_js",
+        ":plain_js_upstream",
+        ":plain_lib",
+        ":plain_lib_upstream",
+        ":tagged_erl",
+        ":tagged_erl_upstream",
+        ":tagged_js",
+        ":tagged_js_upstream",
+        ":tagged_lib",
+        ":tagged_lib_upstream",
+    ],
+)
+
+starlark_test(
+    name = "tags_test",
+    expected_observations = """subject //gleam/tests/tags:tags_subject
+field plain_erl=(none)
+field plain_erl_upstream=manual
+field plain_js=(none)
+field plain_js_upstream=manual
+field plain_lib=(none)
+field plain_lib_upstream=manual
+field tagged_erl=manual,no-lint,no-remote-exec
+field tagged_erl_upstream=dx:no-lint,manual,no-remote-exec
+field tagged_js=manual,no-lint,no-remote-exec
+field tagged_js_upstream=dx:no-lint,manual,no-remote-exec
+field tagged_lib=manual,no-lint,no-remote-exec
+field tagged_lib_upstream=dx:no-lint,manual,no-remote-exec
+aspect_field aspect_seen=True
+aspect_field field_count=12
+aspect_field has_subject=True
+aspect_field subject_label=//gleam/tests/tags:tags_subject
+aspect_field transitive_count=0
+""",
+    mode = "analysis",
+    subjects = [":tags_subject"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

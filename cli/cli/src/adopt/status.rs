@@ -2,9 +2,9 @@ use std::io::Write;
 
 use clap::ValueEnum;
 
-use crate::args::help::advertises_passthrough;
+use crate::args::grammar::advertises_passthrough;
 use crate::args::{Command, Invocation};
-use crate::exec::common::{check_stdout_write, emit_event, emit_started};
+use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
 use dx_output::{
     capability_event, command_finished, command_started, status_event, CapabilityEvent,
     FinishedCounts, OutputMode, StatusEvent,
@@ -17,9 +17,7 @@ pub(crate) const CODE_STATUS_CHECK_FAILED: &str = "status_check_failed";
 use super::operational;
 
 fn effect_of(command: Command) -> &'static str {
-    if command.is_mutating_by_default() {
-        "mutating"
-    } else if command.supports_apply() {
+    if command.supports_apply() {
         "apply"
     } else {
         "none"
@@ -140,26 +138,26 @@ fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
         Ok(State::Missing) => ("warn", format!("{FILE} has no dx block")),
         Err(error) => ("warn", format!("{FILE} is unreadable: {error}")),
     };
-    let missing = crate::worktree::setup::workspace_missing(workspace);
-    if !missing.is_empty() {
+    for (path, missing) in dx_worktree::setup::workspace_missing(workspace) {
         status = "warn";
-        detail = format!(
-            "{detail}; {} lacks hooks: {}",
-            crate::worktree::setup::SETTINGS,
-            missing.join("; ")
-        );
+        detail = format!("{detail}; {path} lacks hooks: {}", missing.join("; "));
+    }
+    use super::claude_md::{state, State as Import};
+    if matches!(state(workspace), Ok(Import::Missing | Import::Absent)) {
+        status = "warn";
+        detail = format!("{detail}; CLAUDE.md does not import AGENTS.md");
     }
     dx_adopt::StatusCheck {
         name: "agents".to_owned(),
         status: status.to_owned(),
         detail,
-        hint: "dx init --apply writes the block and hooks; dx upgrade --apply refreshes the block"
+        hint: "dx init --apply writes the block, hooks and CLAUDE.md import; dx upgrade --apply refreshes the block"
             .to_owned(),
     }
 }
 
 fn lease_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
-    let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
+    let (path, record) = dx_worktree::lease_for_workspace(workspace)?;
     let detail = match (record.holder(true), &record.branch) {
         (Some(holder), Some(branch)) => format!("{} held by {holder} on {branch}", path.display()),
         (Some(holder), None) => format!("{} held by {holder}", path.display()),
@@ -203,21 +201,20 @@ pub(crate) fn execute_status(
         checks.push(check);
     }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
         }
         for check in &checks {
-            if let Ok(event) = status_event(&StatusEvent {
-                name: check.name.clone(),
-                status: check.status.clone(),
-                detail: check.detail.clone(),
-                hint: check.hint.clone(),
-            }) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                status_event(&StatusEvent {
+                    name: check.name.clone(),
+                    status: check.status.clone(),
+                    detail: check.detail.clone(),
+                    hint: check.hint.clone(),
+                }),
+            ) {
+                return exit;
             }
         }
         for capability in &records {
@@ -277,7 +274,7 @@ mod tests {
         let slot = pool.join("3");
         std::fs::create_dir_all(&slot).expect("slot");
         std::fs::create_dir_all(pool.join(".dx")).expect("meta");
-        let record = crate::worktree::pool::Record {
+        let record = dx_worktree::pool::Record {
             slot: 3,
             held: true,
             branch: Some("feature/a".to_owned()),
@@ -287,6 +284,7 @@ mod tests {
             pid: Some(7),
             gone: false,
             unclaimed: false,
+            broken: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,
@@ -332,9 +330,41 @@ mod tests {
         std::fs::create_dir_all(root.join(".claude")).expect("dir");
         std::fs::write(
             root.join(".claude/settings.json"),
-            crate::worktree::setup::settings_text(),
+            dx_worktree::setup::settings_text(&dx_worktree::setup::CLAUDE),
         )
         .expect("settings");
+        let check = agents_check(root);
+        assert_eq!(check.status, "warn");
+        assert!(
+            check.detail.contains("CLAUDE.md does not import"),
+            "{}",
+            check.detail
+        );
+        std::fs::write(root.join("CLAUDE.md"), "@AGENTS.md\n").expect("claude");
+        assert_eq!(agents_check(root).status, "ok");
+        #[cfg(unix)]
+        {
+            std::fs::remove_file(root.join("CLAUDE.md")).expect("rm");
+            std::os::unix::fs::symlink("AGENTS.md", root.join("CLAUDE.md")).expect("link");
+            assert_eq!(agents_check(root).status, "ok");
+        }
+        std::fs::create_dir_all(root.join(".codex")).expect("dir");
+        std::fs::write(root.join(".codex/hooks.json"), "{}\n").expect("codex");
+        let check = agents_check(root);
+        assert_eq!(check.status, "warn");
+        assert!(
+            check
+                .detail
+                .contains(".codex/hooks.json lacks hooks: PreToolUse (Bash)"),
+            "{}",
+            check.detail
+        );
+        assert!(!check.detail.contains(".claude"), "{}", check.detail);
+        std::fs::write(
+            root.join(".codex/hooks.json"),
+            dx_worktree::setup::settings_text(&dx_worktree::setup::CODEX),
+        )
+        .expect("codex");
         assert_eq!(agents_check(root).status, "ok");
     }
 
@@ -557,6 +587,18 @@ mod tests {
             .find(|event| event["name"] == serde_json::json!("lint"))
             .expect("lint record");
         assert_eq!(lint["source"], serde_json::json!("cli-grammar"));
+        for (name, effect) in [
+            ("lint", "apply"),
+            ("fix", "apply"),
+            ("build", "none"),
+            ("status", "none"),
+        ] {
+            let record = capabilities
+                .iter()
+                .find(|event| event["name"] == serde_json::json!(name))
+                .expect("capability record");
+            assert_eq!(record["effect"], serde_json::json!(effect), "{name}");
+        }
         assert_eq!(lint["availability"], serde_json::json!("available"));
         let tools = capabilities
             .iter()

@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 
@@ -19,12 +19,9 @@ rust_library(
     crate_name = "dx_tool_resolve",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
         package_name = "cli/dx_tool_resolve",
+        normal = True,
     ),
 )
 
@@ -37,13 +34,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_tool_resolve",
-    deps = crate_deps(
-        [
-            "clap",
-            "tempfile",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
         package_name = "cli/dx_tool_resolve",
+        normal = True,
+        normal_dev = True,
     ),
 )
 
@@ -60,12 +54,9 @@ rust_binary(
     crate_name = "tool_resolve",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "clap",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
         package_name = "cli/dx_tool_resolve",
+        normal = True,
     ) + [":dx_tool_resolve"],
 )
 
@@ -78,13 +69,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":tool_resolve",
-    deps = crate_deps(
-        [
-            "clap",
-            "tempfile",
-            "thiserror",
-        ],
+    deps = all_crate_deps(
         package_name = "cli/dx_tool_resolve",
+        normal = True,
+        normal_dev = True,
     ),
 )
 

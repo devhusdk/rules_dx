@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use dx_adopt::AdoptError;
@@ -23,6 +23,15 @@ pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
         &dx_process::interrupted,
         |session, timeout| session.wait(timeout),
     )
+}
+
+fn report_paths(iteration: &Invocation, workspace: &Path) -> Vec<PathBuf> {
+    iteration
+        .reports
+        .iter()
+        .filter(|report| report.destination != "-")
+        .map(|report| crate::reports::resolve_destination(workspace, &report.destination))
+        .collect()
 }
 
 /// Where watch writes its own progress lines.
@@ -110,12 +119,14 @@ fn watch(
         Err(message) => return refuse(invocation, out, err, &message),
     };
     let scope = scope_label(&iteration);
-    let session = match dx_adopt::watch::WatchSession::start(workspace) {
-        Ok(session) => session,
-        Err(error) => {
-            return operational(invocation, out, err, "watch_failed", &error.to_string());
-        }
-    };
+    let session =
+        match dx_adopt::watch::WatchSession::start(workspace, &report_paths(&iteration, workspace))
+        {
+            Ok(session) => session,
+            Err(error) => {
+                return operational(invocation, out, err, "watch_failed", &error.to_string());
+            }
+        };
     let wait = RefCell::new(wait_for_change);
     let mut round = 0u32;
     loop {
@@ -311,7 +322,7 @@ mod tests {
             {
                 passed_bep(bep, "//a:one");
             }
-            Ok(dx_process::ChildStatus { code: Some(0) })
+            Ok(dx_process::ChildStatus::exited(0))
         }
     }
 
@@ -627,6 +638,55 @@ mod tests {
     }
 
     #[test]
+    fn watch_iteration_writing_its_report_does_not_queue_another() {
+        let scratch = dx_test_scratch::scratch("dx-watch-report-");
+        let workspace = scratch.path().to_path_buf();
+        let temp_scratch = dx_test_scratch::scratch("dx-watch-report-tmp-");
+        let temp_dir = temp_scratch.path().to_path_buf();
+        std::fs::create_dir_all(workspace.join("src")).expect("src dir");
+        let query = NullQuery;
+        let runner = CountingRunner {
+            seen: RefCell::new(Vec::new()),
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let first = RefCell::new(None);
+        let code = watch(
+            &invocation(&["watch", "test", "//a:one", "--report", "junit=out.xml"]),
+            Env {
+                workspace: &workspace,
+                runner: &runner,
+                query_runner: &query,
+                temp_dir: &temp_dir,
+                pid: 1,
+                nonce: 1,
+                out: &mut out,
+                err: &mut err,
+                ci: false,
+                audit_today: None,
+            },
+            Some(2),
+            &|| None,
+            |session, _| {
+                *first.borrow_mut() = Some(session.wait(Duration::from_secs(2))?);
+                std::fs::write(workspace.join("src/main.rs"), "fn main() {}").expect("write src");
+                session.wait(Duration::from_secs(10))
+            },
+        );
+        assert_eq!(code, 0, "{}", String::from_utf8_lossy(&err));
+        assert_eq!(first.borrow().as_deref(), Some(&[][..]));
+        assert!(workspace.join("out.xml").exists());
+        let stdout = String::from_utf8(out).expect("stdout");
+        assert!(
+            !stdout
+                .lines()
+                .any(|line| line.starts_with("changed ") && line.contains("out.xml")),
+            "{stdout}"
+        );
+        assert!(stdout.contains("main.rs"), "{stdout}");
+    }
+
+    #[test]
     fn watch_reruns_when_a_change_lands_during_execution() {
         struct WritingRunner {
             workspace: PathBuf,
@@ -643,7 +703,7 @@ mod tests {
                 self.seen.borrow_mut().push(argv.join(" "));
                 std::fs::write(self.workspace.join("trigger.txt"), "edited")
                     .expect("trigger write");
-                Ok(dx_process::ChildStatus { code: Some(0) })
+                Ok(dx_process::ChildStatus::exited(0))
             }
         }
 
@@ -728,7 +788,7 @@ mod tests {
         .expect("release");
         assert!(release.release);
         assert_eq!(
-            release.bazel_options,
+            release.raw_bazel_options(),
             vec!["--hi".to_owned()],
             "app args ride the cloned invocation"
         );
@@ -738,7 +798,7 @@ mod tests {
     #[test]
     fn watch_parses_wrapped_options_like_the_wrapped_command() {
         let got = invocation(&["watch", "build", "//...", "--", "--jobs=4"]);
-        assert_eq!(got.bazel_options, vec!["--jobs=4".to_owned()]);
+        assert_eq!(got.raw_bazel_options(), vec!["--jobs=4".to_owned()]);
         let got = invocation(&["watch", "--apply", "fix", "//app:bin"]);
         assert!(got.apply);
         assert!(crate::args::parse(&["watch", "--apply", "run", "//app:bin"]).is_err());
@@ -770,7 +830,7 @@ mod tests {
         assert_eq!(iteration.reports.len(), 1);
         assert_eq!(iteration.targets, vec!["//a:one".to_owned()]);
         assert_eq!(
-            iteration.bazel_options,
+            iteration.raw_bazel_options(),
             vec!["--jobs=4".to_owned(), "--apply".to_owned()]
         );
         assert!(!iteration.apply);
@@ -1093,7 +1153,7 @@ mod tests {
             self.events
                 .borrow_mut()
                 .push(format!("exit {}", argv.join(" ")));
-            Ok(dx_process::ChildStatus { code: Some(0) })
+            Ok(dx_process::ChildStatus::exited(0))
         }
 
         fn run_withdrawable(
@@ -1107,7 +1167,7 @@ mod tests {
                 self.events
                     .borrow_mut()
                     .push(format!("build {}", argv.join(" ")));
-                return Ok(Some(dx_process::ChildStatus { code: Some(0) }));
+                return Ok(Some(dx_process::ChildStatus::exited(0)));
             }
             assert!(!self.running.get(), "app instances overlap");
             self.running.set(true);
@@ -1123,7 +1183,7 @@ mod tests {
             }
             self.events.borrow_mut().push("exited".to_owned());
             self.running.set(false);
-            Ok(Some(dx_process::ChildStatus { code: Some(0) }))
+            Ok(Some(dx_process::ChildStatus::exited(0)))
         }
     }
 
@@ -1317,14 +1377,28 @@ mod tests {
             cwd: &Path,
             env: &[(&str, &str)],
         ) -> io::Result<dx_process::ChildStatus> {
-            let free = crate::slots::try_take(&self.dir, 1, "probe").expect("try");
+            let busy = !crate::test_support::slot_settles_free(&self.dir, 1);
             let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
-            self.busy.borrow_mut().push((free.is_none(), marked));
+            self.busy.borrow_mut().push((busy, marked));
             self.inner.run(argv, cwd, env)
         }
     }
 
     fn slot_watch(
+        dir: &Path,
+        words: &[&str],
+        max_iterations: Option<u32>,
+        wait_for_change: impl FnMut(
+            &dx_adopt::watch::WatchSession,
+            Duration,
+        ) -> Result<Vec<PathBuf>, AdoptError>,
+    ) -> (i32, Vec<(bool, bool)>, String) {
+        let gate = crate::slots::Gate::new(dir.to_path_buf(), 1, "watch-tree".to_owned(), false);
+        slot_watch_through(gate, dir, words, max_iterations, wait_for_change)
+    }
+
+    fn slot_watch_through(
+        gate: crate::slots::Gate,
         dir: &Path,
         words: &[&str],
         max_iterations: Option<u32>,
@@ -1341,7 +1415,6 @@ mod tests {
             dir: dir.to_path_buf(),
             busy: RefCell::new(Vec::new()),
         };
-        let gate = crate::slots::Gate::new(dir.to_path_buf(), 1, "watch-tree".to_owned(), false);
         let mut out = Vec::new();
         let mut err = Vec::new();
         let code = crate::slots::with_gate(Some(gate), || {
@@ -1379,8 +1452,10 @@ mod tests {
             Some(2),
             |_, timeout| {
                 if timeout > Duration::ZERO {
-                    let free = crate::slots::try_take(&dir, 1, "idle").expect("try");
-                    assert!(free.is_some(), "watch holds a slot while idle");
+                    assert!(
+                        crate::test_support::slot_settles_free(&dir, 1),
+                        "watch holds a slot while idle"
+                    );
                     idle_checks.set(idle_checks.get() + 1);
                 }
                 Ok(vec![PathBuf::from("/ws/a.rs")])
@@ -1393,9 +1468,35 @@ mod tests {
             "each iteration builds under a slot its Bazel child sees"
         );
         assert_eq!(idle_checks.get(), 1);
-        assert!(crate::slots::try_take(&dir, 1, "after")
-            .expect("try")
-            .is_some());
+        assert!(crate::test_support::slot_settles_free(&dir, 1));
+    }
+
+    #[test]
+    fn each_watch_iteration_reclaims() {
+        let scratch = dx_test_scratch::scratch("dx-watch-slot-reclaim-");
+        let dir = scratch.path().join("slots");
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = std::sync::Arc::clone(&calls);
+        let gate = crate::slots::Gate::new(dir.clone(), 1, "watch-tree".to_owned(), false)
+            .reclaiming(move || {
+                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Some("low disk: reclaimed".to_owned())
+            });
+        let (code, busy, err) = slot_watch_through(
+            gate,
+            &dir,
+            &["watch", "build", "//a:one"],
+            Some(2),
+            |_, _| Ok(vec![PathBuf::from("/ws/a.rs")]),
+        );
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(busy.len(), 2);
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            2,
+            "one reclaim per iteration"
+        );
+        assert_eq!(err.matches("dx: low disk: reclaimed\n").count(), 2, "{err}");
     }
 
     #[test]

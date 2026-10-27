@@ -109,6 +109,8 @@ Linux host.
 
 ```sh
 bazel test //appimage/... //examples/appimage-app/...
+# Consumer qualification (manual; needs network and a native bazelisk):
+bazel test //tools/testing/hermetic:appimage
 ```
 
 [examples/appimage-app](../examples/appimage-app/README.md) is a two-package

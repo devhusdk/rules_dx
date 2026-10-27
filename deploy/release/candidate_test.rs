@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use dx_release_tools::candidate::{
     build_source_archive, candidate_module_file, read_git_state, source_archive_error,
-    stage_local_registry, Candidate,
+    stage_local_registry, write_release_source, Candidate,
 };
 use dx_release_tools::{
     bcr_candidate_error, bcr_integrity_of_digest, release_remote_error, release_run, RELEASE_REMOTE,
@@ -657,4 +657,89 @@ fn tag_dirty_tree_and_non_repo_fail_closed() {
         "{error}"
     );
     assert_eq!(fixture.refs(), before);
+}
+
+#[test]
+fn release_source_writes_archive_sidecar_and_source_json() {
+    let fixture = Fixture::new();
+    let candidate = fixture.candidate();
+    let out = fixture.path("release-source");
+    let built = write_release_source(&fixture.repo, &candidate, &out).expect("release source");
+    let name = format!("rules_dx-{VERSION}.tar.gz");
+    let archive = out.join(&name);
+    source_archive_error(&archive, &fixture.repo, &candidate).expect("verifies");
+    assert_eq!(
+        built.digest,
+        dx_digest::sha256_file_hex(&archive).expect("digest")
+    );
+    assert_eq!(
+        std::fs::read_to_string(out.join(format!("{name}.sha256"))).expect("sidecar"),
+        format!("{}  {name}\n", built.digest)
+    );
+    let text = std::fs::read_to_string(out.join("source.json")).expect("source.json");
+    bcr_candidate_error(&text, "rules_dx", VERSION, &built.digest).expect("source.json");
+    let mut names: Vec<String> = std::fs::read_dir(&out)
+        .expect("dir")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        [
+            name.clone(),
+            format!("{name}.sha256"),
+            "source.json".to_owned()
+        ]
+    );
+}
+
+#[test]
+fn release_source_is_idempotent_and_byte_identical() {
+    let fixture = Fixture::new();
+    let candidate = fixture.candidate();
+    let one = fixture.path("one");
+    let two = fixture.path("two");
+    write_release_source(&fixture.repo, &candidate, &one).expect("one");
+    write_release_source(&fixture.repo, &candidate, &two).expect("two");
+    write_release_source(&fixture.repo, &candidate, &one).expect("rerun");
+    for file in [
+        format!("rules_dx-{VERSION}.tar.gz"),
+        format!("rules_dx-{VERSION}.tar.gz.sha256"),
+        "source.json".to_owned(),
+    ] {
+        assert_eq!(
+            std::fs::read(one.join(&file)).expect("one"),
+            std::fs::read(two.join(&file)).expect("two"),
+            "{file}"
+        );
+    }
+}
+
+#[test]
+fn release_source_rejects_unknown_commit() {
+    let fixture = Fixture::new();
+    let candidate = Candidate::new(VERSION, &"0".repeat(40)).expect("candidate");
+    let out = fixture.path("unknown");
+    assert!(write_release_source(&fixture.repo, &candidate, &out).is_err());
+    assert!(!out.join("source.json").exists());
+}
+
+#[test]
+fn release_source_rejects_relative_and_conflicting_out_dir() {
+    let fixture = Fixture::new();
+    let candidate = fixture.candidate();
+    let error = write_release_source(&fixture.repo, &candidate, Path::new("relative"))
+        .expect_err("relative");
+    assert!(error.contains("must be absolute"), "{error}");
+    let out = fixture.path("conflict");
+    write(&out.join("source.json"), b"{}\n");
+    let error = write_release_source(&fixture.repo, &candidate, &out).expect_err("conflict");
+    assert!(error.contains("different bytes"), "{error}");
+    assert!(!out.join(format!("rules_dx-{VERSION}.tar.gz")).exists());
 }

@@ -15,7 +15,7 @@ import (
 
 func TestCorpusSplitPreservesSiblingsAndFixtureOwnership(t *testing.T) {
 	root := t.TempDir()
-	for _, name := range []string{"BUILD.bazel", "README.md", "sibling.md", "fixture.md", "config.toml", ".gitleaks.toml", ".hidden.md", "AGENTS.local.md", "new.json", "keep.json", "fixture.json", "sub/guide.md", "sub/config.toml", "nested/BUILD", "nested/hidden.md", "other/BUILD.bazel", "other/hidden.md", ".state/hidden.md", "node_modules/hidden.md", "bazel-out/hidden.md", "data.lock"} {
+	for _, name := range []string{"BUILD.bazel", "README.md", "sibling.md", "fixture.md", "config.toml", ".gitleaks.toml", "paket.main.bzl", ".hidden.md", "AGENTS.local.md", "new.json", "keep.json", "fixture.json", "sub/guide.md", "sub/config.toml", "nested/BUILD", "nested/hidden.md", "other/BUILD.bazel", "other/hidden.md", ".state/hidden.md", "node_modules/hidden.md", "bazel-out/hidden.md", "data.lock"} {
 		writeFixture(t, root, name, "")
 	}
 	writeFixture(t, root, ".buildifier.json", "{}")
@@ -36,7 +36,7 @@ func TestCorpusSplitPreservesSiblingsAndFixtureOwnership(t *testing.T) {
 	for _, r := range plan.gen {
 		byName[r.Name()] = r
 	}
-	for name, want := range map[string]string{"corpus_markdown": "README.md,sub/guide.md", "corpus_toml": ".gitleaks.toml,config.toml,sub/config.toml", "corpus_json": "keep.json", "corpus_starlark": "BUILD.bazel"} {
+	for name, want := range map[string]string{"corpus_markdown": "README.md,sub/guide.md", "corpus_toml": "config.toml,sub/config.toml", "corpus_json": "keep.json", "corpus_starlark": "BUILD.bazel"} {
 		attr := strings.Replace(name, "corpus_", "", 1) + "_srcs"
 		if byName[name] == nil || strings.Join(byName[name].AttrStrings(attr), ",") != want {
 			t.Fatalf("%s: %v, want %s", name, byName[name], want)
@@ -81,7 +81,7 @@ func TestCorpusJsonBiomeHintNeedsRootConfig(t *testing.T) {
 func TestCorpusSkipsToolTreesAndKeepsSiblingOnlyTargets(t *testing.T) {
 	cfg := config.New()
 	root := t.TempDir()
-	for _, rel := range []string{".opencode", ".opencode/skills", "node_modules", "node_modules/pkg", "pkg/node_modules/pkg", "tools/depcheck/testdata", "tools/depcheck/testdata/fixture"} {
+	for _, rel := range []string{"node_modules", "node_modules/pkg", "pkg/node_modules/pkg"} {
 		plan := planCorpus(language.GenerateArgs{Config: cfg, Dir: root, Rel: rel}, true)
 		if len(plan.gen) != 0 {
 			t.Fatalf("tool tree generated: %s", rel)
@@ -192,12 +192,12 @@ func TestNativeConfigRecognition(t *testing.T) {
 		"taplo_config":      "taplo.toml",
 		"buildifier_config": ".buildifier.json",
 	}
-	if len(result.Gen) != len(want)+3 {
+	if len(result.Gen) != len(want)+1 {
 		names := []string{}
 		for _, r := range result.Gen {
 			names = append(names, r.Kind()+":"+r.Name())
 		}
-		t.Fatalf("generated %d rules %v, want lib plus %d configs plus corpus splits", len(result.Gen), names, len(want))
+		t.Fatalf("generated %d rules %v, want lib plus %d configs", len(result.Gen), names, len(want))
 	}
 	lib := findGenerated(result, libraryKind, "site")
 	if lib == nil {
@@ -224,7 +224,7 @@ func TestNativeConfigRecognition(t *testing.T) {
 		t.Error("unmanaged clippy.toml produced a config target")
 	}
 	vale := findGenerated(result, "vale_config", "vale_config")
-	if got := strings.Join(vale.AttrStrings("data"), ","); got != "site/styles/org/Rules.yml" {
+	if got := strings.Join(vale.AttrStrings("data"), ","); got != "styles/org/Rules.yml" {
 		t.Errorf("vale data = %q, want styles closure", got)
 	}
 	if rustfmt := findGenerated(result, "rustfmt_config", "rustfmt_config"); len(rustfmt.AttrStrings("data")) != 0 {
@@ -508,18 +508,15 @@ func TestNativeConfigOnlyDir(t *testing.T) {
 	_, result := runNativeGenerate(t, "site", map[string]string{
 		"site/taplo.toml": "[formatting]\n",
 	}, "")
-	if len(result.Gen) != 3 {
-		t.Fatalf("generated %d rules, want taplo_config plus corpus splits", len(result.Gen))
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want taplo_config only", len(result.Gen))
 	}
 	taplo := findGenerated(result, "taplo_config", "taplo_config")
 	if taplo == nil || taplo.AttrString("src") != "taplo.toml" {
 		t.Errorf("taplo target = %v", taplo)
 	}
-	if findGenerated(result, corpusKind, "corpus_toml") == nil {
-		t.Error("missing corpus_toml split for taplo.toml")
-	}
-	if findGenerated(result, corpusKind, "corpus_starlark") == nil {
-		t.Error("missing corpus_starlark split for BUILD.bazel")
+	if findGenerated(result, corpusKind, "corpus_toml") != nil {
+		t.Error("corpus_toml generated without dx_corpus")
 	}
 }
 
@@ -543,7 +540,7 @@ func TestNativeValeStylesVariants(t *testing.T) {
 		"site/config/styles/b/c.yml": "extends: occurrence\n",
 	}, "")
 	vale := findGenerated(custom, "vale_config", "vale_config")
-	if got := strings.Join(vale.AttrStrings("data"), ","); got != "site/config/styles/a.yml,site/config/styles/b/c.yml" {
+	if got := strings.Join(vale.AttrStrings("data"), ","); got != "config/styles/a.yml,config/styles/b/c.yml" {
 		t.Errorf("custom styles data = %q", got)
 	}
 	_, bare := runNativeGenerate(t, "site", map[string]string{
@@ -605,5 +602,122 @@ func TestNativeCargoHints(t *testing.T) {
 	}
 	if findGenerated(result, "rustfmt_config", "rustfmt_config") == nil {
 		t.Error("cargo directory produced no rustfmt_config")
+	}
+}
+
+func corpusRustLang(t *testing.T, root string, dirs map[string]string) (*rustLang, *config.Config) {
+	t.Helper()
+	cfg := config.New()
+	cfg.RepoRoot = root
+	l := &rustLang{}
+	l.Configure(cfg, "", nil)
+	for rel, build := range dirs {
+		file, err := rule.LoadData("BUILD.bazel", rel, []byte(build))
+		if err != nil {
+			t.Fatal(err)
+		}
+		l.Configure(cfg, rel, file)
+	}
+	return l, cfg
+}
+
+func TestCorpusDisabledByDefault(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "README.md", "")
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"demo\"\n")
+	writeFixture(t, root, "src/lib.rs", "")
+	l, cfg := corpusRustLang(t, root, nil)
+	result := l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: root, RegularFiles: []string{"Cargo.toml", "README.md"}})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors: %v", l.errors)
+	}
+	for _, r := range result.Gen {
+		if r.Kind() == corpusKind {
+			t.Fatalf("corpus rule generated by default: %s", r.Name())
+		}
+		for _, key := range r.AttrKeys() {
+			for _, v := range r.AttrStrings(key) {
+				if strings.Contains(v, "//quality:") {
+					t.Fatalf("quality label in %s.%s", r.Name(), key)
+				}
+			}
+		}
+	}
+}
+
+func TestCorpusDisabledEmptiesStaleTargets(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "README.md", "")
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"demo\"\n")
+	build := "load(\"@rules_dx//quality:fixtures.bzl\", \"real_source_target\")\nreal_source_target(name = \"corpus_markdown\", markdown_srcs = [\"README.md\"])\nreal_source_target(name = \"corpus_toml\", toml_srcs = [\"Cargo.toml\"])\nreal_source_target(name = \"dotfile_toml\", toml_srcs = [\".gitleaks.toml\"])\n"
+	file, err := rule.LoadData("BUILD.bazel", "", []byte(build))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, cfg := corpusRustLang(t, root, nil)
+	l.Configure(cfg, "", file)
+	result := l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: root, File: file, RegularFiles: []string{"Cargo.toml", "README.md"}})
+	var names []string
+	for _, r := range result.Empty {
+		if r.Kind() == corpusKind {
+			names = append(names, r.Name())
+		}
+	}
+	sort.Strings(names)
+	if strings.Join(names, ",") != "corpus_markdown,corpus_toml" {
+		t.Fatalf("emptied = %v", names)
+	}
+}
+
+func TestCorpusDirectiveInheritsAndOverrides(t *testing.T) {
+	root := t.TempDir()
+	cfg := config.New()
+	cfg.RepoRoot = root
+	l := &rustLang{}
+	l.Configure(cfg, "", nil)
+	if corpusEnabled(cfg) {
+		t.Fatal("default must be off")
+	}
+	steps := []struct {
+		rel, build string
+		want       bool
+	}{
+		{"", "# gazelle:dx_corpus true\n", true},
+		{"child", "# gazelle:dx_corpus false\n", false},
+		{"child/grand", "", false},
+	}
+	for _, step := range steps {
+		child := config.New()
+		child.RepoRoot = root
+		child.Exts = cfg.Exts
+		file, err := rule.LoadData("BUILD.bazel", step.rel, []byte(step.build))
+		if err != nil {
+			t.Fatal(err)
+		}
+		l.Configure(child, step.rel, file)
+		if got := corpusEnabled(child); got != step.want {
+			t.Fatalf("%q: corpus = %v, want %v", step.rel, got, step.want)
+		}
+		cfg = child
+	}
+	if len(l.errors) != 0 {
+		t.Fatalf("errors: %v", l.errors)
+	}
+}
+
+func TestCorpusDirectiveRejectsMalformed(t *testing.T) {
+	for _, value := range []string{"", "yes", "TRUE", "true false"} {
+		root := t.TempDir()
+		cfg := config.New()
+		cfg.RepoRoot = root
+		l := &rustLang{}
+		file, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:dx_corpus "+value+"\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		l.Configure(cfg, "", file)
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0], "malformed # gazelle:dx_corpus: want true or false") {
+			t.Fatalf("%q: errors = %v", value, l.errors)
+		}
 	}
 }

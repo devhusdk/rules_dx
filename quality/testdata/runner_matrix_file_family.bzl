@@ -10,6 +10,8 @@ _CUE_MODULE = "quality/tests/fixtures/consumer_policy/cue_module/"
 
 _JSONNET_MODULE = "quality/tests/fixtures/consumer_policy/jsonnet_module/"
 
+_PKL_MODULE = "quality/tests/fixtures/consumer_policy/pkl_module/"
+
 _TERRAFORM_MODULE = "quality/tests/fixtures/consumer_policy/terraform_module/"
 
 FILE_FAMILY_CASES = [
@@ -137,19 +139,54 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["pkl;pkl;matrix/pkl_clean.pkl"],
         "tool_names": ["pkl"],
-        "tool_binaries": ["//quality/testdata:fake_pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
         "expected_file": ":matrix/matrix_pkl_format_pass.expected.txt",
     },
     {
         "name": "matrix_pkl_format_fail",
         "generated": {
-            "matrix/pkl_dirty.pkl": "value=\"hello\"BADFMT\n",
+            "matrix/pkl_dirty.pkl": "value   =   \"hello\"\n",
         },
         "capability": "format",
         "stages": ["pkl;pkl;matrix/pkl_dirty.pkl"],
         "tool_names": ["pkl"],
-        "tool_binaries": ["//quality/testdata:fake_pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
         "expected_file": ":matrix/matrix_pkl_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_pkl_format_syntax_error",
+        "generated": {
+            "matrix/pkl_broken.pkl": "value = = 1\n",
+        },
+        "capability": "format",
+        "stages": ["pkl;pkl;matrix/pkl_broken.pkl"],
+        "tool_names": ["pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
+        "expected_file": ":matrix/matrix_pkl_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_pkl_format_module",
+        "srcs": ["//quality/tests/fixtures/consumer_policy:pkl_module"],
+        "capability": "format",
+        "stages": ["pkl;pkl;" + ",".join([
+            _PKL_MODULE + "lib/settings.pkl",
+            _PKL_MODULE + "main.pkl",
+        ])],
+        "tool_names": ["pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
+        "expected_file": ":matrix/matrix_pkl_format_module.expected.txt",
+    },
+    {
+        "name": "matrix_pkl_format_module_syntax_error",
+        "generated": {
+            "matrix/pkl_module/lib/settings.pkl": "retries = 3\n",
+            "matrix/pkl_module/main.pkl": "import \"lib/settings.pkl\"\n\nname = \"app\"\nretries = settings.retries +\n",
+        },
+        "capability": "format",
+        "stages": ["pkl;pkl;matrix/pkl_module/lib/settings.pkl,matrix/pkl_module/main.pkl"],
+        "tool_names": ["pkl"],
+        "tool_binaries": ["@dx_tools//:pkl"],
+        "expected_file": ":matrix/matrix_pkl_format_module_syntax_error.expected.txt",
     },
     {
         "name": "matrix_go_module_format_pass",
@@ -184,6 +221,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_terraform_format_fail",
@@ -196,6 +236,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_terraform_format_syntax_error",
@@ -208,6 +251,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_terraform_format_module",
@@ -223,6 +269,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_module.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_terraform_format_module_syntax_error",
@@ -236,6 +285,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_module_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_yaml_format_pass",
@@ -584,6 +636,7 @@ FILE_FAMILY_CASES = [
     },
     {
         "name": "matrix_powershell_lint_pass",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/psscriptanalyzer_clean.ps1": "Write-Output \"hello\"\n",
         },
@@ -591,10 +644,12 @@ FILE_FAMILY_CASES = [
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_clean.ps1"],
         "tool_names": ["psscriptanalyzer"],
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
+        "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_lint_pass.expected.txt",
     },
     {
         "name": "matrix_powershell_lint_fail",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/psscriptanalyzer_dirty.ps1": "Write-Output \"a\"\nWrite-Output \"b\"\nWrite-Output \"c\"\nWrite-Host \"hello\"\n",
         },
@@ -602,6 +657,7 @@ FILE_FAMILY_CASES = [
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_dirty.ps1"],
         "tool_names": ["psscriptanalyzer"],
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
+        "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_lint_fail.expected.txt",
     },
     {
@@ -647,8 +703,8 @@ FILE_FAMILY_CASES = [
         },
         "capability": "lint",
         "stages": ["shellcheck;shell;matrix/shellcheck_clean.sh"],
-        "upstream_tools": ["shellcheck"],
-        "upstream_srcs": [":matrix/matrix_shell_lint_pass.upstream.shellcheck.txt"],
+        "tool_names": ["shellcheck"],
+        "tool_binaries": ["@dx_tools//:shellcheck"],
         "expected_file": ":matrix/matrix_shell_lint_pass.expected.txt",
     },
     {
@@ -658,9 +714,86 @@ FILE_FAMILY_CASES = [
         },
         "capability": "lint",
         "stages": ["shellcheck;shell;matrix/shellcheck_dirty.sh"],
-        "upstream_tools": ["shellcheck"],
-        "upstream_srcs": [":matrix/matrix_shell_lint_fail.upstream.shellcheck.txt"],
+        "tool_names": ["shellcheck"],
+        "tool_binaries": ["@dx_tools//:shellcheck"],
         "expected_file": ":matrix/matrix_shell_lint_fail.expected.txt",
+    },
+    {
+        # A stray parent .shellcheckrc disabling every check must not be read.
+        "name": "matrix_shell_lint_ambient_rc",
+        "generated": {
+            "matrix/shellcheck_dirty.sh": "#!/usr/bin/env bash\necho \"start\"\necho $hello\n",
+        },
+        "capability": "lint",
+        "stages": ["shellcheck;shell;matrix/shellcheck_dirty.sh"],
+        "tool_names": ["shellcheck"],
+        "tool_binaries": ["@dx_tools//:shellcheck"],
+        "ambient_files": {".shellcheckrc": "disable=all\n"},
+        "expected_file": ":matrix/matrix_shell_lint_ambient_rc.expected.txt",
+    },
+    {
+        # The declared rc applies, and the ambient one still does not.
+        "name": "matrix_shell_lint_rcfile",
+        "generated": {
+            "matrix/shellcheck_dirty.sh": "#!/usr/bin/env bash\necho \"start\"\necho $hello\n",
+        },
+        "capability": "lint",
+        "stages": ["shellcheck;shell;matrix/shellcheck_dirty.sh"],
+        "tool_names": ["shellcheck"],
+        "tool_binaries": ["@dx_tools//:shellcheck"],
+        "toolfile_tools": ["shellcheck"],
+        "toolfile_srcs": [":shellcheck_cfg/lint.shellcheckrc"],
+        "config_tools": ["shellcheck"],
+        "config_files": [":shellcheck_cfg/lint.shellcheckrc"],
+        "ambient_files": {".shellcheckrc": "disable=all\n"},
+        "expected_file": ":matrix/matrix_shell_lint_rcfile.expected.txt",
+    },
+    {
+        "name": "matrix_dockerfile_lint_pass",
+        "generated": {
+            "matrix/hadolint_clean.Dockerfile": "FROM scratch\nCOPY hello /hello\nENTRYPOINT [\"/hello\"]\n",
+        },
+        "capability": "lint",
+        "stages": ["hadolint;dockerfile;matrix/hadolint_clean.Dockerfile"],
+        "tool_names": ["hadolint"],
+        "tool_binaries": ["@dx_tools//:hadolint"],
+        "expected_file": ":matrix/matrix_dockerfile_lint_pass.expected.txt",
+    },
+    {
+        # DL rules and the linked ShellCheck SC rules both surface.
+        "name": "matrix_dockerfile_lint_fail",
+        "generated": {
+            "matrix/hadolint_dirty.Dockerfile": "FROM busybox:1.36\nRUN echo $HOME | wc -c\n",
+        },
+        "capability": "lint",
+        "stages": ["hadolint;dockerfile;matrix/hadolint_dirty.Dockerfile"],
+        "tool_names": ["hadolint"],
+        "tool_binaries": ["@dx_tools//:hadolint"],
+        "expected_file": ":matrix/matrix_dockerfile_lint_fail.expected.txt",
+    },
+    {
+        # A parse failure is a DL1000 error finding, never a clean run.
+        "name": "matrix_dockerfile_lint_syntax_error",
+        "generated": {
+            "matrix/hadolint_broken.Dockerfile": "FROM scratch\nRUNN echo hi\n",
+        },
+        "capability": "lint",
+        "stages": ["hadolint;dockerfile;matrix/hadolint_broken.Dockerfile"],
+        "tool_names": ["hadolint"],
+        "tool_binaries": ["@dx_tools//:hadolint"],
+        "expected_file": ":matrix/matrix_dockerfile_lint_syntax_error.expected.txt",
+    },
+    {
+        # The user's inline ignore pragma is honoured, not overridden.
+        "name": "matrix_dockerfile_lint_inline_ignore",
+        "generated": {
+            "matrix/hadolint_ignored.Dockerfile": "FROM busybox:1.36\n# hadolint ignore=DL4006,SC2086\nRUN echo $HOME | wc -c\n",
+        },
+        "capability": "lint",
+        "stages": ["hadolint;dockerfile;matrix/hadolint_ignored.Dockerfile"],
+        "tool_names": ["hadolint"],
+        "tool_binaries": ["@dx_tools//:hadolint"],
+        "expected_file": ":matrix/matrix_dockerfile_lint_inline_ignore.expected.txt",
     },
     {
         "name": "matrix_text_lint_pass",
@@ -683,5 +816,135 @@ FILE_FAMILY_CASES = [
         "upstream_tools": ["keep_sorted"],
         "upstream_srcs": [":matrix/matrix_text_lint_fail.upstream.keep_sorted.txt"],
         "expected_file": ":matrix/matrix_text_lint_fail.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_openapi_pass",
+        "srcs": [":api_spec/openapi.yaml"],
+        "siblings": [":api_spec/schemas/pet.yaml"],
+        "capability": "lint",
+        "stages": ["redocly;api_spec;quality/testdata/api_spec/openapi.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "expected_file": ":matrix/matrix_api_spec_openapi_pass.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_openapi_recommended_fail",
+        "srcs": [":api_spec/openapi.yaml"],
+        "siblings": [":api_spec/schemas/pet.yaml"],
+        "capability": "lint",
+        "stages": ["redocly;api_spec;quality/testdata/api_spec/openapi.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "toolfile_tools": ["redocly"],
+        "toolfile_srcs": [":redocly_cfg/recommended.yaml"],
+        "config_tools": ["redocly"],
+        "config_files": [":redocly_cfg/recommended.yaml"],
+        "expected_file": ":matrix/matrix_api_spec_openapi_recommended_fail.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_fragment_fail",
+        "srcs": [":api_spec/openapi_fragment_bad.yaml"],
+        "siblings": [":api_spec/schemas/pet_bad.yaml"],
+        "capability": "lint",
+        "stages": ["redocly;api_spec;quality/testdata/api_spec/openapi_fragment_bad.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "expected_file": ":matrix/matrix_api_spec_fragment_fail.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_duplicate_operation_id_fail",
+        "generated": {
+            "matrix/api_spec_duplicate_operation_id.yaml": "openapi: 3.1.0\ninfo:\n  title: Pets\n  version: 1.0.0\npaths:\n  /pets:\n    get:\n      operationId: listPets\n      responses:\n        \"200\":\n          description: Pets.\n  /owners:\n    get:\n      operationId: listPets\n      responses:\n        \"200\":\n          description: Owners.\n",
+        },
+        "capability": "lint",
+        "stages": ["redocly;api_spec;matrix/api_spec_duplicate_operation_id.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "expected_file": ":matrix/matrix_api_spec_duplicate_operation_id_fail.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_asyncapi_pass",
+        "generated": {
+            "matrix/api_spec_asyncapi.yaml": "asyncapi: 3.0.0\ninfo:\n  title: Pets\n  version: 1.0.0\nchannels:\n  pets:\n    address: pets\n    messages:\n      petAdded:\n        payload:\n          type: object\n",
+        },
+        "capability": "lint",
+        "stages": ["redocly;api_spec;matrix/api_spec_asyncapi.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "expected_file": ":matrix/matrix_api_spec_asyncapi_pass.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_json_pass",
+        "generated": {
+            "matrix/api_spec_root.json": "{\n  \"openapi\": \"3.0.3\",\n  \"info\": {\"title\": \"Pets\", \"version\": \"1.0.0\"},\n  \"paths\": {}\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["redocly;api_spec;matrix/api_spec_root.json"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "expected_file": ":matrix/matrix_api_spec_json_pass.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_swagger_fail",
+        "generated": {
+            "matrix/api_spec_swagger.yaml": "swagger: \"2.0\"\ninfo:\n  title: Pets\n  version: 1.0.0\npaths: {}\n",
+        },
+        "capability": "lint",
+        "stages": ["redocly;api_spec;matrix/api_spec_swagger.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "expected_file": ":matrix/matrix_api_spec_swagger_fail.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_remote_ref_fail",
+        "generated": {
+            "matrix/api_spec_remote_ref.yaml": "openapi: 3.1.0\ninfo:\n  title: Pets\n  version: 1.0.0\npaths: {}\ncomponents:\n  schemas:\n    Pet:\n      $ref: https://example.com/pet.yaml\n",
+        },
+        "capability": "lint",
+        "stages": ["redocly;api_spec;matrix/api_spec_remote_ref.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "expected_file": ":matrix/matrix_api_spec_remote_ref_fail.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_unresolved_ref_fail",
+        "generated": {
+            "matrix/api_spec_unresolved_ref.yaml": "openapi: 3.1.0\ninfo:\n  title: Pets\n  version: 1.0.0\npaths: {}\ncomponents:\n  schemas:\n    Pet:\n      $ref: schemas/missing.yaml\n",
+        },
+        "capability": "lint",
+        "stages": ["redocly;api_spec;matrix/api_spec_unresolved_ref.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "expected_file": ":matrix/matrix_api_spec_unresolved_ref_fail.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_config_plugins_fail",
+        "srcs": [":api_spec/openapi.yaml"],
+        "siblings": [":api_spec/schemas/pet.yaml"],
+        "capability": "lint",
+        "stages": ["redocly;api_spec;quality/testdata/api_spec/openapi.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "toolfile_tools": ["redocly"],
+        "toolfile_srcs": [":redocly_cfg/plugins.yaml"],
+        "config_tools": ["redocly"],
+        "config_files": [":redocly_cfg/plugins.yaml"],
+        "runner_failure": True,
+        "expected_file": ":matrix/matrix_api_spec_config_plugins_fail.expected.txt",
+    },
+    {
+        "name": "matrix_api_spec_config_unknown_rule_fail",
+        "srcs": [":api_spec/openapi.yaml"],
+        "siblings": [":api_spec/schemas/pet.yaml"],
+        "capability": "lint",
+        "stages": ["redocly;api_spec;quality/testdata/api_spec/openapi.yaml"],
+        "tool_names": ["redocly"],
+        "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
+        "toolfile_tools": ["redocly"],
+        "toolfile_srcs": [":redocly_cfg/unknown_rule.yaml"],
+        "config_tools": ["redocly"],
+        "config_files": [":redocly_cfg/unknown_rule.yaml"],
+        "runner_failure": True,
+        "expected_file": ":matrix/matrix_api_spec_config_unknown_rule_fail.expected.txt",
     },
 ]

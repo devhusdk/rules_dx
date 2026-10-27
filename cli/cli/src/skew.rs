@@ -85,6 +85,7 @@ mod tests {
         Command::Clean,
         Command::Update,
         Command::Bump,
+        Command::Add,
         Command::Migrate,
         Command::New,
         Command::Upgrade,

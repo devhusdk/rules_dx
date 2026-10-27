@@ -1,3 +1,4 @@
+mod add;
 mod affected;
 mod audit;
 mod build_failures;
@@ -6,6 +7,7 @@ mod clean;
 pub mod common;
 #[cfg(test)]
 mod delivery_sink;
+mod dep_edit;
 mod deploy;
 mod docs;
 mod failure;
@@ -29,6 +31,7 @@ mod quality_reconcile;
 mod quality_reports;
 mod results;
 mod run;
+mod rustc_stderr;
 mod test_filter;
 mod test_inventory;
 mod test_reports;
@@ -47,81 +50,7 @@ pub use audit::AUDIT_TODAY_ENV;
 pub use common::Env;
 pub use failure::set_usage_command;
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
-pub use worktree::{hook_kind, reclaim_before_build, run_worktree_hook};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Family {
-    Adoption,
-    Watch,
-    Umbrella,
-    Workflow,
-    Generate,
-    Clean,
-    Managed,
-    Audit,
-    Update,
-    Bump,
-    Migrate,
-    Docs,
-    Quality,
-    Worktree,
-}
-
-impl Family {
-    #[cfg(test)]
-    fn name(self) -> &'static str {
-        match self {
-            Family::Adoption => "adoption",
-            Family::Watch => "watch",
-            Family::Umbrella => "umbrella",
-            Family::Workflow => "workflow",
-            Family::Generate => "generate",
-            Family::Clean => "clean",
-            Family::Managed => "managed",
-            Family::Audit => "audit",
-            Family::Update => "update",
-            Family::Bump => "bump",
-            Family::Migrate => "migrate",
-            Family::Docs => "docs",
-            Family::Quality => "quality",
-            Family::Worktree => "worktree",
-        }
-    }
-
-    fn supports_diff(self) -> bool {
-        matches!(
-            self,
-            Family::Umbrella | Family::Generate | Family::Quality | Family::Watch
-        )
-    }
-}
-
-fn family(command: Command) -> Family {
-    match command {
-        Command::Security | Command::License => Family::Audit,
-        Command::Lint | Command::Typecheck | Command::Format => Family::Quality,
-        Command::Generate => Family::Generate,
-        Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
-            Family::Workflow
-        }
-        Command::Check | Command::Fix | Command::ListTests => Family::Umbrella,
-        Command::Clean => Family::Clean,
-        Command::Update => Family::Update,
-        Command::Bump => Family::Bump,
-        Command::Migrate => Family::Migrate,
-        Command::Codegen | Command::Env => Family::Managed,
-        Command::Init
-        | Command::New
-        | Command::Upgrade
-        | Command::Rollback
-        | Command::Status
-        | Command::Version
-        | Command::Completion => Family::Adoption,
-        Command::Watch => Family::Watch,
-        Command::Docs => Family::Docs,
-        Command::Worktree => Family::Worktree,
-    }
-}
+pub use worktree::{hook_kind, run_worktree_hook};
 
 /// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
 pub(crate) fn execute_until(
@@ -137,7 +66,7 @@ pub(crate) fn execute_until(
 
 /// The refusal for a workspace that is a slot leased to another session.
 fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option<String> {
-    let who = crate::worktree::Who::from_env(&|name| {
+    let who = dx_worktree::Who::from_env(&|name| {
         std::env::var(name).ok().filter(|value| !value.is_empty())
     });
     lease_refusal_for(invocation.command, workspace, &who)
@@ -159,19 +88,19 @@ fn hold_slot(
     if slot_exempt(command) {
         return None;
     }
-    crate::worktree::hold_busy(workspace, wait)
+    dx_worktree::hold_busy(workspace, wait)
 }
 
 fn lease_refusal_for(
     command: Command,
     workspace: &std::path::Path,
-    who: &crate::worktree::Who,
+    who: &dx_worktree::Who,
 ) -> Option<String> {
     if slot_exempt(command) {
         return None;
     }
-    let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
-    if !record.held || record.session.is_none() || record.same_session(who) {
+    let (path, record) = dx_worktree::lease_for_workspace(workspace)?;
+    if !record.refuses(who) {
         return None;
     }
     Some(format!(
@@ -181,11 +110,47 @@ fn lease_refusal_for(
     ))
 }
 
+/// Runs one command with stdout latched on its first write failure.
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+        audit_today,
+    } = env;
+    let mut latched = common::LatchedOut::new(out);
+    let code = dispatch(
+        invocation,
+        Env {
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut latched,
+            err,
+            ci,
+            audit_today,
+        },
+    );
+    if code == 0 {
+        latched.exit_code(code)
+    } else {
+        code
+    }
+}
+
+fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
-        invocation.output != dx_output::OutputMode::Diff
-            || family(invocation.command).supports_diff(),
-        "{} reaches a family whose commands reject --output=diff",
+        invocation.output != dx_output::OutputMode::Diff || invocation.command.supports_diff(),
+        "{} rejects --output=diff",
         invocation.command.name()
     );
     if invocation.here {
@@ -200,7 +165,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     let _busy = match hold_slot(
         invocation.command,
         env.workspace,
-        crate::worktree::pool::POOL_LOCK_WAIT,
+        dx_worktree::pool::POOL_LOCK_WAIT,
     ) {
         Some(Err(refusal)) => {
             let Env { out, err, .. } = env;
@@ -215,8 +180,14 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.affected && invocation.command != Command::Watch {
         return affected::execute_affected(invocation, env);
     }
-    match family(invocation.command) {
-        Family::Adoption => {
+    match invocation.command {
+        Command::Init
+        | Command::New
+        | Command::Upgrade
+        | Command::Rollback
+        | Command::Status
+        | Command::Version
+        | Command::Completion => {
             let Env {
                 workspace,
                 out,
@@ -232,97 +203,62 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
                 },
             )
         }
-        Family::Watch => crate::adopt::watch::execute_watch(invocation, env),
-        Family::Umbrella => {
-            if invocation.command == Command::ListTests {
-                test_inventory::execute_tests(invocation, env)
-            } else {
-                umbrella::execute_umbrella(invocation, env)
-            }
+        Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
+        Command::Check | Command::Fix => umbrella::execute_umbrella(invocation, env),
+        Command::ListTests => test_inventory::execute_tests(invocation, env),
+        Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
+            workflow::execute_workflow(invocation, env)
         }
-        Family::Workflow => workflow::execute_workflow(invocation, env),
-        Family::Generate => generate::execute_generate(invocation, env),
-        Family::Clean => clean::execute_clean(invocation, env),
-        Family::Managed => managed::execute_managed(invocation, env),
-        Family::Audit => audit::execute_audit(invocation, env),
-        Family::Update => update::execute_update(invocation, env),
-        Family::Bump => bump::execute_bump(invocation, env),
-        Family::Migrate => migrate::execute_migrate(invocation, env),
-        Family::Docs => docs::execute_docs(invocation, env),
-        Family::Quality => quality::execute_quality(invocation, env),
-        Family::Worktree => worktree::execute_worktree(invocation, env),
+        Command::Generate => generate::execute_generate(invocation, env),
+        Command::Clean => clean::execute_clean(invocation, env),
+        Command::Codegen | Command::Env => managed::execute_managed(invocation, env),
+        Command::Security | Command::License => audit::execute_audit(invocation, env),
+        Command::Update => update::execute_update(invocation, env),
+        Command::Bump => bump::execute_bump(invocation, env),
+        Command::Add => add::execute_add(invocation, env),
+        Command::Migrate => migrate::execute_migrate(invocation, env),
+        Command::Docs => docs::execute_docs(invocation, env),
+        Command::Lint | Command::Typecheck | Command::Format => {
+            quality::execute_quality(invocation, env)
+        }
+        Command::Worktree => worktree::execute_worktree(invocation, env),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::test_support::Harness;
-    use super::{family, hold_slot, lease_refusal_for};
+    use super::delivery_sink::{Fault, Sink};
+    use super::test_support::{invocation, Harness};
+    use super::{hold_slot, lease_refusal_for};
     use crate::args::Command;
+    use std::io::ErrorKind;
     use std::time::Duration;
 
     #[test]
-    fn diff_families_match_the_registry() {
-        use crate::args::command::COMMANDS;
-        use std::collections::BTreeMap;
-        let mut any_supports_diff: BTreeMap<&str, bool> = BTreeMap::new();
-        for meta in COMMANDS {
-            *any_supports_diff
-                .entry(family(meta.command).name())
-                .or_insert(false) |= meta.supports_diff;
-        }
-        for meta in COMMANDS {
-            let name = family(meta.command).name();
-            assert_eq!(
-                family(meta.command).supports_diff(),
-                any_supports_diff[name],
-                "family {name} disagrees with COMMANDS supports_diff"
-            );
+    fn execute_latches_stdout_for_every_command() {
+        for words in [&["clean", "--output=json"][..], &["clean"][..]] {
+            let harness = Harness::new("latch-every-command");
+            let inv = invocation(words);
+            let runner = harness.runner();
+            let mut sink = Sink::new(Fault::FlushFails(ErrorKind::BrokenPipe), 0);
+            let code = harness.run_streams(&inv, &runner, &mut sink, &mut Vec::new());
+            assert_eq!(code, 141, "{words:?}");
+            let mut sink = Sink::new(Fault::None, 0);
+            let code = harness.run_streams(&inv, &runner, &mut sink, &mut Vec::new());
+            assert_eq!(code, 0, "{words:?}");
         }
     }
 
     #[test]
-    fn every_command_has_its_expected_family() {
-        use clap::ValueEnum;
-        let expected = [
-            (Command::Security, "audit"),
-            (Command::License, "audit"),
-            (Command::Lint, "quality"),
-            (Command::Typecheck, "quality"),
-            (Command::Format, "quality"),
-            (Command::Generate, "generate"),
-            (Command::Build, "workflow"),
-            (Command::Test, "workflow"),
-            (Command::Coverage, "workflow"),
-            (Command::Run, "workflow"),
-            (Command::Deploy, "workflow"),
-            (Command::Check, "umbrella"),
-            (Command::Fix, "umbrella"),
-            (Command::ListTests, "umbrella"),
-            (Command::Clean, "clean"),
-            (Command::Update, "update"),
-            (Command::Bump, "bump"),
-            (Command::Migrate, "migrate"),
-            (Command::Codegen, "managed"),
-            (Command::Env, "managed"),
-            (Command::Init, "adoption"),
-            (Command::New, "adoption"),
-            (Command::Upgrade, "adoption"),
-            (Command::Rollback, "adoption"),
-            (Command::Status, "adoption"),
-            (Command::Version, "adoption"),
-            (Command::Completion, "adoption"),
-            (Command::Watch, "watch"),
-            (Command::Docs, "docs"),
-            (Command::Worktree, "worktree"),
-        ];
-        for command in Command::value_variants() {
-            let row = expected.iter().find(|(c, _)| c == command);
-            let (_, name) =
-                row.unwrap_or_else(|| panic!("{} has no expected family", command.name()));
-            assert_eq!(family(*command).name(), *name, "{}", command.name());
-        }
-        assert_eq!(expected.len(), Command::value_variants().len());
+    fn execute_passes_nonzero_codes_through_a_failed_sink() {
+        let harness = Harness::new("latch-nonzero");
+        let mut inv = invocation(&["version"]);
+        inv.here = true;
+        let runner = harness.runner();
+        let mut sink = Sink::new(Fault::FlushFails(ErrorKind::BrokenPipe), 0);
+        let code = harness.run_streams(&inv, &runner, &mut sink, &mut Vec::new());
+        assert_ne!(code, 0);
+        assert_ne!(code, 141);
     }
 
     const QUIET_ROWS: [(Command, &[&str]); 13] = [
@@ -341,12 +277,13 @@ mod tests {
         (Command::Fix, &["fix"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 13] = [
+    const NO_BAZEL_BUILD: [Command; 14] = [
         Command::Security,
         Command::License,
         Command::Clean,
         Command::Update,
         Command::Bump,
+        Command::Add,
         Command::Migrate,
         Command::Upgrade,
         Command::Status,
@@ -408,7 +345,10 @@ mod tests {
                 }
             }
             if command == Command::Run {
-                let argv = &argvs[0];
+                let argv = argvs
+                    .iter()
+                    .find(|argv| argv.iter().any(|arg| arg == "--"))
+                    .expect("app args");
                 let end = argv.iter().position(|arg| arg == "--").expect("app args");
                 assert_eq!(argv[end + 1..], ["--app-flag".to_owned()], "{argv:?}");
             }
@@ -439,6 +379,7 @@ mod tests {
             vec!["license", "--dry-run=false"],
             vec!["update", "--dry-run"],
             vec!["bump", "cargo:anyhow", "1.2.3", "--dry-run"],
+            vec!["add", "cargo:anyhow", "1.2.3", "--dry-run"],
             vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
             vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
         ] {
@@ -475,20 +416,31 @@ mod tests {
     }
 
     fn leased_slot(session: Option<&str>, held: bool) -> tempfile::TempDir {
+        leased_slot_of(session, held, None, false, false)
+    }
+
+    fn leased_slot_of(
+        session: Option<&str>,
+        held: bool,
+        agent: Option<&str>,
+        unclaimed: bool,
+        gone: bool,
+    ) -> tempfile::TempDir {
         let scratch = dx_test_scratch::scratch("dx-exec-lease-");
         let slot = scratch.path().join("pool").join("1");
         std::fs::create_dir_all(&slot).expect("slot");
         std::fs::create_dir_all(scratch.path().join("pool").join(".dx")).expect("meta");
-        let record = crate::worktree::pool::Record {
+        let record = dx_worktree::pool::Record {
             slot: 1,
             held,
             branch: Some("feature/a".to_owned()),
             last_branch: None,
             session: session.map(str::to_owned),
-            agent: None,
+            agent: agent.map(str::to_owned),
             pid: Some(7),
-            gone: false,
-            unclaimed: false,
+            gone,
+            unclaimed,
+            broken: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,
@@ -501,8 +453,8 @@ mod tests {
         scratch
     }
 
-    fn who(session: Option<&str>) -> crate::worktree::Who {
-        crate::worktree::Who {
+    fn who(session: Option<&str>) -> dx_worktree::Who {
+        dx_worktree::Who {
             session: session.map(str::to_owned),
             agent: None,
             pid: 99,
@@ -519,6 +471,46 @@ mod tests {
         assert!(refusal.contains("session s1"), "{refusal}");
         assert!(refusal.contains("dx worktree add"), "{refusal}");
         assert!(lease_refusal_for(Command::Status, &inside, &who(Some("s2"))).is_some());
+    }
+
+    fn agent_who(session: &str, agent: &str) -> dx_worktree::Who {
+        dx_worktree::Who {
+            session: Some(session.to_owned()),
+            agent: Some(agent.to_owned()),
+            pid: 99,
+        }
+    }
+
+    #[test]
+    fn another_agent_of_the_same_session_is_refused() {
+        let scratch = leased_slot_of(Some("s1"), true, Some("a1"), false, false);
+        let slot = scratch.path().join("pool").join("1");
+        let refusal =
+            lease_refusal_for(Command::Build, &slot, &agent_who("s1", "a2")).expect("refused");
+        assert!(refusal.contains("agent a1"), "{refusal}");
+        assert!(refusal.contains("dx worktree add"), "{refusal}");
+        assert!(lease_refusal_for(Command::Status, &slot, &agent_who("s1", "a2")).is_some());
+    }
+
+    #[test]
+    fn the_same_agent_and_agentless_callers_are_not_refused() {
+        let scratch = leased_slot_of(Some("s1"), true, Some("a1"), false, false);
+        let slot = scratch.path().join("pool").join("1");
+        assert!(lease_refusal_for(Command::Build, &slot, &agent_who("s1", "a1")).is_none());
+        assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s1"))).is_none());
+    }
+
+    #[test]
+    fn unclaimed_and_gone_slots_keep_the_session_rule() {
+        for (unclaimed, gone) in [(true, false), (false, true)] {
+            let scratch = leased_slot_of(Some("s1"), true, Some("a1"), unclaimed, gone);
+            let slot = scratch.path().join("pool").join("1");
+            assert!(
+                lease_refusal_for(Command::Build, &slot, &agent_who("s1", "a2")).is_none(),
+                "unclaimed={unclaimed} gone={gone}"
+            );
+            assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s2"))).is_some());
+        }
     }
 
     #[test]
@@ -634,6 +626,20 @@ mod tests {
             assert!(lease_refusal_for(command, &slot, &who(Some("s2"))).is_none());
         }
         assert!(lease_refusal_for(Command::Build, scratch.path(), &who(Some("s2"))).is_none());
+    }
+
+    #[test]
+    fn a_session_set_by_the_guard_owns_its_lease() {
+        let scratch = leased_slot(Some("s1"), true);
+        let slot = scratch.path().join("pool").join("1");
+        let guarded = |session: &'static str| {
+            dx_worktree::Who::from_env(&move |name: &str| {
+                (name == "DX_WORKTREE_SESSION").then(|| session.to_owned())
+            })
+        };
+        assert!(lease_refusal_for(Command::Build, &slot, &guarded("s1")).is_none());
+        assert!(lease_refusal_for(Command::Build, &slot, &guarded("s2")).is_some());
+        assert!(lease_refusal_for(Command::Build, &slot, &who(None)).is_some());
     }
 
     #[test]

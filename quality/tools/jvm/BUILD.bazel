@@ -87,7 +87,6 @@ real_source_target(
         "extension.bzl",
         "metadata_tests.bzl",
         "repos.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

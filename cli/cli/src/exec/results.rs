@@ -119,6 +119,7 @@ fn stage_result(result: &proto::QualityResult) -> Option<Staged> {
 
 pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
+    pub(crate) ran: BTreeSet<(String, String)>,
     pub(crate) analyzed: BTreeSet<(String, String)>,
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
@@ -162,17 +163,17 @@ fn map_diagnostic(diagnostic: &proto::Diagnostic, snapshot: Snapshot) -> Option<
         return None;
     }
     Some(DiagnosticEvent {
-        severity: map_severity(diagnostic.severity)?,
-        tool: diagnostic.tool_id.clone(),
-        message: diagnostic.message.clone(),
         rule: (!diagnostic.rule_id.is_empty()).then(|| diagnostic.rule_id.clone()),
         path,
         range,
         snapshot,
         fixable: diagnostic.fixable,
         related: diagnostic.related.iter().map(map_related).collect(),
-        resolution: None,
-        origins: Vec::new(),
+        ..DiagnosticEvent::new(
+            map_severity(diagnostic.severity)?,
+            diagnostic.tool_id.clone(),
+            diagnostic.message.clone(),
+        )
     })
 }
 
@@ -219,6 +220,7 @@ pub(crate) fn collect_results_in(
 ) -> Result<Collected, (String, String)> {
     let account = collect_output_account(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
+    let mut ran = BTreeSet::new();
     let mut analyzed = BTreeSet::new();
     let mut initial = Vec::new();
     let mut terminal = Vec::new();
@@ -273,6 +275,12 @@ pub(crate) fn collect_results_in(
             origin.configuration.clone_from(&target.configuration);
         }
         tools.extend(staged.tools.iter().cloned());
+        ran.extend(
+            staged
+                .tools
+                .iter()
+                .map(|tool| (tool.clone(), target.label.clone())),
+        );
         analyzed.extend(staged.analyzed.iter().cloned());
         for mut item in staged.unstable {
             item.label = target.label.clone();
@@ -303,6 +311,7 @@ pub(crate) fn collect_results_in(
     analyzed.retain(|(_, path)| reconciled.digests.contains_key(path));
     Ok(Collected {
         tools: tools.into_iter().collect(),
+        ran,
         analyzed,
         initial,
         terminal,

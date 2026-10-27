@@ -76,6 +76,16 @@ fn copy_tree(src: &Path, dst: &Path) {
 }
 
 #[test]
+fn help_exits_zero_on_stdout() {
+    for flag in ["--help", "-h"] {
+        let run = dx_testing::run(&env_bin(), &[flag], &[]).expect("env must execute");
+        assert!(run.status.success(), "{flag} must exit zero");
+        assert!(run.stdout.contains("usage: env"), "{flag}: {}", run.stdout);
+        assert!(!run.stderr.contains("usage"), "{flag}: {}", run.stderr);
+    }
+}
+
+#[test]
 fn env_bootstrap() {
     let bin = env_bin();
     let scratch = dx_testing::mkscratch("env-bootstrap-").expect("scratch");

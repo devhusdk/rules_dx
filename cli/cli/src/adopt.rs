@@ -1,4 +1,5 @@
 pub(crate) mod agents;
+pub(crate) mod claude_md;
 mod completion;
 mod init;
 mod new;
@@ -10,6 +11,7 @@ mod test_support;
 mod upgrade;
 mod version;
 pub(crate) mod watch;
+mod wiring;
 
 use std::io::Write;
 

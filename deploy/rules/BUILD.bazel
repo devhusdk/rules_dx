@@ -70,6 +70,7 @@ exports_files([
     "src/cloudflare.rs",
     "src/lib.rs",
     "src/maven.rs",
+    "src/run.rs",
     "validate.bzl",
     "validate_tests.bzl",
     "verify_test.rs",
@@ -81,6 +82,7 @@ rust_library(
         "src/cloudflare.rs",
         "src/lib.rs",
         "src/maven.rs",
+        "src/run.rs",
     ],
     aliases = aliases(
         package_name = "deploy/dx_deploy_tools",
@@ -1151,7 +1153,6 @@ real_source_target(
         "pypi_tests.bzl",
         "resources.bzl",
         "resources_tests.bzl",
-        "v1_promises.bzl",
         "validate.bzl",
         "validate_tests.bzl",
     ],
@@ -1179,4 +1180,10 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

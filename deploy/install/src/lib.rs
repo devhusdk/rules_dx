@@ -26,6 +26,7 @@ pub struct VerifyArgs {
     pub sbom_bundle: String,
     pub notice: String,
     pub notice_manifest: String,
+    pub notice_bundle: String,
     pub install_dir: String,
 }
 
@@ -41,7 +42,7 @@ impl std::fmt::Display for ArgsError {
 impl std::error::Error for ArgsError {}
 
 fn help_text() -> String {
-    "usage: dx_verify --binary PATH --bundle PATH --identity ID --issuer ISSUER [--attestation PATH] [--owner OWNER] [--sbom PATH --sbom-bundle PATH] [--notice PATH --notice-manifest PATH] [--install-dir DIR]".to_owned()
+    "usage: dx_verify --binary PATH --bundle PATH --identity ID --issuer ISSUER [--attestation PATH] [--owner OWNER] [--sbom PATH --sbom-bundle PATH] [--notice PATH --notice-manifest PATH --notice-bundle PATH] [--install-dir DIR]".to_owned()
 }
 
 pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
@@ -87,6 +88,10 @@ pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
             }
             "--notice-manifest" => {
                 args.notice_manifest = argv.get(i + 1).cloned().unwrap_or_default();
+                i += 2;
+            }
+            "--notice-bundle" => {
+                args.notice_bundle = argv.get(i + 1).cloned().unwrap_or_default();
                 i += 2;
             }
             "--install-dir" => {
@@ -149,6 +154,17 @@ pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
     if args.notice.is_empty() && !args.notice_manifest.is_empty() {
         return Err(ArgsError(
             "dx_verify: --notice-manifest needs --notice".to_owned(),
+        ));
+    }
+    if !args.notice.is_empty() && args.notice_bundle.is_empty() {
+        return Err(ArgsError(
+            "dx_verify: --notice needs --notice-bundle (NOTICE verifies through the same cosign path)"
+                .to_owned(),
+        ));
+    }
+    if args.notice.is_empty() && !args.notice_bundle.is_empty() {
+        return Err(ArgsError(
+            "dx_verify: --notice-bundle needs --notice".to_owned(),
         ));
     }
     Ok(args)
@@ -228,48 +244,40 @@ pub trait Verifier {
 
 pub struct SystemVerifier;
 
+fn spawn_success(argv: &[String]) -> bool {
+    let Some((binary, args)) = argv.split_first() else {
+        return false;
+    };
+    std::process::Command::new(binary)
+        .args(args)
+        .output()
+        .is_ok_and(|out| out.status.success())
+}
+
+/// True when `bin` names a file inside one of the `path` directories, trying
+/// each of `suffixes` after the bare name.
+fn on_path(bin: &str, path: &std::ffi::OsStr, suffixes: &[&str]) -> bool {
+    std::env::split_paths(path).any(|dir| {
+        dir.join(bin).is_file()
+            || suffixes
+                .iter()
+                .any(|suffix| dir.join(format!("{bin}{suffix}")).is_file())
+    })
+}
+
+fn exe_available(bin: &str) -> bool {
+    let suffixes: &[&str] = if cfg!(windows) {
+        dx_path::host::EXECUTABLE_SUFFIXES
+    } else {
+        &[]
+    };
+    spawn_success(&[bin.to_owned(), "--help".to_owned()])
+        || Path::new(bin).is_file()
+        || std::env::var_os("PATH").is_some_and(|paths| on_path(bin, &paths, suffixes))
+}
+
 fn atomic_install_copy(src: &Path, dst: &Path) -> io::Result<()> {
-    if let Some(parent) = dst.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
-    }
-    let base = dst
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("dx");
-    let staged = dst.with_file_name(format!(".{base}.tmp.{}", std::process::id()));
-    let stage = (|| -> io::Result<()> {
-        std::fs::copy(src, &staged)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
-        }
-        let want = dx_digest::sha256_file_hex(src)?;
-        let got = dx_digest::sha256_file_hex(&staged)?;
-        if want != got {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "byte mismatch for {} (expected sha256 {want}, got {got})",
-                    src.display(),
-                ),
-            ));
-        }
-        Ok(())
-    })();
-    if let Err(error) = stage {
-        let _ = std::fs::remove_file(&staged);
-        return Err(error);
-    }
-    match std::fs::rename(&staged, dst) {
-        Ok(()) => Ok(()),
-        Err(error) => {
-            let _ = std::fs::remove_file(&staged);
-            Err(error)
-        }
-    }
+    dx_atomic_fs::copy_atomic_executable(src, dst)
 }
 
 impl Verifier for SystemVerifier {
@@ -289,7 +297,7 @@ impl Verifier for SystemVerifier {
         issuer: &str,
         subject: &Path,
     ) -> bool {
-        dx_process::spawn_success(&cosign_argv(cosign, bundle, identity, issuer, subject))
+        spawn_success(&cosign_argv(cosign, bundle, identity, issuer, subject))
     }
 
     fn gh_verify(
@@ -301,7 +309,7 @@ impl Verifier for SystemVerifier {
         issuer: &str,
         owner: &str,
     ) -> bool {
-        dx_process::spawn_success(&gh_argv(gh, subject, attestation, identity, issuer, owner))
+        spawn_success(&gh_argv(gh, subject, attestation, identity, issuer, owner))
     }
 
     fn cosign_bin(&self) -> String {
@@ -313,7 +321,7 @@ impl Verifier for SystemVerifier {
     }
 
     fn have(&self, bin: &str) -> bool {
-        dx_process::exe_available(bin)
+        exe_available(bin)
     }
 
     fn sha256_file(&self, path: &Path) -> io::Result<String> {
@@ -332,29 +340,8 @@ impl Verifier for SystemVerifier {
 fn verify_notice(notice_text: &str, manifest_text: &str) -> Result<usize, String> {
     let entries = dx_release_tools::parse_notice_manifest(manifest_text)
         .map_err(|error| format!("dx_verify: {error}"))?;
-    if entries.is_empty() {
-        return Err(
-            "dx_verify: notice manifest lists no packages; refusing empty NOTICE".to_owned(),
-        );
-    }
-    if !notice_text.starts_with("NOTICE for ") {
-        return Err("dx_verify: NOTICE missing 'NOTICE for <root>' header".to_owned());
-    }
-    for entry in &entries {
-        if entry.text_basename.is_empty() {
-            return Err(format!(
-                "dx_verify: missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling",
-                entry.package, entry.version, entry.license
-            ));
-        }
-        let header = dx_release_tools::notice_entry_header(entry);
-        if !notice_text.contains(&header) {
-            return Err(format!(
-                "dx_verify: NOTICE missing entry '{header}' (fail closed before install)"
-            ));
-        }
-    }
-    Ok(entries.len())
+    dx_release_tools::verify_notice_text(notice_text, &entries)
+        .map_err(|error| format!("dx_verify: {error}"))
 }
 
 pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, String> {
@@ -392,6 +379,12 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
         return Err(format!(
             "dx_verify: notice manifest not found: {}",
             args.notice_manifest
+        ));
+    }
+    if !args.notice_bundle.is_empty() && !verifier.is_file(Path::new(&args.notice_bundle)) {
+        return Err(format!(
+            "dx_verify: notice bundle not found: {}",
+            args.notice_bundle
         ));
     }
     if !verifier.is_nonempty_file(&bundle) {
@@ -477,6 +470,29 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
     }
     if !args.notice.is_empty() {
         let notice_path = PathBuf::from(&args.notice);
+        let notice_bundle = PathBuf::from(&args.notice_bundle);
+        if !verifier.have(&cosign) {
+            return Err(format!(
+                "dx_verify: NOTICE verification needs {cosign} (unavailable)"
+            ));
+        }
+        out.push_str(&format!(
+            "dx_verify: verifying NOTICE {} via {cosign} verify-blob\n",
+            notice_path.display()
+        ));
+        if verifier.cosign_verify(
+            &cosign,
+            &notice_bundle,
+            &args.identity,
+            &args.issuer,
+            &notice_path,
+        ) {
+            out.push_str("dx_verify: NOTICE publisher-identity OK\n");
+        } else {
+            return Err(
+                "dx_verify: NOTICE verification failed (fail closed before install)".to_owned(),
+            );
+        }
         let manifest_path = PathBuf::from(&args.notice_manifest);
         let notice_text = verifier
             .read_text(&notice_path)
@@ -528,6 +544,42 @@ pub fn verify(args: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, Stri
 mod tests {
     use super::*;
     use std::collections::HashMap;
+
+    fn self_exe() -> String {
+        std::env::current_exe()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    #[test]
+    fn spawn_success_reports_exit_status() {
+        assert!(!spawn_success(&[]));
+        assert!(!spawn_success(&["/nonexistent-dx-tool".to_owned()]));
+        assert!(spawn_success(&[self_exe(), "--list".to_owned()]));
+    }
+
+    #[test]
+    fn exe_available_covers_help_and_file() {
+        assert!(!exe_available(""));
+        assert!(!exe_available("/nonexistent-dx-tool-xyz"));
+        assert!(exe_available(&self_exe()));
+    }
+
+    #[test]
+    fn on_path_finds_files_suffixes_and_ignores_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().as_os_str();
+        assert!(!on_path("tool", path, &[]));
+        std::fs::create_dir(dir.path().join("tool")).unwrap();
+        assert!(!on_path("tool", path, &[]));
+        std::fs::write(dir.path().join("plain"), b"x").unwrap();
+        assert!(on_path("plain", path, &[]));
+        std::fs::write(dir.path().join("tool.cmd"), b"x").unwrap();
+        assert!(!on_path("tool", path, &[]));
+        assert!(on_path("tool", path, &[".cmd"]));
+        assert!(!on_path("plain", std::ffi::OsStr::new(""), &[]));
+    }
 
     struct FakeVerifier {
         files: HashMap<PathBuf, Vec<u8>>,
@@ -857,19 +909,41 @@ mod tests {
         assert!(out.contains("sha256"));
     }
 
+    const NOTICE_WORDS_A: &str = "Fixture words for demo-lib-a.\n";
+    const NOTICE_WORDS_B: &str = "Fixture words for demo-lib-b.\n";
+
+    fn notice_manifest_text() -> String {
+        format!(
+            "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\ndemo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt|{}\n",
+            dx_release_tools::notice_text_sha256(NOTICE_WORDS_A),
+            dx_release_tools::notice_text_sha256(NOTICE_WORDS_B)
+        )
+    }
+
+    fn notice_text() -> String {
+        format!(
+            "NOTICE for //demo:root\nGenerated by rules_dx notice_bundle from the audited license inventory; do not edit.\n\n=== demo-lib-a 1.0.0 (MIT) ===\n{NOTICE_WORDS_A}=== demo-lib-b 2.3.4 (Apache-2.0) ===\n{NOTICE_WORDS_B}"
+        )
+    }
+
+    /// Writes the NOTICE bytes plus a bundle the fake cosign accepts for them.
+    fn write_signed_notice(fake: &mut FakeVerifier, bytes: &[u8]) {
+        fake.write("/tmp/NOTICE", bytes);
+        let digest = dx_digest::sha256_hex(bytes);
+        fake.write(
+            "/tmp/NOTICE.bundle",
+            format!("bundle-for-{digest}").as_bytes(),
+        );
+    }
+
     fn notice_fake() -> (VerifyArgs, FakeVerifier) {
         let mut args = valid_args();
         args.notice = "/tmp/NOTICE".to_owned();
         args.notice_manifest = "/tmp/inventory.txt".to_owned();
+        args.notice_bundle = "/tmp/NOTICE.bundle".to_owned();
         let mut fake = valid_fake();
-        fake.write(
-            "/tmp/inventory.txt",
-            b"demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\ndemo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt\n",
-        );
-        fake.write(
-            "/tmp/NOTICE",
-            b"NOTICE for //demo:root\nGenerated by rules_dx notice_bundle from the audited license inventory; do not edit.\n\n=== demo-lib-a 1.0.0 (MIT) ===\nFixture words for demo-lib-a.\n=== demo-lib-b 2.3.4 (Apache-2.0) ===\nFixture words for demo-lib-b.\n",
-        );
+        fake.write("/tmp/inventory.txt", notice_manifest_text().as_bytes());
+        write_signed_notice(&mut fake, notice_text().as_bytes());
         (args, fake)
     }
 
@@ -877,17 +951,107 @@ mod tests {
     fn binds_notice_to_manifest() {
         let (args, fake) = notice_fake();
         let out = verify(&args, &fake).expect("notice valid");
+        assert!(out.contains("NOTICE publisher-identity OK"));
         assert!(out.contains("NOTICE OK (2 entries bundled)"));
+    }
+
+    fn notice_err(edit: impl FnOnce(&mut FakeVerifier)) -> String {
+        let (args, mut fake) = notice_fake();
+        edit(&mut fake);
+        verify(&args, &fake).expect_err("notice must fail closed")
+    }
+
+    #[test]
+    fn notice_headers_without_words_fail() {
+        let err = notice_err(|fake| {
+            write_signed_notice(
+                fake,
+                b"NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) ===\n=== demo-lib-b 2.3.4 (Apache-2.0) ===\n",
+            );
+        });
+        assert!(err.contains("entry body is empty"), "got {err}");
+    }
+
+    #[test]
+    fn notice_body_digest_mismatch_fails() {
+        let err = notice_err(|fake| {
+            let edited = notice_text().replace(
+                "Fixture words for demo-lib-a",
+                "Fixture word for demo-lib-a",
+            );
+            write_signed_notice(fake, edited.as_bytes());
+        });
+        assert!(
+            err.contains("NOTICE missing words for demo-lib-a@1.0.0 (MIT)"),
+            "got {err}"
+        );
+        assert!(err.contains("manifest records"), "got {err}");
+    }
+
+    #[test]
+    fn notice_extra_section_fails() {
+        let err = notice_err(|fake| {
+            let extra = format!("{}=== other 1.0.0 (MIT) ===\nSneaky.\n", notice_text());
+            write_signed_notice(fake, extra.as_bytes());
+        });
+        assert!(err.contains("NOTICE missing words"), "got {err}");
+        let err = notice_err(|fake| {
+            let edited = notice_text().replacen("do not edit.", "do not edit. More.", 1);
+            write_signed_notice(fake, edited.as_bytes());
+        });
+        assert!(err.contains("outside the audited entries"), "got {err}");
+    }
+
+    #[test]
+    fn notice_without_valid_bundle_fails() {
+        let mut argv = base_argv();
+        argv.extend(["--notice", "/n", "--notice-manifest", "/nm"].map(str::to_owned));
+        let err = parse_args(&argv).expect_err("no bundle flag");
+        assert!(
+            err.to_string().contains("--notice needs --notice-bundle"),
+            "got {err}"
+        );
+        let mut argv = base_argv();
+        argv.extend(["--notice-bundle", "/nb"].map(str::to_owned));
+        let err = parse_args(&argv).expect_err("unpaired bundle");
+        assert!(
+            err.to_string().contains("--notice-bundle needs --notice"),
+            "got {err}"
+        );
+
+        let err = notice_err(|fake| fake.write("/tmp/NOTICE.bundle", b"bundle-for-wrong"));
+        assert!(err.contains("NOTICE verification failed"), "got {err}");
+        let (mut args, mut fake) = notice_fake();
+        args.attestation = "/tmp/dx-fake.attestation".to_owned();
+        args.owner = "owner".to_owned();
+        fake.write("/tmp/dx-fake.attestation", b"attestation-bytes");
+        fake.have_cosign = false;
+        fake.gh_ok = true;
+        let err = verify(&args, &fake).expect_err("no cosign for NOTICE");
+        assert!(err.contains("needs cosign"), "got {err}");
+        let err = notice_err(|fake| {
+            fake.files.remove(Path::new("/tmp/NOTICE.bundle"));
+        });
+        assert!(err.contains("notice bundle not found"), "got {err}");
+
+        // Fails before the NOTICE is read and before anything is installed:
+        // an unreadable NOTICE with a bad bundle reports the signature failure.
+        let (mut args, mut fake) = notice_fake();
+        args.install_dir = "/tmp/install".to_owned();
+        fake.write("/tmp/NOTICE", &[0xff]);
+        let err = verify(&args, &fake).expect_err("bad signature");
+        assert!(err.contains("NOTICE verification failed"), "got {err}");
+        assert!(!fake.files.contains_key(Path::new("/tmp/install/dx-fake")));
     }
 
     #[test]
     fn notice_missing_text_fails_actionable() {
         let (args, mut fake) = notice_fake();
-        fake.write("/tmp/inventory.txt", b"demo-lib-a|cargo|1.0.0|MIT|\n");
+        fake.write("/tmp/inventory.txt", b"demo-lib-a|cargo|1.0.0|MIT||\n");
         let err = verify(&args, &fake).expect_err("missing text");
         assert!(err.contains("missing-notice-text"), "got {err}");
         let (args, mut fake) = notice_fake();
-        fake.write("/tmp/NOTICE", b"tampered notice\n");
+        write_signed_notice(&mut fake, b"tampered notice\n");
         let err = verify(&args, &fake).expect_err("tampered notice");
         assert!(err.contains("NOTICE"), "got {err}");
     }
@@ -919,6 +1083,7 @@ mod tests {
             ("--sbom-bundle", "/sb"),
             ("--notice", "/n"),
             ("--notice-manifest", "/nm"),
+            ("--notice-bundle", "/nb"),
             ("--install-dir", "/d"),
         ] {
             argv.push(flag.to_owned());
@@ -929,6 +1094,7 @@ mod tests {
         assert_eq!(args.owner, "owner");
         assert_eq!(args.sbom_bundle, "/sb");
         assert_eq!(args.notice_manifest, "/nm");
+        assert_eq!(args.notice_bundle, "/nb");
         assert_eq!(args.install_dir, "/d");
         let help = parse_args(&["dx_verify".to_owned(), "--help".to_owned()]).expect_err("help");
         assert!(help.to_string().contains("usage: dx_verify --binary PATH"));
@@ -944,6 +1110,7 @@ mod tests {
         for (flag, want) in [
             ("--sbom-bundle", "--sbom-bundle needs --sbom"),
             ("--notice-manifest", "--notice-manifest needs --notice"),
+            ("--notice-bundle", "--notice-bundle needs --notice"),
         ] {
             let mut unpaired = base_argv();
             unpaired.push(flag.to_owned());
@@ -986,6 +1153,14 @@ mod tests {
         let mut fake = valid_fake();
         fake.write("/tmp/NOTICE", b"NOTICE for //demo:root\n");
         check(args, fake, "notice manifest not found");
+        let mut args = valid_args();
+        args.notice = "/tmp/NOTICE".to_owned();
+        args.notice_manifest = "/tmp/inventory.txt".to_owned();
+        args.notice_bundle = "/tmp/NOTICE.bundle".to_owned();
+        let mut fake = valid_fake();
+        fake.write("/tmp/NOTICE", b"NOTICE for //demo:root\n");
+        fake.write("/tmp/inventory.txt", b"# empty\n");
+        check(args, fake, "notice bundle not found");
         let mut fake = valid_fake();
         fake.write("/tmp/dx-fake.bundle", b"");
         check(valid_args(), fake, "bundle is empty");
@@ -1047,7 +1222,10 @@ mod tests {
 
     #[test]
     fn notice_manifest_failures_are_actionable() {
-        let manifest = "# audited inventory\n\ndemo-lib-a|cargo|1.0.0|MIT|demo.txt\n";
+        let words = "Fixture words for demo-lib-a.\n";
+        let digest = dx_release_tools::notice_text_sha256(words);
+        let manifest =
+            &format!("# audited inventory\n\ndemo-lib-a|cargo|1.0.0|MIT|demo.txt|{digest}\n");
         let notice = dx_release_tools::render_notice(
             "//demo:root",
             &[(
@@ -1057,8 +1235,9 @@ mod tests {
                     version: "1.0.0".to_owned(),
                     license: "MIT".to_owned(),
                     text_basename: "demo.txt".to_owned(),
+                    text_sha256: digest.clone(),
                 },
-                "Fixture words for demo-lib-a.\n".to_owned(),
+                words.to_owned(),
             )],
         );
         assert_eq!(
@@ -1066,13 +1245,18 @@ mod tests {
             1
         );
         let err = verify_notice(&notice, "demo-lib-a|cargo|1.0.0\n").expect_err("field count");
-        assert!(err.contains("want 5 '|' fields"), "got {err}");
-        let err = verify_notice(&notice, " |cargo|1.0.0|MIT|demo.txt\n").expect_err("no package");
+        assert!(err.contains("want 6 '|' fields"), "got {err}");
+        let err = verify_notice(&notice, &format!(" |cargo|1.0.0|MIT|demo.txt|{digest}\n"))
+            .expect_err("no package");
         assert!(err.contains("must be non-empty"), "got {err}");
-        let err = verify_notice(&notice, "demo-lib-a||1.0.0|MIT|demo.txt\n").expect_err("no set");
+        let err = verify_notice(
+            &notice,
+            &format!("demo-lib-a||1.0.0|MIT|demo.txt|{digest}\n"),
+        )
+        .expect_err("no set");
         assert!(err.contains("must be non-empty"), "got {err}");
         let err =
-            verify_notice(&notice, "demo-lib-a|cargo|1.0.0|MIT|\n").expect_err("no text file");
+            verify_notice(&notice, "demo-lib-a|cargo|1.0.0|MIT||\n").expect_err("no text file");
         assert!(err.contains("missing-notice-text"), "got {err}");
         let err = verify_notice("NOTICE for //demo:root\n", "# no packages\n")
             .expect_err("empty manifest");
@@ -1084,7 +1268,7 @@ mod tests {
     #[test]
     fn notice_inputs_fail_closed_when_unreadable() {
         let (args, mut fake) = notice_fake();
-        fake.write("/tmp/NOTICE", b"   \n");
+        write_signed_notice(&mut fake, b"   \n");
         let err = verify(&args, &fake).expect_err("empty notice");
         assert!(err.contains("notice is empty"), "got {err}");
         let (args, mut fake) = notice_fake();
@@ -1092,7 +1276,7 @@ mod tests {
         let err = verify(&args, &fake).expect_err("manifest not utf-8");
         assert!(err.contains("notice manifest not readable"), "got {err}");
         let (args, mut fake) = notice_fake();
-        fake.write("/tmp/NOTICE", &[0xff]);
+        write_signed_notice(&mut fake, &[0xff]);
         let err = verify(&args, &fake).expect_err("notice not utf-8");
         assert!(err.contains("notice not readable"), "got {err}");
     }
@@ -1442,12 +1626,44 @@ mod tests {
             b"keep"
         );
         assert!(dir_dst.is_dir());
-        let leftovers: Vec<_> = std::fs::read_dir(&special_dir)
+        let mut names: Vec<_> = std::fs::read_dir(&special_dir)
             .expect("list")
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp."))
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
             .collect();
-        assert!(leftovers.is_empty(), "staged temp files must be cleaned up");
+        names.sort();
+        assert_eq!(
+            names,
+            [
+                "a-directory",
+                "dx binary β",
+                "installed dx γ",
+                "prior binary"
+            ]
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn install_copy_reinstalls_a_read_only_source() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = tempfile::tempdir().expect("scratch");
+        let verifier = SystemVerifier;
+        let src = scratch.path().join("dx-src");
+        std::fs::write(&src, b"bytes").expect("src");
+        std::fs::set_permissions(&src, std::fs::Permissions::from_mode(0o444)).expect("chmod");
+        let dst = scratch.path().join("bin").join("dx");
+        for _ in 0..2 {
+            verifier.install_copy(&src, &dst).expect("install");
+            let mode = std::fs::metadata(&dst).expect("meta").permissions().mode();
+            assert_eq!(mode & 0o777, 0o755);
+        }
+        assert_eq!(std::fs::read(&dst).expect("read"), b"bytes");
     }
 
     #[test]

@@ -7,8 +7,8 @@ use std::process::{Command, Output, Stdio};
 
 use crate::{
     bcr_candidate_error, bcr_candidate_version_error, bcr_integrity_of_digest, bcr_source_url,
-    bcr_strip_prefix, render_bcr_source_for_digest, render_pretty, GitState, BCR_WANT_MODULE,
-    RELEASE_REMOTE, RELEASE_REPOSITORY,
+    bcr_strip_prefix, render_bcr_source_for_digest, render_pretty, write_bcr_source_for_archive,
+    GitState, BCR_WANT_MODULE, RELEASE_REMOTE, RELEASE_REPOSITORY,
 };
 
 /// One release candidate: a SemVer version at one full commit.
@@ -414,6 +414,98 @@ pub fn source_archive_error(
         Some(name) => Err(format!("candidate: archive drops member {name}")),
         None => Ok(()),
     }
+}
+
+/// Returns the release source archive file name of a candidate.
+pub fn release_source_name(candidate: &Candidate) -> String {
+    format!("{BCR_WANT_MODULE}-{}.tar.gz", candidate.version())
+}
+
+fn conflicting_output_error(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    match std::fs::read(path) {
+        Ok(existing) if existing == bytes => Ok(()),
+        Ok(_) => Err(format!(
+            "candidate: {} already exists with different bytes (release assets are immutable)",
+            path.display()
+        )),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!(
+            "candidate: cannot read {}: {error}",
+            path.display()
+        )),
+    }
+}
+
+/// Builds, verifies and describes the release source archive in `out_dir`.
+///
+/// Writes `rules_dx-<version>.tar.gz`, its `.sha256` sidecar and `source.json`.
+/// Refuses an `out_dir` that already holds different bytes under those names.
+pub fn write_release_source(
+    repo: &Path,
+    candidate: &Candidate,
+    out_dir: &Path,
+) -> Result<SourceArchive, String> {
+    if !out_dir.is_absolute() {
+        return Err(format!(
+            "candidate: output directory {} must be absolute",
+            out_dir.display()
+        ));
+    }
+    std::fs::create_dir_all(out_dir)
+        .map_err(|error| format!("candidate: cannot create {}: {error}", out_dir.display()))?;
+    let name = release_source_name(candidate);
+    let staged = out_dir.join(format!(".{name}.staging"));
+    let staged_json = out_dir.join(".source.json.staging");
+    let result = stage_release_source(repo, candidate, &name, &staged, &staged_json);
+    let _ = std::fs::remove_file(&staged);
+    let _ = std::fs::remove_file(&staged_json);
+    let (built, outputs) = result?;
+    for (file, bytes) in &outputs {
+        conflicting_output_error(&out_dir.join(file), bytes)?;
+    }
+    for (file, bytes) in &outputs {
+        std::fs::write(out_dir.join(file), bytes)
+            .map_err(|error| format!("candidate: cannot write {file}: {error}"))?;
+    }
+    Ok(built)
+}
+
+type StagedOutputs = (SourceArchive, Vec<(String, Vec<u8>)>);
+
+fn stage_release_source(
+    repo: &Path,
+    candidate: &Candidate,
+    name: &str,
+    staged: &Path,
+    staged_json: &Path,
+) -> Result<StagedOutputs, String> {
+    let built = build_source_archive(repo, candidate, staged)?;
+    source_archive_error(staged, repo, candidate)?;
+    let integrity =
+        write_bcr_source_for_archive(staged_json, BCR_WANT_MODULE, candidate.version(), staged)
+            .map_err(|error| format!("candidate: cannot write source.json: {error}"))?;
+    if integrity != built.integrity {
+        return Err("candidate: source.json integrity differs from the archive".to_owned());
+    }
+    let json = std::fs::read(staged_json)
+        .map_err(|error| format!("candidate: cannot read source.json: {error}"))?;
+    let json_text = String::from_utf8(json.clone())
+        .map_err(|error| format!("candidate: source.json is not UTF-8: {error}"))?;
+    bcr_candidate_error(
+        &json_text,
+        BCR_WANT_MODULE,
+        candidate.version(),
+        &built.digest,
+    )?;
+    let archive = std::fs::read(staged)
+        .map_err(|error| format!("candidate: cannot read {}: {error}", staged.display()))?;
+    let sidecar = format!("{}  {name}\n", built.digest).into_bytes();
+    let outputs = vec![
+        (name.to_owned(), archive),
+        (format!("{name}.sha256"), sidecar),
+        ("source.json".to_owned(), json),
+    ];
+    Ok((built, outputs))
 }
 
 fn call_end(text: &str, open: usize) -> Option<usize> {

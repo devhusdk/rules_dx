@@ -1,5 +1,6 @@
 """Behavioral fixtures for the workflow and evidence input validators and both aggregates."""
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -20,11 +21,14 @@ CI_AGGREGATE_HEREDOC = "python3 - <<'DX_AGGREGATE'"
 CI_AGGREGATE_MARKER = "DX_AGGREGATE"
 EVIDENCE_HEREDOC = "python3 - <<'DX_EVIDENCE_INPUTS'"
 EVIDENCE_MARKER = "DX_EVIDENCE_INPUTS"
+# Workflows whose run: blocks must read inputs through env, never through ${{ }}.
+EXPRESSION_FREE_WORKFLOWS = (
+    EVIDENCE_WORKFLOW,
+    ".github/workflows/apple.yml",
+)
 INPUTS = (
     "DX_PLATFORMS",
     "DX_DISABLED_CHECKS",
-    "DX_SCHEDULING_MODE",
-    "DX_CODE_SCANNING_OPT_IN",
     "DX_MIN_COVERAGE",
     "DX_MIN_CHANGED_LINE_COVERAGE",
     "DX_INVOCATION_ID",
@@ -51,6 +55,8 @@ GATE_JOBS = (
 CONSUMER_JOBS = ("validate", "advisory-snapshots", *CHECKS)
 RESULTS = ("success", "failure", "skipped", "cancelled")
 PLAIN_OUTPUTS = (
+    "artifact_suffix",
+    "cache_saver",
     "disabled",
     "min_changed_line_coverage",
     "min_coverage",
@@ -147,9 +153,11 @@ def test_every_fixture_states_one_expected_outcome():
             "platforms",
             "runners",
             "disabled",
+            "cache_saver",
             "min_coverage",
             "min_changed_line_coverage",
             "snapshot_artifact",
+            "artifact_suffix",
         }, f"{case} expects an unknown output {sorted(outputs)}"
         assert (status == 0) == bool(outputs), (
             f"{case} pairs status {status} with {outputs}"
@@ -323,8 +331,8 @@ def test_the_result_truth_table_covers_every_aggregate_state(tmp_path):
             )
 
 
-def run_evidence(tmp_path, scope):
-    """Runs the evidence input validator on one scope and returns status, text and outputs."""
+def run_evidence(tmp_path, scope, platforms='["linux_x86_64"]', test_timeout="600"):
+    """Runs the evidence input validator on one input set and returns status, text and outputs."""
     outputs = tmp_path / "evidence.outputs"
     done = run_script(
         tmp_path,
@@ -333,8 +341,9 @@ def run_evidence(tmp_path, scope):
         {
             "DX_SCOPE": scope,
             "DX_TASK": "test",
-            "DX_PLATFORMS": '["linux_x86_64"]',
+            "DX_PLATFORMS": platforms,
             "DX_DISPLAYS": "",
+            "DX_TEST_TIMEOUT": test_timeout,
             "GITHUB_OUTPUT": str(outputs),
         },
     )
@@ -363,6 +372,7 @@ def test_evidence_accepts_whitespace_separated_patterns(tmp_path):
             "task",
             "platforms",
             "runners",
+            "test_timeout",
         ], f"{scope!r} wrote extra keys: {lines}"
         (tmp_path / "evidence.outputs").unlink()
 
@@ -374,6 +384,13 @@ def test_evidence_rejects_bad_scopes(tmp_path):
         (" \t\n", "at least one target pattern"),
         ("//a/... b/...", "'b/...'"),
         ("cli/...", "'cli/...'"),
+        ("//$(id)", "'//$(id)'"),
+        ("//a`id`", "'//a`id`'"),
+        ("//a;id", "'//a;id'"),
+        ("//a|b", "'//a|b'"),
+        ('//"a"', "'//\"a\"'"),
+        ("-//a", "'-//a'"),
+        ("//a/... //$(id)", "'//$(id)'"),
     )
     for scope, says in cases:
         status, output, written = run_evidence(tmp_path, scope)
@@ -389,3 +406,98 @@ def test_evidence_passes_each_pattern_as_its_own_argument():
     assert 'read -ra patterns <<< "$DX_SCOPE"' in text
     assert '"${patterns[@]}"' in text
     assert '"$DX_SCOPE" 2>&1' not in text
+
+
+def assert_rejected(case, status, output, written, says):
+    """Asserts one rejected evidence input exited cleanly without writing outputs."""
+    assert status == 1, f"{case!r} exited {status}: {output}"
+    assert "evidence input rejected" in output, f"{case!r}: {output}"
+    assert "Traceback" not in output, f"{case!r} raised: {output}"
+    assert says in output, f"{case!r} does not say {says!r}: {output}"
+    assert written is None, f"{case!r} wrote outputs: {written!r}"
+
+
+def test_evidence_rejects_bad_platforms(tmp_path):
+    """Bad platform lists exit 1 with a message instead of a traceback, writing nothing."""
+    cases = (
+        ('["linux_x86_64","linux_x86_64"]', "twice"),
+        ("[1]", "JSON number"),
+        ('[["linux_x86_64"]]', "JSON array"),
+        ("{}", "JSON object"),
+        ('"x"', "JSON string"),
+        ("[]", "non-empty"),
+        ('["plan9_x86_64"]', "unknown platforms"),
+        ("[linux", "must be a JSON array"),
+    )
+    for platforms, says in cases:
+        status, output, written = run_evidence(tmp_path, "//a/...", platforms=platforms)
+        assert_rejected(platforms, status, output, written, says)
+
+
+def test_evidence_rejects_bad_test_timeout(tmp_path):
+    """A test_timeout that is not whole seconds exits 1 and writes nothing."""
+    for test_timeout in ("", "1.5", "10s", "$(id)"):
+        status, output, written = run_evidence(
+            tmp_path, "//a/...", test_timeout=test_timeout
+        )
+        assert_rejected(test_timeout, status, output, written, "whole seconds")
+
+
+def validator_platforms():
+    """Returns the PLATFORMS table input_validation.py declares, without running its main."""
+    spec = importlib.util.spec_from_file_location("input_validation", ROOT / VALIDATOR)
+    assert spec is not None and spec.loader is not None, f"{VALIDATOR} does not load"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.PLATFORMS
+
+
+def test_evidence_runners_match_the_validator_platforms(tmp_path):
+    """evidence.yml keeps its own platform table; it must map every platform like the validator."""
+    status, output, written = run_evidence(tmp_path, "//a/...")
+    assert status == 0, f"evidence exited {status}: {output}"
+    assert written is not None, "evidence wrote no outputs"
+    runners = [line for line in written.splitlines() if line.startswith("runners=")]
+    assert len(runners) == 1, (
+        f"evidence wrote {len(runners)} runners lines: {written!r}"
+    )
+    expected = validator_platforms()
+    assert expected, f"{VALIDATOR} declares an empty PLATFORMS table"
+    assert json.loads(runners[0].partition("=")[2]) == expected, (
+        f"{EVIDENCE_WORKFLOW} PLATFORMS drifted from {VALIDATOR}"
+    )
+
+
+def run_blocks(text):
+    """Yields (line number, line) for every line inside a run: block of a workflow."""
+    lines = text.splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        stripped = line.lstrip(" ")
+        key = stripped[2:] if stripped.startswith("- ") else stripped
+        if key.startswith("run:"):
+            indent = len(line) - len(stripped)
+            yield index + 1, line
+            index += 1
+            while index < len(lines):
+                inner = lines[index]
+                if inner.strip() and len(inner) - len(inner.lstrip(" ")) <= indent:
+                    break
+                yield index + 1, inner
+                index += 1
+            continue
+        index += 1
+
+
+def test_run_blocks_interpolate_no_expressions():
+    """Shell steps read workflow values through env, so no ${{ }} reaches a run: block."""
+    found = []
+    for workflow in EXPRESSION_FREE_WORKFLOWS:
+        text = (ROOT / workflow).read_text(encoding="utf-8")
+        found += [
+            f"{workflow}:{number}: {line.strip()}"
+            for number, line in run_blocks(text)
+            if "${{" in line
+        ]
+    assert not found, "move these expressions into the step env:\n" + "\n".join(found)

@@ -1,10 +1,3 @@
-# Consumer caller template: pins the qualified reusable workflow at a reviewed commit.
-# Copy to .github/workflows/ci.yml in the consumer repo; do not copy per-check logic.
-# Reviewed pin bumps only; customizations (disabled_checks, platforms) preserved across bumps.
-# Required repository settings (see the GitHub CI docs, not configured here):
-# - approval policy: all_external_contributors for fork runs
-# - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)
-# - default workflow permissions: read-only
 name: ci
 on:
   pull_request: {}
@@ -15,15 +8,12 @@ on:
   workflow_dispatch: {}
 jobs:
   dx:
-    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@78068c86f4cc5d5edf35f01315784f14196d01e4
+    uses: devhusdk/rules_dx/.github/workflows/reusable-consumer.yml@550b5b9f3c9e7be4ca00f9e7780d7bd370de2199
     with:
       rules_dx_version: "0.0.0"
       disabled_checks: ""
       platforms: '["linux_x86_64"]'
-      scheduling_mode: "parallel"
-      code_scanning_opt_in: false
     secrets: inherit
-    # A called workflow can only narrow this job's token.
     permissions:
       contents: read
       checks: write

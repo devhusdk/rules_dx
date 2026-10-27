@@ -4,7 +4,9 @@
 import gzip
 import hashlib
 import os
+import pathlib
 import re
+import stat
 import subprocess
 import sys
 import tarfile
@@ -446,6 +448,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "hadolint": {
+        "upstream_version": "2.15.1",
+        "release_page": "https://github.com/hadolint/hadolint/releases/tag/v2.15.1",
+        "licenses": [
+            {
+                "name": "GPL-3.0",
+                "source": "https://github.com/hadolint/hadolint/blob/v2.15.1/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "hadolint-linux-x86_64",
+                "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64",
+                "kind": "raw",
+                "executable": "hadolint-linux-x86_64",
+                "checksums_url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/checksums.sha256",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "hadolint-linux-arm64",
+                "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-arm64",
+                "kind": "raw",
+                "executable": "hadolint-linux-arm64",
+                "checksums_url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/checksums.sha256",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "hadolint-macos-arm64",
+                "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-macos-arm64",
+                "kind": "raw",
+                "executable": "hadolint-macos-arm64",
+                "checksums_url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/checksums.sha256",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "hadolint-windows-x86_64.exe",
+                "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-windows-x86_64.exe",
+                "kind": "raw",
+                "executable": "hadolint-windows-x86_64.exe",
+                "checksums_url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/checksums.sha256",
+            },
+        },
+    },
     "ty": {
         "upstream_version": "0.0.80",
         "release_page": "https://github.com/astral-sh/ty/releases/tag/0.0.80",
@@ -718,6 +768,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "pkl": {
+        "upstream_version": "0.32.1",
+        "release_page": "https://github.com/apple/pkl/releases/tag/0.32.1",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/apple/pkl/blob/0.32.1/LICENSE.txt",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "pkl-alpine-linux-amd64",
+                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-alpine-linux-amd64",
+                "kind": "raw",
+                "executable": "pkl-alpine-linux-amd64",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "pkl-linux-aarch64",
+                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-linux-aarch64",
+                "kind": "raw",
+                "executable": "pkl-linux-aarch64",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "pkl-macos-aarch64",
+                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-macos-aarch64",
+                "kind": "raw",
+                "executable": "pkl-macos-aarch64",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "pkl-windows-amd64.exe",
+                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-windows-amd64.exe",
+                "kind": "raw",
+                "executable": "pkl-windows-amd64.exe",
+            },
+        },
+    },
     "terraform": {
         "upstream_version": "1.16.1",
         "release_page": "https://releases.hashicorp.com/terraform/1.16.1/",
@@ -911,6 +1005,113 @@ def _sha256(path):
     return digest.hexdigest()
 
 
+def _check_member_name(asset, name):
+    """Stops on any archive member name that could escape the work directory."""
+    reason = None
+    if not name:
+        reason = "empty name"
+    elif name.startswith("/") or re.match(r"^[A-Za-z]:", name):
+        reason = "absolute path"
+    elif "\\" in name:
+        reason = "backslash in name"
+    elif ".." in pathlib.PurePosixPath(name).parts:
+        reason = "parent directory component"
+    if reason:
+        sys.exit("update: %s member %r: %s" % (asset, name, reason))
+
+
+def _check_duplicate(asset, name, seen):
+    key = os.path.normpath(name)
+    if key in seen:
+        sys.exit("update: %s member %r: duplicate name" % (asset, name))
+    seen.add(key)
+
+
+def _stream_executable(asset, workdir, executable, source):
+    """Copies the executable's bytes to workdir and returns (path, sha256)."""
+    exe_path = os.path.join(workdir, executable)
+    os.makedirs(os.path.dirname(exe_path), exist_ok=True)
+    digest = hashlib.sha256()
+    with open(exe_path, "wb") as out:
+        for chunk in iter(lambda: source.read(65536), b""):
+            digest.update(chunk)
+            out.write(chunk)
+    return exe_path, digest.hexdigest()
+
+
+def _tar_members(asset, asset_path, workdir, executable):
+    members = []
+    seen = set()
+    exe_member = None
+    with tarfile.open(asset_path, "r:gz") as archive_file:
+        infos = archive_file.getmembers()
+        for member in infos:
+            _check_member_name(asset, member.name)
+            if member.issym() or member.islnk():
+                sys.exit("update: %s member %r: link" % (asset, member.name))
+            if member.isdev() or member.isfifo():
+                sys.exit("update: %s member %r: device or fifo" % (asset, member.name))
+            if not member.isdir():
+                _check_duplicate(asset, member.name, seen)
+            members.append(
+                {
+                    "name": member.name,
+                    "size": member.size,
+                    "mode": oct(member.mode),
+                    "is_executable": bool(member.mode & 0o111) and member.isfile(),
+                }
+            )
+            if os.path.normpath(member.name) == os.path.normpath(executable):
+                exe_member = member
+        if exe_member is None or not exe_member.isfile():
+            sys.exit(
+                "update: %s member %r: missing or not a regular file"
+                % (asset, executable)
+            )
+        source = archive_file.extractfile(exe_member)
+        exe_path, exe_digest = _stream_executable(asset, workdir, executable, source)
+    return members, exe_path, exe_digest
+
+
+def _zip_members(asset, asset_path, workdir, executable):
+    members = []
+    seen = set()
+    exe_info = None
+    with zipfile.ZipFile(asset_path) as archive_file:
+        for info in archive_file.infolist():
+            _check_member_name(asset, info.filename)
+            unix_mode = (info.external_attr >> 16) & 0o177777
+            if info.create_system == 3 and stat.S_ISLNK(unix_mode):
+                sys.exit("update: %s member %r: symlink" % (asset, info.filename))
+            if not info.is_dir():
+                _check_duplicate(asset, info.filename, seen)
+            mode = (info.external_attr >> 16) & 0o777
+            is_dir = info.is_dir()
+            is_exe = (not is_dir) and (
+                info.filename.endswith(".exe") or bool(mode & 0o111)
+            )
+            members.append(
+                {
+                    "name": info.filename,
+                    "size": info.file_size,
+                    "mode": oct(mode),
+                    "is_executable": is_exe,
+                }
+            )
+            if os.path.normpath(info.filename) == os.path.normpath(executable):
+                exe_info = info
+        if exe_info is None or exe_info.is_dir():
+            sys.exit(
+                "update: %s member %r: missing or not a regular file"
+                % (asset, executable)
+            )
+        with archive_file.open(exe_info) as source:
+            exe_path, exe_digest = _stream_executable(
+                asset, workdir, executable, source
+            )
+    return members, exe_path, exe_digest
+
+
 def _elf_linkage(path):
     readelf = _require_tool("readelf")
     headers = _run([readelf, "-h", "-l", "-d", path])
@@ -1039,41 +1240,14 @@ def _collect(tool, platform_key, spec, workdir):
             "member_size": len(inner),
         }
     elif kind == "tar.gz":
-        members = []
-        with tarfile.open(asset_path, "r:gz") as archive_file:
-            archive_file.extractall(workdir)
-            for member in archive_file.getmembers():
-                members.append(
-                    {
-                        "name": member.name,
-                        "size": member.size,
-                        "mode": oct(member.mode),
-                        "is_executable": bool(member.mode & 0o111) and member.isfile(),
-                    }
-                )
-        exe_path = os.path.join(workdir, spec["executable"])
-        exe_digest = _sha256(exe_path)
+        members, exe_path, exe_digest = _tar_members(
+            spec["asset"], asset_path, workdir, spec["executable"]
+        )
         archive = {"format": "tar.gz", "members": members}
     elif kind == "zip":
-        members = []
-        with zipfile.ZipFile(asset_path) as archive_file:
-            archive_file.extractall(workdir)
-            for info in archive_file.infolist():
-                mode = (info.external_attr >> 16) & 0o777
-                is_dir = info.is_dir()
-                is_exe = (not is_dir) and (
-                    info.filename.endswith(".exe") or bool(mode & 0o111)
-                )
-                members.append(
-                    {
-                        "name": info.filename,
-                        "size": info.file_size,
-                        "mode": oct(mode),
-                        "is_executable": is_exe,
-                    }
-                )
-        exe_path = os.path.join(workdir, spec["executable"])
-        exe_digest = _sha256(exe_path)
+        members, exe_path, exe_digest = _zip_members(
+            spec["asset"], asset_path, workdir, spec["executable"]
+        )
         archive = {"format": "zip", "members": members}
     else:
         sys.exit("update: unknown asset kind %r" % kind)
@@ -1108,6 +1282,55 @@ def _collect(tool, platform_key, spec, workdir):
     }
 
 
+HADOLINT_CABAL_URL = (
+    "https://raw.githubusercontent.com/hadolint/hadolint/v%s/hadolint.cabal"
+)
+
+
+def _version_tuple(text):
+    return tuple(int(part) for part in text.split("."))
+
+
+def _shellcheck_range(cabal_text):
+    """Returns the (lower, upper) ShellCheck bounds hadolint.cabal declares."""
+    match = re.search(r"\bShellCheck\s*>=\s*([0-9.]+)\s*&&\s*<\s*([0-9.]+)", cabal_text)
+    if not match:
+        return None
+    return match.group(1), match.group(2)
+
+
+def _hadolint_shellcheck_error(cabal_text, hadolint_version, shellcheck_version):
+    """Checks the declared cabal range, not the ShellCheck hadolint actually linked."""
+    bounds = _shellcheck_range(cabal_text)
+    if bounds is None:
+        return (
+            "update: hadolint %s: no `ShellCheck >=X && <Y` range in hadolint.cabal"
+            % hadolint_version
+        )
+    lower, upper = bounds
+    pinned = _version_tuple(shellcheck_version)
+    if _version_tuple(lower) <= pinned < _version_tuple(upper):
+        return None
+    return (
+        "update: hadolint %s declares ShellCheck >=%s && <%s in hadolint.cabal, "
+        "but shellcheck is pinned at %s; move the two pins together (this checks "
+        "the cabal range, not the ShellCheck version linked into the binary)"
+        % (hadolint_version, lower, upper, shellcheck_version)
+    )
+
+
+def _check_hadolint_shellcheck(workdir):
+    version = TOOLS["hadolint"]["upstream_version"]
+    path = os.path.join(workdir, "hadolint.cabal")
+    _download(HADOLINT_CABAL_URL % version, path)
+    with open(path, encoding="utf-8") as handle:
+        error = _hadolint_shellcheck_error(
+            handle.read(), version, TOOLS["shellcheck"]["upstream_version"]
+        )
+    if error:
+        sys.exit(error)
+
+
 def _emit(artifact, tool, platform_key):
     filename = "%s.%s.bzl" % (tool, platform_key)
     path = os.path.join(_source_dir(), filename)
@@ -1127,6 +1350,8 @@ def main(argv):
     _require_tool("file")
     if not os.path.isdir(_source_dir()):
         sys.exit("update: source directory %r not found" % _source_dir())
+    with tempfile.TemporaryDirectory(prefix="dx-artifacts-") as workdir:
+        _check_hadolint_shellcheck(workdir)
     failed = False
     for tool, config in TOOLS.items():
         for platform_key, spec in config["platforms"].items():

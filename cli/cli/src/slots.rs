@@ -12,7 +12,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::args::Command;
-use crate::worktree::host::{self, Host, Server, SystemHost};
+use dx_worktree::host::{self, Host, Server, SystemHost};
+
+pub mod pressure;
+
+use pressure::{HostPressure, Pressure};
 
 /// Set once a slot is held; nested dx calls see it and take no second slot.
 pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
@@ -25,6 +29,12 @@ pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 
 /// Memory one Bazel server plus its build is planned to use.
 pub const BYTES_PER_SLOT: u64 = 3 << 30;
+
+/// Memory one remote-execution Bazel server plus its build is planned to use.
+pub const BYTES_PER_REMOTE_SLOT: u64 = 3 << 29;
+
+/// Fewest seconds between two extra slot grants.
+const EXTRA_SPACING: Duration = Duration::from_secs(10);
 
 /// Sets how many nested Bazel test servers rules_dx tests run at once.
 pub const NESTED_BAZEL_SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
@@ -207,6 +217,13 @@ pub fn slot_count(memory: u64, reserved: u64) -> usize {
         .clamp(1, MAX_SLOTS)
 }
 
+/// Slots for remote-execution runs on a machine with `memory` bytes, `reserved` of them kept aside.
+pub fn remote_slot_count(memory: u64, reserved: u64) -> usize {
+    usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_REMOTE_SLOT)
+        .unwrap_or(MAX_SLOTS)
+        .clamp(1, MAX_SLOTS)
+}
+
 /// One slot's share of `cpus` and of `memory` bytes less `reserved`, split over `held` slots.
 pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_process::LocalShare {
     let held = u64::try_from(held.max(1)).unwrap_or(u64::MAX);
@@ -218,14 +235,7 @@ pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_pro
 
 /// The slot directory under the user cache.
 pub fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
-    let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    let cache = match non_empty("XDG_CACHE_HOME") {
-        Some(cache) => PathBuf::from(cache),
-        None => match non_empty("HOME") {
-            Some(home) => PathBuf::from(home).join(".cache"),
-            None => PathBuf::from(non_empty("LOCALAPPDATA")?),
-        },
-    };
+    let cache = dx_process::user_cache_dir(env_get)?;
     Some(cache.join("dx").join("slots"))
 }
 
@@ -266,17 +276,17 @@ fn holder_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.holder"))
 }
 
-/// Slots in `0..count` held right now, counting `own`.
-fn held(dir: &Path, count: usize, own: usize) -> usize {
-    let others = (0..count)
+/// Slots in `indices` held right now, counting `own`.
+fn held(dir: &Path, indices: impl Iterator<Item = usize>, own: usize) -> usize {
+    let others = indices
         .filter(|&index| index != own && holder_path(dir, index).exists())
         .filter(|&index| matches!(lock_slot(&slot_path(dir, index), true), Ok(None)))
         .count();
     1 + others
 }
 
-fn holder(dir: &Path, count: usize, ahead: usize) -> String {
-    let names: Vec<String> = (0..count)
+fn holder(dir: &Path, indices: impl Iterator<Item = usize>, ahead: usize) -> String {
+    let names: Vec<String> = indices
         .filter_map(|index| std::fs::read_to_string(holder_path(dir, index)).ok())
         .map(|text| text.trim().to_owned())
         .filter(|text| !text.is_empty())
@@ -381,18 +391,18 @@ fn enqueue(dir: &Path) -> io::Result<Ticket> {
 
 /// Takes a free slot without waiting; ignores the line of waiters.
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
-    scan(dir, count, label).0
+    scan(dir, 0..count, label).0
 }
 
 /// Takes a free slot like `try_take` and lists the slot files it could not use.
 fn scan(
     dir: &Path,
-    count: usize,
+    indices: Range<usize>,
     label: &str,
 ) -> (io::Result<Option<Slot>>, Vec<(PathBuf, io::Error)>) {
     let mut skipped: Vec<(PathBuf, io::Error)> = Vec::new();
     let mut opened = false;
-    for index in 0..count {
+    for index in indices {
         let path = slot_path(dir, index);
         match lock_slot(&path, false) {
             Ok(Some(file)) => {
@@ -439,20 +449,79 @@ fn acquire_with(
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
-    acquire_reserving(dir, count, count..count, label, on_wait, on_poll, on_skip)
+    let layout = Layout {
+        count,
+        reserve: count..count,
+        extras: count..count,
+    };
+    acquire_reserving(dir, &layout, None, label, on_wait, on_poll, on_skip)
+}
+
+/// Where a gate's slots sit: base `0..count`, the nested reserve, then remote-only extras.
+#[derive(Clone, Debug)]
+struct Layout {
+    count: usize,
+    reserve: Range<usize>,
+    extras: Range<usize>,
+}
+
+impl Layout {
+    /// Every slot index a held count or holder list looks at.
+    fn counted(&self) -> impl Iterator<Item = usize> {
+        (0..self.count).chain(self.extras.clone())
+    }
+
+    /// Every slot index a waiter names in its notice.
+    fn named(&self) -> impl Iterator<Item = usize> {
+        (0..self.reserve.end.max(self.count)).chain(self.extras.clone())
+    }
+}
+
+fn extra_mark(dir: &Path) -> PathBuf {
+    dir.join("extra-granted")
+}
+
+/// Whether an extra slot was granted within the last `EXTRA_SPACING`.
+fn extra_recent(dir: &Path) -> bool {
+    std::fs::metadata(extra_mark(dir))
+        .and_then(|meta| meta.modified())
+        .is_ok_and(|time| time.elapsed().unwrap_or_default() < EXTRA_SPACING)
+}
+
+/// Whether any slot in `extras` is free right now.
+fn extra_free(dir: &Path, extras: Range<usize>) -> bool {
+    extras
+        .into_iter()
+        .any(|index| matches!(lock_slot(&slot_path(dir, index), true), Ok(Some(_))))
+}
+
+/// Takes a free extra slot when the host is calm and no extra was granted just now.
+fn take_extra(
+    dir: &Path,
+    extras: Range<usize>,
+    label: &str,
+    pressure: &dyn Pressure,
+) -> Option<Slot> {
+    if extras.is_empty() || extra_recent(dir) || pressure.high() != Some(false) {
+        return None;
+    }
+    let (taken, _) = scan(dir, extras, label);
+    let slot = taken.ok().flatten()?;
+    let _ = std::fs::write(extra_mark(dir), label);
+    Some(slot)
 }
 
 fn acquire_reserving(
     dir: &Path,
-    count: usize,
-    reserve: Range<usize>,
+    layout: &Layout,
+    pressure: Option<&dyn Pressure>,
     label: &str,
     on_wait: &mut dyn FnMut(&str),
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
     let ticket = enqueue(dir).ok();
-    let mut pending: Vec<usize> = reserve.clone().collect();
+    let mut pending: Vec<usize> = layout.reserve.clone().collect();
     let mut held: Vec<File> = Vec::new();
     let mut announced = false;
     loop {
@@ -473,11 +542,16 @@ fn acquire_reserving(
                 }
             });
             if pending.is_empty() {
-                let (taken, skipped) = scan(dir, count, label);
+                let (taken, skipped) = scan(dir, 0..layout.count, label);
                 let taken = taken?;
                 for (path, error) in &skipped {
                     on_skip(path, error);
                 }
+                let taken = taken.or_else(|| {
+                    pressure.and_then(|pressure| {
+                        take_extra(dir, layout.extras.clone(), label, pressure)
+                    })
+                });
                 if let Some(mut slot) = taken {
                     slot._reserve = held;
                     return Ok(slot);
@@ -486,7 +560,15 @@ fn acquire_reserving(
         }
         if !announced {
             announced = true;
-            on_wait(&holder(dir, reserve.end.max(count), ahead));
+            let names = holder(dir, layout.named(), ahead);
+            let paused = pressure.is_some_and(|pressure| {
+                pressure.high() == Some(true) && extra_free(dir, layout.extras.clone())
+            });
+            on_wait(&if paused {
+                format!("{names}; extra slots paused under memory pressure")
+            } else {
+                names
+            });
         }
         if let Some(signo) = dx_process::interrupted() {
             return Err(stopped(signo));
@@ -579,30 +661,63 @@ pub fn parse_meminfo(text: &str) -> Option<u64> {
     kib.checked_mul(1024)
 }
 
-/// Reads a cgroup `memory.max` value; `max` means no limit.
+/// Reads `MemAvailable` from `/proc/meminfo` text, in bytes.
+pub fn parse_mem_available(text: &str) -> Option<u64> {
+    let line = text
+        .lines()
+        .find(|line| line.starts_with("MemAvailable:"))?;
+    let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+    kib.checked_mul(1024)
+}
+
+/// Reads a cgroup memory limit; `max` or the v1 unlimited value means no limit.
 pub fn parse_cgroup_limit(text: &str) -> Option<u64> {
-    text.trim().parse().ok()
+    text.trim().parse().ok().filter(|value| *value < 1 << 62)
 }
 
 #[cfg(target_os = "linux")]
 fn cgroup_limit() -> Option<u64> {
     let own = std::fs::read_to_string("/proc/self/cgroup").ok()?;
-    let relative = own
+    cgroup_limit_in(&own, Path::new("/sys/fs/cgroup"))
+}
+
+/// Reads the memory limit of the cgroup named in `own` under `root`.
+pub fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
+    let v2 = own
         .lines()
         .find_map(|line| line.strip_prefix("0::"))
         .unwrap_or("/");
-    let root = Path::new("/sys/fs/cgroup");
-    let mut dir = root.join(relative.trim_start_matches('/'));
+    let v1 = own.lines().find_map(|line| {
+        let mut parts = line.splitn(3, ':');
+        parts.next()?;
+        let controllers = parts.next()?;
+        let path = parts.next()?;
+        controllers
+            .split(',')
+            .any(|c| c == "memory")
+            .then_some(path)
+    });
+    let v2_limit = walk_limit(root, v2, "memory.max");
+    let v1_limit =
+        v1.and_then(|path| walk_limit(&root.join("memory"), path, "memory.limit_in_bytes"));
+    match (v2_limit, v1_limit) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    }
+}
+
+fn walk_limit(base: &Path, relative: &str, file: &str) -> Option<u64> {
+    let mut dir = base.join(relative.trim_start_matches('/'));
     let mut limit: Option<u64> = None;
     loop {
-        let found = std::fs::read_to_string(dir.join("memory.max"))
+        let found = std::fs::read_to_string(dir.join(file))
             .ok()
             .and_then(|text| parse_cgroup_limit(&text));
         limit = match (limit, found) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         };
-        if dir == root || !dir.pop() || !dir.starts_with(root) {
+        if dir == base || !dir.pop() || !dir.starts_with(base) {
             return limit;
         }
     }
@@ -614,11 +729,25 @@ pub struct Gate {
     dir: PathBuf,
     count: usize,
     pool: usize,
+    extras: usize,
+    remote: bool,
+    pressure: Arc<dyn Pressure>,
     label: String,
     json: bool,
     warm: Option<Warmth>,
     skipped: Arc<Mutex<BTreeSet<PathBuf>>>,
     resources: Option<Resources>,
+    reclaimer: Option<Reclaimer>,
+}
+
+/// Frees disk before a build; returns a message only when it acted or failed.
+#[derive(Clone)]
+struct Reclaimer(Arc<dyn Fn() -> Option<String> + Send + Sync>);
+
+impl std::fmt::Debug for Reclaimer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Reclaimer")
+    }
 }
 
 /// The CPUs, memory, and nested reserve a gate splits over held slots.
@@ -636,11 +765,23 @@ impl Gate {
             dir,
             count,
             pool: count,
+            extras: 0,
+            remote: false,
+            pressure: Arc::new(HostPressure),
             label,
             json,
             warm: None,
             skipped: Arc::default(),
             resources: None,
+            reclaimer: None,
+        }
+    }
+
+    /// Runs `reclaim` each time a slot is taken, reporting any message it returns as a disk_low warning.
+    pub fn reclaiming(self, reclaim: impl Fn() -> Option<String> + Send + Sync + 'static) -> Self {
+        Gate {
+            reclaimer: Some(Reclaimer(Arc::new(reclaim))),
+            ..self
         }
     }
 
@@ -664,11 +805,34 @@ impl Gate {
         }
     }
 
+    /// Adds `extras` remote-only slots above the pool; only a `remote` gate takes them.
+    pub fn extra(self, extras: usize, remote: bool) -> Self {
+        Gate {
+            extras,
+            remote,
+            ..self
+        }
+    }
+
+    /// Reads memory pressure from `pressure` before taking an extra slot.
+    pub fn with_pressure(self, pressure: Arc<dyn Pressure>) -> Self {
+        Gate { pressure, ..self }
+    }
+
+    fn layout(&self) -> Layout {
+        Layout {
+            count: self.count,
+            reserve: self.count..self.pool,
+            extras: self.pool..self.pool + self.extras,
+        }
+    }
+
     /// The gate for this process; `None` when nested, inside a Bazel test, or without a cache dir.
     pub fn from_env(
         workspace: &Path,
         env_get: &dyn Fn(&str) -> Option<String>,
         json: bool,
+        bazel_options: &[String],
     ) -> Option<Self> {
         let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
         if set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
@@ -678,6 +842,16 @@ impl Gate {
         let memory = available_memory()?;
         let reserved = nested_reserve(workspace, env_get);
         let count = slot_count(memory, reserved);
+        let extras = remote_slot_count(memory, reserved).saturating_sub(count);
+        let read = |path: &Path| std::fs::read_to_string(path).ok();
+        let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
+        let remote = dx_process::rc::remote_execution(
+            env_get,
+            workspace,
+            &read,
+            read_user_rc,
+            bazel_options,
+        );
         let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
         let cpus = u64::try_from(cpus).unwrap_or(1);
         let args: Vec<OsString> = std::env::args_os().skip(1).collect();
@@ -685,11 +859,14 @@ impl Gate {
             workspace: workspace.to_path_buf(),
             startup_options,
         });
+        let reclaim_in = workspace.to_path_buf();
         Some(Gate {
             warm,
             ..Gate::new(dir, count, workspace.display().to_string(), json)
                 .reserving(slot_count(memory, 0))
+                .extra(extras, remote)
                 .sharing(cpus, memory, reserved)
+                .reclaiming(move || dx_worktree::reclaim_for_build(&reclaim_in))
         })
     }
 
@@ -706,7 +883,7 @@ impl Gate {
         self.take(command, err, events)
     }
 
-    /// Takes a slot, waiting with one notice when none is free; `Err` carries the stop signal.
+    /// Takes a slot, waiting with one notice when none is free, then reclaims disk; `Err` carries the stop signal.
     pub fn take(
         &self,
         command: Command,
@@ -716,11 +893,12 @@ impl Gate {
         let json = self.json;
         let mut keep = self.warm.clone().map(KeepWarm::new);
         let out = RefCell::new((err, events));
-        let reserve = self.count..self.pool;
+        let layout = self.layout();
+        let pressure = self.remote.then_some(&*self.pressure);
         let result = acquire_reserving(
             &self.dir,
-            self.count,
-            reserve,
+            &layout,
+            pressure,
             &self.label,
             &mut |holder: &str| {
                 let (err, events) = &mut *out.borrow_mut();
@@ -730,9 +908,7 @@ impl Gate {
                     notice(
                         &mut **events,
                         command,
-                        "info",
-                        "waiting_for_build_slot",
-                        message,
+                        dx_output::NoticeEvent::info("waiting_for_build_slot", message),
                     );
                 }
             },
@@ -756,9 +932,7 @@ impl Gate {
                     notice(
                         &mut **events,
                         command,
-                        "warning",
-                        "build_slot_skipped",
-                        message,
+                        dx_output::NoticeEvent::warning("build_slot_skipped", message),
                     );
                 }
             },
@@ -768,12 +942,13 @@ impl Gate {
         match result {
             Ok(mut slot) => {
                 if let Some(resources) = self.resources {
-                    let held = held(&self.dir, self.count, slot.index);
+                    let held = held(&self.dir, layout.counted(), slot.index);
                     let share =
                         local_share(resources.cpus, resources.memory, resources.reserved, held);
                     slot.share = Some(share);
                     dx_process::set_share(Some(share));
                 }
+                self.reclaim(command, err, events);
                 Ok(Some(slot))
             }
             Err(error) => {
@@ -783,10 +958,34 @@ impl Gate {
                 let message = format!("build slots disabled: {error}");
                 let _ = writeln!(err, "dx: {message}");
                 if json {
-                    notice(events, command, "warning", "build_slots_disabled", message);
+                    notice(
+                        &mut *events,
+                        command,
+                        dx_output::NoticeEvent::warning("build_slots_disabled", message),
+                    );
                 }
+                self.reclaim(command, err, events);
                 Ok(None)
             }
+        }
+    }
+
+    /// Runs the reclaimer, printing one line and, in JSON mode, one disk_low notice when it reports.
+    fn reclaim(&self, command: Command, err: &mut dyn Write, events: &mut dyn Write) {
+        let Some(message) = self
+            .reclaimer
+            .as_ref()
+            .and_then(|reclaimer| (reclaimer.0)())
+        else {
+            return;
+        };
+        let _ = writeln!(err, "dx: {message}");
+        if self.json {
+            notice(
+                events,
+                command,
+                dx_output::NoticeEvent::warning("disk_low", message),
+            );
         }
     }
 }
@@ -889,7 +1088,7 @@ impl Warm for Warmth {
             &servers,
             &self.workspace,
             &self.startup_options,
-            &host::default_output_roots(),
+            &host::default_output_roots(&|name| std::env::var(name).ok()),
         )?;
         let idle = server
             .output_base
@@ -1007,20 +1206,13 @@ impl<W: Warm> Drop for KeepWarm<W> {
     }
 }
 
-fn notice(events: &mut dyn Write, command: Command, level: &str, code: &str, message: String) {
-    if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
-        level: level.to_owned(),
-        code: code.to_owned(),
-        message,
+fn notice(events: &mut dyn Write, command: Command, notice: dx_output::NoticeEvent) {
+    let event = dx_output::notice_value(&dx_output::NoticeEvent {
         related_command: Some(command.name().to_owned()),
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
-    }) {
-        let _ = dx_output::lifecycle::write_event(&mut *events, &event);
-        let _ = events.flush();
-    }
+        ..notice
+    });
+    let _ = dx_output::lifecycle::write_event(&mut *events, &event);
+    let _ = events.flush();
 }
 
 thread_local! {
@@ -1102,7 +1294,7 @@ mod tests {
         json: bool,
         events: &mut dyn Write,
     ) -> Result<Option<Slot>, i32> {
-        Gate::from_env(workspace, env_get, json)
+        Gate::from_env(workspace, env_get, json, &[])
             .map_or(Ok(None), |gate| gate.hold(command, err, events))
     }
 
@@ -1171,6 +1363,230 @@ mod tests {
     }
 
     #[test]
+    fn remote_count_follows_memory_with_bounds() {
+        assert_eq!(remote_slot_count(0, 0), 1);
+        assert_eq!(remote_slot_count(19 << 30, 0), 12);
+        assert_eq!(remote_slot_count(19 << 30, 6 << 30), 8);
+        assert_eq!(remote_slot_count(u64::MAX, 0), MAX_SLOTS);
+        let extras = |memory, reserved| {
+            remote_slot_count(memory, reserved).saturating_sub(slot_count(memory, reserved))
+        };
+        assert_eq!(extras(19 << 30, 0), 6);
+        assert_eq!(extras(19 << 30, 6 << 30), 4);
+        assert_eq!(extras(2 << 30, 0), 0);
+    }
+
+    #[test]
+    fn extras_sit_above_the_pool() {
+        let rules_dx = Gate::new(PathBuf::from("/slots"), 4, "r".to_owned(), false)
+            .reserving(6)
+            .extra(4, true)
+            .layout();
+        assert_eq!(
+            (
+                rules_dx.count,
+                rules_dx.reserve.clone(),
+                rules_dx.extras.clone()
+            ),
+            (4, 4..6, 6..10)
+        );
+        assert_eq!(
+            rules_dx.counted().collect::<Vec<_>>(),
+            [0, 1, 2, 3, 6, 7, 8, 9]
+        );
+        let consumer = Gate::new(PathBuf::from("/slots"), 6, "c".to_owned(), false)
+            .reserving(6)
+            .extra(6, false)
+            .layout();
+        assert_eq!(
+            (consumer.count, consumer.reserve, consumer.extras),
+            (6, 6..6, 6..12)
+        );
+    }
+
+    #[derive(Debug)]
+    struct Fixed(Option<bool>);
+
+    impl Pressure for Fixed {
+        fn high(&self) -> Option<bool> {
+            self.0
+        }
+    }
+
+    fn remote_gate(dir: &Path, remote: bool, high: Option<bool>) -> Gate {
+        Gate::new(dir.to_path_buf(), 1, "remote".to_owned(), false)
+            .extra(2, remote)
+            .with_pressure(Arc::new(Fixed(high)))
+    }
+
+    fn free(dir: &Path, index: usize) -> bool {
+        matches!(lock_slot(&slot_path(dir, index), false), Ok(Some(_)))
+    }
+
+    #[test]
+    fn a_local_gate_never_takes_an_extra() {
+        let scratch = dx_test_scratch::scratch("dx-slots-local-extra-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let gate = remote_gate(&dir, false, Some(false));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        std::thread::sleep(POLL * 2);
+        assert!(free(&dir, 1) && free(&dir, 2));
+        drop(fill);
+        assert_eq!(waiter.join().expect("join").0.index, 0);
+    }
+
+    #[test]
+    fn a_remote_gate_takes_a_base_slot_then_an_extra_when_calm() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-extra-");
+        let dir = scratch.path().join("slots");
+        let gate = remote_gate(&dir, true, Some(false));
+        let (base, base_err, _) = take_gate(&gate);
+        let (extra, extra_err, _) = take_gate(&gate);
+        assert_eq!((base.index, extra.index), (0, 1));
+        assert_eq!((base_err.as_str(), extra_err.as_str()), ("", ""));
+        assert!(extra_mark(&dir).is_file());
+    }
+
+    #[test]
+    fn a_remote_gate_waits_under_pressure_or_without_a_signal() {
+        for high in [Some(true), None] {
+            let scratch = dx_test_scratch::scratch("dx-slots-remote-pressure-");
+            let dir = scratch.path().join("slots");
+            let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+            let gate = remote_gate(&dir, true, high);
+            let (waiter, rx) = spawn_take(gate);
+            announced(&rx);
+            std::thread::sleep(POLL * 2);
+            assert!(free(&dir, 1) && free(&dir, 2));
+            drop(fill);
+            let (slot, err, _) = waiter.join().expect("join");
+            assert_eq!(slot.index, 0);
+            let want = match high {
+                Some(true) => "dx: waiting for a build slot (held by fill; extra slots paused under memory pressure)\n",
+                _ => "dx: waiting for a build slot (held by fill)\n",
+            };
+            assert_eq!(err, want);
+        }
+    }
+
+    #[test]
+    fn a_remote_waiter_does_not_jump_the_line_through_a_free_extra() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-line-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let queued = enqueue(&dir).expect("queued");
+        let gate = remote_gate(&dir, true, Some(false));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        std::thread::sleep(POLL * 2);
+        assert!(!waiter.is_finished(), "a remote waiter must keep its place");
+        assert!(free(&dir, 1) && free(&dir, 2));
+        drop(queued);
+        let (slot, err, _) = waiter.join().expect("join");
+        assert_eq!(slot.index, 1);
+        assert_eq!(
+            err,
+            "dx: waiting for a build slot (held by fill, 1 ahead in line)\n"
+        );
+        drop(fill);
+    }
+
+    #[test]
+    fn held_extras_under_pressure_add_no_paused_suffix() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-full-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let extras: Vec<Slot> = (1..3)
+            .map(|index| {
+                scan(&dir, index..index + 1, &format!("extra-{index}"))
+                    .0
+                    .expect("scan")
+                    .expect("extra")
+            })
+            .collect();
+        let gate = remote_gate(&dir, true, Some(true));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        drop(fill);
+        let (slot, err, _) = waiter.join().expect("join");
+        assert_eq!(slot.index, 0);
+        assert_eq!(
+            err,
+            "dx: waiting for a build slot (held by fill and 2 more)\n"
+        );
+        drop(extras);
+    }
+
+    #[test]
+    fn a_local_rules_dx_gate_counts_a_held_extra_but_not_the_reserve() {
+        let scratch = dx_test_scratch::scratch("dx-slots-local-counted-");
+        let dir = scratch.path().join("slots");
+        let layout = Gate::new(dir.clone(), 4, "r".to_owned(), false)
+            .reserving(6)
+            .extra(4, false)
+            .layout();
+        let take = |index: usize| {
+            scan(&dir, index..index + 1, "other")
+                .0
+                .expect("scan")
+                .expect("slot")
+        };
+        let reserve = take(4);
+        assert_eq!(held(&dir, layout.counted(), 0), 1);
+        let extra = take(6);
+        assert_eq!(held(&dir, layout.counted(), 0), 2);
+        let base = take(1);
+        assert_eq!(held(&dir, layout.counted(), 0), 3);
+        drop((reserve, extra, base));
+    }
+
+    #[test]
+    fn extra_grants_are_spaced_out() {
+        let scratch = dx_test_scratch::scratch("dx-slots-remote-spacing-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        std::fs::write(extra_mark(&dir), "earlier").expect("mark");
+        let gate = remote_gate(&dir, true, Some(false));
+        let waiting = gate.clone();
+        let (waiter, rx) = spawn_take(waiting);
+        announced(&rx);
+        std::thread::sleep(POLL * 2);
+        assert!(free(&dir, 1) && free(&dir, 2));
+        drop(fill);
+        let base = waiter.join().expect("join").0;
+        assert_eq!(base.index, 0);
+        let old = SystemTime::now() - EXTRA_SPACING - Duration::from_secs(1);
+        File::options()
+            .write(true)
+            .open(extra_mark(&dir))
+            .and_then(|file| file.set_modified(old))
+            .expect("age mark");
+        let (extra, err, _) = take_gate(&gate);
+        assert_eq!((extra.index, err.as_str()), (1, ""));
+    }
+
+    #[test]
+    fn a_held_extra_counts_toward_the_share() {
+        alone("a_held_extra_counts_toward_the_share", || {
+            let scratch = dx_test_scratch::scratch("dx-slots-remote-share-");
+            let dir = scratch.path().join("slots");
+            let gate = remote_gate(&dir, true, Some(false)).sharing(12, 12 << 30, 0);
+            let (base, _, _) = take_gate(&gate);
+            let (extra, _, _) = take_gate(&gate);
+            assert_eq!(extra.index, 1);
+            let share = extra.share.expect("share");
+            assert_eq!((share.cpus, share.memory_mb), (6, 6 << 10));
+            drop(base);
+            let local = remote_gate(&dir, false, None).sharing(12, 12 << 30, 0);
+            let (again, _, _) = take_gate(&local);
+            assert_eq!(again.index, 0);
+            assert_eq!(again.share.expect("share").memory_mb, 6 << 10);
+        });
+    }
+
+    #[test]
     fn share_splits_the_host_over_held_slots() {
         let share = |cpus, memory, reserved, held| {
             let share = local_share(cpus, memory, reserved, held);
@@ -1191,16 +1607,16 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-held-");
         let dir = scratch.path().join("slots");
         std::fs::create_dir_all(&dir).expect("dir");
-        assert_eq!(held(&dir, 3, 0), 1);
+        assert_eq!(held(&dir, 0..3, 0), 1);
         let mut child = spawn_holder(&dir);
-        assert_eq!(held(&dir, 3, 1), 2);
-        assert_eq!(held(&dir, 3, 0), 1);
+        assert_eq!(held(&dir, 0..3, 1), 2);
+        assert_eq!(held(&dir, 0..3, 0), 1);
         let _ = child.kill();
         let _ = child.wait();
         std::fs::write(holder_path(&dir, 2), "gone").expect("stale holder");
         assert!(holder_path(&dir, 0).exists());
-        assert_eq!(held(&dir, 3, 1), 1);
-        assert!(try_take(&dir, 1, "after").expect("try").is_some());
+        assert_eq!(held(&dir, 0..3, 1), 1);
+        assert!(crate::test_support::slot_settles_free(&dir, 1));
     }
 
     #[test]
@@ -1295,14 +1711,14 @@ mod tests {
         let cache = scratch.path().to_string_lossy().into_owned();
         let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
         let memory = available_memory().expect("memory");
-        let gate = Gate::from_env(scratch.path(), &get, false).expect("gate");
+        let gate = Gate::from_env(scratch.path(), &get, false, &[]).expect("gate");
         let resources = gate.resources.expect("resources");
         let cpus = std::thread::available_parallelism().expect("cpus").get();
         assert_eq!(resources.cpus, u64::try_from(cpus).expect("u64"));
         assert_eq!((resources.memory, resources.reserved), (memory, 6 << 30));
         assert_eq!(gate.count, slot_count(memory, 6 << 30));
         assert_eq!(gate.pool, slot_count(memory, 0));
-        let consumer = Gate::from_env(Path::new("/ws"), &get, false).expect("gate");
+        let consumer = Gate::from_env(Path::new("/ws"), &get, false, &[]).expect("gate");
         assert_eq!(consumer.pool, consumer.count);
         let narrow = Gate::new(PathBuf::from("/slots"), 3, "r".to_owned(), false).reserving(1);
         assert_eq!(narrow.pool, 3);
@@ -1336,6 +1752,14 @@ mod tests {
     }
 
     #[test]
+    fn available_memory_text_parses() {
+        let text = "MemTotal: 4096 kB\nMemAvailable:    2048 kB\n";
+        assert_eq!(parse_mem_available(text), Some(2 << 20));
+        assert_eq!(parse_mem_available("MemAvailable: x kB\n"), None);
+        assert_eq!(parse_mem_available("MemTotal: 1 kB\n"), None);
+    }
+
+    #[test]
     fn memory_text_parses() {
         assert_eq!(
             parse_meminfo("MemFree: 1 kB\nMemTotal:       2048 kB\n"),
@@ -1344,6 +1768,64 @@ mod tests {
         assert_eq!(parse_meminfo("MemFree: 1 kB\n"), None);
         assert_eq!(parse_cgroup_limit("8589934592\n"), Some(8 << 30));
         assert_eq!(parse_cgroup_limit("max\n"), None);
+        assert_eq!(parse_cgroup_limit("9223372036854771712\n"), None);
+        assert_eq!(parse_cgroup_limit("9223372036854710272\n"), None);
+        assert_eq!(parse_cgroup_limit("-1\n"), None);
+        assert_eq!(parse_cgroup_limit("2147483648\n"), Some(2 << 30));
+    }
+
+    #[test]
+    fn extras_follow_the_cgroup_limit() {
+        let scratch = dx_test_scratch::scratch("dx-cgroup-extras-");
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("a")).expect("dirs");
+        std::fs::write(root.join("a/memory.max"), format!("{}\n", 6u64 << 30)).expect("write");
+        let host = 19u64 << 30;
+        let limit = cgroup_limit_in("0::/a\n", root).expect("limit");
+        let memory = host.min(limit);
+        let extras = remote_slot_count(memory, 0).saturating_sub(slot_count(memory, 0));
+        let host_extras = remote_slot_count(host, 0).saturating_sub(slot_count(host, 0));
+        assert!(extras < host_extras);
+        assert_eq!(extras, 2);
+    }
+
+    #[test]
+    fn cgroup_limit_reads_v1_and_v2() {
+        let put = |root: &Path, rel: &str, text: &str| {
+            let path = root.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).expect("dirs");
+            std::fs::write(path, text).expect("write");
+        };
+        let scratch = dx_test_scratch::scratch("dx-cgroup-v2-");
+        let root = scratch.path();
+        put(root, "a/memory.max", "1000\n");
+        std::fs::create_dir_all(root.join("a/b")).expect("dirs");
+        assert_eq!(cgroup_limit_in("0::/a/b\n", root), Some(1000));
+        assert_eq!(cgroup_limit_in("", root), None);
+
+        let scratch = dx_test_scratch::scratch("dx-cgroup-v1-");
+        let root = scratch.path();
+        put(root, "memory/memory.limit_in_bytes", "2000\n");
+        assert_eq!(cgroup_limit_in("4:memory:/docker/x\n", root), Some(2000));
+        assert_eq!(cgroup_limit_in("5:cpu,memory:/x\n", root), Some(2000));
+        assert_eq!(cgroup_limit_in("5:cpu:/x\n", root), None);
+        put(root, "a/memory.max", "3000\n");
+        let hybrid = "4:memory:/docker/x\n0::/a\n";
+        assert_eq!(cgroup_limit_in(hybrid, root), Some(2000));
+        put(root, "a/memory.max", "1500\n");
+        assert_eq!(cgroup_limit_in(hybrid, root), Some(1500));
+        put(root, "memory/p/c/memory.limit_in_bytes", "5000\n");
+        put(root, "memory/p/memory.limit_in_bytes", "700\n");
+        assert_eq!(cgroup_limit_in("4:memory:/p/c\n", root), Some(700));
+
+        let scratch = dx_test_scratch::scratch("dx-cgroup-v1-unlimited-");
+        let root = scratch.path();
+        put(
+            root,
+            "memory/memory.limit_in_bytes",
+            "9223372036854771712\n",
+        );
+        assert_eq!(cgroup_limit_in("4:memory:/x\n", root), None);
     }
 
     #[derive(Default)]
@@ -1369,7 +1851,7 @@ mod tests {
             env: &[(&str, &str)],
         ) -> io::Result<dx_process::ChildStatus> {
             self.record("run", env);
-            Ok(dx_process::ChildStatus { code: Some(0) })
+            Ok(dx_process::ChildStatus::exited(0))
         }
 
         fn run_bounded(
@@ -1390,7 +1872,7 @@ mod tests {
             env: &[(&str, &str)],
         ) -> io::Result<dx_process::ChildStatus> {
             self.record("run_hermetic", env);
-            Ok(dx_process::ChildStatus { code: Some(3) })
+            Ok(dx_process::ChildStatus::exited(3))
         }
 
         fn run_withdrawable(
@@ -1401,7 +1883,7 @@ mod tests {
             _withdraw: &dyn Fn() -> bool,
         ) -> io::Result<Option<dx_process::ChildStatus>> {
             self.record("run_withdrawable", env);
-            Ok(Some(dx_process::ChildStatus { code: Some(4) }))
+            Ok(Some(dx_process::ChildStatus::exited(4)))
         }
 
         fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
@@ -1525,9 +2007,9 @@ mod tests {
             SLOT_ENV_VAR => nested.get().then(|| "1".to_owned()),
             _ => None,
         };
-        let gate = Gate::from_env(Path::new("/ws"), &get, false).expect("gate");
+        let gate = Gate::from_env(Path::new("/ws"), &get, false, &[]).expect("gate");
         nested.set(true);
-        assert!(Gate::from_env(Path::new("/ws"), &get, false).is_none());
+        assert!(Gate::from_env(Path::new("/ws"), &get, false, &[]).is_none());
         let slot = with_gate(Some(gate), || {
             take(Command::Run, &mut Vec::new(), &mut Vec::new())
         });
@@ -1538,6 +2020,128 @@ mod tests {
             .join("slots")
             .join("slot-0.lock")
             .exists());
+    }
+
+    fn counting(
+        message: Option<&'static str>,
+    ) -> (
+        Arc<std::sync::atomic::AtomicUsize>,
+        impl Fn() -> Option<String> + Send + Sync + 'static,
+    ) {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::clone(&calls);
+        let reclaim = move || {
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            message.map(str::to_owned)
+        };
+        (calls, reclaim)
+    }
+
+    const RECLAIMED: &str =
+        "low disk: 5.0 GiB free; removed the output bases of free slot(s) 2; 30.0 GiB free now";
+
+    #[test]
+    fn take_runs_the_reclaimer_once_and_reports_it() {
+        for json in [true, false] {
+            let scratch = dx_test_scratch::scratch("dx-slots-reclaim-");
+            let (calls, reclaim) = counting(Some(RECLAIMED));
+            let gate = Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), json)
+                .reclaiming(reclaim);
+            let (_slot, err, events) = take_gate(&gate);
+            assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+            assert_eq!(err, format!("dx: {RECLAIMED}\n"));
+            if !json {
+                assert!(events.is_empty(), "text mode writes no events");
+                continue;
+            }
+            let notices: Vec<serde_json::Value> = events
+                .lines()
+                .map(|line| serde_json::from_str(line).expect("json"))
+                .collect();
+            assert_eq!(notices.len(), 1, "{events}");
+            assert_eq!(notices[0]["event"], "notice");
+            assert_eq!(notices[0]["level"], "warning");
+            assert_eq!(notices[0]["code"], "disk_low");
+            assert_eq!(notices[0]["message"], RECLAIMED);
+            assert_eq!(notices[0]["related_command"], "test");
+        }
+    }
+
+    #[test]
+    fn hold_for_a_command_without_a_build_slot_never_reclaims() {
+        let scratch = dx_test_scratch::scratch("dx-slots-no-reclaim-");
+        let (calls, reclaim) = counting(Some(RECLAIMED));
+        let gate =
+            Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), true).reclaiming(reclaim);
+        for command in [
+            Command::Worktree,
+            Command::Status,
+            Command::Clean,
+            Command::Watch,
+        ] {
+            let mut err = Vec::new();
+            let mut events = Vec::new();
+            let slot = gate.hold(command, &mut err, &mut events).expect("hold");
+            assert!(slot.is_none(), "{command:?}");
+            assert!(err.is_empty() && events.is_empty(), "{command:?}");
+        }
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        let mut err = Vec::new();
+        let slot = gate
+            .hold(Command::Build, &mut err, &mut Vec::new())
+            .expect("hold");
+        assert!(slot.is_some());
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "a build reclaims"
+        );
+    }
+
+    #[test]
+    fn a_quiet_reclaim_prints_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-slots-quiet-reclaim-");
+        let (calls, reclaim) = counting(None);
+        let gate =
+            Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), true).reclaiming(reclaim);
+        let (_slot, err, events) = take_gate(&gate);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(err.is_empty(), "{err}");
+        assert!(events.is_empty(), "{events}");
+    }
+
+    #[test]
+    fn take_reclaims_when_slots_are_disabled() {
+        let scratch = dx_test_scratch::scratch("dx-slots-disabled-reclaim-");
+        let blocker = scratch.path().join("slots");
+        std::fs::write(&blocker, b"").expect("blocker");
+        let (calls, reclaim) = counting(Some(RECLAIMED));
+        let gate = Gate::new(blocker, 1, "me".to_owned(), false).reclaiming(reclaim);
+        let mut err = Vec::new();
+        let slot = gate
+            .take(Command::Test, &mut err, &mut Vec::new())
+            .expect("take");
+        assert!(slot.is_none());
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        let text = String::from_utf8(err).expect("utf8");
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 2, "{text}");
+        assert!(lines[0].starts_with("dx: build slots disabled: "), "{text}");
+        assert_eq!(lines[1], format!("dx: {RECLAIMED}"));
+    }
+
+    #[test]
+    fn a_nested_take_without_a_gate_never_reclaims() {
+        let scratch = dx_test_scratch::scratch("dx-slots-nested-reclaim-");
+        let (calls, reclaim) = counting(Some(RECLAIMED));
+        let gate =
+            Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false).reclaiming(reclaim);
+        with_gate(Some(gate), || {
+            with_gate(None, || {
+                take(Command::Build, &mut Vec::new(), &mut Vec::new()).expect("take")
+            })
+        });
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
     }
 
     #[test]
@@ -1559,7 +2163,7 @@ mod tests {
         assert!(take(Command::Run, &mut Vec::new(), &mut Vec::new())
             .expect("none")
             .is_none());
-        assert!(try_take(&dir, 1, "after").expect("try").is_some());
+        assert!(crate::test_support::slot_settles_free(&dir, 1));
     }
 
     #[test]
@@ -1571,6 +2175,14 @@ mod tests {
         assert_eq!(slots_dir(&get), Some(PathBuf::from("/x/dx/slots")));
         let home = |name: &str| (name == "HOME").then(|| "/h".to_owned());
         assert_eq!(slots_dir(&home), Some(PathBuf::from("/h/.cache/dx/slots")));
+        let local = |name: &str| (name == "LOCALAPPDATA").then(|| "/l".to_owned());
+        assert_eq!(slots_dir(&local), Some(PathBuf::from("/l/dx/slots")));
+        let empty_home = |name: &str| match name {
+            "HOME" => Some(String::new()),
+            "LOCALAPPDATA" => Some("/l".to_owned()),
+            _ => None,
+        };
+        assert_eq!(slots_dir(&empty_home), Some(PathBuf::from("/l/dx/slots")));
         assert_eq!(slots_dir(&|_| None), None);
     }
 
@@ -1582,15 +2194,17 @@ mod tests {
         assert_eq!(first.index, 0);
         let mut seen = Vec::new();
         let second_dir = dir.clone();
+        let (sender, receiver) = std::sync::mpsc::channel();
         let waiter = std::thread::spawn(move || {
             let mut holders = Vec::new();
             let slot = acquire(&second_dir, 1, "tree-b", &mut |holder| {
                 holders.push(holder.to_owned());
+                let _ = sender.send(());
             })
             .expect("second");
             (slot.index, holders)
         });
-        std::thread::sleep(Duration::from_millis(600));
+        announced(&receiver);
         drop(first);
         let (index, holders) = waiter.join().expect("join");
         seen.extend(holders);
@@ -1732,12 +2346,12 @@ mod tests {
         let a = try_take(&dir, 3, "a").expect("try").expect("a");
         let b = try_take(&dir, 3, "b").expect("try").expect("b");
         let c = try_take(&dir, 3, "c").expect("try").expect("c");
-        assert_eq!(holder(&dir, 3, 2), "a and 2 more, 2 ahead in line");
+        assert_eq!(holder(&dir, 0..3, 2), "a and 2 more, 2 ahead in line");
         drop(a);
         assert!(!holder_path(&dir, 0).exists());
-        assert_eq!(holder(&dir, 3, 0), "b and 1 more");
+        assert_eq!(holder(&dir, 0..3, 0), "b and 1 more");
         drop((b, c));
-        assert_eq!(holder(&dir, 3, 0), "another build");
+        assert_eq!(holder(&dir, 0..3, 0), "another build");
     }
 
     #[test]
@@ -1747,6 +2361,79 @@ mod tests {
         let first = acquire(&dir, 2, "a", &mut |_| {}).expect("first");
         let second = acquire(&dir, 2, "b", &mut |_| panic!("must not wait")).expect("second");
         assert_eq!((first.index, second.index), (0, 1));
+    }
+
+    /// A writer that buffers everything and signals once on its first write.
+    ///
+    /// `Gate::take` writes the wait line from `on_wait`, which `acquire_reserving` runs only after
+    /// the waiter is queued and failed to take a slot, so the signal proves the waiter is in line.
+    struct Announce {
+        buf: Vec<u8>,
+        signal: Option<std::sync::mpsc::Sender<()>>,
+    }
+
+    impl Announce {
+        fn new() -> (Self, std::sync::mpsc::Receiver<()>) {
+            let (signal, rx) = std::sync::mpsc::channel();
+            let announce = Self {
+                buf: Vec::new(),
+                signal: Some(signal),
+            };
+            (announce, rx)
+        }
+
+        fn text(self) -> String {
+            String::from_utf8(self.buf).expect("utf8")
+        }
+    }
+
+    impl Write for Announce {
+        fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+            self.buf.extend_from_slice(data);
+            if let Some(signal) = self.signal.take() {
+                let _ = signal.send(());
+            }
+            Ok(data.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    const ANNOUNCE_TIMEOUT: Duration = Duration::from_secs(30);
+
+    /// Waits for the waiter's announcement; panics rather than hanging when it never comes.
+    fn announced(rx: &std::sync::mpsc::Receiver<()>) {
+        rx.recv_timeout(ANNOUNCE_TIMEOUT)
+            .expect("waiter never announced a wait");
+    }
+
+    /// Waits for the announcement, then always drops `held`, so a missing wait fails the caller's
+    /// assertions instead of hanging `hold()` forever. Returns whether the wait was announced.
+    fn released_after_wait<T>(rx: &std::sync::mpsc::Receiver<()>, held: T) -> bool {
+        let seen = rx.recv_timeout(ANNOUNCE_TIMEOUT).is_ok();
+        drop(held);
+        seen
+    }
+
+    /// Like `take_gate` on a thread; the receiver fires once the thread is waiting in line.
+    fn spawn_take(
+        gate: Gate,
+    ) -> (
+        std::thread::JoinHandle<(Slot, String, String)>,
+        std::sync::mpsc::Receiver<()>,
+    ) {
+        let (mut err, rx) = Announce::new();
+        let waiter = std::thread::spawn(move || {
+            let mut events = Vec::new();
+            let slot = gate
+                .take(Command::Test, &mut err, &mut events)
+                .expect("take")
+                .expect("slot");
+            (slot, err.text(), String::from_utf8(events).expect("utf8"))
+        });
+        (waiter, rx)
     }
 
     fn take_gate(gate: &Gate) -> (Slot, String, String) {
@@ -1773,7 +2460,7 @@ mod tests {
         assert_eq!(err, "");
         assert!(try_take(&dir, 2, "c").expect("try").is_none());
         drop(slot);
-        assert!(try_take(&dir, 2, "c").expect("try").is_some());
+        assert!(crate::test_support::slot_settles_free(&dir, 2));
     }
 
     #[test]
@@ -1799,14 +2486,11 @@ mod tests {
         assert_eq!(consumer.index, 1);
         drop(fill);
         let gate = Gate::new(dir.clone(), 1, "r".to_owned(), true).reserving(2);
-        let waiter = std::thread::spawn(move || {
-            let (slot, err, events) = take_gate(&gate);
-            (slot.index, err, events)
-        });
-        std::thread::sleep(Duration::from_millis(600));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
         drop(consumer);
-        let (index, err, events) = waiter.join().expect("join");
-        assert_eq!(index, 0);
+        let (slot, err, events) = waiter.join().expect("join");
+        assert_eq!(slot.index, 0);
         assert_eq!(err, "dx: waiting for a build slot (held by consumer)\n");
         assert_eq!(
             events.matches("waiting_for_build_slot").count(),
@@ -1827,10 +2511,15 @@ mod tests {
         let (sender, receiver) = std::sync::mpsc::channel();
         let rules_dx_dir = dir.clone();
         let rules_dx = std::thread::spawn(move || {
+            let layout = Layout {
+                count: 1,
+                reserve: 1..2,
+                extras: 2..2,
+            };
             acquire_reserving(
                 &rules_dx_dir,
-                1,
-                1..2,
+                &layout,
+                None,
                 "r",
                 &mut |holder| {
                     sender.send(holder.to_owned()).expect("send");
@@ -2040,11 +2729,8 @@ mod tests {
             .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
             .collect();
         let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
-        let releaser = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(600));
-            drop(held);
-        });
-        let mut err = Vec::new();
+        let (mut err, rx) = Announce::new();
+        let releaser = std::thread::spawn(move || released_after_wait(&rx, held));
         let mut events = Vec::new();
         let slot = hold(
             Command::Test,
@@ -2054,9 +2740,12 @@ mod tests {
             true,
             &mut events,
         );
-        releaser.join().expect("join");
+        assert!(
+            releaser.join().expect("join"),
+            "waiter never announced a wait"
+        );
         assert!(matches!(slot, Ok(Some(_))));
-        let text = String::from_utf8(err).expect("utf8");
+        let text = err.text();
         assert_eq!(text.lines().count(), 1);
         assert!(text.contains(&wait_message(&busy(count))), "{text}");
         let json = String::from_utf8(events).expect("utf8");
@@ -2110,11 +2799,8 @@ mod tests {
             .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
             .collect();
         let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
-        let releaser = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(600));
-            drop(held);
-        });
-        let mut err = Vec::new();
+        let (mut err, rx) = Announce::new();
+        let releaser = std::thread::spawn(move || released_after_wait(&rx, held));
         let mut events = Vec::new();
         let slot = hold(
             command,
@@ -2124,9 +2810,12 @@ mod tests {
             false,
             &mut events,
         );
-        releaser.join().expect("join");
+        assert!(
+            releaser.join().expect("join"),
+            "waiter never announced a wait"
+        );
         assert!(matches!(slot, Ok(Some(_))), "{}", command.name());
-        let text = String::from_utf8(err).expect("utf8");
+        let text = err.text();
         assert!(text.contains(&wait_message(&busy(count))), "{text}");
         let nested = |name: &str| (name == SLOT_ENV_VAR).then(|| "1".to_owned());
         let slot = hold(

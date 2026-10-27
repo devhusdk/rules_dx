@@ -10,6 +10,7 @@
     )
 )]
 
+use std::collections::BTreeSet;
 use std::ops::Range;
 
 use starlark_syntax::codemap::Span;
@@ -41,6 +42,8 @@ pub struct Call {
     pub name: String,
     pub binding: Option<String>,
     pub line: usize,
+    /// Byte range of the call expression.
+    pub span: Range<usize>,
     pub positional: Vec<Value>,
     pub named: Vec<(String, Value)>,
     pub unpacked: bool,
@@ -99,6 +102,10 @@ pub enum ModuleError {
     ComputedArtifacts { line: usize },
     #[error("{value:?} cannot be written into a Starlark string literal")]
     UnsafeString { value: String },
+    #[error("{name:?} is already declared in MODULE.bazel")]
+    AlreadyDeclared { name: String },
+    #[error("cannot insert into MODULE.bazel: {reason}")]
+    NoInsertPoint { reason: String },
 }
 
 /// A parsed MODULE.bazel with its top-level calls in source order.
@@ -214,17 +221,7 @@ impl ModuleFile {
 
     /// Every literal coordinate in the `artifacts` of rules_jvm_external `maven.install` tags.
     pub fn maven_artifacts(&self) -> Result<Vec<&Str>, ModuleError> {
-        let repo = self.repo_name(MAVEN_MODULE).unwrap_or(MAVEN_MODULE);
-        let label = format!("@{repo}//:extensions.bzl");
-        let proxies: Vec<&str> = self
-            .calls_named("use_extension")
-            .filter(|call| {
-                let file = extension_arg(call, 0, "extension_bzl_file");
-                let extension = extension_arg(call, 1, "extension_name");
-                file == Some(label.as_str()) && extension == Some("maven")
-            })
-            .filter_map(|call| call.binding.as_deref())
-            .collect();
+        let proxies = self.maven_proxies();
         let mut artifacts = Vec::new();
         for call in &self.calls {
             let Some((proxy, "install")) = call.name.rsplit_once('.') else {
@@ -247,6 +244,197 @@ impl ModuleFile {
             }
         }
         Ok(artifacts)
+    }
+
+    /// The source with `bazel_dep(name = name, version = version)` added after the
+    /// last top-level `bazel_dep`, or after `module()`, keeping every other byte.
+    pub fn insert_bazel_dep(&self, name: &str, version: &str) -> Result<String, ModuleError> {
+        for value in [name, version] {
+            check_safe(value)?;
+        }
+        match self.bazel_dep(name) {
+            Ok(_) | Err(ModuleError::Ambiguous { .. }) => {
+                return Err(ModuleError::AlreadyDeclared {
+                    name: name.to_owned(),
+                })
+            }
+            Err(ModuleError::NotFound { .. }) => {}
+            Err(other) => return Err(other),
+        }
+        let eol = line_ending(&self.source);
+        let line = format!("bazel_dep(name = \"{name}\", version = \"{version}\")");
+        let anchor = self
+            .calls_named("bazel_dep")
+            .last()
+            .map(|call| (call.span.end, false))
+            .or_else(|| {
+                self.calls_named("module")
+                    .last()
+                    .map(|call| (call.span.end, true))
+            });
+        let out = match anchor {
+            Some((end, after_module)) => {
+                let at = line_end(&self.source, end);
+                let mut text = String::new();
+                if at == self.source.len() && !self.source.ends_with('\n') {
+                    text.push_str(eol);
+                }
+                if after_module {
+                    text.push_str(eol);
+                }
+                text.push_str(&line);
+                text.push_str(eol);
+                splice(&self.source, at, &text)
+            }
+            None => {
+                let mut text = String::new();
+                if !self.source.is_empty() && !self.source.ends_with('\n') {
+                    text.push_str(eol);
+                }
+                if !self.source.trim().is_empty() {
+                    text.push_str(eol);
+                }
+                text.push_str(&line);
+                text.push_str(eol);
+                splice(&self.source, self.source.len(), &text)
+            }
+        };
+        let reparsed = ModuleFile::parse(&out)?;
+        if reparsed.bazel_dep_version(name).map(|v| v.value.as_str()) != Ok(version) {
+            return Err(ModuleError::NoInsertPoint {
+                reason: "insert did not round-trip".to_owned(),
+            });
+        }
+        Ok(out)
+    }
+
+    /// The source with Maven coordinate `coordinate` appended to the `artifacts` list of the
+    /// one rules_jvm_external `maven.install` tag that feeds the default `@maven` repository.
+    pub fn insert_maven_artifact(&self, coordinate: &str) -> Result<String, ModuleError> {
+        check_safe(coordinate)?;
+        let proxies = self.maven_proxies();
+        let mut installs: Vec<&Call> = Vec::new();
+        for call in &self.calls {
+            let is_install = call
+                .name
+                .rsplit_once('.')
+                .is_some_and(|(proxy, tag)| tag == "install" && proxies.contains(&proxy));
+            if !is_install {
+                continue;
+            }
+            match call.arg("name") {
+                None if call.unpacked => {
+                    return Err(ModuleError::NoInsertPoint {
+                        reason: format!("maven.install at line {} has a computed name", call.line),
+                    })
+                }
+                None => installs.push(call),
+                Some(Value::Str(literal)) if literal.value == "maven" => installs.push(call),
+                Some(Value::Str(_)) => {}
+                Some(_) => {
+                    return Err(ModuleError::NoInsertPoint {
+                        reason: format!("maven.install at line {} has a computed name", call.line),
+                    })
+                }
+            }
+        }
+        let call = match installs.as_slice() {
+            [call] => *call,
+            [] => {
+                return Err(ModuleError::NoInsertPoint {
+                    reason: "no maven.install tag for the default @maven repository".to_owned(),
+                })
+            }
+            many => {
+                return Err(ModuleError::NoInsertPoint {
+                    reason: format!(
+                        "{} maven.install tags feed the default @maven repository",
+                        many.len()
+                    ),
+                })
+            }
+        };
+        let items = match call.arg("artifacts") {
+            Some(Value::List(items)) => items,
+            _ => return Err(ModuleError::ComputedArtifacts { line: call.line }),
+        };
+        let mut last = None;
+        for item in items {
+            match item {
+                Value::Str(literal) => last = Some(literal),
+                _ => return Err(ModuleError::ComputedArtifacts { line: call.line }),
+            }
+        }
+        let Some(last) = last else {
+            return Err(ModuleError::NoInsertPoint {
+                reason: format!("maven.install artifacts at line {} is empty", call.line),
+            });
+        };
+        let source = &self.source;
+        let line_start = source[..last.span.start].rfind('\n').map_or(0, |at| at + 1);
+        let before = &source[line_start..last.span.start];
+        let quote = if source[last.span.clone()].starts_with('\'') {
+            '\''
+        } else {
+            '"'
+        };
+        let literal = format!("{quote}{coordinate}{quote}");
+        let out = if before.trim().is_empty() {
+            let rest = &source[last.span.end..];
+            let comma = rest.trim_start_matches([' ', '\t']).starts_with(',');
+            let eol = line_ending(source);
+            if comma {
+                let at = line_end(source, last.span.end);
+                let mut text = String::new();
+                if at == source.len() {
+                    text.push_str(eol);
+                }
+                text.push_str(before);
+                text.push_str(&literal);
+                text.push(',');
+                text.push_str(eol);
+                splice(source, at, &text)
+            } else {
+                splice(source, last.span.end, &format!(",{eol}{before}{literal}"))
+            }
+        } else {
+            splice(source, last.span.end, &format!(", {literal}"))
+        };
+        let reparsed = ModuleFile::parse(&out)?;
+        let mut expected: Vec<String> = self
+            .maven_artifacts()?
+            .iter()
+            .map(|s| s.value.clone())
+            .collect();
+        expected.push(coordinate.to_owned());
+        let after: Vec<String> = reparsed
+            .maven_artifacts()?
+            .iter()
+            .map(|s| s.value.clone())
+            .collect();
+        let mut sorted_expected = expected.clone();
+        sorted_expected.sort();
+        let mut sorted_after = after;
+        sorted_after.sort();
+        if sorted_after != sorted_expected {
+            return Err(ModuleError::NoInsertPoint {
+                reason: "insert did not round-trip".to_owned(),
+            });
+        }
+        Ok(out)
+    }
+
+    fn maven_proxies(&self) -> Vec<&str> {
+        let repo = self.repo_name(MAVEN_MODULE).unwrap_or(MAVEN_MODULE);
+        let label = format!("@{repo}//:extensions.bzl");
+        self.calls_named("use_extension")
+            .filter(|call| {
+                let file = extension_arg(call, 0, "extension_bzl_file");
+                let extension = extension_arg(call, 1, "extension_name");
+                file == Some(label.as_str()) && extension == Some("maven")
+            })
+            .filter_map(|call| call.binding.as_deref())
+            .collect()
     }
 
     /// The source with one string literal set to `value`, keeping its quote style.
@@ -279,6 +467,42 @@ impl ModuleFile {
         out.push_str(&self.source[literal.span.end..]);
         Ok(out)
     }
+}
+
+fn check_safe(value: &str) -> Result<(), ModuleError> {
+    if value
+        .chars()
+        .any(|c| c == '"' || c == '\'' || c == '\\' || c.is_control())
+    {
+        return Err(ModuleError::UnsafeString {
+            value: value.to_owned(),
+        });
+    }
+    Ok(())
+}
+
+/// `\r\n` when the source uses CRLF line endings, else `\n`.
+fn line_ending(source: &str) -> &'static str {
+    if source.contains("\r\n") {
+        "\r\n"
+    } else {
+        "\n"
+    }
+}
+
+/// The byte just past the newline that ends the line holding `at`, or the source end.
+fn line_end(source: &str, at: usize) -> usize {
+    source[at..]
+        .find('\n')
+        .map_or(source.len(), |off| at + off + 1)
+}
+
+fn splice(source: &str, at: usize, text: &str) -> String {
+    let mut out = String::with_capacity(source.len() + text.len());
+    out.push_str(&source[..at]);
+    out.push_str(text);
+    out.push_str(&source[at..]);
+    out
 }
 
 /// The module strings of every `load()` in a .bzl source, in source order.
@@ -340,6 +564,7 @@ fn read_call(ast: &AstModule, expr: &AstExpr, binding: Option<String>) -> Option
         name,
         binding,
         line: line_of(ast, expr.span),
+        span: expr.span.begin().get() as usize..expr.span.end().get() as usize,
         positional: Vec::new(),
         named: Vec::new(),
         unpacked: false,
@@ -386,6 +611,95 @@ fn read_value(ast: &AstModule, expr: &AstExpr) -> Value {
 
 fn line_of(ast: &AstModule, span: Span) -> usize {
     ast.file_span(span).resolve_span().begin.line + 1
+}
+
+/// Parses the root MODULE.bazel and every file it includes, in include order.
+pub fn load_with_includes(
+    root_text: &str,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<Vec<ModuleFile>, String> {
+    let mut files = Vec::new();
+    let mut seen = BTreeSet::new();
+    collect_module(root_text, None, read_include, &mut seen, &mut files)?;
+    Ok(files)
+}
+
+/// Splits an include label into package and file the way Bazel accepts it.
+fn include_parts(label: &str) -> Result<(&str, &str), String> {
+    if label.starts_with('@') {
+        return Err(format!(
+            "include {label} is not a //package:file label; Bazel accepts only // labels in include"
+        ));
+    }
+    let (package, file) = label
+        .strip_prefix("//")
+        .and_then(|rest| rest.split_once(':'))
+        .ok_or_else(|| format!("include {label} is not //package:file"))?;
+    let bad =
+        |part: &str| part.is_empty() || part == "." || part == ".." || part.contains(['\\', ':']);
+    let package_bad = !package.is_empty() && package.split('/').any(bad);
+    if package_bad || file.split('/').any(bad) {
+        return Err(format!("include {label} leaves the workspace"));
+    }
+    let name = file.rsplit('/').next().unwrap_or(file);
+    if !name.ends_with(".MODULE.bazel") || name.starts_with('.') {
+        return Err(format!("include {label} must name a .MODULE.bazel file"));
+    }
+    Ok((package, file))
+}
+
+/// Resolves an include label to a workspace-relative path under module_dir.
+pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
+    let (package, file) = include_parts(label)?;
+    let mut rel = module_dir.to_owned();
+    for part in [package, file] {
+        if !part.is_empty() {
+            if !rel.is_empty() {
+                rel.push('/');
+            }
+            rel.push_str(part);
+        }
+    }
+    Ok(rel)
+}
+
+/// Parses one module file, then recurses into its includes.
+fn collect_module(
+    text: &str,
+    label: Option<&str>,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
+    seen: &mut BTreeSet<String>,
+    files: &mut Vec<ModuleFile>,
+) -> Result<(), String> {
+    let module = ModuleFile::parse(text).map_err(|error| match label {
+        Some(label) => format!("{label}: {error}"),
+        None => error.to_string(),
+    })?;
+    let mut labels = Vec::new();
+    for call in module.calls_named("include") {
+        match call.positional.first().or_else(|| call.arg("label")) {
+            Some(Value::Str(label)) => {
+                include_parts(&label.value)
+                    .map_err(|error| format!("{error} at MODULE.bazel line {}", call.line))?;
+                labels.push(label.value.clone());
+            }
+            _ => {
+                return Err(format!(
+                    "include at MODULE.bazel line {} needs a string literal label",
+                    call.line
+                ))
+            }
+        }
+    }
+    files.push(module);
+    for label in labels {
+        if !seen.insert(label.clone()) {
+            return Err(format!("MODULE.bazel includes {label} more than once"));
+        }
+        let included = read_include(&label)?;
+        collect_module(&included, Some(&label), read_include, seen, files)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

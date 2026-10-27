@@ -10,14 +10,15 @@ DxNativeConfigInfo = provider(
 )
 
 CONFIG_REQUIRED_TOOLS = {
-    "biome": "Biome",
-    "buildifier": "Buildifier",
-    "checkstyle": "Checkstyle",
-    "eslint": "ESLint",
-    "ruff": "Ruff",
-    "scalafix": "Scalafix",
-    "scalafmt": "Scalafmt",
-    "vale": "Vale",
+    "biome": struct(name = "Biome", src = "biome.json"),
+    "buildifier": struct(name = "Buildifier", src = ".buildifier.json"),
+    "checkstyle": struct(name = "Checkstyle", src = "checkstyle.xml"),
+    "eslint": struct(name = "ESLint", src = "eslint.config.mjs"),
+    "graphql_eslint": struct(name = "graphql-eslint", src = "graphql_lint.json"),
+    "ruff": struct(name = "Ruff", src = "ruff.toml"),
+    "scalafix": struct(name = "Scalafix", src = ".scalafix.conf"),
+    "scalafmt": struct(name = "Scalafmt", src = ".scalafmt.conf"),
+    "vale": struct(name = "Vale", src = ".vale.ini"),
 }
 
 _NATIVE_CONFIG_SUFFIXES = {
@@ -32,14 +33,21 @@ _NATIVE_CONFIG_SUFFIXES = {
     "djlint": ["djlint.toml", ".djlintrc"],
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
+    "graphql_eslint": [".json"],
+    "hadolint": [".yaml", ".yml"],
+    "pmd": [".xml"],
+    "prettier": [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"],
     "psscriptanalyzer": [".psd1"],
     "qmlformat": [".qmlformat.ini"],
     "qmllint": [".qmllint.ini"],
+    "redocly": [".yaml", ".yml"],
+    "remark": [".json"],
     "rubocop": [".yml", ".yaml"],
     "ruff": [".toml"],
     "rustfmt": [".toml"],
     "scalafix": [".conf"],
     "scalafmt": [".conf"],
+    "shellcheck": [".shellcheckrc", "shellcheckrc"],
     "standardrb": [".yml", ".yaml"],
     "staticcheck": [".conf"],
     "stylelint": [".json"],
@@ -98,13 +106,14 @@ def collect_native_configs(hints, stage_tools, what):
         by_tool[hint.tool_id] = hint
     return {tool: by_tool[tool] for tool in stage_tools if tool in by_tool}
 
-def missing_required_config_error(tool, configs_by_tool, what):
+def missing_required_config_error(tool, capability, configs_by_tool, what):
     """Returns the error for a required tool with no bound config, or ""."""
     if tool not in CONFIG_REQUIRED_TOOLS or tool in configs_by_tool:
         return ""
-    return ("real_aspect (" + what + "): applicable " + CONFIG_REQUIRED_TOOLS[tool] +
-            " requires declared config; supply and bind native policy via " +
-            "aspect_hints (no usable upstream default)")
+    info = CONFIG_REQUIRED_TOOLS[tool]
+    return (what + ": " + info.name + " needs a config. Declare " + tool + "_config(name = \"" +
+            tool + "_config\", src = \"" + info.src + "\") from @rules_dx//quality:native_config.bzl" +
+            " and add aspect_hints = [\":" + tool + "_config\"], or tag the target no-" + capability + ".")
 
 def _native_config_impl(ctx):
     tool_id = ctx.attr._tool_id
@@ -128,6 +137,7 @@ def _native_config_impl(ctx):
 def _make_native_config_rule(tool_id):
     return rule(
         implementation = _native_config_impl,
+        doc = "Native config file for " + tool_id + ".",
         attrs = {
             "allow_generated": attr.bool(
                 default = False,
@@ -178,13 +188,22 @@ fsharplint_config = _make_native_config_rule("fsharplint")
 
 checkstyle_config = _make_native_config_rule("checkstyle")
 
+pmd_config = _make_native_config_rule("pmd")
+
 buf_config = _make_native_config_rule("buf")
 
 qmlformat_config = _make_native_config_rule("qmlformat")
 
 qmllint_config = _make_native_config_rule("qmllint")
 
+prettier_config = _make_native_config_rule("prettier")
+
 stylelint_config = _make_native_config_rule("stylelint")
+
+graphql_eslint_config = _make_native_config_rule("graphql_eslint")
+
+redocly_config = _make_native_config_rule("redocly")
+remark_config = _make_native_config_rule("remark")
 
 psscriptanalyzer_config = _make_native_config_rule("psscriptanalyzer")
 
@@ -192,7 +211,11 @@ djlint_config = _make_native_config_rule("djlint")
 
 yamlfmt_config = _make_native_config_rule("yamlfmt")
 
+shellcheck_config = _make_native_config_rule("shellcheck")
+
 yamllint_config = _make_native_config_rule("yamllint")
+
+hadolint_config = _make_native_config_rule("hadolint")
 
 rubocop_config = _make_native_config_rule("rubocop")
 

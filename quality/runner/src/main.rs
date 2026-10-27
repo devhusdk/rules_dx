@@ -15,6 +15,7 @@ use clap::Parser;
 use quality_result::encode_validated;
 use quality_runner::{
     real::{RealBackend, RealTool},
+    request::RequestTool,
     run_pipeline, FileInput, StageSpec,
 };
 
@@ -24,26 +25,10 @@ pub enum RunnerError {
     Args { message: String },
     #[error("malformed --stage {spec:?}, want TOOL;classes;paths")]
     BadStage { spec: String },
-    #[error("malformed --tool-binary {spec:?}, want TOOL=ABS_PATH")]
-    BadToolBinary { spec: String },
-    #[error("malformed --tool-config {spec:?}, want TOOL=MIRROR_REL")]
-    BadToolConfig { spec: String },
-    #[error("malformed --tool-edition {spec:?}, want TOOL=EDITION")]
-    BadToolEdition { spec: String },
-    #[error("malformed --tool-file {spec:?}, want TOOL=MIRROR_REL=EXEC")]
-    BadToolFile { spec: String },
-    #[error("malformed --tool-env {spec:?}, want TOOL=KEY=VALUE")]
-    BadToolEnv { spec: String },
-    #[error("malformed --upstream-diagnostics {spec:?}, want TOOL=EXEC_PATH")]
-    BadUpstreamDiagnostics { spec: String },
     #[error("--{flag} is required")]
     MissingRequired { flag: &'static str },
     #[error("malformed --source {mapping:?}, want WS_PATH=EXEC")]
     BadSource { mapping: String },
-    #[error("malformed --sibling {mapping:?}, want WS_PATH=EXEC")]
-    BadSibling { mapping: String },
-    #[error("malformed --resolve {mapping:?}, want WS_PATH=EXEC")]
-    BadResolve { mapping: String },
     #[error("cannot read {workspace:?}: {detail}")]
     UnreadableSource { workspace: String, detail: String },
     #[error("cannot read sibling {workspace:?}: {detail}")]
@@ -56,26 +41,12 @@ pub enum RunnerError {
     InvalidResult { detail: String },
     #[error("cannot write {output:?}: {detail}")]
     UnwritableOutput { output: String, detail: String },
-    #[error("duplicate --tool-binary for {tool:?}")]
-    DuplicateToolBinary { tool: String },
-    #[error("--tool-config for unknown tool {tool:?}: pass --tool-binary first")]
-    UnknownToolConfig { tool: String },
-    #[error("duplicate --tool-config for {tool:?}")]
-    DuplicateToolConfig { tool: String },
-    #[error("--tool-edition for unknown tool {tool:?}: pass --tool-binary first")]
-    UnknownToolEdition { tool: String },
-    #[error("duplicate --tool-edition for {tool:?}")]
-    DuplicateToolEdition { tool: String },
     #[error("cannot read tool file {rel:?} for {tool:?}: {detail}")]
     UnreadableToolFile {
         rel: String,
         tool: String,
         detail: String,
     },
-    #[error("--tool-file for unknown tool {tool:?}: pass --tool-binary first")]
-    UnknownToolFile { tool: String },
-    #[error("--tool-env for unknown tool {tool:?}: pass --tool-binary first")]
-    UnknownToolEnv { tool: String },
     #[error("--request cannot be combined with --{flag}")]
     RequestConflict { flag: String },
     #[error("cannot read request {path:?}: {detail}")]
@@ -105,100 +76,6 @@ fn parse_stage(spec: &str) -> Result<StageSpec, RunnerError> {
     })
 }
 
-fn parse_tool_binary(spec: &str) -> Result<(String, PathBuf), RunnerError> {
-    let (tool, path) = spec
-        .split_once('=')
-        .ok_or_else(|| RunnerError::BadToolBinary {
-            spec: spec.to_owned(),
-        })?;
-    if tool.is_empty() || path.is_empty() {
-        return Err(RunnerError::BadToolBinary {
-            spec: spec.to_owned(),
-        });
-    }
-    Ok((tool.to_owned(), PathBuf::from(path)))
-}
-
-fn parse_tool_config(spec: &str) -> Result<(String, String), RunnerError> {
-    let (tool, rel) = spec
-        .split_once('=')
-        .ok_or_else(|| RunnerError::BadToolConfig {
-            spec: spec.to_owned(),
-        })?;
-    if tool.is_empty() || rel.is_empty() {
-        return Err(RunnerError::BadToolConfig {
-            spec: spec.to_owned(),
-        });
-    }
-    Ok((tool.to_owned(), rel.to_owned()))
-}
-
-fn parse_tool_edition(spec: &str) -> Result<(String, String), RunnerError> {
-    let (tool, edition) = spec
-        .split_once('=')
-        .ok_or_else(|| RunnerError::BadToolEdition {
-            spec: spec.to_owned(),
-        })?;
-    if tool.is_empty() || edition.is_empty() {
-        return Err(RunnerError::BadToolEdition {
-            spec: spec.to_owned(),
-        });
-    }
-    Ok((tool.to_owned(), edition.to_owned()))
-}
-
-fn parse_tool_file(spec: &str) -> Result<(String, String, String), RunnerError> {
-    let (tool, rest) = spec
-        .split_once('=')
-        .ok_or_else(|| RunnerError::BadToolFile {
-            spec: spec.to_owned(),
-        })?;
-    let (rel, exec) = rest
-        .split_once('=')
-        .ok_or_else(|| RunnerError::BadToolFile {
-            spec: spec.to_owned(),
-        })?;
-    if tool.is_empty() || rel.is_empty() || exec.is_empty() {
-        return Err(RunnerError::BadToolFile {
-            spec: spec.to_owned(),
-        });
-    }
-    Ok((tool.to_owned(), rel.to_owned(), exec.to_owned()))
-}
-
-fn parse_tool_env(spec: &str) -> Result<(String, String, String), RunnerError> {
-    let (tool, rest) = spec
-        .split_once('=')
-        .ok_or_else(|| RunnerError::BadToolEnv {
-            spec: spec.to_owned(),
-        })?;
-    let (key, value) = rest
-        .split_once('=')
-        .ok_or_else(|| RunnerError::BadToolEnv {
-            spec: spec.to_owned(),
-        })?;
-    if tool.is_empty() || key.is_empty() {
-        return Err(RunnerError::BadToolEnv {
-            spec: spec.to_owned(),
-        });
-    }
-    Ok((tool.to_owned(), key.to_owned(), value.to_owned()))
-}
-
-fn parse_upstream_diagnostics(spec: &str) -> Result<(String, PathBuf), RunnerError> {
-    let (tool, path) = spec
-        .split_once('=')
-        .ok_or_else(|| RunnerError::BadUpstreamDiagnostics {
-            spec: spec.to_owned(),
-        })?;
-    if tool.is_empty() || path.is_empty() {
-        return Err(RunnerError::BadUpstreamDiagnostics {
-            spec: spec.to_owned(),
-        });
-    }
-    Ok((tool.to_owned(), PathBuf::from(path)))
-}
-
 fn parse_pair(
     spec: &str,
     malformed: fn(String) -> RunnerError,
@@ -214,14 +91,6 @@ fn parse_pair(
 
 fn bad_source(mapping: String) -> RunnerError {
     RunnerError::BadSource { mapping }
-}
-
-fn bad_sibling(mapping: String) -> RunnerError {
-    RunnerError::BadSibling { mapping }
-}
-
-fn bad_resolve(mapping: String) -> RunnerError {
-    RunnerError::BadResolve { mapping }
 }
 
 fn unreadable_source(workspace: String, detail: String) -> RunnerError {
@@ -249,57 +118,46 @@ fn reject_request_conflicts(cli: &Cli) -> Result<(), RunnerError> {
             flag: "source".to_owned(),
         });
     }
-    if !cli.sibling.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "sibling".to_owned(),
-        });
-    }
-    if !cli.resolve.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "resolve".to_owned(),
-        });
-    }
-    if cli.real {
-        return Err(RunnerError::RequestConflict {
-            flag: "real".to_owned(),
-        });
-    }
-    if cli.scratch_parent.is_some() {
-        return Err(RunnerError::RequestConflict {
-            flag: "scratch-parent".to_owned(),
-        });
-    }
-    if !cli.tool_binary.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "tool-binary".to_owned(),
-        });
-    }
-    if !cli.tool_config.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "tool-config".to_owned(),
-        });
-    }
-    if !cli.tool_file.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "tool-file".to_owned(),
-        });
-    }
-    if !cli.tool_edition.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "tool-edition".to_owned(),
-        });
-    }
-    if !cli.tool_env.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "tool-env".to_owned(),
-        });
-    }
-    if !cli.upstream_diagnostics.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "upstream-diagnostics".to_owned(),
-        });
-    }
     Ok(())
+}
+
+/// Builds the backend tool for one validated request entry.
+fn real_tool(
+    tool_id: &str,
+    entry: &RequestTool,
+    cwd: Option<PathBuf>,
+) -> Result<RealTool, RunnerError> {
+    let binary = entry
+        .binary
+        .clone()
+        .map(|binary| absolute(cwd.clone(), binary))
+        .unwrap_or_default();
+    let mut tool_files = Vec::with_capacity(entry.files.len());
+    for (rel, exec) in &entry.files {
+        let bytes = std::fs::read(exec).map_err(|error| RunnerError::UnreadableToolFile {
+            rel: rel.clone(),
+            tool: tool_id.to_owned(),
+            detail: error.to_string(),
+        })?;
+        tool_files.push((rel.clone(), bytes));
+    }
+    Ok(RealTool {
+        binary,
+        extra_env: entry.env.clone(),
+        config_rel: entry.config_rel.clone(),
+        edition: entry.edition.clone(),
+        tool_files,
+        upstream_diagnostics: entry
+            .upstream
+            .iter()
+            .map(|exec| absolute(cwd.clone(), exec.clone()))
+            .collect(),
+        search_paths: entry
+            .search_paths
+            .iter()
+            .map(|dir| site_packages(absolute(cwd.clone(), dir.clone())))
+            .collect(),
+    })
 }
 
 fn run_request(request_path: &str, output: &str) -> Result<(), RunnerError> {
@@ -318,37 +176,7 @@ fn run_request(request_path: &str, output: &str) -> Result<(), RunnerError> {
     let resolve_files = read_inputs(&request.resolves, unreadable_resolve)?;
     let mut tools: BTreeMap<String, RealTool> = BTreeMap::new();
     for (tool_id, entry) in &request.tools {
-        if let Some(binary) = &entry.binary {
-            insert_binary(&mut tools, tool_id.clone(), binary.clone(), cwd.clone())?;
-        }
-        for exec in &entry.upstream {
-            add_upstream(&mut tools, tool_id.clone(), exec.clone(), cwd.clone());
-        }
-    }
-    for (tool_id, entry) in &request.tools {
-        if let Some(rel) = &entry.config_rel {
-            set_config(&mut tools, tool_id.clone(), rel.clone())?;
-        }
-        if let Some(edition) = &entry.edition {
-            set_edition(&mut tools, tool_id.clone(), edition.clone())?;
-        }
-        for (rel, exec) in &entry.files {
-            let bytes = std::fs::read(exec).map_err(|error| RunnerError::UnreadableToolFile {
-                rel: rel.clone(),
-                tool: tool_id.clone(),
-                detail: error.to_string(),
-            })?;
-            add_tool_file(&mut tools, tool_id.clone(), rel.clone(), bytes)?;
-        }
-        for dir in &entry.search_paths {
-            if let Some(tool) = tools.get_mut(tool_id) {
-                tool.search_paths
-                    .push(site_packages(absolute(cwd.clone(), dir.clone())));
-            }
-        }
-        for (key, value) in &entry.env {
-            add_env(&mut tools, tool_id.clone(), key.clone(), value.clone())?;
-        }
+        tools.insert(tool_id.clone(), real_tool(tool_id, entry, cwd.clone())?);
     }
     let scratch_parent = request
         .scratch_parent
@@ -424,18 +252,6 @@ fn absolute(cwd: Option<PathBuf>, path: PathBuf) -> PathBuf {
     }
 }
 
-fn empty_tool(binary: PathBuf) -> RealTool {
-    RealTool {
-        binary,
-        extra_env: Vec::new(),
-        config_rel: None,
-        edition: None,
-        tool_files: Vec::new(),
-        upstream_diagnostics: Vec::new(),
-        search_paths: Vec::new(),
-    }
-}
-
 fn site_packages(dir: PathBuf) -> PathBuf {
     let lib = dir.join("lib");
     if let Ok(entries) = std::fs::read_dir(&lib) {
@@ -452,96 +268,6 @@ fn site_packages(dir: PathBuf) -> PathBuf {
     dir
 }
 
-fn insert_binary(
-    tools: &mut BTreeMap<String, RealTool>,
-    tool_id: String,
-    binary: PathBuf,
-    cwd: Option<PathBuf>,
-) -> Result<(), RunnerError> {
-    if tools.contains_key(&tool_id) {
-        return Err(RunnerError::DuplicateToolBinary { tool: tool_id });
-    }
-    tools.insert(tool_id, empty_tool(absolute(cwd, binary)));
-    Ok(())
-}
-
-fn add_upstream(
-    tools: &mut BTreeMap<String, RealTool>,
-    tool_id: String,
-    exec: PathBuf,
-    cwd: Option<PathBuf>,
-) {
-    tools
-        .entry(tool_id)
-        .or_insert_with(|| empty_tool(PathBuf::new()))
-        .upstream_diagnostics
-        .push(absolute(cwd, exec));
-}
-
-fn set_config(
-    tools: &mut BTreeMap<String, RealTool>,
-    tool_id: String,
-    rel: String,
-) -> Result<(), RunnerError> {
-    let tool = tools
-        .get_mut(&tool_id)
-        .ok_or_else(|| RunnerError::UnknownToolConfig {
-            tool: tool_id.clone(),
-        })?;
-    if tool.config_rel.is_some() {
-        return Err(RunnerError::DuplicateToolConfig { tool: tool_id });
-    }
-    tool.config_rel = Some(rel);
-    Ok(())
-}
-
-fn set_edition(
-    tools: &mut BTreeMap<String, RealTool>,
-    tool_id: String,
-    edition: String,
-) -> Result<(), RunnerError> {
-    let tool = tools
-        .get_mut(&tool_id)
-        .ok_or_else(|| RunnerError::UnknownToolEdition {
-            tool: tool_id.clone(),
-        })?;
-    if tool.edition.is_some() {
-        return Err(RunnerError::DuplicateToolEdition { tool: tool_id });
-    }
-    tool.edition = Some(edition);
-    Ok(())
-}
-
-fn add_tool_file(
-    tools: &mut BTreeMap<String, RealTool>,
-    tool_id: String,
-    rel: String,
-    bytes: Vec<u8>,
-) -> Result<(), RunnerError> {
-    let tool = tools
-        .get_mut(&tool_id)
-        .ok_or_else(|| RunnerError::UnknownToolFile {
-            tool: tool_id.clone(),
-        })?;
-    tool.tool_files.push((rel, bytes));
-    Ok(())
-}
-
-fn add_env(
-    tools: &mut BTreeMap<String, RealTool>,
-    tool_id: String,
-    key: String,
-    value: String,
-) -> Result<(), RunnerError> {
-    let tool = tools
-        .get_mut(&tool_id)
-        .ok_or_else(|| RunnerError::UnknownToolEnv {
-            tool: tool_id.clone(),
-        })?;
-    tool.extra_env.push((key, value));
-    Ok(())
-}
-
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 #[derive(Parser)]
 #[command(disable_help_flag = true)]
@@ -556,26 +282,6 @@ struct Cli {
     stage: Vec<String>,
     #[arg(long, allow_hyphen_values = true)]
     source: Vec<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    sibling: Vec<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    resolve: Vec<String>,
-    #[arg(long)]
-    real: bool,
-    #[arg(long, allow_hyphen_values = true, overrides_with = "scratch_parent")]
-    scratch_parent: Option<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    tool_binary: Vec<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    tool_config: Vec<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    tool_file: Vec<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    tool_edition: Vec<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    tool_env: Vec<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    upstream_diagnostics: Vec<String>,
     #[arg(long, allow_hyphen_values = true, overrides_with = "request")]
     request: Option<String>,
 }
@@ -615,94 +321,11 @@ fn run() -> Result<(), RunnerError> {
         stages.push(parse_stage(spec)?);
     }
     let sources = parse_pairs(&cli.source, bad_source)?;
-    let siblings = parse_pairs(&cli.sibling, bad_sibling)?;
-    let resolves = parse_pairs(&cli.resolve, bad_resolve)?;
-    let real = cli.real;
-    let scratch_parent = cli.scratch_parent;
-    let mut binaries: Vec<(String, PathBuf)> = Vec::with_capacity(cli.tool_binary.len());
-    for spec in &cli.tool_binary {
-        binaries.push(parse_tool_binary(spec)?);
-    }
-    let mut configs: Vec<(String, String)> = Vec::with_capacity(cli.tool_config.len());
-    for spec in &cli.tool_config {
-        configs.push(parse_tool_config(spec)?);
-    }
-    let mut editions: Vec<(String, String)> = Vec::with_capacity(cli.tool_edition.len());
-    for spec in &cli.tool_edition {
-        editions.push(parse_tool_edition(spec)?);
-    }
-    let mut tool_files: Vec<(String, String, String)> = Vec::with_capacity(cli.tool_file.len());
-    for spec in &cli.tool_file {
-        tool_files.push(parse_tool_file(spec)?);
-    }
-    let mut tool_env: Vec<(String, String, String)> = Vec::with_capacity(cli.tool_env.len());
-    for spec in &cli.tool_env {
-        tool_env.push(parse_tool_env(spec)?);
-    }
-    let mut upstream: Vec<(String, PathBuf)> = Vec::with_capacity(cli.upstream_diagnostics.len());
-    for spec in &cli.upstream_diagnostics {
-        upstream.push(parse_upstream_diagnostics(spec)?);
-    }
-    let cwd = std::env::current_dir().ok();
     let files = read_inputs(&sources, unreadable_source)?;
-    let sibling_files = read_inputs(&siblings, unreadable_sibling)?;
-    let resolve_files = read_inputs(&resolves, unreadable_resolve)?;
-    if !real {
-        let result = run_pipeline(&producer, &capability, &stages, &files).map_err(|e| {
-            RunnerError::PipelineFailed {
-                detail: e.to_string(),
-            }
-        })?;
-        let bytes = encode_validated(&result).map_err(|e| RunnerError::InvalidResult {
+    let result = run_pipeline(&producer, &capability, &stages, &files).map_err(|e| {
+        RunnerError::PipelineFailed {
             detail: e.to_string(),
-        })?;
-        dx_atomic_fs::write_atomic(std::path::Path::new(&output), &bytes).map_err(|e| {
-            RunnerError::UnwritableOutput {
-                output: output.clone(),
-                detail: e.to_string(),
-            }
-        })?;
-        return Ok(());
-    }
-    let mut tools: BTreeMap<String, RealTool> = BTreeMap::new();
-    for (tool_id, binary) in binaries {
-        insert_binary(&mut tools, tool_id, binary, cwd.clone())?;
-    }
-    for (tool_id, exec) in upstream {
-        add_upstream(&mut tools, tool_id, exec, cwd.clone());
-    }
-    for (tool_id, rel) in configs {
-        set_config(&mut tools, tool_id, rel)?;
-    }
-    for (tool_id, edition) in editions {
-        set_edition(&mut tools, tool_id, edition)?;
-    }
-    for (tool_id, rel, exec) in tool_files {
-        let bytes = std::fs::read(&exec).map_err(|e| RunnerError::UnreadableToolFile {
-            rel: rel.clone(),
-            tool: tool_id.clone(),
-            detail: e.to_string(),
-        })?;
-        add_tool_file(&mut tools, tool_id, rel, bytes)?;
-    }
-    for (tool_id, key, value) in tool_env {
-        add_env(&mut tools, tool_id, key, value)?;
-    }
-    let scratch_parent = scratch_parent
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    let backend = RealBackend::new(tools, scratch_parent);
-    let result = quality_runner::real::run_real_pipeline_with_resolve(
-        &producer,
-        &capability,
-        &stages,
-        &files,
-        &sibling_files,
-        &resolve_files,
-        &backend,
-    )
-    .map_err(|e| RunnerError::PipelineFailed {
-        detail: e.to_string(),
+        }
     })?;
     let bytes = encode_validated(&result).map_err(|e| RunnerError::InvalidResult {
         detail: e.to_string(),
@@ -720,18 +343,6 @@ fn run() -> Result<(), RunnerError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn tools_with(binary: &str) -> BTreeMap<String, RealTool> {
-        let mut tools = BTreeMap::new();
-        insert_binary(
-            &mut tools,
-            "ruff".to_owned(),
-            PathBuf::from(binary),
-            Some(PathBuf::from("/work")),
-        )
-        .expect("first binary wins");
-        tools
-    }
 
     fn owned(items: &[&str]) -> Vec<String> {
         items.iter().map(|item| (*item).to_owned()).collect()
@@ -762,153 +373,11 @@ mod tests {
     }
 
     #[test]
-    fn tool_specs_reject_missing_and_empty_halves() {
-        assert_eq!(
-            parse_tool_binary("ruff").expect_err("no separator"),
-            RunnerError::BadToolBinary {
-                spec: "ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_binary("=bin/ruff").expect_err("no tool"),
-            RunnerError::BadToolBinary {
-                spec: "=bin/ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_binary("ruff=").expect_err("no binary"),
-            RunnerError::BadToolBinary {
-                spec: "ruff=".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_binary("ruff=bin/ruff").expect("binary"),
-            ("ruff".to_owned(), PathBuf::from("bin/ruff"))
-        );
-        assert_eq!(
-            parse_tool_config("ruff").expect_err("no separator"),
-            RunnerError::BadToolConfig {
-                spec: "ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_config("ruff=").expect_err("no config"),
-            RunnerError::BadToolConfig {
-                spec: "ruff=".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_config("ruff=ruff.toml").expect("config"),
-            ("ruff".to_owned(), "ruff.toml".to_owned())
-        );
-        assert_eq!(
-            parse_tool_edition("ruff").expect_err("no separator"),
-            RunnerError::BadToolEdition {
-                spec: "ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_edition("=2021").expect_err("no tool"),
-            RunnerError::BadToolEdition {
-                spec: "=2021".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_edition("ruff=2021").expect("edition"),
-            ("ruff".to_owned(), "2021".to_owned())
-        );
-        assert_eq!(
-            parse_tool_file("ruff").expect_err("no separator"),
-            RunnerError::BadToolFile {
-                spec: "ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_file("ruff=toml").expect_err("no exec"),
-            RunnerError::BadToolFile {
-                spec: "ruff=toml".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_file("=toml=bin/toml").expect_err("no tool"),
-            RunnerError::BadToolFile {
-                spec: "=toml=bin/toml".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_file("ruff==bin/toml").expect_err("no config"),
-            RunnerError::BadToolFile {
-                spec: "ruff==bin/toml".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_file("ruff=toml=bin/toml").expect("tool file"),
-            ("ruff".to_owned(), "toml".to_owned(), "bin/toml".to_owned())
-        );
-        assert_eq!(
-            parse_tool_env("ruff").expect_err("no separator"),
-            RunnerError::BadToolEnv {
-                spec: "ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_env("=KEY=1").expect_err("no tool"),
-            RunnerError::BadToolEnv {
-                spec: "=KEY=1".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_env("ruff=KEY").expect_err("no value separator"),
-            RunnerError::BadToolEnv {
-                spec: "ruff=KEY".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_env("ruff==1").expect_err("no key"),
-            RunnerError::BadToolEnv {
-                spec: "ruff==1".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_tool_env("ruff=KEY=1").expect("tool env"),
-            ("ruff".to_owned(), "KEY".to_owned(), "1".to_owned())
-        );
-        assert_eq!(
-            parse_upstream_diagnostics("ruff").expect_err("no separator"),
-            RunnerError::BadUpstreamDiagnostics {
-                spec: "ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_upstream_diagnostics("ruff=").expect_err("no exec path"),
-            RunnerError::BadUpstreamDiagnostics {
-                spec: "ruff=".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_upstream_diagnostics("ruff=out/diag").expect("upstream"),
-            ("ruff".to_owned(), PathBuf::from("out/diag"))
-        );
-    }
-
-    #[test]
-    fn source_sibling_and_resolve_mappings_reject_empty_halves() {
+    fn source_mappings_reject_empty_halves() {
         for mapping in ["ws", "=exec", "ws="] {
             assert_eq!(
                 mapping_error(mapping, bad_source),
                 RunnerError::BadSource {
-                    mapping: mapping.to_owned()
-                }
-            );
-            assert_eq!(
-                mapping_error(mapping, bad_sibling),
-                RunnerError::BadSibling {
-                    mapping: mapping.to_owned()
-                }
-            );
-            assert_eq!(
-                mapping_error(mapping, bad_resolve),
-                RunnerError::BadResolve {
                     mapping: mapping.to_owned()
                 }
             );
@@ -925,21 +394,26 @@ mod tests {
         let cli = parse_args(&owned(&[
             "--producer",
             "//pkg:one",
-            "--real",
             "--stage",
             "ruff;fmt;a.py",
         ]))
         .expect("valid flags");
         assert_eq!(cli.producer.as_deref(), Some("//pkg:one"));
-        assert!(cli.real);
         assert_eq!(cli.stage, ["ruff;fmt;a.py"]);
-        let error = match parse_args(&owned(&["--nope"])) {
-            Ok(_) => panic!("unknown flag must fail"),
-            Err(error) => error,
-        };
-        match error {
-            RunnerError::Args { message } => assert!(!message.is_empty(), "{message}"),
-            other => panic!("unexpected error: {other:?}"),
+        for argv in [
+            vec!["--nope"],
+            vec!["--real"],
+            vec!["--tool-binary", "ruff=bin/ruff"],
+            vec!["--sibling", "a.py=exec/a.py"],
+        ] {
+            let error = match parse_args(&owned(&argv)) {
+                Ok(_) => panic!("{argv:?} must fail"),
+                Err(error) => error,
+            };
+            match error {
+                RunnerError::Args { message } => assert!(!message.is_empty(), "{message}"),
+                other => panic!("unexpected error: {other:?}"),
+            }
         }
     }
 
@@ -950,16 +424,6 @@ mod tests {
             vec!["--capability", "lint"],
             vec!["--stage", "ruff;fmt;a.py"],
             vec!["--source", "a.py=exec/a.py"],
-            vec!["--sibling", "a.py=exec/a.py"],
-            vec!["--resolve", "a.py=exec/a.py"],
-            vec!["--real"],
-            vec!["--scratch-parent", "/tmp"],
-            vec!["--tool-binary", "ruff=bin/ruff"],
-            vec!["--tool-config", "ruff=ruff.toml"],
-            vec!["--tool-file", "ruff=ruff.toml=bin/ruff.toml"],
-            vec!["--tool-edition", "rustfmt=2021"],
-            vec!["--tool-env", "ruff=KEY=1"],
-            vec!["--upstream-diagnostics", "clippy=out/clippy.diag"],
         ] {
             let mut argv = vec!["--request", "req.json"];
             argv.extend(extra.clone());
@@ -1008,29 +472,74 @@ mod tests {
     }
 
     #[test]
-    fn request_and_flags_describe_the_same_run() {
-        let stage = parse_stage("ruff;format;a.py,b.py").expect("stage");
-        let sources = parse_pairs(&owned(&["a.py=exec/a.py", "b.py=exec/b.py"]), bad_source)
-            .expect("sources");
-        let binary = parse_tool_binary("ruff=bin/ruff").expect("binary");
-        let config = parse_tool_config("ruff=ruff.toml").expect("config");
-        let edition = parse_tool_edition("ruff=3.9").expect("edition");
-        let file = parse_tool_file("ruff=ruff.toml=exec/ruff.toml").expect("tool file");
-        let env = parse_tool_env("ruff=KEY=1").expect("tool env");
-        let request = quality_runner::request::parse_real_request(
-            br#"{"schema_version":1,"producer":"//pkg:one","capability":"format","stages":[{"tool":"ruff","classes":["format"],"sources":["a.py","b.py"]}],"sources":[{"workspace":"a.py","exec":"exec/a.py"},{"workspace":"b.py","exec":"exec/b.py"}],"siblings":[],"resolves":[],"tools":{"ruff":{"binary":"bin/ruff","config":"ruff.toml","edition":"3.9","files":[{"mirror_rel":"ruff.toml","exec":"exec/ruff.toml"}],"env":[{"key":"KEY","value":"1"}],"upstream":[]}}}"#,
-        )
-        .expect("request parses");
-        assert_eq!(request.producer, "//pkg:one");
-        assert_eq!(request.capability, "format");
-        assert_eq!(request.stages, [stage]);
-        assert_eq!(request.sources, sources);
-        let tool = request.tools.get("ruff").expect("ruff entry");
-        assert_eq!(tool.binary.as_ref().expect("binary"), &binary.1);
-        assert_eq!(tool.config_rel.as_deref(), Some(config.1.as_str()));
-        assert_eq!(tool.edition.as_deref(), Some(edition.1.as_str()));
-        assert_eq!(tool.files, [(file.1.clone(), file.2.clone())]);
-        assert_eq!(tool.env, [(env.1.clone(), env.2.clone())]);
+    fn request_tools_become_real_tools() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let file = dir.path().join("ruff.toml");
+        std::fs::write(&file, b"line-length = 1\n").expect("tool file");
+        let venv = dir.path().join("venv");
+        let site = venv.join("lib/python3.12/site-packages");
+        std::fs::create_dir_all(&site).expect("layout");
+        let cwd = Some(PathBuf::from("/work"));
+        let entry = RequestTool {
+            binary: Some(PathBuf::from("bin/ruff")),
+            config_rel: Some("ruff.toml".to_owned()),
+            edition: Some("3.9".to_owned()),
+            files: vec![("ruff.toml".to_owned(), file.display().to_string())],
+            env: vec![
+                ("B".to_owned(), "2".to_owned()),
+                ("A".to_owned(), "1".to_owned()),
+            ],
+            upstream: vec![PathBuf::from("out/ruff.diag")],
+            search_paths: vec![venv.clone()],
+        };
+        let tool = real_tool("ruff", &entry, cwd.clone()).expect("tool");
+        assert_eq!(tool.binary, PathBuf::from("/work/bin/ruff"));
+        assert_eq!(tool.config_rel.as_deref(), Some("ruff.toml"));
+        assert_eq!(tool.edition.as_deref(), Some("3.9"));
+        assert_eq!(
+            tool.tool_files,
+            [("ruff.toml".to_owned(), b"line-length = 1\n".to_vec())]
+        );
+        assert_eq!(
+            tool.extra_env,
+            [
+                ("B".to_owned(), "2".to_owned()),
+                ("A".to_owned(), "1".to_owned())
+            ]
+        );
+        assert_eq!(
+            tool.upstream_diagnostics,
+            [PathBuf::from("/work/out/ruff.diag")]
+        );
+        assert_eq!(tool.search_paths, [site]);
+        let upstream_only = RequestTool {
+            binary: None,
+            config_rel: None,
+            edition: None,
+            files: Vec::new(),
+            env: Vec::new(),
+            upstream: vec![PathBuf::from("/abs/ty.diag")],
+            search_paths: Vec::new(),
+        };
+        let tool = real_tool("ty", &upstream_only, cwd.clone()).expect("upstream only");
+        assert_eq!(tool.binary, PathBuf::new());
+        assert_eq!(tool.upstream_diagnostics, [PathBuf::from("/abs/ty.diag")]);
+        let missing = RequestTool {
+            files: vec![(
+                "ty.toml".to_owned(),
+                dir.path().join("absent.toml").display().to_string(),
+            )],
+            ..upstream_only
+        };
+        match real_tool("ty", &missing, cwd) {
+            Err(RunnerError::UnreadableToolFile { rel, tool, detail }) => {
+                assert_eq!(rel, "ty.toml");
+                assert_eq!(tool, "ty");
+                assert!(!detail.is_empty(), "{detail}");
+            }
+            Err(other) => panic!("unexpected error: {other:?}"),
+            Ok(_) => panic!("an unreadable tool file must fail"),
+        }
     }
 
     #[test]
@@ -1050,29 +559,6 @@ mod tests {
     }
 
     #[test]
-    fn binaries_register_once_each() {
-        let mut tools = tools_with("bin/ruff");
-        assert_eq!(tools["ruff"].binary, PathBuf::from("/work/bin/ruff"));
-        assert!(tools["ruff"].extra_env.is_empty());
-        assert!(tools["ruff"].config_rel.is_none());
-        assert!(tools["ruff"].edition.is_none());
-        assert!(tools["ruff"].tool_files.is_empty());
-        assert!(tools["ruff"].upstream_diagnostics.is_empty());
-        assert_eq!(
-            insert_binary(
-                &mut tools,
-                "ruff".to_owned(),
-                PathBuf::from("bin/ruff"),
-                Some(PathBuf::from("/work")),
-            )
-            .expect_err("duplicate tool"),
-            RunnerError::DuplicateToolBinary {
-                tool: "ruff".to_owned()
-            }
-        );
-    }
-
-    #[test]
     fn site_packages_prefers_the_wheel_install_layout() {
         let root = tempfile::tempdir().expect("tempdir");
         let site = root.path().join("lib/python3.12/site-packages");
@@ -1082,132 +568,6 @@ mod tests {
         assert_eq!(
             site_packages(bare.path().to_path_buf()),
             bare.path().to_path_buf()
-        );
-    }
-
-    #[test]
-    fn upstream_diagnostics_attach_to_known_and_unknown_tools() {
-        let mut tools = tools_with("bin/ruff");
-        add_upstream(
-            &mut tools,
-            "ruff".to_owned(),
-            PathBuf::from("out/ruff.diag"),
-            Some(PathBuf::from("/work")),
-        );
-        assert_eq!(
-            tools["ruff"].upstream_diagnostics,
-            [PathBuf::from("/work/out/ruff.diag")]
-        );
-        add_upstream(
-            &mut tools,
-            "ty".to_owned(),
-            PathBuf::from("/abs/ty.diag"),
-            None,
-        );
-        assert_eq!(
-            tools["ty"].upstream_diagnostics,
-            [PathBuf::from("/abs/ty.diag")]
-        );
-        assert_eq!(tools["ty"].binary, PathBuf::new());
-        add_upstream(
-            &mut tools,
-            "ty".to_owned(),
-            PathBuf::from("/abs/ty2.diag"),
-            None,
-        );
-        assert_eq!(
-            tools["ty"].upstream_diagnostics,
-            [
-                PathBuf::from("/abs/ty.diag"),
-                PathBuf::from("/abs/ty2.diag")
-            ]
-        );
-    }
-
-    #[test]
-    fn config_and_edition_apply_once_to_a_declared_tool() {
-        let mut tools = tools_with("bin/ruff");
-        assert_eq!(
-            set_config(&mut tools, "ty".to_owned(), "ty.toml".to_owned())
-                .expect_err("unknown tool"),
-            RunnerError::UnknownToolConfig {
-                tool: "ty".to_owned()
-            }
-        );
-        set_config(&mut tools, "ruff".to_owned(), "ruff.toml".to_owned()).expect("config");
-        assert_eq!(tools["ruff"].config_rel.as_deref(), Some("ruff.toml"));
-        assert_eq!(
-            set_config(&mut tools, "ruff".to_owned(), "other.toml".to_owned())
-                .expect_err("duplicate config"),
-            RunnerError::DuplicateToolConfig {
-                tool: "ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            set_edition(&mut tools, "ty".to_owned(), "2021".to_owned()).expect_err("unknown tool"),
-            RunnerError::UnknownToolEdition {
-                tool: "ty".to_owned()
-            }
-        );
-        set_edition(&mut tools, "ruff".to_owned(), "2021".to_owned()).expect("edition");
-        assert_eq!(tools["ruff"].edition.as_deref(), Some("2021"));
-        assert_eq!(
-            set_edition(&mut tools, "ruff".to_owned(), "2024".to_owned())
-                .expect_err("duplicate edition"),
-            RunnerError::DuplicateToolEdition {
-                tool: "ruff".to_owned()
-            }
-        );
-    }
-
-    #[test]
-    fn tool_files_and_env_need_a_declared_binary() {
-        let mut tools = tools_with("bin/ruff");
-        assert_eq!(
-            add_tool_file(
-                &mut tools,
-                "ty".to_owned(),
-                "ty.toml".to_owned(),
-                b"x".to_vec(),
-            )
-            .expect_err("unknown tool"),
-            RunnerError::UnknownToolFile {
-                tool: "ty".to_owned()
-            }
-        );
-        add_tool_file(
-            &mut tools,
-            "ruff".to_owned(),
-            "ruff.toml".to_owned(),
-            b"x".to_vec(),
-        )
-        .expect("tool file");
-        assert_eq!(
-            tools["ruff"].tool_files,
-            [("ruff.toml".to_owned(), b"x".to_vec())]
-        );
-        assert_eq!(
-            add_env(
-                &mut tools,
-                "ty".to_owned(),
-                "KEY".to_owned(),
-                "1".to_owned()
-            )
-            .expect_err("unknown tool"),
-            RunnerError::UnknownToolEnv {
-                tool: "ty".to_owned()
-            }
-        );
-        add_env(
-            &mut tools,
-            "ruff".to_owned(),
-            "KEY".to_owned(),
-            "1".to_owned(),
-        )
-        .expect("tool env");
-        assert_eq!(
-            tools["ruff"].extra_env,
-            [("KEY".to_owned(), "1".to_owned())]
         );
     }
 

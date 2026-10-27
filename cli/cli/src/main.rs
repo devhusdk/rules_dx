@@ -16,12 +16,12 @@ use dx_cli::args::{
     early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
     load_startup_defaults, parse_with_ci, DX_WORKSPACE_ENV,
 };
-use dx_cli::exec::common::{flush_out, LatchedOut};
+use dx_cli::exec::common::flush_out;
 use dx_cli::plan::{create_run_temp_dir, remove_on_stop};
 use dx_cli::{execute, Env, QueryResult, QueryRunner};
 use dx_output::OutputMode;
 use dx_process::lifecycle::{
-    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
+    self, CleanupBudget, EnvPolicy, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
     StreamStdin,
 };
 use dx_process::{
@@ -113,6 +113,7 @@ fn stream_spec(
         },
         stderr: StreamOutput::Inherit,
         group: stream_group(),
+        held: Vec::new(),
     }
 }
 
@@ -126,11 +127,10 @@ fn stream_group() -> StreamGroup {
 
 fn child_status(outcome: StreamOutcome) -> Option<ChildStatus> {
     match outcome {
-        StreamOutcome::Exited(Exit::Code(code)) => Some(ChildStatus { code: Some(code) }),
-        StreamOutcome::Exited(Exit::Signal(_)) => Some(ChildStatus { code: None }),
+        StreamOutcome::Exited(exit) => Some(exit.into()),
         StreamOutcome::Cancelled { signal } => {
             die_by_signal(signal);
-            Some(ChildStatus { code: None })
+            Some(ChildStatus::signalled(None))
         }
         StreamOutcome::Withdrawn => None,
     }
@@ -145,7 +145,7 @@ fn spawn_streamed(
 ) -> io::Result<ChildStatus> {
     let spec = stream_spec(argv, cwd, env, clear_env, inherit_stdout);
     let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)?;
-    Ok(child_status(outcome).unwrap_or(ChildStatus { code: None }))
+    Ok(child_status(outcome).unwrap_or(ChildStatus::signalled(None)))
 }
 
 impl Runner for BinaryRunner {
@@ -231,6 +231,10 @@ impl Write for Captured {
 struct BinaryQueryRunner;
 
 impl QueryRunner for BinaryQueryRunner {
+    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
+        dx_process::disk_space(path).map(|space| space.free)
+    }
+
     fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
         let stdout = Captured::default();
         let stderr = Captured::default();
@@ -242,6 +246,7 @@ impl QueryRunner for BinaryQueryRunner {
             stdout: StreamOutput::Forward(Box::new(stdout.clone())),
             stderr: StreamOutput::Forward(Box::new(stderr.clone())),
             group: stream_group(),
+            held: Vec::new(),
         };
         let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)
             .map_err(|error| {
@@ -301,7 +306,6 @@ fn run() -> i32 {
     if let Some(kind) = dx_cli::exec::hook_kind(&args) {
         let hook_cwd =
             dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
-        dx_process::configure_real(&hook_cwd);
         let stdout = io::stdout();
         let mut out = stdout.lock();
         let code = dx_cli::exec::run_worktree_hook(kind, &hook_cwd, &mut out, &mut io::stderr());
@@ -478,7 +482,8 @@ fn run() -> i32 {
         }
     }
     let pid = std::process::id();
-    let (temp_dir, nonce) = match create_run_temp_dir(&std::env::temp_dir()) {
+    let temp_base = std::env::temp_dir();
+    let (temp_dir, nonce) = match create_run_temp_dir(&temp_base, pid) {
         Ok(run) => {
             remove_on_stop(run.0.path());
             run
@@ -502,6 +507,7 @@ fn run() -> i32 {
     if workspace.join("MODULE.bazel").is_file() {
         dx_process::groups::set_lease_root(&workspace.join(".dx"));
     }
+    dx_cli::plan::remove_stale_run_dirs(&temp_base);
     let reaped = dx_process::groups::reap_orphans();
     let runner = BinaryRunner { inherit_stdout };
     let query_runner = BinaryQueryRunner;
@@ -513,23 +519,22 @@ fn run() -> i32 {
         let message = dx_process::groups::reaped_message(group);
         let _ = writeln!(err, "dx: {message}");
         if invocation.output == OutputMode::Json {
-            if let Ok(event) = dx_output::notice_event(&dx_output::NoticeEvent {
-                level: "warning".to_owned(),
-                code: "orphan_process_group_stopped".to_owned(),
-                message,
+            let event = dx_output::notice_value(&dx_output::NoticeEvent {
                 related_command: Some(invocation.command.name().to_owned()),
-                scope: None,
-                path: None,
-                language: None,
-                import: None,
-            }) {
-                let _ = dx_output::lifecycle::write_event(&mut pending, &event);
-            }
+                ..dx_output::NoticeEvent::warning("orphan_process_group_stopped", message)
+            });
+            let _ = dx_output::lifecycle::write_event(&mut pending, &event);
         }
     }
     dx_cli::slots::inherit_share(&env_get);
-    let gate =
-        dx_cli::slots::Gate::from_env(&workspace, &env_get, invocation.output == OutputMode::Json);
+    let mut slot_options = vec![invocation.profile().config_flag()];
+    slot_options.extend(invocation.raw_bazel_options().iter().cloned());
+    let gate = dx_cli::slots::Gate::from_env(
+        &workspace,
+        &env_get,
+        invocation.output == OutputMode::Json,
+        &slot_options,
+    );
     let slot = match gate.as_ref().map_or(Ok(None), |gate| {
         gate.hold(invocation.command, &mut err, &mut pending)
     }) {
@@ -539,15 +544,6 @@ fn run() -> i32 {
             return dx_process::interrupted_code(signo);
         }
     };
-    if gate.is_some() {
-        dx_cli::exec::reclaim_before_build(
-            &workspace,
-            invocation.command,
-            invocation.output == OutputMode::Json,
-            &mut err,
-            &mut pending,
-        );
-    }
     let gate = if let Some(slot) = &slot {
         std::env::set_var(dx_cli::slots::SLOT_ENV_VAR, "1");
         if let Some(share) = &slot.share {
@@ -558,7 +554,6 @@ fn run() -> i32 {
         gate
     };
     let mut after_first = dx_cli::slots::AfterFirstLine::new(&mut out, pending);
-    let mut latched = LatchedOut::new(&mut after_first);
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
     let code = dx_cli::slots::with_gate(gate, || {
         execute(
@@ -570,18 +565,13 @@ fn run() -> i32 {
                 temp_dir: temp_dir.path(),
                 pid,
                 nonce,
-                out: &mut latched,
+                out: &mut after_first,
                 err: &mut err,
                 ci: dx_process::is_ci(),
                 audit_today: audit_today.as_deref(),
             },
         )
     });
-    let code = if code == 0 {
-        latched.exit_code(code)
-    } else {
-        code
-    };
     let temp_display = temp_dir.path().display().to_string();
     if let Err(error) = temp_dir.close() {
         let _ = writeln!(

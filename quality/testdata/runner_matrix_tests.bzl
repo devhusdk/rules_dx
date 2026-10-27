@@ -2,6 +2,7 @@
 
 load("//deploy/rules:launcher.bzl", "rlocation_path")
 load("//libs/starlark:canonical.bzl", "is_canonical", "strip_canonical")
+load("//quality:pipeline.bzl", "real_request_stage")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 def _single_file(target):
@@ -27,6 +28,13 @@ def _tool_env_entry(entry):
     if key_sep == "":
         fail("runner_matrix_test: malformed tool_env '" + entry + "': want TOOL=KEY=VALUE")
     return {"key": key, "tool": tool, "value": value}
+
+def _request_stage(entry):
+    tool, sep, rest = entry.partition(";")
+    classes, paths_sep, paths = rest.partition(";")
+    if sep == "" or paths_sep == "" or not tool or not classes or not paths:
+        fail("runner_matrix_test: malformed stage '" + entry + "': want TOOL;classes;paths")
+    return real_request_stage(tool, classes.split(","), paths.split(","))
 
 def _runner_matrix_test_impl(ctx):
     harness = ctx.executable._harness
@@ -57,7 +65,10 @@ def _runner_matrix_test_impl(ctx):
     tool_files = []
     for i, tool in enumerate(ctx.attr.toolfile_tools):
         f = _single_file(ctx.attr.toolfile_srcs[i])
-        tool_files.append((tool, f.short_path, f))
+        rel = f.short_path
+        if i < len(ctx.attr.toolfile_rels) and ctx.attr.toolfile_rels[i]:
+            rel = ctx.attr.toolfile_rels[i]
+        tool_files.append((tool, rel, f))
     configs = {}
     for i, tool in enumerate(ctx.attr.config_tools):
         configs[tool] = _single_file(ctx.attr.config_files[i]).short_path
@@ -117,10 +128,10 @@ def _runner_matrix_test_impl(ctx):
         manifest_tools[tool]["edition"] = edition
 
     launcher_env = []
-    for launcher in ["pydoclint", "flake8", "pylint"]:
+    for launcher in ["pydoclint", "flake8", "pylint", "psscriptanalyzer"]:
         if launcher in tools:
             launcher_env.append({"key": "RUNFILES_DIR", "tool": launcher, "value": "$TEST_SRCDIR"})
-    for launcher in ["eslint", "prettier", "stylelint"]:
+    for launcher in ["eslint", "graphql_eslint", "prettier", "redocly", "remark", "stylelint"]:
         if launcher in tools:
             launcher_env.append({"key": "JS_BINARY__NO_CD_BINDIR", "tool": launcher, "value": "1"})
     for entry in ctx.attr.tool_env:
@@ -136,6 +147,7 @@ def _runner_matrix_test_impl(ctx):
         manifest_tools[tool]["upstream_keys"].append(rlocation_path(ctx, f))
 
     manifest = {
+        "ambient_files": ctx.attr.ambient_files,
         "capability": ctx.attr.capability,
         "expected_key": rlocation_path(ctx, expected),
         "name": ctx.label.name,
@@ -143,10 +155,10 @@ def _runner_matrix_test_impl(ctx):
         "producer": producer,
         "runner_failure": ctx.attr.runner_failure,
         "runner_key": rlocation_path(ctx, runner),
-        "schema_version": 1,
+        "schema_version": 2,
         "siblings": manifest_siblings,
         "sources": manifest_sources,
-        "stages": ctx.attr.stages,
+        "stages": [_request_stage(s) for s in ctx.attr.stages],
         "tools": manifest_tools,
         "update_file": ctx.label.name + ".expected.update",
         "update_hint": "quality/testdata/matrix/" + ctx.label.name + ".expected.txt",
@@ -207,6 +219,9 @@ _runner_matrix_test = rule(
         "tool_names": attr.string_list(),
         "tool_binaries": attr.label_list(),
         "toolfile_tools": attr.string_list(),
+        "toolfile_rels": attr.string_list(
+            doc = "Optional mirror-relative path per toolfile_srcs entry; empty keeps the file's short path.",
+        ),
         "toolfile_srcs": attr.label_list(
             allow_files = True,
         ),
@@ -233,6 +248,9 @@ _runner_matrix_test = rule(
         ),
         "runner_failure": attr.bool(
             default = False,
+        ),
+        "ambient_files": attr.string_dict(
+            doc = "Files written, by relative path, into the directory the runner's scratch dirs live under.",
         ),
         "_runner": attr.label(
             default = "//quality/runner:quality_runner",
@@ -282,6 +300,7 @@ def runner_matrix_suite(name, cases):
             rustfmt_from_toolchain = case.get("rustfmt_from_toolchain", False),
             toolfile_tools = case.get("toolfile_tools", []),
             toolfile_srcs = case.get("toolfile_srcs", []),
+            toolfile_rels = case.get("toolfile_rels", []),
             config_tools = case.get("config_tools", []),
             config_files = case.get("config_files", []),
             edition_tools = case.get("edition_tools", []),
@@ -293,7 +312,8 @@ def runner_matrix_suite(name, cases):
             expected = case.get("expected", ""),
             expected_file = case.get("expected_file"),
             runner_failure = case.get("runner_failure", False),
-            tags = ["no-coverage"],
+            ambient_files = case.get("ambient_files", {}),
+            tags = ["no-coverage"] + case.get("tags", []),
             target_compatible_with = _compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False)),
         )
         tests.append(":" + case["name"])

@@ -1,18 +1,13 @@
 """Unit and analysis tests for the OCI publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_schema_error", "oci_tag_error", "oci_tar_error")
+load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error", "oci_tar_error")
 
 def oci_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "oci_schema_error accepts the v1 launcher-safe charset",
-                oci_schema_error(),
-                "",
-            ),
             expect_equal(
                 "oci_tag_error accepts the latest placeholder tag",
                 oci_tag_error("latest"),
@@ -72,6 +67,107 @@ def oci_unit_tests(name):
                 oci_repository_error(""),
                 "oci_deploy: invalid repository '': want a non-empty " +
                 "repository (for example 'oci_demo')",
+            ),
+            expect_equal(
+                "oci_tag_error accepts v1.2.3",
+                oci_tag_error("v1.2.3"),
+                "",
+            ),
+            expect_equal(
+                "oci_tag_error accepts latest",
+                oci_tag_error("latest"),
+                "",
+            ),
+            expect_equal(
+                "oci_tag_error accepts _x",
+                oci_tag_error("_x"),
+                "",
+            ),
+            expect_equal(
+                "oci_tag_error accepts 128 chars",
+                oci_tag_error("a" * 128),
+                "",
+            ),
+            expect_equal(
+                "oci_tag_error rejects leading -",
+                oci_tag_error("-rc1"),
+                "oci_deploy: invalid tag '-rc1': want a tag starting with [A-Za-z0-9_]",
+            ),
+            expect_equal(
+                "oci_tag_error rejects leading .",
+                oci_tag_error(".x"),
+                "oci_deploy: invalid tag '.x': want a tag starting with [A-Za-z0-9_]",
+            ),
+            expect_equal(
+                "oci_tag_error rejects 129 chars",
+                oci_tag_error("a" * 129),
+                "oci_deploy: invalid tag '" + "a" * 129 + "': want at most 128 characters",
+            ),
+            expect_equal(
+                "oci_repository_error accepts a__b",
+                oci_repository_error("a__b"),
+                "",
+            ),
+            expect_equal(
+                "oci_repository_error accepts a--b",
+                oci_repository_error("a--b"),
+                "",
+            ),
+            expect_equal(
+                "oci_repository_error accepts a.b-c_d",
+                oci_repository_error("a.b-c_d"),
+                "",
+            ),
+            expect_equal(
+                "oci_repository_error accepts example/oci_demo",
+                oci_repository_error("example/oci_demo"),
+                "",
+            ),
+            expect_equal(
+                "oci_repository_error accepts oci_demo",
+                oci_repository_error("oci_demo"),
+                "",
+            ),
+            expect_equal(
+                "oci_repository_error hints lowercase and target name",
+                oci_repository_error("MyApp", from_name = True),
+                "oci_deploy: invalid repository 'MyApp': want lowercase (for example 'myapp'); " +
+                "repository defaults to the target name, set repository = '...' explicitly",
+            ),
+            expect_equal(
+                "oci_repository_error lowercase hint without target-name suffix",
+                oci_repository_error("Example/app"),
+                "oci_deploy: invalid repository 'Example/app': want lowercase (for example 'example/app')",
+            ),
+            expect_equal(
+                "oci_repository_error rejects a..b",
+                oci_repository_error("a..b"),
+                "oci_deploy: invalid repository 'a..b': want separators to be '.', '_', '__' or dashes only",
+            ),
+            expect_equal(
+                "oci_repository_error rejects a._b",
+                oci_repository_error("a._b"),
+                "oci_deploy: invalid repository 'a._b': want separators to be '.', '_', '__' or dashes only",
+            ),
+            expect_equal(
+                "oci_repository_error rejects a___b",
+                oci_repository_error("a___b"),
+                "oci_deploy: invalid repository 'a___b': want separators to be '.', '_', '__' or dashes only",
+            ),
+            expect_equal(
+                "oci_repository_error rejects -app",
+                oci_repository_error("-app"),
+                "oci_deploy: invalid repository '-app': want each path segment to start and end with [a-z0-9]",
+            ),
+            expect_equal(
+                "oci_repository_error rejects app-",
+                oci_repository_error("app-"),
+                "oci_deploy: invalid repository 'app-': want each path segment to start and end with [a-z0-9]",
+            ),
+            expect_equal(
+                "oci_repository_error rejects a/.b",
+                oci_repository_error("a/.b"),
+                "oci_deploy: invalid repository 'a/.b': want each path segment to start and end with [a-z0-9]",
             ),
             expect_equal(
                 "oci_tar_error accepts a pinned tar filename",

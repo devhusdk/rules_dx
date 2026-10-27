@@ -1,0 +1,13 @@
+producer //quality/testdata:matrix_dockerfile_lint_fail
+capability LINT
+stages 1
+stage hadolint classes=dockerfile sources=matrix/hadolint_dirty.Dockerfile
+completed_rounds 1
+convergence STABLE
+initial 2
+initial INFO hadolint SC2086 matrix/hadolint_dirty.Dockerfile 18 18 fixable=false "Double quote to prevent globbing and word splitting."
+initial WARNING hadolint DL4006 matrix/hadolint_dirty.Dockerfile 18 18 fixable=false "Set the SHELL option -o pipefail before RUN with a pipe in it. If you are using /bin/sh in an alpine image or if your shell is symlinked to busybox then consider explicitly setting your SHELL to /bin/ash, or disable this check"
+terminal 2
+terminal INFO hadolint SC2086 matrix/hadolint_dirty.Dockerfile 18 18 fixable=false "Double quote to prevent globbing and word splitting."
+terminal WARNING hadolint DL4006 matrix/hadolint_dirty.Dockerfile 18 18 fixable=false "Set the SHELL option -o pipefail before RUN with a pipe in it. If you are using /bin/sh in an alpine image or if your shell is symlinked to busybox then consider explicitly setting your SHELL to /bin/ash, or disable this check"
+replacements 0

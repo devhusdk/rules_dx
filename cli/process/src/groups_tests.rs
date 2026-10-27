@@ -148,6 +148,7 @@ fn probe_spec(args: &[&str], group: crate::lifecycle::StreamGroup) -> crate::lif
         stdout: StreamOutput::Inherit,
         stderr: StreamOutput::Inherit,
         group,
+        held: Vec::new(),
     }
 }
 

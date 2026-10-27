@@ -5,6 +5,8 @@ use crate::reports::StandardFormat;
 pub struct CommandSpec {
     pub command: Command,
     pub aspects: &'static [&'static str],
+    /// The cheap aspect that names the shards each target needs; see `select_aspects`.
+    pub probe: Option<&'static str>,
     pub reports: &'static [StandardFormat],
 }
 
@@ -14,27 +16,13 @@ impl CommandSpec {
     }
 }
 
-pub fn keep_sorted_support_state() -> &'static str {
-    "qualified"
-}
-
-pub fn keep_sorted_cli_gap(aspects: &[&str]) -> Option<&'static str> {
-    if aspects
-        .iter()
-        .any(|aspect| aspect.contains("real_text_lint"))
-    {
-        None
-    } else {
-        Some("support: keep_sorted lint is qualified but has no CLI lint aspect (missing real_text_lint_aspect)")
-    }
-}
-
 pub fn spec(command: Command) -> CommandSpec {
     match command {
         Command::Lint => CommandSpec {
             command,
             aspects: &[
                 "@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect",
@@ -50,6 +38,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
             ],
+            probe: Some("@rules_dx//quality:real_aspects.bzl%real_lint_probe_aspect"),
             reports: &[StandardFormat::Sarif],
         },
         Command::Typecheck => CommandSpec {
@@ -58,6 +47,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_rust_typecheck_aspect",
             ],
+            probe: Some("@rules_dx//quality:real_aspects.bzl%real_typecheck_probe_aspect"),
             reports: &[StandardFormat::Sarif],
         },
         Command::Format => CommandSpec {
@@ -67,9 +57,11 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_cue_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_go_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_jsonnet_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_jvm_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_pkl_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_protobuf_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_ruby_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_rust_format_aspect",
@@ -79,21 +71,25 @@ pub fn spec(command: Command) -> CommandSpec {
                 "@rules_dx//quality:real_aspects.bzl%real_html_template_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect",
             ],
+            probe: Some("@rules_dx//quality:real_aspects.bzl%real_format_probe_aspect"),
             reports: &[],
         },
         Command::Generate => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Build => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[StandardFormat::Failures],
         },
         Command::Test => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[
                 StandardFormat::Junit,
                 StandardFormat::Failures,
@@ -103,6 +99,7 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Coverage => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[
                 StandardFormat::Lcov,
                 StandardFormat::Failures,
@@ -112,36 +109,43 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Run => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Deploy => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Check => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[StandardFormat::Sarif],
         },
         Command::Fix => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[StandardFormat::Sarif],
         },
         Command::ListTests => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Clean => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Codegen | Command::Env => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Init
@@ -155,36 +159,43 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Completion => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Security => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[StandardFormat::Sarif],
         },
         Command::License => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[StandardFormat::Sarif, StandardFormat::Spdx],
         },
         Command::Update => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
-        Command::Bump => CommandSpec {
+        Command::Bump | Command::Add => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Migrate => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
         Command::Docs => CommandSpec {
             command,
             aspects: &[],
+            probe: None,
             reports: &[],
         },
     }
@@ -195,8 +206,11 @@ pub fn all_aspect_labels() -> Vec<String> {
     use clap::ValueEnum;
     let mut labels: Vec<String> = Command::value_variants()
         .iter()
-        .flat_map(|command| spec(*command).aspects.iter())
-        .map(|aspect| (*aspect).to_owned())
+        .flat_map(|command| {
+            let entry = spec(*command);
+            entry.aspects.iter().copied().chain(entry.probe)
+        })
+        .map(str::to_owned)
         .collect();
     labels.push(dx_codegen::CODEGEN_ASPECT.to_owned());
     labels.push(dx_env_plan::ENV_ASPECT.to_owned());
@@ -212,6 +226,11 @@ mod tests {
     #[test]
     fn all_aspect_labels_cover_registry_and_managed_aspects() {
         let labels = all_aspect_labels();
+        for probe in ["lint", "format", "typecheck"] {
+            assert!(labels.contains(&format!(
+                "@rules_dx//quality:real_aspects.bzl%real_{probe}_probe_aspect"
+            )));
+        }
         assert!(labels.contains(&"@rules_dx//quality:real_aspects.bzl%real_lint_aspect".to_owned()));
         assert!(labels
             .contains(&"@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect".to_owned()));
@@ -230,6 +249,7 @@ mod tests {
             lint.aspects,
             &[
                 "@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect",
@@ -264,9 +284,11 @@ mod tests {
                 "@rules_dx//quality:real_aspects.bzl%real_cue_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_go_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_jsonnet_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_jvm_format_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_pkl_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_protobuf_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_ruby_format_aspect",
                 "@rules_dx//quality:real_aspects.bzl%real_rust_format_aspect",
@@ -317,7 +339,6 @@ mod tests {
         for command in [Command::Security, Command::License] {
             let entry = spec(command);
             assert!(entry.aspects.is_empty());
-            assert!(command.is_audit_update());
         }
         assert_eq!(spec(Command::Security).reports, &[StandardFormat::Sarif]);
         assert_eq!(
@@ -327,15 +348,14 @@ mod tests {
         let update = spec(Command::Update);
         assert!(update.aspects.is_empty());
         assert!(update.reports.is_empty());
-        assert!(Command::Update.is_audit_update());
-        let bump = spec(Command::Bump);
-        assert!(bump.aspects.is_empty());
-        assert!(bump.reports.is_empty());
-        assert!(Command::Bump.is_audit_update());
+        for command in [Command::Bump, Command::Add] {
+            let spec = spec(command);
+            assert!(spec.aspects.is_empty(), "{command:?}");
+            assert!(spec.reports.is_empty(), "{command:?}");
+        }
         let migrate = spec(Command::Migrate);
         assert!(migrate.aspects.is_empty());
         assert!(migrate.reports.is_empty());
-        assert!(!Command::Migrate.is_audit_update());
     }
 
     #[test]
@@ -373,22 +393,5 @@ mod tests {
                 "no command accepts the {format:?} format"
             );
         }
-    }
-
-    #[test]
-    fn keep_sorted_cli_gap_is_explicit() {
-        assert_eq!(keep_sorted_support_state(), "qualified");
-        let lint = spec(Command::Lint);
-        assert_eq!(keep_sorted_cli_gap(lint.aspects), None);
-        assert!(
-            lint.aspects
-                .iter()
-                .any(|aspect| aspect.contains("real_text_lint")),
-            "lint wires the text aspect"
-        );
-        assert_eq!(
-            keep_sorted_cli_gap(&["@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect"]),
-            None
-        );
     }
 }

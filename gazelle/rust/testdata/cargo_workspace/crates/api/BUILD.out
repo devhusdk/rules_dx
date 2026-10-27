@@ -1,5 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust/rules:defs.bzl", "rust_library")
 
 rust_library(
@@ -13,20 +12,5 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2024",
     visibility = ["//visibility:public"],
-    deps = crate_deps(
-        [],
-        package_name = "crates/api",
-    ),
-)
-
-real_source_target(
-    name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],
-)
-
-real_source_target(
-    name = "corpus_toml",
-    tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
+    deps = [],
 )

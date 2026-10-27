@@ -4,7 +4,7 @@ load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test", "rustfmt_test")
 load("//rust/rules:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
-load("//rust/rules:wrapper_tests.bzl", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
+load("//rust/rules:wrapper_tests.bzl", "dx_default_crate_name_tests", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -79,6 +79,15 @@ rust_shared_library(
     srcs = ["src/cdylib.rs"],
     crate_name = "hello_cdylib",
     crate_root = "src/cdylib.rs",
+)
+
+# keep
+rust_shared_library(
+    name = "incompatible_cdylib",
+    srcs = ["src/cdylib.rs"],
+    crate_name = "incompatible_cdylib",
+    crate_root = "src/cdylib.rs",
+    target_compatible_with = ["@platforms//:incompatible"],
 )
 
 # keep
@@ -289,4 +298,116 @@ real_source_target(
     testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+# keep
+rust_library(
+    name = "default-lib",
+    srcs = ["src/default_lib.rs"],
+)
+
+# keep
+rust_binary(
+    name = "default_bin",
+    srcs = ["src/default_bin.rs"],
+    deps = [":default-lib"],
+)
+
+# keep
+rust_test(
+    name = "default-name-test",
+    srcs = ["src/default_test.rs"],
+)
+
+# keep
+rust_proc_macro(
+    name = "default-derive",
+    srcs = ["src/derive.rs"],
+    crate_root = "src/derive.rs",
+)
+
+# keep
+rust_shared_library(
+    name = "default-cdylib",
+    srcs = ["src/cdylib.rs"],
+    crate_root = "src/cdylib.rs",
+)
+
+# keep
+rust_static_library(
+    name = "default-staticlib",
+    srcs = ["src/staticlib.rs"],
+    crate_root = "src/staticlib.rs",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_lib_test",
+    expected = "default_lib",
+    target = ":default-lib",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_lib_upstream_test",
+    expected = "default_lib",
+    target = ":default-lib_upstream",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_bin_test",
+    expected = "default_bin",
+    target = ":default_bin",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_bin_upstream_test",
+    expected = "default_bin",
+    target = ":default_bin_upstream",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_test_test",
+    expected = "default_name_test",
+    target = ":default-name-test",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_test_upstream_test",
+    expected = "default_name_test",
+    target = ":default-name-test_upstream",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_derive_test",
+    expected = "default_derive",
+    target = ":default-derive",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_derive_upstream_test",
+    expected = "default_derive",
+    target = ":default-derive_upstream",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_cdylib_test",
+    expected = "default_cdylib",
+    target = ":default-cdylib",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_cdylib_upstream_test",
+    expected = "default_cdylib",
+    target = ":default-cdylib_upstream",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_staticlib_test",
+    expected = "default_staticlib",
+    target = ":default-staticlib",
+)
+
+dx_default_crate_name_tests(
+    name = "default_crate_name_staticlib_upstream_test",
+    expected = "default_staticlib",
+    target = ":default-staticlib_upstream",
 )

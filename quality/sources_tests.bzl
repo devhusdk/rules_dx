@@ -1,7 +1,7 @@
 """Versioned semantic-class registry tests (freeze)."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":sources.bzl", "RUST", "SOURCES_REGISTRY_SCHEMA_VERSION", "is_known_semantic_class", "sources_schema_error", "upstream_source_class")
+load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "SOURCES_REGISTRY_SCHEMA_VERSION", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "sources_schema_error", "upstream_source_class")
 
 FROZEN_SEMANTIC_FILE_CLASSES = [
     "text",
@@ -14,6 +14,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "css",
     "less",
     "scss",
+    "dockerfile",
     "javascript",
     "jsx",
     "typescript",
@@ -32,6 +33,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "toml",
     "xml",
     "yaml",
+    "api_spec",
     "java",
     "kotlin",
     "scala",
@@ -40,10 +42,16 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "cue",
     "elixir",
     "erlang",
+    "fortran",
     "gherkin",
     "gleam",
     "go",
+    "haskell",
     "jsonnet",
+    "lua",
+    "ocaml",
+    "perl",
+    "php",
     "pkl",
     "protobuf",
     "qml",
@@ -54,6 +62,30 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "starlark",
     "terraform",
     "go_module",
+]
+
+_DOCKERFILE_ACCEPTED = [
+    "Dockerfile",
+    "Containerfile",
+    "Dockerfile.dev",
+    "Dockerfile.prebuilt",
+    "Containerfile.ci",
+    "app.Dockerfile",
+    "app.dockerfile",
+    "app.Containerfile",
+    "app.containerfile",
+]
+
+_DOCKERFILE_REJECTED = [
+    "Dockerfile.dockerignore",
+    "app.dockerignore",
+    ".dockerignore",
+    "Dockerfile-dev",
+    "dockerfile",
+    "Dockerfile.",
+    ".Dockerfile",
+    "Dockerfiles",
+    "README.md",
 ]
 
 def sources_registry_tests(name):
@@ -98,9 +130,29 @@ def sources_registry_tests(name):
                 ["cuda", "cuda"],
             ),
             expect_equal(
+                "upstream m and mm map to objc and objcpp while h stays c",
+                [upstream_source_class("m"), upstream_source_class("mm"), upstream_source_class("h")],
+                ["objc", "objcpp", "c"],
+            ),
+            expect_equal(
                 "upstream proto extension maps to protobuf",
                 upstream_source_class("proto"),
                 "protobuf",
+            ),
+            expect_equal(
+                "Dockerfile matcher accepts every documented name by basename",
+                [n for n in _DOCKERFILE_ACCEPTED if not is_dockerfile_name(n)],
+                [],
+            ),
+            expect_equal(
+                "Dockerfile matcher rejects ignore files and near misses",
+                [n for n in _DOCKERFILE_REJECTED if is_dockerfile_name(n)],
+                [],
+            ),
+            expect_equal(
+                "Dockerfile name error lists the accepted patterns",
+                [dockerfile_name_error("Dockerfile.dev"), dockerfile_name_error("Dockerfile-dev")],
+                ["", "'Dockerfile-dev' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)],
             ),
             expect_equal(
                 "upstream unknown extension maps to empty",

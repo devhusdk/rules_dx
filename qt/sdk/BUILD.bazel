@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "launcher.c",
+    "layout_linux.bzl",
     "linux_arm64.bzl",
     "linux_x86_64.bzl",
     "metadata_tests.bzl",
@@ -22,6 +23,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "layout_linux.bzl",
         "linux_arm64.bzl",
         "linux_x86_64.bzl",
         "metadata_tests.bzl",
@@ -30,4 +32,10 @@ real_source_target(
         "unsupported.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

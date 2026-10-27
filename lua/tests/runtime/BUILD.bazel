@@ -1,0 +1,45 @@
+load("//lua/rules:defs.bzl", "lua_binary", "lua_library", "lua_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+lua_library(
+    name = "lib",
+    srcs = [
+        "lib.lua",
+        "pkg/init.lua",
+    ],
+    strip_import_prefix = "/lua/tests/runtime",
+    visibility = ["//lua/tests:__subpackages__"],
+)
+
+lua_binary(
+    name = "probe",
+    main = "probe.lua",
+    visibility = ["//lua/tests:__subpackages__"],
+    deps = [":lib"],
+)
+
+lua_test(
+    name = "probe_test",
+    size = "small",
+    args = [
+        "--flag",
+        "value",
+    ],
+    data = ["data.txt"],
+    env = {
+        "DATA_FILE": "$(rlocationpath data.txt)",
+        "LUA_CPATH": "/tmp/?.so",
+        "LUA_INIT": "lua_init_ran = true",
+        "LUA_PATH": "/tmp/?.lua",
+    },
+    main = "probe_test.lua",
+    deps = [":lib"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

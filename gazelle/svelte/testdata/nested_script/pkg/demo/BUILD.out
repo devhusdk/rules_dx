@@ -1,0 +1,17 @@
+load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
+
+svelte_library(
+    name = "demo",
+    srcs = ["demo.svelte"],
+    deps = [":helper"],
+)
+
+svelte_library(
+    name = "helper",
+    srcs = ["helper.svelte"],
+)
+
+svelte_library(
+    name = "inline",
+    srcs = ["inline.svelte"],
+)

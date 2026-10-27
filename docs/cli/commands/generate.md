@@ -48,7 +48,8 @@ A refused change has a `reason`: `write_mismatch`, `missing_file`, or
 `unreadable_file`. Each ignored import emits a `notice` with `code`
 `ignored_import`, `level` `warning`, `path`, `language`, and `import`. A Bazel
 failure with `--apply`, or one that leaves results incomplete, emits a
-`bazel_failed` error. `command_finished` ends the stream with
+`bazel_failed` error. So does a Gazelle failure with `--check`, including a
+nonzero exit that does not come with a Gazelle diff. `command_finished` ends the stream with
 `results_complete`, `exit_code`, and `changes` with `create` and `modify`
 counts, plus `applied` and `refused` with `--apply`. An incomplete `--apply`
 run still emits its `change` events and `changes` with `applied` and `refused`.
@@ -62,8 +63,22 @@ directory and below. `dx generate` fails when no literal reference matches it,
 when the language is unknown, or when the value is malformed.
 
 Accepted languages: `astro`, `cc`, `csharp`, `fsharp`, `gleam`, `go`, `java`,
-`javascript`, `kotlin`, `mdx`, `python`, `ruby`, `rust`, `scala`, `svelte`,
-`typescript`, `vue`, `zig`.
+`javascript`, `kotlin`, `mdx`, `powershell`, `python`, `ruby`, `rust`, `scala`,
+`svelte`, `typescript`, `vue`, `zig`.
+
+`# gazelle:dx_cuda_archs <spec> <spec>...` sets the `archs` of a generated
+`cuda_library`. It applies to this directory and below, and a deeper directive
+replaces it. Separate specs with spaces, because a spec can contain commas, as
+in `compute_89:compute_89,sm_89`. The `cc` language generates a `<dir>_cuda`
+target for `.cu` and `.cuh` files that no hand-written CUDA rule lists, and it
+fails when the directive is missing. Gazelle never touches hand-written
+`cuda_library`, `cuda_binary`, `cuda_test` or `cuda_gpu_test` targets. It sets
+`archs` only when it creates the target, so a hand-edited value survives later
+runs. Sources named `*_test.cu` and sources that define `main` are not
+generated, and `main` fails the run.
+
+`# gazelle:lang` must list `dx_dispatch` (for example
+`# gazelle:lang go,dx_dispatch`), or `dx generate` fails.
 
 `# gazelle:resolve <language> <import> <label>` maps one import to an exact
 label.
@@ -72,3 +87,23 @@ label.
 # gazelle:dx_ignore_import python requests
 # gazelle:resolve python yaml @pypi//pyyaml
 ```
+
+For `java`, `kotlin` and `scala`, a `resolve` mapping names the fully qualified
+import or the import's own package, and a `dx_ignore_import` names the fully
+qualified import. A wildcard import such as `kotlinx.coroutines.*` resolves
+through its package. A bare class name such as `ImmutableList` no longer
+matches, so a stale bare-name entry fails the run.
+
+```starlark
+# gazelle:resolve kotlin kotlinx.coroutines @maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core
+# gazelle:resolve kotlin com.google.common.collect.ImmutableList @maven//:com_google_guava_guava
+```
+
+For `csharp`, a `using` resolves by the full namespace that a local
+`csharp_library` declares, or by that namespace plus a source's file name.
+A `using static` or alias directive may name a type, so when its target
+matches no library it also tries the parent namespace. A `resolve` mapping
+or a `dx_ignore_import` names the full namespace, such as `Newtonsoft.Json`.
+A bare last segment such as `Json` no longer matches, so a stale bare-name
+entry fails the run. A namespace that more than one local library declares
+fails as ambiguous.

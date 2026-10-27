@@ -12,7 +12,7 @@
 
 pub mod rendered;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 /// The required and repeated inputs for one aggregate.
@@ -79,7 +79,6 @@ pub fn check(inputs: &Inputs) -> String {
     let prose_texts: Vec<String> = inputs.prose.iter().map(|p| read(p)).collect();
     let api_text = read(api);
     let pages = || prose_texts.iter().map(String::as_str).collect::<Vec<_>>();
-    let paths = || inputs.prose.iter().map(String::as_str).collect::<Vec<_>>();
 
     if !any_line(&book_text, |line| line.starts_with("title")) {
         return "book has no title".to_string();
@@ -121,51 +120,44 @@ pub fn check(inputs: &Inputs) -> String {
         return "empty link target".to_string();
     }
 
-    let anchors = anchors(pages(), &api_text);
-    let prose_bases = bases(&inputs.prose);
-    let data_bases = bases(&inputs.data);
-    let known: Vec<&str> = paths()
-        .into_iter()
-        .chain(inputs.data.iter().map(String::as_str))
-        .chain(api_paths.iter().map(String::as_str))
-        .collect();
-
-    for target in link_targets(pages()) {
+    let site = Site::new(inputs, &prose_texts, &api_text, &api_paths);
+    for (source, target) in link_targets(&inputs.prose, &prose_texts, &site.root) {
         if target.contains("://") || target.starts_with("mailto:") {
             continue;
         }
         if let Some(fragment) = target.strip_prefix('#') {
-            if !anchors.contains(fragment) {
+            if !site.has_anchor(&source, fragment) {
                 return format!("dangling anchor '{target}'");
             }
             continue;
         }
         let (base, fragment) = split_fragment(&target);
         let (base, directory) = match base.strip_suffix('/') {
-            Some(trimmed) => (trimmed.to_string(), true),
-            None => (base.to_string(), false),
+            Some(trimmed) => (trimmed, true),
+            None => (base, false),
         };
-        let name = normalize_link(&base);
-        let found = if directory {
-            paths()
-                .iter()
-                .any(|p| ends_with(p, &format!("{name}/README.md")))
-        } else if known.iter().any(|p| ends_with(p, &name)) {
-            true
-        } else if !name.contains('/') {
-            prose_bases.contains(name.as_str()) || data_bases.contains(name.as_str())
-        } else {
-            false
-        } || name == "api.md"
-            || name == "SUMMARY.md";
-        if !found {
+        let resolved = resolve_route(&source, base).and_then(|route| {
+            let route = if directory {
+                if route.is_empty() {
+                    "README.md".to_string()
+                } else {
+                    format!("{route}/README.md")
+                }
+            } else {
+                route
+            };
+            let known = if directory {
+                site.prose.contains(&route)
+            } else {
+                site.pages.contains_key(&route)
+            };
+            known.then_some(route)
+        });
+        let Some(route) = resolved else {
             return format!("dangling link '{target}'");
-        }
-        if !fragment.is_empty() {
-            let normalized = fragment.to_lowercase();
-            if !anchors.contains(&normalized) {
-                return format!("dangling fragment '{target}'");
-            }
+        };
+        if !fragment.is_empty() && !site.has_anchor(&route, fragment) {
+            return format!("dangling fragment '{target}'");
         }
     }
     String::new()
@@ -201,66 +193,130 @@ fn has_empty_link_target(text: &str) -> bool {
     false
 }
 
-fn anchors(prose: Vec<&str>, api: &str) -> BTreeSet<String> {
-    let mut found = BTreeSet::new();
-    for text in prose {
-        for line in text.lines().filter(|l| l.starts_with('#')) {
-            found.insert(anchor_name(line));
-        }
-    }
-    for line in api.lines().filter(|l| l.starts_with("## ")) {
-        found.insert(anchor_name(line));
-    }
-    found
+fn text_anchors(text: &str, prefix: &str) -> BTreeSet<String> {
+    text.lines()
+        .filter(|l| l.starts_with(prefix))
+        .map(anchor_name)
+        .collect()
 }
 
-fn anchor_name(line: &str) -> String {
-    let heading = line.trim_start_matches('#').trim_start();
-    let lowered = heading.to_lowercase();
-    let cleaned: String = lowered
-        .chars()
-        .filter(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == ' ' || *c == '-')
-        .collect();
-    let trimmed = cleaned.trim();
-    let dashed = trimmed.replace(' ', "-");
-    let mut collapsed = String::new();
-    let mut dash = false;
-    for c in dashed.chars() {
-        if c == '-' {
-            if !dash {
-                collapsed.push(c);
+/// The pages of one site, keyed by their route relative to the book root.
+struct Site {
+    root: String,
+    prose: BTreeSet<String>,
+    pages: BTreeMap<String, BTreeSet<String>>,
+}
+
+impl Site {
+    fn new(
+        inputs: &Inputs,
+        prose_texts: &[String],
+        api_text: &str,
+        api_paths: &BTreeSet<String>,
+    ) -> Self {
+        let root = common_root(&inputs.prose);
+        let mut prose = BTreeSet::new();
+        let mut pages = BTreeMap::new();
+        for (path, text) in inputs.prose.iter().zip(prose_texts) {
+            let route = route_under(&root, path);
+            prose.insert(route.clone());
+            pages.insert(route, text_anchors(text, "#"));
+        }
+        for path in &inputs.data {
+            pages.insert(route_under(&root, path), BTreeSet::new());
+        }
+        for path in api_paths {
+            pages.insert(path.clone(), BTreeSet::new());
+        }
+        pages.insert("api.md".to_string(), text_anchors(api_text, "## "));
+        pages.insert("SUMMARY.md".to_string(), BTreeSet::new());
+        Site { root, prose, pages }
+    }
+
+    fn has_anchor(&self, route: &str, fragment: &str) -> bool {
+        self.pages.get(route).is_some_and(|anchors| {
+            anchors.contains(fragment)
+                || rendered::decode_fragment(fragment).is_some_and(|d| anchors.contains(&d))
+        })
+    }
+}
+
+/// Returns the longest directory that holds every path, "" when there is none.
+fn common_root(paths: &[String]) -> String {
+    let mut dirs = paths.iter().map(|p| {
+        let parts: Vec<&str> = p.split('/').collect();
+        parts[..parts.len() - 1].to_vec()
+    });
+    let Some(mut common) = dirs.next() else {
+        return String::new();
+    };
+    for dir in dirs {
+        let shared = common.iter().zip(&dir).take_while(|(a, b)| a == b).count();
+        common.truncate(shared);
+    }
+    common.join("/")
+}
+
+/// Returns a path relative to the root directory.
+fn route_under(root: &str, path: &str) -> String {
+    if root.is_empty() {
+        return path.to_string();
+    }
+    path.strip_prefix(root)
+        .map(|rest| rest.trim_start_matches('/'))
+        .unwrap_or(path)
+        .to_string()
+}
+
+/// Joins a link target to the directory of its page, or None above the root.
+fn resolve_route(from: &str, target: &str) -> Option<String> {
+    let mut parts: Vec<&str> = match from.rsplit_once('/') {
+        Some((dir, _)) => dir.split('/').collect(),
+        None => Vec::new(),
+    };
+    for segment in target.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
             }
-            dash = true;
-        } else {
-            collapsed.push(c);
-            dash = false;
+            other => parts.push(other),
         }
     }
-    collapsed
+    Some(parts.join("/"))
 }
 
-fn bases(paths: &[String]) -> BTreeSet<String> {
-    paths
-        .iter()
-        .map(|p| {
-            Path::new(p)
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default()
+/// Ports mdBook 0.4.52 `id_from_content` and `normalize_id` for a heading line.
+fn anchor_name(line: &str) -> String {
+    let heading = line.trim().trim_start_matches('#').trim().replace('`', "");
+    heading
+        .chars()
+        .filter_map(|c| {
+            if c.is_alphanumeric() || c == '_' || c == '-' {
+                Some(c.to_ascii_lowercase())
+            } else if c.is_whitespace() {
+                Some('-')
+            } else {
+                None
+            }
         })
         .collect()
 }
 
-fn link_targets(prose: Vec<&str>) -> BTreeSet<String> {
+fn link_targets(paths: &[String], prose: &[String], root: &str) -> BTreeSet<(String, String)> {
     let mut found = BTreeSet::new();
-    for text in prose {
+    for (path, text) in paths.iter().zip(prose) {
+        let source = route_under(root, path);
         for line in text.lines() {
             for inner in inline_targets(line) {
                 let tidied = tidy(&inner);
-                found.insert(first_field(tidied.as_str()));
+                found.insert((source.clone(), first_field(tidied.as_str())));
             }
             if let Some((_, rest)) = split_reference(line) {
-                found.insert(first_field(&trim_wrapping(rest.trim_start())));
+                found.insert((
+                    source.clone(),
+                    first_field(&trim_wrapping(rest.trim_start())),
+                ));
             }
         }
     }
@@ -347,21 +403,6 @@ fn split_fragment(target: &str) -> (&str, &str) {
         Some((base, fragment)) => (base, fragment),
         None => (target, ""),
     }
-}
-
-fn normalize_link(base: &str) -> String {
-    let mut name = base.to_string();
-    while let Some(rest) = name.strip_prefix("../") {
-        name = rest.to_string();
-    }
-    name.strip_prefix("./").unwrap_or(&name).to_string()
-}
-
-fn ends_with(candidate: &str, name: &str) -> bool {
-    candidate == name
-        || (candidate.len() > name.len()
-            && candidate.ends_with(name)
-            && candidate.as_bytes()[candidate.len() - name.len() - 1] == b'/')
 }
 
 #[cfg(test)]

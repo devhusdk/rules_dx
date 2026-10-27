@@ -119,8 +119,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.scala,Helper.scala", got)
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.Names)
+	if strings.Join(got.Names, ",") != "com.example.Widget" {
+		t.Errorf("library imports = %+v, want [com.example.Widget]", got.Names)
 	}
 }
 
@@ -169,11 +169,19 @@ func TestGenerateNoSourcesStaleSweep(t *testing.T) {
 
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.scala", "Main.scala"}
-	got := refuseFixture(t, map[string]string{
-		"pkg/demo/Demo.scala": "package demo\n\nclass Demo\n",
-		"pkg/demo/Main.scala": "package demo\n\nobject Main {\n  def main(args: Array[String]): Unit = {}\n}\n",
-	}, regular)
-	wantRefusal(t, got, "scala: pkg/demo: Main.scala defines main;")
+	for name, main := range map[string]string{
+		"def main":    "package demo\n\nobject Main {\n  def main(args: Array[String]): Unit = {}\n}\n",
+		"@main":       "package demo\n\n@main def run(): Unit = ()\n",
+		"extends App": "package demo\n\nobject Main extends App {\n}\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := refuseFixture(t, map[string]string{
+				"pkg/demo/Demo.scala": "package demo\n\nclass Demo\n",
+				"pkg/demo/Main.scala": main,
+			}, regular)
+			wantRefusal(t, got, "scala: pkg/demo: Main.scala defines main;")
+		})
+	}
 }
 
 func TestGenerateKindMismatchFails(t *testing.T) {
@@ -229,9 +237,6 @@ func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
 	lang.Configure(cfg, "app", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "scala"}}})
 	if !lang.Failed() {
 		t.Fatal("a one-field ignore was accepted")
-	}
-	if got := CollectUsedIgnores(cfg); got != nil {
-		t.Fatalf("unused ignores = %v, want none", got)
 	}
 }
 
@@ -316,5 +321,158 @@ func TestGenerateRootPackage(t *testing.T) {
 		if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Lib.scala" {
 			t.Errorf("repo %q: srcs = %q, want Lib.scala", tc.repoName, got)
 		}
+	}
+}
+
+func resolveImports(t *testing.T, directives string, srcs map[string]string, imports ...string) (*rule.Rule, *common.SingleLang) {
+	t.Helper()
+	root := t.TempDir()
+	lang := NewLanguage().(*common.SingleLang)
+	lang.Before(context.Background())
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f, err := rule.LoadData("BUILD.bazel", "", []byte(directives))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "consumer", f)
+	lang.Configure(cfg, "consumer", f)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	for file, content := range srcs {
+		writeFixture(t, root, file, content)
+		pkg, src := filepath.Dir(file), filepath.Base(file)
+		r := rule.NewRule(LibraryKind, pkg)
+		r.SetAttr("srcs", []string{src})
+		bf, err := rule.LoadData(filepath.Join(root, pkg, "BUILD.bazel"), pkg, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		index.AddRule(cfg, r, bf)
+	}
+	index.Finish()
+	r := rule.NewRule(LibraryKind, "consumer")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet(imports), label.New("", "consumer", "consumer"))
+	return r, lang
+}
+
+func TestResolveExternalImportNeedsAMapping(t *testing.T) {
+	r, lang := resolveImports(t, "# gazelle:resolve scala cats.effect.IO //third_party:ext\n", nil, "cats.effect.IO")
+	if lang.Failed() {
+		t.Fatal("a mapped external import was reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "//third_party:ext" {
+		t.Fatalf("deps = %v", got)
+	}
+	r, lang = resolveImports(t, "", nil, "cats.effect.IO")
+	if !lang.Failed() {
+		t.Fatal("an unmapped external import was not reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 0 {
+		t.Fatalf("deps = %v", got)
+	}
+	defer func() {
+		msg, _ := recover().(string)
+		if !strings.Contains(msg, "# gazelle:resolve mapping on the qualified import or its package") || !strings.Contains(msg, "cats.effect.IO") {
+			t.Fatalf("panic = %q, want the qualified name and the unresolved hint", msg)
+		}
+	}()
+	lang.AfterResolvingDeps(context.Background())
+}
+
+func TestBareNameIgnoreNoLongerMatches(t *testing.T) {
+	r, lang := resolveImports(t, "# gazelle:dx_ignore_import scala Widget\n", nil, "com.example.Widget")
+	if !lang.Failed() {
+		t.Fatal("a bare-name ignore still covered the qualified import")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 0 {
+		t.Fatalf("deps = %v", got)
+	}
+	defer func() {
+		msg, _ := recover().(string)
+		if !strings.Contains(msg, `unresolved import "com.example.Widget"`) || !strings.Contains(msg, "stale # gazelle:dx_ignore_import scala Widget") {
+			t.Fatalf("panic = %q, want the unresolved import and the stale ignore", msg)
+		}
+	}()
+	lang.AfterResolvingDeps(context.Background())
+}
+
+func TestResolveQualifiedImportFindsLocalClass(t *testing.T) {
+	r, lang := resolveImports(t, "", map[string]string{"greeter/Greeter.scala": "package com.example\n\nclass Greeter\n"}, "com.example.Greeter")
+	if lang.Failed() {
+		t.Fatal("a local class import was reported")
+	}
+	if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "//greeter" {
+		t.Fatalf("deps = %v", got)
+	}
+	r, lang = resolveImports(t, "", map[string]string{"other/Greeter.scala": "package com.other\n\nclass Greeter\n"}, "com.example.Greeter")
+	if !lang.Failed() || len(r.AttrStrings("deps")) != 0 {
+		t.Fatalf("a same-named class in another package bound: deps = %v", r.AttrStrings("deps"))
+	}
+}
+
+func TestTopLevelFunctionResolvesToPackage(t *testing.T) {
+	srcs := map[string]string{
+		"util/Strings.scala":     "package com.example.util\n\ndef shout(s: String): String = s\n",
+		"grades/BuildInfo.scala": "package grades\n\nobject BuildInfo\ndef shout(s: String): String = s\n",
+	}
+	for _, imp := range []string{"com.example.util.shout", "com.example.util.*", "com.example.util.Other"} {
+		r, lang := resolveImports(t, "", srcs, imp)
+		if lang.Failed() {
+			t.Fatalf("%s was reported", imp)
+		}
+		if got := r.AttrStrings("deps"); len(got) != 1 || got[0] != "//util" {
+			t.Fatalf("%s: deps = %v, want //util", imp, got)
+		}
+	}
+	r, lang := resolveImports(t, "", srcs, "grades.BuildInfo")
+	if lang.Failed() || strings.Join(r.AttrStrings("deps"), ",") != "//grades" {
+		t.Fatalf("grades.BuildInfo: deps = %v", r.AttrStrings("deps"))
+	}
+	// A single-segment package is never a candidate, so its top-level
+	// functions need the file's class or an explicit mapping.
+	r, lang = resolveImports(t, "", srcs, "grades.shout")
+	if !lang.Failed() || len(r.AttrStrings("deps")) != 0 {
+		t.Fatalf("grades.shout: deps = %v", r.AttrStrings("deps"))
+	}
+}
+
+func TestExternalPrefixDoesNotBindLocalParent(t *testing.T) {
+	srcs := map[string]string{"acme/Core.scala": "package com.acme\n\nclass Core\n"}
+	r, lang := resolveImports(t, "", srcs, "com.acme.lib.Client")
+	if !lang.Failed() || len(r.AttrStrings("deps")) != 0 {
+		t.Fatalf("an external import bound to the local parent package: deps = %v", r.AttrStrings("deps"))
+	}
+	r, lang = resolveImports(t, "# gazelle:resolve scala com.acme.lib //third_party:lib\n", srcs, "com.acme.lib.Client", "com.acme.Core")
+	if lang.Failed() || strings.Join(r.AttrStrings("deps"), ",") != "//acme,//third_party:lib" {
+		t.Fatalf("deps = %v", r.AttrStrings("deps"))
+	}
+}
+
+func TestGenerateKeepsMappedStdLibLookalike(t *testing.T) {
+	files := map[string]string{"pkg/demo/Demo.scala": "package demo\nimport scala.xml.Elem\n"}
+	root := t.TempDir()
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+	}
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:resolve scala scala.xml.Elem //third_party:test\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", f)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: cfg, Dir: filepath.Join(root, "pkg", "demo"), Rel: "pkg/demo", RegularFiles: []string{"Demo.scala"}})
+	got, _ := common.UnwrapImportSet(result.Imports[0])
+	if len(got) != 1 || got[0] != "scala.xml.Elem" {
+		t.Fatalf("imports = %v, want scala.xml.Elem", got)
 	}
 }

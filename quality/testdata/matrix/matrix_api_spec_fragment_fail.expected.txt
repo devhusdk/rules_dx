@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_api_spec_fragment_fail
+capability LINT
+stages 1
+stage redocly classes=api_spec sources=quality/testdata/api_spec/openapi_fragment_bad.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR redocly struct quality/testdata/api_spec/openapi_fragment_bad.yaml 0 0 fixable=false "quality/testdata/api_spec/schemas/pet_bad.yaml:5:13: `type` can be one of the following only: \"object\", \"array\", \"string\", \"number\", \"integer\", \"boolean\", \"null\"."
+terminal 1
+terminal ERROR redocly struct quality/testdata/api_spec/openapi_fragment_bad.yaml 0 0 fixable=false "quality/testdata/api_spec/schemas/pet_bad.yaml:5:13: `type` can be one of the following only: \"object\", \"array\", \"string\", \"number\", \"integer\", \"boolean\", \"null\"."
+replacements 0

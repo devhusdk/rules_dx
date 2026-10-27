@@ -1,0 +1,68 @@
+load("//powershell/rules:defs.bzl", "pwsh_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+exports_files([
+    "defs.bzl",
+    "extract.ps1",
+])
+
+# keep
+rust_test(
+    name = "extract_test",
+    size = "small",
+    srcs = ["extract_test.rs"],
+    data = [
+        "//tools/docs/powershell/extract:powershell_extract",
+        "//tools/docs/powershell/fixture:ledger_docs",
+        "//tools/docs/powershell/fixture:ledger_srcs",
+        "//tools/docs/powershell/fixture:scoped_docs",
+        "//tools/docs/powershell/fixture:scoped_srcs",
+        "//tools/docs/powershell/fixture:tally_docs",
+        "//tools/docs/powershell/fixture:tally_srcs",
+    ],
+    env = {
+        "DX_LEDGER_SHARD": "$(rootpath //tools/docs/powershell/fixture:ledger_docs)",
+        "DX_POWERSHELL_EXTRACT": "$(rootpath //tools/docs/powershell/extract:powershell_extract)",
+        "DX_SCOPED_SHARD": "$(rootpath //tools/docs/powershell/fixture:scoped_docs)",
+        "DX_TALLY_SHARD": "$(rootpath //tools/docs/powershell/fixture:tally_docs)",
+    },
+    tags = ["no-coverage"],
+    deps = [
+        "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "powershell_extract_fmt_test",
+    size = "small",
+    targets = [":extract_test"],
+)
+
+# keep
+pwsh_test(
+    name = "extract_script_test",
+    srcs = ["extract_script.Tests.ps1"],
+    data = [
+        "extract.ps1",
+        "extract_script.Describe.ps1",
+        "//tools/docs/powershell/fixture:bad_srcs",
+        "//tools/docs/powershell/fixture:ledger_srcs",
+        "//tools/docs/powershell/fixture:scoped_srcs",
+    ],
+    deps = ["//powershell/gallery:pester"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

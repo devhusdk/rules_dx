@@ -122,7 +122,7 @@ pub fn pages_error(pages: &[Page]) -> String {
 /// `dir/README.md` as `dir/README.html`, so the rendered index is copied.
 pub fn alias_route(route: &str) -> Option<String> {
     let name = route.strip_suffix(".md")?;
-    if !name.ends_with("README") {
+    if name != "README" && !name.ends_with("/README") {
         return None;
     }
     Some(format!("{name}.html"))
@@ -350,7 +350,10 @@ fn alias_errors(pages: &[Page], out: &Path) -> String {
 }
 
 fn scratch_dir() -> PathBuf {
-    std::env::temp_dir().join(format!("dx-site-build-{}", std::process::id()))
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    std::env::temp_dir().join(format!("dx-site-build-{}-{nanos}", std::process::id()))
 }
 
 fn scratch_is_usable(scratch: &Path) -> bool {

@@ -31,7 +31,7 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
             "migrate needs --from <version> --to <version>",
         );
     };
-    let syntax = match dx_adopt::plan_migrate(from, to) {
+    let plan = match dx_adopt::plan_migrate(from, to) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
@@ -41,52 +41,30 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         "check"
     };
-    let plan = match dx_adopt::plan_released_migrate(from, to) {
-        Ok(plan) => plan,
-        Err(error) => {
-            let message = error.to_string();
-            if invocation.output == OutputMode::Json {
-                if let Ok(event) = command_started(invocation.command.name(), mode) {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
-                }
-            } else if verbose {
-                if let Err(exit) = check_stdout_write(writeln!(
-                    out,
-                    "Would migrate {} -> {} via {}",
-                    syntax.from, syntax.to, syntax.manifest
-                )) {
-                    return exit;
-                }
-            }
-            return operational(invocation, out, err, CODE_MIGRATE_FAILED, &message);
-        }
-    };
-    let summary = format!(
-        "Would migrate {} -> {} via {}",
-        plan.from, plan.to, plan.manifest
-    );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), mode) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+            return exit;
         }
     } else if verbose {
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
+        if let Err(exit) = check_stdout_write(writeln!(
+            out,
+            "Would migrate {} -> {} via {}",
+            plan.from, plan.to, plan.manifest
+        )) {
             return exit;
         }
     }
+    let unshipped = dx_adopt::AdoptError::NoQualifiedManifest {
+        from: plan.from,
+        to: plan.to,
+        manifest: plan.manifest,
+    };
     operational(
         invocation,
         out,
         err,
         CODE_MIGRATE_FAILED,
-        &format!(
-            "no live migrate path {} -> {} yet (manifest {} qualifies the plan only)",
-            plan.from, plan.to, plan.manifest
-        ),
+        &unshipped.to_string(),
     )
 }
 
@@ -111,6 +89,24 @@ mod tests {
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("migrate_failed"), "{err}");
         assert!(err.contains("migrate-v1-to-v2.json"), "{err}");
+    }
+
+    #[test]
+    fn unshipped_pair_reports_the_qualification_gap() {
+        let harness = Harness::new("migrate-unshipped-text");
+        let (code, out, err) = harness.run(&["migrate", "-v", "--from=1.2.3", "--to=2.0.0"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains(
+                "no qualified migration 1.2.3 -> 2.0.0: manifest migrate-v1-to-v2.json is not shipped"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("no live"), "{err}");
+        assert!(
+            out.contains("Would migrate 1.2.3 -> 2.0.0 via migrate-v1-to-v2.json"),
+            "{out}"
+        );
     }
 
     #[test]

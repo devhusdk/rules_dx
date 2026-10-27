@@ -1,26 +1,23 @@
 use super::{check_output_size, code_name, known, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
+const TOOL: &str = "staticcheck";
+
 fn json_fail(tool: &'static str, detail: String) -> ParseError {
     ParseError::Json { tool, detail }
 }
 
-fn shape_fail(tool: &'static str, detail: String) -> ParseError {
-    ParseError::Shape { tool, detail }
-}
-
 fn position(value: &serde_json::Value, what: &str) -> Result<TextPosition, ParseError> {
-    const TOOL: &str = "staticcheck";
     let line = value
         .get("line")
         .and_then(serde_json::Value::as_u64)
-        .ok_or_else(|| shape_fail(TOOL, format!("finding {what} lacks a line")))?;
+        .ok_or_else(|| ParseError::shape(TOOL, format!("finding {what} lacks a line")))?;
     let column = value
         .get("column")
         .and_then(serde_json::Value::as_u64)
-        .ok_or_else(|| shape_fail(TOOL, format!("finding {what} lacks a column")))?;
+        .ok_or_else(|| ParseError::shape(TOOL, format!("finding {what} lacks a column")))?;
     if line == 0 || column == 0 {
-        return Err(shape_fail(
+        return Err(ParseError::shape(
             TOOL,
             format!("finding {what} carries a zero position"),
         ));
@@ -33,9 +30,9 @@ pub fn parse_staticcheck(
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "staticcheck";
     check_output_size(TOOL, stdout)?;
-    let text = std::str::from_utf8(stdout).map_err(|err| shape_fail(TOOL, err.to_string()))?;
+    let text =
+        std::str::from_utf8(stdout).map_err(|err| ParseError::shape(TOOL, err.to_string()))?;
     let mut findings = Vec::new();
     for line in text.lines() {
         let line = line.trim();
@@ -45,24 +42,21 @@ pub fn parse_staticcheck(
         let item: serde_json::Value =
             serde_json::from_str(line).map_err(|err| json_fail(TOOL, err.to_string()))?;
         if !item.is_object() {
-            return Err(shape_fail(
-                TOOL,
-                "staticcheck line is not an object".to_owned(),
-            ));
+            return Err(ParseError::shape(TOOL, "staticcheck line is not an object"));
         }
         let rule = item
             .get("code")
             .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| shape_fail(TOOL, "finding lacks a code".to_owned()))?;
+            .ok_or_else(|| ParseError::shape(TOOL, "finding lacks a code"))?;
         if rule.is_empty() {
-            return Err(shape_fail(TOOL, "finding carries an empty code".to_owned()));
+            return Err(ParseError::shape(TOOL, "finding carries an empty code"));
         }
         if rule == "compile" {
             let message = item
                 .get("message")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("package load failure");
-            return Err(shape_fail(
+            return Err(ParseError::shape(
                 TOOL,
                 format!("build failure, not a finding: {message}"),
             ));
@@ -71,17 +65,20 @@ pub fn parse_staticcheck(
             Some("error") => ToolSeverity::Error,
             Some("warning") => ToolSeverity::Warning,
             Some(other) => {
-                return Err(shape_fail(TOOL, format!("unknown severity: {other}")));
+                return Err(ParseError::shape(
+                    TOOL,
+                    format!("unknown severity: {other}"),
+                ));
             }
-            None => return Err(shape_fail(TOOL, "finding lacks a severity".to_owned())),
+            None => return Err(ParseError::shape(TOOL, "finding lacks a severity")),
         };
         let location = item
             .get("location")
-            .ok_or_else(|| shape_fail(TOOL, "finding lacks a location".to_owned()))?;
+            .ok_or_else(|| ParseError::shape(TOOL, "finding lacks a location"))?;
         let path = location
             .get("file")
             .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| shape_fail(TOOL, "finding lacks a file".to_owned()))?;
+            .ok_or_else(|| ParseError::shape(TOOL, "finding lacks a file"))?;
         let checked = known(TOOL, files, path)?;
         let start = position(location, "location")?;
         let end = match item.get("end") {
@@ -91,12 +88,9 @@ pub fn parse_staticcheck(
         let message = item
             .get("message")
             .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| shape_fail(TOOL, "finding lacks a message".to_owned()))?;
+            .ok_or_else(|| ParseError::shape(TOOL, "finding lacks a message"))?;
         if message.is_empty() {
-            return Err(shape_fail(
-                TOOL,
-                "finding carries an empty message".to_owned(),
-            ));
+            return Err(ParseError::shape(TOOL, "finding carries an empty message"));
         }
         findings.push(FileFinding {
             file: checked.to_owned(),
@@ -114,7 +108,7 @@ pub fn parse_staticcheck(
         });
     }
     if findings.is_empty() && code != Some(0) {
-        return Err(shape_fail(
+        return Err(ParseError::shape(
             TOOL,
             format!("exit {} with no findings", code_name(code)),
         ));

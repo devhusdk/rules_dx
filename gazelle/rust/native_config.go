@@ -329,7 +329,14 @@ func valeStylesData(repoRoot, dir, rel string, tool nativeTool) []string {
 		if slash == ".." || strings.HasPrefix(slash, "../") {
 			return nil
 		}
-		data = append(data, path.Join(rel, slash))
+		for d := path.Dir(slash); d != "."; d = path.Dir(d) {
+			for _, build := range []string{"BUILD.bazel", "BUILD"} {
+				if _, statErr := os.Stat(filepath.Join(dir, filepath.FromSlash(d), build)); statErr == nil {
+					return nil
+				}
+			}
+		}
+		data = append(data, slash)
 		return nil
 	})
 	sort.Strings(data)

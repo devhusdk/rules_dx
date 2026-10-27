@@ -1,4 +1,4 @@
-use super::{as_text, code_name, hunk_counts, known, FileFinding, ParseError};
+use super::{as_text, code_name, hunk_counts, known, path_row_col, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity, LINE_END};
 
 const TOOL: &str = "scalafix";
@@ -17,10 +17,6 @@ const EXIT_BITS: [(i32, &str); 6] = [
     (16, "stale SemanticDB"),
     (128, "no files to check"),
 ];
-
-fn shape(detail: String) -> ParseError {
-    ParseError::Shape { tool: TOOL, detail }
-}
 
 fn failure(code: i32, stdout: &str, stderr: &[u8]) -> ParseError {
     let named: Vec<&str> = EXIT_BITS
@@ -41,7 +37,7 @@ fn failure(code: i32, stdout: &str, stderr: &[u8]) -> ParseError {
         detail.push_str(": ");
         detail.push_str(&lines.join("; "));
     }
-    shape(detail)
+    ParseError::shape(TOOL, detail)
 }
 
 struct Lint<'a> {
@@ -59,12 +55,11 @@ fn lint_header(line: &str) -> Option<Lint<'_>> {
         .filter_map(|(marker, severity)| line.find(marker).map(|at| (at, *marker, *severity)))
         .min_by_key(|(at, _, _)| *at)?;
     let (rule, message) = line[start + marker.len()..].split_once(']')?;
-    let (path_line, column) = line[..start].rsplit_once(':')?;
-    let (path, number) = path_line.rsplit_once(':')?;
+    let (path, line, column) = path_row_col(&line[..start])?;
     Some(Lint {
         path,
-        line: number.parse().ok()?,
-        column: column.parse().ok()?,
+        line,
+        column,
         severity,
         rule,
         message: message.trim(),
@@ -101,7 +96,8 @@ fn hunk_start(header: &str) -> Option<u64> {
 }
 
 fn hunk_span(header: &str, body: &[&str]) -> Result<Hunk, ParseError> {
-    let mut old = hunk_start(header).ok_or_else(|| shape(format!("malformed hunk: {header}")))?;
+    let mut old = hunk_start(header)
+        .ok_or_else(|| ParseError::shape(TOOL, format!("malformed hunk: {header}")))?;
     let mut first = None;
     let mut last = 1;
     for line in body {
@@ -120,7 +116,8 @@ fn hunk_span(header: &str, body: &[&str]) -> Result<Hunk, ParseError> {
             _ => old += 1,
         }
     }
-    let first = first.ok_or_else(|| shape(format!("hunk changes nothing: {header}")))?;
+    let first =
+        first.ok_or_else(|| ParseError::shape(TOOL, format!("hunk changes nothing: {header}")))?;
     Ok(Hunk { first, last })
 }
 
@@ -155,14 +152,18 @@ pub fn parse_scalafix(
 ) -> Result<Vec<FileFinding>, ParseError> {
     let text = as_text(TOOL, stdout)?;
     let Some(code) = code else {
-        return Err(shape(format!("exit {} (killed)", code_name(None))));
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} (killed)", code_name(None)),
+        ));
     };
     if code & !(TEST_ERROR | LINT_ERROR) != 0 {
         return Err(failure(code, text, stderr));
     }
     if text.contains("No rules requested to run") {
-        return Err(shape(
-            "no rules requested; set rules in the Scalafix config".to_owned(),
+        return Err(ParseError::shape(
+            TOOL,
+            "no rules requested; set rules in the Scalafix config",
         ));
     }
     let lines: Vec<&str> = text.lines().collect();
@@ -202,7 +203,7 @@ pub fn parse_scalafix(
                 scan += 1;
             }
             if lint.line == 0 || lint.column == 0 || lint.rule.is_empty() {
-                return Err(shape(format!("malformed lint: {line}")));
+                return Err(ParseError::shape(TOOL, format!("malformed lint: {line}")));
             }
             if lint.severity == ToolSeverity::Error {
                 errors += 1;
@@ -232,8 +233,9 @@ pub fn parse_scalafix(
                 index += 1;
                 while index < lines.len() && lines[index].starts_with("@@ ") {
                     let header = lines[index];
-                    let (old, new) = hunk_counts(header)
-                        .ok_or_else(|| shape(format!("malformed hunk: {header}")))?;
+                    let (old, new) = hunk_counts(header).ok_or_else(|| {
+                        ParseError::shape(TOOL, format!("malformed hunk: {header}"))
+                    })?;
                     index += 1;
                     let begin = index;
                     let (mut seen_old, mut seen_new) = (0, 0);
@@ -250,7 +252,7 @@ pub fn parse_scalafix(
                         index += 1;
                     }
                     if seen_old != old || seen_new != new {
-                        return Err(shape(format!("truncated hunk: {header}")));
+                        return Err(ParseError::shape(TOOL, format!("truncated hunk: {header}")));
                     }
                     while index < lines.len() && lines[index].starts_with('\\') {
                         index += 1;
@@ -262,17 +264,22 @@ pub fn parse_scalafix(
                 continue;
             }
         }
-        return Err(shape(format!("unrecognized line: {}", line.trim())));
+        return Err(ParseError::shape(
+            TOOL,
+            format!("unrecognized line: {}", line.trim()),
+        ));
     }
     if (code & TEST_ERROR != 0) != (patches > 0) {
-        return Err(shape(format!(
-            "exit {code} disagrees with {patches} reported rewrites"
-        )));
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {code} disagrees with {patches} reported rewrites"),
+        ));
     }
     if (code & LINT_ERROR != 0) != (errors > 0) {
-        return Err(shape(format!(
-            "exit {code} disagrees with {errors} reported lint errors"
-        )));
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {code} disagrees with {errors} reported lint errors"),
+        ));
     }
     Ok(findings)
 }

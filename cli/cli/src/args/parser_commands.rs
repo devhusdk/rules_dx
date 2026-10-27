@@ -1,3 +1,4 @@
+use super::super::command::owners::{AFFECTED_OWNERS, CHECK_OWNERS, PROFILE_OWNERS};
 use super::super::scope_error;
 use super::super::{assert_usage, ArgsError, Command, OperationMode};
 use super::parse;
@@ -8,11 +9,11 @@ use dx_output::OutputMode;
 #[test]
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
-        "security", "license", "update", "bump", "migrate", "upgrade", "docs", "status", "version",
-        "init", "new",
+        "security", "license", "update", "bump", "add", "migrate", "upgrade", "docs", "status",
+        "version", "init", "new",
     ] {
         let base = match command {
-            "bump" => vec![command, "cargo:demo", "1.0.0"],
+            "bump" | "add" => vec![command, "cargo:demo", "1.0.0"],
             "migrate" | "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
             "new" => vec![command, "rust"],
             _ => vec![command],
@@ -83,7 +84,7 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
 
 fn required_words(name: &str) -> &'static [&'static str] {
     match name {
-        "bump" => &["cargo:demo", "1.0.0"],
+        "bump" | "add" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
         "new" => &["rust"],
@@ -157,7 +158,12 @@ fn include_edits_needs_json_output() {
 }
 
 const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 7] = [
-    ("--check", Command::supports_check, &["--check"]),
+    (
+        "--affected",
+        |c| AFFECTED_OWNERS.contains(&c),
+        &["--affected"],
+    ),
+    ("--check", |c| CHECK_OWNERS.contains(&c), &["--check"]),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=info"]),
     (
         "--fail-on",
@@ -165,13 +171,8 @@ const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 7] = [
         &["--fail-on=warning"],
     ),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=error"]),
-    ("--debug", Command::supports_profile, &["--debug"]),
-    ("--release", Command::supports_profile, &["--release"]),
-    (
-        "--min-coverage",
-        Command::supports_min_coverage,
-        &["--min-coverage=80"],
-    ),
+    ("--debug", |c| PROFILE_OWNERS.contains(&c), &["--debug"]),
+    ("--release", |c| PROFILE_OWNERS.contains(&c), &["--release"]),
 ];
 
 #[test]
@@ -253,150 +254,19 @@ fn an_output_mode_is_gated_exactly_where_the_registry_declares_it() {
 }
 
 #[test]
-fn a_profile_flag_is_advertised_exactly_where_the_registry_declares_it() {
+fn a_profile_flag_is_advertised_exactly_for_the_profile_owners() {
+    use super::super::command::owners::PROFILE_OWNERS;
     for command in Command::value_variants() {
-        assert_eq!(
-            command.flags().contains("--debug | --release"),
-            command.supports_profile(),
-            "dx {} help must match supports_profile",
-            command.name()
-        );
-    }
-}
-
-fn usage_banner() -> String {
-    super::super::help::usage_banner()
-}
-
-fn banner_flags(clause: &str) -> Vec<String> {
-    let chars: Vec<char> = clause.chars().collect();
-    let mut flags = Vec::new();
-    let mut index = 0;
-    while index + 2 < chars.len() {
-        if chars[index] == '-' && chars[index + 1] == '-' {
-            let mut end = index + 2;
-            while end < chars.len() && (chars[end].is_ascii_alphanumeric() || chars[end] == '-') {
-                end += 1;
-            }
-            if end > index + 2 {
-                flags.push(chars[index..end].iter().collect());
-            }
-            index = end;
-            continue;
-        }
-        index += 1;
-    }
-    flags
-}
-
-fn banner_flag_claims() -> Vec<(String, Vec<String>)> {
-    let text = usage_banner();
-    let section = text
-        .split_once("per-command flags: ")
-        .expect("the usage banner names the per-command flags")
-        .1;
-    let mut claims: Vec<(String, Vec<String>)> = Vec::new();
-    for clause in section.split(';') {
-        let clause = clause.trim();
-        let Some(start) = clause.find("--") else {
-            continue;
-        };
-        let names: Vec<String> = clause[..start]
-            .trim()
-            .split('|')
-            .map(str::to_owned)
-            .collect();
-        if !names
-            .iter()
-            .all(|name| Command::value_variants().iter().any(|it| it.name() == name))
-        {
-            continue;
-        }
-        for flag in banner_flags(&clause[start..]) {
-            match claims.iter_mut().find(|(claimed, _)| claimed == &flag) {
-                Some((_, owners)) => owners.extend(names.iter().cloned()),
-                None => claims.push((flag, names.clone())),
-            }
+        let flags = super::super::grammar::advertised_flags(*command);
+        for flag in ["debug", "release"] {
+            assert_eq!(
+                flags.iter().any(|name| name == flag),
+                PROFILE_OWNERS.contains(command),
+                "dx {} --{flag} help must match the profile owners",
+                command.name()
+            );
         }
     }
-    for (_, owners) in &mut claims {
-        owners.sort();
-        owners.dedup();
-    }
-    claims.sort();
-    claims
-}
-
-fn commands_supporting(supported: fn(Command) -> bool) -> Vec<String> {
-    let mut names: Vec<String> = Command::value_variants()
-        .iter()
-        .filter(|command| supported(**command))
-        .map(|command| command.name().to_owned())
-        .collect();
-    names.sort();
-    names
-}
-
-#[test]
-fn the_usage_banner_claims_exactly_the_flags_the_registry_gates() {
-    let profile = commands_supporting(Command::supports_profile);
-    let mut expected: Vec<(String, Vec<String>)> = OWNED_OPTIONS
-        .iter()
-        .map(|(option, _, owners)| {
-            let mut owners: Vec<String> = owners.iter().map(|name| (*name).to_owned()).collect();
-            owners.sort();
-            ((*option).to_owned(), owners)
-        })
-        .collect();
-    expected.push(("--debug".to_owned(), profile.clone()));
-    expected.push(("--release".to_owned(), profile));
-    expected.push((
-        "--check".to_owned(),
-        vec!["docs".to_owned(), "version".to_owned()],
-    ));
-    expected.sort();
-    assert_eq!(
-        banner_flag_claims(),
-        expected,
-        "the usage banner must claim every gated per-command flag for exactly its owners:\n{}",
-        usage_banner()
-    );
-}
-
-#[test]
-fn the_usage_banner_check_claim_matches_the_registry() {
-    let text = usage_banner();
-    let rest = text
-        .split_once("--check is per-command only (")
-        .expect("the usage banner scopes --check to a command list")
-        .1;
-    let list = rest
-        .split(';')
-        .next()
-        .expect("the --check claim ends its command list")
-        .trim();
-    let mut claimed: Vec<String> = Vec::new();
-    for name in list.split(['/', '|']) {
-        if name == "quality" {
-            claimed.extend(["lint", "typecheck", "format", "generate"].map(str::to_owned));
-        } else {
-            claimed.push(name.to_owned());
-        }
-    }
-    claimed.sort();
-    assert_eq!(
-        claimed,
-        commands_supporting(Command::supports_check),
-        "the usage banner --check list must name every command that takes it:\n{text}"
-    );
-    assert!(
-        text.contains("status rejects --check"),
-        "the usage banner must keep naming status as a --check holdout:\n{text}"
-    );
-    assert!(
-        !Command::Status.supports_check(),
-        "the usage banner says status rejects --check"
-    );
 }
 
 #[test]
@@ -416,41 +286,10 @@ fn every_command_rejects_empty_and_relative_scopes() {
 }
 
 #[test]
-fn file_defaults_load_from_workspace_and_reject_invalid_toml() {
-    let scratch = dx_test_scratch::scratch("parser-file-defaults-");
-    assert_eq!(
-        super::load_file_defaults(scratch.path()).expect("absent"),
-        super::super::FileDefaults::default()
-    );
-    std::fs::write(scratch.path().join("MODULE.bazel"), "").expect("workspace");
-    std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
-    std::fs::write(scratch.path().join("dx.toml"), "[dx]\nquiet = true\n").expect("defaults");
-    assert_eq!(
-        super::load_file_defaults(scratch.path())
-            .expect("defaults")
-            .quiet,
-        Some(true)
-    );
-    std::fs::write(scratch.path().join("dx.toml"), "[broken").expect("bad defaults");
-    assert!(super::load_file_defaults(scratch.path()).is_err());
-    std::fs::write(scratch.path().join("dx.toml"), "[dx]\nqiet = true\n").expect("misspelled key");
-    let detail = super::load_file_defaults(scratch.path()).expect_err("a typo is not ignored");
-    assert!(
-        detail.contains("unknown field `qiet`"),
-        "the diagnostic names the key: {detail}"
-    );
-    assert!(
-        detail.contains("dx.toml"),
-        "the diagnostic names the file: {detail}"
-    );
-}
-
-#[test]
 fn bump_needs_exactly_one_selector_plus_version() {
     let bump = parse(&strings(&["bump", "cargo:anyhow", "1.2.3"])).expect("parse bump");
     assert_eq!(bump.command, Command::Bump);
     assert_eq!(bump.command.name(), "bump");
-    assert!(bump.command.is_audit_update());
     assert!(!bump.command.is_adoption());
     assert!(!bump.command.is_managed());
     assert_eq!(
@@ -544,15 +383,93 @@ fn bump_needs_exactly_one_selector_plus_version() {
 }
 
 #[test]
+fn add_needs_exactly_one_selector_plus_version() {
+    let add = parse(&strings(&["add", "cargo:serde", "1.2.3"])).expect("parse add");
+    assert_eq!(add.command, Command::Add);
+    assert_eq!(add.command.name(), "add");
+    assert!(!add.command.is_adoption());
+    assert!(!add.command.is_managed());
+    assert_eq!(
+        add.targets,
+        vec!["cargo:serde".to_owned(), "1.2.3".to_owned()]
+    );
+    assert_eq!(
+        parse(&strings(&["add"])),
+        Err(ArgsError::MissingValue {
+            option: "<set:package> <version>".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde"])),
+        Err(ArgsError::MissingValue {
+            option: "<set:package> <version>".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde", "1.2.3", "npm:react"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "npm:react".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde", "1.2.3", "--check"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--check".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&[
+            "add",
+            "cargo:serde",
+            "1.2.3",
+            "--fail-on=error"
+        ])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--fail-on".to_owned(),
+        })
+    );
+    let got = parse(&strings(&["add", "cargo:serde", "1.2.3", "--output=json"])).expect("add json");
+    assert_eq!(got.command, Command::Add);
+    assert_eq!(got.output, OutputMode::Json);
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde", "1.2.3", "--output=diff"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--output=diff".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&[
+            "add",
+            "cargo:serde",
+            "1.2.3",
+            "--report=sarif=out.sarif"
+        ])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--report=sarif=out.sarif".to_owned(),
+        })
+    );
+    assert_eq!(
+        parse(&strings(&["add", "cargo:serde", "1.2.3", "--", "--jobs=4"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "add",
+            option: "--".to_owned(),
+        })
+    );
+}
+
+#[test]
 fn migrate_needs_from_and_to_versions() {
     let migrate =
         parse(&strings(&["migrate", "--from=1.2.3", "--to=2.0.0"])).expect("parse migrate");
     assert_eq!(migrate.command, Command::Migrate);
     assert_eq!(migrate.command.name(), "migrate");
-    assert!(!migrate.command.is_audit_update());
     assert!(!migrate.command.is_adoption());
     assert!(!migrate.command.is_managed());
-    assert!(!migrate.command.is_mutating_by_default());
     assert_eq!(migrate.from, Some("1.2.3".to_owned()));
     assert_eq!(migrate.to, Some("2.0.0".to_owned()));
     let spaced =
@@ -659,7 +576,6 @@ fn new_takes_language_plus_optional_name() {
     let got = parse(&strings(&["new", "rust", "demo"])).expect("parse new");
     assert_eq!(got.command, Command::New);
     assert!(got.command.is_adoption());
-    assert!(!got.command.is_mutating_by_default());
     assert!(!got.command.supports_json());
     assert_eq!(got.targets, vec!["rust".to_owned(), "demo".to_owned()]);
     let bare_lang = parse(&strings(&["new", "go"])).expect("language only");
@@ -691,7 +607,6 @@ fn upgrade_needs_from_and_to_with_no_scopes() {
     let got = parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("parse upgrade");
     assert_eq!(got.command, Command::Upgrade);
     assert!(got.command.is_adoption());
-    assert!(!got.command.is_mutating_by_default());
     assert!(got.command.supports_json());
     assert_eq!(
         parse(&strings(&["upgrade", "--from=1.2.3"])),
@@ -1299,11 +1214,9 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
         let got = parse(&strings(&[command, "--offline"])).expect("offline parses");
         assert!(got.offline, "command: {command}");
         assert!(!got.frozen, "command: {command}");
-        assert!(got.command.supports_offline(), "command: {command}");
         let frozen = parse(&strings(&[command, "--frozen"])).expect("frozen parses");
         assert!(frozen.frozen, "command: {command}");
         assert!(!frozen.offline, "command: {command}");
-        assert!(frozen.command.supports_frozen(), "command: {command}");
         let both = parse(&strings(&[command, "--offline", "--frozen"])).expect("combined parses");
         assert!(both.offline && both.frozen, "command: {command}");
         let bare = parse(&strings(&[command])).expect("bare parses");
@@ -1314,12 +1227,10 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
         parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--offline"])).expect("bump offline");
     assert!(bump.offline);
     assert!(!bump.frozen);
-    assert!(bump.command.supports_offline());
     let bump_frozen =
         parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--frozen"])).expect("bump frozen");
     assert!(bump_frozen.frozen);
     assert!(!bump_frozen.offline);
-    assert!(bump_frozen.command.supports_frozen());
     for words in [
         vec!["lint", "--offline"],
         vec!["build", "//a:one", "--offline"],
@@ -1441,6 +1352,9 @@ fn worktree_subcommands_parse_with_their_flags() {
     let got = parse(&strings(&["worktree", "prune", "--apply"])).expect("prune");
     assert!(got.apply);
     assert!(!got.disk);
+    assert!(!got.bases);
+    let got = parse(&strings(&["worktree", "prune", "--apply", "--bases"])).expect("bases");
+    assert!(got.bases && got.apply);
     let got = parse(&strings(&["worktree", "list", "--disk"])).expect("list --disk");
     assert!(got.disk);
     let got = parse(&strings(&["worktree", "--disk"])).expect("bare --disk");
@@ -1478,4 +1392,36 @@ fn worktree_rejects_bad_subcommands_and_arity() {
     ] {
         assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }
+}
+
+#[test]
+fn generate_refuses_external_labels_but_takes_main_repo_forms() {
+    assert_eq!(
+        parse(&strings(&["generate", "@ext//p"])),
+        Err(ArgsError::InvalidScope {
+            scope: "@ext//p".to_owned()
+        })
+    );
+    for scope in ["@//p:x", "@@//p/..."] {
+        parse(&strings(&["generate", scope])).unwrap_or_else(|e| panic!("{scope}: {e:?}"));
+    }
+}
+
+#[test]
+fn add_accepts_apply_offline_and_frozen() {
+    let got = parse(&strings(&[
+        "add",
+        "npm:vue",
+        "3.5.42",
+        "--apply",
+        "--offline",
+        "--frozen",
+    ]))
+    .expect("add flags");
+    assert_eq!(got.command, Command::Add);
+    assert!(got.applies());
+    assert!(got.offline);
+    assert!(got.frozen);
+    let check = parse(&strings(&["add", "npm:vue", "3.5.42"])).expect("add check");
+    assert!(!check.applies());
 }

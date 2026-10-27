@@ -140,7 +140,7 @@ _WASM_TRIPLE = "wasm32-unknown-unknown"
 _HOSTS = {
     "linux_arm64": ("linux", "aarch64", "linux_aarch64", "aarch64-unknown-linux-gnu"),
     "linux_x86_64": ("linux", "x86_64", "linux_x86_64", "x86_64-unknown-linux-gnu"),
-    "macos_arm64": ("macos", "aarch64", "darwin_aarch64", "aarch64-apple-darwin"),
+    "macos_arm64": ("macos", "aarch64", "macos_aarch64", "aarch64-apple-darwin"),
     "windows_arm64": ("windows", "aarch64", "windows_aarch64", "aarch64-pc-windows-msvc"),
     "windows_x86_64": ("windows", "x86_64", "windows_x86_64", "x86_64-pc-windows-msvc"),
 }

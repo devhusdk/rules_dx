@@ -24,6 +24,20 @@ scopes = ["."]
         )
     }
 
+    fn lock_with_extension() -> String {
+        let mut root: serde_json::Value =
+            serde_json::from_str(&lock_for("rules_cc", "0.2.1")).expect("json");
+        root["moduleExtensions"] = serde_json::json!({
+            "@@rules_cc+//cc:ext.bzl%tools": {"general": {"generatedRepoSpecs": {
+                "cc_tool": {
+                    "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
+                    "attributes": {"urls": ["https://example.com/tool"], "sha256": DIGEST},
+                },
+            }}},
+        });
+        root.to_string()
+    }
+
     fn harness(name: &str, module: &str, lock: Option<&str>) -> Harness {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -62,6 +76,35 @@ scopes = ["."]
         );
         assert!(out.contains("1 Bazel inputs not assessed"), "{out}");
         assert!(out.contains("MODULE.bazel.lock"), "{out}");
+    }
+
+    #[test]
+    fn security_counts_module_extension_repos() {
+        let h = harness("ext-security", MODULE, Some(&lock_with_extension()));
+        let (code, out, err) = with_sarif(&["security", "--output=json"], &h);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("2 Bazel inputs not assessed"), "{out}");
+        assert!(out.contains("1 module extension"), "{out}");
+        assert!(
+            out.contains("clean; no advisory coverage for bazel-modules"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn license_lists_module_extension_repos_until_declared() {
+        let h = harness("ext-license", MODULE, Some(&lock_with_extension()));
+        let (code, out, err) = with_sarif(&["license", "--output=json"], &h);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("cc_tool"), "{out}");
+        assert!(out.contains("UNKNOWN"), "{out}");
+        h.write_source(
+            "licenses.toml",
+            &format!("[policy]\nblocked = []\n[policy.distributed]\nallow = [\"Apache-2.0\"]\nreview = []\ndeny = []\n[[inventory]]\npackage = \"rules_cc\"\nset = \"bazel\"\nlicense = \"Apache-2.0\"\nversions = \"0.2.1\"\ntext_present = true\n[[inventory]]\npackage = \"cc_tool\"\nset = \"bazel\"\nlicense = \"Apache-2.0\"\nversions = \"sha256:{DIGEST}\"\ntext_present = true\n"),
+        );
+        let (code, out, err) = run(&["license", "--output=json"], &h);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("audit_license_clean"), "{out}");
     }
 
     #[test]

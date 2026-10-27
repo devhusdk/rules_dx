@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `gleam`, or `erlang`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `gleam`, `erlang`, or `cuda`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -27,9 +27,15 @@ Removed spellings fail with exit `2` and name the replacement:
 - `f#` and `f-sharp` are now `fsharp`.
 
 Every starter also writes `.dx/version`, `.devcontainer/devcontainer.json`,
-`.gitignore`, `.envrc`, `.vscode/settings.json`, `.vscode/extensions.json`,
+`.gitignore`, `.bazelignore`, `.envrc`, `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml` and `MODULE.bazel.snippet`. Check mode reports
 them when they are missing.
+
+Like `dx init --apply`, `--apply` also writes the launcher (`tools/dx` and
+`tools/dx.cmd`), the `dx worktree` hooks files (`.claude/settings.json`,
+`.codex/hooks.json`, `.gemini/settings.json`), and the
+marked block in `AGENTS.md` and the `@AGENTS.md` import in `CLAUDE.md` in the new project. Check mode also requires
+`tools/dx` and `tools/dx.cmd`.
 
 Check mode prints this and exits `0` when every file exists:
 
@@ -44,18 +50,27 @@ dx: new_failed: new drift: missing <files> (run `dx new <language> <name> --appl
 ```
 
 `--apply` prints one line per file it writes, and one stderr line per file
-that already exists:
+that already exists. Paths start with the destination:
 
 ```text
-wrote <path>
-dx: <path> (absent-only, left untouched)
+wrote <name>/<path>
+dx: <name>/<path> (absent-only, left untouched)
+```
+
+When a hooks file such as `<name>/.claude/settings.json` already exists without
+the `dx worktree` hooks, it is left as is and stderr lists the hooks to add:
+
+```text
+dx: <name>/<hooks file> exists; add these hooks: <hooks>
 ```
 
 Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an unknown language, an
 invalid destination or package identity, or extra positionals, `1` missing
-files in check mode or scaffolding failed.
+files in check mode or scaffolding failed. It also exits `1` with `new_failed`,
+before writing any file, when `<name>/.dx/version` already exists and is not
+semver.
 
 The `[name]` is the destination directory and defaults to `my_project`.
 Destinations stay inside the workspace. Absolute paths, `..` segments, empty
@@ -93,6 +108,7 @@ language rule:
 - `elixir` takes Bazel module names.
 - `gleam` takes Bazel module names.
 - `erlang` takes Bazel module names.
+- `cuda` takes Bazel module names.
 
 A Bazel module name uses lowercase letters, digits, dots, hyphens and
 underscores, starts with a letter, and ends with a letter or digit. Rejected
@@ -116,7 +132,7 @@ dx new [--apply] erlang [name]
 Scaffolds a standalone consumer with a library, a binary and a test:
 `MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, sources, and
 `README.md`. Ruby, PowerShell, Zig, Elixir, Gleam and Erlang come from the rules_dx toolchains, so nothing needs to be
-installed. The PowerShell targets are Linux only. The Elixir, Gleam and Erlang targets need Linux x86_64. The Zig library imports as `hello`.
+installed. The PowerShell targets are Linux only. The Elixir and Gleam targets need Linux x86_64. The Erlang targets need Linux x86_64, Linux arm64 or macOS arm64. The Zig library imports as `hello`.
 The Elixir starter is the OTP application `hello` with sources in `lib/`, an
 escript, and an ExUnit test in `test/`.
 The Gleam starter has the module `hello` in `src/`, a gleeunit test in `test/`,
@@ -145,6 +161,41 @@ scaffolding failed.
 
 Scaffolding into an existing directory adds absent files only and leaves
 custom files untouched.
+
+## `dx new cuda`
+
+```text
+dx new [--apply] cuda [name]
+```
+
+Scaffolds a standalone CUDA consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `scale.cu`, `scale.cuh`, `scale.h`, `main.cc`,
+`scale_test.cc`, and `README.md`. Linux x86_64 only.
+
+rules_cuda and toolchains_llvm only read their tags from the root module, so
+`MODULE.bazel` carries the pinned CUDA 13.4 toolkit components and the LLVM 22
+host compiler for nvcc. No CUDA install is needed to build.
+
+The stanza also pins cuBLAS, cuFFT and cuRAND. Bazel fetches them only when a
+target depends on `//cuda/components:cublas`, `:cufft` or `:curand`. A
+workspace with an older stanza must copy the stanza again to use them.
+
+The stanza also contains `cuda_license.license(accept = ["cuda-eula"])`, which
+accepts the [NVIDIA CUDA Toolkit EULA](https://docs.nvidia.com/cuda/eula/index.html)
+for the build. Remove that line to decline; CUDA targets then fail to build.
+
+The test checks host-side logic and launches no kernel, so `bazel test //...`
+passes without a GPU. The binary runs the kernel when a GPU is present.
+
+`dx init` adds the same stanza to `MODULE.bazel.snippet` when the workspace has
+`.cu` or `.cuh` files.
+
+Output: text only.
+
+Exit codes: `0` success, `2` usage errors including an invalid destination or
+module name, `1` missing files in check mode or scaffolding failed. It also exits `1` with `new_failed`,
+before writing any file, when `<name>/.dx/version` already exists and is not
+semver.
 
 ## `dx new c` And `dx new cpp`
 

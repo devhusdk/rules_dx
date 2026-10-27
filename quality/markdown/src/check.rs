@@ -5,9 +5,7 @@ use clap::Parser as ClapParser;
 use pulldown_cmark::{BrokenLink, Event, LinkType, Options, Parser, Tag, TagEnd};
 use serde::Serialize;
 
-use super::frontmatter::{
-    check_headings, code_regions, heading, is_closed_fence, line_of, line_starts, slug, Heading,
-};
+use super::frontmatter::{check_headings, code_regions, headings, line_of, line_starts};
 use super::links::{broken_label, check_target, scan_bare_autolinks, BrokenRef, DocLink, Span};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -50,9 +48,7 @@ pub fn check_markdown(
     siblings: &BTreeMap<String, String>,
 ) -> CheckOutcome {
     let mut outcome = CheckOutcome::default();
-    let mut headings: Vec<Heading> = Vec::new();
     let mut doc_links: Vec<DocLink> = Vec::new();
-    let mut slug_counts: BTreeMap<String, usize> = BTreeMap::new();
 
     let starts = line_starts(text);
     let regions = code_regions(text, &starts);
@@ -73,7 +69,7 @@ pub fn check_markdown(
                 "fenced code block without a language tag",
             );
         }
-        if !is_closed_fence(&source_lines, region) {
+        if region.unclosed {
             push_finding(
                 &mut outcome,
                 region.start_line,
@@ -83,7 +79,6 @@ pub fn check_markdown(
         }
     }
 
-    let mut heading_lines: Vec<u32> = Vec::new();
     let mut code_spans: Vec<Span> = Vec::new();
     let mut link_spans: Vec<Span> = Vec::new();
     let mut html_spans: Vec<Span> = Vec::new();
@@ -101,9 +96,6 @@ pub fn check_markdown(
         let parser = Parser::new_with_broken_link_callback(text, Options::empty(), Some(callbacks));
         for (event, range) in parser.into_offset_iter() {
             match event {
-                Event::Start(Tag::Heading { .. }) => {
-                    heading_lines.push(line_of(&starts, range.start));
-                }
                 Event::Start(Tag::Link {
                     link_type,
                     dest_url,
@@ -175,32 +167,7 @@ pub fn check_markdown(
         ));
     }
 
-    for line_no in heading_lines {
-        let line = source_lines
-            .get((line_no - 1) as usize)
-            .copied()
-            .unwrap_or("");
-        if let Some((level, text)) = heading(line) {
-            let base = slug(&text);
-            let slug = if base.is_empty() {
-                base
-            } else {
-                let count = slug_counts.entry(base.clone()).or_insert(0);
-                let slug = if *count == 0 {
-                    base.clone()
-                } else {
-                    format!("{base}-{}", *count)
-                };
-                *count += 1;
-                slug
-            };
-            headings.push(Heading {
-                level,
-                line: line_no,
-                slug,
-            });
-        }
-    }
+    let headings = headings(text, &starts);
 
     doc_links.sort_by_key(|link| (link.line(), link.col()));
     check_headings(&headings, &mut outcome);

@@ -3,8 +3,6 @@
 load("//quality:adapters.bzl", "REAL_ADAPTERS")
 load("//quality/artifacts:hub.bzl", "TOOL_PLATFORMS")
 
-DX_REMOTE_QUALIFIED = False
-
 DX_NO_REMOTE_EXEC = "no-remote-exec"
 
 DX_FORBIDDEN_NO_REMOTE = "no-remote"
@@ -19,12 +17,6 @@ SHFMT_FORMAT_REMOTE = {
 }
 
 REMOTE_QUALIFIED = [SHFMT_FORMAT_REMOTE]
-
-def dx_execution_requirements():
-    """Returns the execution requirements for one Dx pipeline/evaluator action."""
-    if DX_REMOTE_QUALIFIED:
-        return {}
-    return {DX_NO_REMOTE_EXEC: "1"}
 
 def dx_is_local_only(requirements):
     """Reports whether requirements carry the local-only marker."""

@@ -1,0 +1,36 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "godoc_lib",
+    srcs = [
+        "driver.go",
+        "main.go",
+    ],
+    importpath = "github.com/devhusdk/rules_dx/tools/docs/go/godoc",
+)
+
+go_binary(
+    name = "godoc_json",
+    embed = [":godoc_lib"],
+    pure = "on",
+    visibility = VIS_PUBLIC,
+)
+
+go_test(
+    name = "godoc_test",
+    size = "small",
+    srcs = ["driver_test.go"],
+    embed = [":godoc_lib"],
+    pure = "on",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

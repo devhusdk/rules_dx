@@ -1,7 +1,7 @@
 """No-install, network-denied consumer qualification targets."""
 
 load("//rust/rules:defs.bzl", "rust_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
 def _hermetic_manifest_impl(ctx):
     """Writes the consumer manifest and carries every file it names."""
@@ -16,6 +16,7 @@ def _hermetic_manifest_impl(ctx):
         "bazelversion": ctx.file._bazelversion.short_path,
         "dx": ctx.executable._dx.short_path,
         "files": files,
+        "fragment_before_toolchains": ctx.attr.fragment_before_toolchains,
         "label": ctx.attr.qualification,
         "languages": ctx.attr.languages,
         "module": ctx.attr.module,
@@ -27,7 +28,7 @@ def _hermetic_manifest_impl(ctx):
         "workspace_dir": ctx.attr.workspace_dir,
     }, indent = "  ") + "\n")
     runfiles = ctx.runfiles(
-        files = [out, ctx.file._bazelversion, ctx.file._module, ctx.file.module_fragment] + ctx.files.files,
+        files = [out, ctx.file._bazelversion, ctx.file._module, ctx.file.module_fragment] + ctx.files.files + ctx.files.srcs,
     ).merge(ctx.attr._dx[DefaultInfo].default_runfiles)
     return [DefaultInfo(files = depset([out]), runfiles = runfiles)]
 
@@ -39,17 +40,21 @@ hermetic_manifest = rule(
             allow_files = True,
             doc = "Consumer files mapped to their workspace-relative paths.",
         ),
+        "fragment_before_toolchains": attr.bool(
+            doc = "Insert module_fragment before the first register_toolchains of the dx init snippet instead of after it.",
+        ),
         "languages": attr.string_list(mandatory = True, doc = "Languages this consumer qualifies."),
         "module": attr.string(mandatory = True, doc = "Consumer module name."),
         "module_fragment": attr.label(
             allow_single_file = True,
             mandatory = True,
-            doc = "MODULE.bazel lines appended after the dx init snippet.",
+            doc = "MODULE.bazel lines added to the dx init snippet; appended unless fragment_before_toolchains.",
         ),
         "patterns": attr.string_list(mandatory = True, doc = "Consumer target patterns to fetch, build and test."),
         "qualification": attr.string(mandatory = True, doc = "Label of the qualification test."),
         "repo_name": attr.string(mandatory = True, doc = "Repository name the consumer gives rules_dx."),
         "rust_target_triples": attr.string_list(doc = "Rust target triples added to the dx init rust.toolchain."),
+        "srcs": attr.label_list(allow_files = True, doc = "rules_dx sources the consumer build reads."),
         "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
         "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
         "_dx": attr.label(cfg = "target", default = "//:dx", executable = True),
@@ -74,9 +79,11 @@ def hermetic_qualification(
         files,
         module_fragment,
         patterns,
+        fragment_before_toolchains = False,
         module = "hermetic_consumer",
         repo_name = "my_dx",
         rust_target_triples = [],
+        srcs = [],
         workspace_dir = "consumer ws",
         **kwargs):
     """Declares one consumer qualification test and its manifest."""
@@ -84,6 +91,7 @@ def hermetic_qualification(
         name = name + "_manifest",
         testonly = True,
         files = files,
+        fragment_before_toolchains = fragment_before_toolchains,
         languages = languages,
         module = module,
         module_fragment = module_fragment,
@@ -91,6 +99,7 @@ def hermetic_qualification(
         qualification = "//%s:%s" % (native.package_name(), name),
         repo_name = repo_name,
         rust_target_triples = rust_target_triples,
+        srcs = srcs,
         target_compatible_with = ["@platforms//os:linux"],
         workspace_dir = workspace_dir,
     )
@@ -109,11 +118,12 @@ def hermetic_qualification(
         **kwargs
     )
 
-def nested_bazel_test(name, network = False, env = None, tags = None, target_compatible_with = None, **kwargs):
+def nested_bazel_test(name, network = False, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
     """Declares a rust_test that runs a nested Bazel with the shared tags, env and offline downloader."""
     rust_test(
         name = name,
-        env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else {}) | (env or {}),
+        data = (data or []) + NESTED_BAZEL_DATA,
+        env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else NESTED_BAZEL_ENV) | (env or {}),
         tags = (NESTED_BAZEL_NETWORK_TAGS if network else NESTED_BAZEL_TAGS) + (tags or []),
         target_compatible_with = target_compatible_with or NESTED_BAZEL_COMPATIBLE_WITH,
         **kwargs

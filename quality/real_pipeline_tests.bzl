@@ -2,9 +2,9 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
-load(":pipeline.bzl", "authorize_classes", "drop_pipeline_tool", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
+load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "real_allowed_tools_error", "rustc_diagnostics_group")
+load(":real_aspects.bzl", "go_lang_version", "real_allowed_tools_error", "real_quality_resource_set", "rustc_diagnostics_group")
 
 _LINT_SELECTIONS = {
     "javascript": ["biome"],
@@ -33,7 +33,7 @@ _TYPECHECK_SELECTIONS = {
     "rust": ["rustc"],
     "starlark": [],
     "toml": [],
-    "typescript": ["tsc"],
+    "typescript": [],
 }
 
 _WIRED_FORMAT_TOOLS = [
@@ -97,7 +97,25 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("eslint", "format"),
                     real_supported_classes("eslint", "typecheck"),
                 ],
-                [["javascript", "jsx"], [], []],
+                [["astro", "javascript", "jsx", "mdx", "vue"], [], []],
+            ),
+            expect_equal(
+                "real_supported_classes returns graphql_eslint lint support only",
+                [
+                    real_supported_classes("graphql_eslint", "lint"),
+                    real_supported_classes("graphql_eslint", "format"),
+                    real_supported_classes("graphql_eslint", "typecheck"),
+                ],
+                [["graphql"], [], []],
+            ),
+            expect_equal(
+                "real_supported_classes returns redocly lint support only",
+                [
+                    real_supported_classes("redocly", "lint"),
+                    real_supported_classes("redocly", "format"),
+                    real_supported_classes("redocly", "typecheck"),
+                ],
+                [["api_spec"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns prettier format support only",
@@ -106,16 +124,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("prettier", "format"),
                     real_supported_classes("prettier", "typecheck"),
                 ],
-                [[], ["css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "xml"], []],
-            ),
-            expect_equal(
-                "real_supported_classes returns tsc typecheck support only",
-                [
-                    real_supported_classes("tsc", "lint"),
-                    real_supported_classes("tsc", "format"),
-                    real_supported_classes("tsc", "typecheck"),
-                ],
-                [[], [], ["tsx", "typescript"]],
+                [[], ["astro", "css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "vue", "xml"], []],
             ),
             expect_equal(
                 "real_supported_classes returns buildifier lint support",
@@ -300,7 +309,7 @@ def real_pipeline_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "pipeline_stages builds one tsc typecheck stage",
+                "pipeline_stages builds no typescript typecheck stage",
                 pipeline_stages(
                     ["typescript", "tsx"],
                     "typecheck",
@@ -308,9 +317,7 @@ def real_pipeline_unit_tests(name):
                     REAL_CLASS_TO_FAMILY,
                     REAL_ADAPTERS,
                 ),
-                [
-                    {"classes": ["tsx", "typescript"], "tool": "tsc"},
-                ],
+                [],
             ),
             expect_equal(
                 "pipeline_stages omits eslint for typescript with no matching configuration",
@@ -498,6 +505,28 @@ def real_pipeline_unit_tests(name):
                 "",
             ),
             expect_equal(
+                "real quality actions reserve the costliest launched tool tier",
+                [
+                    real_quality_resource_set(["buildifier", "taplo"])("linux", 0),
+                    real_quality_resource_set(["pylint"])("linux", 0),
+                    real_quality_resource_set(["pmd", "taplo"])("linux", 0),
+                    real_quality_resource_set(["ruff", "taplo", "ty"])("linux", 0),
+                    real_quality_resource_set([])("linux", 0),
+                ],
+                [
+                    {"cpu": 1, "memory": 512},
+                    {"cpu": 1, "memory": 1024},
+                    {"cpu": 2, "memory": 2048},
+                    {"cpu": 1, "memory": 1024},
+                    {"cpu": 1, "memory": 512},
+                ],
+            ),
+            expect_equal(
+                "gofumpt -lang keeps only the Go SDK major and minor version",
+                [go_lang_version("1.26.6"), go_lang_version("go1.26.6"), go_lang_version("1.27rc1"), go_lang_version("1.26")],
+                ["go1.26", "go1.26", "go1.27", "go1.26"],
+            ),
+            expect_equal(
                 "family_section_error accepts a selected capability",
                 family_section_error(
                     "toml",
@@ -563,19 +592,6 @@ def real_pipeline_unit_tests(name):
                 ),
                 [
                     {"classes": ["starlark"], "sources": ["BUILD.bazel"], "tool": "buildifier"},
-                ],
-            ),
-            expect_equal(
-                "drop_pipeline_tool drops target-coupled tsc",
-                drop_pipeline_tool(
-                    [
-                        {"classes": ["tsx", "typescript"], "sources": ["src/main.ts"], "tool": "tsc"},
-                        {"classes": ["rust"], "sources": ["src/lib.rs"], "tool": "rustc"},
-                    ],
-                    "tsc",
-                ),
-                [
-                    {"classes": ["rust"], "sources": ["src/lib.rs"], "tool": "rustc"},
                 ],
             ),
             expect_equal(

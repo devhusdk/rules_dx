@@ -1,11 +1,10 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use dx_testing::{mkscratch, read_runfiles, resolve_runfiles, runfiles_root};
 
 const CONFIG: &str = ".github/actionlint.yaml";
-
-const GITHUB_BUILD: &str = ".github/BUILD.bazel";
 
 const PROJECT_MARKER: &str = ".git";
 
@@ -83,10 +82,8 @@ fn findings(run: &Output) -> Vec<String> {
 
 /// Returns the shipped workflows and consumer starters as runfiles to staged paths.
 fn shipped() -> Vec<(String, String)> {
-    let exports = dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD);
     let mut files = vec![(CONFIG.to_owned(), CONFIG.to_owned())];
-    for name in exports {
-        let workflow = format!(".github/{name}");
+    for workflow in dx_testing::workflow_files() {
         files.push((workflow.clone(), workflow));
     }
     for caller in CALLERS {
@@ -120,7 +117,7 @@ fn workflows(files: &[(String, String)]) -> Vec<String> {
 fn every_shipped_workflow_passes_actionlint() {
     let files = shipped();
     let targets = workflows(&files);
-    let exported = dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD).len();
+    let exported = dx_testing::workflow_files().len();
     assert_eq!(
         targets.len(),
         exported + CALLERS.len(),
@@ -184,8 +181,8 @@ fn configured_runners() -> Vec<String> {
     runners
 }
 
-/// Returns the runner labels the platform table maps every supported platform to.
-fn platform_runners() -> Vec<String> {
+/// Returns the platform table, platform to runner label, that `input_validation.py` declares.
+fn platform_table() -> BTreeMap<String, String> {
     let text = read_runfiles(PLATFORM_RUNNERS);
     let start = text
         .find("PLATFORMS = {")
@@ -194,15 +191,106 @@ fn platform_runners() -> Vec<String> {
     let end = table
         .find("\n}")
         .unwrap_or_else(|| panic!("{PLATFORM_RUNNERS} leaves the PLATFORMS table open"));
-    let mut runners: Vec<String> = table[..end]
+    table[..end]
         .lines()
         .filter_map(|line| {
-            let (_, value) = line.split_once("\": ")?;
-            Some(value.trim_end_matches(',').trim_matches('"').to_owned())
+            let (key, value) = line.split_once("\": ")?;
+            Some((
+                key.trim().trim_matches('"').to_owned(),
+                value.trim_end_matches(',').trim_matches('"').to_owned(),
+            ))
         })
-        .collect();
+        .collect()
+}
+
+/// Returns the runner labels the platform table maps every supported platform to.
+fn platform_runners() -> Vec<String> {
+    let mut runners: Vec<String> = platform_table().into_values().collect();
     runners.sort();
     runners
+}
+
+/// Returns one problem per literal matrix runner in `text` that disagrees with `table`,
+/// and how many literal matrix runners it checked.
+fn matrix_runner_problems(
+    name: &str,
+    text: &str,
+    table: &BTreeMap<String, String>,
+) -> (Vec<String>, usize) {
+    let document: serde_json::Value = yaml_serde::from_str(text)
+        .unwrap_or_else(|error| panic!("{name} is not valid YAML: {error}"));
+    let mut problems = Vec::new();
+    let mut checked = 0;
+    let Some(jobs) = document["jobs"].as_object() else {
+        return (problems, checked);
+    };
+    for (job, body) in jobs {
+        let Some(include) = body["strategy"]["matrix"]["include"].as_array() else {
+            continue;
+        };
+        for entry in include {
+            let Some(runner) = entry["runner"].as_str() else {
+                continue;
+            };
+            if runner.starts_with("${{") {
+                continue;
+            }
+            checked += 1;
+            match entry["platform"].as_str() {
+                Some(platform) => match table.get(platform) {
+                    Some(expected) if expected == runner => {}
+                    Some(expected) => problems.push(format!(
+                        "{name} job {job}: {platform} runs on {runner}, but {PLATFORM_RUNNERS} maps it to {expected}"
+                    )),
+                    None => problems.push(format!(
+                        "{name} job {job}: {platform} is not a platform in {PLATFORM_RUNNERS}"
+                    )),
+                },
+                None if table.values().any(|label| label == runner) => {}
+                None => problems.push(format!(
+                    "{name} job {job}: runner {runner} is not a runner in {PLATFORM_RUNNERS}"
+                )),
+            }
+        }
+    }
+    (problems, checked)
+}
+
+#[test]
+fn every_matrix_runner_is_a_platform_runner() {
+    let table = platform_table();
+    let mut problems = Vec::new();
+    let mut checked = 0;
+    for workflow in dx_testing::workflow_files() {
+        let (found, count) = matrix_runner_problems(&workflow, &read_runfiles(&workflow), &table);
+        problems.extend(found);
+        checked += count;
+    }
+    assert!(
+        checked > 0,
+        "no workflow matrix names a literal runner; the parity check checked nothing"
+    );
+    assert!(
+        problems.is_empty(),
+        "workflow matrix runners drifted from {PLATFORM_RUNNERS}:\n{}",
+        problems.join("\n")
+    );
+}
+
+#[test]
+fn a_retired_matrix_runner_is_caught() {
+    let text = "jobs:\n  build:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-13\n          - name: dx-macos-arm64\n            runner: macos-13\n";
+    let (problems, checked) = matrix_runner_problems("retired.yml", text, &platform_table());
+    assert_eq!(checked, 2);
+    assert_eq!(problems.len(), 2, "{problems:?}");
+    assert!(
+        problems[0].contains("macos_arm64 runs on macos-13"),
+        "{problems:?}"
+    );
+    assert!(
+        problems[1].contains("runner macos-13 is not a runner"),
+        "{problems:?}"
+    );
 }
 
 #[test]

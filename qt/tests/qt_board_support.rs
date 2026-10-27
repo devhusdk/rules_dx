@@ -6,9 +6,8 @@ use dx_testing::{resolve_runfiles, Run};
 
 pub const APP: &str = "//examples/qt-tasks/app:tasks";
 
-pub fn manifest() -> hermetic::Manifest {
-    let rel =
-        std::env::var("DX_QT_TASKS_MANIFEST").expect("DX_QT_TASKS_MANIFEST names the manifest");
+pub fn manifest(variable: &str) -> hermetic::Manifest {
+    let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} names the manifest"));
     let text = std::fs::read_to_string(resolve_runfiles(&rel)).expect("manifest is readable");
     let base = std::env::current_dir().expect("runfiles cwd");
     hermetic::parse_manifest(&text, &base).expect("manifest parses")
@@ -23,8 +22,8 @@ pub struct Consumer {
 }
 
 impl Consumer {
-    pub fn new(name: &str, repo: Option<&str>) -> Self {
-        let mut manifest = manifest();
+    pub fn new(name: &str, variable: &str, repo: Option<&str>) -> Self {
+        let mut manifest = manifest(variable);
         let source = std::fs::canonicalize(&manifest.module_file)
             .expect("rules_dx MODULE.bazel resolves")
             .parent()
@@ -90,6 +89,9 @@ pub fn read_text(path: &Path) -> String {
 }
 
 pub fn write(path: &Path, text: &str) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
+    }
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
@@ -99,6 +101,10 @@ pub fn rename(from: &Path, to: &Path) {
 
 pub fn assert_exit(result: &Run, code: i32) {
     assert_eq!(result.status.code(), Some(code), "{}", result.combined());
+}
+
+pub fn assert_fails(result: &Run) {
+    assert_ne!(result.status.code(), Some(0), "{}", result.combined());
 }
 
 pub fn assert_has(text: &str, needle: &str) {
@@ -129,8 +135,8 @@ pub fn machine(path: &Path) -> Option<String> {
     dx_testing::image_machine(&bytes)
 }
 
-pub fn extract(consumer: &Consumer, name: &str) -> PathBuf {
-    let bin = consumer.path("bazel-bin/examples/qt-tasks/app");
+pub fn extract(consumer: &Consumer, package: &str, name: &str) -> PathBuf {
+    let bin = consumer.path(&format!("bazel-bin/{package}"));
     let archive = format!("{name}.tar.gz");
     let tarball = std::fs::read(bin.join(&archive)).expect("tarball built");
     let checksum = read_text(&bin.join(format!("{archive}.sha256")));

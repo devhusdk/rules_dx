@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use dx_testing::nested::{self, Case};
-use dx_testing::{resolve_runfiles, Run};
+use dx_testing::{resolve_runfiles, rules_dx_source, Run};
 
 const BUILD: &str = r#"load("@my_dx//deploy/rules:archive.bzl", "archive_deploy")
 load("@my_dx//deploy/rules:cloudflare.bzl", "cloudflare_pages_deploy")
@@ -97,17 +97,8 @@ fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
 }
 
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("deploy/tests/runfiles/renamed_consumer_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let case = nested::case("renamed");
     let root = case.root().to_path_buf();
     write(

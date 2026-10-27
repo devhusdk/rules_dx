@@ -89,7 +89,7 @@ fn dx_with(root: &Case, args: &[&str], tool: bool) -> Run {
 }
 
 fn dx(root: &Case, args: &[&str]) -> Run {
-    dx_with(root, args, true)
+    dx_with(root, args, false)
 }
 
 fn read(path: &Path) -> String {
@@ -143,12 +143,13 @@ fn syntax_error_is_reported_at_its_location_and_left_untouched() {
 }
 
 #[test]
-fn missing_tool_flag_fails_and_names_the_flag() {
+fn explicit_tool_flag_still_formats() {
     let root = consumer(DIRTY);
-    let out = dx_with(&root, &[], false);
-    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    let out = dx_with(&root, &[], true);
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
     assert!(
-        out.combined().contains("--@rules_dx//config:tool_zig_fmt"),
+        out.stdout
+            .contains("lib/math.zig:1:1: warning: file is not formatted [zig_fmt]"),
         "{}",
         out.combined()
     );

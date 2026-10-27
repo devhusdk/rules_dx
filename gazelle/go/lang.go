@@ -440,5 +440,3 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
 func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
-
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

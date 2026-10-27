@@ -11,7 +11,7 @@ use dx_setup::{
 use quality_result::proto;
 use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
 use quality_result::{encode_validated, SCHEMA_MAJOR, SCHEMA_MINOR};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::{self};
 use std::path::Path;
@@ -23,6 +23,33 @@ pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, graph_r
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
+}
+
+/// A real file system whose atomic writes fail for the listed paths, so tests
+/// can make one apply write fail without chmod tricks.
+pub(crate) struct FailingWrites {
+    failing: Vec<PathBuf>,
+}
+
+impl FailingWrites {
+    pub(crate) fn new(failing: &[PathBuf]) -> Self {
+        Self {
+            failing: failing.to_vec(),
+        }
+    }
+}
+
+impl dx_apply::FileSystem for FailingWrites {
+    fn read(&self, path: &Path) -> io::Result<Option<Vec<u8>>> {
+        dx_apply::RealFileSystem.read(path)
+    }
+
+    fn write_atomic(&self, path: &Path, content: &[u8]) -> io::Result<()> {
+        if self.failing.iter().any(|failing| failing == path) {
+            return Err(io::Error::other("injected write failure"));
+        }
+        dx_apply::RealFileSystem.write_atomic(path, content)
+    }
 }
 
 /// The event Bazel ends every complete build event stream with.
@@ -41,14 +68,25 @@ pub(crate) struct Harness {
     pub(crate) failed_labels: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) signalled: bool,
+    /// The signal a `bazel run` app dies by; the build still exits `bazel_code`.
+    pub(crate) app_signal: Option<i32>,
     pub(crate) skip_bep: bool,
     pub(crate) raw_bep: Option<Vec<String>>,
     pub(crate) unterminated_bep: bool,
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
+    pub(crate) patch: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
+    /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
+    pub(crate) probe_shards: Option<Vec<String>>,
+    /// An exit code the fake shard probe returns instead of answering.
+    pub(crate) probe_code: Option<i32>,
+    /// Every shard probe argv the fake runner saw.
+    pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
+    /// Every other argv the fake runner saw.
+    pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
 }
 
 /// The audit date every test harness pins.
@@ -60,6 +98,11 @@ pub(crate) struct ScriptQuery {
     pub(crate) outputs: RefCell<Vec<QueryResult>>,
     pub(crate) info_calls: RefCell<Vec<Vec<String>>>,
     pub(crate) info: RefCell<Option<QueryResult>>,
+    pub(crate) free_disk_bytes: Cell<Option<u64>>,
+    /// Answers for `git` queries, kept apart from the Bazel queue so git calls
+    /// never consume scripted cquery answers. Empty means git fails to launch.
+    pub(crate) git_outputs: RefCell<Vec<QueryResult>>,
+    pub(crate) git_calls: RefCell<Vec<Vec<String>>>,
 }
 
 impl ScriptQuery {
@@ -75,6 +118,14 @@ impl ScriptQuery {
         self.script_owners(&crate::test_support::graph_stdout(rules));
     }
 
+    pub(crate) fn script_git(&self, code: i32, stdout: &str) {
+        self.git_outputs.borrow_mut().push(QueryResult {
+            code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+
     pub(crate) fn script_info(&self, output: &str) {
         self.info.replace(Some(QueryResult {
             code: Some(0),
@@ -86,6 +137,14 @@ impl ScriptQuery {
 
 impl QueryRunner for ScriptQuery {
     fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        if argv.first().map(String::as_str) == Some("git") {
+            self.git_calls.borrow_mut().push(argv.to_vec());
+            let mut outputs = self.git_outputs.borrow_mut();
+            if outputs.is_empty() {
+                return Err(io::Error::other("unscripted git query"));
+            }
+            return Ok(outputs.remove(0));
+        }
         let expression = match argv
             .iter()
             .find_map(|arg| arg.strip_prefix("--query_file="))
@@ -96,6 +155,10 @@ impl QueryRunner for ScriptQuery {
         self.expressions.borrow_mut().push(expression);
         self.calls.borrow_mut().push(argv.to_vec());
         Ok(self.outputs.borrow_mut().remove(0))
+    }
+
+    fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
+        self.free_disk_bytes.get()
     }
 
     fn run_info(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
@@ -128,6 +191,7 @@ impl Harness {
             failed_labels: Vec::new(),
             io_error: false,
             signalled: false,
+            app_signal: None,
             skip_bep: false,
             raw_bep: None,
             unterminated_bep: false,
@@ -137,11 +201,19 @@ impl Harness {
                 outputs: RefCell::new(Vec::new()),
                 info_calls: RefCell::new(Vec::new()),
                 info: RefCell::new(None),
+                free_disk_bytes: Cell::new(None),
+                git_outputs: RefCell::new(Vec::new()),
+                git_calls: RefCell::new(Vec::new()),
             },
             intended: None,
+            patch: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
+            probe_shards: None,
+            probe_code: None,
+            probe_argv: Rc::new(RefCell::new(Vec::new())),
+            build_argv: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -166,6 +238,30 @@ impl Harness {
                 digest: digest(&original).to_vec(),
             }],
         )
+    }
+
+    /// A result with one fixable warning and snapshot per path, changes in the order given.
+    pub(crate) fn paths_result(&self, paths: &[&str], changes: Vec<proto::FileEdits>) -> Vec<u8> {
+        let initial = paths
+            .iter()
+            .map(|path| {
+                Self::diagnostic_with(
+                    proto::Severity::Warning as i32,
+                    "lint-tool",
+                    path,
+                    "unused",
+                    true,
+                )
+            })
+            .collect();
+        let snapshots = paths
+            .iter()
+            .map(|path| FileSnapshot {
+                path: (*path).to_owned(),
+                digest: digest(&std::fs::read(self.workspace.join(path)).expect("source")).to_vec(),
+            })
+            .collect();
+        self.result_full(initial, vec![], changes, snapshots)
     }
 
     pub(crate) fn result_full(
@@ -227,9 +323,14 @@ impl Harness {
     }
 
     pub(crate) fn replacement(&self, replacement: &[u8]) -> proto::FileEdits {
-        let original = std::fs::read(self.workspace.join("src/a.py")).expect("source");
+        self.replacement_in("src/a.py", replacement)
+    }
+
+    /// A 0..1 edit of `path` against its current digest.
+    pub(crate) fn replacement_in(&self, path: &str, replacement: &[u8]) -> proto::FileEdits {
+        let original = std::fs::read(self.workspace.join(path)).expect("source");
         self.replacement_at(
-            "src/a.py",
+            path,
             digest(&original).to_vec(),
             vec![proto::Edit {
                 start_byte: 0,
@@ -271,12 +372,18 @@ impl Harness {
             return FakeRunner {
                 code: Some(self.bazel_code),
                 generate_code: self.generate_code,
+                app_signal: self.app_signal,
                 bep_lines: lines,
                 io_error: self.io_error,
                 skip_bep: self.skip_bep,
                 intended: self.intended.clone(),
+                patch: self.patch.clone(),
                 seen_env: Rc::clone(&self.seen_env),
                 free_disk_bytes: self.free_disk_bytes,
+                probe_shards: self.probe_shards.clone(),
+                probe_code: self.probe_code,
+                probe_argv: Rc::clone(&self.probe_argv),
+                build_argv: Rc::clone(&self.build_argv),
             };
         }
         let staged = self.staged_artifacts();
@@ -325,12 +432,18 @@ impl Harness {
                 Some(self.bazel_code)
             },
             generate_code: self.generate_code,
+            app_signal: self.app_signal,
             bep_lines: lines,
             io_error: self.io_error,
             skip_bep: self.skip_bep,
             intended: self.intended.clone(),
+            patch: self.patch.clone(),
             seen_env: Rc::clone(&self.seen_env),
             free_disk_bytes: self.free_disk_bytes,
+            probe_shards: self.probe_shards.clone(),
+            probe_code: self.probe_code,
+            probe_argv: Rc::clone(&self.probe_argv),
+            build_argv: Rc::clone(&self.build_argv),
         }
     }
 
@@ -338,20 +451,56 @@ impl Harness {
         self.run_with_ci(words, false)
     }
 
-    pub(crate) fn run_with_ci(&self, words: &[&str], ci: bool) -> (i32, String, String) {
-        let inv = match crate::args::parse(&crate::test_support::strings(words)) {
+    fn parse_words(&self, words: &[&str], ci: bool) -> Result<Invocation, String> {
+        let defaults = crate::args::load_startup_defaults(
+            &dx_process::workspace_start(&self.cwd),
+            &self.cwd,
+            None,
+            None,
+            ci,
+        )
+        .map_err(|failure| format!("dx: {}\n", failure.detail))?;
+        let inv = crate::args::parse_with_ci(
+            &crate::test_support::strings(words),
+            &|_| None,
+            &defaults,
+            ci,
+        )
+        .map_err(|error| format!("dx: {error}\n{}\n", crate::args::help::usage_banner()))?;
+        crate::args::apply_here(&inv, &self.workspace, &self.cwd)
+            .map_err(|detail| format!("dx: {detail}\n"))
+    }
+
+    /// Runs one quality command whose apply writes go through `fs`.
+    pub(crate) fn run_with_fs(
+        &self,
+        words: &[&str],
+        fs: &dyn dx_apply::FileSystem,
+    ) -> (i32, String, String) {
+        let inv = match self.parse_words(words, false) {
             Ok(inv) => inv,
-            Err(error) => {
-                return (
-                    2,
-                    String::new(),
-                    format!("dx: {error}\n{}\n", crate::args::help::usage_banner()),
-                );
-            }
+            Err(detail) => return (2, String::new(), detail),
         };
-        let inv = match crate::args::apply_here(&inv, &self.workspace, &self.cwd) {
-            Ok(resolved) => resolved,
-            Err(detail) => return (2, String::new(), format!("dx: {detail}\n")),
+        let request = inv.quality_request().expect("quality request");
+        let runner = self.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let run = super::quality::execute_quality_phase_with_fs(
+            &request,
+            self.env(&runner, &mut out, &mut err),
+            fs,
+        );
+        (
+            run.code,
+            String::from_utf8(out).expect("stdout"),
+            String::from_utf8(err).expect("stderr"),
+        )
+    }
+
+    pub(crate) fn run_with_ci(&self, words: &[&str], ci: bool) -> (i32, String, String) {
+        let inv = match self.parse_words(words, ci) {
+            Ok(inv) => inv,
+            Err(detail) => return (2, String::new(), detail),
         };
         let runner = self.runner();
         let mut out = Vec::new();
@@ -381,6 +530,7 @@ impl Harness {
         out: &'a mut O,
         err: &'a mut E,
     ) -> Env<'a> {
+        self.query.free_disk_bytes.set(self.free_disk_bytes);
         Env {
             workspace: &self.workspace,
             runner,
@@ -442,6 +592,7 @@ impl Harness {
             seen: Rc::new(RefCell::new(Vec::new())),
             seen_env: Rc::clone(&self.seen_env),
             free_disk_bytes: self.free_disk_bytes,
+            probe_argv: Rc::clone(&self.probe_argv),
         };
         let code = execute(inv, self.env_with(&probe, out, err));
         let argv = probe.seen.borrow().clone();
@@ -462,11 +613,18 @@ pub(crate) struct ProbeRun {
 }
 
 /// A runner that records each argv and environment and answers each launch with the next code.
+/// Shard probe launches go to `probe_argv` and exit 1, so `seen` and `codes` count only the real runs.
 struct ArgvProbe {
     codes: Vec<Option<i32>>,
     seen: Rc<RefCell<Vec<Vec<String>>>>,
     seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     free_disk_bytes: Option<u64>,
+    probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
+}
+
+/// Whether one argv is the quality shard probe.
+pub(crate) fn is_shard_probe(argv: &[String]) -> bool {
+    argv.iter().any(|arg| arg == "--output_groups=dx_shards")
 }
 
 impl Runner for ArgvProbe {
@@ -475,6 +633,13 @@ impl Runner for ArgvProbe {
     }
 
     fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        if is_shard_probe(argv) {
+            self.probe_argv.borrow_mut().push(argv.to_vec());
+            return Ok(ChildStatus {
+                code: Some(1),
+                signal: None,
+            });
+        }
         let launch = self.seen.borrow().len();
         let last = self.codes.len().saturating_sub(1);
         self.seen.borrow_mut().push(argv.to_vec());
@@ -485,6 +650,7 @@ impl Runner for ArgvProbe {
         );
         Ok(ChildStatus {
             code: self.codes[launch.min(last)],
+            signal: None,
         })
     }
 }
@@ -492,12 +658,65 @@ impl Runner for ArgvProbe {
 pub(crate) struct FakeRunner {
     pub(crate) code: Option<i32>,
     pub(crate) generate_code: Option<i32>,
+    pub(crate) app_signal: Option<i32>,
     pub(crate) bep_lines: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) skip_bep: bool,
     pub(crate) intended: Option<Vec<u8>>,
+    pub(crate) patch: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
+    pub(crate) probe_shards: Option<Vec<String>>,
+    pub(crate) probe_code: Option<i32>,
+    pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
+    pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
+}
+
+impl FakeRunner {
+    /// Answers one shard probe: a dx_shards file naming `probe_shards`, or exit 1 when unset.
+    fn run_shard_probe(&self, argv: &[String]) -> io::Result<ChildStatus> {
+        self.probe_argv.borrow_mut().push(argv.to_vec());
+        if let Some(code) = self.probe_code {
+            return Ok(ChildStatus {
+                code: Some(code),
+                signal: None,
+            });
+        }
+        let (Some(shards), Some(bep)) = (
+            &self.probe_shards,
+            argv.iter()
+                .find_map(|arg| arg.strip_prefix("--build_event_json_file=")),
+        ) else {
+            return Ok(ChildStatus {
+                code: Some(1),
+                signal: None,
+            });
+        };
+        let artifact = format!("{bep}.shards.json");
+        std::fs::write(
+            &artifact,
+            serde_json::json!({ "shards": shards }).to_string(),
+        )
+        .expect("shard file");
+        let lines = [
+            serde_json::json!({
+                "id": {"namedSet": {"id": "0"}},
+                "namedSetOfFiles": {"files": [{"uri": format!("file://{artifact}")}]},
+            })
+            .to_string(),
+            serde_json::json!({
+                "id": {"targetCompleted": {"label": "//test:corpus"}},
+                "completed": {"success": true, "outputGroup": [{"name": "dx_shards", "fileSets": [{"id": "0"}]}]},
+            })
+            .to_string(),
+            LAST_EVENT.to_owned(),
+        ];
+        std::fs::write(bep, lines.join("\n")).expect("probe BEP file");
+        Ok(ChildStatus {
+            code: Some(0),
+            signal: None,
+        })
+    }
 }
 
 impl Runner for FakeRunner {
@@ -509,6 +728,10 @@ impl Runner for FakeRunner {
         if self.io_error {
             return Err(io::Error::other("fake launch failure"));
         }
+        if is_shard_probe(argv) {
+            return self.run_shard_probe(argv);
+        }
+        self.build_argv.borrow_mut().push(argv.to_vec());
         self.seen_env.borrow_mut().push(
             env.iter()
                 .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
@@ -522,6 +745,12 @@ impl Runner for FakeRunner {
                 std::fs::write(bep, self.bep_lines.join("\n")).expect("BEP file");
             }
         }
+        if let (Some(payload), Some(path)) = (
+            &self.patch,
+            argv.iter().find_map(|arg| arg.strip_prefix("-patch=")),
+        ) {
+            std::fs::write(path, payload).expect("patch file");
+        }
         if let Some(path) = env
             .iter()
             .find_map(|(key, value)| (*key == GENERATE_ENV_INTENDED).then_some(*value))
@@ -530,14 +759,45 @@ impl Runner for FakeRunner {
                 std::fs::write(path, witness).expect("intended witness");
             }
             if let Some(code) = self.generate_code {
-                return Ok(ChildStatus { code: Some(code) });
+                return Ok(ChildStatus::exited(code));
             }
         }
-        Ok(ChildStatus { code: self.code })
+        if let Some(signo) = self.app_signal {
+            if bazel_subcommand(argv) == Some("run") {
+                return Ok(ChildStatus::signalled(Some(signo)));
+            }
+        }
+        Ok(ChildStatus {
+            code: self.code,
+            signal: None,
+        })
     }
 }
 
+/// The Bazel subcommand in `argv`: the first word after the binary that is not a startup option.
+fn bazel_subcommand(argv: &[String]) -> Option<&str> {
+    argv.iter()
+        .skip(1)
+        .map(String::as_str)
+        .find(|word| !word.starts_with('-'))
+}
+
 pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored: &str) -> Vec<u8> {
+    let result = if files.trim().is_empty() {
+        "clean"
+    } else {
+        "diff_found"
+    };
+    intended_witness_with_result(mode, result, complete, files, ignored)
+}
+
+pub(crate) fn intended_witness_with_result(
+    mode: &str,
+    result: &str,
+    complete: bool,
+    files: &str,
+    ignored: &str,
+) -> Vec<u8> {
     let files_value: Vec<serde_json::Value> = if files.trim().is_empty() {
         Vec::new()
     } else {
@@ -550,8 +810,9 @@ pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored:
     };
     serde_json::to_vec(&serde_json::json!({
         "schema_major": 1,
-        "schema_minor": 0,
+        "schema_minor": 1,
         "mode": mode,
+        "result": result,
         "scopes": [{"value": "//...", "results_complete": complete}],
         "files": files_value,
         "ignored_imports": ignored_value,
@@ -820,12 +1081,27 @@ pub(crate) fn umbrella_findings(name: &str) -> Harness {
     harness
 }
 
+/// Two sources, src/a.py and src/b.py, each with a fixable finding and a one-byte edit.
+pub(crate) fn two_file_replacements(name: &str) -> Harness {
+    let mut harness = Harness::new(name);
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.write_source("src/b.py", "a = 1\n");
+    let changes = vec![
+        harness.replacement_in("src/a.py", b"y"),
+        harness.replacement_in("src/b.py", b"b"),
+    ];
+    let result = harness.paths_result(&["src/a.py", "src/b.py"], changes);
+    harness.results.insert("//test:corpus".to_owned(), result);
+    harness
+}
+
 /// Rendered rustc E0308 output with ANSI colour codes.
 pub(crate) const RENDERED_E0308: &str =
     "\u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror[E0308]\u{1b}[0m\u{1b}[1m: mismatched types\u{1b}[0m
 \u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m--> \u{1b}[0mapp/src/main.rs:4:26
 \u{1b}[0m  \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m
 \u{1b}[0m4\u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m fn _dx_broken() -> u32 { \"x\" }
+\u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m|\u{1b}[0m                    \u{1b}[1m\u{1b}[38;5;9m^^^\u{1b}[0m expected `u32`, found `&str`
 
 \u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror\u{1b}[0m\u{1b}[1m: aborting due to 1 previous error\u{1b}[0m
 ";

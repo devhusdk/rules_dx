@@ -8,12 +8,23 @@ exports_files(
     visibility = ["//cli/cli:__pkg__"],
 )
 
+exports_files(
+    [
+        "dotnet_namespaces.txt",
+        "fsharp_core_namespaces.txt",
+    ],
+    visibility = ["//gazelle/dotnetplatform:__pkg__"],
+)
+
 go_library(
     name = "common",
     srcs = [
         "doc.go",
+        "dotnetplatform.go",
         "embeddedscan.go",
+        "htmlscripts.go",
         "ignore.go",
+        "jsresolve.go",
         "jsscan.go",
         "jvmmask.go",
         "jvmplatform.go",
@@ -22,6 +33,11 @@ go_library(
         "naming.go",
         "nodestdlib.go",
         "singlelang.go",
+        "webcomponent.go",
+    ],
+    embedsrcs = [
+        "dotnet_namespaces.txt",
+        "fsharp_core_namespaces.txt",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/common",
     visibility = [
@@ -36,6 +52,7 @@ go_library(
         "//gazelle/javascript:__pkg__",
         "//gazelle/kotlin:__pkg__",
         "//gazelle/mdx:__pkg__",
+        "//gazelle/powershell:__pkg__",
         "//gazelle/python:__pkg__",
         "//gazelle/ruby:__pkg__",
         "//gazelle/rust:__pkg__",
@@ -55,6 +72,7 @@ go_library(
         "@gazelle//rule",
         "@gazelle//v2/label",
         "@gazelle//v2/rule",
+        "@org_golang_x_net//html",
     ],
 )
 
@@ -66,6 +84,7 @@ go_test(
         "manifest_test.go",
         "naming_test.go",
         "singlelang_test.go",
+        "webcomponent_test.go",
     ],
     data = ["testdata/intended_manifest.json"],
     embed = [":common"],

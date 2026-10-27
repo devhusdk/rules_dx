@@ -66,10 +66,6 @@ pub struct FileDefaults {
     pub baseline: Option<String>,
 }
 
-pub fn is_truthy(value: &str) -> bool {
-    parse_bool(value) == Some(true)
-}
-
 /// Read one boolean default, or `None` when the text is not a documented spelling.
 pub fn parse_bool(value: &str) -> Option<bool> {
     let value = value.trim().to_ascii_lowercase();
@@ -178,8 +174,8 @@ struct ConfigFile {
     schema_version: Option<u32>,
     #[serde(default)]
     quality: Option<QualityTable>,
-    #[serde(default)]
-    dependency_set: Option<Vec<toml::Value>>,
+    #[serde(default, rename = "dependency_set")]
+    _dependency_set: Option<Vec<toml::Value>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -287,11 +283,6 @@ fn check_consumer_schema(version: Option<u32>) -> Result<(), super::AdoptError> 
     }
 }
 
-pub fn shares_file_with_other_tables(text: &str) -> bool {
-    let parsed: ConfigFile = toml::from_str(text).unwrap_or_default();
-    parsed.dependency_set.is_some()
-}
-
 pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefaults {
     FileDefaults {
         workspace: local.workspace.or(committed.workspace),
@@ -387,10 +378,6 @@ pub fn raw_output(start: &Path, ignore_local: bool) -> Option<String> {
         })
 }
 
-pub fn load_defaults(start: &Path) -> Result<(FileDefaults, Option<PathBuf>), super::AdoptError> {
-    load_defaults_with_mode(start, false)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,7 +393,7 @@ mod tests {
             "[dx]\noutput = \"json\"\nlog-level = \"debug\"\n",
         )
         .expect("config");
-        assert!(load_defaults(root).is_err());
+        assert!(load_defaults_with_mode(root, false).is_err());
         assert_eq!(raw_output(root, false), Some("json".to_owned()));
         std::fs::write(root.join("dx.local.toml"), "[dx]\noutput = \"text\"\n").expect("local");
         assert_eq!(raw_output(root, false), Some("text".to_owned()));
@@ -427,12 +414,12 @@ mod tests {
     #[test]
     fn truthy_spellings_enable_only_documented_values() {
         for truthy in ["true", "TRUE", " True ", " true"] {
-            assert!(is_truthy(truthy), "{truthy:?} must enable");
+            assert_eq!(parse_bool(truthy), Some(true), "{truthy:?} must enable");
         }
         for falsy in [
             "", "1", "yes", "y", "on", "0", "no", "off", "tru", "2", "maybe",
         ] {
-            assert!(!is_truthy(falsy), "{falsy:?} must not enable");
+            assert_ne!(parse_bool(falsy), Some(true), "{falsy:?} must not enable");
         }
     }
 
@@ -440,7 +427,6 @@ mod tests {
     fn falsy_spellings_disable_and_anything_else_is_unreadable() {
         for falsy in ["false", "FALSE", " False ", " false"] {
             assert_eq!(parse_bool(falsy), Some(false), "{falsy:?} must disable");
-            assert!(!is_truthy(falsy), "{falsy:?} must not enable");
         }
         for on in TRUTHY {
             assert_eq!(parse_bool(on), Some(true), "{on:?} must enable");
@@ -744,11 +730,11 @@ mod tests {
             Some(sub.join("dx.toml")),
             "nearest file wins"
         );
-        let (defaults, path) = load_defaults(&sub).expect("loads nearest");
+        let (defaults, path) = load_defaults_with_mode(&sub, false).expect("loads nearest");
         assert_eq!(defaults.output, Some("diff".to_owned()));
         assert_eq!(path, Some(sub.join("dx.toml")));
         std::fs::remove_file(sub.join("dx.toml")).expect("remove sub");
-        let (defaults, _) = load_defaults(&sub).expect("falls back upward");
+        let (defaults, _) = load_defaults_with_mode(&sub, false).expect("falls back upward");
         assert_eq!(defaults.output, Some("json".to_owned()));
         scratch.close().expect("cleanup");
     }
@@ -786,7 +772,8 @@ mod tests {
             !found.starts_with(&neighbor),
             "a neighboring workspace never supplies the defaults: {found:?}"
         );
-        let (defaults, path) = load_defaults(&root.join("mine")).expect("loads the ancestor");
+        let (defaults, path) =
+            load_defaults_with_mode(&root.join("mine"), false).expect("loads the ancestor");
         assert_eq!(defaults.output, Some("json".to_owned()));
         assert_eq!(path, Some(root.join("dx.toml")));
         scratch.close().expect("cleanup");
@@ -796,14 +783,15 @@ mod tests {
     fn load_missing_is_empty_and_invalid_fails_closed() {
         let scratch = dx_test_scratch::scratch("dx-defaults-missing-");
         let root = scratch.path().to_path_buf();
-        let (defaults, path) = load_defaults(&root).expect("missing is empty");
+        let (defaults, path) = load_defaults_with_mode(&root, false).expect("missing is empty");
         assert_eq!(defaults, FileDefaults::default());
         assert_eq!(path, None);
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join("dx.toml"), "not toml = [").expect("bad config");
-        assert!(load_defaults(&root).is_err());
+        assert!(load_defaults_with_mode(&root, false).is_err());
         std::fs::write(root.join("dx.toml"), "[dx]\nqiet = true\n").expect("typo");
-        let error = load_defaults(&root).expect_err("a misspelled key is not ignored");
+        let error =
+            load_defaults_with_mode(&root, false).expect_err("a misspelled key is not ignored");
         let rendered = error.to_string();
         assert!(
             rendered.contains("unknown field") && rendered.contains("qiet"),
@@ -831,11 +819,17 @@ mod tests {
 
     #[test]
     fn new_files_ignore_sets_tables() {
-        assert!(!shares_file_with_other_tables("[dx]\nquiet = true\n"));
         let text = "schema_version = 1\n[dx]\nquiet = true\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n";
         let parsed = parse_file_text(text).expect("sets ignored");
         assert_eq!(parsed.quiet, Some(true));
-        assert!(shares_file_with_other_tables(text));
+    }
+
+    #[test]
+    fn new_files_reject_a_non_array_dependency_set() {
+        let err = parse_file_text("schema_version = 1\ndependency_set = 3\n")
+            .expect_err("dependency_set must be an array of tables")
+            .to_string();
+        assert!(err.contains("dependency_set"), "{err}");
     }
 
     #[test]
@@ -861,7 +855,7 @@ mod tests {
         let sources = find_config_sources(&root);
         assert_eq!(sources.committed, Some(root.join("dx.toml")));
         assert_eq!(sources.local, Some(root.join("dx.local.toml")));
-        let (defaults, primary) = load_defaults(&root).expect("merges");
+        let (defaults, primary) = load_defaults_with_mode(&root, false).expect("merges");
         assert_eq!(defaults.output, Some("text".to_owned()));
         assert_eq!(defaults.quiet, Some(true));
         assert_eq!(primary, Some(root.join("dx.local.toml")));
@@ -876,7 +870,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-defaults-committed-");
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
-        let (defaults, primary) = load_defaults(&root).expect("loads");
+        let (defaults, primary) = load_defaults_with_mode(&root, false).expect("loads");
         assert_eq!(defaults.output, Some("json".to_owned()));
         assert_eq!(primary, Some(root.join("dx.toml")));
         scratch.close().expect("cleanup");
@@ -890,11 +884,12 @@ mod tests {
         let bad = "not toml = [";
         std::fs::write(root.join(".dx/config.toml"), bad).expect("obsolete toml");
         std::fs::write(root.join(".dx/config"), bad).expect("obsolete plain");
-        let (defaults, path) = load_defaults(&root).expect("obsolete files are ignored");
+        let (defaults, path) =
+            load_defaults_with_mode(&root, false).expect("obsolete files are ignored");
         assert_eq!(defaults, FileDefaults::default());
         assert_eq!(path, None);
         std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("new");
-        let (defaults, path) = load_defaults(&root).expect("new file loads");
+        let (defaults, path) = load_defaults_with_mode(&root, false).expect("new file loads");
         assert_eq!(defaults.output, Some("text".to_owned()));
         assert_eq!(path, Some(root.join("dx.toml")));
         for name in ["config.toml", "config"] {
@@ -910,10 +905,10 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("committed");
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        let (before, _) = load_defaults(&root).expect("before");
+        let (before, _) = load_defaults_with_mode(&root, false).expect("before");
         assert_eq!(before.output, Some("json".to_owned()));
         std::fs::remove_dir_all(root.join(".dx")).expect("remove dx");
-        let (after, primary) = load_defaults(&root).expect("after");
+        let (after, primary) = load_defaults_with_mode(&root, false).expect("after");
         assert_eq!(after, before);
         assert_eq!(primary, Some(root.join("dx.toml")));
         scratch.close().expect("cleanup");

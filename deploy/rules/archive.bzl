@@ -20,6 +20,7 @@ def _archive_stage_impl(ctx):
 
 _archive_stage = rule(
     implementation = _archive_stage_impl,
+    doc = "Stages one executable as a single file with its basename.",
     attrs = {
         "app": attr.label(
             mandatory = True,
@@ -39,6 +40,7 @@ def _archive_app_name_impl(ctx):
 
 _archive_app_name = rule(
     implementation = _archive_app_name_impl,
+    doc = "Writes the app executable basename to a text file.",
     attrs = {
         "app": attr.label(mandatory = True),
     },
@@ -64,6 +66,7 @@ def _archive_launcher_impl(ctx):
 
 _archive_launcher = rule(
     implementation = _archive_launcher_impl,
+    doc = "Writes the archive deploy launcher Rust source.",
     attrs = {
         "app_name": attr.string(mandatory = True),
         "checksum": attr.string(mandatory = True),
@@ -71,9 +74,9 @@ _archive_launcher = rule(
     },
 )
 
-def archive_filenames(name):
-    """Returns the deterministic (tarball, checksum) output names."""
-    return (name + ".tar.gz", name + ".tar.gz.sha256")
+def archive_filenames(name, format = "tar.gz"):
+    """Returns the deterministic (archive, checksum) output names."""
+    return (name + "." + format, name + "." + format + ".sha256")
 
 def archive_deploy(name, app, profile = "release"):
     """Packages one executable as a deployable tarball and sha256 file."""
@@ -142,7 +145,9 @@ CONSUMER_OSES = ["linux", "macos", "windows"]
 
 CONSUMER_LINKAGES = ["static", "dynamic"]
 
-def consumer_identity_error(arch, os, linkage, min_runtime):
+CONSUMER_FORMATS = ["tar.gz", "zip"]
+
+def consumer_identity_error(arch, os, linkage, min_runtime, format = "tar.gz"):
     """Validates one consumer archive identity, returning an error or empty."""
     if arch not in CONSUMER_ARCHES:
         return ("consumer_archive: unsupported arch '" + str(arch) +
@@ -155,6 +160,9 @@ def consumer_identity_error(arch, os, linkage, min_runtime):
                 "': want one of " + ", ".join(CONSUMER_LINKAGES))
     if type(min_runtime) != "string" or min_runtime == "":
         return "consumer_archive: min_runtime must be a non-empty requirement"
+    if format not in CONSUMER_FORMATS:
+        return ("consumer_archive: unsupported format '" + str(format) +
+                "': want one of " + ", ".join(CONSUMER_FORMATS))
     return ""
 
 def consumer_identity_text(name, arch, os, linkage, min_runtime):
@@ -170,6 +178,7 @@ _ConsumerStageInfo = provider(
     fields = {
         "executable": "String: member name of the app executable.",
         "members": "Dict of String to File: archive member name to staged file.",
+        "runtime": "List of String: member names of the shipped runtime files.",
     },
 )
 
@@ -185,7 +194,7 @@ def consumer_resource_member(repo, package, name, short_path):
 
 def _consumer_stage_impl(ctx):
     """Stages one consumer app plus resources, NOTICE and IDENTITY for archiving."""
-    error = consumer_identity_error(ctx.attr.arch, ctx.attr.os, ctx.attr.linkage, ctx.attr.min_runtime)
+    error = consumer_identity_error(ctx.attr.arch, ctx.attr.os, ctx.attr.linkage, ctx.attr.min_runtime, ctx.attr.format)
     if error != "":
         fail(error + " (in " + str(ctx.label) + ")")
     exe = ctx.attr.app[DefaultInfo].files_to_run.executable
@@ -205,6 +214,22 @@ def _consumer_stage_impl(ctx):
     app_out = ctx.actions.declare_file(ctx.label.name + "/" + exe.basename)
     ctx.actions.symlink(output = app_out, target_file = exe)
     by_member[exe.basename] = app_out
+    reserved = [exe.basename, "NOTICE", "IDENTITY.txt"]
+    runtime = []
+    for target in ctx.attr.runtime:
+        files = target[DefaultInfo].files.to_list()
+        if len(files) == 0:
+            fail("consumer_archive " + str(ctx.label) + ": " +
+                 display_label(target.label) + " provides no files")
+        for src in files:
+            member = src.basename
+            if member in reserved or member in by_member:
+                fail("consumer_archive " + str(ctx.label) + ": duplicate member '" +
+                     member + "' from runtime " + display_label(target.label))
+            out = ctx.actions.declare_file(ctx.label.name + "/" + member)
+            ctx.actions.symlink(output = out, target_file = src)
+            by_member[member] = out
+            runtime.append(member)
     for target in ctx.attr.resources:
         files = target[DefaultInfo].files.to_list()
         if len(files) == 0:
@@ -243,20 +268,23 @@ def _consumer_stage_impl(ctx):
     by_member["IDENTITY.txt"] = identity_out
     return [
         DefaultInfo(files = depset(by_member.values())),
-        _ConsumerStageInfo(executable = exe.basename, members = by_member),
+        _ConsumerStageInfo(executable = exe.basename, members = by_member, runtime = runtime),
     ]
 
 _consumer_stage = rule(
     implementation = _consumer_stage_impl,
+    doc = "Stages one consumer app with resources, NOTICE and IDENTITY.",
     attrs = {
         "app": attr.label(mandatory = True),
         "arch": attr.string(mandatory = True),
         "archive_name": attr.string(mandatory = True),
+        "format": attr.string(default = "tar.gz"),
         "linkage": attr.string(mandatory = True),
         "min_runtime": attr.string(mandatory = True),
         "notice": attr.label(allow_files = True),
         "os": attr.string(mandatory = True),
         "resources": attr.label_list(allow_files = True),
+        "runtime": attr.label_list(allow_files = True),
     },
 )
 
@@ -286,6 +314,7 @@ def _consumer_tarball_impl(ctx):
 
 _consumer_tarball = rule(
     implementation = _consumer_tarball_impl,
+    doc = "Archives one staged consumer tree as a tarball.",
     attrs = {
         "stage": attr.label(mandatory = True, providers = [_ConsumerStageInfo]),
         "tarball_name": attr.string(mandatory = True),
@@ -297,9 +326,9 @@ _consumer_tarball = rule(
     },
 )
 
-def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], notice = None, tags = None):
-    """Packages one consumer app with resources, NOTICE and IDENTITY as a tarball and sha256 file."""
-    (tarball, checksum) = archive_filenames(name)
+def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, format = "tar.gz", tags = None):
+    """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file."""
+    (tarball, checksum) = archive_filenames(name, format)
     stage_target = name + "_stage"
     archive_target = name + "_archive"
     checksum_target = name + "_checksum"
@@ -309,11 +338,13 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         app = app,
         arch = arch,
         archive_name = name,
+        format = format,
         linkage = linkage,
         min_runtime = min_runtime,
         notice = notice,
         os = os,
         resources = resources,
+        runtime = runtime,
         tags = tags,
     )
 

@@ -1,7 +1,6 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::outcome::{ReportedStatus, UpdateReport};
-use super::sets::SetId;
 
 pub const RECOVERY_CODE: &str = "update_recovery";
 
@@ -42,16 +41,16 @@ pub fn retry_sets(report: &UpdateReport) -> Vec<String> {
     sets.into_iter().collect()
 }
 
-pub fn restore_paths(report: &UpdateReport) -> Vec<String> {
+/// Lock paths to restore for every Updated outcome, looked up by set name in
+/// `locks`; sets missing from the map contribute nothing.
+pub fn restore_paths(report: &UpdateReport, locks: &BTreeMap<String, Vec<String>>) -> Vec<String> {
     let mut paths = BTreeSet::new();
     for outcome in &report.outcomes {
         if outcome.status != ReportedStatus::Updated {
             continue;
         }
-        if let Some(set) = SetId::parse(outcome.set.as_str()) {
-            for path in set.locks() {
-                paths.insert((*path).to_owned());
-            }
+        if let Some(set_locks) = locks.get(&outcome.set) {
+            paths.extend(set_locks.iter().cloned());
         }
     }
     paths.into_iter().collect()
@@ -97,12 +96,16 @@ pub fn recovery_message(plan: &RecoveryPlan, succeeded: usize, failed: usize) ->
     message
 }
 
-pub fn plan(report: &UpdateReport, mode: RetryMode) -> Option<RecoveryPlan> {
+pub fn plan(
+    report: &UpdateReport,
+    mode: RetryMode,
+    locks: &BTreeMap<String, Vec<String>>,
+) -> Option<RecoveryPlan> {
     if !report.overall_failure {
         return None;
     }
     let retry = retry_sets(report);
-    let restore = restore_paths(report);
+    let restore = restore_paths(report, locks);
     let succeeded = report
         .outcomes
         .iter()
@@ -148,7 +151,20 @@ pub fn plan(report: &UpdateReport, mode: RetryMode) -> Option<RecoveryPlan> {
 #[cfg(test)]
 mod tests {
     use super::super::outcome::{ReportedOutcome, ReportedStatus, UpdateReport};
+    use super::super::sets::SetId;
     use super::*;
+
+    fn builtin_locks() -> BTreeMap<String, Vec<String>> {
+        SetId::ALL
+            .iter()
+            .map(|set| {
+                (
+                    set.name().to_owned(),
+                    set.locks().iter().map(|path| (*path).to_owned()).collect(),
+                )
+            })
+            .collect()
+    }
 
     fn report() -> UpdateReport {
         UpdateReport {
@@ -179,12 +195,13 @@ mod tests {
             }],
             overall_failure: false,
         };
-        assert_eq!(plan(&clean, RetryMode::Apply), None);
+        assert_eq!(plan(&clean, RetryMode::Apply, &builtin_locks()), None);
     }
 
     #[test]
     fn failed_report_plans_retry_plus_restore() {
-        let plan = plan(&report(), RetryMode::Apply).expect("failed report plans recovery");
+        let plan = plan(&report(), RetryMode::Apply, &builtin_locks())
+            .expect("failed report plans recovery");
         assert_eq!(plan.retry_sets, vec!["maven".to_owned()]);
         assert_eq!(plan.retry_command, "dx update --apply maven");
         assert!(plan.restore_paths.contains(&"pnpm-lock.yaml".to_owned()));
@@ -217,7 +234,7 @@ mod tests {
             ],
             overall_failure: true,
         };
-        let plan = plan(&report, RetryMode::Apply).expect("recovery");
+        let plan = plan(&report, RetryMode::Apply, &builtin_locks()).expect("recovery");
         assert_eq!(
             plan.retry_sets,
             vec!["maven".to_owned(), "nuget".to_owned()]
@@ -239,7 +256,8 @@ mod tests {
 
     #[test]
     fn check_mode_retry_omits_apply() {
-        let plan = plan(&report(), RetryMode::Check).expect("failed report plans recovery");
+        let plan = plan(&report(), RetryMode::Check, &builtin_locks())
+            .expect("failed report plans recovery");
         assert_eq!(plan.retry_command, "dx update maven");
         assert!(plan.message.contains("rerun `dx update maven`"));
         assert!(!plan.message.contains("--apply"));
@@ -264,12 +282,46 @@ mod tests {
             ],
             overall_failure: true,
         };
-        let plan = plan(&report, RetryMode::Apply).expect("unsupported plans recovery");
+        let plan =
+            plan(&report, RetryMode::Apply, &builtin_locks()).expect("unsupported plans recovery");
         assert_eq!(plan.retry_sets, vec!["cargo".to_owned()]);
         assert_eq!(plan.retry_command, "dx update --apply cargo");
         assert!(plan.restore_paths.is_empty());
         assert!(plan.restore_command.is_none());
         assert!(plan.message.contains("; nothing to roll back"));
         assert!(plan.message.contains("2 succeeded, 1 failed"));
+    }
+
+    #[test]
+    fn restore_paths_come_from_the_given_locks() {
+        let report = UpdateReport {
+            outcomes: vec![
+                ReportedOutcome {
+                    set: "uv".to_owned(),
+                    status: ReportedStatus::Updated,
+                },
+                ReportedOutcome {
+                    set: "cargo".to_owned(),
+                    status: ReportedStatus::Failed,
+                },
+            ],
+            overall_failure: true,
+        };
+        let locks = BTreeMap::from([("uv".to_owned(), vec!["apps/frontend/uv.lock".to_owned()])]);
+        let plan = plan(&report, RetryMode::Apply, &locks).expect("recovery");
+        assert_eq!(
+            plan.restore_command.as_deref(),
+            Some("git checkout -- apps/frontend/uv.lock")
+        );
+        assert!(!plan.message.contains("python/tests/fixtures"));
+    }
+
+    #[test]
+    fn updated_set_without_locks_restores_nothing() {
+        let locks = BTreeMap::new();
+        let plan = plan(&report(), RetryMode::Apply, &locks).expect("recovery");
+        assert!(plan.restore_paths.is_empty());
+        assert!(plan.restore_command.is_none());
+        assert!(plan.message.contains("nothing to roll back"));
     }
 }

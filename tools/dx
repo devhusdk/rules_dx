@@ -22,8 +22,9 @@ source_checkout() {
 }
 bin="$root/bazel-bin/cli/cli/dx$exe"
 state="$root/.dx/launcher"
-if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ] && [ -x "$bin" ]; then
-  exec "$bin" "$@"
+if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
+  [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
+  [ -x "$bin" ] && exec "$bin" "$@"
 fi
 here=$(pwd -P) || here=/
 until [ "$here" = / ] || source_checkout "$here"; do
@@ -38,7 +39,7 @@ stale() {
   newer=$(cd "$root" && {
     sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
     printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/preset.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
-  } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print -quit' "$state/built" 2> /dev/null) || true
+  } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print' "$state/built" 2> /dev/null) || true
   [ -n "$newer" ]
 }
 keep_copy() {
@@ -52,12 +53,14 @@ if stale; then
   rc="--nohome_rc --nosystem_rc"
   [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
   dc=
+  gc=
+  found=
   cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
   cache=${cache:-${LOCALAPPDATA:-}}
   home=${HOME:-${USERPROFILE:-}}
   sysrc=/etc/bazel.bazelrc
   [ "$os" != windows ] || sysrc=${ProgramData:+$ProgramData/bazel.bazelrc}
-  if [ -z "$rc" ] && [ -n "$cache" ] && [ -z "$(awk -v root="$root" '
+  [ -n "$rc" ] || [ -z "$cache" ] || found=$(awk -v root="$root" '
     function trim(t) {
       sub(/^[ \t\r]+/, "", t)
       sub(/[ \t\r]+$/, "", t)
@@ -92,20 +95,25 @@ if stale; then
           t = unq(w[i])
           while (substr(t, 1, 1) == "\"" || substr(t, 1, 1) == "\047") t = substr(t, 2)
           if (t ~ /^--(no)?disk_cache/) return 1
+          if (t ~ /^--experimental_disk_cache_gc_max_(size|age)(=|$)/) gc = 1
         }
       }
       close(f)
       return 0
     }
     BEGIN {
-      for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print 1; exit }
+      for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print "cache"; exit }
+      print (gc ? "gc" : "none")
     }
-  ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2> /dev/null)" ]; then
+  ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2> /dev/null) || found=
+  if [ -z "$rc" ] && [ -n "$cache" ] && [ "${found:-}" != cache ]; then
     dc="--disk_cache=$cache/dx/disk-cache"
     [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
+    # Keep in sync with DISK_CACHE_GC_MAX_SIZE and DISK_CACHE_GC_MAX_AGE in cli/process/src/rc.rs.
+    [ "${found:-}" = gc ] || gc="--experimental_disk_cache_gc_max_size=20G --experimental_disk_cache_gc_max_age=14d"
   fi
   echo "dx: building //:dx" >&2
-  if ! (cd "$root" && bazel $rc build ${dc:+"$dc"} --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
+  if ! (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
     if [ -x "$state/dx$exe" ]; then
       rm -f "$state/built.$$"
       echo "dx: //:dx does not build; running the previous dx" >&2

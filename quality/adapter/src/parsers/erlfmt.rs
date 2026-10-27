@@ -1,6 +1,8 @@
 use crate::ToolSeverity;
 
-use super::{as_text, code_name, finding, known, unformatted_at, FileFinding, ParseError};
+use super::{
+    as_text, code_name, finding, known, prefixed, unformatted_at, FileFinding, ParseError,
+};
 
 const TOOL: &str = "erlfmt";
 
@@ -18,10 +20,7 @@ pub fn parse_erlfmt(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     if !as_text(TOOL, stdout)?.trim().is_empty() {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: "--check wrote to stdout".to_owned(),
-        });
+        return Err(ParseError::shape(TOOL, "--check wrote to stdout"));
     }
     let text = as_text(TOOL, stderr)?;
     let mut unformatted: Vec<FileFinding> = Vec::new();
@@ -48,29 +47,22 @@ pub fn parse_erlfmt(
         _ => false,
     };
     if !shaped {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!(
+        return Err(ParseError::shape(
+            TOOL,
+            format!(
                 "exit {} with {} unformatted files and {} errors",
                 code_name(code),
                 unformatted.len(),
                 errors.len()
             ),
-        });
+        ));
     }
     unformatted.extend(errors);
     Ok(unformatted)
 }
 
 fn located_error(line: &str, files: &[&str]) -> Option<FileFinding> {
-    let (file, rest) = files
-        .iter()
-        .filter_map(|file| {
-            line.strip_prefix(file)
-                .and_then(|rest| rest.strip_prefix(':'))
-                .map(|rest| (*file, rest))
-        })
-        .max_by_key(|(file, _)| file.len())?;
+    let (file, rest) = prefixed(line, files)?;
     let mut parts = rest.splitn(3, ':');
     let first = parts.next().and_then(|part| part.parse::<u64>().ok());
     let second = parts.next();

@@ -1,0 +1,17 @@
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+single_version_override(
+    module_name = "rules_android",
+    patch_strip = 1,
+    patches = ["//third_party/rules_dx:rules_android.rules_android.patch"],
+    version = "0.6.6",
+)
+
+android_ndk_toolchain_repo = use_repo_rule("@my_dx//android/toolchain:repos.bzl", "android_ndk_toolchain_repo")
+
+android_ndk_toolchain_repo(
+    name = "android_ndk_toolchain",
+    api_level = 33,
+    cxx_runtime = "static",
+)

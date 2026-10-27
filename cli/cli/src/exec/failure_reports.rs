@@ -3,7 +3,7 @@ use super::common::*;
 use crate::args::Invocation;
 use crate::reports::PlannedReport;
 use dx_bep::{collect_build_failures, BuildFailure, StderrRef};
-use dx_output::{build_failure_event, report_event, write_event, OutputMode};
+use dx_output::{build_failure_event, report_event, OutputMode};
 use serde_json::{json, Map, Value};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
@@ -159,9 +159,9 @@ pub(crate) fn write_failure_reports(
     reports: &[PlannedReport],
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> bool {
+) -> Result<bool, i32> {
     if reports.is_empty() {
-        return true;
+        return Ok(true);
     }
     let (text, complete) = document(bep, bazel_code);
     let mut all_ok = true;
@@ -173,13 +173,14 @@ pub(crate) fn write_failure_reports(
                 err,
                 invocation.output,
                 &format!("failed to write failures report to {error}"),
-            );
+            )?;
             continue;
         }
         if invocation.output == OutputMode::Json {
-            if let Ok(event) = report_event("failures", planned.destination.display(), complete) {
-                let _ = write_event(out, &event);
-            }
+            emit_built(
+                out,
+                report_event("failures", planned.destination.display(), complete),
+            )?;
         } else if matches!(invocation.output, OutputMode::Text { .. })
             && planned.destination != crate::reports::Destination::Stdout
         {
@@ -190,7 +191,7 @@ pub(crate) fn write_failure_reports(
             );
         }
     }
-    all_ok
+    Ok(all_ok)
 }
 
 #[cfg(test)]

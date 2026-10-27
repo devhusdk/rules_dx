@@ -1,4 +1,4 @@
-load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":corpus_tests.bzl", "corpus_coverage_test")
@@ -11,6 +11,16 @@ py_binary(
     name = "update",
     srcs = ["update.py"],
     main = "update.py",
+)
+
+py_test(
+    name = "update_test",
+    size = "small",
+    srcs = [
+        "update.py",
+        "update_test.py",
+    ],
+    main = "update_test.py",
 )
 
 exports_files(glob(
@@ -45,9 +55,11 @@ test_suite(
         ":corpus_coverage",
         ":metadata",
         ":platforms",
+        ":update_test",
         "//quality/artifacts/acquire_test",
         "//quality/artifacts/hub_test:hub_selection_analysis",
         "//quality/artifacts/hub_test:hub_selection_unit",
+        "//quality/artifacts/update_test",
     ],
 )
 
@@ -63,4 +75,5 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"] + glob(["*.bzl"]),
     tags = ["corpus"],
+    visibility = VIS_QUALITY + ["//tools/ci:__pkg__"],
 )

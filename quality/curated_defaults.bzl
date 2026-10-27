@@ -3,9 +3,27 @@
 CURATED_SCHEMA_VERSION = 1
 
 CURATED_DEFAULTS = {
+    "astro": {
+        "audit": [],
+        "format": ["prettier"],
+        "lint": [],
+        "typecheck": [],
+    },
     "cc": {
         "audit": [],
         "format": ["clang_format"],
+        "lint": [],
+        "typecheck": [],
+    },
+    "dockerfile": {
+        "audit": [],
+        "format": [],
+        "lint": ["hadolint"],
+        "typecheck": [],
+    },
+    "go": {
+        "audit": [],
+        "format": ["gofumpt"],
         "lint": [],
         "typecheck": [],
     },
@@ -49,6 +67,12 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": [],
         "lint": ["markdown_check", "vale"],
+        "typecheck": [],
+    },
+    "mdx": {
+        "audit": [],
+        "format": ["remark"],
+        "lint": [],
         "typecheck": [],
     },
     "python": {
@@ -97,12 +121,21 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome"],
-        "typecheck": ["tsc"],
+        "typecheck": [],
+    },
+    "vue": {
+        "audit": [],
+        "format": ["prettier"],
+        "lint": [],
+        "typecheck": [],
     },
 }
 
 FORMAT_FROZEN = {
+    "astro": ["prettier"],
     "cc": ["clang_format"],
+    "dockerfile": [],
+    "go": ["gofumpt"],
     "graphql": ["prettier"],
     "html": ["prettier"],
     "java": ["google_java_format"],
@@ -110,6 +143,7 @@ FORMAT_FROZEN = {
     "json": ["prettier"],
     "kotlin": ["ktfmt"],
     "markdown": [],
+    "mdx": ["remark"],
     "python": ["ruff"],
     "rust": ["rustfmt"],
     "scala": ["scalafmt"],
@@ -118,6 +152,7 @@ FORMAT_FROZEN = {
     "text": [],
     "toml": ["taplo"],
     "typescript": ["biome"],
+    "vue": ["prettier"],
 }
 
 def curated_families():

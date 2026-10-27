@@ -23,17 +23,7 @@ fn affected_is_accepted_by_the_scope_taking_commands() {
         let invocation = parse(&strings(&words)).expect("parses");
         assert!(invocation.affected, "{}", command.name());
         assert!(invocation.targets.is_empty());
-        assert!(command.supports_affected());
     }
-}
-
-#[test]
-fn affected_is_rejected_by_generate_and_docs() {
-    for name in ["generate", "docs"] {
-        assert!(parse(&strings(&[name, "--affected"])).is_err(), "{name}");
-    }
-    assert!(!Command::Generate.supports_affected());
-    assert!(!Command::Docs.supports_affected());
 }
 
 #[test]
@@ -51,4 +41,19 @@ fn affected_conflicts_with_scopes_and_here() {
         Err(ArgsError::AffectedWithHere)
     );
     assert!(parse(&strings(&["test", "--affected=yes"])).is_err());
+}
+
+#[test]
+fn the_grammar_accepts_affected_exactly_for_the_affected_owners() {
+    use crate::args::command::owners::AFFECTED_OWNERS;
+    use crate::args::grammar::accepts_long;
+    use clap::ValueEnum;
+    for command in Command::value_variants() {
+        assert_eq!(
+            accepts_long(*command, "affected"),
+            AFFECTED_OWNERS.contains(command) || *command == Command::Watch,
+            "{}",
+            command.name()
+        );
+    }
 }

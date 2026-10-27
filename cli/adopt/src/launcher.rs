@@ -28,6 +28,8 @@ case "$(uname -s)" in
     export MSYS2_ARG_CONV_EXCL
     ;;
 esac
+pin=
+[ -f "$root/.dx/version" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply"
 IFS= read -r pin < "$root/.dx/version" || true
 pin=$(printf %s "$pin" | tr -d '\r ')
 [ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; refresh it: bazel run @rules_dx//:dx -- init --apply"
@@ -75,6 +77,7 @@ fetch() {
 }
 fetch "$url" "$tmp"
 fetch "$url.sha256" "$tmp.sha256"
+want=
 IFS=' ' read -r want _ < "$tmp.sha256" || true
 if command -v sha256sum > /dev/null 2>&1; then
   got=$(sha256sum "$tmp" | cut -d' ' -f1)
@@ -96,6 +99,10 @@ set "VERSION=@VERSION@"
 set "ARCH=x86_64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 set "PIN="
+if not exist "%~dp0..\.dx\version" (
+  echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
+  goto bazel
+)
 set /p PIN=<"%~dp0..\.dx\version"
 if not "%PIN%"=="%VERSION%" (
   echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is '%PIN%'; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
@@ -163,7 +170,7 @@ fn write_launcher(
     content: &str,
     executable: bool,
 ) -> Result<(), AdoptError> {
-    let dest = super::scaffold_dest_within_root(root, rel)?;
+    let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| AdoptError::CreateParent {
             parent: parent.display().to_string(),
@@ -210,7 +217,7 @@ fn written(entries: Vec<String>) -> Vec<String> {
 }
 
 pub fn launcher_version(root: &Path, rel: &str) -> Option<String> {
-    let dest = super::scaffold_dest_within_root(root, rel).ok()?;
+    let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(dest).ok()?;
     let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
     let prefix = match (lines.next()?, lines.next()?) {
@@ -244,7 +251,7 @@ fn sync(
 ) -> Result<Vec<String>, AdoptError> {
     let mut plan = Vec::new();
     for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
-        let dest = super::scaffold_dest_within_root(root, rel)?;
+        let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
         let write = if dest.exists() {
             launcher_version(root, rel).is_some_and(|found| found != version)
         } else {
@@ -508,6 +515,9 @@ mod tests {
                 .to_owned()
         }
 
+        const UNAME_LINUX: &str =
+            "#!/bin/sh\ncase \"$1\" in\n  -s) echo Linux ;;\n  -m) echo x86_64 ;;\nesac\n";
+
         struct Fixture {
             _guard: Box<dyn std::any::Any>,
             base: std::path::PathBuf,
@@ -521,6 +531,16 @@ mod tests {
                 std::fs::write(root.join(".dx/version"), "1.2.3\n").expect("pin");
                 std::fs::create_dir_all(dir.path().join("stub")).expect("stub dir");
                 std::fs::create_dir_all(dir.path().join("home")).expect("home");
+                let tools = dir.path().join("tools");
+                let missing = dx_test_scratch::link_host_tools(
+                    &tools,
+                    &["dirname", "tr", "mkdir", "cut", "chmod", "mv", "rm", "cp"],
+                )
+                .expect("link tools");
+                assert!(missing.is_empty(), "host lacks tools: {missing:?}");
+                let hashers = dx_test_scratch::link_host_tools(&tools, &["sha256sum", "shasum"])
+                    .expect("link hashers");
+                assert!(hashers.len() < 2, "host has no sha256sum or shasum");
                 let payload = dir.path().join("payload");
                 std::fs::write(&payload, PAYLOAD).expect("payload");
                 let sha = pinned_sha.map_or_else(|| sha_of(&payload), str::to_owned);
@@ -535,10 +555,12 @@ mod tests {
                 std::fs::set_permissions(&curl, std::fs::Permissions::from_mode(0o755))
                     .expect("chmod");
                 write_launcher_files(&root, "1.2.3").expect("launcher");
-                Self {
+                let fx = Self {
                     base: dir.path().to_path_buf(),
                     _guard: Box::new(dir),
-                }
+                };
+                fx.stub("uname", UNAME_LINUX);
+                fx
             }
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
@@ -549,7 +571,11 @@ mod tests {
                         .env_clear()
                         .env(
                             "PATH",
-                            format!("{}:/usr/bin:/bin", base.join("stub").display()),
+                            format!(
+                                "{}:{}",
+                                base.join("stub").display(),
+                                base.join("tools").display()
+                            ),
                         )
                         .env("HOME", base.join("home"))
                         .env("USERPROFILE", base.join("home"))
@@ -569,6 +595,15 @@ mod tests {
             fn stub(&self, name: &str, body: &str) {
                 let path = self.base.join("stub").join(name);
                 std::fs::write(&path, body).expect("stub");
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                    .expect("chmod");
+            }
+
+            fn rewrite_launcher(&self, from: &str, to: &str) {
+                let path = self.base.join("repo/tools/dx");
+                let text = std::fs::read_to_string(&path).expect("read launcher");
+                assert!(text.contains(from), "launcher template lost {from:?}");
+                std::fs::write(&path, text.replacen(from, to, 1)).expect("write launcher");
                 std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
                     .expect("chmod");
             }
@@ -600,7 +635,7 @@ mod tests {
                 "{err}"
             );
             assert_eq!(fx.downloads(), 2);
-            assert_eq!(fx.cached().len(), 1, "{:?}", fx.cached());
+            assert_eq!(fx.cached(), vec!["dx-linux-x86_64"]);
             let (code, out, err) = fx.run(&["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert_eq!(fx.downloads(), 2, "cached run must not download");
@@ -634,26 +669,94 @@ mod tests {
         const UNAME_ROSETTA: &str =
             "#!/bin/sh\ncase \"$1\" in\n  -s) echo Darwin ;;\n  -m) echo x86_64 ;;\nesac\n";
 
+        const ROSETTA_KEYS: [&str; 2] = ["hw.optional.arm64", "sysctl.proc_translated"];
+
+        fn sysctl_stub(on: Option<&str>) -> String {
+            let on = on.unwrap_or("none");
+            format!(
+                r#"#!/bin/sh
+on='{on}'
+n=0
+if [ $# -eq 2 ] && [ "$1" = -n ]; then
+  n=1
+  shift
+fi
+if [ $# -ne 1 ]; then
+  echo "sysctl: usage" >&2
+  exit 1
+fi
+case "$1" in
+  hw.optional.arm64 | sysctl.proc_translated) ;;
+  *)
+    echo "sysctl: unknown oid '$1'" >&2
+    exit 1
+    ;;
+esac
+if [ "$1" = "$on" ]; then v=1; else v=0; fi
+if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
+"#
+            )
+        }
+
         #[test]
         fn rosetta_on_apple_silicon_runs_the_arm64_binary() {
-            let fx = Fixture::new("dx-launcher-rosetta-", true, None);
-            fx.stub("uname", UNAME_ROSETTA);
-            fx.stub("sysctl", "#!/bin/sh\necho 1\n");
-            let (code, out, err) = fx.run(&["version"]);
-            assert_eq!((code, out.as_str()), (Some(0), "ran version\n"), "{err}");
-            assert_eq!(fx.cached(), vec!["dx-macos-arm64"]);
+            for (name, key) in [
+                ("dx-launcher-rosetta-arm64-", ROSETTA_KEYS[0]),
+                ("dx-launcher-rosetta-translated-", ROSETTA_KEYS[1]),
+            ] {
+                let fx = Fixture::new(name, true, None);
+                fx.stub("uname", UNAME_ROSETTA);
+                fx.stub("sysctl", &sysctl_stub(Some(key)));
+                let (code, out, err) = fx.run(&["version"]);
+                assert_eq!(
+                    (code, out.as_str()),
+                    (Some(0), "ran version\n"),
+                    "{key}: {err}"
+                );
+                assert_eq!(fx.cached(), vec!["dx-macos-arm64"], "{key}");
+            }
         }
 
         #[test]
         fn intel_mac_still_has_no_binary() {
-            let fx = Fixture::new("dx-launcher-intel-mac-", true, None);
-            fx.stub("uname", UNAME_ROSETTA);
-            fx.stub("sysctl", "#!/bin/sh\nexit 1\n");
-            let (code, out, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1), "{out}{err}");
-            assert!(err.contains("no dx binary for macos x86_64"), "{err}");
-            assert_eq!(fx.downloads(), 0);
-            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+            for (name, body) in [
+                ("dx-launcher-intel-mac-", sysctl_stub(None)),
+                (
+                    "dx-launcher-intel-mac-broken-",
+                    "#!/bin/sh\nexit 1\n".to_owned(),
+                ),
+            ] {
+                let fx = Fixture::new(name, true, None);
+                fx.stub("uname", UNAME_ROSETTA);
+                fx.stub("sysctl", &body);
+                let (code, out, err) = fx.run(&["version"]);
+                assert_eq!(code, Some(1), "{out}{err}");
+                assert!(err.contains("no dx binary for macos x86_64"), "{err}");
+                assert_eq!(fx.downloads(), 0);
+                assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+            }
+        }
+
+        #[test]
+        fn rosetta_detection_needs_the_exact_key_and_dash_n() {
+            let changes = [
+                (ROSETTA_KEYS[0], "hw.optional.arm65", ROSETTA_KEYS[0]),
+                (ROSETTA_KEYS[1], "sysctl.proc_translatd", ROSETTA_KEYS[1]),
+                ("sysctl -n \"$key\"", "sysctl \"$key\"", ROSETTA_KEYS[0]),
+            ];
+            for (i, (from, to, on)) in changes.into_iter().enumerate() {
+                let fx = Fixture::new(&format!("dx-launcher-rosetta-neg{i}-"), true, None);
+                fx.stub("uname", UNAME_ROSETTA);
+                fx.stub("sysctl", &sysctl_stub(Some(on)));
+                fx.rewrite_launcher(from, to);
+                let (code, out, err) = fx.run(&["version"]);
+                assert_eq!(code, Some(1), "{from} -> {to}: {out}{err}");
+                assert!(
+                    err.contains("no dx binary for macos x86_64"),
+                    "{from} -> {to}: {err}"
+                );
+                assert_eq!(fx.downloads(), 0, "{from} -> {to}");
+            }
         }
 
         #[test]
@@ -673,6 +776,49 @@ mod tests {
             );
             assert_eq!(fx.downloads(), 2);
             assert_eq!(fx.cached(), vec!["dx-windows-x86_64.exe"]);
+        }
+
+        fn assert_clean_missing_pin(fx: &Fixture, err: &str, code: Option<i32>) {
+            assert_eq!(code, Some(1), "{err}");
+            assert_eq!(err.lines().count(), 2, "{err}");
+            assert!(
+                err.contains("pinned to dx 1.2.3 but .dx/version is missing"),
+                "{err}"
+            );
+            assert!(err.contains("init --apply"), "{err}");
+            assert!(err.contains("bazel run @rules_dx//:dx -- version"), "{err}");
+            for noise in [
+                "parameter not set",
+                "cannot open",
+                "can't open",
+                "No such file",
+            ] {
+                assert!(!err.contains(noise), "{noise}: {err}");
+            }
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn a_missing_pin_is_refused_with_one_message() {
+            let fx = Fixture::new("dx-launcher-nopin-", true, None);
+            std::fs::remove_file(fx.base.join("repo/.dx/version")).expect("remove pin");
+            let (code, out, err) = fx.run(&["version"]);
+            assert!(out.is_empty(), "{out}");
+            assert_clean_missing_pin(&fx, &err, code);
+        }
+
+        #[test]
+        fn an_empty_pin_is_refused() {
+            let fx = Fixture::new("dx-launcher-emptypin-", true, None);
+            std::fs::write(fx.base.join("repo/.dx/version"), "").expect("pin");
+            let (code, _out, err) = fx.run(&["version"]);
+            assert_eq!(code, Some(1), "{err}");
+            assert!(
+                err.contains("pinned to dx 1.2.3 but .dx/version is ''"),
+                "{err}"
+            );
+            assert!(!err.contains("parameter not set"), "{err}");
+            assert_eq!(fx.downloads(), 0);
         }
 
         #[test]
@@ -896,6 +1042,20 @@ mod tests {
             assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
             assert_eq!(fx.downloads(), 0);
             assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+        }
+
+        #[test]
+        fn a_missing_pin_is_refused_without_a_file_error() {
+            let fx = Fixture::new("dx-launcher-cmd-nopin-", true, None);
+            std::fs::remove_file(fx.base.join("repo/.dx/version")).expect("remove pin");
+            let (code, _out, err) = fx.run(&["version"]);
+            assert_eq!(code, Some(1));
+            assert!(
+                err.contains("pinned to dx 1.2.3 but .dx\\version is missing"),
+                "{err}"
+            );
+            assert!(!err.contains("cannot find the file"), "{err}");
+            assert_eq!(fx.downloads(), 0);
         }
 
         #[test]

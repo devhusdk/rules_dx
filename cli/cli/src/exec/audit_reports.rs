@@ -35,6 +35,7 @@ fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
     let (findings, incomplete, diagnostics) = super::run_secrets(
         &harness.workspace,
         &Unavailable,
+        &harness.query,
         &bazel,
         &harness.temp,
         1,
@@ -163,6 +164,46 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
 }
 
 #[test]
+fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
+    let policy =
+        "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//...\"]\n";
+    for scope in ["//javascript/...", "//javascript:app"] {
+        for (license, code) in [("MIT", 0), ("AGPL-3.0-only", 1)] {
+            let (code_seen, out, err) = run_with(
+                &["license", scope, "--report=sarif=-"],
+                &AuditRunner::clean(),
+                &|harness| {
+                    harness.write_source("package-lock.json", &npm_lock_with(license));
+                    harness.write_source("licenses.toml", policy);
+                },
+            );
+            assert_eq!(code_seen, code, "{license} under {scope}: {out}{err}");
+            assert!(
+                !out.contains("license/missing-notice-text"),
+                "{license} under {scope}: {out}{err}"
+            );
+        }
+    }
+    let load = |text: &str| dx_audit::license_policy::load_licenses_toml(text).expect("policy");
+    let roots = |labels: &[&str]| {
+        labels
+            .iter()
+            .map(|label| (*label).to_owned())
+            .collect::<Vec<_>>()
+    };
+    let wide = load(policy);
+    assert_eq!(
+        super::tier_for_roots(&wide, &roots(&["//cli/cli:dx_cli", "//cli/audit:dx_audit"])),
+        dx_audit::license_expr::Tier::Internal
+    );
+    let narrow = load("[distribution]\ninternal = [\"//cli/...\"]\n");
+    assert_eq!(
+        super::tier_for_roots(&narrow, &roots(&["//cli/cli:dx_cli", "//go:x"])),
+        dx_audit::license_expr::Tier::Distributed
+    );
+}
+
+#[test]
 fn security_policy_read_failures_and_absent_file_are_explicit() {
     let harness = Harness::new("security-policy-io");
     assert!(super::load_security_policy(&harness.workspace)
@@ -264,6 +305,120 @@ fn audit_stdout_reports_are_single_machine_documents() {
             assert_eq!(value["version"], "2.1.0");
         } else {
             assert_eq!(value["spdxVersion"], "SPDX-2.3");
+        }
+    }
+}
+
+const CLEAN_SARIF: &str =
+    r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}"#;
+
+/// Runs the secrets family against a fake gitleaks and returns its argv and diagnostics.
+fn scan_secrets(harness: &Harness) -> (Vec<String>, Vec<dx_output::DiagnosticEvent>) {
+    let runner = AuditRunner::with_sarif(Some(0), CLEAN_SARIF);
+    let bazel = super::QueryBazel {
+        query_runner: &harness.query,
+        workspace: &harness.workspace,
+        startup: &[],
+    };
+    let (findings, incomplete, diagnostics) = super::run_secrets(
+        &harness.workspace,
+        &runner,
+        &harness.query,
+        &bazel,
+        &harness.temp,
+        7,
+        3,
+        false,
+    );
+    assert!(findings.is_empty());
+    assert_eq!(incomplete, None);
+    let calls = runner.calls.borrow();
+    assert_eq!(calls.len(), 1, "{calls:?}");
+    (calls[0].clone(), diagnostics)
+}
+
+fn config_arg(argv: &[String]) -> Option<String> {
+    let index = argv.iter().position(|arg| arg == "--config")?;
+    argv.get(index + 1).cloned()
+}
+
+fn ignored_query_argv() -> Vec<String> {
+    std::iter::once("git")
+        .chain(dx_audit::secrets::IGNORED_QUERY)
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+const USER_CONFIG: &str = "[allowlist]\ndescription = \"fixtures\"\nregexes = [\"example\"]\n";
+
+#[test]
+fn secrets_scan_skips_git_ignored_paths() {
+    let harness = Harness::new("audit-secrets-ignored");
+    harness.query.script_git(0, "ign/\0local.env\0");
+    harness.write_source(".gitleaks.toml", USER_CONFIG);
+    let (argv, diagnostics) = scan_secrets(&harness);
+    assert_eq!(
+        *harness.query.git_calls.borrow(),
+        vec![ignored_query_argv()]
+    );
+    assert!(harness.query.calls.borrow().is_empty());
+    let config = config_arg(&argv).expect("--config");
+    let config = std::path::PathBuf::from(config);
+    assert!(config.is_absolute(), "{config:?}");
+    assert!(config.starts_with(&harness.temp), "{config:?}");
+    let written = std::fs::read_to_string(&config).expect("config");
+    let expected = dx_audit::secrets::scoped_config(
+        Some(USER_CONFIG),
+        &[r"^ign(?:/|$)".to_owned(), r"^local\.env$".to_owned()],
+    )
+    .expect("expected config");
+    assert_eq!(written, expected);
+    assert!(written.contains("[[allowlists]]"), "{written}");
+    assert!(!written.contains("[allowlist]"), "{written}");
+    assert!(written.contains("fixtures"), "{written}");
+    assert!(diagnostics
+        .iter()
+        .any(|event| event.message.contains("without a hash pin")
+            && event.path.as_deref() == Some(".gitleaks.toml")));
+}
+
+#[test]
+fn secrets_scan_without_user_config_scopes_the_default_rules() {
+    let harness = Harness::new("audit-secrets-ignored-default");
+    harness.query.script_git(0, "ign/\0");
+    let (argv, diagnostics) = scan_secrets(&harness);
+    let config = config_arg(&argv).expect("--config");
+    let written = std::fs::read_to_string(config).expect("config");
+    assert!(written.contains("useDefault = true"), "{written}");
+    assert!(diagnostics.is_empty());
+}
+
+#[test]
+fn secrets_scan_keeps_the_plain_config_when_git_gives_nothing() {
+    for case in ["exit-128", "empty", "unscripted", "invalid-user-toml"] {
+        for user_config in [true, false] {
+            if case == "invalid-user-toml" && !user_config {
+                continue;
+            }
+            let harness = Harness::new(&format!("audit-secrets-fallback-{case}-{user_config}"));
+            match case {
+                "exit-128" => harness.query.script_git(128, ""),
+                "empty" => harness.query.script_git(0, ""),
+                "invalid-user-toml" => harness.query.script_git(0, "ign/\0"),
+                _ => {}
+            }
+            if case == "invalid-user-toml" {
+                harness.write_source(".gitleaks.toml", "[allowlist\n");
+            } else if user_config {
+                harness.write_source(".gitleaks.toml", "title = \"local\"\n");
+            }
+            let (argv, _) = scan_secrets(&harness);
+            assert_eq!(
+                *harness.query.git_calls.borrow(),
+                vec![ignored_query_argv()]
+            );
+            let expected = user_config.then(|| ".gitleaks.toml".to_owned());
+            assert_eq!(config_arg(&argv), expected, "{case} {user_config}");
         }
     }
 }
@@ -583,12 +738,8 @@ fn audit_live_json_failure_emits_error_and_finished_one() {
     assert_eq!(kinds[0], "command_started");
     assert_eq!(kinds[kinds.len() - 1], "command_finished");
     assert!(kinds.contains(&"error"));
-    assert!(
-        events
-            .iter()
-            .any(|event| event["event"] == "diagnostic" && event["tool"] == "gitleaks"),
-        "{out}"
-    );
+    let gitleaks = finding(&events, "gitleaks");
+    assert!(gitleaks.get("package").is_none(), "{gitleaks}");
     assert_eq!(
         event(&events, "error")["code"],
         serde_json::json!("audit_failed")
@@ -639,6 +790,10 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     assert!(message.contains("GHSA-go-test-0001"), "{message}");
     assert!(message.contains("fixed in v0.7.0"), "{message}");
     assert_eq!(
+        vuln["package"],
+        serde_json::json!({"name": "github.com/google/go-cmp", "version": "v0.6.0", "fixed": ["v0.7.0"]})
+    );
+    assert_eq!(
         event(&events, "error")["code"],
         serde_json::json!("audit_failed")
     );
@@ -662,6 +817,10 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     assert!(
         message.starts_with("demo@1.0.0 license AGPL-3.0-only"),
         "{message}"
+    );
+    assert_eq!(
+        license["package"],
+        serde_json::json!({"name": "demo", "version": "1.0.0", "license": "AGPL-3.0-only"})
     );
     assert_eq!(
         event(&events, "error")["code"],

@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
 
-use quality_adapter::commands::Invocation;
+use quality_adapter::commands::{self, Invocation};
 use quality_adapter::exec::{self, ChildOutput, MirrorFile, Scratch};
 use quality_adapter::launch;
 use quality_adapter::parsers::ParseError;
@@ -32,6 +32,8 @@ pub const REAL_TOOLS: &[&str] = &[
     "gofumpt",
     "google_java_format",
     "govet",
+    "graphql_eslint",
+    "hadolint",
     "jsonnetfmt",
     "keep_sorted",
     "ktfmt",
@@ -47,6 +49,8 @@ pub const REAL_TOOLS: &[&str] = &[
     "pylint",
     "qmlformat",
     "qmllint",
+    "redocly",
+    "remark",
     "roslyn",
     "rubocop",
     "ruff",
@@ -71,24 +75,6 @@ pub const REAL_TOOLS: &[&str] = &[
 
 const RUSTFMT_DEFAULTS_REL: &str = "dx-rustfmt-default.toml";
 
-pub const KEEP_SORTED_SUPPORT_STATE: &str = "known";
-pub const KEEP_SORTED_EXECUTION: &str = "direct";
-pub const KEEP_SORTED_FIX: &str = "supported";
-pub const KEEP_SORTED_CONTEXT: &str = "owned";
-pub const KEEP_SORTED_TRANSPORT: &str = "batched";
-
-pub fn keep_sorted_runner_present() -> bool {
-    REAL_TOOLS.contains(&"keep_sorted")
-}
-
-pub fn keep_sorted_support_gap() -> Option<&'static str> {
-    if keep_sorted_runner_present() {
-        None
-    } else {
-        Some("support: keep_sorted lint is known but has no runner backend")
-    }
-}
-
 const KTLINT_DEFAULTS_REL: &str = "dx-ktlint-default/.editorconfig";
 const KTLINT_DEFAULTS_BYTES: &[u8] = b"root = true
 
@@ -99,8 +85,24 @@ ktlint_standard_function-signature = disabled
 ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_standard_trailing-comma-on-declaration-site = disabled
 ";
+const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
+/// hadolint rejects an empty config, so the default spells its empty ignore list.
+const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
+const REDOCLY_DEFAULTS_REL: &str = "dx-redocly-default/redocly.yaml";
+/// The curated Redocly policy: spec structure plus the correctness rules, all as errors.
+const REDOCLY_DEFAULTS_BYTES: &[u8] = b"extends:
+  - spec
+rules:
+  no-unresolved-refs: error
+  operation-operationId-unique: error
+  path-parameters-defined: error
+  no-identical-paths: error
+  operation-parameters-unique: error
+telemetry: off
+";
+const PRETTIER_IGNORE_REL: &str = "dx-prettier/ignore";
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
 const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
   "rules": {
@@ -200,6 +202,7 @@ pub struct RealBackend {
     tools: BTreeMap<String, RealTool>,
     scratch_parent: PathBuf,
     spawn: SpawnFn,
+    argv_limit: fn(&OsStr) -> Option<usize>,
 }
 
 pub fn real_spawn(
@@ -283,9 +286,14 @@ fn execution(tool_id: &str, detail: String) -> RunnerError {
 }
 
 fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerError> {
-    result.map_err(|err| RunnerError::ToolOutput {
-        tool_id: tool_id.to_owned(),
-        detail: err.to_string(),
+    result.map_err(|err| match err {
+        // An incomplete analysis means the tool could not do its job, not that
+        // its output was malformed.
+        ParseError::Incomplete { .. } => execution(tool_id, err.to_string()),
+        other => RunnerError::ToolOutput {
+            tool_id: tool_id.to_owned(),
+            detail: other.to_string(),
+        },
     })
 }
 
@@ -340,6 +348,7 @@ impl RealBackend {
             tools,
             scratch_parent,
             spawn: real_spawn,
+            argv_limit: commands::native_argv_limit,
         }
     }
 
@@ -377,21 +386,46 @@ impl RealBackend {
                 env.push(pair);
             }
         }
-        let mut argv = absolute_argv(&invocation.argv);
-        if resolves_launcher(tool_id) {
-            if let Some(first) = argv.first_mut() {
-                if let Ok(real) = std::fs::canonicalize(&*first) {
-                    *first = real.into_os_string();
-                }
+        if tool_id == "redocly" {
+            env.push((OsString::from("REDOCLY_TELEMETRY"), OsString::from("off")));
+            env.push((
+                OsString::from("REDOCLY_SUPPRESS_UPDATE_NOTICE"),
+                OsString::from("true"),
+            ));
+        }
+        let argv = spawn_argv(tool_id, invocation);
+        if let Some(max) = argv.first().and_then(|program| (self.argv_limit)(program)) {
+            let units = commands::argv_cost(&argv).1 + 2 * argv.len();
+            if units > max {
+                return Err(execution(
+                    tool_id,
+                    format!(
+                        "selection too large for one {tool_id} spawn: {units} of {max} command-line characters"
+                    ),
+                ));
             }
         }
         (self.spawn)(&argv, &cwd, &env).map_err(|err| execution(tool_id, format!("spawn: {err}")))
     }
 }
 
+/// The argv a tool is spawned with: an absolute binary, resolved for launchers that need it.
+fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
+    let mut argv = absolute_argv(&invocation.argv);
+    if resolves_launcher(tool_id) {
+        if let Some(first) = argv.first_mut() {
+            if let Ok(real) = std::fs::canonicalize(&*first) {
+                *first = real.into_os_string();
+            }
+        }
+    }
+    argv
+}
+
 mod check;
 mod delegated;
 mod pipeline;
+mod redocly;
 mod rustfmt;
 mod staging;
 
@@ -418,10 +452,8 @@ mod real_tools;
 #[cfg(test)]
 mod tests {
     use super::{
-        absolute_argv, javascript_manifest, keep_sorted_runner_present, keep_sorted_support_gap,
-        own_runfiles_manifest, reads_own_manifest, resolves_launcher, ALWAYS_OWN_MANIFEST,
-        KEEP_SORTED_CONTEXT, KEEP_SORTED_EXECUTION, KEEP_SORTED_FIX, KEEP_SORTED_SUPPORT_STATE,
-        KEEP_SORTED_TRANSPORT, STYLELINT_DEFAULTS_BYTES,
+        absolute_argv, javascript_manifest, own_runfiles_manifest, parsed, reads_own_manifest,
+        resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, REAL_TOOLS, STYLELINT_DEFAULTS_BYTES,
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
@@ -429,6 +461,45 @@ mod tests {
 
     fn out() -> PathBuf {
         std::env::temp_dir().join("out")
+    }
+
+    use crate::RunnerError;
+    use quality_adapter::parsers::ParseError;
+
+    /// An incomplete analysis is an execution failure for every tool, never "invalid tool output".
+    #[test]
+    fn incomplete_analysis_is_a_tool_execution_failure() {
+        for tool in ["buf", "fantomas", "roslyn", "sarif"] {
+            let err = parsed::<()>(
+                tool,
+                Err(ParseError::Incomplete {
+                    tool: "tool",
+                    detail: "import failed".to_owned(),
+                }),
+            )
+            .expect_err("incomplete fails");
+            assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
+            let text = err.to_string();
+            assert!(!text.contains("invalid tool output"), "{text}");
+            assert!(
+                text.contains("analysis was incomplete: import failed"),
+                "{text}"
+            );
+        }
+    }
+
+    /// Other parse errors stay malformed-output failures.
+    #[test]
+    fn other_parse_errors_stay_tool_output_failures() {
+        let err = parsed::<()>(
+            "taplo",
+            Err(ParseError::Json {
+                tool: "taplo",
+                detail: "bad".to_owned(),
+            }),
+        )
+        .expect_err("json fails");
+        assert!(matches!(err, RunnerError::ToolOutput { .. }), "{err}");
     }
 
     /// A tool starts in a scratch directory, so its own name is not enough to find runfiles.
@@ -444,6 +515,22 @@ mod tests {
         let already = [out().join("bin").join("tool").into_os_string()];
         assert_eq!(absolute_argv(&already)[0], already[0]);
         assert!(absolute_argv(&[]).is_empty());
+    }
+
+    /// The planned spawn carries the absolute binary the guard and the batches measure.
+    #[test]
+    fn spawn_argv_makes_the_binary_absolute() {
+        let invocation = quality_adapter::commands::Invocation {
+            argv: vec![
+                OsString::from("bazel-out/bin/ruff"),
+                OsString::from("check"),
+            ],
+            cwd_rel: String::new(),
+        };
+        let argv = spawn_argv("ruff", &invocation);
+        assert!(Path::new(&argv[0]).is_absolute());
+        assert!(argv[0].len() > invocation.argv[0].len());
+        assert_eq!(argv[1], invocation.argv[1]);
     }
 
     /// The manifest sits beside the tool that reads it.
@@ -510,7 +597,14 @@ mod tests {
     /// The resolved JavaScript launch names its own runfiles on every platform.
     #[test]
     fn javascript_tools_resolve_to_their_own_manifest() {
-        for tool_id in ["eslint", "prettier", "stylelint"] {
+        for tool_id in [
+            "eslint",
+            "graphql_eslint",
+            "prettier",
+            "redocly",
+            "remark",
+            "stylelint",
+        ] {
             assert_eq!(
                 policy_for(tool_id),
                 RunfilesPolicy::OwnManifest,
@@ -542,7 +636,14 @@ mod tests {
         for tool_id in ALWAYS_OWN_MANIFEST {
             assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit, "{tool_id}");
         }
-        for tool_id in ["eslint", "prettier", "stylelint"] {
+        for tool_id in [
+            "eslint",
+            "graphql_eslint",
+            "prettier",
+            "redocly",
+            "remark",
+            "stylelint",
+        ] {
             assert!(!reads_own_manifest(tool_id), "{tool_id}");
         }
     }
@@ -558,13 +659,7 @@ mod tests {
 
     #[test]
     fn keep_sorted_runner_edge_is_present() {
-        assert!(keep_sorted_runner_present());
-        assert_eq!(KEEP_SORTED_SUPPORT_STATE, "known");
-        assert_eq!(KEEP_SORTED_EXECUTION, "direct");
-        assert_eq!(KEEP_SORTED_FIX, "supported");
-        assert_eq!(KEEP_SORTED_CONTEXT, "owned");
-        assert_eq!(KEEP_SORTED_TRANSPORT, "batched");
-        assert_eq!(keep_sorted_support_gap(), None);
+        assert!(REAL_TOOLS.contains(&"keep_sorted"));
     }
 
     /// The default stylelint rules accept CSS Modules selectors and `composes`.

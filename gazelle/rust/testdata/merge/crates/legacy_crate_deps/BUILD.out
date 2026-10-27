@@ -1,0 +1,19 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_dx//rust/rules:defs.bzl", "rust_library")
+
+rust_library(
+    name = "legacy",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "crates/legacy",
+        normal = True,
+    ),
+    crate_name = "legacy",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "crates/legacy",
+        normal = True,
+    ) + ["//hand:label"],
+)

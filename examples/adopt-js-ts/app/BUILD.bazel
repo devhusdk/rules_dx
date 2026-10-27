@@ -23,6 +23,7 @@ javascript_test(
     data = [":greet"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
 )
 
 javascript_library(
@@ -37,6 +38,7 @@ javascript_js_test(
     aspect_hints = ["//:biome_config"],
     data = [":greet"],
     entry_point = "plain_test.js",
+    package_json = "//:package_json",
 )
 
 javascript_library(

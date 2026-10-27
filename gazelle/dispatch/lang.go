@@ -24,6 +24,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/javascript"
 	"github.com/devhusdk/rules_dx/gazelle/kotlin"
 	"github.com/devhusdk/rules_dx/gazelle/mdx"
+	"github.com/devhusdk/rules_dx/gazelle/powershell"
 	"github.com/devhusdk/rules_dx/gazelle/python"
 	"github.com/devhusdk/rules_dx/gazelle/ruby"
 	"github.com/devhusdk/rules_dx/gazelle/rust"
@@ -48,6 +49,7 @@ func composedLanguages() []language.Language {
 		javascript.NewLanguage(),
 		kotlin.NewLanguage(),
 		mdx.NewLanguage(),
+		powershell.NewLanguage(),
 		python.NewLanguage(),
 		ruby.NewLanguage(),
 		rust.NewLanguage(),
@@ -126,9 +128,17 @@ func (l *dispatchLang) CheckFlags(*flag.FlagSet, *config.Config) error { return 
 
 func (*dispatchLang) KnownDirectives() []string { return nil }
 
-func (l *dispatchLang) Configure(_ *config.Config, rel string, f *rule.File) {
+func (l *dispatchLang) Configure(c *config.Config, rel string, f *rule.File) {
 	if f == nil {
 		return
+	}
+	if c != nil && len(c.Langs) > 0 && !containsString(c.Langs, languageName) {
+		for _, d := range f.Directives {
+			if d.Key == "lang" {
+				l.fail("lang: //%s: # gazelle:lang %s drops %s; add %s to the list", rel, strings.Join(c.Langs, ","), languageName, languageName)
+				break
+			}
+		}
 	}
 	known := ignoreLanguages()
 	for _, d := range f.Directives {
@@ -145,6 +155,15 @@ func (l *dispatchLang) Configure(_ *config.Config, rel string, f *rule.File) {
 			l.fail("dx_ignore_import: //%s: unknown language %q in # gazelle:dx_ignore_import %s; use one of: %s", rel, fields[0], d.Value, strings.Join(known, ", "))
 		}
 	}
+}
+
+func containsString(list []string, want string) bool {
+	for _, v := range list {
+		if v == want {
+			return true
+		}
+	}
+	return false
 }
 
 func (l *dispatchLang) fail(format string, args ...interface{}) {

@@ -115,6 +115,7 @@ def _dx_resources_impl(ctx):
 
 dx_resources = rule(
     implementation = _dx_resources_impl,
+    doc = "Stages one file per logical path, optionally through a processor.",
     attrs = {
         "mappings": attr.label_keyed_string_dict(
             allow_files = True,

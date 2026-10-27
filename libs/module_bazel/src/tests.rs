@@ -335,3 +335,220 @@ fn dict_arguments_keep_literal_keys_and_values() {
     assert_eq!(platforms[1].0, Value::Ident("KEY".to_owned()));
     assert_eq!(platforms[1].1, Value::Computed { line: 3 });
 }
+
+#[test]
+fn an_include_label_resolves_under_the_module_dir() {
+    assert_eq!(
+        include_rel("", "//:deps.MODULE.bazel").as_deref(),
+        Ok("deps.MODULE.bazel")
+    );
+    assert_eq!(
+        include_rel("sub", "//bazel:deps.MODULE.bazel").as_deref(),
+        Ok("sub/bazel/deps.MODULE.bazel")
+    );
+    assert_eq!(
+        include_rel("", "//a/b:c/d.MODULE.bazel").as_deref(),
+        Ok("a/b/c/d.MODULE.bazel")
+    );
+}
+
+#[test]
+fn an_include_outside_the_workspace_is_rejected() {
+    for label in [
+        "//:/etc/passwd.MODULE.bazel",
+        "///etc:passwd.MODULE.bazel",
+        "//:C:/x.MODULE.bazel",
+        "//:..\\x.MODULE.bazel",
+        "//a//b:x.MODULE.bazel",
+        "//:./x.MODULE.bazel",
+        "//..:x.MODULE.bazel",
+        "//:",
+        "//a/:x.MODULE.bazel",
+        "//etc/passwd.MODULE.bazel",
+    ] {
+        let error = include_rel("", label).expect_err(label);
+        assert!(
+            error.contains("leaves the workspace") || error.contains("is not //package:file"),
+            "{label}: {error}"
+        );
+    }
+}
+
+#[test]
+fn an_include_must_name_a_module_file() {
+    for label in [
+        "//:deps.bzl",
+        "//:.hidden.MODULE.bazel",
+        "//a:b/.x.MODULE.bazel",
+    ] {
+        let error = include_rel("", label).expect_err(label);
+        assert!(
+            error == format!("include {label} must name a .MODULE.bazel file"),
+            "{label}: {error}"
+        );
+    }
+}
+
+#[test]
+fn an_include_of_a_repo_label_is_rejected() {
+    for label in [
+        "@//:deps.MODULE.bazel",
+        "@@//:deps.MODULE.bazel",
+        "@foo//:deps.MODULE.bazel",
+    ] {
+        let error = include_rel("", label).expect_err(label);
+        assert!(
+            error.contains(label) && error.contains("Bazel accepts only // labels in include"),
+            "{label}: {error}"
+        );
+    }
+}
+
+#[test]
+fn nested_includes_load_in_order() {
+    let read = |label: &str| -> Result<String, String> {
+        Ok(match label {
+            "//:a.MODULE.bazel" => "include(\"//:b.MODULE.bazel\")\nmodule(name = \"a\")\n",
+            "//:b.MODULE.bazel" => "module(name = \"b\")\n",
+            other => panic!("read {other}"),
+        }
+        .to_owned())
+    };
+    let files = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read).expect("loads");
+    assert_eq!(files.len(), 3);
+    let modules = files
+        .iter()
+        .flat_map(ModuleFile::calls)
+        .filter(|c| c.name == "module");
+    assert_eq!(modules.count(), 2);
+}
+
+#[test]
+fn an_included_parse_error_names_the_label_and_the_root_does_not() {
+    let read = |_: &str| -> Result<String, String> { Ok("bazel_dep(".to_owned()) };
+    let error = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read).expect_err("fails");
+    assert!(error.starts_with("//:a.MODULE.bazel: "), "{error}");
+    let root = load_with_includes("bazel_dep(", &read).expect_err("fails");
+    assert!(!root.contains("a.MODULE.bazel"), "{root}");
+}
+
+#[test]
+fn repeated_and_repo_includes_fail_before_reading() {
+    let read = |label: &str| -> Result<String, String> { panic!("read {label}") };
+    let error =
+        load_with_includes("include(\"@//:deps.MODULE.bazel\")\n", &read).expect_err("fails");
+    assert!(
+        error.contains("include @//:deps.MODULE.bazel is not a //package:file label")
+            && error.contains("MODULE.bazel line 1"),
+        "{error}"
+    );
+}
+
+fn insert_dep(source: &str) -> Result<String, ModuleError> {
+    ModuleFile::parse(source)?.insert_bazel_dep("demo", "1.2.3")
+}
+
+#[test]
+fn insert_bazel_dep_lands_after_the_last_dep_and_keeps_other_bytes() {
+    for (before, after) in [
+        (
+            "module(name = \"m\")\n\nbazel_dep(name = \"a\", version = \"1.0\")\nbazel_dep(name = \"b\", version = \"1.0\")  # pinned\n\nuse_repo(x, \"y\")\n",
+            "module(name = \"m\")\n\nbazel_dep(name = \"a\", version = \"1.0\")\nbazel_dep(name = \"b\", version = \"1.0\")  # pinned\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n\nuse_repo(x, \"y\")\n",
+        ),
+        (
+            "bazel_dep(\r\n    name = \"a\",\r\n    version = \"1.0\",\r\n)\r\n",
+            "bazel_dep(\r\n    name = \"a\",\r\n    version = \"1.0\",\r\n)\r\nbazel_dep(name = \"demo\", version = \"1.2.3\")\r\n",
+        ),
+        (
+            "module(\n    name = \"m\",\n)\n\nregister_toolchains(\"//x\")\n",
+            "module(\n    name = \"m\",\n)\n\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n\nregister_toolchains(\"//x\")\n",
+        ),
+        (
+            "bazel_dep(name = \"a\", version = \"1.0\")",
+            "bazel_dep(name = \"a\", version = \"1.0\")\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n",
+        ),
+        ("", "bazel_dep(name = \"demo\", version = \"1.2.3\")\n"),
+        (
+            "# root\n",
+            "# root\n\nbazel_dep(name = \"demo\", version = \"1.2.3\")\n",
+        ),
+    ] {
+        assert_eq!(insert_dep(before).as_deref(), Ok(after), "{before:?}");
+    }
+}
+
+#[test]
+fn insert_bazel_dep_rejects_declared_and_unsafe_names() {
+    assert_eq!(
+        insert_dep("bazel_dep(name = \"demo\", version = \"1.0.0\")\n"),
+        Err(ModuleError::AlreadyDeclared {
+            name: "demo".to_owned()
+        })
+    );
+    assert_eq!(
+        insert_dep(
+            "bazel_dep(name = \"demo\", version = \"1.0.0\")\nbazel_dep(name = \"demo\", version = \"1.0.0\")\n"
+        ),
+        Err(ModuleError::AlreadyDeclared {
+            name: "demo".to_owned()
+        })
+    );
+    assert!(matches!(
+        insert_dep("bazel_dep(name = NAME, version = \"1.0.0\")\n"),
+        Err(ModuleError::ComputedName { .. })
+    ));
+    assert!(matches!(
+        parse("").insert_bazel_dep("de\"mo", "1.0.0"),
+        Err(ModuleError::UnsafeString { .. })
+    ));
+}
+
+const MAVEN_HEAD: &str = "bazel_dep(name = \"rules_jvm_external\", version = \"6.0\")\nmaven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n";
+
+fn insert_artifact(body: &str) -> Result<String, ModuleError> {
+    ModuleFile::parse(&format!("{MAVEN_HEAD}{body}"))?.insert_maven_artifact("g:a:1.0.0")
+}
+
+#[test]
+fn insert_maven_artifact_appends_to_the_default_install() {
+    for (before, after) in [
+        (
+            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n    ],\n)\n",
+            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n        \"g:a:1.0.0\",\n    ],\n)\n",
+        ),
+        (
+            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\"\n    ],\n)\n",
+            "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n        \"g:a:1.0.0\"\n    ],\n)\n",
+        ),
+        (
+            "maven.install(artifacts = ['junit:junit:4.13.2'])\n",
+            "maven.install(artifacts = ['junit:junit:4.13.2', 'g:a:1.0.0'])\n",
+        ),
+        (
+            "maven.install(\r\n    artifacts = [\r\n        \"junit:junit:4.13.2\",  # test\r\n    ],\r\n)\r\n",
+            "maven.install(\r\n    artifacts = [\r\n        \"junit:junit:4.13.2\",  # test\r\n        \"g:a:1.0.0\",\r\n    ],\r\n)\r\n",
+        ),
+        (
+            "maven.install(artifacts = [\"junit:junit:4.13.2\"])\nother = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nother.install(name = \"other\", artifacts = [\"x:y:1\"])\n",
+            "maven.install(artifacts = [\"junit:junit:4.13.2\", \"g:a:1.0.0\"])\nother = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nother.install(name = \"other\", artifacts = [\"x:y:1\"])\n",
+        ),
+    ] {
+        let expected = format!("{MAVEN_HEAD}{after}");
+        assert_eq!(insert_artifact(before), Ok(expected), "{before:?}");
+    }
+}
+
+#[test]
+fn insert_maven_artifact_fails_closed_on_unclear_lists() {
+    for body in [
+        "",
+        "maven.install(artifacts = [])\n",
+        "maven.install(artifacts = ARTIFACTS)\n",
+        "maven.install(artifacts = [\"a:b:1\"] + EXTRA)\n",
+        "maven.install(artifacts = [\"a:b:1\"])\nmaven.install(name = \"maven\", artifacts = [\"c:d:1\"])\n",
+        "maven.install(name = NAME, artifacts = [\"a:b:1\"])\n",
+        "maven.install(**KW)\n",
+    ] {
+        assert!(insert_artifact(body).is_err(), "{body:?}");
+    }
+}

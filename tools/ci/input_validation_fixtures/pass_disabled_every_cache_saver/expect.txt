@@ -1,0 +1,11 @@
+input {"DX_DISABLED_CHECKS": "coverage,test,build"}
+exit 0
+says DX_DISABLED_CHECKS coverage,test,build
+out artifact_suffix ""
+out cache_saver ""
+out disabled "coverage,test,build"
+out min_changed_line_coverage ""
+out min_coverage ""
+out platforms ["linux_x86_64"]
+out runners {"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-15","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}
+out snapshot_artifact "advisory-snapshots"

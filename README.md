@@ -1,22 +1,16 @@
 # rules_dx
 
-Pre-release. `rules_dx` is a Bazel developer platform with one `dx` CLI for
+`rules_dx` is a Bazel developer platform with one `dx` CLI for
 build, test, lint, typecheck, format, generate, audit, and release tasks.
 Language toolchains come from Bazel. No separate installs.
 
 ## Install
 
-Prerequisites: Bazel via Bazelisk (see `.bazelversion`).
-
-```sh
-bazel build //...
-```
+Bazel via Bazelisk (reads `.bazelversion`).
 
 ## Quickstart
 
-`dx` runs through Bazel. No install step publishes `dx` outside the repo yet.
-`@rules_dx//:dx` is the public launcher. Inside this checkout `//:dx` is the
-same target.
+`dx` runs through Bazel.
 
 ```sh
 bazel run @rules_dx//:dx -- --help

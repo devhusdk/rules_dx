@@ -10,7 +10,7 @@ load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
-load("//libs/starlark:resources.bzl", "dx_quality_resources")
+load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load(
     "//quality:adapters.bzl",
     "REAL_ADAPTERS",
@@ -22,60 +22,67 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "upstream_source_class")
+load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 _REAL_TOOL_TABLE = {
-    "biome": {"capabilities": ["format", "lint"], "shard": "core"},
-    "buf": {"capabilities": ["format", "lint"], "shard": "protobuf"},
-    "buildifier": {"capabilities": ["format", "lint"], "shard": "core"},
-    "checkstyle": {"capabilities": ["lint"], "shard": "jvm"},
-    "clang_format": {"capabilities": ["format"], "shard": "cc"},
-    "clang_tidy": {"capabilities": ["lint"], "shard": "cc"},
-    "clippy": {"capabilities": ["lint"], "shard": "rust"},
-    "csharpier": {"capabilities": ["format"], "shard": "dotnet"},
-    "cue": {"capabilities": ["format"], "shard": "cue"},
-    "erlfmt": {"capabilities": ["format"], "shard": "core"},
-    "djlint": {"capabilities": ["format", "lint"], "shard": "html_template"},
-    "eslint": {"capabilities": ["lint"], "shard": "js"},
-    "fantomas": {"capabilities": ["format"], "shard": "dotnet"},
-    "flake8": {"capabilities": ["lint"], "shard": "py"},
-    "fsharplint": {"capabilities": ["lint"], "shard": "dotnet"},
-    "gleam_format": {"capabilities": ["format"], "shard": "core"},
-    "google_java_format": {"capabilities": ["format"], "shard": "jvm"},
-    "jsonnetfmt": {"capabilities": ["format"], "shard": "jsonnet"},
-    "keep_sorted": {"capabilities": ["lint"], "shard": "text"},
-    "ktfmt": {"capabilities": ["format"], "shard": "jvm"},
-    "ktlint": {"capabilities": ["lint"], "shard": "jvm"},
-    "markdown_check": {"capabilities": ["lint"], "shard": "core"},
-    "mix_format": {"capabilities": ["format"], "shard": "core"},
-    "pmd": {"capabilities": ["lint"], "shard": "jvm"},
-    "psscriptanalyzer": {"capabilities": ["lint"], "shard": "powershell"},
-    "prettier": {"capabilities": ["format"], "shard": "js"},
-    "pydoclint": {"capabilities": ["lint"], "shard": "py"},
-    "pylint": {"capabilities": ["lint"], "shard": "py"},
-    "qmlformat": {"capabilities": ["format"], "shard": "core"},
-    "qmllint": {"capabilities": ["lint"], "shard": "core"},
-    "rubocop": {"capabilities": ["lint"], "shard": "ruby"},
-    "roslyn": {"capabilities": ["lint"], "shard": "dotnet"},
-    "ruff": {"capabilities": ["format", "lint"], "shard": "core"},
-    "rustc": {"capabilities": ["typecheck"], "shard": "rust"},
-    "rustfmt": {"capabilities": ["format"], "shard": "rust"},
-    "scalafix": {"capabilities": ["lint"], "shard": "scala"},
-    "scalafmt": {"capabilities": ["format"], "shard": "scala"},
-    "shellcheck": {"capabilities": ["lint"], "shard": "shell"},
-    "shfmt": {"capabilities": ["format"], "shard": "shell"},
-    "spotbugs": {"capabilities": ["lint"], "shard": "jvm"},
-    "stylelint": {"capabilities": ["lint"], "shard": "js"},
-    "standardrb": {"capabilities": ["format"], "shard": "ruby"},
-    "taplo": {"capabilities": ["format", "lint"], "shard": "core"},
-    "terraform": {"capabilities": ["format"], "shard": "terraform"},
-    "ty": {"capabilities": ["typecheck"], "shard": "core"},
-    "vale": {"capabilities": ["lint"], "shard": "core"},
-    "yamlfmt": {"capabilities": ["format"], "shard": "yaml"},
-    "yamllint": {"capabilities": ["lint"], "shard": "yaml"},
-    "zig_fmt": {"capabilities": ["format"], "shard": "core"},
+    "biome": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
+    "buf": {"capabilities": ["format", "lint"], "shard": "protobuf", "resources": "light"},
+    "buildifier": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
+    "checkstyle": {"capabilities": ["lint"], "shard": "jvm", "resources": "heavy"},
+    "clang_format": {"capabilities": ["format"], "shard": "cc", "resources": "light"},
+    "clang_tidy": {"capabilities": ["lint"], "shard": "cc", "resources": "heavy"},
+    "cppcheck": {"capabilities": ["lint"], "shard": "cc", "resources": "heavy"},
+    "clippy": {"capabilities": ["lint"], "shard": "rust", "resources": "heavy"},
+    "csharpier": {"capabilities": ["format"], "shard": "dotnet", "resources": "heavy"},
+    "cue": {"capabilities": ["format"], "shard": "cue", "resources": "light"},
+    "erlfmt": {"capabilities": ["format"], "shard": "core", "resources": "medium"},
+    "djlint": {"capabilities": ["format", "lint"], "shard": "html_template", "resources": "medium"},
+    "eslint": {"capabilities": ["lint"], "shard": "js", "resources": "heavy"},
+    "fantomas": {"capabilities": ["format"], "shard": "dotnet", "resources": "heavy"},
+    "flake8": {"capabilities": ["lint"], "shard": "py", "resources": "medium"},
+    "fsharplint": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
+    "gleam_format": {"capabilities": ["format"], "shard": "core", "resources": "light"},
+    "gofumpt": {"capabilities": ["format"], "shard": "go", "resources": "light"},
+    "google_java_format": {"capabilities": ["format"], "shard": "jvm", "resources": "heavy"},
+    "graphql_eslint": {"capabilities": ["lint"], "shard": "js", "resources": "heavy"},
+    "hadolint": {"capabilities": ["lint"], "shard": "dockerfile", "resources": "light"},
+    "jsonnetfmt": {"capabilities": ["format"], "shard": "jsonnet", "resources": "light"},
+    "keep_sorted": {"capabilities": ["lint"], "shard": "text", "resources": "light"},
+    "ktfmt": {"capabilities": ["format"], "shard": "jvm", "resources": "heavy"},
+    "ktlint": {"capabilities": ["lint"], "shard": "jvm", "resources": "heavy"},
+    "markdown_check": {"capabilities": ["lint"], "shard": "core", "resources": "light"},
+    "mix_format": {"capabilities": ["format"], "shard": "core", "resources": "medium"},
+    "pkl": {"capabilities": ["format"], "shard": "pkl", "resources": "medium"},
+    "pmd": {"capabilities": ["lint"], "shard": "jvm", "resources": "heavy"},
+    "psscriptanalyzer": {"capabilities": ["lint"], "shard": "powershell", "resources": "heavy"},
+    "prettier": {"capabilities": ["format"], "shard": "js", "resources": "heavy"},
+    "pydoclint": {"capabilities": ["lint"], "shard": "py", "resources": "medium"},
+    "pylint": {"capabilities": ["lint"], "shard": "py", "resources": "medium"},
+    "qmlformat": {"capabilities": ["format"], "shard": "core", "resources": "light"},
+    "qmllint": {"capabilities": ["lint"], "shard": "core", "resources": "medium"},
+    "redocly": {"capabilities": ["lint"], "shard": "js", "resources": "medium"},
+    "remark": {"capabilities": ["format"], "shard": "js", "resources": "heavy"},
+    "rubocop": {"capabilities": ["lint"], "shard": "ruby", "resources": "medium"},
+    "roslyn": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
+    "ruff": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
+    "rustc": {"capabilities": ["typecheck"], "shard": "rust", "resources": "heavy"},
+    "rustfmt": {"capabilities": ["format"], "shard": "rust", "resources": "light"},
+    "scalafix": {"capabilities": ["lint"], "shard": "scala", "resources": "heavy"},
+    "scalafmt": {"capabilities": ["format"], "shard": "scala", "resources": "heavy"},
+    "shellcheck": {"capabilities": ["lint"], "shard": "shell", "resources": "light"},
+    "shfmt": {"capabilities": ["format"], "shard": "shell", "resources": "light"},
+    "spotbugs": {"capabilities": ["lint"], "shard": "jvm", "resources": "heavy"},
+    "stylelint": {"capabilities": ["lint"], "shard": "js", "resources": "heavy"},
+    "standardrb": {"capabilities": ["format"], "shard": "ruby", "resources": "medium"},
+    "taplo": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
+    "terraform": {"capabilities": ["format"], "shard": "terraform", "resources": "light"},
+    "ty": {"capabilities": ["typecheck"], "shard": "core", "resources": "medium"},
+    "vale": {"capabilities": ["lint"], "shard": "core", "resources": "light"},
+    "yamlfmt": {"capabilities": ["format"], "shard": "yaml", "resources": "light"},
+    "yamllint": {"capabilities": ["lint"], "shard": "yaml", "resources": "medium"},
+    "zig_fmt": {"capabilities": ["format"], "shard": "core", "resources": "light"},
 }
 
 def _shard_tools(shard, capability):
@@ -97,10 +104,13 @@ _SCALA_FORMAT_TOOLS = _shard_tools("scala", "format")
 _SCALA_LINT_TOOLS = _shard_tools("scala", "lint")
 _SHELL_LINT_TOOLS = _shard_tools("shell", "lint")
 _SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
+_DOCKERFILE_LINT_TOOLS = _shard_tools("dockerfile", "lint")
 _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
 _TERRAFORM_FORMAT_TOOLS = _shard_tools("terraform", "format")
+_GO_FORMAT_TOOLS = _shard_tools("go", "format")
 _CUE_FORMAT_TOOLS = _shard_tools("cue", "format")
 _JSONNET_FORMAT_TOOLS = _shard_tools("jsonnet", "format")
+_PKL_FORMAT_TOOLS = _shard_tools("pkl", "format")
 _PROTOBUF_FORMAT_TOOLS = _shard_tools("protobuf", "format")
 _PROTOBUF_LINT_TOOLS = _shard_tools("protobuf", "lint")
 _JVM_LINT_TOOLS = _shard_tools("jvm", "lint")
@@ -116,8 +126,8 @@ _YAML_LINT_TOOLS = _shard_tools("yaml", "lint")
 _POWERSHELL_LINT_TOOLS = _shard_tools("powershell", "lint")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _YAML_FORMAT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS)),
-    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _GO_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _YAML_FORMAT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS)),
+    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _DOCKERFILE_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -164,12 +174,15 @@ def upstream_direct_sources(target, ctx):
     if is_cc:
         cc_srcs = getattr(ctx.rule.files, "srcs", None)
         cc_hdrs = getattr(ctx.rule.files, "hdrs", None)
-        if cc_srcs == None and cc_hdrs == None:
-            return (True, {}, "upstream cc target has no readable srcs or hdrs; unsupported ownership is unchecked, not clean")
+        cc_non_arc_srcs = getattr(ctx.rule.files, "non_arc_srcs", None)
+        if cc_srcs == None and cc_hdrs == None and cc_non_arc_srcs == None:
+            return (True, {}, "upstream cc target has no readable srcs, hdrs or non_arc_srcs; unsupported ownership is unchecked, not clean")
         if cc_srcs != None:
             files.extend(cc_srcs)
         if cc_hdrs != None:
             files.extend(cc_hdrs)
+        if cc_non_arc_srcs != None:
+            files.extend(cc_non_arc_srcs)
     buckets = {}
     for f in files:
         if not f.is_source:
@@ -210,17 +223,19 @@ def _qml_context_impl(target, ctx):
 
 _qml_context_aspect = aspect(
     implementation = _qml_context_impl,
+    doc = "Collects QML import context files through deps.",
     attr_aspects = ["deps"],
     provides = [QmlContextInfo],
 )
 
 def _jvm_jar_key(jar):
-    """Returns the jar basename without its header or ijar marker."""
+    """Returns the jar path without its header or ijar marker."""
     name = jar.basename.removeprefix("header_")
     for suffix in ["-hjar.jar", "-ijar.jar"]:
         if name.endswith(suffix):
-            return "jar:" + name.removesuffix(suffix) + ".jar"
-    return "jar:" + name
+            name = name.removesuffix(suffix) + ".jar"
+            break
+    return "jar:" + jar.short_path.rpartition("/")[0] + "/" + name
 
 def _jvm_aux_jars(java_info, owned):
     """Returns the runtime classpath jars plus compile-only jars not in owned."""
@@ -293,16 +308,47 @@ def _fsharplint_context(target, ctx, what):
     )
     return (refs, context)
 
-def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
-    what = "real_aspect (" + str(target.label) + ")"
+def _tool_files_to_run(target, flag, tool, what):
+    """Returns the flag's tool, else the one the target carries."""
+    ftr = flag[DefaultInfo].files_to_run
+    if ftr != None and ftr.executable != None:
+        return ftr
+    if QualityToolsInfo in target and tool in target[QualityToolsInfo].tools:
+        return target[QualityToolsInfo].tools[tool]
+    fail(what + ": " + tool + " has no executable; use zig_library, zig_binary or zig_test from @rules_dx//zig/rules:defs.bzl, or set --@rules_dx//config:tool_" + tool + "=@rules_dx//zig/tools:zig")
+
+_GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
+
+def go_lang_version(sdk_version):
+    """Returns the gofumpt -lang value (go<major>.<minor>) for one Go SDK version."""
+    parts = sdk_version.removeprefix("go").split(".")
+    minor = ""
+    if len(parts) >= 2:
+        for c in parts[1].elems():
+            if not c.isdigit():
+                break
+            minor += c
+    if len(parts) < 2 or not parts[0].isdigit() or minor == "":
+        fail("gofumpt: cannot derive -lang from Go SDK version '" + sdk_version + "'")
+    return "go" + parts[0] + "." + minor
+
+def _gofumpt_lang(ctx, what):
+    """Derives gofumpt -lang from the resolved rules_go SDK."""
+    toolchain = ctx.toolchains[_GO_TOOLCHAIN_TYPE]
+    if toolchain == None:
+        fail(what + ": gofumpt needs a registered rules_go Go toolchain to derive -lang")
+    return go_lang_version(toolchain.sdk.version)
+
+def _real_resolved_stages(target, ctx, capability, what):
+    """Resolves one target's pipeline stages for both the real shards and the probe."""
     policy = ctx.attr._policy[QualityPolicyInfo]
     policy_error = real_policy_error(policy, capability, what)
     if policy_error != "":
         fail(policy_error)
     if aspect_capability_blocked(ctx.rule.attr, capability):
-        return []
+        return ([], None, None)
     if target.label.workspace_name != "":
-        return []
+        return ([], None, None)
     if QualitySourcesInfo in target:
         direct_sources = target[QualitySourcesInfo].direct_sources
     else:
@@ -310,9 +356,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if ownership_error != "":
             fail(what + ": " + ownership_error)
         if not recognized:
-            return []
+            return ([], None, None)
         if len(derived) == 0:
-            return []
+            return ([], None, None)
         direct_sources = derived
 
     (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(direct_sources, what)
@@ -329,15 +375,16 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         err = deferred_pipeline_error(target_classes, capability)
         if err != "":
             fail(what + ": " + err)
+    return (resolved, direct_files, path_to_file)
+
+def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
+    what = "real_aspect (" + str(target.label) + ")"
+    (resolved, direct_files, path_to_file) = _real_resolved_stages(target, ctx, capability, what)
+    if len(resolved) == 0:
         return []
     resolved = filter_pipeline_by_tools(resolved, allowed_tools)
     if len(resolved) == 0:
         return []
-
-    if "tsc" in [stage["tool"] for stage in resolved]:
-        resolved = drop_pipeline_tool(resolved, "tsc")
-        if len(resolved) == 0:
-            return []
 
     spotbugs_owned = []
     spotbugs_aux = []
@@ -375,10 +422,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         (fsharplint_refs, fsharplint_context) = _fsharplint_context(target, ctx, what)
 
     roslyn_sarif = None
+    roslyn_status = None
     if "roslyn" in [stage["tool"] for stage in resolved]:
         if RoslynInfo not in target:
             fail(what + ": roslyn needs a csharp_* target compiled with the SDK analyzers")
         roslyn_sarif = target[RoslynInfo].sarif
+        roslyn_status = target[RoslynInfo].status
 
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
@@ -423,7 +472,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label))
 
     for stage in resolved:
-        config_error = missing_required_config_error(stage["tool"], configs_by_tool, str(target.label))
+        config_error = missing_required_config_error(stage["tool"], capability, configs_by_tool, str(target.label))
         if config_error != "":
             fail(config_error)
 
@@ -445,6 +494,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_extra["prettier"] = ctx.attr._prettier[DefaultInfo].files.to_list()
     if "pydoclint" in stage_tools:
         tool_binaries["pydoclint"] = ctx.executable._pydoclint
+    if "remark" in stage_tools:
+        tool_binaries["remark"] = ctx.executable._remark
+        tool_extra["remark"] = ctx.attr._remark[DefaultInfo].files.to_list()
     if "pylint" in stage_tools:
         tool_binaries["pylint"] = ctx.executable._pylint
     if "qmlformat" in stage_tools:
@@ -473,10 +525,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(what + ": mix_format has no executable; set --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format")
         tool_binaries["mix_format"] = mix_format
     if "zig_fmt" in stage_tools:
-        zig_fmt = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
-        if zig_fmt == None:
-            fail(what + ": zig_fmt has no executable; set --@rules_dx//config:tool_zig_fmt=@rules_dx//zig/tools:zig")
-        tool_binaries["zig_fmt"] = zig_fmt
+        tool_binaries["zig_fmt"] = _tool_files_to_run(target, ctx.attr._zig_fmt, "zig_fmt", what).executable
+    if "gofumpt" in stage_tools:
+        gofumpt = ctx.attr._gofumpt[DefaultInfo].files_to_run
+        if gofumpt == None or gofumpt.executable == None:
+            fail(what + ": gofumpt has no executable; set --@rules_dx//config:tool_gofumpt to a gofumpt binary")
+        tool_binaries["gofumpt"] = gofumpt.executable
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff
     if "csharpier" in stage_tools:
@@ -503,6 +557,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["shellcheck"] = ctx.file._shellcheck
     if "shfmt" in stage_tools:
         tool_binaries["shfmt"] = ctx.file._shfmt
+    if "hadolint" in stage_tools:
+        tool_binaries["hadolint"] = ctx.file._hadolint
     if "keep_sorted" in stage_tools:
         tool_binaries["keep_sorted"] = ctx.file._keep_sorted
     if "taplo" in stage_tools:
@@ -513,6 +569,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["cue"] = ctx.file._cue
     if "jsonnetfmt" in stage_tools:
         tool_binaries["jsonnetfmt"] = ctx.file._jsonnetfmt
+    if "pkl" in stage_tools:
+        tool_binaries["pkl"] = ctx.file._pkl
     if "buf" in stage_tools:
         tool_binaries["buf"] = ctx.file._buf
     if "psscriptanalyzer" in stage_tools:
@@ -520,6 +578,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "stylelint" in stage_tools:
         tool_binaries["stylelint"] = ctx.executable._stylelint
         tool_extra["stylelint"] = ctx.attr._stylelint[DefaultInfo].files.to_list()
+    if "graphql_eslint" in stage_tools:
+        tool_binaries["graphql_eslint"] = ctx.executable._graphql_eslint
+        tool_extra["graphql_eslint"] = ctx.attr._graphql_eslint[DefaultInfo].files.to_list()
+    if "redocly" in stage_tools:
+        tool_binaries["redocly"] = ctx.executable._redocly
+        tool_extra["redocly"] = ctx.attr._redocly[DefaultInfo].files.to_list()
     if "ty" in stage_tools:
         tool_binaries["ty"] = ctx.file._ty
     if "vale" in stage_tools:
@@ -534,6 +598,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["clang_format"] = ctx.file._clang_format
     if "clang_tidy" in stage_tools:
         tool_binaries["clang_tidy"] = ctx.file._clang_tidy
+    if "cppcheck" in stage_tools:
+        tool_binaries["cppcheck"] = ctx.executable._cppcheck
+        tool_extra["cppcheck"] = ctx.attr._cppcheck[DefaultInfo].default_runfiles.files.to_list()
     if "pmd" in stage_tools:
         tool_binaries["pmd"] = ctx.executable._pmd
     if "spotbugs" in stage_tools:
@@ -635,6 +702,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    if "redocly" in stage_tools:
+        for f in target[DefaultInfo].files.to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or f.extension not in ["yaml", "yml", "json"]:
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     if "buf" in stage_tools and ProtoInfo in target:
         proto_roots = sorted([r for r in target[ProtoInfo].transitive_proto_path.to_list() if r != "."], key = lambda r: -len(r))
         for f in target[ProtoInfo].transitive_sources.to_list():
@@ -684,9 +759,18 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "prettier" in stage_tools:
         run_tools.append(ctx.attr._prettier[DefaultInfo].files_to_run)
         tool_env_entries["prettier"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    if "remark" in stage_tools:
+        run_tools.append(ctx.attr._remark[DefaultInfo].files_to_run)
+        tool_env_entries["remark"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "stylelint" in stage_tools:
         run_tools.append(ctx.attr._stylelint[DefaultInfo].files_to_run)
         tool_env_entries["stylelint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    if "graphql_eslint" in stage_tools:
+        run_tools.append(ctx.attr._graphql_eslint[DefaultInfo].files_to_run)
+        tool_env_entries["graphql_eslint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    if "redocly" in stage_tools:
+        run_tools.append(ctx.attr._redocly[DefaultInfo].files_to_run)
+        tool_env_entries["redocly"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "pydoclint" in stage_tools:
         run_tools.append(ctx.attr._pydoclint[DefaultInfo].files_to_run)
         tool_env_entries["pydoclint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
@@ -724,9 +808,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "qmllint" in stage_tools:
         run_tools.append(ctx.attr._qmllint[DefaultInfo].files_to_run)
     if "zig_fmt" in stage_tools:
-        run_tools.append(ctx.attr._zig_fmt[DefaultInfo].files_to_run)
+        run_tools.append(_tool_files_to_run(target, ctx.attr._zig_fmt, "zig_fmt", what))
     if "erlfmt" in stage_tools:
         run_tools.append(ctx.attr._erlfmt[DefaultInfo].files_to_run)
+    if "gofumpt" in stage_tools:
+        run_tools.append(ctx.attr._gofumpt[DefaultInfo].files_to_run)
     if "gleam_format" in stage_tools:
         run_tools.append(ctx.attr._gleam_format[DefaultInfo].files_to_run)
     if "mix_format" in stage_tools:
@@ -788,6 +874,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         edition = None
         if tool == "rustfmt":
             edition = rustfmt_edition
+        if tool == "gofumpt":
+            edition = _gofumpt_lang(ctx, what)
         config_rel = None
         if tool in configs_by_tool:
             hint = configs_by_tool[tool]
@@ -807,6 +895,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if tool == "roslyn":
             upstream.append(roslyn_sarif.path)
             inputs.append(roslyn_sarif)
+            tool_files.append(real_request_tool_file("dx-roslyn/exit", roslyn_status.path))
+            inputs.append(roslyn_status)
         request_tools[tool] = real_request_tool(
             binary_path = binary_path,
             config_rel = config_rel,
@@ -842,7 +932,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         arguments = [args],
         execution_requirements = dx_stage_execution_requirements(stage_tools, capability),
         mnemonic = "DxRealQuality" + capability.capitalize(),
-        resource_set = dx_quality_resources,
+        resource_set = real_quality_resource_set(sorted(tool_binaries.keys())),
         progress_message = "Dx real quality " + capability + " %{label}",
     )
 
@@ -856,9 +946,9 @@ def _make_real_impl(capability, allowed_tools, output_suffix, has_rust_toolchain
 
     return _impl
 
-def real_wired_tools():
-    """Returns the sorted tool IDs the real aspects can run."""
-    return sorted(_REAL_TOOL_TABLE.keys())
+def real_quality_resource_set(tools):
+    """Returns the resource_set callback for the costliest tier among the launched tools."""
+    return dx_quality_resource_set([_REAL_TOOL_TABLE[tool]["resources"] for tool in tools])
 
 def real_allowed_tools_error():
     """Validates aspect shards stay registry subsets."""
@@ -866,7 +956,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _DOCKERFILE_LINT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _GO_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -875,6 +965,8 @@ def real_allowed_tools_error():
     for tool in _REAL_TOOL_TABLE:
         if tool not in REAL_ADAPTERS:
             return "real aspects: table tool '" + tool + "' is outside REAL_ADAPTERS"
+        if _REAL_TOOL_TABLE[tool].get("resources") not in DX_QUALITY_TIERS:
+            return "real aspects: table tool '" + tool + "' names unknown resources tier '" + str(_REAL_TOOL_TABLE[tool].get("resources")) + "'"
         for capability in _REAL_TOOL_TABLE[tool]["capabilities"]:
             if capability not in REAL_ADAPTERS[tool]:
                 return "real aspects: table tool '" + tool + "' names unwired capability '" + capability + "'"
@@ -919,6 +1011,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "cppcheck": attr.label(
+        default = "//quality/tools/cc:cppcheck",
+        cfg = "exec",
+        executable = True,
+    ),
     "eslint": attr.label(
         default = "//quality/tools/javascript/bin:eslint",
         cfg = "exec",
@@ -931,6 +1028,11 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "google_java_format": attr.label(
         default = "//quality/tools/jvm:google_java_format",
+        cfg = "exec",
+        executable = True,
+    ),
+    "graphql_eslint": attr.label(
+        default = "//quality/tools/javascript/bin:graphql_eslint",
         cfg = "exec",
         executable = True,
     ),
@@ -964,8 +1066,18 @@ _REAL_TOOL_ATTR_DEFS = {
         cfg = "exec",
         executable = True,
     ),
+    "remark": attr.label(
+        default = "//quality/tools/javascript/bin:remark",
+        cfg = "exec",
+        executable = True,
+    ),
     "stylelint": attr.label(
         default = "//quality/tools/javascript/bin:stylelint",
+        cfg = "exec",
+        executable = True,
+    ),
+    "redocly": attr.label(
+        default = "//quality/tools/javascript/bin:redocly",
         cfg = "exec",
         executable = True,
     ),
@@ -1059,6 +1171,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "hadolint": attr.label(
+        default = "//config:tool_hadolint",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
     "keep_sorted": attr.label(
         default = "@dx_tools//:keep_sorted",
         allow_single_file = True,
@@ -1101,6 +1218,17 @@ _REAL_TOOL_ATTR_DEFS = {
     ),
     "djlint": attr.label(
         default = "//quality/tools/python:djlint",
+        cfg = "exec",
+        executable = True,
+    ),
+    "pkl": attr.label(
+        default = "//config:tool_pkl",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
+    "gofumpt": attr.label(
+        default = "//config:tool_gofumpt",
+        allow_files = True,
         cfg = "exec",
         executable = True,
     ),
@@ -1152,28 +1280,32 @@ _REAL_SCALA_FORMAT_ATTRS = _real_attrs_for(_SCALA_FORMAT_TOOLS)
 _REAL_SCALA_LINT_ATTRS = _real_attrs_for(_SCALA_LINT_TOOLS)
 _REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
 _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
+_REAL_DOCKERFILE_LINT_ATTRS = _real_attrs_for(_DOCKERFILE_LINT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 _REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
+_REAL_GO_FORMAT_ATTRS = _real_attrs_for(_GO_FORMAT_TOOLS)
 _REAL_CUE_FORMAT_ATTRS = _real_attrs_for(_CUE_FORMAT_TOOLS)
 _REAL_JSONNET_FORMAT_ATTRS = _real_attrs_for(_JSONNET_FORMAT_TOOLS)
+_REAL_PKL_FORMAT_ATTRS = _real_attrs_for(_PKL_FORMAT_TOOLS)
 _REAL_PROTOBUF_FORMAT_ATTRS = _real_attrs_for(_PROTOBUF_FORMAT_TOOLS)
 _REAL_PROTOBUF_LINT_ATTRS = _real_attrs_for(_PROTOBUF_LINT_TOOLS)
 _REAL_POWERSHELL_LINT_ATTRS = _real_attrs_for(_POWERSHELL_LINT_TOOLS)
 
 _REAL_SHARDS = {
     "real_cc_format": {"attrs": _REAL_CC_FORMAT_ATTRS, "capability": "format", "doc": "Additive C/C++ format family aspect (clang-format).", "has_rust": False, "suffix": "-cc", "tools": _CC_FORMAT_TOOLS},
-    "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
+    "real_cc_lint": {"attrs": _REAL_CC_LINT_ATTRS, "capability": "lint", "doc": "Additive C/C++ lint family aspect (clang-tidy, cppcheck opt-in).", "has_rust": False, "suffix": "-cc", "tools": _CC_LINT_TOOLS},
     "real_dotnet_format": {"attrs": _REAL_DOTNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive C#/F# format family aspect (CSharpier/Fantomas).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_FORMAT_TOOLS},
     "real_dotnet_lint": {"attrs": _REAL_DOTNET_LINT_ATTRS, "capability": "lint", "doc": "Additive C#/F# lint family aspect (Roslyn/FSharpLint).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_LINT_TOOLS},
     "real_ruby_format": {"attrs": _REAL_RUBY_FORMAT_ATTRS, "capability": "format", "doc": "Additive Ruby format family aspect (Standard).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_FORMAT_TOOLS},
     "real_ruby_lint": {"attrs": _REAL_RUBY_LINT_ATTRS, "capability": "lint", "doc": "Additive Ruby lint family aspect (RuboCop).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_LINT_TOOLS},
+    "real_go_format": {"attrs": _REAL_GO_FORMAT_ATTRS, "capability": "format", "doc": "Additive Go format family aspect (gofumpt).", "has_rust": False, "suffix": "-go", "toolchains": [config_common.toolchain_type(_GO_TOOLCHAIN_TYPE, mandatory = False)], "tools": _GO_FORMAT_TOOLS},
     "real_html_template_format": {"attrs": _REAL_HTML_TEMPLATE_FORMAT_ATTRS, "capability": "format", "doc": "Additive HTML template format family aspect (djLint).", "has_rust": False, "suffix": "-html-template", "tools": _HTML_TEMPLATE_FORMAT_TOOLS},
     "real_html_template_lint": {"attrs": _REAL_HTML_TEMPLATE_LINT_ATTRS, "capability": "lint", "doc": "Additive HTML template lint family aspect (djLint).", "has_rust": False, "suffix": "-html-template", "tools": _HTML_TEMPLATE_LINT_TOOLS},
     "real_yaml_format": {"attrs": _REAL_YAML_FORMAT_ATTRS, "capability": "format", "doc": "Additive YAML format family aspect (yamlfmt).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_FORMAT_TOOLS},
     "real_yaml_lint": {"attrs": _REAL_YAML_LINT_ATTRS, "capability": "lint", "doc": "Additive YAML lint family aspect (yamllint).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_LINT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
-    "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
-    "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
+    "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON/MDX format family aspect (Prettier, remark).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
+    "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint/Redocly opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
     "real_jvm_lint": {"attrs": _REAL_JVM_LINT_ATTRS, "capability": "lint", "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_LINT_TOOLS},
     "real_lint": {"attrs": _REAL_CORE_ATTRS, "capability": "lint", "doc": "Registers the exact-input real lint pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_LINT_TOOLS},
@@ -1188,8 +1320,10 @@ _REAL_SHARDS = {
     "real_scala_lint": {"attrs": _REAL_SCALA_LINT_ATTRS, "capability": "lint", "doc": "Additive Scala lint family aspect (Scalafix; target-coupled via SemanticdbInfo and JavaInfo).", "has_rust": False, "suffix": "-scala", "tools": _SCALA_LINT_TOOLS},
     "real_shell_lint": {"attrs": _REAL_SHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive shell lint family aspect (ShellCheck).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_LINT_TOOLS},
     "real_shell_format": {"attrs": _REAL_SHELL_FORMAT_ATTRS, "capability": "format", "doc": "Additive shell format family aspect (shfmt).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_FORMAT_TOOLS},
+    "real_dockerfile_lint": {"attrs": _REAL_DOCKERFILE_LINT_ATTRS, "capability": "lint", "doc": "Additive Dockerfile lint family aspect (hadolint).", "has_rust": False, "suffix": "-dockerfile", "tools": _DOCKERFILE_LINT_TOOLS},
     "real_cue_format": {"attrs": _REAL_CUE_FORMAT_ATTRS, "capability": "format", "doc": "Additive CUE format family aspect (cue fmt).", "has_rust": False, "suffix": "-cue", "tools": _CUE_FORMAT_TOOLS},
     "real_jsonnet_format": {"attrs": _REAL_JSONNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive Jsonnet format family aspect (jsonnetfmt).", "has_rust": False, "suffix": "-jsonnet", "tools": _JSONNET_FORMAT_TOOLS},
+    "real_pkl_format": {"attrs": _REAL_PKL_FORMAT_ATTRS, "capability": "format", "doc": "Additive Pkl format family aspect (pkl format).", "has_rust": False, "suffix": "-pkl", "tools": _PKL_FORMAT_TOOLS},
     "real_terraform_format": {"attrs": _REAL_TERRAFORM_FORMAT_ATTRS, "capability": "format", "doc": "Additive Terraform format family aspect (terraform fmt).", "has_rust": False, "suffix": "-terraform", "tools": _TERRAFORM_FORMAT_TOOLS},
     "real_text_lint": {"attrs": _REAL_TEXT_LINT_ATTRS, "capability": "lint", "doc": "Additive text lint family aspect (keep-sorted).", "has_rust": False, "suffix": "-text", "tools": _TEXT_LINT_TOOLS},
     "real_typecheck": {"attrs": _REAL_CORE_ATTRS, "capability": "typecheck", "doc": "Registers the exact-input real typecheck pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_TYPECHECK_TOOLS},
@@ -1201,6 +1335,7 @@ def _make_real_aspect(shard_name):
     if shard["has_rust"] and shard_name == "real_rust_lint":
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            doc = shard["doc"],
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             toolchains = rust_toolchain_toolchains(),
@@ -1209,6 +1344,7 @@ def _make_real_aspect(shard_name):
     if shard["has_rust"]:
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            doc = shard["doc"],
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             toolchains = rust_toolchain_toolchains(),
@@ -1216,6 +1352,7 @@ def _make_real_aspect(shard_name):
     if "qmllint" in shard["tools"]:
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            doc = shard["doc"],
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             requires = [_qml_context_aspect],
@@ -1224,14 +1361,81 @@ def _make_real_aspect(shard_name):
     if "roslyn" in shard["tools"]:
         return aspect(
             implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+            doc = shard["doc"],
             attr_aspects = ["aspect_hints"],
             attrs = shard["attrs"],
             requires = [roslyn_aspect],
         )
     return aspect(
         implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+        doc = shard["doc"],
         attr_aspects = ["aspect_hints"],
         attrs = shard["attrs"],
+        toolchains = shard.get("toolchains", []),
+    )
+
+RealShardProbeInfo = provider(
+    doc = "Shard names the shard probe found for one target and capability.",
+    fields = {
+        "capability": "lint, format or typecheck",
+        "shards": "sorted shard names whose tool filter keeps a resolved stage",
+    },
+)
+
+def real_shard_result_stems():
+    """Maps each shard's dx_results stem ("real-" + capability + suffix) to its shard name."""
+    return {
+        "real-" + shard["capability"] + shard["suffix"]: shard_name
+        for shard_name, shard in _REAL_SHARDS.items()
+    }
+
+def real_wired_capabilities():
+    """Maps each tool to the sorted capabilities a built shard aspect runs for it."""
+    wired = {}
+    for shard in _REAL_SHARDS.values():
+        for tool in shard["tools"]:
+            if shard["capability"] not in wired.setdefault(tool, []):
+                wired[tool].append(shard["capability"])
+    return {tool: sorted(caps) for tool, caps in wired.items()}
+
+def _probe_shards(resolved, capability):
+    """Names every shard of the capability whose tool filter keeps a stage."""
+    shards = []
+    for shard_name in sorted(_REAL_SHARDS.keys()):
+        shard = _REAL_SHARDS[shard_name]
+        if shard["capability"] != capability:
+            continue
+        if len(filter_pipeline_by_tools(resolved, shard["tools"])) > 0:
+            shards.append(shard_name)
+    return shards
+
+def _make_real_probe_impl(capability):
+    """Makes the shard probe impl for one capability."""
+
+    def _impl(target, ctx):
+        what = "real_aspect (" + str(target.label) + ")"
+        (resolved, _direct_files, _path_to_file) = _real_resolved_stages(target, ctx, capability, what)
+        if len(resolved) == 0:
+            return []
+        shards = _probe_shards(resolved, capability)
+        if len(shards) == 0:
+            return []
+        out = ctx.actions.declare_file(target.label.name + ".dx-shards-" + capability + ".json")
+        ctx.actions.write(out, json.encode({"shards": shards}))
+        return [
+            OutputGroupInfo(dx_shards = depset([out])),
+            RealShardProbeInfo(capability = capability, shards = shards),
+        ]
+
+    return _impl
+
+def _make_real_probe_aspect(capability):
+    """Builds the tool-free shard probe aspect for one capability."""
+    return aspect(
+        implementation = _make_real_probe_impl(capability),
+        attr_aspects = ["aspect_hints"],
+        attrs = {"_policy": _REAL_BASE_ATTRS["_policy"]},
+        doc = "Writes the " + capability + " shard names each target needs to the dx_shards output group.",
     )
 
 real_lint_aspect = _make_real_aspect("real_lint")
@@ -1284,6 +1488,8 @@ real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
+real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
+
 real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
 
 real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
@@ -1292,8 +1498,18 @@ real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 
+real_go_format_aspect = _make_real_aspect("real_go_format")
+
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
 
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
 
+real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
+
 real_text_lint_aspect = _make_real_aspect("real_text_lint")
+
+real_lint_probe_aspect = _make_real_probe_aspect("lint")
+
+real_format_probe_aspect = _make_real_probe_aspect("format")
+
+real_typecheck_probe_aspect = _make_real_probe_aspect("typecheck")

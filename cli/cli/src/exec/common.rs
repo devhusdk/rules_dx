@@ -1,7 +1,6 @@
 use crate::args::{Command, Invocation};
 use crate::reports::Destination;
 use crate::resolve::QueryRunner;
-use crate::worktree::ops::size;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
@@ -11,12 +10,12 @@ use dx_output::{
 };
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
 use std::io::{self, BufReader, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 
 pub(crate) use super::failure::{
-    emit_failure_events, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED,
+    emit_failure_events, error_event_of, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED,
     CODE_APPLICATION_FAILED, CODE_BAZEL_FAILED, CODE_DISK_FULL, CODE_INVALID_ARGUMENTS,
-    CODE_QUERY_LAUNCH_FAILED, CODE_TESTS_FAILED,
+    CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED, CODE_TESTS_FAILED,
 };
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
@@ -31,14 +30,35 @@ pub fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), 
     write_event(out, event).map_err(|error| stdout_output_code(&error))
 }
 
+/// Writes one built event, or ends the stream with `invalid_result` when it failed to build.
+pub(crate) fn emit_built(
+    out: &mut dyn Write,
+    built: Result<serde_json::Value, dx_output::OutputError>,
+) -> Result<(), i32> {
+    match built {
+        Ok(event) => emit_event(out, &event),
+        Err(error) => {
+            emit_failure_events(
+                out,
+                &Failure::new(
+                    CODE_INVALID_RESULT,
+                    &format!("dx built an invalid event: {error}"),
+                    operational_code(),
+                ),
+            )?;
+            Err(operational_code())
+        }
+    }
+}
+
 /// Drops every stdout write after the first failure, so no later record lands.
-pub struct LatchedOut<'a> {
+pub(crate) struct LatchedOut<'a> {
     inner: &'a mut dyn Write,
     failed: Option<(io::ErrorKind, String)>,
 }
 
 impl<'a> LatchedOut<'a> {
-    pub fn new(inner: &'a mut dyn Write) -> Self {
+    pub(crate) fn new(inner: &'a mut dyn Write) -> Self {
         LatchedOut {
             inner,
             failed: None,
@@ -46,7 +66,7 @@ impl<'a> LatchedOut<'a> {
     }
 
     /// The run's exit code, or the stdout failure code once a write failed.
-    pub fn exit_code(&mut self, code: i32) -> i32 {
+    pub(crate) fn exit_code(&mut self, code: i32) -> i32 {
         let _ = self.flush();
         match &self.failed {
             Some((kind, message)) => stdout_io_code(&io::Error::new(*kind, message.clone())),
@@ -131,9 +151,7 @@ pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
 }
 
 pub(crate) fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Result<(), i32> {
-    let event = command_started(invocation.command.name(), "default")
-        .map_err(|error| stdout_output_code(&error))?;
-    emit_event(out, &event)
+    emit_built(out, command_started(invocation.command.name(), "default"))
 }
 
 /// Writes the `error` event for a Bazel run that exited nonzero, keeping its native status.
@@ -143,19 +161,13 @@ pub(crate) fn emit_bazel_exit(
     message: &str,
     status: i32,
 ) -> Result<(), i32> {
-    let facts = dx_output::FailureFacts {
-        cause: Cause::of(code).name(),
-        status: Some(status),
-        excerpt: None,
-    };
-    let event = dx_output::failure_event(code, message, Some("execute"), &facts)
-        .map_err(|error| stdout_output_code(&error))?;
-    emit_event(out, &event)
+    emit_built(out, bazel_exit_event(code, message, status, "execute"))
 }
 
 pub const REASON_STALE_SOURCE: &str = "stale_source";
 pub const REASON_UNREADABLE_SOURCE: &str = "unreadable_source";
 pub const REASON_INVALID_EDITS: &str = "invalid_edits";
+pub const REASON_WRITE_FAILED: &str = "write_failed";
 pub const REASON_INCOMPLETE_COLLECTION: &str = "incomplete_collection";
 pub const REASON_CONFLICTING_DIGESTS: &str = "conflicting_digests";
 pub const REASON_CONFLICTING_CANDIDATES: &str = "conflicting_candidates";
@@ -176,6 +188,9 @@ pub(crate) enum ExecError {
 
 pub(crate) const CODE_LAUNCH_FAILED: &str = "launch_failed";
 pub(crate) const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
+/// Fires before a Bazel run at `dx_worktree::disk::DISK_FULL_BYTES` (1 GiB). Worktree
+/// reclaim uses the looser `dx_worktree::disk::is_low` rule instead, so the two are
+/// distinct signals.
 pub(crate) const CODE_DISK_LOW: &str = "disk_low";
 pub(crate) const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
 pub(crate) const CODE_INVALID_BEP: &str = "invalid_bep";
@@ -185,6 +200,8 @@ pub(crate) const CODE_COLLECTION_FAILED: &str = "collection_failed";
 pub(crate) const CODE_VERIFICATION_FAILED: &str = "verification_failed";
 pub(crate) const CODE_NOT_CONVERGED: &str = "not_converged";
 pub(crate) const CODE_COVERAGE_BELOW_MINIMUM: &str = "coverage_below_minimum";
+pub(crate) const CODE_COVERAGE_SOURCES_INCOMPLETE: &str = "coverage_sources_incomplete";
+pub(crate) const CODE_COVERAGE_SOURCES: &str = "coverage_sources";
 pub(crate) const CODE_CLEAN_FAILED: &str = "clean_failed";
 pub(crate) const CODE_CLEAN_PLANNED: &str = "clean_planned";
 pub(crate) const CODE_CLEAN_PRUNED: &str = "clean_pruned";
@@ -196,9 +213,12 @@ pub(crate) const CODE_MANAGED_NO_CAPABILITY: &str = "no_capability";
 pub(crate) const CODE_AUDIT_FAILED: &str = "audit_failed";
 pub(crate) const CODE_UPDATE_FAILED: &str = "update_failed";
 pub(crate) const CODE_BUMP_FAILED: &str = "bump_failed";
+pub(crate) const CODE_ADD_FAILED: &str = "add_failed";
 pub(crate) const CODE_MIGRATE_FAILED: &str = "migrate_failed";
 pub(crate) const CODE_OFFLINE_REQUIRED: &str = "offline_required";
 pub(crate) const CODE_FROZEN_LOCKED: &str = "frozen_locked";
+#[cfg(test)]
+pub(crate) const CODE_BACKEND_UNAVAILABLE: &str = "backend_unavailable";
 
 /// How one umbrella phase ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -217,7 +237,26 @@ pub(crate) enum PhaseKind {
     Cancelled,
 }
 
+/// Bazel exit codes shared by every Bazel-backed phase.
+pub(crate) const BAZEL_BUILD_FAILED: i32 = 1;
+pub(crate) const BAZEL_USAGE: i32 = 2;
+pub(crate) const BAZEL_TESTS_FAILED: i32 = 3;
+pub(crate) const BAZEL_NO_TESTS: i32 = 4;
+pub(crate) const BAZEL_INTERRUPTED: i32 = 8;
+
 impl PhaseKind {
+    /// Classifies a Bazel exit code; `findings` is the phase's own verdict that the code means findings.
+    pub(crate) fn from_bazel_exit(code: i32, findings: bool) -> PhaseKind {
+        match code {
+            0 => PhaseKind::Clean,
+            _ if findings => PhaseKind::Findings,
+            BAZEL_BUILD_FAILED | BAZEL_TESTS_FAILED => PhaseKind::Incomplete,
+            BAZEL_USAGE | BAZEL_NO_TESTS => PhaseKind::Selection,
+            BAZEL_INTERRUPTED => PhaseKind::Cancelled,
+            _ => PhaseKind::Tool,
+        }
+    }
+
     /// Reports whether later phases of `command` still run after a phase of this kind.
     pub(crate) fn continues(self, command: Command) -> bool {
         match self {
@@ -497,19 +536,17 @@ pub(crate) fn bazel_exit_event(
     message: &str,
     status: i32,
     phase: &'static str,
-) -> Option<serde_json::Value> {
-    let cause = Cause::of(code);
+) -> Result<serde_json::Value, dx_output::OutputError> {
     dx_output::failure_event(
         code,
         message,
         Some(phase),
         &dx_output::FailureFacts {
-            cause: cause.name(),
+            cause: Cause::of(code).name(),
             status: Some(status),
             excerpt: None,
         },
     )
-    .ok()
 }
 
 /// Reports one failed report as a `dx: report_failed:` line and, in JSON mode, an error event.
@@ -518,21 +555,23 @@ pub(crate) fn report_failed(
     err: &mut dyn Write,
     output: OutputMode,
     detail: &str,
-) {
+) -> Result<(), i32> {
     let _ = writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}");
     if let Some(next) = super::guidance::next_action(CODE_REPORT_FAILED) {
         let _ = writeln!(err, "{next}");
     }
-    if output == OutputMode::Json {
-        let facts = dx_output::FailureFacts {
-            cause: Cause::Report.name(),
-            status: None,
-            excerpt: None,
-        };
-        if let Ok(event) = dx_output::failure_event(CODE_REPORT_FAILED, detail, None, &facts) {
-            let _ = write_event(out, &event);
-        }
+    if output != OutputMode::Json {
+        return Ok(());
     }
+    let facts = dx_output::FailureFacts {
+        cause: Cause::Report.name(),
+        status: None,
+        excerpt: None,
+    };
+    emit_built(
+        out,
+        dx_output::failure_event(CODE_REPORT_FAILED, detail, None, &facts),
+    )
 }
 
 /// Writes one report document to its resolved destination and reports whether it landed.
@@ -647,7 +686,7 @@ pub(crate) fn run_bazel_output(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<i32, i32> {
-    warn_low_disk(output, out, err, runner, workspace, argv);
+    warn_low_disk(output, out, err, runner, workspace, argv)?;
     let status = runner.run(argv, workspace, env);
     bazel_exit(output, out, err, runner, workspace, argv, status)
 }
@@ -662,7 +701,7 @@ pub(crate) fn run_bazel_withdrawable(
     argv: &[String],
     withdraw: &dyn Fn() -> bool,
 ) -> Result<Option<i32>, i32> {
-    warn_low_disk(invocation.output, out, err, runner, workspace, argv);
+    warn_low_disk(invocation.output, out, err, runner, workspace, argv)?;
     match runner
         .run_withdrawable(argv, workspace, &[], withdraw)
         .transpose()
@@ -674,49 +713,6 @@ pub(crate) fn run_bazel_withdrawable(
     }
 }
 
-const LOW_DISK_BYTES: u64 = 1 << 30;
-const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
-
-fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
-    let mut paths = vec![workspace.to_path_buf()];
-    for arg in argv {
-        for flag in ["--output_base=", "--output_user_root="] {
-            if let Some(value) = arg.strip_prefix(flag) {
-                paths.push(PathBuf::from(value));
-            }
-        }
-    }
-    paths.push(std::env::temp_dir());
-    if let Some(home) = std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .filter(|value| !value.is_empty())
-    {
-        paths.push(PathBuf::from(home));
-    }
-    let mut seen: Vec<std::ffi::OsString> = Vec::new();
-    paths.retain(|path| {
-        let key = match path.components().next() {
-            Some(Component::Prefix(prefix)) => prefix.as_os_str().to_ascii_uppercase(),
-            _ => path.as_os_str().to_owned(),
-        };
-        if seen.contains(&key) {
-            return false;
-        }
-        seen.push(key);
-        true
-    });
-    paths
-}
-
-/// The probed path with the least free space, when that is under `LOW_DISK_BYTES`.
-fn disk_shortage(runner: &dyn Runner, workspace: &Path, argv: &[String]) -> Option<(PathBuf, u64)> {
-    disk_paths(workspace, argv)
-        .into_iter()
-        .filter_map(|path| runner.free_disk_bytes(&path).map(|free| (path, free)))
-        .filter(|(_, free)| *free < LOW_DISK_BYTES)
-        .min_by_key(|(_, free)| *free)
-}
-
 /// Warns on stderr, and with a JSON notice, when a disk Bazel writes to is nearly full.
 fn warn_low_disk(
     output: OutputMode,
@@ -725,32 +721,21 @@ fn warn_low_disk(
     runner: &dyn Runner,
     workspace: &Path,
     argv: &[String],
-) {
-    let Some((path, free)) = disk_shortage(runner, workspace, argv) else {
-        return;
+) -> Result<(), i32> {
+    let Some((path, free)) = crate::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)
+    else {
+        return Ok(());
     };
-    let message = format!(
-        "{} free at {}; free disk space with `dx worktree prune --apply`",
-        size(free),
-        path.display()
-    );
+    let message = crate::disk::low_message(&path, free);
     let _ = writeln!(err, "dx: {CODE_DISK_LOW}: {message}");
     if output != OutputMode::Json {
-        return;
+        return Ok(());
     }
-    if let Ok(event) = notice_event(&NoticeEvent {
-        level: "warning".to_owned(),
-        code: CODE_DISK_LOW.to_owned(),
-        message,
-        related_command: None,
-        scope: None,
-        path: None,
-        language: None,
-        import: None,
-    }) {
-        let _ = write_event(out, &event);
-        let _ = out.flush();
-    }
+    emit_built(
+        out,
+        notice_event(&NoticeEvent::warning(CODE_DISK_LOW, message)),
+    )?;
+    flush_out(out)
 }
 
 /// Reports a Bazel host failure, such as a full disk, that the exit code alone cannot name.
@@ -763,17 +748,13 @@ fn host_failure(
     argv: &[String],
     code: i32,
 ) -> Option<i32> {
-    if code != BAZEL_LOCAL_ENVIRONMENT_EXIT {
+    if code != crate::disk::BAZEL_LOCAL_ENVIRONMENT_EXIT {
         return None;
     }
-    let (path, free) = disk_shortage(runner, workspace, argv)?;
+    let (path, free) = crate::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)?;
     let mut failure = Failure::new(
         CODE_DISK_FULL,
-        &format!(
-            "Bazel exited {code} with {} free at {}; the disk is full",
-            size(free),
-            path.display()
-        ),
+        &crate::disk::full_message(code, &path, free),
         code,
     )
     .without_usage();
@@ -841,7 +822,43 @@ pub(crate) fn run_bazel(
     run_bazel_output(invocation.output, out, err, workspace, runner, argv, env)
 }
 
-/// Launches one `bazel run` app; its exit code is the app's.
+/// How one `bazel run` app went out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AppExit {
+    /// The app's exit code, or 128 plus the signal that ended it.
+    pub(crate) code: i32,
+    /// The signal that ended the app, when it died by one.
+    pub(crate) signal: Option<i32>,
+}
+
+fn app_exit(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    status: io::Result<dx_process::ChildStatus>,
+) -> Result<AppExit, i32> {
+    if let Ok(dx_process::ChildStatus {
+        code: None,
+        signal: Some(signo),
+    }) = status
+    {
+        return Ok(AppExit {
+            code: dx_process::interrupted_code(signo),
+            signal: Some(signo),
+        });
+    }
+    child_exit(output, out, err, status).map(|code| AppExit { code, signal: None })
+}
+
+/// Writes the text line for an app that died by `signo`.
+pub(crate) fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
+    let _ = writeln!(
+        err,
+        "dx: application_failed: bazel run {label} terminated by signal {signo}"
+    );
+}
+
+/// Launches one `bazel run` app; its exit is the app's, and a signalled app exits 128 plus the signal.
 pub(crate) fn run_bazel_app(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -850,9 +867,9 @@ pub(crate) fn run_bazel_app(
     runner: &dyn Runner,
     argv: &[String],
     env: &[(&str, &str)],
-) -> Result<i32, i32> {
+) -> Result<AppExit, i32> {
     let status = runner.run(argv, workspace, env);
-    child_exit(invocation.output, out, err, status)
+    app_exit(invocation.output, out, err, status)
 }
 
 /// Launches one `bazel run` app that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
@@ -864,13 +881,13 @@ pub(crate) fn run_bazel_app_withdrawable(
     runner: &dyn Runner,
     argv: &[String],
     withdraw: &dyn Fn() -> bool,
-) -> Result<Option<i32>, i32> {
+) -> Result<Option<AppExit>, i32> {
     match runner
         .run_withdrawable(argv, workspace, &[], withdraw)
         .transpose()
     {
         None => Ok(None),
-        Some(status) => child_exit(invocation.output, out, err, status).map(Some),
+        Some(status) => app_exit(invocation.output, out, err, status).map(Some),
     }
 }
 
@@ -893,9 +910,28 @@ pub(crate) fn change_event_for(change: &FileChange) -> ChangeEvent {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn from_bazel_exit_classifies_every_code() {
+        let table = [
+            (0, false, PhaseKind::Clean),
+            (0, true, PhaseKind::Clean),
+            (1, false, PhaseKind::Incomplete),
+            (2, false, PhaseKind::Selection),
+            (3, false, PhaseKind::Incomplete),
+            (3, true, PhaseKind::Findings),
+            (4, false, PhaseKind::Selection),
+            (8, false, PhaseKind::Cancelled),
+            (36, false, PhaseKind::Tool),
+        ];
+        for (code, findings, kind) in table {
+            assert_eq!(PhaseKind::from_bazel_exit(code, findings), kind, "{code}");
+        }
+    }
+
     use super::*;
-    use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity, Snapshot};
+    use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity};
     use std::cell::RefCell;
+    use std::path::PathBuf;
     use std::rc::Rc;
 
     struct Flaky {
@@ -989,6 +1025,7 @@ mod tests {
 
     struct ProbeRunner {
         code: Option<i32>,
+        signal: Option<i32>,
         spawn_error: bool,
         seen: Rc<RefCell<(Vec<String>, Vec<(String, String)>)>>,
         free: Option<u64>,
@@ -1016,7 +1053,10 @@ mod tests {
                     .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
                     .collect(),
             );
-            Ok(dx_process::ChildStatus { code: self.code })
+            Ok(dx_process::ChildStatus {
+                code: self.code,
+                signal: self.signal,
+            })
         }
     }
 
@@ -1029,6 +1069,7 @@ mod tests {
         let seen = Rc::new(RefCell::new((Vec::new(), Vec::new())));
         let runner = ProbeRunner {
             code: Some(7),
+            signal: None,
             spawn_error: false,
             seen: Rc::clone(&seen),
             free: None,
@@ -1061,6 +1102,7 @@ mod tests {
     fn run_bazel_reports_a_spawn_failure_and_asks_the_caller_to_stop() {
         let runner = ProbeRunner {
             code: Some(0),
+            signal: None,
             spawn_error: true,
             seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
             free: None,
@@ -1089,6 +1131,7 @@ mod tests {
     fn run_bazel_reports_a_signalled_bazel_and_asks_the_caller_to_stop() {
         let runner = ProbeRunner {
             code: None,
+            signal: None,
             spawn_error: false,
             seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
             free: None,
@@ -1116,6 +1159,7 @@ mod tests {
     fn disk_runner(code: i32, free: Option<u64>) -> ProbeRunner {
         ProbeRunner {
             code: Some(code),
+            signal: None,
             spawn_error: false,
             seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
             free,
@@ -1162,7 +1206,13 @@ mod tests {
                 &["bazel".to_owned(), "run".to_owned(), "//app".to_owned()],
                 &[],
             );
-            assert_eq!(code, Ok(36));
+            assert_eq!(
+                code,
+                Ok(AppExit {
+                    code: 36,
+                    signal: None
+                })
+            );
             assert!(out.is_empty(), "{}", String::from_utf8_lossy(&out));
             let err = String::from_utf8(err).expect("utf8");
             assert!(!err.contains("disk_"), "{err}");
@@ -1178,6 +1228,7 @@ mod tests {
         ] {
             let runner = ProbeRunner {
                 code,
+                signal: None,
                 spawn_error,
                 seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
                 free: Some(1 << 20),
@@ -1199,6 +1250,66 @@ mod tests {
             assert!(err.starts_with(&format!("dx: {expected}: ")), "{err}");
             assert!(runner.probed.borrow().is_empty());
         }
+    }
+
+    fn signal_runner(signal: Option<i32>) -> ProbeRunner {
+        ProbeRunner {
+            code: None,
+            signal,
+            spawn_error: false,
+            seen: Rc::new(RefCell::new((Vec::new(), Vec::new()))),
+            free: None,
+            probed: RefCell::new(Vec::new()),
+        }
+    }
+
+    #[test]
+    fn run_bazel_app_maps_a_signalled_app_to_128_plus_the_signal() {
+        for output in [OutputMode::Text { quiet: false }, OutputMode::Json] {
+            let runner = signal_runner(Some(11));
+            let mut invocation = bazel_invocation();
+            invocation.output = output;
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            let exit = run_bazel_app(
+                &invocation,
+                &mut out,
+                &mut err,
+                Path::new("/ws"),
+                &runner,
+                &["bazel".to_owned(), "run".to_owned(), "//app".to_owned()],
+                &[],
+            );
+            assert_eq!(
+                exit,
+                Ok(AppExit {
+                    code: 139,
+                    signal: Some(11)
+                })
+            );
+            assert!(out.is_empty(), "{}", String::from_utf8_lossy(&out));
+            assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
+        }
+    }
+
+    #[test]
+    fn run_bazel_keeps_bazel_signalled_when_the_signal_is_known() {
+        let runner = signal_runner(Some(11));
+        let invocation = bazel_invocation();
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = run_bazel(
+            &invocation,
+            &mut out,
+            &mut err,
+            Path::new("/ws"),
+            &runner,
+            &["bazel".to_owned()],
+            &[],
+        );
+        assert_eq!(code, Err(operational_code()));
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx: bazel_signalled: Bazel terminated by signal\n"
+        );
     }
 
     #[test]
@@ -1265,7 +1376,7 @@ mod tests {
         assert!(!err.contains("disk_full"), "{err}");
         assert_eq!(
             runner.probed.borrow().len(),
-            disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len()
+            crate::disk::disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len()
         );
     }
 
@@ -1276,38 +1387,6 @@ mod tests {
         assert_eq!(code, Ok(36));
         assert_eq!(out, "");
         assert_eq!(err, "");
-    }
-
-    #[test]
-    fn disk_paths_cover_the_workspace_output_roots_and_temp_dir() {
-        let paths = disk_paths(
-            Path::new("/ws"),
-            &[
-                "--output_user_root=/root".to_owned(),
-                "--output_base=/ob".to_owned(),
-                "build".to_owned(),
-            ],
-        );
-        assert_eq!(paths[0], PathBuf::from("/ws"));
-        assert!(paths.contains(&PathBuf::from("/root")), "{paths:?}");
-        assert!(paths.contains(&PathBuf::from("/ob")), "{paths:?}");
-        #[cfg(unix)]
-        assert!(paths.contains(&std::env::temp_dir()), "{paths:?}");
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn disk_paths_probe_one_windows_drive_once() {
-        let paths = disk_paths(Path::new("C:\\ws"), &["--output_base=c:\\ob".to_owned()]);
-        let on_c = paths
-            .iter()
-            .filter(|path| {
-                path.to_string_lossy()
-                    .to_ascii_uppercase()
-                    .starts_with("C:")
-            })
-            .count();
-        assert_eq!(on_c, 1, "{paths:?}");
     }
 
     #[test]
@@ -1331,17 +1410,11 @@ mod tests {
 
     fn finding(path: Option<&str>, range: Option<(u64, u64)>) -> FindingRecord {
         FindingRecord::single(DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "lint-tool".to_owned(),
-            message: "mapped".to_owned(),
             rule: Some("rule".to_owned()),
             path: path.map(str::to_owned),
             range,
-            snapshot: Snapshot::Terminal,
             fixable: true,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(Severity::Warning, "lint-tool", "mapped")
         })
     }
 
@@ -1523,28 +1596,91 @@ mod tests {
     fn report_failed_writes_the_line_and_only_json_emits_the_event() {
         let mut out = Vec::new();
         let mut err = Vec::new();
-        report_failed(
-            &mut out,
-            &mut err,
-            OutputMode::Text { quiet: false },
-            "boom",
+        assert_eq!(
+            report_failed(
+                &mut out,
+                &mut err,
+                OutputMode::Text { quiet: false },
+                "boom",
+            ),
+            Ok(())
         );
         assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         assert!(out.is_empty());
 
         let mut out = Vec::new();
         let mut err = Vec::new();
-        report_failed(&mut out, &mut err, OutputMode::Diff, "boom");
+        assert_eq!(
+            report_failed(&mut out, &mut err, OutputMode::Diff, "boom"),
+            Ok(())
+        );
         assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         assert!(out.is_empty());
 
         let mut out = Vec::new();
         let mut err = Vec::new();
-        report_failed(&mut out, &mut err, OutputMode::Json, "boom");
+        assert_eq!(
+            report_failed(&mut out, &mut err, OutputMode::Json, "boom"),
+            Ok(())
+        );
         assert_eq!(String::from_utf8(err).unwrap(), "dx: report_failed: boom\nnext: make the report destination writable and run the command again.\n");
         let event: serde_json::Value = serde_json::from_slice(&out).unwrap();
         assert_eq!(event["code"], CODE_REPORT_FAILED);
         assert_eq!(event["message"], "boom");
+    }
+
+    #[test]
+    fn report_failed_returns_the_stdout_code_when_its_event_cannot_land() {
+        let mut err = Vec::new();
+        assert_eq!(
+            report_failed(&mut BrokenPipeWriter, &mut err, OutputMode::Json, "boom"),
+            Err(128 + 13)
+        );
+    }
+
+    #[test]
+    fn emit_built_writes_a_built_event_like_emit_event() {
+        let event = command_finished(0, &FinishedCounts::default());
+        let mut out = Vec::new();
+        assert_eq!(emit_built(&mut out, Ok(event.clone())), Ok(()));
+        let written: serde_json::Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(written, event);
+        assert_eq!(
+            emit_built(&mut BrokenPipeWriter, Ok(event.clone())),
+            emit_event(&mut BrokenPipeWriter, &event)
+        );
+        assert_eq!(emit_built(&mut BrokenPipeWriter, Ok(event)), Err(128 + 13));
+    }
+
+    #[test]
+    fn emit_built_returns_the_write_code_when_the_invalid_result_cannot_land() {
+        assert_eq!(
+            emit_built(&mut BrokenPipeWriter, command_started("", "default")),
+            Err(128 + 13)
+        );
+        assert_eq!(
+            emit_built(&mut FailingWriter, command_started("", "default")),
+            Err(operational_code())
+        );
+    }
+
+    #[test]
+    fn emit_built_ends_the_stream_when_an_event_fails_to_build() {
+        let mut out = Vec::new();
+        let built = command_started("", "default");
+        assert!(built.is_err());
+        assert_eq!(emit_built(&mut out, built), Err(operational_code()));
+        let lines: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert_eq!(lines[0]["event"], "error");
+        assert_eq!(lines[0]["code"], CODE_INVALID_RESULT);
+        assert_eq!(lines[1]["event"], "command_finished");
+        assert_eq!(lines[1]["results_complete"], false);
+        assert_eq!(lines[1]["exit_code"], operational_code());
     }
 
     #[test]
@@ -1754,8 +1890,16 @@ mod tests {
     fn startup_outcome_still_finishes_when_the_code_is_empty() {
         let mut out = Vec::new();
         emit_startup_outcome(&mut out, "", "boom", 2).expect("finished anyway");
-        let event: serde_json::Value = serde_json::from_slice(&out).expect("json");
-        assert_eq!(event["event"], "command_finished");
+        let lines: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert_eq!(lines[0]["event"], "error");
+        assert_eq!(lines[0]["code"], CODE_INVALID_RESULT);
+        assert_eq!(lines[1]["event"], "command_finished");
+        assert_eq!(lines[1]["exit_code"], 2);
     }
 
     #[test]

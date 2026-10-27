@@ -7,6 +7,8 @@ use pep440_rs::{Version, VersionSpecifiers};
 use crate::toml_util::parse_toml_file;
 use crate::{DepInfo, DepcheckError};
 
+use super::put;
+
 const PLATFORM_MARKERS: [&str; 4] = ["sys_platform", "sys-platform", "platform_system", "os_name"];
 
 pub fn normalize_py(name: &str) -> String {
@@ -70,7 +72,7 @@ pub fn satisfies_py(spec: &str, locked: &str) -> Option<bool> {
 
 pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let data = parse_toml_file(path)?;
-    let mut deps = BTreeMap::new();
+    let mut deps: BTreeMap<String, DepInfo> = BTreeMap::new();
     if let Some(proj) = data.get("project").and_then(|v| v.as_table()) {
         if let Some(list) = proj.get("dependencies").and_then(|v| v.as_array()) {
             for item in list {
@@ -78,7 +80,8 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
                 let Some(requirement) = parse_requirement(text) else {
                     continue;
                 };
-                deps.insert(
+                put(
+                    &mut deps,
                     normalize_py(&requirement.name),
                     DepInfo {
                         spec: requirement.spec,
@@ -102,7 +105,8 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
                     let Some(requirement) = parse_requirement(text) else {
                         continue;
                     };
-                    deps.insert(
+                    put(
+                        &mut deps,
                         normalize_py(&requirement.name),
                         DepInfo {
                             spec: requirement.spec,
@@ -128,7 +132,8 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
                 let Some(requirement) = parse_requirement(text) else {
                     continue;
                 };
-                deps.insert(
+                put(
+                    &mut deps,
                     normalize_py(&requirement.name),
                     DepInfo {
                         spec: requirement.spec,

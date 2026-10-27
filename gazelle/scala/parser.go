@@ -13,12 +13,12 @@ var (
 	plainRe    = regexp.MustCompile(`^([A-Za-z_]\w*(?:\.\w+)*)(?:\s+as\s+[A-Za-z_]\w*)?$`)
 	dottedRe   = regexp.MustCompile(`^[A-Za-z_]\w*(?:\.\w+)*$`)
 	selectorRe = regexp.MustCompile(`^([A-Za-z_]\w*)(?:\s*(?:=>|\s+as\s+)\s*([A-Za-z_]\w*))?$`)
-	packageRe  = regexp.MustCompile(`(?m)^\s*package\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;?\s*$`)
-	mainRe     = regexp.MustCompile(`def\s+main\s*\(`)
+	packageRe  = regexp.MustCompile(`(?m)^[ \t]*package[ \t]+([A-Za-z_]\w*(?:\.\w+)*)[ \t]*(?:;|\{|$)`)
+	mainRe     = regexp.MustCompile(`def\s+main\s*\(|@main\s+(?:@\w+\s+)*def\b|\bextends\s+(?:_root_\.)?(?:scala\.)?App\b`)
 )
 
 func ParseImports(content []byte) []string {
-	stripped := common.MaskJavaStyle(content)
+	stripped := common.MaskScalaStyle(content)
 	set := make(map[string]struct{})
 	for _, loc := range importRe.FindAllIndex(stripped, -1) {
 		for _, importer := range splitTopLevel(importClause(stripped, loc[1])) {
@@ -37,32 +37,51 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
+// ParsePackage joins chained and nested package clauses (package a / package b,
+// package a { package b {) with dots. A clause that follows other code is a
+// separate package and is an error. Clauses sharing one line (package a; package b)
+// are not recognized.
 func ParsePackage(content []byte) (string, error) {
-	stripped := common.MaskJavaStyle(content)
-	matches := packageRe.FindAllSubmatch(stripped, -1)
-	if len(matches) > 1 {
-		return "", errDuplicatePackage(string(matches[0][1]))
-	}
+	stripped := common.MaskScalaStyle(content)
+	matches := packageRe.FindAllSubmatchIndex(stripped, -1)
 	if len(matches) == 0 {
 		return "", nil
 	}
-	return string(matches[0][1]), nil
+	name := string(stripped[matches[0][2]:matches[0][3]])
+	for i := 1; i < len(matches); i++ {
+		gap := stripped[matches[i-1][1]:matches[i][0]]
+		if len(strings.Trim(string(gap), " \t\r\n;")) != 0 {
+			return "", errSeparatePackage(name, string(stripped[matches[i][2]:matches[i][3]]))
+		}
+		name += "." + string(stripped[matches[i][2]:matches[i][3]])
+	}
+	return name, nil
 }
 
-type duplicatePackageError struct{ first string }
+type separatePackageError struct{ first, second string }
 
-func (e *duplicatePackageError) Error() string {
-	return "scala: duplicate package clause " + e.first
+func (e *separatePackageError) Error() string {
+	return "scala: separate package clauses " + e.first + ", " + e.second
 }
 
-func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
+func errSeparatePackage(first, second string) error {
+	return &separatePackageError{first: first, second: second}
+}
 
 func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskJavaStyle(content))
+	return mainRe.Match(common.MaskScalaStyle(content))
 }
 
 func normalizeImport(dotted string, onDemand bool) string {
-	return common.NormalizeDotted(dotted, onDemand, IsStdLib)
+	dotted = strings.TrimSpace(dotted)
+	if dotted == "" || !onDemand || IsStdLib(dotted) {
+		return dotted
+	}
+	return dotted + ".*"
+}
+
+func qualifiedIDs(path string) []string {
+	return common.JVMQualifiedIDs(path, ParsePackage, ClassIdentity)
 }
 
 func importClause(src []byte, start int) string {

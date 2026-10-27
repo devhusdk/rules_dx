@@ -1,3 +1,4 @@
+use ci_workflow::steps;
 use dx_testing::read_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/bump.yml";
@@ -8,21 +9,15 @@ const UNEXPECTED: &str = "tools/ci/bump_auth_fixtures/unexpected.txt";
 
 const APP_ACTION: &str = "actions/create-github-app-token@";
 
-/// Returns the parsed workflow, which must be valid Actions YAML.
-fn document() -> serde_json::Value {
-    let text = read_runfiles(WORKFLOW);
-    yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{WORKFLOW} is not valid workflow YAML: {error}"))
-}
+const APP_TOKEN: &str = "${{ steps.bump-app.outputs.token }}";
 
-/// Returns the steps of the widen-one job as values.
-fn steps() -> Vec<serde_json::Value> {
-    let document = document();
-    document["jobs"]["widen-one"]["steps"]
-        .as_array()
-        .unwrap_or_else(|| panic!("{WORKFLOW} job widen-one declares no steps"))
-        .clone()
-}
+const DISCOVERY: &str = "Scheduled discovery (never widens)";
+
+const DISPATCHED: &str = "inputs.selector != '' && inputs.version != ''";
+
+const GH_SUBCOMMANDS: [&str; 8] = [
+    "api", "auth", "issue", "pr", "release", "repo", "run", "workflow",
+];
 
 /// Returns the raw workflow text.
 fn text() -> String {
@@ -37,6 +32,44 @@ fn fixture(path: &str) -> Vec<String> {
         .filter(|line| !line.is_empty())
         .map(str::to_owned)
         .collect()
+}
+
+/// Returns the run script of a step, or an empty string.
+fn run_of(step: &serde_json::Value) -> &str {
+    step["run"].as_str().unwrap_or_default()
+}
+
+/// Returns the step name, or an empty string.
+fn name_of(step: &serde_json::Value) -> &str {
+    step["name"].as_str().unwrap_or_default()
+}
+
+/// Returns the step-scoped GH_TOKEN, or an empty string.
+fn step_token(step: &serde_json::Value) -> &str {
+    step["env"]["GH_TOKEN"].as_str().unwrap_or_default()
+}
+
+/// Reports whether a run script calls a gh subcommand.
+fn invokes_gh(run: &str) -> bool {
+    run.lines().any(|line| {
+        let spaced = line.replace("$(", " ");
+        let words: Vec<&str> = spaced.split_whitespace().collect();
+        words
+            .windows(2)
+            .any(|pair| pair[0] == "gh" && GH_SUBCOMMANDS.contains(&pair[1]))
+    })
+}
+
+#[test]
+fn invokes_gh_matches_only_gh_subcommands() {
+    assert!(invokes_gh("gh api repos/a/b"));
+    assert!(invokes_gh("sha=\"$(gh api repos/a/b --jq .sha || true)\""));
+    assert!(invokes_gh("if ! gh api x >y; then"));
+    assert!(invokes_gh("gh pr create --title t"));
+    assert!(!invokes_gh("if command -v gh >/dev/null 2>&1; then"));
+    assert!(!invokes_gh("echo \"--- GitHub releases (gh) ---\""));
+    assert!(!invokes_gh("echo \"client (gh api); dx bump\""));
+    assert!(!invokes_gh("GH_TOKEN=x"));
 }
 
 #[test]
@@ -73,7 +106,7 @@ fn bump_authenticates_through_a_pinned_app_token() {
         !comment.trim().trim_start_matches('#').trim().is_empty(),
         "{WORKFLOW} must carry a trailing tag comment on the {APP_ACTION} pin"
     );
-    for step in steps() {
+    for step in steps(WORKFLOW, "widen-one") {
         let uses = step["uses"].as_str().unwrap_or_default();
         if uses.starts_with(APP_ACTION) {
             assert_eq!(
@@ -140,13 +173,22 @@ fn missing_app_secrets_fail_before_any_mutation() {
 #[test]
 fn push_and_pr_creation_use_the_app_identity() {
     let body = text();
+    let mut writers = 0;
+    for step in steps(WORKFLOW, "widen-one") {
+        let run = run_of(&step);
+        if run.contains("gh pr ") || run.contains("gh auth setup-git") || run.contains("git push") {
+            writers += 1;
+            assert_eq!(
+                step_token(&step),
+                APP_TOKEN,
+                "{WORKFLOW} step {:?} pushes or opens PRs and must run as the App identity, not github.token",
+                name_of(&step)
+            );
+        }
+    }
     assert!(
-        !body.contains("GH_TOKEN: ${{ github.token }}"),
-        "{WORKFLOW} must not create PRs with github.token, which skips required CI"
-    );
-    assert!(
-        body.contains("GH_TOKEN: ${{ steps.bump-app.outputs.token }}"),
-        "{WORKFLOW} PR creation must run as the App identity"
+        writers > 0,
+        "{WORKFLOW} must carry a step that pushes and opens the PR"
     );
     assert!(
         body.contains("gh auth setup-git"),
@@ -178,8 +220,8 @@ fn only_selector_scoped_manifests_stage() {
     for arm in [
         "bazel)",
         "cargo)",
-        "github-actions|gha)",
-        "go|gomod)",
+        "github-actions)",
+        "go)",
         "maven)",
         "npm)",
         "nuget)",
@@ -187,6 +229,12 @@ fn only_selector_scoped_manifests_stage() {
         assert!(
             body.contains(arm),
             "{WORKFLOW} staging scope must name the {arm:?} selector set"
+        );
+    }
+    for alias in ["gha)", "gomod"] {
+        assert!(
+            !body.contains(alias),
+            "{WORKFLOW} must not accept the removed {alias:?} selector alias"
         );
     }
     for path in fixture(ALLOWED) {
@@ -220,19 +268,121 @@ fn only_selector_scoped_manifests_stage() {
 }
 
 #[test]
-fn one_dependency_per_pr_with_fork_safety_and_automerge() {
+fn one_dependency_per_pr_with_automerge() {
     let body = text();
     for needle in [
-        "inputs.selector != '' && inputs.version != ''",
-        "Fork PR detected",
-        "plan only, never push",
+        DISPATCHED,
         "gh pr create",
         "gh pr merge --auto --squash",
-        "concurrency + App token + fork-safety",
+        "concurrency + App token",
     ] {
         assert!(
             body.contains(needle),
-            "{WORKFLOW} must keep {needle:?}: one dep per PR, fork safety, automerge gate"
+            "{WORKFLOW} must keep {needle:?}: one dep per PR, automerge gate"
         );
     }
+    assert!(
+        !body.contains("pull_request.head.repo"),
+        "{WORKFLOW} has no pull_request trigger and must not check fork heads"
+    );
+}
+
+#[test]
+fn every_gh_step_sets_gh_token() {
+    let mut found = 0;
+    for step in steps(WORKFLOW, "widen-one") {
+        if invokes_gh(run_of(&step)) {
+            found += 1;
+            assert!(
+                !step_token(&step).is_empty(),
+                "{WORKFLOW} step {:?} runs gh without GH_TOKEN in its env",
+                name_of(&step)
+            );
+        }
+    }
+    assert!(
+        found >= 2,
+        "{WORKFLOW} must carry the discovery, widen and PR steps that run gh, found {found}"
+    );
+}
+
+#[test]
+fn gh_errors_stay_visible() {
+    for step in steps(WORKFLOW, "widen-one") {
+        for line in run_of(&step).lines() {
+            assert!(
+                !(line.contains("gh api") && line.contains("2>/dev/null")),
+                "{WORKFLOW} step {:?} hides gh api errors: {}",
+                name_of(&step),
+                line.trim()
+            );
+        }
+    }
+}
+
+#[test]
+fn discovery_never_runs_dx_bump_on_dispatch() {
+    let steps = steps(WORKFLOW, "widen-one");
+    let discovery = steps
+        .iter()
+        .find(|step| name_of(step) == DISCOVERY)
+        .unwrap_or_else(|| panic!("{WORKFLOW} must carry a {DISCOVERY:?} step"));
+    assert!(
+        discovery["if"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("inputs.selector == ''"),
+        "{WORKFLOW} {DISCOVERY:?} must run only without a selector"
+    );
+    assert!(
+        !run_of(discovery).contains("-- bump"),
+        "{WORKFLOW} {DISCOVERY:?} must never run dx bump"
+    );
+    let bumps: Vec<&serde_json::Value> = steps
+        .iter()
+        .filter(|step| run_of(step).contains("-- bump \"$SELECTOR\""))
+        .collect();
+    assert!(
+        !bumps.is_empty(),
+        "{WORKFLOW} must carry a step that runs dx bump on the selector"
+    );
+    for step in bumps {
+        assert!(
+            run_of(step).contains("--apply"),
+            "{WORKFLOW} step {:?} must run dx bump with --apply",
+            name_of(step)
+        );
+        assert_eq!(
+            step["if"].as_str().unwrap_or_default(),
+            DISPATCHED,
+            "{WORKFLOW} step {:?} must run dx bump only on dispatch with selector and version",
+            name_of(step)
+        );
+    }
+}
+
+#[test]
+fn discovery_reads_pins_by_line_and_validates_the_sha() {
+    let steps = steps(WORKFLOW, "widen-one");
+    let discovery = steps
+        .iter()
+        .find(|step| name_of(step) == DISCOVERY)
+        .unwrap_or_else(|| panic!("{WORKFLOW} must carry a {DISCOVERY:?} step"));
+    let run = run_of(discovery);
+    assert!(
+        !run.contains("for pin in $("),
+        "{WORKFLOW} {DISCOVERY:?} must not word-split the uses: matches"
+    );
+    assert!(
+        run.contains("while IFS= read -r pin; do"),
+        "{WORKFLOW} {DISCOVERY:?} must read each uses: match as one line"
+    );
+    assert!(
+        run.contains(r#"[[ "$sha" =~ ^[0-9a-f]{40}$ ]]"#),
+        "{WORKFLOW} {DISCOVERY:?} must accept only a 40-character hex SHA"
+    );
+    assert!(
+        !run.contains("--jq .sha || true"),
+        "{WORKFLOW} {DISCOVERY:?} must not treat a failed gh api as a SHA"
+    );
 }

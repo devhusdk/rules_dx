@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 _CANONICAL = "@@"  # buildifier: disable=canonical-repository
 
@@ -96,9 +96,11 @@ qml_lint_subject = rule(
 def _zig_subject_impl(ctx):
     """Exposes the resolved zig_fmt binary and the format results beside the real aspect."""
     tool = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["zig_fmt"].executable
     results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
     fields = {
         "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
         "zig_fmt": tool.short_path if tool else "",
     }
     return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
@@ -245,10 +247,17 @@ _qmllint_unset_test = analysistest.make(
     config_settings = {_WORKSPACE_SETTING: _QML_LINT_POLICY},
 )
 
-_zig_fmt_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+def _zig_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's compiler."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["zig_fmt"])
+    asserts.true(env, fields["wrapper"].endswith("/zig") or fields["wrapper"].endswith("/zig.exe"), "want the zig compiler, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the zig target")
+    return analysistest.end(env)
+
+_zig_fmt_default_test = analysistest.make(
+    _zig_default_impl,
     config_settings = {_WORKSPACE_SETTING: _ZIG_POLICY},
 )
 
@@ -270,11 +279,10 @@ _zig_fmt_set_test = analysistest.make(
 
 def zig_fmt_flag_tests(name, subject):
     """Instantiates the zig_fmt flag proofs."""
-    _zig_fmt_unset_test(
-        name = name + "_unset_test",
+    _zig_fmt_default_test(
+        name = name + "_default_test",
         size = "small",
         target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_zig_fmt",
     )
     _zig_fmt_set_test(
         name = name + "_set_test",

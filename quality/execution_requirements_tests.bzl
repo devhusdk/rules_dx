@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
-load(":execution_requirements.bzl", "DX_FORBIDDEN_NO_REMOTE", "DX_NO_REMOTE_EXEC", "DX_REMOTE_QUALIFIED", "SHFMT_FORMAT_REMOTE", "dx_execution_requirements", "dx_has_forbidden_marker", "dx_is_local_only", "dx_is_remote_qualified", "dx_remote_platforms", "dx_stage_execution_requirements", "remote_platform_error", "remote_record_error")
+load(":execution_requirements.bzl", "DX_FORBIDDEN_NO_REMOTE", "DX_NO_REMOTE_EXEC", "SHFMT_FORMAT_REMOTE", "dx_has_forbidden_marker", "dx_is_local_only", "dx_is_remote_qualified", "dx_remote_platforms", "dx_stage_execution_requirements", "remote_platform_error", "remote_record_error")
 
 def _artifact_platforms():
     """Returns the pinned artifact platforms keyed by tool."""
@@ -26,15 +26,6 @@ def execution_requirements_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
-            expect_false(
-                "remote stays unqualified so the helper stays local-only",
-                DX_REMOTE_QUALIFIED,
-            ),
-            expect_equal(
-                "helper returns the local-only marker",
-                dx_execution_requirements(),
-                {"no-remote-exec": "1"},
-            ),
             expect_equal(
                 "marker key stays the frozen constant",
                 DX_NO_REMOTE_EXEC,
@@ -47,11 +38,11 @@ def execution_requirements_unit_tests(name):
             ),
             expect_true(
                 "helper output reads as local-only",
-                dx_is_local_only(dx_execution_requirements()),
+                dx_is_local_only({DX_NO_REMOTE_EXEC: "1"}),
             ),
             expect_false(
                 "helper output carries no cache-disabling marker",
-                dx_has_forbidden_marker(dx_execution_requirements()),
+                dx_has_forbidden_marker({DX_NO_REMOTE_EXEC: "1"}),
             ),
             expect_false(
                 "empty requirements read as remote-capable, never local-only",

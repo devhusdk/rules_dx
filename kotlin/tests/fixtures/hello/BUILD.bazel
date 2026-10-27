@@ -1,4 +1,6 @@
+load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
 load("//kotlin/rules:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -12,6 +14,33 @@ kotlin_library(
     srcs = ["Hello.kt"],
 )
 
+# Mixed Java needs jvm_target 21 under -Werror.
+kt_kotlinc_options(
+    name = "jvm21_opts",
+    api_version = "2.2",
+    jvm_target = "21",
+    language_version = "2.2",
+)
+
+kotlin_library(
+    name = "mixed_lib",
+    srcs = [
+        "Greeter.java",
+        "Mixed.kt",
+    ],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    kotlinc_opts = ":jvm21_opts",
+)
+
+dx_direct_sources_test(
+    name = "mixed_sources_test",
+    expected = {
+        "java": ["Greeter.java"],
+        "kotlin": ["Mixed.kt"],
+    },
+    target_under_test = ":mixed_lib",
+)
+
 kotlin_binary(
     name = "hello",
     srcs = ["Main.kt"],
@@ -23,6 +52,15 @@ kotlin_test(
     name = "hello_test",
     srcs = ["HelloTest.kt"],
     test_class = "hello.HelloTest",
+    deps = [
+        ":hello_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kotlin_test(
+    name = "InferredTest",
+    srcs = ["src/test/kotlin/hello/InferredTest.kt"],
     deps = [
         ":hello_lib",
         "@maven//:junit_junit",

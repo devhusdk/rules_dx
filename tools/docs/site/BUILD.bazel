@@ -1,8 +1,9 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
-load(":render.bzl", "mdbook_book", "mdbook_check")
-load(":site.bzl", "docs_site")
+load(":render.bzl", "mdbook_book", "mdbook_check", "mdbook_page_list")
+load(":site.bzl", "docs_api", "docs_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
+load(":user/api.bzl", "user_api_shards")
 load(":user/book.bzl", "USER_BOOK")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -13,6 +14,7 @@ exports_files(
         "render.bzl",
         "site.bzl",
         "site_tests.bzl",
+        "user/api.bzl",
         "user/book.bzl",
     ],
 )
@@ -36,6 +38,21 @@ docs_site(
 )
 
 docs_site(
+    name = "demo_polyglot_site",
+    book_toml = "demo/book.toml",
+    prose = ["demo/demo_prose.md"],
+    shards = [
+        "//tools/docs/go/fixture:money_docs",
+        "//tools/docs/ruby/fixture:geometry_docs",
+        "//tools/docs/ruby/fixture:geometry_ext_docs",
+        "//tools/docs/powershell/fixture:ledger_docs",
+        "//tools/docs/rust/fixture:docs_fixture_docs",
+        "//tools/docs/typescript/fixture:geometry_docs",
+    ],
+    source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
+)
+
+docs_site(
     name = "demo_changed_site",
     book_toml = "demo/book.toml",
     prose = ["demo/demo_prose.md"],
@@ -43,8 +60,17 @@ docs_site(
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
+docs_api(
+    name = "user_api",
+    book_toml = "user/book.toml",
+    prose = [page for page in mdbook_page_list(USER_BOOK)[1] if page],
+    shards = user_api_shards(),
+    source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
+)
+
 mdbook_book(
     name = "user_site",
+    api = ":user_api",
     book_toml = "user/book.toml",
     chapters = USER_BOOK,
 )
@@ -65,7 +91,11 @@ exports_files(
 rust_test(
     name = "browser_test",
     size = "large",
-    srcs = ["browser_test.rs"],
+    srcs = [
+        "browser_test.rs",
+        "preview_server.rs",
+    ],
+    crate_root = "browser_test.rs",
     data = [
         ":user_site",
         "//tools/docs/site/browser:firefox",
@@ -75,7 +105,10 @@ rust_test(
         "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
         "DX_USER_SITE": "$(rootpath :user_site)",
     },
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "no-remote-exec",
+    ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//tools/docs/site/browser:dx_site_browser",
@@ -87,7 +120,11 @@ rust_test(
 rust_test(
     name = "deploy_smoke_test",
     size = "large",
-    srcs = ["deploy_smoke_test.rs"],
+    srcs = [
+        "deploy_smoke_test.rs",
+        "preview_server.rs",
+    ],
+    crate_root = "deploy_smoke_test.rs",
     data = [
         ":user_site",
         "//tools/docs/site/browser:firefox",
@@ -97,7 +134,10 @@ rust_test(
         "DX_FIREFOX": "$(rootpath //tools/docs/site/browser:firefox)",
         "DX_USER_SITE": "$(rootpath :user_site)",
     },
-    tags = ["no-coverage"],
+    tags = [
+        "no-coverage",
+        "no-remote-exec",
+    ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//tools/docs/site/browser:dx_site_browser",
@@ -124,12 +164,16 @@ rust_test(
     srcs = ["rendered_site_test.rs"],
     data = [
         ":demo_changed_site",
+        ":demo_polyglot_site",
         ":demo_site",
         ":user_site",
         "//tools/docs/site/check:site_check",
+        "@dx_docs_consumer//:site",
     ],
     env = {
+        "DX_CONSUMER_SITE": "$(rootpath @dx_docs_consumer//:site)",
         "DX_DEMO_CHANGED_SITE": "$(rootpath :demo_changed_site)",
+        "DX_DEMO_POLYGLOT_SITE": "$(rootpath :demo_polyglot_site)",
         "DX_DEMO_SITE": "$(rootpath :demo_site)",
         "DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)",
         "DX_USER_SITE": "$(rootpath :user_site)",
@@ -211,6 +255,7 @@ real_source_target(
         "render.bzl",
         "site.bzl",
         "site_tests.bzl",
+        "user/api.bzl",
         "user/book.bzl",
     ],
     tags = ["corpus"],

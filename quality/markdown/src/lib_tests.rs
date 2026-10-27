@@ -1,5 +1,6 @@
 use super::check::FindingLine;
 use super::*;
+use crate::frontmatter::{headings, line_starts};
 use std::collections::BTreeMap;
 
 fn siblings(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
@@ -476,29 +477,68 @@ fn sibling_fence_content_headings_are_ignored() {
 }
 
 #[test]
-fn slug_collapses_dashes_and_underscores() {
+fn slug_keeps_underscores_like_github() {
+    let text = "# T\n\n## well-known_name\n\nSee [s](#well-known_name).\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[]));
+    assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
     let text = "# T\n\n## well-known_name\n\nSee [s](#well-known-name).\n";
     let outcome = check_markdown("a.md", text, &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![(5, FindingKind::MissingAnchor)]);
+}
+
+#[test]
+fn slug_matches_github_fixtures() {
+    assert_eq!(slug("Привет"), "привет");
+    assert_eq!(slug("你好"), "你好");
+    assert_eq!(slug("😄 emoji"), "-emoji");
+    assert_eq!(slug("Æúű"), "æúű");
+    assert_eq!(slug("a   b"), "a---b");
+    assert_eq!(slug("rules_android"), "rules_android");
+    assert_eq!(slug("C# basics"), "c-basics");
+    assert_eq!(slug("x²"), "x");
+    assert_eq!(slug("dx fix --here"), "dx-fix---here");
+}
+
+#[test]
+fn unicode_anchors_resolve() {
+    let text = "# T\n\n## Привет\n\n## 你好\n\nSee [ru](#привет) and [zh](#你好).\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[]));
+    assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
+    let text = "# T\n\n## 😄 emoji\n\n## Æúű\n\nSee [e](#-emoji) and [a](#æúű).\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[]));
     assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
 }
 
 #[test]
-fn slug_transliterates_unicode_fixtures() {
-    assert_eq!(slug("Привет"), "privet");
-    assert_eq!(slug("你好"), "ni-hao");
-    assert_eq!(slug("😄 emoji"), "smile-emoji");
-    assert_eq!(slug("Æúű"), "aeuu");
-    assert_eq!(slug("a   b"), "a-b");
+fn sibling_underscore_anchor_resolves() {
+    let text = "# Android\n\nSee [p](../patches/README.md#rules_android).\n";
+    let outcome = check_markdown(
+        "android/README.md",
+        text,
+        &siblings(&[("patches/README.md", "# Patches\n\n## rules_android\n")]),
+    );
+    assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
 }
 
 #[test]
-fn transliterated_anchors_resolve() {
-    let text = "# T\n\n## Привет\n\n## 你好\n\nSee [ru](#privet) and [zh](#ni-hao).\n";
-    let outcome = check_markdown("a.md", text, &siblings(&[]));
+fn sibling_duplicate_headings_get_numbered_slugs() {
+    let text = "# T\n\nSee [second](other.md#repeat-1).\n";
+    let outcome = check_markdown(
+        "a.md",
+        text,
+        &siblings(&[("other.md", "# O\n\n## Repeat\n\n## Repeat\n")]),
+    );
     assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
-    let text = "# T\n\n## 😄 emoji\n\n## Æúű\n\nSee [e](#smile-emoji) and [a](#aeuu).\n";
-    let outcome = check_markdown("a.md", text, &siblings(&[]));
-    assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
+}
+
+#[test]
+fn duplicate_slug_skips_taken_suffix() {
+    let text = "# T\n\n## Foo\n\n## Foo\n\n## Foo-1\n";
+    let slugs: Vec<_> = headings(text, &line_starts(text))
+        .into_iter()
+        .map(|h| h.slug)
+        .collect();
+    assert_eq!(slugs, vec!["t", "foo", "foo-1", "foo-1-1"]);
 }
 
 #[test]
@@ -902,4 +942,71 @@ fn cli_unknown_flag_after_valid_source_still_fails() {
     let (code, _, err) = run_harness(&files, &["--source", "a.md=/exec/a.md", "--bogus"]);
     assert_eq!(code, 2);
     assert_eq!(err[0], "unknown argument: --bogus", "{err:?}");
+}
+
+#[test]
+fn fence_in_blockquote_is_closed() {
+    let outcome = check_markdown("a.md", "# T\n\n> ```sh\n> echo\n> ```\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![]);
+}
+
+#[test]
+fn fence_in_nested_list_is_closed() {
+    let text =
+        "# T\n\n- a\n    - b\n\n      ```sh\n      echo\n      ```\n- ```sh\n  echo\n  ```\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![]);
+}
+
+#[test]
+fn unclosed_fence_in_blockquote_is_a_finding() {
+    let outcome = check_markdown("a.md", "# T\n\n> ```sh\n> echo\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![(3, FindingKind::UnclosedCodeFence)]);
+}
+
+#[test]
+fn fence_with_four_space_indented_close_text_is_unclosed() {
+    let outcome = check_markdown("a.md", "# T\n\n```sh\necho\n    ```\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![(3, FindingKind::UnclosedCodeFence)]);
+}
+
+#[test]
+fn quoted_fence_content_that_looks_like_fence_is_unclosed() {
+    let outcome = check_markdown("a.md", "# T\n\n> ```sh\n> > ```\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![(3, FindingKind::UnclosedCodeFence)]);
+}
+
+#[test]
+fn setext_h1_counts_as_h1() {
+    let outcome = check_markdown(
+        "a.md",
+        "Title\n=====\n\n[x](#title)\n\n# Two\n",
+        &siblings(&[]),
+    );
+    assert_eq!(kinds(&outcome), vec![(6, FindingKind::HeadingHierarchy)]);
+}
+
+#[test]
+fn duplicate_sibling_heading_gets_counter_slug() {
+    let text = "# T\n\n## A\n\n## A\n\n[x](#a-1)\n";
+    assert_eq!(kinds(&check_markdown("a.md", text, &siblings(&[]))), vec![]);
+}
+
+#[test]
+fn heading_link_text_slugs_rendered_text() {
+    let text = "# T\n\n## See [a](b.md)\n\n[x](#see-a)\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[("b.md", "# B\n")]));
+    assert_eq!(kinds(&outcome), vec![]);
+}
+
+#[test]
+fn quoted_heading_skips_hierarchy() {
+    let outcome = check_markdown("a.md", "# T\n\n> ### Q\n", &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![]);
+}
+
+#[test]
+fn duplicate_heading_counter_includes_quoted_heading() {
+    let text = "# T\n\n> ## A\n\n## A\n\n[x](#a-1)\n";
+    assert_eq!(kinds(&check_markdown("a.md", text, &siblings(&[]))), vec![]);
 }

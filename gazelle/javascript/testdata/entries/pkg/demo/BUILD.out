@@ -6,6 +6,14 @@ filegroup(
     srcs = ["README.txt"],
 )
 
+# A hand-set nearest manifest must survive regeneration.
+javascript_test(
+    name = "widget_test",
+    srcs = ["widget_test.js"],
+    node_modules = "//:node_modules",
+    package_json = "//pkg:package_json",
+)
+
 javascript_library(
     name = "helper",
     srcs = ["helper.js"],
@@ -16,6 +24,7 @@ javascript_test(
     srcs = ["helper_test.js"],
     data = [":helper"],
     node_modules = "//:node_modules",
+    package_json = "//:package_json",
 )
 
 javascript_library(

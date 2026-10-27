@@ -2,18 +2,12 @@ use std::collections::BTreeMap;
 
 use dx_testing::read_runfiles;
 
-const GITHUB_BUILD: &str = ".github/BUILD.bazel";
-
 struct ActionPin {
     workflow: String,
     line: usize,
     action: String,
     sha: String,
     tag: String,
-}
-
-fn workflow_exports() -> Vec<String> {
-    dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD)
 }
 
 fn uses_lines(text: &str) -> Vec<(usize, String)> {
@@ -33,15 +27,15 @@ fn uses_lines(text: &str) -> Vec<(usize, String)> {
 
 fn action_pins() -> Vec<ActionPin> {
     let mut pins = Vec::new();
-    for name in workflow_exports() {
-        let text = read_runfiles(&format!(".github/{name}"));
+    for name in dx_testing::workflow_files() {
+        let text = read_runfiles(&name);
         for (line, uses) in uses_lines(&text) {
             if uses.starts_with("./") || uses.starts_with("docker://") {
                 continue;
             }
             let (action, pin) = uses
                 .split_once('@')
-                .unwrap_or_else(|| panic!(".github/{name}:{line}: {uses} pins no ref"));
+                .unwrap_or_else(|| panic!("{name}:{line}: {uses} pins no ref"));
             let (sha, comment) = pin.split_once(char::is_whitespace).unwrap_or((pin, ""));
             let tag = comment.trim().trim_start_matches('#').trim();
             pins.push(ActionPin {
@@ -73,7 +67,7 @@ fn pinned_sha(site: &str) -> &str {
 #[test]
 fn every_action_pin_is_a_commit_sha_with_its_tag() {
     for pin in action_pins() {
-        let at = format!(".github/{}:{}", pin.workflow, pin.line);
+        let at = format!("{}:{}", pin.workflow, pin.line);
         assert!(
             is_commit_sha(&pin.sha),
             "{at} pins {} at {:?}; a 40-char lowercase commit SHA is the only accepted ref",

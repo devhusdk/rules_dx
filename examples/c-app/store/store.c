@@ -24,11 +24,13 @@ static char *read_all(const char *path) {
     if (cap - len < 2) {
       cap *= 2;
       char *grown = realloc(buf, cap);
+      // LCOV_EXCL_START - reason: realloc failure cannot be forced, issue: 2142
       if (grown == NULL) {
         free(buf);
         buf = NULL;
         break;
       }
+      // LCOV_EXCL_STOP - reason: end of range, issue: 2142
       buf = grown;
     }
   }
@@ -78,10 +80,12 @@ int store_load(const char *path, store_t *out, char *err, size_t err_len) {
   }
   int n = cJSON_GetArraySize(items);
   store_item *list = calloc((size_t)n + 1, sizeof(store_item));
+  // LCOV_EXCL_START - reason: calloc failure cannot be forced, issue: 2142
   if (list == NULL) {
     cJSON_Delete(root);
     return fail(err, err_len, "out of memory");
   }
+  // LCOV_EXCL_STOP - reason: end of range, issue: 2142
   size_t used = 0;
   const cJSON *entry = NULL;
   cJSON_ArrayForEach(entry, items) {

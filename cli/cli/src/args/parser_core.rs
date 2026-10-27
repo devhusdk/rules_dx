@@ -104,6 +104,17 @@ fn verify_and_rerun_are_rejected_with_direct_command_tips() {
 }
 
 #[test]
+fn every_removed_command_is_a_usage_error_with_its_tip() {
+    for (name, tip) in crate::args::tokenizer::REMOVED_COMMANDS {
+        assert_usage(
+            &[name],
+            parse(&strings(&[name])).unwrap_err(),
+            &["unsupported command", tip],
+        );
+    }
+}
+
+#[test]
 fn check_selects_check_mode() {
     let got = parse(&strings(&["format", "--check"])).expect("parse");
     assert_eq!(got.command, Command::Format);
@@ -116,7 +127,7 @@ fn check_selects_check_mode() {
 fn plain_words(command: Command) -> Vec<String> {
     let mut words = vec![command.name().to_owned()];
     match command {
-        Command::Bump => words.extend(strings(&["cargo:demo", "1.0.0"])),
+        Command::Bump | Command::Add => words.extend(strings(&["cargo:demo", "1.0.0"])),
         Command::Migrate | Command::Upgrade => {
             words.extend(strings(&["--from=1.0.0", "--to=2.0.0"]));
         }
@@ -190,7 +201,8 @@ fn repeated_apply_is_idempotent() {
 }
 
 #[test]
-fn apply_matrix_matches_supports_apply() {
+fn apply_is_accepted_exactly_by_the_apply_commands() {
+    use super::super::command::owners::APPLY_COMMANDS;
     use clap::ValueEnum;
     for command in Command::value_variants() {
         let command = *command;
@@ -199,7 +211,9 @@ fn apply_matrix_matches_supports_apply() {
             words[1] = "fix".to_owned();
         }
         words.push("--apply".to_owned());
-        if command.supports_apply() {
+        let listed = APPLY_COMMANDS.contains(&command);
+        assert_eq!(command.supports_apply(), listed, "dx {}", command.name());
+        if listed {
             let got = parse(&words).unwrap_or_else(|error| {
                 panic!("dx {} --apply must parse: {error}", command.name())
             });
@@ -676,7 +690,6 @@ fn audit_update_parse_and_reject_unsupported_options() {
     let security = parse(&strings(&["security"])).expect("parse security");
     assert_eq!(security.command, Command::Security);
     assert_eq!(security.command.name(), "security");
-    assert!(security.command.is_audit_update());
     assert!(!security.command.is_adoption());
     assert!(!security.command.is_managed());
     assert!(security.targets.is_empty());
@@ -686,7 +699,6 @@ fn audit_update_parse_and_reject_unsupported_options() {
     let update = parse(&strings(&["update"])).expect("parse update");
     assert_eq!(update.command, Command::Update);
     assert_eq!(update.command.name(), "update");
-    assert!(update.command.is_audit_update());
     let selected = parse(&strings(&["update", "crates"])).expect("parse update selector");
     assert_eq!(selected.targets, vec!["crates".to_owned()]);
     assert_eq!(
@@ -750,6 +762,29 @@ fn audit_update_parse_and_reject_unsupported_options() {
             scope: ":target".to_owned(),
         })
     );
+}
+
+#[test]
+fn every_command_without_a_passthrough_refuses_it_the_same_way() {
+    use clap::ValueEnum;
+    let refusing: Vec<Command> = Command::value_variants()
+        .iter()
+        .copied()
+        .filter(|command| !super::super::grammar::advertises_passthrough(*command))
+        .collect();
+    assert!(refusing.contains(&Command::Clean));
+    assert!(refusing.contains(&Command::Worktree));
+    for command in refusing {
+        assert_eq!(
+            parse(&strings(&[command.name(), "--", "--jobs=4"])),
+            Err(ArgsError::UnsupportedOption {
+                command: command.name(),
+                option: "--".to_owned(),
+            }),
+            "{}",
+            command.name()
+        );
+    }
 }
 
 #[test]

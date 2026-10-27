@@ -15,6 +15,14 @@ python_library(
     imports = ["."],
 )
 
+# keep
+python_library(
+    name = "incompatible_lib",
+    srcs = ["hello.py"],
+    imports = ["."],
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
 python_binary(
     name = "hello",
     srcs = ["main.py"],

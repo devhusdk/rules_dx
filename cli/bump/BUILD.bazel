@@ -12,12 +12,13 @@ dx_rust_crate(
     name = "dx_bump",
     package_name = "cli/dx_bump",
     srcs = [
+        "src/add.rs",
+        "src/add_plans.rs",
         "src/gha.rs",
         "src/lib.rs",
         "src/request.rs",
         "src/request_cargo.rs",
         "src/request_plans.rs",
-        "src/request_tests.rs",
         "src/sets.rs",
         "src/version.rs",
     ],
@@ -28,8 +29,11 @@ dx_rust_crate(
         "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",
     ],
+    test_srcs = [
+        "src/add_tests.rs",
+        "src/request_tests.rs",
+    ],
     deps = [
-        "regex",
         "saphyr-parser",
         "semver",
         "serde_json",

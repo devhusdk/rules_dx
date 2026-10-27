@@ -458,9 +458,14 @@ fn is_ignored(rel: &str, ignores: &[String]) -> bool {
     })
 }
 
-fn build_files(workspace: &Path) -> Result<Vec<(String, String)>, String> {
+/// Walks the workspace like Bazel would: honours `.bazelignore`, skips `skip` directory names
+/// and never follows symlinks. `visit(name, rel, dir)` returns true to stop early.
+fn walk_workspace(
+    workspace: &Path,
+    skip: &[&str],
+    mut visit: impl FnMut(&str, &str, &str) -> bool,
+) -> Result<(), String> {
     let ignores = read_bazelignore(workspace)?;
-    let mut found: Vec<(String, String)> = Vec::new();
     let mut dirs: Vec<String> = vec![String::new()];
     while let Some(dir) = dirs.pop() {
         let shown = if dir.is_empty() { "." } else { dir.as_str() };
@@ -478,17 +483,38 @@ fn build_files(workspace: &Path) -> Result<Vec<(String, String)>, String> {
                 .file_type()
                 .map_err(|error| format!("cannot read {rel}: {error}"))?;
             if kind.is_dir() {
-                if name != ".git" && !is_ignored(&rel, &ignores) {
+                if !skip.contains(&name.as_str()) && !is_ignored(&rel, &ignores) {
                     dirs.push(rel);
                 }
-            } else if matches!(name.as_str(), "BUILD" | "BUILD.bazel")
-                && workspace.join(&rel).is_file()
-            {
-                found.push((rel, dir.clone()));
+            } else if visit(&name, &rel, &dir) {
+                return Ok(());
             }
         }
     }
+    Ok(())
+}
+
+fn build_files(workspace: &Path) -> Result<Vec<(String, String)>, String> {
+    let mut found: Vec<(String, String)> = Vec::new();
+    walk_workspace(workspace, &[".git"], |name, rel, dir| {
+        if matches!(name, "BUILD" | "BUILD.bazel") && workspace.join(rel).is_file() {
+            found.push((rel.to_owned(), dir.to_owned()));
+        }
+        false
+    })?;
     found.sort();
+    Ok(found)
+}
+
+/// Whether the workspace has a `.cu` or `.cuh` source Bazel can see. Stops at the first one.
+pub fn workspace_has_cuda_sources(root: &Path) -> Result<bool, crate::AdoptError> {
+    let mut found = false;
+    walk_workspace(root, &[".git", ".dx"], |name, rel, _| {
+        let cuda = name.ends_with(".cu") || name.ends_with(".cuh");
+        found = cuda && root.join(rel).is_file();
+        found
+    })
+    .map_err(|detail| crate::AdoptError::WorkspaceScan { detail })?;
     Ok(found)
 }
 
@@ -946,6 +972,22 @@ mod tests {
     }
 
     #[test]
+    fn load_graph_selects_loaders_of_scl_files() {
+        let scratch = dx_test_scratch::scratch("dx-load-scl-");
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(root, "tools/BUILD.bazel", "");
+        write(root, "tools/a.bzl", "load(\":x.scl\", \"x\")\n");
+        write(root, "tools/x.scl", "X = 1\n");
+        write(root, "app/BUILD.bazel", "load(\"//tools:a.bzl\", \"a\")\n");
+        write(root, "lib/BUILD", "load(\"//tools:x.scl\", \"x\")\n");
+        assert_eq!(
+            impact(root, &["tools/x.scl"], &[]),
+            [packages("tools/x.scl", &["//app:all", "//lib:all"])]
+        );
+    }
+
+    #[test]
     fn relative_loads_in_a_bzl_resolve_against_its_label_package() {
         let scratch = dx_test_scratch::scratch("dx-load-relative-");
         let root = scratch.path();
@@ -993,6 +1035,38 @@ mod tests {
             impact(root, &["defs.bzl"], &[]),
             [packages("defs.bzl", &["//nested:all", "//real:all"])]
         );
+    }
+
+    #[test]
+    fn cuda_sources_are_detected_outside_ignored_dirs() {
+        let scratch = dx_test_scratch::scratch("dx-cuda-detect-");
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(root, "a.cc", "");
+        assert!(!super::workspace_has_cuda_sources(root).expect("scan"));
+        write(root, ".bazelignore", "vendor\n");
+        write(root, "vendor/k.cu", "");
+        write(root, ".dx/k.cu", "");
+        write(root, ".git/k.cu", "");
+        assert!(!super::workspace_has_cuda_sources(root).expect("scan"));
+        #[cfg(unix)]
+        {
+            let outside = dx_test_scratch::scratch("dx-cuda-outside-");
+            write(outside.path(), "k.cu", "");
+            std::os::unix::fs::symlink(outside.path(), root.join("bazel-out")).expect("symlink");
+            assert!(!super::workspace_has_cuda_sources(root).expect("scan"));
+            outside.close().expect("cleanup");
+        }
+        write(root, "k/a.cu", "");
+        assert!(super::workspace_has_cuda_sources(root).expect("scan"));
+    }
+
+    #[test]
+    fn cuh_alone_counts_as_cuda() {
+        let scratch = dx_test_scratch::scratch("dx-cuda-cuh-");
+        let root = scratch.path();
+        write(root, "include/k.cuh", "");
+        assert!(super::workspace_has_cuda_sources(root).expect("scan"));
     }
 
     #[test]

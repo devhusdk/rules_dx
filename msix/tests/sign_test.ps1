@@ -49,9 +49,12 @@ function New-TestCertificate([string]$Subject, [string]$Path, [string]$Password,
     return $certificate
 }
 
-function Invoke-Sign([string[]]$Arguments, [string]$Package = $env:DX_MSIX_PACKAGE) {
+function Invoke-Sign([string[]]$Arguments, [string]$Package = $env:DX_MSIX_PACKAGE, [hashtable]$Environment = @{}) {
     $start = [System.Diagnostics.ProcessStartInfo]::new($sign)
     $start.Environment["DX_MSIX_PACKAGE"] = $Package
+    foreach ($name in $Environment.Keys) {
+        $start.Environment[$name] = $Environment[$name]
+    }
     foreach ($argument in $Arguments) {
         $start.ArgumentList.Add($argument)
     }
@@ -62,6 +65,81 @@ function Invoke-Sign([string[]]$Arguments, [string]$Package = $env:DX_MSIX_PACKA
     $output = $process.StandardOutput.ReadToEnd()
     $process.WaitForExit()
     return [pscustomobject]@{ Exit = $process.ExitCode; Output = $output; Stderr = $errors.Result }
+}
+
+function Get-StoreCertificate([string]$Thumbprint) {
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+    try {
+        return @($store.Certificates | Where-Object { $_.Thumbprint -ceq $Thumbprint })
+    } finally {
+        $store.Close()
+    }
+}
+
+function Test-NoStoreCert([string]$Thumbprint, [string]$Label) {
+    Assert-Equal 0 (Get-StoreCertificate $Thumbprint).Count "$Label left the certificate in CurrentUser\My"
+}
+
+function Test-KeyGone([string]$KeyLine, [string]$Label) {
+    $parts = $KeyLine.Substring(4).Split("|")
+    if ($parts.Count -lt 3) {
+        $failures.Add("$Label has no key line: $KeyLine")
+        return
+    }
+    $exists = $false
+    if ($parts[2] -eq "0") {
+        $exists = [System.Security.Cryptography.CngKey]::Exists($parts[1], [System.Security.Cryptography.CngProvider]::new($parts[0]))
+    } else {
+        $csp = [System.Security.Cryptography.CspParameters]::new([int]$parts[2], $parts[0], $parts[1])
+        $csp.Flags = [System.Security.Cryptography.CspProviderFlags]::UseExistingKey
+        try {
+            [System.Security.Cryptography.RSACryptoServiceProvider]::new($csp).Dispose()
+            $exists = $true
+        } catch {
+        }
+    }
+    Assert-That (-not $exists) "$Label left the private key $($parts[1])"
+}
+
+function Read-ArgvLog([string]$Path) {
+    $calls = [System.Collections.Generic.List[object]]::new()
+    $current = [System.Collections.Generic.List[string]]::new()
+    if (Test-Path -LiteralPath $Path) {
+        foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
+            if ($line -ceq "--") {
+                $calls.Add($current.ToArray())
+                $current = [System.Collections.Generic.List[string]]::new()
+            } else {
+                $current.Add($line)
+            }
+        }
+    }
+    return , $calls
+}
+
+function Test-ArgvSign([string]$Label, [string]$LogName, [hashtable]$Extra, [int]$ExpectedExit, [int]$ExpectedCalls, [string[]]$SignArguments) {
+    $log = Join-Path $work $LogName
+    Remove-Item -LiteralPath $log -ErrorAction SilentlyContinue
+    $environment = @{ DX_MSIX_SIGNTOOL = $env:DX_MSIX_ARGV_SIGNTOOL; DX_MSIX_ARGV_FILE = $log } + $Extra
+    $result = Invoke-Sign $SignArguments $env:DX_MSIX_PACKAGE $environment
+    Assert-Equal $ExpectedExit $result.Exit "$Label exit ($($result.Stderr))"
+    $calls = Read-ArgvLog $log
+    Assert-Equal $ExpectedCalls $calls.Count "$Label signtool invocations"
+    foreach ($call in $calls) {
+        $text = $call -join "`n"
+        Assert-That (-not $text.Contains($env:DX_MSIX_PFX_PASSWORD)) "$Label signtool argv has the password"
+        Assert-That ($call -cnotcontains "/p") "$Label signtool argv has /p"
+        Assert-That ($call -cnotcontains "/f") "$Label signtool argv has /f"
+        $at = [Array]::IndexOf($call, "/sha1")
+        Assert-That ($at -ge 0 -and $call.Count -gt $at + 3 -and $call[$at + 1] -ceq $certificate.Thumbprint -and $call[$at + 2] -ceq "/s" -and $call[$at + 3] -ceq "My") "$Label signtool argv is not /sha1 <thumbprint> /s My: $text"
+        $key = @($call | Where-Object { $_.StartsWith("key=") })
+        Assert-That ($key.Count -eq 1 -and $key[0] -cne "key=none") "$Label signtool saw no key in the store: $($key -join ',')"
+        if ($key.Count -eq 1 -and $key[0] -cne "key=none") {
+            $script:lastKey = $key[0]
+        }
+    }
+    return [pscustomobject]@{ Result = $result; Calls = $calls }
 }
 
 function Read-Zip([byte[]]$Bytes) {
@@ -236,6 +314,88 @@ if ($result.Exit -eq 0) {
     Test-SignedPackage "signed" $signed $identity $certificate $false
 }
 
+Test-NoStoreCert $certificate.Thumbprint "sign"
+
+$script:lastKey = ""
+$case = Test-ArgvSign "argv" "argv1.log" @{} 0 1 @("-Pfx", $good, "-Out", (Join-Path $work "argv1.msix"))
+Test-NoStoreCert $certificate.Thumbprint "argv"
+Test-KeyGone $script:lastKey "argv"
+
+$script:lastKey = ""
+$case = Test-ArgvSign "argv timestamp" "argv2.log" @{} 0 2 @("-Pfx", $good, "-Out", (Join-Path $work "argv2.msix"), "-Timestamp", "http://127.0.0.1:1/")
+if ($case.Calls.Count -eq 2) {
+    Assert-That ($case.Calls[1] -ccontains "/tr") "argv timestamp: second signtool call has no /tr"
+}
+Test-NoStoreCert $certificate.Thumbprint "argv timestamp"
+Test-KeyGone $script:lastKey "argv timestamp"
+
+$script:lastKey = ""
+Test-ArgvSign "failing signtool" "argv3.log" @{ DX_MSIX_ARGV_EXIT = "1" } 1 1 @("-Pfx", $good, "-Out", (Join-Path $work "argv3.msix")) | Out-Null
+Test-NoStoreCert $certificate.Thumbprint "failing signtool"
+Test-KeyGone $script:lastKey "failing signtool"
+
+$flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::UserKeySet -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
+foreach ($marker in @($false, $true)) {
+    $label = if ($marker) { "stale marker" } else { "existing certificate" }
+    $own = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($good, $env:DX_MSIX_PFX_PASSWORD, $flags)
+    if ($marker) {
+        $own.FriendlyName = "dx_msix_sign temporary"
+    }
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+    $store.Add($own)
+    $store.Close()
+    $script:lastKey = ""
+    try {
+        Test-ArgvSign $label "argv-$($marker).log" @{} 0 1 @("-Pfx", $good, "-Out", (Join-Path $work "argv-$($marker).msix")) | Out-Null
+        $left = Get-StoreCertificate $certificate.Thumbprint
+        if ($marker) {
+            Assert-Equal 0 $left.Count "$label left the certificate in CurrentUser\My"
+            Test-KeyGone $script:lastKey $label
+        } else {
+            Assert-Equal 1 $left.Count "$label removed the user's certificate"
+            Assert-That ($left.Count -eq 1 -and $left[0].HasPrivateKey) "$label removed the user's private key"
+        }
+    } finally {
+        $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+        $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+        foreach ($found in $store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $certificate.Thumbprint, $false)) {
+            $store.Remove($found)
+        }
+        $store.Close()
+        try {
+            $key = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($own)
+            if ($key -is [System.Security.Cryptography.RSACng]) {
+                $key.Key.Delete()
+            }
+        } catch {
+        }
+    }
+}
+
+$public = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate.RawData)
+$public.FriendlyName = "user public only"
+$store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+$store.Add($public)
+$store.Close()
+$script:lastKey = ""
+try {
+    Test-ArgvSign "keyless certificate" "argv-keyless.log" @{} 0 1 @("-Pfx", $good, "-Out", (Join-Path $work "argv-keyless.msix")) | Out-Null
+    $left = Get-StoreCertificate $certificate.Thumbprint
+    Assert-Equal 1 $left.Count "keyless certificate was not restored to CurrentUser\My"
+    Assert-That ($left.Count -eq 1 -and -not $left[0].HasPrivateKey) "keyless certificate got a private key"
+    Assert-That ($left.Count -eq 1 -and $left[0].FriendlyName -ceq "user public only") "keyless certificate lost its FriendlyName"
+    Test-KeyGone $script:lastKey "keyless certificate"
+} finally {
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+    foreach ($found in $store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $certificate.Thumbprint, $false)) {
+        $store.Remove($found)
+    }
+    $store.Close()
+}
+
 $arm64 = Get-Content -LiteralPath (Find-Runfile $env:DX_MSIX_ARM64 ".msix.identity.json") -Raw | ConvertFrom-Json -AsHashtable
 Assert-Equal "arm64" $arm64.arch "arm64 package arch"
 $signedArm64 = Join-Path $work "signed-arm64.msix"
@@ -244,6 +404,7 @@ Assert-Equal 0 $result.Exit "arm64 sign exit ($($result.Stderr))"
 if ($result.Exit -eq 0) {
     Test-SignedPackage "arm64" $signedArm64 $arm64 $certificate $false
 }
+Test-NoStoreCert $certificate.Thumbprint "arm64 sign"
 Assert-Equal $unsigned (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant() "unsigned package changed on disk"
 Assert-Equal $unsigned $identity.package_sha256 "unsigned package differs from its identity"
 
@@ -267,6 +428,7 @@ Assert-Refused "not yet valid certificate" (Invoke-Sign @("-Pfx", $future, "-Out
 
 $env:DX_MSIX_PFX_PASSWORD = "not-the-password"
 Assert-Refused "wrong password" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected)) 3 "dx_msix_sign: cannot open certificate $good" $rejected
+Test-NoStoreCert $certificate.Thumbprint "wrong password"
 $env:DX_MSIX_PFX_PASSWORD = "dx-test-only"
 
 $public = Join-Path $work "public.cer"

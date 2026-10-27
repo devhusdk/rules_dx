@@ -1,7 +1,7 @@
 """Rust API reference shards built from pinned nightly rustdoc JSON."""
 
 load("@rules_rust//rust:defs.bzl", "rust_common", "rust_doc")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", _repo_relative = "repo_relative", _srcs_manifest_line = "srcs_manifest_line")
 
 _CHANNEL = str(Label("@rules_rust//rust/toolchain/channel"))
 
@@ -21,15 +21,9 @@ _GeneratedSrcsInfo = provider(
     fields = {"paths": "Repo-relative paths of the generated srcs."},
 )
 
-def repo_relative(path):
-    """Returns one short_path relative to its repository root."""
-    if path.startswith("../"):
-        return path.split("/", 2)[2]
-    return path
+repo_relative = _repo_relative
 
-def srcs_manifest_line(exec_path, rel, generated):
-    """Returns one tab-separated srcs manifest line."""
-    return exec_path + "\t" + rel + "\t" + ("1" if generated else "0") + "\n"
+srcs_manifest_line = _srcs_manifest_line
 
 def _generated_srcs_aspect_impl(_target, ctx):
     srcs = getattr(ctx.rule.files, "srcs", [])
@@ -37,6 +31,7 @@ def _generated_srcs_aspect_impl(_target, ctx):
 
 _generated_srcs_aspect = aspect(
     implementation = _generated_srcs_aspect_impl,
+    doc = "Collects the paths of generated crate srcs.",
 )
 
 def _single(value):

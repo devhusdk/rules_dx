@@ -12,6 +12,7 @@
 
 pub mod bazel_package;
 pub mod host;
+pub mod nested_bazel;
 pub mod runfiles;
 pub mod spelling;
 pub mod uri;

@@ -21,7 +21,8 @@ pub mod rc;
 
 pub use rc::{
     build_verb_options, clear_share, configure, configure_real, current, default_disk_cache,
-    set_share, share, user_cache_dir, LocalShare, RcPolicy, PRESET_LOCAL_RESOURCES,
+    set_share, share, user_cache_dir, LocalShare, RcPolicy, DISK_CACHE_GC_MAX_AGE,
+    DISK_CACHE_GC_MAX_SIZE, PRESET_LOCAL_RESOURCES,
 };
 
 pub trait Fs {
@@ -562,6 +563,35 @@ pub fn stdout_io_code(error: &io::Error) -> i32 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChildStatus {
     pub code: Option<i32>,
+    /// The signal that ended the child, when it died by a known signal.
+    pub signal: Option<i32>,
+}
+
+impl ChildStatus {
+    /// A child that exited with `code`.
+    pub fn exited(code: i32) -> Self {
+        Self {
+            code: Some(code),
+            signal: None,
+        }
+    }
+
+    /// A child that died by `signal`; `None` or 0 means the signal is unknown.
+    pub fn signalled(signal: Option<i32>) -> Self {
+        Self {
+            code: None,
+            signal: signal.filter(|signo| *signo != 0),
+        }
+    }
+}
+
+impl From<lifecycle::Exit> for ChildStatus {
+    fn from(exit: lifecycle::Exit) -> Self {
+        match exit {
+            lifecycle::Exit::Code(code) => Self::exited(code),
+            lifecycle::Exit::Signal(signo) => Self::signalled(Some(signo)),
+        }
+    }
 }
 
 /// Deadline and capture bound for one child run.
@@ -752,47 +782,12 @@ pub fn spawn_output(
     command.output()
 }
 
-pub fn spawn_success(argv: &[String]) -> bool {
-    let (binary, args) = match argv.split_first() {
-        Some(pair) => pair,
-        None => return false,
-    };
-    Command::new(OsStr::new(binary))
-        .args(args)
-        .output()
-        .is_ok_and(|out| out.status.success())
-}
-
-/// Suffixes the host appends to an executable name.
-fn suffixes() -> &'static [&'static str] {
-    if cfg!(windows) {
-        dx_path::host::EXECUTABLE_SUFFIXES
-    } else {
-        &[]
-    }
-}
-
-pub fn exe_available(bin: &str) -> bool {
-    spawn_success(&[bin.to_owned(), "--help".to_owned()])
-        || Path::new(bin).is_file()
-        || std::env::var_os("PATH").is_some_and(|paths| {
-            std::env::split_paths(&paths).any(|dir| {
-                dir.join(bin).is_file()
-                    || suffixes()
-                        .iter()
-                        .any(|suffix| dir.join(format!("{bin}{suffix}")).is_file())
-            })
-        })
-}
-
 pub struct SystemRunner;
 
 impl Runner for SystemRunner {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         let output = spawn_output(argv, cwd, env, false)?;
-        Ok(ChildStatus {
-            code: output.status.code(),
-        })
+        Ok(lifecycle::exit_of(&output.status).into())
     }
 
     fn run_hermetic(
@@ -802,9 +797,7 @@ impl Runner for SystemRunner {
         env: &[(&str, &str)],
     ) -> io::Result<ChildStatus> {
         let output = spawn_output(argv, cwd, env, true)?;
-        Ok(ChildStatus {
-            code: output.status.code(),
-        })
+        Ok(lifecycle::exit_of(&output.status).into())
     }
 
     fn run_bounded(

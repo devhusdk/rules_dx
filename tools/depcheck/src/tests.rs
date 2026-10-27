@@ -193,6 +193,59 @@ dev = ["helper==2.0"]
 }
 
 #[test]
+fn python_manifest_same_package_in_two_tables() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let cases = [
+        (
+            "[project]\ndependencies = [\"foo==1\"]\n\n[project.optional-dependencies]\nx = [\"foo==2\"]\n",
+            "prod",
+            "==1",
+            false,
+        ),
+        (
+            "[project]\ndependencies = [\"foo==1\"]\n\n[dependency-groups]\ndev = [\"foo==2\"]\n",
+            "prod",
+            "==1",
+            false,
+        ),
+        (
+            "[project]\ndependencies = [\"foo==1\"]\n\n[project.optional-dependencies]\nx = [\"foo==2\"]\n\n[dependency-groups]\ndev = [\"foo==3\"]\n",
+            "prod",
+            "==1",
+            false,
+        ),
+        (
+            "[dependency-groups]\ndev = [\"foo==3\"]\n\n[project]\ndependencies = [\"foo==1\"]\n",
+            "prod",
+            "==1",
+            false,
+        ),
+        (
+            "[project.optional-dependencies]\nx = [\"foo==2\"]\n\n[dependency-groups]\ndev = [\"foo==3\"]\n",
+            "dev",
+            "==2",
+            true,
+        ),
+        (
+            "[project]\ndependencies = [\"Foo-Bar==1\"]\n\n[dependency-groups]\ndev = [\"foo_bar==2\"]\n",
+            "prod",
+            "==1",
+            false,
+        ),
+    ];
+    for (body, category, spec, optional) in cases {
+        let man = dir.path().join("pyproject.toml");
+        write_file(&man, body);
+        let deps = parse_python_manifest(&man).expect("parse");
+        assert_eq!(deps.len(), 1, "{body}");
+        let dep = deps.values().next().expect("one dep");
+        assert_eq!(dep.category, category, "{body}");
+        assert_eq!(dep.spec, spec, "{body}");
+        assert_eq!(dep.optional, optional, "{body}");
+    }
+}
+
+#[test]
 fn python_lock_parses_and_falls_back() {
     let dir = tempfile::tempdir().expect("scratch");
     let lock = dir.path().join("uv.lock");
@@ -247,6 +300,12 @@ fn go_lock_strips_go_mod_suffix() {
     );
     let pkgs = parse_go_lock(&lock).expect("parse");
     assert_eq!(pkgs["example.com/greet"], "v1.0.0");
+    write_file(
+        &lock,
+        "example.com/greet v0.9.0/go.mod h1:a\nexample.com/greet v1.0.0 h1:abc\nexample.com/greet v1.0.0/go.mod h1:def\nexample.com/greet v1.10.0 h1:x\nexample.com/greet v1.9.0 h1:y\n",
+    );
+    let pkgs = parse_go_lock(&lock).expect("parse");
+    assert_eq!(pkgs["example.com/greet"], "v1.10.0");
 }
 
 #[test]
@@ -522,6 +581,30 @@ fn usage_patterns_jvm_group_and_artifact() {
         "A.java",
         "import static org.foo.core.X.y;\n",
         "org.foo:core"
+    ));
+    assert!(hits(
+        Ecosystem::Scala,
+        "A.scala",
+        "import zio._\n",
+        "dev.zio:zio"
+    ));
+    assert!(hits(
+        Ecosystem::Scala,
+        "A.scala",
+        "import zio.{ZIO, Console}\n",
+        "dev.zio:zio"
+    ));
+    assert!(hits(
+        Ecosystem::Scala,
+        "A.scala",
+        "import upickle.default._\n",
+        "com.lihaoyi:upickle"
+    ));
+    assert!(!hits(
+        Ecosystem::Scala,
+        "A.scala",
+        "import other.zio.X\n",
+        "dev.zio:zio"
     ));
     assert!(hits(
         Ecosystem::Kotlin,
@@ -818,7 +901,7 @@ fn write_workspace_locks(dir: &Path, stale_cargo: bool) {
     );
     write_file(
         &dir.join("Gemfile"),
-        "source \"https://rubygems.org\"\n\ngem \"rspec\", \"3.13.0\"\n",
+        "source \"https://rubygems.org\"\n\ngem \"rspec\", \"~> 3.13\"\n",
     );
     write_file(
         &dir.join("Gemfile.lock"),
@@ -1026,6 +1109,31 @@ fn ruby_lock_parses_specs() {
 }
 
 #[test]
+fn ruby_consistency_accepts_pessimistic() {
+    for (locked, want) in [("3.13.0", 0), ("4.0.0", 1)] {
+        let dir = tempfile::tempdir().expect("scratch");
+        write_file(
+            &dir.path().join("Gemfile"),
+            "source \"https://rubygems.org\"\n\ngem \"rspec\", \"~> 3.13\"\n",
+        );
+        write_file(
+            &dir.path().join("Gemfile.lock"),
+            &format!("GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec ({locked})\n"),
+        );
+        let mut out = String::new();
+        let mut err = String::new();
+        let code = cmd_consistency(
+            Ecosystem::Ruby,
+            &dir.path().join("Gemfile"),
+            &dir.path().join("Gemfile.lock"),
+            &mut out,
+            &mut err,
+        );
+        assert_eq!(code, want, "{locked} {err}");
+    }
+}
+
+#[test]
 fn ruby_consistency_ok() {
     let dir = tempfile::tempdir().expect("scratch");
     write_file(
@@ -1073,12 +1181,57 @@ fn ecosystem_parse_covers_every_name() {
 fn non_semver_grammar_fallback_arms() {
     assert!(versions_equal("x", "x"));
     assert!(!versions_equal("x", "y"));
-    assert!(!satisfies_non_semver("~1", "1.0.0"));
+    assert!(satisfies_non_semver("~1", "1.0.0"));
     assert!(satisfies_non_semver("~1.x", "1.x"));
     assert!(satisfies_non_semver("<=2.0.0", "1.0.0"));
     assert!(!satisfies_non_semver("<=1.0.0", "2.0.0"));
     assert!(satisfies_non_semver("foo", "foo"));
     assert!(!satisfies_non_semver("foo", "bar"));
+}
+
+#[test]
+fn non_semver_pessimistic_padding_and_prerelease() {
+    assert!(satisfies_non_semver("~> 7.0", "7.1.3"), "~> 7.0 7.1.3");
+    assert!(!satisfies_non_semver("~> 7.0", "8.0.0"), "~> 7.0 8.0.0");
+    assert!(satisfies_non_semver("~> 7.1.3", "7.1.3"), "~> 7.1.3 7.1.3");
+    assert!(!satisfies_non_semver("~> 7.1.3", "7.2.0"), "~> 7.1.3 7.2.0");
+    assert!(!satisfies_non_semver("~> 7.1.3", "7.1.2"), "~> 7.1.3 7.1.2");
+    assert!(!satisfies_non_semver("~1.2.3", "1.2.0"), "~1.2.3 1.2.0");
+    assert!(satisfies_non_semver("~1.2.3", "1.2.9"), "~1.2.3 1.2.9");
+    assert!(satisfies_non_semver(">=1.2.0", "1.2"), ">=1.2.0 1.2");
+    assert!(satisfies_non_semver("<=1.2", "1.2.0"), "<=1.2 1.2.0");
+    assert!(
+        !satisfies_non_semver(">=2.0.0", "2.0.0-beta"),
+        ">=2.0.0 2.0.0-beta"
+    );
+    assert!(
+        !satisfies_non_semver(">=2.0.0", "2.0.0.rc1"),
+        ">=2.0.0 2.0.0.rc1"
+    );
+    assert!(
+        satisfies_non_semver(">=33.0.0", "33.0.0-jre"),
+        ">=33.0.0 33.0.0-jre"
+    );
+    assert!(
+        !satisfies_non_semver(">= 1.2.0, < 2.0", "2.1.0"),
+        ">= 1.2.0, < 2.0 2.1.0"
+    );
+    assert!(
+        satisfies_non_semver(">= 1.2.0, < 2.0", "1.5.0"),
+        ">= 1.2.0, < 2.0 1.5.0"
+    );
+    assert!(!satisfies_non_semver(">1.0", "1.0.0"), ">1.0 1.0.0");
+    assert!(satisfies_non_semver(">1.0", "1.0.1"), ">1.0 1.0.1");
+    assert!(satisfies_non_semver("~> 7", "7.9"), "~> 7 7.9");
+    assert!(satisfies_non_semver("~foo", "foo"), "~foo foo");
+    assert!(!satisfies_non_semver(">=foo", "1.0"), ">=foo 1.0");
+    assert!(!satisfies_non_semver(">=1.0", "weird"), ">=1.0 weird");
+    assert!(!satisfies_non_semver("!=1.0", "1.0"), "!=1.0 1.0");
+    assert!(
+        satisfies_non_semver(">=2.0.0-beta", "2.0.0-beta"),
+        ">=2.0.0-beta 2.0.0-beta"
+    );
+    assert!(satisfies_for(Ecosystem::Ruby, "~> 3.13", "3.13.0"));
 }
 
 #[test]
@@ -1772,6 +1925,31 @@ fn usage_rust_prod_and_dev_dep_used_only_by_tests() {
         let code = cmd_usage(
             Ecosystem::Rust,
             &dir.path().join("Cargo.toml"),
+            dir.path(),
+            None,
+            &mut out,
+            &mut err,
+        );
+        assert_eq!(code, want, "{err}");
+        assert_eq!(err.contains("used only by tests"), want == 1, "{err}");
+    }
+}
+
+#[test]
+fn usage_python_prod_and_dev_dep_used_only_by_tests() {
+    for (src, want) in [("x = 1\n", 1), ("import foo\n", 0)] {
+        let dir = tempfile::tempdir().expect("scratch");
+        write_file(
+            &dir.path().join("pyproject.toml"),
+            "[project]\nname = \"hello\"\ndependencies = [\"foo\"]\n\n[dependency-groups]\ndev = [\"foo\"]\n",
+        );
+        write_file(&dir.path().join("src/mod.py"), src);
+        write_file(&dir.path().join("tests/test_it.py"), "import foo\n");
+        let mut out = String::new();
+        let mut err = String::new();
+        let code = cmd_usage(
+            Ecosystem::Python,
+            &dir.path().join("pyproject.toml"),
             dir.path(),
             None,
             &mut out,

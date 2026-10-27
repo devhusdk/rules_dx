@@ -49,14 +49,27 @@ fn preset_parity() {
             "common --local_resources=cpu=HOST_CPUS*.75",
             "startup --max_idle_secs=900",
             "startup --shutdown_on_low_sys_mem",
-            "common --experimental_disk_cache_gc_max_age=14d",
-            "common --experimental_disk_cache_gc_max_size=20G",
             "common --repo_contents_cache_gc_max_age=60d",
             "build --experimental_shrink_worker_pool",
             "build --experimental_total_worker_memory_limit_mb=4096",
         ],
     )
     .expect("preset.bazelrc missing contract lines");
+    let gc_age = format!(
+        "common --experimental_disk_cache_gc_max_age={}",
+        dx_process::DISK_CACHE_GC_MAX_AGE
+    );
+    let gc_size = format!(
+        "common --experimental_disk_cache_gc_max_size={}",
+        dx_process::DISK_CACHE_GC_MAX_SIZE
+    );
+    let preset_lines = std::fs::read_to_string(&expected).expect("read checked-in preset");
+    for line in [gc_age, gc_size] {
+        assert!(
+            preset_lines.lines().any(|preset| preset == line),
+            "the preset and the default dx disk cache must share one gc bound: {line}"
+        );
+    }
     dx_testing::expect_contains(
         &preset_rs,
         &[

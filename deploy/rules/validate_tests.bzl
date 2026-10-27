@@ -1,7 +1,7 @@
 """Unit tests for the shared deploy charset validators."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
+load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "genrule_arg", "has_any", "only_chars")
 
 def validate_unit_tests(name):
     """Declares unit tests for the shared deploy validators."""
@@ -35,56 +35,15 @@ def validate_unit_tests(name):
                 False,
             ),
             expect_equal(
-                "charset_schema_error accepts launcher-safe charsets",
-                charset_schema_error(1, [
-                    ("demo name", NAME_CHARS, LAUNCHER_UNSAFE + ["+"]),
-                    ("demo version", VERSION_CHARS, LAUNCHER_UNSAFE),
-                ]),
-                "",
-            ),
-            expect_equal(
-                "charset_schema_error rejects an unsupported schema version",
-                charset_schema_error(2, [("demo name", NAME_CHARS, LAUNCHER_UNSAFE)]),
-                "demo name: unsupported schema v2 (want v1)",
-            ),
-            expect_equal(
-                "charset_schema_error rejects an empty charset",
-                charset_schema_error(1, [("demo name", "", LAUNCHER_UNSAFE)]),
-                "demo name: want a non-empty charset (schema v1)",
-            ),
-            expect_equal(
-                "charset_schema_error rejects a non-string charset",
-                charset_schema_error(1, [("demo name", None, LAUNCHER_UNSAFE)]),
-                "demo name: want a non-empty charset (schema v1)",
-            ),
-            expect_equal(
-                "charset_schema_error rejects a duplicate charset char",
-                charset_schema_error(1, [("demo name", "abca", LAUNCHER_UNSAFE)]),
-                "demo name: duplicate charset char 'a'",
-            ),
-            expect_equal(
-                "charset_schema_error rejects an unsafe charset char",
-                charset_schema_error(1, [("demo name", "ab+", LAUNCHER_UNSAFE + ["+"])]),
-                "demo name: unsafe charset char '+' (must stay launcher-safe)",
-            ),
-            expect_equal(
-                "charset_schema_error reports only the first failing charset",
-                charset_schema_error(1, [
-                    ("demo name", NAME_CHARS, LAUNCHER_UNSAFE),
-                    ("demo version", "a/b", LAUNCHER_UNSAFE),
-                    ("demo tag", "", LAUNCHER_UNSAFE),
-                ]),
-                "demo version: unsafe charset char '/' (must stay launcher-safe)",
-            ),
-            expect_equal(
-                "LAUNCHER_UNSAFE keeps its 27 entries",
-                len(LAUNCHER_UNSAFE),
-                27,
-            ),
-            expect_equal(
                 "EMBED_UNSAFE keeps its 7 entries",
                 len(EMBED_UNSAFE),
                 7,
             ),
+            expect_equal("genrule_arg quotes a plain value", genrule_arg("dx"), "'dx'"),
+            expect_equal("genrule_arg escapes a single quote", genrule_arg("O'Neil"), "'O'\\''Neil'"),
+            expect_equal("genrule_arg doubles dollars", genrule_arg("a$HOME"), "'a$$HOME'"),
+            expect_equal("genrule_arg keeps backticks inside quotes", genrule_arg("`id`"), "'`id`'"),
+            expect_equal("genrule_arg keeps double quotes inside quotes", genrule_arg("\"x\""), "'\"x\"'"),
+            expect_equal("genrule_arg quotes the empty string", genrule_arg(""), "''"),
         ],
     )

@@ -26,6 +26,7 @@ Patterns, paths, and multiple labels are usage errors.
 - `dx update`: set, `set:package`, label, or path selectors. No selector
   checks every set; `--apply` writes.
 - `dx bump`: exactly one `set:package` plus one version.
+- `dx add`: exactly one undeclared `set:package` plus one version.
 
 ## Required Arguments
 
@@ -91,21 +92,26 @@ exit `2`).
   Generate and its re-check run Gazelle on the directories of the affected
   targets.
 - A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`,
-  `WORKSPACE.bazel`, `.bazelversion`, or any `.bazelrc*` file, at any depth,
-  widens the scope to `//...`. So does a file that `MODULE.bazel` or an
+  `WORKSPACE.bazel`, `.bazelversion`, any `*.MODULE.bazel` file, or any
+  `.bazelrc*` file, at any depth, widens the scope to `//...`. So does a file the root `.bazelrc` reaches
+  through `import` or `try-import %workspace%/...`, including nested imports.
+  Other `*.bazelrc` files do not widen. So does a file that `MODULE.bazel` or an
   included segment names by label in an extension tag, repo rule, or
   override, such as `pnpm-lock.yaml`, `go.mod` and its `go.sum`,
   `maven_install.json`, `requirements_lock.txt`, or a patch, and the included
-  segment itself. When dx cannot read every value in `MODULE.bazel`, any
+  segment itself. A `crate.from_cargo` lockfile in an included segment counts
+  as a lock input. When dx cannot read every value in `MODULE.bazel`, any
   `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`,
   `go.work.sum`, `maven_install.json`, or `requirements_lock.txt`, at any
-  depth, widens to `//...`. A deleted, removed, or renamed-from file also
-  widens to `//...`, except a `.bzl` file, which follows the `.bzl` rule
-  below. An unowned file, or one outside any package, widens to the package
-  tree around it, such as `//pkg/...`.
+  depth, widens to `//...`. A deleted, removed, or renamed-from file
+  selects the targets that still name it. If no target names it, it widens to
+  its package (for example `//pkg:all`) plus that package's reverse
+  dependencies. A `.bzl` file follows the `.bzl` rule below. An unowned file widens to the package
+  tree around it, such as `//pkg/...`. A file outside any package widens to
+  `//...`.
 - A changed `BUILD` or `BUILD.bazel` file selects every target in its package,
   plus its reverse dependencies. An added `BUILD` file widens to `//...`; a
-  deleted one widens to `//...` like any deleted file.
+  deleted one, or a deleted file outside any package, widens to `//...`.
 - A change to a `Cargo.lock` or crate_universe `lockfile` named by a
   `crate.from_cargo` call in `MODULE.bazel` selects the targets that use the
   changed crates, plus the crates that depend on them, and their reverse
@@ -113,24 +119,28 @@ exit `2`).
   cannot read, or a crate_universe lockfile change outside `crates` widens
   to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
   not widen; it selects its owners like any other file.
-- A changed `.bzl` file selects the packages whose BUILD files load it,
-  directly or through other `.bzl` files, plus their reverse dependencies.
+- A changed `.bzl` or `.scl` file selects the packages whose BUILD files load
+  it, directly or through other `.bzl` files, plus their reverse dependencies.
   dx reads the BUILD and `.bzl` files to find them. Targets that own the
-  `.bzl` file, such as a `bzl_library`, are selected too. It widens to
+  file, such as a `bzl_library`, are selected too. It widens to
   `//...` when the file is used by a `MODULE.bazel` extension or repo rule,
   by an aspect named in `.bazelrc` or one dx runs, or by the BUILD file of a
   toolchain or platform package. Those packages are the ones named by
   `register_toolchains` or `register_execution_platforms` in `MODULE.bazel`,
   or by `--extra_toolchains`, `--extra_execution_platforms`, `--platforms`,
   or `--host_platform` in `.bazelrc`. It also widens to `//...` when a BUILD
-  or `.bzl` file does not parse. A `.bzl` file nothing loads selects nothing.
-  A deleted `.bzl` file selects the packages that still load it, or nothing.
+  or `.bzl` file does not parse. A `.bzl` or `.scl` file nothing loads selects nothing.
+  A deleted `.bzl` or `.scl` file selects the packages that still load it, or nothing.
 - dx prints each widening and its reason on stderr:
   `dx: affected: 12 targets from 3 changed files since 1a2b3c4d5e6f; widened to //... (workspace input MODULE.bazel)`
   or
   `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`
   or
   `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (build file app/BUILD.bazel)`.
+  The line lists `//...` first and names at most three scopes, then
+  `and N more`, for example
+  `dx: affected: 0 targets from 1 changed files since 1a2b3c4d5e6f; widened to //p0:all (loads q/f.bzl), //p1:all (loads q/f.bzl), //p2:all (loads q/f.bzl) and 477 more`.
+  `--output=json` lists every widened scope.
 - Before the queries run, dx prints
   `dx: affected: resolving changes since 1a2b3c4d5e6f` on stderr, then the
   summary. `--quiet`, `--output=diff`, and `--output=json` print neither. An
@@ -138,8 +148,9 @@ exit `2`).
 - No changes, or no affected targets, prints `no affected targets` on stdout
   and exits `0`. `dx security` is the exception: when any file changed, it
   runs the secrets scan. With `--output=json` it emits `command_started` (with
-  `affected`) and `command_finished`; `mode` is `check` unless `--apply` is
-  given.
+  `affected`) and `command_finished`; `mode` is `check` for `dx check`, and for `dx fix`,
+  `lint`, `typecheck` and `format` unless `--apply` is given; `dx build`,
+  `test`, `coverage`, `list-tests`, `security` and `license` report `default`.
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.
 - `--output=json` adds `affected` to the `command_started` event:

@@ -95,6 +95,27 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
+typescript_project(
+    name = "panel",
+    testonly = True,
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    declaration_srcs = ["panel.d.ts"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_project(
+    name = "panel_user",
+    testonly = True,
+    srcs = ["panel_user.ts"],
+    aspect_hints = ["//:biome_config"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":panel"],
+)
+
 dx_hello_output_test(
     name = "main_output_test",
     binary = ":main_bin",

@@ -21,9 +21,19 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(sh.contains(&format!("\n  rc=\"{startup}\"\n")));
     assert!(sh.contains("\n  [ \"${CI:-}\" = true ] || [ -n \"${BAZEL_TEST:-}\" ] || rc=\n"));
     assert!(sh.contains(
-        "(cd \"$root\" && bazel $rc build ${dc:+\"$dc\"} --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"
+        "(cd \"$root\" && bazel $rc build ${dc:+\"$dc\"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0"
     ));
     assert!(sh.contains("\n    dc=\"--disk_cache=$cache/dx/disk-cache\"\n"));
+    assert!(sh.contains(&format!(
+        "|| gc=\"--experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}\"\n",
+        dx_process::DISK_CACHE_GC_MAX_SIZE,
+        dx_process::DISK_CACHE_GC_MAX_AGE
+    )));
+    assert!(cmd.contains(&format!(
+        "$o+=' --experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}'",
+        dx_process::DISK_CACHE_GC_MAX_SIZE,
+        dx_process::DISK_CACHE_GC_MAX_AGE
+    )));
     let query = sh
         .lines()
         .find(|line| line.contains(" query "))
@@ -38,7 +48,7 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(sh.contains("\"$state/inputs\""));
     assert!(!sh.contains("cmd.exe"));
     let hook = sh
-        .find("\nif [ \"${1:-}\" = worktree ] && [ \"${2:-}\" = hook ] && [ -x \"$bin\" ]; then\n  exec \"$bin\" \"$@\"\nfi\n")
+        .find("\nif [ \"${1:-}\" = worktree ] && [ \"${2:-}\" = hook ]; then\n  [ -x \"$state/dx$exe\" ] && exec \"$state/dx$exe\" \"$@\"\n  [ -x \"$bin\" ] && exec \"$bin\" \"$@\"\nfi\n")
         .expect("sh hook early exec");
     let handoff = sh
         .find("\n  exec \"$here/tools/dx\" \"$@\"\n")
@@ -188,7 +198,7 @@ mod sh {
         let stub = base.join("stub/bazel");
         std::fs::write(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      sleep 1\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         )
         .expect("bazel stub");
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -431,6 +441,39 @@ mod sh {
                 vec![(home_rc.as_path(), "build \"--disk_cache=/x\"\n")],
                 None,
             ),
+            (
+                "rc gc bound",
+                vec![],
+                vec![(
+                    home_rc.as_path(),
+                    "common --experimental_disk_cache_gc_max_size=40G\n",
+                )],
+                Some(in_home.as_path()),
+            ),
+            (
+                "imported gc bound",
+                vec![],
+                vec![
+                    (
+                        workspace_rc.as_path(),
+                        "try-import %workspace%/user.bazelrc\n",
+                    ),
+                    (
+                        user_rc.as_path(),
+                        "build:x \"--experimental_disk_cache_gc_max_age=3d\"\n",
+                    ),
+                ],
+                Some(in_home.as_path()),
+            ),
+            (
+                "longer gc flag",
+                vec![],
+                vec![(
+                    home_rc.as_path(),
+                    "common --experimental_disk_cache_gc_max_size_x=1\n",
+                )],
+                Some(in_home.as_path()),
+            ),
             ("CI", env(&[("CI", "true")]), vec![], None),
             ("BAZEL_TEST", env(&[("BAZEL_TEST", "1")]), vec![], None),
         ];
@@ -471,7 +514,12 @@ mod sh {
                 .collect();
             let mut want = startup.clone();
             want.push("build".to_owned());
-            want.extend(policy.verb_options("build", None, &[]));
+            want.extend(
+                policy
+                    .verb_options("build", None, &[])
+                    .into_iter()
+                    .filter(|flag| !flag.starts_with("--experimental_disk_cache_gc_idle_delay")),
+            );
             want.extend(
                 [
                     "--curses=no",
@@ -495,6 +543,13 @@ mod sh {
                 .collect();
             assert_eq!(calls.len(), 2, "{name}: {logged}");
             assert_eq!(calls[0], want, "{name}");
+            let bounded = calls[0]
+                .iter()
+                .any(|arg| arg.starts_with("--experimental_disk_cache_gc_max_size="));
+            if !host_sets {
+                let rc_bound = name.contains("gc bound");
+                assert_eq!(bounded, expected.is_some() && !rc_bound, "{name}");
+            }
             assert_eq!(calls[1][..startup.len()], startup[..], "{name}");
             assert_eq!(calls[1][startup.len()], "query", "{name}");
             assert!(
@@ -545,7 +600,17 @@ mod sh {
     #[test]
     fn concurrent_stale_runs_all_succeed_and_keep_the_inputs() {
         let repo = source_repo("dx-launcher-concurrent-");
-        let children: Vec<_> = (0..4).map(|_| repo.spawn()).collect();
+        let barrier = repo.base.join("barrier");
+        std::fs::create_dir_all(&barrier).expect("barrier dir");
+        let children: Vec<_> = (0..4)
+            .map(|_| {
+                spawn(
+                    repo.command()
+                        .env("STUB_BARRIER", &barrier)
+                        .env("STUB_BARRIER_N", "4"),
+                )
+            })
+            .collect();
         for child in children {
             let out = child.wait_with_output().expect("launcher runs");
             assert_eq!(
@@ -558,6 +623,7 @@ mod sh {
                 String::from_utf8_lossy(&out.stderr)
             );
         }
+        assert_eq!(repo.builds(), 4, "all four runs really built concurrently");
         assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
         assert!(
             repo.inputs().contains("//cli/cli:BUILD.bazel"),
@@ -821,14 +887,19 @@ mod cmd {
         let root = repo.root();
         let calls = repo.base.join("calls");
         let out = repo
-            .command(&["-n", "1", "127.0.0.1"], &calls)
-            .env("STUB_EXE", system_exe("PING.EXE"))
+            .command(&["--exit-code=0"], &calls)
+            .env(
+                "STUB_EXE",
+                dx_testing::process_probe()
+                    .to_string_lossy()
+                    .replace('/', "\\"),
+            )
             .output()
             .expect("launcher runs");
         assert_eq!(out.status.code(), Some(0), "{out:?}");
         assert_eq!(repo.builds(), 1, "{out:?}");
         let mut child = repo
-            .command(&["-n", "30", "127.0.0.1"], &calls)
+            .command(&["--print-exe", "--sleep-ms=30000"], &calls)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .spawn()
@@ -839,15 +910,14 @@ mod cmd {
             out: std::io::BufReader::new(stdout),
             stopped: false,
         };
-        let copy = root.join(".dx/launcher/dx.exe");
-        let locked = (0..300).any(|_| {
-            if std::fs::OpenOptions::new().write(true).open(&copy).is_err() {
-                return true;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            false
-        });
-        assert!(locked, "the running dx is the launcher copy");
+        let mut line = String::new();
+        std::io::BufRead::read_line(&mut running.out, &mut line).expect("read the running dx");
+        assert!(!line.is_empty(), "the launcher exited before dx ran");
+        assert_eq!(
+            std::fs::canonicalize(line.trim()).expect("the running dx exists"),
+            std::fs::canonicalize(root.join(".dx/launcher/dx.exe")).expect("the launcher copy"),
+            "the running dx is the launcher copy"
+        );
         std::fs::remove_file(root.join("bazel-bin/cli/cli/dx.exe"))
             .expect("a running dx leaves bazel-bin dx.exe free");
         touch_preset(&root);
@@ -931,7 +1001,20 @@ mod cmd {
                 .to_string()
                 .replace('/', "\\")
         );
-        for (rc, want) in [(None, true), (Some("build --disk_cache=C:\\x\r\n"), false)] {
+        let gc = format!(
+            "--experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}",
+            dx_process::DISK_CACHE_GC_MAX_SIZE,
+            dx_process::DISK_CACHE_GC_MAX_AGE
+        );
+        for (rc, want, bounded) in [
+            (None, true, true),
+            (Some("build --disk_cache=C:\\x\r\n"), false, false),
+            (
+                Some("common --experimental_disk_cache_gc_max_age=3d\r\n"),
+                true,
+                false,
+            ),
+        ] {
             let _ = std::fs::remove_dir_all(repo.root().join(".dx/launcher"));
             let _ = std::fs::remove_file(&args);
             match rc {
@@ -967,7 +1050,12 @@ mod cmd {
                 .lines()
                 .find(|line| line.starts_with("query "))
                 .expect("query argv");
-            if want {
+            if want && bounded {
+                assert!(
+                    build.starts_with(&format!("build {flag} {gc} --curses=no ")),
+                    "{logged}"
+                );
+            } else if want {
                 assert!(
                     build.starts_with(&format!("build {flag} --curses=no ")),
                     "{logged}"

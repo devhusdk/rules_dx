@@ -9,6 +9,7 @@ RoslynInfo = provider(
     doc = "SARIF log from compiling one C# target with the SDK analyzers.",
     fields = {
         "sarif": "File: SARIF 2.1 log.",
+        "status": "File: csc exit code.",
         "tfm": "string: target framework of the analyzed compilation.",
     },
 )
@@ -62,6 +63,8 @@ def _roslyn_impl(target, ctx):
     level = _analysis_level(csc, tfm)
 
     sarif = ctx.actions.declare_file("dx_roslyn/%s/%s.sarif" % (target.label.name, tfm))
+    status = ctx.actions.declare_file("dx_roslyn/%s/%s.exit" % (target.label.name, tfm))
+    out_tree = ctx.actions.declare_directory("dx_roslyn/%s/%s.out" % (target.label.name, tfm))
 
     args = ctx.actions.args()
     args.add("/nologo")
@@ -87,7 +90,7 @@ def _roslyn_impl(target, ctx):
     args.add_all(ctx.rule.files.additionalfiles, format_each = "/additionalfile:%s")
     args.add("/warnaserror-")
     args.add_all(attrs.compiler_options)
-    args.add("%s/%s.dll" % (sarif.dirname, assembly_name), format = "/out:%s")
+    args.add("%s/%s.dll" % (out_tree.path, assembly_name), format = "/out:%s")
     args.add(sarif, format = "/errorlog:%s,version=2.1")
     args.add_all(ctx.rule.files.srcs)
     args.set_param_file_format("multiline")
@@ -109,26 +112,34 @@ def _roslyn_impl(target, ctx):
         ctx.actions.run(
             mnemonic = "CSharpRoslyn",
             progress_message = "Roslyn analyzers %{label}",
-            executable = wrapper,
-            arguments = [runtime.path, csc.path, args],
+            executable = ctx.file._status_launcher,
+            arguments = [status.path, wrapper.path, runtime.path, csc.path, args],
             inputs = inputs,
-            outputs = [sarif],
+            outputs = [sarif, status, out_tree],
             env = env,
         )
     else:
         ctx.actions.run_shell(
             mnemonic = "CSharpRoslyn",
             progress_message = "Roslyn analyzers %{label}",
-            command = 'sarif="$1"; shift; "$@"; status=$?; if [ "$status" -ne 0 ] && [ -s "$sarif" ]; then exit 0; fi; exit "$status"',
-            arguments = [sarif.path, wrapper.path, runtime.path, csc.path, args],
+            command = 'status="$1"; shift; "$@"; echo "$?" > "$status"',
+            arguments = [status.path, wrapper.path, runtime.path, csc.path, args],
             inputs = inputs,
-            outputs = [sarif],
+            outputs = [sarif, status, out_tree],
             env = env,
         )
-    return [RoslynInfo(sarif = sarif, tfm = tfm)]
+    return [RoslynInfo(sarif = sarif, status = status, tfm = tfm)]
 
 roslyn_aspect = aspect(
     implementation = _roslyn_impl,
+    doc = "Compiles a C# target with the SDK analyzers and records the SARIF log.",
     attr_aspects = ["upstream"],
+    attrs = {
+        "_status_launcher": attr.label(
+            allow_single_file = True,
+            default = "//quality:roslyn_status.bat",
+            doc = "Windows launcher that records the csc exit code.",
+        ),
+    },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],
 )

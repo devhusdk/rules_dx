@@ -1,0 +1,19 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "format_test",
+    size = "small",
+    srcs = ["format_test.sh"],
+    args = [
+        "$(rootpath @llvm//tools:clang-format)",
+        "$(rootpath .clang-format)",
+        "$(rootpaths //examples/cuda-app/app:format_srcs)",
+        "$(rootpaths //examples/cuda-app/kernels:format_srcs)",
+    ],
+    data = [
+        ".clang-format",
+        "//examples/cuda-app/app:format_srcs",
+        "//examples/cuda-app/kernels:format_srcs",
+        "@llvm//tools:clang-format",
+    ],
+)

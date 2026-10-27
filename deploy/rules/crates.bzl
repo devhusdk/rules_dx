@@ -3,20 +3,11 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "ALNUM", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
-
-CRATES_SCHEMA_VERSION = 1
+load(":validate.bzl", "ALNUM", "EMBED_UNSAFE", "VERSION_CHARS", "has_any", "only_chars")
 
 _VALID_NAME_CHARS = ALNUM + "_-"
 
 _VALID_VERSION_CHARS = VERSION_CHARS
-
-def crates_schema_error():
-    """Validates the versioned crate name/version charset schema."""
-    return charset_schema_error(CRATES_SCHEMA_VERSION, [
-        ("crates name", _VALID_NAME_CHARS, LAUNCHER_UNSAFE + ["+", "."]),
-        ("crates version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
-    ])
 
 def crates_name_error(crate_name):
     """Validates one crate name value."""
@@ -51,14 +42,6 @@ def crates_file_error(filename):
                 "so the filename embeds safely in the deploy launcher")
     return ""
 
-def crates_allow_dirty_error(allow_dirty):
-    """Validates the clean-tree gate."""
-    if allow_dirty != False:
-        return ("crates_deploy: allow_dirty=True requires explicit owner " +
-                "approval; keep a clean tree and publish from committed " +
-                "sources instead")
-    return ""
-
 def _crates_launcher_impl(ctx):
     """Expands the rust_binary launcher for one crates.io deployment."""
     crate_files = ctx.attr.crate[DefaultInfo].files.to_list()
@@ -78,15 +61,14 @@ def _crates_launcher_impl(ctx):
         content = "const CRATE_RLOCS: &str = \"" + ";".join(rlocs) + "\";\n" +
                   "const CRATE_NAME: &str = \"" + ctx.attr.crate_name + "\";\n" +
                   "const CRATE_VERSION: &str = \"" + ctx.attr.version + "\";\n" +
-                  "const ALLOW_DIRTY: bool = " + ("true" if ctx.attr.allow_dirty else "false") + ";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::crates_main(CRATE_RLOCS, CRATE_NAME, CRATE_VERSION, ALLOW_DIRTY, &std::env::args().collect::<Vec<_>>())); }\n",
+                  "fn main() { std::process::exit(dx_deploy_tools::crates_main(CRATE_RLOCS, CRATE_NAME, CRATE_VERSION, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
 _crates_launcher = rule(
     implementation = _crates_launcher_impl,
+    doc = "Writes the launcher Rust source for one crates.io deployment.",
     attrs = {
-        "allow_dirty": attr.bool(),
         "crate": attr.label(
             allow_files = True,
             mandatory = True,
@@ -100,7 +82,7 @@ _crates_launcher = rule(
     },
 )
 
-def crates_deploy(name, crate, version = "0.0.0", allow_dirty = False, profile = "release"):
+def crates_deploy(name, crate, version = "0.0.0", profile = "release"):
     """Publishes staged crate sources as a local-first crates.io deployment."""
     name_error = crates_name_error(name)
     if name_error != "":
@@ -108,15 +90,11 @@ def crates_deploy(name, crate, version = "0.0.0", allow_dirty = False, profile =
     version_error = crates_version_error(version)
     if version_error != "":
         fail(version_error + " (in " + native.package_name() + ":" + name + ")")
-    dirty_error = crates_allow_dirty_error(allow_dirty)
-    if dirty_error != "":
-        fail(dirty_error + " (in " + native.package_name() + ":" + name + ")")
 
     program_target = name + "_program"
     launcher_target = program_target + "_launcher"
     _crates_launcher(
         name = launcher_target,
-        allow_dirty = allow_dirty,
         crate = crate,
         crate_name = name,
         version = version,

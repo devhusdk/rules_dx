@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN" "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!-- Tab-indented MagicNumber policy: Checkstyle reports columns with tabs
+expanded to `tabWidth`, which the adapter must read to place findings. -->
+<module name="Checker">
+  <property name="tabWidth" value="4"/>
+  <module name="TreeWalker">
+    <module name="MagicNumber"/>
+  </module>
+</module>

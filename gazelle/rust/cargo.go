@@ -81,26 +81,35 @@ func (m *cargoManifest) withImplicitTargets(files map[string]bool, packagePath s
 		if err != nil {
 			return fmt.Errorf("rust: [package].name %q: %w", m.packageName, err)
 		}
+		crate, err := CrateName(m.packageName)
+		if err != nil {
+			return fmt.Errorf("rust: [package].name %q: %w", m.packageName, err)
+		}
 		if implicitLib {
-			m.targets = append(m.targets, cargoTarget{kind: libraryKind, name: name, logical: m.packageName, path: "src/lib.rs", harness: true})
+			m.targets = append(m.targets, cargoTarget{kind: libraryKind, name: name, crateName: crate, logical: m.packageName, path: "src/lib.rs", harness: true})
 		}
 		if implicitBin {
-			m.targets = append(m.targets, cargoTarget{kind: binaryKind, name: name, logical: m.packageName, path: "src/main.rs", harness: true})
+			m.targets = append(m.targets, cargoTarget{kind: binaryKind, name: name, crateName: crate, logical: m.packageName, path: "src/main.rs", harness: true})
 		}
 	}
 	prefix := path.Join(packagePath, "tests") + "/"
+	var testRoots []string
 	for file := range files {
 		rel := strings.TrimPrefix(file, prefix)
 		if !strings.HasPrefix(file, prefix) || rel == "" || strings.Contains(rel, "/") || !strings.HasSuffix(rel, ".rs") {
 			continue
 		}
+		testRoots = append(testRoots, rel)
+	}
+	sort.Strings(testRoots)
+	for _, rel := range testRoots {
 		targetPath := "tests/" + rel
 		if explicitPaths[targetPath] {
 			continue
 		}
 		name, err := common.Normalize(strings.TrimSuffix(rel, ".rs"))
 		if err != nil {
-			return fmt.Errorf("rust: Cargo integration-test root %s: %w", file, err)
+			return fmt.Errorf("rust: Cargo integration-test root %s: %w", prefix+rel, err)
 		}
 		m.targets = append(m.targets, cargoTarget{kind: testKind, name: IntegrationTestName(name), logical: IntegrationTestName(name), path: targetPath, harness: true})
 	}
@@ -491,6 +500,9 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 		}
 		return nil, fmt.Errorf("rust: %s: missing [package].name", manifestPath)
 	}
+	if _, err := CrateName(manifest.packageName); err != nil {
+		return nil, fmt.Errorf("rust: %s: [package].name %q: %v", manifestPath, manifest.packageName, err)
+	}
 	if _, err := common.Normalize(manifest.packageName); err != nil {
 		return nil, fmt.Errorf("rust: %s: [package].name %q: %v", manifestPath, manifest.packageName, err)
 	}
@@ -525,6 +537,11 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 		if err != nil {
 			return nil, fmt.Errorf("rust: %s: Cargo target %q: %v", manifestPath, target.name, err)
 		}
+		crate, err := CrateName(target.logical)
+		if err != nil {
+			return nil, fmt.Errorf("rust: %s: Cargo target %q: %v", manifestPath, target.logical, err)
+		}
+		target.crateName = crate
 		switch target.kind {
 		case exampleKind, benchKind:
 			target.name = normalized
@@ -533,7 +550,6 @@ func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, er
 			} else {
 				target.name += "_bench"
 			}
-			target.crateName = normalized
 		default:
 			target.name = normalized
 		}
@@ -813,7 +829,11 @@ func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[str
 					return fmt.Errorf("rust: %s:%d: dependency %q differs between [target.%s] and [target.%s]; declare one form or keep a handwritten target", manifestPath, entry.line, key, first.cfg, cfg)
 				}
 			}
-			targets[table][strings.ReplaceAll(key, "-", "_")] = chosen
+			crate, err := CrateName(key)
+			if err != nil {
+				return fmt.Errorf("rust: %s: dependency %q: %v", manifestPath, key, err)
+			}
+			targets[table][crate] = chosen
 		}
 	}
 	return nil

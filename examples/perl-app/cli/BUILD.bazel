@@ -1,0 +1,66 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_dx//perl/rules:defs.bzl", "perl_binary", "perl_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    glob(["t/*"]) + [
+        "BUILD.bazel",
+        "stockctl.pl",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+string_flag(
+    name = "limit",
+    build_setting_default = "60",
+    values = [
+        "60",
+        "144",
+    ],
+)
+
+config_setting(
+    name = "gross_limit",
+    flag_values = {":limit": "144"},
+)
+
+perl_binary(
+    name = "stockctl",
+    srcs = ["stockctl.pl"],
+    env = select({
+        ":gross_limit": {"STOCK_LIMIT": "144"},
+        "//conditions:default": {"STOCK_LIMIT": "60"},
+    }),
+    deps = [
+        "//examples/perl-app/inventory",
+        "//examples/perl-app/report",
+    ],
+)
+
+perl_test(
+    name = "launcher_test",
+    size = "small",
+    srcs = ["t/launcher.t"],
+    data = [":stockctl"],
+    env = select({
+        ":gross_limit": {
+            "STOCKCTL": "$(rlocationpath :stockctl)",
+            "STOCK_LIMIT": "144",
+            "WANT_LIMIT": "144",
+        },
+        "//conditions:default": {
+            "STOCKCTL": "$(rlocationpath :stockctl)",
+            "STOCK_LIMIT": "60",
+            "WANT_LIMIT": "60",
+        },
+    }),
+    deps = ["@rules_perl//perl/runfiles"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

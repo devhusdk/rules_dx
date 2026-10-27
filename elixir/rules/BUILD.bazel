@@ -18,7 +18,6 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "hex.bzl",
-        "v1_promises.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

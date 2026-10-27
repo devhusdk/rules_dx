@@ -1,0 +1,10 @@
+[package]
+name = "legacy"
+version = "0.0.0"
+
+[lib]
+name = "legacy"
+path = "src/lib.rs"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

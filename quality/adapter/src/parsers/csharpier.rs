@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, known, unformatted_at, FileFinding, ParseError};
+use super::{as_text, code_name, finding, known, row_col, unformatted_at, FileFinding, ParseError};
 use crate::ToolSeverity;
 
 const TOOL: &str = "csharpier";
@@ -23,7 +23,10 @@ pub fn parse_csharpier(
                 let path = path.strip_prefix("./").unwrap_or(path);
                 syntax = Some((known(TOOL, files, path)?, findings.len()));
             } else {
-                return Err(shape(format!("unrecognized error line: {line}")));
+                return Err(ParseError::shape(
+                    TOOL,
+                    format!("unrecognized error line: {line}"),
+                ));
             }
         } else if line.starts_with(char::is_whitespace) || line.trim().is_empty() {
             if let Some((file, _)) = syntax {
@@ -32,12 +35,18 @@ pub fn parse_csharpier(
                 }
             }
         } else {
-            return Err(shape(format!("unrecognized line: {line}")));
+            return Err(ParseError::shape(
+                TOOL,
+                format!("unrecognized line: {line}"),
+            ));
         }
     }
     close_syntax(&mut syntax, &mut findings);
     if findings.is_empty() && code != Some(0) {
-        return Err(shape(format!("exit {} with no files", code_name(code))));
+        return Err(ParseError::shape(
+            TOOL,
+            format!("exit {} with no files", code_name(code)),
+        ));
     }
     Ok(findings)
 }
@@ -58,14 +67,10 @@ fn close_syntax(syntax: &mut Option<(&str, usize)>, findings: &mut Vec<FileFindi
     }
 }
 
-fn shape(detail: String) -> ParseError {
-    ParseError::Shape { tool: TOOL, detail }
-}
-
 fn syntax_error(file: &str, line: &str) -> Option<FileFinding> {
     let rest = line.strip_prefix('(')?;
     let (position, message) = rest.split_once("): error ")?;
-    let (row, column) = position.split_once(',')?;
+    let (row, column) = row_col(position, ',')?;
     let (rule, text) = message.split_once(": ")?;
     Some(finding(
         TOOL,
@@ -73,8 +78,8 @@ fn syntax_error(file: &str, line: &str) -> Option<FileFinding> {
         rule.to_owned(),
         text.to_owned(),
         ToolSeverity::Error,
-        row.parse().ok()?,
-        column.parse().ok()?,
+        row,
+        column,
     ))
 }
 

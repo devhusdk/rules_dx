@@ -205,6 +205,14 @@ fn path_default_applies_to_worktree_add_only() {
             );
         }
     }
+    let agent_path = env_of(&[("CLAUDECODE", "1"), ("DX_OUTPUT", "path")]);
+    let got = parse_with(&strings(&["worktree", "list"]), &agent_path, &empty)
+        .expect("agent worktree list");
+    assert_eq!(got.output, OutputMode::Json);
+    assert!(!got.path_only);
+    let got = parse_with(&strings(&["worktree", "add", "topic"]), &agent_path, &empty)
+        .expect("agent worktree add");
+    assert!(got.path_only);
     let got = parse_with(
         &strings(&["worktree", "list", "--output=path"]),
         &env_of(&[]),

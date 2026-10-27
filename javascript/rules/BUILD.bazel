@@ -1,6 +1,6 @@
 load("//python/rules:defs.bzl", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
+load(":wrapper_tests.bzl", "javascript_run_environment_tests", "javascript_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,6 +13,11 @@ exports_files([
 ])
 
 javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+javascript_run_environment_tests(
+    name = "run_environment_forward_test",
+    target_under_test = "//javascript/tests/fixtures/hello:env_forward_test",
+)
 
 python_library(
     name = "web_server",
@@ -42,7 +47,6 @@ real_source_target(
         "defs.bzl",
         "frameworks.bzl",
         "node_test.bzl",
-        "v1_promises.bzl",
         "web.bzl",
         "wrapper_tests.bzl",
     ],

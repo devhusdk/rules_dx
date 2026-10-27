@@ -97,6 +97,6 @@ single_version_override(
 
 Upstream: not filed.
 
-## rules_elixir, rules_erlang, rules_gleam
+## rules_d, rules_elixir, rules_erlang, rules_fortran, rules_gleam, rules_haskell, rules_ocaml
 
 No action. `rules_dx` applies these patches in its own repository rules.

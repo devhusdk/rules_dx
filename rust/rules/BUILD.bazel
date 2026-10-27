@@ -54,8 +54,13 @@ real_source_target(
         "defs.bzl",
         "edition.bzl",
         "probe.bzl",
-        "v1_promises.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

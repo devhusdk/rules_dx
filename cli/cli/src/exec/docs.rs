@@ -142,16 +142,15 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
     };
     if json {
-        if let Ok(event) = command_started(invocation.command.name(), mode) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+            return exit;
         }
         for action in actions {
-            if let Ok(event) = operation_event(invocation.command.name(), action, Some(&labels)) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                operation_event(invocation.command.name(), action, Some(&labels)),
+            ) {
+                return exit;
             }
         }
     }
@@ -166,7 +165,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if bazel_code != 0 {
         if json {
-            if let Some(event) = bazel_exit_event(
+            if let Err(exit) = emit_built(out, bazel_exit_event(
                 CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit tools/docs/site:user_site, fixture tools/docs/site:demo_site, pinned mdBook 0.4.52)",
@@ -174,11 +173,9 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ),
                 bazel_code,
                 "execute",
-            ) {
-                if let Err(exit) = emit_event(out, &event) {
+            )) {
  return kept_child(err, bazel_code, exit);
  }
-            }
             if let Err(exit) = emit_event(
                 out,
                 &command_finished(bazel_code, &FinishedCounts::default()),
@@ -276,17 +273,15 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if json {
         if serve_code != 0 {
-            if let Ok(event) = error_event(
+            if let Err(exit) = emit_built(out, error_event(
                 CODE_SERVE_FAILED,
                 &format!("Docs preview exited with {serve_code} at {url} (port in use? retry another --port; see stderr diagnostics)"),
                 None,
                 None,
                 Some("serve"),
-            ) {
-                if let Err(exit) = emit_event(out, &event) {
+            )) {
  return kept_child(err, serve_code, exit);
  }
-            }
         }
         if let Err(exit) = emit_event(
             out,
@@ -481,7 +476,7 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 self.seen.borrow_mut().push(argv.to_vec());
-                Ok(dx_process::ChildStatus { code: Some(0) })
+                Ok(dx_process::ChildStatus::exited(0))
             }
         }
         let harness = Harness::new("docs-serve-bind");
@@ -552,7 +547,7 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 if argv.first().is_some_and(|first| first == "bazel") {
-                    Ok(dx_process::ChildStatus { code: Some(0) })
+                    Ok(dx_process::ChildStatus::exited(0))
                 } else {
                     Err(io::Error::other("fake bind failure: address in use"))
                 }
@@ -697,7 +692,7 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 self.seen.borrow_mut().push(argv.to_vec());
-                Ok(dx_process::ChildStatus { code: Some(0) })
+                Ok(dx_process::ChildStatus::exited(0))
             }
         }
         fn serve_directory(calls: &[Vec<String>]) -> String {
@@ -829,9 +824,9 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 if argv.first().is_some_and(|first| first == "bazel") {
-                    Ok(dx_process::ChildStatus { code: Some(0) })
+                    Ok(dx_process::ChildStatus::exited(0))
                 } else {
-                    Ok(dx_process::ChildStatus { code: Some(3) })
+                    Ok(dx_process::ChildStatus::exited(3))
                 }
             }
         }

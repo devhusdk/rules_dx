@@ -50,6 +50,9 @@ func TestTargetName(t *testing.T) {
 		{"entry.cts", "entry"},
 		{"plain", "plain"},
 		{"demo.js", "demo_js"},
+		{"x.d.ts", "x"},
+		{"x.d.mts", "x"},
+		{"x.d.cts", "x"},
 	}
 	for _, tc := range cases {
 		if got, err := TargetName(tc.name); err != nil || got != tc.want {
@@ -71,6 +74,9 @@ func TestModuleName(t *testing.T) {
 		{"entry.mts", "entry"},
 		{"plain", "plain"},
 		{"demo.js", "demo.js"},
+		{"x.d.ts", "x"},
+		{"pkg/x.d.mts", "x"},
+		{"x.d.cts", "x"},
 	}
 	for _, tc := range cases {
 		if got := ModuleName(tc.name); got != tc.want {

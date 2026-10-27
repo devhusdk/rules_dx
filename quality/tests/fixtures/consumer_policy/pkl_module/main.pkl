@@ -1,0 +1,5 @@
+import "lib/settings.pkl"
+
+name = "app"
+retries = settings.retries
+timeout = settings.timeout

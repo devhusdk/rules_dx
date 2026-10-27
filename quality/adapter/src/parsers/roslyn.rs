@@ -72,6 +72,30 @@ fn keep_locations(result: &mut Value, files: &[&str]) -> bool {
     !locations.is_empty()
 }
 
+fn map_related_locations(result: &mut Value, files: &[&str]) {
+    let Some(related) = result
+        .get_mut("relatedLocations")
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for location in related {
+        let Some(artifact) = location.pointer_mut("/physicalLocation/artifactLocation") else {
+            continue;
+        };
+        let uri = artifact
+            .get("uri")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !uri.starts_with("file:") || artifact.get("uriBaseId").is_some() {
+            continue;
+        }
+        if let Some(file) = owned_file(uri, files) {
+            artifact["uri"] = Value::String(file.to_owned());
+        }
+    }
+}
+
 fn analyzer_failure(result: &Value) -> Option<String> {
     let rule = result
         .get("ruleId")
@@ -91,12 +115,17 @@ fn analyzer_failure(result: &Value) -> Option<String> {
     Some(format!("{rule}: {message}"))
 }
 
-pub fn parse_roslyn(sarif: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
+pub fn parse_roslyn(
+    sarif: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(TOOL, sarif)?;
     let mut log: Value = serde_json::from_slice(sarif).map_err(|err| ParseError::Json {
         tool: TOOL,
         detail: err.to_string(),
     })?;
+    let mut has_error = false;
     for run in log
         .get_mut("runs")
         .and_then(Value::as_array_mut)
@@ -142,6 +171,8 @@ pub fn parse_roslyn(sarif: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pa
                 continue;
             }
             if keep_locations(&mut result, files) {
+                map_related_locations(&mut result, files);
+                has_error |= result.get("level").and_then(Value::as_str) == Some("error");
                 kept.push(result);
             } else if result.get("level").and_then(Value::as_str) == Some("error") {
                 let rule = result["ruleId"].as_str().unwrap_or_default();
@@ -157,11 +188,18 @@ pub fn parse_roslyn(sarif: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pa
         }
         *results = kept;
     }
+    if code != Some(0) && !has_error {
+        let exit = code.map_or_else(|| "signal".to_owned(), |code| code.to_string());
+        return Err(ParseError::Incomplete {
+            tool: TOOL,
+            detail: format!("csc exit {exit} without error results"),
+        });
+    }
     let bytes = serde_json::to_vec(&log).map_err(|err| ParseError::Json {
         tool: TOOL,
         detail: err.to_string(),
     })?;
-    parse_sarif(TOOL, &bytes, Some(0), files)
+    parse_sarif(TOOL, &bytes, code, files)
 }
 
 #[cfg(test)]
@@ -169,11 +207,15 @@ mod tests {
     use super::*;
     use crate::{TextPosition, ToolSeverity};
 
+    fn parse_exit_zero(sarif: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
+        parse_roslyn(sarif, Some(0), files)
+    }
+
     const SINGLE: &str = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "csc"}}, "results": [{"ruleId": "CA1822", "level": "warning", "message": {"text": "Member 'Greet' does not access instance data"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "csharp/tests/fixtures/roslyn/Sample.cs"}, "region": {"startLine": 7, "startColumn": 19, "endLine": 7, "endColumn": 24}}}]}]}]}"#;
 
     #[test]
     fn roslyn_reports_sarif_results() {
-        let findings = parse_roslyn(
+        let findings = parse_exit_zero(
             SINGLE.as_bytes(),
             &["csharp/tests/fixtures/roslyn/Sample.cs"],
         )
@@ -190,24 +232,24 @@ mod tests {
         );
         let end = findings[0].finding.end.expect("extent");
         assert_eq!((end.line, end.column), (7, 24));
-        let clean = parse_roslyn(
+        let clean = parse_exit_zero(
             r#"{"version": "2.1.0", "runs": []}"#.as_bytes(),
             &["csharp/tests/fixtures/roslyn/Sample.cs"],
         )
         .expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_roslyn(SINGLE.as_bytes(), &["other.cs"]).is_err());
-        assert!(parse_roslyn(b"not json", &["x"]).is_err());
-        assert!(parse_roslyn(&[0xff], &["x"]).is_err());
+        assert!(parse_exit_zero(SINGLE.as_bytes(), &["other.cs"]).is_err());
+        assert!(parse_exit_zero(b"not json", &["x"]).is_err());
+        assert!(parse_exit_zero(&[0xff], &["x"]).is_err());
         let no_rule = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"","locations":[]}]}]}"#;
-        assert!(parse_roslyn(no_rule.as_bytes(), &["x"]).is_err());
+        assert!(parse_exit_zero(no_rule.as_bytes(), &["x"]).is_err());
     }
 
     #[test]
     fn roslyn_resolves_base_ids_and_every_location() {
         let log = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"originalUriBaseIds":{"%SRCROOT%":{"uri":"file:///src/"}},"results":[{"ruleId":"CA1822","level":"warning","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"Sample.cs","uriBaseId":"%SRCROOT%"},"region":{"startLine":7,"startColumn":19}}},{"physicalLocation":{"artifactLocation":{"uri":"Other.cs"},"region":{"startLine":9,"startColumn":1}}}]}]}]}"#;
         let findings =
-            parse_roslyn(log.as_bytes(), &["/src/Sample.cs", "/src/Other.cs"]).expect("parsed");
+            parse_exit_zero(log.as_bytes(), &["/src/Sample.cs", "/src/Other.cs"]).expect("parsed");
         let files: Vec<&str> = findings.iter().map(|found| found.file.as_str()).collect();
         assert_eq!(files, vec!["/src/Sample.cs", "/src/Other.cs"]);
         assert_eq!(
@@ -220,7 +262,7 @@ mod tests {
 
     #[test]
     fn roslyn_maps_execroot_paths_to_owned_files_and_skips_the_rest() {
-        let findings = parse_roslyn(EXECROOT.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        let findings = parse_exit_zero(EXECROOT.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].file, "core/Greeter.cs");
         assert_eq!(findings[0].finding.rule_id, "CA1822");
@@ -228,23 +270,36 @@ mod tests {
     }
 
     #[test]
+    fn roslyn_maps_execroot_related_locations_to_owned_files() {
+        let log = csc(
+            r#"{"ruleId":"CA1822","level":"warning","message":{"text":"static"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///w/execroot/_main/core/Greeter.cs"},"region":{"startLine":6,"startColumn":19}}}],"relatedLocations":[{"message":{"text":"declared here"},"physicalLocation":{"artifactLocation":{"uri":"file:///w/execroot/_main/core/Greeter.cs"},"region":{"startLine":2,"startColumn":3}}},{"message":{"text":"generated"},"physicalLocation":{"artifactLocation":{"uri":"file:///w/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}]}"#,
+        );
+        let findings = parse_exit_zero(log.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        let related = &findings[0].finding.related;
+        assert_eq!(related.len(), 2);
+        let location = related[0].location.as_ref().expect("owned related file");
+        assert_eq!(location.file, "core/Greeter.cs");
+        assert!(related[1].location.is_none());
+    }
+
+    #[test]
     fn roslyn_fails_when_an_analyzer_did_not_run() {
         let crashed = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"AD0001","level":"warning","message":{"text":"Analyzer 'X' threw an exception"}}]}]}"#;
-        let error = parse_roslyn(crashed.as_bytes(), &["a.cs"]).expect_err("incomplete");
+        let error = parse_exit_zero(crashed.as_bytes(), &["a.cs"]).expect_err("incomplete");
         assert!(error.to_string().contains("AD0001"), "{error}");
         let broken = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS5001","level":"error","message":{"text":"no entry point"}}]}]}"#;
-        assert!(parse_roslyn(broken.as_bytes(), &["a.cs"]).is_err());
+        assert!(parse_exit_zero(broken.as_bytes(), &["a.cs"]).is_err());
         let load = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS8034","level":"warning","message":{"text":"Unable to load analyzer"}}]}]}"#;
-        let error = parse_roslyn(load.as_bytes(), &["a.cs"]).expect_err("incomplete");
+        let error = parse_exit_zero(load.as_bytes(), &["a.cs"]).expect_err("incomplete");
         assert!(error.to_string().contains("CS8034"), "{error}");
         let raised = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CA1016","level":"warning","message":{"text":"Mark assemblies"}}]}]}"#;
-        assert!(parse_roslyn(raised.as_bytes(), &["a.cs"]).is_err());
+        assert!(parse_exit_zero(raised.as_bytes(), &["a.cs"]).is_err());
     }
 
     #[test]
     fn roslyn_fails_on_compile_errors_in_unowned_files() {
         let generated = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#;
-        let error = parse_roslyn(generated.as_bytes(), &["a.cs"]).expect_err("incomplete");
+        let error = parse_exit_zero(generated.as_bytes(), &["a.cs"]).expect_err("incomplete");
         assert!(error.to_string().contains("CS0103"), "{error}");
     }
 
@@ -279,7 +334,7 @@ mod tests {
             "file:///w/execroot/_main/app/Program.cs",
         ]);
         let findings =
-            parse_roslyn(log.as_bytes(), &["Program.cs", "app/Program.cs"]).expect("parsed");
+            parse_exit_zero(log.as_bytes(), &["Program.cs", "app/Program.cs"]).expect("parsed");
         assert_eq!(files_of(&findings), vec!["app/Program.cs"]);
     }
 
@@ -290,20 +345,20 @@ mod tests {
             "file:///b/f/w/bazel-out/k8/bin/core/Greeter.cs",
             "file:///b/f/my_external/core/Greeter.cs",
         ]);
-        let findings = parse_roslyn(remote.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        let findings = parse_exit_zero(remote.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
         assert_eq!(
             files_of(&findings),
             vec!["core/Greeter.cs", "core/Greeter.cs"]
         );
         let windows = warnings_at(&["file:///C:/b/execroot/_main/core/Greeter.cs"]);
-        let findings = parse_roslyn(windows.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        let findings = parse_exit_zero(windows.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
         assert_eq!(files_of(&findings), vec!["core/Greeter.cs"]);
         let nested =
             warnings_at(&["file:///home/execroot/_main/cache/execroot/_main/core/Greeter.cs"]);
-        let findings = parse_roslyn(nested.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        let findings = parse_exit_zero(nested.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
         assert_eq!(files_of(&findings), vec!["core/Greeter.cs"]);
         let absolute = warnings_at(&["file:///src/execroot/_main/core/Greeter.cs"]);
-        let findings = parse_roslyn(
+        let findings = parse_exit_zero(
             absolute.as_bytes(),
             &["/src/execroot/_main/core/Greeter.cs"],
         )
@@ -317,7 +372,7 @@ mod tests {
     #[test]
     fn roslyn_fails_on_compile_errors_in_generated_files_named_like_owned_ones() {
         let generated = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///w/execroot/_main/bazel-out/k8-fastbuild/bin/gen/Program.cs"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#;
-        let error = parse_roslyn(generated.as_bytes(), &["Program.cs"]).expect_err("incomplete");
+        let error = parse_exit_zero(generated.as_bytes(), &["Program.cs"]).expect_err("incomplete");
         assert!(error.to_string().contains("CS0103"), "{error}");
     }
 
@@ -344,22 +399,22 @@ mod tests {
     #[test]
     fn roslyn_drops_suppressed_results() {
         let in_source = r#"[{"kind":"inSource"}]"#;
-        let findings = parse_roslyn(located(in_source).as_bytes(), &[SAMPLE]).expect("parsed");
+        let findings = parse_exit_zero(located(in_source).as_bytes(), &[SAMPLE]).expect("parsed");
         assert!(findings.is_empty(), "{findings:?}");
 
-        let findings = parse_roslyn(assembly(in_source).as_bytes(), &["a.cs"]).expect("parsed");
+        let findings = parse_exit_zero(assembly(in_source).as_bytes(), &["a.cs"]).expect("parsed");
         assert!(findings.is_empty(), "{findings:?}");
 
         let unowned = csc(
             r#"{"ruleId":"CS0103","level":"error","message":{"text":"name does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///work/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}],"suppressions":[{"kind":"inSource","status":"accepted"}]}"#,
         );
-        let findings = parse_roslyn(unowned.as_bytes(), &["a.cs"]).expect("parsed");
+        let findings = parse_exit_zero(unowned.as_bytes(), &["a.cs"]).expect("parsed");
         assert!(findings.is_empty(), "{findings:?}");
 
         let crashed = csc(
             r#"{"ruleId":"AD0001","level":"warning","message":{"text":"Analyzer 'X' threw an exception"},"suppressions":[{"kind":"inSource"}]}"#,
         );
-        let error = parse_roslyn(crashed.as_bytes(), &["a.cs"]).expect_err("incomplete");
+        let error = parse_exit_zero(crashed.as_bytes(), &["a.cs"]).expect_err("incomplete");
         assert!(matches!(error, ParseError::Incomplete { .. }), "{error}");
         assert!(error.to_string().contains("AD0001"), "{error}");
 
@@ -369,12 +424,29 @@ mod tests {
             r#"[{"kind":"inSource"},{"kind":"external","status":"underReview"}]"#,
             "[]",
         ] {
-            let findings = parse_roslyn(located(open).as_bytes(), &[SAMPLE]).expect("parsed");
+            let findings = parse_exit_zero(located(open).as_bytes(), &[SAMPLE]).expect("parsed");
             assert_eq!(findings.len(), 1, "{open}");
             assert_eq!(findings[0].finding.rule_id, "CA1822");
-            let error = parse_roslyn(assembly(open).as_bytes(), &["a.cs"]).expect_err(open);
+            let error = parse_exit_zero(assembly(open).as_bytes(), &["a.cs"]).expect_err(open);
             assert!(matches!(error, ParseError::Incomplete { .. }), "{error}");
             assert!(error.to_string().contains("CA1016"), "{error}");
         }
+    }
+
+    #[test]
+    fn roslyn_fails_when_csc_exits_nonzero_without_error_results() {
+        let empty = csc("");
+        let error = parse_roslyn(empty.as_bytes(), Some(1), &["a.cs"]).expect_err("incomplete");
+        assert!(matches!(error, ParseError::Incomplete { .. }), "{error}");
+        assert!(parse_roslyn(empty.as_bytes(), None, &["a.cs"]).is_err());
+        let warning = located("[]");
+        assert!(parse_roslyn(warning.as_bytes(), Some(1), &[SAMPLE]).is_err());
+        let compile_error = csc(
+            r#"{"ruleId":"CS0103","level":"error","message":{"text":"The name 'x' does not exist"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"a.cs"},"region":{"startLine":3,"startColumn":5}}}]}"#,
+        );
+        let findings =
+            parse_roslyn(compile_error.as_bytes(), Some(1), &["a.cs"]).expect("compile error");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.rule_id, "CS0103");
     }
 }

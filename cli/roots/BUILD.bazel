@@ -38,6 +38,7 @@ real_source_target(
         "roots.bzl",
     ],
     tags = ["corpus"],
+    visibility = VIS_CLI + ["//tools/ci:__pkg__"],
 )
 
 real_source_target(

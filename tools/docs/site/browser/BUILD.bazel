@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("@rules_dx//tools/visibility:visibility.bzl", "VIS_PUBLIC")
@@ -37,9 +37,9 @@ rust_library(
     crate_name = "dx_site_browser",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        ["serde_json"],
+    deps = all_crate_deps(
         package_name = "tools/docs/site/site_browser",
+        normal = True,
     ),
 )
 
@@ -52,9 +52,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_site_browser",
-    deps = crate_deps(
-        ["serde_json"],
+    deps = all_crate_deps(
         package_name = "tools/docs/site/site_browser",
+        normal = True,
+        normal_dev = True,
     ) + ["//tools/testing:dx_testing"],
 )
 

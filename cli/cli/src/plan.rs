@@ -18,29 +18,23 @@ pub use generate::{
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
 pub(crate) use quality::workflow_scope_labels;
-pub use quality::{plan_build, protected_flags, required_options};
+pub use quality::{plan_build, plan_build_with, plan_probe, protected_flags, required_options};
 pub use registry::{spec, CommandSpec};
 pub use run_deploy::{
     plan_deploy_build, plan_deploy_run, plan_run, plan_run_build, plan_run_targets, shell_join,
     shell_quote,
 };
 pub use run_temp::{
-    bep_path, clean_for_stop, create_run_temp_dir, intended_path, remove_on_stop, results_path,
-    run_nonce,
+    bep_path, clean_for_stop, create_run_temp_dir, intended_path, patch_path, remove_on_stop,
+    remove_stale_run_dirs, results_path, run_id, run_nonce, RunTempDir,
 };
 pub use workflow::{plan_workflow, workflow_options, workflow_protected, WorkflowVerb};
-
-pub const VALIDATE_FLAG: &str = "--@rules_dx//config:validate=false";
 
 pub const CLIPPY_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:clippy_output_diagnostics=true";
 
 pub const RUSTC_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:rustc_output_diagnostics=true";
 
-pub const BAZEL_SETTINGS: [&str; 3] = [
-    VALIDATE_FLAG,
-    CLIPPY_DIAGNOSTICS_FLAG,
-    RUSTC_DIAGNOSTICS_FLAG,
-];
+pub const BAZEL_SETTINGS: [&str; 2] = [CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG];
 
 const UPSTREAM_SETTINGS: [&str; 2] = [
     "--@rules_rust//rust/settings:clippy_output_diagnostics=true",
@@ -166,6 +160,9 @@ pub fn bazel_argv(
 
 pub const OUTPUT_GROUP: &str = "dx_results";
 
+/// The output group the shard probe writes `{"shards":[...]}` files to.
+pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";
+
 pub const KEEP_GOING_FLAG: &str = "--keep_going";
 
 pub const SKIP_INCOMPATIBLE_FLAG: &str = "--skip_incompatible_explicit_targets";
@@ -174,8 +171,9 @@ pub const DOWNLOAD_ALL_FLAG: &str = "--remote_download_outputs=all";
 
 pub const DOWNLOAD_TOPLEVEL_FLAG: &str = "--remote_download_outputs=toplevel";
 
-/// The download mode for managed plans: all if the user's last choice was all, else toplevel.
-pub(crate) fn managed_download_flag(user_options: &[String]) -> &'static str {
+/// The download mode for every command that reads outputs: all if the user's last choice was
+/// all, else toplevel. Minimal is never allowed, since dx reads reports from the outputs.
+pub(crate) fn download_flag(user_options: &[String]) -> &'static str {
     let mut flag = DOWNLOAD_TOPLEVEL_FLAG;
     for option in user_options {
         match option.as_str() {
@@ -187,21 +185,20 @@ pub(crate) fn managed_download_flag(user_options: &[String]) -> &'static str {
     flag
 }
 
-/// Guards that keep user flags from changing the forced download mode.
+/// Guards that keep user flags from selecting a download mode dx cannot read reports under.
+/// The bare `--remote_download_toplevel` and `--remote_download_all` forms are unguarded.
 pub(crate) fn download_guards() -> Vec<ProtectedFlag> {
     vec![
         ProtectedFlag {
             name: "remote_download_outputs".to_owned(),
-            required: Some(DOWNLOAD_ALL_FLAG.to_owned()),
-            allowed: Vec::new(),
+            required: None,
+            allowed: vec![
+                DOWNLOAD_TOPLEVEL_FLAG.to_owned(),
+                DOWNLOAD_ALL_FLAG.to_owned(),
+            ],
         },
         ProtectedFlag {
             name: "remote_download_minimal".to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        },
-        ProtectedFlag {
-            name: "remote_download_toplevel".to_owned(),
             required: None,
             allowed: Vec::new(),
         },
@@ -256,7 +253,6 @@ mod tests {
         assert_eq!(
             settings_for("my_dx", "cquery"),
             [
-                "--@my_dx//config:validate=false",
                 "--@my_dx//config:clippy_output_diagnostics=true",
                 "--@my_dx//config:rustc_output_diagnostics=true",
             ]
@@ -311,8 +307,8 @@ mod tests {
     #[test]
     fn labels_default_to_the_rules_dx_repo() {
         assert_eq!(
-            rules_dx_label("config:validate"),
-            "@rules_dx//config:validate"
+            rules_dx_label("config:workspace"),
+            "@rules_dx//config:workspace"
         );
     }
 

@@ -167,25 +167,31 @@ mod tests {
         assert_eq!(found(&resolver, "_main/pkg/tool.txt"), tool);
     }
 
+    fn escaped(path: &Path) -> String {
+        path.to_string_lossy()
+            .replace('\\', "\\b")
+            .replace('\n', "\\n")
+    }
+
     #[test]
     fn a_key_with_spaces_and_escapes_resolves() {
         let dir = scratch("escapes");
         let binary = write(&dir, "tool.exe", "binary\n");
+        let spaced = write(&dir, "a b/c.txt", "spaced\n");
+        let tabbed = write(&dir, "tabbed/c.txt", "tabbed\n");
         let manifest = write(
             &dir,
             "tool.exe.runfiles_manifest",
-            " _main/a\\sb/c\t out/a b/c.txt\n _main/a\tb/c\\n out/a\tb/c.txt\n_main/plain out/plain\n",
+            &format!(
+                " _main/a\\sb/c\t {}\n _main/a\tb/c\\n {}\n_main/plain out/plain\n",
+                escaped(&spaced),
+                escaped(&tabbed)
+            ),
         );
         let resolver = Resolver::for_binary(&binary).expect("resolver");
         assert_eq!(resolver.source(), manifest);
-        assert_eq!(
-            found(&resolver, "_main/a b/c\t"),
-            PathBuf::from("out/a b/c.txt")
-        );
-        assert_eq!(
-            found(&resolver, "_main/a\tb/c\n"),
-            PathBuf::from("out/a\tb/c.txt")
-        );
+        assert_eq!(found(&resolver, "_main/a b/c\t"), spaced);
+        assert_eq!(found(&resolver, "_main/a\tb/c\n"), tabbed);
         assert_eq!(found(&resolver, "_main/plain"), PathBuf::from("out/plain"));
     }
 
@@ -240,12 +246,9 @@ mod tests {
             "_main/pkg/tool.txt out/tool\n",
         );
         let resolver = Resolver::for_binary(&binary).expect("resolver");
-        let absolute = if cfg!(windows) {
-            "C:/already/absolute"
-        } else {
-            "/already/absolute"
-        };
-        assert_eq!(found(&resolver, absolute), PathBuf::from(absolute));
+        let absolute = dir.join("elsewhere");
+        let key = absolute.to_string_lossy().into_owned();
+        assert_eq!(found(&resolver, &key), absolute);
     }
 
     #[test]

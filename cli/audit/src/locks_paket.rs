@@ -36,13 +36,8 @@ pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         }
         if let Some((name, version)) = split_paket_line(trimmed) {
             out.push(LockedPackage {
-                name,
-                version,
-                set: "nuget".to_owned(),
                 is_git: in_git,
-                is_private: false,
-                location: None,
-                platform: None,
+                ..LockedPackage::new("nuget", name, version)
             });
         }
     }
@@ -69,30 +64,13 @@ fn paket_line_re() -> Option<&'static Regex> {
 }
 
 pub(crate) fn split_paket_line(trimmed: &str) -> Option<(String, String)> {
-    if let Some(re) = paket_line_re() {
-        let caps = re.captures(trimmed)?;
-        let name = caps["name"].trim().to_owned();
-        let version = caps["version"].trim().to_owned();
-        if name.is_empty() || version.is_empty() {
-            return None;
-        }
-        if name.contains("remote") {
-            return None;
-        }
-        return Some((name, version));
-    }
-    split_paket_line_fallback(trimmed)
-}
-
-pub(crate) fn split_paket_line_fallback(trimmed: &str) -> Option<(String, String)> {
-    let open = trimmed.rfind('(')?;
-    let close = trimmed.rfind(')')?;
-    if close < open {
+    let caps = paket_line_re()?.captures(trimmed)?;
+    let name = caps["name"].trim().to_owned();
+    let version = caps["version"].trim().to_owned();
+    if name.is_empty() || version.is_empty() {
         return None;
     }
-    let name = trimmed[..open].trim().to_owned();
-    let version = trimmed[open + 1..close].trim().to_owned();
-    if name.is_empty() || version.is_empty() || name.contains("remote") {
+    if name.contains("remote") {
         return None;
     }
     Some((name, version))

@@ -1,4 +1,3 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_test")
 
 rust_test(
@@ -19,10 +18,4 @@ rust_test(
     ],
     crate_name = "b",
     crate_root = "tests/b.rs",
-)
-
-real_source_target(
-    name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],
 )

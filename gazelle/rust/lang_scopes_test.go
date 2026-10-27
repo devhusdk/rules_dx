@@ -241,8 +241,8 @@ func TestSetScriptAttrsScopes(t *testing.T) {
 	}
 	r := rule.NewRule(scriptKind, "demo_build_script")
 	setScriptAttrs(r, "crates/demo", manifest)
-	if got := cargoCallNames(r.Attr("deps")); len(got) != 1 || got[0] != "cc" {
-		t.Errorf("script deps = %v, want [cc]", got)
+	if got := exprString(r.Attr("deps")); got != `all_crate_deps(package_name = "crates/demo", build = True)` {
+		t.Errorf("script deps = %s", got)
 	}
 }
 

@@ -1,4 +1,4 @@
-load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
@@ -35,14 +35,6 @@ go_library(
     ],
 )
 
-gazelle_binary(
-    name = "gazelle",
-    languages = [":rust"],
-    tags = ["no-coverage"],
-    version = 1,
-    visibility = ["//dx:__pkg__"],
-)
-
 filegroup(
     name = "generation_testdata",
     srcs = glob(["testdata/**"]),
@@ -50,7 +42,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = ":gazelle",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],
@@ -61,10 +53,10 @@ rust_test(
     name = "failure_test",
     srcs = ["harness_test.rs"],
     data = [
-        ":gazelle",
+        "//gazelle/dispatch:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath :gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
         "DX_GAZELLE_CASE": "failure",
     },
     tags = ["no-coverage"],
@@ -77,10 +69,10 @@ rust_test(
     name = "idempotent_test",
     srcs = ["harness_test.rs"],
     data = [
-        ":gazelle",
+        "//gazelle/dispatch:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath :gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
         "DX_GAZELLE_CASE": "idempotent",
     },
     tags = ["no-coverage"],
@@ -93,10 +85,10 @@ rust_test(
     name = "native_config_test",
     srcs = ["harness_test.rs"],
     data = [
-        ":gazelle",
+        "//gazelle/dispatch:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath :gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
         "DX_GAZELLE_CASE": "native_config",
     },
     tags = ["no-coverage"],
@@ -127,7 +119,10 @@ real_source_target(
     markdown_srcs = [
         "testdata/cargo/README.md",
         "testdata/cargo_workspace/README.md",
+        "testdata/corpus/README.md",
+        "testdata/corpus/sub/notes.md",
         "testdata/merge/README.md",
+        "testdata/merge/crates/stale_corpus/README.md",
         "testdata/native_config/README.md",
         "testdata/source_only/README.md",
     ],
@@ -151,9 +146,11 @@ real_source_target(
         "testdata/cargo/crates/scripted/Cargo.toml",
         "testdata/cargo/crates/shapes/Cargo.toml",
         "testdata/cargo/crates/staticlib/Cargo.toml",
+        "testdata/cargo/crates/suite/Cargo.toml",
         "testdata/cargo_workspace/Cargo.toml",
         "testdata/cargo_workspace/crates/api/Cargo.toml",
         "testdata/cargo_workspace/crates/app/Cargo.toml",
+        "testdata/corpus/config.toml",
         "testdata/merge/crates/cargo_trim/Cargo.toml",
         "testdata/native_config/crates/config_only/taplo.toml",
         "testdata/native_config/crates/full/rustfmt.toml",

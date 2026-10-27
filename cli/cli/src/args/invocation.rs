@@ -59,6 +59,7 @@ pub struct QualityRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
+    pub baseline: Option<String>,
     pub origin: Option<UmbrellaOrigin>,
 }
 
@@ -86,6 +87,7 @@ pub struct UmbrellaRequest {
     pub workspace: Option<String>,
     pub common: CommonOptions,
     pub fail_on: Threshold,
+    pub baseline: Option<String>,
 }
 
 impl CommonOptions {
@@ -136,30 +138,19 @@ impl UmbrellaRequest {
         phase: Command,
         reports: Vec<ReportRequest>,
     ) -> Result<QualityRequest, String> {
-        if !matches!(phase, Command::Lint | Command::Typecheck | Command::Format) {
-            return Err(format!(
-                "umbrella phase {} is not a quality request",
-                phase.name()
-            ));
-        }
-        Ok(QualityRequest {
-            command: phase,
-            mode: self.mode,
-            targets: self.targets.clone(),
-            bazel_options: self.bazel_options.clone(),
-            bazel_startup_options: self.bazel_startup_options.clone(),
-            workspace: self.workspace.clone(),
-            common: CommonOptions {
-                output: self.common.output,
-                include_edits: self.common.include_edits,
-                reports,
-                quiet: self.common.quiet,
-                verbose: self.common.verbose,
-                color: self.common.color,
-            },
-            fail_on: self.fail_on,
-            origin: Some(self.origin()),
-        })
+        self.quality_request(phase, self.mode, reports)
+    }
+
+    pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
+        self.generate_request(self.mode, reports)
+    }
+
+    pub fn verify_quality_request(&self, phase: Command) -> Result<QualityRequest, String> {
+        self.quality_request(phase, OperationMode::Check, Vec::new())
+    }
+
+    pub fn verify_generate_request(&self) -> GenerateRequest {
+        self.generate_request(OperationMode::Check, Vec::new())
     }
 
     fn origin(&self) -> UmbrellaOrigin {
@@ -169,25 +160,23 @@ impl UmbrellaRequest {
         }
     }
 
-    pub fn phase_generate_request(&self, reports: Vec<ReportRequest>) -> GenerateRequest {
-        GenerateRequest {
-            mode: self.mode,
-            targets: self.generate_targets.clone(),
-            bazel_options: self.bazel_options.clone(),
-            bazel_startup_options: self.bazel_startup_options.clone(),
-            workspace: self.workspace.clone(),
-            common: CommonOptions {
-                output: self.common.output,
-                include_edits: self.common.include_edits,
-                reports,
-                quiet: self.common.quiet,
-                verbose: self.common.verbose,
-                color: self.common.color,
-            },
+    fn common_with(&self, reports: Vec<ReportRequest>) -> CommonOptions {
+        CommonOptions {
+            output: self.common.output,
+            include_edits: self.common.include_edits,
+            reports,
+            quiet: self.common.quiet,
+            verbose: self.common.verbose,
+            color: self.common.color,
         }
     }
 
-    pub fn verify_quality_request(&self, phase: Command) -> Result<QualityRequest, String> {
+    fn quality_request(
+        &self,
+        phase: Command,
+        mode: OperationMode,
+        reports: Vec<ReportRequest>,
+    ) -> Result<QualityRequest, String> {
         if !matches!(phase, Command::Lint | Command::Typecheck | Command::Format) {
             return Err(format!(
                 "umbrella phase {} is not a quality request",
@@ -196,39 +185,30 @@ impl UmbrellaRequest {
         }
         Ok(QualityRequest {
             command: phase,
-            mode: OperationMode::Check,
+            mode,
             targets: self.targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
-            common: CommonOptions {
-                output: self.common.output,
-                include_edits: self.common.include_edits,
-                reports: Vec::new(),
-                quiet: self.common.quiet,
-                verbose: self.common.verbose,
-                color: self.common.color,
-            },
+            common: self.common_with(reports),
             fail_on: self.fail_on,
+            baseline: self.baseline.clone(),
             origin: Some(self.origin()),
         })
     }
 
-    pub fn verify_generate_request(&self) -> GenerateRequest {
+    fn generate_request(
+        &self,
+        mode: OperationMode,
+        reports: Vec<ReportRequest>,
+    ) -> GenerateRequest {
         GenerateRequest {
-            mode: OperationMode::Check,
+            mode,
             targets: self.generate_targets.clone(),
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
-            common: CommonOptions {
-                output: self.common.output,
-                include_edits: self.common.include_edits,
-                reports: Vec::new(),
-                quiet: self.common.quiet,
-                verbose: self.common.verbose,
-                color: self.common.color,
-            },
+            common: self.common_with(reports),
         }
     }
 }
@@ -247,10 +227,11 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
+    pub baseline: Option<String>,
     pub include_edits: bool,
     pub min_coverage: Option<u32>,
     pub targets: Vec<String>,
-    pub bazel_options: Vec<String>,
+    pub(super) bazel_options: Vec<String>,
     pub prune_unobserved: bool,
     pub configured: bool,
     pub from: Option<String>,
@@ -270,6 +251,7 @@ pub struct Invocation {
     pub create: Option<String>,
     pub force: bool,
     pub disk: bool,
+    pub bases: bool,
     pub path_only: bool,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
@@ -302,6 +284,11 @@ impl Invocation {
         let mut options = self.agent_quiet_flags();
         options.extend(self.bazel_options.iter().cloned());
         options
+    }
+
+    /// Bazel options as typed, without agent quiet flags; not for build argv.
+    pub fn raw_bazel_options(&self) -> &[String] {
+        &self.bazel_options
     }
 
     pub fn mode(self) -> &'static str {
@@ -397,6 +384,7 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
+            baseline: self.baseline.clone(),
             origin: None,
         })
     }
@@ -466,6 +454,7 @@ impl Invocation {
             workspace: self.workspace.clone(),
             common: self.common_options(),
             fail_on: self.fail_on,
+            baseline: self.baseline.clone(),
         })
     }
 }
@@ -560,8 +549,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn update_and_bump_heads_carry_startup_and_the_default_profile() {
-        for command in [Command::Update, Command::Bump] {
+    fn update_bump_and_add_heads_carry_startup_and_the_default_profile() {
+        for command in [Command::Update, Command::Bump, Command::Add] {
             let mut invocation = invocation_for(command, &[]);
             invocation.bazel_startup_options = vec!["--output_base=/ob".to_owned()];
             let head = invocation.bazel_head();
@@ -585,6 +574,7 @@ mod tests {
             output: OutputMode::Text { quiet: false },
             reports: Vec::new(),
             fail_on: Threshold::Warning,
+            baseline: None,
             include_edits: false,
             min_coverage: None,
             targets: targets.iter().map(ToString::to_string).collect(),
@@ -606,6 +596,7 @@ mod tests {
             create: None,
             force: false,
             disk: false,
+            bases: false,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),
@@ -908,6 +899,31 @@ mod tests {
     }
 
     #[test]
+    fn baseline_selection_rides_every_quality_request() {
+        let defaults = crate::args::FileDefaults {
+            baseline: Some("b.json".to_owned()),
+            ..Default::default()
+        };
+        let inv = crate::args::parse_with(&["lint".to_owned()], &|_| None, &defaults)
+            .expect("parse lint");
+        assert_eq!(
+            inv.quality_request().expect("quality").baseline.as_deref(),
+            Some("b.json")
+        );
+        let fix =
+            crate::args::parse_with(&["fix".to_owned()], &|_| None, &defaults).expect("parse fix");
+        let umbrella = fix.umbrella_request().expect("umbrella");
+        let phase = umbrella
+            .phase_quality_request(Command::Lint, Vec::new())
+            .expect("phase");
+        assert_eq!(phase.baseline.as_deref(), Some("b.json"));
+        let verify = umbrella
+            .verify_quality_request(Command::Lint)
+            .expect("verify");
+        assert_eq!(verify.baseline.as_deref(), Some("b.json"));
+    }
+
+    #[test]
     fn quality_request_has_no_unrelated_fields() {
         let request = parsed(&["lint", "//a:one"])
             .quality_request()
@@ -945,6 +961,17 @@ mod tests {
 
     fn quiet_flags() -> Vec<String> {
         AGENT_QUIET_FLAGS.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn raw_bazel_options_never_carry_agent_quiet_flags() {
+        let session = agent(&["build", "--output=json", "--", "--jobs=4"]);
+        assert_eq!(session.raw_bazel_options(), ["--jobs=4".to_owned()]);
+        let mut want = quiet_flags();
+        want.push("--jobs=4".to_owned());
+        assert_eq!(session.quiet_bazel_options(), want);
+        let plain = parsed(&["build", "--", "--jobs=4"]);
+        assert_eq!(plain.raw_bazel_options(), plain.quiet_bazel_options());
     }
 
     #[test]

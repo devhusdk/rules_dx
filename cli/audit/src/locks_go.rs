@@ -26,13 +26,5 @@ pub fn go_locked_packages(text: &str) -> Result<Vec<LockedPackage>, String> {
 }
 
 fn locked(name: &str, version: &str) -> LockedPackage {
-    LockedPackage {
-        name: name.to_owned(),
-        version: version.to_owned(),
-        set: "go".to_owned(),
-        is_git: false,
-        is_private: false,
-        location: None,
-        platform: None,
-    }
+    LockedPackage::new("go", name, version)
 }

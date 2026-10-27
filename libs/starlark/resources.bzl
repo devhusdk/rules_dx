@@ -12,9 +12,34 @@ def dx_bundler_resources(os_name, _inputs_size):
     """Resource set for JavaScript bundler actions."""
     return {"cpu": 1, "memory": _memory(os_name, 1536)}
 
-def dx_quality_resources(os_name, _inputs_size):
-    """Resource set for real quality tool actions."""
+def dx_quality_light_resources(os_name, _inputs_size):
+    """Resource set for real quality actions that run only native single-binary tools."""
+    return {"cpu": 1, "memory": _memory(os_name, 512)}
+
+def dx_quality_medium_resources(os_name, _inputs_size):
+    """Resource set for real quality actions whose heaviest tool is an interpreter or BEAM VM."""
+    return {"cpu": 1, "memory": _memory(os_name, 1024)}
+
+def dx_quality_heavy_resources(os_name, _inputs_size):
+    """Resource set for real quality actions that run a JVM, dotnet, node or compiler tool."""
     return {"cpu": 2, "memory": _memory(os_name, 2048)}
+
+DX_QUALITY_TIERS = ["light", "medium", "heavy"]
+
+_DX_QUALITY_TIER_RESOURCES = {
+    "heavy": dx_quality_heavy_resources,
+    "light": dx_quality_light_resources,
+    "medium": dx_quality_medium_resources,
+}
+
+def dx_quality_resource_set(tiers):
+    """Returns the top-level resource_set callback for the highest-ranked tier in tiers."""
+    rank = 0
+    for tier in tiers:
+        if tier not in DX_QUALITY_TIERS:
+            fail("dx_quality_resource_set: unknown tier '%s'" % tier)
+        rank = max(rank, DX_QUALITY_TIERS.index(tier))
+    return _DX_QUALITY_TIER_RESOURCES[DX_QUALITY_TIERS[rank]]
 
 def dx_apple_compile_resources(os_name, _inputs_size):
     """Resource set for Xcode toolchain actions."""

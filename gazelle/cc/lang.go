@@ -1,6 +1,8 @@
 package cc
 
 import (
+	"strings"
+
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
@@ -21,6 +23,34 @@ var ccKinds = map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
+	CudaKind: rule.KindInfo{
+		NonEmptyAttrs: map[string]bool{"srcs": true, "hdrs": true},
+		MergeableAttrs: map[string]bool{
+			"srcs": true,
+			"hdrs": true,
+			"deps": true,
+		},
+		ResolveAttrs: map[string]bool{"deps": true},
+	},
+}
+
+const archsDirective = "dx_cuda_archs"
+
+func configureCuda(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
+	if f == nil {
+		return
+	}
+	for _, d := range f.Directives {
+		if d.Key != archsDirective {
+			continue
+		}
+		archs := strings.Fields(d.Value)
+		if len(archs) == 0 {
+			rep.Fail("cc: %s: # gazelle:%s needs at least one arch", rel, archsDirective)
+			continue
+		}
+		c.Exts[archsDirective] = archs
+	}
 }
 
 func NewLanguage() language.Language {
@@ -30,18 +60,38 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		Kinds:          ccKinds,
 		DefsPackage:    "cc/rules:defs.bzl",
+		ExtraKinds:     []string{CudaKind},
+		KindDefs:       map[string]string{CudaKind: "cuda/rules:defs.bzl"},
+		IndexKinds:     []string{CudaKind},
+		Directives:     []string{archsDirective},
+		ConfigureExt:   configureCuda,
 		ImportAttr:     "hdrs",
 		Identity:       HeaderIdentity,
-		IsImportSource: IsHeader,
+		IsImportSource: func(name string) bool { return IsHeader(name) || IsCudaHeader(name) },
+		IsIndexSource:  IsCudaHeader,
 		IsTestSource:   IsTestSource,
 		UnresolvedHint: "add a local one-header library or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})
 }
 
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }
-
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
+	// Gazelle owns only <dir>_cuda, so MergeStale must never see cuda_library.
+	owned := make(map[string]rule.KindInfo, len(kinds))
+	for k, v := range kinds {
+		if k != CudaKind {
+			owned[k] = v
+		}
+	}
+	res := generateCc(args, owned, rep)
+	cuda := generateCuda(args, rep)
+	res.Gen = append(res.Gen, cuda.Gen...)
+	res.Imports = append(res.Imports, cuda.Imports...)
+	res.Empty = append(res.Empty, cuda.Empty...)
+	return res
+}
+
+func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
 		LanguageName: languageName,
 		LibraryKind:  LibraryKind,

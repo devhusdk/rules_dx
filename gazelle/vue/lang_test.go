@@ -57,14 +57,14 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	lib := result.Gen[0]
-	if lib.Kind() != libraryKind || lib.Name() != "demo" {
+	if lib.Kind() != "vue_library" || lib.Name() != "demo" {
 		t.Fatalf("library = %s(%s)", lib.Kind(), lib.Name())
 	}
 	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "demo.vue" {
 		t.Errorf("library srcs = %q", got)
 	}
 	helper := result.Gen[1]
-	if helper.Kind() != libraryKind || helper.Name() != "helper" {
+	if helper.Kind() != "vue_library" || helper.Name() != "helper" {
 		t.Fatalf("helper = %s(%s)", helper.Kind(), helper.Name())
 	}
 	if got := strings.Join(helper.AttrStrings("srcs"), ","); got != "helper.vue" {
@@ -87,9 +87,9 @@ func TestGenerateEmptySweepsStale(t *testing.T) {
 	}
 	f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	f.Rules = append(f.Rules,
-		rule.NewRule(libraryKind, "old"),
+		rule.NewRule("vue_library", "old"),
 		rule.NewRule("filegroup", "keep"),
-		rule.NewRule(libraryKind, "demo"),
+		rule.NewRule("vue_library", "demo"),
 	)
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/demo.vue", sfc("export default {};\n"))
@@ -138,8 +138,5 @@ func TestLanguageMetadata(t *testing.T) {
 	defaultApparent := l.ApparentLoads(func(string) string { return "" })
 	if defaultApparent[0].Name != "@rules_dx//vue/rules:defs.bzl" {
 		t.Errorf("default apparent loads = %+v", defaultApparent)
-	}
-	if got := CollectUsedIgnores(config.New()); got != nil {
-		t.Errorf("unused ignores = %v, want none", got)
 	}
 }

@@ -78,6 +78,9 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 	if got := test.AttrString("node_modules"); got != rootNodeModules {
 		t.Errorf("test node_modules = %q, want %q", got, rootNodeModules)
 	}
+	if got := test.Attr("package_json"); got != nil {
+		t.Errorf("test package_json = %v, want unset without a root package.json", got)
+	}
 	testImports := result.Imports[2].(targetImports)
 	if strings.Join(testImports.imports, ",") != "pkg/demo/helper" {
 		t.Errorf("test imports = %+v, want [pkg/demo/helper]", testImports)
@@ -190,20 +193,22 @@ func TestGenerateFailures(t *testing.T) {
 }
 
 func TestAccumulateImportsDedupesRepeats(t *testing.T) {
-	imports, local := accumulateImports([]common.ImportRef{
+	imports, local, _ := accumulateImports([]common.ImportRef{
 		{Spec: "./helper", Root: "helper", Relative: true},
 		{Spec: "./helper", Root: "helper", Relative: true},
 		{Root: "pkg", Relative: false},
 		{Root: "pkg", Relative: false},
 		{Root: "fs", Relative: false},
+		{Root: "sqlite", Relative: false},
+		{Root: "node:sqlite", Relative: false},
 	})
-	if strings.Join(imports, ",") != "helper,pkg" {
-		t.Errorf("imports = %q, want helper,pkg", strings.Join(imports, ","))
+	if strings.Join(imports, ",") != "helper,pkg,sqlite" {
+		t.Errorf("imports = %q, want helper,pkg,sqlite", strings.Join(imports, ","))
 	}
 	if !local["helper"] || len(local) != 1 {
 		t.Errorf("local = %v, want map[helper:true]", local)
 	}
-	if imports, local := accumulateImports(nil); len(imports) != 0 || len(local) != 0 {
+	if imports, local, _ := accumulateImports(nil); len(imports) != 0 || len(local) != 0 {
 		t.Errorf("empty imports = %q, %v, want empty", imports, local)
 	}
 }
@@ -335,7 +340,7 @@ func TestImportsIndexesLibraries(t *testing.T) {
 	lib := rule.NewRule(libraryKind, "demo")
 	lib.SetAttr("srcs", []string{"demo.js", "notes.txt"})
 	imports := lang.Imports(&config.Config{}, lib, nil)
-	if len(imports) != 1 || imports[0].Lang != languageName || imports[0].Imp != "demo" {
+	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "demo" || imports[1].Imp != "notes.txt" {
 		t.Errorf("imports = %+v", imports)
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule(testKind, "demo_test"), nil); got != nil {
@@ -401,9 +406,6 @@ func TestLanguageMetadata(t *testing.T) {
 	defaultApparent := l.ApparentLoads(func(string) string { return "" })
 	if defaultApparent[0].Name != "@rules_dx//javascript/rules:defs.bzl" {
 		t.Errorf("default apparent loads = %+v", defaultApparent)
-	}
-	if got := CollectUsedIgnores(config.New()); got != nil {
-		t.Errorf("unused ignores = %v, want none", got)
 	}
 }
 
@@ -835,5 +837,97 @@ func TestRepeatedBasenamesKeepSourceIdentity(t *testing.T) {
 	l.Resolve(cfg, index, nil, r, imports, label.New("", "pkg/demo", "main"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:a,//pkg/b:util" {
 		t.Errorf("override deps = %q, want //mapped:a,//pkg/b:util", got)
+	}
+}
+
+func TestResolveIndexDottedAndAssets(t *testing.T) {
+	files := map[string]string{
+		"pkg/demo/app.js": "import c from \"./components\";\nimport p from \"./config.prod\";\nimport d from \"./data.json\";\nimport s from \"./styles.module.css\";\nimport x from \"./x\";\n",
+	}
+	result := generateFixture(t, files, []string{"app.js"})
+	if len(result.Imports) == 0 {
+		t.Fatal("no imports generated")
+	}
+	imports, ok := result.Imports[0].(targetImports)
+	if !ok {
+		t.Fatalf("imports = %T", result.Imports[0])
+	}
+	l := &javascriptLang{}
+	index := resolverIndex(l,
+		struct{ pkg, name, ext string }{"pkg/demo/components", "index", ""},
+		struct{ pkg, name, ext string }{"pkg/demo", "config.prod", ""},
+		struct{ pkg, name, ext string }{"pkg/demo", "config", ""},
+		struct{ pkg, name, ext string }{"pkg/demo", "x", ""},
+		struct{ pkg, name, ext string }{"pkg/demo/x", "index", ""},
+	)
+	cfg := resolverConfig(t, nil)
+	r := rule.NewRule(libraryKind, "app")
+	l.Resolve(cfg, index, nil, r, imports, label.New("", "pkg/demo", "app"))
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//pkg/demo/components:index,:config.prod,:x" {
+		t.Errorf("deps = %q", got)
+	}
+
+	owned := rule.NewRule(libraryKind, "data")
+	owned.SetAttr("srcs", []string{"data.json"})
+	specs := l.Imports(cfg, owned, rule.EmptyFile("pkg/demo/BUILD.bazel", "pkg/demo"))
+	if len(specs) != 1 || specs[0].Imp != "pkg/demo/data.json" {
+		t.Fatalf("asset imports = %v", specs)
+	}
+	handIndex := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
+	handIndex.AddRule(config.New(), owned, rule.EmptyFile("pkg/demo/BUILD.bazel", "pkg/demo"))
+	handIndex.Finish()
+	r = rule.NewRule(libraryKind, "app")
+	l.Resolve(cfg, handIndex, nil, r, targetImports{imports: []string{"pkg/demo/data.json"}, local: map[string]bool{"pkg/demo/data.json": true}, asset: map[string]bool{"pkg/demo/data.json": true}}, label.New("", "pkg/demo", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != ":data" {
+		t.Errorf("owned asset deps = %q", got)
+	}
+
+	missing := rule.NewRule(libraryKind, "missing")
+	l.Resolve(cfg, index, nil, missing, targetImports{imports: []string{"pkg/demo/nope"}, local: map[string]bool{"pkg/demo/nope": true}}, label.New("", "pkg/demo", "missing"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
+		t.Errorf("missing errors = %v", l.errors)
+	}
+}
+
+func TestGenerateTestPackageJSONFollowsRootManifest(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"package.json":            "{\"type\": \"module\"}\n",
+		"pkg/demo/helper.js":      "export const helper = 1;\n",
+		"pkg/demo/helper_test.js": "import { helper } from \"./helper\";\n",
+	}, []string{"helper.js", "helper_test.js"})
+	var test *rule.Rule
+	for _, r := range result.Gen {
+		if r.Kind() == testKind {
+			test = r
+		}
+	}
+	if test == nil {
+		t.Fatalf("missing %s in %v", testKind, result.Gen)
+	}
+	if got := test.AttrString("package_json"); got != rootPackageJSON {
+		t.Errorf("test package_json = %q, want %q", got, rootPackageJSON)
+	}
+}
+
+func TestMergeKeepsHandSetPackageJSON(t *testing.T) {
+	info := testKindInfo()
+	if info.MergeableAttrs["package_json"] {
+		t.Fatal("package_json must not be mergeable, or Gazelle overwrites a hand-set nearest manifest")
+	}
+	gen := rule.NewRule(testKind, "helper_test")
+	gen.SetAttr("package_json", rootPackageJSON)
+	hand := rule.NewRule(testKind, "helper_test")
+	hand.SetAttr("package_json", "//pkg:package_json")
+	rule.MergeRules(gen, hand, info.MergeableAttrs, "BUILD.bazel")
+	if got := hand.AttrString("package_json"); got != "//pkg:package_json" {
+		t.Errorf("merged package_json = %q, want the hand-set //pkg:package_json", got)
+	}
+	missing := rule.NewRule(testKind, "helper_test")
+	rule.MergeRules(gen, missing, info.MergeableAttrs, "BUILD.bazel")
+	if got := missing.AttrString("package_json"); got != rootPackageJSON {
+		t.Errorf("merged package_json = %q, want %q added to a rule without one", got, rootPackageJSON)
 	}
 }

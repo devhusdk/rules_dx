@@ -52,7 +52,7 @@ fn mode_for(ext: &str) -> Mode {
         "rb" => Mode::Offenses,
         "go" => Mode::Diff0,
         "css" | "less" | "scss" | "feature" | "sql" | "xml" => Mode::Warn,
-        "pkl" | "mod" => Mode::Listed,
+        "mod" => Mode::Listed,
         _ => Mode::Diff,
     }
 }
@@ -90,7 +90,7 @@ fn parse(argv: &[String]) -> (Flags, Vec<String>) {
             continue;
         }
         match arg.as_str() {
-            "--config" | "--config-path" => skip_next = true,
+            "--config" | "--config-path" | "--ignore-path" => skip_next = true,
             "--check" => flags.check = true,
             "--diff" | "-d" => flags.diff = true,
             "-w" | "--write" | "--fix" | "-i" => flags.fix = true,
@@ -422,7 +422,7 @@ mod tests {
     /// The tools that name the files they would rewrite print no diff header at all.
     #[test]
     fn the_listing_tools_never_print_a_diff_header() {
-        for ext in ["pkl", "mod"] {
+        for ext in ["mod"] {
             assert!(matches!(mode_for(ext), Mode::Listed), "{ext}");
         }
     }

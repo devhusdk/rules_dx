@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -266,6 +268,30 @@ func TestImportsIndexesTheImportAttr(t *testing.T) {
 	}
 	if got := l.Imports(&config.Config{}, rule.NewRule(dotKind, "empty"), nil); got != nil {
 		t.Errorf("srcless imports = %+v, want nil", got)
+	}
+}
+
+func TestImportsWithoutIdentityIndexesQualifiedIDsOnly(t *testing.T) {
+	spec := dotSpec()
+	spec.Identity = nil
+	var paths []string
+	spec.QualifiedIDs = func(path string) []string {
+		paths = append(paths, path)
+		return []string{"Acme.Demo"}
+	}
+	l := NewSingleLang(spec)
+	tmp := t.TempDir()
+	lib := rule.NewRule(dotKind, "demo")
+	lib.SetAttr("srcs", []string{"Demo.dot", "Helper.dot", "Demo_test.dot"})
+	imports := l.Imports(&config.Config{}, lib, &rule.File{Path: filepath.Join(tmp, "BUILD.bazel")})
+	if len(imports) != 1 || imports[0].Lang != dotLanguage || imports[0].Imp != "Acme.Demo" {
+		t.Errorf("imports = %+v, want only Acme.Demo", imports)
+	}
+	if want := []string{filepath.Join(tmp, "Demo.dot"), filepath.Join(tmp, "Helper.dot")}; !slices.Equal(paths, want) {
+		t.Errorf("qualified paths = %v, want %v", paths, want)
+	}
+	if got := l.Imports(&config.Config{}, lib, nil); got != nil {
+		t.Errorf("nil file imports = %+v, want nil", got)
 	}
 }
 
@@ -623,32 +649,60 @@ func TestResolveIgnore(t *testing.T) {
 	}
 }
 
-func newFallbackDotLang() *SingleLang {
+func newJVMDotLang() *SingleLang {
 	spec := dotSpec()
-	spec.Fallback = SimpleName
+	spec.Candidates = JVMCandidates
 	return NewSingleLang(spec)
 }
 
-func TestResolveFallback(t *testing.T) {
-	l := newFallbackDotLang()
-	index := resolverIndex(l, struct{ pkg, name string }{"lib/one", "Dup"})
-	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot Mapped //mapped:dep"}})
-	r := rule.NewRule(dotKind, "app")
-	l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"x.Dup", "x.Mapped"}), label.New("", "app", "app"))
-	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/one:Dup,//mapped:dep" {
-		t.Errorf("deps = %q, want //lib/one:Dup,//mapped:dep", got)
+func TestResolveJVMCandidates(t *testing.T) {
+	l := newJVMDotLang()
+	index := resolverIndex(l,
+		struct{ pkg, name string }{"lib/x", "com.x"},
+		struct{ pkg, name string }{"lib/acme", "com.acme"},
+	)
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot org.y //third_party:y"}})
+	for _, tc := range []struct{ imp, want string }{
+		{"com.x.runBlocking", "//lib/x:com.x"},
+		{"com.x.Outer.Inner", "//lib/x:com.x"},
+		{"com.x.*", "//lib/x:com.x"},
+		{"org.y.Thing", "//third_party:y"},
+		{"org.y.*", "//third_party:y"},
+	} {
+		r := rule.NewRule(dotKind, "app")
+		l.Resolve(cfg, index, nil, r, WrapImportSet([]string{tc.imp}), label.New("", "app", "app"))
+		if got := strings.Join(r.AttrStrings("deps"), ","); got != tc.want {
+			t.Errorf("%s: deps = %q, want %q", tc.imp, got, tc.want)
+		}
 	}
 	if len(l.errors) != 0 {
-		t.Errorf("errors = %v", l.errors)
+		t.Fatalf("errors = %v", l.errors)
 	}
-	l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"x.Missing"}), label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `"x.Missing"`) {
-		t.Errorf("unresolved errors = %v", l.errors)
+	// A candidate walk never climbs into a parent package.
+	for _, imp := range []string{"com.acme.lib.Client", "org.y.sub.Thing"} {
+		l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{imp}), label.New("", "app", "app"))
+	}
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0], `"com.acme.lib.Client"`) || !strings.Contains(l.errors[1], `"org.y.sub.Thing"`) {
+		t.Errorf("parent package errors = %v", l.errors)
 	}
 }
 
-func TestResolveFallbackIgnore(t *testing.T) {
-	l := newFallbackDotLang()
+func TestResolveNoBareNameMatch(t *testing.T) {
+	l := newJVMDotLang()
+	index := resolverIndex(l, struct{ pkg, name string }{"lib/util", "Util"})
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot Mapped //mapped:dep"}})
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"com.x.Util", "com.x.Mapped"}), label.New("", "app", "app"))
+	if r.Attr("deps") != nil {
+		t.Errorf("bare names bound deps = %v", r.AttrStrings("deps"))
+	}
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0], `"com.x.Util"`) || !strings.Contains(l.errors[1], `"com.x.Mapped"`) {
+		t.Errorf("errors = %v", l.errors)
+	}
+}
+
+func TestResolveBareNameIgnoreNoLongerMatches(t *testing.T) {
+	l := newJVMDotLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot Dropped\n"))
@@ -656,14 +710,53 @@ func TestResolveFallbackIgnore(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
-	r := rule.NewRule(dotKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, WrapImportSet([]string{"x.Dropped"}), label.New("", "app", "app"))
-	if r.Attr("deps") != nil {
-		t.Errorf("ignored import emitted deps = %v", r.AttrStrings("deps"))
-	}
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"x.y.Dropped"}), label.New("", "app", "app"))
+	defer func() {
+		msg := fmt.Sprint(recover())
+		if !strings.Contains(msg, `unresolved import "x.y.Dropped"`) || !strings.Contains(msg, "stale # gazelle:dx_ignore_import dot Dropped") {
+			t.Errorf("panic = %q", msg)
+		}
+	}()
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("ignore errors = %v", l.errors)
+}
+
+func TestJVMCandidates(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want []string
+	}{
+		{"a.b.c.X", []string{"a.b.c"}},
+		{"com.a.Outer.Inner", []string{"com.a.Outer", "com.a"}},
+		{"com.x.Obj.member", []string{"com.x.Obj", "com.x"}},
+		{"com.x.runBlocking", []string{"com.x"}},
+		{"a.b.c.*", []string{"a.b.c"}},
+		{"p.*", []string{"p"}},
+		{"grades.helper", nil},
+		{"Widget", nil},
+		{".*", nil},
+	} {
+		if got := JVMCandidates(tc.in); !slices.Equal(got, tc.want) {
+			t.Errorf("JVMCandidates(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestJVMQualifiedIDs(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "a/Foo.dot", "pkg com.a\n")
+	dotFile(t, root, "a/Bare.dot", "\n")
+	parse := func(content []byte) (string, error) {
+		return strings.TrimSpace(strings.TrimPrefix(string(content), "pkg ")), nil
+	}
+	identity := func(name string) string { return strings.TrimSuffix(name, ".dot") }
+	if got := JVMQualifiedIDs(filepath.Join(root, "a", "Foo.dot"), parse, identity); !slices.Equal(got, []string{"com.a", "com.a.Foo"}) {
+		t.Errorf("packaged ids = %v", got)
+	}
+	if got := JVMQualifiedIDs(filepath.Join(root, "a", "Bare.dot"), parse, identity); got != nil {
+		t.Errorf("unpackaged ids = %v", got)
+	}
+	if got := JVMQualifiedIDs(filepath.Join(root, "a", "Missing.dot"), parse, identity); got != nil {
+		t.Errorf("missing ids = %v", got)
 	}
 }
 
@@ -724,5 +817,276 @@ func TestResolveSharedBasenamesStayIndependent(t *testing.T) {
 	}
 	if len(l.errors) != 0 {
 		t.Errorf("errors = %v", l.errors)
+	}
+}
+
+func TestOptInFieldsSplitLoadsAndIndexExtraKinds(t *testing.T) {
+	spec := dotSpec()
+	spec.ExtraKinds = []string{"dot_extra", "dot_gpu"}
+	spec.KindDefs = map[string]string{"dot_gpu": "gpu/rules:defs.bzl"}
+	spec.IndexKinds = []string{"dot_gpu"}
+	spec.IsIndexSource = func(name string) bool { return strings.HasSuffix(name, ".gdot") }
+	spec.Directives = []string{"dot_custom"}
+	var gotRel, gotValue string
+	spec.ConfigureExt = func(_ *config.Config, rel string, f *rule.File, _ Reporter) {
+		gotRel = rel
+		for _, d := range f.Directives {
+			if d.Key == "dot_custom" {
+				gotValue = d.Value
+			}
+		}
+	}
+	l := NewSingleLang(spec)
+
+	loads := l.Loads()
+	if len(loads) != 2 || loads[0].Name != "@rules_dx//dot/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "dot_library,dot_extra" ||
+		loads[1].Name != "@rules_dx//gpu/rules:defs.bzl" || strings.Join(loads[1].Symbols, ",") != "dot_gpu" {
+		t.Errorf("loads = %+v", loads)
+	}
+	if got := strings.Join(l.KnownDirectives(), ","); got != "dx_ignore_import,dot_custom" {
+		t.Errorf("directives = %q", got)
+	}
+	l.Configure(config.New(), "pkg", &rule.File{Directives: []rule.Directive{{Key: "dot_custom", Value: "v"}}})
+	if gotRel != "pkg" || gotValue != "v" {
+		t.Errorf("ConfigureExt saw rel=%q value=%q", gotRel, gotValue)
+	}
+
+	gpu := rule.NewRule("dot_gpu", "g")
+	gpu.SetAttr("srcs", []string{"a.dot", "b.gdot"})
+	if got := l.Imports(&config.Config{}, gpu, nil); len(got) != 1 || got[0].Imp != "b.gdot" {
+		t.Errorf("extra kind imports = %+v, want only b.gdot", got)
+	}
+	extra := rule.NewRule("dot_extra", "e")
+	extra.SetAttr("srcs", []string{"a.dot"})
+	if got := l.Imports(&config.Config{}, extra, nil); got != nil {
+		t.Errorf("unindexed kind imports = %+v", got)
+	}
+}
+
+func TestGenerateStripsBOM(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "pkg/demo/Demo.dot", "\xEF\xBB\xBFimport x")
+	var seen []byte
+	args := language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.dot"},
+	}
+	isSource := func(name string) bool { return HasExt(name, []string{".dot"}) }
+	dirSpec := SingleDirSpec{
+		LanguageName: dotLanguage,
+		LibraryKind:  dotKind,
+		IsSource:     isSource,
+		DirName:      DirTargetName,
+		DefinesMain:  func([]byte) bool { return false },
+		ParseImports: func(content []byte) []string { seen = content; return nil },
+		Wrap:         WrapImportSet,
+	}
+	GenerateSingleDir(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, dirSpec, NewSingleLang(dotSpec()))
+	if string(seen) != "import x" {
+		t.Errorf("GenerateSingleDir content = %q, want the BOM stripped", seen)
+	}
+	seen = nil
+	fileSpec := SingleFileSpec{
+		LanguageName: dotLanguage,
+		LibraryKind:  dotKind,
+		IsSource:     isSource,
+		TargetName:   func(name string) (string, error) { return strings.TrimSuffix(name, ".dot"), nil },
+		ParseImports: func(content []byte, _ string) []string { seen = content; return nil },
+		Wrap:         WrapImportSet,
+	}
+	GenerateSingleFile(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, fileSpec, NewSingleLang(dotSpec()))
+	if string(seen) != "import x" {
+		t.Errorf("GenerateSingleFile content = %q, want the BOM stripped", seen)
+	}
+}
+
+func TestGenerateRootHint(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "Root.dot", "nothing\n")
+	dotFile(t, root, "pkg/x/X.dot", "nothing\n")
+	cases := []struct {
+		hint, rel, want string
+	}{
+		{"from-manifest", "", "from_manifest"},
+		{"---", "", "demo_repo"},
+		{"", "", "demo_repo"},
+	}
+	for _, tc := range cases {
+		spec := SingleDirSpec{
+			LanguageName: dotLanguage,
+			LibraryKind:  dotKind,
+			IsSource:     func(name string) bool { return HasExt(name, []string{".dot"}) },
+			DirName:      DirTargetName,
+			RootHint:     func(language.GenerateArgs) string { return tc.hint },
+			DefinesMain:  func([]byte) bool { return false },
+			ParseImports: func([]byte) []string { return nil },
+			Wrap:         WrapImportSet,
+		}
+		result := GenerateSingleDir(language.GenerateArgs{
+			Config:       &config.Config{RepoRoot: root, RepoName: "demo-repo"},
+			Dir:          root,
+			RegularFiles: []string{"Root.dot"},
+		}, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, spec, NewSingleLang(dotSpec()))
+		if len(result.Gen) != 1 || result.Gen[0].Name() != tc.want {
+			t.Fatalf("hint %q: generated %+v, want %s", tc.hint, result.Gen, tc.want)
+		}
+	}
+	spec := SingleDirSpec{
+		LanguageName: dotLanguage,
+		LibraryKind:  dotKind,
+		IsSource:     func(name string) bool { return HasExt(name, []string{".dot"}) },
+		DirName:      DirTargetName,
+		RootHint:     func(language.GenerateArgs) string { t.Fatal("RootHint called for a subpackage"); return "" },
+		DefinesMain:  func([]byte) bool { return false },
+		ParseImports: func([]byte) []string { return nil },
+		Wrap:         WrapImportSet,
+	}
+	result := GenerateSingleDir(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "x"),
+		Rel:          "pkg/x",
+		RegularFiles: []string{"X.dot"},
+	}, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, spec, NewSingleLang(dotSpec()))
+	if len(result.Gen) != 1 || result.Gen[0].Name() != "x" {
+		t.Fatalf("subpackage: generated %+v, want x", result.Gen)
+	}
+}
+
+func resolveConfig(t *testing.T, root, directives string) *config.Config {
+	t.Helper()
+	cfg := config.New()
+	cfg.RepoRoot = root
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f, err := rule.LoadData("BUILD.bazel", "", []byte(directives))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "pkg/demo", f)
+	return cfg
+}
+
+func TestMappedByOverride(t *testing.T) {
+	cfg := resolveConfig(t, t.TempDir(), "# gazelle:resolve dot dot.Mapped //third_party:mapped\n# gazelle:resolve dot dot.pkg //third_party:pkg\n")
+	candidates := JVMCandidates
+	for _, tc := range []struct {
+		name string
+		cfg  *config.Config
+		cand func(string) []string
+		want bool
+	}{
+		{"dot.Mapped", cfg, nil, true},
+		{"dot.Other", cfg, nil, false},
+		{"dot.pkg.Bare", cfg, nil, false},
+		{"dot.pkg.Bare", cfg, candidates, true},
+		{"dot.pkg.sub.Bare", cfg, candidates, false},
+		{"dot.Mapped", &config.Config{}, nil, false},
+		{"dot.Mapped", nil, nil, false},
+	} {
+		if got := mappedByOverride(tc.cfg, dotLanguage, tc.cand, tc.name); got != tc.want {
+			t.Errorf("mappedByOverride(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestGeneratorsKeepMappedStdLibRoots(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "pkg/demo/Demo.dot", "x\n")
+	parse := func([]byte) []string { return []string{"dot.Mapped", "dot.Plain"} }
+	for _, tc := range []struct {
+		name       string
+		directives string
+		want       []string
+	}{
+		{"mapped", "# gazelle:resolve dot dot.Mapped //third_party:mapped\n", []string{"dot.Mapped"}},
+		{"unmapped", "", nil},
+	} {
+		cfg := resolveConfig(t, root, tc.directives)
+		args := language.GenerateArgs{Config: cfg, Dir: filepath.Join(root, "pkg", "demo"), Rel: "pkg/demo", RegularFiles: []string{"Demo.dot"}}
+		single := GenerateSingleDir(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, SingleDirSpec{
+			LanguageName: dotLanguage, LibraryKind: dotKind, IsSource: isDot2,
+			DirName: DirTargetName, DefinesMain: func([]byte) bool { return false },
+			ParseImports: parse, IsStdLib: isDotStdLib, Wrap: WrapImportSet,
+		}, newDotLang())
+		file := GenerateSingleFile(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, SingleFileSpec{
+			LanguageName: dotLanguage, LibraryKind: dotKind, IsSource: isDot2,
+			TargetName:   func(name string) (string, error) { return strings.TrimSuffix(name, ".dot"), nil },
+			ParseImports: func(c []byte, _ string) []string { return parse(c) }, IsStdLib: isDotStdLib, Wrap: WrapImportSet,
+		}, newDotLang())
+		for kind, res := range map[string]language.GenerateResult{"dir": single, "file": file} {
+			if len(res.Imports) != 1 {
+				t.Fatalf("%s/%s: imports = %v", tc.name, kind, res.Imports)
+			}
+			got, _ := UnwrapImportSet(res.Imports[0])
+			if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Errorf("%s/%s: imports = %v, want %v", tc.name, kind, got, tc.want)
+			}
+		}
+	}
+}
+
+func isDot2(name string) bool { return HasExt(name, []string{".dot"}) }
+
+func TestResolveSingleLetsAMappingBeatStdLib(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		directives string
+		want       []string
+	}{
+		{"mapped", "# gazelle:resolve dot dot.Mapped //third_party:mapped\n", []string{"//third_party:mapped"}},
+		{"unmapped", "", nil},
+	} {
+		cfg := resolveConfig(t, t.TempDir(), tc.directives)
+		l := newDotLang()
+		l.Before(context.Background())
+		index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil })
+		r := rule.NewRule(dotKind, "app")
+		l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"dot.Mapped"}), label.New("", "pkg", "app"))
+		if l.Failed() {
+			t.Errorf("%s: reported %v", tc.name, l.errors)
+		}
+		got := r.AttrStrings("deps")
+		if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+			t.Errorf("%s: deps = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestMergeStaleOwned(t *testing.T) {
+	file, err := rule.LoadData("pkg/BUILD.bazel", "pkg", []byte(`dot_library(name = "kept")
+
+dot_library(name = "stale")
+
+dot_library(name = "handwritten", srcs = ["tool.dot"])
+
+filegroup(name = "other")
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := map[string]rule.KindInfo{dotKind: LibraryKindInfo()}
+	gen := language.GenerateResult{Gen: []*rule.Rule{rule.NewRule(dotKind, "kept")}}
+	empties := func(result language.GenerateResult) string {
+		var names []string
+		for _, r := range result.Empty {
+			names = append(names, r.Kind()+":"+r.Name())
+		}
+		return strings.Join(names, ",")
+	}
+	owns := func(r *rule.Rule) bool { return len(r.AttrStrings("srcs")) == 0 }
+	if got := empties(MergeStaleOwned(file, gen, kinds, owns)); got != "dot_library:stale" {
+		t.Errorf("MergeStaleOwned empties = %q, want only the owned stale rule", got)
+	}
+	want := "dot_library:stale,dot_library:handwritten"
+	if got := empties(MergeStaleOwned(file, gen, kinds, nil)); got != want {
+		t.Errorf("MergeStaleOwned(nil) empties = %q, want %q", got, want)
+	}
+	if got := empties(MergeStale(file, gen, kinds)); got != want {
+		t.Errorf("MergeStale empties = %q, want %q", got, want)
 	}
 }

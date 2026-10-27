@@ -36,7 +36,7 @@ pub use locks_uv::*;
 #[cfg(test)]
 pub(crate) use locks_npm::package_lock_name;
 #[cfg(test)]
-pub(crate) use locks_paket::{split_paket_line, split_paket_line_fallback};
+pub(crate) use locks_paket::split_paket_line;
 #[cfg(test)]
 pub(crate) use locks_pnpm::{split_pnpm_scoped_fallback, split_pnpm_unscoped_fallback};
 

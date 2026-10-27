@@ -4,8 +4,10 @@ exports_files([
     "behavioral_matrix.md",
     "canonical.bzl",
     "conformance.bzl",
+    "deb_closure.bzl",
     "defs.bzl",
     "failure_test.bzl",
+    "launcher.bzl",
     "packaging.bzl",
     "plan_shard.bzl",
     "resources.bzl",
@@ -27,8 +29,10 @@ real_source_target(
         "BUILD.bazel",
         "canonical.bzl",
         "conformance.bzl",
+        "deb_closure.bzl",
         "defs.bzl",
         "failure_test.bzl",
+        "launcher.bzl",
         "packaging.bzl",
         "plan_shard.bzl",
         "resources.bzl",
@@ -36,4 +40,11 @@ real_source_target(
         "wrapper.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

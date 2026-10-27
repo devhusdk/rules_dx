@@ -1,0 +1,13 @@
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
+
+# gazelle:resolve kotlin kotlinx.coroutines //third_party:coroutines
+# gazelle:resolve kotlin kotlin.test.assertEquals //third_party:kotlin_test
+
+kotlin_library(
+    name = "demo",
+    srcs = ["Demo.kt"],
+    deps = [
+        "//third_party:coroutines",
+        "//third_party:kotlin_test",
+    ],
+)

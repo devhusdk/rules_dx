@@ -183,7 +183,7 @@ sh_test(
     args = [
         "$(location :tasks_apk_file)",
         "com.example.dxsharedtasks",
-        "tasks_apk",
+        "tasks_apk_bin",
         "arm64-v8a,x86_64",
         "$(location @android_ndk_toolchain//:llvm_readelf)",
         "31",
@@ -206,7 +206,7 @@ sh_test(
     args = [
         "$(location @shared_consumer//:consumer_apk_file)",
         "org.example.consumer.tasks",
-        "consumer_apk",
+        "consumer_apk_bin",
         "x86_64",
         "$(location @android_ndk_toolchain//:llvm_readelf)",
         "33",
@@ -365,7 +365,10 @@ rust_test(
         "DX_TASKS_WASI_RELEASE": "$(rootpath :tasks_wasi_release)",
         "DX_WASMTIME": "$(rootpath //wasi/runtime:wasmtime)",
     },
-    tags = ["block-network"],
+    tags = [
+        "block-network",
+        "no-remote-exec",
+    ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
@@ -400,6 +403,7 @@ rust_test(
     tags = [
         "block-network",
         "no-coverage",
+        "no-remote-exec",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
@@ -426,6 +430,7 @@ rust_test(
     tags = [
         "block-network",
         "no-coverage",
+        "no-remote-exec",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [

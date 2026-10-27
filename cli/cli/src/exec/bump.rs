@@ -1,9 +1,9 @@
 use super::common::*;
+use super::dep_edit;
 use crate::args::{Command, Invocation};
 use crate::reports::plan_reports;
 use dx_output::{
-    command_finished, command_started, error_event, notice_event, FinishedCounts, NoticeEvent,
-    OutputMode,
+    command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
 };
 
 pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -60,52 +60,25 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         return check_bump(invocation, out, err, workspace, &request, verbose);
     }
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
         }
     } else if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
             return exit;
         }
     }
-    if invocation.frozen {
-        return operational(
-            invocation,
-            out,
-            err,
-            CODE_FROZEN_LOCKED,
-            &format!(
-                "frozen_locked: cannot widen {} while frozen: frozen forbids manifest and lock resolution changes (no manifest changes performed)",
-                request.selector,
-            ),
-        );
-    }
-    if invocation.offline && request.needs_update_refresh() {
-        if let Some((set, req)) = refresh_target(&request) {
-            if let Err(dx_update::backend::BackendError::OfflineRequired { .. }) =
-                dx_update::backend::plan(
-                    workspace,
-                    set,
-                    &req,
-                    true,
-                    invocation.frozen,
-                    &invocation.bazel_head(),
-                )
-            {
-                return operational(
-                    invocation,
-                    out,
-                    err,
-                    CODE_OFFLINE_REQUIRED,
-                    &format!(
-                        "cannot refresh {} without network: re-run without --offline once connected (no widen performed)",
-                        request.selector,
-                    ),
-                );
-            }
-        }
+    let target = request.target();
+    if let Err(exit) = dep_edit::preflight(
+        &BUMP_VERB,
+        invocation,
+        out,
+        err,
+        workspace,
+        &target,
+        &request.selector,
+    ) {
+        return exit;
     }
     let planned = match plan_widens(&request, workspace) {
         Ok(planned) => planned,
@@ -118,224 +91,47 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     {
         return emit_bump_no_change(invocation, out, &request, &planned, verbose);
     }
-    for (manifest, widened, _) in &planned {
-        if dx_atomic_fs::write_atomic(&workspace.join(manifest), widened.as_bytes()).is_err() {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_BUMP_FAILED,
-                &format!(
-                    "failed to widen {}: cannot write {manifest}",
-                    request.selector
-                ),
-            );
-        }
-    }
     let manifest = planned
         .iter()
         .map(|(manifest, _, _)| manifest.as_str())
         .collect::<Vec<_>>()
         .join(", ");
-    let manifest = manifest.as_str();
-    if !request.needs_update_refresh() {
-        let mut message = format!(
-            "widened {} to {} in {manifest} (then run preset flag-diff review plus `bazel build //...`)",
+    let edit = dep_edit::DepEdit {
+        verb: &BUMP_VERB,
+        target: &target,
+        selector: &request.selector,
+        edited: format!(
+            "widened {} to {} in {manifest}",
             request.selector,
             request.version.display()
-        );
-        if request.version.is_semver() {
-            message.push_str(&format!("; {}", dx_bump::generic_major_bump_hint()));
-        }
-        if invocation.output == OutputMode::Json {
-            if let Ok(event) = notice_event(&NoticeEvent {
-                level: "info".to_owned(),
-                code: "bump_widened".to_owned(),
-                message: message.clone(),
-                related_command: Some("bump".to_owned()),
-                scope: Some(vec![request.selector.clone()]),
-                path: Some(manifest.to_owned()),
-                language: None,
-                import: None,
-            }) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            let finished = command_finished(
-                0,
-                &FinishedCounts {
-                    results_complete: Some(true),
-                    ..FinishedCounts::default()
-                },
-            );
-            if let Err(exit) = emit_event(out, &finished) {
-                return exit;
-            }
-            return 0;
-        }
-        if verbose {
-            if let Err(exit) = check_stdout_write(writeln!(out, "{message}")) {
-                return exit;
-            }
-        }
-        return 0;
-    }
-    let (update_set, update_request) = match refresh_target(&request) {
-        Some(target) => target,
-        None => {
-            return operational(
-                invocation,
-                out,
-                err,
-                CODE_BUMP_FAILED,
-                &format!(
-                    "failed to refresh {}: no refresh for file-only set",
-                    request.selector
-                ),
-            );
-        }
+        ),
+        kept: format!("widen kept in {manifest}"),
+        hint: request
+            .version
+            .is_semver()
+            .then(dx_bump::generic_major_bump_hint),
     };
-    let update_selector = request.refresh_selector();
-    let plan = match dx_update::backend::plan(
+    let writes: Vec<(String, String)> = planned
+        .into_iter()
+        .map(|(manifest, text, _)| (manifest, text))
+        .collect();
+    let io = dep_edit::EditIo {
         workspace,
-        update_set,
-        &update_request,
-        invocation.offline,
-        invocation.frozen,
-        &invocation.bazel_head(),
-    ) {
-        Ok(plan) => plan,
-        Err(error) => match error {
-            dx_update::backend::BackendError::Unsupported { reason, .. }
-            | dx_update::backend::BackendError::UnsupportedOwned { reason, .. } => {
-                return bump_refresh_failed(
-                    invocation,
-                    out,
-                    err,
-                    &request,
-                    manifest,
-                    &format!("unsupported refresh: {reason}"),
-                );
-            }
-            dx_update::backend::BackendError::OfflineRequired { .. }
-            | dx_update::backend::BackendError::OfflineRequiredOwned { .. } => {
-                return bump_offline_failed(invocation, out, err, &request, manifest);
-            }
-            dx_update::backend::BackendError::FrozenLocked { .. }
-            | dx_update::backend::BackendError::FrozenLockedOwned { .. } => {
-                return bump_frozen_failed(invocation, out, err, &request, manifest);
-            }
-            unavailable @ dx_update::backend::BackendError::BackendUnavailable { .. } => {
-                return bump_refresh_failed(
-                    invocation,
-                    out,
-                    err,
-                    &request,
-                    manifest,
-                    &unavailable.to_string(),
-                );
-            }
-        },
+        runner,
+        out,
+        err,
     };
-    match plan {
-        dx_update::backend::BackendPlan::Noop => {
-            let widened_message = format!(
-                "widened {} to {} in {manifest}",
-                request.selector,
-                request.version.display()
-            );
-            let mut refreshed_message = format!(
-                "{widened_message} and refreshed {update_selector} via `dx update {update_selector}` automatically (pinned module lock; no-op success)"
-            );
-            if request.version.is_semver() {
-                refreshed_message.push_str(&format!("; {}", dx_bump::generic_major_bump_hint()));
-            }
-            match emit_bump_refreshed(BumpRefreshedNotice {
-                invocation,
-                out,
-                request: &request,
-                manifest,
-                widened_message: &widened_message,
-                refreshed_message: &refreshed_message,
-                set_name: update_set.name(),
-                verbose,
-            }) {
-                Ok(()) => 0,
-                Err(exit) => exit,
-            }
-        }
-        dx_update::backend::BackendPlan::Run { argv, env: extra } => {
-            let env_refs: Vec<(&str, &str)> = extra
-                .iter()
-                .map(|(key, value)| (key.as_str(), value.as_str()))
-                .collect();
-            match runner.run(&argv, workspace, &env_refs) {
-                Err(error) => bump_refresh_failed(
-                    invocation,
-                    out,
-                    err,
-                    &request,
-                    manifest,
-                    &format!(
-                        "failed to refresh {update_selector}: failed to launch updater: {error} (widen kept in {manifest})"
-                    ),
-                ),
-                Ok(status) => match status.code {
-                    Some(0) => {
-                        let widened_message = format!(
-                            "widened {} to {} in {manifest}",
-                            request.selector,
-                            request.version.display()
-                        );
-                        let mut refreshed_message = format!(
-                            "{widened_message} and refreshed {update_selector} via `dx update {update_selector}` automatically (resolver-owned)"
-                        );
-                        if request.version.is_semver() {
-                            refreshed_message.push_str(&format!(
-                                "; {}",
-                                dx_bump::generic_major_bump_hint()
-                            ));
-                        }
-                        match emit_bump_refreshed(BumpRefreshedNotice {
-                            invocation,
-                            out,
-                            request: &request,
-                            manifest,
-                            widened_message: &widened_message,
-                            refreshed_message: &refreshed_message,
-                            set_name: update_set.name(),
-                            verbose,
-                        }) {
-                            Ok(()) => 0,
-                            Err(exit) => exit,
-                        }
-                    }
-                    Some(code) => bump_refresh_failed(
-                        invocation,
-                        out,
-                        err,
-                        &request,
-                        manifest,
-                        &format!(
-                            "failed to refresh {update_selector}: updater exited {code} (widen kept in {manifest})"
-                        ),
-                    ),
-                    None => bump_refresh_failed(
-                        invocation,
-                        out,
-                        err,
-                        &request,
-                        manifest,
-                        &format!(
-                            "failed to refresh {update_selector}: updater terminated by signal (widen kept in {manifest})"
-                        ),
-                    ),
-                },
-            }
-        }
-    }
+    dep_edit::write_and_refresh(&edit, invocation, io, &writes, verbose)
 }
+
+const BUMP_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
+    command: "bump",
+    noun: "widen",
+    set_action: "widen",
+    notice_code: "bump_widened",
+    failure_code: CODE_BUMP_FAILED,
+    noop_note: "pinned module lock; no-op success",
+};
 
 fn configured_request(
     invocation: &Invocation,
@@ -343,71 +139,19 @@ fn configured_request(
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
 ) -> Result<Option<dx_bump::BumpRequest>, i32> {
-    let registry = match dx_adopt::dependency_sets::load(workspace) {
-        Ok(Some(registry)) => registry,
-        Ok(None) => return Ok(None),
-        Err(error) => return Err(pre_exec(invocation.output, out, err, &error.to_string())),
-    };
-    let selector = &invocation.targets[0];
-    let head = selector
-        .split_once(':')
-        .map(|(head, _)| head)
-        .unwrap_or(selector);
-    let Some(set) = registry.find(head) else {
+    let Some((set_name, manifest)) =
+        dep_edit::configured_bazel_set(&BUMP_VERB, invocation, out, err, workspace)?
+    else {
         return Ok(None);
     };
-    match set.ecosystem {
-        dx_adopt::dependency_sets::Ecosystem::Bazel => {
-            if !set.writable {
-                return Err(operational(
-                    invocation,
-                    out,
-                    err,
-                    CODE_BUMP_FAILED,
-                    &format!(
-                        "bump cannot widen read-only set {} (writable = false)",
-                        set.name
-                    ),
-                ));
-            }
-            let [manifest] = set.manifests.as_slice() else {
-                return Err(operational(
-                    invocation,
-                    out,
-                    err,
-                    CODE_BUMP_FAILED,
-                    &format!("bump needs exactly one MODULE.bazel in set {}", set.name),
-                ));
-            };
-            dx_bump::BumpRequest::parse_configured(
-                &set.name,
-                manifest,
-                selector,
-                &invocation.targets[1],
-            )
-            .map(Some)
-            .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))
-        }
-        dx_adopt::dependency_sets::Ecosystem::Uv | dx_adopt::dependency_sets::Ecosystem::Npm => {
-            Err(operational(
-                invocation,
-                out,
-                err,
-                CODE_BUMP_FAILED,
-                &format!(
-                    "bump is not supported for ecosystem {} set {} (supported operations: {})",
-                    set.ecosystem.name(),
-                    set.name,
-                    [
-                        set.ecosystem.supported_check(),
-                        set.ecosystem.supported_update(),
-                        set.ecosystem.supported_audit(),
-                    ]
-                    .join(", "),
-                ),
-            ))
-        }
-    }
+    dx_bump::BumpRequest::parse_configured(
+        &set_name,
+        &manifest,
+        &invocation.targets[0],
+        &invocation.targets[1],
+    )
+    .map(Some)
+    .map_err(|error| pre_exec(invocation.output, out, err, &error.to_string()))
 }
 
 fn check_bump(
@@ -419,10 +163,8 @@ fn check_bump(
     verbose: bool,
 ) -> i32 {
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "check") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "check")) {
+            return exit;
         }
     }
     let planned = match plan_widens(request, workspace) {
@@ -452,19 +194,16 @@ fn check_bump(
             request.version.display()
         );
         if invocation.output == OutputMode::Json {
-            if let Ok(event) = notice_event(&NoticeEvent {
-                level: "info".to_owned(),
-                code: "bump_widened".to_owned(),
-                message: message.clone(),
-                related_command: Some("bump".to_owned()),
-                scope: Some(vec![request.selector.clone()]),
-                path: Some(manifest.clone()),
-                language: None,
-                import: None,
-            }) {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                notice_event(&NoticeEvent {
+                    related_command: Some("bump".to_owned()),
+                    scope: Some(vec![request.selector.clone()]),
+                    path: Some(manifest.clone()),
+                    ..NoticeEvent::info("bump_widened", message.clone())
+                }),
+            ) {
+                return exit;
             }
             let finished = command_finished(
                 0,
@@ -606,19 +345,16 @@ fn emit_bump_no_change(
         request.version.display()
     );
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: "bump_no_change".to_owned(),
-            message: message.clone(),
-            related_command: Some("bump".to_owned()),
-            scope: Some(vec![request.selector.clone()]),
-            path: Some(manifest),
-            language: None,
-            import: None,
-        }) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: Some("bump".to_owned()),
+                scope: Some(vec![request.selector.clone()]),
+                path: Some(manifest),
+                ..NoticeEvent::info("bump_no_change", message.clone())
+            }),
+        ) {
+            return exit;
         }
         let finished = command_finished(
             0,
@@ -638,196 +374,6 @@ fn emit_bump_no_change(
         }
     }
     0
-}
-
-struct BumpRefreshedNotice<'a> {
-    invocation: &'a Invocation,
-    out: &'a mut dyn std::io::Write,
-    request: &'a dx_bump::BumpRequest,
-    manifest: &'a str,
-    widened_message: &'a str,
-    refreshed_message: &'a str,
-    set_name: &'a str,
-    verbose: bool,
-}
-
-fn emit_bump_refreshed(notice: BumpRefreshedNotice<'_>) -> Result<(), i32> {
-    let BumpRefreshedNotice {
-        invocation,
-        out,
-        request,
-        manifest,
-        widened_message,
-        refreshed_message,
-        set_name,
-        verbose,
-    } = notice;
-    if invocation.output == OutputMode::Json {
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: "bump_widened".to_owned(),
-            message: widened_message.to_owned(),
-            related_command: Some("bump".to_owned()),
-            scope: Some(vec![request.selector.clone()]),
-            path: Some(manifest.to_owned()),
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: "update_set_success".to_owned(),
-            message: refreshed_message.to_owned(),
-            related_command: Some("update".to_owned()),
-            scope: Some(vec![set_name.to_owned()]),
-            path: None,
-            language: None,
-            import: None,
-        }) {
-            emit_event(out, &event)?;
-        }
-        let finished = command_finished(
-            0,
-            &FinishedCounts {
-                results_complete: Some(true),
-                ..FinishedCounts::default()
-            },
-        );
-        emit_event(out, &finished)?;
-    } else if verbose {
-        check_stdout_write(writeln!(out, "{refreshed_message}"))?;
-    }
-    Ok(())
-}
-
-fn bump_refresh_failed(
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-    request: &dx_bump::BumpRequest,
-    manifest: &str,
-    message: &str,
-) -> i32 {
-    let code = if message.contains(CODE_OFFLINE_REQUIRED) {
-        CODE_OFFLINE_REQUIRED
-    } else if message.contains(CODE_FROZEN_LOCKED) {
-        CODE_FROZEN_LOCKED
-    } else {
-        CODE_UPDATE_FAILED
-    };
-    let _ = writeln!(err, "dx: {code}: {message}");
-    if invocation.output == OutputMode::Json {
-        let widened_message = format!(
-            "widened {} to {} in {manifest}",
-            request.selector,
-            request.version.display()
-        );
-        if let Ok(event) = notice_event(&NoticeEvent {
-            level: "info".to_owned(),
-            code: "bump_widened".to_owned(),
-            message: widened_message,
-            related_command: Some("bump".to_owned()),
-            scope: Some(vec![request.selector.clone()]),
-            path: Some(manifest.to_owned()),
-            language: None,
-            import: None,
-        }) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
-        }
-        if let Ok(event) = error_event(code, message, None, None, Some("execute")) {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
-        }
-        let finished = command_finished(
-            1,
-            &FinishedCounts {
-                results_complete: Some(false),
-                ..FinishedCounts::default()
-            },
-        );
-        if let Err(exit) = emit_event(out, &finished) {
-            return exit;
-        }
-    }
-    dx_process::operational_code()
-}
-
-fn refresh_target(
-    request: &dx_bump::BumpRequest,
-) -> Option<(dx_update::sets::SetId, dx_update::selector::SetRequest)> {
-    match request.set {
-        dx_bump::BumpSet::Cargo => Some((
-            dx_update::sets::SetId::Cargo,
-            dx_update::selector::SetRequest::Full,
-        )),
-        dx_bump::BumpSet::Npm => Some((
-            dx_update::sets::SetId::Npm,
-            dx_update::selector::SetRequest::Packages(vec![request.package.clone()]),
-        )),
-        dx_bump::BumpSet::Go => Some((
-            dx_update::sets::SetId::Go,
-            dx_update::selector::SetRequest::Full,
-        )),
-        dx_bump::BumpSet::Maven => Some((
-            dx_update::sets::SetId::Maven,
-            dx_update::selector::SetRequest::Full,
-        )),
-        dx_bump::BumpSet::NuGet => Some((
-            dx_update::sets::SetId::NuGet,
-            dx_update::selector::SetRequest::Full,
-        )),
-        dx_bump::BumpSet::Bazel | dx_bump::BumpSet::GithubActions => None,
-    }
-}
-
-fn bump_offline_failed(
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-    request: &dx_bump::BumpRequest,
-    manifest: &str,
-) -> i32 {
-    bump_refresh_failed(
-        invocation,
-        out,
-        err,
-        request,
-        manifest,
-        &format!(
-            "failed to refresh {}: {} (widen kept in {manifest})",
-            request.selector,
-            dx_update::backend::BackendError::OfflineRequired {
-                set: request.set.name(),
-            }
-        ),
-    )
-}
-
-fn bump_frozen_failed(
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-    request: &dx_bump::BumpRequest,
-    manifest: &str,
-) -> i32 {
-    bump_refresh_failed(
-        invocation,
-        out,
-        err,
-        request,
-        manifest,
-        &format!(
-            "failed to refresh {}: {} (widen kept in {manifest})",
-            request.selector,
-            dx_update::backend::BackendError::FrozenLocked {
-                set: request.set.name(),
-            }
-        ),
-    )
 }
 
 #[cfg(test)]
@@ -874,6 +420,69 @@ dependencies = ["anyio>=4"]
                 .expect("manifest"),
             CONSUMER_PYPROJECT.as_bytes()
         );
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    const PINNED_DX_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "gems"
+ecosystem = "ruby"
+manifests = ["apps/rb/Gemfile"]
+locks = ["apps/rb/Gemfile.lock"]
+scopes = ["apps/rb"]
+
+[[dependency_set]]
+name = "modules"
+ecosystem = "powershell"
+manifests = ["tools/ps/PSGallery.requirements.psd1"]
+locks = ["tools/ps/PSGallery.lock.json"]
+scopes = ["tools/ps"]
+"#;
+
+    #[test]
+    fn consumer_pinned_sets_refuse_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer-pinned");
+        harness.write_source("dx.toml", PINNED_DX_TOML);
+        let files = [
+            (
+                "apps/rb/Gemfile",
+                "source \"https://rubygems.org\"\ngem \"rack\"\n",
+            ),
+            ("apps/rb/Gemfile.lock", "GEM\n  specs:\n    rack (3.0.0)\n"),
+            (
+                "tools/ps/PSGallery.requirements.psd1",
+                "@{ Pester = '5.5.0' }\n",
+            ),
+            ("tools/ps/PSGallery.lock.json", "{}\n"),
+        ];
+        for (rel, text) in files {
+            harness.write_source(rel, text);
+        }
+        for (selector, want) in [
+            (
+                "gems:rack",
+                "bump is not supported for ecosystem ruby set gems \
+(supported operations: audit; check and update report pinned)",
+            ),
+            (
+                "modules:Pester",
+                "bump is not supported for ecosystem powershell set modules \
+(supported operations: audit; check and update report pinned)",
+            ),
+        ] {
+            let (code, _, err) = harness.run(&["bump", selector, "1.0", "--apply"]);
+            assert_eq!(code, 1, "{err}");
+            assert!(err.contains(want), "{err}");
+        }
+        for (rel, text) in files {
+            assert_eq!(
+                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
+                text.as_bytes(),
+                "{rel}"
+            );
+        }
         assert!(harness.seen_env.borrow().is_empty());
     }
 

@@ -20,5 +20,6 @@ def _toolchain_identity_subject_impl(ctx):
 
 toolchain_identity_subject = rule(
     implementation = _toolchain_identity_subject_impl,
+    doc = "Analysis subject reporting the Rust toolchain tools.",
     toolchains = rust_toolchain_toolchains(),
 )

@@ -1,0 +1,72 @@
+load("@crates//:crates.bzl", "aliases")
+load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "suite",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "crates/suite",
+        normal = True,
+    ),
+    crate_name = "suite",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
+rust_test(
+    name = "alpha_test",
+    srcs = ["tests/alpha.rs"],
+    aliases = aliases(
+        package_name = "crates/suite",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "alpha_test",
+    crate_root = "tests/alpha.rs",
+    edition = "2021",
+    deps = [":suite"],
+)
+
+rust_test(
+    name = "bravo_test",
+    srcs = ["tests/bravo.rs"],
+    aliases = aliases(
+        package_name = "crates/suite",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "bravo_test",
+    crate_root = "tests/bravo.rs",
+    edition = "2021",
+    deps = [":suite"],
+)
+
+rust_test(
+    name = "charlie_test",
+    srcs = ["tests/charlie.rs"],
+    aliases = aliases(
+        package_name = "crates/suite",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "charlie_test",
+    crate_root = "tests/charlie.rs",
+    edition = "2021",
+    deps = [":suite"],
+)
+
+rust_test(
+    name = "delta_test",
+    srcs = ["tests/delta.rs"],
+    aliases = aliases(
+        package_name = "crates/suite",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "delta_test",
+    crate_root = "tests/delta.rs",
+    edition = "2021",
+    deps = [":suite"],
+)

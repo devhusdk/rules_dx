@@ -1,0 +1,50 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+exports_files([
+    "src/lib.rs",
+])
+
+dx_rust_crate(
+    name = "dx_worktree",
+    package_name = "cli/dx_worktree",
+    srcs = [
+        "src/disk.rs",
+        "src/git.rs",
+        "src/hook.rs",
+        "src/host.rs",
+        "src/lib.rs",
+        "src/ops.rs",
+        "src/pool.rs",
+        "src/setup.rs",
+        "src/tests.rs",
+    ],
+    dev_deps = ["tempfile"],
+    extra_deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+    ],
+    extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
+    deps = [
+        "libc",
+        "serde",
+        "serde_json",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

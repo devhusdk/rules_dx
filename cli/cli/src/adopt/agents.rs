@@ -12,12 +12,12 @@ pub(crate) fn block() -> String {
     let dx = "tools/dx";
     let worktree = Command::Worktree.name();
     let fix = Command::Fix.name();
-    let check = Command::Check.name();
+    let test = Command::Test.name();
     format!(
         "{BEGIN}\n\
          - Start: `{dx} {worktree} add <branch>`. Finish: `{dx} {worktree} release`.\n\
          - Fix first: `{dx} {fix} --apply --affected`.\n\
-         - Then verify: `{dx} {check} --affected`.\n\
+         - Then verify: `{dx} {test} --affected`.\n\
          - Read the `--output=json` result.\n\
          {END}\n"
     )
@@ -48,7 +48,7 @@ fn orphaned(text: &str) -> bool {
     text.contains(BEGIN) && span(text).is_none()
 }
 
-fn eol(text: &str) -> &'static str {
+pub(super) fn eol(text: &str) -> &'static str {
     if text.contains("\r\n") {
         "\r\n"
     } else {
@@ -120,12 +120,12 @@ pub(crate) fn write(workspace: &Path, create: bool) -> io::Result<bool> {
     if state(&text) == State::Current {
         return Ok(false);
     }
-    dx_atomic_fs::write_atomic(&target(workspace)?, render(&text).as_bytes())?;
+    dx_atomic_fs::write_atomic(&target(workspace, FILE)?, render(&text).as_bytes())?;
     Ok(true)
 }
 
-fn target(workspace: &Path) -> io::Result<std::path::PathBuf> {
-    let path = workspace.join(FILE);
+pub(super) fn target(workspace: &Path, rel: &str) -> io::Result<std::path::PathBuf> {
+    let path = workspace.join(rel);
     match std::fs::symlink_metadata(&path) {
         Ok(meta) if meta.file_type().is_symlink() => match std::fs::canonicalize(&path) {
             Ok(real) => Ok(real),
@@ -152,7 +152,7 @@ mod tests {
             "tools/dx worktree add <branch>",
             "tools/dx worktree release",
             "tools/dx fix --apply --affected",
-            "tools/dx check --affected",
+            "tools/dx test --affected",
             "--output=json",
         ] {
             assert!(text.contains(want), "{want}: {text}");
@@ -161,14 +161,18 @@ mod tests {
 
     #[test]
     fn the_block_commands_are_real_dx_commands() {
-        for command in [Command::Worktree, Command::Fix, Command::Check] {
+        for command in [Command::Worktree, Command::Fix, Command::Test] {
             assert!(Command::parse(command.name()).is_some());
         }
-        assert!(Command::Fix.supports_affected() && Command::Check.supports_affected());
+        for command in [Command::Fix, Command::Test] {
+            assert!(
+                crate::args::grammar::advertised_flags(command).contains(&"affected".to_owned())
+            );
+        }
     }
 
     #[test]
-    fn the_block_fix_command_writes_and_check_command_only_checks() {
+    fn the_block_fix_command_writes_and_test_command_runs_affected_tests() {
         let text = block();
         let line = |prefix: &str| -> Vec<String> {
             let line = text
@@ -185,9 +189,9 @@ mod tests {
         let fix = crate::args::parse(&line("- Fix first:")).expect("fix parses");
         assert_eq!(fix.command, Command::Fix);
         assert!(fix.applies() && fix.affected);
-        let check = crate::args::parse(&line("- Then verify:")).expect("check parses");
-        assert_eq!(check.command, Command::Check);
-        assert!(!check.applies() && check.affected);
+        let test = crate::args::parse(&line("- Then verify:")).expect("test parses");
+        assert_eq!(test.command, Command::Test);
+        assert!(!test.applies() && test.affected);
     }
 
     #[cfg(unix)]

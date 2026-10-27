@@ -3,6 +3,7 @@
 RUST_CASES = [
     {
         "name": "matrix_rust_format_pass",
+        "tags": ["no-remote-exec"],
         "srcs": [":clean.rs"],
         "capability": "format",
         "stages": ["rustfmt;rust;quality/testdata/clean.rs"],
@@ -13,6 +14,7 @@ RUST_CASES = [
     },
     {
         "name": "matrix_rust_format_fail",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/rustfmt_dirty.rs": "pub fn add(a:i32,b:i32)->i32 {\n    a+b\n}\n",
         },
@@ -25,6 +27,7 @@ RUST_CASES = [
     },
     {
         "name": "matrix_rust_format_edition_2015",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/rustfmt_edition_2015.rs": "pub fn edition_gate() -> i32 {\n    let async = 1;\n    async\n}\n",
         },
@@ -37,6 +40,7 @@ RUST_CASES = [
     },
     {
         "name": "matrix_rust_format_edition_mismatch",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/rustfmt_edition_mismatch.rs": "pub fn edition_gate() -> i32 {\n    let async = 1;\n    async\n}\n",
         },
@@ -49,6 +53,7 @@ RUST_CASES = [
     },
     {
         "name": "matrix_rust_format_modules",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/rustfmt_modules/src/lib.rs": "mod child;\nmod nested;\n#[path = \"renamed/impl.rs\"]\nmod renamed;\npub fn root( ){ }\n",
             "matrix/rustfmt_modules/src/child.rs": "pub fn child( ) {}\n",
@@ -65,6 +70,7 @@ RUST_CASES = [
     },
     {
         "name": "matrix_rust_format_supporting_module",
+        "tags": ["no-remote-exec"],
         "generated": {
             "quality/testdata/matrix/rustfmt_supporting/src/lib.rs": "mod child;\npub fn root( ){ }\n",
         },
@@ -81,6 +87,7 @@ RUST_CASES = [
     },
     {
         "name": "matrix_rust_format_missing_module",
+        "tags": ["no-remote-exec"],
         "generated": {
             "matrix/rustfmt_missing/src/lib.rs": "mod child;\npub fn root( ){ }\n",
         },
@@ -89,7 +96,6 @@ RUST_CASES = [
         "rustfmt_from_toolchain": True,
         "edition_tools": ["rustfmt"],
         "edition_values": ["2021"],
-        "runner_failure": True,
         "expected_file": ":matrix/matrix_rust_format_missing_module.expected.txt",
     },
     {

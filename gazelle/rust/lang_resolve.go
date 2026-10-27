@@ -49,7 +49,14 @@ func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string
 		}
 		_, normal := manifest.normalDeps[name]
 		_, dev := manifest.devDeps[name]
-		if !normal && !(kind == testKind && dev) && name != strings.ReplaceAll(manifest.packageName, "-", "_") {
+		if !normal && !(kind == testKind && dev) {
+			self, err := CrateName(manifest.packageName)
+			if err != nil {
+				return err
+			}
+			if name == self {
+				continue
+			}
 			return fmt.Errorf("unresolved production import %q; declare it in [dependencies] or add an exact mapping", name)
 		}
 	}
@@ -81,7 +88,14 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		}
 		_, normal := manifest.normalDeps[name]
 		_, dev := manifest.devDeps[name]
-		if !normal && !dev && name != strings.ReplaceAll(manifest.packageName, "-", "_") {
+		if !normal && !dev {
+			self, err := CrateName(manifest.packageName)
+			if err != nil {
+				return err
+			}
+			if name == self {
+				continue
+			}
 			return fmt.Errorf("unresolved production import %q; declare it in [dependencies] or [dev-dependencies] or add an exact mapping", name)
 		}
 	}
@@ -208,74 +222,30 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 	return result
 }
 
-func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, imports targetImports, includeDev bool) {
+func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, includeDev bool) {
 	packageName := crateUniversePackage(packagePath, manifest)
-	seen := make(map[string]bool)
-	var external []string
-	add := func(key string, dep cargoDependency) {
-		if !dep.external {
-			return
-		}
-		label := dep.label
-		if label == "" {
-			label = key
-		}
-		if !seen[label] {
-			seen[label] = true
-			external = append(external, label)
-		}
-	}
-	names := append([]string{}, imports.production...)
-	if includeDev {
-		names = append(names, imports.test...)
-	}
-	for _, name := range names {
-		if dep, ok := manifest.normalDeps[name]; ok {
-			add(name, dep)
-			continue
-		}
-		if includeDev {
-			if dep, ok := manifest.devDeps[name]; ok {
-				add(name, dep)
-			}
-		}
-	}
-	for key, dep := range manifest.normalDeps {
-		add(key, dep)
-	}
-	if includeDev {
-		for key, dep := range manifest.devDeps {
-			add(key, dep)
-		}
-	}
-	names = external
-	sort.Strings(names)
-	r.SetAttr("deps", crateDepsCall{names: names, packageName: packageName})
+	external := hasExternal(manifest.normalDeps) || (includeDev && hasExternal(manifest.devDeps))
+	r.SetAttr("deps", crateDepsCall{call: cargoCall("all_crate_deps", packageName, includeDev), external: external})
 	r.SetAttr("aliases", cargoCall("aliases", packageName, includeDev))
 }
 
 func setScriptAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest) {
 	packageName := crateUniversePackage(packagePath, manifest)
-	seen := make(map[string]bool)
-	var external []string
-	for key, dep := range manifest.buildDeps {
-		if !dep.external {
-			continue
-		}
-		label := dep.label
-		if label == "" {
-			label = key
-		}
-		if !seen[label] {
-			seen[label] = true
-			external = append(external, label)
-		}
-	}
-	sort.Strings(external)
-	if len(external) > 0 {
-		r.SetAttr("deps", crateDepsCall{names: external, packageName: packageName})
+	if hasExternal(manifest.buildDeps) {
+		call := cargoBuildCall(packageName)
+		call.name = "all_crate_deps"
+		r.SetAttr("deps", crateDepsCall{call: call, external: true})
 	}
 	r.SetAttr("aliases", cargoBuildCall(packageName))
+}
+
+func hasExternal(deps map[string]cargoDependency) bool {
+	for _, dep := range deps {
+		if dep.external {
+			return true
+		}
+	}
+	return false
 }
 
 func crateUniversePackage(packagePath string, manifest *cargoManifest) string {

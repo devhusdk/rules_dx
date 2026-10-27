@@ -76,7 +76,23 @@ impl RealBackend {
         for path in &tool.upstream_diagnostics {
             let bytes = std::fs::read(path)
                 .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            findings.extend(parsed(tool_id, parsers::parse_roslyn(&bytes, &workspaces))?);
+            let code = tool
+                .tool_files
+                .iter()
+                .find(|(rel, _)| rel == "dx-roslyn/exit")
+                .and_then(|(_, bytes)| std::str::from_utf8(bytes).ok())
+                .and_then(|text| text.trim().parse::<i32>().ok())
+                .ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        "roslyn needs the csc exit status; the C# aspect did not supply it"
+                            .to_owned(),
+                    )
+                })?;
+            findings.extend(parsed(
+                tool_id,
+                parsers::parse_roslyn(&bytes, Some(code), &workspaces),
+            )?);
         }
         for found in &mut findings {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
@@ -291,6 +307,7 @@ impl RealBackend {
                 ),
                 "yamllint" => parsers::parse_yamllint(&bytes, Some(0), &workspaces),
                 "shellcheck" => parsers::parse_shellcheck(&bytes, Some(0), &workspaces),
+                "hadolint" => parsers::parse_hadolint(&bytes, &[], Some(0), &workspaces),
                 "keep_sorted" => parsers::parse_keep_sorted(&bytes, Some(0), &workspaces),
                 "djlint" => parsers::parse_djlint(&bytes, Some(0), &workspaces),
                 _ => {

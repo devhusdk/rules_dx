@@ -284,18 +284,30 @@ fn every_command_page_is_published() {
 
 #[test]
 fn every_command_page_is_indexed() {
-    let index = "docs/cli/commands/README.md";
-    let mut indexed = indexed_docs(&read_runfiles(index), index);
+    let commands = "docs/cli/commands/README.md";
+    let mut indexed = indexed_docs(&read_runfiles(commands), commands);
     indexed.retain(|page| page.starts_with("docs/cli/commands/"));
     let mut pages = files_under(&runfiles_root().join("docs/cli/commands"), &|name| {
         name.ends_with(".md")
     });
-    pages.retain(|page| page != index);
+    pages.retain(|page| page != commands);
     assert_eq!(
         unique(indexed),
         unique(pages),
         "docs/cli/commands/README.md must link every page in docs/cli/commands/, so no page \
          ships unlinked"
+    );
+
+    let top = "docs/README.md";
+    let mut indexed = indexed_docs(&read_runfiles(top), top);
+    indexed.retain(|page| page.starts_with("docs/cli/commands/"));
+    let pages = files_under(&runfiles_root().join("docs/cli/commands"), &|name| {
+        name.ends_with(".md")
+    });
+    assert_eq!(
+        unique(indexed),
+        unique(pages),
+        "docs/README.md must link every page in docs/cli/commands/"
     );
 }
 

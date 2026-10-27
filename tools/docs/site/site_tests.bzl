@@ -32,7 +32,7 @@ def site_unit_tests(name):
                         ["README.md", "docs/README.md", "docs/cli/commands/README.md"],
                         [None, "//docs:README.md", "//docs:cli/commands/README.md"],
                     ],
-                    [53],
+                    [59],
                 ],
             ),
             expect_equal(
@@ -66,6 +66,28 @@ def site_unit_tests(name):
                     "- [CI](docs/github-ci.md)",
                     "- [Examples](examples/README.md)",
                     "",
+                ],
+            ),
+            expect_equal(
+                "an API title closes the summary with its own part",
+                [
+                    mdbook_summary_text(USER_BOOK).endswith("# API Reference\n"),
+                    mdbook_summary_text(USER_BOOK, "API Reference").split("\n")[-3:],
+                ],
+                [
+                    False,
+                    ["- [Zig App](examples/zig-app/README.md)", "# API Reference", ""],
+                ],
+            ),
+            expect_equal(
+                "an API title adds the API index to the landing page",
+                [
+                    "(api.md)" in mdbook_index_text(USER_BOOK),
+                    mdbook_index_text(USER_BOOK, "API Reference").split("\n")[-3:],
+                ],
+                [
+                    False,
+                    ["- [Examples](examples/README.md)", "- [API Reference](api.md)", ""],
                 ],
             ),
             expect_equal(
@@ -106,7 +128,25 @@ def site_unit_tests(name):
                     mdbook_section("CI"),
                     mdbook_page("One", "docs/README.md", "//docs:README.md"),
                 ]),
-                ["docs_site: sidebar section 'CI' holds no page"],
+                ["docs_site: sidebar section 'Quickstart' holds no page"],
+            ),
+            expect_equal(
+                "a trailing section without a page is rejected",
+                mdbook_chapters_error([
+                    mdbook_index("rules_dx", "Intro."),
+                    mdbook_section("Quickstart"),
+                    mdbook_page("One", "docs/README.md", "//docs:README.md"),
+                    mdbook_section("Empty"),
+                ]),
+                ["docs_site: sidebar section 'Empty' holds no page"],
+            ),
+            expect_equal(
+                "a book opening with a section must still open with the index",
+                mdbook_chapters_error([
+                    mdbook_section("Quickstart"),
+                    mdbook_page("One", "docs/README.md", "//docs:README.md"),
+                ]),
+                ["docs_site: the book must open with the generated index chapter"],
             ),
             expect_equal(
                 "routes must be relative Markdown pages inside the book",
@@ -262,7 +302,7 @@ def site_user_file_tests(name, summary, index):
         name = name,
         mode = "execution",
         file_checks = {
-            summary: "# Command Reference\n",
-            index: "# rules_dx\n",
+            summary: "# Command Reference\n# API Reference\n",
+            index: "# rules_dx\n- [API Reference](api.md)\n",
         },
     )

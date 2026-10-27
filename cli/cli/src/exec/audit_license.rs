@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use super::*;
 
 pub(super) fn run_license(
@@ -115,7 +117,13 @@ pub(super) fn run_license(
                 }
                 continue;
             }
-            if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Npm {
+            if matches!(
+                set.ecosystem,
+                dx_adopt::dependency_sets::Ecosystem::Npm
+                    | dx_adopt::dependency_sets::Ecosystem::Ruby
+                    | dx_adopt::dependency_sets::Ecosystem::PowerShell
+            ) {
+                let ecosystem = set.ecosystem.name();
                 let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
                     parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
                 });
@@ -127,8 +135,17 @@ pub(super) fn run_license(
                         }
                     }
                     Ok((locks, (locked, paths))) => {
-                        let licensed = configured_npm_licenses(&locks, &locked, &policy.inventory);
-                        let entry = lock_paths.entry("npm".to_owned()).or_insert(LockPaths {
+                        let licensed = match set.ecosystem {
+                            dx_adopt::dependency_sets::Ecosystem::Npm => {
+                                configured_npm_licenses(&locks, &locked, &policy.inventory)
+                            }
+                            _ => dx_audit::locks::inventory_licenses(
+                                &locked,
+                                &policy.inventory,
+                                ecosystem,
+                            ),
+                        };
+                        let entry = lock_paths.entry(ecosystem.to_owned()).or_insert(LockPaths {
                             by_package: BTreeMap::new(),
                             fallback: paths.fallback.clone(),
                         });
@@ -136,15 +153,11 @@ pub(super) fn run_license(
                             entry.by_package.entry(key).or_insert(rel);
                         }
                         for entry in licensed {
-                            let probe = dx_audit::vuln::LockedPackage {
-                                name: entry.name.clone(),
-                                version: entry.version.clone(),
-                                set: entry.set.clone(),
-                                is_git: false,
-                                is_private: false,
-                                location: None,
-                                platform: None,
-                            };
+                            let probe = dx_audit::vuln::LockedPackage::new(
+                                entry.set.clone(),
+                                entry.name.clone(),
+                                entry.version.clone(),
+                            );
                             let key =
                                 (entry.set.clone(), entry.name.clone(), entry.version.clone());
                             if notice_present.contains_key(&key) {
@@ -225,15 +238,11 @@ pub(super) fn run_license(
             }
         }
         for entry in &licensed {
-            let probe = dx_audit::vuln::LockedPackage {
-                name: entry.name.clone(),
-                version: entry.version.clone(),
-                set: entry.set.clone(),
-                is_git: false,
-                is_private: false,
-                location: None,
-                platform: None,
-            };
+            let probe = dx_audit::vuln::LockedPackage::new(
+                entry.set.clone(),
+                entry.name.clone(),
+                entry.version.clone(),
+            );
             let present = dx_audit::locks::inventory_text_present(&probe, &policy.inventory);
             notice_present.insert(
                 (entry.set.clone(), entry.name.clone(), entry.version.clone()),
@@ -354,26 +363,28 @@ pub(super) fn run_license(
                 .unwrap_or("unknown lockfile");
             finding_count += 1;
             diagnostics.push(DiagnosticEvent {
-                severity: Severity::Error,
-                tool: "license".to_owned(),
-                message: format!(
-                    "{}@{} license {} denied in {}",
-                    licensed.name,
-                    licensed.version,
-                    licensed.license,
-                    match tier {
-                        dx_audit::license_expr::Tier::Distributed => "distributed",
-                        dx_audit::license_expr::Tier::Internal => "internal",
-                    }
-                ),
                 rule: Some(format!("license/{}", licensed.license)),
                 path: Some(lock_path.to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                package: package_ref(
+                    &licensed.name,
+                    &licensed.version,
+                    None,
+                    Some(&licensed.license),
+                ),
+                ..DiagnosticEvent::new(
+                    Severity::Error,
+                    "license",
+                    format!(
+                        "{}@{} license {} denied in {}",
+                        licensed.name,
+                        licensed.version,
+                        licensed.license,
+                        match tier {
+                            dx_audit::license_expr::Tier::Distributed => "distributed",
+                            dx_audit::license_expr::Tier::Internal => "internal",
+                        }
+                    ),
+                )
             });
         }
         if notice_fails && meets_audit_threshold("error", fail_on) {
@@ -383,27 +394,46 @@ pub(super) fn run_license(
                 .unwrap_or("unknown lockfile");
             finding_count += 1;
             diagnostics.push(DiagnosticEvent {
-                severity: Severity::Error,
-                tool: "license".to_owned(),
-                message: format!(
-                    "{}@{} license {} missing-notice-text in {}",
-                    licensed.name,
-                    licensed.version,
-                    licensed.license,
-                    match tier {
-                        dx_audit::license_expr::Tier::Distributed => "distributed",
-                        dx_audit::license_expr::Tier::Internal => "internal",
-                    }
-                ),
                 rule: Some("license/missing-notice-text".to_owned()),
                 path: Some(lock_path.to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                package: package_ref(
+                    &licensed.name,
+                    &licensed.version,
+                    None,
+                    Some(&licensed.license),
+                ),
+                ..DiagnosticEvent::new(
+                    Severity::Error,
+                    "license",
+                    format!(
+                        "{}@{} license {} missing-notice-text in {}",
+                        licensed.name,
+                        licensed.version,
+                        licensed.license,
+                        match tier {
+                            dx_audit::license_expr::Tier::Distributed => "distributed",
+                            dx_audit::license_expr::Tier::Internal => "internal",
+                        }
+                    ),
+                )
             });
+        }
+    }
+    let mut selected_sets: BTreeSet<&str> = BTreeSet::new();
+    for target in sets {
+        selected_sets.insert(target.name());
+        if let AuditTarget::Configured(set) = target {
+            match set.ecosystem {
+                dx_adopt::dependency_sets::Ecosystem::Bazel => {
+                    selected_sets.insert(dx_audit::locks::BAZEL_SET);
+                }
+                dx_adopt::dependency_sets::Ecosystem::Npm
+                | dx_adopt::dependency_sets::Ecosystem::Ruby
+                | dx_adopt::dependency_sets::Ecosystem::PowerShell => {
+                    selected_sets.insert(set.ecosystem.name());
+                }
+                dx_adopt::dependency_sets::Ecosystem::Uv => {}
+            }
         }
     }
     for exception in &policy.exceptions {
@@ -411,6 +441,9 @@ pub(super) fn run_license(
             if incomplete.is_none() {
                 incomplete = Some(format!("invalid license exception: {error}"));
             }
+            continue;
+        }
+        if !selected_sets.contains(exception.set.as_str()) {
             continue;
         }
         let refs: Vec<dx_audit::license_policy::LicenseFinding> = licensed_all

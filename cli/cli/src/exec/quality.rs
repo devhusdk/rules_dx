@@ -2,7 +2,7 @@ use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
-use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineView};
+use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineGate, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{
@@ -10,13 +10,16 @@ use super::quality_reports::{
 };
 use super::results::collect_results;
 use crate::args::{Command, Invocation, QualityRequest};
-use crate::plan::{bep_path, plan_build};
+use crate::plan::{bep_path, plan_build_with, plan_probe, SHARD_OUTPUT_GROUP};
 use crate::reports::{plan_reports, BaselineReport, Destination};
 use crate::resolve::resolve;
+use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
     command_finished, command_started, meets_threshold, FinishedCounts, OutputMode, Severity,
 };
+use std::collections::BTreeSet;
 use std::io::Write;
+use std::path::Path;
 
 pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.quality_request() {
@@ -33,15 +36,25 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
     run_quality(
         request,
         env,
+        &RealFileSystem,
         &mut PhaseKind::Selection,
         &mut PhaseEffects::default(),
     )
 }
 
 pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> PhaseRun {
+    execute_quality_phase_with_fs(request, env, &RealFileSystem)
+}
+
+/// Runs one quality phase whose apply writes go through `fs`.
+pub(crate) fn execute_quality_phase_with_fs(
+    request: &QualityRequest,
+    env: Env<'_>,
+    fs: &dyn FileSystem,
+) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
     let mut effects = PhaseEffects::default();
-    let code = run_quality(request, env, &mut kind, &mut effects);
+    let code = run_quality(request, env, fs, &mut kind, &mut effects);
     PhaseRun {
         code,
         kind,
@@ -52,6 +65,7 @@ pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> P
 fn run_quality(
     request: &QualityRequest,
     env: Env<'_>,
+    fs: &dyn FileSystem,
     kind: &mut PhaseKind,
     effects: &mut PhaseEffects,
 ) -> i32 {
@@ -82,6 +96,7 @@ fn run_quality(
             ci,
             audit_today,
         },
+        fs,
         kind,
         effects,
     );
@@ -103,9 +118,121 @@ pub(super) fn operational_build_output(
     )
 }
 
+pub(super) fn guard_build_output(
+    workspace: &Path,
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Option<i32> {
+    match dx_adopt::build_output::scan(workspace) {
+        Err(error) => {
+            let message = format!("build-output check failed: {error}");
+            Some(report_failure(
+                output,
+                out,
+                err,
+                &Failure::new(
+                    "build_output_git_failed",
+                    &message,
+                    dx_process::pre_exec_code(),
+                )
+                .without_usage(),
+            ))
+        }
+        Ok(report) => {
+            if !report.findings.is_empty() {
+                let lines: Vec<String> = report
+                    .findings
+                    .iter()
+                    .map(|finding| format!("{}: {}", finding.path, finding.reason))
+                    .collect();
+                return Some(operational_build_output(output, out, err, &lines));
+            }
+            if output != OutputMode::Json {
+                if let Some(note) = report.committed_skipped {
+                    let _ = writeln!(err, "dx: build-output check: {note}");
+                }
+            }
+            None
+        }
+    }
+}
+
+/// Why a shard probe ended the phase instead of falling back to every shard.
+#[derive(Debug, PartialEq, Eq)]
+enum ProbeStop {
+    /// Bazel died by a signal.
+    Signalled,
+    /// dx recorded a stop signal or Bazel exited as interrupted.
+    Interrupted,
+}
+
+/// Runs the shard probe and returns the shards it named; `Ok(None)` means pass every shard.
+///
+/// Any failure (no probe for the command, a plan error, a non-zero exit, an unreadable or
+/// incomplete event file, a malformed shard file) falls back to every shard, so the probe can
+/// only make a run cheaper, never change its result. It writes nothing to stdout; Bazel's own
+/// progress goes to stderr. A stop signal or interrupted Bazel ends the run instead.
+fn probe_shards(
+    request: &QualityRequest,
+    resolved: &crate::resolve::ResolvedScope,
+    workspace: &Path,
+    runner: &dyn dx_process::Runner,
+    temp_dir: &Path,
+    pid: u32,
+    nonce: u64,
+) -> Result<Option<BTreeSet<String>>, ProbeStop> {
+    let bep = temp_dir.join(format!("dx-bep-{pid}-{nonce}-probe.json"));
+    let Some(bep_text) = bep.to_str() else {
+        return Ok(None);
+    };
+    let plan = match plan_probe(
+        request.command,
+        resolved,
+        &request.bazel_options,
+        bep_text,
+        &request.bazel_startup_options,
+    ) {
+        Ok(Some(plan)) => plan,
+        Ok(None) | Err(_) => return Ok(None),
+    };
+    let status = runner.run(&plan.argv, workspace, &[]);
+    let shards = match &status {
+        Ok(status) if status.code.is_none() => Err(ProbeStop::Signalled),
+        _ if dx_process::interrupted().is_some() => Err(ProbeStop::Interrupted),
+        Ok(status) if status.code == Some(BAZEL_INTERRUPTED) => Err(ProbeStop::Interrupted),
+        Ok(status) if status.code == Some(0) => Ok(read_probe_shards(&bep, workspace)),
+        _ => Ok(None),
+    };
+    let _ = std::fs::remove_file(&bep);
+    shards
+}
+
+/// Unions the shard names of every `{"shards":[...]}` file in the probe's event file.
+fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
+    let account = collect_output_account(bep, SHARD_OUTPUT_GROUP, workspace).ok()?;
+    if account.problem.is_some() || !account.gaps.is_empty() || !account.ended {
+        return None;
+    }
+    let mut shards = BTreeSet::new();
+    for target in &account.targets {
+        if !target.success || target.incomplete {
+            return None;
+        }
+        for artifact in &target.artifacts {
+            let value: serde_json::Value = serde_json::from_slice(&artifact.bytes).ok()?;
+            for name in value.get("shards")?.as_array()? {
+                shards.insert(name.as_str()?.to_owned());
+            }
+        }
+    }
+    Some(shards)
+}
+
 fn run_quality_request(
     request: &QualityRequest,
     env: Env<'_>,
+    fs: &dyn FileSystem,
     kind: &mut PhaseKind,
     effects: &mut PhaseEffects,
 ) -> i32 {
@@ -131,13 +258,8 @@ fn run_quality_request(
         Err(error) => return pre_exec(request.common.output, out, err, &error.to_string()),
     };
     if request.command == Command::Lint && !request.applies() {
-        let found = dx_adopt::build_output::scan(workspace);
-        if !found.is_empty() {
-            let lines: Vec<String> = found
-                .iter()
-                .map(|finding| format!("{}: {}", finding.path, finding.reason))
-                .collect();
-            return operational_build_output(request.common.output, out, err, &lines);
+        if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
+            return exit;
         }
     }
     let stdout_report = planned_reports
@@ -162,12 +284,13 @@ fn run_quality_request(
         Ok(resolved) => resolved,
         Err(error) => return resolve_failed(request.common.output, out, err, &error),
     };
-    let build = match plan_build(
+    let mut build = match plan_build_with(
         request.command,
         &resolved,
         &request.bazel_options,
         bep_text,
         &request.bazel_startup_options,
+        None,
     )
     .map_err(|error| format!("{error}"))
     {
@@ -178,17 +301,48 @@ fn run_quality_request(
     let apply = request.applies();
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        match command_started(request.command.name(), mode) {
-            Ok(event) => {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
-            }
-            Err(error) => return stdout_output_code(&error),
+        if let Err(exit) = emit_built(out, command_started(request.command.name(), mode)) {
+            return exit;
         }
     } else if request.chatty() && !stdout_report {
         if let Err(exit) = check_stdout_write(writeln!(out, "{}", build.summary)) {
             return exit;
+        }
+    }
+    // The probe runs after the start event, so a run whose stdout already failed starts no Bazel.
+    match probe_shards(request, &resolved, workspace, runner, temp_dir, pid, nonce) {
+        Ok(Some(shards)) => {
+            if let Ok(narrowed) = plan_build_with(
+                request.command,
+                &resolved,
+                &request.bazel_options,
+                bep_text,
+                &request.bazel_startup_options,
+                Some(&shards),
+            ) {
+                build = narrowed;
+            }
+        }
+        Ok(None) => {}
+        Err(ProbeStop::Signalled) => {
+            *kind = PhaseKind::Host;
+            return operational_output(
+                request.common.output,
+                out,
+                err,
+                CODE_BAZEL_SIGNALLED,
+                "Bazel terminated by signal",
+            );
+        }
+        Err(ProbeStop::Interrupted) => {
+            *kind = PhaseKind::Cancelled;
+            return operational_output(
+                request.common.output,
+                out,
+                err,
+                CODE_BAZEL_FAILED,
+                "the shard probe was interrupted",
+            );
         }
     }
     let bazel_code = match run_bazel_output(
@@ -207,8 +361,17 @@ fn run_quality_request(
             return exit;
         }
     };
-    let compile_only = bazel_code != 0
-        && report_build_failures(&bep, request.common.output, out, err).compile_only;
+    let compile_only = if bazel_code == 0 {
+        false
+    } else {
+        match report_build_failures(&bep, request.common.output, out, err) {
+            Ok(reported) => reported.compile_only,
+            Err(exit) => {
+                let _ = std::fs::remove_file(&bep);
+                return exit;
+            }
+        }
+    };
     let mut collected = match collect_results(&bep, workspace) {
         Ok(collected) => collected,
         Err((code, message)) => {
@@ -233,10 +396,10 @@ fn run_quality_request(
             request.command.name()
         );
         if request.common.output == OutputMode::Json {
-            if let Some(event) = bazel_exit_event(code, &detail, bazel_code, "execute") {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) =
+                emit_built(out, bazel_exit_event(code, &detail, bazel_code, "execute"))
+            {
+                return exit;
             }
         } else {
             let _ = writeln!(err, "dx: {code}: {detail}");
@@ -251,7 +414,7 @@ fn run_quality_request(
         .sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
 
     let applied_outcome =
-        apply_collected_changes(workspace, apply, collected.complete, &collected.changes);
+        apply_collected_changes(fs, workspace, apply, collected.complete, &collected.changes);
     let sources = applied_outcome.sources;
     let mut applied = applied_outcome.applied;
     let mut not_applied = applied_outcome.not_applied;
@@ -285,9 +448,13 @@ fn run_quality_request(
         &status,
         &analyzed_scope(&collected),
         &collected.original_digests,
-        collected.complete,
-        collected.unstable.is_empty(),
+        BaselineGate {
+            complete: collected.complete,
+            stable: collected.unstable.is_empty(),
+            applied_all: not_applied.is_empty(),
+        },
         apply,
+        request.baseline.as_deref(),
     ) {
         Ok(view) => view,
         Err((code, message)) => {
@@ -303,6 +470,7 @@ fn run_quality_request(
             !held && meets_threshold(diagnostic.severity, request.fail_on)
         }) || baseline.as_ref().is_some_and(|view| !view.stale.is_empty());
     if (!apply && !collected.changes.is_empty())
+        || !not_applied.is_empty()
         || !collected.conflicts.is_empty()
         || !collected.unstable.is_empty()
     {
@@ -365,6 +533,14 @@ fn run_quality_request(
     {
         let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
     }
+    if request.common.output != OutputMode::Json
+        && not_applied
+            .iter()
+            .any(|(_, reason)| *reason != REASON_INCOMPLETE_COLLECTION)
+    {
+        let action = "resolve the Not applied files listed above";
+        let _ = writeln!(err, "{}", rerun_hint(request, action));
+    }
     let reports_ok = match write_standard_reports(
         StandardReports {
             workspace,
@@ -401,11 +577,11 @@ fn run_quality_request(
     for item in &collected.unstable {
         let detail = item.describe();
         if request.common.output == OutputMode::Json {
-            if let Ok(event) = dx_output::error_event(CODE_NOT_CONVERGED, &detail, None, None, None)
-            {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                dx_output::error_event(CODE_NOT_CONVERGED, &detail, None, None, None),
+            ) {
+                return exit;
             }
         } else {
             let _ = writeln!(err, "dx: {CODE_NOT_CONVERGED}: {detail}");
@@ -418,12 +594,11 @@ fn run_quality_request(
     }
     if let Some(detail) = collected.problem_detail() {
         if request.common.output == OutputMode::Json {
-            if let Ok(event) =
-                dx_output::error_event("incomplete_results", &detail, None, None, None)
-            {
-                if let Err(exit) = emit_event(out, &event) {
-                    return exit;
-                }
+            if let Err(exit) = emit_built(
+                out,
+                dx_output::error_event("incomplete_results", &detail, None, None, None),
+            ) {
+                return exit;
             }
         } else {
             let _ = writeln!(err, "dx: incomplete_results: {detail}");
@@ -442,6 +617,7 @@ fn run_quality_request(
             },
             &FinishedCounts {
                 results_complete: Some(collected.complete),
+                run_id: None,
                 diagnostics: Some([info, warning, error]),
                 changes: Some([0, change_count]),
                 effects: if apply {
@@ -496,6 +672,9 @@ mod quality_json;
 #[cfg(test)]
 #[path = "quality_modes.rs"]
 mod quality_modes;
+#[cfg(test)]
+#[path = "quality_probe_tests.rs"]
+mod quality_probe_tests;
 #[cfg(test)]
 #[path = "quality_reporting.rs"]
 mod quality_reporting;

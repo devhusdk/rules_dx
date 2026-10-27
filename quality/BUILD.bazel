@@ -2,6 +2,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//rust/rules:defs.bzl", "rust_test")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests")
+load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
@@ -23,10 +24,10 @@ load(":wrapper_owners.bzl", "wrapper_unit_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "BUILD.bazel",
     "adapters.bzl",
     "applicability.bzl",
-    "aspects.bzl",
-    "aspect_subject.bzl",
+    "coverage_sources.bzl",
     "execution_requirements.bzl",
     "fixtures.bzl",
     "native_config.bzl",
@@ -34,6 +35,7 @@ exports_files([
     "policy.bzl",
     "real_aspects.bzl",
     "registry.bzl",
+    "roslyn_status.bat",
     "result.proto",
     "sources.bzl",
     "support.bzl",
@@ -90,6 +92,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_go_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "go",
+    format = ["gofumpt"],
+)
+
+quality_family(
     name = "default_rust_family",
     family_id = "rust",
     format = ["rustfmt"],
@@ -138,6 +150,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_dockerfile_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "dockerfile",
+    lint = ["hadolint"],
+)
+
+quality_family(
     name = "default_graphql_family",
     disabled = [
         "lint",
@@ -179,6 +201,36 @@ quality_family(
     family_id = "typescript",
     format = ["biome"],
     lint = ["biome"],
+)
+
+quality_family(
+    name = "default_astro_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "astro",
+    format = ["prettier"],
+)
+
+quality_family(
+    name = "default_mdx_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "mdx",
+    format = ["remark"],
+)
+
+quality_family(
+    name = "default_vue_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "vue",
+    format = ["prettier"],
 )
 
 quality_family(
@@ -234,7 +286,10 @@ quality_family(
 workspace_policy(
     name = "default_workspace_policy",
     families = [
+        ":default_astro_family",
         ":default_cc_family",
+        ":default_dockerfile_family",
+        ":default_go_family",
         ":default_graphql_family",
         ":default_html_family",
         ":default_java_family",
@@ -242,6 +297,7 @@ workspace_policy(
         ":default_kotlin_family",
         ":default_json_family",
         ":default_markdown_family",
+        ":default_mdx_family",
         ":default_python_family",
         ":default_rust_family",
         ":default_scala_family",
@@ -250,6 +306,7 @@ workspace_policy(
         ":default_text_family",
         ":default_toml_family",
         ":default_typescript_family",
+        ":default_vue_family",
     ],
 )
 
@@ -278,6 +335,8 @@ native_config_unit_tests(name = "native_config_unit")
 
 policy_analysis_tests(name = "policy_analysis")
 
+coverage_sources_analysis_tests(name = "coverage_sources_analysis_test")
+
 consumer_policy_tests(
     name = "consumer_policy",
     cases = [
@@ -305,6 +364,14 @@ consumer_policy_tests(
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:jsonnet_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_jsonnet",
+        },
+        {
+            "case": "pkl_formatted",
+            "expected_dx_results": [
+                "clean_pkl-real-format-pkl.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:pkl_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_pkl",
         },
         {
             "case": "terraform_formatted",
@@ -374,6 +441,14 @@ consumer_policy_tests(
             "policy": "//quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_c",
         },
+        {
+            "case": "cc_cppcheck",
+            "expected_dx_results": [
+                "clean_c-real-lint-cc.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:cc_cppcheck_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_c",
+        },
     ],
 )
 
@@ -389,6 +464,7 @@ test_suite(
     name = "all",
     tests = [
         ":consumer_policy_cc_clang_tidy_test",
+        ":consumer_policy_cc_cppcheck_test",
         ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
@@ -431,9 +507,9 @@ real_source_target(
         "BUILD.bazel",
         "adapters.bzl",
         "applicability.bzl",
-        "aspect_subject.bzl",
-        "aspects.bzl",
         "consumer_policy_tests.bzl",
+        "coverage_sources.bzl",
+        "coverage_sources_tests.bzl",
         "curated_defaults.bzl",
         "curated_defaults_tests.bzl",
         "execution_requirements.bzl",
@@ -459,7 +535,6 @@ real_source_target(
         "support_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )
@@ -502,15 +577,14 @@ rust_test(
         "//cli/setup:src/lib.rs",
         "//cli/test_scratch:src/lib.rs",
         "//cli/update:src/lib.rs",
+        "//cli/worktree:src/lib.rs",
         "//deploy/install:src/lib.rs",
         "//deploy/install:src/main.rs",
         "//deploy/offline/bootstrap:src/lib.rs",
         "//deploy/offline/bootstrap:src/main.rs",
-        "//deploy/release:src/bin_bcr_source_gen.rs",
-        "//deploy/release:src/bin_notice_gen.rs",
         "//deploy/release:src/bin_release_driver.rs",
-        "//deploy/release:src/bin_sbom_prov_gen.rs",
-        "//deploy/release:src/bin_sbom_spdx_gen.rs",
+        "//deploy/release:src/bin_release_tool.rs",
+        "//deploy/release:src/bin_source_archive.rs",
         "//deploy/release:src/lib.rs",
         "//deploy/rules:src/bin_archiver.rs",
         "//deploy/rules:src/bin_deploy_app.rs",
@@ -528,8 +602,6 @@ rust_test(
         "//libs/gomod:src/lib.rs",
         "//libs/module_bazel:src/lib.rs",
         "//quality/adapter:src/lib.rs",
-        "//quality/evaluator:src/lib.rs",
-        "//quality/evaluator:src/main.rs",
         "//quality/markdown:src/lib.rs",
         "//quality/markdown:src/main.rs",
         "//quality/result:src/lib.rs",
@@ -575,6 +647,7 @@ rust_test(
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
+        "//cli/process:dx_process",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
     ],

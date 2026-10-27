@@ -16,6 +16,10 @@ pub enum BaselineError {
         path: String,
         reason: String,
     },
+    #[error("malformed baseline entry {index}: an entry without a path needs a target")]
+    MissingTarget { index: usize },
+    #[error("malformed baseline entry {index}: an entry with a path takes no target")]
+    StrayTarget { index: usize },
     #[error("malformed baseline entry {index}: invalid context digest: want 64 hex characters")]
     BadContext { index: usize },
     #[error("malformed baseline entry {index}: want a non-empty message")]
@@ -41,6 +45,7 @@ pub struct Finding {
     pub tool: String,
     pub rule: String,
     pub path: String,
+    pub target: String,
     pub message: String,
     pub context: Option<[u8; 32]>,
 }
@@ -50,6 +55,7 @@ pub struct BaselineEntry {
     pub tool: String,
     pub rule: String,
     pub path: String,
+    pub target: String,
     pub message: String,
     pub context: [u8; 32],
     pub count: u32,
@@ -62,7 +68,7 @@ pub struct BaselineFile {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AnalyzedScope {
-    pub tools: BTreeSet<String>,
+    pub ran: BTreeSet<(String, String)>,
     pub pairs: BTreeSet<(String, String)>,
 }
 
@@ -101,14 +107,37 @@ pub fn line_context_digest(file_bytes: &[u8], start_byte: u64) -> Option<[u8; 32
 
 pub fn finding_key(finding: &Finding) -> Option<String> {
     let context = finding.context?;
-    Some(format!(
-        "{}\0{}\0{}\0{}\0{}",
-        finding.tool,
-        finding.rule,
-        finding.path,
-        finding.message,
-        dx_digest::to_hex(&context)
+    Some(key_of(
+        &finding.tool,
+        &finding.rule,
+        &finding.path,
+        &finding.target,
+        &finding.message,
+        &context,
     ))
+}
+
+pub fn finding_fingerprint(finding: &Finding) -> Option<String> {
+    finding_key(finding).map(|key| dx_digest::to_hex(&dx_digest::blake3(key.as_bytes())))
+}
+
+fn key_of(
+    tool: &str,
+    rule: &str,
+    path: &str,
+    target: &str,
+    message: &str,
+    context: &[u8; 32],
+) -> String {
+    let mut key = format!(
+        "{tool}\0{rule}\0{path}\0{message}\0{}",
+        dx_digest::to_hex(context)
+    );
+    if !target.is_empty() {
+        key.push('\0');
+        key.push_str(target);
+    }
+    key
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
@@ -117,6 +146,8 @@ struct EntryDoc {
     tool: String,
     rule: String,
     path: String,
+    #[serde(default)]
+    target: String,
     message: String,
     context: String,
     count: u32,
@@ -142,6 +173,12 @@ fn check_entry(doc: EntryDoc, index: usize) -> Result<BaselineEntry, BaselineErr
             });
         }
     }
+    if doc.path.is_empty() && doc.target.is_empty() {
+        return Err(BaselineError::MissingTarget { index });
+    }
+    if !doc.path.is_empty() && !doc.target.is_empty() {
+        return Err(BaselineError::StrayTarget { index });
+    }
     let Some(context) = dx_digest::parse_hex(&doc.context).ok() else {
         return Err(BaselineError::BadContext { index });
     };
@@ -159,6 +196,7 @@ fn check_entry(doc: EntryDoc, index: usize) -> Result<BaselineEntry, BaselineErr
         tool: doc.tool,
         rule: doc.rule,
         path: doc.path,
+        target: doc.target,
         message,
         context,
         count: doc.count,
@@ -186,33 +224,49 @@ pub fn parse_baseline(bytes: &[u8]) -> Result<BaselineFile, BaselineError> {
 }
 
 fn entry_key(entry: &BaselineEntry) -> String {
-    format!(
-        "{}\0{}\0{}\0{}\0{}",
-        entry.tool,
-        entry.rule,
-        entry.path,
-        entry.message,
-        dx_digest::to_hex(&entry.context)
+    key_of(
+        &entry.tool,
+        &entry.rule,
+        &entry.path,
+        &entry.target,
+        &entry.message,
+        &entry.context,
     )
 }
 
 pub fn entry_in_scope(entry: &BaselineEntry, scope: &AnalyzedScope) -> bool {
     if entry.path.is_empty() {
-        return scope.tools.contains(&entry.tool);
+        return target_in_scope(scope, &entry.tool, &entry.target);
     }
     pair_in_scope(scope, &entry.tool, &entry.path)
+}
+
+fn target_in_scope(scope: &AnalyzedScope, tool: &str, target: &str) -> bool {
+    scope.ran.contains(&(tool.to_owned(), target.to_owned()))
 }
 
 fn pair_in_scope(scope: &AnalyzedScope, tool: &str, path: &str) -> bool {
     scope.pairs.contains(&(tool.to_owned(), path.to_owned()))
 }
 
-fn blind_pairs(findings: &[Finding]) -> BTreeSet<(String, String)> {
+type Blind = (String, String, String);
+
+fn blind_pairs(findings: &[Finding]) -> BTreeSet<Blind> {
     findings
         .iter()
         .filter(|finding| finding.context.is_none())
-        .map(|finding| (finding.tool.clone(), finding.path.clone()))
+        .map(|finding| {
+            (
+                finding.tool.clone(),
+                finding.path.clone(),
+                finding.target.clone(),
+            )
+        })
         .collect()
+}
+
+fn blind_key(entry: &BaselineEntry) -> Blind {
+    (entry.tool.clone(), entry.path.clone(), entry.target.clone())
 }
 
 pub fn unidentified(findings: &[Finding]) -> Vec<String> {
@@ -255,7 +309,7 @@ pub fn match_baseline(
             let key = entry_key(entry);
             if remaining.get(&key).copied().unwrap_or(0) > 0
                 && entry_in_scope(entry, scope)
-                && !blind.contains(&(entry.tool.clone(), entry.path.clone()))
+                && !blind.contains(&blind_key(entry))
             {
                 stale.push(entry.clone());
             }
@@ -273,9 +327,7 @@ pub fn refresh_baseline(
     let mut counts: BTreeMap<String, (BaselineEntry, u32)> = BTreeMap::new();
     let blind = blind_pairs(findings);
     for entry in &old.entries {
-        if !entry_in_scope(entry, scope)
-            || blind.contains(&(entry.tool.clone(), entry.path.clone()))
-        {
+        if !entry_in_scope(entry, scope) || blind.contains(&blind_key(entry)) {
             let key = entry_key(entry);
             counts.entry(key).or_insert_with(|| (entry.clone(), 0)).1 += entry.count;
         }
@@ -285,7 +337,7 @@ pub fn refresh_baseline(
             continue;
         };
         let analyzed = if finding.path.is_empty() {
-            scope.tools.contains(&finding.tool)
+            target_in_scope(scope, &finding.tool, &finding.target)
         } else {
             pair_in_scope(scope, &finding.tool, &finding.path)
         };
@@ -296,6 +348,7 @@ pub fn refresh_baseline(
             tool: finding.tool.clone(),
             rule: finding.rule.clone(),
             path: finding.path.clone(),
+            target: finding.target.clone(),
             message: finding.message.clone(),
             context,
             count: 1,
@@ -320,14 +373,18 @@ pub fn render_baseline(baseline: &BaselineFile) -> Result<String, BaselineError>
     let rendered: Vec<serde_json::Value> = entries
         .iter()
         .map(|entry| {
-            serde_json::json!({
+            let mut value = serde_json::json!({
                 "tool": entry.tool,
                 "rule": entry.rule,
                 "path": entry.path,
                 "message": entry.message,
                 "context": dx_digest::to_hex(&entry.context),
                 "count": entry.count,
-            })
+            });
+            if !entry.target.is_empty() {
+                value["target"] = serde_json::Value::String(entry.target.clone());
+            }
+            value
         })
         .collect();
     let document = serde_json::json!({
@@ -340,23 +397,30 @@ pub fn render_baseline(baseline: &BaselineFile) -> Result<String, BaselineError>
 }
 
 pub fn describe_entry(entry: &BaselineEntry) -> String {
-    if entry.rule.is_empty() {
-        format!("{} [{}]: {}", entry.path, entry.tool, entry.message)
+    let place = if entry.path.is_empty() {
+        entry.target.as_str()
     } else {
-        format!(
-            "{} [{}/{}]: {}",
-            entry.path, entry.tool, entry.rule, entry.message
-        )
+        entry.path.as_str()
+    };
+    if entry.rule.is_empty() {
+        format!("{place} [{}]: {}", entry.tool, entry.message)
+    } else {
+        format!("{place} [{}/{}]: {}", entry.tool, entry.rule, entry.message)
     }
 }
 
 pub fn describe_finding(finding: &Finding) -> String {
+    let place = if finding.path.is_empty() {
+        finding.target.as_str()
+    } else {
+        finding.path.as_str()
+    };
     if finding.rule.is_empty() {
-        format!("{} [{}]: {}", finding.path, finding.tool, finding.message)
+        format!("{place} [{}]: {}", finding.tool, finding.message)
     } else {
         format!(
-            "{} [{}/{}]: {}",
-            finding.path, finding.tool, finding.rule, finding.message
+            "{place} [{}/{}]: {}",
+            finding.tool, finding.rule, finding.message
         )
     }
 }
@@ -370,14 +434,28 @@ mod tests {
             tool: tool.to_owned(),
             rule: rule.to_owned(),
             path: path.to_owned(),
+            target: String::new(),
             message: normalize_message(message),
             context: Some(dx_digest::blake3(context)),
         }
     }
 
+    #[test]
+    fn fingerprint_is_stable_and_follows_the_rule() {
+        let a = finding("t", "r1", "a.rs", "m", b"x");
+        let b = finding("t", "r2", "a.rs", "m", b"x");
+        let first = finding_fingerprint(&a).expect("has context");
+        assert_eq!(Some(first.clone()), finding_fingerprint(&a));
+        assert_eq!(first.len(), 64);
+        assert_ne!(Some(first), finding_fingerprint(&b));
+        let mut bare = a;
+        bare.context = None;
+        assert_eq!(finding_fingerprint(&bare), None);
+    }
+
     fn scope(tools: &[&str], paths: &[&str]) -> AnalyzedScope {
         AnalyzedScope {
-            tools: tools.iter().map(ToString::to_string).collect(),
+            ran: BTreeSet::new(),
             pairs: tools
                 .iter()
                 .flat_map(|tool| {
@@ -391,11 +469,39 @@ mod tests {
 
     fn pair_scope(pairs: &[(&str, &str)]) -> AnalyzedScope {
         AnalyzedScope {
-            tools: pairs.iter().map(|(tool, _)| tool.to_string()).collect(),
+            ran: BTreeSet::new(),
             pairs: pairs
                 .iter()
                 .map(|(tool, path)| (tool.to_string(), path.to_string()))
                 .collect(),
+        }
+    }
+
+    fn ran_scope(ran: &[(&str, &str)]) -> AnalyzedScope {
+        AnalyzedScope {
+            ran: ran
+                .iter()
+                .map(|(tool, target)| (tool.to_string(), target.to_string()))
+                .collect(),
+            pairs: BTreeSet::new(),
+        }
+    }
+
+    fn pathless_json(tool: &str, target: &str, message: &str, context: &[u8]) -> String {
+        format!(
+            "{{\"tool\": \"{tool}\", \"rule\": \"\", \"path\": \"\", \"target\": \"{target}\", \"message\": \"{message}\", \"context\": \"{}\", \"count\": 1}}",
+            dx_digest::to_hex(&dx_digest::blake3(context))
+        )
+    }
+
+    fn pathless(tool: &str, target: &str, message: &str, context: &[u8]) -> Finding {
+        Finding {
+            tool: tool.to_owned(),
+            rule: String::new(),
+            path: String::new(),
+            target: target.to_owned(),
+            message: message.to_owned(),
+            context: Some(dx_digest::blake3(context)),
         }
     }
 
@@ -572,10 +678,10 @@ mod tests {
     #[test]
     fn tool_level_findings_match_without_paths() {
         let raw = baseline_json(
-            "{\"tool\": \"audit\", \"rule\": \"\", \"path\": \"\", \"message\": \"known advisory\", \"context\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\", \"count\": 1}",
+            "{\"tool\": \"audit\", \"rule\": \"\", \"path\": \"\", \"target\": \"//x\", \"message\": \"known advisory\", \"context\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\", \"count\": 1}",
         );
         let baseline = parse_baseline(&raw).expect("valid");
-        let seen = scope(&["audit"], &["src/a.py"]);
+        let seen = ran_scope(&[("audit", "//x")]);
         let digest = dx_digest::parse_hex(
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         )
@@ -584,6 +690,7 @@ mod tests {
             tool: "audit".to_owned(),
             rule: String::new(),
             path: String::new(),
+            target: "//x".to_owned(),
             message: "known advisory".to_owned(),
             context: Some(digest),
         };
@@ -617,6 +724,7 @@ mod tests {
             tool: "ruff".to_owned(),
             rule: "F401".to_owned(),
             path: "src/a.py".to_owned(),
+            target: String::new(),
             message: "unused".to_owned(),
             context: None,
         };
@@ -632,6 +740,7 @@ mod tests {
             tool: "ruff".to_owned(),
             rule: "F401".to_owned(),
             path: "src/a.py".to_owned(),
+            target: String::new(),
             message: "unused".to_owned(),
             context: [0u8; 32],
             count: 2,
@@ -641,10 +750,11 @@ mod tests {
             tool: "audit".to_owned(),
             rule: String::new(),
             path: String::new(),
+            target: "//x".to_owned(),
             message: "known".to_owned(),
             context: None,
         };
-        assert_eq!(describe_finding(&finding), " [audit]: known");
+        assert_eq!(describe_finding(&finding), "//x [audit]: known");
     }
 
     #[test]
@@ -687,6 +797,7 @@ mod tests {
             tool: "ruff".to_owned(),
             rule: "F401".to_owned(),
             path: "src/a.py".to_owned(),
+            target: String::new(),
             message: "unused".to_owned(),
             context: None,
         };
@@ -695,5 +806,71 @@ mod tests {
         let next = refresh_baseline(&baseline, &[blind.clone()], &seen);
         assert_eq!(next, baseline);
         assert_eq!(unidentified(&[blind]), vec!["src/a.py [ruff/F401]: unused"]);
+    }
+
+    #[test]
+    fn pathless_entry_survives_a_run_of_another_target() {
+        let entry = pathless_json("A", "//x", "m", b"c");
+        let baseline = parse_baseline(&baseline_json(&entry)).expect("valid");
+        let only_y = ran_scope(&[("A", "//y")]);
+        let matched = match_baseline(&baseline, &[], &only_y, true);
+        assert!(matched.stale.is_empty());
+        let next = refresh_baseline(&baseline, &[], &only_y);
+        assert_eq!(next, baseline);
+    }
+
+    #[test]
+    fn pathless_entry_is_stale_when_its_target_ran_clean() {
+        let entry = pathless_json("A", "//x", "m", b"c");
+        let baseline = parse_baseline(&baseline_json(&entry)).expect("valid");
+        let ran = ran_scope(&[("A", "//x")]);
+        let matched = match_baseline(&baseline, &[], &ran, true);
+        assert_eq!(matched.stale.len(), 1);
+        assert!(refresh_baseline(&baseline, &[], &ran).entries.is_empty());
+    }
+
+    #[test]
+    fn pathless_findings_count_per_target() {
+        let both = format!(
+            "{},{}",
+            pathless_json("A", "//x", "m", b"c"),
+            pathless_json("A", "//y", "m", b"c")
+        );
+        let baseline = parse_baseline(&baseline_json(&both)).expect("valid");
+        let ran = ran_scope(&[("A", "//x"), ("A", "//y")]);
+        let current = [pathless("A", "//x", "m", b"c")];
+        let matched = match_baseline(&baseline, &current, &ran, true);
+        assert_eq!(matched.suppressed, vec![true]);
+        assert_eq!(matched.stale.len(), 1);
+        assert_eq!(matched.stale[0].target, "//y");
+    }
+
+    #[test]
+    fn a_missing_or_stray_target_is_a_parse_error() {
+        let missing = baseline_json(&entry_json("A", "", "", "m", b"c"));
+        assert_eq!(
+            parse_baseline(&missing),
+            Err(BaselineError::MissingTarget { index: 0 })
+        );
+        let stray = baseline_json(&format!(
+            "{{\"tool\": \"A\", \"rule\": \"\", \"path\": \"a.py\", \"target\": \"//x\", \"message\": \"m\", \"context\": \"{}\", \"count\": 1}}",
+            dx_digest::to_hex(&dx_digest::blake3(b"c"))
+        ));
+        assert_eq!(
+            parse_baseline(&stray),
+            Err(BaselineError::StrayTarget { index: 0 })
+        );
+    }
+
+    #[test]
+    fn path_entries_render_without_a_target() {
+        let raw = baseline_json(&entry_json("ruff", "F401", "src/a.py", "unused", b"x = 1"));
+        let parsed = parse_baseline(&raw).expect("valid");
+        let rendered = render_baseline(&parsed).expect("render");
+        assert!(!rendered.contains("target"), "{rendered}");
+        let entry = pathless_json("A", "//x", "m", b"c");
+        let parsed = parse_baseline(&baseline_json(&entry)).expect("valid");
+        let rendered = render_baseline(&parsed).expect("render");
+        assert!(rendered.contains("\"target\": \"//x\""), "{rendered}");
     }
 }

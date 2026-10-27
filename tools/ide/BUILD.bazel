@@ -6,6 +6,7 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "ide_acquisition.bzl",
     "ide_acquisition_test.rs",
+    "ide_tool.bzl",
 ])
 
 # keep
@@ -24,6 +25,7 @@ rust_test(
         "DX_LSP_CLANGD": "$(rootpath @llvm//tools:clangd)",
         "DX_LSP_TOOLCHAIN_FILES": "$(rootpaths @rules_rust//rust/toolchain:current_rust_analyzer_toolchain)",
     },
+    tags = ["no-remote-exec"],
     target_compatible_with = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
@@ -41,6 +43,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "ide_acquisition.bzl",
+        "ide_tool.bzl",
     ],
     tags = ["corpus"],
 )

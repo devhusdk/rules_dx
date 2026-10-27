@@ -1,4 +1,4 @@
-load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:private"])
 go_library(
     name = "cc",
     srcs = [
+        "cuda.go",
         "doc.go",
         "lang.go",
         "naming.go",
@@ -26,14 +27,6 @@ go_library(
     ],
 )
 
-gazelle_binary(
-    name = "gazelle",
-    languages = [":cc"],
-    tags = ["no-coverage"],
-    version = 1,
-    visibility = ["//dx:__pkg__"],
-)
-
 filegroup(
     name = "generation_testdata",
     srcs = glob(["testdata/**"]),
@@ -41,7 +34,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = ":gazelle",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],
@@ -53,8 +46,17 @@ go_test(
         "lang_test.go",
         "naming_test.go",
         "parser_test.go",
+        "wrapper_exts_test.go",
+    ],
+    data = [
+        "//cuda/rules:defs.bzl",
+        "//quality:sources.bzl",
     ],
     embed = [":cc"],
+    env = {
+        "CUDA_DEFS_BZL": "$(rlocationpath //cuda/rules:defs.bzl)",
+        "QUALITY_SOURCES_BZL": "$(rlocationpath //quality:sources.bzl)",
+    },
     pure = "on",
 )
 
@@ -62,6 +64,7 @@ real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
+        "testdata/cuda_generate/README.md",
         "testdata/cuda_keep/README.md",
         "testdata/entries/README.md",
         "testdata/merge/README.md",

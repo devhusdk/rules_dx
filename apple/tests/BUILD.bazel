@@ -1,6 +1,17 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+
+# keep
+rust_test(
+    name = "device_script_test",
+    size = "small",
+    srcs = ["device_script_test.rs"],
+    data = ["//apple/ios:export_ops.sh"],
+    env = {"DX_EXPORT_OPS": "$(rootpath //apple/ios:export_ops.sh)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
 
 # keep
 rust_test(
@@ -19,15 +30,15 @@ rust_test(
     size = "small",
     srcs = ["simulator_script_test.rs"],
     data = [
+        "//apple/bundle:library_check.sh",
         "//apple/ios:create_test_simulator.sh",
         "//apple/ios:delete_test_simulator.sh",
-        "//apple/ios:library_check.sh",
         "//apple/ios:simctl_ops.sh",
     ],
     env = {
         "DX_CREATE_TEST_SIMULATOR": "$(rootpath //apple/ios:create_test_simulator.sh)",
         "DX_DELETE_TEST_SIMULATOR": "$(rootpath //apple/ios:delete_test_simulator.sh)",
-        "DX_LIBRARY_CHECK": "$(rootpath //apple/ios:library_check.sh)",
+        "DX_LIBRARY_CHECK": "$(rootpath //apple/bundle:library_check.sh)",
         "DX_SIMCTL_OPS": "$(rootpath //apple/ios:simctl_ops.sh)",
     },
     target_compatible_with = ["@platforms//os:linux"],
@@ -47,6 +58,23 @@ rust_test(
 
 # keep
 rust_test(
+    name = "signing_script_test",
+    size = "small",
+    srcs = ["signing_script_test.rs"],
+    data = [
+        "//apple/signing:codesign_app.sh",
+        "//apple/signing:notarize_app.sh",
+    ],
+    env = {
+        "DX_CODESIGN_APP": "$(rootpath //apple/signing:codesign_app.sh)",
+        "DX_NOTARIZE_APP": "$(rootpath //apple/signing:notarize_app.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "linux_consumer_test",
     size = "large",
     srcs = [
@@ -55,9 +83,9 @@ rust_test(
     ],
     crate_root = "linux_consumer_test.rs",
     data = [
-        "//apple/provisioning:probe.sh",
+        "//apple:module_srcs",
         "//cli/cli:dx",
-    ],
+    ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
@@ -84,7 +112,7 @@ rust_test(
         "macos_consumer_test.rs",
     ],
     crate_root = "macos_consumer_test.rs",
-    data = ["//apple/provisioning:probe.sh"],
+    data = ["//apple:module_srcs"] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
@@ -105,10 +133,11 @@ rust_test(
     size = "large",
     srcs = [
         "consumer.rs",
+        "macos.rs",
         "macos_app_consumer_test.rs",
     ],
     crate_root = "macos_app_consumer_test.rs",
-    data = ["//apple/provisioning:probe.sh"],
+    data = ["//apple:module_srcs"] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
@@ -129,13 +158,14 @@ rust_test(
     size = "large",
     srcs = [
         "consumer.rs",
+        "macos.rs",
         "macos_framework_consumer_test.rs",
     ],
     crate_root = "macos_framework_consumer_test.rs",
     data = [
+        "//apple:module_srcs",
         "//apple/ios:xcframework_check.sh",
-        "//apple/provisioning:probe.sh",
-    ],
+    ] + NESTED_BAZEL_DATA,
     env = {
         "DX_XCFRAMEWORK_CHECK": "$(rootpath //apple/ios:xcframework_check.sh)",
         "RUST_TEST_THREADS": "1",
@@ -156,8 +186,10 @@ rust_test(
 rustfmt_test(
     name = "linux_tests_fmt_test",
     targets = [
+        ":device_script_test",
         ":linux_consumer_test",
         ":probe_script_test",
+        ":signing_script_test",
         ":simulator_script_test",
         ":xcframework_script_test",
     ],
@@ -166,8 +198,10 @@ rustfmt_test(
 rust_clippy_test(
     name = "linux_tests_clippy_test",
     targets = [
+        ":device_script_test",
         ":linux_consumer_test",
         ":probe_script_test",
+        ":signing_script_test",
         ":simulator_script_test",
         ":xcframework_script_test",
     ],

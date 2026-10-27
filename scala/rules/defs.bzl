@@ -13,15 +13,14 @@ _DX_SCALA_LIBRARY_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_DX_SCALA_SOURCE_SPECS = [("scala", "scala")]
-_DX_SCALA_SOURCE_EXTS = [".scala"]
+_DX_SCALA_SOURCE_SPECS = [("scala", "scala"), ("java", "java")]
 
 _scala_library_forward = dx_library_forward_rule(
     provides = _DX_SCALA_LIBRARY_PROVIDES,
     required_providers = [(JavaInfo, "JavaInfo")],
     quality_specs = _DX_SCALA_SOURCE_SPECS,
     what = "scala_*",
-    allow_files = _DX_SCALA_SOURCE_EXTS,
+    allow_files = True,
     upstream_providers = [[JavaInfo]],
     quiet_providers = [SemanticdbInfo],
 )
@@ -32,7 +31,7 @@ _scala_binary_forward = dx_executable_forward_rule(
     required_providers = [],
     quality_specs = _DX_SCALA_SOURCE_SPECS,
     what = "scala_*",
-    allow_files = _DX_SCALA_SOURCE_EXTS,
+    allow_files = True,
     upstream_providers = [[JavaInfo]],
     optional_providers = [JavaInfo],
     quiet_providers = [SemanticdbInfo],
@@ -45,7 +44,7 @@ _scala_forward_test = dx_executable_forward_rule(
     required_providers = [],
     quality_specs = _DX_SCALA_SOURCE_SPECS,
     what = "scala_*",
-    allow_files = _DX_SCALA_SOURCE_EXTS,
+    allow_files = True,
     upstream_providers = [[JavaInfo]],
     extra_attrs = dx_lcov_merger_attr(),
     optional_providers = [JavaInfo],

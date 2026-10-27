@@ -46,26 +46,21 @@ pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
 
 pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
 
-pub fn render_consumer_own_toolchain_setup() -> String {
-    format!(
-        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\ncc_configure = use_extension(\"@rules_cc//cc:extensions.bzl\", \"cc_configure_extension\")\nuse_repo(cc_configure, \"local_config_cc\", \"local_config_cc_toolchains\")\nregister_toolchains(\"@local_config_cc_toolchains//:all\")\n",
-        dx = DX_VERSION,
-        cc = CONSUMER_RULES_CC_VERSION,
-        llvm = CONSUMER_LLVM_VERSION,
-        rust_rules = CONSUMER_RULES_RUST_VERSION,
-        edition = CONSUMER_RUST_EDITION,
-        rustfmt = CONSUMER_RUSTFMT_VERSION,
-        rust = CONSUMER_RUST_VERSION,
-    )
-}
+/// Bazel output base that rust-analyzer discovery runs on.
+pub const IDE_OUTPUT_BASE: &str = ".dx/ide/rust";
 
-pub fn render_consumer_renamed_setup(repo_name: &str) -> String {
-    render_consumer_module_setup().replacen(
-        "bazel_dep(name = \"rules_dx\", version = \"",
-        &format!("bazel_dep(name = \"rules_dx\", repo_name = \"{repo_name}\", version = \""),
-        1,
-    )
-}
+/// Bazel output base that rust-analyzer flycheck builds in.
+pub const IDE_CHECK_OUTPUT_BASE: &str = ".dx/ide/rust_check";
+
+/// Public rules_rust target that prints the rust-analyzer project.
+pub const RUST_DISCOVER_LABEL: &str =
+    "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project";
+
+/// Public rules_rust target that runs the rust-analyzer check.
+pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck";
+
+/// Content `dx init` writes to a new `.bazelignore`.
+pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
 
 pub fn render_consumer_module_setup() -> String {
     format!(
@@ -80,45 +75,20 @@ pub fn render_consumer_module_setup() -> String {
     )
 }
 
-pub fn editor_disposition(language: &str) -> &'static str {
-    match language {
-        "rust" => "automatic: rust-analyzer discovery plus flycheck (Bazel-backed, separate IDE output base)",
-        "go" => "automatic: upstream GOPACKAGESDRIVER (Bazel-backed, pure-Go boundary, cgo out of scope)",
-        "cpp" | "c" => {
-            "snapshot: action-derived compile commands via aquery plus managed clangd, manual dx env and dx codegen refresh"
-        }
-        "python" => "projection: .venv interpreter plus imports via dx env and dx codegen",
-        "javascript" => "projection: node_modules via dx env and dx codegen",
-        "typescript" => "projection: node_modules plus tsdk via dx env and dx codegen",
-        "java" | "kotlin" => {
-            "manual: env projection plus checked-in native config, no automatic Bazel-backed driver yet"
-        }
-        "scala" => {
-            "manual: env projection plus semanticdb/classpath wiring via dx env and dx codegen, no automatic Bazel-backed driver yet"
-        }
-        "csharp" | "fsharp" => {
-            "manual: env projection plus Paket lock wiring via dx env and dx codegen, no automatic Bazel-backed driver yet"
-        }
-        _ => "unknown language",
+/// Puts the CUDA stanza ahead of the consumer's `register_toolchains` lines.
+///
+/// The first registered toolchain wins, and the CUDA host compiler only applies when its
+/// flag is on. If `@llvm//toolchain:all` came first, it would also match for nvcc's host
+/// compilation and nvcc would get a clang it does not support.
+fn with_cuda_stanza(setup: &str) -> String {
+    let stanza = format!(
+        "# CUDA: this workspace has .cu sources, so the pinned toolkit and its host compiler follow.\n{}\n",
+        crate::cuda_stanza::render_cuda_module_stanza("rules_dx"),
+    );
+    match setup.find("register_toolchains(") {
+        Some(at) => format!("{}{}{}", &setup[..at], stanza, &setup[at..]),
+        None => format!("{setup}\n{stanza}"),
     }
-}
-
-pub fn editor_language_supported(language: &str) -> bool {
-    matches!(
-        language,
-        "rust"
-            | "python"
-            | "javascript"
-            | "typescript"
-            | "go"
-            | "java"
-            | "kotlin"
-            | "scala"
-            | "csharp"
-            | "fsharp"
-            | "c"
-            | "cpp"
-    )
 }
 
 pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
@@ -148,11 +118,11 @@ pub const CONSUMER_WORKFLOW_REPO: &str = "rules_dx";
 
 pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
 
-pub const CONSUMER_WORKFLOW_PIN: &str = "78068c86f4cc5d5edf35f01315784f14196d01e4";
+pub const CONSUMER_WORKFLOW_PIN: &str = "550b5b9f3c9e7be4ca00f9e7780d7bd370de2199";
 
 pub fn render_consumer_caller() -> String {
     format!(
-        "# Consumer caller template: pins the qualified reusable workflow at a reviewed commit.\n# Copy to .github/workflows/ci.yml in the consumer repo; do not copy per-check logic.\n# Reviewed pin bumps only; customizations (disabled_checks, platforms) preserved across bumps.\n# Required repository settings (see the GitHub CI docs, not configured here):\n# - approval policy: all_external_contributors for fork runs\n# - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)\n# - default workflow permissions: read-only\nname: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n      scheduling_mode: \"parallel\"\n      code_scanning_opt_in: false\n    secrets: inherit\n    # A called workflow can only narrow this job's token.\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n    secrets: inherit\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
@@ -172,9 +142,53 @@ pub fn render_editor_settings(windows: bool) -> String {
     } else {
         ".dx/bin/clangd"
     };
-    format!(
-        "{{\"rust-analyzer.check.command\":\"bazel\",\"python.defaultInterpreterPath\":\"{python}\",\"typescript.tsdk\":\".dx/setups/current/node_modules/typescript/lib\",\"go.toolsManagement.checkForUpdates\":\"off\",\"clangd.path\":\"{clangd}\",\"clangd.arguments\":[\"--compile-commands-dir=.dx/setups/current\"],\"java.configuration.updateBuildConfiguration\":\"manual\",\"kotlin.languageServer.enabled\":true}}\n",
-    )
+    let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
+    let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
+    let settings = serde_json::json!({
+        "rust-analyzer.workspace.discoverConfig": {
+            "command": [
+                "bazel",
+                base,
+                "run",
+                RUST_DISCOVER_LABEL,
+                "--",
+                format!("--bazel_startup_option={base}"),
+                "{arg}",
+            ],
+            "progressLabel": "rules_rust",
+            "filesToWatch": ["BUILD", "BUILD.bazel", "MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel"],
+        },
+        "rust-analyzer.check.overrideCommand": [
+            "bazel",
+            base,
+            "run",
+            RUST_FLYCHECK_LABEL,
+            "--",
+            format!("--output-base=${{workspaceFolder}}/{IDE_CHECK_OUTPUT_BASE}"),
+            "--saved-file",
+            "$saved_file",
+        ],
+        "files.watcherExclude": excludes,
+        "search.exclude": excludes,
+        "python.defaultInterpreterPath": python,
+        "typescript.tsdk": ".dx/setups/current/node_modules/typescript/lib",
+        "go.toolsManagement.checkForUpdates": "off",
+        "clangd.path": clangd,
+        "clangd.arguments": ["--compile-commands-dir=.dx/setups/current"],
+        "java.configuration.updateBuildConfiguration": "manual",
+        "kotlin.languageServer.enabled": true,
+    });
+    format!("{settings}\n")
+}
+
+/// Whether a `.bazelignore` already keeps Bazel out of `.dx`.
+pub fn bazelignore_covers_dx(text: &str) -> bool {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| line.strip_prefix("./").unwrap_or(line))
+        .map(|line| line.strip_suffix('/').unwrap_or(line))
+        .any(|line| line == ".dx" || line == ".dx/ide")
 }
 
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
@@ -184,6 +198,16 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
 pub fn plan_init_files_for_host(
     module_name: &str,
     windows: bool,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_with(module_name, windows, false)
+}
+
+/// Plans the init files. `cuda` appends the pinned CUDA stanza to `MODULE.bazel.snippet`;
+/// `dx init` sets it when the workspace has `.cu`/`.cuh` sources.
+pub fn plan_init_files_with(
+    module_name: &str,
+    windows: bool,
+    cuda: bool,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
     Ok(vec![
@@ -198,6 +222,10 @@ pub fn plan_init_files_for_host(
         ScaffoldFile {
             path: ".gitignore".to_owned(),
             content: format!("{}\n", crate::build_output::IGNORE_LINES.join("\n")),
+        },
+        ScaffoldFile {
+            path: ".bazelignore".to_owned(),
+            content: BAZELIGNORE_CONTENT.to_owned(),
         },
         ScaffoldFile {
             path: ".envrc".to_owned(),
@@ -220,7 +248,11 @@ pub fn plan_init_files_for_host(
             path: "MODULE.bazel.snippet".to_owned(),
             content: format!(
                 "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
-                setup = render_consumer_module_setup(),
+                setup = if cuda {
+                    with_cuda_stanza(&render_consumer_module_setup())
+                } else {
+                    render_consumer_module_setup()
+                },
             ),
         },
     ])
@@ -313,31 +345,30 @@ pub fn apply_scaffold(root: &Path, files: &[ScaffoldFile]) -> Result<Vec<String>
 }
 
 pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
-    apply_scaffold(root, &plan_init_files(module_name)?)
+    let cuda = crate::load_graph::workspace_has_cuda_sources(root)?;
+    apply_scaffold(
+        root,
+        &plan_init_files_with(module_name, cfg!(windows), cuda)?,
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::{
-        apply_init, editor_disposition, editor_language_supported, parse_consumer_setup,
-        plan_init_files, plan_init_files_for_host, render_consumer_caller,
-        render_consumer_own_toolchain_setup, render_consumer_renamed_setup, render_editor_settings,
-        CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
-        CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION,
-        CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
-        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
+    use super::{
+        apply_init, plan_init_files, plan_init_files_for_host, plan_init_files_with,
+        render_consumer_caller, render_editor_settings, CONSUMER_LLVM_VERSION,
+        CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
+        CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER,
+        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
+        DX_VERSION,
     };
-    use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
+    use crate::version::consumer_setup::parse_consumer_setup;
 
     #[test]
-    fn scaffold_reexports_match_local_definitions() {
-        assert_eq!(DEVCONTAINER_JSON, LOCAL_DEVCONTAINER);
-    }
-
-    #[test]
-    fn init_plans_eight_absent_only_files() {
+    fn init_plans_nine_absent_only_files() {
         let files = plan_init_files("demo").expect("init plans");
-        assert_eq!(files.len(), 8);
+        assert_eq!(files.len(), 9);
+        assert!(files.iter().any(|f| f.path == ".bazelignore"));
         assert!(files.iter().any(|f| f.path == ".gitignore"));
         assert!(files.iter().any(|f| f.path == ".dx/version"));
         assert!(files
@@ -405,7 +436,6 @@ mod tests {
             !post_create.contains("bazel build //..."),
             "no full build on create: {post_create}"
         );
-        assert!(super::super::devcontainer_is_admissible(true, true, false));
     }
 
     #[test]
@@ -444,7 +474,13 @@ mod tests {
             parsed["java.configuration.updateBuildConfiguration"],
             serde_json::Value::from("manual")
         );
-        assert!(settings.content.contains("rust-analyzer"));
+        assert!(settings
+            .content
+            .contains("rust-analyzer.workspace.discoverConfig"));
+        assert!(settings
+            .content
+            .contains("rust-analyzer.check.overrideCommand"));
+        assert!(!settings.content.contains("rust-analyzer.check.command"));
         assert!(settings.content.contains("go.toolsManagement"));
         let extensions = files
             .iter()
@@ -469,43 +505,6 @@ mod tests {
         assert!(devcontainer
             .content
             .contains("llvm-vs-code-extensions.vscode-clangd"));
-    }
-
-    #[test]
-    fn editor_disposition_names_driver_or_snapshot_per_lang() {
-        assert!(editor_disposition("rust").starts_with("automatic:"));
-        assert!(editor_disposition("go").starts_with("automatic:"));
-        assert!(editor_disposition("cpp").starts_with("snapshot:"));
-        assert!(editor_disposition("c").starts_with("snapshot:"));
-        assert!(editor_disposition("python").starts_with("projection:"));
-        assert!(editor_disposition("java").starts_with("manual:"));
-        assert!(editor_disposition("kotlin").starts_with("manual:"));
-        assert!(editor_disposition("scala").starts_with("manual:"));
-        assert!(editor_disposition("csharp").starts_with("manual:"));
-        assert!(editor_disposition("fsharp").starts_with("manual:"));
-        for lang in [
-            "rust",
-            "python",
-            "javascript",
-            "typescript",
-            "go",
-            "java",
-            "kotlin",
-            "scala",
-            "csharp",
-            "fsharp",
-            "c",
-            "cpp",
-        ] {
-            assert!(editor_language_supported(lang), "{lang}");
-        }
-        for removed in ["cc", "c#", "c-sharp", "f#", "f-sharp"] {
-            assert!(!editor_language_supported(removed), "{removed}");
-            assert_eq!(editor_disposition(removed), "unknown language");
-        }
-        assert!(!editor_language_supported("ruby"));
-        assert!(!editor_language_supported("swift"));
-        assert_eq!(editor_disposition("ruby"), "unknown language");
     }
 
     #[test]
@@ -634,8 +633,6 @@ mod tests {
             "merge_group:\n    types: [checks_requested]",
             "disabled_checks:",
             "platforms: '[\"linux_x86_64\"]'",
-            "scheduling_mode: \"parallel\"",
-            "code_scanning_opt_in: false",
             "secrets: inherit",
             "permissions:",
             "contents: read",
@@ -648,6 +645,9 @@ mod tests {
             );
         }
         assert!(!caller.contains("<reviewed-commit>"), "{caller}");
+        for removed in ["scheduling_mode", "code_scanning_opt_in"] {
+            assert!(!caller.contains(removed), "caller passes {removed}: {caller}");
+        }
     }
 
     #[test]
@@ -677,7 +677,7 @@ mod tests {
         let win = render_editor_settings(true);
         assert_ne!(unix, win);
         for key in [
-            "rust-analyzer.check.command",
+            "rust-analyzer.workspace.discoverConfig",
             "typescript.tsdk",
             "go.toolsManagement.checkForUpdates",
             "clangd.arguments",
@@ -686,6 +686,81 @@ mod tests {
         ] {
             assert!(unix.contains(key) && win.contains(key), "lost {key}");
         }
+    }
+
+    #[test]
+    fn rust_analyzer_settings_match_rules_rust_setup_shape() {
+        let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
+        let discover_argv = serde_json::json!([
+            "bazel",
+            "--output_base=${workspaceFolder}/.dx/ide/rust",
+            "run",
+            "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
+            "--",
+            "--bazel_startup_option=--output_base=${workspaceFolder}/.dx/ide/rust",
+            "{arg}"
+        ]);
+        let check_argv = serde_json::json!([
+            "bazel",
+            "--output_base=${workspaceFolder}/.dx/ide/rust",
+            "run",
+            "@rules_rust//tools/rust_analyzer:flycheck",
+            "--",
+            "--output-base=${workspaceFolder}/.dx/ide/rust_check",
+            "--saved-file",
+            "$saved_file"
+        ]);
+        let unix: serde_json::Value =
+            serde_json::from_str(&render_editor_settings(false)).expect("unix json");
+        let win: serde_json::Value =
+            serde_json::from_str(&render_editor_settings(true)).expect("windows json");
+        for parsed in [&unix, &win] {
+            let discover = &parsed["rust-analyzer.workspace.discoverConfig"];
+            assert_eq!(discover["command"], discover_argv);
+            assert_eq!(discover["progressLabel"], "rules_rust");
+            assert_eq!(
+                discover["filesToWatch"],
+                serde_json::json!([
+                    "BUILD",
+                    "BUILD.bazel",
+                    "MODULE.bazel",
+                    "WORKSPACE",
+                    "WORKSPACE.bazel"
+                ])
+            );
+            assert_eq!(parsed["rust-analyzer.check.overrideCommand"], check_argv);
+            assert_eq!(parsed["files.watcherExclude"], excludes);
+            assert_eq!(parsed["search.exclude"], excludes);
+            assert!(parsed.get("rust-analyzer.check.command").is_none());
+        }
+        for key in [
+            "rust-analyzer.workspace.discoverConfig",
+            "rust-analyzer.check.overrideCommand",
+            "files.watcherExclude",
+            "search.exclude",
+        ] {
+            assert_eq!(unix[key], win[key], "{key}");
+        }
+    }
+
+    #[test]
+    fn bazelignore_covers_dx_table() {
+        for (text, covered) in [
+            ("", false),
+            (".dx\n", true),
+            (".dx/\n", true),
+            ("./.dx\n", true),
+            ("  .dx  \n", true),
+            (".dx/ide\n", true),
+            ("node_modules\n.dx/\n", true),
+            ("# .dx\n", false),
+            (".dx/setups\n", false),
+            (".dxx\n", false),
+            ("node_modules\n", false),
+        ] {
+            assert_eq!(super::bazelignore_covers_dx(text), covered, "{text:?}");
+        }
+        assert!(super::bazelignore_covers_dx(super::BAZELIGNORE_CONTENT));
     }
 
     #[test]
@@ -775,77 +850,49 @@ mod tests {
     }
 
     #[test]
-    fn own_toolchain_setup_keeps_deps_and_registers_local_toolchain() {
-        let setup = parse_consumer_setup(&render_consumer_own_toolchain_setup());
-        assert_eq!(
-            setup.deps,
-            vec![
-                ("rules_dx".to_owned(), DX_VERSION.to_owned()),
-                ("rules_cc".to_owned(), CONSUMER_RULES_CC_VERSION.to_owned()),
-                ("llvm".to_owned(), CONSUMER_LLVM_VERSION.to_owned()),
-                (
-                    "rules_rust".to_owned(),
-                    CONSUMER_RULES_RUST_VERSION.to_owned()
-                ),
-            ]
-        );
-        assert!(
-            !setup
-                .registered
-                .contains(&"@llvm//toolchain:all".to_owned()),
-            "own toolchains must not register hermetic LLVM: {setup:?}"
-        );
-        assert!(
-            !setup
-                .registered
-                .contains(&"@rust_toolchains//:all".to_owned()),
-            "own toolchains must not register hermetic Rust: {setup:?}"
-        );
+    fn cuda_snippet_adds_the_stanza_and_registers_the_host_compiler_first() {
+        let plain = plan_init_files_with("demo", false, false).expect("plans");
+        let cuda = plan_init_files_with("demo", false, true).expect("plans");
+        let snippet = |files: &[super::ScaffoldFile]| {
+            files
+                .iter()
+                .find(|file| file.path == "MODULE.bazel.snippet")
+                .expect("snippet")
+                .content
+                .clone()
+        };
+        let (plain, cuda) = (snippet(&plain), snippet(&cuda));
+        assert!(!plain.contains("cuda"), "non-CUDA snippet must not change");
+        let setup = parse_consumer_setup(&cuda);
+        let base = parse_consumer_setup(&plain);
+        assert!(base.deps.iter().all(|dep| setup.deps.contains(dep)));
+        assert!(setup.deps.iter().any(|(name, _)| name == "rules_cuda"));
         assert_eq!(
             setup.registered,
-            vec!["@local_config_cc_toolchains//:all".to_owned()]
+            [
+                "@cuda_host_llvm//:all",
+                "@llvm//toolchain:all",
+                "@rust_toolchains//:all"
+            ]
         );
-        assert!(
-            setup
-                .extensions
-                .iter()
-                .any(|(label, tag)| label == "@rules_cc//cc:extensions.bzl"
-                    && tag == "cc_configure_extension"),
-            "own setup must opt into the upstream cc_configure extension: {setup:?}"
-        );
-        assert!(
-            setup
-                .repos
-                .iter()
-                .any(|(var, repo)| var == "cc_configure" && repo == "local_config_cc_toolchains"),
-            "own setup must materialize the local toolchains repo: {setup:?}"
-        );
-        assert!(
-            setup
-                .extensions
-                .iter()
-                .any(|(label, tag)| label == "@rules_rust//rust:extensions.bzl" && tag == "rust"),
-            "default Rust stays available beside the local C++ toolchain: {setup:?}"
-        );
+        assert!(cuda.contains("cuda-eula"));
     }
 
     #[test]
-    fn renamed_setup_maps_loads_through_the_new_name() {
-        let setup = parse_consumer_setup(&render_consumer_renamed_setup("my_dx"));
-        assert_eq!(setup.repo_name("rules_dx"), Some("my_dx"));
-        assert_eq!(setup.repo_name("rules_cc"), None);
-        assert_eq!(setup.dep_version("rules_dx"), Some(DX_VERSION));
-        let load = format!(
-            "@{}//cc/rules:defs.bzl",
-            setup.repo_name("rules_dx").expect("rename")
-        );
-        assert_eq!(load, "@my_dx//cc/rules:defs.bzl");
-        assert!(
-            setup
-                .registered
-                .contains(&"@llvm//toolchain:all".to_owned()),
-            "renamed setup keeps the hermetic registrations: {setup:?}"
-        );
+    fn apply_init_adds_the_stanza_only_for_cuda_workspaces() {
+        let plain = dx_test_scratch::scratch("dx-adopt-init-nocuda-");
+        apply_init(plain.path(), "demo").expect("init");
+        let text =
+            std::fs::read_to_string(plain.path().join("MODULE.bazel.snippet")).expect("read");
+        assert!(!text.contains("rules_cuda"));
+        plain.close().expect("cleanup");
+        let with = dx_test_scratch::scratch("dx-adopt-init-cuda-");
+        std::fs::create_dir_all(with.path().join("k")).expect("mkdir");
+        std::fs::write(with.path().join("k/a.cu"), "").expect("write");
+        apply_init(with.path(), "demo").expect("init");
+        let text = std::fs::read_to_string(with.path().join("MODULE.bazel.snippet")).expect("read");
+        assert!(text.contains("bazel_dep(name = \"rules_cuda\""), "{text}");
+        with.close().expect("cleanup");
     }
 
     #[test]
@@ -940,7 +987,7 @@ mod tests {
 
     #[cfg(unix)]
     mod symlinks {
-        use super::super::super::{apply_init, scaffold_dest_within_root};
+        use crate::scaffold::{apply_init, scaffold_dest_within_root};
         use std::os::unix::fs::symlink;
 
         fn entries(dir: &std::path::Path) -> Vec<String> {

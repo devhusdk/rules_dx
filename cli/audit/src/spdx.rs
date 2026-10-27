@@ -212,6 +212,17 @@ mod tests {
 
     const TEST_NAMESPACE: &str = "https://invalid.test/dx-audit-1";
 
+    type PurlVector<'a> = (
+        &'a str,
+        &'a str,
+        &'a str,
+        &'a str,
+        Option<&'a str>,
+        &'a str,
+        &'a str,
+        &'a str,
+    );
+
     #[test]
     fn package_urls_follow_purl_shapes() {
         assert_eq!(
@@ -239,7 +250,7 @@ mod tests {
     #[test]
     fn package_urls_round_trip_through_packageurl() {
         use std::str::FromStr;
-        let vectors: &[(&str, &str, &str, &str, Option<&str>, &str, &str, &str)] = &[
+        let vectors: &[PurlVector] = &[
             (
                 "cargo",
                 "serde",

@@ -214,6 +214,7 @@ pub struct SlotEvent {
     pub holder: Option<String>,
     pub state: String,
     pub reason: Option<String>,
+    pub base: Option<String>,
     pub server: bool,
     pub disk_bytes: Option<u64>,
 }
@@ -237,6 +238,9 @@ pub fn slot_event(slot: &SlotEvent) -> Result<Value, OutputError> {
     map.insert("state".to_owned(), Value::String(slot.state.clone()));
     if let Some(reason) = &slot.reason {
         map.insert("reason".to_owned(), Value::String(reason.clone()));
+    }
+    if let Some(base) = &slot.base {
+        map.insert("base".to_owned(), Value::String(base.clone()));
     }
     map.insert("server".to_owned(), Value::Bool(slot.server));
     if let Some(bytes) = slot.disk_bytes {
@@ -570,7 +574,7 @@ fn outcome_fields(
     Ok(())
 }
 
-/// One `test_outcome` event for a test that did not pass, with its failing cases and log tail.
+/// One `test_outcome` event for a test result that did not plainly pass, with its failing cases and log tail.
 pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
     let mut map = base("test_outcome");
     outcome_fields(&mut map, outcome)?;
@@ -618,6 +622,18 @@ pub fn test_result_record(outcome: &TestOutcome) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
+/// A label, note or help attached to a failure diagnostic.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FailureRelated {
+    pub role: String,
+    pub message: String,
+    pub path: Option<String>,
+    pub line: Option<u64>,
+    pub column: Option<u64>,
+    pub replacement: Option<String>,
+    pub applicability: Option<String>,
+}
+
 /// One rustc diagnostic that Bazel's failed action produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FailureDiagnostic {
@@ -627,6 +643,7 @@ pub struct FailureDiagnostic {
     pub path: Option<String>,
     pub line: Option<u64>,
     pub column: Option<u64>,
+    pub related: Vec<FailureRelated>,
 }
 
 /// One failure Bazel reported while building. `None` identity fields are unknown.
@@ -692,7 +709,7 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
             );
         }
     }
-    let items: Vec<Value> = failure
+    let items = failure
         .diagnostics
         .iter()
         .map(|diagnostic| {
@@ -709,9 +726,17 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
             opt_str(&mut item, "path", &diagnostic.path);
             opt_u64(&mut item, "line", diagnostic.line);
             opt_u64(&mut item, "column", diagnostic.column);
-            Value::Object(item)
+            if !diagnostic.related.is_empty() {
+                let related = diagnostic
+                    .related
+                    .iter()
+                    .map(related_value)
+                    .collect::<Result<Vec<_>, _>>()?;
+                item.insert("related".to_owned(), Value::Array(related));
+            }
+            Ok(Value::Object(item))
         })
-        .collect();
+        .collect::<Result<Vec<Value>, OutputError>>()?;
     map.insert(
         "diagnostics".to_owned(),
         json!({
@@ -723,6 +748,20 @@ pub fn build_failure_event(failure: &BuildFailureEvent) -> Result<Value, OutputE
     Ok(Value::Object(map))
 }
 
+fn related_value(related: &FailureRelated) -> Result<Value, OutputError> {
+    nonempty("related.role", &related.role)?;
+    nonempty("related.message", &related.message)?;
+    let mut item = serde_json::Map::new();
+    item.insert("role".to_owned(), Value::String(related.role.clone()));
+    item.insert("message".to_owned(), Value::String(related.message.clone()));
+    opt_str(&mut item, "path", &related.path);
+    opt_u64(&mut item, "line", related.line);
+    opt_u64(&mut item, "column", related.column);
+    opt_str(&mut item, "replacement", &related.replacement);
+    opt_str(&mut item, "applicability", &related.applicability);
+    Ok(Value::Object(item))
+}
+
 fn opt_i64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<i64>) {
     if let Some(value) = value {
         map.insert(field.to_owned(), Value::from(value));
@@ -732,12 +771,28 @@ fn opt_i64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FinishedCounts {
     pub results_complete: Option<bool>,
+    /// Ties `.dx/results.json` to the run that wrote it.
+    pub run_id: Option<String>,
     pub diagnostics: Option<[u64; 3]>,
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
     pub baseline: Option<[u64; 3]>,
-    /// Test results as passed, failed and cached.
-    pub tests: Option<[u64; 3]>,
+    /// Test result counts; see `TestCounts` for the unit.
+    pub tests: Option<TestCounts>,
+}
+
+/// Test result counts; `no_cases` is the part of `passed` whose report had no cases.
+///
+/// The unit is one result: one per target, configuration, run and shard, counted at its final
+/// attempt. A target with 4 shards counts 4. `skipped` counts once per skipped or filtered target
+/// and configuration.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TestCounts {
+    pub passed: u64,
+    pub failed: u64,
+    pub cached: u64,
+    pub no_cases: u64,
+    pub skipped: u64,
 }
 
 pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
@@ -745,6 +800,9 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
     map.insert("exit_code".to_owned(), Value::from(exit_code));
     if let Some(results_complete) = counts.results_complete {
         map.insert("results_complete".to_owned(), Value::Bool(results_complete));
+    }
+    if let Some(run_id) = &counts.run_id {
+        map.insert("run_id".to_owned(), Value::from(run_id.as_str()));
     }
     if let Some([info, warning, error]) = counts.diagnostics {
         map.insert(
@@ -769,10 +827,10 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
             json!({"total": total, "new": new, "suppressed": suppressed}),
         );
     }
-    if let Some([passed, failed, cached]) = counts.tests {
+    if let Some(t) = &counts.tests {
         map.insert(
             "tests".to_owned(),
-            json!({"passed": passed, "failed": failed, "cached": cached}),
+            json!({"passed": t.passed, "failed": t.failed, "cached": t.cached, "no_cases": t.no_cases, "skipped": t.skipped}),
         );
     }
     Value::Object(map)
@@ -931,6 +989,7 @@ mod tests {
     fn finished_counts_render_exactly() {
         let counts = FinishedCounts {
             results_complete: Some(true),
+            run_id: Some("7-1-abc".to_owned()),
             diagnostics: Some([0, 3, 1]),
             changes: Some([0, 2]),
             effects: Some([1, 1]),
@@ -939,6 +998,7 @@ mod tests {
         };
         let event = command_finished(1, &counts);
         assert_eq!(event["exit_code"], Value::from(1));
+        assert_eq!(event["run_id"], Value::from("7-1-abc"));
         assert_eq!(event["diagnostics"]["warning"], Value::from(3));
         assert_eq!(
             event["changes"],
@@ -948,12 +1008,14 @@ mod tests {
         assert!(event.get("baseline").is_none());
         let bare = command_finished(0, &FinishedCounts::default());
         assert!(bare.get("changes").is_none());
+        assert!(bare.get("run_id").is_none());
     }
 
     #[test]
     fn finished_changes_render() {
         let counts = FinishedCounts {
             results_complete: None,
+            run_id: None,
             diagnostics: None,
             changes: Some([1, 2]),
             effects: None,
@@ -1052,6 +1114,7 @@ mod tests {
             holder: None,
             state: "free".to_owned(),
             reason: None,
+            base: Some("origin/main".to_owned()),
             server: false,
             disk_bytes: Some(12),
         })
@@ -1060,6 +1123,7 @@ mod tests {
         assert_eq!(event["slot"], 1);
         assert_eq!(event["branch"], "topic");
         assert_eq!(event["disk_bytes"], 12);
+        assert_eq!(event["base"], "origin/main");
         assert!(event.get("holder").is_none());
         let unmeasured = slot_event(&SlotEvent {
             action: "list".to_owned(),
@@ -1069,11 +1133,13 @@ mod tests {
             holder: None,
             state: "free".to_owned(),
             reason: None,
+            base: None,
             server: false,
             disk_bytes: None,
         })
         .expect("event");
         assert!(unmeasured.get("disk_bytes").is_none());
+        assert!(unmeasured.get("base").is_none());
         let bad = slot_event(&SlotEvent {
             action: "list".to_owned(),
             path: String::new(),
@@ -1082,6 +1148,7 @@ mod tests {
             holder: None,
             state: "free".to_owned(),
             reason: None,
+            base: None,
             server: false,
             disk_bytes: None,
         });
@@ -1414,6 +1481,56 @@ mod tests {
     }
 
     #[test]
+    fn cut_stops_on_a_char_boundary() {
+        for wide in ["\u{e9}", "\u{20ac}", "\u{1f30d}"] {
+            let s = format!("{}{wide}tail", "x".repeat(EVENT_MESSAGE_LIMIT - 1));
+            let out = cut(&s, EVENT_MESSAGE_LIMIT);
+            assert_eq!(out, "x".repeat(EVENT_MESSAGE_LIMIT - 1), "{wide}");
+            assert!(out.len() <= EVENT_MESSAGE_LIMIT);
+        }
+        let exact = format!("{}\u{e9}tail", "x".repeat(EVENT_MESSAGE_LIMIT - 2));
+        let out = cut(&exact, EVENT_MESSAGE_LIMIT);
+        assert_eq!(out.len(), EVENT_MESSAGE_LIMIT);
+        assert!(out.ends_with('\u{e9}'));
+        assert_eq!(cut("", 5), "");
+        assert_eq!(cut("abc", 0), "");
+        assert_eq!(cut("\u{e9}", 1), "");
+    }
+
+    #[test]
+    fn a_multibyte_case_message_straddling_the_limit_is_cut_whole() {
+        let message = format!("{}\u{1f30d}tail", "x".repeat(EVENT_MESSAGE_LIMIT - 2));
+        let outcome = TestOutcome {
+            target: "//a:t".to_owned(),
+            outcome: "failed".to_owned(),
+            evidence_complete: true,
+            cases: vec![TestCase {
+                name: "wide".to_owned(),
+                outcome: "failed".to_owned(),
+                message: Some(message.clone()),
+                ..TestCase::default()
+            }],
+            ..TestOutcome::default()
+        };
+        let event = test_outcome_event(&outcome).expect("event");
+        let json = serde_json::to_string(&event).expect("json");
+        let parsed: Value = serde_json::from_str(&json).expect("valid json");
+        let cut_message = parsed["failing_cases"][0]["message"]
+            .as_str()
+            .expect("message");
+        assert!(cut_message.len() <= EVENT_MESSAGE_LIMIT);
+        assert!(message.starts_with(cut_message));
+        assert!(!cut_message.contains('\u{1f30d}'));
+        assert!(!cut_message.contains('\u{fffd}'));
+        assert_eq!(cut_message, "x".repeat(EVENT_MESSAGE_LIMIT - 2));
+        let record = test_result_record(&outcome).expect("record");
+        assert_eq!(
+            record["cases"][0]["message"].as_str(),
+            Some(message.as_str())
+        );
+    }
+
+    #[test]
     fn finished_counts_report_passed_and_cached_tests() {
         let counts = |tests| {
             command_finished(
@@ -1425,12 +1542,18 @@ mod tests {
             )
         };
         assert_eq!(
-            counts(Some([5, 1, 2]))["tests"],
-            serde_json::json!({"passed": 5, "failed": 1, "cached": 2})
+            counts(Some(TestCounts {
+                passed: 5,
+                failed: 1,
+                cached: 2,
+                no_cases: 3,
+                skipped: 4
+            }))["tests"],
+            serde_json::json!({"passed": 5, "failed": 1, "cached": 2, "no_cases": 3, "skipped": 4})
         );
         assert_eq!(
-            counts(Some([0, 0, 0]))["tests"],
-            serde_json::json!({"passed": 0, "failed": 0, "cached": 0})
+            counts(Some(TestCounts::default()))["tests"],
+            serde_json::json!({"passed": 0, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
         );
         assert!(counts(None).get("tests").is_none());
     }
@@ -1483,6 +1606,7 @@ mod build_failure_tests {
                 path: Some("a/lib.rs".to_owned()),
                 line: Some(3),
                 column: None,
+                related: Vec::new(),
             }],
             count: 1,
             targets: Vec::new(),
@@ -1500,6 +1624,49 @@ mod build_failure_tests {
         assert_eq!(event["action"]["exit_code"], 1);
         assert_eq!(event["diagnostics"]["items"][0]["code"], "E0425");
         assert!(event["diagnostics"]["items"][0].get("column").is_none());
+    }
+
+    fn related(role: &str, message: &str) -> FailureRelated {
+        FailureRelated {
+            role: role.to_owned(),
+            message: message.to_owned(),
+            path: None,
+            line: None,
+            column: None,
+            replacement: None,
+            applicability: None,
+        }
+    }
+
+    #[test]
+    fn related_items_keep_their_order() {
+        let mut failure = sample();
+        let mut help = related("help", "use `x`");
+        help.path = Some("a/lib.rs".to_owned());
+        help.line = Some(3);
+        help.replacement = Some("x".to_owned());
+        help.applicability = Some("MaybeIncorrect".to_owned());
+        failure.diagnostics[0].related = vec![related("label", "first"), help];
+        let event = build_failure_event(&failure).expect("event");
+        let items = &event["diagnostics"]["items"][0]["related"];
+        assert_eq!(items[0]["role"], "label");
+        assert_eq!(items[0]["message"], "first");
+        assert!(items[0].get("path").is_none());
+        assert_eq!(items[1]["role"], "help");
+        assert_eq!(items[1]["path"], "a/lib.rs");
+        assert_eq!(items[1]["line"], 3);
+        assert!(items[1].get("column").is_none());
+        assert_eq!(items[1]["replacement"], "x");
+        assert_eq!(items[1]["applicability"], "MaybeIncorrect");
+    }
+
+    #[test]
+    fn empty_related_is_left_out_and_empty_role_is_refused() {
+        let mut failure = sample();
+        let event = build_failure_event(&failure).expect("event");
+        assert!(event["diagnostics"]["items"][0].get("related").is_none());
+        failure.diagnostics[0].related = vec![related("", "text")];
+        assert!(build_failure_event(&failure).is_err());
     }
 
     #[test]

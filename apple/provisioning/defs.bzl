@@ -219,6 +219,7 @@ def _provisioning_selection_impl(ctx):
 
 _provisioning_selection = rule(
     implementation = _provisioning_selection_impl,
+    doc = "Fails analysis when an Xcode provisioning selection is invalid.",
     provides = [AppleToolingInfo],
     attrs = {
         "accept_licenses": attr.string_list(mandatory = True),

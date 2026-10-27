@@ -240,9 +240,6 @@ func TestIgnoreDirectiveUsesThisLanguageName(t *testing.T) {
 	if !lang.Failed() {
 		t.Fatal("a one-field ignore was accepted")
 	}
-	if got := CollectUsedIgnores(cfg); got != nil {
-		t.Fatalf("unused ignores = %v, want none", got)
-	}
 }
 
 func TestAfterResolvingDepsReportsFailures(t *testing.T) {
@@ -263,7 +260,7 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 
 func TestLanguageMetadata(t *testing.T) {
 	lang := NewLanguage().(*common.SingleLang)
-	if lang.Name() != languageName || len(lang.Kinds()) != 1 {
+	if lang.Name() != languageName || len(lang.Kinds()) != 2 {
 		t.Fatalf("metadata = %s / %v", lang.Name(), lang.Kinds())
 	}
 	loads := lang.ApparentLoads(func(name string) string {
@@ -272,10 +269,11 @@ func TestLanguageMetadata(t *testing.T) {
 		}
 		return ""
 	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//cc/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != LibraryKind {
+	if len(loads) != 2 || loads[0].Name != "@renamed_dx//cc/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != LibraryKind ||
+		loads[1].Name != "@renamed_dx//cuda/rules:defs.bzl" || strings.Join(loads[1].Symbols, ",") != CudaKind {
 		t.Errorf("apparent loads = %+v", loads)
 	}
-	if defaults := lang.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//cc/rules:defs.bzl" {
+	if defaults := lang.Loads(); len(defaults) != 2 || defaults[0].Name != "@rules_dx//cc/rules:defs.bzl" {
 		t.Errorf("default loads = %+v", defaults)
 	}
 }
@@ -307,5 +305,94 @@ func TestGenerateRootPackage(t *testing.T) {
 		if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "lib.cc" {
 			t.Errorf("repo %q: srcs = %q, want lib.cc", tc.repoName, got)
 		}
+	}
+}
+
+func cudaFixture(t *testing.T, build string, archs []string, files map[string]string) (language.Language, language.GenerateResult) {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		writeFixture(t, root, "pkg/demo/"+name, content)
+		regular = append(regular, name)
+	}
+	cfg := &config.Config{RepoRoot: root, Exts: map[string]interface{}{}}
+	if archs != nil {
+		cfg.Exts[archsDirective] = archs
+	}
+	var f *rule.File
+	if build != "" {
+		var err error
+		f, err = rule.LoadData(filepath.Join(root, "pkg/demo/BUILD.bazel"), "pkg/demo", []byte(build))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	lang := NewLanguage()
+	res := lang.GenerateRules(language.GenerateArgs{Config: cfg, Dir: filepath.Join(root, "pkg", "demo"), Rel: "pkg/demo", File: f, RegularFiles: regular})
+	return lang, res
+}
+
+func TestCudaGenerateOwnedByDirectory(t *testing.T) {
+	_, res := cudaFixture(t, "", []string{"compute_89:compute_89,sm_89", "sm_120"}, map[string]string{
+		"k.cu": "#include \"pkg/demo/k.cuh\"\n", "k.cuh": "#pragma once\n", "k_test.cu": "int main() {}\n",
+	})
+	if len(res.Gen) != 1 || res.Gen[0].Kind() != CudaKind || res.Gen[0].Name() != "demo_cuda" {
+		t.Fatalf("gen = %+v", res.Gen)
+	}
+	r := res.Gen[0]
+	if got := strings.Join(r.AttrStrings("srcs"), ","); got != "k.cu" {
+		t.Errorf("srcs = %q", got)
+	}
+	if got := strings.Join(r.AttrStrings("hdrs"), ","); got != "k.cuh" {
+		t.Errorf("hdrs = %q", got)
+	}
+	if got := strings.Join(r.AttrStrings("archs"), "|"); got != "compute_89:compute_89,sm_89|sm_120" {
+		t.Errorf("archs = %q", got)
+	}
+	if len(res.Imports) != 1 {
+		t.Errorf("imports = %v", res.Imports)
+	}
+}
+
+func TestCudaMissingDirectiveRefuses(t *testing.T) {
+	lang, res := cudaFixture(t, "", nil, map[string]string{"k.cu": "\n"})
+	if len(res.Gen) != 0 {
+		t.Fatalf("gen = %+v", res.Gen)
+	}
+	wantRefusal(t, refusal(t, lang), "cc: pkg/demo: .cu/.cuh files need # gazelle:dx_cuda_archs <arch>...")
+}
+
+func TestCudaMainRefuses(t *testing.T) {
+	lang, _ := cudaFixture(t, "", []string{"sm_89"}, map[string]string{"k.cu": "int main() { return 0; }\n"})
+	wantRefusal(t, refusal(t, lang), "k.cu defines main")
+}
+
+func TestCudaBinaryNameClashRefuses(t *testing.T) {
+	lang, _ := cudaFixture(t, "cuda_binary(name = \"demo\", srcs = [\"main.cu\"], archs = [\"sm_89\"])\n", []string{"sm_89"}, map[string]string{"main.cu": "int main() {}\n", "k.cu": "\n"})
+	wantRefusal(t, refusal(t, lang), "already creates demo_cuda")
+}
+
+func TestCudaOwnedFilesProduceNothing(t *testing.T) {
+	_, res := cudaFixture(t, "cuda_library(name = \"kernel\", srcs = [\"k.cu\"], hdrs = [\"k.cuh\"], archs = [\"sm_89\"])\n", nil, map[string]string{"k.cu": "\n", "k.cuh": "\n"})
+	if len(res.Gen) != 0 || len(res.Empty) != 0 {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
+func TestCudaStaleOwnedTargetIsEmptied(t *testing.T) {
+	_, res := cudaFixture(t, "cuda_library(name = \"demo_cuda\", srcs = [\"gone.cu\"], archs = [\"sm_89\"])\ncuda_library(name = \"hand\", srcs = [\"h.cu\"])\n", nil, map[string]string{"h.cu": "\n"})
+	if len(res.Gen) != 0 || len(res.Empty) != 1 || res.Empty[0].Name() != "demo_cuda" {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
+func TestImportsIndexCudaHeadersOnly(t *testing.T) {
+	lang := NewLanguage()
+	r := rule.NewRule(CudaKind, "demo_cuda")
+	r.SetAttr("hdrs", []string{"k.cuh", "shared.h"})
+	got := lang.Imports(&config.Config{}, r, nil)
+	if len(got) != 1 || got[0].Imp != "k.cuh" {
+		t.Fatalf("imports = %+v, want only k.cuh", got)
 	}
 }

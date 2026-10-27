@@ -22,6 +22,30 @@ on:
         required: false
         default: "github-pages"
         type: string
+      site:
+        description: "One target label in the calling repository whose output is the rendered mdBook tree (index.html and searchindex.js at its root)."
+        required: true
+        type: string
+      site_check:
+        description: "Target label in the calling repository that dx docs --check runs. Empty skips the source check."
+        required: false
+        default: ""
+        type: string
+      forbid:
+        description: "Text the rendered site must not contain, one entry per line. Empty forbids nothing."
+        required: false
+        default: ""
+        type: string
+      landing:
+        description: "Also require the rendered site to have a landing page."
+        required: false
+        default: false
+        type: boolean
+      smoke_test:
+        description: "Test label in the calling repository run with DX_PAGES_URL after the deploy. Empty runs only the built-in page fetch."
+        required: false
+        default: ""
+        type: string
     secrets:
       BUILDBUDDY_API_KEY:
         description: "BuildBuddy API key enabling the shared remote cache. Optional; the job skips remote-cache configuration when absent."
@@ -35,6 +59,11 @@ env:
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
   BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
   BAZELISK_VERSION: "1.29.0"
+  DX_DOCS_SITE: ${{ inputs.site }}
+  DX_DOCS_SITE_CHECK: ${{ inputs.site_check }}
+  DX_DOCS_FORBID: ${{ inputs.forbid }}
+  DX_DOCS_LANDING: ${{ inputs.landing }}
+  DX_DOCS_SMOKE_TEST: ${{ inputs.smoke_test }}
 
 concurrency:
   group: dx-docs-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -49,6 +78,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Check the docs inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          label='^(@@?[A-Za-z0-9_.~+-]*)?//[A-Za-z0-9_.+@=,~/-]*:?[A-Za-z0-9_.+@=,~/-]*$'
+          for name in DX_DOCS_SITE DX_DOCS_SITE_CHECK DX_DOCS_SMOKE_TEST; do
+            value="${!name}"
+            if [ "$name" != DX_DOCS_SITE ] && [ -z "$value" ]; then
+              continue
+            fi
+            if ! [[ "$value" =~ $label ]] || [[ "$value" == *... ]]; then
+              echo "dx-ci: $name holds '$value', which is not a single target label." >&2
+              exit 1
+            fi
+          done
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -65,8 +109,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -81,32 +125,35 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//tools/ci:docs_scope_bin
-      - run: |
+      - name: Check the docs site sources
+        if: inputs.site_check != ''
+        run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- docs --check -- "$@"
+          bazel run "$@" @rules_dx//:dx -- docs --check "$DX_DOCS_SITE_CHECK" -- "$@"
       - name: Render and validate the rendered site
         run: |
           set -euo pipefail
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- docs -- "$@"
+          bazel run "$@" @rules_dx//:dx -- docs "$DX_DOCS_SITE" -- "$@"
           stage="$RUNNER_TEMP/pages"
-          site="$(bazel cquery "$@" --output=files //tools/docs/site:user_site)"
+          site="$(bazel cquery "$@" --output=files "$DX_DOCS_SITE")"
           test -f "$site/index.html"
           test -f "$site/searchindex.js"
           rm -rf "$stage"
           mkdir -p "$stage"
           cp -R "$site/." "$stage/"
-          bazel run "$@" //tools/docs/site/check:site_check -- --rendered "$stage" --landing \
-            --forbid "Treat warnings as errors" \
-            --forbid "docs_fixture"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
+          check=()
+          if [ "$DX_DOCS_LANDING" = true ]; then
+            check+=(--landing)
+          fi
+          while IFS= read -r line; do
+            if [ -n "$line" ]; then
+              check+=(--forbid "$line")
+            fi
+          done <<< "$DX_DOCS_FORBID"
+          bazel run "$@" @rules_dx//tools/docs/site/check:site_check -- --rendered "$stage" "${check[@]}"
   docs-publish:
     name: docs-publish (GitHub Pages)
     needs: [docs-check]
@@ -139,8 +186,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ github.workflow }}-${{ github.job }}-
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Verify rules_dx pin
         env:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
@@ -152,15 +199,14 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- docs -- "$@"
+          bazel run "$@" @rules_dx//:dx -- docs "$DX_DOCS_SITE" -- "$@"
       - name: Stage rendered site in a temp dir
-        # Stage under RUNNER_TEMP so the checkout is never left dirty.
         run: |
           set -euo pipefail
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           stage="$RUNNER_TEMP/pages"
-          site="$(bazel cquery "$@" --output=files //tools/docs/site:user_site)"
+          site="$(bazel cquery "$@" --output=files "$DX_DOCS_SITE")"
           test -f "$site/index.html"
           test -f "$site/searchindex.js"
           test -f "$site/css/general.css"
@@ -174,9 +220,16 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" //tools/docs/site/check:site_check -- --rendered "$PAGES_STAGE" --landing \
-            --forbid "Treat warnings as errors" \
-            --forbid "docs_fixture"
+          check=()
+          if [ "$DX_DOCS_LANDING" = true ]; then
+            check+=(--landing)
+          fi
+          while IFS= read -r line; do
+            if [ -n "$line" ]; then
+              check+=(--forbid "$line")
+            fi
+          done <<< "$DX_DOCS_FORBID"
+          bazel run "$@" @rules_dx//tools/docs/site/check:site_check -- --rendered "$PAGES_STAGE" "${check[@]}"
       - name: Upload rendered site as Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
@@ -190,16 +243,15 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$PAGES_URL"
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test "$@" --test_env=DX_PAGES_URL="$PAGES_URL" //tools/docs/site:deploy_smoke_test
+          for file in index.html searchindex.js; do
+            curl --fail --silent --show-error --location --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null "${PAGES_URL%/}/$file"
+          done
+          if [ -n "$DX_DOCS_SMOKE_TEST" ]; then
+            # shellcheck disable=SC2086
+            set -- $BAZEL_CONFIG $BB_ARGS
+            bazel test "$@" --test_env=DX_PAGES_URL="$PAGES_URL" "$DX_DOCS_SMOKE_TEST"
+          fi
       - name: Prove checkout left clean
         run: |
           git status --porcelain
           test -z "$(git status --porcelain)"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}

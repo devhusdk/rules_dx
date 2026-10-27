@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.cmd text eol=crlf
+tools/docs/ruby/fixture/crlf/shapes.rb -text
+tools/docs/powershell/fixture/Ledger/Public/Test-LedgerBalance.ps1 -text

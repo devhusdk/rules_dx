@@ -1,4 +1,3 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:policy_subject.bzl", "policy_subject")
 load(":settings_tests.bzl", "settings_tests", "workspace_policy_tests")
@@ -14,6 +13,21 @@ label_flag(
 label_flag(
     name = "tool_ruff",
     build_setting_default = "@dx_tools//:ruff",
+)
+
+label_flag(
+    name = "tool_pkl",
+    build_setting_default = "@dx_tools//:pkl",
+)
+
+label_flag(
+    name = "tool_hadolint",
+    build_setting_default = "@dx_tools//:hadolint",
+)
+
+label_flag(
+    name = "tool_gofumpt",
+    build_setting_default = "@cc_mvdan_gofumpt//:gofumpt",
 )
 
 label_flag(
@@ -63,11 +77,6 @@ label_flag(
 
 filegroup(name = "no_zig_fmt")
 
-bool_flag(
-    name = "validate",
-    build_setting_default = False,
-)
-
 alias(
     name = "clippy_output_diagnostics",
     actual = "@rules_rust//rust/settings:clippy_output_diagnostics",
@@ -76,16 +85,6 @@ alias(
 alias(
     name = "rustc_output_diagnostics",
     actual = "@rules_rust//rust/settings:rustc_output_diagnostics",
-)
-
-string_flag(
-    name = "fail_on",
-    build_setting_default = "warning",
-    values = [
-        "error",
-        "info",
-        "warning",
-    ],
 )
 
 settings_subject(name = "settings_under_test")
@@ -116,4 +115,10 @@ real_source_target(
         "subject.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

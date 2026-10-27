@@ -1,4 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//cc/rules:wrapper_tests.bzl", "cc_coverage_env_tests")
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//libs/starlark/tests:thin_compare.bzl", "run_env_compare_subject", "thin_compare_cc_env_tests", "thin_compare_cc_tests", "thin_compare_subject")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -28,6 +30,23 @@ cc_test(
     deps = [":hello_lib"],
 )
 
+cc_test(
+    name = "hello_private_header_test",
+    srcs = [
+        "private_header_test.cc",
+        "private_helper.h",
+    ],
+)
+
+dx_direct_sources_test(
+    name = "private_header_sources_test",
+    expected = {
+        "c": ["private_helper.h"],
+        "cpp": ["private_header_test.cc"],
+    },
+    target_under_test = ":hello_private_header_test",
+)
+
 cc_library(
     name = "hello_c_lib",
     srcs = ["hello.c"],
@@ -38,6 +57,11 @@ cc_test(
     name = "hello_c_test",
     srcs = ["hello_c_test.c"],
     deps = [":hello_c_lib"],
+)
+
+cc_coverage_env_tests(
+    name = "coverage_env_test",
+    target = ":hello_c_test",
 )
 
 dx_hello_output_test(

@@ -1,4 +1,4 @@
-use super::common::{refusal, resolve_failed, Env};
+use super::common::{emit_built, emit_event, refusal, resolve_failed, Env};
 use super::execute;
 use crate::args::{Command, Invocation};
 use crate::resolve::{
@@ -6,12 +6,11 @@ use crate::resolve::{
     resolve_affected, run_label_query_file, AffectedSelection, QueryRunner, ResolveError,
     RuleGraph, WidenedScope,
 };
+use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
 use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
 use serde_json::{json, Value};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-
-const DEFAULT_BRANCH_CANDIDATES: [&str; 4] = ["origin/main", "main", "origin/master", "master"];
 
 pub(crate) enum PlanError {
     Git(String),
@@ -32,7 +31,12 @@ pub(crate) struct AffectedPlan {
     pub(crate) tests: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
+    /// External-repo test labels dropped because the test phase rejects them.
+    pub(crate) skipped_external: Vec<String>,
 }
+
+/// How many widened scopes the stderr summary names before "and N more".
+const SUMMARY_WIDENED_LIMIT: usize = 3;
 
 impl AffectedPlan {
     fn empty(&self) -> bool {
@@ -60,27 +64,54 @@ impl AffectedPlan {
         if command == Command::Check {
             value["tests"] = json!(self.tests);
         }
+        if !self.skipped_external.is_empty() {
+            value["skipped_external"] = json!(self.skipped_external);
+        }
         value
     }
 
     fn summary(&self) -> String {
         let base = short_base(&self.base);
-        let mut widened: Vec<String> = self
-            .widened
-            .iter()
-            .map(|entry| format!("{} ({})", entry.scope, entry.reason))
-            .collect();
-        widened.dedup();
+        let mut widened: Vec<(bool, String)> = Vec::new();
+        for entry in &self.widened {
+            let item = (
+                entry.scope != "//...",
+                format!("{} ({})", entry.scope, entry.reason),
+            );
+            if !widened.contains(&item) {
+                widened.push(item);
+            }
+        }
+        // Stable sort keeps input order within the `//...` and other groups.
+        widened.sort_by_key(|item| item.0);
+        let widened: Vec<String> = widened.into_iter().map(|item| item.1).collect();
         let suffix = if widened.is_empty() {
             String::new()
         } else {
-            format!("; widened to {}", widened.join(", "))
+            let shown = widened
+                .iter()
+                .take(SUMMARY_WIDENED_LIMIT)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            match widened.len().saturating_sub(SUMMARY_WIDENED_LIMIT) {
+                0 => format!("; widened to {shown}"),
+                more => format!("; widened to {shown} and {more} more"),
+            }
         };
-        format!(
+        let mut line = format!(
             "dx: affected: {} targets from {} changed files since {base}{suffix}",
             self.targets.len(),
             self.changed_files.len()
-        )
+        );
+        if !self.skipped_external.is_empty() {
+            line.push_str(&format!(
+                "\ndx: affected: skipping {} external-repo tests: {}",
+                self.skipped_external.len(),
+                self.skipped_external.join(", ")
+            ));
+        }
+        line
     }
 }
 
@@ -213,6 +244,7 @@ pub(crate) fn plan(
         tests: Vec::new(),
         widened: Vec::new(),
         unscoped: false,
+        skipped_external: Vec::new(),
     };
     if changes.is_empty() && overrides.is_empty() {
         return Ok(plan);
@@ -262,7 +294,10 @@ pub(crate) fn plan(
         .map_or_else(|| RuleGraph::load(workspace, runner, startup_options), Ok)?;
     let rules = graph.affected(&selection.targets);
     let tests = if tests_only(command) || command == Command::Check {
-        tests_of(&rules, workspace, runner, startup_options)?
+        let (tests, external) =
+            split_external(tests_of(&rules, workspace, runner, startup_options)?);
+        plan.skipped_external = external;
+        tests
     } else {
         Vec::new()
     };
@@ -279,6 +314,14 @@ pub(crate) fn plan(
         plan.unscoped = secrets_scan && plan.targets.is_empty();
     }
     Ok(plan)
+}
+
+/// Splits off external-repo labels, which the test phase rejects as `invalid_scope`.
+/// Main-repo spellings (`@//`, `@@//`) stay.
+fn split_external(tests: Vec<String>) -> (Vec<String>, Vec<String>) {
+    tests.into_iter().partition(|label| {
+        !label.starts_with('@') || label.starts_with("@//") || label.starts_with("@@//")
+    })
 }
 
 /// Adds the `affected` object to the first `command_started` line and passes the rest through.
@@ -350,17 +393,19 @@ impl Write for InjectAffected<'_> {
 
 fn finished_empty(invocation: &Invocation, plan: &AffectedPlan, out: &mut dyn Write) -> i32 {
     if invocation.output == OutputMode::Json {
-        let Ok(Value::Object(mut started)) =
-            command_started(invocation.command.name(), invocation.started_mode())
-        else {
-            return 1;
-        };
-        started.insert("affected".to_owned(), plan.json(invocation.command));
-        let finished = command_finished(0, &FinishedCounts::default());
-        for event in [Value::Object(started), finished] {
-            if dx_output::write_event(out, &event).is_err() {
-                return 1;
-            }
+        let started = command_started(invocation.command.name(), invocation.started_mode()).map(
+            |mut started| {
+                if let Value::Object(map) = &mut started {
+                    map.insert("affected".to_owned(), plan.json(invocation.command));
+                }
+                started
+            },
+        );
+        if let Err(exit) = emit_built(out, started) {
+            return exit;
+        }
+        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            return exit;
         }
         return 0;
     }
@@ -461,6 +506,65 @@ mod tests {
     use std::cell::RefCell;
     use std::process::Command as Process;
 
+    fn widened_plan(entries: &[(&str, &str)]) -> AffectedPlan {
+        AffectedPlan {
+            base: "1a2b3c4d5e6f7890".to_string(),
+            changed_files: vec!["quality/fixtures.bzl".to_string()],
+            targets: Vec::new(),
+            tests: Vec::new(),
+            widened: entries
+                .iter()
+                .map(|(scope, reason)| WidenedScope {
+                    scope: (*scope).to_string(),
+                    reason: (*reason).to_string(),
+                    repos: Vec::new(),
+                })
+                .collect(),
+            unscoped: false,
+            skipped_external: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn widened_summary_caps_names_and_json_keeps_all() {
+        let scopes: Vec<String> = (0..480).map(|n| format!("//p{n}:all")).collect();
+        let entries: Vec<(&str, &str)> = scopes
+            .iter()
+            .map(|scope| (scope.as_str(), "loads quality/fixtures.bzl"))
+            .collect();
+        let plan = widened_plan(&entries);
+        let summary = plan.summary();
+        assert!(
+            summary.contains("//p0:all (loads quality/fixtures.bzl)"),
+            "{summary}"
+        );
+        assert!(
+            summary.contains("//p2:all (loads quality/fixtures.bzl)"),
+            "{summary}"
+        );
+        assert!(summary.contains("and 477 more"), "{summary}");
+        assert!(!summary.contains("//p3:all"), "{summary}");
+        let json = plan.json(Command::Build);
+        assert_eq!(json["widened"].as_array().map(Vec::len), Some(480));
+    }
+
+    #[test]
+    fn widened_summary_lists_everything_scope_first() {
+        let plan = widened_plan(&[
+            ("//a:all", "r"),
+            ("//a:all", "r"),
+            ("//b:all", "r"),
+            ("//...", "workspace input MODULE.bazel"),
+        ]);
+        let summary = plan.summary();
+        assert!(
+            summary.ends_with(
+                "; widened to //... (workspace input MODULE.bazel), //a:all (r), //b:all (r)"
+            ),
+            "{summary}"
+        );
+    }
+
     struct GitRunner {
         bazel: RefCell<Vec<String>>,
         expressions: RefCell<Vec<String>>,
@@ -560,25 +664,60 @@ mod tests {
     }
 
     #[test]
-    fn empty_selection_reports_check_unless_apply() {
+    fn empty_selection_reports_mode_for_every_affected_command() {
+        use clap::ValueEnum;
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Test, &[]);
-        let cases: [(&[&str], &str); 8] = [
+        let cases: [(&[&str], &str); 17] = [
+            (&["check", "--affected", "--output=json"], "check"),
             (&["fix", "--affected", "--output=json"], "check"),
             (
                 &["fix", "--apply", "--affected", "--output=json"],
                 "default",
             ),
             (&["fix", "--check", "--affected", "--output=json"], "check"),
-            (&["check", "--affected", "--output=json"], "check"),
-            (&["format", "--affected", "--output=json"], "check"),
+            (&["lint", "--affected", "--output=json"], "check"),
             (
                 &["lint", "--apply", "--affected", "--output=json"],
                 "default",
             ),
+            (&["typecheck", "--affected", "--output=json"], "check"),
+            (
+                &["typecheck", "--apply", "--affected", "--output=json"],
+                "default",
+            ),
+            (&["format", "--affected", "--output=json"], "check"),
+            (
+                &["format", "--apply", "--affected", "--output=json"],
+                "default",
+            ),
+            (&["build", "--affected", "--output=json"], "default"),
             (&["test", "--affected", "--output=json"], "default"),
+            (&["coverage", "--affected", "--output=json"], "default"),
             (&["list-tests", "--affected", "--output=json"], "default"),
+            (&["security", "--affected", "--output=json"], "default"),
+            (&["license", "--affected", "--output=json"], "default"),
+            (
+                &["check", "--check", "--affected", "--output=json"],
+                "check",
+            ),
         ];
+        let mut covered: Vec<String> = cases.iter().map(|(w, _)| w[0].to_owned()).collect();
+        covered.sort();
+        covered.dedup();
+        let mut every: Vec<String> = Command::value_variants()
+            .iter()
+            .filter(|command| {
+                **command != Command::Watch
+                    && crate::args::grammar::accepts_long(**command, "affected")
+            })
+            .map(|command| command.name().to_owned())
+            .collect();
+        every.sort();
+        assert_eq!(
+            covered, every,
+            "cases must cover every command that takes --affected"
+        );
         for (words, expected) in cases {
             let invocation =
                 crate::args::parse(&crate::test_support::strings(words)).expect("parses");
@@ -647,15 +786,15 @@ mod tests {
     }
 
     #[test]
-    fn renames_count_both_paths() {
+    fn renames_count_both_paths_and_keep_owners() {
         let dir = repo();
         let root = dir.path();
         git(root, &["mv", "a/a.txt", "a/c.txt"]);
         let graph = graph();
         let (plan, _) = run(root, Command::Lint, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/c.txt"]);
-        assert_eq!(plan.widened.len(), 1);
-        assert_eq!(plan.widened[0].reason, "renamed from a/a.txt");
+        assert!(plan.widened.is_empty());
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
     }
 
     #[test]
@@ -698,6 +837,45 @@ mod tests {
         assert_eq!(
             plan.json(Command::Build)["widened"],
             json!([{"scope": "//a:all", "reason": "loads defs.bzl"}])
+        );
+        let expressions = runner.expressions.borrow();
+        assert_eq!(expressions.len(), 1);
+        assert!(
+            expressions
+                .iter()
+                .all(|expression| !expression.contains("rbuildfiles")),
+            "{expressions:?}"
+        );
+    }
+
+    #[test]
+    fn scl_change_selects_loading_package_and_rdeps() {
+        let dir = repo();
+        let root = dir.path();
+        write(root, "defs.scl", "x = 1\n");
+        write(root, "a/BUILD.bazel", "load(\"//:defs.scl\", \"x\")\n");
+        git(root, &["add", "."]);
+        git(root, &["commit", "--quiet", "-m", "defs"]);
+        git(root, &["branch", "--force", "main"]);
+        write(root, "defs.scl", "x = 2\n");
+        let graph = graph();
+        let (plan, runner) = run(root, Command::Build, &[&graph]);
+        assert_eq!(plan.changed_files, ["defs.scl"]);
+        assert_eq!(
+            plan.targets,
+            ["//a:android", "//a:lib", "//a:ruby", "//a:t"]
+        );
+        assert_eq!(plan.widened.len(), 1);
+        assert_eq!(plan.widened[0].scope, "//a:all");
+        let summary = plan.summary();
+        assert!(
+            summary.contains("widened to //a:all (loads defs.scl)"),
+            "{summary}"
+        );
+        assert!(!summary.contains("//..."), "{summary}");
+        assert_eq!(
+            plan.json(Command::Build)["widened"],
+            json!([{"scope": "//a:all", "reason": "loads defs.scl"}])
         );
         let expressions = runner.expressions.borrow();
         assert_eq!(expressions.len(), 1);
@@ -763,6 +941,26 @@ mod tests {
     }
 
     #[test]
+    fn external_repo_tests_are_skipped_and_reported() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let graph = graph();
+        let answer = "//a:t\n@shared_consumer//:x_test\n@@//a:u\n";
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph, answer]);
+        assert_eq!(plan.tests, ["//a:t", "@@//a:u"]);
+        assert_eq!(plan.skipped_external, ["@shared_consumer//:x_test"]);
+        assert_eq!(
+            plan.json(Command::Check)["skipped_external"],
+            json!(["@shared_consumer//:x_test"])
+        );
+        assert!(plan
+            .summary()
+            .contains("skipping 1 external-repo tests: @shared_consumer//:x_test"));
+        let (plan, _) = run(dir.path(), Command::Test, &[&graph, answer]);
+        assert_eq!(plan.targets, ["//a:t", "@@//a:u"]);
+    }
+
+    #[test]
     fn resolving_line_uses_the_summary_base() {
         let base = "0123456789abcdef0123456789abcdef01234567";
         let line = resolving_line(base);
@@ -774,6 +972,7 @@ mod tests {
             tests: Vec::new(),
             widened: Vec::new(),
             unscoped: false,
+            skipped_external: Vec::new(),
         };
         assert!(plan
             .summary()

@@ -1,5 +1,6 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
+load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "environment_config", "environment_metadata", "environment_tool", "environment_tree")
 load(":defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
@@ -24,6 +25,51 @@ environment_tool(
     name = "tool_beta",
     bin_name = "beta",
     executable = ":tool_sh",
+)
+
+environment_tool(
+    name = "tool_dup_bin",
+    aliases = ["alpha"],
+    bin_name = "alpha",
+    executable = ":tool_sh",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "tool_dup_bin_test",
+    expected_failure_substring = "duplicate host name 'alpha'",
+    target = ":tool_dup_bin",
+)
+
+environment_tool(
+    name = "tool_dup_alias",
+    aliases = [
+        "a",
+        "a",
+    ],
+    bin_name = "alpha",
+    executable = ":tool_sh",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "tool_dup_alias_test",
+    expected_failure_substring = "duplicate host name 'a'",
+    target = ":tool_dup_alias",
+)
+
+environment_tool(
+    name = "tool_dup_case",
+    aliases = ["Alpha"],
+    bin_name = "alpha",
+    executable = ":tool_sh",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "tool_dup_case_test",
+    expected_failure_substring = "duplicate host name 'Alpha'",
+    target = ":tool_dup_case",
 )
 
 environment_config(
@@ -166,6 +212,9 @@ test_suite(
         ":env_plan_analysis",
         ":env_plan_defs_unit",
         ":env_tree_analysis",
+        ":tool_dup_alias_test",
+        ":tool_dup_bin_test",
+        ":tool_dup_case_test",
     ],
 )
 

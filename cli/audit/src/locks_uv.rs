@@ -49,13 +49,9 @@ pub fn parse_uv_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             Source::Other => (false, true),
         };
         out.push(LockedPackage {
-            name,
-            version,
-            set: UV_SET.to_owned(),
             is_git,
             is_private,
-            location: None,
-            platform: None,
+            ..LockedPackage::new(UV_SET, name, version)
         });
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));

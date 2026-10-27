@@ -75,6 +75,15 @@ impl FindingRecord {
     }
 }
 
+/// The dependency a vulnerability or license finding is about.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PackageRef {
+    pub name: String,
+    pub version: String,
+    pub fixed: Option<Vec<String>>,
+    pub license: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiagnosticEvent {
     pub severity: Severity,
@@ -88,6 +97,27 @@ pub struct DiagnosticEvent {
     pub resolution: Option<Resolution>,
     pub related: Vec<RelatedEvent>,
     pub origins: Vec<Origin>,
+    pub package: Option<PackageRef>,
+}
+
+impl DiagnosticEvent {
+    /// Builds a terminal diagnostic with no rule, location, fix, resolution, related items, origins or package.
+    pub fn new(severity: Severity, tool: impl Into<String>, message: impl Into<String>) -> Self {
+        DiagnosticEvent {
+            severity,
+            tool: tool.into(),
+            message: message.into(),
+            rule: None,
+            path: None,
+            range: None,
+            snapshot: Snapshot::Terminal,
+            fixable: false,
+            resolution: None,
+            related: Vec::new(),
+            origins: Vec::new(),
+            package: None,
+        }
+    }
 }
 
 pub fn diagnostic_event(
@@ -125,6 +155,16 @@ fn check_diagnostic(diagnostic: &DiagnosticEvent, mutating: bool) -> Result<(), 
     for origin in &diagnostic.origins {
         nonempty("origin producer", &origin.producer)?;
         nonempty("origin target", &origin.target)?;
+    }
+    if let Some(package) = &diagnostic.package {
+        nonempty("package name", &package.name)?;
+        nonempty("package version", &package.version)?;
+        for fixed in package.fixed.iter().flatten() {
+            nonempty("package fixed", fixed)?;
+        }
+        if let Some(license) = &package.license {
+            nonempty("package license", license)?;
+        }
     }
     match (diagnostic.snapshot, diagnostic.resolution, mutating) {
         (Snapshot::Terminal, Some(_), _) | (Snapshot::Initial, Some(_), false) => {
@@ -192,6 +232,9 @@ pub fn finding_value(record: &FindingRecord) -> Value {
     if let Some(range) = diagnostic.range {
         map.insert("range".to_owned(), range_value(range, span));
     }
+    if let Some(package) = &diagnostic.package {
+        map.insert("package".to_owned(), package_value(package));
+    }
     map.insert(
         "snapshot".to_owned(),
         Value::String(
@@ -252,6 +295,22 @@ pub fn finding_value(record: &FindingRecord) -> Value {
     Value::Object(map)
 }
 
+fn package_value(package: &PackageRef) -> Value {
+    let mut map = serde_json::Map::new();
+    map.insert("name".to_owned(), Value::String(package.name.clone()));
+    map.insert("version".to_owned(), Value::String(package.version.clone()));
+    if let Some(fixed) = &package.fixed {
+        map.insert(
+            "fixed".to_owned(),
+            Value::Array(fixed.iter().map(|v| Value::String(v.clone())).collect()),
+        );
+    }
+    if let Some(license) = &package.license {
+        map.insert("license".to_owned(), Value::String(license.clone()));
+    }
+    Value::Object(map)
+}
+
 fn related_value(item: &RelatedEvent, span: Option<Span>) -> Value {
     let span = item.range.and(span);
     let mut map = serde_json::Map::new();
@@ -307,6 +366,31 @@ pub struct NoticeEvent {
     pub path: Option<String>,
     pub language: Option<String>,
     pub import: Option<String>,
+}
+
+impl NoticeEvent {
+    /// An `info` notice with no related command, scope, or path.
+    pub fn info(code: &str, message: impl Into<String>) -> Self {
+        Self::at_level("info", code, message.into())
+    }
+
+    /// A `warning` notice with no related command, scope, or path.
+    pub fn warning(code: &str, message: impl Into<String>) -> Self {
+        Self::at_level("warning", code, message.into())
+    }
+
+    fn at_level(level: &str, code: &str, message: String) -> Self {
+        NoticeEvent {
+            level: level.to_owned(),
+            code: code.to_owned(),
+            message,
+            related_command: None,
+            scope: None,
+            path: None,
+            language: None,
+            import: None,
+        }
+    }
 }
 
 pub fn notice_event(notice: &NoticeEvent) -> Result<Value, OutputError> {
@@ -369,17 +453,12 @@ mod tests {
 
     fn finding() -> DiagnosticEvent {
         DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "ruff".to_owned(),
-            message: "Imported but unused".to_owned(),
             rule: Some("F401".to_owned()),
             path: Some("src/app.py".to_owned()),
             range: Some((18, 24)),
             snapshot: Snapshot::Initial,
             fixable: true,
-            resolution: None,
-            related: Vec::new(),
-            origins: Vec::new(),
+            ..DiagnosticEvent::new(Severity::Warning, "ruff", "Imported but unused")
         }
     }
 
@@ -409,46 +488,100 @@ mod tests {
     }
 
     #[test]
+    fn new_builds_a_valid_terminal_diagnostic() {
+        let event = DiagnosticEvent::new(Severity::Error, "vuln", "m");
+        assert_eq!(event.snapshot, Snapshot::Terminal);
+        diagnostic_event(&event, false).expect("non-mutating");
+        diagnostic_event(&event, true).expect("mutating");
+    }
+
+    fn package(fixed: Option<Vec<String>>, license: Option<&str>) -> PackageRef {
+        PackageRef {
+            name: "left-pad".to_owned(),
+            version: "1.0.0".to_owned(),
+            fixed,
+            license: license.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn package_is_absent_unless_set() {
+        let event = diagnostic_event(&finding(), false).expect("no package");
+        assert!(event.get("package").is_none());
+    }
+
+    #[test]
+    fn package_keeps_an_empty_fixed_list() {
+        let event = diagnostic_event(
+            &DiagnosticEvent {
+                package: Some(package(Some(Vec::new()), None)),
+                ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
+            },
+            false,
+        )
+        .expect("vuln package");
+        assert_eq!(
+            event["package"],
+            serde_json::json!({"name": "left-pad", "version": "1.0.0", "fixed": []})
+        );
+        let fixed = diagnostic_value(&DiagnosticEvent {
+            package: Some(package(Some(vec!["1.0.1".to_owned()]), None)),
+            ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
+        });
+        assert_eq!(fixed["package"]["fixed"], serde_json::json!(["1.0.1"]));
+    }
+
+    #[test]
+    fn package_carries_a_license() {
+        let event = diagnostic_event(
+            &DiagnosticEvent {
+                package: Some(package(None, Some("MIT"))),
+                ..DiagnosticEvent::new(Severity::Error, "license", "m")
+            },
+            false,
+        )
+        .expect("license package");
+        assert_eq!(
+            event["package"],
+            serde_json::json!({"name": "left-pad", "version": "1.0.0", "license": "MIT"})
+        );
+    }
+
+    #[test]
+    fn package_rejects_empty_identity() {
+        for (name, version, field) in [
+            ("", "1.0.0", "package name"),
+            ("left-pad", "", "package version"),
+        ] {
+            let event = DiagnosticEvent {
+                package: Some(PackageRef {
+                    name: name.to_owned(),
+                    version: version.to_owned(),
+                    ..package(None, None)
+                }),
+                ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
+            };
+            assert_eq!(
+                diagnostic_event(&event, false).expect_err("empty identity"),
+                OutputError::EmptyField { field }
+            );
+        }
+    }
+
+    #[test]
     fn diagnostics_sort_deterministically() {
         let mut events = vec![
+            DiagnosticEvent::new(Severity::Error, "b", "m"),
             DiagnosticEvent {
-                severity: Severity::Error,
-                tool: "b".to_owned(),
-                message: "m".to_owned(),
-                rule: None,
-                path: None,
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                resolution: None,
-                related: Vec::new(),
-                origins: Vec::new(),
-            },
-            DiagnosticEvent {
-                severity: Severity::Info,
-                tool: "a".to_owned(),
-                message: "m".to_owned(),
-                rule: None,
                 path: Some("z.py".to_owned()),
-                range: None,
                 snapshot: Snapshot::Initial,
-                fixable: false,
-                resolution: None,
-                related: Vec::new(),
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(Severity::Info, "a", "m")
             },
             DiagnosticEvent {
-                severity: Severity::Warning,
-                tool: "a".to_owned(),
-                message: "m".to_owned(),
-                rule: None,
                 path: Some("a.py".to_owned()),
                 range: Some((5, 9)),
                 snapshot: Snapshot::Initial,
-                fixable: false,
-                resolution: None,
-                related: Vec::new(),
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(Severity::Warning, "a", "m")
             },
         ];
         sort_diagnostics(&mut events);
@@ -554,6 +687,30 @@ mod tests {
         assert_eq!(event["related_command"], Value::from("lint"));
         assert_eq!(event["scope"][0], Value::from("//src/..."));
         assert!(event.get("path").is_none());
+    }
+
+    #[test]
+    fn notice_constructors_match_the_literal() {
+        for (level, notice) in [
+            ("info", NoticeEvent::info("other", "m")),
+            ("warning", NoticeEvent::warning("other", "m")),
+        ] {
+            let literal = NoticeEvent {
+                level: level.to_owned(),
+                code: "other".to_owned(),
+                message: "m".to_owned(),
+                related_command: None,
+                scope: None,
+                path: None,
+                language: None,
+                import: None,
+            };
+            assert_eq!(notice, literal);
+            assert_eq!(
+                notice_event(&notice).expect("constructed notice"),
+                notice_value(&literal)
+            );
+        }
     }
 
     #[test]

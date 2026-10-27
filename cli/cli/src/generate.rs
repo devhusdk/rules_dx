@@ -75,6 +75,7 @@ impl ProjectedManifest {
     pub fn finished_counts(&self) -> FinishedCounts {
         FinishedCounts {
             results_complete: Some(self.results_complete),
+            run_id: None,
             diagnostics: None,
             changes: Some([self.creates(), self.modifies()]),
             effects: if self.is_check {
@@ -548,6 +549,7 @@ mod tests {
             projected.finished_counts(),
             FinishedCounts {
                 results_complete: Some(true),
+                run_id: None,
                 diagnostics: None,
                 changes: Some([0, 0]),
                 effects: None,

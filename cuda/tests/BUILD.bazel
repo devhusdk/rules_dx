@@ -1,11 +1,12 @@
-load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_gpu_test", "cuda_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_component_library", "cuda_gpu_env", "cuda_gpu_test", "cuda_library")
 load("//cuda/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
 load("//cuda/toolchain:repos.bzl", "UNACCEPTED")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
-load(":defs.bzl", "hermetic_toolchain_test", "with_clang_compiler")
+load(":defs.bzl", "component_sources_test", "hermetic_toolchain_test", "with_clang_compiler")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -64,6 +65,54 @@ failure_test(
     expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in archs (8.9)",
     target = ":gpu_cc_below_archs",
     target_compatible_with = CUDA_TARGET,
+)
+
+rust_test(
+    name = "cublas_device_code_test",
+    size = "small",
+    srcs = ["cublas_device_code_test.rs"],
+    data = [
+        "//cuda/tests/fixtures/cublas",
+        "//cuda/tests/fixtures/cublas:cublas_app",
+    ],
+    env = {
+        "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/cublas)",
+        "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/cublas:cublas_app)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+cuda_gpu_test(
+    name = "cublas_gpu_test",
+    srcs = ["cublas_gpu_test.cu"],
+    archs = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+    min_compute_capability = "8.9",
+    min_driver = "13.0",
+    tags = ["manual"],
+    deps = ["//cuda/tests/fixtures/cublas"],
+)
+
+dx_hello_output_test(
+    name = "cublas_output_test",
+    binary = "//cuda/tests/fixtures/cublas:cublas_app",
+    expected = "cublas saxpy n=1024 sum=1048576",
+    target_compatible_with = CUDA_TARGET,
+)
+
+component_sources_test(
+    name = "cublas_component_sources_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/components:cublas",
+)
+
+hermetic_toolchain_test(
+    name = "cublas_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/tests/fixtures/cublas",
 )
 
 dx_hello_output_test(
@@ -145,6 +194,43 @@ failure_test(
     name = "license_unaccepted_failure_test",
     expected_failure_substring = UNACCEPTED,
     target = ":license_unaccepted",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cc_library(
+    name = "local_component",
+    srcs = ["local_component.cc"],
+    tags = ["manual"],
+)
+
+cuda_component_library(
+    name = "component_license_unaccepted",
+    component = ":local_component",
+    component_name = "cublas",
+    license = ":unaccepted_license",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+failure_test(
+    name = "component_license_unaccepted_failure_test",
+    expected_failure_substring = UNACCEPTED,
+    target = ":component_license_unaccepted",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_component_library(
+    name = "component_not_pinned",
+    component = ":local_component",
+    component_name = "cublas",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+failure_test(
+    name = "component_not_pinned_failure_test",
+    expected_failure_substring = "dx_cuda: component 'cublas' is not the pinned redistributable",
+    target = ":component_not_pinned",
     target_compatible_with = CUDA_TARGET,
 )
 

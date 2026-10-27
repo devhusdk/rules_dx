@@ -255,12 +255,52 @@ func TestGenerateBuildIgnoredTestSkipped(t *testing.T) {
 	}
 }
 
+func TestGenerateCustomTaggedTestKept(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/lib.go", "package demo\n")
+	writeFixture(t, root, "pkg/demo/integration_test.go", "//go:build integration\n\npackage demo\n\nimport \"testing\"\n\nfunc TestIntegration(t *testing.T) {}\n")
+	result := generateAt(t, root, "pkg/demo", []string{"lib.go", "integration_test.go"})
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want 2", len(result.Gen))
+	}
+	for _, r := range result.Gen {
+		want := "lib.go"
+		if r.Kind() == TestKind {
+			want = "integration_test.go"
+		}
+		if got := strings.Join(r.AttrStrings("srcs"), ","); got != want {
+			t.Errorf("%s srcs = %s, want %s", r.Kind(), got, want)
+		}
+	}
+}
+
 func TestGenerateOnlyExcludedSourcesSweep(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/gen.go", "//go:build ignore\n\npackage main\n")
-	result := generateAt(t, root, "pkg/demo", []string{"gen.go"})
+	existing, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte("load(\"@rules_dx//go/rules:defs.bzl\", \"go_library\", \"go_test\")\n\ngo_library(name = \"demo\", srcs = [\"gen.go\"])\n\ngo_test(name = \"demo_test\", srcs = [\"old_test.go\"], embed = [\":demo\"])\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := &goLang{}
+	result := l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"gen.go"},
+		File:         existing,
+	})
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v, want none", l.errors)
+	}
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules, want 0", len(result.Gen))
+	}
+	names := map[string]bool{}
+	for _, r := range result.Empty {
+		names[r.Kind()+":"+r.Name()] = true
+	}
+	if len(result.Empty) != 2 || !names[LibraryKind+":demo"] || !names[TestKind+":demo_test"] {
+		t.Fatalf("empty = %+v, want go_library demo and go_test demo_test swept", result.Empty)
 	}
 }
 

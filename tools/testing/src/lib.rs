@@ -11,6 +11,7 @@
 use std::path::{Path, PathBuf};
 
 pub mod fatbin;
+pub mod latency;
 pub mod nested;
 
 pub use dx_binfmt::machine as image_machine;
@@ -215,6 +216,15 @@ pub fn resolve_runfiles(rel: &str) -> PathBuf {
     panic!("runfile {rel}: {error}");
 }
 
+/// Names the rules_dx checkout behind the `//:MODULE.bazel` runfile of the calling test.
+pub fn rules_dx_source() -> PathBuf {
+    let module = resolve_runfiles("MODULE.bazel");
+    let real = std::fs::canonicalize(&module).unwrap_or_else(|error| panic!("{module:?}: {error}"));
+    real.parent()
+        .unwrap_or_else(|| panic!("no checkout above {real:?}"))
+        .to_path_buf()
+}
+
 /// Names the Bazel-built process probe from the runfiles of the calling test.
 pub fn process_probe() -> PathBuf {
     let rel = std::env::var("DX_PROCESS_PROBE")
@@ -275,35 +285,30 @@ pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
         .to_owned()
 }
 
-pub fn workflow_exports(text: &str, file: &str) -> Vec<String> {
-    let mut names: Vec<String> = Vec::new();
-    let mut in_exports = false;
-    for line in text.lines() {
-        if line.starts_with("exports_files(") {
-            in_exports = true;
-            continue;
-        }
-        if !in_exports {
-            continue;
-        }
-        if !line.starts_with(' ') {
-            break;
-        }
-        let trimmed = line.trim();
-        if !trimmed.starts_with('"') {
-            continue;
-        }
-        let name = trimmed
-            .trim_start_matches('"')
-            .split('"')
-            .next()
-            .unwrap_or_default();
-        if name.ends_with(".yml") {
-            names.push(name.to_owned());
-        }
+/// Returns the workflow runfiles paths that DX_WORKFLOWS lists.
+pub fn workflow_files() -> Vec<String> {
+    let list = std::env::var("DX_WORKFLOWS").unwrap_or_else(|_| {
+        panic!(
+            "DX_WORKFLOWS is unset; add `env = {{\"DX_WORKFLOWS\": \"$(rootpaths //.github:workflows)\"}}` and `//.github:workflows` to this test's data"
+        )
+    });
+    workflow_paths(&list, "DX_WORKFLOWS")
+}
+
+/// Parses a whitespace-separated workflow list into sorted, unique paths.
+pub fn workflow_paths(list: &str, source: &str) -> Vec<String> {
+    let mut paths: Vec<String> = list.split_whitespace().map(str::to_owned).collect();
+    paths.sort();
+    paths.dedup();
+    assert!(!paths.is_empty(), "{source} names no workflow");
+    for path in &paths {
+        assert!(
+            path.starts_with(".github/workflows/")
+                && (path.ends_with(".yml") || path.ends_with(".yaml")),
+            "{source} entry {path} is not a .github/workflows/*.yml or *.yaml file"
+        );
     }
-    assert!(!names.is_empty(), "{file} exports no workflow");
-    names
+    paths
 }
 
 pub fn expect_contains(path: &Path, patterns: &[&str]) -> Result<(), String> {
@@ -446,11 +451,14 @@ pub fn snapshot_diff(
             .and_then(|name| name.to_str())
             .unwrap_or("expected");
         if let Some(staged) = stage_update(actual, label) {
-            let mut hint = format!("staged refreshed golden at {}", staged.display());
+            let mut hint = format!(
+                "snapshot UPDATE_EXPECT: staged refreshed golden at {}",
+                staged.display()
+            );
             if let Some(rel) = workspace_rel {
                 hint.push_str(&format!("; copy it to {rel} in the checkout, then re-run"));
             }
-            return Ok(());
+            return Err(hint);
         }
         return Err("UPDATE_EXPECT staged refresh failed".to_owned());
     }
@@ -494,6 +502,13 @@ mod tests {
     }
 
     #[test]
+    fn rules_dx_source_holds_the_module_and_its_bazel_version() {
+        let source = rules_dx_source();
+        assert!(source.join("MODULE.bazel").is_file(), "{source:?}");
+        assert!(source.join(".bazelversion").is_file(), "{source:?}");
+    }
+
+    #[test]
     fn runfiles_resolution_prefers_an_existing_file() {
         let dir = scratch("dx-testing-runfiles-");
         let direct = write(dir.path(), "pkg/tool", "#!/bin/sh\n");
@@ -509,7 +524,12 @@ mod tests {
         command
             .args([name, "--exact", "--test-threads=1"])
             .env("DX_TESTING_CHILD", dir);
-        for key in ["RUNFILES_MANIFEST_FILE", "RUNFILES_DIR", "TEST_SRCDIR"] {
+        for key in [
+            "RUNFILES_MANIFEST_FILE",
+            "RUNFILES_DIR",
+            "TEST_SRCDIR",
+            "BUILD_WORKSPACE_DIRECTORY",
+        ] {
             command.env_remove(key);
         }
         for (key, value) in envs {
@@ -577,6 +597,39 @@ mod tests {
             "tests::a_manifest_resolves_escaped_keys",
             dir.path(),
             &[("RUNFILES_MANIFEST_FILE", &manifest)],
+        );
+    }
+
+    #[test]
+    fn an_update_without_a_checkout_fails_and_names_the_staged_file() {
+        if let Some(dir) = child_dir() {
+            let golden = dir.join("runfiles/_main/pkg/golden.txt");
+            let actual = dir.join("actual.txt");
+            let err = snapshot_diff(&golden, &actual, Some("pkg/golden.txt"))
+                .expect_err("a staged-only refresh must fail");
+            let staged = dir.join("out/golden.txt.expected.update");
+            assert!(err.contains(&staged.display().to_string()), "{err}");
+            assert!(err.contains("pkg/golden.txt"), "{err}");
+            assert_eq!(read(&staged), "new\n");
+            assert_eq!(read(&golden), "old\n");
+            return;
+        }
+        let dir = scratch("dx-testing-update-");
+        let golden = write(dir.path(), "runfiles/_main/pkg/golden.txt", "old\n");
+        write(dir.path(), "actual.txt", "new\n");
+        let mut perms = std::fs::metadata(&golden).expect("meta").permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&golden, perms).expect("read-only golden");
+        let out = dir.path().join("out");
+        let nogit = dir.path().join("nogit");
+        in_child(
+            "tests::an_update_without_a_checkout_fails_and_names_the_staged_file",
+            dir.path(),
+            &[
+                ("UPDATE_EXPECT", Path::new("1")),
+                ("TEST_UNDECLARED_OUTPUTS_DIR", &out),
+                ("GIT_DIR", &nogit),
+            ],
         );
     }
 
@@ -800,20 +853,33 @@ mod tests {
     }
 
     #[test]
-    fn workflow_exports_lists_only_the_exported_workflows() {
-        let build = "exports_files([\n    \".bazelignore\",\n    \"workflows/bump.yml\",\n    \"workflows/ci.yml\",\n])\n\nfilegroup(\n    name = \"later\",\n    srcs = [\"workflows/ghcr.yml\"],\n)\n";
+    fn workflow_paths_sorts_and_dedups_the_list() {
         assert_eq!(
-            workflow_exports(build, ".github/BUILD.bazel"),
-            ["workflows/bump.yml", "workflows/ci.yml"]
+            workflow_paths(
+                ".github/workflows/ci.yml\n.github/workflows/bump.yml .github/workflows/ci.yml",
+                "DX_WORKFLOWS"
+            ),
+            [".github/workflows/bump.yml", ".github/workflows/ci.yml"]
         );
     }
 
     #[test]
-    #[should_panic(expected = "exports no workflow")]
-    fn workflow_exports_rejects_a_build_that_exports_none() {
-        workflow_exports(
-            "exports_files([\n    \".bazelignore\",\n])\n",
-            ".github/BUILD.bazel",
+    #[should_panic(expected = "DX_WORKFLOWS names no workflow")]
+    fn workflow_paths_rejects_an_empty_list() {
+        workflow_paths("  ", "DX_WORKFLOWS");
+    }
+
+    #[test]
+    #[should_panic(expected = "is not a .github/workflows")]
+    fn workflow_paths_rejects_a_path_outside_the_workflows_dir() {
+        workflow_paths(".github/actionlint.yaml", "DX_WORKFLOWS");
+    }
+
+    #[test]
+    fn workflow_paths_accepts_yaml() {
+        assert_eq!(
+            workflow_paths(".github/workflows/x.yaml", "DX_WORKFLOWS"),
+            [".github/workflows/x.yaml"]
         );
     }
 

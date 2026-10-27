@@ -693,6 +693,8 @@ mod tests {
             pair("PYTHONHOME", "/evil-home-py"),
             pair("NODE_OPTIONS", "--evil"),
             pair("NODE_PATH", "/evil-node"),
+            pair("XDG_CONFIG_HOME", "/evil-xdg"),
+            pair("HADOLINT_IGNORE", "DL3008"),
             pair("SystemRoot", "C:\\Windows"),
         ]
     }
@@ -778,6 +780,8 @@ mod tests {
                 "PYTHONHOME",
                 "NODE_OPTIONS",
                 "NODE_PATH",
+                "XDG_CONFIG_HOME",
+                "HADOLINT_IGNORE",
             ] {
                 assert!(
                     env.iter().all(|(known, _)| fold_env_key(known, windows)
@@ -904,12 +908,10 @@ mod tests {
         scratch.close().expect("close");
     }
 
-    fn pinned_tool(var: &str) -> PathBuf {
-        let path = std::env::var(var).unwrap_or_else(|_| panic!("{var} names the tool"));
-        let rel = match path.strip_prefix("external/") {
-            Some(external) => format!("../{external}"),
-            None => path,
-        };
+    fn toolchain_tool(var: &str) -> PathBuf {
+        let rel = std::env::var(var).unwrap_or_else(|_| {
+            panic!("`{var}` must name the toolchain binary (set by quality_adapter_test)")
+        });
         dx_testing::resolve_runfiles(&rel)
     }
 
@@ -919,7 +921,7 @@ mod tests {
         let root = scratch.root().to_owned();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let env = hermetic_env(&root, &[], &ambient);
-        let node = pinned_tool("DX_TEST_NODE");
+        let node = toolchain_tool("DX_TEST_NODE");
         let version = vec![node.clone().into_os_string(), OsString::from("--version")];
         let started = spawn(&version, &root, &env).expect("node starts");
         assert_eq!(started.code, Some(0));
@@ -947,7 +949,7 @@ mod tests {
         let root = scratch.root().to_owned();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let env = hermetic_env(&root, &[], &ambient);
-        let python = pinned_tool("DX_TEST_PYTHON");
+        let python = toolchain_tool("DX_TEST_PYTHON");
         let version = vec![python.clone().into_os_string(), OsString::from("--version")];
         let started = spawn(&version, &root, &env).expect("python starts");
         assert_eq!(started.code, Some(0));

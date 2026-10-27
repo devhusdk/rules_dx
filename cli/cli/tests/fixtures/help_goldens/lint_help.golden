@@ -1,5 +1,3 @@
-dx lint - run lint analysis over resolved scopes (check by default; --apply writes fixes)
-
 run lint analysis over resolved scopes (check by default; --apply writes fixes)
 
 Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]
@@ -37,13 +35,13 @@ Options:
           [possible values: text, diff, json]
 
       --include-edits
-          Include full edits in JSON change records
+          Include full edits in JSON change records (needs --output json)
 
       --check
           Check without changing files
 
       --apply
-          Authorize the managed mutation or effect
+          Write fixes to source files
 
       --fail-on <FAIL_ON>
           Fail on this severity
@@ -59,8 +57,6 @@ Options:
 
   -h, --help
           Print help
-
-Per-command flags: --check/--fail-on/--report (quality only; --here for cwd scope; --output text|diff|json). --apply authorizes writing fixes. --include-edits adds full edits to JSON change records (--output json only).
 
 Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.
 Exit codes: 0 success; 2 usage/scope/owner errors; 1 findings, operational failures, and Bazel failures (Bazel's code is not kept).

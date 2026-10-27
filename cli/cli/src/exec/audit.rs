@@ -5,7 +5,7 @@ use crate::resolve::QueryRunner;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
     command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
-    DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, Severity, Snapshot,
+    DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
     Threshold,
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -501,6 +501,10 @@ fn parse_locked_for_configured(
                 Some("yarn.lock") => dx_audit::locks::parse_yarn_lock(text),
                 _ => dx_audit::locks::parse_pnpm_lock(text),
             },
+            dx_adopt::dependency_sets::Ecosystem::Ruby => dx_audit::locks::parse_gemfile_lock(text),
+            dx_adopt::dependency_sets::Ecosystem::PowerShell => {
+                dx_audit::locks::parse_psgallery_lock(text)
+            }
             dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
         }
         .map_err(|detail| AuditError::LockParse {
@@ -574,7 +578,7 @@ pub(super) fn bazel_inputs_for_configured(
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
     let read_include = |label: &str| -> Result<String, String> {
-        let rel = dx_audit::locks::include_rel(module_dir, label)?;
+        let rel = dx_module_bazel::include_rel(module_dir, label)?;
         read_workspace_text(workspace, &rel)
             .map_err(|error| format!("cannot read included {label}: {error}"))
     };
@@ -595,29 +599,45 @@ fn bazel_coverage_diagnostic(
         inputs.iter().filter(|input| input.source == source).count()
     };
     use dx_audit::locks::BazelSource;
+    let message = format!(
+        "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule, {} module extension); no advisory source maps Bazel module or archive identities",
+        set.name,
+        inputs.len(),
+        count(BazelSource::Registry),
+        count(BazelSource::ArchiveOverride),
+        count(BazelSource::HttpArchive),
+        count(BazelSource::GitOverride),
+        count(BazelSource::LocalOverride),
+        count(BazelSource::RepoRule),
+        count(BazelSource::Extension),
+    );
     DiagnosticEvent {
-        severity: Severity::Info,
-        tool: "vuln".to_owned(),
-        message: format!(
-            "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule); no advisory source maps Bazel module or archive identities",
-            set.name,
-            inputs.len(),
-            count(BazelSource::Registry),
-            count(BazelSource::ArchiveOverride),
-            count(BazelSource::HttpArchive),
-            count(BazelSource::GitOverride),
-            count(BazelSource::LocalOverride),
-            count(BazelSource::RepoRule),
-        ),
-        rule: Some(format!("{}/no-advisory-coverage", dx_audit::vuln::VULN_RULE_PREFIX)),
+        rule: Some(format!(
+            "{}/no-advisory-coverage",
+            dx_audit::vuln::VULN_RULE_PREFIX
+        )),
         path: Some(lock_rel.to_owned()),
-        range: None,
-        snapshot: Snapshot::Terminal,
-        fixable: false,
-        related: Vec::new(),
-        resolution: None,
-        origins: Vec::new(),
+        ..DiagnosticEvent::new(Severity::Info, "vuln", message)
     }
+}
+
+/// Names the dependency a finding is about, or nothing when its identity would not validate.
+fn package_ref(
+    name: &str,
+    version: &str,
+    fixed: Option<Vec<String>>,
+    license: Option<&str>,
+) -> Option<PackageRef> {
+    let valid = !name.is_empty()
+        && !version.is_empty()
+        && fixed.iter().flatten().all(|item| !item.is_empty())
+        && license.is_none_or(|license| !license.is_empty());
+    valid.then(|| PackageRef {
+        name: name.to_owned(),
+        version: version.to_owned(),
+        fixed,
+        license: license.map(str::to_owned),
+    })
 }
 
 fn default_license_policy() -> dx_audit::license_policy::LicensePolicy {
@@ -823,9 +843,52 @@ fn gitleaks_path(
     })
 }
 
+/// Writes a gitleaks config that skips the paths git ignores, because
+/// `gitleaks dir` reads every file under the workspace. Returns `None` when git
+/// lists nothing (or is unavailable) or the user config is invalid, so the scan
+/// keeps its plain config and gitleaks reports the invalid file itself.
+fn scoped_secrets_config(
+    workspace: &Path,
+    query_runner: &dyn QueryRunner,
+    temp_dir: &Path,
+    pid: u32,
+    nonce: u64,
+) -> Result<Option<String>, String> {
+    use dx_audit::secrets::{ignored_path_patterns, parse_ignored, scoped_config, IGNORED_QUERY};
+    let mut argv = vec!["git".to_owned()];
+    argv.extend(IGNORED_QUERY.iter().map(ToString::to_string));
+    let ignored = match query_runner.run_query(&argv, workspace) {
+        Ok(result) if result.code == Some(0) => parse_ignored(&result.stdout),
+        _ => return Ok(None),
+    };
+    let patterns = ignored_path_patterns(&ignored);
+    if patterns.is_empty() {
+        return Ok(None);
+    }
+    let user_path = workspace.join(CONFIG_FILE_NAME);
+    let user = if user_path.is_file() {
+        match std::fs::read_to_string(&user_path) {
+            Ok(text) => Some(text),
+            Err(_) => return Ok(None),
+        }
+    } else {
+        None
+    };
+    let Ok(text) = scoped_config(user.as_deref(), &patterns) else {
+        return Ok(None);
+    };
+    let path = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.toml"));
+    std::fs::write(&path, text)
+        .map_err(|error| format!("failed to write secrets scan config: {error}"))?;
+    let path = std::path::absolute(&path).unwrap_or(path);
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+#[allow(clippy::too_many_arguments)]
 fn run_secrets(
     workspace: &Path,
     runner: &dyn dx_process::Runner,
+    query_runner: &dyn QueryRunner,
     bazel: &dyn dx_tool_resolve::Bazel,
     temp_dir: &Path,
     pid: u32,
@@ -844,27 +907,26 @@ fn run_secrets(
         None
     };
     let trust_warning: Vec<DiagnosticEvent> = match &config {
-        Some(path) => vec![DiagnosticEvent {
-            severity: Severity::Warning,
-            tool: "gitleaks".to_owned(),
-            message: format!(
+        Some(path) => {
+            let message = format!(
                 "using committed config '{path}' without a hash pin; review it before trusting this scan"
-            ),
-            rule: None,
-            path: Some(path.to_string()),
-            range: None,
-            snapshot: Snapshot::Terminal,
-            fixable: false,
-            related: Vec::new(),
-            resolution: None,
-            origins: Vec::new(),
-        }],
+            );
+            vec![DiagnosticEvent {
+                path: Some(path.to_string()),
+                ..DiagnosticEvent::new(Severity::Warning, "gitleaks", message)
+            }]
+        }
         None => Vec::new(),
     };
     let tool_path = match gitleaks_path(runner, bazel) {
         Ok(path) => path.to_string_lossy().into_owned(),
         Err(error) => return (Vec::new(), Some(error), Vec::new()),
     };
+    let scoped = match scoped_secrets_config(workspace, query_runner, temp_dir, pid, nonce) {
+        Ok(scoped) => scoped,
+        Err(error) => return (Vec::new(), Some(error), Vec::new()),
+    };
+    let config = scoped.as_deref().or(config);
     let temp_arg = temp_dir.to_string_lossy().into_owned();
     let plan = match dx_audit::backend::plan_secrets(
         &tool_path,
@@ -917,17 +979,13 @@ fn run_secrets(
                         let mut diagnostics: Vec<DiagnosticEvent> = findings
                             .iter()
                             .map(|finding| DiagnosticEvent {
-                                severity: Severity::Error,
-                                tool: "gitleaks".to_owned(),
-                                message: format!("{}: {}", finding.rule, finding.message),
                                 rule: Some(finding.rule.clone()),
                                 path: finding.path.clone(),
-                                range: None,
-                                snapshot: Snapshot::Terminal,
-                                fixable: false,
-                                related: Vec::new(),
-                                resolution: None,
-                                origins: Vec::new(),
+                                ..DiagnosticEvent::new(
+                                    Severity::Error,
+                                    "gitleaks",
+                                    format!("{}: {}", finding.rule, finding.message),
+                                )
                             })
                             .collect();
                         diagnostics.extend(trust_warning.clone());
@@ -962,17 +1020,13 @@ fn run_secrets(
                         let mut diagnostics: Vec<DiagnosticEvent> = findings
                             .iter()
                             .map(|finding| DiagnosticEvent {
-                                severity: Severity::Error,
-                                tool: "gitleaks".to_owned(),
-                                message: format!("{}: {}", finding.rule, finding.message),
                                 rule: Some(finding.rule.clone()),
                                 path: finding.path.clone(),
-                                range: None,
-                                snapshot: Snapshot::Terminal,
-                                fixable: false,
-                                related: Vec::new(),
-                                resolution: None,
-                                origins: Vec::new(),
+                                ..DiagnosticEvent::new(
+                                    Severity::Error,
+                                    "gitleaks",
+                                    format!("{}: {}", finding.rule, finding.message),
+                                )
                             })
                             .collect();
                         diagnostics.extend(trust_warning.clone());
@@ -1075,10 +1129,7 @@ fn collect_target(
     })?;
     let exception_set = match target {
         AuditTarget::Builtin(_) => label.clone(),
-        AuditTarget::Configured(set) => match set.ecosystem {
-            dx_adopt::dependency_sets::Ecosystem::Npm => "npm".to_owned(),
-            _ => "uv".to_owned(),
-        },
+        AuditTarget::Configured(set) => set.ecosystem.name().to_owned(),
     };
     Ok(Some(Assessable {
         label,
@@ -1108,8 +1159,16 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         workspace,
         startup,
     };
-    let (secret_findings, secrets_incomplete, mut diagnostics) =
-        run_secrets(workspace, runner, &bazel, temp_dir, pid, nonce, offline);
+    let (secret_findings, secrets_incomplete, mut diagnostics) = run_secrets(
+        workspace,
+        runner,
+        query_runner,
+        &bazel,
+        temp_dir,
+        pid,
+        nonce,
+        offline,
+    );
     let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;
@@ -1118,17 +1177,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         Ok(policy) => policy,
         Err(error) => {
             diagnostics.push(DiagnosticEvent {
-                severity: Severity::Error,
-                tool: "vuln".to_owned(),
-                message: error.to_string(),
-                rule: None,
                 path: Some("security.toml".to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                ..DiagnosticEvent::new(Severity::Error, "vuln", error.to_string())
             });
             return SecurityResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
@@ -1229,24 +1279,26 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                 format!("fixed in {}", finding.fixed.join(", "))
             };
             diagnostics.push(DiagnosticEvent {
-                severity: severity_for_level(finding.level),
-                tool: "vuln".to_owned(),
-                message: format!(
-                    "{}@{} vulnerable to {} (severity {}; {fixed})",
-                    finding.package, finding.version, finding.advisory, finding.severity
-                ),
                 rule: Some(format!(
                     "{}/{}",
                     dx_audit::vuln::VULN_RULE_PREFIX,
                     finding.advisory
                 )),
                 path: Some(lock_path.to_owned()),
-                range: None,
-                snapshot: Snapshot::Terminal,
-                fixable: false,
-                related: Vec::new(),
-                resolution: None,
-                origins: Vec::new(),
+                package: package_ref(
+                    &finding.package,
+                    &finding.version,
+                    Some(finding.fixed.clone()),
+                    None,
+                ),
+                ..DiagnosticEvent::new(
+                    severity_for_level(finding.level),
+                    "vuln",
+                    format!(
+                        "{}@{} vulnerable to {} (severity {}; {fixed})",
+                        finding.package, finding.version, finding.advisory, finding.severity
+                    ),
+                )
             });
         }
         for item in &unassessed {
@@ -1396,10 +1448,8 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let sets = targets;
     if invocation.output == OutputMode::Json {
-        if let Ok(event) = command_started(invocation.command.name(), "default") {
-            if let Err(exit) = emit_event(out, &event) {
-                return exit;
-            }
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
         }
     } else if verbose {
         if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
@@ -1482,16 +1532,17 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 Err(error) => {
                     exit = 1;
                     sarif_complete = false;
-                    if let Ok(event) = error_event(
-                        CODE_INVALID_RESULT,
-                        &format!("invalid {} finding: {error}", diagnostic.tool),
-                        None,
-                        None,
-                        Some("execute"),
+                    if let Err(exit) = emit_built(
+                        out,
+                        error_event(
+                            CODE_INVALID_RESULT,
+                            &format!("invalid {} finding: {error}", diagnostic.tool),
+                            None,
+                            None,
+                            Some("execute"),
+                        ),
                     ) {
-                        if let Err(exit) = emit_event(out, &event) {
-                            return exit;
-                        }
+                        return exit;
                     }
                 }
             }
@@ -1526,33 +1577,36 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 Ok(document) => document,
                 Err(error) => {
                     reports_ok = false;
-                    report_failed(
+                    if let Err(exit) = report_failed(
                         out,
                         err,
                         invocation.output,
                         &format!("failed to render SARIF report: {error}"),
-                    );
+                    ) {
+                        return exit;
+                    }
                     continue;
                 }
             };
             let written = write_report_document(out, workspace, &planned.destination, &document);
             if let Err(error) = written {
                 reports_ok = false;
-                report_failed(
+                if let Err(exit) = report_failed(
                     out,
                     err,
                     invocation.output,
                     &format!("failed to write sarif report to {error}"),
-                );
+                ) {
+                    return exit;
+                }
                 continue;
             }
             if invocation.output == OutputMode::Json {
-                if let Ok(event) =
-                    report_event("sarif", planned.destination.display(), sarif_complete)
-                {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(
+                    out,
+                    report_event("sarif", planned.destination.display(), sarif_complete),
+                ) {
+                    return exit;
                 }
             } else if verbose && planned.destination != Destination::Stdout {
                 if let Err(exit) = check_stdout_write(writeln!(
@@ -1572,21 +1626,22 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
             let written = write_report_document(out, workspace, &planned.destination, &document);
             if let Err(error) = written {
                 reports_ok = false;
-                report_failed(
+                if let Err(exit) = report_failed(
                     out,
                     err,
                     invocation.output,
                     &format!("failed to write spdx report to {error}"),
-                );
+                ) {
+                    return exit;
+                }
                 continue;
             }
             if invocation.output == OutputMode::Json {
-                if let Ok(event) =
-                    report_event("spdx", planned.destination.display(), !any_incomplete)
-                {
-                    if let Err(exit) = emit_event(out, &event) {
-                        return exit;
-                    }
+                if let Err(exit) = emit_built(
+                    out,
+                    report_event("spdx", planned.destination.display(), !any_incomplete),
+                ) {
+                    return exit;
                 }
             } else if verbose && planned.destination != Destination::Stdout {
                 if let Err(exit) = check_stdout_write(writeln!(
@@ -1630,19 +1685,15 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 .unwrap_or_else(|| "audit complete".to_owned());
             match outcome.status {
                 dx_audit::outcome::FamilyStatus::Clean => {
-                    if let Ok(event) = notice_event(&NoticeEvent {
-                        level: "info".to_owned(),
-                        code: format!("audit_{family_name}_clean"),
-                        message,
-                        related_command: Some(invocation.command.name().to_owned()),
-                        scope: Some(effective.clone()),
-                        path: None,
-                        language: None,
-                        import: None,
-                    }) {
-                        if let Err(exit) = emit_event(out, &event) {
-                            return exit;
-                        }
+                    if let Err(exit) = emit_built(
+                        out,
+                        notice_event(&NoticeEvent {
+                            related_command: Some(invocation.command.name().to_owned()),
+                            scope: Some(effective.clone()),
+                            ..NoticeEvent::info(&format!("audit_{family_name}_clean"), message)
+                        }),
+                    ) {
+                        return exit;
                     }
                 }
                 dx_audit::outcome::FamilyStatus::Findings
@@ -1651,16 +1702,17 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                         .get(family_name)
                         .copied()
                         .unwrap_or(CODE_AUDIT_FAILED);
-                    if let Ok(event) = error_event(
-                        code,
-                        &format!("audit {family_name}: {message}"),
-                        None,
-                        None,
-                        Some("execute"),
+                    if let Err(exit) = emit_built(
+                        out,
+                        error_event(
+                            code,
+                            &format!("audit {family_name}: {message}"),
+                            None,
+                            None,
+                            Some("execute"),
+                        ),
                     ) {
-                        if let Err(exit) = emit_event(out, &event) {
-                            return exit;
-                        }
+                        return exit;
                     }
                     let _ = writeln!(err, "dx: {code}: audit {family_name}: {message}");
                 }

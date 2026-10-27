@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_empty_project_rejection", "typescript_inner_kwargs", "typescript_js_test_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
 
 def typescript_wrapper_contract_tests(name):
     """Instantiates TypeScript wrapper contract tests."""
@@ -94,6 +94,31 @@ def typescript_wrapper_contract_tests(name):
                 "upstream sources keep real order without declarations",
                 typescript_upstream_srcs(["b.ts", "a.ts"], None),
                 ["b.ts", "a.ts"],
+            ),
+            expect_equal(
+                "upstream sources accept absent srcs with declarations",
+                typescript_upstream_srcs(None, ["a.d.ts"]),
+                ["a.d.ts"],
+            ),
+            expect_equal(
+                "project with no srcs and no declarations is rejected",
+                typescript_empty_project_rejection(None, None) != None,
+                True,
+            ),
+            expect_equal(
+                "project with empty lists is rejected",
+                typescript_empty_project_rejection([], []) != None,
+                True,
+            ),
+            expect_equal(
+                "declaration-only project is accepted",
+                typescript_empty_project_rejection(None, ["a.d.ts"]),
+                None,
+            ),
+            expect_equal(
+                "source-only project is accepted",
+                typescript_empty_project_rejection(["a.ts"], None),
+                None,
             ),
             expect_equal(
                 "upstream sources keep declaration order",
@@ -256,5 +281,15 @@ def typescript_wrapper_contract_tests(name):
                 typescript_scoped_tsconfig_rejection({"declaration": True}),
                 None,
             ),
+            expect_equal("transpiler none defaults to tsc", typescript_transpiler(None), "tsc"),
+            expect_equal("transpiler tsc stays", typescript_transpiler("tsc"), "tsc"),
+            expect_equal("transpiler label passes through", typescript_transpiler("//tools:swc"), "//tools:swc"),
+            expect_equal("transpiler false passes through", typescript_transpiler(False), False),
+            expect_equal("inner kwargs take tags", typescript_inner_kwargs(["manual"], {}), {"tags": ["manual"]}),
+            expect_equal("inner kwargs fall back to kwargs tags", typescript_inner_kwargs(None, {"tags": ["manual"]}), {"tags": ["manual"]}),
+            expect_equal("inner kwargs forward target_compatible_with", typescript_inner_kwargs(None, {"target_compatible_with": ["@platforms//:incompatible"]}), {"target_compatible_with": ["@platforms//:incompatible"]}),
+            expect_equal("inner kwargs drop test-only keys", typescript_inner_kwargs(None, {"size": "small", "env": {"A": "b"}}), {}),
+            expect_equal("inner kwargs empty", typescript_inner_kwargs(None, {}), {}),
+            expect_equal("inner kwargs add no manual", typescript_inner_kwargs(["fast"], {}), {"tags": ["fast"]}),
         ],
     )

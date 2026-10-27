@@ -39,6 +39,17 @@ java_library(
     deps = [":api"],
 )
 
+java_library(
+    name = "collide",
+    srcs = ["Collide.java"],
+    aspect_hints = [":checkstyle_cfg"],
+    tags = ["manual"],
+    deps = [
+        "//quality/testdata/spotbugs_owned/a:lib",
+        "//quality/testdata/spotbugs_owned/b:lib",
+    ],
+)
+
 java_test(
     name = "app_test",
     srcs = ["CleanTest.java"],
@@ -71,6 +82,11 @@ spotbugs_results(
 )
 
 spotbugs_results(
+    name = "collide_results",
+    target = ":collide",
+)
+
+spotbugs_results(
     name = "app_test_results",
     target = ":app_test",
 )
@@ -96,6 +112,7 @@ sh_test(
     data = [
         ":app_results",
         ":app_test_results",
+        ":collide_results",
         ":dep_results",
         ":implicit_test_results",
         ":uses_api_results",

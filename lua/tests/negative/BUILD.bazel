@@ -1,0 +1,63 @@
+load("//lua/rules:defs.bzl", "lua_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+[
+    lua_binary(
+        name = name,
+        testonly = True,
+        main = name + ".lua",
+    )
+    for name in [
+        "cpath_denied",
+        "missing_dep",
+        "runtime_error",
+    ]
+]
+
+rust_test(
+    name = "negative_test",
+    size = "small",
+    srcs = ["negative_test.rs"],
+    data = [
+        "syntax_error.lua",
+        ":cpath_denied",
+        ":missing_dep",
+        ":runtime_error",
+        "//lua/tests/runtime:probe",
+        "@lua//:bin/luac",
+    ],
+    env = {
+        "CPATH_DENIED": "$(rlocationpath :cpath_denied)",
+        "LUAC": "$(rootpath @lua//:bin/luac)",
+        "MISSING_DEP": "$(rlocationpath :missing_dep)",
+        "PROBE": "$(rlocationpath //lua/tests/runtime:probe)",
+        "RUNTIME_ERROR": "$(rlocationpath :runtime_error)",
+        "SYNTAX_ERROR": "$(rlocationpath syntax_error.lua)",
+    },
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "negative_fmt_test",
+    size = "small",
+    targets = [":negative_test"],
+)
+
+rust_clippy_test(
+    name = "negative_clippy_test",
+    size = "small",
+    targets = [":negative_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

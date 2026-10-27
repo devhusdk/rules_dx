@@ -100,7 +100,8 @@ type rustLang struct {
 
 type rustConfig struct {
 	common.IgnoreConfig
-	tools []string
+	tools  []string
+	corpus bool
 }
 
 type targetImports struct {
@@ -137,18 +138,30 @@ func (l *rustLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
 func (l *rustLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 
 func (*rustLang) KnownDirectives() []string {
-	return []string{"dx_ignore_import", nativeToolsDirective}
+	return []string{"dx_ignore_import", nativeToolsDirective, corpusDirective}
 }
 
 func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	tools := defaultNativeTools()
+	corpus := false
 	if raw, ok := c.Exts[languageName]; ok {
-		if parent := raw.(*rustConfig); parent.tools != nil {
+		parent := raw.(*rustConfig)
+		if parent.tools != nil {
 			tools = parent.tools
 		}
+		corpus = parent.corpus
 	}
 	if file != nil {
 		for _, directive := range file.Directives {
+			if directive.Key == corpusDirective {
+				enabled, err := parseCorpusDirective(directive.Value)
+				if err != nil {
+					l.fail("%v", err)
+					continue
+				}
+				corpus = enabled
+				continue
+			}
 			if directive.Key != nativeToolsDirective {
 				continue
 			}
@@ -166,7 +179,15 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	}
 	l.ignores = append(l.ignores, declared...)
 	inherited := common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)
-	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, tools: tools}
+	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, tools: tools, corpus: corpus}
+}
+
+func corpusEnabled(c *config.Config) bool {
+	if c == nil || c.Exts == nil {
+		return false
+	}
+	cfg, ok := c.Exts[languageName].(*rustConfig)
+	return ok && cfg.corpus
 }
 
 func (l *rustLang) fail(format string, args ...interface{}) {
@@ -218,7 +239,7 @@ func rustLoads(rulesRepo, cratesRepo, rulesRustRepo string) []rule.LoadInfo {
 		{Name: "@" + rulesRepo + "//rust/rules:defs.bzl", Symbols: []string{binaryKind, libraryKind, testKind, procMacroKind, sharedKind, staticKind}},
 		{Name: "@" + rulesRepo + "//rust/rules:crate.bzl", Symbols: []string{dxCrateKind}},
 		{Name: "@" + rulesRustRepo + "//cargo:defs.bzl", Symbols: []string{scriptKind}},
-		{Name: "@" + cratesRepo + "//:crates.bzl", Symbols: []string{"aliases", "crate_deps"}},
+		{Name: "@" + cratesRepo + "//:crates.bzl", Symbols: []string{"aliases", "all_crate_deps", "crate_deps"}},
 		nativeConfigLoads(rulesRepo),
 		corpusLoads(rulesRepo),
 	}
@@ -345,14 +366,30 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 
 func (l *rustLang) attachNative(args language.GenerateArgs, result language.GenerateResult, plan *nativePlan) language.GenerateResult {
 	result = filterDxCrateCovered(args.File, result)
-	adoptExistingNames(args.File, result.Gen)
+	renamed := adoptExistingNames(args.File, result.Gen)
+	for i, raw := range result.Imports {
+		current, ok := raw.(targetImports)
+		if !ok {
+			continue
+		}
+		if to, ok := renamed[current.siblingLib]; ok {
+			current.siblingLib = to
+		}
+		if to, ok := renamed[current.scriptDep]; ok {
+			current.scriptDep = to
+		}
+		result.Imports[i] = current
+	}
 	for _, r := range result.Gen {
 		applyNativeHints(args.Rel, r, plan)
 	}
 	result.Gen = append(result.Gen, plan.gen...)
 	result.Imports = append(result.Imports, plan.imports...)
 	hasOtherGen := len(result.Gen) > 0 || args.File != nil
-	corpus := planCorpus(args, hasOtherGen)
+	corpus := &corpusPlan{}
+	if corpusEnabled(args.Config) {
+		corpus = planCorpus(args, hasOtherGen)
+	}
 	result.Gen = append(result.Gen, corpus.gen...)
 	for range corpus.gen {
 		result.Imports = append(result.Imports, targetImports{})
@@ -422,9 +459,9 @@ func filterDxCrateCovered(file *rule.File, result language.GenerateResult) langu
 	return result
 }
 
-func adoptExistingNames(file *rule.File, gen []*rule.Rule) {
+func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 	if file == nil {
-		return
+		return nil
 	}
 	taken := make(map[string]bool, len(gen))
 	for _, r := range gen {
@@ -477,6 +514,5 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) {
 		}
 		adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate") == crate })
 	}
+	return renamed
 }
-
-func CollectUsedIgnores(c *config.Config) [][2]string { return common.UsedIgnores(c, languageName) }

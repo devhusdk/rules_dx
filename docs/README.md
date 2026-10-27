@@ -14,6 +14,17 @@ guides below.
 - [Check, fix, clean](cli/commands/check-fix-clean.md): fix-up loops and cleanup.
 - [Generate](cli/commands/generate.md): refresh `BUILD` files.
 - [Docs](cli/commands/docs.md): build, check, and preview this site.
+- [Environment and codegen](cli/commands/environment-codegen.md): env and codegen.
+- [Audit and update](cli/commands/audit-update.md): security, license, update, bump, add.
+- [Init](cli/commands/init.md): set up a workspace.
+- [Status and version](cli/commands/status-version.md): health report and the version pin.
+- [List tests](cli/commands/list-tests.md): list test targets.
+- [Completion](cli/commands/completion.md): shell completions.
+- [Migrate](cli/commands/migrate.md): move to the current layout.
+- [New, upgrade, rollback](cli/commands/new-upgrade.md): create modules and change the pin.
+- [Offline bundle](cli/commands/offline-bundle.md): build a vendored bundle and install from it.
+- [Watch](cli/commands/watch.md): rerun on file changes.
+- [Worktree](cli/commands/worktree.md): worktree slots.
 
 ## CI And Examples
 

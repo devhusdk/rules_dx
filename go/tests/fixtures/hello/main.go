@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	"rules_dx/go/tests/fixtures/hello"
 )
 

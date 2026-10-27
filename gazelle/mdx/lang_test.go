@@ -60,14 +60,14 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	lib := result.Gen[0]
-	if lib.Kind() != libraryKind || lib.Name() != "demo" {
+	if lib.Kind() != "mdx_library" || lib.Name() != "demo" {
 		t.Fatalf("library = %s(%s)", lib.Kind(), lib.Name())
 	}
 	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "demo.mdx" {
 		t.Errorf("library srcs = %q", got)
 	}
 	helper := result.Gen[1]
-	if helper.Kind() != libraryKind || helper.Name() != "helper" {
+	if helper.Kind() != "mdx_library" || helper.Name() != "helper" {
 		t.Fatalf("helper = %s(%s)", helper.Kind(), helper.Name())
 	}
 	if got := strings.Join(helper.AttrStrings("srcs"), ","); got != "helper.mdx" {
@@ -162,9 +162,9 @@ func TestGenerateEmptySweepsStale(t *testing.T) {
 	}
 	f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	f.Rules = append(f.Rules,
-		rule.NewRule(libraryKind, "old"),
+		rule.NewRule("mdx_library", "old"),
 		rule.NewRule("filegroup", "keep"),
-		rule.NewRule(libraryKind, "demo"),
+		rule.NewRule("mdx_library", "demo"),
 	)
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/demo.mdx", mdxDoc("export const x = 1;\n"))
@@ -213,8 +213,5 @@ func TestLanguageMetadata(t *testing.T) {
 	defaultApparent := l.ApparentLoads(func(string) string { return "" })
 	if defaultApparent[0].Name != "@rules_dx//mdx/rules:defs.bzl" {
 		t.Errorf("default apparent loads = %+v", defaultApparent)
-	}
-	if got := CollectUsedIgnores(config.New()); got != nil {
-		t.Errorf("unused ignores = %v, want none", got)
 	}
 }

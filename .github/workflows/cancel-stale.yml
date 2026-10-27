@@ -43,8 +43,6 @@ jobs:
 
           def records(path):
               file = pathlib.Path(path)
-              if not file.exists():
-                  return []
               lines = file.read_text(encoding="utf-8").splitlines()
               return [json.loads(line) for line in lines if line.strip()]
 
@@ -80,7 +78,7 @@ jobs:
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
-      - name: Cancel unstarted main runs of older commits
+      - name: Cancel main runs of older commits that wait without jobs
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -116,14 +114,14 @@ jobs:
           DX_STALE_MAIN_RUNS
           failed=0
           while read -r id; do
-            started=$(gh api -X GET "repos/${GH_REPO}/actions/runs/${id}/jobs" -f per_page=100 \
-              --jq '[.jobs[] | select(.status == "in_progress" or .status == "completed")] | length' 2>&1) || {
-              echo "::error::list jobs of run ${id}: ${started}"
+            jobs=$(gh api -X GET "repos/${GH_REPO}/actions/runs/${id}/jobs" -f per_page=1 \
+              --jq '.total_count' 2>&1) || {
+              echo "::error::list jobs of run ${id}: ${jobs}"
               failed=1
               continue
             }
-            if [ "$started" != 0 ]; then
-              echo "run ${id} already started"
+            if [ "$jobs" != 0 ]; then
+              echo "run ${id} already has jobs"
               continue
             fi
             if ! out=$(gh api -X POST "repos/${GH_REPO}/actions/runs/${id}/cancel" 2>&1); then

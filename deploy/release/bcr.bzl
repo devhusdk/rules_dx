@@ -2,6 +2,7 @@
 
 load("//deploy/rules:defs.bzl", "dx_deployment")
 load("//deploy/rules:launcher.bzl", "rlocation_path")
+load("//deploy/rules:validate.bzl", "genrule_arg")
 load("//rust/rules:defs.bzl", "rust_binary")
 
 def bcr_source_error(module_name, version):
@@ -20,16 +21,6 @@ def bcr_source_error(module_name, version):
         if part == "" or not part[0].isdigit():
             return ("bcr: invalid version '" + version +
                     "': want SemVer MAJOR.MINOR.PATCH (for example '1.0.0')")
-    return ""
-
-def bcr_submit_error(version, approve):
-    """Validates whether a BCR submission may proceed."""
-    if version == "0.0.0":
-        return ("bcr: version 0.0.0 is unpublishable (shape check only); " +
-                "a real submission needs an owner-approved SemVer release version")
-    if approve != True:
-        return ("bcr: submission needs explicit owner approval; " +
-                "run with BCR_DRY_RUN=1 to print the would-submit PR")
     return ""
 
 def _bcr_launcher_impl(ctx):
@@ -106,6 +97,7 @@ fn main() {
 
 _bcr_launcher = rule(
     implementation = _bcr_launcher_impl,
+    doc = "Writes the owner-gated BCR deploy launcher Rust source.",
     attrs = {
         "inputs": attr.label_list(mandatory = True),
         "module_name": attr.string(mandatory = True),
@@ -122,8 +114,8 @@ def bcr_check(name, module_name = "rules_dx", version = "0.0.0", inputs = [], pr
     native.genrule(
         name = name + "_source",
         outs = [name + ".source.json"],
-        tools = ["//deploy/release:bcr_source_gen"],
-        cmd = "$(location //deploy/release:bcr_source_gen) $(OUTS) \"" + module_name + "\" \"" + version + "\"",
+        tools = ["//deploy/release:release_tool"],
+        cmd = "$(location //deploy/release:release_tool) bcr-source $(OUTS) " + genrule_arg(module_name) + " " + genrule_arg(version),
     )
 
     program_target = name + "_program"

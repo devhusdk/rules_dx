@@ -1,5 +1,8 @@
 use std::path::Path;
 
+/// Branch names tried, in order, when origin/HEAD is unset.
+pub const DEFAULT_BRANCH_CANDIDATES: [&str; 4] = ["origin/main", "main", "origin/master", "master"];
+
 /// Filenames Git reports for one workspace change.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ChangeKind {
@@ -88,6 +91,7 @@ pub fn dedupe_changes(changes: Vec<GitChange>) -> Vec<GitChange> {
     sorted.sort_by(|left, right| {
         left.path
             .cmp(&right.path)
+            .then_with(|| right.from.is_some().cmp(&left.from.is_some()))
             .then_with(|| left.from.cmp(&right.from))
     });
     sorted.dedup_by(|next, current| next.path == current.path);
@@ -213,5 +217,25 @@ mod tests {
         assert_eq!(deduped[0].path, "pkg/a.py");
         assert_eq!(deduped[1].path, "pkg/b.py");
         scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn dedupe_keeps_rename_source_in_either_order() {
+        let modified = || super::GitChange {
+            path: "pkg2/x.py".to_owned(),
+            from: None,
+            kind: super::ChangeKind::Modified,
+        };
+        let renamed = || super::GitChange {
+            path: "pkg2/x.py".to_owned(),
+            from: Some("pkg1/x.py".to_owned()),
+            kind: super::ChangeKind::Renamed,
+        };
+        for input in [vec![modified(), renamed()], vec![renamed(), modified()]] {
+            let deduped = super::dedupe_changes(input);
+            assert_eq!(deduped.len(), 1);
+            assert_eq!(deduped[0].from.as_deref(), Some("pkg1/x.py"));
+            assert_eq!(deduped[0].kind, super::ChangeKind::Renamed);
+        }
     }
 }

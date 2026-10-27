@@ -125,6 +125,11 @@ cannot install or run an arm64 package.
 signs nothing. Signing happens only on `bazel run`. Set the password in
 `DX_MSIX_PFX_PASSWORD` when the PFX has one.
 
+Signing adds the certificate to the current user's `My` store for the run, then
+removes it and its private key, unless it was already there with its private
+key. An entry without a key is put back as it was. The password never goes on
+the `signtool` command line.
+
 `signtool` runs on an x64 or arm64 host and signs packages of either arch.
 
 ```sh

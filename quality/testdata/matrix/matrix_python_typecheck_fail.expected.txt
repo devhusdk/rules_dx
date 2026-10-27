@@ -5,7 +5,7 @@ stage ty classes=python sources=quality/testdata/real_dirty.py
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR ty invalid-argument-type quality/testdata/real_dirty.py 293 293 fixable=false "Argument to function `add` is incorrect: Expected `int`, found `Literal[\"two\"]`"
+initial ERROR ty invalid-argument-type quality/testdata/real_dirty.py 287 287 fixable=false "Argument to function `add` is incorrect: Expected `int`, found `Literal[\"two\"]`"
 terminal 1
-terminal ERROR ty invalid-argument-type quality/testdata/real_dirty.py 293 293 fixable=false "Argument to function `add` is incorrect: Expected `int`, found `Literal[\"two\"]`"
+terminal ERROR ty invalid-argument-type quality/testdata/real_dirty.py 287 287 fixable=false "Argument to function `add` is incorrect: Expected `int`, found `Literal[\"two\"]`"
 replacements 0

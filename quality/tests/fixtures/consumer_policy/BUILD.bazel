@@ -54,7 +54,7 @@ quality_family(
     name = "unwired_toml_family",
     disabled = ["typecheck"],
     family_id = "toml",
-    format = ["gofumpt"],
+    format = ["modfmt"],
     lint = ["taplo"],
 )
 
@@ -117,6 +117,21 @@ quality_family(
 workspace_policy(
     name = "cc_clang_tidy_policy",
     families = [":clang_tidy_cc_family"],
+)
+
+quality_family(
+    name = "cppcheck_cc_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cc",
+    lint = ["cppcheck"],
+)
+
+workspace_policy(
+    name = "cc_cppcheck_policy",
+    families = [":cppcheck_cc_family"],
 )
 
 eslint_config(
@@ -297,4 +312,33 @@ filegroup(
 real_source_target(
     name = "clean_html_template",
     html_template_srcs = [":html_template_module"],
+)
+
+quality_family(
+    name = "pkl_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "pkl",
+    format = ["pkl"],
+)
+
+workspace_policy(
+    name = "pkl_policy",
+    families = [":pkl_family"],
+)
+
+filegroup(
+    name = "pkl_module",
+    srcs = [
+        "pkl_module/lib/settings.pkl",
+        "pkl_module/main.pkl",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_pkl",
+    pkl_srcs = [":pkl_module"],
 )

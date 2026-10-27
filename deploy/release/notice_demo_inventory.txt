@@ -1,7 +1,8 @@
 # Invented distributed-tier root for `notice_demo`.
 # Derived from the `dx audit license` audited-inventory shape
-# (`package|set|version|license|text`): the two entries below require
+# (`package|set|version|license|text|sha256`): the two entries below require
 # reproduction (MIT plus Apache-2.0 family), so the bundling action
-# must carry their words into the aggregated NOTICE.
-demo-lib-a|cargo|1.0.0|MIT|notice_demo_a.txt
-demo-lib-b|npm|2.3.4|Apache-2.0|notice_demo_b.txt
+# must carry their words into the aggregated NOTICE. The sha256 column is
+# the digest of each text file (trailing newlines normalized to one).
+demo-lib-a|cargo|1.0.0|MIT|notice_demo_a.txt|1bcf0c0fd3d6915f1e97b50def0d7e80bf46cf342bc6e984f53fd16e7d4be2b0
+demo-lib-b|npm|2.3.4|Apache-2.0|notice_demo_b.txt|8c2bea00143e3eb64af45c206f64addd166acd3ded984a860f71919d8738bf99

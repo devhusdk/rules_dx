@@ -3,22 +3,64 @@ use dx_process::{
 };
 
 use super::{
-    bazel_argv, bep_guards, bep_options, download_guards,
+    bazel_argv, bep_guards, bep_options, download_flag, download_guards,
     registry::{spec, CommandSpec},
-    BuildPlan, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
+    BuildPlan, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
+use std::collections::BTreeSet;
 
-pub fn required_options(entry: &CommandSpec, bep_path: &str) -> Vec<String> {
+pub fn required_options(
+    entry: &CommandSpec,
+    bazel_options: &[String],
+    bep_path: &str,
+) -> Vec<String> {
+    shaped_options(
+        &entry.aspects.join(","),
+        OUTPUT_GROUP,
+        bazel_options,
+        bep_path,
+    )
+}
+
+/// The required options of one quality build; probe and build differ only in the aspects, output group and event file.
+fn shaped_options(
+    aspects: &str,
+    group: &str,
+    bazel_options: &[String],
+    bep_path: &str,
+) -> Vec<String> {
     let mut required = vec![
-        format!("--aspects={}", entry.aspects.join(",")),
-        format!("--output_groups={OUTPUT_GROUP}"),
-        DOWNLOAD_ALL_FLAG.to_owned(),
+        format!("--aspects={aspects}"),
+        format!("--output_groups={group}"),
+        download_flag(bazel_options).to_owned(),
         KEEP_GOING_FLAG.to_owned(),
     ];
     required.extend(bep_options(bep_path));
     required
+}
+
+/// The shard name of one real aspect label: `...real_aspects.bzl%real_rust_lint_aspect` is `real_rust_lint`.
+fn shard_name(aspect: &str) -> &str {
+    let name = aspect.rsplit_once('%').map_or(aspect, |(_, name)| name);
+    name.strip_suffix("_aspect").unwrap_or(name)
+}
+
+/// The core shard of each capability runs on every target, so the probe never drops it.
+const CORE_SHARDS: [&str; 3] = ["real_lint", "real_format", "real_typecheck"];
+
+/// The registry aspects to pass: all of them, or the core ones plus the shards the probe named.
+pub fn select_aspects(entry: &CommandSpec, shards: Option<&BTreeSet<String>>) -> Vec<&'static str> {
+    entry
+        .aspects
+        .iter()
+        .copied()
+        .filter(|aspect| {
+            let name = shard_name(aspect);
+            shards.is_none_or(|shards| CORE_SHARDS.contains(&name) || shards.contains(name))
+        })
+        .collect()
 }
 
 pub(crate) fn setting_name(option: &str) -> Result<String, ForwardError> {
@@ -86,16 +128,72 @@ pub fn plan_build(
     bep_path: &str,
     startup_options: &[String],
 ) -> Result<BuildPlan, ForwardError> {
+    plan_build_with(
+        command,
+        resolved,
+        bazel_options,
+        bep_path,
+        startup_options,
+        None,
+    )
+}
+
+/// Plans the quality build over the shards the probe named; `None` passes every shard.
+pub fn plan_build_with(
+    command: Command,
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    bep_path: &str,
+    startup_options: &[String],
+    shards: Option<&BTreeSet<String>>,
+) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
-    let required = required_options(&entry, bep_path);
-    let protected = protected_flags(&required)?;
+    let aspects = select_aspects(&entry, shards).join(",");
+    shaped_plan(
+        command,
+        resolved,
+        bazel_options,
+        startup_options,
+        &shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path),
+    )
+}
+
+/// Plans the shard probe; its argv matches `plan_build`'s apart from the aspects, output group and event file.
+pub fn plan_probe(
+    command: Command,
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    bep_path: &str,
+    startup_options: &[String],
+) -> Result<Option<BuildPlan>, ForwardError> {
+    let Some(probe) = spec(command).probe else {
+        return Ok(None);
+    };
+    shaped_plan(
+        command,
+        resolved,
+        bazel_options,
+        startup_options,
+        &shaped_options(probe, SHARD_OUTPUT_GROUP, bazel_options, bep_path),
+    )
+    .map(Some)
+}
+
+fn shaped_plan(
+    command: Command,
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    startup_options: &[String],
+    required: &[String],
+) -> Result<BuildPlan, ForwardError> {
+    let protected = protected_flags(required)?;
     let (scope, labels) = workflow_scope_labels(resolved);
     let mut options = vec![SKIP_INCOMPATIBLE_FLAG.to_owned()];
     options.extend(bazel_options.iter().cloned());
     let argv = bazel_argv(
         "build",
         &options,
-        &required,
+        required,
         &protected,
         &labels,
         startup_options,
@@ -130,6 +228,33 @@ fn provenance_env_names() -> &'static [&'static str] {
     ]
 }
 
+fn provenance_keyed_names() -> &'static [&'static str] {
+    &["define", "build_metadata"]
+}
+
+/// Matches user-chosen names (define keys, Starlark flag targets) by `_`-separated segment.
+fn secret_key(name: &str) -> bool {
+    let normalized = name.to_lowercase().replace(['-', '.'], "_");
+    normalized.split('_').any(|segment| {
+        let word = segment.strip_suffix('s').unwrap_or(segment);
+        [segment, word].iter().any(|candidate| {
+            matches!(*candidate, "key" | "pat") || provenance_secret_names().contains(candidate)
+        })
+    })
+}
+
+/// Returns the target name of a Starlark flag such as `//pkg:flag` or `no@repo//:flag`.
+fn starlark_target(name: &str) -> Option<&str> {
+    let rest = match name.strip_prefix("no") {
+        Some(rest) if rest.starts_with("//") || rest.starts_with('@') => rest,
+        _ => name,
+    };
+    if !(rest.starts_with("//") || rest.starts_with('@')) {
+        return None;
+    }
+    Some(rest.rsplit([':', '/']).next().unwrap_or(rest))
+}
+
 fn provenance_option_name(option: &str) -> &str {
     let bare = option.strip_prefix("--").unwrap_or(option);
     bare.split('=').next().unwrap_or(bare)
@@ -142,10 +267,17 @@ fn env_assignment(value: &str) -> String {
     }
 }
 
+fn keyed_secret(assignment: &str) -> bool {
+    assignment
+        .split_once('=')
+        .is_some_and(|(key, _)| secret_key(key))
+}
+
 enum Pending {
     None,
     Secret,
     Env(String),
+    Keyed(String),
 }
 
 /// Splits Bazel options into ones safe to echo and redacted stand-ins for secrets.
@@ -163,7 +295,16 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
                 withheld.push(format!("--{name} {}", env_assignment(option)));
                 continue;
             }
-            Pending::Env(name) => safe.push(format!("--{name}")),
+            Pending::Keyed(name) if !option.starts_with('-') => {
+                if keyed_secret(option) {
+                    withheld.push(format!("--{name} {}", env_assignment(option)));
+                } else {
+                    safe.push(format!("--{name}"));
+                    safe.push(redact_url_credentials(option));
+                }
+                continue;
+            }
+            Pending::Env(name) | Pending::Keyed(name) => safe.push(format!("--{name}")),
             _ => {}
         }
         let name = provenance_option_name(option).to_lowercase();
@@ -174,6 +315,24 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
                 }
                 Some(_) => safe.push(redact_url_credentials(option)),
                 None => pending = Pending::Env(name),
+            }
+            continue;
+        }
+        if provenance_keyed_names().contains(&name.as_str()) {
+            match option.split_once('=') {
+                Some((flag, value)) if keyed_secret(value) => {
+                    withheld.push(format!("{flag}={}", env_assignment(value)));
+                }
+                Some(_) => safe.push(redact_url_credentials(option)),
+                None => pending = Pending::Keyed(name),
+            }
+            continue;
+        }
+        if let Some(target) = starlark_target(&name) {
+            if secret_key(target) {
+                withheld.push(format!("--{}", provenance_option_name(option)));
+            } else {
+                safe.push(redact_url_credentials(option));
             }
             continue;
         }
@@ -189,7 +348,7 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
             pending = Pending::Secret;
         }
     }
-    if let Pending::Env(name) = pending {
+    if let Pending::Env(name) | Pending::Keyed(name) = pending {
         safe.push(format!("--{name}"));
     }
     (safe, withheld)
@@ -200,6 +359,113 @@ mod tests {
     use super::*;
     use crate::args::{parse, ArgsError};
     use crate::plan::BAZEL_SETTINGS;
+
+    #[test]
+    fn partition_provenance_options_cases() {
+        let cases: &[(&[&str], &[&str], &[&str])] = &[
+            (
+                &["--define=API_TOKEN=hunter2"],
+                &[],
+                &["--define=API_TOKEN=(value)"],
+            ),
+            (
+                &["--define", "API_TOKEN=hunter2"],
+                &[],
+                &["--define API_TOKEN=(value)"],
+            ),
+            (
+                &["--define=DB_PASSWORD=hunter2"],
+                &[],
+                &["--define=DB_PASSWORD=(value)"],
+            ),
+            (
+                &["--define=AWS_SECRET_ACCESS_KEY=hunter2"],
+                &[],
+                &["--define=AWS_SECRET_ACCESS_KEY=(value)"],
+            ),
+            (
+                &["--define=GH_PAT=hunter2"],
+                &[],
+                &["--define=GH_PAT=(value)"],
+            ),
+            (&["--define=version=1.2"], &["--define=version=1.2"], &[]),
+            (
+                &["--define", "version=1.2"],
+                &["--define", "version=1.2"],
+                &[],
+            ),
+            (
+                &["--define=DB=postgres://u:hunter2@h"],
+                &["--define=DB=postgres://(credentials)@h"],
+                &[],
+            ),
+            (
+                &["--build_metadata=AUTH_TOKEN=hunter2"],
+                &[],
+                &["--build_metadata=AUTH_TOKEN=(value)"],
+            ),
+            (&["--//pkg:token=hunter2"], &[], &["--//pkg:token"]),
+            (&["--@repo//:secret=hunter2"], &[], &["--@repo//:secret"]),
+            (
+                &["--@repo//pkg:api-token=hunter2"],
+                &[],
+                &["--@repo//pkg:api-token"],
+            ),
+            (&["--//pkg/token=hunter2"], &[], &["--//pkg/token"]),
+            (&["--no//pkg:token"], &[], &["--no//pkg:token"]),
+            (
+                &["--//pkg:token", "//target"],
+                &["//target"],
+                &["--//pkg:token"],
+            ),
+            (
+                &["--@rules_dx//config:workspace=//consumer:policy"],
+                &["--@rules_dx//config:workspace=//consumer:policy"],
+                &[],
+            ),
+            (
+                &["--@rules_dx//config:validate=false"],
+                &["--@rules_dx//config:validate=false"],
+                &[],
+            ),
+            (
+                &["--remote_header=A=Bearer hunter2"],
+                &[],
+                &["--remote_header"],
+            ),
+            (
+                &["--bes_header", "x=hunter2"],
+                &[],
+                &["--bes_header", "(value)"],
+            ),
+            (
+                &["--action_env=API_KEY=hunter2"],
+                &[],
+                &["--action_env=API_KEY=(value)"],
+            ),
+            (
+                &["--test_env", "DB=hunter2"],
+                &[],
+                &["--test_env DB=(value)"],
+            ),
+            (&["--repo_env=HOME"], &["--repo_env=HOME"], &[]),
+            (
+                &["--remote_cache=grpcs://ci:hunter2@cache.example"],
+                &["--remote_cache=grpcs://(credentials)@cache.example"],
+                &[],
+            ),
+            (&["--token=abc"], &[], &["--token"]),
+            (&["--define"], &["--define"], &[]),
+        ];
+        for (input, want_safe, want_withheld) in cases {
+            let options: Vec<String> = input.iter().map(|s| (*s).to_owned()).collect();
+            let (safe, withheld) = partition_provenance_options(&options);
+            assert_eq!(&safe, want_safe, "safe for {input:?}");
+            assert_eq!(&withheld, want_withheld, "withheld for {input:?}");
+            let all = format!("{safe:?}{withheld:?}");
+            assert!(!all.contains("hunter2"), "{input:?}: {all}");
+        }
+    }
     use crate::resolve::{resolve, QueryResult, QueryRunner};
     use crate::test_support::{graph_rule, graph_stdout, strings};
     use dx_process::Scope;
@@ -219,9 +485,95 @@ mod tests {
     }
 
     #[test]
+    fn probe_argv_differs_from_build_argv_only_in_aspects_group_and_event_file() {
+        let user = strings(&["--config=ci", "--jobs=4"]);
+        let startup = strings(&["--output_base=/tmp/ob"]);
+        for command in [Command::Lint, Command::Format, Command::Typecheck] {
+            let scope = resolved(&["//pkg:lib"]);
+            let build =
+                plan_build(command, &scope, &user, "/tmp/bep.json", &startup).expect("build");
+            let probe = plan_probe(command, &scope, &user, "/tmp/probe.json", &startup)
+                .expect("probe")
+                .expect("quality commands carry a probe");
+            assert_eq!(build.argv.len(), probe.argv.len());
+            let differing: Vec<(&String, &String)> = build
+                .argv
+                .iter()
+                .zip(&probe.argv)
+                .filter(|(left, right)| left != right)
+                .collect();
+            let probe_label = spec(command).probe.expect("probe label");
+            assert_eq!(
+                differing,
+                vec![
+                    (
+                        &format!("--aspects={}", spec(command).aspects.join(",")),
+                        &format!("--aspects={probe_label}")
+                    ),
+                    (
+                        &"--output_groups=dx_results".to_owned(),
+                        &"--output_groups=dx_shards".to_owned()
+                    ),
+                    (
+                        &"--build_event_json_file=/tmp/bep.json".to_owned(),
+                        &"--build_event_json_file=/tmp/probe.json".to_owned()
+                    ),
+                ],
+                "{command:?}"
+            );
+        }
+        assert!(
+            plan_probe(Command::Build, &resolved(&[]), &[], "/tmp/p.json", &[])
+                .expect("plan")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn select_aspects_keeps_core_shards_and_the_probed_ones() {
+        let lint = spec(Command::Lint);
+        assert_eq!(select_aspects(&lint, None), lint.aspects.to_vec());
+        let rust: BTreeSet<String> = ["real_rust_lint".to_owned()].into();
+        assert_eq!(
+            select_aspects(&lint, Some(&rust)),
+            vec![
+                "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
+                "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
+            ]
+        );
+        let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
+        assert_eq!(
+            select_aspects(&lint, Some(&unknown)),
+            vec!["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]
+        );
+        let format = spec(Command::Format);
+        assert_eq!(
+            select_aspects(&format, Some(&BTreeSet::new())),
+            vec!["@rules_dx//quality:real_aspects.bzl%real_format_aspect"]
+        );
+    }
+
+    #[test]
+    fn selected_shards_reach_the_build_argv() {
+        let rust: BTreeSet<String> = ["real_rust_lint".to_owned()].into();
+        let plan = plan_build_with(
+            Command::Lint,
+            &resolved(&[]),
+            &[],
+            "/tmp/bep.json",
+            &[],
+            Some(&rust),
+        )
+        .expect("plan");
+        assert!(plan.argv.contains(
+            &"--aspects=@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect".to_owned()
+        ));
+    }
+
+    #[test]
     fn protected_flags_find_keep_going_by_value() {
         let entry = spec(Command::Lint);
-        let required = required_options(&entry, "/tmp/bep.json");
+        let required = required_options(&entry, &[], "/tmp/bep.json");
         let flags = protected_flags(&required).expect("flags");
         let keep_going = flags
             .iter()
@@ -233,7 +585,7 @@ mod tests {
     #[test]
     fn protected_flags_reject_miswired_required_and_settings() {
         let entry = spec(Command::Lint);
-        let mut required = required_options(&entry, "/tmp/bep.json");
+        let mut required = required_options(&entry, &[], "/tmp/bep.json");
         required.retain(|option| option.as_str() != KEEP_GOING_FLAG);
         let err = protected_flags(&required).expect_err("missing keep_going");
         assert!(
@@ -259,7 +611,7 @@ mod tests {
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(
-            argv[..12],
+            argv[..11],
             [
                 "bazel",
                 "--nohome_rc",
@@ -267,16 +619,15 @@ mod tests {
                 "build",
                 "--skip_incompatible_explicit_targets",
                 "--jobs=4",
-                "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
+                "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
                 "--output_groups=dx_results",
-                "--remote_download_outputs=all",
+                "--remote_download_outputs=toplevel",
             ]
         );
         assert_eq!(
-            argv[12..],
+            argv[11..],
             [
                 "--keep_going",
                 "--build_event_json_file=/tmp/bep.json",
@@ -461,14 +812,12 @@ mod tests {
         for conflicting in [
             "--aspects=//other.bzl%aspect",
             "--output_groups=other",
-            "--@rules_dx//config:validate=true",
             "--nokeep_going",
             "--build_event_json_file=/tmp/other.json",
             "--build_event_json_file_path_conversion",
             "--build_event_json_file_path_conversion=true",
             "--remote_download_minimal",
-            "--remote_download_toplevel",
-            "--remote_download_outputs=toplevel",
+            "--remote_download_outputs=minimal",
             "--@rules_rust//rust/settings:clippy_output_diagnostics=false",
             "--@rules_rust//rust/settings:clippy_output_diagnostics",
             "--@rules_dx//config:clippy_output_diagnostics=false",
@@ -526,12 +875,49 @@ mod tests {
         };
         let config = position("--config=x");
         for flag in [
-            DOWNLOAD_ALL_FLAG,
+            crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
             KEEP_GOING_FLAG,
             "--build_event_json_file=/tmp/bep.json",
             "--build_event_json_file_path_conversion=false",
         ] {
             assert!(position(flag) > config, "{flag}: {plan:?}");
+        }
+    }
+
+    #[test]
+    fn quality_plan_download_mode_follows_last_user_choice() {
+        use crate::plan::{DOWNLOAD_ALL_FLAG, DOWNLOAD_TOPLEVEL_FLAG};
+        for command in [Command::Lint, Command::Typecheck, Command::Format] {
+            for (options, expected) in [
+                (vec!["--remote_download_toplevel"], DOWNLOAD_TOPLEVEL_FLAG),
+                (
+                    vec!["--remote_download_outputs=toplevel"],
+                    DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+                (vec!["--remote_download_all"], DOWNLOAD_ALL_FLAG),
+                (vec!["--remote_download_outputs=all"], DOWNLOAD_ALL_FLAG),
+                (
+                    vec!["--remote_download_all", "--remote_download_toplevel"],
+                    DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+            ] {
+                let mut user = strings(&["--config=x"]);
+                user.extend(strings(&options));
+                let plan =
+                    plan_build(command, &resolved(&[]), &user, "/tmp/bep.json", &[]).expect("plan");
+                let last = plan
+                    .argv
+                    .iter()
+                    .rposition(|arg| arg.starts_with("--remote_download"))
+                    .expect("download flag");
+                let config = plan
+                    .argv
+                    .iter()
+                    .position(|arg| arg == "--config=x")
+                    .expect("config");
+                assert_eq!(plan.argv[last], expected, "{command:?} {options:?}");
+                assert!(last > config, "{command:?} {options:?}: {plan:?}");
+            }
         }
     }
 

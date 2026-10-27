@@ -1,4 +1,5 @@
 use super::super::test_support::*;
+use crate::resolve::QueryResult;
 use quality_result::proto::Convergence;
 use quality_result::{decode_validated, encode_validated};
 
@@ -239,6 +240,36 @@ fn disk_full_text_and_json_agree_on_host_cause_and_exit_36() {
     );
     assert!(err.contains("dx worktree prune --apply"), "{err}");
     assert!(!err.contains("analysis_failed"), "{err}");
+    let events = json_events(&out);
+    let errors = events_of_kind(&events, "error");
+    assert_eq!(errors.len(), 1, "{out}");
+    assert_eq!(errors[0]["code"], serde_json::json!("disk_full"));
+    assert_eq!(errors[0]["cause"], serde_json::json!("host"));
+    assert_eq!(errors[0]["status"], serde_json::json!(36));
+    assert_eq!(finished_code(&out), 36);
+}
+
+#[test]
+fn disk_full_from_a_query_text_and_json_agree_on_host_cause_and_exit_36() {
+    let build = || {
+        let harness = Harness {
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("text-query-disk-full")
+        };
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.query.outputs.borrow_mut().push(QueryResult {
+            code: Some(36),
+            stdout: Vec::new(),
+            stderr: b"ERROR: no space left\n".to_vec(),
+        });
+        harness
+    };
+    let (text_code, _, err) = build().run(&["list-tests", "//...", "--output=text"]);
+    let (json_code, out, _) = build().run(&["list-tests", "//...", "--output=json"]);
+    assert_eq!(text_code, 36, "{err}");
+    assert_eq!(json_code, 36);
+    assert!(err.contains("dx: disk_full: query "), "{err}");
+    assert!(err.contains("dx worktree prune --apply"), "{err}");
     let events = json_events(&out);
     let errors = events_of_kind(&events, "error");
     assert_eq!(errors.len(), 1, "{out}");

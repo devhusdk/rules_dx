@@ -30,6 +30,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust dx_setup //cli/setup:dx_setup
 # gazelle:resolve rust dx_test_scratch //cli/test_scratch:dx_test_scratch
 # gazelle:resolve rust dx_update //cli/update:dx_update
+# gazelle:resolve rust dx_worktree //cli/worktree:dx_worktree
 # gazelle:resolve rust doc_ir_proto //tools/docs/ir:doc_ir_proto_rs
 # gazelle:resolve rust documentation_ir //tools/docs/ir/ir:documentation_ir
 # gazelle:resolve rust generation_result //generation/result:generation_result
@@ -41,15 +42,28 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve python pytest @pypi//pytest
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
 # gazelle:resolve rust quality_result //quality/result:quality_result
+# gazelle:dx_corpus true
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude quality/testdata
 # gazelle:exclude cli/entrypoint
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/process_probe
 # gazelle:exclude tools/testing/hermetic
+# gazelle:exclude tools/docs/typescript/fixture
+# gazelle:exclude quality/tools/javascript/bin/eslint.mjs
+# gazelle:exclude quality/tools/javascript/bin/graphql_eslint.mjs
+# gazelle:exclude tools/docs/powershell/fixture
+# gazelle:exclude quality/tools/javascript/bin/prettier.mjs
+# gazelle:exclude quality/tools/javascript/bin/remark.mjs
+# gazelle:exclude tools/docs/go/fixture
+# gazelle:exclude tools/docs/ruby/fixture
+# gazelle:exclude tools/docs/go/godoc
 # gazelle:exclude tools/depcheck/testdata
 # gazelle:exclude go/tests/fixtures/cgo
+# gazelle:exclude go/tests/fixtures/testonly_binary
+# gazelle:exclude java/tests/fixtures/testonly_binary
 # gazelle:exclude cc/tests/fixtures/hello
+# gazelle:exclude cc/rules/testdata
 # gazelle:exclude cc/tests/fixtures/consumer_cc
 # gazelle:exclude cuda/testing
 # gazelle:exclude cuda/tests
@@ -57,6 +71,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude deploy/tests/cross
 # gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
+# gazelle:exclude lua/runtime
 # gazelle:exclude gazelle/cc/testdata
 # gazelle:exclude rust/tests/fixtures/cxx_identity
 # gazelle:exclude csharp/tests/fixtures/hello
@@ -68,6 +83,9 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude typescript/tests/fixtures/declarations
 # gazelle:exclude rust/tests/fixtures/wasm_bindgen
 # gazelle:exclude gleam/tests/runtime/src
+# gazelle:exclude fortran/tests/runtime
+# gazelle:exclude ocaml/tests/runtime
+# gazelle:exclude haskell/tests/runtime/src
 # gazelle:exclude fsharp/tests/fixtures/order
 # gazelle:exclude quality/tools/dotnet/fsharplint
 # gazelle:exclude gazelle
@@ -86,10 +104,12 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/kotlin-app/cli/Main.kt
 # gazelle:exclude examples/kotlin-app/diagnostics
 # gazelle:exclude examples/node-app
+# gazelle:exclude examples/perl-app
 # gazelle:exclude examples/qt-rust
 # gazelle:exclude examples/qt-tasks
 # gazelle:exclude examples/zig-app
 # gazelle:exclude examples/msix-app
+# gazelle:exclude examples/cuda-app
 # gazelle:exclude examples/appimage-app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
@@ -98,11 +118,13 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude scala/tests/fixtures/hello
 # gazelle:exclude python/tests/fixtures/hello
 # gazelle:exclude javascript/tests/fixtures/hello
+# gazelle:exclude javascript/tests/fixtures/skip_tags
 # gazelle:exclude typescript/tests/fixtures/hello
 # gazelle:exclude javascript/tests/fixtures/entries
 # gazelle:exclude javascript/tests/fixtures/web_app
 # gazelle:exclude python/tests/fixtures/entries
 # gazelle:exclude mdx/tests/fixtures/hello
+# gazelle:exclude powershell/tests/fixtures
 # gazelle:exclude svelte/tests/fixtures/hello
 # gazelle:exclude vue/tests/fixtures/hello
 # gazelle:exclude deploy/rules
@@ -120,6 +142,9 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude ruby/tests/fixtures/hello
 # gazelle:exclude ruby/tests/fixtures/rspec
 # gazelle:exclude zig/tests/fixtures/hello
+# gazelle:exclude julia/tests/fixtures/hello
+# gazelle:exclude lua/tests
+# gazelle:exclude d/tests/fixtures/hello
 # gazelle:exclude rust/tests/fixtures/bindgen
 # gazelle:exclude cc/tests/fixtures/googletest
 # gazelle:exclude cc/tests/fixtures/lcov_accounting
@@ -165,12 +190,21 @@ exports_files([
     "MODULE.bazel",
     "README.md",
     "android/README.md",
-    "apple/README.md",
+    "csharp/README.md",
     "cuda/README.md",
+    "d/README.md",
     "elixir/README.md",
     "erlang/README.md",
+    "fortran/README.md",
+    "fsharp/README.md",
     "gleam/README.md",
-    "qt/README.md",
+    "lua/README.md",
+    "ocaml/README.md",
+    "perl/README.md",
+    "php/README.md",
+    "powershell/README.md",
+    "haskell/README.md",
+    "ruby/README.md",
     "zig/README.md",
     "cargo-bazel-lock.json",
     "package.json",
@@ -185,6 +219,19 @@ exports_files([
 filegroup(
     name = "audit_curator",
     srcs = ["licenses.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        ".bazelversion",
+        "BUILD.bazel",
+        "MODULE.bazel",
+        "//config:module_srcs",
+        "//libs/starlark:module_srcs",
+        "//rust/rules:module_srcs",
+    ],
+    visibility = ["//:__subpackages__"],
 )
 
 filegroup(
@@ -241,14 +288,24 @@ real_source_target(
         "README.md",
         "SECURITY.md",
         "android/README.md",
-        "apple/README.md",
+        "csharp/README.md",
+        "d/README.md",
         "elixir/README.md",
         "erlang/README.md",
+        "fortran/README.md",
+        "fsharp/README.md",
         "gleam/README.md",
+        "lua/README.md",
+        "ocaml/README.md",
+        "perl/README.md",
+        "php/README.md",
+        "haskell/README.md",
         "patches/README.md",
-        "qt/README.md",
+        "powershell/README.md",
+        "ruby/README.md",
         "zig/README.md",
         "cuda/README.md",
+        "CLAUDE.md",
     ],
     tags = ["corpus"],
 )
@@ -259,7 +316,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "MODULE.bazel",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )
@@ -268,7 +324,6 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = [
-        ".gitleaks.toml",
         "clippy.toml",
         "ruff.toml",
         "rustfmt.toml",
@@ -293,3 +348,9 @@ buildifier_config(
 # gazelle:exclude cc/tests/fixtures/copts
 # gazelle:exclude cc/tests/fixtures/warnings
 # gazelle:exclude cc/tests
+
+real_source_target(
+    name = "dotfile_toml",
+    tags = ["corpus"],
+    toml_srcs = [".gitleaks.toml"],
+)

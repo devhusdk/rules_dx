@@ -1,0 +1,16 @@
+[package]
+name = "dx_worktree"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_worktree"
+path = "src/lib.rs"
+
+[dependencies]
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

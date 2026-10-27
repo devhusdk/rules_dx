@@ -26,10 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-      id-token: write
-      attestations: write
-      artifact-metadata: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -58,19 +54,41 @@ jobs:
           # No ambient language toolchains; tools resolve via Bazel.
           ! grep -qiE 'pip install|uv pip|npm install -g|pnpm add -g|cargo install|dotnet tool install|go install' "$df" \
             || { echo "admissibility: language toolchains must not be baked in"; exit 1; }
-          echo "admissibility: pinned bootstrap + Bazel delegation + no ambient tools (devcontainer_is_admissible(true, true, false))"
+          echo "admissibility: pinned bootstrap + Bazel delegation + no ambient tools"
+      - name: Write job summary (build-only by default)
+        if: always()
+        run: |
+          {
+            echo "### ghcr-prebuilt — ${{ job.status }}"
+            echo ""
+            echo "- base: \`ubuntu:24.04@sha256:69cecf4...\` (pinned digest, resolved 2026-09-17; re-pin deliberately)."
+            echo "- Bazel: Bazelisk v1.29.0 (pinned sha256) + Bazel 9.2.0 via USE_BAZEL_VERSION; no ambient toolchains."
+            echo "- tag: \`0.0.0-sha-<sha>\` tracks single-version dx == module (0.0.0); digest pin \`ghcr.io/...@sha256:<digest>\` never latest."
+            echo "- push: only on workflow_dispatch + approve:true (explicit owner approval); PRs build only."
+            echo "- signing: dry-run would-sign \`cosign sign <digest>\` on the #311 trust root plus attestation (same as //deploy/release:signing_demo); gated push signs + verifies (\`cosign sign --yes\` / \`cosign verify\` / actions/attest provenance + \`gh attestation verify\`) with id-token OIDC."
+            echo "- follow-ups on first push (issue #460): scaffold digest ref, signed digest verify, quota bytes record."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Prove checkout left clean
+        run: test -z "$(git status --porcelain)"
+  push:
+    # Separate job so the pull_request build never holds a write scope.
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.approve
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Push to GHCR (owner approval only)
         id: push
-        env:
-          APPROVE: ${{ inputs.approve }}
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" != "workflow_dispatch" || "$APPROVE" != "true" ]]; then
-            echo "push gate: event=${{ github.event_name }} approve=$APPROVE -> build-only, nothing pushes."
-            echo "first push (dispatch + approve:true) publishes ghcr.io/${{ github.repository }}/devcontainer:0.0.0-sha-${{ github.sha }} (single-version dx == module 0.0.0); scaffold digest ref + cosign sign + quota record follow (#311 signing-second)."
-            echo "signing dry-run (RELEASE_SIGN_DRY_RUN=1 equivalent, signs nothing): cosign sign <digest> on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) plus actions/attest provenance + gh attestation verify, same selection as //deploy/release:signing_demo."
-            exit 0
-          fi
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           # Tag carries the single-version dx == module pin plus sha.
           tag="ghcr.io/${{ github.repository }}/devcontainer:0.0.0-sha-${{ github.sha }}"
@@ -117,32 +135,15 @@ jobs:
             echo "- quota: image size from \`docker images --digests\`; container storage/bandwidth currently free for public repos (1-month notice before pricing changes); record exact bytes here on first push."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Attest build provenance
-        if: github.event_name == 'workflow_dispatch' && inputs.approve
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ${{ steps.push.outputs.name }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
       - name: Verify attestation
-        if: github.event_name == 'workflow_dispatch' && inputs.approve
         env:
           GH_TOKEN: ${{ github.token }}
           SUBJECT: ${{ steps.push.outputs.name }}@${{ steps.push.outputs.digest }}
         run: |
           set -euo pipefail
           gh attestation verify "oci://$SUBJECT" --owner "${{ github.repository_owner }}"
-      - name: Write job summary (build-only by default)
-        if: always()
-        run: |
-          {
-            echo "### ghcr-prebuilt — ${{ job.status }}"
-            echo ""
-            echo "- base: \`ubuntu:24.04@sha256:69cecf4...\` (pinned digest, resolved 2026-09-17; re-pin deliberately)."
-            echo "- Bazel: Bazelisk v1.29.0 (pinned sha256) + Bazel 9.2.0 via USE_BAZEL_VERSION; no ambient toolchains."
-            echo "- tag: \`0.0.0-sha-<sha>\` tracks single-version dx == module (0.0.0); digest pin \`ghcr.io/...@sha256:<digest>\` never latest."
-            echo "- push: only on workflow_dispatch + approve:true (explicit owner approval); PRs build only."
-            echo "- signing: dry-run would-sign \`cosign sign <digest>\` on the #311 trust root plus attestation (same as //deploy/release:signing_demo); gated push signs + verifies (\`cosign sign --yes\` / \`cosign verify\` / actions/attest provenance + \`gh attestation verify\`) with id-token OIDC."
-            echo "- follow-ups on first push (issue #460): scaffold digest ref, signed digest verify, quota bytes record."
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Prove checkout left clean
-        run: test -z "$(git status --porcelain)"

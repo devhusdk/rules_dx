@@ -56,4 +56,19 @@ mod tests {
         assert!(parse_shellcheck(DIRTY.as_bytes(), Some(1), &["other.sh"]).is_err());
         assert!(parse_shellcheck(&[0xff], Some(1), &["x"]).is_err());
     }
+
+    #[test]
+    fn shellcheck_reads_drive_rooted_paths() {
+        let file = "C:\\tmp\\a.sh";
+        let findings = parse_shellcheck(
+            "C:\\tmp\\a.sh:3:1: warning: Double quote to prevent globbing [SC2086]\n".as_bytes(),
+            Some(1),
+            &[file],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, file);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 1);
+    }
 }

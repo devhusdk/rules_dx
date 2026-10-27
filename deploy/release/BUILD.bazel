@@ -1,14 +1,15 @@
-load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":bcr.bzl", "bcr_check")
 load(":bcr_tests.bzl", "bcr_unit_tests")
+load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
 load(":matrix_tests.bzl", "matrix_unit_tests")
 load(":notice.bzl", "notice_bundle")
 load(":notice_tests.bzl", "notice_file_tests", "notice_unit_tests")
 load(":sbom.bzl", "sbom_release")
-load(":sbom_tests.bzl", "sbom_unit_tests")
-load(":signing.bzl", "signed_release")
+load(":sbom_tests.bzl", "sbom_file_tests", "sbom_unit_tests")
+load(":signing.bzl", "cosign_binary", "signed_release")
 load(":signing_tests.bzl", "signing_unit_tests")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -29,21 +30,24 @@ exports_files([
     "sbom_tests.bzl",
     "signing.bzl",
     "signing_tests.bzl",
-    "src/bin_bcr_source_gen.rs",
-    "src/bin_notice_gen.rs",
     "src/bin_publish_dry_run_check.rs",
+    "src/bin_release_cell.rs",
     "src/bin_release_driver.rs",
-    "src/bin_sbom_prov_gen.rs",
-    "src/bin_sbom_spdx_gen.rs",
+    "src/bin_release_tool.rs",
+    "src/bin_source_archive.rs",
 ])
 
 rust_library(
     name = "dx_release_tools",
     srcs = [
         "src/candidate.rs",
+        "src/cell.rs",
+        "src/cell_tests.rs",
         "src/lib.rs",
+        "src/provenance.rs",
         "src/publish.rs",
         "src/spdx.rs",
+        "src/tool.rs",
     ],
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
@@ -52,98 +56,30 @@ rust_library(
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [
+        "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
-        "//cli/process:dx_process",
         "//deploy/rules:dx_deploy_tools",
     ],
 )
 
 rust_binary(
-    name = "sbom_spdx_gen",
-    srcs = ["src/bin_sbom_spdx_gen.rs"],
+    name = "release_tool",
+    srcs = ["src/bin_release_tool.rs"],
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
     ),
-    crate_name = "sbom_spdx_gen",
-    crate_root = "src/bin_sbom_spdx_gen.rs",
+    crate_name = "release_tool",
+    crate_root = "src/bin_release_tool.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
-        package_name = "deploy/dx_release_tools",
-    ) + [":dx_release_tools"],
-)
-
-rust_binary(
-    name = "sbom_prov_gen",
-    srcs = ["src/bin_sbom_prov_gen.rs"],
-    aliases = aliases(
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
-    ),
-    crate_name = "sbom_prov_gen",
-    crate_root = "src/bin_sbom_prov_gen.rs",
-    edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
-        package_name = "deploy/dx_release_tools",
-    ) + [":dx_release_tools"],
-)
-
-rust_binary(
-    name = "bcr_source_gen",
-    srcs = ["src/bin_bcr_source_gen.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_release_tools",
-        normal = True,
-    ),
-    crate_name = "bcr_source_gen",
-    crate_root = "src/bin_bcr_source_gen.rs",
-    edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
-        package_name = "deploy/dx_release_tools",
-    ) + [":dx_release_tools"],
-)
-
-rust_binary(
-    name = "notice_gen",
-    srcs = ["src/bin_notice_gen.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_release_tools",
-        normal = True,
-    ),
-    crate_name = "notice_gen",
-    crate_root = "src/bin_notice_gen.rs",
-    edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
-        package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],
 )
 
@@ -156,14 +92,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_release_tools",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-            "tempfile",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ),
 )
 
@@ -216,25 +148,23 @@ rust_test(
     ],
 )
 
+# Release binaries that have a bin_test.
+_TESTED_RELEASE_BINS = [
+    "publish_dry_run_check",
+    "release_cell",
+    "release_driver",
+    "source_archive",
+]
+
+_RELEASE_BINS = ["release_tool"] + _TESTED_RELEASE_BINS
+
 rustfmt_test(
     name = "dx_release_tools_fmt_test",
     size = "small",
     targets = [
         ":candidate_identity_test",
         ":dx_release_tools",
-        ":sbom_spdx_gen",
-        ":sbom_spdx_gen_bin_test",
-        ":sbom_prov_gen",
-        ":sbom_prov_gen_bin_test",
-        ":bcr_source_gen",
-        ":bcr_source_gen_bin_test",
-        ":notice_gen",
-        ":notice_gen_bin_test",
-        ":publish_dry_run_check",
-        ":publish_dry_run_check_bin_test",
-        ":release_driver",
-        ":release_driver_bin_test",
-    ],
+    ] + [":" + b for b in _RELEASE_BINS] + [":" + b + "_bin_test" for b in _TESTED_RELEASE_BINS],
 )
 
 rust_clippy_test(
@@ -243,13 +173,7 @@ rust_clippy_test(
     targets = [
         ":candidate_identity_test",
         ":dx_release_tools",
-        ":sbom_spdx_gen",
-        ":sbom_prov_gen",
-        ":bcr_source_gen",
-        ":notice_gen",
-        ":publish_dry_run_check",
-        ":release_driver",
-    ],
+    ] + [":" + b for b in _RELEASE_BINS],
 )
 
 rust_binary(
@@ -262,13 +186,25 @@ rust_binary(
     crate_name = "publish_dry_run_check",
     crate_root = "src/bin_publish_dry_run_check.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_binary(
+    name = "release_cell",
+    srcs = ["src/bin_release_cell.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "release_cell",
+    crate_root = "src/bin_release_cell.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [":dx_release_tools"],
 )
 
@@ -282,17 +218,28 @@ rust_binary(
     crate_name = "release_driver",
     crate_root = "src/bin_release_driver.rs",
     edition = "2021",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
     ) + [":dx_release_tools"],
 )
 
-# keep
+rust_binary(
+    name = "source_archive",
+    srcs = ["src/bin_source_archive.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "source_archive",
+    crate_root = "src/bin_source_archive.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
 rust_test(
     name = "publish_dry_run_check_bin_test",
     size = "small",
@@ -302,17 +249,29 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":publish_dry_run_check",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ) + [":dx_release_tools"],
 )
 
-# keep
+rust_test(
+    name = "release_cell_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":release_cell",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_release_tools"],
+)
+
 rust_test(
     name = "release_driver_bin_test",
     size = "small",
@@ -322,93 +281,26 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":release_driver",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
     ) + [":dx_release_tools"],
 )
 
-# keep
 rust_test(
-    name = "sbom_spdx_gen_bin_test",
+    name = "source_archive_bin_test",
     size = "small",
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":sbom_spdx_gen",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
-        package_name = "deploy/dx_release_tools",
-    ) + [":dx_release_tools"],
-)
-
-# keep
-rust_test(
-    name = "sbom_prov_gen_bin_test",
-    size = "small",
-    aliases = aliases(
+    crate = ":source_archive",
+    deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
-    ),
-    crate = ":sbom_prov_gen",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
-        package_name = "deploy/dx_release_tools",
-    ) + [":dx_release_tools"],
-)
-
-# keep
-rust_test(
-    name = "bcr_source_gen_bin_test",
-    size = "small",
-    aliases = aliases(
-        package_name = "deploy/dx_release_tools",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":bcr_source_gen",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
-        package_name = "deploy/dx_release_tools",
-    ) + [":dx_release_tools"],
-)
-
-# keep
-rust_test(
-    name = "notice_gen_bin_test",
-    size = "small",
-    aliases = aliases(
-        package_name = "deploy/dx_release_tools",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":notice_gen",
-    deps = crate_deps(
-        [
-            "serde",
-            "serde_json",
-            "spdx",
-        ],
-        package_name = "deploy/dx_release_tools",
     ) + [":dx_release_tools"],
 )
 
@@ -429,6 +321,18 @@ sbom_release(
     artifact = "//deploy/rules:release_demo_archive",
 )
 
+sbom_release(
+    name = "sbom_quoting_demo",
+    artifact = "//deploy/rules:release_demo_archive",
+    supplier = "Acme \"Labs\" $HOME `id` O'Neil",
+)
+
+sbom_file_tests(
+    name = "sbom_quoting_demo_contains_supplier",
+    spdx = ":sbom_quoting_demo_spdx",
+    want = "Organization: Acme \\\"Labs\\\" $HOME `id` O'Neil",
+)
+
 notice_bundle(
     name = "notice_demo",
     inventory = ":notice_demo_inventory.txt",
@@ -437,6 +341,45 @@ notice_bundle(
         ":notice_demo_a.txt",
         ":notice_demo_b.txt",
     ],
+)
+
+[
+    config_setting(
+        name = "cosign_" + key,
+        constraint_values = [
+            "@platforms//os:" + pin["os"],
+            "@platforms//cpu:" + pin["cpu"],
+        ],
+    )
+    for key, pin in COSIGN_PLATFORMS.items()
+]
+
+[
+    cosign_binary(
+        name = "cosign_" + key + "_bin",
+        binary = "@cosign_" + key + "//file",
+        sha256 = pin["sha256"],
+        visibility = ["//visibility:public"],
+    )
+    for key, pin in COSIGN_PLATFORMS.items()
+]
+
+filegroup(
+    name = "cosign_unsupported",
+    target_compatible_with = ["@platforms//:incompatible"],
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "cosign",
+    actual = select({
+        ":cosign_linux_arm64": ":cosign_linux_arm64_bin",
+        ":cosign_linux_x86_64": ":cosign_linux_x86_64_bin",
+        ":cosign_macos_arm64": ":cosign_macos_arm64_bin",
+        ":cosign_windows_x86_64": ":cosign_windows_x86_64_bin",
+        "//conditions:default": ":cosign_unsupported",
+    }),
+    visibility = ["//visibility:public"],
 )
 
 signed_release(
@@ -482,6 +425,7 @@ test_suite(
         ":notice_demo_contains_words",
         ":notice_unit",
         ":release_artifacts_verify",
+        ":sbom_quoting_demo_contains_supplier",
         ":sbom_unit",
         ":signing_unit",
     ],
@@ -504,7 +448,6 @@ real_source_target(
         "signing_tests.bzl",
         "cosign_pins.bzl",
         "repos.bzl",
-        "v1_promises.bzl",
     ],
     tags = ["corpus"],
 )

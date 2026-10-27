@@ -3,25 +3,17 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "charset_schema_error", "has_any", "only_chars")
-
-OCI_SCHEMA_VERSION = 1
+load(":validate.bzl", "EMBED_UNSAFE", "LOWER_ALNUM", "NAME_CHARS", "has_any", "only_chars")
 
 _VALID_TAG_CHARS = NAME_CHARS
 
+_OCI_TAG_MAX = 128
+
 _VALID_REGISTRY_CHARS = NAME_CHARS + "/:"
 
-_VALID_REPOSITORY_CHARS = NAME_CHARS + "/"
+_VALID_REPOSITORY_CHARS = LOWER_ALNUM + "._-/"
 
 OCI_DEFAULT_REGISTRY = "ghcr.io"
-
-def oci_schema_error():
-    """Validates the versioned registry/tag charset schema."""
-    return charset_schema_error(OCI_SCHEMA_VERSION, [
-        ("oci tag", _VALID_TAG_CHARS, LAUNCHER_UNSAFE + ["+"]),
-        ("oci registry", _VALID_REGISTRY_CHARS, [c for c in LAUNCHER_UNSAFE if c not in [":", "/"]] + ["+", "=", "%", "@"]),
-        ("oci repository", _VALID_REPOSITORY_CHARS, [c for c in LAUNCHER_UNSAFE if c != "/"] + ["+", "=", "%", "@"]),
-    ])
 
 def oci_tag_error(tag):
     """Validates one image tag value."""
@@ -32,6 +24,12 @@ def oci_tag_error(tag):
         return ("oci_deploy: invalid tag '" + tag +
                 "': want only [A-Za-z0-9._-] so the tag embeds " +
                 "safely in the deploy launcher")
+    if tag[0] in ".-":
+        return ("oci_deploy: invalid tag '" + tag +
+                "': want a tag starting with [A-Za-z0-9_]")
+    if len(tag) > _OCI_TAG_MAX:
+        return ("oci_deploy: invalid tag '" + tag +
+                "': want at most " + str(_OCI_TAG_MAX) + " characters")
     return ""
 
 def oci_registry_error(registry):
@@ -56,14 +54,38 @@ def oci_registry_error(registry):
                 "so the registry embeds safely in the deploy launcher")
     return ""
 
-def oci_repository_error(repository):
+def _oci_repository_segment_error(segment):
+    """Returns "" or a short reason a path segment breaks the OCI grammar."""
+    if segment[0] not in LOWER_ALNUM or segment[-1] not in LOWER_ALNUM:
+        return "want each path segment to start and end with [a-z0-9]"
+    run = ""
+    for c in segment.elems():
+        if c in LOWER_ALNUM:
+            if run not in ["", ".", "_", "__"] and run.strip("-") != "":
+                return "want separators to be '.', '_', '__' or dashes only"
+            run = ""
+        else:
+            run += c
+    return ""
+
+def oci_repository_error(repository, from_name = False):
     """Validates one repository value."""
+    error = _oci_repository_error(repository)
+    if error != "" and from_name:
+        error += ("; repository defaults to the target name, " +
+                  "set repository = '...' explicitly")
+    return error
+
+def _oci_repository_error(repository):
     if type(repository) != "string" or repository == "":
         return ("oci_deploy: invalid repository '" + str(repository) +
                 "': want a non-empty repository (for example 'oci_demo')")
+    if repository != repository.lower():
+        return ("oci_deploy: invalid repository '" + repository +
+                "': want lowercase (for example '" + repository.lower() + "')")
     if not only_chars(repository, _VALID_REPOSITORY_CHARS):
         return ("oci_deploy: invalid repository '" + repository +
-                "': want only [A-Za-z0-9._-/] so the repository embeds " +
+                "': want only [a-z0-9._-/] so the repository embeds " +
                 "safely in the deploy launcher")
     if repository.startswith("/") or repository.endswith("/"):
         return ("oci_deploy: invalid repository '" + repository +
@@ -71,6 +93,11 @@ def oci_repository_error(repository):
     if "//" in repository:
         return ("oci_deploy: invalid repository '" + repository +
                 "': want no empty path segments")
+    for segment in repository.split("/"):
+        reason = _oci_repository_segment_error(segment)
+        if reason != "":
+            return ("oci_deploy: invalid repository '" + repository +
+                    "': " + reason)
     return ""
 
 OCI_PLATFORMS = ["linux/amd64", "linux/arm64"]
@@ -123,6 +150,7 @@ def _oci_launcher_impl(ctx):
 
 _oci_launcher = rule(
     implementation = _oci_launcher_impl,
+    doc = "Writes the launcher Rust source for one OCI deployment.",
     attrs = {
         "image_tar": attr.label(
             doc = "docker save or OCI layout archive (.tar or .tar.gz) holding one image with uncompressed or gzip layers.",
@@ -156,7 +184,7 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
     registry_error = oci_registry_error(registry)
     if registry_error != "":
         fail(registry_error + " (in " + native.package_name() + ":" + name + ")")
-    repo_error = oci_repository_error(effective_repo)
+    repo_error = oci_repository_error(effective_repo, from_name = repository == "")
     if repo_error != "":
         fail(repo_error + " (in " + native.package_name() + ":" + name + ")")
 

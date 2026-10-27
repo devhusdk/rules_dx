@@ -26,10 +26,7 @@ rust_library(
     crate_root = "src/lib.rs",
     edition = "2021",
     visibility = ["//visibility:public"],
-    deps = crate_deps(
-        [],
-        package_name = "tools/docs/site/site_build",
-    ),
+    deps = [],
 )
 
 rust_test(
@@ -40,10 +37,7 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_site_build",
-    deps = crate_deps(
-        [],
-        package_name = "tools/docs/site/site_build",
-    ),
+    deps = [],
 )
 
 rust_binary(

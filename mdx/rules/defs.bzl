@@ -7,4 +7,4 @@ _mdx_library_forward = dx_framework_forward_rule("mdx", ".mdx")
 
 def mdx_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over js_library for MDX documents."""
-    dx_framework_library(name, srcs, _js_library, _mdx_library_forward, visibility = visibility, **kwargs)
+    dx_framework_library(name, srcs, _js_library, _mdx_library_forward, skip = [], visibility = visibility, **kwargs)

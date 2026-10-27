@@ -19,7 +19,7 @@ import (
 
 const (
 	IntendedManifestSchemaMajor = 1
-	IntendedManifestSchemaMinor = 0
+	IntendedManifestSchemaMinor = 1
 
 	EnvIntendedManifest = "DX_GENERATE_INTENDED"
 	EnvGenerateScope    = "DX_GENERATE_SCOPE"
@@ -63,10 +63,18 @@ type IntendedScope struct {
 	ResultsComplete bool   `json:"results_complete"`
 }
 
+type IntendedResult string
+
+const (
+	IntendedResultClean     IntendedResult = "clean"
+	IntendedResultDiffFound IntendedResult = "diff_found"
+)
+
 type IntendedManifest struct {
 	SchemaMajor    int                     `json:"schema_major"`
 	SchemaMinor    int                     `json:"schema_minor"`
 	Mode           string                  `json:"mode"`
+	Result         IntendedResult          `json:"result"`
 	Scopes         []IntendedScope         `json:"scopes"`
 	Files          []IntendedFile          `json:"files"`
 	IgnoredImports []IntendedIgnoredImport `json:"ignored_imports"`
@@ -213,6 +221,10 @@ func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 		}
 		file.ScopeIndex = index
 		manifest.Files = append(manifest.Files, file)
+	}
+	manifest.Result = IntendedResultClean
+	if len(manifest.Files) > 0 {
+		manifest.Result = IntendedResultDiffFound
 	}
 	seenIgnore := map[IntendedIgnoredImport]bool{}
 	for _, ignore := range ignores {

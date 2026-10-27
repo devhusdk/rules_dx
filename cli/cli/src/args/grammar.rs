@@ -78,6 +78,7 @@ pub(crate) struct Flags {
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
     pub(crate) disk: bool,
+    pub(crate) bases: bool,
     pub(crate) bazel_startup_options: Vec<String>,
 }
 
@@ -231,7 +232,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Include full edits in JSON change records.
+    /// Include full edits in JSON change records (needs --output json).
     IncludeEditsFlag, {
         #[arg(long = "include-edits", overrides_with = "include_edits")]
         include_edits: bool,
@@ -277,6 +278,94 @@ flag_group! {
 }
 
 flag_group! {
+    /// Write updated BUILD declarations.
+    GenerateApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Write generated source files.
+    CodegenApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Prune unselected managed state.
+    CleanApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Write dependency updates.
+    UpdateApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Widen the declared requirement.
+    BumpApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Declare the new requirement.
+    AddApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Rewrite breaking changes.
+    MigrateApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Write the managed development environment state.
+    EnvApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Scaffold the new files.
+    ScaffoldApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Run the upgrade and record the recovery pointer.
+    UpgradeApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Restore the previous recorded pin.
+    RollbackApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
     /// Use debug build.
     DebugFlag, {
         #[arg(long, overrides_with = "debug", conflicts_with = "release")]
@@ -285,7 +374,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Use release build.
+    /// Use release build (the deploy default).
     ReleaseFlag, {
         #[arg(long, overrides_with = "release", conflicts_with = "debug")]
         release: bool,
@@ -349,7 +438,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Docs serve port.
+    /// Docs serve port (needs --serve).
     PortFlag, {
         #[arg(
             long,
@@ -362,7 +451,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Docs serve host.
+    /// Docs serve host (needs --serve).
     HostFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "host", value_parser = non_empty)]
         host: Option<String>,
@@ -370,7 +459,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Open docs in a browser.
+    /// Open docs in a browser (needs --serve).
     OpenFlag, {
         #[arg(long, overrides_with = "open")]
         open: bool,
@@ -378,7 +467,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Run without network.
+    /// Run without network; uses pinned cached snapshots or fails.
     OfflineFlag, {
         #[arg(long, overrides_with = "offline")]
         offline: bool,
@@ -402,7 +491,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Start a new branch from this ref.
+    /// Start a new branch from this ref (add only).
     CreateFlag, {
         #[arg(long, value_name = "REF", value_parser = non_empty, require_equals = true, overrides_with = "create")]
         create: Option<String>,
@@ -410,7 +499,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Override another holder or discard unpushed work.
+    /// Override another holder or discard unpushed work (add and release).
     ForceFlag, {
         #[arg(long, overrides_with = "force")]
         force: bool,
@@ -418,7 +507,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Measure disk use per slot.
+    /// Measure disk use per slot (list only, slow).
     DiskFlag, {
         #[arg(long, overrides_with = "disk")]
         disk: bool,
@@ -426,7 +515,15 @@ flag_group! {
 }
 
 flag_group! {
-    /// Set output format.
+    /// List or delete every free slot's output base (prune only).
+    BasesFlag, {
+        #[arg(long, overrides_with = "bases")]
+        bases: bool,
+    }
+}
+
+flag_group! {
+    /// Set output format (path works with add only).
     WorktreeOutputFlag, {
         #[arg(
             long,
@@ -511,6 +608,26 @@ pub(crate) struct NoPassthroughTail {
 
 impl NoPassthroughTail {
     /// The scopes and the `--` payload.
+    pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
+        (self.targets, self.passthrough)
+    }
+}
+
+/// Stray scopes and the `--` payload a no-scope command refuses.
+///
+/// Both stay hidden from help but still parse, so the dispatch layer reports its usual errors.
+#[derive(Args)]
+pub(crate) struct NoScopeTail {
+    /// Stray scopes, collected only so they can be rejected.
+    #[arg(hide = true)]
+    pub(crate) targets: Vec<OsString>,
+    /// Args after --.
+    #[arg(hide = true, last = true)]
+    pub(crate) passthrough: Vec<String>,
+}
+
+impl NoScopeTail {
+    /// The stray scopes and the `--` payload.
     pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
         (self.targets, self.passthrough)
     }
@@ -615,7 +732,7 @@ command_args! {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -626,7 +743,7 @@ command_args! {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -637,7 +754,7 @@ command_args! {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: FixApplyFlag,
         fail_on: FailOnFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -646,7 +763,7 @@ command_args! {
     Generate => 5, BazelTail, {
         output: DiffOutputFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: GenerateApplyFlag,
         here: HereFlag,
     };
     /// The flags `dx build` accepts.
@@ -699,40 +816,42 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoPassthroughTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoScopeTail, { output: ReadOutputFlag, check: CheckFlag, apply: CleanApplyFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: ReadOutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: UpdateApplyFlag,
     };
     /// The flags `dx bump` accepts.
-    Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
+    Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
+    /// The flags `dx add` accepts.
+    Add => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: AddApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
     /// The flags `dx migrate` accepts.
-    Migrate => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
+    Migrate => 17, NoPassthroughTail, { output: ReadOutputFlag, apply: MigrateApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.
-    Codegen => 17, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
+    Codegen => 18, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: CodegenApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 18, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
+    Env => 19, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 19, NoPassthroughTail, { apply: ApplyFlag, };
+    Init => 20, NoPassthroughTail, { apply: ScaffoldApplyFlag, };
     /// The flags `dx new` accepts.
-    New => 20, NoPassthroughTail, { apply: ApplyFlag, };
+    New => 21, NoPassthroughTail, { apply: ScaffoldApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 21, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
+    Upgrade => 22, NoScopeTail, { output: ReadOutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
     /// The flags `dx status` accepts.
-    Status => 22, NoPassthroughTail, {
+    Status => 23, NoScopeTail, {
         output: ReadOutputFlag,
     };
     /// The flags `dx version` accepts.
-    Version => 23, NoPassthroughTail, {
+    Version => 24, NoScopeTail, {
         output: ReadOutputFlag,
         check: CheckFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 24, BazelTail, {
+    Watch => 25, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
@@ -744,16 +863,16 @@ command_args! {
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.
-    Completion => 25, NoPassthroughTail, {};
+    Completion => 26, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
-    Docs => 26, BazelTail, {
+    Docs => 27, BazelTail, {
         output: ReadOutputFlag,
         check: CheckFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx list-tests` accepts.
-    ListTests => 27, BazelTail, {
+    ListTests => 28, BazelTail, {
         output: ReadOutputFlag,
         own: CasesFlag,
         configured: ConfiguredFlag,
@@ -761,14 +880,15 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 28, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, };
+    Rollback => 29, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
-    Worktree => 29, NoPassthroughTail, {
+    Worktree => 30, NoPassthroughTail, {
         output: WorktreeOutputFlag,
         apply: ApplyFlag,
         create: CreateFlag,
         force: ForceFlag,
         disk: DiskFlag,
+        bases: BasesFlag,
     };
 }
 
@@ -791,6 +911,15 @@ pub fn cli_command() -> clap::Command {
     let cwd = dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let start = dx_process::workspace_start(&cwd);
     super::completion::with_scope_completers(Cli::command(), std::env::args_os().skip(1), &start)
+}
+
+/// Renders the section 1 man page for the dx command.
+pub fn man_page() -> std::io::Result<Vec<u8>> {
+    let mut buffer = Vec::new();
+    clap_mangen::Man::new(cli_command())
+        .section("1")
+        .render(&mut buffer)?;
+    Ok(buffer)
 }
 
 pub(crate) const VALUE_OPTIONS: &[&str] = &[
@@ -871,6 +1000,17 @@ pub(crate) fn short_cluster(
     None
 }
 
+/// Whether `word` is a value option whose value is the separate word `next`.
+pub(crate) fn consumes_next(word: &str, next: Option<&str>) -> bool {
+    if word.contains('=') {
+        return false;
+    }
+    if word.starts_with("--") {
+        return VALUE_OPTIONS.contains(&word);
+    }
+    short_cluster(word, next).is_some_and(|(_, _, used_next)| used_next)
+}
+
 /// The long names the grammar gives the flags that belong to some commands only.
 pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> {
     let sub = subcommand_args(command);
@@ -886,6 +1026,13 @@ pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> 
     flags.sort();
     flags.dedup();
     flags
+}
+
+/// Whether `dx <command>` parses `--<long>`, hidden arguments included.
+pub(crate) fn accepts_long(command: super::command::Command, long: &str) -> bool {
+    subcommand_args(command)
+        .get_arguments()
+        .any(|arg| arg.get_long() == Some(long))
 }
 
 /// Whether the grammar lets `dx <command> -- <bazel-options>` through.
@@ -907,6 +1054,31 @@ mod tests {
         .map_or(clap::error::ErrorKind::UnknownArgument, |error| {
             error.kind()
         })
+    }
+
+    #[test]
+    fn every_grammar_index_names_its_own_command() {
+        use clap::{CommandFactory, ValueEnum};
+        let cli = Cli::command();
+        for (index, command) in super::super::command::Command::value_variants()
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(COMMANDS[index].command, *command, "index {index}");
+            assert_eq!(
+                subcommand_args(*command).get_name(),
+                command.name(),
+                "{command:?} grammar index"
+            );
+            let sub = cli
+                .find_subcommand(command.name())
+                .unwrap_or_else(|| panic!("{command:?} has a subcommand"));
+            assert_eq!(
+                sub.get_about().map(ToString::to_string).as_deref(),
+                Some(command.describe()),
+                "{command:?} about"
+            );
+        }
     }
 
     #[test]
@@ -1063,6 +1235,13 @@ mod tests {
             Some(('o', None, false))
         );
         assert_eq!(short_cluster("-qo", Some("")), Some(('o', None, false)));
+        assert!(consumes_next("--output", Some("json")));
+        assert!(!consumes_next("--output=json", Some("json")));
+        assert!(consumes_next("-o", Some("json")));
+        assert!(consumes_next("-qo", Some("json")));
+        assert!(!consumes_next("-qo", Some("--quiet")));
+        assert!(!consumes_next("-q", Some("json")));
+        assert!(!consumes_next("--check", Some("json")));
         assert_eq!(short_cluster("-q=false", None), None);
         assert_eq!(short_cluster("-json", None), None);
         assert_eq!(short_cluster("-qv", Some("json")), None);

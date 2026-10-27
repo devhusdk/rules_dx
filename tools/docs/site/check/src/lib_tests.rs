@@ -6,8 +6,8 @@ use documentation_ir::proto::{DocIr, Symbol};
 use documentation_ir::{encode_shard, SCHEMA_MAJOR};
 
 use super::{
-    anchor_name, check, first_field, has_empty_link_target, inline_targets, normalize_link,
-    parse_args, split_reference, tidy, Inputs,
+    anchor_name, check, first_field, has_empty_link_target, inline_targets, parse_args,
+    resolve_route, split_reference, tidy, Inputs,
 };
 
 fn args(list: &[&str]) -> Vec<String> {
@@ -56,11 +56,15 @@ fn inputs(dir: &Path) -> Inputs {
 }
 
 #[test]
-fn an_anchor_drops_punctuation_and_joins_words() {
+fn an_anchor_matches_mdbook_ids() {
     assert_eq!(anchor_name("## Getting Started"), "getting-started");
     assert_eq!(anchor_name("# A/B and C"), "ab-and-c");
-    assert_eq!(anchor_name("### Spaced -- Out"), "spaced-out");
-    assert_eq!(anchor_name("#  Trim  Me  "), "trim-me");
+    assert_eq!(anchor_name("### Spaced -- Out"), "spaced----out");
+    assert_eq!(anchor_name("#  Trim  Me  "), "trim--me");
+    assert_eq!(anchor_name("## dx_rust_crate"), "dx_rust_crate");
+    assert_eq!(anchor_name("## `--affected`"), "--affected");
+    assert_eq!(anchor_name("## 中文 Straße"), "中文-straße");
+    assert_eq!(anchor_name("## Ünïcode"), "Ünïcode");
 }
 
 #[test]
@@ -100,10 +104,22 @@ fn only_the_first_space_delimited_field_survives() {
 }
 
 #[test]
-fn leading_parent_and_current_segments_come_off() {
-    assert_eq!(normalize_link("../LICENSE"), "LICENSE");
-    assert_eq!(normalize_link("../../a/b.md"), "a/b.md");
-    assert_eq!(normalize_link("./api.md"), "api.md");
+fn routes_resolve_against_the_directory_of_the_page() {
+    assert_eq!(resolve_route("a.md", "b.md").as_deref(), Some("b.md"));
+    assert_eq!(
+        resolve_route("a.md", "./cli/x.md").as_deref(),
+        Some("cli/x.md")
+    );
+    assert_eq!(
+        resolve_route("cli/a.md", "../b.md").as_deref(),
+        Some("b.md")
+    );
+    assert_eq!(
+        resolve_route("cli/a.md", "x.md").as_deref(),
+        Some("cli/x.md")
+    );
+    assert_eq!(resolve_route("a.md", "../b.md"), None);
+    assert_eq!(resolve_route("cli/a.md", "../../b.md"), None);
 }
 
 #[test]
@@ -153,6 +169,60 @@ fn a_shard_that_does_not_decode_is_refused() {
     write(&dir, "guide.md", "# Guide\n");
     let refusal = check(&inputs(&dir));
     assert!(refusal.contains("is not a valid DocIr shard"), "{refusal}");
+}
+
+fn anchor_site(name: &str, guide_links: &str) -> String {
+    let dir = scratch(name);
+    write(&dir, "book.toml", "title = \"demo\"\n");
+    write(
+        &dir,
+        "api.md",
+        "# API Reference\n\n## dx_rust_crate\n\n- [`demo::T`](api/rust/demo/T.md)\n",
+    );
+    write_shard(&dir, &["rust:demo:T"]);
+    write(
+        &dir,
+        "guide.md",
+        &format!("# Guide\n\n## `--affected`\n\n## 中文\n\n{guide_links}\n"),
+    );
+    check(&inputs(&dir))
+}
+
+#[test]
+fn an_anchor_with_underscores_or_dashes_resolves() {
+    assert_eq!(
+        anchor_site("anchor-ok", "[a](api.md#dx_rust_crate) [b](#--affected)"),
+        ""
+    );
+}
+
+#[test]
+fn a_fragment_without_underscores_is_dangling() {
+    assert_eq!(
+        anchor_site("frag-bad", "[a](api.md#dxrustcrate)"),
+        "dangling fragment 'api.md#dxrustcrate'"
+    );
+}
+
+#[test]
+fn a_collapsed_dash_anchor_is_dangling() {
+    assert_eq!(
+        anchor_site("anchor-bad", "[a](#-affected)"),
+        "dangling anchor '#-affected'"
+    );
+}
+
+#[test]
+fn a_fragment_of_the_wrong_case_is_dangling() {
+    assert_eq!(
+        anchor_site("frag-case", "[a](api.md#DX_RUST_CRATE)"),
+        "dangling fragment 'api.md#DX_RUST_CRATE'"
+    );
+}
+
+#[test]
+fn a_percent_encoded_anchor_resolves() {
+    assert_eq!(anchor_site("anchor-pct", "[a](#%E4%B8%AD%E6%96%87)"), "");
 }
 
 #[test]

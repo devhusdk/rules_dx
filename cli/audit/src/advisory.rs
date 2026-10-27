@@ -39,7 +39,7 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
         "maven" => Some("maven"),
         "nuget" => Some("nuget"),
         "go" => Some("go"),
-        "ruby" => Some("rubygems"),
+        "ruby" | "rubygems" => Some("rubygems"),
         PYPI_FAMILY => Some(PYPI_FAMILY),
         _ => None,
     }
@@ -290,6 +290,20 @@ mod tests {
         assert_eq!(advisory_family("cargo"), Some("cargo"));
         assert_eq!(advisory_family("ruby"), Some("rubygems"));
         assert_eq!(snapshot_rel("ruby"), ".dx/advisory/rubygems.json");
+        for key in ["ruby", "rubygems"] {
+            assert_eq!(advisory_family(key), Some("rubygems"), "{key}");
+            assert_eq!(
+                advisory_source(key),
+                Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
+                "{key}"
+            );
+            assert_eq!(snapshot_rel(key), ".dx/advisory/rubygems.json", "{key}");
+            assert_eq!(
+                identity_rel(key),
+                ".dx/advisory/rubygems.meta.json",
+                "{key}"
+            );
+        }
         assert_eq!(advisory_family("powershell"), None);
         assert_eq!(advisory_source("powershell"), None);
         assert_eq!(advisory_family("uv"), None);

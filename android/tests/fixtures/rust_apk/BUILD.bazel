@@ -1,7 +1,8 @@
 # gazelle:ignore
 
+load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//android/packaging:defs.bzl", "android_aab_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
+load("//android/packaging:defs.bzl", "android_aab_check", "android_aab_release_sign", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
@@ -51,6 +52,17 @@ rust_android_apk(
     deps = [":app_jni"],
 )
 
+rust_android_apk(
+    name = "arm_apk",
+    abis = ["arm64-v8a"],
+    app_id = "com.example.dxrustapk",
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+    permissions = ["android.permission.INTERNET"],
+    resource_files = glob(["res/**"]),
+    deps = [":app_jni"],
+)
+
 android_adb_install(
     name = "install",
     apk = ":app_apk_file",
@@ -61,6 +73,32 @@ android_adb_install(
     name = "install_probe",
     apk = ":dummy.apk",
     serial = "emulator-5554",
+)
+
+java_binary(
+    name = "test_bundle_module",
+    srcs = ["TestBundleModule.java"],
+    main_class = "TestBundleModule",
+    deps = ["//android/packaging:bundletool_jar"],
+)
+
+genrule(
+    name = "test_bundle",
+    outs = ["test_bundle.aab"],
+    cmd = "work=$$(mktemp -d) && " +
+          "$(execpath :test_bundle_module) $$work/base.zip com.example.dxbundle 31 x86_64 && " +
+          "$(execpath //android/packaging:bundletool) build-bundle --modules=$$work/base.zip --output=$@ && " +
+          "rm -rf $$work",
+    tools = [
+        ":test_bundle_module",
+        "//android/packaging:bundletool",
+    ],
+)
+
+android_aab_check(
+    name = "check_test_bundle_test",
+    aab = ":test_bundle.aab",
+    abis = ["x86_64"],
 )
 
 android_adb_start(
@@ -206,7 +244,7 @@ sh_test(
         "$(rootpath //android/packaging:bundletool)",
         "$(rootpath :app_apk_aab_file)",
         "com.example.dxrustapk",
-        "app_apk",
+        "app_apk_bin",
         "arm64-v8a,x86_64",
         "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
         "31",
@@ -228,7 +266,7 @@ sh_test(
         "$(rootpath //android/packaging:bundletool)",
         "$(rootpath :custom_apk_aab_file)",
         "org.example.custom.dxrustapk",
-        "custom_apk",
+        "custom_apk_bin",
         "x86_64",
         "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
         "33",
@@ -291,13 +329,65 @@ sh_test(
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
+android_aab_release_sign(
+    name = "sign_test_bundle",
+    aab = ":test_bundle.aab",
+)
+
+android_aab_release_sign(
+    name = "sign_app_aab",
+    aab = ":app_apk_aab_file",
+)
+
+sh_test(
+    name = "sign_aab_test",
+    size = "small",
+    srcs = ["sign_aab_test.sh"],
+    args = [
+        "$(rootpath :sign_test_bundle)",
+        "$(rootpath :test_bundle.aab)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpath //android/packaging:bundletool)",
+        "$(JAVABASE_ROOTPATH)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":sign_test_bundle",
+        ":test_bundle.aab",
+        "//android/packaging:bundletool",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+sh_test(
+    name = "sign_app_aab_test",
+    srcs = ["sign_aab_test.sh"],
+    args = [
+        "$(rootpath :sign_app_aab)",
+        "$(rootpath :app_apk_aab_file)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpath //android/packaging:bundletool)",
+        "$(JAVABASE_ROOTPATH)",
+    ],
+    data = [
+        ":app_apk_aab_file",
+        ":dummy.apk",
+        ":sign_app_aab",
+        "//android/packaging:bundletool",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    tags = ["manual"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
 sh_test(
     name = "inspect_apk_test",
     srcs = ["inspect_apk.sh"],
     args = [
         "$(location :app_apk_file)",
         "com.example.dxrustapk",
-        "app_apk",
+        "app_apk_bin",
         "arm64-v8a,x86_64",
         "$(location @android_ndk_toolchain//:llvm_readelf)",
         "31",
@@ -318,7 +408,7 @@ sh_test(
     args = [
         "$(location :custom_apk_file)",
         "org.example.custom.dxrustapk",
-        "custom_apk",
+        "custom_apk_bin",
         "x86_64",
         "$(location @android_ndk_toolchain//:llvm_readelf)",
         "33",
@@ -447,4 +537,25 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+sh_test(
+    name = "inspect_arm_apk_test",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :arm_apk_file)",
+        "com.example.dxrustapk",
+        "arm_apk_bin",
+        "arm64-v8a",
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "31",
+        "android.permission.INTERNET",
+        "1",
+        "1.0",
+    ],
+    data = [
+        ":arm_apk_file",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    tags = ["manual"],
 )

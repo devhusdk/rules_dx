@@ -27,10 +27,12 @@ pub const AMBIENT_TOOLS: &[&str] = &[
     "ranlib", "nm", "strip", "objcopy", "objdump", "python", "python3", "perl", "ruby", "gem",
     "node", "npm", "npx", "yarn", "pnpm", "java", "javac", "go", "rustc", "cargo", "rustup",
     "dotnet", "mono", "swift", "swiftc", "kotlinc", "scalac", "pip", "pip3", "make", "cmake",
-    "ninja", "curl", "wget", "git", "tar", "unzip", "xz", "bzip2", "zstd", "7z", "7za",
+    "ninja", "curl", "wget", "git", "tar", "unzip", "xz", "bzip2", "zstd", "7z", "7za", "nvcc",
 ];
 
 pub const TOOL_DIRS: &[&str] = &["/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"];
+
+pub const IP_CANDIDATES: &[&str] = &["/usr/sbin/ip", "/sbin/ip", "/usr/bin/ip", "/bin/ip"];
 
 pub const SDK_DIRS: &[&str] = &[
     "/usr/local",
@@ -40,7 +42,12 @@ pub const SDK_DIRS: &[&str] = &[
     "/usr/libexec/gcc",
 ];
 
-pub const SDK_DIR_PREFIXES: &[(&str, &str)] = &[("/usr/lib", "llvm-"), ("/usr/lib", "clang")];
+pub const SDK_DIR_PREFIXES: &[(&str, &str)] = &[
+    ("/usr/lib", "llvm-"),
+    ("/usr/lib", "clang"),
+    ("/usr/lib", "cuda"),
+    ("/usr/lib", "nvidia-cuda-toolkit"),
+];
 
 /// Lists the host SDK directories, including versioned LLVM trees.
 pub fn sdk_candidates() -> Vec<PathBuf> {
@@ -58,6 +65,25 @@ pub fn sdk_candidates() -> Vec<PathBuf> {
         dirs.extend(found);
     }
     dirs
+}
+
+/// The host locations `Isolation::plan_with` probes, so tests can supply fakes.
+#[derive(Debug, Clone)]
+pub struct HostPaths {
+    pub ip_candidates: Vec<PathBuf>,
+    pub sdk_candidates: Vec<PathBuf>,
+    pub tool_dirs: Vec<PathBuf>,
+}
+
+impl HostPaths {
+    /// Reads the live host: the real iproute2, SDK and tool locations.
+    pub fn detect() -> Self {
+        Self {
+            ip_candidates: IP_CANDIDATES.iter().map(PathBuf::from).collect(),
+            sdk_candidates: sdk_candidates(),
+            tool_dirs: TOOL_DIRS.iter().map(PathBuf::from).collect(),
+        }
+    }
 }
 
 pub const HOME_CONFIG: &[&str] = &[
@@ -120,6 +146,7 @@ pub struct Manifest {
     pub patterns: Vec<String>,
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: PathBuf,
+    pub fragment_before_toolchains: bool,
     pub dx: PathBuf,
     pub module_file: PathBuf,
     pub bazelversion: PathBuf,
@@ -201,6 +228,9 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         patterns,
         files,
         module_fragment: base.join(string(&value, "module_fragment")?),
+        fragment_before_toolchains: value["fragment_before_toolchains"]
+            .as_bool()
+            .unwrap_or(false),
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
         bazelversion: base.join(string(&value, "bazelversion")?),
@@ -236,12 +266,38 @@ pub fn add_rust_target_triples(snippet: &str, triples: &[String]) -> Result<Stri
     ))
 }
 
+/// Inserts `fragment` before the first `register_toolchains(` line of `setup`.
+fn insert_before_toolchains(setup: &str, fragment: &str) -> Result<String, String> {
+    let mut at = None;
+    let mut offset = 0;
+    for line in setup.split_inclusive('\n') {
+        if line.starts_with("register_toolchains(") {
+            at = Some(offset);
+            break;
+        }
+        offset += line.len();
+    }
+    let at = at.ok_or_else(|| {
+        format!("dx init snippet has no register_toolchains to put the fragment before: {setup}")
+    })?;
+    Ok(format!(
+        "{}{}\n\n{}",
+        &setup[..at],
+        fragment.trim_end(),
+        &setup[at..]
+    ))
+}
+
 /// Builds the consumer MODULE.bazel from the `dx init` snippet.
+///
+/// The fragment is appended, or with `before_toolchains` placed ahead of the snippet's first
+/// toolchain registration so its own registrations resolve first.
 pub fn compose_module(
     snippet: &str,
     module: &str,
     repo_name: &str,
     fragment: &str,
+    before_toolchains: bool,
     rules_dx: &Path,
 ) -> Result<String, String> {
     let needle = "bazel_dep(name = \"rules_dx\", ";
@@ -259,11 +315,17 @@ pub fn compose_module(
             1,
         )
     };
+    let body = if before_toolchains {
+        insert_before_toolchains(&setup, fragment)?
+            .trim_end()
+            .to_owned()
+    } else {
+        format!("{}\n{}", setup.trim_end(), fragment.trim_end())
+    };
     Ok(format!(
-        "module(name = {})\n\n{}\n{}\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
+        "module(name = {})\n\n{}\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
         starlark_string(module),
-        setup.trim_end(),
-        fragment.trim_end(),
+        body,
         starlark_string(&rules_dx.to_string_lossy()),
     ))
 }
@@ -378,23 +440,36 @@ pub struct Isolation {
 
 impl Isolation {
     /// Plans the masks for this host, keeping every path the run itself needs.
+    /// Probes the live host; see `plan_with` for the injectable form.
     pub fn plan(shim: &Path, keep: &[PathBuf], home: Option<&Path>) -> Result<Self, String> {
+        Self::plan_with(&HostPaths::detect(), shim, keep, home)
+    }
+
+    /// Plans the masks against the given host locations.
+    pub fn plan_with(
+        host: &HostPaths,
+        shim: &Path,
+        keep: &[PathBuf],
+        home: Option<&Path>,
+    ) -> Result<Self, String> {
         let status = std::fs::read_to_string("/proc/self/status")
             .map_err(|err| format!("cannot read /proc/self/status: {err}"))?;
         let uid = status_id(&status, "Uid:").ok_or("no Uid in /proc/self/status")?;
         let gid = status_id(&status, "Gid:").ok_or("no Gid in /proc/self/status")?;
-        let ip = ["/usr/sbin/ip", "/sbin/ip", "/usr/bin/ip", "/bin/ip"]
+        let ip = host
+            .ip_candidates
             .iter()
-            .map(PathBuf::from)
             .find(|path| path.is_file())
+            .cloned()
             .ok_or("namespace isolation needs ip from iproute2 to raise loopback")?;
         let kept = |path: &Path| keep.iter().any(|needed| covers(path, needed));
-        let sdk_dirs: Vec<PathBuf> = sdk_candidates()
-            .into_iter()
+        let sdk_dirs: Vec<PathBuf> = host
+            .sdk_candidates
+            .iter()
             .filter(|dir| dir.is_dir() && !kept(dir))
+            .cloned()
             .collect();
-        let dirs: Vec<PathBuf> = TOOL_DIRS.iter().map(PathBuf::from).collect();
-        let tools = ambient_tools(&dirs, AMBIENT_TOOLS)
+        let tools = ambient_tools(&host.tool_dirs, AMBIENT_TOOLS)
             .into_iter()
             .map(|(_, path)| path)
             .filter(|path| !sdk_dirs.iter().any(|dir| covers(dir, path)) && !kept(path))
@@ -629,7 +704,7 @@ fn probe_expectation(name: &str) -> (&'static str, &'static str) {
     }
 }
 
-const NATIVE_LANGUAGES: [&str; 3] = ["cpp", "rust", "zig"];
+const NATIVE_LANGUAGES: [&str; 5] = ["appimage", "cpp", "cuda", "rust", "zig"];
 
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts
@@ -866,7 +941,14 @@ pub fn materialize(
         .map_err(|err| format!("cannot read {}: {err}", manifest.module_fragment.display()))?;
     let snippet = add_rust_target_triples(&snippet, &manifest.rust_target_triples)?;
     let (name, repo) = (&manifest.module, &manifest.repo_name);
-    let module = compose_module(&snippet, name, repo, &fragment, source)?;
+    let module = compose_module(
+        &snippet,
+        name,
+        repo,
+        &fragment,
+        manifest.fragment_before_toolchains,
+        source,
+    )?;
     write(&workspace.join("MODULE.bazel"), &module)?;
     copy(&manifest.bazelversion, &workspace.join(".bazelversion"))?;
     for (src, dest) in &manifest.files {
@@ -983,9 +1065,9 @@ fn run_all(
     let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
     let real_home = status_id(&status, "Uid:").and_then(|uid| passwd_home(&passwd, uid));
     let keep = vec![root.to_path_buf(), out.to_path_buf(), source.clone()];
-    let isolation = Isolation::plan(&shim, &keep, real_home.as_deref())?;
-    let dirs: Vec<PathBuf> = TOOL_DIRS.iter().map(PathBuf::from).collect();
-    let ambient = ambient_tools(&dirs, AMBIENT_TOOLS)
+    let host = HostPaths::detect();
+    let isolation = Isolation::plan_with(&host, &shim, &keep, real_home.as_deref())?;
+    let ambient = ambient_tools(&host.tool_dirs, AMBIENT_TOOLS)
         .into_iter()
         .find(|(_, path)| isolation.tools.contains(path))
         .map(|(name, _)| name)

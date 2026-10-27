@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_shell_lint_rcfile
+capability LINT
+stages 1
+stage shellcheck classes=shell sources=matrix/shellcheck_dirty.sh
+completed_rounds 1
+convergence STABLE
+initial 1
+initial INFO shellcheck SC2086 matrix/shellcheck_dirty.sh 38 38 fixable=false "Double quote to prevent globbing and word splitting."
+terminal 1
+terminal INFO shellcheck SC2086 matrix/shellcheck_dirty.sh 38 38 fixable=false "Double quote to prevent globbing and word splitting."
+replacements 0

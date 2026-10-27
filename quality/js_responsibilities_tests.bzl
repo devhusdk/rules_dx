@@ -91,18 +91,33 @@ def js_responsibilities_unit_tests(name):
                 [[], []],
             ),
             expect_equal(
-                "tsc alone typechecks typescript and tsx",
+                "no adapter typechecks typescript, tsx or javascript",
                 [
                     _claimants("typecheck", "typescript"),
                     _claimants("typecheck", "tsx"),
                     _claimants("typecheck", "javascript"),
                 ],
-                [["tsc"], ["tsc"], []],
+                [[], [], []],
             ),
             expect_equal(
                 "deferred framework classes stay outside JS tool claims",
                 [c for c in sorted(PARITY_DEFERRED.keys()) if c in _js_tool_classes()],
                 [],
+            ),
+            expect_equal(
+                "astro is formatted by prettier and linted by eslint only",
+                [_claimants("format", "astro"), _claimants("lint", "astro")],
+                [["prettier"], ["eslint"]],
+            ),
+            expect_equal(
+                "mdx is formatted by remark, linted by eslint, and typechecked by nothing",
+                [_claimants("format", "mdx"), _claimants("lint", "mdx"), _claimants("typecheck", "mdx")],
+                [["remark"], ["eslint"], []],
+            ),
+            expect_equal(
+                "vue is formatted by prettier and linted by eslint only",
+                [_claimants("format", "vue"), _claimants("lint", "vue")],
+                [["prettier"], ["eslint"]],
             ),
             expect_equal(
                 "default format selections stay single-formatter per family",

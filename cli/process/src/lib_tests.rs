@@ -856,7 +856,7 @@ impl Runner for FakeRunner {
 #[test]
 fn fake_runner_substitutes_the_boundary() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(3) },
+        status: ChildStatus::exited(3),
     };
     let status = runner
         .run(
@@ -871,13 +871,13 @@ fn fake_runner_substitutes_the_boundary() {
 #[test]
 fn default_withdrawable_run_checks_withdraw_only_before_launch() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(3) },
+        status: ChildStatus::exited(3),
     };
     let argv = ["bazel".to_owned(), "run".to_owned()];
     let ran = runner
         .run_withdrawable(&argv, Path::new("."), &[], &|| false)
         .expect("fake");
-    assert_eq!(ran, Some(ChildStatus { code: Some(3) }));
+    assert_eq!(ran, Some(ChildStatus::exited(3)));
     let withdrawn = runner
         .run_withdrawable(&argv, Path::new("."), &[], &|| true)
         .expect("fake");
@@ -970,7 +970,7 @@ fn system_runner_bounded_run_reaps_a_hanging_descendant() {
 #[test]
 fn unbounded_fakes_keep_working_through_the_bounded_default() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(0) },
+        status: ChildStatus::exited(0),
     };
     let outcome = runner
         .run_bounded(
@@ -995,6 +995,50 @@ fn system_runner_preserves_exit_codes() {
         .run(&probe_argv(&["--exit-code=1"]), &cwd, &[])
         .expect("probe");
     assert_eq!(fail.code, Some(1));
+}
+
+#[test]
+fn child_status_from_exit_keeps_the_code_or_the_known_signal() {
+    assert_eq!(
+        ChildStatus::from(lifecycle::Exit::Code(3)),
+        ChildStatus {
+            code: Some(3),
+            signal: None
+        }
+    );
+    assert_eq!(
+        ChildStatus::from(lifecycle::Exit::Signal(11)),
+        ChildStatus {
+            code: None,
+            signal: Some(11)
+        }
+    );
+    assert_eq!(
+        ChildStatus::from(lifecycle::Exit::Signal(0)),
+        ChildStatus {
+            code: None,
+            signal: None
+        }
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn system_runner_reports_the_signal_that_ended_the_child() {
+    let argv: Vec<String> = ["/bin/sh", "-c", "kill -SEGV $$"]
+        .iter()
+        .map(|arg| (*arg).to_owned())
+        .collect();
+    let status = SystemRunner
+        .run(&argv, &std::env::temp_dir(), &[])
+        .expect("sh runs");
+    assert_eq!(
+        status,
+        ChildStatus {
+            code: None,
+            signal: Some(11)
+        }
+    );
 }
 
 /// A probe argv that runs the Bazel-built probe with the given flags.
@@ -1056,7 +1100,7 @@ fn hermetic_runner_clears_the_parent_environment() {
     assert_eq!(cleared.status.code(), Some(0));
     assert_eq!(
         String::from_utf8_lossy(&cleared.stdout),
-        format!("<unset>\nkept\n"),
+        "<unset>\nkept\n",
         "inherited={inherited}"
     );
 }
@@ -1104,7 +1148,7 @@ fn hermetic_runner_sets_no_path() {
 #[test]
 fn gitleaks_tool_defaults_to_absent() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(0) },
+        status: ChildStatus::exited(0),
     };
     assert!(runner.gitleaks_tool().is_none());
 }
@@ -1112,7 +1156,7 @@ fn gitleaks_tool_defaults_to_absent() {
 #[test]
 fn pinned_tool_defaults_to_absent() {
     let runner = FakeRunner {
-        status: ChildStatus { code: Some(0) },
+        status: ChildStatus::exited(0),
     };
     assert!(runner.pinned_tool("DX_UV_BIN").is_none());
 }
@@ -1131,23 +1175,6 @@ fn pinned_env_path_takes_absolute_paths_only() {
 }
 
 #[test]
-fn spawn_success_reports_status_without_triplication() {
-    assert!(spawn_success(&probe_argv(&["--exit-code=0"])));
-    assert!(!spawn_success(&probe_argv(&["--exit-code=1"])));
-    assert!(!spawn_success(&[]));
-    assert!(!spawn_success(&["/nonexistent-dx-tool".to_owned()]));
-}
-
-#[test]
-fn exe_available_covers_help_file_and_path() {
-    assert!(exe_available(
-        &dx_testing::process_probe().to_string_lossy().into_owned()
-    ));
-    assert!(!exe_available("/nonexistent-dx-tool-xyz"));
-    assert!(!exe_available(""));
-}
-
-#[test]
 fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
     assert_eq!(interrupted(), None);
     record_interrupt(2);
@@ -1163,7 +1190,7 @@ fn stdout_broken_pipe_maps_to_141() {
     let broken = io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe");
     assert!(is_broken_pipe_io(&broken));
     assert_eq!(stdout_io_code(&broken), 128 + 13);
-    let other = io::Error::new(io::ErrorKind::Other, "boom");
+    let other = io::Error::other("boom");
     assert!(!is_broken_pipe_io(&other));
     assert_eq!(stdout_io_code(&other), operational_code());
 }
@@ -1302,35 +1329,6 @@ fn real_fs_override_keeps_display_path() {
     scratch.close().expect("cleanup");
 }
 
-const SELECTION_PROBE_FILTER: &str = "selection_argv_probe_marker";
-const UNICODE_PROBE_ARG: &str = "dx_argv_probe with spaces héllo";
-
-fn selection_probe_args() -> Vec<String> {
-    std::env::args().skip(1).collect()
-}
-
-#[test]
-fn selected_test_observes_its_selection_argv_probe_marker() {
-    let args = selection_probe_args();
-    if !args.iter().any(|arg| arg.contains(SELECTION_PROBE_FILTER)) {
-        return;
-    }
-    assert!(
-        args.iter().any(|arg| arg == UNICODE_PROBE_ARG),
-        "verbatim argument must reach the test binary alongside the filter: {args:?}"
-    );
-}
-
-#[test]
-#[ignore]
-fn ignored_selection_probe_runs_only_when_explicitly_selected() {
-    let args = selection_probe_args();
-    assert!(
-        args.iter().any(|arg| arg == "--ignored"),
-        "explicit ignored selection must reach the test binary: {args:?}"
-    );
-}
-
 #[test]
 fn disk_space_is_read_from_df_lines_and_byte_counts() {
     let df =
@@ -1359,7 +1357,7 @@ fn free_disk_bytes_defaults_to_unknown() {
     struct Plain;
     impl Runner for Plain {
         fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
-            Ok(ChildStatus { code: Some(0) })
+            Ok(ChildStatus::exited(0))
         }
     }
     assert_eq!(Plain.free_disk_bytes(Path::new("/")), None);

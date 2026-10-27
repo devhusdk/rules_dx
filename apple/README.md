@@ -181,7 +181,8 @@ platform, and minimum OS. Linking waits for that check.
 
 `apple_ios_app_test` creates and boots a new simulator of `device_type`
 on the exact iOS `os_version` runtime, runs XCTest cases inside the app,
-then deletes the simulator. The runtime must be installed. A missing
+then deletes the simulator. A simulator left by an interrupted or
+timed-out run is deleted by the next test run on that host. The runtime must be installed. A missing
 runtime fails the test and creates no simulator; it never falls back to
 another runtime. `os_version` below `deployment`
 fails analysis.
@@ -198,9 +199,35 @@ The build fails before linking when:
 - `srcs`, `deployment`, `bundle_id`, or `version` is missing or
   malformed, or both `library` and `frameworks` are empty.
 
-Simulator builds sign ad hoc; `provisioning_profile` fails there.
-Device builds need one. `export_ipa` fails. On non-Apple hosts the app
-targets are incompatible and skip.
+Simulator builds sign ad hoc; `provisioning_profile` fails there. On
+non-Apple hosts the app targets are incompatible and skip.
+
+### Device apps
+
+Set `environment = "device"` and `provisioning_profile` to a
+`.mobileprovision` file:
+
+```python
+apple_ios_app(
+    name = "ledger_device",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "17.0",
+    environment = "device",
+    library = ":ledger_rust",
+    provisioning_profile = "ledger_dev.mobileprovision",
+    version = "1.0",
+)
+```
+
+```sh
+bazel build //:ledger_device --ios_multi_cpus=arm64
+```
+
+Device builds always sign ad hoc and embed the profile. They never read
+a keychain, even when `signing_certificate_name` is set. The build fails
+when the profile has expired, does not cover `bundle_id`, or does not
+allow an entitlement. Rust needs the `aarch64-apple-ios` triple.
 
 ### Simulator operations
 
@@ -233,8 +260,63 @@ exits with:
 - `0` when `xcrun simctl` succeeds;
 - `2` when no available simulator matches, a name matches several, or
   an input is missing;
-- `127` when `xcrun` is missing;
+- `127` only when `xcrun` is missing;
 - `simctl`'s own code when it fails.
+
+### Export a signed IPA
+
+Export is an explicit `bazel run` launcher over one device app:
+
+```python
+load("@rules_dx//apple/ios:device.bzl", "apple_ios_export")
+
+apple_ios_export(name = "export", app = ":ledger_device")
+```
+
+```sh
+bazel run //:export --ios_multi_cpus=arm64 -- \
+    --certificate dev.p12 --password-file dev.p12.pass --out dist/Ledger.ipa
+```
+
+Flags:
+
+- `--certificate`: the signing identity `.p12` file.
+- `--password-file`: the file holding the `.p12` password.
+- `--out`: the `.ipa` to write, outside `bazel-out`.
+
+Relative paths resolve against the directory you ran `bazel` from.
+`apple_ios_export` takes only a device `apple_ios_app`; other targets
+fail analysis.
+
+The launcher checks that:
+
+- the IPA embeds the declared profile;
+- the profile has not expired and covers the bundle id;
+- the app's entitlements are in the profile;
+- the certificate is in the profile's `DeveloperCertificates`.
+
+It signs `Frameworks/*`, then the app, and verifies the result with
+`codesign --verify --deep --strict`, the team, `arm64` only, the
+`iphoneos` platform, and an unchanged file list. Apps with extensions
+fail.
+
+It writes `<out>` and `<out>.txt`, which records the bundle id, team,
+profile name, UUID and expiry, certificate SHA-1, signing authority,
+entitlement keys, archs, platform, and minimum OS.
+
+The certificate and password are never Bazel inputs. The identity goes
+into a temporary keychain that is deleted on exit, and the keychain
+search list is restored. Override tools with `XCRUN`, `SECURITY`,
+`CODESIGN`, `OPENSSL`, `PLUTIL`, `DX_UNZIP`, `DITTO`, or `DX_ZIP`.
+
+The launcher exits with:
+
+- `0` when the IPA and report are written;
+- `1` when the signed app fails verification;
+- `2` when an input is missing or bad, or the profile or certificate is
+  rejected;
+- `127` when a tool is missing;
+- `codesign`'s own code when signing fails.
 
 ## XCFrameworks
 
@@ -354,3 +436,122 @@ arch, platform, and minimum OS. The app build fails when the imported
 XCFramework has no slice for the cell, or the slice binary misses the
 arch, is built for another platform, or needs a newer iOS than the app
 `deployment`.
+
+## macOS signing and notarization
+
+Signing and notarization are explicit `bazel run` launchers over one
+macOS application. The application target must provide rules_apple's
+`AppleBundleInfo`, as `macos_application` does:
+
+```python
+load("@rules_dx//apple/signing:defs.bzl", "apple_macos_notarize", "apple_macos_sign")
+
+apple_macos_sign(name = "sign", app = ":ledger")
+
+apple_macos_notarize(name = "notarize", app = ":ledger")
+```
+
+```sh
+bazel run //:sign -- \
+    --certificate developer_id.p12 --password-file developer_id.p12.pass \
+    --out dist/Ledger.app
+bazel run //:notarize -- --app dist/Ledger.app \
+    --key AuthKey_2X9R4HXF34.p8 --key-id 2X9R4HXF34 --issuer <issuer-uuid>
+```
+
+`bazel build` and `dx check` only write a small metadata file for these
+targets. They never sign anything or contact Apple. Both launchers need a
+macOS host with Xcode. Relative paths resolve against the directory you
+ran `bazel` from. Other targets than a macOS `.app` fail analysis.
+
+### Sign
+
+Flags:
+
+- `--certificate`: the Developer ID Application identity `.p12` file.
+- `--password-file`: the file holding the `.p12` password.
+- `--identity`: instead of the two flags above, the SHA-1 or name of a
+  code signing identity that is already in a keychain. A name must match
+  exactly one identity.
+- `--keychain`: with `--identity`, the keychain to search. It must be
+  unlocked. Without it, the user keychain search list is used.
+- `--out`: the `.app` to write, outside `bazel-out`.
+
+When no credential flag is given, the launcher reads the identity from
+`DX_APPLE_SIGN_IDENTITY` and the keychain from `DX_APPLE_KEYCHAIN`.
+
+The launcher unpacks the built app and signs it inside out. In each
+bundle it signs, in order:
+
+1. each entry in `Contents/Frameworks`;
+2. each entry in `Contents/PlugIns`, `Contents/XPCServices`,
+   `Contents/Helpers`, and `Contents/Library/LoginItems`,
+   `SystemExtensions`, `QuickLook` and `Spotlight`, signing the nested
+   code of each nested bundle first;
+3. any other Mach-O file in `Contents/MacOS`;
+4. the bundle itself.
+
+Nested code keeps its own entitlements through
+`--preserve-metadata=entitlements`. The app itself is signed with the
+target's entitlements. Every call uses `--force --options runtime
+--timestamp`, so the ad hoc build signature is replaced, the hardened
+runtime is on, and Apple's secure timestamp is attached. It never signs
+with `--deep`.
+
+Input that fails before signing:
+
+- entitlements on the app or on nested code that set
+  `com.apple.security.get-task-allow`;
+- a nested bundle without `Contents/Info.plist`;
+- code nested inside a framework;
+- a Mach-O file anywhere else, such as `Contents/Resources`, since it
+  would keep its ad hoc signature and fail notarization.
+
+After signing, the launcher checks `codesign --verify --deep --strict`
+and that `codesign -dvv` shows the runtime flag, a timestamp, and a
+signing authority. It then writes `<out>` and `<out>.txt`, which records
+the bundle id, team, signing authority, certificate SHA-1, timestamp,
+entitlement keys, archs, and the runtime flag.
+
+The certificate and password are never Bazel inputs. A `.p12` identity
+goes into a temporary keychain that is deleted on exit, and the keychain
+search list is restored. An `--identity` is used where it is and no
+keychain is changed.
+
+### Notarize
+
+Flags:
+
+- `--app`: the signed `.app` to notarize and staple.
+- `--keychain-profile`: a profile stored with
+  `xcrun notarytool store-credentials`.
+- `--key`, `--key-id`, `--issuer`: an App Store Connect API key file,
+  its key id, and the issuer id. Use these three or `--keychain-profile`,
+  not both.
+- `--timeout`: how long `notarytool` waits, `2h` by default.
+
+The launcher checks that the app's bundle id is the target's bundle id
+and that the app carries a hardened runtime signature that is not ad hoc.
+It zips the app with `ditto`, submits it with `xcrun notarytool submit
+--wait`, and reads the submission status from the JSON output. It always
+fetches the notary log to `<app>.notary.json`. Only an `Accepted`
+submission is stapled; the launcher then runs `xcrun stapler validate`
+and `spctl --assess --type execute`.
+
+Only file paths of secrets are passed to the tools. The launchers never
+print the password or key contents.
+
+Override tools with `XCRUN`, `SECURITY`, `CODESIGN`, `OPENSSL`, `PLUTIL`,
+`DITTO`, or `SPCTL`.
+
+Both launchers exit with:
+
+- `0` when the signed app and report are written, or the app is
+  notarized and stapled;
+- `1` when the signed app fails verification, notarization returns
+  `Invalid` or `Rejected`, or stapling or assessment fails;
+- `2` when an input or credential is missing or bad;
+- `3` when the Apple timestamp or notary service is unreachable, or the
+  submission is still `In Progress` after `--timeout`;
+- `127` when a tool is missing;
+- `codesign`'s or `notarytool`'s own code for other failures.

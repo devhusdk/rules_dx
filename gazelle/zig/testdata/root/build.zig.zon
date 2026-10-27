@@ -1,0 +1,8 @@
+.{
+    // .name = .decoy
+    .dependencies = .{
+        .foo = .{ .name = .decoy },
+    },
+    .name = .demo,
+    .version = "0.1.0",
+}

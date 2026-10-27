@@ -3,19 +3,11 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "charset_schema_error", "has_any", "only_chars")
-
-PYPI_SCHEMA_VERSION = 1
+load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "has_any", "only_chars")
 
 _VALID_NAME_CHARS = NAME_CHARS
 
 PYPI_DEFAULT_REPOSITORY_URL = "https://upload.pypi.org/legacy/"
-
-def pypi_schema_error():
-    """Validates the versioned distribution-name charset schema."""
-    return charset_schema_error(PYPI_SCHEMA_VERSION, [
-        ("pypi name", _VALID_NAME_CHARS, LAUNCHER_UNSAFE + ["+"]),
-    ])
 
 def pypi_name_error(dist_name):
     """Validates one distribution name value."""
@@ -96,6 +88,7 @@ def _pypi_launcher_impl(ctx):
 
 _pypi_launcher = rule(
     implementation = _pypi_launcher_impl,
+    doc = "Writes the launcher Rust source for one PyPI deployment.",
     attrs = {
         "dist_name": attr.string(
             mandatory = True,

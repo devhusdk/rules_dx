@@ -8,12 +8,17 @@
     )
 )]
 
+pub mod accounting;
 pub mod ignores;
 pub mod inventory;
 pub mod parse;
 pub mod run;
 pub mod verdict;
 
+pub use accounting::{
+    account, parse_source_manifest, CellAccount, Disposition, SourceManifest, SourceRow,
+    SOURCES_ASPECT, SOURCES_OUTPUT_GROUP,
+};
 pub use ignores::{find_ignores, is_ignored, Ignores};
 pub use inventory::{parse_inventory, ELIGIBLE, SUPPORT};
 pub use parse::{merge_lcov_reports, parse_lcov, validate_lcov_report, FileHits};

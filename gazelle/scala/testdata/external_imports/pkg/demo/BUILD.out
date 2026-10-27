@@ -1,0 +1,13 @@
+load("@rules_dx//scala/rules:defs.bzl", "scala_library")
+
+# gazelle:resolve scala cats.effect //third_party:cats_effect
+# gazelle:resolve scala scala.xml.Elem //third_party:scala_xml
+
+scala_library(
+    name = "demo",
+    srcs = ["Demo.scala"],
+    deps = [
+        "//third_party:cats_effect",
+        "//third_party:scala_xml",
+    ],
+)

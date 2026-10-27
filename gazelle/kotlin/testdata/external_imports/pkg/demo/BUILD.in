@@ -1,0 +1,2 @@
+# gazelle:resolve kotlin kotlinx.coroutines //third_party:coroutines
+# gazelle:resolve kotlin kotlin.test.assertEquals //third_party:kotlin_test

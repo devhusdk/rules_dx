@@ -17,3 +17,5 @@ implicit=quality/testdata/spotbugs_owned/implicit_test-real-lint-jvm.pb
 grep -aq "ImplicitTest.java" "$implicit" || { echo "implicit junit test result missing"; exit 1; }
 uses_api=quality/testdata/spotbugs_owned/uses_api-real-lint-jvm.pb
 grep -aq "UsesApi.java" "$uses_api" || { echo "compile-only dep result missing"; exit 1; }
+collide=quality/testdata/spotbugs_owned/collide-real-lint-jvm.pb
+grep -aq "Collide.java" "$collide" || { echo "same-named compile-only dep result missing"; exit 1; }

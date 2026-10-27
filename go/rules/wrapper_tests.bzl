@@ -6,5 +6,5 @@ def go_wrapper_contract_tests(name):
     """Instantiates Go wrapper contract tests."""
     dx_wrapper_contract_tests(
         name,
-        file_classes = ["go"],
+        file_classes = ["go", "c", "cpp"],
     )

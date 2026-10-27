@@ -5,7 +5,7 @@ use super::failure_reports::write_failure_reports;
 use super::run::execute_run;
 use super::test_reports::{execute_test_reports, TestReportsRequest};
 use crate::args::{Command, Invocation};
-use crate::plan::{bep_path, plan_workflow, results_path, WorkflowVerb};
+use crate::plan::{bep_path, plan_workflow, results_path, run_id, WorkflowVerb};
 use crate::reports::{plan_reports, Destination, PlannedReport, StandardFormat};
 use crate::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
 use dx_output::{command_finished, FinishedCounts, OutputMode};
@@ -30,40 +30,7 @@ fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i
     if invocation.command == Command::Deploy {
         return execute_deploy(invocation, env);
     }
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ci,
-        audit_today,
-    } = env;
-    let mut latched = LatchedOut::new(out);
-    let code = execute_checked(
-        invocation,
-        Env {
-            workspace,
-            runner,
-            query_runner,
-            temp_dir,
-            pid,
-            nonce,
-            out: &mut latched,
-            err,
-            ci,
-            audit_today,
-        },
-        complete,
-    );
-    if code == 0 {
-        latched.exit_code(code)
-    } else {
-        code
-    }
+    execute_checked(invocation, env, complete)
 }
 
 fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
@@ -85,6 +52,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
             .reports
             .iter()
             .any(|report| StandardFormat::parse(&report.format) == Some(StandardFormat::Results));
+    let run_id = run_id(pid, nonce, temp_dir);
     if results_default {
         let _ = std::fs::remove_file(results_path(workspace));
     }
@@ -128,12 +96,12 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
             let selection = if invocation.command == Command::Test {
                 SelectionContext::for_test_execution(
                     invocation.profile(),
-                    &invocation.bazel_options,
+                    invocation.raw_bazel_options(),
                     &invocation.bazel_startup_options,
                 )
             } else {
                 SelectionContext::unconfigured_with_options(
-                    &invocation.bazel_options,
+                    invocation.raw_bazel_options(),
                     &invocation.bazel_startup_options,
                 )
             };
@@ -192,7 +160,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
     let mut bazel_options = invocation.quiet_bazel_options();
     if verb != WorkflowVerb::Build {
         match crate::exec::test_filter::rust_filter_args(
-            &invocation.bazel_options,
+            invocation.raw_bazel_options(),
             &resolved.targets,
             workspace,
             query_runner,
@@ -231,9 +199,12 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
     };
     if verb == WorkflowVerb::Build {
         if bazel_code != 0 {
-            report_build_failures(&bep, invocation.output, out, err);
+            if let Err(exit) = report_build_failures(&bep, invocation.output, out, err) {
+                let _ = std::fs::remove_file(&bep);
+                return kept_child(err, bazel_code, exit);
+            }
         }
-        let reports_ok = write_failure_reports(
+        let reports = write_failure_reports(
             invocation,
             workspace,
             &bep,
@@ -243,6 +214,10 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
             err,
         );
         let _ = std::fs::remove_file(&bep);
+        let reports_ok = match reports {
+            Ok(landed) => landed,
+            Err(exit) => return kept_child(err, bazel_code, exit),
+        };
         let code = if bazel_code == 0 && !reports_ok {
             1
         } else {
@@ -272,7 +247,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         planned_reports: &planned_reports,
         failure_reports: &failure_reports,
         results_reports: &results_reports,
-        results_default,
+        run_id: &run_id,
         stdout_report,
         bazel_code,
         query_runner,

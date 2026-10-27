@@ -55,20 +55,23 @@ Run:
 
 ```
 MAVEN_PUBLISH_LIVE=1 MAVEN_PUBLISH_APPROVED=1 \
-MAVEN_USERNAME=... MAVEN_PASSWORD=... MAVEN_GPG_PASSPHRASE=... \
+MAVEN_USERNAME=... MAVEN_PASSWORD=... \
+MAVEN_GPG_KEY=... MAVEN_GPG_PASSPHRASE=... \
 bazel run //pkg:maven_demo
 ```
 
 Upload only stages the deployment. Validate and publish it in the Central
-Portal. Live upload sends the jar and the pom.
+Portal. Live upload sends the jar and the pom. Live signing runs the pinned
+maven-gpg-plugin `sign-and-deploy-file` goal, which reads the same
+`MAVEN_GPG_KEY` and `MAVEN_GPG_PASSPHRASE` env.
 
 Refusals, all exit 1:
 
 - Version `0.0.0` in a live run.
 - Missing `MAVEN_USERNAME` or `MAVEN_PASSWORD`.
 - Missing `MAVEN_PUBLISH_APPROVED=1`.
-- No `MAVEN_GPG_PASSPHRASE` or `MAVEN_GPG_KEY` without
-  `MAVEN_ALLOW_UNSIGNED=1`.
+- No `MAVEN_GPG_KEY` without `MAVEN_ALLOW_UNSIGNED=1`.
+- `MAVEN_GPG_PASSPHRASE` set without `MAVEN_GPG_KEY`.
 - A `MAVEN_GPG_KEY` that is not an armored secret key, or a
   `MAVEN_GPG_PASSPHRASE` that does not unlock it.
 - A `repository_url` on `oss.sonatype.org` or `s01.oss.sonatype.org`.
@@ -237,8 +240,8 @@ Example: [shared-rust](../../examples/shared-rust/README.md#deploy).
 
 # consumer_archive
 
-Packages one app with its resources, a `NOTICE` and an `IDENTITY.txt` as a
-tarball plus a sha256 file. It builds files only and has no deploy run.
+Packages one app with its runtime files, resources, a `NOTICE` and an
+`IDENTITY.txt` as a tar.gz or zip plus a sha256 file. It builds files only and has no deploy run.
 
 ```starlark
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
@@ -259,14 +262,18 @@ consumer_archive(
 - `os`: required. `linux`, `macos` or `windows`.
 - `min_runtime`: required. A non-empty requirement such as `glibc-2.34`.
 - `linkage`: `static` or `dynamic`. Defaults to `dynamic`.
+- `runtime`: files the app needs at run time, such as DLLs. Each lands at
+  the archive root under its basename, mode 0644. Defaults to `[]`.
+- `format`: `tar.gz` or `zip`. Defaults to `tar.gz`.
 - `resources`: targets whose files land under `resources/`. Each file must
   sit under a directory named after its target. Defaults to `[]`.
 - `notice`: required. Exactly one file, stored as `NOTICE`.
 - `tags`: Bazel tags for every generated target.
 
 `IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`.
-Outputs: `<name>_archive` builds `<name>.tar.gz` and `<name>_checksum`
-builds `<name>.tar.gz.sha256`.
+Outputs: `<name>_archive` builds `<name>.<format>` and `<name>_checksum`
+builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
+other member with mode 0644, in both formats.
 
 Examples: [Qt packaging](../../qt/README.md#packaging) and
 [qt-rust](../../examples/qt-rust/app/BUILD.bazel).
@@ -288,7 +295,6 @@ crates_deploy(
 - `name`: the crate name.
 - `crate`: required. The crate files, including `Cargo.toml`.
 - `version`: defaults to `0.0.0`.
-- `allow_dirty`: must stay `False`. `True` fails analysis.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-vendor/vendor/<name>/` and
@@ -321,7 +327,6 @@ github_deploy(
 
 - `artifacts`: required. At least one file. Asset names must be unique.
 - `tag`: defaults to `v0.0.0-dryrun`.
-- `draft`: must stay `True`. `False` fails analysis.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 - `tags`: Bazel tags for the generated targets. Defaults to `[]`.
 
@@ -366,7 +371,9 @@ NUGET_PUBLISH_LIVE=1 NUGET_PUBLISH_APPROVED=1 NUGET_API_KEY=... \
 dx deploy --apply //pkg:nuget_demo
 ```
 
-This runs `dotnet nuget push --skip-duplicate`. A live run refuses nuspec
+This runs `dotnet nuget push --skip-duplicate`. The key goes to `dotnet`
+through the `NUGET_API_KEY` env var, never the command line, so NuGet 7.6+
+(.NET SDK 10.0.300+) is required; older versions are refused. A live run refuses nuspec
 version `0.0.0`.
 
 # oci_deploy
@@ -386,9 +393,10 @@ oci_deploy(
 - `image_tar`: required. A `docker save` or OCI layout archive, `.tar` or
   `.tar.gz`, holding one image.
 - `platform`: required. `linux/amd64` or `linux/arm64`.
-- `tag`: defaults to `latest`.
+- `tag`: defaults to `latest`. At most 128 chars, not starting with `.` or `-`.
 - `registry`: defaults to `ghcr.io`.
-- `repository`: defaults to `name`.
+- `repository`: lowercase OCI path segments. Defaults to `name`, so a
+  mixed-case target needs `repository` set.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<repository>-oci-layout/` with an `index.json`. No
@@ -445,7 +453,10 @@ OCTOPUS_URL=https://octopus.example.com \
 dx deploy --apply //pkg:octopus_demo
 ```
 
-This runs `octo push`. A live run refuses version `0.0.0` and the default
+This runs `octo push --package`, then `octo create-release` with a
+`--deployTo` for each `deploy_to`. Deployments are queued, not awaited. A rerun
+after a failed `create-release` fails at push. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
+env, never the command line. A live run refuses version `0.0.0` and the default
 `octopus_url`.
 
 # promotion_deploy
@@ -485,8 +496,10 @@ Promote:
 PROMOTION_LIVE=1 PROMOTION_APPROVED=1 dx deploy --apply //pkg:promotion_demo
 ```
 
-A live run refuses version `0.0.0` and checks that every secret ref exists.
-It then writes the same promotion directory.
+A live run refuses version `0.0.0` and checks the approval, the registry env,
+that every secret ref exists and the health command. It records the health
+result (`passed` or `not-required`) in `promotion.json`. It then exits `1`,
+because publishing is not implemented yet. Nothing is pushed.
 
 - `PROMOTION_REGISTRY_REQUIRED=1` needs `PROMOTION_REGISTRY_USER` and
   `PROMOTION_REGISTRY_TOKEN`.
@@ -540,3 +553,11 @@ Except for `cloudflare_pages_deploy`, a default run writes into the
 workspace root, or into the directory given as the first argument. A live
 run without its credentials or its `*_APPROVED=1` variable is refused. Exit
 codes: `0` staged or published, `1` any failure or refusal.
+
+Every launcher, `npm_deploy` included, rejects arguments beyond that output
+directory. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `mvn`, `docker`,
+`octo`, `npm`) run with a cleared environment plus a per-tool keep-list.
+Secrets reach them only through that environment, stdin or an owner-only temp
+file, never argv. The exceptions are the promotion `PROMOTION_HEALTH_CMD`, the
+`docker context inspect` endpoint probe, and `wrangler`, which has its own
+narrower list.

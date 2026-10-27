@@ -49,6 +49,7 @@ typescript_test(
     declaration = True,
     node_modules = "//examples/node-app:node_modules",
     node_options = ["--experimental-vm-modules"],
+    package_json = "//examples/node-app:package_json",
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":cli"],
@@ -89,6 +90,7 @@ rust_test(
         "CLI_TEST": "$(rootpath :cli_test)",
         "REGISTRY_TEST": "$(rootpath //examples/node-app/registry:registry_test)",
     },
+    tags = ["no-remote-exec"],
     deps = ["//tools/testing:dx_testing"],
 )
 

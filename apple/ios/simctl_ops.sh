@@ -11,9 +11,12 @@ if [ -z "$want" ]; then
     echo "dx-apple-simctl: DX_SIMCTL_DEVICE names the simulator by name or UDID" >&2
     exit 2
 fi
-if ! listing=$("$XCRUN" simctl list devices available 2>&1); then
+if listing=$("$XCRUN" simctl list devices available 2>&1); then
+    :
+else
+    status=$?
     echo "dx-apple-simctl: xcrun simctl cannot list simulators: $listing" >&2
-    exit 127
+    exit "$status"
 fi
 udids=$(printf '%s\n' "$listing" | awk -v want="$want" '
     /^ +[^ =-]/ {

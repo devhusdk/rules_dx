@@ -28,7 +28,41 @@ fn today_utc_from(pinned: Option<String>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{today_utc_from, AUDIT_TODAY_ENV};
+    use super::{today_utc_from, QueryBazel, AUDIT_TODAY_ENV};
+    use dx_plan::resolve::{QueryResult, QueryRunner};
+    use dx_tool_resolve::Bazel as _;
+    use std::cell::RefCell;
+    use std::path::Path;
+
+    struct Recorder(RefCell<Vec<Vec<String>>>);
+
+    impl QueryRunner for Recorder {
+        fn run_query(&self, argv: &[String], _cwd: &Path) -> std::io::Result<QueryResult> {
+            self.0.borrow_mut().push(argv.to_vec());
+            Ok(QueryResult {
+                code: Some(0),
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            })
+        }
+    }
+
+    #[test]
+    fn the_tool_cquery_carries_the_shared_settings_and_ends_with_the_label() {
+        let recorder = Recorder(RefCell::new(Vec::new()));
+        let bazel = QueryBazel {
+            query_runner: &recorder,
+            workspace: Path::new("."),
+            startup: &[],
+        };
+        bazel.cquery_files("//t:tool", &[]).expect("cquery");
+        let calls = recorder.0.borrow();
+        let argv = &calls[0];
+        for setting in dx_plan::plan::shared_settings("cquery") {
+            assert!(argv.contains(&setting), "{setting}");
+        }
+        assert_eq!(argv.last().map(String::as_str), Some("//t:tool"));
+    }
 
     #[test]
     fn a_pinned_date_makes_the_audit_date_reproducible() {
@@ -780,15 +814,21 @@ impl dx_tool_resolve::Bazel for QueryBazel<'_> {
         label: &str,
         args: &[String],
     ) -> Result<String, dx_tool_resolve::ResolveError> {
-        let mut argv = dx_process::startup_argv(self.startup);
-        argv.push("cquery".to_owned());
-        argv.push("--output=files".to_owned());
-        argv.extend(args.iter().cloned());
-        argv.push(label.to_owned());
         let failed = |detail: String| dx_tool_resolve::ResolveError::CqueryFailed {
             label: label.to_owned(),
             detail,
         };
+        let mut options = vec!["--output=files".to_owned()];
+        options.extend(args.iter().cloned());
+        let argv = dx_plan::plan::bazel_argv(
+            "cquery",
+            &options,
+            &[],
+            &[],
+            &[label.to_owned()],
+            self.startup,
+        )
+        .map_err(|error| failed(format!("could not build the cquery argv: {error}")))?;
         let result = self
             .query_runner
             .run_query(&argv, self.workspace)
@@ -802,6 +842,7 @@ impl dx_tool_resolve::Bazel for QueryBazel<'_> {
         Ok(String::from_utf8_lossy(&result.stdout).into_owned())
     }
 
+    #[allow(clippy::disallowed_methods)] // info takes no build settings
     fn output_base(&self) -> Result<String, dx_tool_resolve::ResolveError> {
         let mut argv = dx_process::startup_argv(self.startup);
         argv.push("info".to_owned());

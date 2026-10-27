@@ -272,6 +272,7 @@ pub(super) fn live_selective_npm_runs_once_with_packages() {
 }
 
 #[test]
+#[allow(clippy::disallowed_methods)] // test asserts the launcher head
 pub(super) fn live_bazel_backends_carry_startup_options() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(

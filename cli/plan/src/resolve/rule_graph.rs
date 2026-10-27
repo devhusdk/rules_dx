@@ -16,6 +16,7 @@ pub struct RuleGraph {
     kinds: HashMap<String, String>,
 }
 
+#[allow(clippy::disallowed_methods)] // query takes no build settings
 fn query_argv(startup_options: &[String]) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup_options);
     for flag in [

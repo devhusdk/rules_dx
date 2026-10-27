@@ -144,6 +144,7 @@ pub(crate) struct TestReportsRequest<'a> {
 }
 
 /// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
+#[allow(clippy::disallowed_methods)] // info takes no build settings
 fn output_locations(
     invocation: &Invocation,
     workspace: &Path,

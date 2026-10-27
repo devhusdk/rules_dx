@@ -2,4 +2,7 @@
 
 disallowed-methods = [
   { path = "dx_process::build_workflow_argv", reason = "build dx Bazel argv with plan::bazel_argv so the shared settings stay guarded" },
+  { path = "dx_process::build_workflow_argv_with", reason = "build dx Bazel argv with plan::bazel_argv so the shared settings stay guarded" },
+  { path = "dx_process::startup_argv", reason = "verbs that need settings go through plan::bazel_argv or BazelHead; allow only for verbs without settings (query, info)" },
+  { path = "dx_process::startup_argv_with", reason = "verbs that need settings go through plan::bazel_argv or BazelHead; allow only for verbs without settings (query, info)" },
 ]

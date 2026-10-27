@@ -653,5 +653,6 @@ mod sections;
 pub use sections::remote_execution;
 
 #[cfg(test)]
+#[allow(clippy::disallowed_methods)] // test asserts the launcher head
 #[path = "rc_tests.rs"]
 mod rc_tests;

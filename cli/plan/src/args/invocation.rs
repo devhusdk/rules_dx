@@ -356,6 +356,7 @@ impl Invocation {
         dx_process::BazelHead {
             startup: self.bazel_startup_options.clone(),
             options: vec![self.profile().config_flag()],
+            settings: crate::plan::head_settings(crate::plan::rules_dx_repo()),
         }
     }
 
@@ -566,6 +567,8 @@ mod tests {
             let head = invocation.bazel_head();
             assert_eq!(head.startup, vec!["--output_base=/ob".to_owned()]);
             assert_eq!(head.options, vec!["--config=dx_dev".to_owned()]);
+            assert_eq!(head.settings, crate::plan::shared_settings("build"));
+            assert!(!head.settings.is_empty());
         }
     }
 

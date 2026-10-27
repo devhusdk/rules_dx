@@ -16,6 +16,7 @@ pub(crate) fn quote_label(label: &str) -> String {
     dx_codegen::quote_label(label)
 }
 
+#[allow(clippy::disallowed_methods)] // query takes no build settings
 fn query_argv(expression: &str, startup_options: &[String]) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup_options);
     argv.push("query".to_owned());
@@ -35,6 +36,7 @@ pub(crate) fn run_label_query(
     parse_owners(&result.stdout, expression)
 }
 
+#[allow(clippy::disallowed_methods)] // query takes no build settings
 pub fn run_label_query_file(
     expression: &str,
     label: &str,

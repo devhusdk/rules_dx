@@ -293,11 +293,24 @@ pub fn validate_startup_option(token: &str) -> Result<String, StartupOptionError
 }
 
 pub fn startup_argv(startup_options: &[String]) -> Vec<String> {
-    startup_argv_with(current(), startup_options)
+    launcher_head(current(), startup_options)
 }
 
 /// The launcher and startup flags under an explicit rc policy.
 pub fn startup_argv_with(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
+    launcher_head(policy, startup_options)
+}
+
+/// Verbs whose analysis depends on the shared dx settings.
+pub const SHARED_SETTINGS_VERBS: [&str; 6] =
+    ["build", "test", "coverage", "run", "cquery", "aquery"];
+
+/// Whether `verb` must carry the shared dx settings.
+pub fn takes_shared_settings(verb: &str) -> bool {
+    SHARED_SETTINGS_VERBS.contains(&verb)
+}
+
+fn launcher_head(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
     let opts = policy.startup_opts();
     let mut argv = Vec::with_capacity(1 + opts.len() + startup_options.len());
     argv.push(launcher_argv0().to_owned());
@@ -313,15 +326,20 @@ pub fn startup_argv_with(policy: &RcPolicy, startup_options: &[String]) -> Vec<S
 pub struct BazelHead {
     pub startup: Vec<String>,
     pub options: Vec<String>,
+    /// Shared dx settings; added only for verbs in `SHARED_SETTINGS_VERBS`.
+    pub settings: Vec<String>,
 }
 
 impl BazelHead {
     /// The launcher, startup flags, verb, verb options, then the head options.
     pub fn argv(&self, verb: &str) -> Vec<String> {
-        let mut argv = startup_argv(&self.startup);
+        let mut argv = launcher_head(current(), &self.startup);
         argv.push(verb.to_owned());
         argv.extend(build_verb_options(verb, &self.options));
         argv.extend(self.options.iter().cloned());
+        if takes_shared_settings(verb) {
+            argv.extend(self.settings.iter().cloned());
+        }
         argv
     }
 }
@@ -456,6 +474,7 @@ pub struct ArgvPolicy<'a> {
 }
 
 /// Builds a workflow argv; required options follow user options so dx values win.
+#[allow(clippy::disallowed_methods)] // the banned wrapper delegates to its policy form
 pub fn build_workflow_argv(
     bazel_command: &str,
     user_options: &[String],
@@ -503,7 +522,7 @@ pub fn build_workflow_argv_with(
     let verb_options = policy
         .rc
         .verb_options(bazel_command, policy.share, &canonical);
-    let mut argv = startup_argv_with(policy.rc, startup_options);
+    let mut argv = launcher_head(policy.rc, startup_options);
     argv.reserve(1 + verb_options.len() + required_options.len() + canonical.len() + labels.len());
     argv.push(bazel_command.to_owned());
     argv.extend(verb_options);

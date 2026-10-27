@@ -1133,6 +1133,7 @@ impl Warm for Warmth {
         SystemHost.process_alive(pid)
     }
 
+    #[allow(clippy::disallowed_methods)] // info takes no build settings
     fn ping(&self) -> Option<Child> {
         let argv = dx_process::startup_argv(&self.startup_options);
         let (program, args) = argv.split_first()?;

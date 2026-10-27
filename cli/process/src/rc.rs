@@ -2,7 +2,8 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::{OnceLock, RwLock};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock, RwLock};
 
 use crate::{is_ci_value, WORKFLOW_STARTUP_OPTS};
 
@@ -52,7 +53,21 @@ static HERMETIC: RcPolicy = RcPolicy {
 
 static CURRENT: OnceLock<RcPolicy> = OnceLock::new();
 
-static SHARE: RwLock<Option<LocalShare>> = RwLock::new(None);
+type ShareFn = Arc<dyn Fn() -> LocalShare + Send + Sync>;
+
+#[derive(Clone)]
+enum ShareSource {
+    Fixed(LocalShare),
+    Live { token: u64, f: ShareFn },
+}
+
+static SHARE: RwLock<Option<ShareSource>> = RwLock::new(None);
+
+static NEXT_TOKEN: AtomicU64 = AtomicU64::new(1);
+
+/// Identifies one registered live share source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShareToken(u64);
 
 /// The CPUs and memory one build slot may plan for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,25 +91,50 @@ impl LocalShare {
     }
 }
 
-/// Sets the share this process passes to Bazel.
+/// Sets a fixed share this process passes to Bazel, replacing any live source.
 pub fn set_share(share: Option<LocalShare>) {
     if let Ok(mut current) = SHARE.write() {
-        *current = share;
+        *current = share.map(ShareSource::Fixed);
     }
 }
 
-/// Clears the share when it is still `share`.
+/// Clears the share when it is the fixed value `share`.
 pub fn clear_share(share: &LocalShare) {
     if let Ok(mut current) = SHARE.write() {
-        if current.as_ref() == Some(share) {
+        if matches!(current.as_ref(), Some(ShareSource::Fixed(fixed)) if fixed == share) {
             *current = None;
         }
     }
 }
 
-/// The share this process passes to Bazel, if any.
+/// Makes `share()` evaluate `f` on every call, replacing any earlier source.
+pub fn set_share_source(f: impl Fn() -> LocalShare + Send + Sync + 'static) -> ShareToken {
+    let token = NEXT_TOKEN.fetch_add(1, Ordering::Relaxed);
+    if let Ok(mut current) = SHARE.write() {
+        *current = Some(ShareSource::Live {
+            token,
+            f: Arc::new(f),
+        });
+    }
+    ShareToken(token)
+}
+
+/// Removes the live source registered under `token`; a newer source stays.
+pub fn clear_share_source(token: ShareToken) {
+    if let Ok(mut current) = SHARE.write() {
+        if matches!(current.as_ref(), Some(ShareSource::Live { token: t, .. }) if *t == token.0) {
+            *current = None;
+        }
+    }
+}
+
+/// The share this process passes to Bazel, if any. A live source runs with no lock held.
 pub fn share() -> Option<LocalShare> {
-    SHARE.read().ok().and_then(|current| *current)
+    let source = SHARE.read().ok().and_then(|current| current.clone())?;
+    Some(match source {
+        ShareSource::Fixed(share) => share,
+        ShareSource::Live { f, .. } => f(),
+    })
 }
 
 impl RcPolicy {

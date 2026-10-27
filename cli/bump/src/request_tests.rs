@@ -872,7 +872,7 @@ fn cargo_toml_preserves_format_and_fails_closed() {
 fn github_actions_needs_sha_for_tags() {
     let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let workflow = steps(&format!("      - uses: actions/checkout@{old} # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n", old = "3d3c42e5aac5ba805825da76410c181273ba90b1"));
-    let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("sha");
+    let bump = BumpRequest::parse("github-actions:actions/checkout", sha).expect("sha");
     let widened = bump.plan_edit(&workflow).expect("edit");
     assert!(
         widened.contains(&format!("actions/checkout@{sha}")),

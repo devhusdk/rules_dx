@@ -19,7 +19,12 @@ const BUILDIFIER_CHECK_BARE_ARGS: &[&str] = &[
 const BUILDIFIER_FIX_ARGS: &[&str] = &["--mode=fix", "--lint=fix"];
 const BUILDIFIER_FIX_BARE_ARGS: &[&str] = &["--mode=fix", "--lint=fix", "--config=off"];
 const RUSTFMT_PREFIX: &[&str] = &["--edition"];
-const RUSTFMT_MIDDLE: &[&str] = &["--color=never", "--config-path"];
+const RUSTFMT_MIDDLE: &[&str] = &[
+    "--color=never",
+    "--config",
+    "skip_children=true",
+    "--config-path",
+];
 const RUSTFMT_CHECK_FLAG: &[&str] = &["--check"];
 const TAPLO_LINT_BASE: &[&str] = &["lint", "--colors=never", "--no-auto-config", "--no-schema"];
 const TAPLO_FORMAT_BASE: &[&str] = &["format", "--colors=never", "--no-auto-config"];
@@ -273,10 +278,9 @@ pub fn rustfmt(
         binary.as_os_str().to_owned(),
         OsString::from(RUSTFMT_PREFIX[0]),
         OsString::from(edition),
-        OsString::from(RUSTFMT_MIDDLE[0]),
-        OsString::from(RUSTFMT_MIDDLE[1]),
-        config.as_os_str().to_owned(),
     ];
+    head.extend(RUSTFMT_MIDDLE.iter().map(OsString::from));
+    head.push(config.as_os_str().to_owned());
     if check {
         head.push(OsString::from(RUSTFMT_CHECK_FLAG[0]));
     }

@@ -1,5 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:wrapper_tests.bzl", "dx_test_srcs_split_tests")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY_TOOLS")
 
 package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS)
@@ -9,15 +10,10 @@ dx_rust_crate(
     package_name = "cli/dx_process",
     srcs = [
         "src/groups.rs",
-        "src/groups_tests.rs",
         "src/lib.rs",
-        "src/lib_tests.rs",
         "src/lifecycle.rs",
-        "src/lifecycle_tests.rs",
         "src/rc.rs",
         "src/rc_sections.rs",
-        "src/rc_sections_tests.rs",
-        "src/rc_tests.rs",
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -34,9 +30,23 @@ dx_rust_crate(
         "DX_PRESET": "$(rootpath //tools/bazelrc:preset.bazelrc)",
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
+    test_srcs = [
+        "src/groups_tests.rs",
+        "src/lib_tests.rs",
+        "src/lifecycle_tests.rs",
+        "src/rc_sections_tests.rs",
+        "src/rc_tests.rs",
+    ],
     deps = [
         "thiserror",
     ],
+)
+
+dx_test_srcs_split_tests(
+    name = "test_srcs_split_test",
+    lib = ":dx_process",
+    test = ":dx_process_test",
+    test_src = "cli/process/src/lib_tests.rs",
 )
 
 real_source_target(

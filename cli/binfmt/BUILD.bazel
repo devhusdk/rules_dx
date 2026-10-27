@@ -11,10 +11,8 @@ exports_files([
 dx_rust_crate(
     name = "dx_binfmt",
     package_name = "cli/dx_binfmt",
-    srcs = [
-        "src/lib.rs",
-        "src/tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
+    test_srcs = ["src/tests.rs"],
     deps = ["object"],
 )
 

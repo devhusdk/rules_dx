@@ -65,6 +65,8 @@ fn rustfmt_passes_caller_edition_and_config() {
             "--edition",
             "2021",
             "--color=never",
+            "--config",
+            "skip_children=true",
             "--config-path",
             "/scratch/r.toml",
             "--check",

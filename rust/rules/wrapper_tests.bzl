@@ -296,3 +296,39 @@ def dx_default_crate_name_tests(name, target, expected):
         target_under_test = target,
         expected = expected,
     )
+
+def _crate_srcs(target):
+    if rust_common.test_crate_info in target:
+        crate = target[rust_common.test_crate_info].crate
+    else:
+        crate = target[rust_common.crate_info]
+    return crate.name, [src.short_path for src in crate.srcs.to_list()]
+
+def _test_srcs_split_impl(ctx):
+    env = analysistest.begin(ctx)
+    test_name, test_srcs = _crate_srcs(analysistest.target_under_test(env))
+    lib_name, lib_srcs = _crate_srcs(ctx.attr.lib)
+    asserts.equals(env, lib_name, test_name)
+    asserts.false(env, ctx.attr.test_src in lib_srcs, "{} is in the library srcs".format(ctx.attr.test_src))
+    asserts.true(env, ctx.attr.test_src in test_srcs, "{} is missing from the test srcs".format(ctx.attr.test_src))
+    for src in lib_srcs:
+        asserts.true(env, src in test_srcs, "{} is missing from the test srcs".format(src))
+    return analysistest.end(env)
+
+_test_srcs_split_test = analysistest.make(
+    _test_srcs_split_impl,
+    attrs = {
+        "lib": attr.label(mandatory = True),
+        "test_src": attr.string(mandatory = True),
+    },
+)
+
+def dx_test_srcs_split_tests(name, lib, test, test_src):
+    """Asserts a dx_rust_crate test_srcs file builds only into the unit test."""
+    _test_srcs_split_test(
+        name = name,
+        size = "small",
+        target_under_test = test,
+        lib = lib,
+        test_src = test_src,
+    )

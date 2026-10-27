@@ -1100,7 +1100,7 @@ fn hermetic_runner_clears_the_parent_environment() {
     assert_eq!(cleared.status.code(), Some(0));
     assert_eq!(
         String::from_utf8_lossy(&cleared.stdout),
-        format!("<unset>\nkept\n"),
+        "<unset>\nkept\n",
         "inherited={inherited}"
     );
 }
@@ -1190,7 +1190,7 @@ fn stdout_broken_pipe_maps_to_141() {
     let broken = io::Error::new(io::ErrorKind::BrokenPipe, "broken pipe");
     assert!(is_broken_pipe_io(&broken));
     assert_eq!(stdout_io_code(&broken), 128 + 13);
-    let other = io::Error::new(io::ErrorKind::Other, "boom");
+    let other = io::Error::other("boom");
     assert!(!is_broken_pipe_io(&other));
     assert_eq!(stdout_io_code(&other), operational_code());
 }

@@ -2,6 +2,8 @@ use super::*;
 use crate::{find_ignores, parse_lcov, FileHits, LcovError, ELIGIBLE, SUPPORT};
 use std::collections::BTreeMap;
 
+type BranchHit = ((u32, u32, u32), Option<u64>);
+
 fn marker(kind: &str) -> String {
     ["LCOV", "_EXCL", kind].concat()
 }
@@ -20,7 +22,7 @@ fn hits(pairs: &[(u32, u64)]) -> FileHits {
     file
 }
 
-fn branch_file(lines: &[(u32, u64)], branches: &[((u32, u32, u32), Option<u64>)]) -> FileHits {
+fn branch_file(lines: &[(u32, u64)], branches: &[BranchHit]) -> FileHits {
     let mut file = hits(lines);
     for (id, taken) in branches {
         file.branches.insert(*id, *taken);
@@ -690,7 +692,7 @@ fn modern_js_ts_extensions_route_to_files() {
         let owned = path.to_string();
         let verdict = evaluate(
             &eligible_inventory(&[path]),
-            &[owned.clone()],
+            std::slice::from_ref(&owned),
             &report_of(path, &[(1, 1)]),
             &loader(files),
         );
@@ -1226,11 +1228,7 @@ fn summary_only_branch_section_counts_zero_eligible() {
     );
 }
 
-fn run_branch_fixture(
-    source: String,
-    branches: &[((u32, u32, u32), Option<u64>)],
-    lines: &[(u32, u64)],
-) -> GateVerdict {
+fn run_branch_fixture(source: String, branches: &[BranchHit], lines: &[(u32, u64)]) -> GateVerdict {
     let files = BTreeMap::from([("elf.rs", source)]);
     let mut report = BTreeMap::new();
     report.insert("elf.rs".to_string(), branch_file(lines, branches));

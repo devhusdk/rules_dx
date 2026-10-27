@@ -1,0 +1,74 @@
+load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+python_binary(
+    name = "gen_build_info",
+    srcs = ["gen_build_info.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["../.."],
+    main = "gen_build_info.py",
+)
+
+genrule(
+    name = "build_info_py",
+    srcs = ["items.json"],
+    outs = ["build_info.py"],
+    cmd = select({
+        "@platforms//os:windows": "RUNFILES_MANIFEST_FILE=$(execpath :gen_build_info).runfiles_manifest $(execpath :gen_build_info) $(execpath items.json) $@",
+        "//conditions:default": "$(execpath :gen_build_info) $(execpath items.json) $@",
+    }),
+    tools = [":gen_build_info"],
+)
+
+python_library(
+    name = "core",
+    srcs = [
+        "__init__.py",
+        "catalog.py",
+        "config.py",
+        ":build_info_py",
+    ],
+    aspect_hints = ["//:ruff_config"],
+    data = ["items.json"],
+    imports = ["../.."],
+)
+
+python_library(
+    name = "gen_lib",
+    srcs = ["gen_build_info.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["../.."],
+)
+
+python_test(
+    name = "catalog_test",
+    srcs = ["catalog_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    deps = [
+        ":core",
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+
+python_py_test(
+    name = "build_info_test",
+    srcs = ["build_info_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "ledger",
+    env = {
+        "PIP_NO_INDEX": "1",
+        "UV_OFFLINE": "1",
+    },
+    imports = ["../.."],
+    deps = [
+        ":core",
+        ":gen_lib",
+        "@shop_pypi//click",
+    ],
+)

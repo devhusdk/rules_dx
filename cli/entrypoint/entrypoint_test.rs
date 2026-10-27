@@ -247,8 +247,8 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         .collect();
     assert_eq!(
         wrote.len(),
-        18,
-        "new --apply writes init wiring plus a standalone C++ consumer: {apply}"
+        22,
+        "new --apply writes init wiring, launcher, hooks, agents block and a standalone C++ consumer: {apply}"
     );
     for path in [
         "wrote myproj/.bazelignore",
@@ -263,6 +263,10 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         "wrote myproj/hello.h",
         "wrote myproj/hello_test.cc",
         "wrote myproj/main.cc",
+        "wrote myproj/tools/dx",
+        "wrote myproj/tools/dx.cmd",
+        "wrote myproj/.claude/settings.json",
+        "wrote myproj/AGENTS.md",
     ] {
         assert!(apply.contains(path), "apply lacks {path}: {apply}");
     }

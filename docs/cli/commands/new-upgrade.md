@@ -31,6 +31,11 @@ Every starter also writes `.dx/version`, `.devcontainer/devcontainer.json`,
 `.github/workflows/ci.yml` and `MODULE.bazel.snippet`. Check mode reports
 them when they are missing.
 
+Like `dx init --apply`, `--apply` also writes the launcher (`tools/dx` and
+`tools/dx.cmd`), `.claude/settings.json` with the `dx worktree` hooks, and the
+marked block in `AGENTS.md` in the new project. Check mode also requires
+`tools/dx` and `tools/dx.cmd`.
+
 Check mode prints this and exits `0` when every file exists:
 
 ```text
@@ -44,18 +49,27 @@ dx: new_failed: new drift: missing <files> (run `dx new <language> <name> --appl
 ```
 
 `--apply` prints one line per file it writes, and one stderr line per file
-that already exists:
+that already exists. Paths start with the destination:
 
 ```text
-wrote <path>
-dx: <path> (absent-only, left untouched)
+wrote <name>/<path>
+dx: <name>/<path> (absent-only, left untouched)
+```
+
+When `<name>/.claude/settings.json` already exists without the `dx worktree`
+hooks, it is left as is and stderr lists the hooks to add:
+
+```text
+dx: <name>/.claude/settings.json exists; add these hooks: <hooks>
 ```
 
 Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an unknown language, an
 invalid destination or package identity, or extra positionals, `1` missing
-files in check mode or scaffolding failed.
+files in check mode or scaffolding failed. It also exits `1` with `new_failed`,
+before writing any file, when `<name>/.dx/version` already exists and is not
+semver.
 
 The `[name]` is the destination directory and defaults to `my_project`.
 Destinations stay inside the workspace. Absolute paths, `..` segments, empty
@@ -178,7 +192,9 @@ passes without a GPU. The binary runs the kernel when a GPU is present.
 Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an invalid destination or
-module name, `1` missing files in check mode or scaffolding failed.
+module name, `1` missing files in check mode or scaffolding failed. It also exits `1` with `new_failed`,
+before writing any file, when `<name>/.dx/version` already exists and is not
+semver.
 
 ## `dx new c` And `dx new cpp`
 

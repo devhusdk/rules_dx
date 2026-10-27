@@ -10,6 +10,7 @@ mod test_support;
 mod upgrade;
 mod version;
 pub(crate) mod watch;
+mod wiring;
 
 use std::io::Write;
 

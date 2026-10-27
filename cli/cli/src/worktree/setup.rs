@@ -85,28 +85,22 @@ pub(crate) fn workspace_missing(workspace: &Path) -> Vec<String> {
     missing_entries(&existing)
 }
 
-/// What `dx init --apply` did for the worktree pool, as report lines.
+/// What setup did for the worktree pool, as report data.
 pub(crate) struct Outcome {
     pub(crate) wrote: Vec<String>,
-    pub(crate) notes: Vec<String>,
+    pub(crate) missing: Vec<String>,
 }
 
 /// Writes the hooks file when it is absent and never overwrites.
 pub(crate) fn apply(workspace: &Path) -> io::Result<Outcome> {
     let mut outcome = Outcome {
         wrote: Vec::new(),
-        notes: Vec::new(),
+        missing: Vec::new(),
     };
     let settings = workspace.join(SETTINGS);
     if settings.exists() {
         let existing = std::fs::read_to_string(&settings)?;
-        let missing = missing_entries(&existing);
-        if !missing.is_empty() {
-            outcome.notes.push(format!(
-                "dx: {SETTINGS} exists; add these hooks: {}",
-                missing.join("; ")
-            ));
-        }
+        outcome.missing = missing_entries(&existing);
     } else {
         if let Some(parent) = settings.parent() {
             std::fs::create_dir_all(parent)?;
@@ -143,9 +137,14 @@ mod tests {
             std::fs::read_to_string(dir.path().join(SETTINGS)).expect("read"),
             own
         );
-        assert_eq!(outcome.notes.len(), 1);
-        assert!(outcome.notes[0].contains("WorktreeCreate"));
-        assert!(outcome.notes[0].contains("PreToolUse (Bash)"));
+        assert!(outcome
+            .missing
+            .iter()
+            .any(|entry| entry.contains("WorktreeCreate")));
+        assert!(outcome
+            .missing
+            .iter()
+            .any(|entry| entry.contains("PreToolUse (Bash)")));
     }
 
     #[test]
@@ -153,7 +152,7 @@ mod tests {
         let dir = scratch("dx-worktree-setup-twice-");
         apply(dir.path()).expect("first");
         let outcome = apply(dir.path()).expect("second");
-        assert!(outcome.wrote.is_empty() && outcome.notes.is_empty());
+        assert!(outcome.wrote.is_empty() && outcome.missing.is_empty());
     }
 
     fn commands(settings: &Value, event: &str) -> Vec<String> {

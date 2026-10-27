@@ -186,11 +186,15 @@ impl BumpRequest {
         } else {
             "then preset flag-diff review plus `bazel build //...`".to_owned()
         };
+        let place = if self.set == BumpSet::Cargo && self.manifest.is_none() {
+            "every manifest of the crate.from_cargo hub in MODULE.bazel"
+        } else {
+            self.target_manifest()
+        };
         let base = format!(
-            "Widen {} to {} in {} ({through})",
+            "Widen {} to {} in {place} ({through})",
             self.selector,
             self.version.display(),
-            self.target_manifest(),
         );
         if self.version.is_semver() {
             format!("{base}; {}", version::generic_major_bump_hint())
@@ -200,6 +204,11 @@ impl BumpRequest {
     }
 
     pub fn plan_edit(&self, content: &str) -> Result<String, BumpError> {
+        self.plan_edit_in(self.target_manifest(), content)
+    }
+
+    /// The widened `content` of `manifest`, a manifest of this request's set.
+    pub fn plan_edit_in(&self, manifest: &str, content: &str) -> Result<String, BumpError> {
         match self.set {
             BumpSet::Bazel => {
                 if self.package == ".bazelversion" {
@@ -208,7 +217,7 @@ impl BumpRequest {
                     plan_module_bazel(content, &self.package, &self.version)
                 }
             }
-            BumpSet::Cargo => plan_cargo_toml(content, &self.package, &self.version),
+            BumpSet::Cargo => plan_cargo_toml(manifest, content, &self.package, &self.version),
             BumpSet::Npm => plan_package_json(content, &self.package, &self.version),
             BumpSet::Go => plan_go_mod(content, &self.package, &self.version),
             BumpSet::Maven => plan_maven_module_bazel(content, &self.package, &self.version),
@@ -217,8 +226,12 @@ impl BumpRequest {
         }
     }
 
-    pub fn plan_edit_outcome(&self, content: &str) -> Result<BumpPlanOutcome, BumpError> {
-        let widened = self.plan_edit(content)?;
+    pub fn plan_edit_outcome(
+        &self,
+        manifest: &str,
+        content: &str,
+    ) -> Result<BumpPlanOutcome, BumpError> {
+        let widened = self.plan_edit_in(manifest, content)?;
         if widened == content {
             Ok(BumpPlanOutcome::Unchanged)
         } else {
@@ -311,6 +324,7 @@ mod cargo;
 #[path = "request_plans.rs"]
 pub(crate) mod plans;
 
+pub use cargo::cargo_manifests;
 use cargo::*;
 use plans::*;
 

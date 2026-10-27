@@ -11,14 +11,14 @@ fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError>
 fn assert_bump_round_trip(selector: &str, version: &str, higher: &str, written: &str) {
     let same = BumpRequest::parse(selector, version).expect("bump request");
     assert_eq!(
-        same.plan_edit_outcome(written),
+        same.plan_edit_outcome(same.target_manifest(), written),
         Ok(BumpPlanOutcome::Unchanged),
         "{selector} at {version}"
     );
     let next = BumpRequest::parse(selector, higher).expect("bump request");
     assert!(
         matches!(
-            next.plan_edit_outcome(written),
+            next.plan_edit_outcome(next.target_manifest(), written),
             Ok(BumpPlanOutcome::Changed(_))
         ),
         "{selector} to {higher}"

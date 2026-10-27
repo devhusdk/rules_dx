@@ -1,6 +1,65 @@
 use super::*;
 
+/// The workspace-relative Cargo.toml paths of the one `crate.from_cargo` hub in
+/// `module_bazel` whose `cargo_lockfile` is the cargo set's lock, sorted and deduped.
+pub fn cargo_manifests(module_bazel: &str) -> Result<Vec<String>, BumpError> {
+    let unsupported = |reason: String| BumpError::UnsupportedManifest {
+        manifest: "MODULE.bazel".to_owned(),
+        reason,
+    };
+    let lock = BumpSet::Cargo.locks()[0];
+    let module = dx_module_bazel::ModuleFile::parse(module_bazel)
+        .map_err(|error| unsupported(error.to_string()))?;
+    let hubs = module
+        .cargo_hubs()
+        .map_err(|error| unsupported(error.to_string()))?;
+    let matching: Vec<_> = hubs
+        .iter()
+        .filter(|hub| {
+            hub.cargo_lockfile
+                .is_some_and(|label| dx_module_bazel::label_path(label).as_deref() == Ok(lock))
+        })
+        .collect();
+    let hub = match matching.as_slice() {
+        [hub] => hub,
+        [] => {
+            return Err(unsupported(format!(
+                "no crate.from_cargo hub has cargo_lockfile {lock}"
+            )))
+        }
+        many => {
+            return Err(unsupported(format!(
+                "{} crate.from_cargo hubs have cargo_lockfile {lock}",
+                many.len()
+            )))
+        }
+    };
+    let mut manifests = Vec::new();
+    for label in &hub.manifests {
+        let path = dx_module_bazel::label_path(&label.value).map_err(|error| {
+            unsupported(format!("crate.from_cargo {} manifest {error}", hub.name))
+        })?;
+        if path.rsplit('/').next() != Some("Cargo.toml") {
+            return Err(unsupported(format!(
+                "crate.from_cargo {} manifest {} is not a Cargo.toml",
+                hub.name, label.value
+            )));
+        }
+        manifests.push(path);
+    }
+    manifests.sort();
+    manifests.dedup();
+    if manifests.is_empty() {
+        return Err(unsupported(format!(
+            "crate.from_cargo {} lists no manifests",
+            hub.name
+        )));
+    }
+    Ok(manifests)
+}
+
 pub(super) fn plan_cargo_toml(
+    manifest: &str,
     content: &str,
     package: &str,
     version: &WidenVersion,
@@ -9,7 +68,7 @@ pub(super) fn plan_cargo_toml(
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
             return Err(BumpError::UnsupportedManifest {
-                manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+                manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
         }
@@ -18,7 +77,7 @@ pub(super) fn plan_cargo_toml(
         content
             .parse::<toml_edit::DocumentMut>()
             .map_err(|_| BumpError::UnsupportedManifest {
-                manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+                manifest: manifest.to_owned(),
                 reason: "manifest is not valid TOML".to_owned(),
             })?;
     let paths = cargo_dependency_table_paths(&doc);
@@ -34,7 +93,7 @@ pub(super) fn plan_cargo_toml(
             CargoDepShape::Registry => matches.push(path.clone()),
             CargoDepShape::GitOrPath => {
                 return Err(BumpError::UnsupportedManifest {
-                    manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+                    manifest: manifest.to_owned(),
                     reason: format!(
                         "{package:?} is git/path-shaped; v1 widens registry versions only"
                     ),
@@ -42,7 +101,7 @@ pub(super) fn plan_cargo_toml(
             }
             CargoDepShape::Workspace => {
                 return Err(BumpError::UnsupportedManifest {
-                    manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+                    manifest: manifest.to_owned(),
                     reason: format!(
                         "{package:?} inherits workspace version; v1 widens registry versions only"
                     ),
@@ -50,7 +109,7 @@ pub(super) fn plan_cargo_toml(
             }
             CargoDepShape::NoVersion => {
                 return Err(BumpError::UnsupportedManifest {
-                    manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+                    manifest: manifest.to_owned(),
                     reason: format!("{package:?} has no version to widen"),
                 });
             }
@@ -58,26 +117,26 @@ pub(super) fn plan_cargo_toml(
     }
     match matches.len() {
         0 => Err(BumpError::NotFound {
-            manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+            manifest: manifest.to_owned(),
             package: package.to_owned(),
         }),
         1 => {
             let table = cargo_table_at_mut(&mut doc, &matches[0]).ok_or_else(|| {
                 BumpError::UnsupportedManifest {
-                    manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+                    manifest: manifest.to_owned(),
                     reason: format!("{package:?} has no version to widen"),
                 }
             })?;
             cargo_set_version(table, package, &new).ok_or_else(|| {
                 BumpError::UnsupportedManifest {
-                    manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+                    manifest: manifest.to_owned(),
                     reason: format!("{package:?} has no version to widen"),
                 }
             })?;
             Ok(doc.to_string())
         }
         count => Err(BumpError::Ambiguous {
-            manifest: "rust/tests/fixtures/hello/Cargo.toml".to_owned(),
+            manifest: manifest.to_owned(),
             package: package.to_owned(),
             count,
         }),

@@ -397,7 +397,13 @@ manifest, or the run fails without writing. A `bazel` bump rewrites the one
 literal `version` of the matching top-level `bazel_dep` in `MODULE.bazel`
 and keeps every other byte. Duplicate declarations, a missing or computed
 version or name, and a `MODULE.bazel` that does not parse fail without
-writing. A `github-actions` version is
+writing. A `cargo` bump rewrites the crate in every manifest of the
+`crate.from_cargo` hub in `MODULE.bazel` whose `cargo_lockfile` is
+`rust/tests/fixtures/hello/Cargo.lock`, if that manifest declares the crate.
+It fails without writing if no manifest declares it, or if any manifest
+declares it ambiguously or in a non-registry form. `go` edits
+`third_party/go/go.mod` and `nuget` edits
+`third_party/dotnet/paket.dependencies`. A `github-actions` version is
 the resolved commit SHA, never a tag, and the pin is rewritten in every
 `.github/workflows` file that declares the action.
 

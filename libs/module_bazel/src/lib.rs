@@ -100,12 +100,23 @@ pub enum ModuleError {
     ComputedVersion { name: String, line: usize },
     #[error("maven artifacts at line {line} are not a list of string literals")]
     ComputedArtifacts { line: usize },
+    #[error("crate.from_cargo at line {line} needs literal name, cargo_lockfile and manifests")]
+    ComputedCargoHub { line: usize },
     #[error("{value:?} cannot be written into a Starlark string literal")]
     UnsafeString { value: String },
     #[error("{name:?} is already declared in MODULE.bazel")]
     AlreadyDeclared { name: String },
     #[error("cannot insert into MODULE.bazel: {reason}")]
     NoInsertPoint { reason: String },
+}
+
+/// One rules_rust `crate.from_cargo` tag: a crate_universe hub and the manifests it reads.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CargoHub<'a> {
+    pub name: &'a str,
+    pub cargo_lockfile: Option<&'a str>,
+    pub manifests: Vec<&'a Str>,
+    pub line: usize,
 }
 
 /// A parsed MODULE.bazel with its top-level calls in source order.
@@ -116,6 +127,7 @@ pub struct ModuleFile {
 }
 
 const MAVEN_MODULE: &str = "rules_jvm_external";
+const RUST_MODULE: &str = "rules_rust";
 
 fn dialect() -> Dialect {
     Dialect {
@@ -244,6 +256,52 @@ impl ModuleFile {
             }
         }
         Ok(artifacts)
+    }
+
+    /// Every rules_rust `crate.from_cargo` tag in source order, with its literal manifests.
+    pub fn cargo_hubs(&self) -> Result<Vec<CargoHub<'_>>, ModuleError> {
+        let proxies = self.crate_proxies();
+        let mut hubs = Vec::new();
+        for call in &self.calls {
+            let Some((proxy, "from_cargo")) = call.name.rsplit_once('.') else {
+                continue;
+            };
+            if !proxies.contains(&proxy) {
+                continue;
+            }
+            let computed = ModuleError::ComputedCargoHub { line: call.line };
+            if call.unpacked {
+                return Err(computed);
+            }
+            let Some(Value::Str(name)) = call.arg("name") else {
+                return Err(computed);
+            };
+            let cargo_lockfile = match call.arg("cargo_lockfile") {
+                None => None,
+                Some(Value::Str(literal)) => Some(literal.value.as_str()),
+                Some(_) => return Err(computed),
+            };
+            let mut manifests = Vec::new();
+            match call.arg("manifests") {
+                None => {}
+                Some(Value::List(items)) => {
+                    for item in items {
+                        match item {
+                            Value::Str(literal) => manifests.push(literal),
+                            _ => return Err(computed),
+                        }
+                    }
+                }
+                Some(_) => return Err(computed),
+            }
+            hubs.push(CargoHub {
+                name: &name.value,
+                cargo_lockfile,
+                manifests,
+                line: call.line,
+            });
+        }
+        Ok(hubs)
     }
 
     /// The source with `bazel_dep(name = name, version = version)` added after the
@@ -504,6 +562,19 @@ impl ModuleFile {
             .collect()
     }
 
+    fn crate_proxies(&self) -> Vec<&str> {
+        let repo = self.repo_name(RUST_MODULE).unwrap_or(RUST_MODULE);
+        let label = format!("@{repo}//crate_universe:extensions.bzl");
+        self.calls_named("use_extension")
+            .filter(|call| {
+                let file = extension_arg(call, 0, "extension_bzl_file");
+                let extension = extension_arg(call, 1, "extension_name");
+                file == Some(label.as_str()) && extension == Some("crate")
+            })
+            .filter_map(|call| call.binding.as_deref())
+            .collect()
+    }
+
     /// The source with one string literal set to `value`, keeping its quote style.
     pub fn replace(&self, literal: &Str, value: &str) -> Result<String, ModuleError> {
         if literal.value == value {
@@ -691,6 +762,34 @@ pub fn load_with_includes(
     Ok(files)
 }
 
+/// Splits a main-repository `//package:file` label into package and file, or None when
+/// it is not one; Err when a part would leave the workspace.
+fn workspace_label_parts(label: &str) -> Option<Result<(&str, &str), ()>> {
+    let (package, file) = label.strip_prefix("//")?.split_once(':')?;
+    let bad =
+        |part: &str| part.is_empty() || part == "." || part == ".." || part.contains(['\\', ':']);
+    let package_bad = !package.is_empty() && package.split('/').any(bad);
+    if package_bad || file.split('/').any(bad) {
+        return Some(Err(()));
+    }
+    Some(Ok((package, file)))
+}
+
+/// The workspace-relative path of a main-repository `//package:file` label.
+pub fn label_path(label: &str) -> Result<String, String> {
+    if label.starts_with('@') {
+        return Err(format!(
+            "{label} is not a //package:file label in the main repository"
+        ));
+    }
+    match workspace_label_parts(label) {
+        None => Err(format!("{label} is not //package:file")),
+        Some(Err(())) => Err(format!("{label} leaves the workspace")),
+        Some(Ok(("", file))) => Ok(file.to_owned()),
+        Some(Ok((package, file))) => Ok(format!("{package}/{file}")),
+    }
+}
+
 /// Splits an include label into package and file the way Bazel accepts it.
 fn include_parts(label: &str) -> Result<(&str, &str), String> {
     if label.starts_with('@') {
@@ -698,16 +797,11 @@ fn include_parts(label: &str) -> Result<(&str, &str), String> {
             "include {label} is not a //package:file label; Bazel accepts only // labels in include"
         ));
     }
-    let (package, file) = label
-        .strip_prefix("//")
-        .and_then(|rest| rest.split_once(':'))
-        .ok_or_else(|| format!("include {label} is not //package:file"))?;
-    let bad =
-        |part: &str| part.is_empty() || part == "." || part == ".." || part.contains(['\\', ':']);
-    let package_bad = !package.is_empty() && package.split('/').any(bad);
-    if package_bad || file.split('/').any(bad) {
-        return Err(format!("include {label} leaves the workspace"));
-    }
+    let (package, file) = match workspace_label_parts(label) {
+        None => return Err(format!("include {label} is not //package:file")),
+        Some(Err(())) => return Err(format!("include {label} leaves the workspace")),
+        Some(Ok(parts)) => parts,
+    };
     let name = file.rsplit('/').next().unwrap_or(file);
     if !name.ends_with(".MODULE.bazel") || name.starts_with('.') {
         return Err(format!("include {label} must name a .MODULE.bazel file"));

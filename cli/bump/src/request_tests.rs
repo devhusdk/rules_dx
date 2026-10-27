@@ -47,7 +47,7 @@ fn cargo_table_variants_preserve_comments_and_reject_nonregistry_shapes() {
     }
     let tag = WidenVersion::GitTag("v2".to_owned());
     assert!(matches!(
-        plan_cargo_toml("", "demo", &tag),
+        plan_cargo_toml("rust/tests/fixtures/hello/Cargo.toml", "", "demo", &tag),
         Err(BumpError::UnsupportedManifest { .. })
     ));
     let mut doc: toml_edit::DocumentMut =
@@ -923,11 +923,11 @@ fn module_bazel_edits_one_literal_version_token() {
         ),
     ] {
         assert_eq!(
-            bump.plan_edit_outcome(before).expect(before),
+            bump.plan_edit_outcome(bump.target_manifest(), before).expect(before),
             BumpPlanOutcome::Changed(after.to_owned())
         );
         assert_eq!(
-            bump.plan_edit_outcome(after).expect(after),
+            bump.plan_edit_outcome(bump.target_manifest(), after).expect(after),
             BumpPlanOutcome::Unchanged
         );
     }
@@ -1100,24 +1100,30 @@ fn plan_outcome_distinguishes_changed_from_unchanged() {
     let sha = "a".repeat(40);
     let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("request");
     assert!(matches!(
-        bump.plan_edit_outcome(&steps("      - uses: actions/checkout@v1\n")).expect("changed"),
+        bump.plan_edit_outcome(bump.target_manifest(), &steps("      - uses: actions/checkout@v1\n")).expect("changed"),
         BumpPlanOutcome::Changed(widened) if widened.contains(&sha)
     ));
     assert!(matches!(
-        bump.plan_edit_outcome(&steps(&format!("      - uses: actions/checkout@{sha}\n")))
-            .expect("unchanged"),
+        bump.plan_edit_outcome(
+            bump.target_manifest(),
+            &steps(&format!("      - uses: actions/checkout@{sha}\n"))
+        )
+        .expect("unchanged"),
         BumpPlanOutcome::Unchanged
     ));
     let cargo = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     assert!(matches!(
         cargo
-            .plan_edit_outcome("[dependencies]\nanyhow = \"1\"\n")
+            .plan_edit_outcome(cargo.target_manifest(), "[dependencies]\nanyhow = \"1\"\n")
             .expect("changed"),
         BumpPlanOutcome::Changed(_)
     ));
     assert!(matches!(
         cargo
-            .plan_edit_outcome("[dependencies]\nanyhow = \"1.2.3\"\n")
+            .plan_edit_outcome(
+                cargo.target_manifest(),
+                "[dependencies]\nanyhow = \"1.2.3\"\n"
+            )
             .expect("unchanged"),
         BumpPlanOutcome::Unchanged
     ));
@@ -1277,4 +1283,89 @@ fn configured_bazel_set_rejects_bare_bazelversion_and_bad_names() {
         parse("bazel-modules:rules_cc", "not-a-version"),
         Err(BumpError::Version(_))
     ));
+}
+
+fn cargo_module(hubs: &str) -> String {
+    format!(
+        "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\n{hubs}"
+    )
+}
+
+#[test]
+fn cargo_manifests_select_the_hub_of_the_cargo_lock() {
+    let module = cargo_module(
+        "crate.from_cargo(name = \"other\", cargo_lockfile = \"//other:Cargo.lock\", manifests = [\"//other:Cargo.toml\"])\ncrate.from_cargo(\n    name = \"dx_crates\",\n    cargo_lockfile = \"//rust/tests/fixtures/hello:Cargo.lock\",\n    manifests = [\"//cli/zeta:Cargo.toml\", \"//cli/bump:Cargo.toml\", \"//cli/zeta:Cargo.toml\"],\n)\n",
+    );
+    assert_eq!(
+        crate::cargo_manifests(&module),
+        Ok(vec![
+            "cli/bump/Cargo.toml".to_owned(),
+            "cli/zeta/Cargo.toml".to_owned()
+        ])
+    );
+}
+
+#[test]
+fn cargo_manifests_fail_closed_on_unclear_hubs() {
+    let lock = "cargo_lockfile = \"//rust/tests/fixtures/hello:Cargo.lock\"";
+    for (hubs, reason) in [
+        (
+            "crate.from_cargo(name = \"h\", cargo_lockfile = \"//x:Cargo.lock\", manifests = [\"//x:Cargo.toml\"])\n".to_owned(),
+            "no crate.from_cargo hub",
+        ),
+        (
+            format!("crate.from_cargo(name = \"a\", {lock}, manifests = [\"//a:Cargo.toml\"])\ncrate.from_cargo(name = \"b\", {lock}, manifests = [\"//b:Cargo.toml\"])\n"),
+            "2 crate.from_cargo hubs",
+        ),
+        (
+            format!("crate.from_cargo(name = \"h\", {lock}, manifests = [])\n"),
+            "lists no manifests",
+        ),
+        (
+            format!("crate.from_cargo(name = \"h\", {lock}, manifests = [\"@x//a:Cargo.toml\"])\n"),
+            "not a //package:file label",
+        ),
+        (
+            format!("crate.from_cargo(name = \"h\", {lock}, manifests = [\"//a:Foo.toml\"])\n"),
+            "is not a Cargo.toml",
+        ),
+        (
+            format!("crate.from_cargo(name = \"h\", {lock}, manifests = MANIFESTS)\n"),
+            "needs literal name",
+        ),
+    ] {
+        match crate::cargo_manifests(&cargo_module(&hubs)) {
+            Err(BumpError::UnsupportedManifest { manifest, reason: got }) => {
+                assert_eq!(manifest, "MODULE.bazel");
+                assert!(got.contains(reason), "{got} for {hubs}");
+            }
+            other => panic!("{hubs}: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn cargo_errors_name_the_manifest_planned() {
+    let cargo = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    assert_eq!(
+        cargo.plan_edit_outcome("cli/x/Cargo.toml", "[dependencies]\nserde = \"1\"\n"),
+        Err(BumpError::NotFound {
+            manifest: "cli/x/Cargo.toml".to_owned(),
+            package: "anyhow".to_owned(),
+        })
+    );
+    assert_eq!(
+        cargo.plan_edit_outcome(
+            "cli/y/Cargo.toml",
+            "[dependencies]\nanyhow = \"1\"\n[dev-dependencies]\nanyhow = \"1\"\n"
+        ),
+        Err(BumpError::Ambiguous {
+            manifest: "cli/y/Cargo.toml".to_owned(),
+            package: "anyhow".to_owned(),
+            count: 2,
+        })
+    );
+    assert!(cargo
+        .summary()
+        .starts_with("Widen cargo:anyhow to 1.2.3 in every manifest of the crate.from_cargo hub in MODULE.bazel ("));
 }

@@ -65,8 +65,9 @@ impl BumpSet {
         }
     }
 
-    pub fn spans_manifest_directory(self) -> bool {
-        self == BumpSet::GithubActions
+    /// Whether a bump edits every manifest of the set that declares the package.
+    pub fn spans_manifests(self) -> bool {
+        matches!(self, BumpSet::Cargo | BumpSet::GithubActions)
     }
 
     pub fn locks(self) -> &'static [&'static str] {
@@ -212,12 +213,13 @@ mod tests {
         );
         assert_eq!(BumpSet::Npm.manifests(), &["package.json"]);
         assert_eq!(BumpSet::GithubActions.manifests(), &[".github/workflows"]);
-        assert!(BumpSet::GithubActions.spans_manifest_directory());
+        assert!(BumpSet::GithubActions.spans_manifests());
+        assert!(BumpSet::Cargo.spans_manifests());
         for set in BumpSet::ALL {
             assert_eq!(
-                set.spans_manifest_directory(),
-                set == BumpSet::GithubActions,
-                "{set:?} spans a manifest directory"
+                set.spans_manifests(),
+                matches!(set, BumpSet::Cargo | BumpSet::GithubActions),
+                "{set:?} spans manifests"
             );
         }
         assert_eq!(BumpSet::Maven.manifests(), &["MODULE.bazel"]);

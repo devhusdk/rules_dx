@@ -1,5 +1,5 @@
 {
-  "checksum": "2d0608e99d3ecbe736d7ed178f271ee38afb900bff588cf2cf9455c58007549c",
+  "checksum": "b20d2d72e5e587210f63e4796ad06c152e13a79c97091d4b3fd24a88e183b72c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7209,6 +7209,33 @@
         {
           "Library": {
             "crate_name": "dx_env_plan",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_execlog 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "ruzstd 0.9.1",
+            "target": "ruzstd"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_execlog",
+      "name": "dx_execlog",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_execlog",
             "crate_root": "src/lib.rs"
           }
         }
@@ -19143,7 +19170,7 @@
             ],
             "cfg(windows)": [
               {
-                "id": "windows-sys 0.52.0",
+                "id": "windows-sys 0.61.2",
                 "target": "windows_sys"
               }
             ]
@@ -19341,6 +19368,45 @@
         }
       ],
       "version": "0.3.1"
+    },
+    "ruzstd 0.9.1": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "hash",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "twox-hash 2.1.5",
+            "target": "twox_hash"
+          }
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "ruzstd",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "ruzstd",
+      "package_url": "https://github.com/KillingSpark/zstd-rs",
+      "repository": {
+        "Http": {
+          "sha256": "69e4ce4a039f42bf25920b95667e4d789e98749ab11bbb8d2c2936f788421bb5",
+          "url": "https://static.crates.io/crates/ruzstd/0.9.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "ruzstd",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.9.1"
     },
     "ryu 1.0.23": {
       "common_attrs": {
@@ -23375,6 +23441,37 @@
       ],
       "version": "0.7.1"
     },
+    "twox-hash 2.1.5": {
+      "common_attrs": {
+        "crate_features": [
+          "xxhash64"
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "twox_hash",
+      "license": "MIT",
+      "license_file": "LICENSE.txt",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "twox-hash",
+      "package_url": "https://github.com/shepmaster/twox-hash",
+      "repository": {
+        "Http": {
+          "sha256": "86a801b3cea342a06d468c8710662aa29e5e05e4f5c0d62f00bbb7f2ad7941c2",
+          "url": "https://static.crates.io/crates/twox-hash/2.1.5/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "twox_hash",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "2.1.5"
+    },
     "typed-builder 0.21.2": {
       "common_attrs": {
         "edition": "2021",
@@ -25282,21 +25379,13 @@
     },
     "windows-sys 0.52.0": {
       "common_attrs": {
-        "crate_features": {
-          "common": [
-            "Win32",
-            "Win32_Foundation",
-            "Win32_Security",
-            "Win32_Security_Cryptography"
-          ],
-          "selects": {
-            "aarch64-pc-windows-msvc": [
-              "Win32_System",
-              "Win32_System_Threading",
-              "default"
-            ]
-          }
-        },
+        "crate_features": [
+          "Win32",
+          "Win32_Foundation",
+          "Win32_System",
+          "Win32_System_Threading",
+          "default"
+        ],
         "deps": [
           {
             "id": "windows-targets 0.52.6",
@@ -25431,6 +25520,7 @@
           "Win32_Foundation",
           "Win32_Security",
           "Win32_Security_Authorization",
+          "Win32_Security_Cryptography",
           "Win32_Storage",
           "Win32_Storage_FileSystem",
           "Win32_System",
@@ -27294,6 +27384,7 @@
     "regex 1.13.1",
     "rustdoc-types 0.61.0",
     "rustls 0.23.46",
+    "ruzstd 0.9.1",
     "saphyr-parser 0.2.2",
     "semver 1.0.27",
     "serde 1.0.229",
@@ -27352,6 +27443,7 @@
     "dx_digest 0.0.0": "cli/dx_digest",
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
+    "dx_execlog 0.0.0": "cli/dx_execlog",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_identity 0.0.0": "cli/dx_identity",

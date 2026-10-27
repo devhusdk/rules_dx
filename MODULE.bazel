@@ -681,6 +681,7 @@ crate.from_cargo(
         "//cli/sbom:Cargo.toml",
         "//cli/sbom/schema:Cargo.toml",
         "//cli/bep:Cargo.toml",
+        "//cli/execlog:Cargo.toml",
         "//cli/cli:Cargo.toml",
         "//cli/diff:Cargo.toml",
         "//cli/digest:Cargo.toml",

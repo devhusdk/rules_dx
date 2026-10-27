@@ -83,6 +83,9 @@ pub(crate) struct Flags {
     pub(crate) bases: bool,
     pub(crate) with: Vec<String>,
     pub(crate) full: bool,
+    pub(crate) explain: bool,
+    pub(crate) old_log: Option<String>,
+    pub(crate) new_log: Option<String>,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
 }
@@ -624,6 +627,38 @@ composite_group! {
     }
 }
 
+flag_group! {
+    /// Save the execution log for dx explain.
+    ExplainFlag, {
+        #[arg(long, overrides_with = "explain")]
+        explain: bool,
+    }
+}
+
+flag_group! {
+    /// Older execution log (default: the second newest saved log).
+    OldLogFlag, {
+        #[arg(long = "old", value_name = "LOG", overrides_with = "old_log", value_parser = non_empty)]
+        old_log: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Newer execution log (default: the newest saved log).
+    NewLogFlag, {
+        #[arg(long = "new", value_name = "LOG", overrides_with = "new_log", value_parser = non_empty)]
+        new_log: Option<String>,
+    }
+}
+
+composite_group! {
+    /// The two execution logs dx explain compares.
+    LogPairArgs, {
+        old_log: OldLogFlag,
+        new_log: NewLogFlag,
+    }
+}
+
 composite_group! {
     /// The migration gate flags.
     MigrationArgs, {
@@ -841,6 +876,7 @@ command_args! {
     Build => 6, BazelTail, {
         output: ReadOutputFlag,
         own: ProfileArgs,
+        explain: ExplainFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -849,6 +885,7 @@ command_args! {
     Test => 7, BazelTail, {
         output: ReadOutputFlag,
         own: ProfileArgs,
+        explain: ExplainFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -966,6 +1003,8 @@ command_args! {
         disk: DiskFlag,
         bases: BasesFlag,
     };
+    /// The flags `dx explain` accepts.
+    Explain => 31, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
 }
 
 #[derive(Parser)]
@@ -1014,6 +1053,8 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--build-slots",
     "--bazel-startup-option",
     "--bazel-option",
+    "--old",
+    "--new",
 ];
 
 /// Every short letter in the clap command tree.

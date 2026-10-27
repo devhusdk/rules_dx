@@ -45,8 +45,8 @@ on its own never leaves anything for the next run to stop.
 ## `dx build` And `dx test`
 
 ```text
-dx build [--here] [--affected] [--debug|--release] [--report failures=<path>] [scope...] [-- bazel-options...]
-dx test [--here] [--affected] [--debug|--release] [--report junit=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
+dx build [--here] [--affected] [--debug|--release] [--explain] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--affected] [--debug|--release] [--explain] [--report junit=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
 ```
 
 Builds or tests the scope. `--debug` uses the `dx_debug` profile,
@@ -54,6 +54,11 @@ Builds or tests the scope. `--debug` uses the `dx_debug` profile,
 only. It does not start or attach a debugger. See
 [Supported Surface](README.md#supported-surface).
 Exec tools build at `fastbuild`; `--release` builds them at `opt`.
+`--explain` saves the Bazel execution log under `.dx/explain/` for
+[`dx explain`](explain.md) and keeps the two newest logs. JSON adds a
+`notice` (`explain_log`) with the log path; text prints
+`dx: execution log <path>` on stderr. With `--explain`, Bazel options that
+set another execution log are refused.
 Extra `--config` values pass through after the dx profile in their original
 order. Only a conflicting dx profile is rejected.
 dx adds its own report flags after your Bazel options, so a `--config` cannot

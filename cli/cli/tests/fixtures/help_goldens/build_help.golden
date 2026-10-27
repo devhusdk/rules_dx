@@ -1,6 +1,6 @@
 run Bazel build over resolved targets
 
-Usage: dx build [--here] [--affected] [--debug|--release] [scope ...] [-- bazel-options ...]
+Usage: dx build [--here] [--affected] [--debug|--release] [--explain] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -42,6 +42,9 @@ Options:
 
       --release
           Use release build (the deploy default)
+
+      --explain
+          Save the execution log for dx explain
 
       --report <REPORT>
           Write a report file

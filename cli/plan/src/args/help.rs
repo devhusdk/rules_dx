@@ -199,6 +199,7 @@ pub(crate) fn runs_bazel(command: Command) -> bool {
             | Command::Init
             | Command::New
             | Command::Worktree
+            | Command::Explain
     )
 }
 

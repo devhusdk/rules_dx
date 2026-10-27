@@ -155,6 +155,7 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Upgrade
         | Command::Rollback
         | Command::Worktree
+        | Command::Explain
         | Command::Status
         | Command::Version
         | Command::Watch

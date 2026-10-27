@@ -1,0 +1,214 @@
+// Copyright 2018 The Bazel Authors. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Vendored subset of src/main/protobuf/spawn.proto from Bazel 9.2.0: the
+// messages the compact execution log (--execution_log_compact_file) uses.
+// Field numbers are upstream's and must not change. Left out: SpawnExec and
+// the binary/JSON log formats, SpawnMetrics (Spawn field 18), and
+// SymlinkAction (entry field 8). The decoder skips fields it does not know.
+
+syntax = "proto3";
+
+package tools.protos;
+
+// Digest of a file or action cache entry.
+message Digest {
+  // The content hash as a lowercase hex string including any leading zeroes.
+  string hash = 1;
+
+  // The original content size in bytes.
+  int64 size_bytes = 2;
+
+  // The name of the digest function used to compute the hash.
+  string hash_function_name = 3;
+}
+
+// Contents of command environment.
+message EnvironmentVariable {
+  string name = 1;
+  string value = 2;
+}
+
+// Command execution platform.
+message Platform {
+  message Property {
+    string name = 1;
+    string value = 2;
+  }
+  repeated Property properties = 1;
+}
+
+// An entry in the compact log format.
+//
+// To ensure that the log can be parsed in a single pass, every entry must be
+// serialized after all other entries it references by ID.
+message ExecLogEntry {
+  // Information pertaining to the entire invocation.
+  // May appear at most once in the initial position.
+  message Invocation {
+    // Upstream master removed sibling_repository_layout here.
+    reserved 3;
+
+    // The hash function used to compute digests.
+    string hash_function_name = 1;
+
+    // The name of the subdirectory of the runfiles tree corresponding to the
+    // main repository (also known as the "workspace name").
+    string workspace_runfiles_directory = 2;
+
+    // The ID of the invocation.
+    string id = 4;
+  }
+
+  // An input or output file.
+  message File {
+    // The file path.
+    string path = 1;
+    // A digest of the file contents. May be omitted for empty files.
+    Digest digest = 2;
+  }
+
+  // An input or output directory.
+  // May be a source directory, a fileset tree, or a tree artifact.
+  message Directory {
+    // The directory path.
+    string path = 1;
+    // The contained files, whose paths are relative to the directory.
+    repeated File files = 2;
+  }
+
+  // An unresolved symlink.
+  message UnresolvedSymlink {
+    // The symlink path.
+    string path = 1;
+    // The path the symlink points to.
+    string target_path = 2;
+  }
+
+  // A set of spawn inputs.
+  message InputSet {
+    // Entry IDs of files, directories, unresolved symlinks or runfiles trees
+    // belonging to this set.
+    repeated uint32 input_ids = 5;
+    // Entry IDs of other input sets contained in this set.
+    repeated uint32 transitive_set_ids = 4;
+
+    reserved 1, 2, 3;
+  }
+
+  // A collection of runfiles symlinked at custom locations.
+  message SymlinkEntrySet {
+    // A map from relative paths of runfiles symlinks to the entry IDs of the
+    // symlink target, which may be a file, directory, or unresolved symlink.
+    map<string, uint32> direct_entries = 1;
+    // Entry IDs of other symlink entry sets transitively contained in this set.
+    repeated uint32 transitive_set_ids = 2;
+  }
+
+  // A structured representation of the .runfiles directory of an executable.
+  message RunfilesTree {
+    reserved 7;
+
+    // The runfiles tree path.
+    string path = 1;
+    // The entry ID of the set of artifacts in the runfiles tree that are
+    // symlinked at their canonical locations relative to the tree path.
+    uint32 input_set_id = 2;
+    // The entry ID of the set of symlink entries with paths relative to the
+    // subdirectory of the runfiles tree root corresponding to the main
+    // repository.
+    uint32 symlinks_id = 3;
+    // The entry ID of the set of symlink entries with paths relative to the
+    // root of the runfiles tree.
+    uint32 root_symlinks_id = 4;
+    // The paths of empty files relative to the subdirectory of the runfiles
+    // tree root corresponding to the main repository.
+    repeated string empty_files = 5;
+    // The "_repo_mapping" file at the root of the runfiles tree, if it exists.
+    File repo_mapping_manifest = 6;
+  }
+
+  // A spawn output.
+  message Output {
+    oneof type {
+      // The ID of a file, directory or unresolved symlink that is an output
+      // of the spawn.
+      uint32 output_id = 5;
+      // A declared output that is either missing or has the wrong type.
+      string invalid_output_path = 4;
+    }
+
+    reserved 1, 2, 3;
+  }
+
+  // An executed spawn.
+  message Spawn {
+    // The command line arguments.
+    repeated string args = 1;
+
+    // The environment variables.
+    repeated EnvironmentVariable env_vars = 2;
+
+    // The execution platform.
+    Platform platform = 3;
+
+    // Entry ID of the set of inputs. Unset means empty.
+    uint32 input_set_id = 4;
+
+    // Entry ID of the subset of inputs that are tools. Unset means empty.
+    uint32 tool_set_id = 5;
+
+    // The set of outputs.
+    repeated Output outputs = 6;
+
+    string target_label = 7;
+
+    string mnemonic = 8;
+
+    int32 exit_code = 9;
+
+    string status = 10;
+
+    string runner = 11;
+
+    bool cache_hit = 12;
+
+    bool remotable = 13;
+
+    bool cacheable = 14;
+
+    bool remote_cacheable = 15;
+
+    // Unset if the file is empty.
+    Digest digest = 16;
+
+    int64 timeout_millis = 17;
+  }
+
+  // If nonzero, then this entry may be referenced by later entries by this ID.
+  // Nonzero IDs are unique within an execution log, but may not be contiguous.
+  uint32 id = 1;
+
+  // The entry payload.
+  oneof type {
+    Invocation invocation = 2;
+    File file = 3;
+    Directory directory = 4;
+    UnresolvedSymlink unresolved_symlink = 5;
+    InputSet input_set = 6;
+    Spawn spawn = 7;
+    SymlinkEntrySet symlink_entry_set = 9;
+    RunfilesTree runfiles_tree = 10;
+  }
+}

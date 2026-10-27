@@ -40,6 +40,7 @@ Commands:
   list-tests  list configured test targets without building or running them (non-mutating; --cases builds and runs supported test binaries to list cases)
   rollback    restore the previous recorded pin (check by default; --apply restores)
   worktree    lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)
+  explain     explain why actions missed the cache by diffing two execution logs from build/test --explain (non-mutating)
 
 Options:
   -h, --help

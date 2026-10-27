@@ -37,6 +37,7 @@ real_source_target(
         "cli/commands/docs.md",
         "cli/commands/environment-codegen.md",
         "cli/commands/generate.md",
+        "cli/commands/explain.md",
         "cli/commands/init.md",
         "cli/commands/migrate.md",
         "cli/commands/new-upgrade.md",

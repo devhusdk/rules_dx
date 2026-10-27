@@ -2,10 +2,11 @@ use crate::validation::{check_correlation, check_path, parse_digest, OutputError
 use serde_json::{json, Value};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 3;
+pub const SCHEMA_MINOR: u64 = 4;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
+    "cache_miss",
     "capability",
     "change",
     "changed_line_coverage",
@@ -367,6 +368,99 @@ pub fn changed_line_coverage_event(gate: &ChangedLineCoverageEvent) -> Result<Va
         "dx_version".to_owned(),
         Value::String(gate.dx_version.clone()),
     );
+    Ok(Value::Object(map))
+}
+
+/// One reason an action re-ran, from `dx explain`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheMissChange {
+    /// `input`, `env`, `arg`, `platform`, `not_in_old_log`, or `not_cacheable`.
+    pub kind: String,
+    /// `modified`, `added`, `removed`, or `order_changed`; empty for kinds without one.
+    pub change: String,
+    /// The path, name, or value the change is about, under the field its kind names.
+    pub subject: Option<String>,
+}
+
+/// One action that ran in the newer execution log, with why it missed the cache.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheMissEvent {
+    pub mnemonic: String,
+    pub target: String,
+    pub primary_output: String,
+    pub changes: Vec<CacheMissChange>,
+    pub changes_omitted: u64,
+}
+
+const CACHE_MISS_KINDS: &[(&str, Option<&str>)] = &[
+    ("input", Some("path")),
+    ("env", Some("name")),
+    ("arg", Some("value")),
+    ("platform", Some("name")),
+    ("not_in_old_log", None),
+    ("not_cacheable", None),
+];
+
+const CACHE_MISS_CHANGES: &[&str] = &["modified", "added", "removed", "order_changed"];
+
+pub fn cache_miss_event(miss: &CacheMissEvent) -> Result<Value, OutputError> {
+    nonempty("cache_miss mnemonic", &miss.mnemonic)?;
+    nonempty("cache_miss primary_output", &miss.primary_output)?;
+    let mut changes = Vec::with_capacity(miss.changes.len());
+    for change in &miss.changes {
+        let Some((_, field)) = CACHE_MISS_KINDS
+            .iter()
+            .find(|(kind, _)| *kind == change.kind)
+        else {
+            return Err(OutputError::BadValue {
+                field: "cache_miss kind",
+                value: change.kind.clone(),
+            });
+        };
+        let mut item = serde_json::Map::new();
+        item.insert("kind".to_owned(), Value::String(change.kind.clone()));
+        match field {
+            Some(field) => {
+                if !CACHE_MISS_CHANGES.contains(&change.change.as_str()) {
+                    return Err(OutputError::BadValue {
+                        field: "cache_miss change",
+                        value: change.change.clone(),
+                    });
+                }
+                item.insert("change".to_owned(), Value::String(change.change.clone()));
+                if let Some(subject) = &change.subject {
+                    item.insert((*field).to_owned(), Value::String(subject.clone()));
+                } else if change.change != "order_changed" {
+                    return Err(OutputError::EmptyField {
+                        field: "cache_miss subject",
+                    });
+                }
+            }
+            None => {
+                if !change.change.is_empty() || change.subject.is_some() {
+                    return Err(OutputError::BadValue {
+                        field: "cache_miss change",
+                        value: change.change.clone(),
+                    });
+                }
+            }
+        }
+        changes.push(Value::Object(item));
+    }
+    let mut map = base("cache_miss");
+    map.insert("mnemonic".to_owned(), Value::String(miss.mnemonic.clone()));
+    map.insert("target".to_owned(), Value::String(miss.target.clone()));
+    map.insert(
+        "primary_output".to_owned(),
+        Value::String(miss.primary_output.clone()),
+    );
+    map.insert("changes".to_owned(), Value::Array(changes));
+    if miss.changes_omitted > 0 {
+        map.insert(
+            "changes_omitted".to_owned(),
+            Value::from(miss.changes_omitted),
+        );
+    }
     Ok(Value::Object(map))
 }
 
@@ -1304,6 +1398,75 @@ mod tests {
     }
 
     #[test]
+    fn cache_miss_event_shape() {
+        let miss = CacheMissEvent {
+            mnemonic: "Rustc".to_owned(),
+            target: "//cli/digest:dx_digest".to_owned(),
+            primary_output: "bazel-out/k8/bin/cli/digest/libdx_digest.rlib".to_owned(),
+            changes: vec![
+                CacheMissChange {
+                    kind: "input".to_owned(),
+                    change: "modified".to_owned(),
+                    subject: Some("cli/digest/src/lib.rs".to_owned()),
+                },
+                CacheMissChange {
+                    kind: "env".to_owned(),
+                    change: "added".to_owned(),
+                    subject: Some("RUSTFLAGS".to_owned()),
+                },
+                CacheMissChange {
+                    kind: "arg".to_owned(),
+                    change: "order_changed".to_owned(),
+                    subject: None,
+                },
+                CacheMissChange {
+                    kind: "not_cacheable".to_owned(),
+                    change: String::new(),
+                    subject: None,
+                },
+            ],
+            changes_omitted: 3,
+        };
+        let event = cache_miss_event(&miss).expect("event");
+        assert_eq!(
+            event,
+            serde_json::json!({
+                "schema": {"major": 3, "minor": 4},
+                "event": "cache_miss",
+                "mnemonic": "Rustc",
+                "target": "//cli/digest:dx_digest",
+                "primary_output": "bazel-out/k8/bin/cli/digest/libdx_digest.rlib",
+                "changes": [
+                    {"kind": "input", "change": "modified", "path": "cli/digest/src/lib.rs"},
+                    {"kind": "env", "change": "added", "name": "RUSTFLAGS"},
+                    {"kind": "arg", "change": "order_changed"},
+                    {"kind": "not_cacheable"},
+                ],
+                "changes_omitted": 3,
+            })
+        );
+        assert!(EVENTS.contains(&"cache_miss"));
+        let mut bad = miss.clone();
+        bad.mnemonic.clear();
+        assert!(cache_miss_event(&bad).is_err());
+        let mut bad = miss.clone();
+        bad.primary_output.clear();
+        assert!(cache_miss_event(&bad).is_err());
+        let mut bad = miss.clone();
+        bad.changes[0].kind = "mystery".to_owned();
+        assert!(cache_miss_event(&bad).is_err());
+        let mut bad = miss.clone();
+        bad.changes[0].change = "renamed".to_owned();
+        assert!(cache_miss_event(&bad).is_err());
+        let mut bad = miss.clone();
+        bad.changes[0].subject = None;
+        assert!(cache_miss_event(&bad).is_err());
+        let mut bad = miss;
+        bad.changes[3].change = "added".to_owned();
+        assert!(cache_miss_event(&bad).is_err());
+    }
+
+    #[test]
     fn slot_event_shape() {
         let event = slot_event(&SlotEvent {
             action: "list".to_owned(),
@@ -1442,8 +1605,8 @@ mod tests {
     #[test]
     fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 3);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 3}));
+        assert_eq!(SCHEMA_MINOR, 4);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 4}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -1915,7 +2078,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 3},
+                "schema": {"major": 3, "minor": 4},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -1954,7 +2117,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 3},
+                "schema": {"major": 3, "minor": 4},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

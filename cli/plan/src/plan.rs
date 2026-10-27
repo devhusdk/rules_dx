@@ -243,6 +243,33 @@ pub(crate) fn bep_guards() -> Vec<ProtectedFlag> {
     ]
 }
 
+pub const EXEC_LOG_FLAG_NAME: &str = "execution_log_compact_file";
+
+/// Every Bazel execution log flag, which cannot be combined with the compact log dx writes.
+const EXEC_LOG_FLAG_NAMES: [&str; 4] = [
+    EXEC_LOG_FLAG_NAME,
+    "experimental_execution_log_compact_file",
+    "execution_log_binary_file",
+    "execution_log_json_file",
+];
+
+/// The option that writes the compact execution log to `path`.
+pub fn exec_log_options(path: &str) -> Vec<String> {
+    vec![format!("--{EXEC_LOG_FLAG_NAME}={path}")]
+}
+
+/// Guards that refuse user execution log flags while dx writes its own.
+pub fn exec_log_guards() -> Vec<ProtectedFlag> {
+    EXEC_LOG_FLAG_NAMES
+        .iter()
+        .map(|name| ProtectedFlag {
+            name: (*name).to_owned(),
+            required: None,
+            allowed: Vec::new(),
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuildPlan {
     pub argv: Vec<String>,

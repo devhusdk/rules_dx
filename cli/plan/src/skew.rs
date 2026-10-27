@@ -63,6 +63,7 @@ mod tests {
         Command::Status,
         Command::Completion,
         Command::Worktree,
+        Command::Explain,
     ];
 
     const WARN: &[Command] = &[

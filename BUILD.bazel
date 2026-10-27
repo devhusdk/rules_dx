@@ -18,6 +18,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust dx_digest //cli/digest:dx_digest
 # gazelle:resolve rust dx_env //cli/env:dx_env
 # gazelle:resolve rust dx_env_plan //cli/env_plan:dx_env_plan
+# gazelle:resolve rust dx_execlog //cli/execlog:dx_execlog
 # gazelle:resolve rust dx_fingerprint //cli/fingerprint:dx_fingerprint
 # gazelle:resolve rust dx_gomod //libs/gomod:dx_gomod
 # gazelle:resolve rust dx_archive //libs/archive:dx_archive
@@ -42,6 +43,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust marker_proto //env:marker_proto_rs
 # gazelle:resolve rust proto //quality:result_proto_rs
 # gazelle:resolve rust result_proto //quality:result_proto_rs
+# gazelle:resolve rust spawn_proto //cli/execlog:spawn_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve python pytest @pypi//pytest

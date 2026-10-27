@@ -1,10 +1,13 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::deploy::execute_deploy;
+use super::explain_store;
 use super::failure_reports::write_failure_reports;
 use super::run::execute_run;
 use super::test_reports::{execute_test_reports, TestReportsRequest};
-use dx_output::{command_finished, ActionCounts, FinishedCounts, OutputMode};
+use dx_output::{
+    command_finished, notice_event, ActionCounts, FinishedCounts, NoticeEvent, OutputMode,
+};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::plan::{bep_path, plan_workflow, results_path, run_id, WorkflowVerb};
 use dx_plan::reports::{plan_reports, Destination, PlannedReport, StandardFormat};
@@ -151,6 +154,43 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         );
     };
     let bep_arg = Some(bep_text.as_str());
+    let explain_log = if invocation.explain {
+        match explain_store::reserve(workspace) {
+            Ok(reserved) => Some(reserved),
+            Err(error) => {
+                return operational(
+                    invocation,
+                    out,
+                    err,
+                    explain_store::CODE_EXPLAIN_LOG_UNWRITABLE,
+                    &format!("could not create an execution log under .dx/explain: {error}"),
+                );
+            }
+        }
+    } else {
+        None
+    };
+    let discard_log = || {
+        if let Some(reserved) = &explain_log {
+            let _ = std::fs::remove_file(&reserved.path);
+        }
+    };
+    let explain_text = match &explain_log {
+        Some(reserved) => match reserved.path.to_str() {
+            Some(text) => Some(text.to_owned()),
+            None => {
+                discard_log();
+                return operational(
+                    invocation,
+                    out,
+                    err,
+                    explain_store::CODE_EXPLAIN_LOG_UNWRITABLE,
+                    "execution log path is not UTF-8",
+                );
+            }
+        },
+        None => None,
+    };
     let profile = if verb == WorkflowVerb::Coverage {
         None
     } else {
@@ -166,7 +206,10 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
             selection,
         ) {
             Ok(extra) => bazel_options.extend(extra),
-            Err(error) => return resolve_failed(invocation.output, out, err, &error),
+            Err(error) => {
+                discard_log();
+                return resolve_failed(invocation.output, out, err, &error);
+            }
         }
     }
     let plan = match plan_workflow(
@@ -174,14 +217,19 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         &resolved,
         &bazel_options,
         bep_arg,
+        explain_text.as_deref(),
         profile,
         &invocation.bazel_startup_options,
     ) {
         Ok(plan) => plan,
-        Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
+        Err(error) => {
+            discard_log();
+            return pre_exec(invocation.output, out, err, &format!("{error}"));
+        }
     };
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_started(invocation, out) {
+            discard_log();
             return exit;
         }
     } else if invocation.chatty() && !stdout_report {
@@ -193,9 +241,17 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         Ok(code) => code,
         Err(exit) => {
             let _ = std::fs::remove_file(&bep);
+            discard_log();
             return exit;
         }
     };
+    if let Some(reserved) = &explain_log {
+        let _ = explain_store::prune(workspace, explain_store::KEEP, reserved.number);
+        if let Err(exit) = announce_log(invocation, out, err, &reserved.path) {
+            let _ = std::fs::remove_file(&bep);
+            return kept_child(err, bazel_code, exit);
+        }
+    }
     let action_counts = read_actions(&bep, actions);
     if verb == WorkflowVerb::Build {
         if bazel_code != 0 {
@@ -256,6 +312,31 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         results_complete: complete,
         actions: action_counts,
     })
+}
+
+/// Names the saved execution log: a notice in JSON, one stderr line in text.
+fn announce_log(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    path: &std::path::Path,
+) -> Result<(), i32> {
+    let shown = path.display().to_string();
+    if invocation.output == OutputMode::Json {
+        let notice = NoticeEvent {
+            related_command: Some(invocation.command.name().to_owned()),
+            path: Some(shown),
+            ..NoticeEvent::info(
+                explain_store::CODE_EXPLAIN_LOG,
+                "saved the execution log for dx explain",
+            )
+        };
+        return emit_built(out, notice_event(&notice));
+    }
+    if invocation.chatty() {
+        let _ = writeln!(err, "dx: execution log {shown}");
+    }
+    Ok(())
 }
 
 fn emit_build_completion(
@@ -424,6 +505,74 @@ mod tests {
         assert!(out.contains("\"failing_cases\""), "{out}");
         assert!(out.contains("boom"), "{out}");
         assert!(harness.workspace.join(".dx/results.json").is_file());
+    }
+
+    #[test]
+    fn explain_saves_the_execution_log_and_keeps_two() {
+        let harness = Harness::new("build-explain");
+        let store = harness.workspace.join(".dx/explain");
+        for number in 1..=3 {
+            let inv = invocation(&["build", "--explain", "--output=json"]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            assert_eq!(run.code, 0, "{run:?}");
+            let log = store.join(format!("{number}.binpb.zst"));
+            let flag = format!("--execution_log_compact_file={}", log.display());
+            assert!(run.argv[0].contains(&flag), "{:?}", run.argv);
+            let notice = run
+                .out
+                .lines()
+                .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("json"))
+                .find(|event| event["event"] == "notice")
+                .expect("notice");
+            assert_eq!(notice["code"], "explain_log");
+            assert_eq!(notice["path"], log.display().to_string());
+        }
+        let mut kept: Vec<String> = std::fs::read_dir(&store)
+            .expect("store")
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        kept.sort();
+        assert_eq!(kept, ["2.binpb.zst", "3.binpb.zst"]);
+        let run = harness.probe_with(&invocation(&["build"]), &[Some(0)]);
+        assert!(
+            !run.argv[0]
+                .iter()
+                .any(|arg| arg.starts_with("--execution_log")),
+            "{:?}",
+            run.argv
+        );
+    }
+
+    #[test]
+    fn explain_names_the_log_on_stderr_in_text_mode() {
+        let harness = Harness::new("build-explain-text");
+        let (code, _, err) = harness.run(&["build", "--explain"]);
+        assert_eq!(code, 0, "{err}");
+        let log = harness.workspace.join(".dx/explain/1.binpb.zst");
+        assert!(
+            err.contains(&format!("dx: execution log {}", log.display())),
+            "{err}"
+        );
+        let (code, _, err) = harness.run(&["build", "--explain", "--quiet"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("execution log"), "{err}");
+    }
+
+    #[test]
+    fn explain_leaves_no_log_when_bazel_never_runs() {
+        let mut harness = Harness::new("build-explain-launch-failed");
+        harness.io_error = true;
+        let (code, out, _) = harness.run(&["build", "--explain", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let store = harness.workspace.join(".dx/explain");
+        let left = std::fs::read_dir(&store).map_or(0, |entries| entries.count());
+        assert_eq!(left, 0, "{out}");
     }
 
     #[test]

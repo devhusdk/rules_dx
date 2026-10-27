@@ -12,7 +12,7 @@ fn a_rejected_scope_stops_before_any_later_phase() {
     assert_eq!(of_kind(&all, "phase_started").len(), 1, "{}", run.stdout);
     assert_eq!(
         phase_exits(&all),
-        vec![("format".to_owned(), 2)],
+        vec![("generate".to_owned(), 2)],
         "{}",
         run.stdout
     );
@@ -29,12 +29,12 @@ fn a_rejected_scope_stops_before_any_later_phase() {
             )
         })
         .collect();
-    let expected: Vec<(String, String)> = ["lint", "typecheck", "generate"]
+    let expected: Vec<(String, String)> = ["format", "lint", "typecheck"]
         .iter()
         .map(|phase| {
             (
                 format!("check/{phase}"),
-                format!("{phase} skipped after format rejected its scope or configuration"),
+                format!("{phase} skipped after generate rejected its scope or configuration"),
             )
         })
         .collect();

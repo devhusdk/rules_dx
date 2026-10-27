@@ -155,20 +155,6 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_vue_eslint_unlisted_import_fail.expected.txt",
     },
     {
-        "name": "matrix_vue_eslint_unmatched_fail",
-        "srcs": [":real_dirty.vue"],
-        "capability": "lint",
-        "stages": ["eslint;vue;quality/testdata/real_dirty.vue"],
-        "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
-        "toolfile_tools": ["eslint"],
-        "toolfile_srcs": [":eslint_cfg/eslint.vue_unmatched.mjs"],
-        "config_tools": ["eslint"],
-        "config_files": [":eslint_cfg/eslint.vue_unmatched.mjs"],
-        "runner_failure": True,
-        "expected_file": ":matrix/matrix_vue_eslint_unmatched_fail.expected.txt",
-    },
-    {
         "name": "matrix_javascript_malformed_fail",
         "generated": {
             "matrix/js_malformed.js": "export function add( {\n",

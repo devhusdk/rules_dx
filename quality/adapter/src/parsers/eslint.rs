@@ -17,7 +17,9 @@ struct EslintMessage {
     fatal: Option<bool>,
     severity: u64,
     message: String,
+    #[serde(default)]
     line: u64,
+    #[serde(default)]
     column: u64,
     #[serde(rename = "endLine")]
     end_line: Option<u64>,
@@ -58,12 +60,6 @@ pub fn parse_eslint(
                     detail: "message with empty text".to_owned(),
                 });
             }
-            if message.line < 1 || message.column < 1 {
-                return Err(ParseError::Shape {
-                    tool: TOOL,
-                    detail: format!("bad position {}:{}", message.line, message.column),
-                });
-            }
             let rule_id = match (&message.rule_id, message.fatal) {
                 (Some(rule), _) if !rule.is_empty() => rule.clone(),
                 (Some(_), _) | (None, _) if message.fatal == Some(true) => String::new(),
@@ -74,6 +70,12 @@ pub fn parse_eslint(
                     });
                 }
             };
+            if message.line < 1 || message.column < 1 {
+                return Err(ParseError::Shape {
+                    tool: TOOL,
+                    detail: format!("bad position {}:{}", message.line, message.column),
+                });
+            }
             let start = TextPosition {
                 line: message.line,
                 column: message.column,
@@ -149,6 +151,10 @@ mod tests {
         assert_eq!(findings[0].finding.rule_id, "");
         let ignored = r#"[{"filePath":"/s/a.js","messages":[{"ruleId":null,"fatal":false,"severity":1,"message":"File ignored because outside of base path.","line":1,"column":1}],"warningCount":1}]"#;
         let err = parse_eslint(ignored.as_bytes(), Some(0), &["/s/a.js"]).expect_err("ignored");
+        assert!(err.to_string().contains("ignored file"));
+        let unmatched = r#"[{"filePath":"/s/App.vue","messages":[{"ruleId":null,"fatal":false,"severity":1,"message":"File ignored because no matching configuration was supplied."}],"warningCount":1}]"#;
+        let err =
+            parse_eslint(unmatched.as_bytes(), Some(0), &["/s/App.vue"]).expect_err("unmatched");
         assert!(err.to_string().contains("ignored file"));
         let bad_sev = ESLINT_DIRTY.replace("\"severity\":2", "\"severity\":3");
         assert!(parse_eslint(bad_sev.as_bytes(), Some(1), &["/s/dirty.js"]).is_err());

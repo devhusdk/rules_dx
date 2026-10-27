@@ -2,18 +2,31 @@ use dx_plan::args::{Command, HintScope, QualityRequest};
 
 pub(crate) use dx_plan::plan::shell_quote as quote;
 
-/// Returns the words safe to echo (safe options, then redacted stand-ins) and whether any changed.
+/// Returns the options a suggested command can echo as-is, in their original
+/// order, and whether any were left out.
+///
+/// Each option (with its separate value, as in `--copt -DX=1`) is kept only when
+/// the shared redactor passes it through unchanged. Anything it withholds or
+/// rewrites is left out entirely, so the command never carries a bare secret
+/// flag or a `(value)` stand-in; the hint's note asks the user to add those back.
 fn echoed(options: &[String]) -> (Vec<String>, bool) {
-    let (safe, withheld) = crate::plan::quality::partition_provenance_options(options);
-    let changed = !withheld.is_empty() || safe != options;
-    let mut words = safe;
-    for entry in withheld {
-        match entry.split_once(' ') {
-            Some((flag, value)) => {
-                words.push(flag.to_owned());
-                words.push(value.to_owned());
-            }
-            None => words.push(entry),
+    let mut words = Vec::new();
+    let mut changed = false;
+    let mut index = 0;
+    while index < options.len() {
+        let option = &options[index];
+        let paired = option.starts_with("--")
+            && !option.contains('=')
+            && options.get(index + 1).is_some_and(|next| {
+                !next.starts_with("--") && !next.starts_with("//") && !next.starts_with('@')
+            });
+        let unit = &options[index..index + if paired { 2 } else { 1 }];
+        index += unit.len();
+        let (safe, withheld) = crate::plan::quality::partition_provenance_options(unit);
+        if withheld.is_empty() && safe == unit {
+            words.extend_from_slice(unit);
+        } else {
+            changed = true;
         }
     }
     (words, changed)
@@ -178,7 +191,7 @@ mod tests {
         secret.bazel_options = vec!["--remote_header=x-token=abc".to_owned()];
         assert_eq!(
             apply_hint(&secret, 1),
-            "1 file(s) need changes. Apply them with: dx fix --apply --affected -- --remote_header (add your credential options again)"
+            "1 file(s) need changes. Apply them with: dx fix --apply --affected (add your credential options again)"
         );
     }
 
@@ -191,7 +204,7 @@ mod tests {
         ];
         let line = command_line(&secret, true);
         assert!(!line.contains("abc") && !line.contains("Bearer"), "{line}");
-        assert!(line.ends_with("-- --config=ci --remote_header"), "{line}");
+        assert!(line.ends_with("-- --config=ci"), "{line}");
         assert!(apply_hint(&secret, 1).ends_with("(add your credential options again)"));
     }
 
@@ -213,11 +226,11 @@ mod tests {
                 assert!(!line.contains(leaked), "{line}");
             }
             assert!(
-                line.contains("--config=ci") && line.contains("GH_PAT=(value)"),
+                !line.contains("(value)") && !line.contains("--bes_header"),
                 "{line}"
             );
             assert!(
-                line.ends_with("(add your credential options again)"),
+                line.ends_with("-- --config=ci (add your credential options again)"),
                 "{line}"
             );
         }
@@ -234,6 +247,29 @@ mod tests {
             line.ends_with("(add your credential options again)"),
             "{line}"
         );
+    }
+
+    #[test]
+    fn split_secret_values_drop_their_flag_and_keep_order() {
+        let mut secret = request();
+        secret.bazel_options = crate::test_support::strings(&[
+            "--keep_going",
+            "--copt",
+            "-DAPI_KEY=x",
+            "--config=ci",
+            "--remote_header=A=b",
+            "--action_env=GH_PAT=x",
+            "--define",
+            "version=1.2",
+            "//pkg:extra",
+        ]);
+        assert!(
+            command_line(&secret, false)
+                .ends_with("-- --keep_going --config=ci --define version=1.2 //pkg:extra"),
+            "{}",
+            command_line(&secret, false)
+        );
+        assert!(omitted_options(&secret));
     }
 
     #[test]

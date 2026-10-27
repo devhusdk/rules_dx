@@ -292,6 +292,35 @@ pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_pro
     }
 }
 
+/// Build slots held right now and the share a run started now would get, probing the locks read-only.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ShareReport {
+    pub held: usize,
+    pub count: usize,
+    pub next: dx_process::LocalShare,
+}
+
+/// The held slots and the next run's share for `setting`; `None` when the gate is off or memory is unknown.
+pub fn share_report(
+    workspace: &Path,
+    env_get: &dyn Fn(&str) -> Option<String>,
+    setting: BuildSlots,
+) -> Option<ShareReport> {
+    let dir = slots_dir(env_get)?;
+    let memory = available_memory()?;
+    let reserved = nested_reserve(workspace, env_get);
+    let size = sizing(setting, memory, reserved)?;
+    let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
+    let cpus = u64::try_from(cpus).unwrap_or(1);
+    // `usize::MAX` is no slot, so `held` counts every held slot plus the new run.
+    let with_new = held(&dir, 0..size.count, usize::MAX);
+    Some(ShareReport {
+        held: with_new - 1,
+        count: size.count,
+        next: local_share(cpus, memory, reserved, with_new),
+    })
+}
+
 /// Lists the `slot-N.lock` files in `dir` that dx cannot open, without creating or locking anything.
 pub fn unusable_slot_files(dir: &Path) -> Vec<(PathBuf, io::Error)> {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -2885,6 +2914,30 @@ mod tests {
             assert!(phase.slot().is_none());
             assert!(slot_settles_free(&dir, 1));
         });
+    }
+
+    #[test]
+    fn share_report_counts_held_slots_read_only() {
+        let scratch = dx_test_scratch::scratch("dx-slots-report-");
+        let cache = scratch.path().display().to_string();
+        let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
+        let dir = slots_dir(&get).expect("dir");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let report = |get: &dyn Fn(&str) -> Option<String>| {
+            share_report(
+                scratch.path(),
+                get,
+                BuildSlots::Count(2.try_into().expect("two")),
+            )
+        };
+        let idle = report(&get).expect("report");
+        assert_eq!((idle.held, idle.count), (0, 2));
+        let _held = try_take(&dir, 2, "me").expect("try").expect("slot");
+        std::fs::write(holder_path(&dir, 0), "me").expect("holder");
+        let busy = report(&get).expect("report");
+        assert_eq!(busy.held, 1);
+        assert!(busy.next.cpus <= idle.next.cpus);
+        assert!(!slot_path(&dir, 1).exists(), "the probe creates no slot");
     }
 
     #[test]

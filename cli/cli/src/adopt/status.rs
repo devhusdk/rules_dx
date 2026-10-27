@@ -206,6 +206,26 @@ fn slots_check(dir: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
     })
 }
 
+fn share_check(
+    workspace: &std::path::Path,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Option<dx_adopt::StatusCheck> {
+    let report =
+        dx_plan::slots::share_report(workspace, env_get, dx_adopt::defaults::BuildSlots::Auto)?;
+    if report.held == 0 {
+        return None;
+    }
+    Some(dx_adopt::StatusCheck {
+        name: "share".to_owned(),
+        status: "ok".to_owned(),
+        detail: format!(
+            "{} of {} build slots held; a new run gets {} cpus and {} MB",
+            report.held, report.count, report.next.cpus, report.next.memory_mb
+        ),
+        hint: "dx splits the machine across held build slots".to_owned(),
+    })
+}
+
 pub(crate) fn execute_status(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -237,6 +257,9 @@ pub(crate) fn execute_status(
     }
     let env_get = |name: &str| std::env::var(name).ok();
     if let Some(check) = dx_plan::slots::slots_dir(&env_get).and_then(|dir| slots_check(&dir)) {
+        checks.push(check);
+    }
+    if let Some(check) = share_check(workspace, &env_get) {
         checks.push(check);
     }
     if invocation.output == OutputMode::Json {

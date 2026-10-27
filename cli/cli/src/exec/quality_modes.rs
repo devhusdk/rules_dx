@@ -575,6 +575,158 @@ fn mixed_applied_and_not_applied_fail_together() {
     assert!(err.contains("Not applied: src/b.py (stale_source)"));
 }
 
+/// One stable result whose only content is a replacement of `src/a.py`.
+fn replacement_only(name: &str) -> Harness {
+    let mut harness = Harness::new(name);
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+    );
+    harness
+}
+
+#[test]
+fn stale_source_without_diagnostics_fails_every_quality_command() {
+    for command in ["lint", "format", "typecheck"] {
+        let harness = replacement_only(&format!("refused-text-{command}"));
+        harness.write_source("src/a.py", "z = 2\n");
+        let (code, out, err) = harness.run(&[command, "--apply", "--output=text"]);
+        assert_eq!(code, 1, "{command}: {out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"z = 2\n",
+            "{command}"
+        );
+        assert!(
+            err.contains("Not applied: src/a.py (stale_source)"),
+            "{command}: {err}"
+        );
+        assert!(err.contains("next: "), "{command}: {err}");
+
+        let harness = replacement_only(&format!("refused-json-{command}"));
+        harness.write_source("src/a.py", "z = 2\n");
+        let (code, out, err) = harness.run(&[command, "--apply", "--output=json"]);
+        assert_eq!(code, 1, "{command}: {out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"z = 2\n",
+            "{command}"
+        );
+        let events = json_events(&out);
+        let change = event(&events, "change");
+        assert_eq!(change["effect"], serde_json::json!("refused"), "{command}");
+        assert_eq!(
+            change["reason"],
+            serde_json::json!("stale_source"),
+            "{command}"
+        );
+        let finished = event(&events, "command_finished");
+        assert_eq!(finished["exit_code"], serde_json::json!(1), "{command}");
+        assert_eq!(
+            finished["changes"],
+            serde_json::json!({"create": 0, "modify": 1, "applied": 0, "refused": 1}),
+            "{command}"
+        );
+    }
+}
+
+#[test]
+fn mixed_apply_without_diagnostics_fails_and_keeps_the_written_file() {
+    let harness = two_file_replacements("mixed-apply-no-diagnostics");
+    let changes = vec![
+        harness.replacement_in("src/a.py", b"y"),
+        harness.replacement_in("src/b.py", b"b"),
+    ];
+    let original_a = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    let original_b = std::fs::read(harness.workspace.join("src/b.py")).expect("source");
+    let bytes = harness.result_full(
+        vec![],
+        vec![],
+        changes,
+        vec![
+            FileSnapshot {
+                path: "src/a.py".to_owned(),
+                digest: digest(&original_a).to_vec(),
+            },
+            FileSnapshot {
+                path: "src/b.py".to_owned(),
+                digest: digest(&original_b).to_vec(),
+            },
+        ],
+    );
+    let mut harness = harness;
+    harness.results.insert("//test:corpus".to_owned(), bytes);
+    harness.write_source("src/b.py", "z = 2\n");
+    let (code, out, err) = harness.run(&["format", "--apply", "--output=text"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n"
+    );
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/b.py")).expect("source"),
+        b"z = 2\n"
+    );
+    assert!(out.contains("Applied 1 file(s)."), "{out}");
+    assert!(
+        err.contains("Not applied: src/b.py (stale_source)"),
+        "{err}"
+    );
+}
+
+#[test]
+fn clean_and_fully_applied_runs_still_succeed() {
+    let mut clean = Harness::new("refused-control-clean");
+    clean.write_source("src/a.py", "x = 1\n");
+    clean.results.insert(
+        "//test:corpus".to_owned(),
+        clean.valid_result(vec![], vec![]),
+    );
+    let (code, out, err) = clean.run(&["format", "--apply", "--output=text"]);
+    assert_eq!(code, 0, "{out}{err}");
+
+    let applied = replacement_only("refused-control-applied");
+    let (code, out, err) = applied.run(&["format", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}{err}");
+    let events = json_events(&out);
+    assert_eq!(
+        event(&events, "command_finished")["changes"],
+        serde_json::json!({"create": 0, "modify": 1, "applied": 1, "refused": 0})
+    );
+}
+
+#[test]
+fn refusal_fails_even_when_findings_stay_below_the_threshold() {
+    let mut harness = Harness::new("refused-below-threshold");
+    harness.write_source("src/a.py", "x = 1\n");
+    let info = Harness::diagnostic_with(
+        proto::Severity::Info as i32,
+        "lint-tool",
+        "src/a.py",
+        "note",
+        false,
+    );
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![info.clone()], vec![]),
+    );
+    let (code, out, err) = harness.run(&["lint", "--apply", "--fail-on=error", "--output=text"]);
+    assert_eq!(code, 0, "control: {out}{err}");
+
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![info], vec![harness.replacement(b"y")]),
+    );
+    harness.write_source("src/a.py", "z = 2\n");
+    let (code, out, err) = harness.run(&["lint", "--apply", "--fail-on=error", "--output=text"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(
+        err.contains("Not applied: src/a.py (stale_source)"),
+        "{err}"
+    );
+}
+
 #[test]
 fn typed_quality_request_preserves_severity_to_the_exit_code() {
     for (args, code) in [
@@ -710,4 +862,22 @@ fn a_compile_only_bazel_exit_ends_the_phase_as_compile() {
     assert_eq!(run.code, 1);
     assert_eq!(run.kind, super::PhaseKind::Compile);
     assert!(!run.effects.touched());
+}
+
+#[test]
+fn a_refused_change_ends_the_phase_as_findings() {
+    let harness = replacement_only("phase-kind-refused");
+    harness.write_source("src/a.py", "z = 2\n");
+    let run = quality_phase(&harness, &["format", "--apply", "--output=text"]);
+    assert_eq!(run.code, 1);
+    assert_eq!(run.kind, super::PhaseKind::Findings);
+    assert_eq!(
+        run.effects,
+        super::PhaseEffects {
+            changes: 1,
+            applied: 0,
+            not_applied: 1,
+            baseline_refreshed: false,
+        }
+    );
 }

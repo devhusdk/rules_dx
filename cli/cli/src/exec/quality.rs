@@ -2,7 +2,7 @@ use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
-use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineView};
+use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineGate, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
 use super::quality_patch::render_diff_patch;
 use super::quality_reports::{
@@ -13,6 +13,7 @@ use crate::args::{Command, Invocation, QualityRequest};
 use crate::plan::{bep_path, plan_build};
 use crate::reports::{plan_reports, BaselineReport, Destination};
 use crate::resolve::resolve;
+use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
     command_finished, command_started, meets_threshold, FinishedCounts, OutputMode, Severity,
 };
@@ -34,15 +35,25 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
     run_quality(
         request,
         env,
+        &RealFileSystem,
         &mut PhaseKind::Selection,
         &mut PhaseEffects::default(),
     )
 }
 
 pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> PhaseRun {
+    execute_quality_phase_with_fs(request, env, &RealFileSystem)
+}
+
+/// Runs one quality phase whose apply writes go through `fs`.
+pub(crate) fn execute_quality_phase_with_fs(
+    request: &QualityRequest,
+    env: Env<'_>,
+    fs: &dyn FileSystem,
+) -> PhaseRun {
     let mut kind = PhaseKind::Selection;
     let mut effects = PhaseEffects::default();
-    let code = run_quality(request, env, &mut kind, &mut effects);
+    let code = run_quality(request, env, fs, &mut kind, &mut effects);
     PhaseRun {
         code,
         kind,
@@ -53,6 +64,7 @@ pub(crate) fn execute_quality_phase(request: &QualityRequest, env: Env<'_>) -> P
 fn run_quality(
     request: &QualityRequest,
     env: Env<'_>,
+    fs: &dyn FileSystem,
     kind: &mut PhaseKind,
     effects: &mut PhaseEffects,
 ) -> i32 {
@@ -83,6 +95,7 @@ fn run_quality(
             ci,
             audit_today,
         },
+        fs,
         kind,
         effects,
     );
@@ -147,6 +160,7 @@ pub(super) fn guard_build_output(
 fn run_quality_request(
     request: &QualityRequest,
     env: Env<'_>,
+    fs: &dyn FileSystem,
     kind: &mut PhaseKind,
     effects: &mut PhaseEffects,
 ) -> i32 {
@@ -291,7 +305,7 @@ fn run_quality_request(
         .sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
 
     let applied_outcome =
-        apply_collected_changes(workspace, apply, collected.complete, &collected.changes);
+        apply_collected_changes(fs, workspace, apply, collected.complete, &collected.changes);
     let sources = applied_outcome.sources;
     let mut applied = applied_outcome.applied;
     let mut not_applied = applied_outcome.not_applied;
@@ -325,8 +339,11 @@ fn run_quality_request(
         &status,
         &analyzed_scope(&collected),
         &collected.original_digests,
-        collected.complete,
-        collected.unstable.is_empty(),
+        BaselineGate {
+            complete: collected.complete,
+            stable: collected.unstable.is_empty(),
+            applied_all: not_applied.is_empty(),
+        },
         apply,
         request.baseline.as_deref(),
     ) {
@@ -344,6 +361,7 @@ fn run_quality_request(
             !held && meets_threshold(diagnostic.severity, request.fail_on)
         }) || baseline.as_ref().is_some_and(|view| !view.stale.is_empty());
     if (!apply && !collected.changes.is_empty())
+        || !not_applied.is_empty()
         || !collected.conflicts.is_empty()
         || !collected.unstable.is_empty()
     {
@@ -405,6 +423,14 @@ fn run_quality_request(
         && matches!(request.common.output, OutputMode::Text { .. })
     {
         let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
+    }
+    if request.common.output != OutputMode::Json
+        && not_applied
+            .iter()
+            .any(|(_, reason)| *reason != REASON_INCOMPLETE_COLLECTION)
+    {
+        let action = "resolve the Not applied files listed above";
+        let _ = writeln!(err, "{}", rerun_hint(request, action));
     }
     let reports_ok = match write_standard_reports(
         StandardReports {

@@ -76,7 +76,10 @@ command to run again. Inside `dx check` and `dx fix`, these lines name
 JSON prints one compact `change` per file with `path`, `kind`, `edit_count`,
 and `effect` (`proposed`, `applied`, or `refused` with a `reason`). The
 `reason` is `stale_source`, `unreadable_source`, `invalid_edits`,
-`incomplete_collection`, `conflicting_digests` or `conflicting_candidates`. Identical
+`write_failed`, `incomplete_collection`, `conflicting_digests` or
+`conflicting_candidates`. A refused change fails the run with exit `1`, even
+without findings; files that did apply keep their new bytes, and `--apply`
+does not refresh the baseline. Identical
 findings from several targets print once, with a `count` and every target in
 `origins`.
 
@@ -116,7 +119,7 @@ still apply.
 Exit codes: `0` success, `2` usage or scope errors, `1` findings at or above
 `--fail-on`, a check (no `--apply`) with any proposed change, whatever
 `--fail-on` says, an incomplete result set, a target that did not converge, a
-conflicting fix, a failed report write, or a missing, malformed, or stale
+conflicting fix, a fix that was not applied, a failed report write, or a missing, malformed, or stale
 baseline. Bazel failures report `1`, not Bazel's code.
 
 ```sh

@@ -1372,10 +1372,14 @@ mod tests {
     /// Serves apply content for the first `verify_from` launches, then
     /// verification content, so `fix --apply` tests can stage what the
     /// read-only re-check observes after the apply pass wrote sources.
+    /// Apply launches from `clean_from` on serve `clean_files` instead, so a
+    /// later phase does not re-offer an edit an earlier phase already wrote.
     struct StagedRunner {
         code: Option<i32>,
         bep_lines: Vec<String>,
         apply_files: Vec<(PathBuf, Vec<u8>)>,
+        clean_files: Vec<(PathBuf, Vec<u8>)>,
+        clean_from: usize,
         verify_files: Vec<(PathBuf, Vec<u8>)>,
         apply_intended: Option<Vec<u8>>,
         verify_intended: Option<Vec<u8>>,
@@ -1395,6 +1399,8 @@ mod tests {
             self.launches.set(launch + 1);
             let (files, intended) = if launch >= self.verify_from {
                 (&self.verify_files, &self.verify_intended)
+            } else if launch >= self.clean_from {
+                (&self.clean_files, &self.apply_intended)
             } else {
                 (&self.apply_files, &self.apply_intended)
             };
@@ -1461,6 +1467,8 @@ mod tests {
                 LAST_EVENT.to_owned(),
             ],
             apply_files: staged,
+            clean_files: Vec::new(),
+            clean_from: verify_from,
             verify_files,
             apply_intended: harness.intended.clone(),
             verify_intended,
@@ -1480,6 +1488,28 @@ mod tests {
         words: &[&str],
     ) -> (i32, String, String) {
         let runner = staged_runner(harness, verify_files, verify_intended, verify_from);
+        let inv = umbrella_invocation(harness, words);
+        harness.execute_with(&inv, &runner)
+    }
+
+    /// Like `fix_apply_with_staged_verify`, but only format (launch 0) sees
+    /// the harness edit; lint, typecheck and generate see a clean result, as
+    /// real tools would once format wrote the file.
+    fn fix_apply_format_edit_then_verify(
+        harness: &Harness,
+        verify_files: Vec<(PathBuf, Vec<u8>)>,
+        verify_intended: Option<Vec<u8>>,
+        verify_from: usize,
+        words: &[&str],
+    ) -> (i32, String, String) {
+        let mut runner = staged_runner(harness, verify_files, verify_intended, verify_from);
+        let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+        runner.clean_files = runner
+            .apply_files
+            .iter()
+            .map(|(path, _)| (path.clone(), clean.clone()))
+            .collect();
+        runner.clean_from = 1;
         let inv = umbrella_invocation(harness, words);
         harness.execute_with(&inv, &runner)
     }
@@ -1843,7 +1873,7 @@ mod tests {
             .iter()
             .map(|(path, _)| (path.clone(), clean.clone()))
             .collect();
-        let (code, out, err) = fix_apply_with_staged_verify(
+        let (code, out, err) = fix_apply_format_edit_then_verify(
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
@@ -1858,8 +1888,8 @@ mod tests {
         );
         assert!(out.contains("Applied 1 file(s)."), "{out}");
         assert!(
-            err.contains("Not applied: src/a.py (stale_source)"),
-            "later phases name the edit the first apply left stale: {err}"
+            !err.contains("Not applied"),
+            "later phases see the written file and offer no edit: {err}"
         );
         assert_eq!(
             out.matches("Running format analysis for //...").count(),
@@ -1869,12 +1899,12 @@ mod tests {
         assert_eq!(
             out.matches("Running generate").count(),
             1,
-            "generate touched nothing, so verification stops at typecheck: {out}"
+            "only format touched a file, so verification stops at format: {out}"
         );
         assert_eq!(
             harness.seen_env.borrow().len(),
-            7,
-            "four apply launches plus format, lint and typecheck verification"
+            5,
+            "four apply launches plus format verification; lint and typecheck touched nothing"
         );
     }
 
@@ -1935,7 +1965,7 @@ mod tests {
             .iter()
             .map(|(path, _)| (path.clone(), drift.clone()))
             .collect();
-        let (code, out, err) = fix_apply_with_staged_verify(
+        let (code, out, err) = fix_apply_format_edit_then_verify(
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
@@ -1953,8 +1983,8 @@ mod tests {
             "{err}"
         );
         assert!(
-            err.contains("verification skipped for lint, typecheck\n"),
-            "{err}"
+            !err.contains("verification skipped"),
+            "lint and typecheck touched nothing, so none is left to skip: {err}"
         );
         assert!(out.contains("Running format analysis for //..."), "{out}");
         assert_eq!(
@@ -1992,7 +2022,7 @@ mod tests {
             .iter()
             .map(|(path, _)| (path.clone(), drift.clone()))
             .collect();
-        let (code, out, _) = fix_apply_with_staged_verify(
+        let (code, out, _) = fix_apply_format_edit_then_verify(
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
@@ -2011,6 +2041,29 @@ mod tests {
             events.last().expect("last")["exit_code"],
             serde_json::json!(1)
         );
+    }
+
+    #[test]
+    fn verification_failure_names_the_skipped_phases() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        announce_verification_failure(
+            &mut out,
+            &mut err,
+            OutputMode::Json,
+            "fix",
+            "format",
+            &["lint", "typecheck"],
+        )
+        .expect("announced");
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(
+            err,
+            "dx: verification_failed: format failed verification after apply; verification skipped for lint, typecheck\n"
+        );
+        let events = json_events(&String::from_utf8(out).expect("stdout"));
+        assert_eq!(events[0]["code"], serde_json::json!("verification_failed"));
+        assert_eq!(events[0]["phase"], serde_json::json!("format"));
     }
 
     #[test]
@@ -2149,7 +2202,7 @@ mod tests {
             .iter()
             .map(|(path, _)| (path.clone(), unstable.clone()))
             .collect();
-        let (code, out, err) = fix_apply_with_staged_verify(
+        let (code, out, err) = fix_apply_format_edit_then_verify(
             &harness,
             verify_files,
             Some(intended_witness("check", true, "", "")),
@@ -2168,8 +2221,8 @@ mod tests {
             "{err}"
         );
         assert!(
-            err.contains("verification skipped for lint, typecheck\n"),
-            "{err}"
+            !err.contains("verification skipped"),
+            "lint and typecheck touched nothing, so none is left to skip: {err}"
         );
     }
 
@@ -2201,6 +2254,68 @@ mod tests {
                 .any(|(key, _)| key == GENERATE_ENV_INTENDED),
             "generate dispatch ran"
         );
+    }
+
+    /// A `fix --apply` whose format edit goes stale before the apply pass.
+    fn refused_format(name: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        harness.write_source("src/a.py", "z = 2\n");
+        harness
+    }
+
+    #[test]
+    fn fix_apply_fails_when_format_refuses_a_stale_source() {
+        let harness = refused_format("umbrella-fix-refused");
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"z = 2\n"
+        );
+        assert!(
+            err.contains("Not applied: src/a.py (stale_source)"),
+            "{err}"
+        );
+        assert!(out.contains("Running lint analysis for //..."), "{out}");
+        assert!(out.contains("Running typecheck analysis"), "{out}");
+        assert!(out.contains("Running generate"), "{out}");
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            4,
+            "every phase launches once and no verification runs"
+        );
+
+        let harness = refused_format("umbrella-fix-refused-json");
+        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let format_finished = events_of_kind(&events, "phase_finished")
+            .into_iter()
+            .find(|event| event["phase"] == "format")
+            .expect("format finished");
+        assert_eq!(format_finished["exit_code"], 1, "{out}");
+        assert_eq!(
+            format_finished["changes"]["refused"],
+            serde_json::json!(1),
+            "{out}"
+        );
+        assert!(
+            events.iter().all(|event| !event["correlation"]
+                .as_str()
+                .is_some_and(|correlation| correlation.starts_with("verify/"))),
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("last")["exit_code"],
+            serde_json::json!(1)
+        );
+        assert_eq!(harness.seen_env.borrow().len(), 4);
     }
 
     #[test]

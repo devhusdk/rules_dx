@@ -465,6 +465,37 @@ def rustc_diagnostics_group(groups):
             return name
     return None
 
+def inherits_test_crate_sources(capability):
+    """Whether a Rust test crate's inherited sources feed this capability's diagnostics.
+
+    Allow-list: only the delegated rustc typecheck reads the harness compile.
+    """
+    return capability == "typecheck"
+
+def merge_inherited_sources(direct_sources, inherited, class_id):
+    """Adds inherited in-workspace .rs sources to a copy of direct_sources.
+
+    A rust_test(crate = ...) has no srcs of its own, but its harness compile
+    builds the crate's cfg(test) code. Own files stay first and win on a
+    duplicate path; the result is diagnostics-only and never changes ownership.
+    """
+    merged = {k: v.to_list() for k, v in direct_sources.items()}
+    seen = {}
+    for files in merged.values():
+        for f in files:
+            seen[f.path] = True
+    added = []
+    for f in inherited:
+        if not f.is_source or f.extension != "rs" or f.owner.workspace_name != "":
+            continue
+        if f.path in seen:
+            continue
+        seen[f.path] = True
+        added.append(f)
+    if added:
+        merged[class_id] = merged.get(class_id, []) + added
+    return {k: depset(v) for k, v in merged.items()}
+
 def real_policy_error(policy, capability, what):
     """Validates the selected workspace policy for one real capability."""
     for family_id in sorted(policy.families.keys()):
@@ -747,9 +778,17 @@ def _real_resolved_stages(target, ctx, capability, what):
             fail(what + ": " + ownership_error)
         if not recognized:
             return ([], None, None)
-        if len(derived) == 0:
-            return ([], None, None)
         direct_sources = derived
+    if inherits_test_crate_sources(capability):
+        harness = None
+        if _rust_common.test_crate_info in target:
+            harness = target[_rust_common.test_crate_info].crate
+        elif _rust_common.crate_info in target and target[_rust_common.crate_info].is_test:
+            harness = target[_rust_common.crate_info]
+        if harness != None:
+            direct_sources = merge_inherited_sources(direct_sources, harness.srcs.to_list(), "rust")
+    if len(direct_sources) == 0:
+        return ([], None, None)
 
     (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(direct_sources, what)
     selections = aspect_family_selections(policy, capability)

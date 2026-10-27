@@ -4,7 +4,25 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "go_lang_version", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "rustc_diagnostics_group")
+load(":real_aspects.bzl", "go_lang_version", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "rustc_diagnostics_group")
+
+def _f(path, is_source = True, extension = "rs", workspace = ""):
+    return struct(path = path, is_source = is_source, extension = extension, owner = struct(workspace_name = workspace))
+
+def _merged(direct, inherited):
+    out = merge_inherited_sources({k: depset(v) for k, v in direct.items()}, inherited, "rust")
+    return {k: [f.path for f in v.to_list()] for k, v in out.items()}
+
+def _inherit_guard():
+    wired = real_wired_tools()
+    bad = []
+    for capability in ["format", "lint", "typecheck"]:
+        if not inherits_test_crate_sources(capability):
+            continue
+        for tool in wired[capability]:
+            if "rust" in real_supported_classes(tool, capability) and tool != "rustc":
+                bad.append(capability + ":" + tool)
+    return bad
 
 _LINT_SELECTIONS = {
     "javascript": ["biome"],
@@ -82,6 +100,31 @@ def real_pipeline_unit_tests(name):
                     rustc_diagnostics_group({"clippy_output": []}),
                 ],
                 ["rustc_rmeta_output", "rustc_output", "rustc_rmeta_output", None],
+            ),
+            expect_equal(
+                "inherits_test_crate_sources is typecheck only",
+                [inherits_test_crate_sources("typecheck"), inherits_test_crate_sources("format"), inherits_test_crate_sources("lint")],
+                [True, False, False],
+            ),
+            expect_equal(
+                "inherited sources only reach the delegated rustc tool",
+                _inherit_guard(),
+                [],
+            ),
+            expect_equal(
+                "merge_inherited_sources fills an empty dict",
+                _merged({}, [_f("a/lib.rs")]),
+                {"rust": ["a/lib.rs"]},
+            ),
+            expect_equal(
+                "merge_inherited_sources keeps own files first and dedupes",
+                _merged({"rust": [_f("a/t.rs")]}, [_f("a/lib.rs"), _f("a/t.rs")]),
+                {"rust": ["a/t.rs", "a/lib.rs"]},
+            ),
+            expect_equal(
+                "merge_inherited_sources drops generated, non-rs and external files",
+                _merged({}, [_f("o/g.rs", is_source = False), _f("a/x.c", extension = "c"), _f("e/l.rs", workspace = "ext")]),
+                {},
             ),
             expect_equal(
                 "real_supported_classes returns biome lint and format support",

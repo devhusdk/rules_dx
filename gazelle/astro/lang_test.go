@@ -57,14 +57,14 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	lib := result.Gen[0]
-	if lib.Kind() != libraryKind || lib.Name() != "demo" {
+	if lib.Kind() != "astro_library" || lib.Name() != "demo" {
 		t.Fatalf("library = %s(%s)", lib.Kind(), lib.Name())
 	}
 	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "demo.astro" {
 		t.Errorf("library srcs = %q", got)
 	}
 	helper := result.Gen[1]
-	if helper.Kind() != libraryKind || helper.Name() != "helper" {
+	if helper.Kind() != "astro_library" || helper.Name() != "helper" {
 		t.Fatalf("helper = %s(%s)", helper.Kind(), helper.Name())
 	}
 	if got := strings.Join(helper.AttrStrings("srcs"), ","); got != "helper.astro" {
@@ -145,9 +145,9 @@ func TestGenerateEmptySweepsStale(t *testing.T) {
 	}
 	f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	f.Rules = append(f.Rules,
-		rule.NewRule(libraryKind, "old"),
+		rule.NewRule("astro_library", "old"),
 		rule.NewRule("filegroup", "keep"),
-		rule.NewRule(libraryKind, "demo"),
+		rule.NewRule("astro_library", "demo"),
 	)
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/demo.astro", component("export const x = 1;\n"))

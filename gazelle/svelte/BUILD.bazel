@@ -9,8 +9,6 @@ go_library(
     srcs = [
         "doc.go",
         "lang.go",
-        "naming.go",
-        "parser.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/svelte",
     visibility = ["//gazelle/dispatch:__pkg__"],
@@ -50,8 +48,6 @@ go_test(
     name = "svelte_test",
     srcs = [
         "lang_test.go",
-        "naming_test.go",
-        "parser_test.go",
     ],
     embed = [":svelte"],
     pure = "on",

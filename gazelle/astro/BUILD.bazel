@@ -9,7 +9,6 @@ go_library(
     srcs = [
         "doc.go",
         "lang.go",
-        "naming.go",
         "parser.go",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/astro",
@@ -50,7 +49,6 @@ go_test(
     name = "astro_test",
     srcs = [
         "lang_test.go",
-        "naming_test.go",
         "parser_test.go",
     ],
     embed = [":astro"],

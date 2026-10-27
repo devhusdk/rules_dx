@@ -32,6 +32,7 @@ go_library(
         "naming.go",
         "nodestdlib.go",
         "singlelang.go",
+        "webcomponent.go",
     ],
     embedsrcs = [
         "dotnet_namespaces.txt",
@@ -80,6 +81,7 @@ go_test(
         "manifest_test.go",
         "naming_test.go",
         "singlelang_test.go",
+        "webcomponent_test.go",
     ],
     data = ["testdata/intended_manifest.json"],
     embed = [":common"],

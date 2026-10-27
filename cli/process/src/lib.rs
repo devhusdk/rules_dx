@@ -17,12 +17,14 @@ use std::sync::atomic::{AtomicI32, Ordering};
 pub mod groups;
 pub mod lifecycle;
 pub mod rc;
+mod runner;
 
 pub use rc::{
     build_verb_options, clear_share, configure, configure_real, current, default_disk_cache,
     set_share, share, user_cache_dir, LocalShare, RcPolicy, DISK_CACHE_GC_MAX_AGE,
     DISK_CACHE_GC_MAX_SIZE, PRESET_LOCAL_RESOURCES,
 };
+pub use runner::BinaryRunner;
 
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;

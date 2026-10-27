@@ -10,7 +10,6 @@
 
 use std::io::{self, Write};
 use std::path::Path;
-use std::time::Duration;
 
 use dx_cli::exec::common::flush_out;
 use dx_cli::{execute, Env};
@@ -21,19 +20,8 @@ use dx_plan::args::{
 };
 use dx_plan::plan::{create_run_temp_dir, remove_on_stop};
 use dx_plan::resolve::{QueryResult, QueryRunner};
-use dx_process::lifecycle::{
-    self, CleanupBudget, EnvPolicy, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
-    StreamStdin,
-};
-use dx_process::{
-    discover_real, operational_code, pre_exec_code, stdout_io_code, ChildStatus, Runner,
-};
-
-const STREAM_CLEANUP: CleanupBudget = CleanupBudget {
-    graceful: Duration::from_secs(10),
-    forced: Duration::from_secs(2),
-    drain: Duration::from_secs(5),
-};
+use dx_process::lifecycle::{self, EnvPolicy, StreamOutput, StreamSpec, StreamStdin};
+use dx_process::{discover_real, operational_code, pre_exec_code, stdout_io_code};
 
 #[cfg(unix)]
 extern "C" fn forward_to_child(signo: libc::c_int) {
@@ -74,118 +62,6 @@ fn die_by_signal(signo: i32) {
 #[cfg(not(unix))]
 fn die_by_signal(_signo: i32) {}
 
-struct BinaryRunner {
-    inherit_stdout: bool,
-}
-
-fn stream_spec(
-    argv: &[String],
-    cwd: &Path,
-    env: &[(&str, &str)],
-    clear_env: bool,
-    inherit_stdout: bool,
-) -> StreamSpec {
-    let vars = env
-        .iter()
-        .map(|(key, value)| ((*key).into(), (*value).into()))
-        .collect();
-    StreamSpec {
-        argv: argv.iter().map(Into::into).collect(),
-        cwd: cwd.to_path_buf(),
-        env: if clear_env {
-            EnvPolicy::Controlled { vars }
-        } else {
-            EnvPolicy::Inherited { extra: vars }
-        },
-        stdin: StreamStdin::Inherit,
-        stdout: if inherit_stdout {
-            StreamOutput::Inherit
-        } else {
-            StreamOutput::Forward(Box::new(io::stderr()))
-        },
-        stderr: StreamOutput::Inherit,
-        group: stream_group(),
-        held: Vec::new(),
-    }
-}
-
-fn stream_group() -> StreamGroup {
-    if lifecycle::terminal_foreground() {
-        StreamGroup::Terminal
-    } else {
-        StreamGroup::Owned
-    }
-}
-
-fn child_status(outcome: StreamOutcome) -> Option<ChildStatus> {
-    match outcome {
-        StreamOutcome::Exited(exit) => Some(exit.into()),
-        StreamOutcome::Cancelled { signal } => {
-            die_by_signal(signal);
-            Some(ChildStatus::signalled(None))
-        }
-        StreamOutcome::Withdrawn => None,
-    }
-}
-
-fn spawn_streamed(
-    argv: &[String],
-    cwd: &Path,
-    env: &[(&str, &str)],
-    clear_env: bool,
-    inherit_stdout: bool,
-) -> io::Result<ChildStatus> {
-    let spec = stream_spec(argv, cwd, env, clear_env, inherit_stdout);
-    let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)?;
-    Ok(child_status(outcome).unwrap_or(ChildStatus::signalled(None)))
-}
-
-impl Runner for BinaryRunner {
-    fn run_hermetic(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-    ) -> io::Result<ChildStatus> {
-        spawn_streamed(argv, cwd, env, true, self.inherit_stdout)
-    }
-
-    fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
-        dx_process::pinned_env_path(var)
-    }
-
-    fn tool_version(&self, path: &Path) -> Option<String> {
-        dx_process::version_line(path)
-    }
-
-    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
-        dx_process::disk_space(path).map(|space| space.free)
-    }
-
-    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        spawn_streamed(argv, cwd, env, false, self.inherit_stdout)
-    }
-
-    fn run_withdrawable(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-        withdraw: &dyn Fn() -> bool,
-    ) -> io::Result<Option<ChildStatus>> {
-        let mut spec = stream_spec(argv, cwd, env, false, self.inherit_stdout);
-        spec.stdin = StreamStdin::Null;
-        spec.group = StreamGroup::Owned;
-        let outcome = lifecycle::run_streamed_until(
-            spec,
-            STREAM_CLEANUP,
-            &dx_process::interrupted,
-            withdraw,
-        )?;
-        Ok(child_status(outcome))
-    }
-}
-
 #[derive(Clone, Default)]
 struct Captured(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
 
@@ -214,7 +90,9 @@ impl Write for Captured {
     }
 }
 
-struct BinaryQueryRunner;
+struct BinaryQueryRunner {
+    runner: dx_process::BinaryRunner,
+}
 
 impl QueryRunner for BinaryQueryRunner {
     fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
@@ -231,19 +109,18 @@ impl QueryRunner for BinaryQueryRunner {
             stdin: StreamStdin::Null,
             stdout: StreamOutput::Forward(Box::new(stdout.clone())),
             stderr: StreamOutput::Forward(Box::new(stderr.clone())),
-            group: stream_group(),
+            group: lifecycle::stream_group(),
             held: Vec::new(),
         };
-        let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)
-            .map_err(|error| {
-                if error.kind() == io::ErrorKind::InvalidInput {
-                    io::Error::new(io::ErrorKind::InvalidInput, "query needs a binary")
-                } else {
-                    error
-                }
-            })?;
+        let status = self.runner.stream(spec).map_err(|error| {
+            if error.kind() == io::ErrorKind::InvalidInput {
+                io::Error::new(io::ErrorKind::InvalidInput, "query needs a binary")
+            } else {
+                error
+            }
+        })?;
         Ok(QueryResult {
-            code: child_status(outcome).and_then(|status| status.code),
+            code: status.and_then(|status| status.code),
             stdout: stdout.take(),
             stderr: stderr.take(),
         })
@@ -495,8 +372,8 @@ fn run() -> i32 {
     }
     dx_plan::plan::remove_stale_run_dirs(&temp_base);
     let reaped = dx_process::groups::reap_orphans();
-    let runner = BinaryRunner { inherit_stdout };
-    let query_runner = BinaryQueryRunner;
+    let runner = dx_process::BinaryRunner::new(inherit_stdout, die_by_signal);
+    let query_runner = BinaryQueryRunner { runner };
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();

@@ -177,6 +177,56 @@ jobs:
         run: |
           echo "### hermetic (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, coverage, expected-failure, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
+  network:
+    name: network (requires-network nested consumer tests)
+    timeout-minutes: 75
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Allow unprivileged user namespaces
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Run the opted-in requires-network consumer tests
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          targets="$(bazel query "$@" 'attr(tags, network-consumer, //...)' --output=label)"
+          test -n "$targets"
+          echo "$targets" > "$RUNNER_TEMP/network-targets"
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${{ steps.repo-cache.outputs.path }}" "$@" $targets
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "### network (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ran the tests tagged network-consumer. A FLAKY result means the test passed on its single retry." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/network-targets" ]; then
+            sed 's/^/- /' "$RUNNER_TEMP/network-targets" >> "$GITHUB_STEP_SUMMARY"
+          fi
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
     timeout-minutes: 30
@@ -328,6 +378,7 @@ jobs:
         docs,
         devcontainer-check,
         hermetic,
+        network,
         preflight,
         workflow-check,
       ]
@@ -345,7 +396,7 @@ jobs:
           import os
           import sys
 
-          required = ["dogfood", "docs", "devcontainer-check", "hermetic", "preflight", "workflow-check"]
+          required = ["dogfood", "docs", "devcontainer-check", "hermetic", "network", "preflight", "workflow-check"]
           needs = json.loads(os.environ.get("NEEDS") or "{}")
           failing = sorted(
               name

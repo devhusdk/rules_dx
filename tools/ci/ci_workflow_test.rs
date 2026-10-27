@@ -123,3 +123,34 @@ fn strings_read_values_and_skip_comments() {
         "{CI} strings must skip comments"
     );
 }
+
+#[test]
+fn the_network_job_selects_opted_in_consumers() {
+    let network = job(CI, "network");
+    assert_eq!(network["runs-on"], json!("ubuntu-latest"));
+    let minutes = network["timeout-minutes"]
+        .as_i64()
+        .unwrap_or_else(|| panic!("{CI} job network needs an integer timeout-minutes"));
+    assert!(
+        (1..=90).contains(&minutes),
+        "{CI} job network timeout-minutes must be at most 90: {minutes}"
+    );
+    let all = scripts(CI, "network");
+    for needle in [
+        "attr(tags, network-consumer, //...)",
+        "test -n \"$targets\"",
+        "--test_timeout=",
+        "info repository_cache",
+    ] {
+        assert!(
+            all.contains(needle),
+            "{CI} job network scripts must include {needle}: {all}"
+        );
+    }
+    assert!(
+        steps(CI, "network")
+            .iter()
+            .any(|step| step["uses"].as_str().is_some_and(|uses| uses.starts_with("actions/cache/restore"))),
+        "{CI} job network must restore the repository cache"
+    );
+}

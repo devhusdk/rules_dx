@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_CI_NETWORK_TAGS", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV")
 
 # keep
 rust_test(
@@ -16,7 +16,7 @@ rust_test(
         "HOME",
         "PATH",
     ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
+    tags = NESTED_BAZEL_CI_NETWORK_TAGS,
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

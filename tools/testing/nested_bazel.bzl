@@ -10,6 +10,9 @@ NESTED_BAZEL_TAGS = [
 
 NESTED_BAZEL_NETWORK_TAGS = NESTED_BAZEL_TAGS + ["requires-network"]
 
+# Opts a test into the CI `network` job, which selects the `network-consumer` tag.
+NESTED_BAZEL_CI_NETWORK_TAGS = NESTED_BAZEL_NETWORK_TAGS + ["network-consumer"]
+
 _NESTED_BAZEL_BIN = str(Label("//tools/testing:nested_bazel_bin"))
 
 _NESTED_BAZEL_SHIM = str(Label("//tools/testing:nested_bazel_shim"))

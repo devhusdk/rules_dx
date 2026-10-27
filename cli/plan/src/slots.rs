@@ -194,10 +194,11 @@ impl dx_process::Runner for SlotEnv<'_> {
         withdraw: Option<&dyn Fn() -> bool>,
         held: &[&std::fs::File],
     ) -> io::Result<Option<dx_process::ChildStatus>> {
+        let share = self.share_env();
         self.inner.run_app(
             argv,
             cwd,
-            &slot_env(env, self.share.as_deref()),
+            &slot_env(env, share.as_deref()),
             withdraw,
             held,
         )

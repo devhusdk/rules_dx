@@ -236,7 +236,7 @@ fn gui_refuses_a_platform_plugin_it_does_not_pin() {
         "{}",
         run.stderr
     );
-    // Keep in sync with PLATFORM_PLUGINS in qt/sdk/metadata_tests.bzl.
+    // Keep in sync with platform_plugins in qt/sdk/layout_linux.bzl.
     assert_eq!(
         available_platform_plugins(&run.stderr),
         BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]),

@@ -618,7 +618,7 @@ fn wrong_modules_resources_and_repositories_fail() {
         "{}",
         platform.combined()
     );
-    // Keep in sync with PLATFORM_PLUGINS in qt/sdk/metadata_tests.bzl.
+    // Keep in sync with platform_plugins in qt/sdk/layout_linux.bzl.
     assert_eq!(
         available_platform_plugins(&platform.combined()),
         BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]),

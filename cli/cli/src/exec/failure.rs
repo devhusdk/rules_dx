@@ -18,6 +18,7 @@ pub(crate) const CODE_TESTS_FAILED: &str = "tests_failed";
 pub(crate) const CODE_APPLICATION_FAILED: &str = "application_failed";
 pub(crate) const CODE_ANALYSIS_FAILED: &str = "analysis_failed";
 pub(crate) const CODE_DISK_FULL: &str = "disk_full";
+pub(crate) const CODE_SERVER_CRASHED: &str = "server_crashed";
 
 /// The class of one failure, reported as the `cause` of its `error` event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,7 +85,7 @@ impl Cause {
                 Cause::Collection
             }
             "report_failed" => Cause::Report,
-            "disk_full" => Cause::Host,
+            "disk_full" | "server_crashed" => Cause::Host,
             "bazel_signalled" => Cause::Unknown,
             _ => Cause::Operational,
         }

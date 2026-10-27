@@ -16,7 +16,7 @@ use std::path::Path;
 pub(crate) use super::failure::{
     emit_failure_events, error_event_of, report_failure, Cause, Failure, CODE_ANALYSIS_FAILED,
     CODE_APPLICATION_FAILED, CODE_BAZEL_FAILED, CODE_DISK_FULL, CODE_INVALID_ARGUMENTS,
-    CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED, CODE_TESTS_FAILED,
+    CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED, CODE_SERVER_CRASHED, CODE_TESTS_FAILED,
 };
 
 pub(crate) fn stdout_output_code(error: &dx_output::OutputError) -> i32 {

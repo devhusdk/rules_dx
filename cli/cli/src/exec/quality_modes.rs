@@ -820,11 +820,18 @@ fn a_bazel_host_failure_ends_the_phase_as_host() {
     let mut disk_full = Harness::new("phase-kind-disk-full");
     disk_full.bazel_code = 36;
     disk_full.free_disk_bytes = Some(1 << 20);
+    let mut crashed = Harness::new("phase-kind-server-crashed");
+    crashed.bazel_code = 37;
     let mut launch_failed = Harness::new("phase-kind-launch-failed");
     launch_failed.io_error = true;
     let mut signalled = Harness::new("phase-kind-signalled");
     signalled.signalled = true;
-    for (mut harness, code) in [(disk_full, 36), (launch_failed, 1), (signalled, 1)] {
+    for (mut harness, code) in [
+        (disk_full, 36),
+        (crashed, 37),
+        (launch_failed, 1),
+        (signalled, 1),
+    ] {
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
             "//test:corpus".to_owned(),

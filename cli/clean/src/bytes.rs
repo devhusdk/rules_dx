@@ -136,9 +136,18 @@ pub fn render_prune_listing(plan: &CleanPlan, bytes: &PruneBytes) -> String {
     {
         lines.push("nothing to prune".to_owned());
     }
-    if plan.observation_unknown {
+    let preserved_unobserved = !plan.preserved_unobserved_setup_records.is_empty()
+        || !plan.preserved_unobserved_generations.is_empty();
+    let pruned_unobserved =
+        !plan.prune_setup_records.is_empty() || !plan.prune_generations.is_empty();
+    if plan.observation_unknown && preserved_unobserved {
         lines.push(
             "process observation unavailable: unobserved state is preserved, never assumed idle"
+                .to_owned(),
+        );
+    } else if plan.observation_unknown && pruned_unobserved {
+        lines.push(
+            "process observation unavailable: unobserved state pruned under --prune-unobserved"
                 .to_owned(),
         );
     }
@@ -249,6 +258,77 @@ mod tests {
         let listing = render_prune_listing(&plan, &PruneBytes::default());
         assert!(listing.contains("nothing to prune"));
         assert!(listing.contains("reclaimable total: 0 bytes"));
+    }
+
+    #[test]
+    fn listing_omits_observation_line_without_unobserved_state() {
+        let current = record('1', '2');
+        let records = vec![current.clone()];
+        let plan = plan_prune(PruneInputs {
+            observation_unknown: true,
+            ..inputs(&records, &[], Some(&current.hex))
+        });
+        let listing = render_prune_listing(&plan, &PruneBytes::default());
+        assert!(
+            !listing.contains("process observation unavailable"),
+            "{listing}"
+        );
+        assert!(listing.contains("nothing to prune"), "{listing}");
+    }
+
+    #[test]
+    fn listing_reports_preserved_unobserved_state() {
+        let current = record('1', '2');
+        let stale = record('3', '4');
+        let records = vec![current.clone(), stale.clone()];
+        let plan = plan_prune(PruneInputs {
+            observation_unknown: true,
+            ..inputs(&records, &[], Some(&current.hex))
+        });
+        let listing = render_prune_listing(&plan, &PruneBytes::default());
+        assert!(
+            listing.contains(
+                "process observation unavailable: unobserved state is preserved, never assumed idle"
+            ),
+            "{listing}"
+        );
+        assert!(
+            listing.contains(&format!(
+                "preserve unobserved setup record: .dx/setups/{}",
+                stale.hex
+            )),
+            "{listing}"
+        );
+        assert!(
+            !listing.contains("pruned under --prune-unobserved"),
+            "{listing}"
+        );
+        assert!(!listing.contains("prune setup record:"), "{listing}");
+    }
+
+    #[test]
+    fn listing_reports_unobserved_state_pruned_when_acknowledged() {
+        let current = record('1', '2');
+        let stale = record('3', '4');
+        let records = vec![current.clone(), stale.clone()];
+        let plan = plan_prune(PruneInputs {
+            observation_unknown: true,
+            unobserved: UnobservedPolicy::PruneAcknowledged,
+            ..inputs(&records, &[], Some(&current.hex))
+        });
+        let listing = render_prune_listing(&plan, &PruneBytes::default());
+        assert!(
+            listing.contains(
+                "process observation unavailable: unobserved state pruned under --prune-unobserved"
+            ),
+            "{listing}"
+        );
+        assert!(
+            listing.contains(&format!("prune setup record: .dx/setups/{}", stale.hex)),
+            "{listing}"
+        );
+        assert!(!listing.contains("is preserved"), "{listing}");
+        assert!(!listing.contains("preserve unobserved"), "{listing}");
     }
 
     #[test]

@@ -170,7 +170,8 @@ Output: `--output text|json`. `--quiet` silences text output.
 Text, check mode, when something can be pruned or is preserved:
 
 - `dx clean: reclaimable managed state`
-- `process observation unavailable: unobserved state is preserved, never assumed idle`
+- `process observation unavailable: unobserved state is preserved, never assumed idle` when unobserved state is preserved
+- `process observation unavailable: unobserved state pruned under --prune-unobserved` when unobserved state is pruned by `--prune-unobserved`
 - `prune setup record: .dx/setups/<hex> (<n> bytes)`
 - `prune generation: .dx/<environments|generated>/<hex> (<n> bytes)`
 - `preserve current: .dx/setups/<hex>`, or `no current selection`

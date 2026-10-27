@@ -118,7 +118,8 @@ With `--output=json`, dx also writes one `notice` event with code
 Bazel work ends or dx exits, including when it crashes.
 
 While dx waits, it keeps the worktree's running Bazel server from shutting down
-for idleness. It never starts a server.
+for idleness. It never starts a server, and it leaves a server alone that was started
+with `--max_idle_secs=0`, since that one never shuts down.
 
 Before it prints the wait line, dx stops idle Bazel servers to free memory for
 the running builds. A server is idle when no Bazel client holds its output base

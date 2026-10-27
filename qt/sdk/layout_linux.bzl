@@ -19,6 +19,7 @@ LAYOUT = struct(
     icu_libraries = ["libicudata.so.73", "libicui18n.so.73", "libicuuc.so.73"],
     launcher = "posix",
     library = _library,
+    link = "srcs",
     os = "linux",
     platform_plugins = ["libqminimal.so", "libqoffscreen.so"],
     plugin_glob = "plugins/qmllint/*.so",

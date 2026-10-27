@@ -17,6 +17,10 @@
 #include <string>
 #include <vector>
 
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 namespace {
 
 constexpr const char *kPinnedVersion = "6.11.3";
@@ -32,6 +36,14 @@ const std::vector<std::string> kHostGlibc = {
     "librt.so.1",
 };
 
+#if defined(__APPLE__)
+const std::vector<std::string> kHostPrefixes = {"/usr/local/", "/opt/",
+                                                "/Library/Frameworks/"};
+
+const std::vector<std::string> kRequired = {
+    "QtCore", "QtNetwork", "QtQml", "QtQmlModels", "libqmlplugin.dylib",
+};
+#else
 const std::vector<std::string> kHostPrefixes = {"/usr/", "/lib/", "/lib64/",
                                                 "/opt/"};
 
@@ -46,6 +58,7 @@ const std::vector<std::string> kRequired = {
     "libQt6QmlModels.so.6", "libicuuc.so.73",     "libglib-2.0.so.0",
     kPcre,                  "libqmlplugin.so",
 };
+#endif
 
 constexpr const char *kComponent =
     "import QtQml\n"
@@ -82,6 +95,15 @@ bool IsHostGlibc(const std::string &name) {
   return false;
 }
 
+#if defined(__APPLE__)
+std::set<std::string> MappedObjects() {
+  std::set<std::string> objects;
+  for (uint32_t index = 0; index < _dyld_image_count(); ++index) {
+    objects.insert(_dyld_get_image_name(index));
+  }
+  return objects;
+}
+#else
 std::set<std::string> MappedObjects() {
   std::set<std::string> objects;
   std::ifstream maps("/proc/self/maps");
@@ -98,6 +120,7 @@ std::set<std::string> MappedObjects() {
   }
   return objects;
 }
+#endif
 
 std::string ImportRoot() {
   const char *qmldir = std::getenv("DX_QT_QMLDIR");

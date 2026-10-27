@@ -504,7 +504,7 @@
     },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "CH1IgyZ/gq0Tngr2dmiLoFu3ndmmw5/qPQFdxYTe7Xs=",
+        "bzlTransitiveDigest": "PRwi3HS5EZgprqGmDOalLK6OWE2LMkufAIUVDfxAHb8=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -536,10 +536,24 @@
               "runtime_mirror": ""
             }
           },
+          "dx_qt_macos_arm64": {
+            "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
+            "attributes": {
+              "cell": "macos_arm64",
+              "entry": "",
+              "mirror": "",
+              "modules": [
+                "qtbase",
+                "qtdeclarative",
+                "qttools"
+              ],
+              "runtime_mirror": ""
+            }
+          },
           "dx_qt": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_hub_repo",
             "attributes": {
-              "cells": "{\"linux_arm64\":\"dx_qt_linux_arm64\",\"linux_x86_64\":\"dx_qt_linux_x86_64\"}",
+              "cells": "{\"linux_arm64\":\"dx_qt_linux_arm64\",\"linux_x86_64\":\"dx_qt_linux_x86_64\",\"macos_arm64\":\"dx_qt_macos_arm64\"}",
               "constraints": {
                 "linux_arm64": [
                   "@platforms//os:linux",
@@ -548,9 +562,13 @@
                 "linux_x86_64": [
                   "@platforms//os:linux",
                   "@platforms//cpu:x86_64"
+                ],
+                "macos_arm64": [
+                  "@platforms//os:macos",
+                  "@platforms//cpu:arm64"
                 ]
               },
-              "no_match": "rules_dx: no qualified Qt 6.11.3 cell for this platform; qualified: linux_arm64, linux_x86_64; not qualified: macos_arm64 (no runtime closure or probe evidence is pinned for macos_arm64); windows_x86_64 (no runtime closure or probe evidence is pinned for windows_x86_64)"
+              "no_match": "rules_dx: no qualified Qt 6.11.3 cell for this platform; qualified: linux_arm64, linux_x86_64, macos_arm64; not qualified: windows_x86_64 (no runtime closure or probe evidence is pinned for windows_x86_64)"
             }
           }
         }

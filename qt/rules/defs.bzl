@@ -1,6 +1,7 @@
 """Qt C++ and QML rules over rules_cc and the pinned Qt code generators."""
 
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_library", _cc_test = "cc_test")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
     "//libs/starlark:wrapper.bzl",
@@ -447,24 +448,29 @@ _qt_library_forward = rule(
     }),
 )
 
+_FRAMEWORK = ".framework/Versions/A/"
+
 def _links_gui(upstream):
     for f in upstream[DefaultInfo].default_runfiles.files.to_list():
         if f.basename == "libQt6Gui.so.6" and "_solib_" in f.short_path:
             return True
+        if f.basename == "QtGui" and _FRAMEWORK in f.short_path:
+            return True
     return False
 
-def _directory(files, basename):
+def _directory(files, prefix):
     for f in files:
-        if f.basename == basename:
+        if f.basename.startswith(prefix):
             return f.short_path.rpartition("/")[0]
-    fail("no " + basename + " in " + str([f.short_path for f in files]))
+    fail("no " + prefix + " in " + str([f.short_path for f in files]))
 
 def _run_environment(ctx, gui):
     environment = {}
     inherited = []
     if gui:
-        environment["FONTCONFIG_PATH"] = _directory(ctx.files.fonts, "fonts.conf")
-        environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platforms, "libqoffscreen.so")
+        if len([f for f in ctx.files.fonts if f.basename == "fonts.conf"]) > 0:
+            environment["FONTCONFIG_PATH"] = _directory(ctx.files.fonts, "fonts.conf")
+        environment["QT_QPA_PLATFORM_PLUGIN_PATH"] = _directory(ctx.files.platforms, "libqoffscreen.")
         if ctx.attr._headless:
             environment["QT_QPA_PLATFORM"] = "offscreen"
             environment["QT_QUICK_BACKEND"] = "software"
@@ -517,6 +523,53 @@ _qt_forward_test = rule(
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
     attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **(dx_lcov_merger_attr() | dx_forward_data_attr())),
 )
+
+def qt_framework_path(short_path):
+    """Returns the path of one Qt framework binary below its framework directory, or None."""
+    parts = short_path.split("/")
+    for index in range(len(parts) - 3):
+        if parts[index].endswith(".framework") and "/".join(parts[index + 1:index + 3]) == "Versions/A":
+            return "/".join(parts[index:])
+    return None
+
+def _qt_frameworks_impl(ctx):
+    staged = {}
+    for dep in ctx.attr.deps:
+        for linker_input in dep[CcInfo].linking_context.linker_inputs.to_list():
+            for f in linker_input.additional_inputs:
+                relative = qt_framework_path(f.short_path)
+                if relative != None and relative not in staged:
+                    staged[relative] = f
+    if len(staged) == 0:
+        return [CcInfo(), DefaultInfo()]
+    outputs = []
+    for relative in sorted(staged.keys()):
+        out = ctx.actions.declare_file(ctx.label.name + "/" + relative)
+        ctx.actions.symlink(output = out, target_file = staged[relative])
+        outputs.append(out)
+    linking_context = cc_common.create_linking_context(linker_inputs = depset([cc_common.create_linker_input(
+        owner = ctx.label,
+        user_link_flags = ["-Wl,-rpath,@loader_path/" + ctx.label.name],
+    )]))
+    return [
+        CcInfo(linking_context = linking_context),
+        DefaultInfo(files = depset(outputs), runfiles = ctx.runfiles(files = outputs)),
+    ]
+
+qt_frameworks = rule(
+    implementation = _qt_frameworks_impl,
+    doc = "Stages the Qt frameworks a binary in the same package links and adds their rpath.",
+    provides = [CcInfo],
+    attrs = {
+        "deps": attr.label_list(providers = [CcInfo], doc = "Qt libraries the binary links."),
+    },
+)
+
+def _bundle_runpath():
+    return select({
+        "@platforms//os:macos": [],
+        "//conditions:default": [QT_BUNDLE_RUNPATH],
+    })
 
 def _include_copts(name):
     repository = native.repository_name().lstrip("@")
@@ -662,13 +715,21 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, [], None, [], "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
     upstream_kwargs.setdefault("linkstatic", False)
     if not test:
-        upstream_kwargs["linkopts"] = upstream_kwargs.get("linkopts", []) + [QT_BUNDLE_RUNPATH]
+        upstream_kwargs["linkopts"] = upstream_kwargs.get("linkopts", []) + _bundle_runpath()
+    qt_frameworks(
+        name = name + "_qt_frameworks",
+        deps = effective_deps,
+        tags = dx_upstream_tags(tags),
+        testonly = True if test else kwargs.get("testonly", None),
+        target_compatible_with = kwargs.get("target_compatible_with", None),
+        visibility = ["//visibility:private"],
+    )
     upstream = _cc_test if test else _cc_binary
     upstream(
         name = name + "_upstream",
         srcs = srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
         copts = copts + _include_copts(name),
-        deps = effective_deps,
+        deps = effective_deps + [":" + name + "_qt_frameworks"],
         tags = upstream_tags(tags),
         visibility = ["//visibility:private"],
         **upstream_kwargs

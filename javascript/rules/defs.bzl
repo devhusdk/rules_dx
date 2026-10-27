@@ -4,7 +4,7 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
 
@@ -56,13 +56,12 @@ def javascript_binary_upstream_data(srcs, data):
     return list(srcs or []) + list(data or [])
 
 def _javascript_wrap_binary(name, srcs, visibility = None, **kwargs):
-    upstream_kwargs = dict(kwargs)
+    upstream_kwargs = dx_binary_upstream_kwargs(kwargs, None)
     upstream_kwargs.pop("aspect_hints", None)
     if len(srcs) > 0:
         upstream_kwargs["data"] = javascript_binary_upstream_data(srcs, upstream_kwargs.get("data"))
     _js_binary(
         name = name + "_upstream",
-        visibility = ["//visibility:private"],
         **upstream_kwargs
     )
     _javascript_binary_forward(

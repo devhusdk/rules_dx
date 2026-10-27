@@ -106,6 +106,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude scala/tests/fixtures/hello
 # gazelle:exclude python/tests/fixtures/hello
 # gazelle:exclude javascript/tests/fixtures/hello
+# gazelle:exclude javascript/tests/fixtures/skip_tags
 # gazelle:exclude typescript/tests/fixtures/hello
 # gazelle:exclude javascript/tests/fixtures/entries
 # gazelle:exclude javascript/tests/fixtures/web_app

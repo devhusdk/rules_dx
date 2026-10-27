@@ -27,6 +27,21 @@ kotlin_library(
     ],
 )
 
+kotlin_library(
+    name = "grades_without_gson",
+    srcs = [
+        "GradeException.kt",
+        "GradeReader.kt",
+        "Stats.kt",
+        "Student.kt",
+        ":build_info",
+    ],
+    resource_strip_prefix = "examples/kotlin-app",
+    resources = ["grades.json"],
+    tags = ["manual"],
+    deps = ["@maven//:com_google_guava_guava"],
+)
+
 kotlin_test(
     name = "grade_reader_test",
     srcs = ["GradeReaderTest.kt"],

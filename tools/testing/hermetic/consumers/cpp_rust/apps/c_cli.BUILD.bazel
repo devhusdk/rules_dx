@@ -26,5 +26,6 @@ cc_test(
         "//examples/c-app/store:negative_json",
         "//examples/c-app/store:stock_json",
     ],
+    local_defines = ['STOCK_RLOCATION=\\"$(rlocationpath //examples/c-app/store:stock_json)\\"'],
     deps = [":cli"],
 )

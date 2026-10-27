@@ -14,7 +14,10 @@ def _hermetic_manifest_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".json")
     ctx.actions.write(out, json.encode_indent({
         "bazelversion": ctx.file._bazelversion.short_path,
+        "coverage": ctx.attr.coverage,
+        "covered": ctx.attr.covered,
         "dx": ctx.executable._dx.short_path,
+        "failures": ctx.attr.failures,
         "files": files,
         "fragment_before_toolchains": ctx.attr.fragment_before_toolchains,
         "label": ctx.attr.qualification,
@@ -36,6 +39,9 @@ hermetic_manifest = rule(
     implementation = _hermetic_manifest_impl,
     doc = "Describes one consumer workspace for hermetic qualification.",
     attrs = {
+        "coverage": attr.string_list(doc = "Consumer target patterns to run under coverage with the network denied."),
+        "covered": attr.string_list(doc = "Consumer source paths the coverage report must show as hit."),
+        "failures": attr.string_dict(doc = "Manual consumer targets that must fail to build, mapped to the log marker of the failure."),
         "files": attr.label_keyed_string_dict(
             allow_files = True,
             doc = "Consumer files mapped to their workspace-relative paths.",
@@ -79,6 +85,9 @@ def hermetic_qualification(
         files,
         module_fragment,
         patterns,
+        coverage = [],
+        covered = [],
+        failures = {},
         fragment_before_toolchains = False,
         module = "hermetic_consumer",
         repo_name = "my_dx",
@@ -90,6 +99,9 @@ def hermetic_qualification(
     hermetic_manifest(
         name = name + "_manifest",
         testonly = True,
+        coverage = coverage,
+        covered = covered,
+        failures = failures,
         files = files,
         fragment_before_toolchains = fragment_before_toolchains,
         languages = languages,

@@ -2,18 +2,58 @@ use super::*;
 
 const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
 
+fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
+    Manifest {
+        label: label.to_owned(),
+        languages: languages
+            .iter()
+            .map(|language| (*language).to_owned())
+            .collect(),
+        module: "m".to_owned(),
+        repo_name: "r".to_owned(),
+        rust_target_triples: Vec::new(),
+        workspace_dir: "ws".to_owned(),
+        patterns: vec!["//...".to_owned()],
+        failures: Vec::new(),
+        coverage: Vec::new(),
+        covered: Vec::new(),
+        files: Vec::new(),
+        module_fragment: PathBuf::from("f"),
+        fragment_before_toolchains: false,
+        dx: PathBuf::from("d"),
+        module_file: PathBuf::from("MODULE.bazel"),
+        bazelversion: PathBuf::from(".bazelversion"),
+    }
+}
+
+const CPP_RUST_LANGUAGES: &[&str] = &["cpp", "java", "javascript", "kotlin", "rust", "typescript"];
+
+fn cpp_rust() -> Manifest {
+    manifest_for("//tools/testing/hermetic:cpp_rust", CPP_RUST_LANGUAGES)
+}
+
+fn probe_record(name: &str, expect: &str, marker: &str, network: &str, argv: &[&str]) -> Value {
+    json!({
+        "name": name,
+        "verdict": "ok",
+        "expect": expect,
+        "marker": marker,
+        "network": network,
+        "argv": argv,
+    })
+}
+
 fn good_evidence() -> Value {
     let probes: Vec<Value> = REQUIRED_PROBES
         .iter()
         .map(|name| {
             let (expect, marker) = probe_expectation(name);
-            json!({
-                "name": name,
-                "verdict": "ok",
-                "expect": expect,
-                "marker": marker,
-                "network": if *name == "fetch" { "allowed" } else { "denied" },
-            })
+            let network = if *name == "fetch" {
+                "allowed"
+            } else {
+                "denied"
+            };
+            probe_record(name, expect, marker, network, &[])
         })
         .collect();
     json!({
@@ -33,12 +73,7 @@ fn good_evidence() -> Value {
 }
 
 fn verify(evidence: &Value) -> Result<(), String> {
-    verify_evidence(
-        evidence,
-        "abc123",
-        "//tools/testing/hermetic:cpp_rust",
-        &["cpp", "java", "javascript", "kotlin", "rust", "typescript"].map(str::to_owned),
-    )
+    verify_evidence(evidence, "abc123", &cpp_rust())
 }
 
 #[test]
@@ -177,6 +212,9 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
         "rust_target_triples": [],
         "workspace_dir": "consumer ws",
         "patterns": ["//..."],
+        "failures": {},
+        "coverage": [],
+        "covered": [],
         "files": [{"src": "examples/x.cc", "dest": "examples/x.cc"}],
         "module_fragment": "tools/testing/hermetic/cpp_rust.MODULE.bazel",
         "dx": "cli/cli/dx",
@@ -218,6 +256,9 @@ fn manifest_rejects_escaping_files_and_empty_patterns() {
         "rust_target_triples": [],
         "workspace_dir": "ws",
         "patterns": ["//..."],
+        "failures": {},
+        "coverage": [],
+        "covered": [],
         "files": [{"src": "a", "dest": "../a"}],
         "module_fragment": "f",
         "dx": "d",
@@ -287,7 +328,7 @@ fn verdict_requires_the_intended_failure_reason() {
         verdict(&Expect::Pass, 1, "").unwrap_err(),
         "exited 1, want 0"
     );
-    let fail = Expect::Fail(NETWORK_MARKER);
+    let fail = Expect::Fail(NETWORK_MARKER.to_owned());
     assert!(verdict(&fail, 1, "connect: Network is unreachable").is_ok());
     assert_eq!(
         verdict(&fail, 0, "Network is unreachable").unwrap_err(),
@@ -531,8 +572,7 @@ fn verify_rejects_evidence_for_other_languages() {
     assert!(verify_evidence(
         &good_evidence(),
         "abc123",
-        "//tools/testing/hermetic:cpp_rust",
-        &[]
+        &manifest_for("//tools/testing/hermetic:cpp_rust", &[])
     )
     .is_err());
 }
@@ -579,8 +619,7 @@ fn verify_accepts_machine_free_artifacts_for_managed_languages() {
     verify_evidence(
         &beam,
         "abc123",
-        "//tools/testing/hermetic:gleam",
-        &["gleam".to_owned()],
+        &manifest_for("//tools/testing/hermetic:gleam", &["gleam"]),
     )
     .unwrap();
 }
@@ -597,8 +636,7 @@ fn verify_accepts_tool_only_msix_evidence() {
     verify_evidence(
         &msix,
         "abc123",
-        "//tools/testing/hermetic:msix",
-        &["msix".to_owned()],
+        &manifest_for("//tools/testing/hermetic:msix", &["msix"]),
     )
     .unwrap();
 }
@@ -619,8 +657,7 @@ fn verify_requires_a_native_machine_for_appimage() {
     let err = verify_evidence(
         &appimage_evidence(),
         "abc123",
-        "//tools/testing/hermetic:appimage",
-        &["appimage".to_owned()],
+        &manifest_for("//tools/testing/hermetic:appimage", &["appimage"]),
     )
     .unwrap_err();
     assert!(err.contains("no native artifact machine"), "{err}");
@@ -634,8 +671,7 @@ fn verify_accepts_appimage_evidence_with_an_elf_machine() {
     verify_evidence(
         &ev,
         "abc123",
-        "//tools/testing/hermetic:appimage",
-        &["appimage".to_owned()],
+        &manifest_for("//tools/testing/hermetic:appimage", &["appimage"]),
     )
     .unwrap();
 }
@@ -894,6 +930,9 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
                 "rust_target_triples": [],
                 "workspace_dir": "ws",
                 "patterns": ["//..."],
+                "failures": {},
+                "coverage": [],
+                "covered": [],
                 "files": [],
                 "module_fragment": "f",
                 "dx": "d",
@@ -914,7 +953,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
         probes: Vec::new(),
     };
     let argv = session.bazel_argv(&Probe {
-        name: "hermetic_test",
+        name: "hermetic_test".to_owned(),
         net: Net::Denied,
         home: Path::new("/q/home"),
         output_root: Path::new("/q/cold"),
@@ -1111,4 +1150,276 @@ fn consumer_build_keeps_targets_and_drops_repository_only_statements() {
 fn consumer_build_keeps_a_public_default_visibility() {
     let original = "_PUBLIC = [\"//visibility:public\"]\n\npackage(default_visibility = _PUBLIC)\n";
     assert_eq!(consumer_build(original, "my_dx"), original);
+}
+
+fn probe_manifest_json() -> Value {
+    json!({
+        "label": "//x:y",
+        "languages": ["java"],
+        "module": "m",
+        "repo_name": "r",
+        "rust_target_triples": [],
+        "workspace_dir": "ws",
+        "patterns": ["//..."],
+        "failures": {
+            "//app/cli:cli_indirect": "[strict] Using type billing.",
+            "//app/lib:lib_without_gson": "package com.google.gson does not exist",
+        },
+        "coverage": ["//app/..."],
+        "covered": ["app/lib/Lib.java"],
+        "files": [{"src": "Lib.java", "dest": "app/lib/Lib.java"}],
+        "module_fragment": "f",
+        "dx": "d",
+        "module_file": "MODULE.bazel",
+        "bazelversion": ".bazelversion",
+    })
+}
+
+fn probe_manifest() -> Manifest {
+    parse_manifest(&probe_manifest_json().to_string(), Path::new("/")).unwrap()
+}
+
+#[test]
+fn manifest_parses_failures_and_coverage() {
+    let manifest = probe_manifest();
+    assert_eq!(
+        manifest.failures,
+        vec![
+            (
+                "//app/cli:cli_indirect".to_owned(),
+                "[strict] Using type billing.".to_owned()
+            ),
+            (
+                "//app/lib:lib_without_gson".to_owned(),
+                "package com.google.gson does not exist".to_owned()
+            ),
+        ]
+    );
+    assert_eq!(manifest.coverage, vec!["//app/..."]);
+    assert_eq!(manifest.covered, vec!["app/lib/Lib.java"]);
+}
+
+#[test]
+fn manifest_rejects_bad_failures_and_coverage() {
+    let cases: Vec<(&str, Value, &str)> = vec![
+        ("failures", json!({"app:x": "m"}), "must be a //label"),
+        ("failures", json!({"//app:x": ""}), "non-empty marker"),
+        ("failures", json!({"//app:x": 3}), "non-empty marker"),
+        ("failures", json!([]), "failures must be a map"),
+        (
+            "failures",
+            json!({"//app:x.y": "m", "//app:x_y": "m"}),
+            "share the probe name fails___app_x_y",
+        ),
+        ("coverage", json!(["-//app/..."]), "positive //pattern"),
+        ("coverage", json!(["app/..."]), "positive //pattern"),
+        ("coverage", json!([]), "set together"),
+        ("covered", json!([]), "set together"),
+        ("covered", json!(["../Lib.java"]), "inside the workspace"),
+        ("covered", json!(["app/Other.java"]), "not a consumer file"),
+    ];
+    for (key, bad, want) in cases {
+        let mut text = probe_manifest_json();
+        text[key] = bad;
+        let err = parse_manifest(&text.to_string(), Path::new("/")).unwrap_err();
+        assert!(err.contains(want), "{key}: {err}");
+    }
+    let mut missing = probe_manifest_json();
+    missing.as_object_mut().unwrap().remove("covered");
+    let err = parse_manifest(&missing.to_string(), Path::new("/")).unwrap_err();
+    assert_eq!(err, "manifest field covered must be a list");
+}
+
+#[test]
+fn failure_probe_names_are_sanitized() {
+    assert_eq!(
+        failure_probe_name("//examples/java-app/cli:cli_indirect"),
+        "fails___examples_java-app_cli_cli_indirect"
+    );
+    assert_eq!(failure_probe_name("//a b:c.d"), "fails___a_b_c_d");
+}
+
+#[test]
+fn owned_prefixes_map_patterns_to_packages() {
+    let patterns: Vec<String> = ["//a/b/...", "//a/c:t", "//d", "//...", "//:all"]
+        .map(str::to_owned)
+        .to_vec();
+    assert_eq!(
+        owned_prefixes(&patterns),
+        vec!["a/b/", "a/c/", "d/", "", ""]
+    );
+}
+
+const OWNED_LCOV: &str = "SF:app/lib/Lib.java\nDA:1,1\nDA:2,0\nend_of_record\nSF:bazel-out/k8-fastbuild/bin/app/lib/BuildInfo.java\nDA:3,0\nend_of_record\n";
+
+#[test]
+fn coverage_sources_count_found_and_hit_lines() {
+    assert_eq!(
+        coverage_sources(OWNED_LCOV).unwrap(),
+        vec![
+            CoveredSource {
+                path: "app/lib/Lib.java".to_owned(),
+                lines_found: 2,
+                lines_hit: 1,
+            },
+            CoveredSource {
+                path: "bazel-out/k8-fastbuild/bin/app/lib/BuildInfo.java".to_owned(),
+                lines_found: 1,
+                lines_hit: 0,
+            },
+        ]
+    );
+    assert!(coverage_sources("DA:1,1\n").is_err());
+}
+
+#[test]
+fn coverage_accepts_owned_sources_and_generated_files() {
+    let manifest = probe_manifest();
+    check_coverage(&coverage_sources(OWNED_LCOV).unwrap(), &manifest).unwrap();
+}
+
+#[test]
+fn coverage_rejects_foreign_missing_or_unhit_sources() {
+    let manifest = probe_manifest();
+    let check = |extra: &str| {
+        check_coverage(
+            &coverage_sources(&format!("{OWNED_LCOV}{extra}")).unwrap(),
+            &manifest,
+        )
+        .unwrap_err()
+    };
+    assert!(check("SF:app/lib/gson.jar\nDA:1,1\nend_of_record\n").contains("non-source"));
+    assert!(check("SF:app/lib/Lib.class\nDA:1,1\nend_of_record\n").contains("non-source"));
+    assert!(check("SF:external/gson/Gson.java\nDA:1,1\nend_of_record\n").contains("non-source"));
+    assert!(check("SF:/abs/Lib.java\nDA:1,1\nend_of_record\n").contains("non-source"));
+    assert!(check("SF:other/Lib.java\nDA:1,1\nend_of_record\n").contains("outside"));
+    let unhit = "SF:app/lib/Lib.java\nDA:1,0\nend_of_record\n";
+    let err = check_coverage(&coverage_sources(unhit).unwrap(), &manifest).unwrap_err();
+    assert!(err.contains("no hit lines in app/lib/Lib.java"), "{err}");
+    let other = "SF:app/lib/Other.java\nDA:1,1\nend_of_record\n";
+    let err = check_coverage(&coverage_sources(other).unwrap(), &manifest).unwrap_err();
+    assert!(err.contains("misses app/lib/Lib.java"), "{err}");
+    let err = check_coverage(&[], &manifest).unwrap_err();
+    assert!(err.contains("no source files"), "{err}");
+}
+
+fn probe_evidence(manifest: &Manifest) -> Value {
+    let mut evidence = good_evidence();
+    evidence["qualification"] = json!(manifest.label);
+    evidence["languages"] = json!(manifest.languages);
+    let probes = evidence["probes"].as_array_mut().unwrap();
+    probes.push(probe_record("fetch_coverage", "pass", "", "allowed", &[]));
+    probes.push(probe_record("coverage", "pass", "", "denied", &[]));
+    for (label, marker) in &manifest.failures {
+        probes.push(probe_record(
+            &failure_probe_name(label),
+            "fail",
+            marker,
+            "denied",
+            &["build", "--", label],
+        ));
+    }
+    evidence["coverage"] = json!({
+        "report": "coverage.lcov",
+        "sources": [{"path": "app/lib/Lib.java", "lines_found": 2, "lines_hit": 1}],
+    });
+    evidence
+}
+
+fn without_probe(evidence: &Value, name: &str) -> Value {
+    let mut out = evidence.clone();
+    out["probes"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|probe| probe["name"] != name);
+    out
+}
+
+fn probe_mut<'a>(evidence: &'a mut Value, name: &str) -> &'a mut Value {
+    evidence["probes"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|probe| probe["name"] == name)
+        .unwrap()
+}
+
+#[test]
+fn verify_accepts_complete_failure_and_coverage_evidence() {
+    let manifest = probe_manifest();
+    verify_evidence(&probe_evidence(&manifest), "abc123", &manifest).unwrap();
+}
+
+#[test]
+fn verify_requires_every_failure_probe() {
+    let manifest = probe_manifest();
+    let evidence = probe_evidence(&manifest);
+    let name = "fails___app_cli_cli_indirect";
+    let err = verify_evidence(&without_probe(&evidence, name), "abc123", &manifest).unwrap_err();
+    assert!(
+        err.contains(&format!("missing required probe {name}")),
+        "{err}"
+    );
+    let mut wrong = evidence.clone();
+    probe_mut(&mut wrong, name)["marker"] = json!("cannot find symbol");
+    let err = verify_evidence(&wrong, "abc123", &manifest).unwrap_err();
+    assert!(err.contains("recorded expect"), "{err}");
+    let mut online = evidence.clone();
+    probe_mut(&mut online, name)["network"] = json!("allowed");
+    let err = verify_evidence(&online, "abc123", &manifest).unwrap_err();
+    assert!(err.contains("ran with network"), "{err}");
+    let mut elsewhere = evidence;
+    probe_mut(&mut elsewhere, name)["argv"] = json!(["build", "--", "//app:other"]);
+    let err = verify_evidence(&elsewhere, "abc123", &manifest).unwrap_err();
+    assert!(
+        err.contains("did not build //app/cli:cli_indirect"),
+        "{err}"
+    );
+}
+
+#[test]
+fn verify_requires_coverage_probes_and_owned_sources() {
+    let manifest = probe_manifest();
+    let evidence = probe_evidence(&manifest);
+    for name in ["coverage", "fetch_coverage"] {
+        let err =
+            verify_evidence(&without_probe(&evidence, name), "abc123", &manifest).unwrap_err();
+        assert!(
+            err.contains(&format!("missing required probe {name}")),
+            "{err}"
+        );
+    }
+    let mut online = evidence.clone();
+    probe_mut(&mut online, "coverage")["network"] = json!("allowed");
+    let err = verify_evidence(&online, "abc123", &manifest).unwrap_err();
+    assert!(err.contains("ran with network"), "{err}");
+    let mut jar = evidence.clone();
+    jar["coverage"]["sources"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"path": "app/lib/gson.jar", "lines_found": 1, "lines_hit": 1}));
+    let err = verify_evidence(&jar, "abc123", &manifest).unwrap_err();
+    assert!(err.contains("non-source file app/lib/gson.jar"), "{err}");
+    let mut unrecorded = evidence;
+    unrecorded["coverage"] = json!(null);
+    let err = verify_evidence(&unrecorded, "abc123", &manifest).unwrap_err();
+    assert!(err.contains("no coverage sources"), "{err}");
+}
+
+#[test]
+fn verify_keeps_the_base_probe_set_without_failures_or_coverage() {
+    let manifest = cpp_rust();
+    assert!(manifest.failures.is_empty() && manifest.coverage.is_empty());
+    let names: Vec<String> = required_probes(&manifest)
+        .into_iter()
+        .map(|(name, ..)| name)
+        .collect();
+    assert_eq!(
+        names,
+        REQUIRED_PROBES
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect::<Vec<_>>()
+    );
+    verify(&good_evidence()).unwrap();
 }

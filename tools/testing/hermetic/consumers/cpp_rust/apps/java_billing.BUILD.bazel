@@ -28,6 +28,22 @@ java_library(
     ],
 )
 
+java_library(
+    name = "billing_without_gson",
+    srcs = [
+        "Invoice.java",
+        "InvoiceException.java",
+        "InvoiceReader.java",
+        "LineItem.java",
+        "Totals.java",
+        ":build_info",
+    ],
+    resource_strip_prefix = "examples/java-app",
+    resources = ["invoices.json"],
+    tags = ["manual"],
+    deps = ["@maven//:com_google_guava_guava"],
+)
+
 java_test(
     name = "invoice_reader_test",
     srcs = ["InvoiceReaderTest.java"],

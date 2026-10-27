@@ -649,6 +649,16 @@ rust_test(
 
 # keep
 rust_test(
+    name = "jvm_classpath_policy_test",
+    size = "small",
+    srcs = ["jvm_classpath_policy_test.rs"],
+    data = glob(["*.bzl"]),
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "preset_parity_test",
     srcs = ["preset_parity_test.rs"],
     data = [

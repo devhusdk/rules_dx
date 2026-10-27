@@ -1150,6 +1150,14 @@ fn init_page_shows_the_agents_block() {
 }
 
 #[test]
+fn worktree_page_shows_every_allow_rule() {
+    let page = std::fs::read_to_string(docs_dir().join("worktree.md")).expect("worktree.md");
+    for rule in crate::worktree::setup::allow_rules() {
+        assert!(page.contains(&rule), "worktree.md must show {rule}");
+    }
+}
+
+#[test]
 fn clean_page_names_every_clean_notice_code() {
     use crate::exec::common::{
         CODE_CLEAN_FAILED, CODE_CLEAN_PLANNED, CODE_CLEAN_PRESERVED_LEASED,

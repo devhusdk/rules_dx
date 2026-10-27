@@ -25,8 +25,12 @@ block in `AGENTS.md` and stale launchers (see below). It writes `.dx/version`, `
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
 (`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
 with the `dx worktree` hooks. The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
-creating the file when it is missing (see below). If `.claude/settings.json`
-already exists, it is left alone and the missing hook entries are printed to
+creating the file when it is missing (see below). It writes `CLAUDE.md` with an
+`@AGENTS.md` import when the import is missing, so Claude Code reads the block.
+The new `.claude/settings.json` also carries a `permissions.allow` list for the
+read-only commands `tools/dx check *`, `test *`, `build *`, `list-tests *`,
+`status *` and `version *`. If `.claude/settings.json`
+already exists, it is left alone and the missing hook and allow entries are printed to
 stderr. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. When the tree has `.cu` or `.cuh` files, the snippet also carries the pinned CUDA toolkit and host-compiler stanza and the opt-in `cuda-eula` license line (see `dx new cuda`). The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
@@ -47,7 +51,7 @@ Output: text only. Check mode looks for `.dx/version`,
 `.devcontainer/devcontainer.json`, `.gitignore`, `.bazelignore`, `.envrc`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
-`tools/dx.cmd`. It does not inspect `.claude/settings.json` or `AGENTS.md`.
+`tools/dx.cmd`. It does not inspect `.claude/settings.json`, `AGENTS.md` or `CLAUDE.md`.
 It also flags a dx-written launcher whose version differs from `.dx/version`,
 and an empty or non-semver `.dx/version`.
 When all of them exist, no launcher is stale and the pin is valid, it prints
@@ -57,7 +61,7 @@ to stderr (only the parts that apply), followed by the `dx init <module> --apply
 command to run. An invalid pin is not fixed by apply: write the module version to
 `.dx/version`, which the message names.
 Apply prints `wrote <path>` to stdout for each file it creates or refreshes,
-and `wrote AGENTS.md` when the block changes. For each scaffold or launcher file
+`wrote AGENTS.md` when the block changes, and `wrote CLAUDE.md` when the import is added. For each scaffold or launcher file
 that already exists and is kept, it prints `dx: <path> (absent-only, left untouched)` to
 stderr. `--quiet` hides the stdout lines. The stderr lines still print.
 
@@ -84,7 +88,7 @@ An existing file gets the block appended. A block that is out of date is
 replaced. Text outside the markers is never touched, and CRLF files keep CRLF.
 A begin marker without an end marker is an error and the file is left as is.
 `dx status` reports the `agents` check as `warn` when the block is missing or
-out of date, or a hook is missing from `.claude/settings.json`.
+out of date, `CLAUDE.md` does not import `AGENTS.md`, or a hook is missing from `.claude/settings.json`.
 
 ## Launcher
 

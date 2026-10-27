@@ -33,7 +33,7 @@ them when they are missing.
 
 Like `dx init --apply`, `--apply` also writes the launcher (`tools/dx` and
 `tools/dx.cmd`), `.claude/settings.json` with the `dx worktree` hooks, and the
-marked block in `AGENTS.md` in the new project. Check mode also requires
+marked block in `AGENTS.md` and the `@AGENTS.md` import in `CLAUDE.md` in the new project. Check mode also requires
 `tools/dx` and `tools/dx.cmd`.
 
 Check mode prints this and exits `0` when every file exists:

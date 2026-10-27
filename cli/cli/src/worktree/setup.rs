@@ -4,6 +4,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use super::HookKind;
+use crate::args::Command;
 
 pub(crate) const SETTINGS: &str = ".claude/settings.json";
 
@@ -37,13 +38,54 @@ fn entry_value(matcher: Option<&str>, command: &str) -> Value {
     }
 }
 
+/// Read-only commands Claude Code may run without asking. Never add a writer.
+const ALLOW: [Command; 6] = [
+    Command::Check,
+    Command::Test,
+    Command::Build,
+    Command::ListTests,
+    Command::Status,
+    Command::Version,
+];
+
+/// The `permissions.allow` rules a fresh settings file carries.
+pub(crate) fn allow_rules() -> Vec<String> {
+    ALLOW
+        .into_iter()
+        .map(|command| format!("Bash(tools/dx {} *)", command.name()))
+        .collect()
+}
+
+/// Allow rules an existing settings file lacks; the `:*` spelling counts as present.
+pub(crate) fn missing_allow(existing: &str) -> Vec<String> {
+    let parsed: Value = serde_json::from_str(existing).unwrap_or(Value::Null);
+    let have: Vec<&str> = parsed
+        .get("permissions")
+        .and_then(|permissions| permissions.get("allow"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    allow_rules()
+        .into_iter()
+        .filter(|rule| {
+            let legacy = rule.replace(" *)", ":*)");
+            !have.iter().any(|h| *h == rule || *h == legacy)
+        })
+        .collect()
+}
+
 /// The settings file a fresh repository gets.
 pub(crate) fn settings_text() -> String {
     let mut hooks = serde_json::Map::new();
     for (event, matcher, command) in entries() {
         hooks.insert(event.to_owned(), json!([entry_value(matcher, &command)]));
     }
-    let text = serde_json::to_string_pretty(&json!({ "hooks": hooks })).unwrap_or_default();
+    let text = serde_json::to_string_pretty(
+        &json!({ "hooks": hooks, "permissions": { "allow": allow_rules() } }),
+    )
+    .unwrap_or_default();
     format!("{text}\n")
 }
 
@@ -89,6 +131,7 @@ pub(crate) fn workspace_missing(workspace: &Path) -> Vec<String> {
 pub(crate) struct Outcome {
     pub(crate) wrote: Vec<String>,
     pub(crate) missing: Vec<String>,
+    pub(crate) missing_allow: Vec<String>,
 }
 
 /// Writes the hooks file when it is absent and never overwrites.
@@ -96,11 +139,13 @@ pub(crate) fn apply(workspace: &Path) -> io::Result<Outcome> {
     let mut outcome = Outcome {
         wrote: Vec::new(),
         missing: Vec::new(),
+        missing_allow: Vec::new(),
     };
     let settings = workspace.join(SETTINGS);
     if settings.exists() {
         let existing = std::fs::read_to_string(&settings)?;
         outcome.missing = missing_entries(&existing);
+        outcome.missing_allow = missing_allow(&existing);
     } else {
         if let Some(parent) = settings.parent() {
             std::fs::create_dir_all(parent)?;
@@ -152,7 +197,49 @@ mod tests {
         let dir = scratch("dx-worktree-setup-twice-");
         apply(dir.path()).expect("first");
         let outcome = apply(dir.path()).expect("second");
-        assert!(outcome.wrote.is_empty() && outcome.missing.is_empty());
+        assert!(
+            outcome.wrote.is_empty()
+                && outcome.missing.is_empty()
+                && outcome.missing_allow.is_empty()
+        );
+    }
+
+    #[test]
+    fn a_fresh_repository_gets_every_allow_rule() {
+        let dir = scratch("dx-worktree-setup-allow-");
+        apply(dir.path()).expect("apply");
+        let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
+        assert!(missing_allow(&settings).is_empty());
+        assert_eq!(allow_rules().len(), 6);
+    }
+
+    #[test]
+    fn allowlisted_commands_are_read_only() {
+        for rule in allow_rules() {
+            let name = rule
+                .strip_prefix("Bash(tools/dx ")
+                .and_then(|r| r.strip_suffix(" *)"))
+                .expect("rule shape");
+            let command = Command::parse(name).expect("known command");
+            assert!(ALLOW.contains(&command));
+            assert!(!command.supports_apply(), "{name} takes --apply");
+            assert!(crate::args::parse(&[name]).is_ok(), "{name} must parse");
+        }
+    }
+
+    #[test]
+    fn a_hooks_only_file_lacks_every_allow_rule() {
+        let hooks_only = "{\"hooks\": {}}\n";
+        assert_eq!(missing_allow(hooks_only), allow_rules());
+        assert_eq!(missing_allow("not json"), allow_rules());
+    }
+
+    #[test]
+    fn the_colon_star_form_counts_as_present() {
+        let legacy = serde_json::to_string(&json!({ "permissions": { "allow": allow_rules()
+            .iter().map(|r| r.replace(" *)", ":*)")).collect::<Vec<_>>() } }))
+        .unwrap();
+        assert!(missing_allow(&legacy).is_empty());
     }
 
     fn commands(settings: &Value, event: &str) -> Vec<String> {

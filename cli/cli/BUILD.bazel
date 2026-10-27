@@ -12,6 +12,7 @@ rust_library(
     srcs = [
         "src/adopt.rs",
         "src/adopt/agents.rs",
+        "src/adopt/claude_md.rs",
         "src/adopt/completion.rs",
         "src/adopt/init.rs",
         "src/adopt/new.rs",

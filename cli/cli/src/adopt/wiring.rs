@@ -43,7 +43,7 @@ fn write_launcher(
     }
 }
 
-/// Writes the launcher, worktree hooks and AGENTS.md block under `root`, reporting paths with `prefix`.
+/// Writes the launcher, worktree hooks, allowlist, AGENTS.md block and CLAUDE.md import under `root`, reporting paths with `prefix`.
 pub(super) fn apply(
     invocation: &Invocation,
     root: &Path,
@@ -63,6 +63,14 @@ pub(super) fn apply(
             outcome.missing.join("; ")
         );
     }
+    if !outcome.missing_allow.is_empty() {
+        let _ = writeln!(
+            err,
+            "dx: {prefix}{} exists; add these permissions.allow entries: {}",
+            setup::SETTINGS,
+            outcome.missing_allow.join("; ")
+        );
+    }
     if !summaries_suppressed(invocation) {
         for entry in &outcome.wrote {
             check_stdout_write(writeln!(out, "wrote {prefix}{entry}"))?;
@@ -72,6 +80,11 @@ pub(super) fn apply(
         .map_err(|error| operational(invocation, out, err, code, &error.to_string()))?;
     if changed && !summaries_suppressed(invocation) {
         check_stdout_write(writeln!(out, "wrote {prefix}{}", super::agents::FILE))?;
+    }
+    let imported = super::claude_md::write(root)
+        .map_err(|error| operational(invocation, out, err, code, &error.to_string()))?;
+    if imported && !summaries_suppressed(invocation) {
+        check_stdout_write(writeln!(out, "wrote {prefix}{}", super::claude_md::FILE))?;
     }
     Ok(())
 }
@@ -164,7 +177,7 @@ mod tests {
         super::apply(&inv, root, "demo/", CODE_NEW_FAILED, &mut out, &mut err).expect("applies");
         assert_eq!(
             String::from_utf8_lossy(&out),
-            "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\nwrote demo/.claude/settings.json\nwrote demo/AGENTS.md\n"
+            "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\nwrote demo/.claude/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n"
         );
         std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
         let (mut out, mut err) = (Vec::new(), Vec::new());
@@ -177,6 +190,12 @@ mod tests {
         );
         assert!(
             err.contains("dx: demo/.claude/settings.json exists; add these hooks: "),
+            "{err}"
+        );
+        assert!(
+            err.contains(
+                "dx: demo/.claude/settings.json exists; add these permissions.allow entries: Bash(tools/dx check *)"
+            ),
             "{err}"
         );
     }

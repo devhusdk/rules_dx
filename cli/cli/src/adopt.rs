@@ -1,4 +1,5 @@
 pub(crate) mod agents;
+pub(crate) mod claude_md;
 mod completion;
 mod init;
 mod new;

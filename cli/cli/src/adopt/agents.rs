@@ -48,7 +48,7 @@ fn orphaned(text: &str) -> bool {
     text.contains(BEGIN) && span(text).is_none()
 }
 
-fn eol(text: &str) -> &'static str {
+pub(super) fn eol(text: &str) -> &'static str {
     if text.contains("\r\n") {
         "\r\n"
     } else {
@@ -120,12 +120,12 @@ pub(crate) fn write(workspace: &Path, create: bool) -> io::Result<bool> {
     if state(&text) == State::Current {
         return Ok(false);
     }
-    dx_atomic_fs::write_atomic(&target(workspace)?, render(&text).as_bytes())?;
+    dx_atomic_fs::write_atomic(&target(workspace, FILE)?, render(&text).as_bytes())?;
     Ok(true)
 }
 
-fn target(workspace: &Path) -> io::Result<std::path::PathBuf> {
-    let path = workspace.join(FILE);
+pub(super) fn target(workspace: &Path, rel: &str) -> io::Result<std::path::PathBuf> {
+    let path = workspace.join(rel);
     match std::fs::symlink_metadata(&path) {
         Ok(meta) if meta.file_type().is_symlink() => match std::fs::canonicalize(&path) {
             Ok(real) => Ok(real),

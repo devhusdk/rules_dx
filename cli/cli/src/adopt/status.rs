@@ -147,11 +147,16 @@ fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
             missing.join("; ")
         );
     }
+    use super::claude_md::{state, State as Import};
+    if matches!(state(workspace), Ok(Import::Missing | Import::Absent)) {
+        status = "warn";
+        detail = format!("{detail}; CLAUDE.md does not import AGENTS.md");
+    }
     dx_adopt::StatusCheck {
         name: "agents".to_owned(),
         status: status.to_owned(),
         detail,
-        hint: "dx init --apply writes the block and hooks; dx upgrade --apply refreshes the block"
+        hint: "dx init --apply writes the block, hooks and CLAUDE.md import; dx upgrade --apply refreshes the block"
             .to_owned(),
     }
 }
@@ -333,7 +338,21 @@ mod tests {
             crate::worktree::setup::settings_text(),
         )
         .expect("settings");
+        let check = agents_check(root);
+        assert_eq!(check.status, "warn");
+        assert!(
+            check.detail.contains("CLAUDE.md does not import"),
+            "{}",
+            check.detail
+        );
+        std::fs::write(root.join("CLAUDE.md"), "@AGENTS.md\n").expect("claude");
         assert_eq!(agents_check(root).status, "ok");
+        #[cfg(unix)]
+        {
+            std::fs::remove_file(root.join("CLAUDE.md")).expect("rm");
+            std::os::unix::fs::symlink("AGENTS.md", root.join("CLAUDE.md")).expect("link");
+            assert_eq!(agents_check(root).status, "ok");
+        }
     }
 
     #[test]

@@ -276,12 +276,7 @@ pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
         .to_owned()
 }
 
-/// Workflow files under `.github/workflows`, from the `DX_WORKFLOWS` env var.
-///
-/// Tests that sweep every workflow take `//.github:workflows` in `data` and set
-/// `env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"}`, so a new workflow
-/// is covered without a BUILD edit. Entries are runfiles paths such as
-/// `.github/workflows/ci.yml`, ready for `read_runfiles`.
+/// Returns the workflow runfiles paths that DX_WORKFLOWS lists.
 pub fn workflow_files() -> Vec<String> {
     let list = std::env::var("DX_WORKFLOWS").unwrap_or_else(|_| {
         panic!(

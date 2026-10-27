@@ -72,6 +72,7 @@ const EXIT_ENV_MISSING: i32 = 70;
 /// A forbidden environment variable was set.
 const EXIT_ENV_SET: i32 = 71;
 /// The probe's group did not hold the terminal.
+#[cfg(unix)]
 const EXIT_BACKGROUND: i32 = 3;
 
 #[derive(Debug, Default)]

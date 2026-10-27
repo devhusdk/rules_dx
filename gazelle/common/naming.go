@@ -128,23 +128,6 @@ func (e *CollisionError) Error() string {
 		e.Name, strings.Join(e.Claimants, ", "))
 }
 
-func CheckCollisions(claimants []Claimant) error {
-	byName := make(map[string][]string, len(claimants))
-	order := make([]string, 0, len(claimants))
-	for _, c := range claimants {
-		if _, ok := byName[c.Name]; !ok {
-			order = append(order, c.Name)
-		}
-		byName[c.Name] = append(byName[c.Name], c.Source)
-	}
-	for _, name := range order {
-		if sources := byName[name]; len(sources) > 1 {
-			return &CollisionError{Name: name, Claimants: append([]string(nil), sources...)}
-		}
-	}
-	return nil
-}
-
 func UnionStrings(a, b []string) []string {
 	seen := make(map[string]bool, len(a)+len(b))
 	var out []string

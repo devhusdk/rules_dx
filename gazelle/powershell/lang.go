@@ -113,7 +113,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		testNames[i] = testName
 		claimants = append(claimants, common.Claimant{Name: testName, Source: filepath.ToSlash(filepath.Join(args.Rel, src)), Kind: TestKind})
 	}
-	if err := common.CheckClaimsMulti(args.File, args.OtherGen, claimants, func(c common.Claimant) string { return c.Kind }); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
 		rep.Fail("powershell: %s: %v; rename the handwritten rule or add # gazelle:exclude for this directory", args.Rel, err)
 		return language.GenerateResult{}
 	}

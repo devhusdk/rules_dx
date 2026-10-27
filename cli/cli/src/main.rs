@@ -36,26 +36,17 @@ const STREAM_CLEANUP: CleanupBudget = CleanupBudget {
 };
 
 #[cfg(unix)]
-extern "C" fn forward_to_child(
-    signo: libc::c_int,
-    info: *mut libc::siginfo_t,
-    _context: *mut libc::c_void,
-) {
-    let origin = if info.is_null() {
-        lifecycle::StopOrigin::Process
-    } else {
-        unsafe { lifecycle::stop_origin(signo, (*info).si_code) }
-    };
-    lifecycle::forward_stop(signo, origin);
+extern "C" fn forward_to_child(signo: libc::c_int) {
+    lifecycle::forward_stop(signo);
 }
 
 #[cfg(unix)]
 fn install_forwarding() {
-    for signo in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+    for signo in lifecycle::STOP_SIGNALS {
         unsafe {
             let mut action: libc::sigaction = std::mem::zeroed();
             action.sa_sigaction = forward_to_child as *const () as libc::sighandler_t;
-            action.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
+            action.sa_flags = libc::SA_RESTART;
             libc::sigemptyset(&mut action.sa_mask);
             let mut inherited: libc::sigaction = std::mem::zeroed();
             libc::sigaction(signo, &action, &mut inherited);

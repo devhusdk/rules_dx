@@ -14,6 +14,7 @@ dx_rust_crate(
         "src/lifecycle.rs",
         "src/rc.rs",
         "src/rc_sections.rs",
+        "src/terminal.rs",
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -38,6 +39,7 @@ dx_rust_crate(
         "src/rc_tests.rs",
     ],
     deps = [
+        "libc",
         "thiserror",
     ],
 )

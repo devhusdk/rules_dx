@@ -828,16 +828,14 @@ impl Drop for Probe {
 }
 
 #[cfg(unix)]
-fn counting_probe(scratch: &std::path::Path, group: StreamGroup) -> (Probe, std::path::PathBuf) {
+fn counting_probe(scratch: &std::path::Path) -> (Probe, std::path::PathBuf) {
     use std::os::unix::process::CommandExt;
-    let log = scratch.join(format!("{group:?}.sigint"));
+    let log = scratch.join("owned.sigint");
     let mut command = Command::new(dx_testing::process_probe());
     command
         .arg(format!("--count-sigint={}", log.display()))
-        .arg("--sleep-ms=30000");
-    if group == StreamGroup::Owned {
-        command.process_group(0);
-    }
+        .arg("--sleep-ms=30000")
+        .process_group(0);
     let child = Probe(command.spawn().expect("probe starts"));
     let deadline = Instant::now() + Duration::from_secs(10);
     while !log.exists() {
@@ -869,54 +867,47 @@ fn assert_survived(probe: &mut Probe) {
 
 #[cfg(unix)]
 #[test]
-fn terminal_child_counts_one_sigint_per_terminal_interrupt() {
-    let scratch = dx_testing::mkscratch("dx-forward-terminal").expect("scratch");
-    let (mut child, log) = counting_probe(&scratch, StreamGroup::Terminal);
-    let target = child.0.id() as i32;
-    backend::send(target, 2);
-    forward(target, 2, StopOrigin::Terminal);
-    assert_eq!(
-        sigints(&log, 1),
-        1,
-        "a terminal interrupt reached the child twice"
-    );
-    forward(target, 2, StopOrigin::Process);
-    assert_eq!(
-        sigints(&log, 2),
-        2,
-        "a kill from a process must reach the child"
-    );
-    assert_survived(&mut child);
-}
-
-#[cfg(unix)]
-#[test]
 fn owned_child_gets_every_forwarded_sigint() {
     let scratch = dx_testing::mkscratch("dx-forward-owned").expect("scratch");
-    let (mut child, log) = counting_probe(&scratch, StreamGroup::Owned);
+    let (mut child, log) = counting_probe(&scratch);
     let target = -(child.0.id() as i32);
-    forward(target, 2, StopOrigin::Terminal);
+    forward(target, 2);
     assert_eq!(sigints(&log, 1), 1);
-    forward(target, 2, StopOrigin::Process);
+    forward(target, 2);
     assert_eq!(sigints(&log, 2), 2);
     assert_survived(&mut child);
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 #[test]
-fn stop_origin_reads_si_code() {
-    assert_eq!(stop_origin(2, 0x80), StopOrigin::Terminal);
-    assert_eq!(stop_origin(2, 0), StopOrigin::Process);
-    assert_eq!(stop_origin(2, -1), StopOrigin::Process);
-    assert_eq!(stop_origin(15, -6), StopOrigin::Process);
-}
-
-#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
-#[test]
-fn stop_origin_reads_the_signal() {
-    assert_eq!(stop_origin(2, 0), StopOrigin::Terminal);
-    assert_eq!(stop_origin(1, 0), StopOrigin::Terminal);
-    assert_eq!(stop_origin(15, 0), StopOrigin::Process);
+fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
+    let sink = Sink::default();
+    let spec = streamed(
+        vec![
+            OsString::from("/bin/cat"),
+            OsString::from("/proc/self/stat"),
+        ],
+        &sink,
+        StreamGroup::Terminal,
+    );
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("cat runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    let stat = String::from_utf8(sink.bytes()).expect("utf-8 stat");
+    let after_name = &stat[stat.rfind(')').expect("stat names the command") + 2..];
+    let fields: Vec<&str> = after_name.split_whitespace().collect();
+    let pid: i32 = stat
+        .split_whitespace()
+        .next()
+        .expect("pid")
+        .parse()
+        .expect("pid");
+    let pgid: i32 = fields[2].parse().expect("pgrp");
+    assert_ne!(pgid, unsafe { libc::getpgrp() }, "{stat}");
+    if !terminal_foreground() {
+        assert_eq!(pgid, pid, "{stat}");
+    }
 }
 
 #[test]

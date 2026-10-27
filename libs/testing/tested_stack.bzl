@@ -56,37 +56,48 @@ tested_stack = rule(
     doc = "Writes the tested-stack manifest JSON.",
     attrs = {
         "bazel_version": attr.string(
+            doc = "Bazel version recorded in the tested-stack manifest.",
             default = _BAZEL_VERSION,
         ),
         "deps": attr.string_dict(
+            doc = "Extra module dependency versions merged into the manifest.",
             default = {},
         ),
         "dotnet_version": attr.string(
+            doc = "Dotnet SDK version recorded in the manifest.",
             default = _DOTNET_VERSION,
         ),
         "go_sdk_version": attr.string(
+            doc = "Go SDK version recorded in the manifest.",
             default = _GO_SDK_VERSION,
         ),
-        "platforms": attr.string_list(),
+        "platforms": attr.string_list(doc = "Platform names recorded in the manifest, sorted."),
         "pnpm_version": attr.string(
+            doc = "pnpm version recorded in the manifest.",
             default = _PNPM_VERSION,
         ),
         "python_version": attr.string(
+            doc = "Python version recorded in the manifest.",
             default = _PYTHON_VERSION,
         ),
         "rules_cc_version": attr.string(
+            doc = "rules_cc version recorded in the manifest.",
             default = _RULES_CC_VERSION,
         ),
         "rules_rust_version": attr.string(
+            doc = "rules_rust version recorded in the manifest.",
             default = _RULES_RUST_VERSION,
         ),
         "rust_version": attr.string(
+            doc = "Rust toolchain version recorded in the manifest.",
             default = _RUST_VERSION,
         ),
         "scala_version": attr.string(
+            doc = "Scala version recorded in the manifest.",
             default = _SCALA_VERSION,
         ),
         "typescript_version": attr.string(
+            doc = "TypeScript version recorded in the manifest.",
             default = _TYPESCRIPT_VERSION,
         ),
     },

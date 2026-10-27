@@ -635,7 +635,10 @@ impl Runner for ArgvProbe {
     fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         if is_shard_probe(argv) {
             self.probe_argv.borrow_mut().push(argv.to_vec());
-            return Ok(ChildStatus { code: Some(1), signal: None });
+            return Ok(ChildStatus {
+                code: Some(1),
+                signal: None,
+            });
         }
         let launch = self.seen.borrow().len();
         let last = self.codes.len().saturating_sub(1);
@@ -674,14 +677,20 @@ impl FakeRunner {
     fn run_shard_probe(&self, argv: &[String]) -> io::Result<ChildStatus> {
         self.probe_argv.borrow_mut().push(argv.to_vec());
         if let Some(code) = self.probe_code {
-            return Ok(ChildStatus { code: Some(code), signal: None });
+            return Ok(ChildStatus {
+                code: Some(code),
+                signal: None,
+            });
         }
         let (Some(shards), Some(bep)) = (
             &self.probe_shards,
             argv.iter()
                 .find_map(|arg| arg.strip_prefix("--build_event_json_file=")),
         ) else {
-            return Ok(ChildStatus { code: Some(1), signal: None });
+            return Ok(ChildStatus {
+                code: Some(1),
+                signal: None,
+            });
         };
         let artifact = format!("{bep}.shards.json");
         std::fs::write(
@@ -703,7 +712,10 @@ impl FakeRunner {
             LAST_EVENT.to_owned(),
         ];
         std::fs::write(bep, lines.join("\n")).expect("probe BEP file");
-        Ok(ChildStatus { code: Some(0), signal: None })
+        Ok(ChildStatus {
+            code: Some(0),
+            signal: None,
+        })
     }
 }
 

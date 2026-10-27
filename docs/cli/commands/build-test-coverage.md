@@ -58,9 +58,10 @@ Exec tools build at `fastbuild`; `--release` builds them at `opt`.
 Extra `--config` values pass through after the dx profile in their original
 order. Only a conflicting dx profile is rejected.
 dx adds its own report flags after your Bazel options, so a `--config` cannot
-change them. `dx test` and `dx coverage` reject `--remote_download_minimal`,
-`--remote_download_toplevel` and any `--remote_download_outputs` other than
-`all`. `dx coverage` also rejects any `--combined_report` other than `lcov`.
+change them. `dx test` and `dx coverage` add `--remote_download_outputs=toplevel`
+and reject `--remote_download_minimal` and any `--remote_download_outputs` other
+than `toplevel` or `all`. Pass `--remote_download_outputs=all` or
+`--remote_download_all` to download all outputs instead; the last of these wins. `dx coverage` also rejects any `--combined_report` other than `lcov`.
 dx writes its build event file with
 `--build_event_json_file_path_conversion=false`, so it rejects
 `--build_event_json_file` and any other `--build_event_json_file_path_conversion`
@@ -68,7 +69,7 @@ value. A rejected flag fails before Bazel starts with exit `2`.
 
 dx forces these flags and treats them as protected: `--skip_incompatible_explicit_targets`
 (build, test and coverage), the three `--@rules_dx//config:` settings for validation and
-rustc and clippy diagnostics, `--remote_download_outputs=all` (test and coverage),
+rustc and clippy diagnostics, `--remote_download_outputs=toplevel` (test and coverage, or `all` if you pass it),
 `--combined_report=lcov` (coverage), and `--build_event_json_file`. Another value
 for one of them, and Bazel startup options after `--`, exit `2`.
 

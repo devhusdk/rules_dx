@@ -177,8 +177,9 @@ pub const DOWNLOAD_ALL_FLAG: &str = "--remote_download_outputs=all";
 
 pub const DOWNLOAD_TOPLEVEL_FLAG: &str = "--remote_download_outputs=toplevel";
 
-/// The download mode for managed plans: all if the user's last choice was all, else toplevel.
-pub(crate) fn managed_download_flag(user_options: &[String]) -> &'static str {
+/// The download mode for every command that reads outputs: all if the user's last choice was
+/// all, else toplevel. Minimal is never allowed, since dx reads reports from the outputs.
+pub(crate) fn download_flag(user_options: &[String]) -> &'static str {
     let mut flag = DOWNLOAD_TOPLEVEL_FLAG;
     for option in user_options {
         match option.as_str() {
@@ -190,21 +191,20 @@ pub(crate) fn managed_download_flag(user_options: &[String]) -> &'static str {
     flag
 }
 
-/// Guards that keep user flags from changing the forced download mode.
+/// Guards that keep user flags from selecting a download mode dx cannot read reports under.
+/// The bare `--remote_download_toplevel` and `--remote_download_all` forms are unguarded.
 pub(crate) fn download_guards() -> Vec<ProtectedFlag> {
     vec![
         ProtectedFlag {
             name: "remote_download_outputs".to_owned(),
-            required: Some(DOWNLOAD_ALL_FLAG.to_owned()),
-            allowed: Vec::new(),
+            required: None,
+            allowed: vec![
+                DOWNLOAD_TOPLEVEL_FLAG.to_owned(),
+                DOWNLOAD_ALL_FLAG.to_owned(),
+            ],
         },
         ProtectedFlag {
             name: "remote_download_minimal".to_owned(),
-            required: None,
-            allowed: Vec::new(),
-        },
-        ProtectedFlag {
-            name: "remote_download_toplevel".to_owned(),
             required: None,
             allowed: Vec::new(),
         },

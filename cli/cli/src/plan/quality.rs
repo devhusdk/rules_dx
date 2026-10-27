@@ -3,25 +3,38 @@ use dx_process::{
 };
 
 use super::{
-    bazel_argv, bep_guards, bep_options, download_guards,
+    bazel_argv, bep_guards, bep_options, download_flag, download_guards,
     registry::{spec, CommandSpec},
-    BuildPlan, DOWNLOAD_ALL_FLAG, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
-    SKIP_INCOMPATIBLE_FLAG,
+    BuildPlan, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
 use std::collections::BTreeSet;
 
-pub fn required_options(entry: &CommandSpec, bep_path: &str) -> Vec<String> {
-    shaped_options(&entry.aspects.join(","), OUTPUT_GROUP, bep_path)
+pub fn required_options(
+    entry: &CommandSpec,
+    bazel_options: &[String],
+    bep_path: &str,
+) -> Vec<String> {
+    shaped_options(
+        &entry.aspects.join(","),
+        OUTPUT_GROUP,
+        bazel_options,
+        bep_path,
+    )
 }
 
-/// The required options of one quality build; probe and build differ only in these three values.
-fn shaped_options(aspects: &str, group: &str, bep_path: &str) -> Vec<String> {
+/// The required options of one quality build; probe and build differ only in the aspects, output group and event file.
+fn shaped_options(
+    aspects: &str,
+    group: &str,
+    bazel_options: &[String],
+    bep_path: &str,
+) -> Vec<String> {
     let mut required = vec![
         format!("--aspects={aspects}"),
         format!("--output_groups={group}"),
-        DOWNLOAD_ALL_FLAG.to_owned(),
+        download_flag(bazel_options).to_owned(),
         KEEP_GOING_FLAG.to_owned(),
     ];
     required.extend(bep_options(bep_path));
@@ -141,7 +154,7 @@ pub fn plan_build_with(
         resolved,
         bazel_options,
         startup_options,
-        &shaped_options(&aspects, OUTPUT_GROUP, bep_path),
+        &shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path),
     )
 }
 
@@ -161,7 +174,7 @@ pub fn plan_probe(
         resolved,
         bazel_options,
         startup_options,
-        &shaped_options(probe, SHARD_OUTPUT_GROUP, bep_path),
+        &shaped_options(probe, SHARD_OUTPUT_GROUP, bazel_options, bep_path),
     )
     .map(Some)
 }
@@ -392,7 +405,7 @@ mod tests {
     #[test]
     fn protected_flags_find_keep_going_by_value() {
         let entry = spec(Command::Lint);
-        let required = required_options(&entry, "/tmp/bep.json");
+        let required = required_options(&entry, &[], "/tmp/bep.json");
         let flags = protected_flags(&required).expect("flags");
         let keep_going = flags
             .iter()
@@ -404,7 +417,7 @@ mod tests {
     #[test]
     fn protected_flags_reject_miswired_required_and_settings() {
         let entry = spec(Command::Lint);
-        let mut required = required_options(&entry, "/tmp/bep.json");
+        let mut required = required_options(&entry, &[], "/tmp/bep.json");
         required.retain(|option| option.as_str() != KEEP_GOING_FLAG);
         let err = protected_flags(&required).expect_err("missing keep_going");
         assert!(
@@ -443,7 +456,7 @@ mod tests {
                 "--@rules_dx//config:rustc_output_diagnostics=true",
                 "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
                 "--output_groups=dx_results",
-                "--remote_download_outputs=all",
+                "--remote_download_outputs=toplevel",
             ]
         );
         assert_eq!(
@@ -638,8 +651,7 @@ mod tests {
             "--build_event_json_file_path_conversion",
             "--build_event_json_file_path_conversion=true",
             "--remote_download_minimal",
-            "--remote_download_toplevel",
-            "--remote_download_outputs=toplevel",
+            "--remote_download_outputs=minimal",
             "--@rules_rust//rust/settings:clippy_output_diagnostics=false",
             "--@rules_rust//rust/settings:clippy_output_diagnostics",
             "--@rules_dx//config:clippy_output_diagnostics=false",
@@ -697,12 +709,49 @@ mod tests {
         };
         let config = position("--config=x");
         for flag in [
-            DOWNLOAD_ALL_FLAG,
+            crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
             KEEP_GOING_FLAG,
             "--build_event_json_file=/tmp/bep.json",
             "--build_event_json_file_path_conversion=false",
         ] {
             assert!(position(flag) > config, "{flag}: {plan:?}");
+        }
+    }
+
+    #[test]
+    fn quality_plan_download_mode_follows_last_user_choice() {
+        use crate::plan::{DOWNLOAD_ALL_FLAG, DOWNLOAD_TOPLEVEL_FLAG};
+        for command in [Command::Lint, Command::Typecheck, Command::Format] {
+            for (options, expected) in [
+                (vec!["--remote_download_toplevel"], DOWNLOAD_TOPLEVEL_FLAG),
+                (
+                    vec!["--remote_download_outputs=toplevel"],
+                    DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+                (vec!["--remote_download_all"], DOWNLOAD_ALL_FLAG),
+                (vec!["--remote_download_outputs=all"], DOWNLOAD_ALL_FLAG),
+                (
+                    vec!["--remote_download_all", "--remote_download_toplevel"],
+                    DOWNLOAD_TOPLEVEL_FLAG,
+                ),
+            ] {
+                let mut user = strings(&["--config=x"]);
+                user.extend(strings(&options));
+                let plan =
+                    plan_build(command, &resolved(&[]), &user, "/tmp/bep.json", &[]).expect("plan");
+                let last = plan
+                    .argv
+                    .iter()
+                    .rposition(|arg| arg.starts_with("--remote_download"))
+                    .expect("download flag");
+                let config = plan
+                    .argv
+                    .iter()
+                    .position(|arg| arg == "--config=x")
+                    .expect("config");
+                assert_eq!(plan.argv[last], expected, "{command:?} {options:?}");
+                assert!(last > config, "{command:?} {options:?}: {plan:?}");
+            }
         }
     }
 

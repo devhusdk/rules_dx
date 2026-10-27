@@ -531,42 +531,98 @@ pub struct TestFacts {
     pub tags: Vec<String>,
 }
 
-/// Rule kinds the reader knows, with the default `target_compatible_with` each applies.
-const KNOWN_KINDS: &[(&str, Option<(&str, &str)>)] = &[
-    ("cc_test", None),
-    ("csharp_test", None),
-    ("cuda_gpu_test", None),
-    ("d_test", None),
-    ("eunit", None),
-    ("ex_unit_test", None),
-    ("fortran_test", None),
-    ("fsharp_test", None),
-    ("go_test", None),
-    ("haskell_test", None),
-    ("java_test", None),
-    ("javascript_test", None),
-    ("julia_test", None),
-    ("kotlin_test", None),
-    ("lua_test", None),
-    ("ocaml_test", None),
-    ("perl_test", None),
-    ("php_test", None),
-    ("pwsh_test", None),
-    ("python_test", None),
-    ("ruby_test", None),
-    ("rust_test", None),
-    ("scala_test", None),
-    ("sh_test", None),
-    ("typescript_test", None),
-    ("zig_test", None),
+/// How a rule kind's macro changes `target_compatible_with` before the rule sees it.
+#[derive(Clone, Copy, Debug)]
+enum Constraint {
+    /// The macro forwards the attribute unchanged.
+    AsWritten,
+    /// The macro sets the constant `label%symbol` when the call leaves the attribute out.
+    DefaultIfUnset(&'static str, &'static str),
+    /// The macro always appends the constant `label%symbol` to the call's value.
+    Appended(&'static str, &'static str),
+}
+
+/// Rule kinds the reader knows, with what each macro does to `target_compatible_with`.
+///
+/// A kind whose macro computes its own constraints must say so here, or the matrix
+/// would claim platforms the test never runs on. rust_test's libstdc++ select only
+/// guards the upstream target outside its runtime transition, and the cc, go, haskell,
+/// kotlin, typescript and elixir wrappers forward the attribute as written.
+const KNOWN_KINDS: &[(&str, Constraint)] = &[
+    ("cc_test", Constraint::AsWritten),
+    ("csharp_test", Constraint::AsWritten),
+    (
+        "cuda_gpu_test",
+        Constraint::Appended("//cuda/rules:defs.bzl", "CUDA_TARGET"),
+    ),
+    ("d_test", Constraint::AsWritten),
+    ("eunit", Constraint::AsWritten),
+    ("ex_unit_test", Constraint::AsWritten),
+    (
+        "fortran_test",
+        Constraint::DefaultIfUnset("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH"),
+    ),
+    ("fsharp_test", Constraint::AsWritten),
+    ("go_test", Constraint::AsWritten),
+    ("haskell_test", Constraint::AsWritten),
+    ("java_test", Constraint::AsWritten),
+    ("javascript_test", Constraint::AsWritten),
+    ("julia_test", Constraint::AsWritten),
+    ("kotlin_test", Constraint::AsWritten),
+    ("lua_test", Constraint::AsWritten),
+    (
+        "ocaml_test",
+        Constraint::DefaultIfUnset("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH"),
+    ),
+    (
+        "perl_test",
+        Constraint::Appended("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH"),
+    ),
+    (
+        "php_test",
+        Constraint::Appended("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH"),
+    ),
+    ("pwsh_test", Constraint::AsWritten),
+    ("python_test", Constraint::AsWritten),
+    ("ruby_test", Constraint::AsWritten),
+    ("rust_test", Constraint::AsWritten),
+    ("scala_test", Constraint::AsWritten),
+    ("sh_test", Constraint::AsWritten),
+    ("typescript_test", Constraint::AsWritten),
+    ("zig_test", Constraint::AsWritten),
     (
         "nested_bazel_test",
-        Some((
+        Constraint::DefaultIfUnset(
             "//tools/testing:nested_bazel.bzl",
             "NESTED_BAZEL_COMPATIBLE_WITH",
-        )),
+        ),
     ),
 ];
+
+/// Evaluates a macro's constant: Bazel's computed value first, else the parsed file.
+fn macro_constant(
+    eval: &Eval,
+    loader: &dyn Loader,
+    label: &str,
+    symbol: &str,
+) -> Result<Vec<Part>, String> {
+    if let Some(any_of) = loader.computed(label, symbol) {
+        return Ok(vec![Part::AnyOf(any_of)]);
+    }
+    let loaded = loader.load(label)?;
+    let inner = Eval {
+        file: &loaded,
+        loader: None,
+        what: eval.what,
+    };
+    let Some(tokens) = loaded.assigns.get(symbol) else {
+        return Err(eval.err(&format!("{label} defines no constant {symbol}")));
+    };
+    match inner.sum(tokens)? {
+        Value::List(parts) => Ok(parts),
+        Value::Str(_) => Err(eval.err("default constraints are a string")),
+    }
+}
 
 /// Reads the facts of `name` from the parsed BUILD file `file`.
 pub fn test_facts(file: &File, name: &str, loader: &dyn Loader) -> Result<TestFacts, String> {
@@ -591,32 +647,29 @@ pub fn test_facts(file: &File, name: &str, loader: &dyn Loader) -> Result<TestFa
     let Some(call) = found else {
         return Err(eval.err("is not declared by a direct rule call"));
     };
-    let Some((_, default)) = KNOWN_KINDS.iter().find(|(kind, _)| *kind == call.kind) else {
+    let Some((_, constraint)) = KNOWN_KINDS.iter().find(|(kind, _)| *kind == call.kind) else {
         return Err(eval.err(&format!(
             "rule kind {} is unknown to the support matrix reader",
             call.kind
         )));
     };
-    let compatible_with = match (call.args.get("target_compatible_with"), default) {
-        (Some(tokens), _) => match eval.sum(tokens)? {
-            Value::List(parts) => parts,
+    let written = match call.args.get("target_compatible_with") {
+        Some(tokens) => match eval.sum(tokens)? {
+            Value::List(parts) => Some(parts),
             Value::Str(_) => return Err(eval.err("target_compatible_with is a string")),
         },
-        (None, None) => Vec::new(),
-        (None, Some((label, symbol))) => {
-            let loaded = loader.load(label)?;
-            let inner = Eval {
-                file: &loaded,
-                loader: None,
-                what: &what,
-            };
-            let Some(tokens) = loaded.assigns.get(*symbol) else {
-                return Err(eval.err(&format!("{label} defines no constant {symbol}")));
-            };
-            match inner.sum(tokens)? {
-                Value::List(parts) => parts,
-                Value::Str(_) => return Err(eval.err("default constraints are a string")),
-            }
+        None => None,
+    };
+    let compatible_with = match (written, *constraint) {
+        (Some(parts), Constraint::AsWritten | Constraint::DefaultIfUnset(..)) => parts,
+        (None, Constraint::AsWritten) => Vec::new(),
+        (None, Constraint::DefaultIfUnset(label, symbol)) => {
+            macro_constant(&eval, loader, label, symbol)?
+        }
+        (written, Constraint::Appended(label, symbol)) => {
+            let mut parts = written.unwrap_or_default();
+            parts.extend(macro_constant(&eval, loader, label, symbol)?);
+            parts
         }
     };
     let tags = match call.args.get("tags") {
@@ -738,6 +791,18 @@ mod tests {
         }
 
         fn computed(&self, label: &str, symbol: &str) -> Option<Vec<Vec<String>>> {
+            if label == "//perl/rules:defs.bzl" && symbol == "PERL_COMPATIBLE_WITH" {
+                return Some(vec![
+                    vec![
+                        "@platforms//os:linux".to_owned(),
+                        "@platforms//cpu:x86_64".to_owned(),
+                    ],
+                    vec![
+                        "@platforms//os:windows".to_owned(),
+                        "@platforms//cpu:x86_64".to_owned(),
+                    ],
+                ]);
+            }
             (label == "//d:defs.bzl" && symbol == "D").then(|| {
                 vec![
                     vec!["@platforms//os:linux".to_owned()],
@@ -751,10 +816,21 @@ mod tests {
     }
 
     fn loader() -> Files {
-        Files(BTreeMap::from([(
-            "//tools/testing:nested_bazel.bzl".to_owned(),
-            "\"\"\"Doc.\"\"\"\n\nTAGS = [\n    \"local\",\n]\n\nNET_TAGS = TAGS + [\"requires-network\"]\n\nNESTED_BAZEL_COMPATIBLE_WITH = []\n\ndef f(x):\n    y = 1\n    return x\n".to_owned(),
-        )]))
+        let linux_x86_64 = "[\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"]\n".to_owned();
+        Files(BTreeMap::from([
+            (
+                "//fortran/rules:defs.bzl".to_owned(),
+                format!("FORTRAN_COMPATIBLE_WITH = {linux_x86_64}"),
+            ),
+            (
+                "//php/rules:defs.bzl".to_owned(),
+                format!("PHP_COMPATIBLE_WITH = {linux_x86_64}"),
+            ),
+            (
+                "//tools/testing:nested_bazel.bzl".to_owned(),
+                "\"\"\"Doc.\"\"\"\n\nTAGS = [\n    \"local\",\n]\n\nNET_TAGS = TAGS + [\"requires-network\"]\n\nNESTED_BAZEL_COMPATIBLE_WITH = []\n\ndef f(x):\n    y = 1\n    return x\n".to_owned(),
+            ),
+        ]))
     }
 
     fn platform(id: &str) -> Platform {
@@ -826,6 +902,36 @@ mod tests {
     fn macro_default_comes_from_its_constant() {
         let found = facts("nested_bazel_test(name = \"t\")\n", "t").expect("facts");
         assert_eq!(on(&found).len(), 5);
+    }
+
+    #[test]
+    fn macro_default_applies_only_when_unset() {
+        let found = facts("fortran_test(name = \"t\")\n", "t").expect("facts");
+        assert_eq!(on(&found), ["linux_x86_64"]);
+        let found = facts(
+            "fortran_test(name = \"t\", target_compatible_with = [\"@platforms//os:linux\"])\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(on(&found), ["linux_x86_64", "linux_arm64"]);
+    }
+
+    #[test]
+    fn macro_appends_its_constant_to_the_call() {
+        let found = facts("php_test(name = \"t\")\n", "t").expect("facts");
+        assert_eq!(on(&found), ["linux_x86_64"]);
+        let found = facts(
+            "php_test(name = \"t\", target_compatible_with = [\"@platforms//os:linux\"])\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(on(&found), ["linux_x86_64"]);
+        let found = facts(
+            "perl_test(name = \"t\", target_compatible_with = [\"@platforms//cpu:x86_64\"])\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(on(&found), ["linux_x86_64", "windows_x86_64"]);
     }
 
     #[test]

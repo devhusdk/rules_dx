@@ -5,7 +5,11 @@ load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
 load("//elixir/rules:defs.bzl", "ELIXIR_CELLS")
 load("//erlang/rules:defs.bzl", "ERLANG_CELLS")
 load("//erlang/toolchain:pins.bzl", OTP_CELLS = "CELLS")
+load("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
 load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH")
+load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
+load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
+load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 
 SUPPORT_MATRIX_SCHEMA_VERSION = 1
 
@@ -27,6 +31,9 @@ def _constraint(label):
 def _all_of(labels):
     return [[_constraint(label) for label in labels]]
 
+def _os_cpu_pairs(platforms):
+    return [["@platforms//os:" + os, "@platforms//cpu:" + cpu] for os, cpu in sorted(platforms.values())]
+
 def _otp_cells(cells):
     return [OTP_CELLS[cell].exec_compatible_with for cell in cells]
 
@@ -35,7 +42,12 @@ COMPUTED_CONSTRAINTS = {
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _all_of(D_COMPATIBLE_WITH),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _otp_cells(ELIXIR_CELLS),
     "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _otp_cells(ERLANG_CELLS),
+    "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": _all_of(FORTRAN_COMPATIBLE_WITH),
     "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _all_of(HASKELL_COMPATIBLE_WITH),
+    "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _all_of(OCAML_COMPATIBLE_WITH),
+    # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
+    "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(RULES_PERL_PLATFORMS),
+    "//php/rules:defs.bzl%PHP_COMPATIBLE_WITH": _all_of(PHP_COMPATIBLE_WITH),
 }
 
 def _hello(lang):

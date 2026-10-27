@@ -1295,6 +1295,22 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&erlfmt_fix(Path::new(BIN), &[erl])),
         vec![BIN, "--write", "/scratch/sample.erl"]
     );
+    assert_eq!(
+        argv_strings(&elvis_check(
+            Path::new(BIN),
+            &[Path::new("src/sample.erl")],
+            Path::new("/scratch/elvis.config")
+        )),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/elvis.config",
+            "--output-format",
+            "parsable",
+            "rock",
+            "src/sample.erl"
+        ]
+    );
     let ex = Path::new("/scratch/sample.ex");
     assert_eq!(
         argv_strings(&mix_format_check(Path::new(BIN), &[ex])),

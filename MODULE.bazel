@@ -591,7 +591,7 @@ cuda.toolkit(
 use_repo(cuda, "cuda")
 
 erlang = use_extension("//erlang/toolchain:repos.bzl", "erlang")
-use_repo(erlang, "dx_erlang_toolchains", "dx_erlfmt", "rules_erlang")
+use_repo(erlang, "dx_elvis", "dx_erlang_toolchains", "dx_erlfmt", "rules_erlang")
 
 register_toolchains("@dx_erlang_toolchains//:all")
 

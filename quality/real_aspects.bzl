@@ -127,6 +127,14 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "rego",
     },
+    "elvis": {
+        "attr": attr.label(default = "//config:tool_elvis", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "fallback": "=@rules_dx//erlang/tools:elvis",
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+    },
     "erlfmt": {
         "attr": attr.label(default = "//config:tool_erlfmt", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],

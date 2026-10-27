@@ -244,6 +244,7 @@ to.
 | `dfmt` | format | d |
 | `dscanner` | lint | d |
 | `djlint` | format, lint | html_template |
+| `elvis` | lint | erlang |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
 | `eslint` | lint | astro, javascript, mdx, svelte, vue |
@@ -324,19 +325,20 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `mix_format`,
-  `credo`, `ormolu`
+  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `elvis`,
+  `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
-  `dscanner`, `perltidy`, `erlfmt`, `mix_format` and `credo` alternates must be
+  `dscanner`, `perltidy`, `erlfmt`, `elvis`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//perl/tools:perltidy`,
-  `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//elixir/tools:mix_format` and
+  `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
+  `@rules_dx//elixir/tools:mix_format` and
   `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
@@ -514,6 +516,52 @@ the flag. The check runs `erlfmt --check` and never writes. `--apply` runs
 column and stays untouched. A `%% erlfmt-ignore` comment keeps the next form
 as written. Erlang sources come from the rules in
 `@rules_dx//erlang/rules:defs.bzl`.
+
+### Erlang linting
+
+`elvis` has no default executable. Select `elvis` in an `erlang` family and
+point the flag at the pinned Elvis 6.0.0 escript.
+
+```starlark
+quality_family(
+    name = "erlang_family",
+    family_id = "erlang",
+    lint = ["elvis"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_elvis=@rules_dx//erlang/tools:elvis
+```
+
+Without the flag, a policy that selects `elvis` fails the analysis and names
+the flag. Each finding is a warning at its line and column, with the rule as
+`elvis/<rule>`. Elvis never fixes, so `--apply` changes nothing. Elvis does not
+report syntax errors; `erlfmt` does.
+
+Without a bound config, dx checks every `.erl` file with the `erl_files`
+ruleset and every `.hrl` file with the `hrl_files` ruleset. To change the
+rules, bind an `elvis_config`:
+
+```starlark
+load("@rules_dx//quality:native_config.bzl", "elvis_config")
+
+elvis_config(
+    name = "elvis_config",
+    src = "elvis.config",
+)
+
+erlang_app(
+    name = "erlang_app",
+    app_name = "math",
+    aspect_hints = [":elvis_config"],
+)
+```
+
+The `files` globs in a bound config match workspace-relative paths, such as
+`**/src/*.erl`. A file no glob matches is not checked. A config group that
+matches none of the checked files fails the run unless it sets
+`allow_no_files => true`. Do not set `output_format` in the config.
 
 ### Elixir formatting
 

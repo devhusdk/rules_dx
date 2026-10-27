@@ -14,6 +14,7 @@ pub mod deadnix;
 pub mod dfmt;
 pub mod djlint;
 pub mod dscanner;
+pub mod elvis;
 pub mod erlfmt;
 pub mod errcheck;
 pub mod eslint;
@@ -95,6 +96,7 @@ pub use deadnix::parse_deadnix;
 pub use dfmt::parse_dfmt;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use dscanner::parse_dscanner;
+pub use elvis::parse_elvis;
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
@@ -1963,6 +1965,14 @@ mod tests {
         super::credo::parse_credo(input, b"dx-credo: {\"invalid\":[]}\n", code, files)
     }
 
+    fn fuzz_elvis(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::elvis::parse_elvis(input, b"", code, files)
+    }
+
     fn fuzz_erlfmt(
         input: &[u8],
         code: Option<i32>,
@@ -2318,6 +2328,7 @@ mod tests {
         ("dscanner", fuzz_dscanner),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
+        ("elvis", fuzz_elvis),
         ("erlfmt", fuzz_erlfmt),
         ("errcheck", fuzz_errcheck),
         ("eslint", fuzz_eslint),
@@ -2409,6 +2420,7 @@ mod tests {
         ("dfmt", include_str!("dfmt.rs")),
         ("dscanner", include_str!("dscanner.rs")),
         ("djlint", include_str!("djlint.rs")),
+        ("elvis", include_str!("elvis.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),
         ("eslint", include_str!("eslint.rs")),

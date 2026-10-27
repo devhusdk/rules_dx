@@ -1,8 +1,8 @@
 """Erlang toolchain pin and launcher tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":pins.bzl", "CELLS", "GLIBC_FLOOR", "OTP_VERSION")
-load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "dropped_application", "erl_script")
+load(":pins.bzl", "CELLS", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "GETOPT_VERSION", "GLIBC_FLOOR", "OTP_VERSION", "TOOL_SOURCES")
+load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "replace_once")
 
 _SOURCE = """#!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
@@ -40,6 +40,13 @@ def _checks():
         expect_true("no closure keeps the plain exec", 'exec "$BINDIR/erlexec" ${1+"$@"}' in plain),
         expect_false("no closure leaves the loader path", "LD_LIBRARY_PATH" in plain),
         expect_true("no closure is still relocatable", "/nonexistent" in plain and "%FINAL_ROOTDIR%" not in plain),
+        expect_equal("every tool source pins a digest", [name for name in TOOL_SOURCES if len(TOOL_SOURCES[name].sha256) != 64 or TOOL_SOURCES[name].sha256.strip("0123456789abcdef") != ""], []),
+        expect_equal("every tool source has a build", sorted(TOOL_BUILDS.keys()), sorted(TOOL_SOURCES.keys())),
+        expect_equal("elvis and elvis_core move together", ELVIS_VERSION, ELVIS_CORE_VERSION),
+        expect_equal("elvis shares the getopt pin", GETOPT_VERSION, "1.0.3"),
+        expect_contains("elvis links the shared getopt", TOOL_BUILDS["dx_elvis"], "@dx_erlang_getopt//:erlang_app"),
+        expect_contains("erlfmt links the shared getopt", TOOL_BUILDS["dx_erlfmt"], "@dx_erlang_getopt//:erlang_app"),
+        expect_equal("replace_once edits", replace_once("a(F) b", [("a(F)", "c(F)")], "x"), "c(F) b"),
         expect_true("wx is dropped", dropped_application("wx-2.5")),
         expect_false("crypto is kept", dropped_application("crypto-5.6")),
         expect_false("prefix is not enough", dropped_application("wxwidgets-1.0")),

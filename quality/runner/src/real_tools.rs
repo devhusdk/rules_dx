@@ -2138,6 +2138,111 @@ fn checkmake_config_fallback_is_an_error_not_a_clean_run() {
         .is_err());
 }
 
+fn elvis_report(argv: &[OsString], cwd: &Path, config_tail: &str) -> io::Result<ChildOutput> {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("elvis always gets --config");
+    let config = PathBuf::from(&argv[at + 1]);
+    assert!(config.ends_with(config_tail), "{config:?}");
+    assert!(config.is_file(), "the elvis config is staged: {config:?}");
+    assert_eq!(
+        argv[at + 2..at + 5],
+        [
+            OsString::from("--output-format"),
+            OsString::from("parsable"),
+            OsString::from("rock")
+        ]
+    );
+    let file = PathBuf::from(&argv[argv.len() - 1]);
+    assert!(
+        file.is_relative(),
+        "elvis globs match cwd-relative paths: {file:?}"
+    );
+    let text = std::fs::read_to_string(cwd.join(&file)).expect("read staged module");
+    if !text.contains("io:format") {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: format!(
+            "{}:2:no_debug_call:At line 2, column 6, an unexpected debug call to 'io:format/1' was found.\n",
+            file.display()
+        )
+        .into_bytes(),
+        stderr: b"Elvis: linting failed\n".to_vec(),
+    })
+}
+
+fn elvis_defaults(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("config");
+    let staged = std::fs::read_to_string(&argv[at + 1]).expect("default elvis config");
+    assert!(staged.contains("\"**/*.erl\""), "{staged}");
+    elvis_report(argv, cwd, "dx-elvis-default/elvis.config")
+}
+
+fn elvis_bound(
+    argv: &[OsString],
+    cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    elvis_report(argv, cwd, "cfg/elvis.config")
+}
+
+const ELVIS_DIRTY: &str = "-module(a).\nf() -> io:format(\"x\").\n";
+
+#[test]
+fn elvis_unbound_config_uses_the_scratch_default_and_is_check_only() {
+    let backend = backend_for("elvis", plain_tool(), elvis_defaults);
+    let findings = backend
+        .diagnose("elvis", "lint", &single("lib/src/sub/a.erl", ELVIS_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "elvis");
+    assert_eq!(findings[0].rule_id, "no_debug_call");
+    assert_eq!(findings[0].path, "lib/src/sub/a.erl");
+    assert!(backend
+        .diagnose("elvis", "lint", &single("lib/src/a.erl", "-module(a).\n"))
+        .expect("diagnosed")
+        .is_empty());
+    assert_eq!(
+        backend
+            .apply_fix("elvis", "lib/src/a.erl", ELVIS_DIRTY, "lint")
+            .expect("check-only"),
+        ELVIS_DIRTY
+    );
+}
+
+#[test]
+fn elvis_bound_config_reaches_the_tool() {
+    let tool = RealTool {
+        config_rel: Some("cfg/elvis.config".to_owned()),
+        tool_files: vec![(
+            "cfg/elvis.config".to_owned(),
+            b"[{config, [#{files => [\"**/*.erl\"], ruleset => erl_files}]}].\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let backend = backend_for("elvis", tool, elvis_bound);
+    let findings = backend
+        .diagnose("elvis", "lint", &single("src/a.erl", ELVIS_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "src/a.erl");
+}
+
 const REDOCLY_ROOT: &str = "openapi: 3.1.0\ninfo:\n  title: Pets\n  version: '1'\npaths: {}\n";
 
 fn redocly_files(root: &str) -> BTreeMap<String, String> {

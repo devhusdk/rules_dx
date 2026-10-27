@@ -164,6 +164,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "dfmt",
             "dscanner",
             "djlint",
+            "elvis",
             "erlfmt",
             "errcheck",
             "eslint",

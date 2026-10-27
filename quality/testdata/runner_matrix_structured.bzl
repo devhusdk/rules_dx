@@ -165,6 +165,39 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_erlang_format_syntax.expected.txt",
     },
     {
+        "name": "matrix_erlang_lint_pass",
+        "generated": {
+            "matrix/sub/elvis_clean.erl": "-module(elvis_clean).\n-export([add/2]).\n\nadd(A, B) -> A + B.\n",
+        },
+        "capability": "lint",
+        "stages": ["elvis;erlang;matrix/sub/elvis_clean.erl"],
+        "tool_names": ["elvis"],
+        "tool_binaries": ["//erlang/tools:elvis"],
+        "expected_file": ":matrix/matrix_erlang_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_erlang_lint_fail",
+        "generated": {
+            "matrix/sub/elvis_dirty.erl": "-module(elvis_dirty).\n-export([show/1]).\n\nshow(X) -> io:format(\"~p~n\", [X]).\n",
+        },
+        "capability": "lint",
+        "stages": ["elvis;erlang;matrix/sub/elvis_dirty.erl"],
+        "tool_names": ["elvis"],
+        "tool_binaries": ["//erlang/tools:elvis"],
+        "expected_file": ":matrix/matrix_erlang_lint_fail.expected.txt",
+    },
+    {
+        "name": "matrix_erlang_lint_syntax",
+        "generated": {
+            "matrix/elvis_broken.erl": "-module(elvis_broken).\n-export([add/2]).\n\nadd(A, B) -> A + B.\nbroken(X) -> X +.\n",
+        },
+        "capability": "lint",
+        "stages": ["elvis;erlang;matrix/elvis_broken.erl"],
+        "tool_names": ["elvis"],
+        "tool_binaries": ["//erlang/tools:elvis"],
+        "expected_file": ":matrix/matrix_erlang_lint_syntax.expected.txt",
+    },
+    {
         "name": "matrix_elixir_format_pass",
         "generated": {
             "matrix/mix_format_clean.ex": "defmodule MixFormatClean do\n  def add(a, b), do: a + b\nend\n",

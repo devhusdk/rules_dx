@@ -28,6 +28,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "dfmt",
     "dscanner",
     "djlint",
+    "elvis",
     "erlfmt",
     "errcheck",
     "eslint",
@@ -135,6 +136,13 @@ const REGAL_DEFAULTS_BYTES: &[u8] = b"";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
+/// The stock rulesets for every staged `.erl` and `.hrl`, at any depth.
+const ELVIS_DEFAULTS_REL: &str = "dx-elvis-default/elvis.config";
+const ELVIS_DEFAULTS_BYTES: &[u8] = b"[{config, [
+    #{files => [\"**/*.erl\"], ruleset => erl_files, allow_no_files => true},
+    #{files => [\"**/*.hrl\"], ruleset => hrl_files, allow_no_files => true}
+]}].
+";
 /// dfmt is always pointed at this directory (see `commands::DFMT_CONFIG_DIR`): `root = true`
 /// stops its upward search for `.editorconfig`, so a home-directory file never reaches it.
 const DFMT_DEFAULTS_FILE: &str = ".editorconfig";

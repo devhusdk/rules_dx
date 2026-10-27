@@ -211,6 +211,7 @@ const REGAL_LINT_PREFIX: &[&str] = &[
     "warning",
 ];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
+const ELVIS_TAIL: &[&str] = &["--output-format", "parsable", "rock"];
 const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
 const STATIX_FIX_PREFIX: &[&str] = &["fix"];
 const END_OF_FLAGS: &[&str] = &["--"];
@@ -1164,6 +1165,19 @@ pub fn credo_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
         argv,
         cwd_rel: String::new(),
     }
+}
+
+/// Always `--config <config>`: elvis checks only the files its config globs match, from the cwd.
+pub fn elvis_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        EMPTY_ARGS,
+        "--config",
+        Some(config),
+        ELVIS_TAIL,
+        files,
+        "",
+    )
 }
 
 pub fn mix_format_check(binary: &Path, files: &[&Path]) -> Invocation {

@@ -38,6 +38,9 @@ _PERLTIDY_TOOL = _CANONICAL + "//perl/tools:perltidy"
 _ERLANG_POLICY = _CANONICAL + "//quality/testdata:erlang_policy"
 _ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
 _ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
+_ERLANG_LINT_POLICY = _CANONICAL + "//quality/testdata:erlang_lint_policy"
+_ELVIS_SETTING = _CANONICAL + "//config:tool_elvis"
+_ELVIS_TOOL = _CANONICAL + "//erlang/tools:elvis"
 _ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
 _MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
 _MIX_FORMAT_TOOL = _CANONICAL + "//elixir/tools:mix_format"
@@ -215,6 +218,27 @@ erlang_subject = rule(
         "_erlfmt": attr.label(default = "//config:tool_erlfmt"),
         "target": attr.label(
             aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _erlang_lint_subject_impl(ctx):
+    """Exposes the resolved elvis binary and the lint results beside the real aspect."""
+    tool = ctx.attr._elvis[DefaultInfo].files_to_run.executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "elvis": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+erlang_lint_subject = rule(
+    implementation = _erlang_lint_subject_impl,
+    attrs = {
+        "_elvis": attr.label(default = "//config:tool_elvis"),
+        "target": attr.label(
+            aspects = [real_lint_aspect],
             mandatory = True,
         ),
     },
@@ -643,6 +667,43 @@ def credo_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_credo",
     )
     _credo_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+_elvis_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _ERLANG_LINT_POLICY},
+)
+
+def _elvis_wired_impl(ctx):
+    """Asserts the flag wires the elvis escript and a lint stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["elvis"].endswith("/elvis"), "want the elvis escript, got " + fields["elvis"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the erlang target")
+    return analysistest.end(env)
+
+_elvis_set_test = analysistest.make(
+    _elvis_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _ERLANG_LINT_POLICY,
+        _ELVIS_SETTING: _ELVIS_TOOL,
+    },
+)
+
+def elvis_flag_tests(name, subject):
+    """Instantiates the elvis flag proofs."""
+    _elvis_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_elvis",
+    )
+    _elvis_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

@@ -2202,15 +2202,7 @@ fn scoped_set_list(scopes: &str) -> Vec<String> {
 }
 
 #[test]
-fn unknown_set_and_selector_errors_name_every_set() {
-    let unknown_set = dx_update::manifest::ManifestError::UnknownSet {
-        set: "nope".to_owned(),
-    }
-    .to_string();
-    assert!(
-        unknown_set.contains(&dx_update::sets::SetId::name_list()),
-        "the unknown-set error never names every set: {unknown_set}"
-    );
+fn unknown_selector_errors_name_every_set() {
     let unknown_selector = dx_update::selector::SelectorError::UnknownSelector {
         selector: "nope".to_owned(),
     }

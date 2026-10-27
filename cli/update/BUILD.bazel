@@ -14,7 +14,6 @@ dx_rust_crate(
     srcs = [
         "src/backend.rs",
         "src/lib.rs",
-        "src/manifest.rs",
         "src/outcome.rs",
         "src/recovery.rs",
         "src/report.rs",
@@ -24,7 +23,6 @@ dx_rust_crate(
     extra_deps = [
         "//cli/adopt:dx_adopt",
         "//cli/identity:dx_identity",
-        "//cli/path:dx_path",
         "//cli/process:dx_process",
     ],
     deps = [

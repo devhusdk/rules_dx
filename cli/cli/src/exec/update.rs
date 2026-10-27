@@ -1,7 +1,7 @@
 use super::common::*;
 use dx_output::{
-    change_event, command_finished, command_started, error_event, notice_event, with_correlation,
-    ChangeEffect, ChangeEvent, ChangeKind, Edit, FinishedCounts, NoticeEvent, OutputMode,
+    command_finished, command_started, error_event, notice_event, with_correlation, FinishedCounts,
+    NoticeEvent, OutputMode,
 };
 use dx_plan::args::{Command, Invocation};
 use dx_plan::reports::plan_reports;
@@ -454,15 +454,6 @@ fn emit_update_json(
                     ..NoticeEvent::info("update_set_success", message)
                 })
                 .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
-                if let Some(manifest) = live_success_manifest(set_name) {
-                    if let Ok(file_events) = project_manifest_events(&manifest) {
-                        for file_event in &file_events {
-                            if let Err(exit) = emit_event(out, file_event) {
-                                return exit;
-                            }
-                        }
-                    }
-                }
                 if let Err(exit) = emit_built(out, built) {
                     return exit;
                 }
@@ -649,53 +640,6 @@ fn emit_update_text(
         }
     }
     exit
-}
-
-fn live_success_manifest(set_name: &str) -> Option<dx_update::manifest::CommittedManifest> {
-    if set_name == "go" {
-        Some(dx_update::manifest::CommittedManifest {
-            set: "go".to_owned(),
-            changes: Vec::new(),
-        })
-    } else {
-        None
-    }
-}
-
-pub(crate) fn project_manifest_events(
-    manifest: &dx_update::manifest::CommittedManifest,
-) -> Result<Vec<serde_json::Value>, dx_update::manifest::ManifestError> {
-    let projected = dx_update::manifest::project(manifest)?;
-    let correlation = format!("update:{}", manifest.set);
-    let mut events = Vec::with_capacity(projected.len());
-    for file in &projected {
-        let kind = match file.kind {
-            dx_update::manifest::CommittedKind::Modify => ChangeKind::Modify,
-            dx_update::manifest::CommittedKind::Create => ChangeKind::Create,
-        };
-        let change = ChangeEvent {
-            path: file.path.clone(),
-            kind,
-            source_digest: file.source_digest.clone(),
-            edits: vec![Edit {
-                start: file.start_byte,
-                end: file.end_byte,
-                replacement: file.replacement.clone(),
-            }],
-        };
-        let change = change_event(&change, ChangeEffect::Applied, None, false).map_err(|_| {
-            dx_update::manifest::ManifestError::BadContent {
-                path: file.path.clone(),
-            }
-        })?;
-        let change = with_correlation(change, &correlation).map_err(|_| {
-            dx_update::manifest::ManifestError::BadContent {
-                path: file.path.clone(),
-            }
-        })?;
-        events.push(change);
-    }
-    Ok(events)
 }
 
 fn display_summary(

@@ -9,7 +9,6 @@
 )]
 
 pub mod backend;
-pub mod manifest;
 pub mod outcome;
 pub mod recovery;
 pub mod report;

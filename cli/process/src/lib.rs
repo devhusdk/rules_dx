@@ -16,6 +16,7 @@ use std::sync::atomic::{AtomicI32, Ordering};
 
 pub mod groups;
 pub mod lifecycle;
+pub mod procs;
 pub mod rc;
 mod runner;
 

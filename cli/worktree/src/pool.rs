@@ -107,59 +107,8 @@ fn ancestors() -> Vec<(u32, String)> {
     chain
 }
 
-/// Every process as (pid, parent pid, exe name), from one toolhelp snapshot.
 #[cfg(windows)]
-fn process_table() -> Vec<(u32, u32, String)> {
-    use std::ffi::c_void;
-    type Handle = *mut c_void;
-
-    #[repr(C)]
-    struct ProcessEntry {
-        size: u32,
-        usage: u32,
-        pid: u32,
-        heap: usize,
-        module: u32,
-        threads: u32,
-        parent: u32,
-        priority: i32,
-        flags: u32,
-        exe: [u16; 260],
-    }
-
-    extern "system" {
-        fn CreateToolhelp32Snapshot(flags: u32, process_id: u32) -> Handle;
-        fn Process32FirstW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;
-        fn Process32NextW(snapshot: Handle, entry: *mut ProcessEntry) -> i32;
-        fn CloseHandle(handle: Handle) -> i32;
-    }
-
-    let snapshot = unsafe { CreateToolhelp32Snapshot(0x2, 0) };
-    if snapshot.is_null() || snapshot as isize == -1 {
-        return Vec::new();
-    }
-    let mut table = Vec::new();
-    let mut entry: ProcessEntry = unsafe { std::mem::zeroed() };
-    entry.size = std::mem::size_of::<ProcessEntry>() as u32;
-    let mut more = unsafe { Process32FirstW(snapshot, &mut entry) } != 0;
-    while more {
-        let end = entry
-            .exe
-            .iter()
-            .position(|unit| *unit == 0)
-            .unwrap_or(entry.exe.len());
-        table.push((
-            entry.pid,
-            entry.parent,
-            String::from_utf16_lossy(&entry.exe[..end]),
-        ));
-        more = unsafe { Process32NextW(snapshot, &mut entry) } != 0;
-    }
-    unsafe {
-        CloseHandle(snapshot);
-    }
-    table
-}
+use dx_process::procs::process_table;
 
 /// The ancestors of `own` in `table`, nearest first, at most eight.
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -726,17 +675,6 @@ mod tests {
         assert_eq!(chain.len(), 8);
         assert_eq!(chain.first(), Some(&(1, "p1.exe".to_owned())));
         assert_eq!(chain.last(), Some(&(8, "p8.exe".to_owned())));
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn the_live_table_has_dx_and_its_parent() {
-        let own = std::process::id();
-        let table = process_table();
-        assert!(table.iter().any(|(pid, _, _)| *pid == own));
-        let parent = parent_in(&table, own).expect("dx has a parent");
-        assert_ne!(parent, 0);
-        assert_ne!(parent, own);
     }
 
     #[test]

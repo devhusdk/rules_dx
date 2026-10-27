@@ -1,0 +1,53 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+# keep
+rust_test(
+    name = "candidate_consumer_test",
+    size = "enormous",
+    srcs = ["candidate_consumer_test.rs"],
+    data = [
+        "//cli/cli:dx",
+        "//deploy:module_srcs",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = NESTED_BAZEL_ENV_INHERIT,
+    # The consumer fetches the rust toolchain and bcr modules.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
+    deps = [
+        "//deploy/release:dx_release_tools",
+        "//deploy/rules:dx_deploy_tools",
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "candidate_consumer_fmt_test",
+    size = "small",
+    targets = [":candidate_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "candidate_consumer_clippy_test",
+    size = "small",
+    targets = [":candidate_consumer_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

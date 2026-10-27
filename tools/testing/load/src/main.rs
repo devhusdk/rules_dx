@@ -516,14 +516,22 @@ fn server_pid(output_base: &Path) -> Option<u32> {
         .ok()
 }
 
-fn start_servers(trees: &Trees, policy: &RcPolicy) -> Result<Vec<u32>, String> {
-    let mut pids = Vec::new();
+/// The startup command line Bazel recorded for the running server, if one is running.
+/// The Bazel client compares this with its own startup flags to decide whether to restart.
+fn server_cmdline(output_base: &Path) -> Option<Vec<u8>> {
+    server_pid(output_base).filter(|pid| alive(*pid))?;
+    fs::read(output_base.join("server/cmdline")).ok()
+}
+
+/// Starts each worktree's server and returns the startup command line each one recorded.
+fn start_servers(trees: &Trees, policy: &RcPolicy) -> Result<Vec<Vec<u8>>, String> {
+    let mut cmdlines = Vec::new();
     for tree in &trees.trees {
         check_interrupted()?;
         bazel_output(&tree.dir, &tree.output_base, policy, &["version"])?;
-        match server_pid(&tree.output_base) {
-            Some(pid) if alive(pid) => pids.push(pid),
-            _ => {
+        match server_cmdline(&tree.output_base) {
+            Some(cmdline) => cmdlines.push(cmdline),
+            None => {
                 return Err(format!(
                     "no running Bazel server after start in {}",
                     tree.dir.display()
@@ -531,13 +539,14 @@ fn start_servers(trees: &Trees, policy: &RcPolicy) -> Result<Vec<u32>, String> {
             }
         }
     }
-    Ok(pids)
+    Ok(cmdlines)
 }
 
-/// True when dx replaced the server: the pid changed and the new server is alive.
-/// A server that idled out or stopped under low memory is not a restart.
-fn restarted(before: u32, after: Option<u32>, after_alive: bool) -> bool {
-    matches!(after, Some(pid) if pid != before) && after_alive
+/// True when the running server was started with other startup flags than the pre-started one.
+/// A server that idled out or stopped under low memory, and the server dx starts in its
+/// place with the same flags, is not a flag mismatch.
+fn flags_changed(before: &[u8], after: Option<&[u8]>) -> bool {
+    after.is_some_and(|after| after != before)
 }
 
 fn sample(bases: &[PathBuf], peaks: &mut Peaks) {
@@ -729,10 +738,10 @@ fn run(options: &Options) -> Result<(), String> {
     let started = start_servers(&trees, &policy)?;
     let cold = run_phase(&trees, options, &binary, &policy, "cold")?;
     for (tree, before) in trees.trees.iter().zip(&started) {
-        let after = server_pid(&tree.output_base);
-        if restarted(*before, after, after.is_some_and(alive)) {
+        let after = server_cmdline(&tree.output_base);
+        if flags_changed(before, after.as_deref()) {
             return Err(format!(
-                "dx restarted the pre-started Bazel server in {}; its startup flags differ from the harness",
+                "dx runs the Bazel server in {} with other startup flags than the harness",
                 tree.dir.display()
             ));
         }
@@ -1105,11 +1114,11 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
     }
 
     #[test]
-    fn restart_needs_a_new_live_server() {
-        assert!(!restarted(5, Some(5), true));
-        assert!(restarted(5, Some(6), true));
-        assert!(!restarted(5, Some(6), false));
-        assert!(!restarted(5, None, false));
+    fn only_other_startup_flags_count_as_a_restart() {
+        let before = b"bazel\0--max_idle_secs=900\0".as_slice();
+        assert!(!flags_changed(before, Some(before)));
+        assert!(flags_changed(before, Some(b"bazel\0--max_idle_secs=120\0")));
+        assert!(!flags_changed(before, None));
     }
 
     #[test]

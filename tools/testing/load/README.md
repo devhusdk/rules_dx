@@ -33,4 +33,4 @@ Memory: it refuses to start when `MemAvailable` is below 3 GiB per worktree, and
 Signals: SIGINT or SIGTERM during a run stops it, cleans up and exits 130.
 
 Exit codes: 0 success, 1 metrics over tolerance in `--compare`, 2 usage errors, the memory refusal and
-failed runs, including a run where `bazel info` restarts a worktree's Bazel server or `dx test` restarts a server started before the cold phase, 130 interrupted.
+failed runs, including a run where `bazel info` restarts a worktree's Bazel server or `dx test` runs a worktree's Bazel server with other startup flags than the server started before the cold phase, 130 interrupted.

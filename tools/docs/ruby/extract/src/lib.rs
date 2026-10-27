@@ -83,18 +83,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
 }
 
-/// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
-pub fn escape_segment(segment: &str) -> String {
-    let mut out = String::with_capacity(segment.len());
-    for byte in segment.bytes() {
-        if byte.is_ascii_alphanumeric() || byte == b'_' {
-            out.push(char::from(byte));
-        } else {
-            out.push_str(&format!("~{byte:02X}"));
-        }
-    }
-    out
-}
+pub use documentation_ir::escape_segment;
 
 fn field<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Value, String> {
     object

@@ -18,6 +18,19 @@ use dx_proto_validate::{
 pub use dx_schema::SCHEMA_MAJOR;
 pub use dx_schema::SCHEMA_MINOR;
 
+/// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
+pub fn escape_segment(segment: &str) -> String {
+    let mut out = String::with_capacity(segment.len());
+    for byte in segment.bytes() {
+        if byte.is_ascii_alphanumeric() || byte == b'_' {
+            out.push(char::from(byte));
+        } else {
+            out.push_str(&format!("~{byte:02X}"));
+        }
+    }
+    out
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     Decode(String),
@@ -179,6 +192,16 @@ pub fn decode_shard(bytes: &[u8]) -> Result<DocIr, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn escape_segment_keeps_word_bytes_and_hex_escapes_the_rest() {
+        assert_eq!(escape_segment("Ab_9"), "Ab_9");
+        assert_eq!(
+            escape_segment("scale(double,double)"),
+            "scale~28double~2Cdouble~29"
+        );
+        assert_eq!(escape_segment("é"), "~C3~A9");
+    }
     use prost::Message;
     use proto::{Extension, Param, Relations, Returns, SourceRef, SymbolKind, Visibility};
 

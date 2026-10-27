@@ -216,6 +216,20 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
     if pages.is_empty() {
         return Err("the shards name no symbols".to_string());
     }
+    let mut lowered: BTreeMap<String, &str> = BTreeMap::new();
+    // Existing languages (Rust `Plan` and `plan`) already collide, so only the JVM languages
+    // are checked until `api_path` encodes case.
+    for id in pages.keys().filter(|id| {
+        ["java:", "kotlin:", "scala:"]
+            .iter()
+            .any(|prefix| id.starts_with(prefix))
+    }) {
+        if let Some(other) = lowered.insert(api_path(id).to_lowercase(), id.as_str()) {
+            return Err(format!(
+                "API pages for '{other}' and '{id}' differ only in case and would collide on case-insensitive file systems"
+            ));
+        }
+    }
     let known: BTreeSet<&str> = pages.keys().map(String::as_str).collect();
     let titles = Titles {
         names: shards
@@ -279,6 +293,9 @@ fn group_title(group: &str) -> String {
         Some(("rust", package)) => format!("Rust crate `{package}`"),
         Some(("go", package)) => format!("Go package `{package}`"),
         Some(("ruby", package)) => format!("Ruby library `{package}`"),
+        Some(("java", package)) => format!("Java package `{package}`"),
+        Some(("kotlin", package)) => format!("Kotlin package `{package}`"),
+        Some(("scala", package)) => format!("Scala package `{package}`"),
         Some((language, package)) => format!("{language} package `{package}`"),
         None => group.to_string(),
     }
@@ -306,12 +323,16 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
             Some(("rust", _)) => "rust,noplayground",
             Some(("go", _)) => "go",
             Some(("ruby", _)) => "ruby",
+            Some(("java", _)) => "java",
+            Some(("kotlin", _)) => "kotlin",
+            Some(("scala", _)) => "scala",
             _ => "text",
         };
         text.push_str(&format!("```{fence}\n{}\n```\n\n", symbol.signature_text));
     }
     if !symbol.doc_markdown.trim().is_empty() {
-        text.push_str(&demote_headings(symbol.doc_markdown.trim_end()));
+        let doc = demote_headings(symbol.doc_markdown.trim_end());
+        text.push_str(&rewrite_dx_links(&doc, &from, known, titles));
         text.push_str("\n\n");
     } else {
         text.push_str("Undocumented.\n\n");
@@ -383,6 +404,68 @@ pub fn relative(from: &str, to: &str) -> String {
     let mut parts: Vec<&str> = vec![".."; from_dirs.len() - common];
     parts.extend(&to_parts[common..]);
     parts.join("/")
+}
+
+/// Rewrites `](dx:<id>)` link targets outside code fences and code spans. A known id becomes a
+/// relative page link; an unknown id degrades to a code span of its title.
+fn rewrite_dx_links(doc: &str, from: &str, known: &BTreeSet<&str>, titles: &Titles) -> String {
+    let mut fenced = false;
+    let lines: Vec<String> = doc
+        .lines()
+        .map(|line| {
+            if line.trim_start().starts_with("```") {
+                fenced = !fenced;
+                return line.to_string();
+            }
+            if fenced || !line.contains("](dx:") {
+                return line.to_string();
+            }
+            rewrite_dx_line(line, from, known, titles)
+        })
+        .collect();
+    lines.join("\n")
+}
+
+fn rewrite_dx_line(line: &str, from: &str, known: &BTreeSet<&str>, titles: &Titles) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while !rest.is_empty() {
+        if rest.starts_with('`') {
+            let ticks = rest.bytes().take_while(|b| *b == b'`').count();
+            let marker = &rest[..ticks];
+            if let Some(end) = rest[ticks..].find(marker) {
+                let total = ticks + end + ticks;
+                out.push_str(&rest[..total]);
+                rest = &rest[total..];
+                continue;
+            }
+            out.push_str(&rest[..ticks]);
+            rest = &rest[ticks..];
+            continue;
+        }
+        if rest.starts_with('[') {
+            if let Some(close) = rest.find("](dx:") {
+                let label = &rest[1..close];
+                let target_start = close + "](dx:".len();
+                if !label.contains('[') && !label.contains('`') {
+                    if let Some(end) = rest[target_start..].find(')') {
+                        let id = &rest[target_start..target_start + end];
+                        if known.contains(id) {
+                            out.push_str(&format!("[{label}]({})", relative(from, &api_path(id))));
+                        } else {
+                            out.push_str(&code(&titles.of(id)));
+                        }
+                        rest = &rest[target_start + end + 1..];
+                        continue;
+                    }
+                }
+            }
+        }
+        let ch = rest.chars().next().map_or(1, char::len_utf8);
+        out.push_str(&rest[..ch]);
+        rest = &rest[ch..];
+    }
+    out
 }
 
 fn demote_headings(doc: &str) -> String {

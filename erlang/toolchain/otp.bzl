@@ -1,8 +1,7 @@
 """Relocatable OTP tree exposed through the rules_erlang OtpInfo provider."""
 
 load("@rules_erlang//private:erlang_build.bzl", "OtpInfo")
-
-ERLANG_HOME = "${DX_ERLANG_HOME}"
+load("@rules_erlang//tools:erlang_toolchain.bzl", "TREE_ERLANG_HOME")
 
 def _dx_otp_impl(ctx):
     tree = depset(ctx.files.srcs + [ctx.file.root])
@@ -12,7 +11,7 @@ def _dx_otp_impl(ctx):
             version = ctx.attr.version,
             release_dir_tar = None,
             install_path = None,
-            erlang_home = ERLANG_HOME,
+            erlang_home = TREE_ERLANG_HOME,
             version_file = ctx.file.root,
             tree = tree,
         ),

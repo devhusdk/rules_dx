@@ -181,7 +181,7 @@ diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
      info = _build_info(ctx)
 +    if _tree(info) != None:
 +        root = info.version_file.short_path if short_path else info.version_file.path
-+        return 'DX_ERLANG_HOME="$(cd "$(dirname "{}")" && pwd)"'.format(root)
++        return 'RULES_ERLANG_HOME="$(cd "$(dirname "{}")" && pwd)"'.format(root)
      release_dir_tar = info.release_dir_tar
      if release_dir_tar == None:
          return ""

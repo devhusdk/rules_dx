@@ -246,6 +246,9 @@ def ct_suite(name, suite_name = "", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang ct_suite macro."""
     suite = suite_name if suite_name != "" else name
     kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))
+
+    # ct_run_extra_args names the node, so rules_erlang must not add -hidden -sname.
+    kwargs.setdefault("auto_sname", False)
     _ct_suite(name = name + "_upstream", suite_name = suite, **dx_test_upstream_kwargs(kwargs))
     _erlang_forward_test(
         name = name,

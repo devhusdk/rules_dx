@@ -14,7 +14,8 @@ bazel_dep(name = "rules_dx", version = "0.0.0")
 
 ## Pin Check
 
-Every job runs `bazel run @rules_dx//tools/ci:module_pin_bin` before `dx`.
+The `validate (inputs)` job runs `bazel run @rules_dx//tools/ci:module_pin_bin`
+once, before any check. A mismatch fails `validate`, so no check starts.
 It checks the `rules_dx` declaration in `MODULE.bazel`. Pass that same version as `rules_dx_version`. A repository that
 calls the workflow from its own tree declares itself instead:
 
@@ -55,7 +56,7 @@ every platform in `platforms`:
 `--check` applies to the four quality checks. `dx security`, `dx license`,
 `dx test`, `dx build`, and `dx coverage` reject it.
 
-The `validate (inputs)` job runs first. It reads every input, rejects a bad one with the
+The `validate (inputs)` job runs first. It runs the pin check, reads every input, rejects a bad one with the
 accepted values, and starts no check.
 
 Inputs:

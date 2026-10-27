@@ -312,12 +312,38 @@ workspace_policy(
 filegroup(
     name = "nix_module",
     srcs = ["nix_module/clean.nix"],
+)
+
+quality_family(
+    name = "jupyter_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = ["ruff"],
+)
+
+workspace_policy(
+    name = "jupyter_policy",
+    families = [":jupyter_family"],
+)
+
+filegroup(
+    name = "jupyter_module",
+    srcs = ["jupyter_module/clean.ipynb"],
     visibility = ["//quality/testdata:__pkg__"],
 )
 
 real_source_target(
     name = "clean_nix",
     nix_srcs = [":nix_module"],
+)
+
+real_source_target(
+    name = "clean_jupyter",
+    jupyter_srcs = [":jupyter_module"],
 )
 
 quality_family(

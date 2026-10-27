@@ -93,6 +93,11 @@ impl RealBackend {
             "ruff" => {
                 let config_ref = config.as_deref();
                 let format = capability == "format";
+                let notebooks = Self::read_notebooks(tool_id, pairs)?;
+                let notebook_refs: Vec<(&str, &str)> = notebooks
+                    .iter()
+                    .map(|(path, text)| (path.as_str(), text.as_str()))
+                    .collect();
                 self.check_files(
                     tool_id,
                     tool,
@@ -109,10 +114,18 @@ impl RealBackend {
                         if format {
                             parsed(
                                 tool_id,
-                                parsers::parse_ruff_format(&out.stdout, out.code, names),
+                                parsers::parse_ruff_format(
+                                    &out.stdout,
+                                    out.code,
+                                    names,
+                                    &notebook_refs,
+                                ),
                             )
                         } else {
-                            parsed(tool_id, parsers::parse_ruff(&out.stdout, out.code, names))
+                            parsed(
+                                tool_id,
+                                parsers::parse_ruff(&out.stdout, out.code, names, &notebook_refs),
+                            )
                         }
                     },
                 )
@@ -974,6 +987,32 @@ impl RealBackend {
     ///
     /// Findings merge in a stable order, and a failing batch names itself when there are
     /// several so the error points at the spawn that broke.
+    /// Reads every staged notebook and refuses any that Ruff would skip, so a
+    /// non-Python or malformed notebook never reports clean.
+    fn read_notebooks(
+        tool_id: &str,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<(String, String)>, RunnerError> {
+        let mut notebooks = Vec::new();
+        for (workspace, absolute) in pairs {
+            if absolute.extension().and_then(|ext| ext.to_str()) != Some("ipynb") {
+                continue;
+            }
+            let bytes = std::fs::read(absolute)
+                .map_err(|err| execution(tool_id, format!("{workspace}: read notebook: {err}")))?;
+            let text = String::from_utf8(bytes).map_err(|err| {
+                execution(
+                    tool_id,
+                    format!("{workspace}: notebook is not UTF-8: {err}"),
+                )
+            })?;
+            quality_adapter::notebook::preflight(&text)
+                .map_err(|err| execution(tool_id, format!("{workspace}: {err}")))?;
+            notebooks.push((absolute.to_string_lossy().into_owned(), text));
+        }
+        Ok(notebooks)
+    }
+
     fn check_files(
         &self,
         tool_id: &str,

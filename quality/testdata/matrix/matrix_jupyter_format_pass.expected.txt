@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_jupyter_format_pass
+capability FORMAT
+stages 1
+stage ruff classes=jupyter sources=quality/testdata/jupyter/clean.ipynb
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -265,7 +265,7 @@ to.
 | `remark` | format | mdx |
 | `roslyn` | lint | csharp |
 | `rubocop` | lint | ruby |
-| `ruff` | audit, format, lint | python |
+| `ruff` | audit, format, lint | python, jupyter (format and lint only) |
 | `rustc` | typecheck | rust |
 | `rustfmt` | format | rust |
 | `scalafix` | lint | scala |
@@ -1981,6 +1981,49 @@ nix_library(
 ```toml
 disabled = ["empty_let_in"]
 ```
+
+### Jupyter notebooks
+
+Ruff formats and lints Python Jupyter notebooks (`.ipynb`, nbformat 4). Select
+it in a `jupyter` family. The family is opt-in. It is not part of any default
+policy and the Python family does not touch notebooks.
+
+```python
+quality_family(
+    name = "jupyter_family",
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = ["ruff"],
+    disabled = ["audit", "typecheck"],
+)
+```
+
+Own notebooks with `jupyter_library` from `@rules_dx//jupyter/rules:defs.bzl`.
+List the `.ipynb` files of the package in `srcs`.
+
+```sh
+bazel run @rules_dx//:dx -- format //notebooks/...
+bazel run @rules_dx//:dx -- format --apply //notebooks/...
+bazel run @rules_dx//:dx -- lint //notebooks/...
+```
+
+Findings name the cell and the line inside it, for example
+`cell 3, line 1: `os` imported but unused`, and point at the line in the
+notebook JSON file. Markdown cells count toward the cell number. A check never
+writes.
+
+`--apply` changes only the `source` of the code cells Ruff edited. Outputs,
+metadata, execution counts, indentation, key order, line endings and every other
+cell stay byte for byte as they were. Ruff's own rewrite of the file is never
+written back.
+
+Only Python notebooks are checked. A notebook with another kernel language, a
+format other than nbformat 4, or invalid JSON is an error and never counts as
+clean. Cells that start with a cell magic are skipped by Ruff. Type checking
+does not apply to notebooks, so disable `typecheck` and `audit` in the family.
+
+To change options, bind a `ruff_config` to the notebook targets with
+`aspect_hints`, as for Python.
 
 ### HTML templates
 

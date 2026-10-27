@@ -539,6 +539,28 @@ fn add_has_no_warnings_when_origin_fetches() {
 }
 
 #[test]
+fn re_adding_a_held_branch_does_not_fetch_origin() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let missing = fixture.main.parent().expect("root").join("missing.git");
+    git(
+        &fixture.main,
+        &["remote", "set-url", "origin", &missing.to_string_lossy()],
+    );
+    let again = ops::add(&pool, &host, &who("s1", 10), &existing("feature/a")).expect("re-add");
+    assert!(again.reused);
+    assert_eq!(again.path, first.path);
+    assert!(again.base.is_none());
+    assert!(again.warnings.is_empty(), "{:?}", again.warnings);
+    let other = ops::add(&pool, &host, &who("s1", 10), &create("feature/b")).expect("add b");
+    assert_eq!(other.warnings.len(), 1, "{:?}", other.warnings);
+    assert_eq!(other.warnings[0].code, "fetch_failed");
+}
+
+#[test]
 fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
     let fixture = Fixture::new();
     let pool = fixture.pool();

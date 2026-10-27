@@ -45,6 +45,8 @@ When `git fetch origin` fails, `add` still uses local refs. Text prints
 `dx worktree: cannot fetch origin, using local refs: <error>` before the slot
 line. JSON emits a `notice` event with level `warning` and code `fetch_failed`
 after `command_started`. `hook create` prints the same line on stderr.
+When the caller already holds a slot on `<branch>`, `add` returns that slot
+without fetching origin.
 
 When the pool's disk or the disk of a Bazel output root has under 20 GiB and
 under 10% free, or under 1 GiB free whatever its size, `add` and `hook create`

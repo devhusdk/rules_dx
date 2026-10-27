@@ -1,7 +1,7 @@
 mod common;
 
 use common::{consumer, dx, error_codes, events, finished, of_kind, results_json, Tamper};
-use dx_nested::Case;
+use dx_nested::{alive, Case};
 use dx_testing::serde_json::Value;
 
 const CONSUMER: [&str; 2] = ["--", "--config=consumer"];
@@ -262,4 +262,145 @@ fn removed_xml_is_incomplete() {
 #[test]
 fn corrupted_xml_is_incomplete() {
     tampered("corrupted", "DX_TAMPER_CORRUPT", "corrupted ");
+}
+
+#[cfg(unix)]
+mod launcher {
+    use super::*;
+    use std::io::Read;
+    use std::os::unix::process::ExitStatusExt;
+    use std::path::PathBuf;
+    use std::process::{Child, ExitStatus, Stdio};
+    use std::time::{Duration, Instant};
+
+    const SIGINT: i32 = 2;
+
+    /// Kills the dx child and the sleeping test process on every exit path.
+    struct Guard {
+        dx: Child,
+        sleeper: Option<u32>,
+    }
+
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            if let Some(pid) = self.sleeper {
+                kill("KILL", pid);
+            }
+            let _ = self.dx.kill();
+            let _ = self.dx.wait();
+        }
+    }
+
+    fn kill(signal: &str, pid: u32) {
+        let _ = std::process::Command::new("kill")
+            .args(["-s", signal, &pid.to_string()])
+            .status();
+    }
+
+    /// Starts `dx test` with piped stdout and stderr in a file; returns the guard and the stderr path.
+    fn spawn(case: &Case, label: &str, tag: &str) -> (Guard, PathBuf) {
+        let state = common::state(case);
+        std::fs::create_dir_all(&state).unwrap_or_else(|error| panic!("state dir: {error}"));
+        let path = state.join(format!("{tag}.stderr"));
+        let file = std::fs::File::create(&path).unwrap_or_else(|error| panic!("stderr: {error}"));
+        let args = test_args(&[label], &[]);
+        let dx = common::dx_command(case, &args, &[], &Tamper::new())
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(file)
+            .spawn()
+            .unwrap_or_else(|error| panic!("spawn dx: {error}"));
+        (Guard { dx, sleeper: None }, path)
+    }
+
+    fn wait_bounded(guard: &mut Guard, seconds: u64) -> ExitStatus {
+        let deadline = Instant::now() + Duration::from_secs(seconds);
+        loop {
+            if let Some(status) = guard
+                .dx
+                .try_wait()
+                .unwrap_or_else(|error| panic!("wait dx: {error}"))
+            {
+                return status;
+            }
+            assert!(Instant::now() < deadline, "dx did not exit in {seconds}s");
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
+
+    #[test]
+    fn sigint_during_a_real_test_stops_it() {
+        let case = consumer("sigint", &[("sleeps", "sleep")]);
+        let (mut guard, stderr) = spawn(&case, "//cases:sleeps", "sigint");
+        let marker = common::state(&case).join("sleeps.pid");
+        let deadline = Instant::now() + Duration::from_secs(600);
+        let pid = loop {
+            if let Some(pid) = std::fs::read_to_string(&marker)
+                .ok()
+                .and_then(|text| text.trim().parse::<u32>().ok())
+            {
+                break pid;
+            }
+            let early = guard.dx.try_wait().unwrap_or(None);
+            assert!(early.is_none(), "dx exited early: {early:?}");
+            assert!(Instant::now() < deadline, "the test never started");
+            std::thread::sleep(Duration::from_millis(200));
+        };
+        guard.sleeper = Some(pid);
+        assert!(alive(pid), "the test process {pid} is not running");
+        kill("INT", guard.dx.id());
+        let status = wait_bounded(&mut guard, 120);
+        let mut stdout = String::new();
+        if let Some(mut pipe) = guard.dx.stdout.take() {
+            let _ = pipe.read_to_string(&mut stdout);
+        }
+        let text = common::read(&stderr);
+        assert_eq!(status.signal(), Some(SIGINT), "{status:?}\n{stdout}\n{text}");
+        let run = dx_testing::Run {
+            status,
+            stdout,
+            stderr: text.clone(),
+        };
+        let all = events(&run);
+        let kinds: Vec<&str> = all
+            .iter()
+            .map(|event| event["event"].as_str().unwrap_or_default())
+            .collect();
+        assert_eq!(kinds, ["command_started"], "{}", run.stdout);
+        assert!(text.contains("dx: cancelled: stopped by signal 2"), "{text}");
+        let gone = Instant::now() + Duration::from_secs(60);
+        while alive(pid) {
+            assert!(Instant::now() < gone, "the test process {pid} leaked");
+            std::thread::sleep(Duration::from_millis(200));
+        }
+    }
+
+    #[test]
+    fn closed_stdout_after_start_keeps_the_contract() {
+        let case = consumer("closed", &[("pass", "pass"), ("fail", "fail")]);
+        for (label, want) in [("//cases:pass", 141), ("//cases:fail", 3)] {
+            let tag = label.trim_start_matches("//cases:");
+            let (mut guard, stderr) = spawn(&case, label, tag);
+            let mut pipe = guard
+                .dx
+                .stdout
+                .take()
+                .unwrap_or_else(|| panic!("no stdout pipe"));
+            let mut line = Vec::new();
+            let mut byte = [0u8; 1];
+            while pipe.read(&mut byte).unwrap_or(0) == 1 && byte[0] != b'\n' {
+                line.push(byte[0]);
+            }
+            drop(pipe);
+            let status = wait_bounded(&mut guard, 600);
+            let text = common::read(&stderr);
+            let first: Value = dx_testing::serde_json::from_slice(&line)
+                .unwrap_or_else(|error| panic!("first line {line:?}: {error}"));
+            assert_eq!(first["event"], "command_started", "{first}");
+            assert_eq!(status.code(), Some(want), "{label}: {status:?}\n{text}");
+            if want == 3 {
+                assert!(text.contains("keeping exit 3"), "{text}");
+            }
+        }
+    }
 }

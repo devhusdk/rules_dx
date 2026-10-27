@@ -1,0 +1,8 @@
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app")
+
+elixir_app(
+    name = "shared",
+    srcs = ["lib/shared.ex"],
+    app_name = "shared",
+    app_version = "0.1.0",
+)

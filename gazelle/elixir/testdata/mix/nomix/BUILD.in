@@ -1,0 +1,7 @@
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app")
+
+elixir_app(
+    name = "nomix",
+    srcs = ["lib/x.ex"],
+    app_name = "nomix",
+)

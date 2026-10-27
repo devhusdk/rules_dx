@@ -74,7 +74,7 @@ func aliasIdentity(cand string) string {
 			break
 		}
 	}
-	root, _ := relativeRef("", "/"+cand, JSModuleExts)
+	root, _, _ := relativeRef("", "/"+cand, JSModuleExts)
 	return root
 }
 

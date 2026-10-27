@@ -63,6 +63,7 @@ exports_files([
     "promotion_tests.bzl",
     "pypi.bzl",
     "pypi_tests.bzl",
+    "src/archive.rs",
     "src/bin_archiver.rs",
     "src/bin_cloudflare_verify.rs",
     "src/bin_hasher.rs",
@@ -82,6 +83,7 @@ exports_files([
 rust_library(
     name = "dx_deploy_tools",
     srcs = [
+        "src/archive.rs",
         "src/cloudflare.rs",
         "src/http.rs",
         "src/lib.rs",

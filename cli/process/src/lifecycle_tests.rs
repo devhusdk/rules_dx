@@ -634,6 +634,20 @@ fn streamed_signal_exit_is_reported() {
     );
 }
 
+/// Runs a sentinel probe to completion so a wrongly launched sibling, which
+/// finishes in the same instant, has written its marker; no fixed sleep.
+fn settle_after_skipped_launch(scratch: &std::path::Path) {
+    let done = scratch.join("sentinel.finished");
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&[&format!("--marker={}", done.display())]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    run_streamed(spec, STREAM_BUDGET, &never).expect("sentinel runs");
+    assert!(done.exists(), "the sentinel probe never finished");
+}
+
 #[test]
 fn streamed_stop_before_launch_never_spawns() {
     let scratch = dx_testing::mkscratch("dx-stream-before").expect("scratch");
@@ -648,7 +662,7 @@ fn streamed_stop_before_launch_never_spawns() {
         run_streamed(spec, STREAM_BUDGET, &|| Some(2)).expect("stop is an outcome"),
         StreamOutcome::Cancelled { signal: 2 }
     );
-    std::thread::sleep(Duration::from_millis(300));
+    settle_after_skipped_launch(&scratch);
     assert!(!marker.exists(), "a stopped run launched its child");
 }
 
@@ -972,7 +986,7 @@ fn streamed_withdraw_before_launch_never_spawns() {
         run_streamed_until(spec, STREAM_BUDGET, &never, &|| true).expect("withdraw is an outcome"),
         StreamOutcome::Withdrawn
     );
-    std::thread::sleep(Duration::from_millis(300));
+    settle_after_skipped_launch(&scratch);
     assert!(!marker.exists(), "a withdrawn run launched its child");
 }
 

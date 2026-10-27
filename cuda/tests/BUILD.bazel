@@ -6,7 +6,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
-load(":defs.bzl", "hermetic_toolchain_test", "with_clang_compiler")
+load(":defs.bzl", "component_sources_test", "hermetic_toolchain_test", "with_clang_compiler")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -100,6 +100,12 @@ dx_hello_output_test(
     binary = "//cuda/tests/fixtures/cublas:cublas_app",
     expected = "cublas saxpy n=1024 sum=1048576",
     target_compatible_with = CUDA_TARGET,
+)
+
+component_sources_test(
+    name = "cublas_component_sources_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/components:cublas",
 )
 
 hermetic_toolchain_test(

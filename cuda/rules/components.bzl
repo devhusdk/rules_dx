@@ -3,6 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//cuda/toolchain:check.bzl", "CudaLicenseInfo", "component_errors")
 load("//libs/starlark:wrapper.bzl", "dx_preserved_providers")
+load("//quality:sources.bzl", "QualitySourcesInfo")
 
 def _library_paths(cc_info):
     paths = [f.path for f in cc_info.compilation_context.headers.to_list()]
@@ -24,7 +25,9 @@ def _impl(ctx):
     errors = component_errors(ctx.attr.component_name, _library_paths(providers[0]))
     if errors:
         fail("\n".join(errors))
-    return providers
+
+    # Pinned external redistributable; dx owns none of its sources.
+    return providers + [QualitySourcesInfo(direct_sources = {})]
 
 cuda_component_library = rule(
     implementation = _impl,
@@ -42,5 +45,5 @@ cuda_component_library = rule(
             providers = [CudaLicenseInfo],
         ),
     },
-    provides = [CcInfo],
+    provides = [CcInfo, QualitySourcesInfo],
 )

@@ -1,6 +1,7 @@
 """Test helpers for the dx CUDA family."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _COMPILER = "@rules_cuda//cuda:compiler"
 
@@ -66,4 +67,17 @@ hermetic_toolchain_test = analysistest.make(
     _hermetic_impl,
     doc = "Asserts nvcc, its host compiler and its include paths are all pinned repositories.",
     extra_target_under_test_aspects = [_compile_aspect],
+)
+
+def _component_sources_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.true(env, QualitySourcesInfo in target, "component must declare its owned sources so real aspects skip it (#3832)")
+    if QualitySourcesInfo in target:
+        asserts.equals(env, {}, target[QualitySourcesInfo].direct_sources)
+    return analysistest.end(env)
+
+component_sources_test = analysistest.make(
+    _component_sources_impl,
+    doc = "Asserts a cuda_component_library owns no sources, so lint and format aspects do not read the redistributable.",
 )

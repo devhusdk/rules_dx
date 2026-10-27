@@ -141,7 +141,7 @@ fn a_notice_missing_an_entry_header_fails() {
     let dir = scratch();
     let (notice, manifest, texts) = notice_inputs();
     let text = read(&notice);
-    let without_entry = text.replace("=== demo-lib-b 2.3.4 (Apache-2.0) ===\n", "");
+    let without_entry = text.replace("=== demo-lib-b 2.3.4 (Apache-2.0) [npm] ===\n", "");
     assert_ne!(
         without_entry, text,
         "the demo NOTICE carries two entry headers"
@@ -190,7 +190,7 @@ fn a_notice_with_drifted_words_after_the_first_line_fails() {
     let dir = scratch();
     let (notice, manifest, texts) = notice_inputs();
     let text = read(&notice);
-    let next = "=== demo-lib-b 2.3.4 (Apache-2.0) ===";
+    let next = "=== demo-lib-b 2.3.4 (Apache-2.0) [npm] ===";
     let drifted = text.replacen(next, &format!("Drifted extra line.\n{next}"), 1);
     assert_ne!(
         drifted, text,

@@ -12,8 +12,8 @@ use std::io;
 use std::path::Path;
 
 pub mod candidate;
-mod provenance;
 pub mod cell;
+mod provenance;
 mod publish;
 mod spdx;
 mod tool;
@@ -739,7 +739,7 @@ pub struct NoticeEntry {
     pub set: String,
     pub version: String,
     pub license: String,
-    pub text_basename: String,
+    pub text_path: String,
     pub text_sha256: String,
 }
 
@@ -753,7 +753,7 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
         let fields: Vec<&str> = line.split('|').collect();
         if fields.len() != 6 {
             return Err(format!(
-                "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256', got {} (5-field manifests predate the text sha256 column; regenerate the inventory)",
+                "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256' where text is a per-package relative path (for example 'cargo/serde/LICENSE'), got {} (5-field manifests predate the text sha256 column; regenerate the inventory)",
                 index + 1,
                 fields.len()
             ));
@@ -763,7 +763,7 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
             set: fields[1].trim().to_owned(),
             version: fields[2].trim().to_owned(),
             license: fields[3].trim().to_owned(),
-            text_basename: fields[4].trim().to_owned(),
+            text_path: fields[4].trim().to_owned(),
             text_sha256: fields[5].trim().to_owned(),
         };
         if entry.package.is_empty()
@@ -776,18 +776,24 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
                 index + 1
             ));
         }
-        if entry.text_basename.is_empty() {
+        if entry.text_path.is_empty() {
             if !entry.text_sha256.is_empty() {
                 return Err(format!(
                     "notice manifest line {}: sha256 must be empty when no text file is named",
                     index + 1
                 ));
             }
+        } else if let Err(problem) = notice_text_path_error(&entry.text_path) {
+            return Err(format!(
+                "notice manifest line {}: text '{}' {problem}",
+                index + 1,
+                entry.text_path
+            ));
         } else if !dx_digest::is_lower_hex(&entry.text_sha256, 32) {
             return Err(format!(
                 "notice manifest line {}: sha256 for text '{}' must be 64 lowercase hex characters",
                 index + 1,
-                entry.text_basename
+                entry.text_path
             ));
         }
         entries.push(entry);
@@ -796,15 +802,51 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
         (&a.package, &a.set, &a.version, &a.license)
             .cmp(&(&b.package, &b.set, &b.version, &b.license))
     });
+    for pair in entries.windows(2) {
+        let (a, b) = (&pair[0], &pair[1]);
+        if (&a.package, &a.set, &a.version, &a.license)
+            == (&b.package, &b.set, &b.version, &b.license)
+        {
+            return Err(format!(
+                "notice manifest: duplicate entry {}@{} ({}) [{}]",
+                a.package, a.version, a.license, a.set
+            ));
+        }
+    }
     Ok(entries)
+}
+
+/// Checks that a manifest text path is a safe per-package relative path:
+/// '/'-separated, no leading '/', no '\\', and no empty, '.', or '..'
+/// components. Bare basenames are valid (the shortest suffix).
+pub fn notice_text_path_error(text_path: &str) -> Result<(), String> {
+    if text_path.contains('\\') {
+        return Err("must use '/' separators, not '\\'".to_owned());
+    }
+    if text_path.starts_with('/') {
+        return Err("must be a relative path (no leading '/')".to_owned());
+    }
+    for component in text_path.split('/') {
+        if component.is_empty() || component == "." || component == ".." {
+            return Err("must not contain empty, '.', or '..' path components".to_owned());
+        }
+    }
+    Ok(())
 }
 
 /// The NOTICE section header one inventory entry renders as.
 pub fn notice_entry_header(entry: &NoticeEntry) -> String {
     format!(
-        "=== {} {} ({}) ===",
-        entry.package, entry.version, entry.license
+        "=== {} {} ({}) [{}] ===",
+        entry.package, entry.version, entry.license, entry.set
     )
+}
+
+/// How many lines of `text` are exactly `header` (ignoring a trailing '\r').
+pub fn notice_header_count(text: &str, header: &str) -> usize {
+    text.lines()
+        .filter(|line| line.trim_end_matches('\r') == header)
+        .count()
 }
 
 /// The body text under one NOTICE entry header, up to the next known header.
@@ -849,7 +891,7 @@ pub fn verify_notice_text(notice_text: &str, entries: &[NoticeEntry]) -> Result<
     };
     let root = root.trim_end_matches('\r');
     for entry in entries {
-        if entry.text_basename.is_empty() {
+        if entry.text_path.is_empty() {
             return Err(format!(
                 "missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling",
                 entry.package, entry.version, entry.license
@@ -858,6 +900,11 @@ pub fn verify_notice_text(notice_text: &str, entries: &[NoticeEntry]) -> Result<
     }
     let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
     for header in &headers {
+        if notice_header_count(notice_text, header) > 1 {
+            return Err(format!(
+                "NOTICE repeats entry header '{header}' (fail closed before install)"
+            ));
+        }
         if notice_entry_body(notice_text, header, &headers).is_none() {
             return Err(format!(
                 "NOTICE missing entry header '{header}' (fail closed before install)"
@@ -915,12 +962,10 @@ pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
     out
 }
 
-fn read_text_map(
+fn read_texts(
     text_files: &[std::path::PathBuf],
-) -> Result<std::collections::BTreeMap<String, String>, String> {
-    let mut map = std::collections::BTreeMap::new();
-    let mut seen: std::collections::BTreeMap<String, &std::path::PathBuf> =
-        std::collections::BTreeMap::new();
+) -> Result<Vec<(std::path::PathBuf, String)>, String> {
+    let mut texts: Vec<(std::path::PathBuf, String)> = Vec::with_capacity(text_files.len());
     for path in text_files {
         let name = path
             .file_name()
@@ -933,22 +978,36 @@ fn read_text_map(
                 path.display()
             ));
         }
-        let words = std::fs::read_to_string(path)
-            .map_err(|error| format!("notice: cannot read {name}: {error}"))?;
-        if words.trim().is_empty() {
-            return Err(format!("notice: missing-notice-text: {name} is empty"));
+        if texts.iter().any(|(seen, _)| seen == path) {
+            continue;
         }
-        if let Some(first) = seen.get(&name) {
+        let words = std::fs::read_to_string(path)
+            .map_err(|error| format!("notice: cannot read {}: {error}", path.display()))?;
+        if words.trim().is_empty() {
             return Err(format!(
-                "notice: duplicate-notice-text: basename '{name}' from both {} and {}",
-                first.display(),
+                "notice: missing-notice-text: {} is empty",
                 path.display()
             ));
         }
-        seen.insert(name.clone(), path);
-        map.insert(name, words);
+        texts.push((path.clone(), words));
     }
-    Ok(map)
+    texts.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(texts)
+}
+
+/// The inputs whose path ends with `text_path`, compared by whole path
+/// components (so `NOTLICENSE` never matches `LICENSE`), sorted by path.
+pub fn notice_text_matches<'a, T>(
+    text_path: &str,
+    inputs: &'a [(std::path::PathBuf, T)],
+) -> Vec<&'a (std::path::PathBuf, T)> {
+    let wanted = Path::new(text_path);
+    let mut found: Vec<_> = inputs
+        .iter()
+        .filter(|(path, _)| path.ends_with(wanted))
+        .collect();
+    found.sort_by(|a, b| a.0.cmp(&b.0));
+    found
 }
 
 pub(crate) fn join_notice_entries(
@@ -959,37 +1018,49 @@ pub(crate) fn join_notice_entries(
     if entries.is_empty() {
         return Err("notice: manifest lists no packages; refusing empty NOTICE".to_owned());
     }
-    let map = read_text_map(text_files)?;
+    let texts = read_texts(text_files)?;
     let mut joined = Vec::with_capacity(entries.len());
     for entry in entries {
-        if entry.text_basename.is_empty() {
+        if entry.text_path.is_empty() {
             return Err(format!(
                 "notice: missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling",
                 entry.package, entry.version, entry.license
             ));
         }
-        match map.get(&entry.text_basename) {
-            Some(words) => {
-                let got = notice_text_sha256(words);
-                if got != entry.text_sha256 {
-                    return Err(format!(
-                        "notice: notice-text-digest: {}@{} ({}) text '{}' sha256 {got}, manifest records {}",
-                        entry.package,
-                        entry.version,
-                        entry.license,
-                        entry.text_basename,
-                        entry.text_sha256
-                    ));
-                }
-                joined.push((entry, words.clone()));
-            }
-            None => {
+        let found = notice_text_matches(&entry.text_path, &texts);
+        let words = match found.as_slice() {
+            [] => {
                 return Err(format!(
-                    "notice: missing-notice-text: {}@{} ({}) names text '{}' with no matching input file",
-                    entry.package, entry.version, entry.license, entry.text_basename
+                    "notice: missing-notice-text: {}@{} ({}) names text '{}' with no matching input file (matched by whole path-component suffix)",
+                    entry.package, entry.version, entry.license, entry.text_path
                 ));
             }
+            [(_, words)] => words,
+            many => {
+                let paths: Vec<String> = many
+                    .iter()
+                    .map(|(path, _)| path.display().to_string())
+                    .collect();
+                return Err(format!(
+                    "notice: ambiguous-notice-text: {}@{} ({}) [{}] text '{}' matches {} inputs: {}; lengthen the manifest path so it names exactly one input",
+                    entry.package,
+                    entry.version,
+                    entry.license,
+                    entry.set,
+                    entry.text_path,
+                    many.len(),
+                    paths.join(", ")
+                ));
+            }
+        };
+        let got = notice_text_sha256(words);
+        if got != entry.text_sha256 {
+            return Err(format!(
+                "notice: notice-text-digest: {}@{} ({}) text '{}' sha256 {got}, manifest records {}",
+                entry.package, entry.version, entry.license, entry.text_path, entry.text_sha256
+            ));
         }
+        joined.push((entry, words.clone()));
     }
     Ok(joined)
 }
@@ -1848,10 +1919,10 @@ mod tests {
         assert!(text.ends_with('\n'));
         assert!(!text.ends_with("\r\n"));
         let a = text
-            .find("=== demo-lib-a 1.0.0 (MIT) ===")
+            .find("=== demo-lib-a 1.0.0 (MIT) [cargo] ===")
             .expect("a header");
         let b = text
-            .find("=== demo-lib-b 2.3.4 (Apache-2.0) ===")
+            .find("=== demo-lib-b 2.3.4 (Apache-2.0) [npm] ===")
             .expect("b header");
         assert!(a < b);
         assert!(text.contains("Fixture words for demo-lib-a"));
@@ -1967,12 +2038,11 @@ mod tests {
     #[test]
     fn notice_text_map_fails_actionable() {
         let scratch = scratch_dir();
-        let err =
-            read_text_map(&[std::path::PathBuf::from("/")]).expect_err("root has no basename");
+        let err = read_texts(&[std::path::PathBuf::from("/")]).expect_err("root has no basename");
         assert!(err.contains("no UTF-8 basename"), "got {err}");
         let empty_words = scratch.path().join("empty.txt");
         std::fs::write(&empty_words, "  \n").expect("empty words");
-        let err = read_text_map(&[empty_words]).expect_err("empty words");
+        let err = read_texts(&[empty_words]).expect_err("empty words");
         assert!(err.contains("missing-notice-text"), "got {err}");
         let err = join_notice_entries("# no packages\n", &[]).expect_err("no entries");
         assert!(err.contains("lists no packages"), "got {err}");
@@ -1987,6 +2057,7 @@ mod tests {
         )
         .expect_err("no matching input");
         assert!(err.contains("no matching input file"), "got {err}");
+        assert!(err.contains("whole path-component suffix"), "got {err}");
         let first = scratch.path().join("a").join("LICENSE");
         let second = scratch.path().join("b").join("LICENSE");
         for (path, words) in [(&first, "Words for a.\n"), (&second, "Words for b.\n")] {
@@ -1994,24 +2065,179 @@ mod tests {
             std::fs::write(path, words).expect("license words");
         }
         let both = [first.clone(), second.clone()];
-        let read_err = read_text_map(&both).expect_err("duplicate basename");
-        let join_err = join_notice_entries(
+        assert_eq!(read_texts(&both).expect("same basename reads").len(), 2);
+        let twice = [first.clone(), first.clone()];
+        assert_eq!(read_texts(&twice).expect("same path twice").len(), 1);
+        let joined = join_notice_entries(
             &format!(
-                "demo-lib-a|cargo|1.0.0|MIT|LICENSE|{}\n",
-                notice_text_sha256("Words for a.\n")
+                "demo-lib-a|cargo|1.0.0|MIT|a/LICENSE|{}\ndemo-lib-b|npm|1.0.0|MIT|b/LICENSE|{}\n",
+                notice_text_sha256("Words for a.\n"),
+                notice_text_sha256("Words for b.\n")
             ),
             &both,
         )
-        .expect_err("duplicate basename");
-        for err in [read_err, join_err] {
-            assert!(err.contains("duplicate-notice-text"), "got {err}");
+        .expect("per-package paths join");
+        assert_eq!(joined[0].1, "Words for a.\n");
+        assert_eq!(joined[1].1, "Words for b.\n");
+        let mut rev = both.clone();
+        rev.reverse();
+        for inputs in [&both[..], &rev[..]] {
+            let err = join_notice_entries(
+                &format!(
+                    "demo-lib-a|cargo|1.0.0|MIT|LICENSE|{}\n",
+                    notice_text_sha256("Words for a.\n")
+                ),
+                inputs,
+            )
+            .expect_err("bare basename is ambiguous");
+            assert!(err.contains("ambiguous-notice-text"), "got {err}");
             let want = format!(
-                "basename 'LICENSE' from both {} and {}",
+                "matches 2 inputs: {}, {}",
                 first.display(),
                 second.display()
             );
             assert!(err.contains(&want), "want {want}, got {err}");
+            assert!(err.contains("lengthen the manifest path"), "got {err}");
         }
+    }
+
+    #[test]
+    fn notice_text_suffix_match_is_component_wise() {
+        let scratch = scratch_dir();
+        let inputs: Vec<(std::path::PathBuf, ())> = ["x/a/LICENSE", "x/ba/LICENSE", "y/NOTLICENSE"]
+            .iter()
+            .map(|path| (std::path::PathBuf::from(path), ()))
+            .chain(std::iter::once((
+                scratch.path().join("abs").join("COPYING"),
+                (),
+            )))
+            .collect();
+        let found = |want: &str| -> Vec<String> {
+            notice_text_matches(want, &inputs)
+                .iter()
+                .map(|(path, _)| path.display().to_string())
+                .collect()
+        };
+        assert_eq!(found("a/LICENSE"), vec!["x/a/LICENSE"]);
+        assert_eq!(found("x/a/LICENSE"), vec!["x/a/LICENSE"]);
+        assert_eq!(found("LICENSE"), vec!["x/a/LICENSE", "x/ba/LICENSE"]);
+        assert!(found("ICENSE").is_empty());
+        assert_eq!(found("NOTLICENSE"), vec!["y/NOTLICENSE"]);
+        assert_eq!(
+            found("abs/COPYING"),
+            vec![scratch
+                .path()
+                .join("abs")
+                .join("COPYING")
+                .display()
+                .to_string()]
+        );
+        let mut rev = inputs.clone();
+        rev.reverse();
+        let rev_found: Vec<String> = notice_text_matches("LICENSE", &rev)
+            .iter()
+            .map(|(path, _)| path.display().to_string())
+            .collect();
+        assert_eq!(rev_found, found("LICENSE"));
+    }
+
+    #[test]
+    fn notice_manifest_rejects_unsafe_text_paths() {
+        for bad in ["/abs", "a/../b", "a//b", "./a", "a\\b", "a/", ".."] {
+            let err = parse_notice_manifest(&format!(
+                "# header\ndemo-lib-a|cargo|1.0.0|MIT|{bad}|{}\n",
+                "0".repeat(64)
+            ))
+            .expect_err(bad);
+            assert!(err.contains("line 2"), "{bad}: got {err}");
+            assert!(err.contains(&format!("text '{bad}'")), "{bad}: got {err}");
+        }
+        for good in ["LICENSE", "cargo/serde/LICENSE", "a.b/LICENSE-MIT"] {
+            parse_notice_manifest(&format!(
+                "demo-lib-a|cargo|1.0.0|MIT|{good}|{}\n",
+                "0".repeat(64)
+            ))
+            .expect(good);
+        }
+    }
+
+    #[test]
+    fn notice_manifest_rejects_duplicate_identity() {
+        let sha = "0".repeat(64);
+        let err = parse_notice_manifest(&format!(
+            "shared|npm|1.0.0|MIT|npm/LICENSE|{sha}\nother|npm|1.0.0|MIT|o/LICENSE|{sha}\nshared|npm|1.0.0|MIT|x/LICENSE|{sha}\n"
+        ))
+        .expect_err("duplicate identity");
+        assert!(
+            err.contains("duplicate entry shared@1.0.0 (MIT) [npm]"),
+            "got {err}"
+        );
+        let entries = parse_notice_manifest(&format!(
+            "shared|npm|1.0.0|MIT|npm/shared/LICENSE|{sha}\nshared|cargo|1.0.0|MIT|cargo/shared/LICENSE|{sha}\n"
+        ))
+        .expect("same package in two sets");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].set, "cargo");
+        assert_eq!(entries[1].set, "npm");
+    }
+
+    #[test]
+    fn notice_verify_rejects_repeated_header() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        let manifest_text = std::fs::read_to_string(&manifest).expect("read");
+        let entries = parse_notice_manifest(&manifest_text).expect("parse");
+        let joined = join_notice_entries(&manifest_text, &texts).expect("join");
+        let text = render_notice("//demo:root", &joined);
+        let header = "=== demo-lib-b 2.3.4 (Apache-2.0) [npm] ===";
+        assert_eq!(notice_header_count(&text, header), 1);
+        let repeated = format!("{text}{header}\n{FIXTURE_WORDS_B}");
+        assert_eq!(notice_header_count(&repeated, header), 2);
+        let err = verify_notice_text(&repeated, &entries).expect_err("repeated header");
+        assert!(
+            err.contains(&format!("NOTICE repeats entry header '{header}'")),
+            "got {err}"
+        );
+    }
+
+    #[test]
+    fn notice_same_package_two_sets_renders_two_headers() {
+        let scratch = scratch_dir();
+        let cargo = scratch.path().join("cargo").join("shared").join("LICENSE");
+        let npm = scratch.path().join("npm").join("shared").join("LICENSE");
+        for (path, words) in [
+            (&cargo, "Cargo words for shared.\n"),
+            (&npm, "Npm words for shared.\n"),
+        ] {
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");
+            std::fs::write(path, words).expect("words");
+        }
+        let manifest_text = format!(
+            "shared|npm|1.0.0|MIT|npm/shared/LICENSE|{}\nshared|cargo|1.0.0|MIT|cargo/shared/LICENSE|{}\n",
+            notice_text_sha256("Npm words for shared.\n"),
+            notice_text_sha256("Cargo words for shared.\n")
+        );
+        let entries = parse_notice_manifest(&manifest_text).expect("parse");
+        let joined =
+            join_notice_entries(&manifest_text, &[npm.clone(), cargo.clone()]).expect("join");
+        let text = render_notice("//demo:root", &joined);
+        assert_eq!(verify_notice_text(&text, &entries), Ok(2));
+        let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
+        assert_eq!(
+            headers,
+            vec![
+                "=== shared 1.0.0 (MIT) [cargo] ===".to_owned(),
+                "=== shared 1.0.0 (MIT) [npm] ===".to_owned()
+            ]
+        );
+        assert_eq!(
+            notice_entry_body(&text, &headers[0], &headers),
+            Some("Cargo words for shared.\n")
+        );
+        assert_eq!(
+            notice_entry_body(&text, &headers[1], &headers),
+            Some("Npm words for shared.\n")
+        );
     }
 
     #[test]
@@ -2115,7 +2341,7 @@ mod tests {
         let text = render_notice("//demo:root", &joined);
         assert_eq!(verify_notice_text(&text, &entries), Ok(2));
 
-        let headers_only = "NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) ===\n=== demo-lib-b 2.3.4 (Apache-2.0) ===\n";
+        let headers_only = "NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) [cargo] ===\n=== demo-lib-b 2.3.4 (Apache-2.0) [npm] ===\n";
         let err = verify_notice_text(headers_only, &entries).expect_err("headers only");
         assert!(err.contains("entry body is empty"), "got {err}");
 
@@ -2130,7 +2356,7 @@ mod tests {
         );
         assert!(err.contains("manifest records"), "got {err}");
 
-        let extra = format!("{text}=== other 1.0.0 (MIT) ===\nSneaky.\n");
+        let extra = format!("{text}=== other 1.0.0 (MIT) [cargo] ===\nSneaky.\n");
         let err = verify_notice_text(&extra, &entries).expect_err("extra section");
         assert!(err.contains("NOTICE missing words"), "got {err}");
 
@@ -2164,7 +2390,7 @@ mod tests {
             assert_eq!(body, words.as_str());
         }
         assert_eq!(
-            notice_entry_body(&text, "=== demo-lib-z 9.9.9 (MIT) ===", &headers),
+            notice_entry_body(&text, "=== demo-lib-z 9.9.9 (MIT) [cargo] ===", &headers),
             None
         );
         assert_eq!(notice_entry_body(&text, "demo-lib-a 1.0.0", &headers), None);
@@ -2208,7 +2434,7 @@ mod tests {
         );
         std::fs::write(
             &notice,
-            "NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) ===\nOther words.\n",
+            "NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) [cargo] ===\nOther words.\n",
         )
         .expect("notice header only");
         let err = notice_verify_files(&notice, &manifest, &[words]).expect_err("no words bound");

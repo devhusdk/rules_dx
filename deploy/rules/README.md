@@ -489,8 +489,10 @@ Promote:
 PROMOTION_LIVE=1 PROMOTION_APPROVED=1 dx deploy --apply //pkg:promotion_demo
 ```
 
-A live run refuses version `0.0.0` and checks that every secret ref exists.
-It then writes the same promotion directory.
+A live run refuses version `0.0.0` and checks the approval, the registry env,
+that every secret ref exists and the health command. It records the health
+result (`passed` or `not-required`) in `promotion.json`. It then exits `1`,
+because publishing is not implemented yet. Nothing is pushed.
 
 - `PROMOTION_REGISTRY_REQUIRED=1` needs `PROMOTION_REGISTRY_USER` and
   `PROMOTION_REGISTRY_TOKEN`.

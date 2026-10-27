@@ -152,7 +152,10 @@ _erlang_forward_test = dx_executable_forward_rule(
     what = "erlang test",
     allow_files = _EXTS,
     upstream_providers = None,
-    extra_attrs = dx_lcov_merger_attr() | {"apps": attr.label_list(providers = [_ErlangAppInfo])},
+    extra_attrs = dx_lcov_merger_attr() | {"apps": attr.label_list(
+        doc = "Erlang app targets whose sources feed test coverage.",
+        providers = [_ErlangAppInfo],
+    )},
     runtime = "besteffort",
     coverage_providers = _erlang_test_coverage,
 )

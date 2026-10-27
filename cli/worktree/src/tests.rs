@@ -1867,16 +1867,82 @@ fn reclaim_for_build_skips_plenty_or_unknown_disk() {
 }
 
 #[test]
-fn reclaim_for_build_without_a_pool_creates_none() {
+fn reclaim_for_build_without_a_pool_drops_orphans_and_creates_no_pool() {
     let fixture = Fixture::new();
     let host = FakeHost::new();
+    let roots = fixture.main.parent().expect("parent").join("unpooled-roots");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let orphan = output_base(&roots, "orphan", &fixture.main.join("gone"));
+    host.script_space(&[LOW, LOW, OK]);
+    assert_eq!(
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host).as_deref(),
+        Some("low disk: 5.0 GiB free; removed 1 orphaned output base(s); 50.0 GiB free now")
+    );
+    assert!(!orphan.exists());
+    assert!(!fixture.cache.exists());
+    assert!(host.root_scans.load(Ordering::SeqCst) >= 1);
+}
+
+#[test]
+fn reclaim_for_build_without_a_pool_keeps_orphans_a_server_uses() {
+    let fixture = Fixture::new();
+    let host = FakeHost::new();
+    let roots = fixture.main.parent().expect("parent").join("unpooled-roots");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let gone = fixture.main.join("gone");
+    let orphan = output_base(&roots, "orphan", &gone);
+    host.servers.lock().expect("servers").push(Server {
+        pid: 42,
+        rss_bytes: 0,
+        workspace: Some(gone),
+        output_base: Some(orphan.clone()),
+        output_user_root: None,
+    });
     host.script_space(&[LOW]);
     assert_eq!(
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         None
     );
+    assert!(orphan.exists());
     assert!(!fixture.cache.exists());
-    assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn reclaim_for_build_without_a_pool_skips_plenty_or_unknown_disk() {
+    let fixture = Fixture::new();
+    let host = FakeHost::new();
+    let roots = fixture.main.parent().expect("parent").join("unpooled-roots");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let orphan = output_base(&roots, "orphan", &fixture.main.join("gone"));
+    host.script_space(&[OK]);
+    assert_eq!(
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        None
+    );
+    host.script_space(&[]);
+    assert_eq!(
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        None
+    );
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 1);
+    assert!(orphan.exists());
+    assert!(!fixture.cache.exists());
+}
+
+#[test]
+fn reclaim_for_build_without_a_pool_keeps_the_workspace_base() {
+    let fixture = Fixture::new();
+    let host = FakeHost::new();
+    let roots = fixture.main.parent().expect("parent").join("unpooled-roots");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let own = output_base(&roots, "own", &fixture.main);
+    host.script_space(&[LOW]);
+    assert_eq!(
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        None
+    );
+    assert!(own.exists());
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 1);
 }
 
 #[test]

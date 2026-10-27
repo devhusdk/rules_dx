@@ -7,7 +7,10 @@ rust_test(
     name = "negative_test",
     size = "enormous",
     srcs = ["negative_test.rs"],
-    data = ["negative_test.rs"] + NESTED_BAZEL_DATA,
+    data = [
+        "negative_test.rs",
+        "//erlang:module_srcs",
+    ] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",

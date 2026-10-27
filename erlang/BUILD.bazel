@@ -1,0 +1,29 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files(["README.md"])
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "//:module_srcs",
+        "//erlang/rules:module_srcs",
+        "//erlang/toolchain:module_srcs",
+        "//erlang/tools:module_srcs",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)

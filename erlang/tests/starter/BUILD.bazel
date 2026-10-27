@@ -10,6 +10,7 @@ rust_test(
     data = [
         "starter_test.rs",
         "//cli/cli:dx",
+        "//erlang:module_srcs",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",

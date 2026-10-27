@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::resolve_runfiles;
 
 const APP_BUILD: &str = r#"load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
 
@@ -79,12 +78,7 @@ fn read(path: &Path) -> String {
 }
 
 fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("erlang/tests/negative/negative_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
+    dx_testing::rules_dx_source()
 }
 
 fn app(root: &Path, name: &str, module: &str, source: &str) {

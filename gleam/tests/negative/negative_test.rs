@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::resolve_runfiles;
 
 const LIBRARY_BUILD: &str = r#"load("@rules_dx//gleam/rules:defs.bzl", "GLEAM_COMPATIBLE_WITH", "gleam_js_library", "gleam_library")
 
@@ -113,12 +112,7 @@ fn read(path: &Path) -> String {
 }
 
 fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("gleam/tests/negative/negative_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
+    dx_testing::rules_dx_source()
 }
 
 fn library(root: &Path, name: &str, deps: &str, source: &str) {

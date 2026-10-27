@@ -112,7 +112,7 @@ pub use completion::{
 };
 pub use grammar::{cli_command, man_page};
 pub use invocation::{
-    apply_here, here_scope, CommonOptions, GenerateRequest, HintScope, Invocation, OperationMode,
+    apply_here, AffectedHandoff, here_scope, CommonOptions, GenerateRequest, HintScope, Invocation, OperationMode,
     QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest, AGENT_QUIET_FLAGS,
 };
 pub use parser::{

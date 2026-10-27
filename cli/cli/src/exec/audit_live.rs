@@ -287,7 +287,7 @@ fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32
     use dx_testing::cli::strings;
     let mut invocation = parse(&strings(argv)).expect("parse");
     invocation.targets = Vec::new();
-    invocation.test_targets = Some(Vec::new());
+    invocation.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
     let harness = Harness::new(name);
     harness.execute_with(&invocation, runner)
 }

@@ -222,3 +222,16 @@ func TestParseImportsTreeSitterShapes(t *testing.T) {
 		})
 	}
 }
+
+func TestParseImportsKeepsCompleteImportBeforeStrayError(t *testing.T) {
+	for _, src := range []string{
+		"import a.B\nimport c.D\n}\n",
+		"import a.B\nimport c.D\n)))\n",
+		"import a.B\r\nimport c.D\r\n}\r\n",
+	} {
+		got := ParseImports([]byte(src))
+		if !reflect.DeepEqual(got, []string{"a.B", "c.D"}) {
+			t.Errorf("ParseImports(%q) = %v, want [a.B c.D]", src, got)
+		}
+	}
+}

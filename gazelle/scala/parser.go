@@ -1,6 +1,7 @@
 package scala
 
 import (
+	"bytes"
 	"sort"
 	"strings"
 	"sync"
@@ -43,7 +44,7 @@ func ParseImports(content []byte) []string {
 		if tree.Type(n) != "import_declaration" {
 			return true
 		}
-		if n.HasErrorOrMissing() || truncated(n) {
+		if n.HasErrorOrMissing() || truncated(tree, n, content) {
 			// A truncated or malformed import names nothing reliable.
 			return false
 		}
@@ -71,11 +72,22 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
-// truncated reports whether an error node directly follows the import, as in
-// import e. cut off at the end of the file.
-func truncated(n *treesitter.Node) bool {
+// truncated reports whether an error node directly follows the import on the
+// same line, as in import e. cut off at the end of the file, or the import ends
+// in a dangling dot. An error on a later line leaves the import intact.
+func truncated(tree *treesitter.Tree, n *treesitter.Node, content []byte) bool {
+	if kids := n.Children(); len(kids) > 0 && tree.Type(kids[len(kids)-1]) == "." {
+		return true
+	}
 	next := n.NextSibling()
-	return next != nil && next.IsError() && next.StartByte() <= n.EndByte()+1
+	if next == nil || !next.IsError() {
+		return false
+	}
+	start, end := n.EndByte(), next.StartByte()
+	if end < start || end > uint32(len(content)) {
+		return false
+	}
+	return end-start <= 1 && !bytes.ContainsAny(content[start:end], "\r\n")
 }
 
 // importerIDs maps one comma-separated importer (a path of identifiers plus an

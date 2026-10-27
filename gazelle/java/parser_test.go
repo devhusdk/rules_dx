@@ -127,3 +127,17 @@ func TestDefinesMainNestedClass(t *testing.T) {
 		t.Error("DefinesMain matched a non-static or non-void main")
 	}
 }
+
+func TestParseImportsSkipsModuleImport(t *testing.T) {
+	got := ParseImports([]byte("import module java.base;\nimport a.B;\n"))
+	if !reflect.DeepEqual(got, []string{"a.B"}) {
+		t.Errorf("got %v, want [a.B]", got)
+	}
+}
+
+func TestParseImportsKeepsPackageNamedModule(t *testing.T) {
+	got := ParseImports([]byte("import module.Foo;\n"))
+	if !reflect.DeepEqual(got, []string{"module.Foo"}) {
+		t.Errorf("got %v, want [module.Foo]", got)
+	}
+}

@@ -23,6 +23,9 @@ func ParseImports(content []byte) []string {
 			if tree.Type(decl) != "import_declaration" {
 				continue
 			}
+			if isModuleImport(tree.Text(decl)) {
+				continue
+			}
 			var dotted string
 			var static, onDemand bool
 			for _, c := range decl.Children() {
@@ -136,4 +139,17 @@ func importIdentity(dotted string, static, onDemand bool) string {
 		return ""
 	}
 	return dotted[:i]
+}
+
+// isModuleImport reports whether an import declaration is the Java 25 module
+// import form (import module java.base;), which names a module, not a class.
+// A package that happens to be called module (import module.Foo;) is not one.
+func isModuleImport(decl string) bool {
+	rest := strings.TrimLeft(strings.TrimPrefix(decl, "import"), " \t\r\n")
+	if !strings.HasPrefix(rest, "module") {
+		return false
+	}
+	rest = rest[len("module"):]
+	trimmed := strings.TrimLeft(rest, " \t\r\n")
+	return len(trimmed) < len(rest) && !strings.HasPrefix(trimmed, ".")
 }

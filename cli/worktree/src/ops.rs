@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use dx_path::nested_bazel;
 
@@ -310,10 +311,10 @@ fn hold_known(pool: &Pool, host: &dyn Host, record: &Record, busy: bool) -> Hold
         return Hold::Alive;
     }
     let path = pool.slot_path(record.slot);
-    if !matches!(git::dirty(&path), Ok(false)) {
+    if !matches!(git::dirty(&path, &|| host.interrupted()), Ok(false)) {
         return Hold::Waiting("holder gone, tree has uncommitted changes");
     }
-    if !matches!(git::unpushed(&path), Ok(0)) {
+    if !matches!(git::unpushed(&path, &|| host.interrupted()), Ok(0)) {
         return Hold::Waiting("holder gone, commits are not pushed");
     }
     Hold::Reclaimable
@@ -469,7 +470,7 @@ pub fn add(
     if let Some(added) = reuse_held(pool, host, who, &request.branch)? {
         return Ok(added);
     }
-    let warnings = refresh(pool);
+    let warnings = refresh(pool, host)?;
     lease(pool, host, who, request, &[], warnings)
 }
 
@@ -487,17 +488,25 @@ pub(crate) fn check_branch(pool: &Pool, branch: &str) -> Result<(), WorktreeErro
 }
 
 /// Fetches origin before a lease; `lease` reclaims disk once it has picked a slot.
-pub(crate) fn refresh(pool: &Pool) -> Vec<Warning> {
+pub(crate) fn refresh(pool: &Pool, host: &dyn Host) -> Result<Vec<Warning>, WorktreeError> {
     let mut warnings = Vec::new();
+    stop_check(host)?;
     if git::succeeds(&pool.main, &["remote", "get-url", "origin"]) {
-        if let Err(error) = git::run(&pool.main, &["fetch", "--quiet", "origin"]) {
+        let fetched = git::run_until(
+            &pool.main,
+            &["fetch", "--quiet", "origin"],
+            Duration::from_secs(300),
+            &|| host.interrupted(),
+        );
+        if let Err(error) = fetched {
+            stop_check(host)?;
             warnings.push(Warning {
                 code: "fetch_failed",
                 message: format!("cannot fetch origin, using local refs: {error}"),
             });
         }
     }
-    warnings
+    Ok(warnings)
 }
 
 /// Leases a slot for a checked branch, never handing out one of the `skip` slots.
@@ -544,6 +553,7 @@ pub(crate) fn lease(
             });
         }
         let held = hold(pool, host, record);
+        stop_check(host)?;
         if !matches!(held, Hold::Reclaimable) {
             let mut message = format!(
                 "branch {branch} is held by slot {} at {}, leased to {}",
@@ -598,6 +608,7 @@ pub(crate) fn lease(
             .iter()
             .filter(|record| reclaimable(pool, host, record))
             .collect();
+        stop_check(host)?;
         rank(&mut candidates, branch, digest.as_deref());
         chosen = first_quiet(pool, &candidates, &mut quiet)?;
         reclaimed = chosen.is_some();
@@ -661,6 +672,7 @@ pub(crate) fn lease(
         last_used: now,
         lock_digest: chosen.and_then(|record| record.lock_digest.clone()),
     };
+    stop_check(host)?;
     if fresh {
         std::fs::create_dir_all(pool.slot_path(slot)).map_err(WorktreeError::io)?;
     }
@@ -772,6 +784,7 @@ fn switch_slot(
 ) -> Result<(), WorktreeError> {
     let path = pool.slot_path(slot);
     let path_arg = path_text(&path);
+    stop_check(host)?;
     if fresh {
         std::fs::create_dir_all(&pool.base).map_err(WorktreeError::io)?;
         git::run(
@@ -781,6 +794,7 @@ fn switch_slot(
     } else {
         if reclaimed {
             stop_server(host, &path);
+            stop_check(host)?;
         }
         let _ = git::run(&pool.main, &["worktree", "unlock", &path_arg]);
         git::run(&path, &["reset", "--hard", "--quiet"])?;
@@ -936,10 +950,11 @@ fn release_locked(
     let Some(_quiet) = pool.try_quiet(slot)? else {
         return Err(busy_error(pool, slot));
     };
-    if !force
-        && !record.held_by(who)
-        && !matches!(hold_known(pool, host, &record, false), Hold::Reclaimable)
-    {
+    let reclaimable = force
+        || record.held_by(who)
+        || matches!(hold_known(pool, host, &record, false), Hold::Reclaimable);
+    stop_check(host)?;
+    if !reclaimable {
         return Err(WorktreeError::usage(
             "slot_leased",
             &format!(
@@ -951,7 +966,7 @@ fn release_locked(
         ));
     }
     if !force {
-        if git::dirty(&slot_path)? {
+        if git::dirty(&slot_path, &|| host.interrupted())? {
             return Err(WorktreeError::refused(
                 "dirty_slot",
                 &format!(
@@ -960,7 +975,7 @@ fn release_locked(
                 ),
             ));
         }
-        let ahead = git::unpushed(&slot_path)?;
+        let ahead = git::unpushed(&slot_path, &|| host.interrupted())?;
         if ahead > 0 {
             return Err(WorktreeError::refused(
                 "unpushed_commits",
@@ -972,6 +987,7 @@ fn release_locked(
         }
     }
     stop_server(host, &slot_path);
+    stop_check(host)?;
     git::run(&slot_path, &["switch", "--quiet", "--detach"])?;
     let _ = git::run(
         &pool.main,
@@ -1019,8 +1035,11 @@ fn teardown(
     host: &dyn Host,
     path: &Path,
     owned: Vec<&OutputBase>,
-) -> (bool, Vec<OutputBase>) {
+) -> Result<(bool, Vec<OutputBase>), WorktreeError> {
+    stop_check(host)?;
     stop_server(host, path);
+    // The commit point: a stop before it leaves the checkout untouched, after it teardown runs to the end.
+    stop_check(host)?;
     let arg = path_text(path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
     let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
@@ -1031,13 +1050,18 @@ fn teardown(
         .filter(|base| !host.remove_tree(&base.dir))
         .cloned()
         .collect();
-    (gone, stuck)
+    Ok((gone, stuck))
 }
 
 /// Removes an external worktree and its output bases, and reports whether all of it is gone.
-fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) -> bool {
-    let (gone, stuck) = teardown(pool, host, path, bases_of(bases, path));
-    gone && stuck.is_empty()
+fn remove_external(
+    pool: &Pool,
+    host: &dyn Host,
+    path: &Path,
+    bases: &[OutputBase],
+) -> Result<bool, WorktreeError> {
+    let (gone, stuck) = teardown(pool, host, path, bases_of(bases, path))?;
+    Ok(gone && stuck.is_empty())
 }
 
 fn release_external(
@@ -1056,7 +1080,7 @@ fn release_external(
         )
     })?;
     if !force {
-        if git::dirty(&checkout.path)? {
+        if git::dirty(&checkout.path, &|| host.interrupted())? {
             return Err(WorktreeError::refused(
                 "dirty_slot",
                 &format!(
@@ -1065,7 +1089,7 @@ fn release_external(
                 ),
             ));
         }
-        let ahead = git::unpushed(&checkout.path)?;
+        let ahead = git::unpushed(&checkout.path, &|| host.interrupted())?;
         if ahead > 0 {
             return Err(WorktreeError::refused(
                 "unpushed_commits",
@@ -1078,7 +1102,7 @@ fn release_external(
     }
     let _lock = pool.lock()?;
     let bases = scan_output_bases(&host.output_roots());
-    let _ = remove_external(pool, host, &checkout.path, &bases);
+    let _ = remove_external(pool, host, &checkout.path, &bases)?;
     Ok(Released {
         slot: None,
         path: checkout.path,
@@ -1101,7 +1125,7 @@ fn external_plan_reason(
     base: Option<&str>,
     servers: &[Server],
 ) -> Option<&'static str> {
-    if let Some(reason) = external_keep_reason(checkout, servers) {
+    if let Some(reason) = external_keep_reason(host, checkout, servers) {
         return Some(reason);
     }
     let path = &checkout.path;
@@ -1150,15 +1174,19 @@ fn file_modified(path: &Path) -> Option<u64> {
         .map(|elapsed| elapsed.as_secs())
 }
 
-fn external_keep_reason(checkout: &git::Checkout, servers: &[Server]) -> Option<&'static str> {
+fn external_keep_reason(
+    host: &dyn Host,
+    checkout: &git::Checkout,
+    servers: &[Server],
+) -> Option<&'static str> {
     let path = &checkout.path;
     if checkout.locked {
         Some("locked")
     } else if server_in(servers, path) {
         Some("server")
-    } else if !matches!(git::dirty(path), Ok(false)) {
+    } else if !matches!(git::dirty(path, &|| host.interrupted()), Ok(false)) {
         Some("dirty")
-    } else if !matches!(git::unpushed(path), Ok(0)) {
+    } else if !matches!(git::unpushed(path, &|| host.interrupted()), Ok(0)) {
         Some("unpushed")
     } else {
         None
@@ -1197,6 +1225,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
     for record in pool.records() {
         let path = pool.slot_path(record.slot);
         let held = hold(pool, host, &record);
+        stop_check(host)?;
         let state = match held {
             Hold::Free => State::Free,
             Hold::Reclaimable => State::Reclaimable,
@@ -1722,7 +1751,7 @@ pub(crate) fn prune_apply(
                 bases: Vec::new(),
             }
         } else {
-            delete_slot(pool, host, slot.slot, &bases)
+            delete_slot(pool, host, slot.slot, &bases)?
         };
         if let Some(reason) = left.slot {
             skipped_slots.push(PruneSkippedSlot {
@@ -1744,7 +1773,8 @@ pub(crate) fn prune_apply(
         let Some(checkout) = external_checkout(pool, &external.path) else {
             continue;
         };
-        if let Some(reason) = external_keep_reason(&checkout, &servers) {
+        stop_check(host)?;
+        if let Some(reason) = external_keep_reason(host, &checkout, &servers) {
             kept.push(PruneKept {
                 path: checkout.path,
                 branch: checkout.branch,
@@ -1752,8 +1782,7 @@ pub(crate) fn prune_apply(
             });
             continue;
         }
-        stop_check(host)?;
-        if !remove_external(pool, host, &external.path, &bases) {
+        if !remove_external(pool, host, &external.path, &bases)? {
             kept.push(PruneKept {
                 path: checkout.path,
                 branch: checkout.branch,
@@ -2125,27 +2154,32 @@ struct Leftover {
 }
 
 /// Deletes a slot and its output bases, and returns what is still on disk.
-fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) -> Leftover {
+fn delete_slot(
+    pool: &Pool,
+    host: &dyn Host,
+    slot: u32,
+    bases: &[OutputBase],
+) -> Result<Leftover, WorktreeError> {
     let Ok(Some(_quiet)) = pool.try_quiet(slot) else {
-        return Leftover {
+        return Ok(Leftover {
             slot: Some("busy"),
             bases: Vec::new(),
-        };
+        });
     };
     let path = pool.slot_path(slot);
-    let (gone, stuck) = teardown(pool, host, &path, bases_of(bases, &path));
+    let (gone, stuck) = teardown(pool, host, &path, bases_of(bases, &path))?;
     if gone {
         pool.remove(slot);
-        return Leftover {
+        return Ok(Leftover {
             slot: None,
             bases: stuck,
-        };
+        });
     }
     mark_broken(pool, slot);
-    Leftover {
+    Ok(Leftover {
         slot: Some("busy"),
         bases: Vec::new(),
-    }
+    })
 }
 
 /// Keeps a half-deleted slot recorded so `prune` retries it, but out of `add`'s reach.

@@ -30,6 +30,7 @@ struct FakeHost {
     root_scans: AtomicU64,
     disk_cache: Mutex<Option<PathBuf>>,
     stop_after: Mutex<Option<(usize, i32)>>,
+    stop_after_shutdowns: Mutex<Option<(usize, i32)>>,
     stubborn: Mutex<BTreeSet<u32>>,
     stuck: Mutex<BTreeSet<PathBuf>>,
     nested: Mutex<Option<PathBuf>>,
@@ -53,6 +54,7 @@ impl FakeHost {
             root_scans: AtomicU64::new(0),
             disk_cache: Mutex::new(None),
             stop_after: Mutex::new(None),
+            stop_after_shutdowns: Mutex::new(None),
             stubborn: Mutex::new(BTreeSet::new()),
             stuck: Mutex::new(BTreeSet::new()),
             nested: Mutex::new(None),
@@ -104,6 +106,11 @@ impl FakeHost {
 
     fn stop_after(&self, count: usize, signo: i32) {
         *self.stop_after.lock().expect("stop") = Some((count, signo));
+    }
+
+    /// Fires once `count` Bazel shutdowns have run.
+    fn stop_after_shutdowns(&self, count: usize, signo: i32) {
+        *self.stop_after_shutdowns.lock().expect("stop") = Some((count, signo));
     }
 
     fn advance(&self, seconds: u64) {
@@ -263,7 +270,13 @@ impl Host for FakeHost {
 
     fn interrupted(&self) -> Option<i32> {
         let stop = *self.stop_after.lock().expect("stop");
-        stop.and_then(|(count, signo)| (self.disk_paths().len() >= count).then_some(signo))
+        let by_disk =
+            stop.and_then(|(count, signo)| (self.disk_paths().len() >= count).then_some(signo));
+        let by_shutdown = *self.stop_after_shutdowns.lock().expect("stop");
+        by_disk.or_else(|| {
+            by_shutdown
+                .and_then(|(count, signo)| (self.shutdown_paths().len() >= count).then_some(signo))
+        })
     }
 }
 
@@ -4293,6 +4306,97 @@ fn prune_apply_deletes_nothing_after_a_signal() {
     assert!(paths.iter().all(|path| path.exists()));
     assert!(base.exists());
     drop(pool.lock().expect("lock is free again"));
+}
+
+#[test]
+fn prune_apply_keeps_a_slot_whose_shutdown_was_interrupted() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let paths = two_stale_slots(&pool, &host);
+    host.serve(80, &paths[0]);
+    host.stubborn(80);
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    host.stop_after_shutdowns(1, 15);
+    let error =
+        ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    assert_eq!(error.exit(), 143);
+    assert!(paths.iter().all(|path| path.exists()));
+    assert!(pool.records().iter().all(|record| !record.broken));
+    assert_eq!(pool.records().len(), 2);
+    let listed = git(&fixture.main, &["worktree", "list", "--porcelain"]);
+    assert!(listed.contains(&paths[0].to_string_lossy().into_owned()));
+}
+
+#[test]
+fn release_keeps_the_lease_when_the_shutdown_was_interrupted() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    host.serve(80, &a.path);
+    host.stubborn(80);
+    host.stop_after_shutdowns(1, 15);
+    let error = ops::release(&pool, &host, &me, &a.path, true).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    assert!(pool.records().iter().all(|record| record.held));
+    assert_eq!(git(&a.path, &["branch", "--show-current"]), "feature/a");
+    let listed = git(&fixture.main, &["worktree", "list", "--porcelain"]);
+    assert!(!listed.contains("dx: free"));
+}
+
+#[test]
+fn add_stops_before_fetching_when_a_signal_came_first() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    host.stop_after(0, 2);
+    let error = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect_err("stopped");
+    assert_eq!(error.signal, Some(2));
+    assert!(pool.records().is_empty());
+}
+
+#[test]
+fn plain_list_stops_while_classifying_a_gone_holder() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    host.kill(10);
+    host.stop_after(0, 15);
+    let error = ops::list(&pool, &host, false).expect_err("stopped");
+    assert_eq!(error.signal, Some(15));
+    assert_eq!(error.exit(), 143);
+}
+
+#[test]
+fn hook_create_exits_with_the_signal_when_stopped() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    host.stop_after(0, 15);
+    let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
+    let error = crate::hook::create(&pool, &host, &who("s1", 10), &input).expect_err("stopped");
+    assert_eq!(error.exit(), 143);
+}
+
+#[test]
+fn git_run_until_reports_a_stop_and_otherwise_matches_run() {
+    let fixture = Fixture::new();
+    let long = std::time::Duration::from_secs(60);
+    let args = ["rev-parse", "HEAD"];
+    let stopped =
+        crate::git::run_until(&fixture.main, &args, long, &|| Some(15)).expect_err("stopped");
+    assert_eq!(stopped.signal, Some(15));
+    let read = crate::git::run_until(&fixture.main, &args, long, &|| None).expect("read");
+    assert_eq!(read, crate::git::run(&fixture.main, &args).expect("run"));
 }
 
 fn set_time(path: &Path, secs: u64) {

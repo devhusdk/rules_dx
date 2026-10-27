@@ -1408,3 +1408,45 @@ fn stream_group_is_owned_without_a_terminal() {
         assert!(matches!(stream_group(), StreamGroup::Owned));
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn a_prepared_command_keeps_its_removed_variable_out_of_the_child() {
+    let mut command = Command::new("/bin/sh");
+    command
+        .args(["-c", "printf '%s' \"${DX_PREPARED_PROBE-unset}\""])
+        .env("DX_PREPARED_PROBE", "leaked")
+        .env_remove("DX_PREPARED_PROBE");
+    let outcome = run_command_until(
+        &mut command,
+        &CapturePolicy { max_bytes: 1024 },
+        Duration::from_secs(20),
+        Descendants::Owned,
+        INTERACTIVE,
+        &|| None,
+    )
+    .expect("runs");
+    match outcome {
+        ChildOutcome::Finished { stdout, .. } => assert_eq!(stdout, b"unset"),
+        other => panic!("unexpected outcome {other:?}"),
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_stop_probe_ends_a_prepared_command_before_its_deadline() {
+    let mut command = Command::new("/bin/sh");
+    command.args(["-c", "sleep 30"]);
+    let started = Instant::now();
+    let outcome = run_command_until(
+        &mut command,
+        &CapturePolicy { max_bytes: 1024 },
+        Duration::from_secs(20),
+        Descendants::Owned,
+        INTERACTIVE,
+        &|| Some(15),
+    )
+    .expect("stop is an outcome");
+    assert_eq!(outcome, ChildOutcome::TimedOut);
+    assert!(started.elapsed() < Duration::from_secs(5));
+}

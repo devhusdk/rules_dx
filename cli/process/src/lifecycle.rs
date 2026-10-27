@@ -167,12 +167,37 @@ pub fn run_within_until(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     apply_env(&mut command, &spec.env);
-    let mut owned = backend::spawn_owned(&mut command, spec.descendants)?;
-    let limit = spec.capture.max_bytes;
+    run_command_until(
+        &mut command,
+        &spec.capture,
+        spec.timeout,
+        spec.descendants,
+        cleanup,
+        stop,
+    )
+}
+
+/// Like `run_within_until`, for a `Command` the caller has already set up
+/// (program, args, cwd, env). Stdin is set to null and stdout and stderr are
+/// piped here. A stopped child is reported as `TimedOut`.
+pub fn run_command_until(
+    command: &mut Command,
+    capture: &CapturePolicy,
+    timeout: Duration,
+    descendants: Descendants,
+    cleanup: CleanupBudget,
+    stop: &dyn Fn() -> Option<i32>,
+) -> io::Result<ChildOutcome> {
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut owned = backend::spawn_owned(command, descendants)?;
+    let limit = capture.max_bytes;
     let stdout_rx = drain_pipe(owned.take_stdout(), limit);
     let stderr_rx = drain_pipe(owned.take_stderr(), limit);
     let start = Instant::now();
-    let soft = start + spec.timeout;
+    let soft = start + timeout;
     let mut hard = soft + cleanup.total();
     let mut status = None;
     let mut wait_error = None;

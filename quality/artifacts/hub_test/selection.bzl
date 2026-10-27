@@ -36,6 +36,7 @@ _COMPLETE = {_FIXTURE_TOOL: dict(_FIXTURE_REPOS)}
 # TOOL_PLATFORMS set, and the only such platforms each may use.
 _UNQUALIFIED_ALLOWLIST = {
     "wasmtime": ["macos_x86_64"],
+    "uv": ["windows_arm64"],
 }
 
 def _artifact_repo(artifact):
@@ -68,7 +69,7 @@ def _unit_checks():
     sample_platform = sample["os"] + "_" + sample["cpu"]
     checks = [
         expect_equal("the platform table is the supported set", TOOL_PLATFORMS, ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
-        expect_equal("the selectable platforms are the supported set plus intel macos", ARTIFACT_PLATFORMS, TOOL_PLATFORMS + ["macos_x86_64"]),
+        expect_equal("the selectable platforms are the supported set plus intel macos and windows arm64", ARTIFACT_PLATFORMS, TOOL_PLATFORMS + ["macos_x86_64", "windows_arm64"]),
         expect_equal("the encoded map keys every platform explicitly", encode_artifacts(_SPARSE), '{"taplo":{"linux_x86_64":"dx_hub_fixture_taplo_linux_x86_64","macos_arm64":"dx_hub_fixture_taplo_macos_arm64","macos_x86_64":"dx_hub_fixture_taplo_macos_x86_64","windows_x86_64":"dx_hub_fixture_taplo_windows_x86_64"}}'),
         expect_equal("a sparse map keeps the platforms it declares", ordered_platforms(_SPARSE[_FIXTURE_TOOL]), ["linux_x86_64", "macos_arm64", "windows_x86_64", "macos_x86_64"]),
         expect_equal("a sparse map names the repository of every platform it declares", branch_labels(_SPARSE[_FIXTURE_TOOL]), {
@@ -95,13 +96,13 @@ def _unit_checks():
         expect_equal("a decoded map has no diagnostic", decode_artifacts(encode_artifacts(released)).error, ""),
         expect_equal("a JSON array is not a tool map", decode_artifacts('["taplo"]').error, "artifacts must be a JSON object keyed by tool, got list"),
         expect_equal("one repository cannot serve two platforms", artifact_map_errors({"taplo": {"linux_x86_64": "dx_a", "macos_arm64": "dx_a"}}), ["repository 'dx_a' is selected by both 'taplo/linux_x86_64' and 'taplo/macos_arm64'"]),
-        expect_equal("an unsupported platform key is rejected", artifact_map_errors({"taplo": {"solaris_x86_64": "dx_a"}}), ["tool 'taplo' names unsupported platform 'solaris_x86_64'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, macos_x86_64"]),
+        expect_equal("an unsupported platform key is rejected", artifact_map_errors({"taplo": {"solaris_x86_64": "dx_a"}}), ["tool 'taplo' names unsupported platform 'solaris_x86_64'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, macos_x86_64, windows_arm64"]),
         expect_equal("a platform without a repository is rejected", artifact_map_errors({"taplo": {"macos_arm64": ""}}), ["tool 'taplo' platform 'macos_arm64' has no repository name"]),
         expect_equal("a tool without a platform map is rejected", artifact_map_errors({"taplo": ["dx_a"]}), ["tool 'taplo' maps platforms to a list, want an object keyed by platform"]),
         expect_equal("a tool without an artifact is rejected", artifact_map_errors({"taplo": {}}), ["tool 'taplo' has no artifact for any platform"]),
         expect_equal("an artifact without metadata is rejected", artifact_metadata_errors([dict(sample, executable_sha256 = "")]), ["artifact '" + sample_tool + "' is missing executable_sha256"]),
         expect_equal("an artifact without an archive format is rejected", artifact_metadata_errors([dict(sample, archive = {})]), ["artifact '" + sample_tool + "' is missing archive.format"]),
-        expect_equal("an artifact on an unsupported platform is rejected", artifact_metadata_errors([dict(sample, os = "solaris")]), ["artifact '" + sample_tool + "' names unsupported platform 'solaris_" + sample["cpu"] + "'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, macos_x86_64"]),
+        expect_equal("an artifact on an unsupported platform is rejected", artifact_metadata_errors([dict(sample, os = "solaris")]), ["artifact '" + sample_tool + "' names unsupported platform 'solaris_" + sample["cpu"] + "'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, macos_x86_64, windows_arm64"]),
         expect_equal("two artifacts for one platform are rejected", artifact_metadata_errors([sample, dict(sample, url = "https://example.invalid/other")]), ["artifact '" + sample_tool + "/" + sample_platform + "' is declared twice: '" + sample["url"] + "' and 'https://example.invalid/other'"]),
     ]
     for platform in ARTIFACT_PLATFORMS:

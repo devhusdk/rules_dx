@@ -6,6 +6,7 @@ PLATFORM_CONSTRAINTS = {
     "macos_arm64": ["os_macos", "cpu_arm64"],
     "windows_x86_64": ["os_windows", "cpu_x86_64"],
     "macos_x86_64": ["os_macos", "cpu_x86_64"],
+    "windows_arm64": ["os_windows", "cpu_arm64"],
 }
 
 # The qualified execution set: every dx tool ships for each of these, and

@@ -76,6 +76,7 @@ DX_TOOL_REPOS = [
     "dx_uv_linux_arm64",
     "dx_uv_linux_x86_64",
     "dx_uv_macos_arm64",
+    "dx_uv_windows_arm64",
     "dx_uv_windows_x86_64",
     "dx_vale_linux_arm64",
     "dx_vale_linux_x86_64",

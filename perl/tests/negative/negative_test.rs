@@ -164,7 +164,7 @@ fn consumer() -> Case {
     );
     write(
         &root.join(".bazelrc"),
-        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
+        &dx_testing::preset_rc(&rules),
     );
     write(&root.join("BUILD.bazel"), ROOT_BUILD);
     write(&root.join("tampered.lock.json"), TAMPERED_LOCK);

@@ -153,9 +153,7 @@ def test_bad_include_labels_are_rejected_and_never_read(tmp_path):
     for index, label in enumerate(BAD_LABELS):
         home = tmp_path / f"home{index}"
         home.mkdir()
-        (home / "MODULE.bazel").write_text(
-            f'include("{label}")\n', encoding="utf-8"
-        )
+        (home / "MODULE.bazel").write_text(f'include("{label}")\n', encoding="utf-8")
         code, output = run(validator, home, "1.2.3")
         assert code == 1, f"{label} was accepted: {output}"
         assert "matches" not in output, f"{label} was read: {output}"

@@ -547,14 +547,16 @@ fn the_vendored_preset_suppresses_nothing() {
             "{value}"
         );
     }
-    let policy = Machine::local()
-        .file(
-            "/ws/.bazelrc",
-            "import %workspace%/tools/bazelrc/preset.bazelrc\n",
-        )
-        .file("/ws/tools/bazelrc/preset.bazelrc", &preset)
-        .policy();
-    assert_eq!(resources(&policy), (true, true));
+    for dir in ["tools/bazelrc", ".dx/bazelrc"] {
+        let policy = Machine::local()
+            .file(
+                "/ws/.bazelrc",
+                &format!("import %workspace%/{dir}/resources.bazelrc\n"),
+            )
+            .file(&format!("/ws/{dir}/resources.bazelrc"), &preset)
+            .policy();
+        assert_eq!(resources(&policy), (true, true), "{dir}");
+    }
 }
 
 #[test]

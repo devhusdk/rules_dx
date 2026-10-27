@@ -24,11 +24,11 @@ dx_rust_crate(
         "//tools/testing:dx_testing",
     ],
     test_data = [
-        "//tools/bazelrc:preset.bazelrc",
+        "//tools/bazelrc:resources.bazelrc",
         "//tools/testing/process_probe",
     ],
     test_env = {
-        "DX_PRESET": "$(rootpath //tools/bazelrc:preset.bazelrc)",
+        "DX_PRESET": "$(rootpath //tools/bazelrc:resources.bazelrc)",
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
     },
     test_srcs = [

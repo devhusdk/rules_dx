@@ -652,11 +652,12 @@ rust_test(
     name = "preset_parity_test",
     srcs = ["preset_parity_test.rs"],
     data = [
-        "//tools/bazelrc:preset.bazelrc",
+        "//tools/bazelrc:correctness.bazelrc",
+        "//tools/bazelrc:preset",
         "//tools/bazelrc:src/lib.rs",
     ],
     env = {
-        "DX_PRESET_EXPECTED": "$(rootpath //tools/bazelrc:preset.bazelrc)",
+        "DX_PRESET_EXPECTED": "$(rootpath //tools/bazelrc:correctness.bazelrc)",
         "DX_PRESET_RS": "$(rootpath //tools/bazelrc:src/lib.rs)",
     },
     tags = ["no-coverage"],

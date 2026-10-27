@@ -1,4 +1,6 @@
-import %workspace%/tools/bazelrc/preset.bazelrc
+import %workspace%/tools/bazelrc/correctness.bazelrc
+import %workspace%/tools/bazelrc/performance.bazelrc
+import %workspace%/tools/bazelrc/resources.bazelrc
 
 # Keep the preset's -no-coverage and also skip tests of languages with no
 # coverage collector yet (dx-no-coverage-collector, #2308), so this repo's own

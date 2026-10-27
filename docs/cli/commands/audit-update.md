@@ -329,12 +329,19 @@ unsupported and fails the run; refresh those with `dx update --apply <set>`.
 No selector checks all sets, so a bare `dx update` reports the unsupported sets
 and exits `1`. Checks never take a [build slot](README.md#build-slots).
 `--apply` takes one only for `cargo`, `maven`, `npm`, `npm-tools` and `nuget`,
-whose updaters run Bazel. `update` never touches the Bazelrc
-preset fragment: verify it with
-`bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate it
+whose updaters run Bazel. `update` never touches the Bazel preset. The preset
+is three generated files under `tools/bazelrc/`, imported in this order at the
+top of the root `.bazelrc`, so later lines in `.bazelrc` override them:
+
+- `correctness.bazelrc`: Bzlmod, failure output, coverage, and runfiles flags.
+- `performance.bazelrc`: the host compilation mode and the `dx_*` compilation configs.
+- `resources.bazelrc`: the memory, CPU, and cache limits listed below.
+
+Every flag has a one-line comment above it. Verify the files with
+`bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate them
 with `bazel run //tools/bazelrc:preset_update`.
 
-The preset sets these resource defaults:
+`resources.bazelrc` sets these defaults:
 
 - `startup --host_jvm_args=-XX:MaxHeapFreeRatio=30` and `-XX:MinHeapFreeRatio=10`: idle servers return heap to the OS.
 - `startup --host_jvm_args=-XX:MaxRAMPercentage=25`: the server heap is up to 25% of RAM, or of the cgroup limit when there is one.

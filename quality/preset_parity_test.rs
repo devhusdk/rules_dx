@@ -7,22 +7,33 @@ fn data(name: &str) -> PathBuf {
 
 #[test]
 fn preset_parity() {
-    let expected = data("DX_PRESET_EXPECTED");
+    let expected_dir = data("DX_PRESET_EXPECTED")
+        .parent()
+        .expect("the preset layers live in a directory")
+        .to_path_buf();
     let preset_rs = data("DX_PRESET_RS");
 
-    let expected_text = std::fs::read_to_string(&expected).expect("read checked-in preset");
-    assert_eq!(
-        dx_preset::render_fragment(),
-        expected_text,
-        "//tools/bazelrc:preset_update would rewrite tools/bazelrc/preset.bazelrc; \
-         run `bazel run //tools/bazelrc:preset_update`"
-    );
+    let mut expected_text = String::new();
+    for layer in dx_preset::Layer::ALL {
+        let path = expected_dir.join(layer.file_name());
+        let text = std::fs::read_to_string(&path).expect("read checked-in preset layer");
+        assert_eq!(
+            dx_preset::render_layer(layer),
+            text,
+            "//tools/bazelrc:preset_update would rewrite tools/bazelrc/{}; \
+             run `bazel run //tools/bazelrc:preset_update`",
+            layer.file_name()
+        );
+        expected_text.push_str(&text);
+    }
+    let expected = std::env::temp_dir().join(format!("dx-preset-all-{}", std::process::id()));
+    std::fs::write(&expected, &expected_text).expect("write joined preset");
 
     dx_testing::expect_contains(
         &expected,
         &[
             "GENERATED, do not edit",
-            "Regenerate: `bazel run //tools/bazelrc:preset_update`",
+            "Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.",
             "common --enable_bzlmod",
             "build --verbose_failures",
             "test --test_output=errors",
@@ -54,7 +65,7 @@ fn preset_parity() {
             "build --experimental_total_worker_memory_limit_mb=4096",
         ],
     )
-    .expect("preset.bazelrc missing contract lines");
+    .expect("the preset layers miss contract lines");
     let gc_age = format!(
         "common --experimental_disk_cache_gc_max_age={}",
         dx_process::DISK_CACHE_GC_MAX_AGE
@@ -86,7 +97,7 @@ fn preset_parity() {
     std::fs::write(scratch.join("MODULE.bazel"), b"").expect("write module");
     std::fs::write(
         scratch.join(".bazelrc"),
-        b"import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
+        b"import %workspace%/tools/bazelrc/correctness.bazelrc\nimport %workspace%/tools/bazelrc/performance.bazelrc\nimport %workspace%/tools/bazelrc/resources.bazelrc\ntry-import %workspace%/user.bazelrc\n",
     )
     .expect("write bazelrc");
 
@@ -95,17 +106,18 @@ fn preset_parity() {
             dx_preset::check_preset(&scratch),
             Err(dx_preset::PresetError::Stale { .. })
         ),
-        "a workspace without the fragment must be stale"
+        "a workspace without the layers must be stale"
     );
-    dx_preset::update_preset(&scratch).expect("update writes the fragment");
+    dx_preset::update_preset(&scratch).expect("update writes the layers");
 
-    let actual = scratch.join("tools/bazelrc/preset.bazelrc");
-    assert!(
-        actual.is_file(),
-        "update_preset did not create tools/bazelrc/preset.bazelrc"
-    );
-    dx_testing::snapshot_diff(&expected, &actual, Some("tools/bazelrc/preset.bazelrc"))
-        .expect("preset parity snapshot");
+    for layer in dx_preset::Layer::ALL {
+        let rel = format!("tools/bazelrc/{}", layer.file_name());
+        let actual = scratch.join(&rel);
+        assert!(actual.is_file(), "update_preset did not create {rel}");
+        dx_testing::snapshot_diff(&expected_dir.join(layer.file_name()), &actual, Some(&rel))
+            .expect("preset parity snapshot");
+    }
+    let actual = scratch.join("tools/bazelrc/resources.bazelrc");
     assert_eq!(dx_preset::check_preset(&scratch), Ok(()));
 
     std::fs::write(&actual, b"# dirty\n").expect("dirty the fragment");

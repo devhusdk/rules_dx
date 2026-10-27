@@ -91,11 +91,7 @@ def include_path(label):
     package, name = label[2:].split(":", 1)
     segments = (package.split("/") if package else []) + name.split("/")
     for segment in segments:
-        if (
-            segment in ("", ".", "..")
-            or "\\" in segment
-            or ":" in segment
-        ):
+        if segment in ("", ".", "..") or "\\" in segment or ":" in segment:
             return None, "leaves the workspace"
     if not name.endswith(INCLUDE_SUFFIX) or segments[-1].startswith("."):
         return None, f"must name a {INCLUDE_SUFFIX} file"
@@ -133,7 +129,9 @@ def walk(root, rel, seen, found):
         seen.add(label)
         problem = walk(root, target, seen, found)
         if isinstance(problem, OSError):
-            return f"{rel}:{line} includes {label}, but {target} cannot be read: {problem}"
+            return (
+                f"{rel}:{line} includes {label}, but {target} cannot be read: {problem}"
+            )
         if problem is not None:
             return problem
     return None

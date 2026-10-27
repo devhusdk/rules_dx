@@ -72,7 +72,7 @@ fn dx_new_cuda_scaffolds_a_project_that_builds_and_tests_without_a_gpu() {
         root.join(".bazelrc"),
         format!(
             "{bazelrc}{}",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+            dx_testing::preset_rc(&rules)
         ),
     )
     .unwrap_or_else(|error| panic!("write .bazelrc: {error}"));

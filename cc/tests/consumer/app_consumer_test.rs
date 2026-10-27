@@ -284,7 +284,7 @@ fn write_consumer(root: &Path) {
     );
     write(
         &root.join(".bazelrc"),
-        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
+        &dx_testing::preset_rc(&rules),
     );
     write(
         &root.join("BUILD.bazel"),

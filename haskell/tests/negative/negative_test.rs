@@ -106,7 +106,7 @@ fn consumer_of(rules: &Path) -> Case {
     );
     write(
         &root.join(".bazelrc"),
-        &read(&source.join("tools/bazelrc/preset.bazelrc")),
+        &dx_testing::preset_rc(&source),
     );
     write(&root.join("BUILD.bazel"), "");
     library(&root, "clean", "Clean", "[]", "", CLEAN);

@@ -1228,17 +1228,17 @@ mod tests {
         write(
             &workspace,
             ".bazelrc",
-            "import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
+            "import %workspace%/tools/bazelrc/correctness.bazelrc\ntry-import %workspace%/user.bazelrc\n",
         );
         write(&workspace, "tools/bazelrc/BUILD.bazel", "");
         write(
             &workspace,
-            "tools/bazelrc/preset.bazelrc",
+            "tools/bazelrc/correctness.bazelrc",
             "import \"%workspace%/tools/bazelrc/nested.bazelrc\"\nimport %workspace%/.bazelrc\n",
         );
         write(&workspace, "tools/bazelrc/nested.bazelrc", "build --x\n");
         for changed in [
-            "tools/bazelrc/preset.bazelrc",
+            "tools/bazelrc/correctness.bazelrc",
             "tools/bazelrc/nested.bazelrc",
         ] {
             let selection = resolve_affected(

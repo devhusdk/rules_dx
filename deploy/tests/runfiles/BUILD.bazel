@@ -86,7 +86,7 @@ rust_test(
     data = [
         "//cli/cli:dx",
         "//deploy:module_srcs",
-        "//tools/bazelrc:preset.bazelrc",
+        "//tools/bazelrc:preset",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",

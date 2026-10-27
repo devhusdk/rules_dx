@@ -122,7 +122,7 @@ fn point_at_this_checkout(root: &Path) {
         &root.join(".bazelrc"),
         &format!(
             "{bazelrc}{}",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+            dx_testing::preset_rc(&rules)
         ),
     );
 }

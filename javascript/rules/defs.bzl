@@ -4,7 +4,7 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
 
@@ -12,11 +12,6 @@ _DX_JS_LIBRARY_PROVIDES = [
     _JsInfo,
     DefaultInfo,
     InstrumentedFilesInfo,
-    QualitySourcesInfo,
-]
-
-_DX_JS_BINARY_PROVIDES = [
-    DefaultInfo,
     QualitySourcesInfo,
 ]
 
@@ -39,7 +34,7 @@ _javascript_library_forward = dx_library_forward_rule(
 
 _javascript_binary_forward = dx_executable_forward_rule(
     kind = "executable",
-    provides = _DX_JS_BINARY_PROVIDES,
+    provides = DX_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _DX_JS_SOURCE_SPECS,
     what = "javascript_*",

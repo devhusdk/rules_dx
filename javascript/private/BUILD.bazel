@@ -1,0 +1,22 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":dev_hub_tests.bzl", "dev_hub_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "dev_hub.bzl",
+    "dev_hub_tests.bzl",
+])
+
+dev_hub_tests(name = "dev_hub_test")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "dev_hub.bzl",
+        "dev_hub_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

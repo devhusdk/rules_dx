@@ -324,7 +324,7 @@ fn every_audited_set_names_locks_and_one_advisory_family() {
         families,
         ["cargo", "go", "maven", "npm", "nuget", "rubygems"]
     );
-    let workspace = workspace_with(&vuln_locks("cargo"));
+    let workspace = workspace_with(vuln_locks("cargo"));
     assert_eq!(
         families_of(workspace.path()),
         vec!["cargo"],

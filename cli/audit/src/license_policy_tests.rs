@@ -216,8 +216,9 @@ fn upgrade_within_range_retains_acceptance_at_identity_match() {
         version: "1.9.0".to_owned(),
         ..finding()
     };
-    assert!(!is_obsolete(&exception(), &[upgraded.clone()]));
-    check_applies(&exception(), &[upgraded.clone()]).expect("upgrade retains acceptance");
+    assert!(!is_obsolete(&exception(), std::slice::from_ref(&upgraded)));
+    check_applies(&exception(), std::slice::from_ref(&upgraded))
+        .expect("upgrade retains acceptance");
     assert!(license_exception_covers(&exception(), &upgraded));
 }
 
@@ -227,8 +228,12 @@ fn out_of_range_versions_do_not_inherit_acceptance() {
         version: "2.0.0".to_owned(),
         ..finding()
     };
-    assert!(!is_obsolete(&exception(), &[out_of_range.clone()]));
-    check_applies(&exception(), &[out_of_range.clone()]).expect("identity still applies");
+    assert!(!is_obsolete(
+        &exception(),
+        std::slice::from_ref(&out_of_range)
+    ));
+    check_applies(&exception(), std::slice::from_ref(&out_of_range))
+        .expect("identity still applies");
     assert!(!license_exception_covers(&exception(), &out_of_range));
     let bad_scope = LicenseException {
         versions: "not a range".to_owned(),

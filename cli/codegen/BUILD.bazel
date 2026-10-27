@@ -9,10 +9,7 @@ package(default_visibility = VIS_CLI)
 dx_rust_crate(
     name = "dx_codegen",
     package_name = "cli/dx_codegen",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     dev_deps = ["serde_json"],
     extra_deps = [
         "//cli/bep:dx_bep",
@@ -21,6 +18,7 @@ dx_rust_crate(
         "//cli/roots:dx_roots",
         "//generation/codegen_shard",
     ],
+    test_srcs = ["src/lib_tests.rs"],
     deps = [
         "serde",
         "thiserror",

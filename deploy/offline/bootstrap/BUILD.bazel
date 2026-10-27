@@ -15,16 +15,14 @@ exports_files([
 dx_rust_crate(
     name = "dx_bootstrap",
     package_name = "deploy/dx_bootstrap",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
     ],
     extra_test_deps = ["//tools/testing:dx_testing"],
+    test_srcs = ["src/lib_tests.rs"],
     deps = [],
 )
 

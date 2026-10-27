@@ -122,8 +122,8 @@ mdbook_text = rule(
     implementation = _mdbook_text_impl,
     doc = "Writes one text file for the mdBook site.",
     attrs = {
-        "out": attr.output(mandatory = True),
-        "text": attr.string(mandatory = True),
+        "out": attr.output(doc = "Output file the text is written to.", mandatory = True),
+        "text": attr.string(doc = "Text content written to the output file.", mandatory = True),
     },
 )
 
@@ -165,21 +165,38 @@ mdbook_site = rule(
     doc = "Renders the documentation site with mdBook.",
     attrs = {
         "api": attr.label(doc = "The API reference to add under api/.", providers = [DocsApiInfo]),
-        "book_toml": attr.label(allow_single_file = True, mandatory = True),
+        "book_toml": attr.label(
+            doc = "The book.toml configuration file for the mdBook site.",
+            allow_single_file = True,
+            mandatory = True,
+        ),
         "mdbook": attr.label(
+            doc = "Pinned mdBook binary that renders the site.",
             allow_single_file = True,
             cfg = "exec",
             default = Label(_MDBOOK),
             executable = True,
         ),
-        "pages": attr.label_list(allow_files = True, mandatory = True),
-        "routes": attr.string_list(mandatory = True),
+        "pages": attr.label_list(
+            doc = "Chapter page files, in the same order as routes.",
+            allow_files = True,
+            mandatory = True,
+        ),
+        "routes": attr.string_list(
+            doc = "Site route for each page, in the same order as pages.",
+            mandatory = True,
+        ),
         "site_build": attr.label(
+            doc = "Tool that invokes mdBook to render the site into a tree.",
             cfg = "exec",
             default = Label(_SITE_BUILD),
             executable = True,
         ),
-        "summary": attr.label(allow_single_file = True, mandatory = True),
+        "summary": attr.label(
+            doc = "The SUMMARY.md table of contents for the book.",
+            allow_single_file = True,
+            mandatory = True,
+        ),
     },
 )
 

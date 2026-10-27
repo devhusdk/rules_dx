@@ -144,11 +144,23 @@ def _hub_repo_impl(ctx):
 _firefox_repo = repository_rule(
     implementation = _firefox_repo_impl,
     attrs = {
-        "archive_format": attr.string(mandatory = True),
-        "asset": attr.string(mandatory = True),
-        "executable": attr.string(mandatory = True),
-        "sha256": attr.string(mandatory = True),
-        "url": attr.string(mandatory = True),
+        "archive_format": attr.string(
+            doc = "Archive type used to extract the downloaded tool.",
+            mandatory = True,
+        ),
+        "asset": attr.string(
+            doc = "Release asset name, reported when the executable is missing.",
+            mandatory = True,
+        ),
+        "executable": attr.string(
+            doc = "Path inside the extracted tree to the tool executable.",
+            mandatory = True,
+        ),
+        "sha256": attr.string(
+            doc = "Expected SHA-256 of the downloaded archive.",
+            mandatory = True,
+        ),
+        "url": attr.string(doc = "Download URL of the tool archive.", mandatory = True),
     },
 )
 

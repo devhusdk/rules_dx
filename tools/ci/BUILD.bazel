@@ -224,6 +224,19 @@ python_test(
 )
 
 # keep
+python_test(
+    name = "gate_base_test",
+    size = "small",
+    srcs = ["gate_base_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = ["//.github:workflows/gate.yml"],
+    dep_group = "hello",
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
+
+)
 rust_library(
     name = "ci_workflow",
     testonly = True,
@@ -286,7 +299,9 @@ rust_test(
     srcs = ["aggregate_gates_test.rs"],
     data = [
         "//.github:workflows/cancel-stale.yml",
+        "//.github:rulesets/main.json",
         "//.github:workflows/ci.yml",
+        "//.github:workflows/gate.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",

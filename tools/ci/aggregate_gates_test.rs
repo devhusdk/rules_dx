@@ -9,6 +9,10 @@ const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 const CANCEL_WORKFLOW: &str = ".github/workflows/cancel-stale.yml";
 
+const GATE_WORKFLOW: &str = ".github/workflows/gate.yml";
+
+const RULESET: &str = ".github/rulesets/main.json";
+
 const GATE: &str = "ci";
 
 const AGGREGATE: &str = "dx-ci";
@@ -240,6 +244,7 @@ fn the_native_matrix_keeps_all_five_platforms() {
 fn every_gate_workflow_runs_on_merge_group_checks_requested() {
     for workflow in [
         CI_WORKFLOW,
+        GATE_WORKFLOW,
         "examples/consumer-ci/caller.yml",
         "examples/docs-ci/caller.yml",
     ] {
@@ -474,5 +479,48 @@ fn pages_publication_stays_on_main_push_only() {
             "publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
         ),
         "publish must be limited to pushes to main"
+    );
+}
+
+#[test]
+fn the_gate_job_can_never_be_skipped() {
+    let document = document(GATE_WORKFLOW);
+    let job = &document["jobs"]["gate"];
+    assert_eq!(job["name"], json!("gate"));
+    assert!(job.get("if").is_none(), "gate must not have an if: {job}");
+    assert!(job.get("needs").is_none(), "gate must not have needs: {job}");
+    assert_eq!(document["jobs"].as_object().map(|jobs| jobs.len()), Some(1));
+}
+
+#[test]
+fn the_gate_runs_on_every_landing_event_in_its_own_group() {
+    let on = triggers(GATE_WORKFLOW);
+    assert_eq!(on["push"]["branches"], json!(["main"]));
+    assert!(on.get("pull_request").is_some(), "{on}");
+    assert!(on.get("workflow_dispatch").is_some(), "{on}");
+    let document = document(GATE_WORKFLOW);
+    assert_eq!(
+        document["concurrency"]["group"],
+        json!("gate-${{ github.event.pull_request.number || github.ref }}")
+    );
+    assert_eq!(
+        document["concurrency"]["cancel-in-progress"],
+        json!("${{ github.event_name == 'pull_request' }}")
+    );
+}
+
+#[test]
+fn the_ruleset_requires_the_gate_job_name() {
+    let ruleset = document(RULESET);
+    let name = document(GATE_WORKFLOW)["jobs"]["gate"]["name"].clone();
+    assert_eq!(ruleset["enforcement"], json!("active"));
+    assert_eq!(ruleset["bypass_actors"], json!([]));
+    let rule = &ruleset["rules"][0];
+    assert_eq!(rule["type"], json!("required_status_checks"));
+    let parameters = &rule["parameters"];
+    assert_eq!(parameters["strict_required_status_checks_policy"], json!(false));
+    assert_eq!(
+        parameters["required_status_checks"],
+        json!([{"context": name, "integration_id": 15368}])
     );
 }

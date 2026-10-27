@@ -18,7 +18,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 pub use managed::{
-    classify, materialize_file, materialize_file_with, remove_managed, replace_pointer, EntryKind,
+    classify, create_pointer, materialize_file, materialize_file_with, remove_managed, EntryKind,
     LinkPolicy, Mechanism, PointerKind,
 };
 

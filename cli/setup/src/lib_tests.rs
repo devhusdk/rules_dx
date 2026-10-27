@@ -11,9 +11,10 @@ fn malformed_records_and_foreign_parent_files_fail_closed() {
         ensure_setup_record(&setups, &setup),
         Err(CommitError::RecordMismatch { .. })
     ));
-    symlink_dir(
+    create_pointer(
         Path::new(&expected_environment_target(&setup)),
         &record.join(ENVIRONMENT_LINK_NAME),
+        PointerKind::Directory,
     )
     .expect("environment link");
     assert!(matches!(
@@ -30,10 +31,23 @@ fn malformed_records_and_foreign_parent_files_fail_closed() {
         install_and_swap(&file, None, &setup),
         Err(CommitError::Install { .. })
     ));
-    assert!(matches!(
-        clear_staged_pointer(&file.join("child")),
-        Err(CommitError::Install { .. })
-    ));
+    assert_eq!(
+        map_commit_error(StageError::Foreign {
+            path: file.clone(),
+            reason: "foreign reason".into(),
+        }),
+        CommitError::Install {
+            reason: "foreign reason".into()
+        }
+    );
+    assert_eq!(
+        map_commit_error(StageError::Install {
+            reason: "install reason".into(),
+        }),
+        CommitError::Install {
+            reason: "install reason".into()
+        }
+    );
     assert!(matches!(
         map_lock_error(LockError::Busy { path: file.clone() }),
         CommitError::Busy { .. }
@@ -269,6 +283,12 @@ fn setup_hex_is_deterministic_lowercase_64() {
 }
 
 #[test]
+fn generation_dir_names_keep_the_on_disk_layout() {
+    assert_eq!(ENVIRONMENTS_DIR_NAME, "environments");
+    assert_eq!(GENERATED_DIR_NAME, "generated");
+}
+
+#[test]
 fn fresh_install_noop_and_replacement() {
     let scratch = {
         let __scratch = dx_test_scratch::scratch("dx-setup-test-lifecycle-");
@@ -399,14 +419,16 @@ fn record_mismatch_preserves_current() {
     let setups = workspace.join(".dx").join("setups");
     let record = setups.join(setup_hex(&spoofed));
     fs::create_dir_all(&record).expect("spoof record");
-    symlink_dir(
+    create_pointer(
         Path::new("../../environments/wrong"),
         &record.join("environment"),
+        PointerKind::Directory,
     )
     .expect("wrong link");
-    symlink_dir(
+    create_pointer(
         Path::new(&expected_generated_target(&spoofed)),
         &record.join("generated"),
+        PointerKind::Directory,
     )
     .expect("right link");
     let error = commit_pair(&workspace, &spoofed).unwrap_err();
@@ -454,13 +476,14 @@ fn unmanaged_current_states_fail_closed() {
     ));
     fs::remove_dir(&current).expect("remove dir pointer");
 
-    symlink_dir(Path::new("missing-setup"), &current).expect("dangling pointer");
+    create_pointer(Path::new("missing-setup"), &current, PointerKind::Directory)
+        .expect("dangling pointer");
     assert!(matches!(
         read_current_pair(&workspace),
         Err(CommitError::CurrentInvalid { .. })
     ));
     dx_test_scratch::remove_directory_link(&current).expect("remove dangling");
-    symlink_dir(Path::new(&pointed), &current).expect("restore pointer");
+    create_pointer(Path::new(&pointed), &current, PointerKind::Directory).expect("restore pointer");
     assert_eq!(
         read_current_pair(&workspace).expect("read"),
         Some(pair('1', '2'))
@@ -485,18 +508,20 @@ fn digest_spoofed_pointer_fails_closed() {
     let current = setups.join("current");
     let other = setup_hex(&pair('3', '4'));
     fs::create_dir_all(setups.join(&other)).expect("other record");
-    symlink_dir(
+    create_pointer(
         Path::new(&expected_environment_target(&pair('1', '2'))),
         &setups.join(&other).join("environment"),
+        PointerKind::Directory,
     )
     .expect("env link");
-    symlink_dir(
+    create_pointer(
         Path::new(&expected_generated_target(&pair('1', '2'))),
         &setups.join(&other).join("generated"),
+        PointerKind::Directory,
     )
     .expect("gen link");
     dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
-    symlink_dir(Path::new(&other), &current).expect("spoofed pointer");
+    create_pointer(Path::new(&other), &current, PointerKind::Directory).expect("spoofed pointer");
     assert!(matches!(
         read_current_pair(&workspace),
         Err(CommitError::CurrentInvalid { .. })
@@ -515,59 +540,18 @@ fn stale_staged_pointer_is_reclaimed() {
     let workspace = workspace_of(&root);
     let setups = workspace.join(".dx").join("setups");
     fs::create_dir_all(&setups).expect("setups");
-    symlink_dir(Path::new("stale-target"), &setups.join("current.next")).expect("stale");
+    create_pointer(
+        Path::new("stale-target"),
+        &setups.join("current.next"),
+        PointerKind::Directory,
+    )
+    .expect("stale");
     assert_eq!(
         commit_ok(&workspace, &pair('1', '2')),
         CommitOutcome::InstalledFresh
     );
     assert!(!setups.join("current.next").exists());
     let _ = fs::remove_dir_all(&root);
-}
-
-#[cfg(windows)]
-fn symlink_file(target: &Path, link: &Path) -> io::Result<()> {
-    std::os::windows::fs::symlink_file(target, link)
-}
-
-#[cfg(not(windows))]
-fn symlink_file(target: &Path, link: &Path) -> io::Result<()> {
-    std::os::unix::fs::symlink(target, link)
-}
-
-#[test]
-fn staged_pointer_clear_matches_the_entry_kind() {
-    let scratch = dx_test_scratch::scratch("dx-setup-test-stage-kinds-");
-    let stage = scratch.path().join("current.next");
-    assert!(
-        clear_staged_pointer(&stage).is_ok(),
-        "a missing staged pointer needs no clearing"
-    );
-
-    symlink_dir(Path::new("missing-setup"), &stage).expect("dangling directory link");
-    clear_staged_pointer(&stage).expect("clear dangling directory link");
-    assert!(stage.symlink_metadata().is_err(), "directory link removed");
-
-    let file = scratch.path().join("foreign.txt");
-    fs::write(&file, "foreign").expect("foreign file");
-    symlink_file(&file, &stage).expect("file link");
-    clear_staged_pointer(&stage).expect("clear file link");
-    assert!(stage.symlink_metadata().is_err(), "file link removed");
-    assert!(file.is_file(), "the linked file survives");
-
-    fs::write(&stage, "foreign").expect("foreign staged file");
-    clear_staged_pointer(&stage).expect("clear foreign staged file");
-    assert!(stage.symlink_metadata().is_err(), "file removed");
-
-    fs::create_dir(&stage).expect("foreign staged dir");
-    assert!(
-        matches!(
-            clear_staged_pointer(&stage),
-            Err(CommitError::Install { .. })
-        ),
-        "a staged directory stays refused"
-    );
-    assert!(stage.is_dir(), "the refused directory survives");
-    let _ = fs::remove_dir_all(scratch.path());
 }
 
 #[test]
@@ -690,10 +674,15 @@ fn staged_directory_preserves_current() {
     );
     let setups = workspace.join(".dx").join("setups");
     fs::create_dir_all(setups.join("current.next")).expect("foreign staged dir");
-    assert!(matches!(
-        commit_pair(&workspace, &pair('3', '4')),
-        Err(CommitError::Install { .. })
-    ));
+    assert_eq!(
+        commit_pair(&workspace, &pair('3', '4'))
+            .unwrap_err()
+            .to_string(),
+        format!(
+            "install failed: stale {} is a directory; refusing to adopt foreign state",
+            setups.join("current.next").display()
+        )
+    );
     assert_eq!(
         read_current_pair(&workspace).expect("read"),
         Some(pair('1', '2'))

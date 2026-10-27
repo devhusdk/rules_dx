@@ -2,7 +2,7 @@ use super::*;
 use crate::apply::apply_plan;
 use crate::fixtures::*;
 use crate::inventory::collect_inventory;
-use crate::records::GenerationKind;
+use dx_atomic_fs::lease::GenerationUse;
 use dx_setup::{setup_hex, GenerationId};
 use std::time::Instant;
 
@@ -19,8 +19,8 @@ fn workspace(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf) {
 fn materialize(workspace: &Path, pair: &SetupPair) {
     let dx_dir = workspace.join(DX_DIR_NAME);
     for (kind, hex) in [
-        (GenerationKind::Environment, pair.environment.as_str()),
-        (GenerationKind::Generated, pair.generated.as_str()),
+        (GenerationUse::Environment, pair.environment.as_str()),
+        (GenerationUse::Generated, pair.generated.as_str()),
     ] {
         let dir = dx_dir.join(kind.dir_name()).join(hex);
         fs::create_dir_all(&dir).expect("create generation dir");
@@ -33,7 +33,7 @@ fn select(workspace: &Path, pair: &SetupPair) {
     dx_setup::commit_pair(workspace, pair).expect("commit");
 }
 
-fn generation_dir(workspace: &Path, kind: GenerationKind, hex: &str) -> PathBuf {
+fn generation_dir(workspace: &Path, kind: GenerationUse, hex: &str) -> PathBuf {
     workspace.join(DX_DIR_NAME).join(kind.dir_name()).join(hex)
 }
 
@@ -151,8 +151,8 @@ fn hold_current_refuses_missing_or_foreign_generation_dir() {
     let (_scratch, workspace) = workspace("dx-clean-hold-foreign-");
     let pair = setup_pair('1', '2');
     dx_setup::commit_pair(&workspace, &pair).expect("commit");
-    let env_dir = generation_dir(&workspace, GenerationKind::Environment, &digest('1'));
-    let gen_dir = generation_dir(&workspace, GenerationKind::Generated, &digest('2'));
+    let env_dir = generation_dir(&workspace, GenerationUse::Environment, &digest('1'));
+    let gen_dir = generation_dir(&workspace, GenerationUse::Generated, &digest('2'));
     let refused = |what: &str| match hold_current(&workspace, WAIT) {
         Err(HoldError::Generation { .. }) => {}
         other => panic!("{what}: want a refused generation, got {other:?}"),
@@ -211,7 +211,7 @@ fn apply_preserves_held_generation_after_selection_change() {
         .expect("a selection");
     select(&workspace, &setup_pair('3', '4'));
     let outcome = prune(&workspace);
-    let mut skipped: Vec<(GenerationKind, String)> = outcome
+    let mut skipped: Vec<(GenerationUse, String)> = outcome
         .skipped_leased_generations
         .iter()
         .map(|view| (view.kind, view.hex.clone()))
@@ -220,11 +220,11 @@ fn apply_preserves_held_generation_after_selection_change() {
     assert_eq!(
         skipped,
         vec![
-            (GenerationKind::Environment, digest('1')),
-            (GenerationKind::Generated, digest('2')),
+            (GenerationUse::Environment, digest('1')),
+            (GenerationUse::Generated, digest('2')),
         ]
     );
-    let old_env = generation_dir(&workspace, GenerationKind::Environment, &digest('1'));
+    let old_env = generation_dir(&workspace, GenerationUse::Environment, &digest('1'));
     assert_eq!(
         fs::read_to_string(old_env.join(SENTINEL)).expect("held bytes stay readable"),
         digest('1')
@@ -258,11 +258,8 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
                     .expect("hold")
                     .expect("a selection");
                 for (kind, hex) in [
-                    (
-                        GenerationKind::Environment,
-                        held.pair().environment.as_str(),
-                    ),
-                    (GenerationKind::Generated, held.pair().generated.as_str()),
+                    (GenerationUse::Environment, held.pair().environment.as_str()),
+                    (GenerationUse::Generated, held.pair().generated.as_str()),
                 ] {
                     let sentinel = generation_dir(&workspace, kind, hex).join(SENTINEL);
                     std::thread::sleep(Duration::from_millis(2));
@@ -286,8 +283,8 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
     assert!(outcome.skipped_leased_generations.is_empty(), "{outcome:?}");
     let last = iteration_pair(ROUNDS);
     for (kind, keep) in [
-        (GenerationKind::Environment, last.environment.as_str()),
-        (GenerationKind::Generated, last.generated.as_str()),
+        (GenerationUse::Environment, last.environment.as_str()),
+        (GenerationUse::Generated, last.generated.as_str()),
     ] {
         let names: Vec<String> = fs::read_dir(workspace.join(DX_DIR_NAME).join(kind.dir_name()))
             .expect("list generations")
@@ -350,7 +347,7 @@ fn a_streamed_child_keeps_its_selection_through_cleanup() {
     select(&workspace, &setup_pair('3', '4'));
     let outcome = prune(&workspace);
     assert_eq!(outcome.skipped_leased_generations.len(), 2, "{outcome:?}");
-    let old_gen = generation_dir(&workspace, GenerationKind::Generated, &digest('2'));
+    let old_gen = generation_dir(&workspace, GenerationUse::Generated, &digest('2'));
     assert!(
         old_gen.join(SENTINEL).is_file(),
         "the child's generation survives"

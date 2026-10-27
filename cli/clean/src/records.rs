@@ -1,19 +1,4 @@
-use dx_setup::{setup_hex, GenerationId, SetupPair, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum GenerationKind {
-    Environment,
-    Generated,
-}
-
-impl GenerationKind {
-    pub fn dir_name(&self) -> &'static str {
-        match self {
-            GenerationKind::Environment => ENVIRONMENTS_DIR_NAME,
-            GenerationKind::Generated => GENERATED_DIR_NAME,
-        }
-    }
-}
+use dx_setup::{setup_hex, GenerationId, SetupPair};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetupRecordView {

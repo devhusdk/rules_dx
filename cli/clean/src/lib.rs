@@ -30,7 +30,7 @@ pub use live::{
     LiveHexes, LiveObservation,
 };
 pub use planning::{plan_prune, CleanPlan, GenerationView, PruneInputs, UnobservedPolicy};
-pub use records::{validate_record, GenerationKind, RecordProblem, SetupRecordView};
+pub use records::{validate_record, RecordProblem, SetupRecordView};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CleanError {

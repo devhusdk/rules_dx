@@ -9,8 +9,9 @@ use dx_setup::{
 };
 
 use super::planning::{plan_prune, CleanPlan, GenerationView, PruneInputs, UnobservedPolicy};
-use super::records::{validate_record, GenerationKind, SetupRecordView};
+use super::records::{validate_record, SetupRecordView};
 use super::CleanError;
+use dx_atomic_fs::lease::GenerationUse;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct CollectedInventory {
@@ -200,7 +201,7 @@ pub fn collect_inventory(
         }
     }
 
-    for kind in [GenerationKind::Environment, GenerationKind::Generated] {
+    for kind in [GenerationUse::Environment, GenerationUse::Generated] {
         let dir = dx_dir.join(kind.dir_name());
         for name in entry_names(&dir)? {
             if GenerationId::new(&name).is_ok() {

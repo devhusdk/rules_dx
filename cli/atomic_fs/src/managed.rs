@@ -127,24 +127,6 @@ pub fn remove_managed(path: &Path) -> io::Result<()> {
     }
 }
 
-/// Replaces the managed pointer at `pointer` with one naming `target`.
-pub fn replace_pointer(pointer: &Path, target: &Path, kind: PointerKind) -> io::Result<()> {
-    match classify(pointer)? {
-        EntryKind::Missing => {}
-        EntryKind::Link => unlink_entry(pointer)?,
-        EntryKind::File | EntryKind::Directory => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!(
-                    "{} is not a managed pointer; refusing to adopt foreign state",
-                    pointer.display()
-                ),
-            ));
-        }
-    }
-    create_pointer(target, pointer, kind)
-}
-
 fn copy_file(source: &Path, destination: &Path) -> io::Result<Mechanism> {
     let input = std::fs::File::open(source)?;
     let parent = destination
@@ -170,7 +152,8 @@ fn link_file(target: &Path, link: &Path) -> io::Result<()> {
     }
 }
 
-pub(crate) fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::Result<()> {
+/// Creates a new link at `pointer` naming `target`; never overwrites an existing entry.
+pub fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::Result<()> {
     #[cfg(windows)]
     {
         match kind {
@@ -206,7 +189,6 @@ fn unlink_entry(path: &Path) -> io::Result<()> {
 mod tests {
     use super::*;
     use dx_test_scratch::scratch;
-    use std::path::PathBuf;
 
     fn refuses_link(_target: &Path, _pointer: &Path) -> io::Result<()> {
         Err(io::Error::new(
@@ -669,59 +651,6 @@ mod tests {
     }
 
     #[test]
-    fn replaces_a_pointer_and_refuses_foreign_state() {
-        let scratch = scratch("dx-fs-pointer-");
-        let first = scratch.path().join("first");
-        let second = scratch.path().join("second");
-        std::fs::create_dir(&first).expect("first dir");
-        std::fs::create_dir(&second).expect("second dir");
-        let pointer = scratch.path().join("current");
-        replace_pointer(&pointer, &first, PointerKind::Directory).expect("create pointer");
-        assert_eq!(classify(&pointer).expect("pointer"), EntryKind::Link);
-        assert_eq!(std::fs::read_link(&pointer).expect("identity"), first);
-        replace_pointer(&pointer, &second, PointerKind::Directory).expect("replace pointer");
-        assert_eq!(
-            std::fs::read_link(&pointer).expect("new identity"),
-            second,
-            "the pointer names the new generation"
-        );
-        assert!(first.is_dir(), "the previous generation survives");
-        let foreign = scratch.path().join("foreign");
-        std::fs::write(&foreign, b"foreign\n").expect("foreign file");
-        let err = replace_pointer(&foreign, &second, PointerKind::Directory)
-            .expect_err("foreign state is not adopted");
-        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
-        assert_eq!(
-            std::fs::read(&foreign).expect("foreign intact"),
-            b"foreign\n"
-        );
-        let tree = scratch.path().join("tree");
-        std::fs::create_dir(&tree).expect("tree");
-        let err = replace_pointer(&tree, &second, PointerKind::Directory)
-            .expect_err("a tree is never adopted");
-        assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
-        assert!(tree.is_dir(), "the tree survives");
-        scratch.close().expect("cleanup");
-    }
-
-    #[test]
-    fn replaces_file_pointers_when_the_host_allows_links() {
-        let scratch = scratch("dx-fs-file-pointer-");
-        let tool = scratch.path().join("tool");
-        std::fs::write(&tool, b"tool\n").expect("tool");
-        let pointer: PathBuf = scratch.path().join("tool.exe");
-        if skip_without_link_privileges(file_pointer(&tool, &pointer)) {
-            scratch.close().expect("cleanup");
-            return;
-        }
-        assert_eq!(classify(&pointer).expect("pointer"), EntryKind::Link);
-        replace_pointer(&pointer, &tool, PointerKind::File).expect("replace pointer");
-        assert_eq!(std::fs::read_link(&pointer).expect("identity"), tool);
-        assert_eq!(classify(&pointer).expect("still a link"), EntryKind::Link);
-        scratch.close().expect("cleanup");
-    }
-
-    #[test]
     fn replaces_directory_pointers_when_the_host_allows_links() {
         let scratch = scratch("dx-fs-dir-pointer-");
         let first = scratch.path().join("first");
@@ -734,6 +663,29 @@ mod tests {
         assert_eq!(classify(&pointer).expect("pointer"), EntryKind::Link);
         remove_managed(&pointer).expect("remove pointer");
         assert!(first.is_dir(), "the directory target survives removal");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn create_pointer_refuses_an_existing_entry() {
+        let scratch = scratch("dx-fs-create-pointer-");
+        let target = scratch.path().join("target");
+        std::fs::create_dir(&target).expect("target dir");
+        let other = scratch.path().join("other");
+        std::fs::create_dir(&other).expect("other dir");
+        let link = scratch.path().join("link");
+        if skip_without_link_privileges(directory_pointer(&target, &link)) {
+            scratch.close().expect("cleanup");
+            return;
+        }
+        let file = scratch.path().join("file");
+        std::fs::write(&file, b"file\n").expect("file");
+        create_pointer(&other, &file, PointerKind::Directory)
+            .expect_err("an existing file is not overwritten");
+        assert_eq!(std::fs::read(&file).expect("file intact"), b"file\n");
+        create_pointer(&other, &link, PointerKind::Directory)
+            .expect_err("an existing link is not overwritten");
+        assert_eq!(std::fs::read_link(&link).expect("link intact"), target);
         scratch.close().expect("cleanup");
     }
 }

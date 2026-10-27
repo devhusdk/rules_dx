@@ -8,7 +8,6 @@ use dx_setup::{GenerationId, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, SETUPS_D
 
 use super::inventory::{collect_inventory, CollectedInventory};
 use super::planning::{GenerationView, UnobservedPolicy};
-use super::records::GenerationKind;
 use super::CleanError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -46,7 +45,7 @@ fn classify_managed_path(
         (
             None,
             Some(GenerationView {
-                kind: GenerationKind::Environment,
+                kind: GenerationUse::Environment,
                 hex: name.to_owned(),
             }),
         )
@@ -54,7 +53,7 @@ fn classify_managed_path(
         (
             None,
             Some(GenerationView {
-                kind: GenerationKind::Generated,
+                kind: GenerationUse::Generated,
                 hex: name.to_owned(),
             }),
         )
@@ -168,13 +167,6 @@ pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation
     }
 }
 
-fn lease_use(kind: GenerationKind) -> GenerationUse {
-    match kind {
-        GenerationKind::Environment => GenerationUse::Environment,
-        GenerationKind::Generated => GenerationUse::Generated,
-    }
-}
-
 fn leased_generation_hexes(
     workspace_root: &Path,
     generations: &[GenerationView],
@@ -182,13 +174,15 @@ fn leased_generation_hexes(
     let dx_dir = workspace_root.join(DX_DIR_NAME);
     let mut leased = Vec::new();
     for generation in generations {
-        let held = lease::shared_held(&dx_dir, lease_use(generation.kind), &generation.hex)
-            .map_err(|error| CleanError::Install {
-                reason: format!(
-                    "cannot probe the lease for .dx/{}/{}: {error}",
-                    generation.kind.dir_name(),
-                    generation.hex
-                ),
+        let held =
+            lease::shared_held(&dx_dir, generation.kind, &generation.hex).map_err(|error| {
+                CleanError::Install {
+                    reason: format!(
+                        "cannot probe the lease for .dx/{}/{}: {error}",
+                        generation.kind.dir_name(),
+                        generation.hex
+                    ),
+                }
             })?;
         if held {
             leased.push(generation.hex.clone());
@@ -347,11 +341,11 @@ mod tests {
             live.generations,
             vec![
                 GenerationView {
-                    kind: GenerationKind::Environment,
+                    kind: GenerationUse::Environment,
                     hex: env_hex,
                 },
                 GenerationView {
-                    kind: GenerationKind::Generated,
+                    kind: GenerationUse::Generated,
                     hex: gen_hex,
                 },
             ]
@@ -397,7 +391,7 @@ mod tests {
         assert_eq!(
             live.generations,
             vec![GenerationView {
-                kind: GenerationKind::Environment,
+                kind: GenerationUse::Environment,
                 hex: env_hex,
             }]
         );
@@ -439,11 +433,11 @@ mod tests {
             live.generations,
             vec![
                 GenerationView {
-                    kind: GenerationKind::Generated,
+                    kind: GenerationUse::Generated,
                     hex: low,
                 },
                 GenerationView {
-                    kind: GenerationKind::Generated,
+                    kind: GenerationUse::Generated,
                     hex: high,
                 },
             ]
@@ -662,26 +656,5 @@ mod tests {
             "releasing the lease makes the generation prunable again"
         );
         let _ = fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn lease_families_match_setup_generation_directories() {
-        use dx_atomic_fs::lease::GenerationUse;
-        assert_eq!(
-            GenerationUse::Environment.dir_name(),
-            dx_setup::ENVIRONMENTS_DIR_NAME
-        );
-        assert_eq!(
-            GenerationUse::Generated.dir_name(),
-            dx_setup::GENERATED_DIR_NAME
-        );
-        assert_eq!(
-            GenerationKind::Environment.dir_name(),
-            GenerationUse::Environment.dir_name()
-        );
-        assert_eq!(
-            GenerationKind::Generated.dir_name(),
-            GenerationUse::Generated.dir_name()
-        );
     }
 }

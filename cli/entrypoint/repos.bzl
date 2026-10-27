@@ -302,8 +302,8 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
 fi
 grep -q "failed to assess frontend" "$(location security_json.txt)"
 grep -q ".dx/advisory/pypi.json" "$(location security_json.txt)"
-if grep -q "no advisory coverage" "$(location security_json.txt)"; then
-  echo "security reported configured uv sets as uncovered" >&2
+if grep -Eq 'no advisory coverage for [^"]*(frontend|gems|web|worker)' "$(location security_json.txt)"; then
+  echo "security reported configured uv, npm, or ruby sets as uncovered" >&2
   exit 1
 fi
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" web > "$(location security_npm_json.txt)" 2>/dev/null; then

@@ -195,10 +195,15 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
             && security.contains(".dx/advisory/pypi.json"),
         "audit checks configured uv sets against the PyPI snapshot: {security}"
     );
-    assert!(
-        !security.contains("no advisory coverage"),
-        "configured uv sets have advisory coverage: {security}"
-    );
+    for covered in ["frontend", "gems", "web", "worker"] {
+        assert!(
+            !security
+                .split("no advisory coverage for ")
+                .skip(1)
+                .any(|tail| tail.split('"').next().unwrap_or_default().contains(covered)),
+            "configured {covered} has advisory coverage: {security}"
+        );
+    }
     let license = read("DX_SETS_LICENSE");
     assert!(
         license.contains("audit_license_clean"),

@@ -14,6 +14,8 @@ pub enum AdoptError {
     EmptyVersion,
     #[error("launcher version is not semver: {version:?}")]
     LauncherVersion { version: String },
+    #[error("launcher sha256 pins: {detail}")]
+    LauncherPins { detail: String },
     #[error("create .dx: {detail}")]
     CreateDxDir { detail: String },
     #[error("write version pin: {detail}")]

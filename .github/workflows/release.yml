@@ -157,10 +157,17 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          files=""
+          : > sums.tmp
           for asset in dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64; do
             test -s "out/$asset"
             test -s "out/$asset.sha256"
+            cat "out/$asset.sha256" >> sums.tmp
+            files="$files $asset $asset.sha256"
           done
+          LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 5
+          (cd out && sha256sum -c dx-sha256sums.txt)
           version="${RELEASE_TAG#v}"
           src="rules_dx-$version.tar.gz"
           test -s "out/$src"
@@ -170,13 +177,13 @@ jobs:
             echo "No release for $RELEASE_TAG. Run //cli/cli:github_draft, then re-run this workflow with the tag." >&2
             exit 1
           fi
-          gh release upload "$RELEASE_TAG" out/dx-* --clobber
+          existing_names="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
           mkdir -p existing
-          for file in "$src" "$src.sha256" source.json; do
-            if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$file"; then
-              gh release download "$RELEASE_TAG" --pattern "$file" --dir existing --clobber
+          for file in $files dx-sha256sums.txt "$src" "$src.sha256" source.json; do
+            if printf '%s\n' "$existing_names" | grep -Fxq "$file"; then
+              gh release download "$RELEASE_TAG" --pattern "$file" --dir existing
               if ! cmp -s "existing/$file" "out/$file"; then
-                echo "Release $RELEASE_TAG already holds a different $file; refusing to replace it." >&2
+                echo "Release $RELEASE_TAG already holds a different $file; refusing to replace it. Delete the draft's assets by hand to start over." >&2
                 exit 1
               fi
             else
@@ -184,5 +191,5 @@ jobs:
             fi
           done
           mkdir -p verify
-          gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --dir verify
-          (cd verify && sha256sum -c "$src.sha256")
+          gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --pattern 'dx-*' --dir verify
+          (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt)

@@ -88,10 +88,14 @@ fn the_launchers_download_the_names_the_workflow_uploads() {
         launcher.contains("releases/download/v%VERSION%/dx-windows-%ARCH%\""),
         "{LAUNCHER} cmd URL scheme changed"
     );
-    assert!(
-        launcher.contains("linux-x86_64 | linux-arm64 | macos-arm64"),
-        "{LAUNCHER} supported unix platforms changed"
-    );
+    for asset in ASSETS {
+        let platform = asset.trim_start_matches("dx-");
+        let var = format!("SHA256_{}", platform.replace('-', "_").to_uppercase());
+        assert!(
+            launcher.contains(&format!("  {platform}) want=${var} ;;")),
+            "{LAUNCHER} shell launcher does not pick the {asset} pin"
+        );
+    }
     assert!(launcher.contains("os=linux") && launcher.contains("os=macos"));
     assert!(launcher.contains("arch=x86_64") && launcher.contains("arch=arm64"));
     assert!(launcher.contains("set \"ARCH=x86_64\"") && launcher.contains("set \"ARCH=arm64\""));
@@ -104,9 +108,71 @@ fn the_sidecar_is_hash_two_spaces_name_beside_the_asset() {
         text.contains("printf '%s  %s\\n' \"$hash\" \"$ASSET\" > \"out/$ASSET.sha256\""),
         "{WORKFLOW} sidecar is not '<hash>  <name>' in <asset>.sha256"
     );
-    let launcher = read_runfiles(LAUNCHER);
-    assert!(launcher.contains("fetch \"$url.sha256\""));
-    assert!(launcher.contains("IFS=' ' read -r want _"));
+    let source = read_runfiles(LAUNCHER);
+    let launcher = source
+        .split("#[cfg(test)]")
+        .next()
+        .expect("launcher templates");
+    assert!(
+        !launcher.contains(".sha256\""),
+        "launcher fetches a sidecar"
+    );
+    assert!(
+        !launcher.contains("'.sha256'"),
+        "cmd launcher fetches a sidecar"
+    );
+    for asset in expected() {
+        let var = format!(
+            "SHA256_{}",
+            asset
+                .trim_start_matches("dx-")
+                .replace('-', "_")
+                .to_uppercase()
+        );
+        assert!(
+            launcher.contains(&format!("{var}=\"@{var}@\"")),
+            "{LAUNCHER} has no pin for {asset}"
+        );
+    }
+}
+
+#[test]
+fn the_upload_never_overwrites() {
+    let text = workflow();
+    let upload = &text[text.find("\n  upload:\n").expect("upload job")..];
+    assert!(!upload.contains("--clobber"), "{WORKFLOW} upload clobbers");
+    let uploads: Vec<&str> = upload
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with("gh release upload"))
+        .collect();
+    assert_eq!(
+        uploads,
+        ["gh release upload \"$RELEASE_TAG\" \"out/$file\""]
+    );
+    let guard = upload
+        .find("if ! cmp -s \"existing/$file\" \"out/$file\"; then")
+        .expect("cmp guard");
+    let put = upload.find("gh release upload").expect("upload");
+    assert!(guard < put);
+    assert!(upload
+        .contains("for file in $files dx-sha256sums.txt \"$src\" \"$src.sha256\" source.json; do"));
+    assert!(upload.contains("files=\"$files $asset $asset.sha256\""));
+}
+
+#[test]
+fn the_checksum_manifest_is_built_checked_and_uploaded() {
+    let text = workflow();
+    for needle in [
+        "cat \"out/$asset.sha256\" >> sums.tmp",
+        "LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt",
+        "test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 5",
+        "(cd out && sha256sum -c dx-sha256sums.txt)",
+        "--pattern 'dx-*' --dir verify",
+        "sha256sum -c dx-sha256sums.txt)",
+    ] {
+        assert!(text.contains(needle), "{WORKFLOW} lacks {needle:?}");
+    }
 }
 
 #[test]

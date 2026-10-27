@@ -97,6 +97,7 @@ const FIX_SPECS: &[FixSpec] = &[
         tool: "remark",
         config: FixConfig::Optional,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "eslint",

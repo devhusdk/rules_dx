@@ -57,7 +57,7 @@ func newLang() *goLang {
 		DefsPackage:    "go/rules:defs.bzl",
 		IsStdLib:       IsStdLib,
 		External:       "go",
-		UnresolvedHint: "add a go_library with that importpath or an exact # gazelle:resolve mapping",
+		UnresolvedHint: "add a go_library with that importpath, require its module directly in go.mod, or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})}
 }

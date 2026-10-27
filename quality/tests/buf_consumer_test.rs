@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const ITEM_DIRTY: &str = "syntax = \"proto3\";\npackage item.v1;\nmessage Item {string name=1;}\n";

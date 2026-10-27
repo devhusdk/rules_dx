@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use dx_nested::{self as nested, Case, FakeBazel};
 use dx_testing::latency::{record, Class, Stats};
-use dx_testing::nested::{self, Case, FakeBazel};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 struct Cell {

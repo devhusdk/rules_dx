@@ -1,4 +1,5 @@
-use dx_testing::{nested, read_runfiles, rlocation};
+use dx_nested as nested;
+use dx_testing::{read_runfiles, rlocation};
 
 #[test]
 fn nested_bazel_runs_the_pinned_binary_without_bazelisk() {

@@ -147,7 +147,10 @@ rust_test(
     # Fetches the Qt SDK.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -166,6 +169,7 @@ rust_library(
     srcs = ["qt_board_support.rs"],
     crate_name = "qt_board_support",
     deps = [
+        "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
         "//tools/testing/hermetic",
     ],
@@ -327,6 +331,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         ":qt_board_support",
+        "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
     ],
 )

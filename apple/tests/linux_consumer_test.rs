@@ -1,7 +1,7 @@
 mod consumer;
 
 use consumer::{consumer, fails_with, write};
-use dx_testing::nested::Case;
+use dx_nested::Case;
 use dx_testing::{resolve_runfiles, Run};
 
 const SECRET: &str = "tok-7f3a9c41e2";

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case, FakeBazel, Reply};
+use dx_nested::{self as nested, Case, FakeBazel, Reply};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const MODULE: &str = "module(name = \"fixture\", repo_name = \"rules_dx\")\n";

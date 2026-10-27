@@ -27,7 +27,6 @@ rust_library(
         "src/fatbin.rs",
         "src/latency.rs",
         "src/lib.rs",
-        "src/nested.rs",
     ],
     aliases = aliases(
         package_name = "tools/dx_testing",
@@ -68,6 +67,28 @@ rust_test(
         package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
+    ),
+)
+
+rust_library(
+    name = "dx_nested",
+    srcs = ["src/nested.rs"],
+    crate_name = "dx_nested",
+    crate_root = "src/nested.rs",
+    edition = "2021",
+    deps = [
+        ":dx_testing",
+        "//cli/path:dx_path",
+    ],
+)
+
+rust_test(
+    name = "dx_nested_test",
+    size = "small",
+    crate = ":dx_nested",
+    deps = crate_deps(
+        ["tempfile"],
+        package_name = "tools/dx_testing",
     ),
 )
 
@@ -118,7 +139,7 @@ rust_binary(
     srcs = ["nested_bazel_probe.rs"],
     edition = "2021",
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [":dx_testing"],
+    deps = [":dx_nested"],
 )
 
 # keep
@@ -155,7 +176,10 @@ rust_test(
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [":dx_testing"],
+    deps = [
+        ":dx_nested",
+        ":dx_testing",
+    ],
 )
 
 # keep
@@ -167,13 +191,17 @@ rust_test(
     env = NESTED_BAZEL_ENV | {"PATH": "/usr/bin:/bin"},
     tags = NESTED_BAZEL_TAGS,
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [":dx_testing"],
+    deps = [
+        ":dx_nested",
+        ":dx_testing",
+    ],
 )
 
 rustfmt_test(
     name = "dx_testing_fmt_test",
     size = "small",
     targets = [
+        ":dx_nested",
         ":dx_testing",
         ":module_srcs_test",
         ":nested_bazel_leak_test",
@@ -189,6 +217,7 @@ rust_clippy_test(
     name = "dx_testing_clippy_test",
     size = "small",
     targets = [
+        ":dx_nested",
         ":dx_testing",
         ":module_srcs_test",
         ":nested_bazel_leak_test",

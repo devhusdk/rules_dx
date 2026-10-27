@@ -1,4 +1,4 @@
-use dx_testing::nested;
+use dx_nested as nested;
 
 fn server_pid(case: &nested::Case, version: &str) -> String {
     std::fs::write(case.join(".bazelversion"), version)

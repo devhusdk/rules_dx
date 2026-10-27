@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{rules_dx_source, Run};
 
 pub const APPLE_SUPPORT: &str = "2.9.1";

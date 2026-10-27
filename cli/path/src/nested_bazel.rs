@@ -11,6 +11,10 @@ pub const LOCK: &str = "lock";
 pub const USER_ROOT: &str = "u";
 /// The slot's directory of test case workspaces.
 pub const WORKSPACES: &str = "w";
+/// The environment variable that sets how many nested Bazel servers tests run at once.
+pub const SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
+/// Nested Bazel servers tests run at once by default.
+pub const DEFAULT_SLOTS: u16 = 3;
 
 /// The nested-Bazel root: `env` when set and non-empty, else `/tmp/dxnb-<uid>`, else `dxnb` in the temp dir.
 pub fn root(env: Option<&OsStr>, uid: Option<u32>) -> PathBuf {

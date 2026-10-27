@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::Command;
 
 use consumer::{consumer, fails_with, read, write};
-use dx_testing::nested::Case;
+use dx_nested::Case;
 use dx_testing::{mkscratch, resolve_runfiles, run, Run};
 use macos::{
     bazel, installed_xcode, keep, outputs, passed, passes, runtime_for, tool, wait_for, Simulator,

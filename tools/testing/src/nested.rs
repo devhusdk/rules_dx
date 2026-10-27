@@ -1,3 +1,14 @@
+//! Runs nested Bazel servers for tests: slot leasing, hermetic environments and the fake Bazel.
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
 use std::fs::File;
@@ -9,12 +20,12 @@ use std::time::{Duration, Instant};
 
 use dx_path::nested_bazel;
 
-use crate::Run;
+use dx_testing::Run;
 
 pub const MAX_IDLE_SECS: u32 = 5;
 pub const DEFAULT_HEAP: &str = "1536m";
-pub const DEFAULT_SLOTS: usize = 3;
-pub const SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
+pub const DEFAULT_SLOTS: usize = nested_bazel::DEFAULT_SLOTS as usize;
+pub use nested_bazel::SLOTS_ENV;
 pub const PINNED_ENV: &str = "DX_NESTED_BAZEL_PINNED";
 pub const CPUS: u32 = 2;
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
@@ -106,7 +117,7 @@ impl Config {
 }
 
 fn resolve_pinned(key: &str) -> Result<PathBuf, String> {
-    let found = crate::rlocation(key)
+    let found = dx_testing::rlocation(key)
         .map_err(|error| format!("{PINNED_ENV} {key} is not in the runfiles: {error}"))?;
     std::path::absolute(&found)
         .map_err(|error| format!("{PINNED_ENV} {}: {error}", found.display()))
@@ -122,7 +133,7 @@ fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<Pat
 #[cfg(unix)]
 fn current_uid() -> Result<u32, String> {
     use std::os::unix::fs::MetadataExt;
-    let dir = crate::mkscratch("nested-bazel-uid")
+    let dir = dx_testing::mkscratch("nested-bazel-uid")
         .map_err(|error| format!("cannot create a scratch directory: {error}"))?;
     let probe = dir.join("uid");
     let result = File::options()
@@ -641,7 +652,7 @@ impl Server {
         envs: &[(&str, &str)],
         front: &[&Path],
     ) -> Result<Command, String> {
-        let mut command = crate::command_for(bin, &[])
+        let mut command = dx_testing::command_for(bin, &[])
             .map_err(|error| format!("cannot prepare {}: {error}", bin.display()))?;
         apply_env_at(&self.home, &mut command, envs, front);
         Ok(command)

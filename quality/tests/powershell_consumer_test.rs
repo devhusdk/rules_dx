@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const GREETING_PSM1: &str = "<#\n.SYNOPSIS\nBuilds a greeting.\n#>\nfunction Get-Greeting {\n    [CmdletBinding()]\n    [OutputType([string])]\n    param(\n        [string]$Name = 'powershell'\n    )\n    return \"hello $Name\"\n}\n\nExport-ModuleMember -Function Get-Greeting\n";

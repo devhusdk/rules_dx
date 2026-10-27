@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, Run};
 
 const DIRTY: &str = "defmodule Math do\n  def add( a,b ),do: a+b\nend\n";

@@ -37,10 +37,10 @@ pub const BYTES_PER_REMOTE_SLOT: u64 = 3 << 29;
 const EXTRA_SPACING: Duration = Duration::from_secs(10);
 
 /// Sets how many nested Bazel test servers rules_dx tests run at once.
-pub const NESTED_BAZEL_SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
+pub const NESTED_BAZEL_SLOTS_ENV: &str = dx_path::nested_bazel::SLOTS_ENV;
 
 /// Nested Bazel test servers rules_dx tests run at once by default.
-pub const DEFAULT_NESTED_BAZEL_SLOTS: u64 = 3;
+pub const DEFAULT_NESTED_BAZEL_SLOTS: u64 = dx_path::nested_bazel::DEFAULT_SLOTS as u64;
 
 /// Memory one nested Bazel test server is planned to use.
 pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
@@ -1734,21 +1734,12 @@ mod tests {
     fn rules_dx_reserve_follows_the_nested_slot_env() {
         let scratch = rules_dx_layout("dx-slots-rules-dx-env-");
         let with = |value: &'static str| {
-            move |name: &str| (name == "DX_NESTED_BAZEL_SLOTS").then(|| value.to_owned())
+            move |name: &str| (name == NESTED_BAZEL_SLOTS_ENV).then(|| value.to_owned())
         };
         assert_eq!(nested_reserve(scratch.path(), &with("5")), 10 << 30);
         for fallback in ["0", "x", ""] {
             assert_eq!(nested_reserve(scratch.path(), &with(fallback)), 6 << 30);
         }
-    }
-
-    #[test]
-    fn nested_defaults_match_the_test_harness() {
-        assert_eq!(
-            usize::try_from(DEFAULT_NESTED_BAZEL_SLOTS).expect("usize"),
-            dx_testing::nested::DEFAULT_SLOTS
-        );
-        assert_eq!(NESTED_BAZEL_SLOTS_ENV, dx_testing::nested::SLOTS_ENV);
     }
 
     #[test]

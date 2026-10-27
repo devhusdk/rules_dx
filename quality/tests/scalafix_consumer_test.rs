@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, Run};
 
 const CORE: &str = "package core\n\nfinal class Box(val value: Int)\n\nobject Core {\n  def make(): Box = new Box(1)\n}\n";

@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 
 pub mod fatbin;
 pub mod latency;
-pub mod nested;
 
 pub use dx_binfmt::machine as image_machine;
 
@@ -33,7 +32,10 @@ impl Run {
 }
 
 /// Runs one tool on the runfiles built beside it, never on the runfiles of this process.
-fn command_for(bin: &Path, envs: &[(&str, &str)]) -> std::io::Result<std::process::Command> {
+///
+/// Returns a `Command` for `bin` with `envs` set and the runfiles variables pointing at `bin`'s own
+/// runfiles, so callers can add arguments and choose how to collect output.
+pub fn command_for(bin: &Path, envs: &[(&str, &str)]) -> std::io::Result<std::process::Command> {
     let mut command = std::process::Command::new(bin);
     command.envs(envs.iter().copied());
     match dx_path::Resolver::for_binary(bin) {

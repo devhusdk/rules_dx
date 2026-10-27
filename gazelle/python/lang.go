@@ -295,9 +295,9 @@ func (l *pythonLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 				ignore.MarkUsed(from.Pkg)
 				continue
 			}
-			l.fail("python: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping", from, name)
+			l.fail("%s", common.UnresolvedImport(c, "python", from, name, "add a local one-source library or an exact # gazelle:resolve mapping"))
 		default:
-			l.fail("python: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
+			l.fail("%s", common.AmbiguousImport(c, "python", from, name, formatMatches(matches)))
 		}
 	}
 	if len(deps) == 0 {

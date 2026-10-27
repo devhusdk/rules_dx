@@ -330,12 +330,12 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				continue
 			}
 			if crate, renamed := imports.renames[name]; renamed {
-				l.fail("rust: %s: unresolved import %q (renamed package crate %q); add a local crate, Cargo mapping, or exact # gazelle:resolve", from, name, crate)
+				l.fail("%s", common.UnresolvedImport(c, "rust", from, name, fmt.Sprintf("renamed package crate %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", crate)))
 				continue
 			}
-			l.fail("rust: %s: unresolved import %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", from, name)
+			l.fail("%s", common.UnresolvedImport(c, "rust", from, name, "add a local crate, Cargo mapping, or exact # gazelle:resolve"))
 		default:
-			l.fail("rust: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
+			l.fail("%s", common.AmbiguousImport(c, "rust", from, name, formatMatches(matches)))
 		}
 	}
 	for _, name := range imports.mirrorPaths {

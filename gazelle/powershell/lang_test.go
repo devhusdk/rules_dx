@@ -171,7 +171,7 @@ func TestLanguageMetadata(t *testing.T) {
 	if len(loads) != 1 || loads[0].Name != "@rules_dx//powershell/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "pwsh_library,pwsh_test" {
 		t.Errorf("loads = %+v", loads)
 	}
-	if !strings.Contains(UnresolvedHint, "# gazelle:dx_ignore_import powershell") || !strings.Contains(UnresolvedHint, "case-sensitively") {
+	if strings.Contains(UnresolvedHint, "dx_ignore_import") || !strings.Contains(UnresolvedHint, "case-sensitively") {
 		t.Errorf("hint = %q", UnresolvedHint)
 	}
 }
@@ -200,7 +200,7 @@ func TestResolveModuleNamesAreCaseSensitive(t *testing.T) {
 	lang.Resolve(cfg, index, nil, rule.NewRule(TestKind, "lower_test"), common.WrapImportSet([]string{"greet"}), label.New("", "app", "lower_test"))
 	lang.AfterResolvingDeps(context.Background())
 	msg := strings.Join(common.Messages(common.Errors.Take()), "\n")
-	if !strings.Contains(msg, `unresolved import "greet"`) || !strings.Contains(msg, UnresolvedHint) {
-		t.Errorf("errors = %q, want the unresolved hint for lowercase greet", msg)
+	if !strings.Contains(msg, `unresolved import "greet"`) || !strings.Contains(msg, UnresolvedHint) || !strings.Contains(msg, `add "# gazelle:dx_ignore_import powershell greet" to app/BUILD.bazel`) {
+		t.Errorf("errors = %q, want the unresolved hint and ignore remedy for lowercase greet", msg)
 	}
 }

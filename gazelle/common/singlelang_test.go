@@ -593,6 +593,9 @@ func TestResolveBranches(t *testing.T) {
 	if !strings.Contains(l.errors[0], "add a local dot_library or an exact # gazelle:resolve mapping") {
 		t.Errorf("unresolved error = %q, want the spec hint", l.errors[0])
 	}
+	if !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import dot Unknown" to app/BUILD.bazel`) {
+		t.Errorf("unresolved error = %q, want the ignore remedy", l.errors[0])
+	}
 
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
 	if len(l.errors) != 1 {
@@ -779,6 +782,9 @@ func TestResolveAmbiguousFails(t *testing.T) {
 	l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"Dup"}), label.New("", "app", "app"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous import") {
 		t.Errorf("ambiguous errors = %v", l.errors)
+	}
+	if len(l.errors) == 1 && !strings.Contains(l.errors[0], `; add "# gazelle:resolve dot Dup <label>" to app/BUILD.bazel`) {
+		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0])
 	}
 }
 

@@ -252,7 +252,7 @@ func TestResolvePrefixAndStdlib(t *testing.T) {
 		t.Fatalf("deps = %s (failed=%v)", got, lang.Failed())
 	}
 	lang.Resolve(cfg, index, nil, rule.NewRule(AppKind, "app"), common.WrapImportSet([]string{"String.Utils"}), label.New("", "app", "app"))
-	if msg := errorsText(lang); !strings.Contains(msg, `unresolved import "String.Utils"`) || !strings.Contains(msg, UnresolvedHint) {
+	if msg := errorsText(lang); !strings.Contains(msg, `unresolved import "String.Utils"`) || !strings.Contains(msg, UnresolvedHint) || !strings.Contains(msg, `add "# gazelle:dx_ignore_import elixir String.Utils" to app/BUILD.bazel`) {
 		t.Errorf("errors = %q", msg)
 	}
 }
@@ -263,9 +263,7 @@ func TestLanguageMetadata(t *testing.T) {
 	if lang.Name() != "elixir" || len(loads) != 1 || loads[0].Name != "@rules_dx//elixir/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "elixir_app,ex_unit_test" {
 		t.Errorf("metadata = %s %+v", lang.Name(), loads)
 	}
-	for _, want := range []string{"# gazelle:resolve elixir Jason @jason//:erlang_app", "# gazelle:dx_ignore_import elixir <Module>"} {
-		if !strings.Contains(UnresolvedHint, want) {
-			t.Errorf("hint %q lacks %q", UnresolvedHint, want)
-		}
+	if !strings.Contains(UnresolvedHint, "# gazelle:resolve elixir Jason @jason//:erlang_app") || strings.Contains(UnresolvedHint, "dx_ignore_import") {
+		t.Errorf("hint = %q", UnresolvedHint)
 	}
 }

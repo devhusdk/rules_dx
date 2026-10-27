@@ -17,7 +17,7 @@ import (
 )
 
 // UnresolvedHint tells users how to settle a module no rule defines.
-const UnresolvedHint = "add an elixir_app that defines that module, a # gazelle:resolve elixir mapping on the module or a prefix of it (for example # gazelle:resolve elixir Jason @jason//:erlang_app), or # gazelle:dx_ignore_import elixir <Module>"
+const UnresolvedHint = "add an elixir_app that defines that module, a # gazelle:resolve elixir mapping on the module or a prefix of it (for example # gazelle:resolve elixir Jason @jason//:erlang_app)"
 
 const unnamedHint = "name the handwritten elixir_app, for example name = \"erlang_app\", so dx generate can merge into it"
 

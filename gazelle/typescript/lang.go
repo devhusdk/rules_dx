@@ -447,9 +447,9 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 			if imports.asset[name] {
 				continue
 			}
-			l.fail("typescript: %s: unresolved import %q; add a local one-source library or declaration file, or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)", from, name)
+			l.fail("%s", common.UnresolvedImport(c, "typescript", from, name, "add a local one-source library or declaration file, or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)"))
 		default:
-			l.fail("typescript: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
+			l.fail("%s", common.AmbiguousImport(c, "typescript", from, name, formatMatches(matches)))
 		}
 	}
 	if len(deps) == 0 {

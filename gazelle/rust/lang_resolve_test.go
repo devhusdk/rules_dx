@@ -701,7 +701,7 @@ func TestResolveBranches(t *testing.T) {
 	}
 
 	l.Resolve(cfg, index, nil, rule.NewRule(binaryKind, "unknown"), targetImports{production: []string{"unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") || !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import rust unknown" to app/BUILD.bazel`) {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))

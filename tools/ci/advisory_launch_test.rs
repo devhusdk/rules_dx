@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_testing::{mkscratch, read_runfiles, resolve_runfiles};
+use dx_testing::{read_runfiles, resolve_runfiles};
 
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
@@ -99,6 +99,7 @@ fn prepare_script() -> String {
 }
 
 struct Launch {
+    _scratch: dx_test_scratch::TempDir,
     root: PathBuf,
     workspace: PathBuf,
     status: std::process::ExitStatus,
@@ -106,7 +107,8 @@ struct Launch {
 }
 
 fn launch(archive_bytes: Option<Vec<u8>>) -> Launch {
-    let root = mkscratch("advisory-launch").expect("scratch");
+    let root_tmp = dx_test_scratch::scratch("advisory-launch");
+    let root = root_tmp.path().to_path_buf();
     let workspace = root.join("check out");
     let lock = workspace.join("rust/tests/fixtures/hello/Cargo.lock");
     fs::create_dir_all(lock.parent().expect("parent")).expect("lock dir");
@@ -143,6 +145,7 @@ fn launch(archive_bytes: Option<Vec<u8>>) -> Launch {
         .output()
         .expect("runs bash");
     Launch {
+        _scratch: root_tmp,
         root,
         workspace,
         status: output.status,

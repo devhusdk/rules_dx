@@ -59,7 +59,7 @@ rust_test(
         package_name = "tools/docs/site/site_browser",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
+    ) + ["//cli/test_scratch:dx_test_scratch"],
 )
 
 rustfmt_test(

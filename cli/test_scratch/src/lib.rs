@@ -46,11 +46,24 @@ fn bounded_prefix(prefix: &str) -> String {
     )
 }
 
+/// Picks where scratch dirs live: `$TEST_TMPDIR` when set and not empty, so
+/// Bazel wipes leftovers of killed tests, else the system temp dir.
+fn scratch_base(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> std::path::PathBuf {
+    lookup("TEST_TMPDIR")
+        .filter(|dir| !dir.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+}
+
+/// Creates a temp dir under `$TEST_TMPDIR` (or the system temp dir) that is
+/// removed when the returned guard drops. Keep the guard bound for as long as
+/// anything, including child processes, uses paths inside it.
 pub fn scratch(prefix: &str) -> TempDir {
     let bounded = bounded_prefix(prefix);
+    let base = scratch_base(|key| std::env::var_os(key));
     tempfile::Builder::new()
         .prefix(&bounded)
-        .tempdir()
+        .tempdir_in(&base)
         .unwrap_or_else(|err| panic!("test scratch creates {prefix:?}: {err}"))
 }
 
@@ -218,6 +231,27 @@ mod tests {
         assert!(
             name.to_string_lossy().starts_with("dx-test-scratch-"),
             "prefix honored: {name:?}"
+        );
+    }
+
+    #[test]
+    fn scratch_base_prefers_test_tmpdir() {
+        let set = scratch_base(|_| Some("/bazel/test_tmp".into()));
+        assert_eq!(set, std::path::PathBuf::from("/bazel/test_tmp"));
+        assert_eq!(scratch_base(|_| Some("".into())), std::env::temp_dir());
+        assert_eq!(scratch_base(|_| None), std::env::temp_dir());
+    }
+
+    #[test]
+    fn scratch_lives_under_test_tmpdir_under_bazel() {
+        let Some(base) = std::env::var_os("TEST_TMPDIR").filter(|dir| !dir.is_empty()) else {
+            return;
+        };
+        let dir = scratch("dx-test-scratch-base-");
+        assert!(
+            dir.path().starts_with(&base),
+            "{:?} under {base:?}",
+            dir.path()
         );
     }
 

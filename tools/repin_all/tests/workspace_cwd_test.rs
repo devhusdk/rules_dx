@@ -50,7 +50,8 @@ fn run_wrapper(scratch: &Path, workspace: Option<&Path>, log: &Path) -> Output {
 
 #[test]
 fn nested_bazel_runs_in_the_build_workspace_directory() {
-    let scratch = dx_testing::mkscratch("repin-cwd").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("repin-cwd");
+    let scratch = scratch_tmp.path().to_path_buf();
     let workspace = scratch.join("checkout");
     std::fs::create_dir_all(&workspace).expect("workspace");
     let log = scratch.join("bazel.log");
@@ -72,7 +73,8 @@ fn nested_bazel_runs_in_the_build_workspace_directory() {
 
 #[test]
 fn unset_build_workspace_directory_fails_without_running_bazel() {
-    let scratch = dx_testing::mkscratch("repin-unset").expect("scratch");
+    let scratch_tmp = dx_test_scratch::scratch("repin-unset");
+    let scratch = scratch_tmp.path().to_path_buf();
     let log = scratch.join("bazel.log");
     let output = run_wrapper(&scratch, None, &log);
     assert_eq!(output.status.code(), Some(2));

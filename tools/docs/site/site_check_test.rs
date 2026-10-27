@@ -61,14 +61,18 @@ impl Run {
 }
 
 struct Site {
+    _scratch: dx_test_scratch::TempDir,
     root: PathBuf,
 }
 
 impl Site {
     fn new(name: &str) -> Self {
-        let root =
-            dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"));
-        let site = Self { root };
+        let root_tmp = dx_test_scratch::scratch(name);
+        let root = root_tmp.path().to_path_buf();
+        let site = Self {
+            _scratch: root_tmp,
+            root,
+        };
         site.write(
             "book.toml",
             "[book]\ntitle = \"demo\"\nauthors = [\"rules_dx\"]\n",

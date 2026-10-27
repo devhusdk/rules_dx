@@ -93,7 +93,8 @@ fn a_missing_browser_tree_is_reported_as_empty() {
 
 #[test]
 fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
-    let scratch = dx_testing::mkscratch("browser-exits").expect("a scratch dir");
+    let scratch_tmp = dx_test_scratch::scratch("browser-exits");
+    let scratch = scratch_tmp.path().to_path_buf();
     let firefox = script(
         &scratch,
         "echo 'libfake.so.2: cannot open shared object file' >&2\nexit 1",
@@ -116,7 +117,8 @@ fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
 
 #[test]
 fn a_browser_that_never_opens_its_port_reports_the_timeout() {
-    let scratch = dx_testing::mkscratch("browser-silent").expect("a scratch dir");
+    let scratch_tmp = dx_test_scratch::scratch("browser-silent");
+    let scratch = scratch_tmp.path().to_path_buf();
     let log = scratch.join("browser.log");
     std::fs::write(&log, "still starting\n").expect("a browser log");
     let mut child = Command::new("sleep")

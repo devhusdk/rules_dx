@@ -12,10 +12,34 @@ const DESKTOP: (u64, u64) = (1280, 900);
 const PHONE: (u64, u64) = (390, 780);
 const WIDE: (u64, u64) = (1600, 1000);
 
-fn browser_at(base: &str) -> Browser {
-    let profile = dx_testing::mkscratch("firefox-profile").expect("a browser profile");
-    Browser::start(&firefox_binary(), &profile)
-        .unwrap_or_else(|error| panic!("start Firefox for the {base} base: {error}"))
+/// A browser that owns its scratch profile; fields drop in order, so Firefox
+/// stops before the profile dir is removed.
+struct ProfiledBrowser {
+    browser: Browser,
+    _profile: dx_test_scratch::TempDir,
+}
+
+impl std::ops::Deref for ProfiledBrowser {
+    type Target = Browser;
+    fn deref(&self) -> &Browser {
+        &self.browser
+    }
+}
+
+impl std::ops::DerefMut for ProfiledBrowser {
+    fn deref_mut(&mut self) -> &mut Browser {
+        &mut self.browser
+    }
+}
+
+fn browser_at(base: &str) -> ProfiledBrowser {
+    let profile = dx_test_scratch::scratch("firefox-profile");
+    let browser = Browser::start(&firefox_binary(), profile.path())
+        .unwrap_or_else(|error| panic!("start Firefox for the {base} base: {error}"));
+    ProfiledBrowser {
+        browser,
+        _profile: profile,
+    }
 }
 
 #[test]

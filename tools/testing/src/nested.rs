@@ -144,9 +144,8 @@ fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<Pat
 #[cfg(unix)]
 fn current_uid() -> Result<u32, String> {
     use std::os::unix::fs::MetadataExt;
-    let dir = dx_testing::mkscratch("nested-bazel-uid")
-        .map_err(|error| format!("cannot create a scratch directory: {error}"))?;
-    let probe = dir.join("uid");
+    let dir = dx_test_scratch::scratch("nested-bazel-uid");
+    let probe = dir.path().join("uid");
     let result = File::options()
         .write(true)
         .create_new(true)
@@ -159,8 +158,6 @@ fn current_uid() -> Result<u32, String> {
                 probe.display()
             )
         });
-    let _ = std::fs::remove_file(&probe);
-    let _ = std::fs::remove_dir(&dir);
     result
 }
 

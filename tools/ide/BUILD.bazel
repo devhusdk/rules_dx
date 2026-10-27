@@ -32,6 +32,7 @@ rust_test(
     ],
     deps = [
         "//cc/context:cc_context",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

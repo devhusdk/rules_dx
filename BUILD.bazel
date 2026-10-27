@@ -48,6 +48,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust spawn_proto //cli/execlog:spawn_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
+# gazelle:resolve rust serde @crates//:serde
+# gazelle:resolve rust serde_json @crates//:serde_json
 # gazelle:resolve python pytest @pypi//pytest
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
 # gazelle:resolve rust quality_result //quality/result:quality_result

@@ -843,3 +843,67 @@ func TestResolveRenamedProviders(t *testing.T) {
 		}
 	}
 }
+
+func TestBuiltinRunfilesImport(t *testing.T) {
+	cfg := &config.Config{}
+	bare := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{}, devDeps: map[string]cargoDependency{}}
+	if err := validateCargoImports(cfg, bare, libraryKind, targetImports{production: []string{"runfiles"}}); err != nil {
+		t.Errorf("builtin runfiles rejected in library: %v", err)
+	}
+	if err := validateCargoImports(cfg, bare, testKind, targetImports{test: []string{"runfiles"}}); err != nil {
+		t.Errorf("builtin runfiles rejected in test: %v", err)
+	}
+	if err := validateExampleImports(cfg, bare, targetImports{production: []string{"runfiles"}}); err != nil {
+		t.Errorf("builtin runfiles rejected in example: %v", err)
+	}
+	imports := targetImports{production: []string{"runfiles"}, test: []string{"runfiles"}}
+	if got := localCargoImports(cfg, bare, imports, true); strings.Join(got.production, ",") != "runfiles" || strings.Join(got.test, ",") != "runfiles" {
+		t.Errorf("local imports = %v / %v, want runfiles kept", got.production, got.test)
+	}
+	if got := localCargoExampleImports(cfg, bare, imports); strings.Join(got.production, ",") != "runfiles" {
+		t.Errorf("example imports = %v, want runfiles kept", got.production)
+	}
+
+	// A declared crate named runfiles keeps its own dependency path, so the built-in never applies.
+	declared := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{"runfiles": {external: true}}, devDeps: map[string]cargoDependency{}}
+	if err := validateCargoImports(cfg, declared, libraryKind, targetImports{production: []string{"runfiles"}}); err != nil {
+		t.Errorf("declared runfiles rejected: %v", err)
+	}
+	if got := localCargoImports(cfg, declared, imports, true); len(got.production)+len(got.test) != 0 {
+		t.Errorf("declared external runfiles became local: %v / %v", got.production, got.test)
+	}
+
+	l := &rustLang{}
+	newCfg := func() *config.Config {
+		c := resolverConfig(t, nil)
+		c.Exts[languageName] = &rustConfig{}
+		return c
+	}
+	empty := resolverIndex(l)
+	app := rule.NewRule(binaryKind, "app")
+	l.Resolve(newCfg(), empty, nil, app, targetImports{production: []string{"runfiles"}}, label.New("", "app", "app"))
+	if got := strings.Join(app.AttrStrings("deps"), ","); got != builtinRunfilesLabel {
+		t.Errorf("builtin deps = %q, want %s", got, builtinRunfilesLabel)
+	}
+
+	// A local crate named runfiles found in the index still wins over the built-in.
+	local := resolverIndex(l, struct{ pkg, name string }{"lib/runfiles", "runfiles"})
+	won := rule.NewRule(binaryKind, "won")
+	l.Resolve(newCfg(), local, nil, won, targetImports{production: []string{"runfiles"}}, label.New("", "app", "won"))
+	if got := strings.Join(won.AttrStrings("deps"), ","); got != "//lib/runfiles" {
+		t.Errorf("local deps = %q, want //lib/runfiles", got)
+	}
+
+	// An ignore directive still suppresses the import instead of applying the built-in.
+	ignoring := newCfg()
+	ignored := &common.IgnoreEntry{Value: "runfiles"}
+	ignoring.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignored}}}
+	skipped := rule.NewRule(binaryKind, "skipped")
+	l.Resolve(ignoring, empty, nil, skipped, targetImports{production: []string{"runfiles"}}, label.New("", "app", "skipped"))
+	if skipped.Attr("deps") != nil || !ignored.Used() {
+		t.Errorf("ignored runfiles = deps:%v used:%v", skipped.Attr("deps"), ignored.Used())
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("builtin runfiles errors = %v", l.errors)
+	}
+}

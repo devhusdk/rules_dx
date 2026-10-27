@@ -38,13 +38,29 @@ func resolveImportOverride(c *config.Config, name string) (bool, error) {
 	return false, nil
 }
 
+// builtinRunfilesImport is the crate name of `use runfiles::`; builtinRunfilesLabel is the default it resolves to.
+const (
+	builtinRunfilesImport = "runfiles"
+	builtinRunfilesLabel  = "@rules_rust//rust/runfiles"
+)
+
+// builtinImport reports whether name takes the built-in default: the runfiles crate, unless the manifest declares a crate of that name.
+func builtinImport(manifest *cargoManifest, name string) bool {
+	if name != builtinRunfilesImport {
+		return false
+	}
+	_, normal := manifest.normalDeps[name]
+	_, dev := manifest.devDeps[name]
+	return !normal && !dev
+}
+
 func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string, imports targetImports) error {
 	for _, name := range imports.production {
 		mapped, err := resolveImportOverride(c, name)
 		if err != nil {
 			return err
 		}
-		if mapped {
+		if mapped || builtinImport(manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -65,7 +81,7 @@ func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string
 		if err != nil {
 			return err
 		}
-		if mapped {
+		if mapped || builtinImport(manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -83,7 +99,7 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		if err != nil {
 			return err
 		}
-		if mapped {
+		if mapped || builtinImport(manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -104,7 +120,7 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		if err != nil {
 			return err
 		}
-		if mapped {
+		if mapped || builtinImport(manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -150,6 +166,10 @@ func noteRename(result *targetImports, name string, dep cargoDependency) {
 func localCargoImports(c *config.Config, manifest *cargoManifest, imports targetImports, includeDev bool) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
+		if builtinImport(manifest, name) {
+			result.production = append(result.production, name)
+			continue
+		}
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
@@ -166,6 +186,10 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 	}
 	if includeDev {
 		for _, name := range imports.test {
+			if builtinImport(manifest, name) {
+				result.test = append(result.test, name)
+				continue
+			}
 			if dep, normal := manifest.normalDeps[name]; normal && !dep.external {
 				result.test = append(result.test, name)
 				noteRename(&result, name, dep)
@@ -204,6 +228,10 @@ func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependen
 func localCargoExampleImports(c *config.Config, manifest *cargoManifest, imports targetImports) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
+		if builtinImport(manifest, name) {
+			result.production = append(result.production, name)
+			continue
+		}
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
@@ -327,6 +355,10 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		case 0:
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
 				ignore.MarkUsed(from.Pkg)
+				continue
+			}
+			if name == builtinRunfilesImport {
+				deps[builtinRunfilesLabel] = true
 				continue
 			}
 			if crate, renamed := imports.renames[name]; renamed {

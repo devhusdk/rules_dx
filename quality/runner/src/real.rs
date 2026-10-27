@@ -452,7 +452,7 @@ mod real_tools;
 mod tests {
     use super::{
         absolute_argv, javascript_manifest, own_runfiles_manifest, parsed, reads_own_manifest,
-        resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, STYLELINT_DEFAULTS_BYTES,
+        resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, REAL_TOOLS, STYLELINT_DEFAULTS_BYTES,
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
@@ -648,6 +648,11 @@ mod tests {
             assert!(!reads_own_manifest(tool_id));
             assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit);
         }
+    }
+
+    #[test]
+    fn keep_sorted_runner_edge_is_present() {
+        assert!(REAL_TOOLS.contains(&"keep_sorted"));
     }
 
     /// The default stylelint rules accept CSS Modules selectors and `composes`.

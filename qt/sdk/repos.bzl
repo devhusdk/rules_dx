@@ -589,10 +589,18 @@ def _unsupported(name, reason):
 
 def _library(name, spec, layout, closures):
     deps = [dep for dep in spec.deps if closures or dep not in _CLOSURE_DEPS]
+    library = "lib/" + layout.library(spec.name)
+    if layout.link == "framework":
+        link = [
+            '    additional_linker_inputs = ["%s"],' % library,
+            '    linkopts = ["$(execpath %s)"],' % library,
+        ]
+    else:
+        link = ['    srcs = ["%s"],' % library]
     return [
         "cc_library(",
         '    name = "%s",' % name,
-        '    srcs = ["lib/%s"],' % layout.library(spec.name),
+    ] + link + [
         "    hdrs = glob([%s])," % ", ".join(['"include/%s/**"' % headers for headers in spec.headers]),
         "    includes = [%s]," % ", ".join(['"include"'] + ['"include/%s"' % headers for headers in spec.headers]),
         '    defines = ["%s"],' % spec.define,
@@ -723,6 +731,13 @@ def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS):
     for name in sorted(TOOLS.keys()):
         if name in enabled:
             lines.extend(_tool(name))
+    defined = {}
+    for line in lines:
+        if line.startswith('    name = "'):
+            defined[line.split('"')[1]] = True
+    for name in hub_targets():
+        if name not in defined:
+            lines.extend(_unsupported(name, "not available on the " + cell + " Qt cell"))
     return "\n".join(lines)
 
 def _extract(ctx, extractor, archive, output, links = False):
@@ -772,6 +787,15 @@ def _acquire_runtime(ctx, extractor, cells):
         if package.license_from != "" and package.license_from != package.name:
             for text in ctx.path("licenses/" + package.license_from).readdir():
                 ctx.symlink(text, "licenses/" + package.name + "/" + text.basename)
+
+def _normalize_frameworks(ctx):
+    for framework in ctx.path("lib").readdir():
+        if not framework.basename.endswith(".framework"):
+            continue
+        name = framework.basename.removesuffix(".framework")
+        _move_real(ctx, "lib/" + framework.basename + "/Versions/A/Headers", "include/" + name)
+        for link in ["Headers", "Resources", name, "Versions/Current"]:
+            ctx.delete("lib/" + framework.basename + "/" + link)
 
 def _check_module(ctx, name):
     path = ctx.path("modules/" + name + ".json")
@@ -823,6 +847,8 @@ def _qt_cell_repo_impl(ctx):
         ctx.download(url = LICENSE_TEXTS[key].url, output = "licenses/" + key, sha256 = LICENSE_TEXTS[key].sha256)
     if entry.runtime != None:
         _acquire_runtime(ctx, extractor, cells)
+    if layout.link == "framework":
+        _normalize_frameworks(ctx)
     _check_module(ctx, "Core")
     for module in ctx.attr.modules:
         if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:

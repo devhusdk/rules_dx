@@ -1,8 +1,10 @@
 """Pinned Qt SDK, runtime closure and extractor identities."""
 
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
+load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
 load(":linux_arm64.bzl", LINUX_ARM64 = "CELL")
 load(":linux_x86_64.bzl", LINUX_X86_64 = "CELL")
+load(":macos_arm64.bzl", MACOS_ARM64 = "CELL")
 
 QT_VERSION = "6.11.3"
 
@@ -42,21 +44,12 @@ DEFAULT_MODULES = ["qtbase"]
 
 RUNTIME_PLUGINS = LINUX_LAYOUT.runtime_plugins
 
-LAYOUTS = {"linux": LINUX_LAYOUT}
+LAYOUTS = {"linux": LINUX_LAYOUT, "macos": MACOS_LAYOUT}
 
 CELLS = {
     "linux_arm64": LINUX_ARM64,
     "linux_x86_64": LINUX_X86_64,
-    "macos_arm64": struct(
-        archives = {},
-        blocker = "no runtime closure or probe evidence is pinned for macos_arm64",
-        constraints = ["@platforms//os:macos", "@platforms//cpu:arm64"],
-        directory = "",
-        layout = None,
-        needs = None,
-        release = "",
-        runtime = None,
-    ),
+    "macos_arm64": MACOS_ARM64,
     "windows_x86_64": struct(
         archives = {},
         blocker = "no runtime closure or probe evidence is pinned for windows_x86_64",
@@ -81,6 +74,12 @@ EXTRACTORS = {
         binary = "7zzs",
         sha256 = "dc99eff5008f1ab79bd7084c68513701547a808a89502bf4133683535ab3c695",
         url = "https://github.com/ip7z/7zip/releases/download/26.03/7z2603-linux-x64.tar.xz",
+    ),
+    "macos_arm64": struct(
+        archive = "7z2603-mac.tar.xz",
+        binary = "7zz",
+        sha256 = "5ca87677072c59f5602e5c49baa27d4694bacd2259b4e507f0094249d4281480",
+        url = "https://github.com/ip7z/7zip/releases/download/26.03/7z2603-mac.tar.xz",
     ),
 }
 

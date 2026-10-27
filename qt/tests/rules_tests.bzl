@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_framework_path", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
 load("//qt/sdk:pins.bzl", "CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -18,6 +18,8 @@ _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 def _unit_checks():
     return [
         expect_equal("module path", qt_module_path("Org.Example.Tally"), "Org/Example/Tally"),
+        expect_equal("framework path", qt_framework_path("../dx_qt/lib/QtCore.framework/Versions/A/QtCore"), "QtCore.framework/Versions/A/QtCore"),
+        expect_equal("framework path skips plain libraries", qt_framework_path("_solib_k8/libQt6Core.so.6"), None),
         expect_equal(
             "qmldir with types",
             qt_qmldir("Tally", "tally.qmltypes", [("Main", "1.0", "Main.qml"), ("Badge", "1.0", "parts/Badge.qml")]),
@@ -338,6 +340,20 @@ def _runpath_test_impl(ctx):
 
 _runpath_test = analysistest.make(_runpath_test_impl, attrs = {"bundled": attr.bool(mandatory = True)})
 
+def _frameworks_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    flags = [flag for linker_input in target[CcInfo].linking_context.linker_inputs.to_list() for flag in linker_input.user_link_flags]
+    files = [f.short_path for f in target[DefaultInfo].default_runfiles.files.to_list()]
+    asserts.equals(env, ctx.attr.flags, flags)
+    asserts.equals(env, ctx.attr.files, files)
+    return analysistest.end(env)
+
+_frameworks_test = analysistest.make(_frameworks_test_impl, attrs = {
+    "files": attr.string_list(),
+    "flags": attr.string_list(),
+})
+
 def _bundle_test_impl(ctx):
     env = analysistest.begin(ctx)
     prefix = "examples/qt-tasks/app/runtime/"
@@ -414,6 +430,17 @@ def qt_rules_tests(name):
         target_under_test = ":plain_test_upstream",
         target_compatible_with = _LINUX_X86_64,
     )
+    _frameworks_test(
+        name = name + "_frameworks",
+        files = ["qt/tests/frameworks_fixture/QtFake.framework/Versions/A/QtFake"],
+        flags = ["-Wl,-rpath,@loader_path/frameworks_fixture"],
+        target_under_test = ":frameworks_fixture",
+    )
+    _frameworks_test(
+        name = name + "_linux_frameworks",
+        target_under_test = ":plain_app_qt_frameworks",
+        target_compatible_with = _LINUX_X86_64,
+    )
     _bundle_test(
         name = name + "_bundle",
         target_under_test = "//examples/qt-tasks/app:runtime",
@@ -448,5 +475,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "bundle"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle"] + sorted(failures.keys())],
     )

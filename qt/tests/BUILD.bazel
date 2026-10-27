@@ -1,8 +1,8 @@
 # gazelle:ignore
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary")
-load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_qml_module")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -15,6 +15,18 @@ _LINUX = select({
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
+_HOSTS = select({
+    "@dx_qt//:linux_arm64": [],
+    "@dx_qt//:linux_x86_64": [],
+    "@dx_qt//:macos_arm64": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
+_MACOS_ARM64 = [
+    "@platforms//os:macos",
+    "@platforms//cpu:arm64",
+]
+
 _LINUX_ARM64 = [
     "@platforms//os:linux",
     "@platforms//cpu:arm64",
@@ -25,6 +37,13 @@ _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
 ]
 
+qt_frameworks(
+    name = "probe_qt_frameworks",
+    tags = ["manual"],
+    target_compatible_with = _HOSTS,
+    deps = ["@dx_qt//:qml"],
+)
+
 cc_binary(
     name = "probe",
     srcs = ["probe.cc"],
@@ -32,8 +51,11 @@ cc_binary(
     data = ["@dx_qt//:qml_imports"],
     linkstatic = False,
     tags = ["manual"],
-    target_compatible_with = _LINUX,
-    deps = ["@dx_qt//:qml"],
+    target_compatible_with = _HOSTS,
+    deps = [
+        ":probe_qt_frameworks",
+        "@dx_qt//:qml",
+    ],
 )
 
 platform_transition_binary(
@@ -52,11 +74,30 @@ platform_transition_binary(
     target_platform = "//qt/platforms:linux_arm64",
 )
 
+platform_transition_binary(
+    name = "probe_macos_arm64",
+    binary = ":probe",
+    tags = ["manual"],
+    target_compatible_with = _MACOS_ARM64,
+    target_platform = "//qt/platforms:macos_arm64",
+)
+
 alias(
     name = "probe_native",
     actual = select({
-        "@platforms//cpu:arm64": ":probe_linux_arm64",
-        "@platforms//cpu:x86_64": ":probe_linux_x86_64",
+        "@dx_qt//:linux_arm64": ":probe_linux_arm64",
+        "@dx_qt//:linux_x86_64": ":probe_linux_x86_64",
+        "@dx_qt//:macos_arm64": ":probe_macos_arm64",
+    }),
+    tags = ["manual"],
+)
+
+# The macos_arm64 cell publishes no needs tables; its qt_test skips the table check.
+alias(
+    name = "needs_native",
+    actual = select({
+        "@platforms//os:macos": "//qt/sdk:macos_arm64.bzl",
+        "//conditions:default": "@dx_qt//:needs",
     }),
     tags = ["manual"],
 )
@@ -68,11 +109,11 @@ rust_test(
     data = [
         "fixtures/dialog.ui",
         ":gui_check_native",
+        ":needs_native",
         ":probe_native",
         "@dx_qt//:fonts",
         "@dx_qt//:licenses",
         "@dx_qt//:moc",
-        "@dx_qt//:needs",
         "@dx_qt//:platforms",
         "@dx_qt//:qml_imports",
         "@dx_qt//:qmlformat",
@@ -93,7 +134,7 @@ rust_test(
         "DX_QT_FORM": "$(rootpath fixtures/dialog.ui)",
         "DX_QT_GUI": "$(rootpath :gui_check_native)",
         "DX_QT_LICENSES": "$(rootpaths @dx_qt//:licenses)",
-        "DX_QT_NEEDS": "$(rootpath @dx_qt//:needs)",
+        "DX_QT_NEEDS": "$(rootpath :needs_native)",
         "DX_QT_PLATFORMS": "$(rootpaths @dx_qt//:platforms)",
         "DX_QT_PROBE": "$(rootpath :probe_native)",
         "DX_QT_QMLDIR": "$(rlocationpath @dx_qt//:qtqml_qmldir)",
@@ -106,7 +147,7 @@ rust_test(
         "block-network",
         "no-remote-exec",
     ],
-    target_compatible_with = _LINUX,
+    target_compatible_with = _HOSTS,
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -281,7 +322,7 @@ qt_cc_library(
         "test",
         "widgets",
     ],
-    target_compatible_with = _LINUX,
+    target_compatible_with = _HOSTS,
 )
 
 qt_cc_test(
@@ -292,7 +333,7 @@ qt_cc_test(
         "test",
         "widgets",
     ],
-    target_compatible_with = _LINUX,
+    target_compatible_with = _HOSTS,
     deps = [":gui"],
 )
 
@@ -305,7 +346,7 @@ qt_cc_binary(
         "widgets",
     ],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
+    target_compatible_with = _HOSTS,
     deps = [":gui"],
 )
 
@@ -327,12 +368,22 @@ platform_transition_binary(
     target_platform = "//qt/platforms:linux_arm64",
 )
 
+platform_transition_binary(
+    name = "gui_check_macos_arm64",
+    testonly = True,
+    binary = ":gui_check",
+    tags = ["manual"],
+    target_compatible_with = _MACOS_ARM64,
+    target_platform = "//qt/platforms:macos_arm64",
+)
+
 alias(
     name = "gui_check_native",
     testonly = True,
     actual = select({
-        "@platforms//cpu:arm64": ":gui_check_linux_arm64",
-        "@platforms//cpu:x86_64": ":gui_check_linux_x86_64",
+        "@dx_qt//:linux_arm64": ":gui_check_linux_arm64",
+        "@dx_qt//:linux_x86_64": ":gui_check_linux_x86_64",
+        "@dx_qt//:macos_arm64": ":gui_check_macos_arm64",
     }),
     tags = ["manual"],
 )
@@ -487,6 +538,18 @@ qt_bundle(
     qml_modules = ["Tasks.Missing"],
     tags = ["manual"],
     target_compatible_with = _LINUX_X86_64,
+)
+
+cc_library(
+    name = "framework_fixture",
+    additional_linker_inputs = ["fixtures/QtFake.framework/Versions/A/QtFake"],
+    tags = ["manual"],
+)
+
+qt_frameworks(
+    name = "frameworks_fixture",
+    tags = ["manual"],
+    deps = [":framework_fixture"],
 )
 
 qt_rules_tests(name = "rules_test")

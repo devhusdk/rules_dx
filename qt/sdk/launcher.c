@@ -58,6 +58,11 @@ int dx_qt_launch(int argc, char **argv, const char *repository,
 int dx_qt_launch(int argc, char **argv, const char *repository,
                  const char *tool) {
   static const char *const host_routes[] = {
+      "DYLD_FALLBACK_FRAMEWORK_PATH",
+      "DYLD_FALLBACK_LIBRARY_PATH",
+      "DYLD_FRAMEWORK_PATH",
+      "DYLD_INSERT_LIBRARIES",
+      "DYLD_LIBRARY_PATH",
       "QML2_IMPORT_PATH",
       "QML_IMPORT_PATH",
       "QT_CONF_PATH",

@@ -10,7 +10,8 @@ const LIBRARY_LICENSE: &str =
 
 const TOOL_LICENSE: &str = "LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0";
 
-const HOST_GLIBC: [&str; 8] = [
+#[cfg(target_os = "linux")]
+const HOST_GLIBC: &[&str] = &[
     "ld-linux-aarch64.so.1",
     "ld-linux-x86-64.so.2",
     "libc.so.6",
@@ -21,9 +22,80 @@ const HOST_GLIBC: [&str; 8] = [
     "librt.so.1",
 ];
 
-const HOST_PREFIXES: [&str; 4] = ["/usr/", "/lib/", "/lib64/", "/opt/"];
+#[cfg(target_os = "macos")]
+const HOST_GLIBC: &[&str] = &[];
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(target_os = "linux")]
+const HOST_PREFIXES: &[&str] = &["/usr/", "/lib/", "/lib64/", "/opt/"];
+
+#[cfg(target_os = "macos")]
+const HOST_PREFIXES: &[&str] = &["/usr/local/", "/opt/", "/Library/Frameworks/"];
+
+#[cfg(target_os = "macos")]
+const HOST_ROUTES: [(&str, &str); 4] = [
+    ("DYLD_FRAMEWORK_PATH", "/opt/homebrew/lib:/usr/local/lib"),
+    ("QML_IMPORT_PATH", "/opt/homebrew/share/qt/qml"),
+    ("QT_PLUGIN_PATH", "/opt/homebrew/share/qt/plugins"),
+    ("QT_CONF_PATH", "/opt/homebrew/bin/qt.conf"),
+];
+
+#[cfg(target_os = "linux")]
+const LOADER_TRACE: (&str, &str) = ("LD_DEBUG", "files");
+
+#[cfg(target_os = "macos")]
+const LOADER_TRACE: (&str, &str) = ("DYLD_PRINT_LIBRARIES", "1");
+
+#[cfg(target_os = "linux")]
+const OFFSCREEN: &str = "libqoffscreen.so";
+
+#[cfg(target_os = "macos")]
+const OFFSCREEN: &str = "libqoffscreen.dylib";
+
+#[cfg(target_os = "linux")]
+const PROBE_LOADS: &[&str] = &[
+    "libQt6Qml.so.6",
+    "libqmlplugin.so",
+    "libicuuc.so.73",
+    "libglib-2.0.so.0",
+];
+
+#[cfg(target_os = "macos")]
+const PROBE_LOADS: &[&str] = &["QtQml", "libqmlplugin.dylib"];
+
+#[cfg(target_os = "linux")]
+const GUI_LOADS: &[&str] = &[
+    "libQt6Widgets.so.6",
+    "libQt6Quick.so.6",
+    "libqoffscreen.so",
+    "libfontconfig.so.1",
+    "libdbus-1.so.3",
+    "libsystemd.so.0",
+    "libstdc++.so.6",
+];
+
+#[cfg(target_os = "macos")]
+const GUI_LOADS: &[&str] = &["QtWidgets", "QtQuick", "libqoffscreen.dylib"];
+
+#[cfg(target_os = "linux")]
+const LINT_LOADS: &[&str] = &[
+    "libQt6QmlCompiler.so.6",
+    "libquicklintplugin.so",
+    "libicuuc.so.73",
+    PCRE,
+    "libstdc++.so.6",
+    "libgcc_s.so.1",
+];
+
+#[cfg(target_os = "macos")]
+const LINT_LOADS: &[&str] = &["QtQmlCompiler", "libquicklintplugin.dylib"];
+
+#[cfg(target_os = "linux")]
+const LINT_PLUGIN: &str = "/plugins/qmllint/libquicklintplugin.so";
+
+#[cfg(target_os = "macos")]
+const LINT_PLUGIN: &str = "/plugins/qmllint/libquicklintplugin.dylib";
+
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 const HOST_ROUTES: [(&str, &str); 4] = [
     (
         "LD_LIBRARY_PATH",
@@ -34,7 +106,7 @@ const HOST_ROUTES: [(&str, &str); 4] = [
     ("QT_CONF_PATH", "/etc/xdg/qt.conf"),
 ];
 
-#[cfg(not(target_arch = "aarch64"))]
+#[cfg(all(target_os = "linux", not(target_arch = "aarch64")))]
 const HOST_ROUTES: [(&str, &str); 4] = [
     (
         "LD_LIBRARY_PATH",
@@ -45,12 +117,14 @@ const HOST_ROUTES: [(&str, &str); 4] = [
     ("QT_CONF_PATH", "/etc/xdg/qt.conf"),
 ];
 
+#[cfg(target_os = "linux")]
 const PCRE: &str = if cfg!(target_arch = "aarch64") {
     "libpcre2-8.so.0"
 } else {
     "libpcre.so.1"
 };
 
+#[cfg(target_os = "linux")]
 const CELL_LICENSES: &[&str] = if cfg!(target_arch = "aarch64") {
     &["libICE", "libSM", "libuuid", "zlib-ng-compat"]
 } else {
@@ -116,11 +190,27 @@ fn available_platform_plugins(output: &str) -> BTreeSet<String> {
         .unwrap_or_default()
 }
 
+#[cfg(target_os = "linux")]
 fn initialized_objects(stderr: &str) -> BTreeSet<String> {
     stderr
         .lines()
         .filter_map(|line| line.split_once("calling init: "))
         .map(|(_, path)| path.trim().to_owned())
+        .collect()
+}
+
+#[cfg(target_os = "macos")]
+fn initialized_objects(stderr: &str) -> BTreeSet<String> {
+    stderr
+        .lines()
+        .filter(|line| line.starts_with("dyld["))
+        .filter_map(|line| line.split_once("]: "))
+        .map(|(_, rest)| {
+            let path = rest.trim();
+            path.split_once("> ")
+                .map_or(path, |(_, path)| path)
+                .to_owned()
+        })
         .collect()
 }
 
@@ -158,12 +248,7 @@ fn probe_evaluates_qml_against_only_pinned_libraries() {
     );
     let objects: BTreeSet<String> = run.stdout.lines().skip(1).map(str::to_owned).collect();
     assert_eq!(host_leaks(&objects), Vec::<String>::new());
-    for name in [
-        "libQt6Qml.so.6",
-        "libqmlplugin.so",
-        "libicuuc.so.73",
-        "libglib-2.0.so.0",
-    ] {
+    for name in PROBE_LOADS {
         assert!(loaded(&objects, name), "{name} not loaded:\n{}", run.stdout);
     }
 }
@@ -179,21 +264,27 @@ fn directory_of(variable: &str, name: &str) -> String {
 }
 
 fn run_gui(platform: &str) -> dx_testing::Run {
-    let fonts = directory_of("DX_QT_FONTS", "fonts.conf");
-    let platforms = directory_of("DX_QT_PLATFORMS", "libqoffscreen.so");
+    let fonts = std::env::var("DX_QT_FONTS")
+        .unwrap_or_default()
+        .split_whitespace()
+        .any(|path| file_name(path) == "fonts.conf")
+        .then(|| directory_of("DX_QT_FONTS", "fonts.conf"));
+    let platforms = directory_of("DX_QT_PLATFORMS", OFFSCREEN);
     let qmldir = std::env::var("DX_QT_QMLDIR_PATH").expect("DX_QT_QMLDIR_PATH");
     let imports = Path::new(&qmldir)
         .parent()
         .and_then(Path::parent)
         .expect("import root");
     let mut envs = vec![
-        ("LD_DEBUG", "files"),
-        ("FONTCONFIG_PATH", fonts.as_str()),
+        LOADER_TRACE,
         ("QML_IMPORT_PATH", imports.to_str().expect("utf-8 path")),
         ("QT_QPA_PLATFORM", platform),
         ("QT_QPA_PLATFORM_PLUGIN_PATH", platforms.as_str()),
         ("QT_QUICK_BACKEND", "software"),
     ];
+    if let Some(fonts) = fonts.as_deref() {
+        envs.push(("FONTCONFIG_PATH", fonts));
+    }
     envs.extend(&HOST_ROUTES[2..]);
     dx_testing::run(&tool("DX_QT_GUI"), &[], &envs).expect("run gui check")
 }
@@ -213,15 +304,7 @@ fn gui_renders_offscreen_against_only_pinned_libraries() {
     );
     let objects = initialized_objects(&run.stderr);
     assert_eq!(host_leaks(&objects), Vec::<String>::new());
-    for name in [
-        "libQt6Widgets.so.6",
-        "libQt6Quick.so.6",
-        "libqoffscreen.so",
-        "libfontconfig.so.1",
-        "libdbus-1.so.3",
-        "libsystemd.so.0",
-        "libstdc++.so.6",
-    ] {
+    for name in GUI_LOADS {
         assert!(loaded(&objects, name), "{name} not loaded: {objects:?}");
     }
 }
@@ -236,7 +319,7 @@ fn gui_refuses_a_platform_plugin_it_does_not_pin() {
         "{}",
         run.stderr
     );
-    // Keep in sync with platform_plugins in qt/sdk/layout_linux.bzl.
+    // Keep in sync with platform_plugins in the cell layouts.
     assert_eq!(
         available_platform_plugins(&run.stderr),
         BTreeSet::from(["minimal".to_owned(), "offscreen".to_owned()]),
@@ -327,42 +410,29 @@ fn qmllint_fails_unqualified_access_with_a_located_warning() {
 #[test]
 fn tools_ignore_host_routes_and_load_pinned_plugins() {
     let file = scratch_file("plugins.qml", UNQUALIFIED);
-    let mut envs = vec![("LD_DEBUG", "files")];
+    let mut envs = vec![LOADER_TRACE];
     envs.extend(HOST_ROUTES);
     let run = lint(&file, &envs);
     assert_eq!(run.status.code(), Some(255), "{}", run.stdout);
     let objects = initialized_objects(&run.stderr);
     assert_eq!(host_leaks(&objects), Vec::<String>::new());
-    for name in [
-        "libQt6QmlCompiler.so.6",
-        "libquicklintplugin.so",
-        "libicuuc.so.73",
-        PCRE,
-        "libstdc++.so.6",
-        "libgcc_s.so.1",
-    ] {
+    for name in LINT_LOADS {
         assert!(loaded(&objects, name), "{name} not loaded: {objects:?}");
     }
     assert!(
-        objects
-            .iter()
-            .any(|path| path.ends_with("/plugins/qmllint/libquicklintplugin.so")),
+        objects.iter().any(|path| path.ends_with(LINT_PLUGIN)),
         "{objects:?}"
     );
 }
 
-#[test]
-fn licenses_cover_qt_icu_and_every_runtime_package() {
-    let paths = std::env::var("DX_QT_LICENSES").expect("DX_QT_LICENSES");
-    let mut owners = BTreeSet::new();
-    for rel in paths.split_whitespace() {
-        let (_, tail) = rel.split_once("/licenses/").expect("license path");
-        let owner = tail.split('/').next().expect("license owner");
-        owners.insert(owner.to_owned());
-        let text = std::fs::read(dx_testing::resolve_runfiles(rel)).expect("license text");
-        assert!(!text.is_empty(), "{rel} is empty");
-    }
-    let expected: BTreeSet<String> = [
+#[cfg(target_os = "macos")]
+fn expected_licenses() -> BTreeSet<String> {
+    BTreeSet::from(["qt".to_owned()])
+}
+
+#[cfg(target_os = "linux")]
+fn expected_licenses() -> BTreeSet<String> {
+    [
         "bzip2-libs",
         "dbus-libs",
         "dejavu-sans-fonts",
@@ -406,8 +476,21 @@ fn licenses_cover_qt_icu_and_every_runtime_package() {
     .into_iter()
     .chain(CELL_LICENSES.iter().copied())
     .map(str::to_owned)
-    .collect();
-    assert_eq!(owners, expected);
+    .collect()
+}
+
+#[test]
+fn licenses_cover_qt_and_every_runtime_package() {
+    let paths = std::env::var("DX_QT_LICENSES").expect("DX_QT_LICENSES");
+    let mut owners = BTreeSet::new();
+    for rel in paths.split_whitespace() {
+        let (_, tail) = rel.split_once("/licenses/").expect("license path");
+        let owner = tail.split('/').next().expect("license owner");
+        owners.insert(owner.to_owned());
+        let text = std::fs::read(dx_testing::resolve_runfiles(rel)).expect("license text");
+        assert!(!text.is_empty(), "{rel} is empty");
+    }
+    assert_eq!(owners, expected_licenses());
 }
 
 #[test]
@@ -470,6 +553,7 @@ fn launcher_fails_explicitly_without_the_pinned_runfiles() {
     );
 }
 
+#[cfg(target_os = "linux")]
 fn elf_needed(path: &Path) -> BTreeSet<String> {
     let bytes = std::fs::read(path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
     assert_eq!(&bytes[..4], b"\x7fELF", "{path:?}");
@@ -517,16 +601,20 @@ fn elf_needed(path: &Path) -> BTreeSet<String> {
         .collect()
 }
 
+#[cfg(target_os = "linux")]
 fn pinned_needs(table: &str) -> std::collections::BTreeMap<String, BTreeSet<String>> {
     let text = std::fs::read_to_string(dx_testing::resolve_runfiles(
         &std::env::var("DX_QT_NEEDS").expect("DX_QT_NEEDS"),
     ))
     .expect("needs tables");
-    let tables: std::collections::BTreeMap<String, std::collections::BTreeMap<String, BTreeSet<String>>> =
-        dx_testing::serde_json::from_str(&text).expect("needs JSON");
+    let tables: std::collections::BTreeMap<
+        String,
+        std::collections::BTreeMap<String, BTreeSet<String>>,
+    > = dx_testing::serde_json::from_str(&text).expect("needs JSON");
     tables.get(table).cloned().expect("table")
 }
 
+#[cfg(target_os = "linux")]
 fn shared_objects(dir: &Path, found: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).expect("directory") {
         let path = entry.expect("entry").path();
@@ -538,6 +626,7 @@ fn shared_objects(dir: &Path, found: &mut Vec<PathBuf>) {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn the_pinned_dependency_tables_match_the_shipped_libraries() {
     let qmldir = std::fs::canonicalize(dx_testing::resolve_runfiles(

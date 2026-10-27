@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
+load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
 load(
     ":pins.bzl",
     "CELLS",
@@ -100,15 +101,18 @@ def _pin_checks():
         ]),
         expect_false("arm64 gui closure skips krb5", "krb5-libs" in _closure_packages("linux_arm64", "gui")),
         expect_equal("blocked cells carry no runtime", [cell for cell in CELLS if CELLS[cell].blocker != "" and (CELLS[cell].runtime != None or CELLS[cell].release != "")], []),
-        expect_equal("linux cells share the linux layout", [cell for cell in qualified_cells() if CELLS[cell].layout != LINUX_LAYOUT], []),
+        expect_equal("linux cells share the linux layout", [cell for cell in qualified_cells() if CELLS[cell].layout.os == "linux" and CELLS[cell].layout != LINUX_LAYOUT], []),
         expect_equal("blocked cells name no layout", [cell for cell in CELLS if CELLS[cell].blocker != "" and CELLS[cell].layout != None], []),
         expect_equal("linux layout names libraries by soname", LINUX_LAYOUT.library("Core"), "libQt6Core.so.6"),
-        expect_equal("extractor hosts", sorted(EXTRACTORS.keys()), ["linux_arm64", "linux_x86_64"]),
+        expect_equal("macos layout names libraries by framework binary", MACOS_LAYOUT.library("Core"), "QtCore.framework/Versions/A/QtCore"),
+        expect_equal("layouts name their link kind", [LINUX_LAYOUT.link, MACOS_LAYOUT.link], ["srcs", "framework"]),
+        expect_equal("extractor hosts", sorted(EXTRACTORS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
+        expect_equal("macos extractor binary", EXTRACTORS["macos_arm64"].binary, "7zz"),
         expect_equal("runtime mirror is the vault root", RUNTIME_MIRROR, "https://vault.almalinux.org"),
         expect_equal("library license", QT_LIBRARY_LICENSE, "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"),
         expect_equal("tool license", QT_TOOL_LICENSE, "LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0"),
         expect_equal("pin errors", pin_errors(), []),
-        expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64"]),
+        expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("blocked cells carry no artifacts", [cell for cell in CELLS if CELLS[cell].blocker != "" and len(CELLS[cell].archives) > 0], []),
         expect_equal("modules", sorted(MODULES.keys()), ["qtbase", "qtdeclarative", "qttools"]),
@@ -270,6 +274,7 @@ def _layout(**kwargs):
         "icu_libraries": [],
         "launcher": "posix",
         "library": LINUX_LAYOUT.library,
+        "link": "srcs",
         "os": "macos",
         "platform_plugins": [],
         "plugin_glob": "",
@@ -347,6 +352,12 @@ def _url_checks():
             runtime_url_for("linux_arm64", _package("linux_arm64", "libstdc++")),
             "https://vault.almalinux.org/10.1/BaseOS/aarch64/os/Packages/libstdc%2B%2B-14.3.1-2.1.el10.alma.1.aarch64.rpm",
         ),
+        expect_equal(
+            "macos qtbase url",
+            url_for("macos_arm64", "qtbase"),
+            "https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.clang_64/" +
+            "6.11.3-0-202610220312qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z",
+        ),
         expect_equal("cache identity", canonical_id_for("https://x/y.7z"), "dx-qt-archive:https://x/y.7z"),
     ]
 
@@ -379,7 +390,26 @@ def _build_checks():
     base = cell_build("linux_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     full = cell_build("linux_x86_64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     tools = cell_build("linux_x86_64", ["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+    macos = cell_build("macos_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+    macos_full = cell_build("macos_arm64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+    all_modules = sorted(MODULES.keys())
     return [
+        expect_equal("every qualified cell defines every hub target", [
+            cell + ":" + target
+            for cell in qualified_cells()
+            for target in hub_targets()
+            if ('    name = "%s",' % target) not in cell_build(cell, all_modules, "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+        ], []),
+        expect_contains("macos core links the framework binary", macos, '    additional_linker_inputs = ["lib/QtCore.framework/Versions/A/QtCore"],\n    linkopts = ["$(execpath lib/QtCore.framework/Versions/A/QtCore)"],'),
+        expect_false("macos cell links no srcs", 'srcs = ["lib/' in macos),
+        expect_false("macos cell has no closure", 'name = "closure"' in macos or ":gui_closure" in macos),
+        expect_contains("macos cell ships no fonts", macos, 'name = "fonts",\n    srcs = [],'),
+        expect_contains("macos cell refuses xcb", macos, 'qt_unsupported(\n    name = "display_xcb",\n    reason = "not available on the macos_arm64 Qt cell",'),
+        expect_contains("macos cell refuses platformthemes", macos, 'qt_unsupported(\n    name = "plugins_platformthemes",'),
+        expect_contains("macos cell ships headless platforms", macos, '["plugins/platforms/libqminimal.dylib", "plugins/platforms/libqoffscreen.dylib"]'),
+        expect_contains("macos qmllint plugins are dylibs", macos_full, 'srcs = glob(["plugins/qmllint/*.dylib"]),'),
+        expect_contains("macos runtime globs the framework binaries", macos, 'srcs = glob(["lib/*.framework/Versions/A/**"]),'),
+        expect_contains("hub routes macos", hub, '":macos_arm64": "@dx_qt_macos_arm64//:core"'),
         expect_equal("hub name", HUB_NAME, "dx_qt"),
         expect_equal("cell repository", cell_repository_name("linux_x86_64"), "dx_qt_linux_x86_64"),
         expect_equal("hub targets", hub_targets(), [
@@ -424,8 +454,8 @@ def _build_checks():
         expect_contains("arm64 core closure links zlib-ng", arm64, '"lib/libz.so.1"'),
         expect_false("arm64 core closure skips pcre", '"lib/libpcre.so.1"' in arm64),
         expect_contains("hub guards other platforms", hub, no_match_error()),
-        expect_contains("no-match names blocked cells", no_match_error(), "macos_arm64 (no runtime closure or probe evidence is pinned for macos_arm64)"),
-        expect_contains("no-match names the qualified cells", no_match_error(), "qualified: linux_arm64, linux_x86_64;"),
+        expect_contains("no-match names blocked cells", no_match_error(), "windows_x86_64 (no runtime closure or probe evidence is pinned for windows_x86_64)"),
+        expect_contains("no-match names the qualified cells", no_match_error(), "qualified: linux_arm64, linux_x86_64, macos_arm64;"),
         expect_contains("base cell links core", base, '    srcs = ["lib/libQt6Core.so.6"],'),
         expect_contains("base cell refuses qml", base, "    name = \"qml\",\n    reason = \"enable module 'qtdeclarative' in qt_sdk.configure(modules = ...)\","),
         expect_false("base cell builds no qmllint", 'srcs = ["launcher/launcher.c", "launcher/qmllint.c"]' in base),
@@ -533,7 +563,7 @@ def _hardening_checks():
 def _consumer_checks():
     round_trip = []
     for cell in qualified_cells():
-        entry, errors = cell_from_json(cell, _spec(cell), CELLS[cell].constraints, LAYOUTS["linux"])
+        entry, errors = cell_from_json(cell, _spec(cell), CELLS[cell].constraints, LAYOUTS[CELLS[cell].layout.os])
         round_trip.append(expect_equal(cell + " spec decodes cleanly", errors, []))
         round_trip.append(expect_true(cell + " spec round trips", entry == CELLS[cell]))
     sha = _spec()
@@ -569,7 +599,7 @@ def _consumer_checks():
     partial = _spec()
     partial["needs"].pop("plugin")
     pinned = [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))]
-    macos = effective_cells(consumer_cells([_tag(_spec(), "macos_arm64", ["@platforms//os:macos", "@platforms//cpu:arm64"])])[0])
+    windows = effective_cells(consumer_cells([_tag(_spec(), "windows_x86_64", ["@platforms//os:windows", "@platforms//cpu:x86_64"])])[0])
     custom = effective_cells(consumer_cells([_tag(_spec(), "custom_x86_64")])[0])
     active = qualified_cells(custom)
     hub = hub_build({cell: cell_repository_name(cell) for cell in active}, "//qt/rules:defs.bzl", {cell: custom[cell].constraints for cell in active}, no_match_error(custom))
@@ -596,13 +626,13 @@ def _consumer_checks():
         expect_equal("consumer spec is JSON", _errors("{"), ["cell 'custom' spec is not a JSON object"]),
         expect_equal("consumer cell names are plain", consumer_cells([_tag(_spec(), "Bad-Name")])[1], ["cell 'Bad-Name' name is not made of lowercase letters, digits and '_'"]),
         expect_equal("consumer cell names avoid hub targets", consumer_cells([_tag(_spec(), "core")])[1], ["cell 'core' name is taken by a @dx_qt target"]),
-        expect_equal("consumer layouts are known", consumer_cells([_tag(_spec(), layout = "windows")])[1], ["cell 'custom' layout 'windows' is not one of linux"]),
+        expect_equal("consumer layouts are known", consumer_cells([_tag(_spec(), layout = "windows")])[1], ["cell 'custom' layout 'windows' is not one of linux, macos"]),
         expect_equal("consumer cells are declared once", consumer_cells([_tag(_spec()), _tag(_spec())])[1], ["cell 'custom' is declared twice"]),
         expect_equal("consumer constraints set the cell apart", consumer_cells([_tag(_spec(), constraints = pinned)])[1], ["cell 'custom' constraints match cell 'linux_x86_64'; add a constraint that sets it apart"]),
         expect_equal("a consumer cell replaces its pinned namesake", consumer_cells([_tag(_spec(), "linux_x86_64", ["@platforms//os:linux", "@platforms//cpu:x86_64"])])[1], []),
-        expect_equal("an override qualifies a blocked cell", qualified_cells(macos), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
-        expect_false("an override leaves the blocked list", "macos_arm64 (" in no_match_error(macos)),
-        expect_equal("a new consumer cell joins the qualified cells", active, ["custom_x86_64", "linux_arm64", "linux_x86_64"]),
+        expect_equal("an override qualifies a blocked cell", qualified_cells(windows), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
+        expect_false("an override leaves the blocked list", "windows_x86_64 (" in no_match_error(windows)),
+        expect_equal("a new consumer cell joins the qualified cells", active, ["custom_x86_64", "linux_arm64", "linux_x86_64", "macos_arm64"]),
         expect_contains("hub routes the consumer cell", hub, '":custom_x86_64": "@dx_qt_custom_x86_64//:core"'),
         expect_contains("hub matches the consumer constraint", hub, '        "%s",\n' % str(Label("//qt/sdk:custom"))),
         expect_contains("consumer cell builds core", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl", custom), '    srcs = ["lib/libQt6Core.so.6"],'),

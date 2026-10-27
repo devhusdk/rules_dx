@@ -21,11 +21,20 @@
 #include <algorithm>
 #include <memory>
 
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 #include "ui_dialog.h"
 
 namespace {
 
+#if defined(__APPLE__)
+const QStringList kHostPrefixes = {"/usr/local/", "/opt/",
+                                   "/Library/Frameworks/"};
+#else
 const QStringList kHostPrefixes = {"/usr/", "/lib/", "/lib64/", "/opt/"};
+#endif
 
 const QStringList kHostRuntime = {
     "ld-linux-aarch64.so.1",
@@ -39,6 +48,30 @@ const QStringList kHostRuntime = {
     "libstdc++.so.6",
 };
 
+#if defined(__APPLE__)
+QStringList LoadedImages() {
+  QStringList paths;
+  for (uint32_t index = 0; index < _dyld_image_count(); ++index) {
+    paths.append(QString::fromLocal8Bit(_dyld_get_image_name(index)));
+  }
+  return paths;
+}
+
+QSet<QString> MappedObjects() {
+  const QStringList images = LoadedImages();
+  return QSet<QString>(images.begin(), images.end());
+}
+
+QString Soname(const QString &path) {
+  return path.section(QLatin1Char('/'), -1);
+}
+
+bool IsQtFramework(const QString &path) {
+  return path.contains(QStringLiteral(".framework/Versions/A/Qt"));
+}
+
+QString PinnedFont() { return QFontInfo(QFont()).family(); }
+#else
 QSet<QString> MappedObjects() {
   QFile maps(QStringLiteral("/proc/self/maps"));
   if (!maps.open(QIODevice::ReadOnly)) {
@@ -65,6 +98,9 @@ QString Soname(const QString &path) {
   return version < 0 ? name : name.left(version);
 }
 
+QString PinnedFont() { return QStringLiteral("DejaVu Sans"); }
+#endif
+
 } // namespace
 
 void GuiTest::runsOnTheOffscreenPlatform() {
@@ -72,6 +108,11 @@ void GuiTest::runsOnTheOffscreenPlatform() {
 }
 
 void GuiTest::seesOnlyThePinnedFonts() {
+#if defined(__APPLE__)
+  QVERIFY(!PinnedFont().isEmpty());
+  QVERIFY2(QFontDatabase::families().contains(PinnedFont()),
+           qPrintable(PinnedFont()));
+#else
   const QStringList generic = {QStringLiteral("Monospace"),
                                QStringLiteral("Sans Serif"),
                                QStringLiteral("Serif")};
@@ -80,6 +121,7 @@ void GuiTest::seesOnlyThePinnedFonts() {
   for (const QString &family : generic) {
     QCOMPARE(QFontInfo(QFont(family)).family(), QStringLiteral("DejaVu Sans"));
   }
+#endif
 }
 
 void GuiTest::rendersTheForm() {
@@ -87,8 +129,7 @@ void GuiTest::rendersTheForm() {
   Ui::Dialog form;
   form.setupUi(&dialog);
   QCOMPARE(form.label->text(), QStringLiteral("Hello"));
-  QCOMPARE(QFontInfo(form.label->font()).family(),
-           QStringLiteral("DejaVu Sans"));
+  QCOMPARE(QFontInfo(form.label->font()).family(), PinnedFont());
   dialog.adjustSize();
   const QImage image = form.label->grab().toImage();
   QVERIFY(!image.isNull());
@@ -141,12 +182,32 @@ void GuiTest::loadsOnlyPinnedLibraries() {
     }
   }
   QVERIFY2(leaks.isEmpty(), qPrintable(leaks.join(QLatin1Char('\n'))));
+#if defined(__APPLE__)
+  QStringList frameworks;
+  for (const QString &path : LoadedImages()) {
+    if (IsQtFramework(path)) {
+      frameworks.append(Soname(path));
+    }
+  }
+  QStringList twice;
+  for (const QString &name : frameworks) {
+    if (frameworks.count(name) > 1 && !twice.contains(name)) {
+      twice.append(name);
+    }
+  }
+  QVERIFY2(twice.isEmpty(), qPrintable(twice.join(QLatin1Char(' '))));
+  for (const char *name :
+       {"libqoffscreen.dylib", "QtWidgets", "QtQuick", "QtGui", "QtCore"}) {
+    QVERIFY2(names.contains(QLatin1String(name)), name);
+  }
+#else
   for (const char *name :
        {"libqoffscreen.so", "libQt6Widgets.so.6", "libQt6Quick.so.6",
         "libfontconfig.so.1", "libfreetype.so.6", "libdbus-1.so.3",
         "libGL.so.1", "libxkbcommon.so.0"}) {
     QVERIFY2(names.contains(QLatin1String(name)), name);
   }
+#endif
 }
 
 int main(int argc, char **argv) {

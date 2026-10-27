@@ -308,6 +308,73 @@ impl ModuleFile {
         Ok(out)
     }
 
+    /// The `include()` labels of this file, in source order.
+    pub fn include_labels(&self) -> Vec<&str> {
+        self.calls_named("include")
+            .filter_map(
+                |call| match call.positional.first().or_else(|| call.arg("label")) {
+                    Some(Value::Str(literal)) => Some(literal.value.as_str()),
+                    _ => None,
+                },
+            )
+            .collect()
+    }
+
+    /// The source with `include("label")` added on its own line after the `bazel_dep` of
+    /// `after_dep`, else after the last `bazel_dep`, else after `module()`, else at the end.
+    /// Returns the source unchanged when `label` is already included.
+    pub fn insert_include(&self, label: &str, after_dep: &str) -> Result<String, ModuleError> {
+        check_safe(label)?;
+        if self.include_labels().contains(&label) {
+            return Ok(self.source.clone());
+        }
+        let eol = line_ending(&self.source);
+        let line = format!("include(\"{label}\")");
+        let anchor = self
+            .calls_named("bazel_dep")
+            .find(|call| call.str("name") == Some(after_dep))
+            .or_else(|| self.calls_named("bazel_dep").last())
+            .map(|call| (call.span.end, false))
+            .or_else(|| {
+                self.calls_named("module")
+                    .last()
+                    .map(|call| (call.span.end, true))
+            });
+        let (at, mut text) = match anchor {
+            Some((end, after_module)) => {
+                let at = line_end(&self.source, end);
+                let mut text = String::new();
+                if at == self.source.len() && !self.source.ends_with('\n') {
+                    text.push_str(eol);
+                }
+                if after_module {
+                    text.push_str(eol);
+                }
+                (at, text)
+            }
+            None => {
+                let mut text = String::new();
+                if !self.source.is_empty() && !self.source.ends_with('\n') {
+                    text.push_str(eol);
+                }
+                if !self.source.trim().is_empty() {
+                    text.push_str(eol);
+                }
+                (self.source.len(), text)
+            }
+        };
+        text.push_str(&line);
+        text.push_str(eol);
+        let out = splice(&self.source, at, &text);
+        let reparsed = ModuleFile::parse(&out)?;
+        if !reparsed.include_labels().contains(&label) {
+            return Err(ModuleError::NoInsertPoint {
+                reason: "insert did not round-trip".to_owned(),
+            });
+        }
+        Ok(out)
+    }
+
     /// The source with Maven coordinate `coordinate` appended to the `artifacts` list of the
     /// one rules_jvm_external `maven.install` tag that feeds the default `@maven` repository.
     pub fn insert_maven_artifact(&self, coordinate: &str) -> Result<String, ModuleError> {

@@ -18,7 +18,7 @@ bazel run @rules_dx//:dx -- build //...
 bazel run @rules_dx//:dx -- test //...
 ```
 
-A module that depends on `rules_dx` copies the overrides in
+`dx init --apply` writes the overrides `rules_dx` needs; see
 [patches/README.md](patches/README.md).
 
 Next: [docs index](docs/README.md),

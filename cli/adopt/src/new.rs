@@ -479,7 +479,7 @@ fn rust_web_build_bazel(identity: &str) -> String {
 
 fn rust_web_module_bazel(identity: &str) -> String {
     format!(
-        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"{bindgen}\")\nbazel_dep(name = \"platforms\", version = \"{platforms}\")\n",
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\nbazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"{bindgen}\")\nbazel_dep(name = \"platforms\", version = \"{platforms}\")\n",
         dx = super::DX_VERSION,
         bindgen = RULES_RUST_WASM_BINDGEN_VERSION,
         platforms = RUST_WEB_PLATFORMS_VERSION,
@@ -509,8 +509,9 @@ fn rust_web_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
 
 fn consumer_module_bazel(identity: &str, platforms: bool) -> String {
     let mut module = format!(
-        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\n",
-        super::DX_VERSION
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\ninclude(\"{}\")\n",
+        super::DX_VERSION,
+        crate::overrides::OVERRIDES_INCLUDE
     );
     if platforms {
         module.push_str(&format!(
@@ -1086,7 +1087,7 @@ struct JsStarter {
 
 fn js_starter_files(identity: &str, starter: &JsStarter) -> Vec<(String, String)> {
     let module = format!(
-        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"aspect_rules_js\", version = \"{js}\")\n\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"demo_npm\",\n    npmrc = \"//:.npmrc\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n    verify_node_modules_ignored = \"//:.bazelignore\",\n)\nuse_repo(npm, \"demo_npm\")\n",
+        "module(name = \"{identity}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{dx}\")\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\nbazel_dep(name = \"aspect_rules_js\", version = \"{js}\")\n\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"demo_npm\",\n    npmrc = \"//:.npmrc\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n    verify_node_modules_ignored = \"//:.bazelignore\",\n)\nuse_repo(npm, \"demo_npm\")\n",
         dx = super::DX_VERSION,
         js = ASPECT_RULES_JS_VERSION,
     );
@@ -1620,6 +1621,15 @@ mod tests {
                 .find(|f| f.path == "demo/MODULE.bazel")
                 .expect("module");
             assert!(module.content.starts_with("module(name = \"demo\")\n"));
+            assert!(
+                module.content.contains(&format!(
+                    "bazel_dep(name = \"rules_dx\", version = \"{}\")\ninclude(\"{}\")\n",
+                    crate::DX_VERSION,
+                    crate::overrides::OVERRIDES_INCLUDE
+                )),
+                "{lang}: {}",
+                module.content
+            );
             let error = plan_new_files(lang, "1demo").unwrap_err();
             assert!(
                 matches!(error, AdoptError::NewInvalidIdentity { .. }),

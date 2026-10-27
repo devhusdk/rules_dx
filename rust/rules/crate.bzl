@@ -30,6 +30,7 @@ def dx_rust_crate(
         crate_name = None,
         srcs = None,
         test_srcs = None,
+        compile_data = None,
         size = "small",
         visibility = None):
     """Single-crate boilerplate: lib + test + lint tests + manifest."""
@@ -51,6 +52,7 @@ def dx_rust_crate(
             package_name = package_name,
             normal = True,
         ),
+        compile_data = compile_data or [],
         crate_name = crate,
         crate_root = dx_rust_crate_root(srcs),
         deps = lib_deps,
@@ -71,6 +73,7 @@ def dx_rust_crate(
             size = size,
             srcs = lib_srcs + test_srcs,
             aliases = test_aliases,
+            compile_data = compile_data or [],
             crate_name = crate,
             crate_root = _test_crate_root(lib_srcs),
             data = test_data or [],

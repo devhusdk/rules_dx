@@ -552,3 +552,46 @@ fn insert_maven_artifact_fails_closed_on_unclear_lists() {
         assert!(insert_artifact(body).is_err(), "{body:?}");
     }
 }
+
+const INC: &str = "//third_party/rules_dx:rules_dx.MODULE.bazel";
+
+fn insert_inc(source: &str) -> Result<String, ModuleError> {
+    ModuleFile::parse(source)?.insert_include(INC, "rules_dx")
+}
+
+#[test]
+fn insert_include_anchors_after_the_named_dep() {
+    let before = "module(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.27\")\n";
+    let after = "module(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.27\")\n";
+    assert_eq!(insert_inc(before).as_deref(), Ok(after));
+    assert_eq!(
+        insert_inc(after).as_deref(),
+        Ok(after),
+        "second call is a no-op"
+    );
+}
+
+#[test]
+fn insert_include_keeps_crlf_and_falls_back() {
+    assert_eq!(
+        insert_inc("bazel_dep(name = \"a\", version = \"1\")\r\nx = 1\r\n").as_deref(),
+        Ok("bazel_dep(name = \"a\", version = \"1\")\r\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\r\nx = 1\r\n")
+    );
+    assert_eq!(
+        insert_inc("module(name = \"demo\")").as_deref(),
+        Ok("module(name = \"demo\")\n\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\n")
+    );
+    assert_eq!(
+        insert_inc("").as_deref(),
+        Ok("include(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\n")
+    );
+}
+
+#[test]
+fn insert_include_rejects_unsafe_labels() {
+    let module = parse("module(name = \"demo\")\n");
+    assert!(matches!(
+        module.insert_include("//:a\".MODULE.bazel", "rules_dx"),
+        Err(ModuleError::UnsafeString { .. })
+    ));
+}

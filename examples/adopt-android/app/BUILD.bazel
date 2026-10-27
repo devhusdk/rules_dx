@@ -1,0 +1,97 @@
+# gazelle:ignore
+# gazelle:exclude src
+
+load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "rust_android_apk")
+load("@rules_dx//java/rules:defs.bzl", "java_library", "java_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+java_library(
+    name = "report",
+    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
+    srcs = ["src/main/java/org/example/adoptandroid/Report.java"],
+)
+
+java_test(
+    name = "report_test",
+    size = "small",
+    aspect_hints = ["@rules_dx//quality:corpus_checkstyle_config"],
+    srcs = ["src/test/java/org/example/adoptandroid/ReportTest.java"],
+    main_class = "org.example.adoptandroid.ReportTest",
+    use_testrunner = False,
+    deps = [":report"],
+)
+
+rust_android_apk(
+    name = "adopt_apk",
+    srcs = [
+        "src/main/java/org/example/adoptandroid/MainActivity.java",
+        "src/main/java/org/example/adoptandroid/NativeBridge.java",
+    ],
+    api_level = 33,
+    app_id = "org.example.adoptandroid",
+    assets = ["src/main/assets/greeting.txt"],
+    assets_dir = "src/main/assets",
+    manifest = "src/main/AndroidManifest.xml",
+    resource_files = glob(["src/main/res/**"]),
+    deps = [
+        ":report",
+        "//examples/adopt-android/native:jni_bridge",
+    ],
+)
+
+android_adb_install(
+    name = "install",
+    apk = ":adopt_apk_file",
+    serial = "emulator-5554",
+)
+
+android_adb_start(
+    name = "start",
+    activity = "org.example.adoptandroid.MainActivity",
+    app_id = "org.example.adoptandroid",
+    serial = "emulator-5554",
+)
+
+android_adb_log(
+    name = "log",
+    serial = "emulator-5554",
+)
+
+android_apk_check(
+    name = "check_apk_test",
+    apk = ":adopt_apk_unsigned_file",
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "inspect_apk_test",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :adopt_apk_file)",
+        "org.example.adoptandroid",
+        "adopt_apk_bin",
+        "arm64-v8a,x86_64",
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "33",
+        "'Adopt Android'",
+        "$(location src/main/assets/greeting.txt)",
+        "org.example.adoptandroid.MainActivity",
+        "Java_org_example_adoptandroid_NativeBridge_summarize",
+    ],
+    data = [
+        "src/main/assets/greeting.txt",
+        ":adopt_apk_file",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

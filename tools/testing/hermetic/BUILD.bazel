@@ -496,6 +496,48 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "adopt_android",
+    files = {
+        "//examples/adopt-android/app:BUILD.bazel": "examples/adopt-android/app/BUILD.bazel",
+        "//examples/adopt-android/app:inspect_apk.sh": "examples/adopt-android/app/inspect_apk.sh",
+        "//examples/adopt-android/app:src/main/AndroidManifest.xml": "examples/adopt-android/app/src/main/AndroidManifest.xml",
+        "//examples/adopt-android/app:src/main/assets/greeting.txt": "examples/adopt-android/app/src/main/assets/greeting.txt",
+        "//examples/adopt-android/app:src/main/java/org/example/adoptandroid/MainActivity.java": "examples/adopt-android/app/src/main/java/org/example/adoptandroid/MainActivity.java",
+        "//examples/adopt-android/app:src/main/java/org/example/adoptandroid/NativeBridge.java": "examples/adopt-android/app/src/main/java/org/example/adoptandroid/NativeBridge.java",
+        "//examples/adopt-android/app:src/main/java/org/example/adoptandroid/Report.java": "examples/adopt-android/app/src/main/java/org/example/adoptandroid/Report.java",
+        "//examples/adopt-android/app:src/main/res/values/strings.xml": "examples/adopt-android/app/src/main/res/values/strings.xml",
+        "//examples/adopt-android/app:src/test/java/org/example/adoptandroid/ReportTest.java": "examples/adopt-android/app/src/test/java/org/example/adoptandroid/ReportTest.java",
+        "//examples/adopt-android/native:BUILD.bazel": "examples/adopt-android/native/BUILD.bazel",
+        "//examples/adopt-android/native:jni_bridge.cc": "examples/adopt-android/native/jni_bridge.cc",
+        "//examples/adopt-android/native:src/lib.rs": "examples/adopt-android/native/src/lib.rs",
+        "//examples/adopt-android/native:summary.cc": "examples/adopt-android/native/summary.cc",
+        "//examples/adopt-android/native:summary.h": "examples/adopt-android/native/summary.h",
+        "//examples/adopt-android/native:summary_test.cc": "examples/adopt-android/native/summary_test.cc",
+        "//examples/adopt-android:BUILD.bazel": "examples/adopt-android/BUILD.bazel",
+        "//patches/rules_android:rules_android.patch": "third_party/rules_dx/rules_android.rules_android.patch",
+        "consumers/adopt_android/consumer.bazelrc": ".bazelrc",
+        "consumers/adopt_android/third_party.BUILD.bazel": "third_party/rules_dx/BUILD.bazel",
+    },
+    languages = [
+        "cpp",
+        "java",
+        "rust",
+    ],
+    module_fragment = "consumers/adopt_android/module_fragment.bazel",
+    patterns = [
+        "//examples/adopt-android/native/...",
+        "//examples/adopt-android/app:log",
+        "//examples/adopt-android/app:report",
+        "//examples/adopt-android/app:report_test",
+        "//examples/adopt-android/app:start",
+    ],
+    rust_target_triples = [
+        "aarch64-linux-android",
+        "x86_64-linux-android",
+    ],
+)
+
+hermetic_qualification(
     name = "appimage",
     files = {
         "consumers/appimage/consumer.bazelrc": ".bazelrc",
@@ -520,6 +562,7 @@ rustfmt_test(
     size = "small",
     target_compatible_with = LINUX,
     targets = [
+        ":adopt_android",
         ":appimage",
         ":cpp_rust",
         ":elixir",
@@ -543,6 +586,7 @@ rust_clippy_test(
     size = "small",
     target_compatible_with = LINUX,
     targets = [
+        ":adopt_android",
         ":appimage",
         ":cpp_rust",
         ":elixir",
@@ -566,6 +610,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "consumers/adopt_android/third_party.BUILD.bazel",
         "consumers/cpp_rust/apps/c_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/c_store.BUILD.bazel",
         "consumers/cpp_rust/apps/cpp_app.BUILD.bazel",

@@ -9,6 +9,7 @@ exports_files([
 ])
 
 ADOPT_READMES = [
+    "//examples/adopt-android:README.md",
     "//examples/adopt-cpp:README.md",
     "//examples/adopt-csharp:README.md",
     "//examples/adopt-fsharp:README.md",
@@ -62,6 +63,9 @@ filegroup(
     testonly = True,
     srcs = [
         ":corpus_starlark",
+        "//examples/adopt-android:corpus_starlark",
+        "//examples/adopt-android/app:corpus_starlark",
+        "//examples/adopt-android/native:corpus_starlark",
         "//examples/adopt-cpp:corpus_starlark",
         "//examples/adopt-cpp/greet:corpus_starlark",
         "//examples/adopt-cpp/solo:corpus_starlark",
@@ -184,6 +188,7 @@ real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_siblings = [
+        "//examples/adopt-android:README.md",
         "//examples/adopt-cpp:README.md",
         "//examples/adopt-csharp:README.md",
         "//examples/adopt-fsharp:README.md",

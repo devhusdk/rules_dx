@@ -1,0 +1,54 @@
+# gazelle:ignore
+
+load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_static_library", "rust_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+_VISIBILITY = ["//examples/adopt-android:__subpackages__"]
+
+rust_static_library(
+    name = "core",
+    srcs = ["src/lib.rs"],
+    crate_name = "adopt_core",
+    crate_root = "src/lib.rs",
+    visibility = _VISIBILITY,
+)
+
+rust_test(
+    name = "core_test",
+    size = "small",
+    crate = ":core",
+)
+
+cc_library(
+    name = "summary",
+    srcs = ["summary.cc"],
+    hdrs = ["summary.h"],
+    visibility = _VISIBILITY,
+    deps = [":core"],
+)
+
+cc_test(
+    name = "summary_test",
+    size = "small",
+    srcs = ["summary_test.cc"],
+    deps = [":summary"],
+)
+
+cc_library(
+    name = "jni_bridge",
+    srcs = ["jni_bridge.cc"],
+    target_compatible_with = ["@platforms//os:android"],
+    visibility = _VISIBILITY,
+    deps = [":summary"],
+    alwayslink = True,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

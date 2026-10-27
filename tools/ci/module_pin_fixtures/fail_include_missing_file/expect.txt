@@ -1,0 +1,3 @@
+pin 1.2.3
+exit 1
+says MODULE.bazel:1 includes //bazel:gone.MODULE.bazel, but bazel/gone.MODULE.bazel cannot be read

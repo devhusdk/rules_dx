@@ -43,7 +43,16 @@ def scratch_case(tmp_path, case):
     """Copies one fixture module into a private directory and returns it."""
     home = tmp_path / case
     home.mkdir()
-    shutil.copyfile(ROOT / FIXTURE_DIR / case / MODULE_FIXTURE, home / "MODULE.bazel")
+    source = ROOT / FIXTURE_DIR / case
+    for path in source.rglob("*"):
+        if not path.is_file() or path.name == "expect.txt":
+            continue
+        name = path.relative_to(source)
+        if name.name.endswith(".fixture"):
+            name = name.with_name(name.name[: -len(".fixture")])
+        target = home / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
     return home
 
 
@@ -120,3 +129,34 @@ def test_bazel_run_reads_the_module_in_the_calling_directory(tmp_path):
         env=dict(os.environ, **{PIN_ENV: pin, "BUILD_WORKING_DIRECTORY": str(home)}),
     )
     assert done.returncode == 0, done.stdout + done.stderr
+
+
+BAD_LABELS = [
+    "@//:x.MODULE.bazel",
+    "@other//:x.MODULE.bazel",
+    "//../a:x.MODULE.bazel",
+    "//:../x.MODULE.bazel",
+    "//a\\\\b:x.MODULE.bazel",
+    "//a//b:x.MODULE.bazel",
+    "//pkg",
+    ":x.MODULE.bazel",
+    "//:x.bzl",
+    "//:.h.MODULE.bazel",
+]
+
+
+def test_bad_include_labels_are_rejected_and_never_read(tmp_path):
+    validator = ROOT / VALIDATOR
+    (tmp_path / "x.MODULE.bazel").write_text(
+        'bazel_dep(name = "rules_dx", version = "1.2.3")\n', encoding="utf-8"
+    )
+    for index, label in enumerate(BAD_LABELS):
+        home = tmp_path / f"home{index}"
+        home.mkdir()
+        (home / "MODULE.bazel").write_text(
+            f'include("{label}")\n', encoding="utf-8"
+        )
+        code, output = run(validator, home, "1.2.3")
+        assert code == 1, f"{label} was accepted: {output}"
+        assert "matches" not in output, f"{label} was read: {output}"
+        assert "include " + label in output, f"{label}: {output}"

@@ -26,6 +26,9 @@ Options:
       --color <COLOR>
           Set color output
 
+      --build-slots <auto|n|off>
+          Set build slots: auto, a count, or off
+
       --bazel-startup-option <TOKEN>
           Pass one Bazel startup option (repeatable)
 

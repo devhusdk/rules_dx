@@ -826,6 +826,11 @@ mod build_failure_launcher_tests;
 
 #[cfg(test)]
 #[cfg(unix)]
+#[path = "build_slots_launcher_tests.rs"]
+mod build_slots_launcher_tests;
+
+#[cfg(test)]
+#[cfg(unix)]
 #[path = "test_case_launcher_tests.rs"]
 mod test_case_launcher_tests;
 

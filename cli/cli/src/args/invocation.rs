@@ -227,6 +227,8 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
+    /// How many build slots this process sizes its gate with.
+    pub build_slots: dx_adopt::defaults::BuildSlots,
     pub baseline: Option<String>,
     pub include_edits: bool,
     pub min_coverage: Option<u32>,
@@ -574,6 +576,7 @@ mod tests {
             output: OutputMode::Text { quiet: false },
             reports: Vec::new(),
             fail_on: Threshold::Warning,
+            build_slots: dx_adopt::defaults::BuildSlots::Auto,
             baseline: None,
             include_edits: false,
             min_coverage: None,

@@ -44,6 +44,7 @@ fn file_with(
         color: None,
         quiet,
         fail_on: fail_on.map(ToString::to_string),
+        build_slots: None,
         baseline: None,
     }
 }
@@ -1215,6 +1216,173 @@ fn ci_ignores_preference_env_but_keeps_flags() {
         parse_with(&strings(&["lint"]), &env, &FileDefaults::default()).expect("non-ci reads env");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.verbose);
+}
+
+fn slots(n: usize) -> dx_adopt::defaults::BuildSlots {
+    dx_adopt::defaults::BuildSlots::Count(std::num::NonZeroUsize::new(n).expect("n"))
+}
+
+fn slot_files(committed: Option<usize>, local: Option<usize>) -> FileDefaults {
+    let committed = FileDefaults {
+        build_slots: committed.map(slots),
+        ..FileDefaults::default()
+    };
+    let local = FileDefaults {
+        build_slots: local.map(slots),
+        ..FileDefaults::default()
+    };
+    dx_adopt::defaults::merge_defaults(committed, local)
+}
+
+fn resolved_slots(
+    words: &[&str],
+    env: &[(&str, &str)],
+    file: &FileDefaults,
+) -> dx_adopt::defaults::BuildSlots {
+    parse_with(&strings(words), &env_of(env), file)
+        .expect("parse")
+        .build_slots
+}
+
+#[test]
+fn build_slots_default_is_auto() {
+    assert_eq!(
+        resolved_slots(&["build"], &[], &FileDefaults::default()),
+        dx_adopt::defaults::BuildSlots::Auto
+    );
+}
+
+#[test]
+fn build_slots_flag_beats_env() {
+    let env = [("DX_BUILD_SLOTS", "3")];
+    let file = FileDefaults::default();
+    assert_eq!(
+        resolved_slots(&["build", "--build-slots=2"], &env, &file),
+        slots(2)
+    );
+    assert_eq!(
+        resolved_slots(&["build", "--build-slots", "off"], &env, &file),
+        dx_adopt::defaults::BuildSlots::Off
+    );
+}
+
+#[test]
+fn build_slots_env_beats_local_file() {
+    let file = slot_files(None, Some(4));
+    assert_eq!(
+        resolved_slots(&["build"], &[("DX_BUILD_SLOTS", "3")], &file),
+        slots(3)
+    );
+}
+
+#[test]
+fn build_slots_local_file_beats_committed_file() {
+    let file = slot_files(Some(5), Some(4));
+    assert_eq!(resolved_slots(&["build"], &[], &file), slots(4));
+    let file = slot_files(Some(5), None);
+    assert_eq!(resolved_slots(&["build"], &[], &file), slots(5));
+}
+
+#[test]
+fn build_slots_empty_env_is_unset() {
+    let file = slot_files(Some(5), None);
+    assert_eq!(
+        resolved_slots(&["build"], &[("DX_BUILD_SLOTS", "")], &file),
+        slots(5)
+    );
+}
+
+#[test]
+fn ci_ignores_build_slots_env_but_keeps_flag_and_committed_file() {
+    use super::parse_with_ci;
+    let env = env_of(&[("DX_BUILD_SLOTS", "off")]);
+    let committed = slot_files(Some(5), None);
+    let got = parse_with_ci(&strings(&["build"]), &env, &committed, true).expect("ci");
+    assert_eq!(got.build_slots, slots(5));
+    let got = parse_with_ci(
+        &strings(&["build", "--build-slots=2"]),
+        &env,
+        &committed,
+        true,
+    )
+    .expect("ci flag");
+    assert_eq!(got.build_slots, slots(2));
+    let got = parse_with_ci(&strings(&["build"]), &env, &FileDefaults::default(), true)
+        .expect("ci default");
+    assert_eq!(got.build_slots, dx_adopt::defaults::BuildSlots::Auto);
+}
+
+#[test]
+fn bad_build_slots_are_usage_errors() {
+    use super::super::ArgsError;
+    let file = FileDefaults::default();
+    for (words, env, source, value) in [
+        (
+            vec!["build", "--build-slots=-1"],
+            vec![],
+            "--build-slots",
+            "-1",
+        ),
+        (
+            vec!["build", "--build-slots", "-1"],
+            vec![],
+            "--build-slots",
+            "-1",
+        ),
+        (
+            vec!["build", "--build-slots", "0"],
+            vec![],
+            "--build-slots",
+            "0",
+        ),
+        (
+            vec!["build"],
+            vec![("DX_BUILD_SLOTS", "many")],
+            "DX_BUILD_SLOTS",
+            "many",
+        ),
+    ] {
+        let error = parse_with(&strings(&words), &env_of(&env), &file).expect_err("bad");
+        assert_eq!(
+            error,
+            ArgsError::BadBuildSlots {
+                origin: source,
+                value: value.to_owned()
+            },
+            "{words:?} {env:?}"
+        );
+        assert!(error.to_string().contains("auto|<n>|off"), "{error}");
+    }
+}
+
+#[test]
+fn build_slots_flag_is_accepted_on_every_command() {
+    let file = FileDefaults::default();
+    assert_eq!(
+        resolved_slots(&["build", "--build-slots=2"], &[], &file),
+        slots(2)
+    );
+    assert_eq!(
+        resolved_slots(&["status", "--build-slots=off"], &[], &file),
+        dx_adopt::defaults::BuildSlots::Off
+    );
+    assert_eq!(
+        resolved_slots(&["lint", "--build-slots", "3", "//..."], &[], &file),
+        slots(3)
+    );
+}
+
+#[test]
+fn bad_build_slots_exit_two_from_the_binary() {
+    let scratch = workspace_with_output("dx-bad-build-slots-", "text");
+    let root = scratch.path();
+    let (code, out, err) = run_dx(root, &["status", "--build-slots=0"], &[]);
+    assert_eq!(code, Some(2), "{err}");
+    assert!(out.is_empty(), "{out}");
+    assert!(err.contains("--build-slots"), "{err}");
+    let (code, _, err) = run_dx(root, &["status"], &[("DX_BUILD_SLOTS", "many")]);
+    assert_eq!(code, Some(2), "{err}");
+    assert!(err.contains("DX_BUILD_SLOTS"), "{err}");
 }
 
 #[test]

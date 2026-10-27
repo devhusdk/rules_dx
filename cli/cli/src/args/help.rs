@@ -149,6 +149,9 @@ fn render_env_help() -> String {
         TRUTHY.join("|"),
         FALSEY.join("|")
     ));
+    out.push_str(
+        "  <auto|n|off> sizes build slots from memory, takes exactly n (1-1024), or takes none.\n",
+    );
     out.push_str("  NO_COLOR=<any>\n");
     out.push_str("      Disable color output.\n");
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");

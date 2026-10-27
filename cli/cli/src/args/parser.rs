@@ -473,7 +473,26 @@ pub fn ci_ignores_env(name: &str, is_ci: bool) -> bool {
                 | dx_adopt::defaults::DX_COLOR_ENV
                 | dx_adopt::defaults::DX_QUIET_ENV
                 | dx_adopt::defaults::DX_FAIL_ON_ENV
+                | dx_adopt::defaults::DX_BUILD_SLOTS_ENV
         )
+}
+
+/// Resolve `--build-slots` across flag, `DX_BUILD_SLOTS`, the config files, then auto.
+fn resolve_build_slots(
+    flag: Option<String>,
+    env_get: &dyn Fn(&str) -> Option<String>,
+    file: Option<dx_adopt::defaults::BuildSlots>,
+) -> Result<dx_adopt::defaults::BuildSlots, ArgsError> {
+    use dx_adopt::defaults::{env_string, BuildSlots, DX_BUILD_SLOTS_ENV};
+    let (source, value) = match (flag, env_string(env_get, DX_BUILD_SLOTS_ENV)) {
+        (Some(flag), _) => ("--build-slots", flag),
+        (None, Some(env)) => (DX_BUILD_SLOTS_ENV, env),
+        (None, None) => return Ok(file.unwrap_or_default()),
+    };
+    BuildSlots::parse(&value).ok_or(ArgsError::BadBuildSlots {
+        origin: source,
+        value,
+    })
 }
 
 fn parse_inner<S: AsRef<OsStr>>(
@@ -500,6 +519,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         report,
         fail_on,
+        build_slots,
         include_edits,
         min_coverage,
         check,
@@ -578,6 +598,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         file.fail_on.clone(),
         "warning",
     );
+    let build_slots = resolve_build_slots(build_slots, env_get, file.build_slots)?;
     if check && apply {
         return Err(ArgsError::ConflictingModes {
             first: "--check",
@@ -777,6 +798,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         output,
         reports,
         fail_on,
+        build_slots,
         baseline: file.baseline.clone(),
         include_edits,
         min_coverage,

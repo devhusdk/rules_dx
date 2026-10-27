@@ -54,6 +54,7 @@ rust_library(
         "src/exec/audit_reports.rs",
         "src/exec/build_failure_launcher_tests.rs",
         "src/exec/build_failures.rs",
+        "src/exec/build_slots_launcher_tests.rs",
         "src/exec/bump.rs",
         "src/exec/clean.rs",
         "src/exec/common.rs",

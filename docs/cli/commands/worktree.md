@@ -495,6 +495,10 @@ slot from `hook create` that no agent has claimed, and a holder that is gone
 keep the session rule. `dx status`
 inside a slot shows the lease. Every other `dx` command marks the slot busy
 while it runs, so no `add`, `release`, or `hook create` resets or frees it.
+`dx run`, `dx deploy`, and `dx watch` hand the busy lock to the app they start,
+so the slot stays busy until the app, and any descendant that keeps the
+descriptor, exits. On Windows the app tree ends with dx. An app that closes
+inherited descriptors loses this protection.
 While `add` switches a slot, such a command waits, and exits `2` with `slot N is
 being switched by dx worktree; run the command again` if the switch takes
 longer than two minutes. `worktree`, `version`, and `completion` always run.

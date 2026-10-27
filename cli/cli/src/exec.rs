@@ -183,7 +183,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
             "option \"--here\" needs cwd resolution",
         );
     }
-    let _busy = match hold_slot(
+    let busy = match hold_slot(
         invocation.command,
         env.workspace,
         dx_worktree::pool::POOL_LOCK_WAIT,
@@ -192,12 +192,42 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
             let Env { out, err, .. } = env;
             return common::refusal(invocation.output, out, err, &refusal);
         }
-        held => held,
+        held => held
+            .and_then(Result::ok)
+            .map(dx_atomic_fs::lease::SharedLease::into_file),
     };
     if let Some(refusal) = lease_refusal(invocation, env.workspace) {
         let Env { out, err, .. } = env;
         return common::refusal(invocation.output, out, err, &refusal);
     }
+    // The busy handle rides only on app children (`run_app`); builds get none.
+    let holding = busy
+        .as_ref()
+        .map(|file| dx_process::Holding::new(env.runner, vec![file]));
+    match &holding {
+        Some(holding) => dispatch_command(
+            invocation,
+            Env {
+                workspace: env.workspace,
+                runner: holding,
+                query_runner: env.query_runner,
+                temp_dir: env.temp_dir,
+                pid: env.pid,
+                nonce: env.nonce,
+                out: &mut *env.out,
+                err: &mut *env.err,
+                ci: env.ci,
+                audit_today: env.audit_today,
+                actions: env.actions,
+                proc_root: env.proc_root,
+                bump_commit_json: env.bump_commit_json,
+            },
+        ),
+        None => dispatch_command(invocation, env),
+    }
+}
+
+fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.affected && invocation.command != Command::Watch {
         return affected::execute_affected(invocation, env);
     }

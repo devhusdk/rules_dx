@@ -75,6 +75,7 @@ Portal. The Portal rejects unsigned bundles.
 Refusals, all exit 1:
 
 - Version `0.0.0` in a live run.
+- A `-SNAPSHOT` version in a live run.
 - Missing `MAVEN_USERNAME` or `MAVEN_PASSWORD`.
 - Missing `MAVEN_PUBLISH_APPROVED=1`.
 - No `MAVEN_GPG_KEY` without `MAVEN_ALLOW_UNSIGNED=1`.

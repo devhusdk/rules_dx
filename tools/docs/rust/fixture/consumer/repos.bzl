@@ -31,10 +31,10 @@ impl Greeter {
 }
 '''
 
-_GUIDE_MD = '''# Consumer Guide
+_GUIDE_MD = """# Consumer Guide
 
 Read the API reference of the `consumer_greeting` crate.
-'''
+"""
 
 _BOOK_TOML = '''[book]
 title = "consumer"

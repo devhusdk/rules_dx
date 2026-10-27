@@ -1,9 +1,4 @@
-//! `release_tool <kind> <args...>`: one dispatcher for the release generators
-//! that genrules in sbom.bzl, notice.bzl and bcr.bzl call.
-//!
-//! Kinds are argv-only because they run inside genrules, not `bazel run`.
-//! The `bcr` and `sign` deploy kinds join this table once #2453 settles the
-//! DX_DEPLOY_CONFIG protocol (follow-up of #2836).
+//! `release_tool <kind> <args...>`: dispatch for the release generators.
 
 use std::path::{Path, PathBuf};
 

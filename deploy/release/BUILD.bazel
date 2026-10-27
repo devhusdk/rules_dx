@@ -144,8 +144,7 @@ rust_test(
     ],
 )
 
-# Binaries whose crate root has its own #[cfg(test)] module, so Gazelle emits a <bin>_bin_test.
-# release_tool is a bare shim; its dispatch is tested in dx_release_tools_test (src/tool.rs).
+# Release binaries that have a bin_test.
 _TESTED_RELEASE_BINS = [
     "publish_dry_run_check",
     "release_driver",

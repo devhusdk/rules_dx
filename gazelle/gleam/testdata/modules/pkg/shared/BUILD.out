@@ -1,6 +1,0 @@
-load("@rules_dx//gleam/rules:defs.bzl", "gleam_library")
-
-gleam_library(
-    name = "shared",
-    srcs = ["src/shared.gleam"],
-)

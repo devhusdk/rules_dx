@@ -436,13 +436,18 @@ pub fn archive_image(
                     })?
             }
             OciCompression::Zstd => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    format!(
-                        "archive image: layer {} uses unsupported layer compression zstd; want uncompressed or gzip",
-                        layer.display()
-                    ),
-                ));
+                let invalid = |error: &dyn std::fmt::Display| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!(
+                            "archive image: layer {} is not valid zstd: {error}",
+                            layer.display()
+                        ),
+                    )
+                };
+                let decoder = ruzstd::decoding::StreamingDecoder::new(bytes.as_slice())
+                    .map_err(|error| invalid(&error))?;
+                dx_digest::sha256_reader_hex(decoder).map_err(|error| invalid(&error))?
             }
             OciCompression::None => digest.clone(),
         };

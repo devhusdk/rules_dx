@@ -1,5 +1,5 @@
 {
-  "checksum": "57c7eb359eba2a80f7fb830e4d4d4f13c280878ca4c8fbc86d0812c6166ebaa3",
+  "checksum": "dafd14d7de8c8c697801ba161b91bfcc1be7ed4bbcbbea57e5156f824bca117f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7012,6 +7012,10 @@
           {
             "id": "rustls 0.23.46",
             "target": "rustls"
+          },
+          {
+            "id": "ruzstd 0.9.1",
+            "target": "ruzstd"
           },
           {
             "id": "serde 1.0.229",

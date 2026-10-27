@@ -153,7 +153,7 @@ _oci_launcher = rule(
     doc = "Writes the launcher Rust source for one OCI deployment.",
     attrs = {
         "image_tar": attr.label(
-            doc = "docker save or OCI layout archive (.tar or .tar.gz), or OCI layout directory, holding one image with uncompressed or gzip layers.",
+            doc = "docker save or OCI layout archive (.tar or .tar.gz), or OCI layout directory, holding one image with uncompressed, gzip, or zstd layers.",
             allow_single_file = True,
             mandatory = True,
         ),

@@ -433,9 +433,17 @@ fn oci_read_layer(
                 })?
         }
         OciCompression::Zstd => {
-            return Err(oci_invalid(format!(
-                "image archive layer '{name}' uses unsupported layer compression zstd; want uncompressed or gzip"
-            )));
+            let decoder =
+                ruzstd::decoding::StreamingDecoder::new(head.chain(&mut tee)).map_err(|error| {
+                    oci_invalid(format!(
+                        "image archive layer '{name}' is not valid zstd: {error}"
+                    ))
+                })?;
+            dx_digest::sha256_reader_hex(decoder).map_err(|error| {
+                oci_invalid(format!(
+                    "image archive layer '{name}' is not valid zstd: {error}"
+                ))
+            })?
         }
         OciCompression::None => dx_digest::sha256_reader_hex(head.chain(&mut tee))?,
     };
@@ -445,7 +453,8 @@ fn oci_read_layer(
         size: tee.size,
         media_type: match compression {
             OciCompression::Gzip => "application/vnd.oci.image.layer.v1.tar+gzip",
-            OciCompression::None | OciCompression::Zstd => "application/vnd.oci.image.layer.v1.tar",
+            OciCompression::Zstd => "application/vnd.oci.image.layer.v1.tar+zstd",
+            OciCompression::None => "application/vnd.oci.image.layer.v1.tar",
         },
         diff_id: format!("sha256:{diff_id}"),
     })
@@ -463,9 +472,10 @@ const OCI_MANIFEST_TYPES: [&str; 2] = [
     "application/vnd.docker.distribution.manifest.v2+json",
 ];
 
-const OCI_LAYER_TYPES: [&str; 4] = [
+const OCI_LAYER_TYPES: [&str; 5] = [
     "application/vnd.oci.image.layer.v1.tar",
     "application/vnd.oci.image.layer.v1.tar+gzip",
+    "application/vnd.oci.image.layer.v1.tar+zstd",
     "application/vnd.docker.image.rootfs.diff.tar.gzip",
     "application/vnd.docker.image.rootfs.diff.tar",
 ];
@@ -1826,9 +1836,6 @@ mod tests {
             )]);
             (oci_blob(&manifest), manifest, index)
         };
-        let mut zstd = oci_layer_descriptor(&layers[0]);
-        zstd["mediaType"] = serde_json::json!("application/vnd.oci.image.layer.v1.tar+zstd");
-        let zstd = manifest_with(&[zstd]);
         let mut nondistributable = oci_layer_descriptor(&layers[0]);
         nondistributable["mediaType"] =
             serde_json::json!("application/vnd.oci.image.layer.nondistributable.v1.tar+gzip");
@@ -1897,14 +1904,6 @@ mod tests {
                 "uppercase",
                 vec![("index.json", upper.as_slice())],
                 "not a sha256 digest",
-            ),
-            (
-                "zstd",
-                vec![
-                    ("index.json", zstd.2.as_slice()),
-                    (zstd.0.as_str(), zstd.1.as_slice()),
-                ],
-                "unsupported layer media type 'application/vnd.oci.image.layer.v1.tar+zstd'",
             ),
             (
                 "nondistributable",
@@ -2233,7 +2232,7 @@ mod tests {
     }
 
     #[test]
-    fn oci_paths_reject_zstd_compression() {
+    fn oci_paths_reject_invalid_zstd() {
         let scratch = scratch_dir();
         let mut zstd = ZSTD_MAGIC.to_vec();
         zstd.extend_from_slice(b"not a real zstd frame");
@@ -2258,7 +2257,7 @@ mod tests {
         let archive = scratch.path().join("zstd_image.tar");
         std::fs::write(&archive, outer).expect("write image");
         for (name, image, want) in [
-            ("layer", layer, "unsupported layer compression zstd"),
+            ("layer", layer, "is not valid zstd"),
             (
                 "archive",
                 archive,
@@ -2290,6 +2289,45 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    #[test]
+    fn oci_paths_accept_zstd_layer() {
+        let scratch = scratch_dir();
+        let tar = oci_test_layer(false);
+        let zstd = ruzstd::encoding::compress_to_vec(
+            tar.as_slice(),
+            ruzstd::encoding::CompressionLevel::Fastest,
+        );
+        let config = oci_config("amd64", &[&tar]);
+        let image = scratch.path().join("zstd_layer.tar");
+        oci_tar(
+            &image,
+            &[
+                (
+                    "manifest.json",
+                    b"[{\"Config\":\"c.json\",\"Layers\":[\"l/layer.tar\"]}]",
+                ),
+                ("c.json", &config),
+                ("l/layer.tar", &zstd),
+            ],
+            &[],
+        );
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        oci_build_layout(
+            &image,
+            &outdir,
+            "registry.invalid",
+            "demo/app",
+            "1.0.0",
+            "linux/amd64",
+        )
+        .expect("zstd layer");
+        let blob = outdir
+            .join("blobs/sha256")
+            .join(dx_digest::sha256_hex(&zstd));
+        assert!(blob.exists() || std::fs::read_dir(&outdir).expect("outdir").next().is_some());
     }
 
     fn elf_header(machine: u16) -> Vec<u8> {
@@ -2869,6 +2907,18 @@ mod tests {
             assert_eq!(error.kind(), io::ErrorKind::InvalidInput, "{platform}");
         }
         assert!(!out.exists());
+        let good = scratch.path().join("good.tar.zst");
+        let plain_bytes = std::fs::read(&plain).expect("plain");
+        std::fs::write(
+            &good,
+            ruzstd::encoding::compress_to_vec(
+                plain_bytes.as_slice(),
+                ruzstd::encoding::CompressionLevel::Fastest,
+            ),
+        )
+        .expect("good zst");
+        archive_image(&[good.as_path()], "linux/amd64", &[], &out).expect("valid zstd layer");
+        std::fs::remove_file(&out).expect("remove");
         let zst = scratch.path().join("zst.tar.zst");
         let mut zstd = ZSTD_MAGIC.to_vec();
         zstd.extend_from_slice(b"not a real zstd frame");
@@ -2876,12 +2926,7 @@ mod tests {
         let error = archive_image(&[plain.as_path(), zst.as_path()], "linux/amd64", &[], &out)
             .expect_err("zstd");
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
-        assert!(
-            error
-                .to_string()
-                .contains("unsupported layer compression zstd"),
-            "{error}"
-        );
+        assert!(error.to_string().contains("is not valid zstd"), "{error}");
         assert!(!out.exists());
     }
 }

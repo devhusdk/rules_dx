@@ -1,7 +1,5 @@
-use std::path::{Path, PathBuf};
-
 use dx_nested::{self as nested, Case};
-use dx_testing::{resolve_runfiles, Run};
+use dx_testing::{read, resolve_runfiles, rules_dx_source, write, Run};
 
 const DIRTY: &str = "pub fn add(a: i32, b: i32) i32 {\n    return a+b;\n}\n";
 const FORMATTED: &str = "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n";
@@ -34,24 +32,8 @@ zig_library(
 )
 "#;
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn rules_dx_root() -> PathBuf {
-    let sample = resolve_runfiles("zig/tests/fixtures/hello/greet.zig");
-    let real = std::fs::canonicalize(&sample).unwrap_or_else(|error| panic!("{sample:?}: {error}"));
-    real.ancestors()
-        .nth(5)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer(source: &str) -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case("consumer");
     let version = std::fs::read_to_string(rules.join(".bazelversion"))
         .unwrap_or_else(|error| panic!("bazelversion: {error}"));
@@ -90,10 +72,6 @@ fn dx_with(root: &Case, args: &[&str], tool: bool) -> Run {
 
 fn dx(root: &Case, args: &[&str]) -> Run {
     dx_with(root, args, false)
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
 }
 
 #[test]

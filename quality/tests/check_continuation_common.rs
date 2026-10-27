@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, resolve_runfiles, serde_json, Run};
+use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, serde_json, write, Run};
 
 pub const CLEAN: &str = "def add(a: int, b: int) -> int:\n    return a + b\n";
 
@@ -72,26 +72,6 @@ pub fn package(names: &[&str]) -> String {
     )
 }
 
-pub fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-pub fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-pub fn rules_dx_root() -> PathBuf {
-    let marker = resolve_runfiles("quality/tests/check_continuation_common.rs");
-    let real = std::fs::canonicalize(&marker).unwrap_or_else(|error| panic!("{marker:?}: {error}"));
-    real.ancestors()
-        .nth(3)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 pub const TYPE_ERROR: &str = "def total() -> int:\n    return \"x\"\n";
 
 pub const DX_BUILD: &str = r#"alias(
@@ -132,7 +112,7 @@ pub const DRIFT_SOURCES: Sources = Sources {
 };
 
 pub fn consumer(sources: &Sources) -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case("consumer");
     write(
         &root.join(".bazelversion"),

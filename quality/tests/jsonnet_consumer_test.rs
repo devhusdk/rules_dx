@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, resolve_runfiles, Run};
+use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run};
 
 const SETTINGS: &str = "{\n  retries: 3,\n  timeout: '30s',\n}\n";
 
@@ -60,28 +60,8 @@ jsonnet_library(
 )
 "#;
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let marker = resolve_runfiles("quality/tests/jsonnet_consumer_test.rs");
-    let real = std::fs::canonicalize(&marker).unwrap_or_else(|error| panic!("{marker:?}: {error}"));
-    real.ancestors()
-        .nth(3)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case("consumer");
     write(
         &root.join(".bazelversion"),

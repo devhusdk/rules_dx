@@ -1,7 +1,5 @@
-use std::path::{Path, PathBuf};
-
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, resolve_runfiles, Run};
+use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run};
 
 const HELLO_MDX: &str = "import { Chart } from \"./chart.js\";\n\nexport const meta = { title: \"Report\" };\n\n# Quarterly report\n\nRevenue grew in _this_ quarter, see **below**.\n\n* First item\n* Second item\n\n<Chart data={[1, 2, 3]} label=\"Revenue\">\n  The chart shows the trend.\n</Chart>\n\n```js\nconst total = 1 + 2;\n```\n";
 
@@ -74,28 +72,8 @@ const HELLO: &str = "app/Hello.mdx";
 const BROKEN: &str = "app/Broken.mdx";
 const NOTES: &str = "app/Notes.mdx";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let marker = resolve_runfiles("quality/tests/mdx_consumer_test.rs");
-    let real = std::fs::canonicalize(&marker).unwrap_or_else(|error| panic!("{marker:?}: {error}"));
-    real.ancestors()
-        .nth(3)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer(files: &[(&str, &str)]) -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case("consumer");
     write(
         &root.join(".bazelversion"),

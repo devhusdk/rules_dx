@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, resolve_runfiles, sha256_file, Run};
+use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, sha256_file, write, Run};
 
 const MODULE: &str = r#"module(name = "consumer")
 
@@ -46,28 +46,8 @@ const ADD_PS1: &str = "function Add-LedgerEntry {\n    <#\n    .SYNOPSIS\n    Ad
 
 const TOTAL_PS1: &str = "function Get-LedgerTotal {\n    <#\n    .SYNOPSIS\n    Sums a ledger.\n    #>\n    param()\n    0\n}\n";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let marker = resolve_runfiles("quality/tests/powershell_docs_consumer_test.rs");
-    let real = std::fs::canonicalize(&marker).unwrap_or_else(|error| panic!("{marker:?}: {error}"));
-    real.ancestors()
-        .nth(3)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case("powershell_docs_consumer");
     write(
         &root.join(".bazelversion"),

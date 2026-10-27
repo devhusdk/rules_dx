@@ -17,6 +17,7 @@ Flags:
 - `--force`: run even when available memory is below the minimum.
 - `--compare A B`: print the percent difference per metric. Exit 1 if any is over 15%. Exit 2 if the runs used different `--worktrees`, `--target`, rc files or disk cache, lack the `user_rc` or `shared_disk_cache` fields, or have no metrics. Relative paths are relative to where you run it.
 
+Every worktree's Bazel server starts before the cold phase and stays up under the repository's own idle limit while that worktree waits for a slot.
 It runs `dx test` in all worktrees at once, cold, then warm. Each run takes a build slot; worktrees beyond the slot count wait. Run it with `bazel run`. Worktrees share your repository cache unless you pass `--isolated-repo-cache`.
 It prints the setup line `user rc: read|skipped, disk cache: <path>|off`, then a table, and writes the JSON.
 The JSON header has `worktrees`, `target`, `user_rc` (rc files read), `shared_disk_cache` (a disk cache was on) and `disk_cache` (its path, empty when off).
@@ -32,4 +33,4 @@ Memory: it refuses to start when `MemAvailable` is below 3 GiB per worktree, and
 Signals: SIGINT or SIGTERM during a run stops it, cleans up and exits 130.
 
 Exit codes: 0 success, 1 metrics over tolerance in `--compare`, 2 usage errors, the memory refusal and
-failed runs, including a run where `bazel info` restarts a worktree's Bazel server, 130 interrupted.
+failed runs, including a run where `bazel info` restarts a worktree's Bazel server or `dx test` restarts a server started before the cold phase, 130 interrupted.

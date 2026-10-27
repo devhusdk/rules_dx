@@ -131,8 +131,17 @@ fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
 
 #[cfg(windows)]
 fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
+    // Register a handler that swallows Ctrl+C/Ctrl+Break for the shim
+    // only. Passing `None` would set the process-wide "ignore Ctrl+C" flag,
+    // which child processes inherit, so dx.exe would ignore Ctrl+C too. A
+    // real handler is not inherited: the child keeps default handling and
+    // the shim waits for its exit code (same approach as cargo and rustup).
+    unsafe extern "system" fn swallow_ctrl(_ctrl_type: u32) -> i32 {
+        1
+    }
+    // SAFETY: registers a static function with no captured state.
     unsafe {
-        windows_sys::Win32::System::Console::SetConsoleCtrlHandler(None, 1);
+        windows_sys::Win32::System::Console::SetConsoleCtrlHandler(Some(swallow_ctrl), 1);
     }
     let status = std::process::Command::new(bin)
         .args(args)

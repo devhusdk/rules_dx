@@ -79,7 +79,11 @@ fn agent(url: &str) -> ureq::Agent {
         .https_only(https)
         .proxy(proxy)
         .timeout_connect(Some(Duration::from_secs(30)))
-        .timeout_recv_body(Some(Duration::from_secs(120)))
+        .timeout_recv_response(Some(Duration::from_secs(60)))
+        // ureq bounds the whole body transfer, not idle time. Keep it
+        // generous so slow links can fetch a large binary (curl in tools/dx
+        // has no limit); this only stops a transfer that has truly stalled.
+        .timeout_recv_body(Some(Duration::from_secs(60 * 60)))
         .build()
         .into()
 }

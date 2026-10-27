@@ -40,6 +40,8 @@ pub enum PolicyProblem {
     Exception(#[from] ExceptionProblem),
     #[error("license exception missing {field}")]
     ExceptionMissingField { field: &'static str },
+    #[error("inventory text for package {package:?} is invalid: {message}")]
+    InventoryText { package: String, message: String },
 }
 
 impl PolicyTables {
@@ -272,6 +274,10 @@ pub struct LicenseInventory {
     pub versions: String,
     #[serde(default)]
     pub text_present: bool,
+    /// Workspace-relative path of the vendored license words; implies
+    /// `text_present` and feeds the `notice` report.
+    #[serde(default)]
+    pub text: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -303,6 +309,14 @@ pub fn validate_license_inventory(entry: &LicenseInventory) -> Result<(), Policy
         return Err(PolicyProblem::ExceptionMissingField {
             field: "inventory.versions",
         });
+    }
+    if let Some(text) = &entry.text {
+        crate::notice_manifest::notice_text_path_error(text).map_err(|message| {
+            PolicyProblem::InventoryText {
+                package: entry.package.clone(),
+                message,
+            }
+        })?;
     }
     Ok(())
 }

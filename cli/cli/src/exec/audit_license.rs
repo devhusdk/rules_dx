@@ -14,6 +14,7 @@ pub(super) fn run_license(
             return LicenseResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
                 packages: Vec::new(),
+                notice: Vec::new(),
                 diagnostics: Vec::new(),
                 detail: error.to_string(),
                 code: CODE_AUDIT_FAILED,
@@ -26,6 +27,7 @@ pub(super) fn run_license(
         return LicenseResult {
             status: dx_audit::outcome::FamilyStatus::Incomplete,
             packages: Vec::new(),
+            notice: Vec::new(),
             diagnostics: Vec::new(),
             detail: detail.clone(),
             code: CODE_AUDIT_FAILED,
@@ -37,6 +39,7 @@ pub(super) fn run_license(
             return LicenseResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
                 packages: Vec::new(),
+                notice: Vec::new(),
                 diagnostics: Vec::new(),
                 detail: detail.clone(),
                 code: CODE_AUDIT_FAILED,
@@ -49,6 +52,7 @@ pub(super) fn run_license(
             return LicenseResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
                 packages: Vec::new(),
+                notice: Vec::new(),
                 diagnostics: Vec::new(),
                 detail: detail.clone(),
                 code: CODE_AUDIT_FAILED,
@@ -64,6 +68,7 @@ pub(super) fn run_license(
     let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
     let mut notice_present: std::collections::BTreeMap<(String, String, String), bool> =
         std::collections::BTreeMap::new();
+    let mut notice_candidates: Vec<dx_audit::license_notice::NoticeCandidate> = Vec::new();
     let mut provenance: BTreeMap<(String, String), std::collections::BTreeSet<String>> =
         BTreeMap::new();
     let mut bazel_seen: std::collections::BTreeSet<(String, String)> =
@@ -325,6 +330,15 @@ pub(super) fn run_license(
             ))
             .copied()
             .unwrap_or(false);
+        let recorded_text = dx_audit::locks::inventory_text(
+            &dx_audit::vuln::LockedPackage::new(
+                licensed.set.clone(),
+                licensed.name.clone(),
+                licensed.version.clone(),
+            ),
+            &policy.inventory,
+        )
+        .map(str::to_owned);
         let notice_input = dx_audit::license_notice::NoticeInput {
             package: licensed.name.clone(),
             license: licensed.license.clone(),
@@ -333,6 +347,14 @@ pub(super) fn run_license(
         let notice_outcome =
             dx_audit::license_notice::evaluate_notice(&notice_input, tier, &approved);
         let notice_fails = dx_audit::license_notice::notice_fails(notice_outcome, tier);
+        notice_candidates.push(dx_audit::license_notice::NoticeCandidate {
+            package: licensed.name.clone(),
+            set: licensed.set.clone(),
+            version: licensed.version.clone(),
+            license: licensed.license.clone(),
+            text: recorded_text,
+            notice_fails,
+        });
         let spdx_license = if licensed.license.trim().is_empty() {
             "NOASSERTION".to_owned()
         } else {
@@ -466,6 +488,15 @@ pub(super) fn run_license(
             }
         }
     }
+    let (notice, notice_problems) =
+        dx_audit::license_notice::notice_manifest_rows(&notice_candidates, &|rel: &str| {
+            std::fs::read(workspace.join(rel))
+                .map_err(|error| error.to_string())
+                .and_then(|bytes| String::from_utf8(bytes).map_err(|_| "not UTF-8".to_owned()))
+        });
+    if incomplete.is_none() {
+        incomplete = notice_problems.into_iter().next();
+    }
     let has_incomplete = incomplete.is_some();
     let status = if has_incomplete {
         dx_audit::outcome::FamilyStatus::Incomplete
@@ -487,6 +518,7 @@ pub(super) fn run_license(
     LicenseResult {
         status,
         packages: packages_all,
+        notice,
         diagnostics,
         detail,
         code: CODE_AUDIT_FAILED,

@@ -641,3 +641,35 @@ fn loader_rejects_empty_inventory_fields_and_unknown_keys() {
         "typo'd inventory key must fail as invalid TOML"
     );
 }
+
+#[test]
+fn inventory_text_parses_validates_and_implies_present() {
+    let ok = "[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext = \"vendor/react/LICENSE\"\n";
+    let policy = load_licenses_toml(ok).expect("text loads");
+    assert_eq!(
+        policy.inventory[0].text.as_deref(),
+        Some("vendor/react/LICENSE")
+    );
+    let pkg =
+        crate::vuln::LockedPackage::new("npm".to_owned(), "react".to_owned(), "18.2.0".to_owned());
+    assert!(crate::locks::inventory_text_present(
+        &pkg,
+        &policy.inventory
+    ));
+    assert_eq!(
+        crate::locks::inventory_text(&pkg, &policy.inventory),
+        Some("vendor/react/LICENSE")
+    );
+    for bad in ["../x", "/abs", "a\\\\b", "a//b", "a/"] {
+        let text = format!(
+            "[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext = \"{bad}\"\n"
+        );
+        assert!(
+            matches!(
+                load_licenses_toml(&text),
+                Err(PolicyProblem::InventoryText { .. })
+            ),
+            "{bad:?} must be rejected"
+        );
+    }
+}

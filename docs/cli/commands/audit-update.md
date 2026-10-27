@@ -4,7 +4,7 @@
 
 ```text
 dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>] [scope...]
+dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>|notice=<dest>] [scope...]
 ```
 
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
@@ -198,6 +198,11 @@ license the `cargo` and `npm` sets read from `cargo-bazel-lock.json` and
 `package-lock.json`, and it is the only license source for every other set, so
 a package with no entry is `UNKNOWN`.
 
+An entry may also set `text = "<workspace-relative path>"` to a vendored license
+file. It implies `text_present`, must be a `/`-separated path with no leading
+`/`, `\`, or empty, `.`, or `..` components, and feeds the `notice` report. Older
+`dx` binaries reject a `licenses.toml` that uses `text`.
+
 Each `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason`,
 and `expires`, and covers a finding only when `package`, `set`, and `license`
 all match. An `expires` date on or before the audit date fails the run. An
@@ -221,8 +226,14 @@ with code `audit_security_clean` or `audit_license_clean`. A failed family emits
 missing, stale, or corrupt advisory snapshot, `offline_required` when
 `--offline` blocks a refresh, and `audit_failed` for findings or any other
 incomplete assessment. Reports: `dx security` writes
-`--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
-`--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
+`--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>`,
+`--report spdx=<dest>`, or `--report notice=<dest>`. Repeat the flag for more files. Use `-` for stdout.
+The notice report is the six-field `package|set|version|license|text|sha256`
+manifest that `notice_bundle` reads. It has one row per package with a recorded
+`text` (read from the workspace, sha256 of the words), plus an empty-text row for
+every package whose notice check fails, so the bundle fails closed. An unreadable
+or empty text file makes the license family incomplete. Pass the same files to
+`notice_bundle` as `texts`.
 The SPDX report is an SPDX 2.3 JSON document with `creationInfo` naming
 `Tool: dx`. Each audited scope label is a package `SPDXRef-Root-<n>`, numbered
 over the sorted labels, and the document has one

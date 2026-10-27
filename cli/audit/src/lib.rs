@@ -17,6 +17,7 @@ pub mod license_expr;
 pub mod license_notice;
 pub mod license_policy;
 pub mod locks;
+pub mod notice_manifest;
 pub mod outcome;
 pub mod secrets;
 pub mod spdx;

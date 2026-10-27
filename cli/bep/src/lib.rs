@@ -147,6 +147,27 @@ impl<R: BufRead> Iterator for EventLines<R> {
     }
 }
 
+/// Reports whether the stream at `path` holds a real `started` event; a synthetic aborted one does not count.
+///
+/// A missing file is an `io::ErrorKind::NotFound` error. Unparseable lines are skipped.
+pub fn stream_started(path: &Path) -> std::io::Result<bool> {
+    let reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    for line in reader.lines() {
+        let Ok(line) = line else { continue };
+        let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) else {
+            continue;
+        };
+        if event
+            .pointer("/id/started")
+            .is_some_and(|id| id.is_object())
+            && event.get("started").is_some_and(|body| body.is_object())
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 pub(crate) fn file_uri_to_path(uri: &str) -> Result<PathBuf, BepError> {
     dx_path::uri_to_path(uri).map_err(|_| BepError::UnsupportedUri {
         uri: uri.to_owned(),
@@ -411,6 +432,27 @@ pub fn non_shard_artifact_paths(outputs: &[TargetOutput], suffix: &str) -> Vec<S
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn started_in(text: &str) -> std::io::Result<bool> {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("bep.json");
+        std::fs::write(&path, text).expect("write");
+        stream_started(&path)
+    }
+
+    #[test]
+    fn stream_started_reads_only_real_started_events() {
+        let missing = stream_started(Path::new("/nonexistent/dx/bep.json")).unwrap_err();
+        assert_eq!(missing.kind(), std::io::ErrorKind::NotFound);
+        assert!(!started_in("").unwrap());
+        assert!(
+            !started_in("{\"id\":{\"started\":{}},\"aborted\":{\"reason\":\"INTERNAL\"}}\n")
+                .unwrap()
+        );
+        assert!(started_in("{\"id\":{\"started\":{}},\"started\":{\"uuid\":\"x\"}}\n").unwrap());
+        assert!(!started_in("not json\n{\"id\":{\"started\":{}},\"star").unwrap());
+        assert!(started_in("garbage\n{\"id\":{\"started\":{}},\"started\":{}}\n").unwrap());
+    }
 
     /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {

@@ -11,6 +11,7 @@
 use std::io::{self, Write};
 use std::path::Path;
 
+use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
 use dx_cli::exec::common::flush_out;
 use dx_cli::{execute, print_actions, ActionTally, Env};
 use dx_output::OutputMode;
@@ -372,8 +373,11 @@ fn run() -> i32 {
     }
     dx_plan::plan::remove_stale_run_dirs(&temp_base);
     let reaped = dx_process::groups::reap_orphans();
-    let runner = dx_process::BinaryRunner::new(inherit_stdout, die_by_signal);
-    let query_runner = BinaryQueryRunner { runner };
+    let runner =
+        RestartingRunner::new(dx_process::BinaryRunner::new(inherit_stdout, die_by_signal));
+    let query_runner = RestartingQueryRunner::new(BinaryQueryRunner {
+        runner: dx_process::BinaryRunner::new(inherit_stdout, die_by_signal),
+    });
     let stdout = io::stdout();
     let mut out = stdout.lock();
     let mut err = io::stderr();

@@ -599,6 +599,15 @@ mod tests {
                     .expect("chmod");
             }
 
+            fn rewrite_launcher(&self, from: &str, to: &str) {
+                let path = self.base.join("repo/tools/dx");
+                let text = std::fs::read_to_string(&path).expect("read launcher");
+                assert!(text.contains(from), "launcher template lost {from:?}");
+                std::fs::write(&path, text.replacen(from, to, 1)).expect("write launcher");
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                    .expect("chmod");
+            }
+
             fn downloads(&self) -> usize {
                 std::fs::read_to_string(self.base.join("calls"))
                     .map_or(0, |text| text.lines().count())
@@ -660,26 +669,94 @@ mod tests {
         const UNAME_ROSETTA: &str =
             "#!/bin/sh\ncase \"$1\" in\n  -s) echo Darwin ;;\n  -m) echo x86_64 ;;\nesac\n";
 
+        const ROSETTA_KEYS: [&str; 2] = ["hw.optional.arm64", "sysctl.proc_translated"];
+
+        fn sysctl_stub(on: Option<&str>) -> String {
+            let on = on.unwrap_or("none");
+            format!(
+                r#"#!/bin/sh
+on='{on}'
+n=0
+if [ $# -eq 2 ] && [ "$1" = -n ]; then
+  n=1
+  shift
+fi
+if [ $# -ne 1 ]; then
+  echo "sysctl: usage" >&2
+  exit 1
+fi
+case "$1" in
+  hw.optional.arm64 | sysctl.proc_translated) ;;
+  *)
+    echo "sysctl: unknown oid '$1'" >&2
+    exit 1
+    ;;
+esac
+if [ "$1" = "$on" ]; then v=1; else v=0; fi
+if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
+"#
+            )
+        }
+
         #[test]
         fn rosetta_on_apple_silicon_runs_the_arm64_binary() {
-            let fx = Fixture::new("dx-launcher-rosetta-", true, None);
-            fx.stub("uname", UNAME_ROSETTA);
-            fx.stub("sysctl", "#!/bin/sh\necho 1\n");
-            let (code, out, err) = fx.run(&["version"]);
-            assert_eq!((code, out.as_str()), (Some(0), "ran version\n"), "{err}");
-            assert_eq!(fx.cached(), vec!["dx-macos-arm64"]);
+            for (name, key) in [
+                ("dx-launcher-rosetta-arm64-", ROSETTA_KEYS[0]),
+                ("dx-launcher-rosetta-translated-", ROSETTA_KEYS[1]),
+            ] {
+                let fx = Fixture::new(name, true, None);
+                fx.stub("uname", UNAME_ROSETTA);
+                fx.stub("sysctl", &sysctl_stub(Some(key)));
+                let (code, out, err) = fx.run(&["version"]);
+                assert_eq!(
+                    (code, out.as_str()),
+                    (Some(0), "ran version\n"),
+                    "{key}: {err}"
+                );
+                assert_eq!(fx.cached(), vec!["dx-macos-arm64"], "{key}");
+            }
         }
 
         #[test]
         fn intel_mac_still_has_no_binary() {
-            let fx = Fixture::new("dx-launcher-intel-mac-", true, None);
-            fx.stub("uname", UNAME_ROSETTA);
-            fx.stub("sysctl", "#!/bin/sh\nexit 1\n");
-            let (code, out, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1), "{out}{err}");
-            assert!(err.contains("no dx binary for macos x86_64"), "{err}");
-            assert_eq!(fx.downloads(), 0);
-            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+            for (name, body) in [
+                ("dx-launcher-intel-mac-", sysctl_stub(None)),
+                (
+                    "dx-launcher-intel-mac-broken-",
+                    "#!/bin/sh\nexit 1\n".to_owned(),
+                ),
+            ] {
+                let fx = Fixture::new(name, true, None);
+                fx.stub("uname", UNAME_ROSETTA);
+                fx.stub("sysctl", &body);
+                let (code, out, err) = fx.run(&["version"]);
+                assert_eq!(code, Some(1), "{out}{err}");
+                assert!(err.contains("no dx binary for macos x86_64"), "{err}");
+                assert_eq!(fx.downloads(), 0);
+                assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+            }
+        }
+
+        #[test]
+        fn rosetta_detection_needs_the_exact_key_and_dash_n() {
+            let changes = [
+                (ROSETTA_KEYS[0], "hw.optional.arm65", ROSETTA_KEYS[0]),
+                (ROSETTA_KEYS[1], "sysctl.proc_translatd", ROSETTA_KEYS[1]),
+                ("sysctl -n \"$key\"", "sysctl \"$key\"", ROSETTA_KEYS[0]),
+            ];
+            for (i, (from, to, on)) in changes.into_iter().enumerate() {
+                let fx = Fixture::new(&format!("dx-launcher-rosetta-neg{i}-"), true, None);
+                fx.stub("uname", UNAME_ROSETTA);
+                fx.stub("sysctl", &sysctl_stub(Some(on)));
+                fx.rewrite_launcher(from, to);
+                let (code, out, err) = fx.run(&["version"]);
+                assert_eq!(code, Some(1), "{from} -> {to}: {out}{err}");
+                assert!(
+                    err.contains("no dx binary for macos x86_64"),
+                    "{from} -> {to}: {err}"
+                );
+                assert_eq!(fx.downloads(), 0, "{from} -> {to}");
+            }
         }
 
         #[test]

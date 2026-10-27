@@ -265,9 +265,19 @@ fn a_dependent_library_links_into_its_dependency() {
         )
     );
     assert!(
+        find(&ext, "ruby:geometry_ext:Geometry").is_none(),
+        "a reopened dependency namespace was documented again"
+    );
+    let helper = find(&ext, "ruby:geometry_ext:Geometry.self.unit_square").expect("unit_square");
+    assert_eq!(
+        helper.relations.as_ref().expect("relations").member_of,
+        vec![format!("{PREFIX}Geometry")]
+    );
+    assert!(
         ext.symbols
             .iter()
-            .all(|s| s.id.starts_with("ruby:geometry_ext:GeometryExt")),
+            .all(|s| s.id.starts_with("ruby:geometry_ext:GeometryExt")
+                || s.id == "ruby:geometry_ext:Geometry.self.unit_square"),
         "the dependency leaked into the shard"
     );
 }
@@ -348,7 +358,22 @@ impl Driver {
         plugin_lib: Option<&Path>,
     ) -> (i32, String) {
         let srcs = self.manifest("context.tsv", &[]);
-        let deps = self.manifest("deps.tsv", &[]);
+        let deps = self.dir.join("deps.tsv");
+        std::fs::write(&deps, "").expect("write the deps manifest");
+        self.run_with(yard_lib, own, &srcs, &deps, cwd, home, plugin_lib)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn run_with(
+        &self,
+        yard_lib: &Path,
+        own: &Path,
+        srcs: &Path,
+        deps: &Path,
+        cwd: &Path,
+        home: &Path,
+        plugin_lib: Option<&Path>,
+    ) -> (i32, String) {
         let mut command = Command::new(runfile("DX_RUBY"));
         command.arg("--disable-gems").arg("-I").arg(yard_lib);
         if let Some(lib) = plugin_lib {
@@ -359,9 +384,9 @@ impl Driver {
             .arg("--own")
             .arg(own)
             .arg("--srcs")
-            .arg(&srcs)
+            .arg(srcs)
             .arg("--deps")
-            .arg(&deps)
+            .arg(deps)
             .arg("--scratch")
             .arg(self.dir.join("home"))
             .arg("--out")
@@ -396,6 +421,47 @@ fn testdata() -> PathBuf {
 
 fn bytes_of(path: &Path) -> Vec<u8> {
     std::fs::read(path).expect("read the source")
+}
+
+#[test]
+fn a_namespace_a_dependency_opens_stays_with_the_dependency() {
+    let driver = Driver::new("ruby-reopen");
+    let dep = "tools/docs/ruby/fixture/testdata/reopen/dep.rb";
+    let own = driver.manifest(
+        "own.tsv",
+        &["tools/docs/ruby/fixture/testdata/reopen/own.rb"],
+    );
+    let srcs = driver.manifest("context.tsv", &[dep]);
+    let deps = driver.dir.join("deps.tsv");
+    std::fs::write(
+        &deps,
+        format!("bare\t{}\n", driver.root.join(dep).display()),
+    )
+    .expect("write the deps manifest");
+    let (code, stderr) = driver.run_with(
+        &yard_lib(),
+        &own,
+        &srcs,
+        &deps,
+        &driver.dir,
+        &driver.dir,
+        None,
+    );
+    assert_eq!(code, 0, "{stderr}");
+    let out = driver.dir.join("out.ir.pb");
+    let (code, stderr) = extract(&driver.out(), &out);
+    assert_eq!(code, 0, "{stderr}");
+    let shard = decode_shard(&bytes_of(&out)).expect("decode the shard");
+    let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(ids, ["ruby:geometry:Bare.self.extra"]);
+    assert_eq!(
+        shard.symbols[0]
+            .relations
+            .as_ref()
+            .expect("relations")
+            .member_of,
+        ["ruby:bare:Bare"]
+    );
 }
 
 #[test]

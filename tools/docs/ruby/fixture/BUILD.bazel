@@ -73,6 +73,8 @@ filegroup(
         "testdata/plugin/home/.yard/config",
         "testdata/plugin/lib/yard-evil.rb",
         "testdata/private_only.rb",
+        "testdata/reopen/dep.rb",
+        "testdata/reopen/own.rb",
     ],
 )
 

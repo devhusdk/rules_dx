@@ -21,3 +21,13 @@ module GeometryExt
     end
   end
 end
+
+# Helpers this library adds to the geometry namespace.
+module Geometry
+  # Builds a square with sides of one.
+  #
+  # @return [GeometryExt::Square] the unit square.
+  def self.unit_square
+    GeometryExt::Square.new(1.0)
+  end
+end

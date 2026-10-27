@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 # Parses Ruby sources with YARD and writes their public API as versioned JSON.
-#
-# The script never runs the parsed code, YARD's command line or any YARD plugin.
-# YARD reads ARGV, ./.yardopts and ~/.yard/config while it is required, so the
-# arguments, the working directory and HOME are all neutralized before that.
 
 FORMAT = 1
 USAGE = "usage: yard_dump.rb --own FILE --srcs FILE --deps FILE --scratch DIR --out FILE"
@@ -89,8 +85,6 @@ plugins = YARD::Config.options[:autoload_plugins] + YARD::Config.options[:load_p
 fail_with("YARD config enables plugins: #{plugins.join(", ")}") unless plugins.empty?
 
 YARD::Registry.clear
-# Context and dependency files go first so that a namespace another library
-# defines keeps that library as its primary file.
 order = files.keys.sort_by { |path| [(files[path][:owner] == "") ? 1 : 0, files[path][:rel]] }
 YARD.parse(order, [], YARD::Logger::Severity::WARN)
 fail_with("YARD reported #{problems.length} problem(s); no API JSON was written") unless problems.empty?
@@ -119,9 +113,20 @@ def attribute_of(object)
   {"name" => name, "read" => !pair[:read].nil?, "write" => !pair[:write].nil?}
 end
 
+# A namespace that any other library also opens belongs to that library.
+def source_of(object, files, scratch)
+  found = object.files.map { |file, line| [files[File.expand_path(file.to_s, scratch)], line] }
+  found.reject! { |entry, _line| entry.nil? }
+  if %i[module class].include?(object.type)
+    foreign = found.find { |entry, _line| entry[:owner] != "" }
+    return foreign if foreign
+  end
+  found.first || [nil, nil]
+end
+
 objects = []
 YARD::Registry.all(:module, :class, :method, :constant).each do |object|
-  entry = files[File.expand_path(object.file.to_s, scratch)]
+  entry, line = source_of(object, files, scratch)
   next if entry.nil? || entry[:owner].nil?
   namespace = object.namespace
   record = {
@@ -136,7 +141,7 @@ YARD::Registry.all(:module, :class, :method, :constant).each do |object|
     "tags" => object.tags.map { |tag| tag_json(tag) },
     "file" => entry[:rel],
     "generated" => entry[:generated],
-    "line" => object.line || 0,
+    "line" => line || 0,
     "owner" => entry[:owner],
     "superclass" => "",
     "includes" => [],

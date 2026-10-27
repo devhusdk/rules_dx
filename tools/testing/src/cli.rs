@@ -1,15 +1,17 @@
+//! Shared helpers for tests of the dx CLI crates.
+
 /// Copies test words into owned strings, in order.
-pub(crate) fn strings(words: &[&str]) -> Vec<String> {
+pub fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(ToString::to_string).collect()
 }
 
 /// Renders one rule as a line of `streamed_jsonproto` query output.
-pub(crate) fn graph_rule(name: &str, inputs: &[&str], tags: &[&str]) -> String {
+pub fn graph_rule(name: &str, inputs: &[&str], tags: &[&str]) -> String {
     render_graph_rule(name, None, inputs, tags)
 }
 
 /// Renders one rule of the given rule class as a line of query output.
-pub(crate) fn graph_rule_of_kind(name: &str, kind: &str, inputs: &[&str], tags: &[&str]) -> String {
+pub fn graph_rule_of_kind(name: &str, kind: &str, inputs: &[&str], tags: &[&str]) -> String {
     render_graph_rule(name, Some(kind), inputs, tags)
 }
 
@@ -26,30 +28,34 @@ fn render_graph_rule(name: &str, kind: Option<&str>, inputs: &[&str], tags: &[&s
 }
 
 /// Joins rule lines into the rule graph query output.
-pub(crate) fn graph_stdout(lines: &[String]) -> String {
+pub fn graph_stdout(lines: &[String]) -> String {
     let mut out = lines.join("\n");
     out.push('\n');
     out
 }
 
 /// Parses one NDJSON event per line.
-pub(crate) fn json_events(out: &str) -> Vec<serde_json::Value> {
+pub fn json_events(out: &str) -> Vec<serde_json::Value> {
     out.lines()
         .map(serde_json::from_str)
         .collect::<Result<_, _>>()
-        .expect("NDJSON")
+        .unwrap_or_else(|error| panic!("NDJSON: {error}"))
 }
 
 /// Returns the kind of every event, in order.
-pub(crate) fn event_kinds(events: &[serde_json::Value]) -> Vec<&str> {
+pub fn event_kinds(events: &[serde_json::Value]) -> Vec<&str> {
     events
         .iter()
-        .map(|event| event["event"].as_str().expect("event"))
+        .map(|event| {
+            event["event"]
+                .as_str()
+                .unwrap_or_else(|| panic!("event without a kind: {event}"))
+        })
         .collect()
 }
 
 /// Returns the first event of the given kind.
-pub(crate) fn event<'a>(events: &'a [serde_json::Value], kind: &str) -> &'a serde_json::Value {
+pub fn event<'a>(events: &'a [serde_json::Value], kind: &str) -> &'a serde_json::Value {
     events
         .iter()
         .find(|event| event["event"] == serde_json::json!(kind))
@@ -57,7 +63,7 @@ pub(crate) fn event<'a>(events: &'a [serde_json::Value], kind: &str) -> &'a serd
 }
 
 /// Returns every event of the given kind, in order.
-pub(crate) fn events_of_kind<'a>(
+pub fn events_of_kind<'a>(
     events: &'a [serde_json::Value],
     kind: &str,
 ) -> Vec<&'a serde_json::Value> {
@@ -67,24 +73,37 @@ pub(crate) fn events_of_kind<'a>(
         .collect()
 }
 
-const SETTLE_LIMIT: std::time::Duration = std::time::Duration::from_secs(1);
-const SETTLE_POLL: std::time::Duration = std::time::Duration::from_millis(10);
-
-/// Waits for `count` slots to look free, since a forked child can briefly hold a released slot's lock.
-pub(crate) fn slot_settles_free(dir: &std::path::Path, count: usize) -> bool {
-    let start = std::time::Instant::now();
-    loop {
-        if crate::slots::try_take(dir, count, "settle")
-            .expect("try")
-            .is_some()
-        {
-            return true;
+/// Splits a markdown page at its `## ` headings into (heading, body) pairs; the first heading is empty.
+pub fn markdown_sections(page: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut heading = String::new();
+    let mut body: Vec<&str> = Vec::new();
+    for line in page.lines() {
+        if let Some(rest) = line.strip_prefix("## ") {
+            out.push((std::mem::take(&mut heading), body.join("\n")));
+            heading = rest.trim().to_owned();
+            body.clear();
+            continue;
         }
-        if start.elapsed() >= SETTLE_LIMIT {
-            return false;
-        }
-        std::thread::sleep(SETTLE_POLL);
+        body.push(line);
     }
+    out.push((heading, body.join("\n")));
+    out
+}
+
+/// Returns every complete backticked span in `text`, in order.
+pub fn backticked(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find('`') {
+        let tail = &rest[start + 1..];
+        let Some(end) = tail.find('`') else {
+            break;
+        };
+        out.push(tail[..end].to_owned());
+        rest = &tail[end + 1..];
+    }
+    out
 }
 
 #[cfg(test)]
@@ -204,27 +223,21 @@ mod tests {
     }
 
     #[test]
-    fn slot_settles_free_waits_for_a_late_release() {
-        let scratch = dx_test_scratch::scratch("dx-settle-late-");
-        let dir = scratch.path().join("slots");
-        let held = crate::slots::try_take(&dir, 1, "held")
-            .expect("try")
-            .expect("free");
-        let releaser = std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(50));
-            drop(held);
-        });
-        assert!(slot_settles_free(&dir, 1));
-        releaser.join().expect("join");
+    fn markdown_sections_split_at_second_level_headings() {
+        let got = markdown_sections("intro\n## `dx a`\nbody a\n### deeper\n## b\n");
+        assert_eq!(
+            got,
+            vec![
+                (String::new(), "intro".to_owned()),
+                ("`dx a`".to_owned(), "body a\n### deeper".to_owned()),
+                ("b".to_owned(), String::new()),
+            ]
+        );
     }
 
     #[test]
-    fn slot_settles_free_gives_up_on_a_held_slot() {
-        let scratch = dx_test_scratch::scratch("dx-settle-held-");
-        let dir = scratch.path().join("slots");
-        let _held = crate::slots::try_take(&dir, 1, "held")
-            .expect("try")
-            .expect("free");
-        assert!(!slot_settles_free(&dir, 1));
+    fn backticked_skips_an_unterminated_span() {
+        assert_eq!(backticked("a `x` b `y` c `z"), vec!["x", "y"]);
+        assert!(backticked("none").is_empty());
     }
 }

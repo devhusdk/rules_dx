@@ -139,6 +139,21 @@ pub fn eventually<T>(
     }
 }
 
+/// Retries `probe` every 10ms until it returns true, giving up once
+/// `deadline` has passed; reports whether the probe ever succeeded.
+pub fn settles(deadline: std::time::Duration, mut probe: impl FnMut() -> bool) -> bool {
+    let start = std::time::Instant::now();
+    loop {
+        if probe() {
+            return true;
+        }
+        if start.elapsed() >= deadline {
+            return false;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -279,5 +294,24 @@ mod tests {
     #[should_panic(expected = "timed out waiting for a thing")]
     fn eventually_panics_after_the_deadline() {
         eventually::<()>("a thing", std::time::Duration::from_millis(50), || None);
+    }
+
+    #[test]
+    fn settles_waits_for_a_late_success() {
+        let start = std::time::Instant::now();
+        let late = std::time::Duration::from_millis(50);
+        assert!(settles(std::time::Duration::from_secs(5), || start
+            .elapsed()
+            >= late));
+    }
+
+    #[test]
+    fn settles_gives_up_after_the_deadline() {
+        let mut calls = 0;
+        assert!(!settles(std::time::Duration::from_millis(50), || {
+            calls += 1;
+            false
+        }));
+        assert!(calls > 1, "{calls}");
     }
 }

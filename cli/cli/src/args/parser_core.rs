@@ -1,7 +1,7 @@
 use super::super::{assert_usage, ArgsError, Command, OperationMode, ReportRequest};
 use super::parse;
-use crate::test_support::strings;
 use dx_output::{OutputMode, Threshold};
+use dx_testing::cli::strings;
 
 #[test]
 fn bare_command_parses_with_defaults() {

@@ -85,7 +85,7 @@ fn probe_keeps_json_stdout_to_the_build_events() {
 fn interrupted_probe_cancels_the_phase_without_a_build() {
     let mut harness = clean_harness("probe-interrupted");
     harness.probe_code = Some(super::super::common::BAZEL_INTERRUPTED);
-    let parsed = crate::args::parse(&crate::test_support::strings(&[
+    let parsed = crate::args::parse(&dx_testing::cli::strings(&[
         "lint",
         "--check",
         "--output=text",

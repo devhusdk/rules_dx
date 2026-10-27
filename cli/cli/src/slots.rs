@@ -1619,7 +1619,14 @@ mod tests {
         std::fs::write(holder_path(&dir, 2), "gone").expect("stale holder");
         assert!(holder_path(&dir, 0).exists());
         assert_eq!(held(&dir, 0..3, 1), 1);
-        assert!(crate::test_support::slot_settles_free(&dir, 1));
+        assert!(dx_test_scratch::settles(
+            std::time::Duration::from_secs(1),
+            || {
+                crate::slots::try_take(&dir, 1, "settle")
+                    .expect("try")
+                    .is_some()
+            }
+        ));
     }
 
     #[test]
@@ -2166,7 +2173,14 @@ mod tests {
         assert!(take(Command::Run, &mut Vec::new(), &mut Vec::new())
             .expect("none")
             .is_none());
-        assert!(crate::test_support::slot_settles_free(&dir, 1));
+        assert!(dx_test_scratch::settles(
+            std::time::Duration::from_secs(1),
+            || {
+                crate::slots::try_take(&dir, 1, "settle")
+                    .expect("try")
+                    .is_some()
+            }
+        ));
     }
 
     #[test]
@@ -2463,7 +2477,14 @@ mod tests {
         assert_eq!(err, "");
         assert!(try_take(&dir, 2, "c").expect("try").is_none());
         drop(slot);
-        assert!(crate::test_support::slot_settles_free(&dir, 2));
+        assert!(dx_test_scratch::settles(
+            std::time::Duration::from_secs(1),
+            || {
+                crate::slots::try_take(&dir, 2, "settle")
+                    .expect("try")
+                    .is_some()
+            }
+        ));
     }
 
     #[test]

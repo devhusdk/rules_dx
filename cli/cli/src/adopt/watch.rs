@@ -1377,7 +1377,11 @@ mod tests {
             cwd: &Path,
             env: &[(&str, &str)],
         ) -> io::Result<dx_process::ChildStatus> {
-            let busy = !crate::test_support::slot_settles_free(&self.dir, 1);
+            let busy = !dx_test_scratch::settles(std::time::Duration::from_secs(1), || {
+                crate::slots::try_take(&self.dir, 1, "settle")
+                    .expect("try")
+                    .is_some()
+            });
             let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
             self.busy.borrow_mut().push((busy, marked));
             self.inner.run(argv, cwd, env)
@@ -1453,7 +1457,11 @@ mod tests {
             |_, timeout| {
                 if timeout > Duration::ZERO {
                     assert!(
-                        crate::test_support::slot_settles_free(&dir, 1),
+                        dx_test_scratch::settles(std::time::Duration::from_secs(1), || {
+                            crate::slots::try_take(&dir, 1, "settle")
+                                .expect("try")
+                                .is_some()
+                        }),
                         "watch holds a slot while idle"
                     );
                     idle_checks.set(idle_checks.get() + 1);
@@ -1468,7 +1476,14 @@ mod tests {
             "each iteration builds under a slot its Bazel child sees"
         );
         assert_eq!(idle_checks.get(), 1);
-        assert!(crate::test_support::slot_settles_free(&dir, 1));
+        assert!(dx_test_scratch::settles(
+            std::time::Duration::from_secs(1),
+            || {
+                crate::slots::try_take(&dir, 1, "settle")
+                    .expect("try")
+                    .is_some()
+            }
+        ));
     }
 
     #[test]

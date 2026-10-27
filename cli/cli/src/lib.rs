@@ -13,6 +13,8 @@
 mod adopt;
 mod args;
 mod disk;
+#[cfg(test)]
+mod docs_parity_tests;
 mod exec;
 mod finalize;
 mod generate;
@@ -22,8 +24,6 @@ mod reports;
 mod resolve;
 pub mod skew;
 mod slots;
-#[cfg(test)]
-mod test_support;
 
 pub use args::help::{help_command_in, usage_banner};
 pub use args::{

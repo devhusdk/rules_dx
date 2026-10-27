@@ -18,7 +18,7 @@ pub fn expand_codegen_roots(
 mod tests {
     use super::*;
     use crate::resolve::{QueryFailure, QueryResult};
-    use crate::test_support::{graph_rule_of_kind, graph_stdout};
+    use dx_testing::cli::{graph_rule_of_kind, graph_stdout};
     use std::cell::RefCell;
     use std::io;
     use std::path::PathBuf;

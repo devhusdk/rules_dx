@@ -1,11 +1,11 @@
 use super::super::{Command, FileDefaults, OperationMode};
 use super::parse_with;
-use crate::test_support::strings;
 use dx_adopt::defaults::{
     config_key, parse_bool, parse_file_text, BOOL_SPELLINGS, DX_OUTPUT_ENV, DX_QUIET_ENV,
     DX_VERBOSE_ENV, DX_WORKSPACE_ENV, ENV_DEFAULTS,
 };
 use dx_output::{ColorMode, OutputMode, Threshold};
+use dx_testing::cli::strings;
 
 fn env_of<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String> + 'a {
     move |name| {

@@ -304,7 +304,7 @@ impl RuleGraph {
 mod tests {
     use super::*;
     use crate::resolve::QueryResult;
-    use crate::test_support::{graph_rule as rule, graph_rule_of_kind, graph_stdout, strings};
+    use dx_testing::cli::{graph_rule as rule, graph_rule_of_kind, graph_stdout, strings};
     use std::cell::RefCell;
 
     pub(crate) struct Answer {

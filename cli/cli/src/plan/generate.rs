@@ -152,8 +152,8 @@ pub fn plan_generate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::strings;
     use dx_process::Scope;
+    use dx_testing::cli::strings;
 
     fn resolved(targets: &[&str]) -> ResolvedScope {
         ResolvedScope {

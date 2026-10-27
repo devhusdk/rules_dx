@@ -1,6 +1,6 @@
 use super::super::{ArgsError, Command};
 use super::parse;
-use crate::test_support::strings;
+use dx_testing::cli::strings;
 
 const AFFECTED: [Command; 11] = [
     Command::Build,

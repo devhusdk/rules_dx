@@ -78,7 +78,7 @@ pub(crate) fn rust_filter_args(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     #[test]
     fn last_test_filter_reads_both_forms_and_keeps_the_last() {

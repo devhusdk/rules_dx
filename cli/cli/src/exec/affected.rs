@@ -719,8 +719,7 @@ mod tests {
             "cases must cover every command that takes --affected"
         );
         for (words, expected) in cases {
-            let invocation =
-                crate::args::parse(&crate::test_support::strings(words)).expect("parses");
+            let invocation = crate::args::parse(&dx_testing::cli::strings(words)).expect("parses");
             let mut out = Vec::new();
             assert_eq!(finished_empty(&invocation, &plan, &mut out), 0, "{words:?}");
             let text = String::from_utf8(out).expect("utf8");

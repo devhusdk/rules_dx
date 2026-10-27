@@ -725,7 +725,7 @@ mod tests {
 
     #[test]
     fn capabilities_command_is_rejected_with_status_guidance() {
-        let err = crate::args::parse(&crate::test_support::strings(&["capabilities"]))
+        let err = crate::args::parse(&dx_testing::cli::strings(&["capabilities"]))
             .expect_err("removed command");
         match err {
             crate::args::ArgsError::Usage { text } => {

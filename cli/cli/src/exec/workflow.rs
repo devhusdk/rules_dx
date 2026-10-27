@@ -363,7 +363,7 @@ mod tests {
     fn agent_env_test_run_is_short_quiet_and_complete() {
         let env = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
         let inv = crate::args::parse_with(
-            &crate::test_support::strings(&["test", "//..."]),
+            &dx_testing::cli::strings(&["test", "//..."]),
             &env,
             &crate::args::FileDefaults::default(),
         )

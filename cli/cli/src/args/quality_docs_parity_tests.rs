@@ -6,16 +6,9 @@
 //! cannot read is a panic, never a silent skip.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
-
-fn workspace_root() -> PathBuf {
-    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-    Path::new(&root).join(workspace)
-}
 
 fn read(relative: &str) -> String {
-    std::fs::read_to_string(workspace_root().join(relative))
+    std::fs::read_to_string(dx_testing::runfiles_root().join(relative))
         .unwrap_or_else(|error| panic!("{relative} must ship as test data: {error}"))
 }
 

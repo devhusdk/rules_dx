@@ -2,9 +2,9 @@ use super::super::command::owners::{AFFECTED_OWNERS, CHECK_OWNERS, PROFILE_OWNER
 use super::super::scope_error;
 use super::super::{assert_usage, ArgsError, Command, OperationMode};
 use super::parse;
-use crate::test_support::strings;
 use clap::ValueEnum;
 use dx_output::OutputMode;
+use dx_testing::cli::strings;
 
 #[test]
 fn command_option_ownership_rejects_every_unsupported_surface() {

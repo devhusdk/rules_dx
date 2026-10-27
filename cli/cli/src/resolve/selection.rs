@@ -143,7 +143,7 @@ impl SelectionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     #[test]
     fn unconfigured_selection_uses_query_without_options() {

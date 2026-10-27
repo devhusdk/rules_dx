@@ -42,6 +42,7 @@ rust_library(
         "src/args/strict_tests.rs",
         "src/args/tokenizer.rs",
         "src/disk.rs",
+        "src/docs_parity_tests.rs",
         "src/exec.rs",
         "src/exec/add.rs",
         "src/exec/add_tests.rs",
@@ -145,7 +146,6 @@ rust_library(
         "src/skew.rs",
         "src/slots.rs",
         "src/slots/pressure.rs",
-        "src/test_support.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_cli",

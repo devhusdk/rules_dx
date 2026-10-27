@@ -1,6 +1,6 @@
 use super::super::{assert_usage, ArgsError, Command};
 use super::parse;
-use crate::test_support::strings;
+use dx_testing::cli::strings;
 
 #[test]
 fn strict_unknown_options_fail_with_whole_token() {

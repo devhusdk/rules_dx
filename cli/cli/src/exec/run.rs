@@ -371,7 +371,11 @@ mod tests {
             _cwd: &Path,
             env: &[(&str, &str)],
         ) -> std::io::Result<dx_process::ChildStatus> {
-            let busy = !crate::test_support::slot_settles_free(&self.dir, 1);
+            let busy = !dx_test_scratch::settles(std::time::Duration::from_secs(1), || {
+                crate::slots::try_take(&self.dir, 1, "settle")
+                    .expect("try")
+                    .is_some()
+            });
             let launch = self.seen.borrow().len();
             let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
             self.seen.borrow_mut().push((argv.to_vec(), busy, marked));
@@ -844,7 +848,7 @@ mod tests {
         output: OutputMode,
         reports: Vec<crate::args::ReportRequest>,
     ) -> Invocation {
-        let mut invocation = crate::args::parsed(&["run", "//app:bin"]);
+        let mut invocation = invocation(&["run", "//app:bin"]);
         invocation.command = command;
         invocation.output = output;
         invocation.reports = reports;

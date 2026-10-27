@@ -1,6 +1,6 @@
 const BOOTSTRAP_SOURCE: &str = "deploy/offline/bootstrap/src/lib.rs";
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use clap::{CommandFactory, ValueEnum};
 use dx_process::{EXIT_OPERATIONAL, EXIT_PRE_EXEC, EXIT_SUCCESS, STARTUP_OPTIONS};
@@ -10,18 +10,12 @@ use super::super::grammar::Cli;
 use super::super::tokenizer::REMOVED_COMMANDS;
 use super::super::{parse, ArgsError, Command, Invocation};
 use super::{render_command_help, render_top_help, usage_banner};
-use crate::test_support::strings;
+use dx_testing::cli::{backticked, markdown_sections, strings};
 
 const DX_PREFIX: &str = "bazel run @rules_dx//:dx --";
 
-fn workspace_root() -> PathBuf {
-    let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-    let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-    Path::new(&root).join(workspace)
-}
-
 fn docs_dir() -> PathBuf {
-    workspace_root().join("docs/cli/commands")
+    dx_testing::runfiles_root().join("docs/cli/commands")
 }
 
 fn pages() -> Vec<(String, String)> {
@@ -45,7 +39,7 @@ fn pages() -> Vec<(String, String)> {
 }
 
 fn example_readmes() -> Vec<(String, String)> {
-    let dir = workspace_root().join("examples");
+    let dir = dx_testing::runfiles_root().join("examples");
     let mut got: Vec<(String, String)> = std::fs::read_dir(&dir)
         .expect("examples must ship as test data")
         .map(|entry| entry.expect("readable dir entry").path())
@@ -289,23 +283,6 @@ fn fenced_blocks(page: &str, fence: &str) -> Vec<Vec<String>> {
     }
     assert!(!open, "unterminated {fence} block");
     blocks
-}
-
-fn sections(page: &str) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    let mut heading = String::new();
-    let mut body: Vec<&str> = Vec::new();
-    for line in page.lines() {
-        if let Some(rest) = line.strip_prefix("## ") {
-            out.push((std::mem::take(&mut heading), body.join("\n")));
-            heading = rest.trim().to_owned();
-            body.clear();
-            continue;
-        }
-        body.push(line);
-    }
-    out.push((heading, body.join("\n")));
-    out
 }
 
 /// The exit codes a page's `Exit codes:` clause documents, each with the words that follow it.
@@ -735,7 +712,7 @@ fn user_facing_text_launches_dx_through_the_public_label() {
     ] {
         texts.push((
             name.to_owned(),
-            std::fs::read_to_string(workspace_root().join(name)).expect(name),
+            std::fs::read_to_string(dx_testing::runfiles_root().join(name)).expect(name),
         ));
     }
     for (name, text) in texts {
@@ -868,20 +845,6 @@ fn docs_report_formats_match_the_command_registry() {
     }
 }
 
-fn backticked(text: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut rest = text;
-    while let Some(start) = rest.find('`') {
-        let tail = &rest[start + 1..];
-        let Some(end) = tail.find('`') else {
-            break;
-        };
-        out.push(tail[..end].to_owned());
-        rest = &tail[end + 1..];
-    }
-    out
-}
-
 fn commands_where(predicate: impl Fn(Command) -> bool) -> Vec<String> {
     let mut names: Vec<String> = Command::value_variants()
         .iter()
@@ -897,7 +860,7 @@ fn commands_where(predicate: impl Fn(Command) -> bool) -> Vec<String> {
 fn global_flags_page_names_flag_shapes_not_commands() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "Global Flags")
         .map(|(_, body)| body)
@@ -921,7 +884,7 @@ fn global_flags_page_names_flag_shapes_not_commands() {
 fn json_output_section_names_every_event_kind() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "JSON Output")
         .map(|(_, body)| body)
@@ -962,7 +925,7 @@ fn json_output_section_names_every_event_kind() {
 fn global_flags_page_documents_every_banner_option() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "Global Flags")
         .map(|(_, body)| body)
@@ -983,7 +946,7 @@ fn global_flags_page_documents_every_banner_option() {
 #[test]
 fn docs_sections_with_usage_blocks_document_output_modes() {
     for (name, page) in pages() {
-        for (heading, body) in sections(&page) {
+        for (heading, body) in markdown_sections(&page) {
             for line in usage_lines(&body) {
                 let command = Command::parse(&line[1]).unwrap_or_else(|| {
                     panic!("{name}: usage line names an unknown command: {line:?}")
@@ -1029,7 +992,7 @@ fn usage_lines(body: &str) -> Vec<Vec<String>> {
 #[test]
 fn docs_sections_with_usage_blocks_document_exit_codes() {
     for (name, page) in pages() {
-        for (heading, body) in sections(&page) {
+        for (heading, body) in markdown_sections(&page) {
             if usage_blocks(&body).is_empty() {
                 continue;
             }
@@ -1063,7 +1026,7 @@ fn the_help_exit_code_clause_matches_the_documented_codes() {
 #[test]
 fn quality_help_says_bazel_failures_exit_one_like_the_docs() {
     let page = std::fs::read_to_string(docs_dir().join("quality.md")).expect("quality.md");
-    let documented = sections(&page)
+    let documented = markdown_sections(&page)
         .into_iter()
         .map(|(_, body)| body.split_whitespace().collect::<Vec<_>>().join(" "))
         .find(|body| body.contains("Exit codes:"))
@@ -1141,15 +1104,6 @@ fn docs_and_help_never_name_removed_commands() {
 }
 
 #[test]
-fn init_page_shows_the_agents_block() {
-    let page = std::fs::read_to_string(docs_dir().join("init.md")).expect("init.md");
-    assert!(
-        page.contains(&crate::adopt::agents::block()),
-        "docs/cli/commands/init.md must show the block dx init writes to AGENTS.md"
-    );
-}
-
-#[test]
 fn worktree_page_shows_every_allow_rule() {
     let page = std::fs::read_to_string(docs_dir().join("worktree.md")).expect("worktree.md");
     for rule in dx_worktree::setup::allow_rules() {
@@ -1171,39 +1125,10 @@ fn allowlisted_commands_are_read_only() {
 }
 
 #[test]
-fn clean_page_names_every_clean_notice_code() {
-    use crate::exec::common::{
-        CODE_CLEAN_FAILED, CODE_CLEAN_PLANNED, CODE_CLEAN_PRESERVED_LEASED,
-        CODE_CLEAN_PRESERVED_UNOBSERVED, CODE_CLEAN_PRUNED,
-    };
-    let page =
-        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
-    let (_, body) = sections(&page)
-        .into_iter()
-        .find(|(heading, _)| heading == "`dx clean`")
-        .expect("check-fix-clean.md has a `dx clean` section");
-    let tokens = backticked(&body);
-    for name in [
-        CODE_CLEAN_PLANNED,
-        CODE_CLEAN_PRUNED,
-        CODE_CLEAN_PRESERVED_LEASED,
-        CODE_CLEAN_PRESERVED_UNOBSERVED,
-        CODE_CLEAN_FAILED,
-        "check",
-        "default",
-    ] {
-        assert!(
-            tokens.iter().any(|token| token == name),
-            "check-fix-clean.md `dx clean` section never names `{name}`"
-        );
-    }
-}
-
-#[test]
 fn clean_section_describes_every_clean_flag() {
     let page =
         std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
-    let (_, body) = sections(&page)
+    let (_, body) = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "`dx clean`")
         .expect("check-fix-clean.md has a `dx clean` section");
@@ -1230,82 +1155,6 @@ fn clean_section_describes_every_clean_flag() {
             .flatten()
             .any(|line| line.contains("--prune-unobserved")),
         "check-fix-clean.md `dx clean` section needs a shell example using `--prune-unobserved`"
-    );
-}
-
-#[test]
-fn new_upgrade_page_names_codes_and_starter_files() {
-    use crate::adopt::{CODE_NEW_FAILED, CODE_STATUS_PIN_MISMATCH, CODE_UPGRADE_FAILED};
-    let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new-upgrade.md");
-    let section = |name: &str| -> Vec<String> {
-        let (_, body) = sections(&page)
-            .into_iter()
-            .find(|(heading, _)| heading == name)
-            .unwrap_or_else(|| panic!("new-upgrade.md has a {name} section"));
-        backticked(&body)
-    };
-    let init_files: Vec<String> = dx_adopt::plan_init_files("demo")
-        .expect("demo is a valid module name")
-        .into_iter()
-        .map(|file| file.path)
-        .collect();
-    let mut new_names = vec![CODE_NEW_FAILED.to_owned()];
-    new_names.extend(init_files);
-    for (heading, names) in [
-        ("`dx new`", new_names),
-        ("`dx upgrade`", vec![CODE_UPGRADE_FAILED.to_owned()]),
-        (
-            "`dx rollback`",
-            vec![CODE_STATUS_PIN_MISMATCH.to_owned(), "pin".to_owned()],
-        ),
-    ] {
-        let tokens = section(heading);
-        for name in names {
-            assert!(
-                tokens.iter().any(|token| *token == name),
-                "new-upgrade.md {heading} section never names `{name}`"
-            );
-        }
-    }
-}
-
-fn sentence_names(page: &str, opening: &str) -> Vec<String> {
-    let flat = page.split_whitespace().collect::<Vec<_>>().join(" ");
-    let start = flat
-        .find(opening)
-        .unwrap_or_else(|| panic!("check-fix-clean.md has no sentence starting {opening:?}"));
-    let rest = &flat[start + opening.len()..];
-    let end = rest.find(". ").unwrap_or(rest.len());
-    let mut names = backticked(&rest[..end]);
-    names.sort();
-    names
-}
-
-#[test]
-fn umbrella_phase_flag_routing_matches_docs() {
-    use crate::plan::registry::spec;
-    let phases: Vec<Command> = crate::exec::UMBRELLA_PHASES
-        .into_iter()
-        .chain([Command::Test])
-        .collect();
-    let mut fail_on: Vec<String> = phases
-        .iter()
-        .filter(|phase| phase.supports_fail_on())
-        .map(|phase| phase.name().to_owned())
-        .collect();
-    fail_on.sort();
-    let mut sarif: Vec<String> = phases
-        .iter()
-        .filter(|phase| **phase != Command::Test && spec(**phase).accepts_report("sarif"))
-        .map(|phase| phase.name().to_owned())
-        .collect();
-    sarif.sort();
-    let page =
-        std::fs::read_to_string(docs_dir().join("check-fix-clean.md")).expect("check-fix-clean.md");
-    assert_eq!(sentence_names(&page, "`--fail-on` applies to"), fail_on);
-    assert_eq!(
-        sentence_names(&page, "`--report sarif=<dest>` merges"),
-        sarif
     );
 }
 
@@ -1452,7 +1301,7 @@ fn help_doc_anchors_resolve() {
                 let Some((file, anchor)) = reference.split_once('#') else {
                     continue;
                 };
-                let path = workspace_root().join(file);
+                let path = dx_testing::runfiles_root().join(file);
                 let page = std::fs::read_to_string(&path)
                     .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
                 assert!(
@@ -1502,7 +1351,7 @@ fn platform_labels(source: &str) -> Vec<String> {
 
 /// Platform labels the consumer workflow validates and maps to runners.
 fn platform_table() -> Vec<String> {
-    let source = std::fs::read_to_string(workspace_root().join(PLATFORM_TABLE))
+    let source = std::fs::read_to_string(dx_testing::runfiles_root().join(PLATFORM_TABLE))
         .expect("input_validation.py ships as test data");
     let labels = platform_labels(&source);
     assert!(
@@ -1514,9 +1363,10 @@ fn platform_table() -> Vec<String> {
 
 #[test]
 fn every_platform_job_maps_labels_through_one_runner_table() {
-    let workflow =
-        std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
-            .expect("reusable-consumer.yml ships as test data");
+    let workflow = std::fs::read_to_string(
+        dx_testing::runfiles_root().join(".github/workflows/reusable-consumer.yml"),
+    )
+    .expect("reusable-consumer.yml ships as test data");
     let gated = gated_check_ids(&workflow);
     let jobs: Vec<(String, Vec<&str>)> = job_blocks(&workflow)
         .into_iter()
@@ -1539,7 +1389,7 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
 fn docs_page_names_every_platform_label() {
     let labels = platform_table();
     assert_eq!(labels.len(), 5, "consumer workflow maps five platforms");
-    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let page = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
     for label in &labels {
         assert!(
@@ -1573,7 +1423,7 @@ fn requested_platforms(caller: &str) -> Vec<String> {
 
 #[test]
 fn every_caller_requests_only_platforms_the_workflow_maps() {
-    let root = workspace_root();
+    let root = dx_testing::runfiles_root();
     let workflow = std::fs::read_to_string(root.join(".github/workflows/reusable-consumer.yml"))
         .expect("workflow ships as test data");
     assert!(
@@ -1630,10 +1480,11 @@ fn workflow_call_inputs(workflow: &str) -> Vec<String> {
 
 #[test]
 fn github_ci_page_matches_the_consumer_workflow() {
-    let workflow =
-        std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
-            .expect("reusable-consumer.yml ships as test data");
-    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let workflow = std::fs::read_to_string(
+        dx_testing::runfiles_root().join(".github/workflows/reusable-consumer.yml"),
+    )
+    .expect("reusable-consumer.yml ships as test data");
+    let page = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
 
     let ids = gated_check_ids(&workflow);
@@ -1661,7 +1512,7 @@ fn github_ci_page_matches_the_consumer_workflow() {
 
 #[test]
 fn github_ci_page_names_no_workflow_internals() {
-    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let page = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
     let label_char = |c: char| c.is_ascii_alphanumeric() || "_.+@=,~/:-".contains(c);
     let label_at = |text: &str, at: usize| {
@@ -1845,7 +1696,7 @@ fn permission_rank(level: &str) -> u8 {
 
 #[test]
 fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
-    let root = workspace_root();
+    let root = dx_testing::runfiles_root();
     for (caller, text) in [
         (
             "examples/consumer-ci/caller.yml",
@@ -1916,10 +1767,10 @@ fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
 
 #[test]
 fn callers_forward_every_workflow_secret() {
-    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let page = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
     for (workflow, caller) in workflow_callers() {
-        let root = workspace_root();
+        let root = dx_testing::runfiles_root();
         let text = std::fs::read_to_string(root.join(".github/workflows").join(workflow))
             .expect("workflow ships as test data");
         let secrets = workflow_call_secrets(&text);
@@ -1941,10 +1792,12 @@ fn callers_forward_every_workflow_secret() {
 
 #[test]
 fn docs_page_names_every_workflow_check() {
-    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let page = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
     for (workflow, _) in workflow_callers() {
-        let path = workspace_root().join(".github/workflows").join(workflow);
+        let path = dx_testing::runfiles_root()
+            .join(".github/workflows")
+            .join(workflow);
         let text = std::fs::read_to_string(&path).expect("workflow ships as test data");
         let checks = workflow_check_names(&text);
         assert!(!checks.is_empty(), "{workflow} declares no jobs");
@@ -1959,10 +1812,12 @@ fn docs_page_names_every_workflow_check() {
 
 #[test]
 fn docs_page_names_every_workflow_input() {
-    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let page = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
     for (workflow, _) in workflow_callers() {
-        let path = workspace_root().join(".github/workflows").join(workflow);
+        let path = dx_testing::runfiles_root()
+            .join(".github/workflows")
+            .join(workflow);
         let inputs = workflow_call_inputs(
             &std::fs::read_to_string(&path).expect("workflow ships as test data"),
         );
@@ -2028,7 +1883,7 @@ fn reusable_calls_read_only_top_level_with_keys() {
 
 #[test]
 fn every_caller_input_is_a_workflow_input() {
-    let root = workspace_root();
+    let root = dx_testing::runfiles_root();
     let mut callers: Vec<&str> = workflow_callers()
         .iter()
         .map(|(_, caller)| *caller)
@@ -2124,7 +1979,9 @@ fn aggregates_needs(body: &str) -> bool {
 #[test]
 fn aggregate_jobs_need_every_other_job_in_the_workflow() {
     for workflow in ["ci.yml", "reusable-consumer.yml"] {
-        let path = workspace_root().join(".github/workflows").join(workflow);
+        let path = dx_testing::runfiles_root()
+            .join(".github/workflows")
+            .join(workflow);
         let jobs =
             workflow_jobs(&std::fs::read_to_string(&path).expect("workflow ships as test data"));
         assert!(jobs.len() > 1, "{workflow} declares no aggregate job");
@@ -2172,7 +2029,7 @@ fn bazelignored_dirs(text: &str) -> Vec<String> {
 
 #[test]
 fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
-    let root = workspace_root();
+    let root = dx_testing::runfiles_root();
     let dir = dx_env::DX_DIR_NAME;
     let gitignore = std::fs::read_to_string(root.join(".gitignore")).expect("readable .gitignore");
     let bazelignore =
@@ -2199,7 +2056,7 @@ const CI_EXAMPLES: &[(&str, &str, &[&str])] = &[(
 )];
 
 fn ci_example_dx_lines(path: &str) -> Vec<String> {
-    let text = std::fs::read_to_string(workspace_root().join(path))
+    let text = std::fs::read_to_string(dx_testing::runfiles_root().join(path))
         .unwrap_or_else(|error| panic!("{path} must ship as test data: {error}"));
     text.lines()
         .filter(|line| line.contains(DX_PREFIX))
@@ -2266,7 +2123,7 @@ fn gitlab_example_dx_commands_parse() {
 
 #[test]
 fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
-    let root = workspace_root();
+    let root = dx_testing::runfiles_root();
     let bazelignore =
         std::fs::read_to_string(root.join(".bazelignore")).expect("readable .bazelignore");
     let gitignore = std::fs::read_to_string(root.join(".gitignore")).expect("readable .gitignore");
@@ -2286,7 +2143,7 @@ fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
 }
 
 fn documented_env_names(page: &str) -> Vec<String> {
-    let (_, body) = sections(page)
+    let (_, body) = markdown_sections(page)
         .into_iter()
         .find(|(heading, _)| heading == "Environment")
         .expect("docs/cli/commands/README.md has an Environment section");
@@ -2306,7 +2163,7 @@ fn documented_env_names(page: &str) -> Vec<String> {
 fn environment_section_documents_every_parsed_env_default() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "Environment")
         .map(|(_, body)| body)
@@ -2371,7 +2228,7 @@ fn config_file_keys_are_the_hyphen_spellings_the_parser_reads() {
 fn config_file_section_names_the_keys_and_files_the_parser_reads() {
     let page =
         std::fs::read_to_string(docs_dir().join("README.md")).expect("README ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "Config File")
         .map(|(_, body)| body)
@@ -2492,7 +2349,7 @@ fn secrets_config_docs_say_which_file_the_scan_reads() {
 }
 
 fn skew_bullet_owners(page: &str, lead: &str) -> Vec<String> {
-    let section = sections(page)
+    let section = markdown_sections(page)
         .into_iter()
         .find(|(name, _)| name == "Version Skew")
         .map(|(_, body)| body)
@@ -2570,7 +2427,7 @@ fn sorted(mut names: Vec<String>) -> Vec<String> {
 }
 
 fn offline_bzl() -> String {
-    std::fs::read_to_string(workspace_root().join("deploy/offline/offline.bzl"))
+    std::fs::read_to_string(dx_testing::runfiles_root().join("deploy/offline/offline.bzl"))
         .expect("offline.bzl ships as test data")
 }
 
@@ -2603,7 +2460,7 @@ fn offline_wanted_sets() -> Vec<String> {
 }
 
 fn bootstrap_accepted_sets() -> Vec<String> {
-    let source = std::fs::read_to_string(workspace_root().join(BOOTSTRAP_SOURCE))
+    let source = std::fs::read_to_string(dx_testing::runfiles_root().join(BOOTSTRAP_SOURCE))
         .expect("the offline bootstrap source ships as test data");
     source
         .lines()
@@ -2648,8 +2505,10 @@ fn offline_bundle_accepts_every_curated_advisory_set() {
 const PREP_TARGET: &str = "@rules_dx//cli/advisory_prep";
 
 fn consumer_workflow() -> String {
-    std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
-        .expect("reusable-consumer.yml ships as test data")
+    std::fs::read_to_string(
+        dx_testing::runfiles_root().join(".github/workflows/reusable-consumer.yml"),
+    )
+    .expect("reusable-consumer.yml ships as test data")
 }
 
 fn preparation_job() -> (String, String) {
@@ -2728,12 +2587,12 @@ fn the_separator_check_rejects_longer_flags() {
 fn docs_name_the_advisory_refresh_command_the_errors_print() {
     let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
-    let security = sections(&audit)
+    let security = markdown_sections(&audit)
         .into_iter()
         .find(|(heading, _)| heading == "`dx security` And `dx license`")
         .map(|(_, body)| body)
         .expect("`dx security` section");
-    let ci = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let ci = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
     let command = dx_audit::advisory::REFRESH_COMMAND;
     for (name, text) in [("audit-update.md", &security), ("github-ci.md", &ci)] {
@@ -2755,7 +2614,7 @@ fn docs_name_the_gitleaks_resolve_command_the_error_prints() {
     assert!(RESOLVE_COMMAND.contains(TOOL_ENV_VAR), "{RESOLVE_COMMAND}");
     let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
-    let security = sections(&audit)
+    let security = markdown_sections(&audit)
         .into_iter()
         .find(|(heading, _)| heading == "`dx security` And `dx license`")
         .map(|(_, body)| body)
@@ -2764,7 +2623,7 @@ fn docs_name_the_gitleaks_resolve_command_the_error_prints() {
         security.contains(RESOLVE_COMMAND),
         "audit-update.md never names {RESOLVE_COMMAND}"
     );
-    let ci = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let ci = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
     let runs = "bazel run @rules_dx//cli/tool_resolve";
     for (name, text) in [("audit-update.md", &audit), ("github-ci.md", &ci)] {
@@ -2781,7 +2640,7 @@ fn docs_name_the_gitleaks_resolve_command_the_error_prints() {
 fn security_docs_page_names_exactly_the_audited_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "`dx security` And `dx license`")
         .map(|(_, body)| body)
@@ -2803,7 +2662,7 @@ fn security_docs_page_names_exactly_the_audited_sets() {
 fn security_scope_table() -> Vec<(String, String)> {
     let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "`dx security` And `dx license`")
         .map(|(_, body)| body)
@@ -2968,7 +2827,7 @@ fn security_scope_never_owns_a_set_the_scope_table_does_not_name() {
 fn update_docs_page_names_exactly_the_update_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "`dx update`")
         .map(|(_, body)| body)
@@ -2989,7 +2848,7 @@ fn update_docs_page_names_exactly_the_update_sets() {
 fn bump_docs_page_names_exactly_the_bump_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "`dx bump`")
         .map(|(_, body)| body)
@@ -3010,7 +2869,7 @@ fn bump_docs_page_names_exactly_the_bump_sets() {
 fn add_docs_and_help_name_exactly_the_add_sets() {
     let page = std::fs::read_to_string(docs_dir().join("audit-update.md"))
         .expect("audit page ships as test data");
-    let body = sections(&page)
+    let body = markdown_sections(&page)
         .into_iter()
         .find(|(heading, _)| heading == "`dx add`")
         .map(|(_, body)| body)
@@ -3248,7 +3107,7 @@ fn named_commands(text: &str) -> Vec<String> {
 }
 
 fn scope_page_section(page: &str, heading: &str) -> String {
-    sections(page)
+    markdown_sections(page)
         .into_iter()
         .find(|(name, _)| name == heading)
         .map(|(_, body)| body)
@@ -3546,7 +3405,7 @@ fn new_help_and_page_name_exactly_the_languages() {
 }
 
 fn versions_pin(name: &str) -> String {
-    let source = std::fs::read_to_string(workspace_root().join("modules/versions.bzl"))
+    let source = std::fs::read_to_string(dx_testing::runfiles_root().join("modules/versions.bzl"))
         .expect("modules/versions.bzl ships as test data");
     let prefix = format!("\n{name} = \"");
     let start = source
@@ -3623,8 +3482,9 @@ fn package_labels(text: &str, package: &str) -> Vec<String> {
 }
 
 fn preset_regeneration_label() -> String {
-    let fragment = std::fs::read_to_string(workspace_root().join("tools/bazelrc/preset.bazelrc"))
-        .expect("the vendored preset ships as test data");
+    let fragment =
+        std::fs::read_to_string(dx_testing::runfiles_root().join("tools/bazelrc/preset.bazelrc"))
+            .expect("the vendored preset ships as test data");
     let line = fragment
         .lines()
         .find(|line| line.starts_with("# Regenerate:"))
@@ -3644,8 +3504,9 @@ fn workflows_run_the_preset_target_the_vendored_fragment_names() {
         .rsplit_once(':')
         .map(|(_, name)| name)
         .expect("the regeneration command names a package and a target");
-    let build = std::fs::read_to_string(workspace_root().join("tools/bazelrc/BUILD.bazel"))
-        .expect("tools/bazelrc/BUILD.bazel ships as test data");
+    let build =
+        std::fs::read_to_string(dx_testing::runfiles_root().join("tools/bazelrc/BUILD.bazel"))
+            .expect("tools/bazelrc/BUILD.bazel ships as test data");
     assert!(
         build.contains(&format!("\"{target}\"")),
         "{expected} is the label tools/bazelrc/preset.bazelrc advertises but its BUILD file never \
@@ -3686,7 +3547,7 @@ fn coverage_floors(text: &str) -> Vec<String> {
 }
 
 fn required_coverage_floor() -> String {
-    let ci = std::fs::read_to_string(workspace_root().join(".github/workflows/ci.yml"))
+    let ci = std::fs::read_to_string(dx_testing::runfiles_root().join(".github/workflows/ci.yml"))
         .expect("ci.yml ships as test data");
     let line = ci
         .lines()
@@ -3797,11 +3658,12 @@ fn preset_configs_need_no_doc_stanza() {
 
 #[test]
 fn every_workflow_bazel_config_is_defined_and_documented() {
-    let rc = std::fs::read_to_string(workspace_root().join(".bazelrc"))
+    let rc = std::fs::read_to_string(dx_testing::runfiles_root().join(".bazelrc"))
         .expect(".bazelrc ships as test data");
-    let preset = std::fs::read_to_string(workspace_root().join("tools/bazelrc/preset.bazelrc"))
-        .expect("tools/bazelrc/preset.bazelrc ships as test data");
-    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+    let preset =
+        std::fs::read_to_string(dx_testing::runfiles_root().join("tools/bazelrc/preset.bazelrc"))
+            .expect("tools/bazelrc/preset.bazelrc ships as test data");
+    let page = std::fs::read_to_string(dx_testing::runfiles_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
     let mut passes = 0;
     for (workflow, text) in workflows() {

@@ -23,6 +23,7 @@ exports_files([
 rust_library(
     name = "dx_testing",
     srcs = [
+        "src/cli.rs",
         "src/fatbin.rs",
         "src/latency.rs",
         "src/lib.rs",

@@ -336,7 +336,7 @@ fn json_add_exits_with_the_stdout_code_when_the_start_event_cannot_land() {
 
     let harness = Harness::new("add-start-broken");
     harness.write_source(CARGO_PATH, "[dependencies]\nanyhow = \"1\"\n");
-    let parsed = crate::args::parse(&crate::test_support::strings(&[
+    let parsed = crate::args::parse(&dx_testing::cli::strings(&[
         "add",
         "cargo:serde",
         "1.0.200",

@@ -858,7 +858,7 @@ pub fn resolve_affected(
 mod tests {
     use super::*;
     use crate::resolve::{resolve, NeverQuery, QueryFailure, QueryResult};
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
     use std::cell::RefCell;
     use std::path::PathBuf;
 

@@ -297,6 +297,22 @@ fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerEr
     })
 }
 
+/// Adds the last lines of a tool's stderr to its output error.
+fn with_stderr(err: RunnerError, stderr: &[u8]) -> RunnerError {
+    let text = String::from_utf8_lossy(stderr);
+    let lines: Vec<&str> = text.trim().lines().collect();
+    let tail = lines[lines.len().saturating_sub(20)..].join("\n");
+    match err {
+        RunnerError::ToolOutput { tool_id, detail } if !tail.is_empty() => {
+            RunnerError::ToolOutput {
+                tool_id,
+                detail: format!("{detail}: {tail}"),
+            }
+        }
+        other => other,
+    }
+}
+
 fn reanchor(
     tool_id: &str,
     pairs: &[(String, PathBuf)],
@@ -455,6 +471,7 @@ mod tests {
         absolute_argv, javascript_manifest, own_runfiles_manifest, parsed, reads_own_manifest,
         resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, REAL_TOOLS, STYLELINT_DEFAULTS_BYTES,
     };
+    use crate::RunnerError;
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
     use std::path::{Path, PathBuf};
@@ -500,6 +517,25 @@ mod tests {
         )
         .expect_err("json fails");
         assert!(matches!(err, RunnerError::ToolOutput { .. }), "{err}");
+    }
+
+    #[test]
+    fn an_output_error_carries_the_tool_stderr_tail() {
+        let error = || RunnerError::ToolOutput {
+            tool_id: "fsharplint".to_owned(),
+            detail: "exit 1 (want 0)".to_owned(),
+        };
+        let stderr: String = (1..=25).map(|n| format!("line {n}\n")).collect();
+        let RunnerError::ToolOutput { detail, .. } = super::with_stderr(error(), stderr.as_bytes())
+        else {
+            panic!("kind changed");
+        };
+        assert!(detail.starts_with("exit 1 (want 0): line 6\n"), "{detail}");
+        assert!(detail.ends_with("line 25"), "{detail}");
+        assert_eq!(
+            super::with_stderr(error(), b" \n").to_string(),
+            error().to_string()
+        );
     }
 
     /// A tool starts in a scratch directory, so its own name is not enough to find runfiles.

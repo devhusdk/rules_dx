@@ -133,4 +133,5 @@ sh_test(
         "//quality/tools/jvm:spotbugs",
         "@bazel_tools//tools/jdk:JacocoCoverage",
     ],
+    tags = ["no-coverage"],
 )

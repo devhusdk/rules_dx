@@ -278,15 +278,36 @@ fn an_unreadable_config_fails_the_run_and_never_counts_as_clean() {
     );
 }
 
+fn path_without_dotnet(path: &str, shadow: &Path) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    for dir in std::env::split_paths(path) {
+        if !dir.join("dotnet").exists() {
+            dirs.push(dir);
+            continue;
+        }
+        std::fs::create_dir_all(shadow).unwrap_or_else(|error| panic!("shadow: {error}"));
+        let entries = std::fs::read_dir(&dir).unwrap_or_else(|error| panic!("PATH dir: {error}"));
+        for entry in entries.flatten() {
+            let link = shadow.join(entry.file_name());
+            if entry.file_name() != "dotnet" && std::fs::symlink_metadata(&link).is_err() {
+                std::os::unix::fs::symlink(entry.path(), &link)
+                    .unwrap_or_else(|error| panic!("shadow link: {error}"));
+            }
+        }
+        if !dirs.iter().any(|known| known == shadow) {
+            dirs.push(shadow.to_path_buf());
+        }
+    }
+    dirs
+}
+
 #[test]
 fn tools_run_without_dotnet_on_path_and_install_nothing() {
     let root = consumer();
     let home = mkscratch("fsharp-home").unwrap_or_else(|error| panic!("scratch: {error}"));
     let packages = home.join("nuget");
     let path = std::env::var("PATH").unwrap_or_default();
-    let clean: Vec<PathBuf> = std::env::split_paths(&path)
-        .filter(|dir| !dir.join("dotnet").exists())
-        .collect();
+    let clean = path_without_dotnet(&path, &home.join("path"));
     let joined = std::env::join_paths(clean).unwrap_or_else(|error| panic!("PATH: {error}"));
     let joined = joined.to_string_lossy().into_owned();
     let home_text = home.to_string_lossy().into_owned();

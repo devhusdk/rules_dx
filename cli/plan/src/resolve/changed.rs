@@ -128,7 +128,7 @@ fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, String> {
         if path.is_empty() {
             return Err("git change list has an empty path".to_owned());
         }
-        if path == ".dx" || path.starts_with(".dx/") {
+        if dx_adopt::is_dx_state(path) {
             continue;
         }
         changes.push(dx_adopt::GitChange {
@@ -314,8 +314,16 @@ pub fn local_override_changes(
     let mut paths: Vec<String> = changed
         .iter()
         .filter_map(|file| {
+            if !prefix.is_empty()
+                && file
+                    .strip_prefix(&format!("{prefix}/"))
+                    .is_some_and(dx_adopt::is_dx_state)
+            {
+                return None;
+            }
             roots.iter().find_map(|(root, shown)| {
                 file.strip_prefix(&format!("{root}/"))
+                    .filter(|rest| !dx_adopt::is_dx_state(rest))
                     .map(|rest| format!("{shown}/{rest}"))
             })
         })
@@ -3136,6 +3144,44 @@ mod tests {
         assert!(calls[1].0.contains(&"base-sha".to_owned()), "{calls:?}");
         assert!(calls[1].0.ends_with(&[":(top)lib".to_owned()]), "{calls:?}");
         assert!(calls[2].0.contains(&"--full-name".to_owned()), "{calls:?}");
+    }
+
+    #[test]
+    fn override_changes_skip_the_override_modules_dx_state() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-dx-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
+        );
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(b"sub/\n".to_vec()),
+            FakeQuery::raw(b"lib/x.rs\0".to_vec()),
+            FakeQuery::raw(b"lib/.dx/leases/process-groups/1-7.lock\0lib/a/.dx/y\0".to_vec()),
+        ]);
+        let changes = local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "b")
+            .expect("override changes");
+        assert_eq!(changes, strings(&["../lib/a/.dx/y", "../lib/x.rs"]));
+    }
+
+    #[test]
+    fn override_changes_skip_the_workspace_dx_state_under_an_ancestor_override() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-anc-");
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"up\", path = \"../../a\")\n",
+        );
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(b"a/b/\n".to_vec()),
+            FakeQuery::raw(b"a/x.rs\0".to_vec()),
+            FakeQuery::raw(b"a/b/.dx/leases/process-groups/1-7.lock\0".to_vec()),
+        ]);
+        let changes = local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "b")
+            .expect("override changes");
+        assert_eq!(changes, strings(&["../../a/x.rs"]));
     }
 
     #[test]

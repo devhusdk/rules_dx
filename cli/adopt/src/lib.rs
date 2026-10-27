@@ -31,8 +31,8 @@ pub mod watch;
 pub use defaults::join_quality_baseline;
 pub use error::AdoptError;
 pub use git_changes::{
-    dedupe_changes, nearest_package_pattern, parse_name_status_nul, ChangeKind, GitChange,
-    DEFAULT_BRANCH_CANDIDATES,
+    dedupe_changes, is_dx_state, nearest_package_pattern, parse_name_status_nul, ChangeKind,
+    GitChange, DEFAULT_BRANCH_CANDIDATES,
 };
 pub use init_parts::{
     merge_init_record, read_init_record, InitPart, InitParts, InitRecord, INIT_PART_NAMES,

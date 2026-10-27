@@ -68,7 +68,7 @@ pub(super) fn changed_lines(
     )?;
     for raw in untracked.split(|byte| *byte == 0) {
         let path = String::from_utf8_lossy(raw);
-        if path.is_empty() || path == ".dx" || path.starts_with(".dx/") {
+        if path.is_empty() || dx_adopt::is_dx_state(&path) {
             continue;
         }
         if let Ok(text) = std::fs::read_to_string(workspace.join(path.as_ref())) {

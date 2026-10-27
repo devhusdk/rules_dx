@@ -152,6 +152,21 @@ fn module_change_widens_to_the_whole_workspace() {
 }
 
 #[test]
+fn untracked_dx_state_is_not_a_change() {
+    let root = repo("dx-affected-dx-state");
+    write(&root.join("a/a.txt"), "changed\n");
+    write(
+        &root.join(".dx/leases/process-groups/99999-0.lock"),
+        "lease\n",
+    );
+    let json = dx_in(&root, &["list-tests", "--affected", "--output=json"]);
+    assert_eq!(json.status.code(), Some(0), "{}", json.combined());
+    let first = json.stdout.lines().next().unwrap_or_default();
+    assert!(first.contains("\"changed_files\":[\"a/a.txt\"]"), "{first}");
+    assert!(first.contains("\"widened\":[]"), "{first}");
+}
+
+#[test]
 fn affected_conflicts_with_scopes_and_here() {
     let root = repo("dx-affected-usage");
     let scoped = dx_in(&root, &["test", "--affected", "//a:a_test"]);

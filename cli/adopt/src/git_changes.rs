@@ -85,6 +85,13 @@ pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, String> {
     Ok(changes)
 }
 
+/// True when `path` (relative to a root) is dx's own `.dx` state directory.
+///
+/// Only the top level of the root counts; a nested `.dx` is an ordinary file.
+pub fn is_dx_state(path: &str) -> bool {
+    path == ".dx" || path.starts_with(".dx/")
+}
+
 /// Sorts changes by path and drops duplicate paths, keeping rename sources.
 pub fn dedupe_changes(changes: Vec<GitChange>) -> Vec<GitChange> {
     let mut sorted = changes;
@@ -135,6 +142,15 @@ pub fn nearest_package_pattern(workspace: &Path, rel: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn dx_state_matches_only_the_top_level_dx_directory() {
+        assert!(super::is_dx_state(".dx"));
+        assert!(super::is_dx_state(".dx/leases/process-groups/1-7.lock"));
+        assert!(!super::is_dx_state(".dxfoo"));
+        assert!(!super::is_dx_state("a/.dx/x"));
+        assert!(!super::is_dx_state(""));
+    }
+
     #[test]
     fn name_status_nul_keeps_verbatim_paths_and_rename_identities() {
         let output = b"M\x00pkg/a.py\x00A\x00pkg/space name.py\x00D\x00pkg/old.py\x00R100\x00pkg/was.py\x00pkg/now.py\x00";

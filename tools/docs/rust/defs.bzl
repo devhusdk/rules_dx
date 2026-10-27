@@ -106,9 +106,15 @@ docs_rust_shard = rule(
 )
 
 def _local_features(crate):
-    if not crate.startswith(":"):
+    label = crate
+    if label.startswith("//") and ":" in label:
+        pkg, target = label.split(":", 1)
+        if pkg != "//" + native.package_name():
+            return []
+        label = ":" + target
+    elif not label.startswith(":"):
         return []
-    for name in [crate[1:], crate[1:] + "_upstream"]:
+    for name in [label[1:], label[1:] + "_upstream"]:
         rule = native.existing_rule(name)
         if rule and rule.get("crate_features"):
             return list(rule["crate_features"])

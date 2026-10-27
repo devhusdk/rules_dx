@@ -183,3 +183,25 @@ fn a_missing_flag_is_a_usage_error() {
     assert!(run.stderr.contains("--json is required"), "{}", run.stderr);
     assert!(!dir.join("shard.ir.pb").exists());
 }
+
+#[test]
+fn a_nonexistent_json_file_is_a_failure() {
+    let dir_tmp = scratch("extract-nojson", &fixture_json(), &fixture_srcs());
+    let dir = dir_tmp.path();
+    let run = extract(
+        &dir,
+        &[
+            "--package",
+            "docs_fixture",
+            "--crate",
+            "docs_fixture",
+            "--json",
+            "missing.json",
+            "--srcs-file",
+            "srcs.tsv",
+            "--out",
+            "shard.ir.pb",
+        ],
+    );
+    expect_failure(&dir, &run, "cannot read rustdoc JSON 'missing.json'");
+}

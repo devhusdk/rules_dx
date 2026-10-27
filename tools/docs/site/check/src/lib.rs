@@ -106,15 +106,16 @@ pub fn check(inputs: &Inputs) -> String {
     if ids.is_empty() {
         return "shard names no symbols".to_string();
     }
-    let api_paths: BTreeSet<String> = ids
+    let id_paths: Vec<(&String, String)> = ids
         .iter()
-        .map(|id| format!("api/{}.md", id.replace(':', "/")))
+        .map(|id| (id, format!("api/{}.md", id.replace(':', "/"))))
         .collect();
-    for (id, path) in ids.iter().zip(&api_paths) {
+    for (id, path) in &id_paths {
         if !api_text.contains(&format!("({path})")) {
             return format!("missing API page for {id}");
         }
     }
+    let api_paths: BTreeSet<String> = id_paths.into_iter().map(|(_, path)| path).collect();
 
     if pages().iter().any(|text| has_empty_link_target(text)) {
         return "empty link target".to_string();

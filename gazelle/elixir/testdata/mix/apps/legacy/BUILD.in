@@ -1,0 +1,21 @@
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "ex_unit_test")
+
+elixir_app(
+    name = "erlang_app",
+    app_env = "[{level, 1}]",
+    app_name = "legacy",
+    app_version = "9.9.9",
+)
+
+ex_unit_test(
+    name = "a_test",
+    srcs = ["test/a_test.exs"],
+)
+
+ex_unit_test(
+    name = "b_test",
+    srcs = [
+        "test/b_test.exs",
+        "test/test_helper.exs",
+    ],
+)

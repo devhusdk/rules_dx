@@ -87,16 +87,30 @@ The build file declares the package as an `elixir_app` with
 ## Adopt a Mix project
 
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
-2. For each app under `apps/` or the project root, add a `BUILD.bazel` with
-   an `elixir_app` that matches `mix.exs`: `app_name`, `app_version`,
-   `app_module` for `mod:`, `app_env` for `env:`, and `deps`.
+2. Run `bazel run @rules_dx//:dx -- generate --apply`.
 3. For each Hex entry in `mix.lock`, add a `hex_package`. Its `sha256` is the
    last checksum in the `mix.lock` entry.
-4. Add an `ex_unit_test` per test file or group.
+4. For each Hex package, add
+   `# gazelle:resolve elixir <TopModule> @<package>//:erlang_app` to the root
+   `BUILD.bazel`, for example `# gazelle:resolve elixir Jason @jason//:erlang_app`.
+   The line covers every module under `Jason`. Run `dx generate --apply` again.
 5. Run `bazel test //...`.
 
-`mix.exs`, `mix.lock` and `config/*.exs` are not read. Put runtime settings
-in `app_env`.
+Each directory with a `mix.exs` gets one `elixir_app` from `lib/**/*.ex` and
+one `ex_unit_test` from `test/**/*_test.exs` and `test/test_helper.exs`. An
+umbrella root gets no rule. A module named in code resolves to the
+`elixir_app` that defines it. Modules that ship with Elixir need no dependency.
+
+- `mix.exs` is read only for `app:`, `version:` and `mod:`. They fill
+  `app_name`, `app_version` and `app_module` when the rule lacks them.
+- `mix.lock` and `config/*.exs` are not read. Put runtime settings in
+  `app_env`.
+- Only `lib/` is compiled. `test/support` is not.
+- An existing `elixir_app` with the same `app_name` keeps its name and other
+  attributes. It must have a `name`.
+- Erlang dependencies such as `:jsx` are not detected. Add them to `deps`
+  with a `# keep` comment.
+- Directories without a `mix.exs` are left as written.
 
 ## Formatting
 

@@ -514,7 +514,7 @@ def dx_binary_upstream_kwargs(kwargs, srcs):
         out["srcs"] = srcs
     elif "srcs" in out:
         out.pop("srcs")
-    out["tags"] = upstream_tags(kwargs.get("tags", None))
+    out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
     out["visibility"] = ["//visibility:private"]
     return out
 

@@ -373,22 +373,22 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "binary upstream empty stays private",
                 dx_binary_upstream_kwargs({}, []),
-                {"tags": [], "visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary upstream sets srcs when given",
                 dx_binary_upstream_kwargs({"srcs": ["old.go"]}, ["main.go"]),
-                {"srcs": ["main.go"], "tags": [], "visibility": ["//visibility:private"]},
+                {"srcs": ["main.go"], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary upstream drops srcs when empty",
                 dx_binary_upstream_kwargs({"srcs": ["old.go"]}, []),
-                {"tags": [], "visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary upstream drops srcs when none",
                 dx_binary_upstream_kwargs({"srcs": ["old.go"]}, None),
-                {"tags": [], "visibility": ["//visibility:private"]},
+                {"tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "library forward empty stays empty",
@@ -426,19 +426,19 @@ def wrapper_shape_kwargs_tests(name):
                 {},
             ),
             expect_equal(
-                "binary upstream rewrites skip tags and adds no manual",
+                "binary upstream rewrites skip tags and keeps manual",
                 dx_binary_upstream_kwargs({"tags": ["manual", "no-lint", "requires-network"]}, [])["tags"],
                 ["manual", "dx:no-lint", "requires-network"],
             ),
             expect_equal(
-                "binary upstream keeps tags without manual",
+                "binary upstream appends manual after user tags",
                 dx_binary_upstream_kwargs({"tags": ["no-format", "cpu:4"]}, [])["tags"],
-                ["dx:no-format", "cpu:4"],
+                ["dx:no-format", "cpu:4", "manual"],
             ),
             expect_equal(
                 "binary upstream forces private visibility and keeps copts",
                 binary_output,
-                {"copts": ["-Werror"], "tags": ["dx:no-lint"], "visibility": ["//visibility:private"]},
+                {"copts": ["-Werror"], "tags": ["dx:no-lint", "manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary upstream leaves its input unchanged",

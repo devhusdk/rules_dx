@@ -1,0 +1,13 @@
+producer //quality/testdata:matrix_lua_format_syntax_error
+capability FORMAT
+stages 1
+stage stylua classes=lua sources=matrix/lua_broken.lua
+completed_rounds 1
+convergence STABLE
+initial 2
+initial ERROR stylua parse_error matrix/lua_broken.lua 6 6 fixable=false "unexpected token `=`: expected either a variable name or `function`"
+initial ERROR stylua parse_error matrix/lua_broken.lua 6 6 fixable=false "unexpected token `=`: unexpected token, this needs to be a statement"
+terminal 2
+terminal ERROR stylua parse_error matrix/lua_broken.lua 6 6 fixable=false "unexpected token `=`: expected either a variable name or `function`"
+terminal ERROR stylua parse_error matrix/lua_broken.lua 6 6 fixable=false "unexpected token `=`: unexpected token, this needs to be a statement"
+replacements 0

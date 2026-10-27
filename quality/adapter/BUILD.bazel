@@ -65,6 +65,7 @@ rust_library(
         "src/parsers/standardrb.rs",
         "src/parsers/staticcheck.rs",
         "src/parsers/stylelint.rs",
+        "src/parsers/stylua.rs",
         "src/parsers/taplo.rs",
         "src/parsers/terraform.rs",
         "src/parsers/ty.rs",
@@ -88,6 +89,8 @@ rust_library(
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//quality/result:quality_result",
+        "@crates//:serde",
+        "@crates//:serde_json",
     ],
 )
 
@@ -154,6 +157,7 @@ rust_test(
         "src/parsers/standardrb.rs",
         "src/parsers/staticcheck.rs",
         "src/parsers/stylelint.rs",
+        "src/parsers/stylua.rs",
         "src/parsers/taplo.rs",
         "src/parsers/terraform.rs",
         "src/parsers/ty.rs",
@@ -191,6 +195,8 @@ rust_test(
         "//cli/process:dx_process",
         "//quality/result:quality_result",
         "//tools/testing:dx_testing",
+        "@crates//:serde",
+        "@crates//:serde_json",
     ],
 )
 

@@ -342,3 +342,23 @@ real_source_target(
     name = "clean_pkl",
     pkl_srcs = [":pkl_module"],
 )
+
+quality_family(
+    name = "lua_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "lua",
+    format = ["stylua"],
+)
+
+workspace_policy(
+    name = "lua_policy",
+    families = [":lua_family"],
+)
+
+real_source_target(
+    name = "clean_lua",
+    lua_srcs = ["lua_module/greet.lua"],
+)

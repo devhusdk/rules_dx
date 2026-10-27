@@ -51,6 +51,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "standardrb": [".yml", ".yaml"],
     "staticcheck": [".conf"],
     "stylelint": [".json"],
+    "stylua": [".toml"],
     "taplo": [".toml"],
     "vale": [".ini"],
     "yamlfmt": [".yaml", ".yml", ".yamlfmt"],
@@ -160,6 +161,8 @@ def _make_native_config_rule(tool_id):
     )
 
 buildifier_config = _make_native_config_rule("buildifier")
+
+stylua_config = _make_native_config_rule("stylua")
 
 taplo_config = _make_native_config_rule("taplo")
 

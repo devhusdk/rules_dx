@@ -452,6 +452,20 @@ PKL_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+LUA_STYLUA_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["lua"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "lua",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "stylua",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -483,6 +497,7 @@ SUPPORT_RECORDS = [
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
     PKL_FORMAT_SUPPORT,
+    LUA_STYLUA_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
 ]

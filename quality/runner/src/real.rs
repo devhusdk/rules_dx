@@ -63,6 +63,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "standardrb",
     "staticcheck",
     "stylelint",
+    "stylua",
     "taplo",
     "terraform",
     "ty",

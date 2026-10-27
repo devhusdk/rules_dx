@@ -961,6 +961,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "stylua": {
+        "upstream_version": "2.6.0",
+        "release_page": "https://github.com/JohnnyMorganz/StyLua/releases/tag/v2.6.0",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/JohnnyMorganz/StyLua/blob/v2.6.0/LICENSE.md",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "stylua-linux-x86_64-musl.zip",
+                "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-x86_64-musl.zip",
+                "kind": "zip",
+                "executable": "stylua",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "stylua-linux-aarch64-musl.zip",
+                "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-aarch64-musl.zip",
+                "kind": "zip",
+                "executable": "stylua",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "stylua-macos-aarch64.zip",
+                "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-macos-aarch64.zip",
+                "kind": "zip",
+                "executable": "stylua",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "stylua-windows-x86_64.zip",
+                "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-windows-x86_64.zip",
+                "kind": "zip",
+                "executable": "stylua.exe",
+            },
+        },
+    },
     "mdbook": {
         "upstream_version": "0.4.52",
         "release_page": "https://github.com/rust-lang/mdBook/releases/tag/v0.4.52",

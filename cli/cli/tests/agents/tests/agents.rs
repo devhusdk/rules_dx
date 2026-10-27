@@ -582,6 +582,29 @@ fn touch_later(path: &Path) {
         .expect("touch");
 }
 
+fn backdate(path: &Path, ago: std::time::Duration) {
+    let file = std::fs::File::options()
+        .write(true)
+        .open(path)
+        .expect("open");
+    let when = std::time::SystemTime::now()
+        .checked_sub(ago)
+        .expect("clock past epoch");
+    file.set_modified(when).expect("backdate");
+}
+
+fn backdate_tree(dir: &Path, ago: std::time::Duration) {
+    for entry in std::fs::read_dir(dir).expect("read_dir") {
+        let path = entry.expect("entry").path();
+        let kind = std::fs::symlink_metadata(&path).expect("metadata").file_type();
+        if kind.is_dir() {
+            backdate_tree(&path, ago);
+        } else if kind.is_file() {
+            backdate(&path, ago);
+        }
+    }
+}
+
 fn built_launcher_root(name: &str, rewrite: bool) -> (PathBuf, PathBuf) {
     let (root, fakes) = launcher_root(name);
     fake_bazel(&root, &fakes, "dx", rewrite);
@@ -699,22 +722,25 @@ fn the_launcher_ignores_files_dx_does_not_build_from() {
 
 #[test]
 fn the_launcher_does_not_rebuild_when_bazel_leaves_dx_untouched() {
+    let hour = std::time::Duration::from_secs(3600);
     let (root, fakes) = built_launcher_root("dx-agents-launcher-untouched-", false);
-    write(
-        &root.join("tools/bazelrc/src/lib.rs"),
-        "pub fn edited() {}\n",
-    );
+    backdate_tree(&root, hour * 2);
+    let log = || read(&root.join("bazel.log")).lines().count();
+    let before = log();
+    let idle = launcher_run(&root, &fakes, &["version"]);
+    assert_eq!(idle.code, 0, "{}{}", idle.stdout, idle.stderr);
+    assert_eq!(bazel_calls(&root, "build"), 1);
+    assert_eq!(log(), before, "a backdated, unedited tree is not rebuilt");
+    let lib = root.join("tools/bazelrc/src/lib.rs");
+    write(&lib, "pub fn edited() {}\n");
+    backdate(&lib, hour);
     let rebuilt = launcher_run(&root, &fakes, &["version"]);
     assert_eq!(rebuilt.code, 0, "{}{}", rebuilt.stdout, rebuilt.stderr);
     assert_eq!(bazel_calls(&root, "build"), 2);
-    let calls = read(&root.join("bazel.log")).lines().count();
+    let calls = log();
     let again = launcher_run(&root, &fakes, &["version"]);
     assert_eq!(again.code, 0, "{}{}", again.stdout, again.stderr);
-    assert_eq!(
-        read(&root.join("bazel.log")).lines().count(),
-        calls,
-        "an unchanged dx is not rebuilt again"
-    );
+    assert_eq!(log(), calls, "an unchanged dx is not rebuilt again");
 }
 
 #[test]

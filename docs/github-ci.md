@@ -31,6 +31,11 @@ A mismatch fails `validate`, so no check runs:
 MODULE.bazel:<line> declares rules_dx "<x>", the workflow expects "<y>". Pin both to the same version.
 ```
 
+The check reads `MODULE.bazel` and every file it pulls in with
+`include("//pkg:name.MODULE.bazel")`, nested includes too. `rules_dx` may be
+declared once across all of them, and diagnostics name the file and line. A
+missing, repeated, non-literal or non-`//` include fails.
+
 It also fails when `MODULE.bazel` declares no `rules_dx`, declares it twice, or
 gives a version that is not a quoted string. A `rules_dx` release too old for
 the check fails in Bazel before the check runs.

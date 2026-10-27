@@ -1,0 +1,2 @@
+bazel_dep(name = "rules_dx", version = "1.2.3")
+include("//bazel:deps.MODULE.bazel")

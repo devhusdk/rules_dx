@@ -1,0 +1,1 @@
+include("//bazel:a.MODULE.bazel")

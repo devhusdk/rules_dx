@@ -92,7 +92,7 @@ No Haskell formatter or linter runs yet.
 | --- | --- | --- |
 | `linux_x86_64` | Qualified | |
 | `linux_arm64` | Qualified | |
-| `macos_arm64` | Not qualified | Needs a Darwin bindist cell and patched `otool` tools. Tracked in a follow-up issue. |
+| `macos_arm64` | Not qualified | Needs a Darwin bindist cell and patched `otool` tools. Tracked in #4311. |
 | `macos_x86_64` | Not qualified | No CI cell. |
 | `windows_x86_64` | Not qualified | rules_haskell has no hermetic Windows port. |
 | `windows_arm64` | Not qualified | rules_haskell has no hermetic Windows port. |

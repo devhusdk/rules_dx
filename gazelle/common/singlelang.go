@@ -83,6 +83,9 @@ type SingleLangSpec struct {
 	IsIndexSource func(name string) bool
 	// Directives are extra Gazelle directives the language accepts.
 	Directives []string
+	// External is the ecosystem whose dx_external sources resolve
+	// third-party imports. Empty turns the lookup off.
+	External string
 	// ConfigureExt runs at the end of Configure for the language's own state.
 	ConfigureExt func(c *config.Config, rel string, f *rule.File, rep Reporter)
 }
@@ -111,7 +114,11 @@ func (l *SingleLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
 func (l *SingleLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 
 func (l *SingleLang) KnownDirectives() []string {
-	return append([]string{"dx_ignore_import"}, l.spec.Directives...)
+	known := []string{"dx_ignore_import"}
+	if l.spec.External != "" {
+		known = append(known, ExternalDirective)
+	}
+	return append(known, l.spec.Directives...)
 }
 
 func (l *SingleLang) Configure(c *config.Config, rel string, f *rule.File) {
@@ -121,6 +128,11 @@ func (l *SingleLang) Configure(c *config.Config, rel string, f *rule.File) {
 	}
 	l.ignores = append(l.ignores, declared...)
 	c.Exts[l.spec.LanguageName] = &IgnoreConfig{Ignores: MergeIgnores(InheritedIgnores(c, l.spec.LanguageName), declared)}
+	if l.spec.External != "" {
+		for _, msg := range ConfigureExternal(c, rel, f) {
+			l.fail("%s", msg)
+		}
+	}
 	if l.spec.ConfigureExt != nil {
 		l.spec.ConfigureExt(c, rel, f, l)
 	}
@@ -244,6 +256,10 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 	if slices.Contains(l.spec.ExtraKinds, r.Kind()) {
 		want = r.Kind()
 	}
+	var external func(name string) ([]label.Label, string)
+	if eco := l.spec.External; eco != "" {
+		external = func(name string) ([]label.Label, string) { return ExternalLabels(c, eco, name) }
+	}
 	return ResolveSpec{
 		LanguageName:   l.spec.LanguageName,
 		WantKind:       want,
@@ -254,6 +270,7 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 		IsStdLib:       l.spec.IsStdLib,
 		Candidates:     l.spec.Candidates,
 		Lookups:        l.spec.Lookups,
+		External:       external,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
 				ignore.MarkUsed(from.Pkg)
@@ -264,8 +281,11 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 		FailConflict: func(from label.Label, name string) {
 			l.fail("%s: %s: import %q has both an exact resolve mapping and ignore", l.spec.LanguageName, from, name)
 		},
-		FailUnresolved: func(from label.Label, name string) {
-			l.fail("%s", UnresolvedImport(c, l.spec.LanguageName, from, name, l.spec.UnresolvedHint))
+		FailUnresolved: func(from label.Label, name string, hint string) {
+			if hint != "" {
+				hint += "; "
+			}
+			l.fail("%s", UnresolvedImport(c, l.spec.LanguageName, from, name, hint+l.spec.UnresolvedHint))
 		},
 		FailAmbiguous: func(from label.Label, name string, matches string) {
 			l.fail("%s", AmbiguousImport(c, l.spec.LanguageName, from, name, matches))

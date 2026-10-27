@@ -588,8 +588,8 @@ func TestLanguageMetadata(t *testing.T) {
 	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
 	l.Configure(config.New(), "pkg", nil)
 	l.DoneGeneratingRules()
-	if got := l.KnownDirectives(); len(got) != 1 || got[0] != "dx_ignore_import" {
-		t.Fatalf("directives = %v, want [dx_ignore_import]", got)
+	if got := strings.Join(l.KnownDirectives(), ","); got != "dx_ignore_import,dx_external" {
+		t.Fatalf("directives = %q, want dx_ignore_import,dx_external", got)
 	}
 	if l.Embeds(nil, label.NoLabel) != nil {
 		t.Fatal("invalid directives or embeds")
@@ -690,6 +690,38 @@ func TestResolveBranches(t *testing.T) {
 		t.Errorf("unresolved errors = %v", l.Errors())
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
+}
+
+func TestResolveExternalGoMod(t *testing.T) {
+	l := newLang()
+	cfg := resolverConfig(t, nil)
+	cfg.RepoRoot = t.TempDir()
+	writeFixture(t, cfg.RepoRoot, "go.mod", "module example.test\n\ngo 1.22\n\nrequire (\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/ind/only v1.0.0 // indirect\n\tgithub.com/ignored/mod v1.0.0\n)\n")
+	if got := strings.Join(l.KnownDirectives(), ","); got != "dx_ignore_import,dx_external" {
+		t.Errorf("directives = %q", got)
+	}
+	l.Configure(cfg, "", nil)
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import go github.com/ignored/mod/pkg\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	r := rule.NewRule(LibraryKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"github.com/google/go-cmp/cmp", "github.com/ignored/mod/pkg"}), label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "@com_github_google_go_cmp//cmp" {
+		t.Errorf("go.mod deps = %q", got)
+	}
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v", l.Errors())
+	}
+	if entry := common.MatchingIgnore(cfg, languageName, "github.com/ignored/mod/pkg"); entry == nil || !entry.Used() {
+		t.Errorf("ignore beat go.mod but was not marked used: %+v", entry)
+	}
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(LibraryKind, "app"), common.WrapImportSet([]string{"github.com/ind/only/x", "github.com/unrequired/y"}), label.New("", "app", "app"))
+	errs := l.Errors()
+	if len(errs) != 2 || !strings.Contains(errs[0], "only an indirect require") || !strings.Contains(errs[1], `unresolved import "github.com/unrequired/y"; add a go_library with that importpath, require its module directly in go.mod`) {
+		t.Errorf("errors = %v", errs)
+	}
 }
 
 func TestResolveOverride(t *testing.T) {

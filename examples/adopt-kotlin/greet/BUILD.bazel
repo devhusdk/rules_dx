@@ -1,8 +1,6 @@
 load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library", "kotlin_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-# gazelle:resolve kotlin com.google.common.collect @maven//:com_google_guava_guava
-
 package(default_visibility = ["//:__subpackages__"])
 
 kotlin_test(

@@ -2,7 +2,7 @@
 // matching third_party/jvm/maven_install.json plus @maven hub). The Scala
 // Gazelle extension reads only `.scala` sources; generation resolves the
 // `com.google.common.collect.ImmutableList` import through the
-// `# gazelle:resolve` mapping on its package and never writes this file.
+// `maven_install.json` package list and never writes this file.
 ThisBuild / scalaVersion := "2.13.18"
 ThisBuild / organization := "example.com"
 lazy val root = (project in file(".")).aggregate(greet, solo)

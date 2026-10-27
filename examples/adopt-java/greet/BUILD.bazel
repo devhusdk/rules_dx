@@ -1,8 +1,6 @@
 load("@rules_dx//java/rules:defs.bzl", "java_library", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-# gazelle:resolve java com.google.common.collect @maven//:com_google_guava_guava
-
 package(default_visibility = ["//:__subpackages__"])
 
 java_test(

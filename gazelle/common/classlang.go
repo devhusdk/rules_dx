@@ -25,6 +25,8 @@ type ClassLangSpec struct {
 	Candidates   func(name string) []string
 	OrderSrcs    func(name string, sources []string, contents map[string][]byte) ([]string, error)
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
+	// External is the dx_external ecosystem third-party imports resolve through.
+	External string
 }
 
 // Spec returns the SingleLangSpec the class language runs on.
@@ -43,6 +45,7 @@ func (s ClassLangSpec) Spec() SingleLangSpec {
 		IsStdLib:       s.IsStdLib,
 		UnresolvedHint: s.UnresolvedHint,
 		Candidates:     s.Candidates,
+		External:       s.External,
 		Generate: func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult {
 			return GenerateSingleDir(args, kinds, SingleDirSpec{
 				LanguageName: s.LanguageName,

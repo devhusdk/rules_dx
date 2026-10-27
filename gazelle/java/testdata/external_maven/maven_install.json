@@ -1,0 +1,8 @@
+{
+  "version": "2",
+  "packages": {
+    "com.google.guava:guava": [
+      "com.google.common.collect"
+    ]
+  }
+}

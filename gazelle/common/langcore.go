@@ -401,9 +401,12 @@ type ResolveSpec struct {
 	MarkUsed   func(name string) bool
 	// SkipDep, when set and true, drops a resolved dep. The rule itself is
 	// always dropped.
-	SkipDep        func(dep label.Label) bool
+	SkipDep func(dep label.Label) bool
+	// External looks a non-relative import up in the third-party sources
+	// after the index and ignores. It returns the labels found, or a hint.
+	External func(name string) ([]label.Label, string)
 	FailConflict   func(from label.Label, name string)
-	FailUnresolved func(from label.Label, name string)
+	FailUnresolved func(from label.Label, name string, hint string)
 	FailAmbiguous  func(from label.Label, name string, matches string)
 }
 
@@ -510,7 +513,22 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			if spec.MarkUsed(name) {
 				continue
 			}
-			spec.FailUnresolved(from, name)
+			hint := ""
+			if spec.External != nil && !ref.Relative {
+				var ext []label.Label
+				ext, hint = spec.External(name)
+				switch {
+				case len(ext) == 1:
+					if ext[0] != from {
+						deps[ext[0].Rel(from.Repo, from.Pkg).String()] = true
+					}
+					continue
+				case len(ext) > 1:
+					spec.FailAmbiguous(from, name, formatLabels(ext))
+					continue
+				}
+			}
+			spec.FailUnresolved(from, name, hint)
 		default:
 			if slices.ContainsFunc(matches, func(m resolve.FindResult) bool { return m.Label == from }) {
 				continue
@@ -582,4 +600,13 @@ func findFallback(c *config.Config, ix *resolve.RuleIndex, langs []string, name 
 		out.SelfMatch = false
 	}
 	return out, false
+}
+
+func formatLabels(labels []label.Label) string {
+	out := make([]string, 0, len(labels))
+	for _, l := range labels {
+		out = append(out, l.String())
+	}
+	sort.Strings(out)
+	return fmt.Sprintf("[%s]", strings.Join(out, ", "))
 }

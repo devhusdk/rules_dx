@@ -387,6 +387,13 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "ruby",
     },
+    "stylua": {
+        "attr": attr.label(default = "//config:tool_stylua", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "lua",
+    },
     "taplo": {
         "attr": attr.label(default = "@dx_tools//:taplo", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format", "lint"],
@@ -1424,6 +1431,12 @@ _REAL_SHARD_SPECS = {
         "shard": "jsonnet",
         "suffix": "-jsonnet",
     },
+    "real_lua_format": {
+        "capability": "format",
+        "doc": "Additive Lua format family aspect (stylua).",
+        "shard": "lua",
+        "suffix": "-lua",
+    },
     "real_pkl_format": {
         "capability": "format",
         "doc": "Additive Pkl format family aspect (pkl format).",
@@ -1607,6 +1620,8 @@ real_go_format_aspect = _make_real_aspect("real_go_format")
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
 
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
+
+real_lua_format_aspect = _make_real_aspect("real_lua_format")
 
 real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
 

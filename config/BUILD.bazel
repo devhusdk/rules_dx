@@ -21,6 +21,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_stylua",
+    build_setting_default = "@dx_tools//:stylua",
+)
+
+label_flag(
     name = "tool_hadolint",
     build_setting_default = "@dx_tools//:hadolint",
 )

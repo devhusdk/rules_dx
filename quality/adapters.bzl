@@ -79,6 +79,7 @@ REAL_ADAPTERS = {
     "standardrb": {"format": ["ruby"]},
     "staticcheck": {"lint": ["go"]},
     "stylelint": {"lint": ["css", "less", "scss"]},
+    "stylua": {"format": ["lua"]},
     "taplo": {"format": ["toml"], "lint": ["toml"]},
     "terraform": {"format": ["terraform"]},
     "ty": {"typecheck": ["python", "python_stub"]},

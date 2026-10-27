@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_lua_format_pass
+capability FORMAT
+stages 1
+stage stylua classes=lua sources=matrix/lua_clean.lua
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -63,6 +63,10 @@ load("//quality/artifacts:shfmt.linux_arm64.bzl", _shfmt_linux_arm64 = "ARTIFACT
 load("//quality/artifacts:shfmt.linux_x86_64.bzl", _shfmt_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:shfmt.macos_arm64.bzl", _shfmt_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:shfmt.windows_x86_64.bzl", _shfmt_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:stylua.linux_arm64.bzl", _stylua_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:stylua.linux_x86_64.bzl", _stylua_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:stylua.macos_arm64.bzl", _stylua_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:stylua.windows_x86_64.bzl", _stylua_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.linux_arm64.bzl", _taplo_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:taplo.linux_x86_64.bzl", _taplo_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:taplo.macos_arm64.bzl", _taplo_macos_arm64 = "ARTIFACT")
@@ -155,6 +159,10 @@ _ARTIFACTS = [
     _shfmt_linux_arm64,
     _shfmt_macos_arm64,
     _shfmt_windows_x86_64,
+    _stylua_linux_x86_64,
+    _stylua_linux_arm64,
+    _stylua_macos_arm64,
+    _stylua_windows_x86_64,
     _taplo_linux_x86_64,
     _taplo_linux_arm64,
     _taplo_macos_arm64,

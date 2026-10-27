@@ -202,6 +202,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "stylua",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "yamlfmt",
         config: FixConfig::Optional,
         keep_exit_one: false,
@@ -742,6 +748,7 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
+                    "stylua" => Ok(commands::stylua_fix(&tool.binary, refs, config.as_deref())),
                     "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
                     "djlint" => Ok(commands::djlint_format_fix(
                         &tool.binary,

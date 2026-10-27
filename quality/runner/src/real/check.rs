@@ -743,6 +743,14 @@ impl RealBackend {
                     parsers::parse_zig_fmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "stylua" => {
+                let invocation = commands::stylua_check(&tool.binary, &refs, config.as_deref());
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_stylua(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "pkl" => {
                 let invocation = commands::pkl_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

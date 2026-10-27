@@ -132,6 +132,39 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_jsonnet_format_module_syntax_error.expected.txt",
     },
     {
+        "name": "matrix_lua_format_pass",
+        "generated": {
+            "matrix/lua_clean.lua": "local value = 1\nprint(value)\n",
+        },
+        "capability": "format",
+        "stages": ["stylua;lua;matrix/lua_clean.lua"],
+        "tool_names": ["stylua"],
+        "tool_binaries": ["@dx_tools//:stylua"],
+        "expected_file": ":matrix/matrix_lua_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_lua_format_fail",
+        "generated": {
+            "matrix/lua_dirty.lua": "local   value=1\nprint( value )\n",
+        },
+        "capability": "format",
+        "stages": ["stylua;lua;matrix/lua_dirty.lua"],
+        "tool_names": ["stylua"],
+        "tool_binaries": ["@dx_tools//:stylua"],
+        "expected_file": ":matrix/matrix_lua_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_lua_format_syntax_error",
+        "generated": {
+            "matrix/lua_broken.lua": "local = = 1\n",
+        },
+        "capability": "format",
+        "stages": ["stylua;lua;matrix/lua_broken.lua"],
+        "tool_names": ["stylua"],
+        "tool_binaries": ["@dx_tools//:stylua"],
+        "expected_file": ":matrix/matrix_lua_format_syntax_error.expected.txt",
+    },
+    {
         "name": "matrix_pkl_format_pass",
         "generated": {
             "matrix/pkl_clean.pkl": "value = \"hello\"\n",

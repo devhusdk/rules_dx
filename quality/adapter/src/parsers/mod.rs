@@ -49,6 +49,7 @@ pub mod spotbugs;
 pub mod standardrb;
 pub mod staticcheck;
 pub mod stylelint;
+pub mod stylua;
 pub mod taplo;
 pub mod terraform;
 pub mod ty;
@@ -107,6 +108,7 @@ pub use spotbugs::parse_spotbugs;
 pub use standardrb::parse_standardrb;
 pub use staticcheck::parse_staticcheck;
 pub use stylelint::parse_stylelint;
+pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
 pub use ty::parse_ty;
@@ -1982,6 +1984,14 @@ mod tests {
         super::stylelint::parse_stylelint(input, code, files)
     }
 
+    fn fuzz_stylua(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::stylua::parse_stylua(input, input, code, files)
+    }
+
     fn fuzz_taplo_lint(
         input: &[u8],
         code: Option<i32>,
@@ -2098,6 +2108,7 @@ mod tests {
         ("standardrb", fuzz_standardrb),
         ("staticcheck", fuzz_staticcheck),
         ("stylelint", fuzz_stylelint),
+        ("stylua", fuzz_stylua),
         ("taplo_lint", fuzz_taplo_lint),
         ("taplo_format_check", fuzz_taplo_format_check),
         ("terraform", fuzz_terraform),
@@ -2160,6 +2171,7 @@ mod tests {
         ("standardrb", include_str!("standardrb.rs")),
         ("staticcheck", include_str!("staticcheck.rs")),
         ("stylelint", include_str!("stylelint.rs")),
+        ("stylua", include_str!("stylua.rs")),
         ("taplo", include_str!("taplo.rs")),
         ("terraform", include_str!("terraform.rs")),
         ("ty", include_str!("ty.rs")),

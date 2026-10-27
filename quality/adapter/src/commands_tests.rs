@@ -1102,6 +1102,44 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/Sample.rb"
         ]
     );
+    let lua = Path::new("/scratch/sample.lua");
+    let stylua_config = Path::new("/scratch/stylua.toml");
+    assert_eq!(
+        argv_strings(&stylua_check(Path::new(BIN), &[lua], None)),
+        vec![
+            BIN,
+            "--no-editorconfig",
+            "--check",
+            "--output-format=json",
+            "/scratch/sample.lua"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&stylua_check(Path::new(BIN), &[lua], Some(stylua_config))),
+        vec![
+            BIN,
+            "--no-editorconfig",
+            "--check",
+            "--output-format=json",
+            "--config-path",
+            "/scratch/stylua.toml",
+            "/scratch/sample.lua"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&stylua_fix(Path::new(BIN), &[lua], None)),
+        vec![BIN, "--no-editorconfig", "/scratch/sample.lua"]
+    );
+    assert_eq!(
+        argv_strings(&stylua_fix(Path::new(BIN), &[lua], Some(stylua_config))),
+        vec![
+            BIN,
+            "--no-editorconfig",
+            "--config-path",
+            "/scratch/stylua.toml",
+            "/scratch/sample.lua"
+        ]
+    );
     let jsonnet = Path::new("/scratch/Sample.jsonnet");
     assert_eq!(
         argv_strings(&jsonnetfmt_check(Path::new(BIN), &[jsonnet])),

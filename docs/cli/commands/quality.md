@@ -273,6 +273,7 @@ to.
 | `standardrb` | format | ruby |
 | `staticcheck` | lint | go |
 | `stylelint` | lint | css |
+| `stylua` | format | lua |
 | `taplo` | format, lint | toml |
 | `terraform` | format | terraform |
 | `ty` | typecheck | python |
@@ -797,6 +798,41 @@ To use another Pkl executable, point `tool_pkl` at it.
 
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_pkl=//tools:pkl
+```
+
+### Lua
+
+`stylua` runs from the managed pin for format. Select it in a `lua` family.
+It runs on Linux x86_64.
+
+```python
+quality_family(
+    name = "lua_family",
+    family_id = "lua",
+    format = ["stylua"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //lua/...
+bazel run @rules_dx//:dx -- format --apply //lua/...
+```
+
+Own Lua files with the rules from `@rules_dx//lua/rules:defs.bzl`. A check never
+writes. `--apply` rewrites only the files the selected targets own. An
+unformatted file is reported at its first differing line. A syntax error fails
+the run with the file, line and column. It never counts as clean. StyLua ignores
+`stylua.toml`, `.stylua.toml` and `.editorconfig` files next to the sources.
+Bind a `stylua_config` from `@rules_dx//quality:native_config.bzl` to change
+indent width, quote style or line width.
+
+No Lua linter or type check runs yet, so the Lua rules keep the `no-lint` and
+`no-typecheck` tags.
+
+To use another StyLua executable, point `tool_stylua` at it.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_stylua=//tools:stylua
 ```
 
 ### Terraform

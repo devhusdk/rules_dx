@@ -107,6 +107,9 @@ const CUE_CHECK_ARGS: &[&str] = &["fmt", "--check", "--diff"];
 const CUE_FIX_ARGS: &[&str] = &["fmt"];
 const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
 const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
+const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-format=json"];
+const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
+const STYLUA_CONFIG_FLAG: &str = "--config-path";
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
 const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
@@ -956,6 +959,30 @@ pub fn pkl_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn pkl_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PKL_FIX_ARGS, files, "")
+}
+
+pub fn stylua_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        STYLUA_CHECK_ARGS,
+        STYLUA_CONFIG_FLAG,
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+pub fn stylua_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        STYLUA_FIX_ARGS,
+        STYLUA_CONFIG_FLAG,
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
 pub fn modfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

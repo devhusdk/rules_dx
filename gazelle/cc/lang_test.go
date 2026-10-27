@@ -3,15 +3,18 @@ package cc
 import (
 	"context"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
 func writeFixture(t *testing.T, root, name, content string) {
@@ -103,8 +106,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library hdrs = %q, want helper.h", got)
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "helper.h,thing.h" {
-		t.Errorf("library imports = %+v, want [helper.h thing.h]", got.Names)
+	if strings.Join(got.Names, ",") != "pkg/demo/helper.h,stuff/thing.h" {
+		t.Errorf("library imports = %+v, want [pkg/demo/helper.h stuff/thing.h]", got.Names)
 	}
 }
 
@@ -196,11 +199,64 @@ func TestImportsIndexNonTestHeaders(t *testing.T) {
 	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "demo.h" || imports[1].Imp != "helper.h" {
 		t.Errorf("imports = %+v, want demo.h+helper.h", imports)
 	}
+	if got := importNames(lang.Imports(&config.Config{}, lib, rule.EmptyFile("pkg/BUILD.bazel", "pkg"))); got != "pkg/demo.h,demo.h,pkg/helper.h,helper.h" {
+		t.Errorf("package imports = %s, want path and basename ids", got)
+	}
+	if got := importNames(lang.Imports(&config.Config{}, lib, rule.EmptyFile("BUILD.bazel", ""))); got != "demo.h,helper.h" {
+		t.Errorf("root imports = %s, want one id per header", got)
+	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule("filegroup", "demo"), nil); got != nil {
 		t.Errorf("other-kind imports = %+v, want nil", got)
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule(LibraryKind, "empty"), nil); got != nil {
 		t.Errorf("headerless imports = %+v, want nil", got)
+	}
+}
+
+func importNames(specs []resolve.ImportSpec) string {
+	names := make([]string, 0, len(specs))
+	for _, s := range specs {
+		names = append(names, s.Imp)
+	}
+	return strings.Join(names, ",")
+}
+
+func TestResolveSameNamedHeadersByPath(t *testing.T) {
+	l := NewLanguage().(*common.SingleLang)
+	l.Before(context.Background())
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
+	for _, lib := range []struct{ pkg, hdr string }{{"a", "config.h"}, {"b", "config.h"}, {"a/sub", "x.h"}} {
+		r := rule.NewRule(LibraryKind, path.Base(lib.pkg))
+		r.SetAttr("hdrs", []string{lib.hdr})
+		index.AddRule(config.New(), r, rule.EmptyFile(path.Join(lib.pkg, "BUILD.bazel"), lib.pkg))
+	}
+	index.Finish()
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolveDeps := func(pkg string, includes ...string) string {
+		r := rule.NewRule(LibraryKind, path.Base(pkg))
+		l.Resolve(cfg, index, nil, r, common.WrapImportSet(includes), label.New("", pkg, path.Base(pkg)))
+		return strings.Join(r.AttrStrings("deps"), ",")
+	}
+	if got := resolveDeps("app", "a/config.h", "b/config.h"); got != "//a,//b" {
+		t.Errorf("app deps = %q, want //a,//b", got)
+	}
+	if got := resolveDeps("a", "config.h", "b/config.h"); got != "//b" {
+		t.Errorf("a deps = %q, want //b", got)
+	}
+	if got := resolveDeps("a", "sub/x.h"); got != "//a/sub" {
+		t.Errorf("a sub deps = %q, want //a/sub", got)
+	}
+	if l.Failed() {
+		t.Fatal("path includes recorded a failure")
+	}
+	resolveDeps("app", "config.h")
+	if !l.Failed() {
+		t.Error("bare config.h with two candidates resolved, want ambiguous")
 	}
 }
 

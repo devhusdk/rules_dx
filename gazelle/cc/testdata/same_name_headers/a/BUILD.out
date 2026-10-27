@@ -1,0 +1,8 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+
+cc_library(
+    name = "a",
+    srcs = ["a.cc"],
+    hdrs = ["config.h"],
+    deps = ["//b"],
+)

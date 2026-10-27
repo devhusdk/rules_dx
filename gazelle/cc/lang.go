@@ -66,10 +66,13 @@ func NewLanguage() language.Language {
 		ConfigureExt:   configureCuda,
 		ImportAttr:     "hdrs",
 		Identity:       HeaderIdentity,
+		PathIdentity:   true,
+		QualifiedIDs:   HeaderBasename,
+		Lookups:        IncludeKeys,
 		IsImportSource: func(name string) bool { return IsHeader(name) || IsCudaHeader(name) },
 		IsIndexSource:  IsCudaHeader,
 		IsTestSource:   IsTestSource,
-		UnresolvedHint: "add a local one-header library or an exact # gazelle:resolve mapping",
+		UnresolvedHint: "includes with a directory resolve by workspace or package-relative path; otherwise add a local one-header library or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})
 }

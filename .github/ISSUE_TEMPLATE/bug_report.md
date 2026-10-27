@@ -1,21 +1,42 @@
 ---
 name: Bug Report
 about: Report a documentation error or a reproducible implementation defect.
+labels: bug
 ---
 
 # Bug Report
+
+For documentation issues, link the affected text.
+
+## dx version
+
+Output of `dx version`.
+
+## Bazel version
+
+Output of `bazel --version`, or the contents of `.bazelversion`.
+
+## OS and CPU
+
+## dx status
+
+Output of `dx status`:
+
+```text
+```
+
+## Commands run
+
+Exact commands.
 
 ## Expected Behavior
 
 ## Actual Behavior
 
-## Reproduction
+## Minimal reproduction
 
-For documentation issues, link the affected text. For implementation defects,
-include exact commands, Bazel/Bazelisk version, OS/CPU host, and repository state
-where applicable.
+A project from `dx new <lang>` is ideal.
 
-## Evidence
+## Logs
 
-Logs, report artifacts, coverage data where applicable. Remove credentials and
-unrelated private data.
+Remove credentials and unrelated private data.

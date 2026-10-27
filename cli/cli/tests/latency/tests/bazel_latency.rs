@@ -385,7 +385,7 @@ fn write_lint_workspace(root: &Path) {
         &root.join(".bazelrc"),
         &format!(
             "{}{JAVA}",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+            dx_testing::preset_rc(&rules)
         ),
     );
     write(&root.join("BUILD.bazel"), LINT_BUILD);

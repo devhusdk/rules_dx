@@ -490,7 +490,7 @@ rust_test(
         "//quality/testdata:vale_test.ini",
         "//quality/tools/dotnet/fsharplint:fsharplint.sh",
         "//tools/bazelrc:BUILD.bazel",
-        "//tools/bazelrc:preset.bazelrc",
+        "//tools/bazelrc:preset",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [

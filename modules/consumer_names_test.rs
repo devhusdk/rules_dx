@@ -97,7 +97,7 @@ fn common_upstream_repo_names_resolve_next_to_rules_dx() {
         &root.join(".bazelrc"),
         &format!(
             "{}build --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\n",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+            dx_testing::preset_rc(&rules)
         ),
     );
     write(&root.join(".npmrc"), "hoist=false\n");

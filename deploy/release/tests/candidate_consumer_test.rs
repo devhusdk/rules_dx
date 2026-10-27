@@ -167,7 +167,10 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     let case = nested::case("candidate_consumer");
     let root = case.root().to_path_buf();
     write(&root.join(".bazelversion"), &member(".bazelversion"));
-    let mut rc = member("tools/bazelrc/preset.bazelrc");
+    let mut rc: Vec<u8> = ["correctness", "performance", "resources"]
+        .iter()
+        .flat_map(|layer| member(&format!("tools/bazelrc/{layer}.bazelrc")))
+        .collect();
     rc.extend_from_slice(
         format!(
             "\ncommon --registry=file://{}\ncommon --registry=https://bcr.bazel.build\n",

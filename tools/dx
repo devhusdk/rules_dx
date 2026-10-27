@@ -38,7 +38,7 @@ stale() {
   [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
   newer=$(cd "$root" && {
     sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
-    printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/preset.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
+    printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/correctness.bazelrc tools/bazelrc/performance.bazelrc tools/bazelrc/resources.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
   } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print' "$state/built" 2> /dev/null) || true
   [ -n "$newer" ]
 }

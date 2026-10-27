@@ -570,9 +570,29 @@ fn package_labels(text: &str, package: &str) -> Vec<String> {
     found
 }
 
+const PRESET_LAYERS: [&str; 3] = [
+    "tools/bazelrc/correctness.bazelrc",
+    "tools/bazelrc/performance.bazelrc",
+    "tools/bazelrc/resources.bazelrc",
+];
+
+/// Returns the three vendored preset layers joined in import order.
+fn preset_layers() -> String {
+    PRESET_LAYERS.iter().map(|rel| read_runfiles(rel)).collect()
+}
+
+#[test]
+fn preset_comments_are_bare() {
+    for rel in PRESET_LAYERS {
+        let text = read_runfiles(rel);
+        assert!(text.lines().any(is_comment), "{rel} has no comments");
+        assert_comments_bare(rel, &text);
+    }
+}
+
 /// Returns the label the vendored preset names as its regeneration command.
 fn preset_regeneration_label() -> String {
-    let fragment = read_runfiles("tools/bazelrc/preset.bazelrc");
+    let fragment = read_runfiles("tools/bazelrc/correctness.bazelrc");
     let line = fragment
         .lines()
         .find(|line| line.starts_with("# Regenerate:"))
@@ -595,7 +615,7 @@ fn workflows_run_the_preset_target_the_vendored_fragment_names() {
     let build = read_runfiles("tools/bazelrc/BUILD.bazel");
     assert!(
         build.contains(&format!("\"{target}\"")),
-        "{expected} is the label tools/bazelrc/preset.bazelrc advertises but its BUILD file never \
+        "{expected} is the label the tools/bazelrc preset layers advertise but its BUILD file never \
          declares"
     );
     let mut runs = 0;
@@ -735,7 +755,7 @@ fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool,
         return Ok(true);
     }
     Err(format!(
-        "no .bazelrc or tools/bazelrc/preset.bazelrc line defines --config={config}"
+        "no .bazelrc or tools/bazelrc preset layer line defines --config={config}"
     ))
 }
 
@@ -751,7 +771,7 @@ fn preset_configs_need_no_doc_stanza() {
 #[test]
 fn every_workflow_bazel_config_is_defined_and_documented() {
     let rc = read_runfiles(".bazelrc");
-    let preset = read_runfiles("tools/bazelrc/preset.bazelrc");
+    let preset = preset_layers();
     let page = read_runfiles("docs/github-ci.md");
     let mut passes = 0;
     for (workflow, text) in workflow_values() {

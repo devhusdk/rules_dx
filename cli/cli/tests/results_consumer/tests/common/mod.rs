@@ -165,7 +165,7 @@ pub fn consumer(name: &str, cases: &[(&str, &str)]) -> Case {
         &root.join(".bazelrc"),
         &format!(
             "{}common:consumer --define=lane=consumer\n",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+            dx_testing::preset_rc(&rules)
         ),
     );
     write(&root.join("BUILD.bazel"), "");

@@ -76,7 +76,7 @@ fn check_selectors_resolve_to_sets_not_preset() {
 #[test]
 fn check_ignores_stale_preset() {
     let harness = Harness::new("update-check-ignores-preset");
-    harness.write_source("tools/bazelrc/preset.bazelrc", "# dirty\n");
+    harness.write_source("tools/bazelrc/correctness.bazelrc", "# dirty\n");
     let run = run_probe(&harness, &["update", "--check", "uv"], &[Some(0)]);
     assert_eq!(run.code, 0, "{}", run.out);
     assert_eq!(run.argv.len(), 1);
@@ -96,7 +96,7 @@ fn check_ignores_stale_preset() {
         run.out
     );
     assert_eq!(
-        std::fs::read_to_string(harness.workspace.join("tools/bazelrc/preset.bazelrc"))
+        std::fs::read_to_string(harness.workspace.join("tools/bazelrc/correctness.bazelrc"))
             .expect("read"),
         "# dirty\n"
     );
@@ -266,15 +266,15 @@ fn default_update_leaves_preset_alone() {
     let harness = Harness::new("update-default-preset");
     harness.write_source(
         ".bazelrc",
-        "import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n",
+        "import %workspace%/tools/bazelrc/correctness.bazelrc\ntry-import %workspace%/user.bazelrc\n",
     );
-    harness.write_source("tools/bazelrc/preset.bazelrc", "# dirty\n");
+    harness.write_source("tools/bazelrc/correctness.bazelrc", "# dirty\n");
     let (code, out, err) = harness.run(&["update", "--apply", "go"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!out.contains("preset"), "{out}");
     assert!(out.contains("go pins are manual"), "{out}");
     assert_eq!(
-        std::fs::read_to_string(harness.workspace.join("tools/bazelrc/preset.bazelrc"))
+        std::fs::read_to_string(harness.workspace.join("tools/bazelrc/correctness.bazelrc"))
             .expect("read"),
         "# dirty\n"
     );

@@ -93,7 +93,7 @@ fn consumer() -> Case {
     );
     write(
         &root.join(".bazelrc"),
-        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
+        &dx_testing::preset_rc(&rules),
     );
     write(&root.join("BUILD.bazel"), "");
     write(&root.join("fortran/BUILD.bazel"), BUILD);

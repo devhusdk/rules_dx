@@ -648,9 +648,9 @@ fn the_launcher_runs_hooks_with_the_built_dx_without_bazel() {
 }
 
 #[test]
-fn the_launcher_rebuilds_after_a_preset_bazelrc_edit() {
+fn the_launcher_rebuilds_after_a_preset_layer_edit() {
     let (root, fakes) = built_launcher_root("dx-agents-launcher-preset-", true);
-    touch_later(&root.join("tools/bazelrc/preset.bazelrc"));
+    touch_later(&root.join("tools/bazelrc/resources.bazelrc"));
     let out = launcher_run(&root, &fakes, &["version"]);
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
     assert_eq!(bazel_calls(&root, "build"), 2);

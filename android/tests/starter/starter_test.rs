@@ -84,7 +84,7 @@ fn scaffold(scratch: &Path) -> PathBuf {
         &root.join(".bazelrc"),
         &format!(
             "{bazelrc}{}",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+            dx_testing::preset_rc(&rules)
         ),
     );
     root

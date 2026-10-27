@@ -259,6 +259,14 @@ pub fn read_text(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
 }
 
+/// The vendored Bazel preset layers of the rules_dx checkout `rules`, joined in import order.
+pub fn preset_rc(rules: &Path) -> String {
+    ["correctness", "performance", "resources"]
+        .iter()
+        .map(|layer| read_text(&rules.join(format!("tools/bazelrc/{layer}.bazelrc"))))
+        .collect()
+}
+
 /// Names the Bazel-built process probe from the runfiles of the calling test.
 pub fn process_probe() -> PathBuf {
     let rel = std::env::var("DX_PROCESS_PROBE")

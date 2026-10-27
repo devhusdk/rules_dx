@@ -73,7 +73,7 @@ fn dx_new_gleam_scaffolds_a_project_that_builds_runs_and_tests() {
         root.join(".bazelrc"),
         format!(
             "{bazelrc}{}",
-            read(&rules.join("tools/bazelrc/preset.bazelrc"))
+            dx_testing::preset_rc(&rules)
         ),
     )
     .unwrap_or_else(|error| panic!("write .bazelrc: {error}"));

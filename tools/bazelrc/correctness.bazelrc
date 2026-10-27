@@ -1,0 +1,45 @@
+# Vendored Bazel execution preset -- GENERATED, do not edit.
+# Regenerate: `tools/dx init --apply`, or `bazel run //tools/bazelrc:preset_update` in rules_dx.
+# Layer correctness: flags that change what a build or test produces.
+
+# Resolve external dependencies through MODULE.bazel.
+common --enable_bzlmod
+
+# Print the full command line of a failed action.
+build --verbose_failures
+
+# Show the log of a failing test in the console.
+test --test_output=errors
+
+# Apply the linux, macos and windows config lines on matching hosts.
+common --enable_platform_specific_config
+
+# Make LLVM coverage write lcov data.
+coverage --test_env=GENERATE_LLVM_LCOV=1
+
+# Merge the coverage of every test into one lcov report.
+coverage --combined_report=lcov
+
+# Skip tests tagged no-coverage during coverage runs.
+coverage --test_tag_filters=-no-coverage
+
+# Coverage collectors read their inputs from a runfiles tree.
+coverage --enable_runfiles
+
+# Use the system gcov for gcc coverage on Linux.
+coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov
+
+# Use the system gcov for gcc coverage on macOS.
+coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov
+
+# Instrument only targets in the main repository.
+coverage --instrumentation_filter=^//
+
+# Keep external repositories out of the main runfiles directory.
+common --nolegacy_external_runfiles
+
+# On Windows, build runfiles trees only for actions that run.
+build:windows --nobuild_runfile_links
+
+# On Windows, give tests a runfiles directory instead of only a manifest.
+build:windows --enable_runfiles

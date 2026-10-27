@@ -1443,6 +1443,8 @@ impl Case {
     }
 
     /// Starts a case whose workspace depends on this rules_dx checkout, with `extra_module` appended.
+    ///
+    /// The workspace imports the preset layers from `.dx/bazelrc`, the way `dx init` lays them out.
     pub fn consumer(name: &str, extra_module: &str) -> Case {
         let rules = dx_testing::rules_dx_source();
         let case = case(name);
@@ -1451,10 +1453,17 @@ impl Case {
             &dx_testing::read_text(&rules.join(".bazelversion")),
         );
         case.write("MODULE.bazel", &consumer_module(&rules, extra_module));
-        case.write(
-            ".bazelrc",
-            &dx_testing::read_text(&rules.join("tools/bazelrc/preset.bazelrc")),
-        );
+        let mut imports = String::new();
+        for layer in ["correctness", "performance", "resources"] {
+            let file = format!("{layer}.bazelrc");
+            case.write(
+                format!(".dx/bazelrc/{file}"),
+                &dx_testing::read_text(&rules.join("tools/bazelrc").join(&file)),
+            );
+            imports.push_str(&format!("import %workspace%/.dx/bazelrc/{file}\n"));
+        }
+        case.write(".bazelrc", &imports);
+        case.write(".bazelignore", ".dx\n");
         case
     }
 

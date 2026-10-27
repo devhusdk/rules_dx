@@ -55,10 +55,22 @@ rust_clippy_test(
 
 exports_files([
     "Cargo.toml",
-    "preset.bazelrc",
+    "correctness.bazelrc",
+    "performance.bazelrc",
+    "resources.bazelrc",
     "src/bin_preset_update.rs",
     "src/lib.rs",
 ])
+
+# The three generated preset layers, in the order the root .bazelrc imports them.
+filegroup(
+    name = "preset",
+    srcs = [
+        "correctness.bazelrc",
+        "performance.bazelrc",
+        "resources.bazelrc",
+    ],
+)
 
 preset_update_tests(name = "preset_update_test")
 

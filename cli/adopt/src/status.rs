@@ -305,11 +305,15 @@ pub fn host_check(os: &str, arch: &str) -> StatusCheck {
 
 fn exec_tools_check(root: &Path) -> StatusCheck {
     let mut text = String::new();
-    for rel in [".bazelrc", "tools/bazelrc/preset.bazelrc"] {
-        if let Ok(body) = std::fs::read_to_string(root.join(rel)) {
-            text.push_str(&body);
-            text.push('\n');
+    let root_rc = std::fs::read_to_string(root.join(".bazelrc")).unwrap_or_default();
+    for line in root_rc.replace("\\\r\n", "").replace("\\\n", "").lines() {
+        match dx_preset::workspace_import(line.trim()) {
+            Some(rel) => {
+                text.push_str(&std::fs::read_to_string(root.join(rel)).unwrap_or_default())
+            }
+            None => text.push_str(line),
         }
+        text.push('\n');
     }
     let mut mode: Option<&str> = None;
     for line in text.lines() {
@@ -698,6 +702,29 @@ mod tests {
         )
         .expect("rc");
         assert_eq!(super::exec_tools_check(&dir).status, "ok");
+        for dir_rel in [dx_preset::REPO_DIR, dx_preset::CONSUMER_DIR] {
+            std::fs::create_dir_all(dir.join(dir_rel)).expect("preset dir");
+            std::fs::write(
+                dir.join(dir_rel).join("performance.bazelrc"),
+                dx_preset::render_layer(dx_preset::Layer::Performance),
+            )
+            .expect("layer");
+            let import = dx_preset::import_line(dir_rel, dx_preset::Layer::Performance);
+            std::fs::write(dir.join(".bazelrc"), format!("{import}\n")).expect("rc");
+            assert_eq!(super::exec_tools_check(&dir).status, "ok", "{dir_rel}");
+            std::fs::write(
+                dir.join(".bazelrc"),
+                format!("{import}\nbuild --host_compilation_mode=opt\n"),
+            )
+            .expect("rc");
+            assert_eq!(
+                super::exec_tools_check(&dir).status,
+                "warn",
+                "a root line after the import wins: {dir_rel}"
+            );
+            std::fs::write(dir.join(".bazelrc"), format!("# {import}\n")).expect("rc");
+            assert_eq!(super::exec_tools_check(&dir).status, "warn", "{dir_rel}");
+        }
         std::fs::remove_dir_all(&dir).ok();
     }
 

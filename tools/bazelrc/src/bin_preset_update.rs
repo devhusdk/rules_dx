@@ -43,7 +43,7 @@ fn run(
     if verify_only {
         match dx_preset::check_preset(&workspace) {
             Ok(()) => {
-                let _ = writeln!(out, "preset.update: preset.bazelrc verified");
+                let _ = writeln!(out, "preset.update: preset layers verified");
                 0
             }
             Err(dx_preset::PresetError::Stale { detail }) => {
@@ -55,7 +55,7 @@ fn run(
     } else {
         match dx_preset::update_preset(&workspace) {
             Ok(()) => {
-                let _ = writeln!(out, "preset.update: wrote preset.bazelrc");
+                let _ = writeln!(out, "preset.update: wrote preset layers");
                 0
             }
             Err(error) => dx_preset::bin_cannot(err, error),
@@ -77,8 +77,7 @@ fn main() {
 mod tests {
     use super::*;
 
-    const ROOT_BAZELRC: &str =
-        "import %workspace%/tools/bazelrc/preset.bazelrc\ntry-import %workspace%/user.bazelrc\n";
+    const ROOT_BAZELRC: &str = "import %workspace%/tools/bazelrc/correctness.bazelrc\nimport %workspace%/tools/bazelrc/performance.bazelrc\nimport %workspace%/tools/bazelrc/resources.bazelrc\ntry-import %workspace%/user.bazelrc\n";
 
     fn captured(
         args: &[&str],
@@ -104,7 +103,15 @@ mod tests {
     }
 
     fn fragment(root: &std::path::Path) -> PathBuf {
-        dx_preset::preset_paths(root).1
+        dx_preset::preset_paths(root, dx_preset::REPO_DIR)[0]
+            .1
+            .clone()
+    }
+
+    fn write_all_layers(root: &std::path::Path) {
+        for (layer, path) in dx_preset::preset_paths(root, dx_preset::REPO_DIR) {
+            std::fs::write(path, dx_preset::render_layer(layer)).expect("layer");
+        }
     }
 
     #[test]
@@ -162,11 +169,11 @@ mod tests {
         let root = dir.path().to_path_buf();
         with_source(&root);
         std::fs::write(root.join(".bazelrc"), ROOT_BAZELRC).expect("root bazelrc");
-        std::fs::write(fragment(&root), dx_preset::render_fragment()).expect("fragment");
+        write_all_layers(&root);
         let (code, out, err) = captured(&["preset_update", "--verify-only"], || Ok(root));
         assert_eq!(code, 0);
         assert!(
-            out.contains("preset.update: preset.bazelrc verified"),
+            out.contains("preset.update: preset layers verified"),
             "{out}"
         );
         assert_eq!(err, "");
@@ -195,7 +202,7 @@ mod tests {
         let dir = scratch();
         let root = dir.path().to_path_buf();
         with_source(&root);
-        std::fs::write(fragment(&root), dx_preset::render_fragment()).expect("fragment");
+        write_all_layers(&root);
         std::fs::write(
             root.join(".bazelrc"),
             format!("{ROOT_BAZELRC}common --enable_bzlmod\n"),
@@ -215,11 +222,11 @@ mod tests {
         std::fs::write(root.join(".bazelrc"), ROOT_BAZELRC).expect("root bazelrc");
         let (code, out, err) = captured(&["preset_update"], || Ok(root));
         assert_eq!(code, 0);
-        assert!(out.contains("preset.update: wrote preset.bazelrc"), "{out}");
+        assert!(out.contains("preset.update: wrote preset layers"), "{out}");
         assert_eq!(err, "");
         assert_eq!(
             std::fs::read_to_string(fragment(dir.path())).expect("fragment"),
-            dx_preset::render_fragment()
+            dx_preset::render_layer(dx_preset::Layer::Correctness)
         );
     }
 

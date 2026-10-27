@@ -1225,17 +1225,19 @@ impl Gate {
         } = sizing(setting, memory, reserved)?;
         let read = |path: &Path| std::fs::read_to_string(path).ok();
         let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
+        let args: Vec<OsString> = std::env::args_os().skip(1).collect();
+        let startup = own_startup_options(&args);
         let remote = dx_process::rc::remote_execution(
             env_get,
             workspace,
             &read,
             read_user_rc,
+            startup.as_deref().unwrap_or_default(),
             bazel_options,
         );
         let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
         let cpus = u64::try_from(cpus).unwrap_or(1);
-        let args: Vec<OsString> = std::env::args_os().skip(1).collect();
-        let warm = own_startup_options(&args).map(|startup_options| Warmth {
+        let warm = startup.map(|startup_options| Warmth {
             workspace: workspace.to_path_buf(),
             startup_options,
         });

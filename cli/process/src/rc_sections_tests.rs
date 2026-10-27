@@ -28,10 +28,26 @@ impl Host {
     }
 
     fn remote(&self, flags: &[&str]) -> bool {
-        let env = |name: &str| (name == "HOME").then(|| "/home/u".to_owned());
+        self.remote_with(&[], &[("HOME", "/home/u")], flags)
+    }
+
+    fn remote_with(&self, startup: &[&str], env: &[(&str, &str)], flags: &[&str]) -> bool {
+        let env = |name: &str| {
+            env.iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| (*value).to_owned())
+        };
         let read = |path: &Path| self.files.get(path).cloned();
+        let startup: Vec<String> = startup.iter().map(|opt| (*opt).to_owned()).collect();
         let flags: Vec<String> = flags.iter().map(|flag| (*flag).to_owned()).collect();
-        remote_execution(&env, Path::new(WS), &read, self.read_user_rc, &flags)
+        remote_execution(
+            &env,
+            Path::new(WS),
+            &read,
+            self.read_user_rc,
+            &startup,
+            &flags,
+        )
     }
 }
 
@@ -156,18 +172,37 @@ fn split_and_quoted_tokens_parse() {
     assert!(!comment.remote(&[]));
 }
 
+const EXTRA_RC: &str = "/rc/extra";
+const REMOTE_RC: &str = "build --remote_executor=grpcs://x\n";
+
 #[test]
-fn a_bazelrc_env_file_is_not_read_yet() {
-    let files: HashMap<PathBuf, String> = [(
-        PathBuf::from("/rc/extra"),
-        "build --remote_executor=grpcs://x\n".to_owned(),
-    )]
-    .into();
-    let env = |name: &str| match name {
-        "HOME" => Some("/home/u".to_owned()),
-        "BAZELRC" => Some("/rc/extra".to_owned()),
-        _ => None,
-    };
-    let read = |path: &Path| files.get(path).cloned();
-    assert!(!remote_execution(&env, Path::new(WS), &read, true, &[]));
+fn a_bazelrc_env_file_sets_remote_execution() {
+    let host = Host::new().file(EXTRA_RC, REMOTE_RC);
+    assert!(host.remote_with(&[], &[("HOME", "/home/u"), ("BAZELRC", EXTRA_RC)], &[]));
+}
+
+#[test]
+fn a_comma_separated_bazelrc_env_is_read_in_order() {
+    let host = Host::new().file("/rc/b", REMOTE_RC);
+    let env = [("BAZELRC", "/rc/a,/rc/b")];
+    assert!(host.remote_with(&[], &env, &[]));
+}
+
+#[test]
+fn a_bazelrc_startup_option_sets_remote_execution() {
+    let host = Host::new().file(EXTRA_RC, REMOTE_RC);
+    assert!(host.remote_with(&["--bazelrc=/rc/extra"], &[], &[]));
+    assert!(host.remote_with(&["--bazelrc", "/rc/extra"], &[], &[]));
+}
+
+#[test]
+fn a_dev_null_bazelrc_ends_the_list() {
+    let host = Host::new().file(EXTRA_RC, REMOTE_RC);
+    assert!(!host.remote_with(&["--bazelrc=/dev/null", "--bazelrc=/rc/extra"], &[], &[]));
+}
+
+#[test]
+fn bazelrc_files_are_not_read_when_hermetic() {
+    let host = Host::new().file(EXTRA_RC, REMOTE_RC).hermetic();
+    assert!(!host.remote_with(&["--bazelrc=/rc/extra"], &[("BAZELRC", EXTRA_RC)], &[]));
 }

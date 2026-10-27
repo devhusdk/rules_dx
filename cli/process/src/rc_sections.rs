@@ -21,9 +21,10 @@ pub fn remote_execution(
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
     read_user_rc: bool,
+    startup: &[String],
     flags: &[String],
 ) -> bool {
-    let options = build_options(env_get, workspace, read_file, read_user_rc, flags);
+    let options = build_options(env_get, workspace, read_file, read_user_rc, startup, flags);
     last_value(&options, "--remote_executor").is_some_and(|value| !value.is_empty())
 }
 
@@ -33,11 +34,12 @@ fn build_options(
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
     read_user_rc: bool,
+    startup: &[String],
     flags: &[String],
 ) -> Vec<String> {
     let mut lines = Vec::new();
     let mut seen = HashSet::new();
-    for path in rc_files(env_get, workspace, read_user_rc) {
+    for path in rc_files(env_get, workspace, read_user_rc, startup) {
         load(&path, workspace, read_file, &mut seen, 0, &mut lines);
     }
     let mut out = Vec::new();
@@ -50,10 +52,12 @@ fn build_options(
     out
 }
 
+/// The rc files in Bazel's read order: system, workspace, home, `BAZELRC`, then `--bazelrc`.
 fn rc_files(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
     read_user_rc: bool,
+    startup: &[String],
 ) -> Vec<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     let mut files = Vec::new();
@@ -71,8 +75,40 @@ fn rc_files(
         if let Some(home) = non_empty("HOME").or_else(|| non_empty("USERPROFILE")) {
             files.push(PathBuf::from(home).join(".bazelrc"));
         }
+        files.extend(explicit_rc_files(env_get, startup));
     }
     files
+}
+
+/// The files named by `BAZELRC` (comma-separated) and then each `--bazelrc`. `/dev/null` ends a list.
+fn explicit_rc_files(env_get: &dyn Fn(&str) -> Option<String>, startup: &[String]) -> Vec<PathBuf> {
+    let env_paths = env_get("BAZELRC")
+        .unwrap_or_default()
+        .split(',')
+        .filter(|path| !path.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let mut flag_paths = Vec::new();
+    let mut index = 0;
+    while index < startup.len() {
+        let option = startup[index].as_str();
+        if let Some(path) = option.strip_prefix("--bazelrc=") {
+            flag_paths.push(path.to_owned());
+        } else if option == "--bazelrc" {
+            if let Some(path) = startup.get(index + 1) {
+                flag_paths.push(path.clone());
+                index += 1;
+            }
+        }
+        index += 1;
+    }
+    env_paths
+        .iter()
+        .chain(flag_paths.iter())
+        .map(String::as_str)
+        .take_while(|path| *path != "/dev/null")
+        .map(PathBuf::from)
+        .collect()
 }
 
 fn load(

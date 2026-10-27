@@ -1,11 +1,10 @@
 """C and C++ tool acquisition inventory pins."""
 
-load("//cc/tests/fixtures/cppcheck:pins.bzl", "CPPCHECK_VERSION")
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load(":repos.bzl", "CC_TOOLS", "CC_TOOL_REPOS")
 
 _VERSIONS = {
-    "cc_cppcheck": CPPCHECK_VERSION,
+    "cc_cppcheck": "2.21.0",
 }
 
 def _cc_checks():

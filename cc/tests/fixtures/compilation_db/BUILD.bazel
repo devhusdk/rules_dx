@@ -49,7 +49,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "pins.bzl",
     ],
     tags = ["corpus"],
 )

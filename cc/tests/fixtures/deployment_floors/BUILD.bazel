@@ -10,7 +10,6 @@ exports_files([
     "current_host.txt",
     "loader_deps.txt",
     "oldest_target.txt",
-    "pins.bzl",
 ])
 
 real_source_target(
@@ -19,7 +18,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "pins.bzl",
     ],
     tags = ["corpus"],
 )

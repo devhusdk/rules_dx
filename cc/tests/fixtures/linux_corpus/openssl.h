@@ -3,7 +3,7 @@
 
 // The canonical upstream build needs perl plus declared tools; ambient
 // host-tool discovery stays rejected. This stub proves the declared-input
-// C shape; the tool closure is pinned in pins.bzl.
+// C shape.
 #ifdef __cplusplus
 extern "C" {
 #endif

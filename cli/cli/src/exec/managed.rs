@@ -431,7 +431,7 @@ mod tests {
             let name = format!("managed-exact-{command}");
             let harness = Harness::new(&name);
             if command == "codegen" {
-                harness.query.script_owners("\n");
+                harness.query.script_stdout("\n");
             }
             let (code, out, err) = harness.run(&[command, "--apply", "//a:one"]);
             assert_eq!(code, 0, "{out}{err}");

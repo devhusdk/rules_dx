@@ -119,7 +119,7 @@ pub(crate) struct ScriptQuery {
 }
 
 impl ScriptQuery {
-    pub(crate) fn script_owners(&self, owners: &str) {
+    pub(crate) fn script_stdout(&self, owners: &str) {
         self.outputs.borrow_mut().push(QueryResult {
             code: Some(0),
             stdout: owners.as_bytes().to_vec(),
@@ -136,7 +136,7 @@ impl ScriptQuery {
     }
 
     pub(crate) fn script_graph(&self, rules: &[String]) {
-        self.script_owners(&dx_testing::cli::graph_stdout(rules));
+        self.script_stdout(&dx_testing::cli::graph_stdout(rules));
     }
 
     pub(crate) fn script_git(&self, code: i32, stdout: &str) {

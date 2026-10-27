@@ -641,7 +641,7 @@ mod tests {
     fn test_and_coverage_forward_test_binary_args_to_bazel() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-test-args");
-            harness.query.script_owners("py_test rule //pkg:unit\n");
+            harness.query.script_stdout("py_test rule //pkg:unit\n");
             let inv = invocation(&[command, "--", "--test_arg=--exact", "--test_filter=unit"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             assert_eq!(run.argv.len(), 1, "{command}: {run:?}");
@@ -665,10 +665,10 @@ mod tests {
     fn test_filter_reaches_rust_test_binaries_as_a_libtest_filter() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-rust-filter");
-            harness.query.script_owners(
+            harness.query.script_stdout(
                 "_rust_forward_test rule //cli:dx_cli_test\nrust_test rule //cli:raw_test\nrustfmt_test rule //cli:fmt_test\nrust_clippy_test rule //cli:clippy_test\n",
             );
-            harness.query.script_owners("");
+            harness.query.script_stdout("");
             let inv = invocation(&[command, "--", "--test_filter=slots"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             let queries = harness.query.calls.borrow();
@@ -708,8 +708,8 @@ mod tests {
             let harness = Harness::new("wf-rust-no-harness");
             harness
                 .query
-                .script_owners("_rust_forward_test rule //cli:raw_test\n");
-            harness.query.script_owners("//cli:raw_test_upstream\n");
+                .script_stdout("_rust_forward_test rule //cli:raw_test\n");
+            harness.query.script_stdout("//cli:raw_test_upstream\n");
             let inv = invocation(&[command, "--", "--test_filter=slots"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             assert_eq!(harness.query.calls.borrow().len(), 2, "{command}");
@@ -743,8 +743,8 @@ mod tests {
             let harness = Harness::new("wf-rust-filter-options");
             harness
                 .query
-                .script_owners("_rust_forward_test rule //cli:dx_cli_test\n");
-            harness.query.script_owners("");
+                .script_stdout("_rust_forward_test rule //cli:dx_cli_test\n");
+            harness.query.script_stdout("");
             let inv = invocation(&[
                 command,
                 "--",
@@ -800,7 +800,7 @@ mod tests {
             "",
         ] {
             let harness = Harness::new("wf-mixed-filter");
-            harness.query.script_owners(kinds);
+            harness.query.script_stdout(kinds);
             let inv = invocation(&["test", "--", "--test_filter", "unit"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             let argv = &run.argv[0];
@@ -1075,10 +1075,10 @@ mod tests {
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
             graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
         ]);
-        harness.query.script_owners("//pkg:unit\n");
+        harness.query.script_stdout("//pkg:unit\n");
         harness
             .query
-            .script_owners("//pkg:lib (abc)\n//pkg:unit (abc)\n");
+            .script_stdout("//pkg:lib (abc)\n//pkg:unit (abc)\n");
         let inv = invocation(&["test", "pkg/a.py", "--", "--platforms=//:x"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         let queries = harness.query.calls.borrow();

@@ -3,12 +3,13 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":bcr.bzl", "bcr_check")
 load(":bcr_tests.bzl", "bcr_unit_tests")
+load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
 load(":matrix_tests.bzl", "matrix_unit_tests")
 load(":notice.bzl", "notice_bundle")
 load(":notice_tests.bzl", "notice_file_tests", "notice_unit_tests")
 load(":sbom.bzl", "sbom_release")
 load(":sbom_tests.bzl", "sbom_file_tests", "sbom_unit_tests")
-load(":signing.bzl", "signed_release")
+load(":signing.bzl", "cosign_binary", "signed_release")
 load(":signing_tests.bzl", "signing_unit_tests")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -419,6 +420,45 @@ notice_bundle(
         ":notice_demo_a.txt",
         ":notice_demo_b.txt",
     ],
+)
+
+[
+    config_setting(
+        name = "cosign_" + key,
+        constraint_values = [
+            "@platforms//os:" + pin["os"],
+            "@platforms//cpu:" + pin["cpu"],
+        ],
+    )
+    for key, pin in COSIGN_PLATFORMS.items()
+]
+
+[
+    cosign_binary(
+        name = "cosign_" + key + "_bin",
+        binary = "@cosign_" + key + "//file",
+        sha256 = pin["sha256"],
+        visibility = ["//visibility:public"],
+    )
+    for key, pin in COSIGN_PLATFORMS.items()
+]
+
+filegroup(
+    name = "cosign_unsupported",
+    target_compatible_with = ["@platforms//:incompatible"],
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "cosign",
+    actual = select({
+        ":cosign_linux_arm64": ":cosign_linux_arm64_bin",
+        ":cosign_linux_x86_64": ":cosign_linux_x86_64_bin",
+        ":cosign_macos_arm64": ":cosign_macos_arm64_bin",
+        ":cosign_windows_x86_64": ":cosign_windows_x86_64_bin",
+        "//conditions:default": ":cosign_unsupported",
+    }),
+    visibility = ["//visibility:public"],
 )
 
 signed_release(

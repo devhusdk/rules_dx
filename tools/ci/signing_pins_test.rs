@@ -76,23 +76,34 @@ fn the_bundle_media_type_matches_the_starlark_pin() {
 fn the_cosign_pin_lives_only_in_cosign_pins_bzl() {
     let pins = read_runfiles(COSIGN_PINS);
     let version = dx_testing::starlark_const(&pins, "COSIGN_VERSION", COSIGN_PINS);
-    let sha = dx_testing::starlark_const(&pins, "COSIGN_SHA256_LINUX_AMD64", COSIGN_PINS);
     assert!(
         version.starts_with('v'),
         "{COSIGN_PINS} COSIGN_VERSION is {version}"
     );
-    assert_eq!(
-        sha.len(),
-        64,
-        "{COSIGN_PINS} COSIGN_SHA256_LINUX_AMD64 is {sha}"
-    );
+    let mut pinned = vec![version];
+    for name in [
+        "COSIGN_SHA256_LINUX_AMD64",
+        "COSIGN_SHA256_LINUX_ARM64",
+        "COSIGN_SHA256_DARWIN_ARM64",
+        "COSIGN_SHA256_WINDOWS_AMD64",
+    ] {
+        let sha = dx_testing::starlark_const(&pins, name, COSIGN_PINS);
+        assert!(
+            sha.len() == 64
+                && sha
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+            "{COSIGN_PINS} {name} is {sha}, want 64 lowercase hex characters"
+        );
+        pinned.push(sha);
+    }
     for (rel, text) in [
         (SIGNING_BZL, read_runfiles(SIGNING_BZL)),
         (RELEASE_LIB, read_runfiles(RELEASE_LIB)),
         (GHCR_WORKFLOW, read_runfiles(GHCR_WORKFLOW)),
         (MODULE, read_runfiles(MODULE)),
     ] {
-        for value in [&version, &sha] {
+        for value in &pinned {
             assert!(
                 !text.contains(&format!("\"{value}\"")),
                 "{rel} repeats the {COSIGN_PINS} pin {value}"

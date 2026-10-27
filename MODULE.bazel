@@ -765,7 +765,7 @@ _web_consumer_repo(
 _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 cosign = use_extension("//deploy/release:repos.bzl", "cosign")
-use_repo(cosign, "cosign_linux_amd64")
+use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
 
 nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64")

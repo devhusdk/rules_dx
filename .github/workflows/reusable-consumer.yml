@@ -27,6 +27,11 @@ on:
         required: false
         default: ""
         type: string
+      affected_on_pr:
+        description: "On pull_request events, run lint, typecheck, format, test, build and (when no coverage threshold is set) coverage with --affected. Push and merge_group events keep //... ."
+        required: false
+        default: true
+        type: boolean
       invocation_id:
         description: "Names this call's advisory artifact. Empty keeps advisory-snapshots for a single call. Two calls in one parent run need distinct IDs of 1 to 40 letters, digits, underscores or hyphens."
         required: false
@@ -126,10 +131,27 @@ jobs:
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
       contents: read
+    env:
+      # Target scope of this cell: lint, typecheck, format, test and build run --affected on pull_request only.
+      DX_SCOPE: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr && contains(fromJSON('["lint","typecheck","format","test","build"]'), matrix.check.id) && '--affected' || '//...' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: ${{ env.DX_SCOPE == '--affected' && '2' || '1' }}
+      - name: Pin the pull request base for --affected
+        if: ${{ env.DX_SCOPE == '--affected' }}
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: |
+          if ! git rev-parse --verify -q 'HEAD^2' >/dev/null; then
+            echo "::warning::checkout is not a merge commit; falling back to //..."
+            echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
+            exit 0
+          fi
+          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" 'HEAD^1'
+          git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$GITHUB_BASE_REF"
+          echo '/bazel-*' >> "$(git rev-parse --git-path info/exclude)"
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -168,7 +190,7 @@ jobs:
           for token in "${tokens[@]}"; do
             args+=(--report "${token%%=*}=$reports/${token#*=}")
           done
-          args+=(//...)
+          args+=("$DX_SCOPE")
           if [ "$DX_PASSTHROUGH" = "true" ]; then
             args+=(-- "$@")
           fi
@@ -339,11 +361,26 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      DX_SCOPE: ${{ github.event_name == 'pull_request' && inputs.affected_on_pr && needs.validate.outputs.min_coverage == '' && needs.validate.outputs.min_changed_line_coverage == '' && '--affected' || '//...' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-          fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || '1' }}
+          fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || env.DX_SCOPE == '--affected' && '2' || '1' }}
+      - name: Pin the pull request base for --affected
+        if: ${{ env.DX_SCOPE == '--affected' }}
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: |
+          if ! git rev-parse --verify -q 'HEAD^2' >/dev/null; then
+            echo "::warning::checkout is not a merge commit; falling back to //..."
+            echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
+            exit 0
+          fi
+          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" 'HEAD^1'
+          git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$GITHUB_BASE_REF"
+          echo '/bazel-*' >> "$(git rev-parse --git-path info/exclude)"
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
@@ -384,7 +421,7 @@ jobs:
           if [ -n "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
             extra+=(--report "lcov=${RUNNER_TEMP:-/tmp}/dx_coverage.lcov")
           fi
-          bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" //... -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
+          bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" "$DX_SCOPE" -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
           rc=${PIPESTATUS[0]}
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"

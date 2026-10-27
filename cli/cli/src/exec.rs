@@ -3,6 +3,7 @@ mod affected;
 mod audit;
 mod build_failures;
 mod bump;
+mod changed_coverage;
 mod clean;
 pub mod common;
 #[cfg(test)]

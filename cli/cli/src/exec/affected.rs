@@ -209,9 +209,18 @@ pub(crate) fn affected_base(
     workspace: &Path,
     runner: &dyn QueryRunner,
 ) -> Result<String, PlanError> {
+    named_base(workspace, runner).map(|(_, base)| base)
+}
+
+/// The default branch and its merge-base with `HEAD`.
+pub(crate) fn named_base(
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+) -> Result<(String, String), PlanError> {
     let git = PathBuf::from("git");
     let branch = default_branch(runner, workspace)?;
-    merge_base(&git, workspace, runner, &branch, "HEAD").map_err(PlanError::Git)
+    let base = merge_base(&git, workspace, runner, &branch, "HEAD").map_err(PlanError::Git)?;
+    Ok((branch, base))
 }
 
 pub(crate) fn plan(

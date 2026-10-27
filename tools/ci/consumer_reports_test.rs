@@ -56,8 +56,6 @@ fn each_reporting_job_passes_exactly_its_report_kinds() {
             .split("--report \"")
             .skip(1)
             .map(|rest| rest.split('=').next().unwrap_or("").to_owned())
-            // The changed-line lcov report stays conditional on its threshold.
-            .filter(|kind| kind != "lcov")
             .collect();
         found.sort();
         let mut expected: Vec<String> = kinds.iter().map(|kind| (*kind).to_owned()).collect();

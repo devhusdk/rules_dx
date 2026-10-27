@@ -2,12 +2,13 @@ use crate::validation::{check_correlation, check_path, parse_digest, OutputError
 use serde_json::{json, Value};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 1;
+pub const SCHEMA_MINOR: u64 = 2;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
     "capability",
     "change",
+    "changed_line_coverage",
     "command_finished",
     "command_started",
     "coverage",
@@ -293,6 +294,78 @@ pub fn coverage_event(coverage: &CoverageEvent) -> Result<Value, OutputError> {
     map.insert(
         "dx_version".to_owned(),
         Value::String(coverage.dx_version.clone()),
+    );
+    Ok(Value::Object(map))
+}
+
+/// The changed-line coverage gate from `dx coverage --min-changed-line-coverage`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangedLineCoverageEvent {
+    pub base: String,
+    pub merge_base: String,
+    pub minimum: u32,
+    pub covered_lines: u64,
+    pub eligible_lines: u64,
+    pub uncovered: Vec<(String, u32)>,
+    pub uninstrumented: Vec<String>,
+    pub result: String,
+    pub dx_version: String,
+}
+
+const CHANGED_LINE_RESULTS: &[&str] = &[
+    "pass",
+    "fail",
+    "not-applicable",
+    "incomplete",
+    "unavailable",
+];
+
+pub fn changed_line_coverage_event(gate: &ChangedLineCoverageEvent) -> Result<Value, OutputError> {
+    nonempty("dx_version", &gate.dx_version)?;
+    if !CHANGED_LINE_RESULTS.contains(&gate.result.as_str()) {
+        return Err(OutputError::BadValue {
+            field: "changed_line_coverage result",
+            value: gate.result.clone(),
+        });
+    }
+    if gate.minimum > 100 {
+        return Err(OutputError::BadValue {
+            field: "changed_line_coverage minimum",
+            value: gate.minimum.to_string(),
+        });
+    }
+    if gate.covered_lines > gate.eligible_lines {
+        return Err(OutputError::BadValue {
+            field: "changed_line_coverage covered_lines",
+            value: gate.covered_lines.to_string(),
+        });
+    }
+    let mut map = base("changed_line_coverage");
+    map.insert("base".to_owned(), Value::String(gate.base.clone()));
+    map.insert(
+        "merge_base".to_owned(),
+        Value::String(gate.merge_base.clone()),
+    );
+    map.insert("minimum".to_owned(), Value::from(gate.minimum));
+    map.insert("covered_lines".to_owned(), Value::from(gate.covered_lines));
+    map.insert(
+        "eligible_lines".to_owned(),
+        Value::from(gate.eligible_lines),
+    );
+    let mut uncovered = Vec::with_capacity(gate.uncovered.len());
+    for (path, line) in &gate.uncovered {
+        nonempty("uncovered path", path)?;
+        uncovered.push(json!({"path": path, "line": line}));
+    }
+    map.insert("uncovered".to_owned(), Value::Array(uncovered));
+    for path in &gate.uninstrumented {
+        nonempty("uninstrumented path", path)?;
+    }
+    map.insert("uninstrumented".to_owned(), json!(gate.uninstrumented));
+    map.insert("result".to_owned(), Value::String(gate.result.clone()));
+    map.insert(
+        "dx_version".to_owned(),
+        Value::String(gate.dx_version.clone()),
     );
     Ok(Value::Object(map))
 }
@@ -1289,10 +1362,10 @@ mod tests {
     }
 
     #[test]
-    fn schema_is_three_one_with_forward_compat() {
+    fn schema_is_three_two_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 1);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 1}));
+        assert_eq!(SCHEMA_MINOR, 2);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 2}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -1764,7 +1837,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 1},
+                "schema": {"major": 3, "minor": 2},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -1781,6 +1854,69 @@ mod build_failure_tests {
                 "dx_version": "1.2.3",
             })
         );
+    }
+
+    fn changed_fixture() -> ChangedLineCoverageEvent {
+        ChangedLineCoverageEvent {
+            base: "origin/main".to_owned(),
+            merge_base: "abc123".to_owned(),
+            minimum: 80,
+            covered_lines: 3,
+            eligible_lines: 4,
+            uncovered: vec![("src/a.rs".to_owned(), 7)],
+            uninstrumented: vec!["src/b.rs".to_owned()],
+            result: "incomplete".to_owned(),
+            dx_version: "1.2.3".to_owned(),
+        }
+    }
+
+    #[test]
+    fn changed_line_coverage_event_carries_the_gate() {
+        let event = changed_line_coverage_event(&changed_fixture()).expect("event");
+        assert_eq!(
+            event,
+            serde_json::json!({
+                "schema": {"major": 3, "minor": 2},
+                "event": "changed_line_coverage",
+                "base": "origin/main",
+                "merge_base": "abc123",
+                "minimum": 80,
+                "covered_lines": 3,
+                "eligible_lines": 4,
+                "uncovered": [{"path": "src/a.rs", "line": 7}],
+                "uninstrumented": ["src/b.rs"],
+                "result": "incomplete",
+                "dx_version": "1.2.3",
+            })
+        );
+        assert!(EVENTS.contains(&"changed_line_coverage"));
+    }
+
+    #[test]
+    fn changed_line_coverage_event_rejects_bad_fields() {
+        let mut gate = changed_fixture();
+        gate.dx_version.clear();
+        assert!(changed_line_coverage_event(&gate).is_err());
+        let mut gate = changed_fixture();
+        gate.result = "maybe".to_owned();
+        assert!(changed_line_coverage_event(&gate).is_err());
+        let mut gate = changed_fixture();
+        gate.minimum = 101;
+        assert!(changed_line_coverage_event(&gate).is_err());
+        let mut gate = changed_fixture();
+        gate.covered_lines = 5;
+        assert!(changed_line_coverage_event(&gate).is_err());
+        let mut gate = changed_fixture();
+        gate.uncovered = vec![(String::new(), 1)];
+        assert!(changed_line_coverage_event(&gate).is_err());
+        let mut gate = changed_fixture();
+        gate.uninstrumented = vec![String::new()];
+        assert!(changed_line_coverage_event(&gate).is_err());
+        let mut gate = changed_fixture();
+        gate.result = "unavailable".to_owned();
+        gate.base.clear();
+        gate.merge_base.clear();
+        assert!(changed_line_coverage_event(&gate).is_ok());
     }
 
     #[test]

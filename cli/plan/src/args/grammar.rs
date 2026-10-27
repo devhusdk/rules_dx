@@ -59,6 +59,7 @@ pub(crate) struct Flags {
     pub(crate) build_slots: Option<String>,
     pub(crate) include_edits: bool,
     pub(crate) min_coverage: Option<u32>,
+    pub(crate) min_changed_line_coverage: Option<u32>,
     pub(crate) check: bool,
     pub(crate) apply: bool,
     pub(crate) debug: bool,
@@ -265,6 +266,20 @@ flag_group! {
             value_parser = percent
         )]
         min_coverage: Option<u32>,
+    }
+}
+
+flag_group! {
+    /// Require at least this coverage percent (0-100) on lines changed since the merge-base.
+    MinChangedLineCoverageFlag, {
+        #[arg(
+            long,
+            value_name = "PERCENT",
+            allow_negative_numbers = true,
+            overrides_with = "min_changed_line_coverage",
+            value_parser = percent
+        )]
+        min_changed_line_coverage: Option<u32>,
     }
 }
 
@@ -801,6 +816,7 @@ command_args! {
     Coverage => 8, BazelTail, {
         output: ReadOutputFlag,
         min_coverage: MinCoverageFlag,
+        min_changed_line_coverage: MinChangedLineCoverageFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -944,6 +960,7 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--report",
     "--fail-on",
     "--min-coverage",
+    "--min-changed-line-coverage",
     "--from",
     "--to",
     "--port",
@@ -1112,6 +1129,9 @@ mod tests {
         for words in [
             vec!["coverage", "--min-coverage=eighty"],
             vec!["coverage", "--min-coverage=101"],
+            vec!["coverage", "--min-changed-line-coverage=eighty"],
+            vec!["coverage", "--min-changed-line-coverage=101"],
+            vec!["coverage", "--min-changed-line-coverage=-1"],
             vec!["lint", "--report=sarif"],
             vec!["docs", "--serve", "--port=0"],
             vec!["docs", "--serve", "--port=notanumber"],
@@ -1130,6 +1150,9 @@ mod tests {
             vec!["coverage", "--min-coverage=80"],
             vec!["coverage", "--min-coverage=0"],
             vec!["coverage", "--min-coverage=100"],
+            vec!["coverage", "--min-changed-line-coverage=80"],
+            vec!["coverage", "--min-changed-line-coverage=0"],
+            vec!["coverage", "--min-changed-line-coverage=100"],
             vec!["lint", "--report=sarif=out.sarif"],
             vec!["docs", "--serve", "--port=1"],
             vec!["docs", "--serve", "--port=65535"],

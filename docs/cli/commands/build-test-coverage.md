@@ -329,7 +329,7 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--min-coverage <percent>] [--report lcov=<path>] [--report sources=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov=<path>] [--report sources=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` takes a whole number
@@ -351,6 +351,31 @@ on stderr, or emits an `error` event with code `coverage_below_minimum` with
 `--instrumentation_filter` narrower than the preset shrinks the source list
 without a warning.
 C and C++ tests report line coverage through LLVM, with no setup needed.
+
+`--min-changed-line-coverage` takes a whole number from 0 to 100 and gates
+only the lines the working tree adds since the merge-base of `HEAD` with the
+default branch (`origin/HEAD`, else `main`, else `master`). Untracked files
+count in full; `.dx/` is skipped. Renamed files count only their edited lines.
+The denominator is every added line the LCOV reports in an eligible production
+source, after valid exclusion markers; the numerator is those lines with hits.
+Test, support, excluded, unsupported, and unowned files are skipped. The gate
+needs full Git history. It prints one line on stderr:
+
+```text
+dx: changed-line coverage <percent>% (<covered>/<eligible> lines) meets minimum <n>% against merge-base <sha>
+dx: changed-line coverage not applicable: no changed executable lines against merge-base <sha>
+dx: changed_line_coverage_below_minimum: changed-line coverage <percent>% (<covered>/<eligible> lines) below minimum <n>% against merge-base <sha>
+dx: changed_line_uncovered: <path>:<line>
+dx: changed_line_coverage_incomplete: changed sources absent from the coverage report against merge-base <sha>: <path>, ...
+dx: changed_line_coverage_unavailable: <git error>
+```
+
+A pass or not applicable leaves the result unchanged. Below the minimum, a changed
+production source the LCOV never saw, or a Git failure (no default branch, a
+shallow clone, a failed diff) exits `1`. With `--output=json` dx emits one
+`changed_line_coverage` event and, on failure, an `error` event with code
+`changed_line_coverage_below_minimum`, `changed_line_coverage_incomplete`, or
+`changed_line_coverage_unavailable`.
 
 Not every language has a coverage collector yet:
 

@@ -13,17 +13,13 @@ const PIN_ENV: &str = "RULES_DX_PIN";
 
 const PIN_RUN: &str = "bazel run \"$@\" @rules_dx//tools/ci:module_pin_bin";
 
-const SCRIPTS: [(&str, &[&str]); 4] = [
+const SCRIPTS: [(&str, &[&str]); 3] = [
     ("tools/ci/input_validation.py", &["reusable-consumer.yml"]),
     (
         "tools/ci/module_pin.py",
         &["reusable-consumer.yml", "reusable-docs.yml"],
     ),
     ("tools/ci/docs_scope.py", &["reusable-docs.yml"]),
-    (
-        "tools/ci/changed_line_coverage.py",
-        &["reusable-consumer.yml"],
-    ),
 ];
 
 const STEP_KEY: &str = "        ";

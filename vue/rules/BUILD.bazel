@@ -1,10 +1,24 @@
+# gazelle:ignore
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "vue_tool.mjs",
 ])
+
+js_binary(
+    name = "vue_tool",
+    entry_point = "vue_tool.mjs",
+)
+
+copy_to_bin(
+    name = "vue_tool_entry",
+    srcs = ["vue_tool.mjs"],
+)
 
 real_source_target(
     name = "corpus_starlark",

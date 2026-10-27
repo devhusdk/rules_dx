@@ -1032,6 +1032,64 @@ export default [
 Findings point at the line and column in the `.vue` file. A `.vue` file that no
 config entry matches fails the run. It never counts as clean.
 
+#### Building and checking a Vue app
+
+`vue_build` and `vue_check` are Bazel targets. They run `vite`,
+`@vitejs/plugin-vue`, `vue-tsc` and `typescript` from your own `node_modules`.
+`dx check` does not run them.
+
+```python
+load("@rules_dx//javascript/rules:web.bzl", "javascript_web_server")
+load("@rules_dx//vue/rules:defs.bzl", "vue_build", "vue_check")
+
+vue_build(
+    name = "site",
+    srcs = glob(["src/**"]) + ["index.html"],
+    config = "vite.config.mjs",
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    public = glob(["public/**"]),
+    ssr_entry = "src/entry-server.ts",
+    deps = ["//:node_modules/pinia"],
+)
+
+vue_check(
+    name = "check",
+    srcs = glob(["src/**"]),
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    tsconfig = "tsconfig.json",
+    deps = ["//:node_modules/pinia"],
+)
+
+javascript_web_server(
+    name = "serve",
+    app = ":site",
+)
+```
+
+```sh
+bazel build //web:site //web:site_ssr
+bazel test //web:check
+bazel run //web:serve
+```
+
+`vue_build` runs a Vite client build into a `site/` tree. The build fails when
+the tree has no `index.html`. `javascript_web_server` serves it. With
+`ssr_entry`, a second Vite SSR build writes `site_ssr/`. The SSR bundle keeps
+`vue` and other packages as imports, so code that loads it needs them at run
+time.
+
+`vue_check` runs `vue-tsc --noEmit -p <tsconfig>` once into
+`check.vue_check.txt`. The file starts with `exit_code: <n>` and holds the
+diagnostics, for example
+`src/App.vue(6,13): error TS2322: Type 'string' is not assignable to type 'number'.`
+The test fails and prints the report when the exit code is not 0. A crash or a
+missing package fails the build. It never counts as clean.
+
+Tested with `vue` 3.5.42, `vite` 8.3.5, `@vitejs/plugin-vue` 6.0.10, `vue-tsc`
+3.3.13 and `typescript` 6.0.3.
+
 ### GraphQL lint
 
 `graphql_eslint` checks GraphQL schemas and operations against the schema. It

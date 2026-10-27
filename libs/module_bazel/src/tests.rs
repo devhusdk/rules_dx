@@ -595,3 +595,111 @@ fn insert_include_rejects_unsafe_labels() {
         Err(ModuleError::UnsafeString { .. })
     ));
 }
+
+fn hub_view(hub: &CargoHub<'_>) -> (String, Option<String>, Vec<String>, usize) {
+    (
+        hub.name.to_owned(),
+        hub.cargo_lockfile.map(str::to_owned),
+        hub.manifests.iter().map(|m| m.value.clone()).collect(),
+        hub.line,
+    )
+}
+
+#[test]
+fn cargo_hubs_follow_the_rules_rust_crate_extension() {
+    let source = "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.annotation(crate = \"blake3\")\ncrate.from_cargo(\n    name = \"dx_crates\",\n    cargo_lockfile = \"//rust/tests/fixtures/hello:Cargo.lock\",\n    manifests = [\n        \"//cli/bump:Cargo.toml\",\n        \"//:Cargo.toml\",\n    ],\n)\ncrate.from_cargo(name = \"other\", manifests = [\"//x:Cargo.toml\"])\nfake = use_extension(\"@fake//crate_universe:extensions.bzl\", \"crate\")\nfake.from_cargo(name = \"no\", manifests = [\"//no:Cargo.toml\"])\n";
+    let file = parse(source);
+    let hubs: Vec<_> = file
+        .cargo_hubs()
+        .expect("hubs")
+        .iter()
+        .map(hub_view)
+        .collect();
+    assert_eq!(
+        hubs,
+        [
+            (
+                "dx_crates".to_owned(),
+                Some("//rust/tests/fixtures/hello:Cargo.lock".to_owned()),
+                vec![
+                    "//cli/bump:Cargo.toml".to_owned(),
+                    "//:Cargo.toml".to_owned()
+                ],
+                4,
+            ),
+            (
+                "other".to_owned(),
+                None,
+                vec!["//x:Cargo.toml".to_owned()],
+                12,
+            ),
+        ]
+    );
+    let aliased = parse(
+        "bazel_dep(name = \"rules_rust\", version = \"0.74.0\", repo_name = \"rr\")\nc = use_extension(extension_bzl_file = \"@rr//crate_universe:extensions.bzl\", extension_name = \"crate\")\nc.from_cargo(name = \"h\", cargo_lockfile = \"//:Cargo.lock\", manifests = [\"//:Cargo.toml\"])\n",
+    );
+    assert_eq!(
+        aliased
+            .cargo_hubs()
+            .expect("alias")
+            .iter()
+            .map(hub_view)
+            .collect::<Vec<_>>(),
+        [(
+            "h".to_owned(),
+            Some("//:Cargo.lock".to_owned()),
+            vec!["//:Cargo.toml".to_owned()],
+            3,
+        )]
+    );
+    assert_eq!(
+        parse("bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n").cargo_hubs(),
+        Ok(Vec::new())
+    );
+    for (source, line) in [
+        (
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"h\", manifests = MANIFESTS)\n",
+            2,
+        ),
+        (
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\n\ncrate.from_cargo(name = \"h\", manifests = [\"//\" + P])\n",
+            3,
+        ),
+        (
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"h\", cargo_lockfile = LOCK, manifests = [])\n",
+            2,
+        ),
+        (
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = NAME, manifests = [])\n",
+            2,
+        ),
+        (
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(**KW)\n",
+            2,
+        ),
+    ] {
+        assert_eq!(
+            parse(source).cargo_hubs(),
+            Err(ModuleError::ComputedCargoHub { line }),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn label_path_maps_main_repository_labels_only() {
+    assert_eq!(label_path("//:Cargo.toml"), Ok("Cargo.toml".to_owned()));
+    assert_eq!(
+        label_path("//a/b:Cargo.toml"),
+        Ok("a/b/Cargo.toml".to_owned())
+    );
+    for label in [
+        "@x//a:Cargo.toml",
+        ":Cargo.toml",
+        "//../a:Cargo.toml",
+        "//a:../Cargo.toml",
+        "//a",
+    ] {
+        assert!(label_path(label).is_err(), "{label}");
+    }
+}

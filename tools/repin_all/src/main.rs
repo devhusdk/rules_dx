@@ -21,11 +21,18 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     };
     dx_process::configure_real(Path::new(&workspace));
-    let mut argv = dx_process::startup_argv(&[]);
+    dx_plan::plan::set_rules_dx_repo(Path::new(&workspace));
+    // The shared settings keep this `run` on the same analysis cache as dx's own builds.
+    let mut argv =
+        match dx_plan::plan::bazel_argv("run", &[], &[], &[], &["//cli/cli:dx".to_owned()], &[]) {
+            Ok(argv) => argv,
+            Err(error) => {
+                eprintln!("repin-all: cannot build the bazel command: {error}");
+                return ExitCode::from(2);
+            }
+        };
     argv[0] = bazel();
-    argv.push("run".to_owned());
-    argv.extend(dx_process::build_verb_options("run", &[]));
-    argv.extend(["//cli/cli:dx", "--", "update"].map(str::to_owned));
+    argv.extend(["--", "update"].map(str::to_owned));
     let status = Command::new(&argv[0])
         .current_dir(&workspace)
         .args(&argv[1..])

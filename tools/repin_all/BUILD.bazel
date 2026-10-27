@@ -20,7 +20,10 @@ rust_binary(
     crate_name = "repin_all",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = ["//cli/process:dx_process"],
+    deps = [
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_test(
@@ -40,6 +43,7 @@ rust_test(
         "DX_REPIN_ALL": "$(rootpath :repin_all)",
     },
     deps = [
+        "//cli/plan:dx_plan",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],

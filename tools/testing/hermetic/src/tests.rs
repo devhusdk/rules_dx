@@ -641,8 +641,8 @@ fn verify_rejects_missing_or_inconsistent_artifacts() {
 #[test]
 fn verify_accepts_machine_free_artifacts_for_managed_languages() {
     let mut beam = good_evidence();
-    beam["qualification"] = json!("//tools/testing/hermetic:gleam");
-    beam["languages"] = json!(["gleam"]);
+    beam["qualification"] = json!("//tools/testing/hermetic:elixir");
+    beam["languages"] = json!(["elixir"]);
     beam["artifacts"] = json!([
         {"path": "bazel-out/k8-fastbuild/bin/app.beam", "sha256": sha256_hex(b"beam"), "machine": null},
     ]);
@@ -650,7 +650,7 @@ fn verify_accepts_machine_free_artifacts_for_managed_languages() {
     verify_evidence(
         &beam,
         "abc123",
-        &manifest_for("//tools/testing/hermetic:gleam", &["gleam"]),
+        &manifest_for("//tools/testing/hermetic:elixir", &["elixir"]),
     )
     .unwrap();
 }

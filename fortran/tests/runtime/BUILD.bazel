@@ -82,3 +82,8 @@ fortran_test(
         "//fortran/tests/runtime/kinds_b",
     ],
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

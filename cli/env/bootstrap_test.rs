@@ -237,3 +237,29 @@ fn env_bootstrap() {
         "foreign tree was modified"
     );
 }
+
+#[test]
+fn relative_workspace_resolves_against_build_working_directory() {
+    let bin = env_bin();
+    let scratch = dx_testing::mkscratch("env-relative-").expect("scratch");
+    let base = scratch.join("base");
+    std::fs::create_dir_all(base.join("ws")).expect("ws");
+    let base_dir = base.to_string_lossy().into_owned();
+
+    let run = dx_testing::run(
+        &bin,
+        &["--workspace", "ws"],
+        &[("BUILD_WORKING_DIRECTORY", base_dir.as_str())],
+    )
+    .expect("env relative install must execute");
+    assert!(
+        run.status.success(),
+        "relative install failed\n{}",
+        run.combined()
+    );
+    assert!(
+        is_symlink(&base.join("ws/.dx/bin").join(host("doctor"))),
+        "install did not land under BUILD_WORKING_DIRECTORY: {}",
+        run.combined()
+    );
+}

@@ -3,7 +3,8 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
 load("@rules_rust_wasm_bindgen//:defs.bzl", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test", _rust_wasm_bindgen_toolchain = "rust_wasm_bindgen_toolchain")
-load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_test_coverage", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_test_coverage", "dx_symlink_default_info", "dx_upstream", "dx_wrap", "dx_wrap_test")
+load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
 
@@ -311,12 +312,86 @@ def rust_wasm_bindgen(name, wasm_file, **kwargs):
         **kwargs
     )
 
+_NO_REMOTE_EXEC = "no-remote-exec"
+
+_TEST_BROWSER = str(Label("@rules_rust_wasm_bindgen//settings:test_browser"))
+
+# The only place browser-test qualification lives: one row per qualified
+# platform cell, mapping it to the browser its managed toolchain runs there.
+# Every other cell skips the browser test as incompatible.
+_BROWSER_CELLS = {
+    Label("//rust/rules:browser_linux_x86_64"): "firefox",
+}
+
+def _browser_transition_impl(settings, attr):
+    """Pins the managed test browser for the qualified platform cell."""
+    if attr.browser:
+        return {_TEST_BROWSER: attr.browser}
+    return {_TEST_BROWSER: settings[_TEST_BROWSER]}
+
+_browser_transition = transition(
+    implementation = _browser_transition_impl,
+    inputs = [_TEST_BROWSER],
+    outputs = [_TEST_BROWSER],
+)
+
+def _rust_wasm_bindgen_browser_test_impl(ctx):
+    """Runs the upstream browser test under the qualified cell's browser."""
+    upstream = dx_upstream(ctx)
+    providers = [dx_symlink_default_info(ctx, "rust_wasm_bindgen_test")]
+    if RunEnvironmentInfo in upstream:
+        providers.append(upstream[RunEnvironmentInfo])
+    return providers
+
+_rust_wasm_bindgen_browser_test = rule(
+    implementation = _rust_wasm_bindgen_browser_test_impl,
+    doc = "Forwards one upstream rust_wasm_bindgen_test built for the qualified browser.",
+    test = True,
+    attrs = {
+        "browser": attr.string(doc = "The managed browser of this platform cell, or empty."),
+        "data": attr.label_list(doc = "Runtime files for forwarded args.", allow_files = True),
+        "upstream": attr.label(
+            doc = "The upstream rust_wasm_bindgen_test.",
+            mandatory = True,
+            cfg = _browser_transition,
+        ),
+    },
+)
+
+_FORWARDER_ONLY_KWARGS = ("tags", "timeout", "shard_count", "size", "local", "flaky", "args")
+
 def rust_wasm_bindgen_test(name, wasm = None, **kwargs):
-    """Thin wrapper over upstream rust_wasm_bindgen_test."""
+    """Wraps upstream rust_wasm_bindgen_test with a managed, platform-qualified browser.
+
+    The test runs only on qualified platform cells (today linux x86_64, with
+    the Firefox and geckodriver that Bazel fetches; the host needs GTK 3).
+    On those cells the wrapper sets
+    `@rules_rust_wasm_bindgen//settings:test_browser` for the test, which
+    overrides any value given on the command line. Every other cell reports
+    the test as incompatible and skips it. The test runs locally only
+    (`no-remote-exec`), since the browser needs a display-capable host.
+    """
+    forward = dx_forwarded_test_kwargs(kwargs)
+    upstream = {k: v for k, v in kwargs.items() if k not in _FORWARDER_ONLY_KWARGS}
+    user_tags = forward.pop("tags", [])
     _rust_wasm_bindgen_test(
-        name = name,
+        name = name + "_upstream",
         wasm = wasm,
-        **kwargs
+        tags = ["manual", _NO_REMOTE_EXEC] + [t for t in upstream_tags(user_tags) if t not in ("manual", _NO_REMOTE_EXEC)],
+        visibility = ["//visibility:private"],
+        **{k: v for k, v in upstream.items() if k != "visibility"}
+    )
+    cells = {cell: browser for cell, browser in _BROWSER_CELLS.items()}
+    _rust_wasm_bindgen_browser_test(
+        name = name,
+        upstream = name + "_upstream",
+        browser = select(cells | {"//conditions:default": ""}),
+        tags = user_tags + ([] if _NO_REMOTE_EXEC in user_tags else [_NO_REMOTE_EXEC]),
+        target_compatible_with = (kwargs.get("target_compatible_with") or []) + select(
+            {cell: [] for cell in _BROWSER_CELLS.keys()} | {"//conditions:default": [_INCOMPATIBLE]},
+        ),
+        visibility = kwargs.get("visibility"),
+        **forward
     )
 
 def rust_wasm_bindgen_toolchain(name, **kwargs):

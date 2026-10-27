@@ -332,3 +332,29 @@ def dx_test_srcs_split_tests(name, lib, test, test_src):
         lib = lib,
         test_src = test_src,
     )
+
+def _browser_cell_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    run_env = target[RunEnvironmentInfo].environment
+    asserts.equals(env, "firefox", run_env.get("BROWSER_TYPE", ""))
+    return analysistest.end(env)
+
+_browser_cell_test = analysistest.make(
+    _browser_cell_impl,
+    config_settings = {
+        str(Label("@rules_rust_wasm_bindgen//settings:test_browser")): "chrome",
+    },
+)
+
+def dx_browser_cell_tests(name, target):
+    """Asserts a browser test runs the qualified cell's browser over the command line flag."""
+    _browser_cell_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        target_compatible_with = [
+            "@platforms//cpu:x86_64",
+            "@platforms//os:linux",
+        ],
+    )

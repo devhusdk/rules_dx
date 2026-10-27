@@ -70,6 +70,12 @@ List only the triples you build.
 emits the JavaScript bindings. Guard browser-only code with
 `#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]`.
 
+`rust_wasm_bindgen_test` runs the `#[wasm_bindgen_test]` cases of a
+`rust_wasm_bindgen` bundle in a browser that Bazel fetches. It runs on
+linux x86_64 with Firefox, where the host needs GTK 3, and only runs
+locally. Other platforms skip it as incompatible. On linux x86_64 the
+wrapper overrides `@rules_rust_wasm_bindgen//settings:test_browser`.
+
 ## WASI
 
 `rust_wasi_module` builds the binary for `wasm32-wasip1` and exposes the

@@ -277,7 +277,7 @@ dx new [--apply] rust-web [name]
 ```
 
 Scaffolds a standalone shared-Rust consumer: one core library, one native
-binary, one unit test suite, one web bundle, and one manual browser test.
+binary, one unit test suite, one web bundle, and one browser test.
 Versions come from the rules_dx pins. Never overwrites existing files.
 
 ```sh
@@ -291,21 +291,16 @@ bazel build //...
 bazel test //...
 ```
 
-Run the browser test with a local driver:
-
-```text
-geckodriver --port 4444 &
-bazel test :demo_browser_test --test_env=GECKODRIVER_REMOTE=http://127.0.0.1:4444
-```
-
 Output: text only.
 
 Exit codes: `0` success, `2` usage errors including an invalid
 destination or package identity, `1` missing files in check mode or
 scaffolding failed.
 
-The browser test is manual. It needs Firefox and geckodriver on a
-qualified host. Scaffolding into an existing directory adds absent files
+`bazel test //...` runs the browser test in a browser and driver that
+Bazel fetches, so nothing needs to be installed by hand. The test is
+qualified on linux x86_64, where the host needs GTK 3; other hosts skip
+it as incompatible for now. Scaffolding into an existing directory adds absent files
 only and leaves custom files untouched.
 
 ## `dx upgrade`

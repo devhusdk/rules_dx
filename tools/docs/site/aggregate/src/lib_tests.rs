@@ -441,3 +441,41 @@ fn a_title_with_a_backtick_gets_a_longer_code_fence() {
         rendered.summary
     );
 }
+
+fn java_shard(doc: &str) -> DocIr {
+    DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "java".to_string(),
+        package: "demo".to_string(),
+        symbols: vec![
+            symbol("java:demo:a.Circle", "public class Circle", doc, 3),
+            symbol("java:demo:a.Shape", "public interface Shape", "", 1),
+        ],
+    }
+}
+
+#[test]
+fn dx_links_resolve_to_relative_pages_and_unknown_ids_become_code() {
+    let doc = "See [Shape](dx:java:demo:a.Shape) and [Gone](dx:java:demo:a.Gone).\n\n\
+               `[x](dx:java:demo:a.Shape)`\n\n```\n[y](dx:java:demo:a.Shape)\n```";
+    let rendered = render(&[java_shard(doc)], "").expect("renders");
+    let page = &rendered.pages["java/demo/a.Circle.md"];
+    assert!(page.contains("[Shape](a.Shape.md)"), "{page}");
+    assert!(page.contains("`demo.a.Gone`"), "{page}");
+    assert!(page.contains("`[x](dx:java:demo:a.Shape)`"), "{page}");
+    assert!(page.contains("\n[y](dx:java:demo:a.Shape)\n"), "{page}");
+    assert!(page.contains("```java\npublic class Circle\n```"), "{page}");
+}
+
+#[test]
+fn pages_that_differ_only_in_case_fail() {
+    let mut shard = java_shard("");
+    shard.symbols[1].id = "java:demo:a.circle".to_string();
+    let error = render(&[shard], "").expect_err("collision");
+    assert!(error.contains("differ only in case"), "{error}");
+    assert!(
+        error.contains("a.Circle") && error.contains("a.circle"),
+        "{error}"
+    );
+}

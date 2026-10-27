@@ -326,8 +326,7 @@ sh_test(
         "@dx_android_sdk//:zipalign",
         "@rules_java//toolchains:current_java_runtime",
     ],
-    tags = ["manual"],
-    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+        toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(

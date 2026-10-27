@@ -985,12 +985,12 @@ pub(super) fn rustfmt_without_edition_fails_the_action() {
         )
         .expect_err("missing edition fails");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
-    assert!(err.to_string().contains("--tool-edition"));
+    assert!(err.to_string().contains("request tool edition"));
     let err = backend
         .apply_fix("rustfmt", "src/main.rs", "fn main() {}\n", "format")
         .expect_err("missing edition fails");
     assert!(matches!(err, RunnerError::ToolExecution { .. }));
-    assert!(err.to_string().contains("--tool-edition"));
+    assert!(err.to_string().contains("request tool edition"));
 }
 
 pub(super) fn ktlint_defaults(

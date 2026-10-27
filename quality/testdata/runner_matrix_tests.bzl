@@ -2,6 +2,7 @@
 
 load("//deploy/rules:launcher.bzl", "rlocation_path")
 load("//libs/starlark:canonical.bzl", "is_canonical", "strip_canonical")
+load("//quality:pipeline.bzl", "real_request_stage")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 def _single_file(target):
@@ -27,6 +28,13 @@ def _tool_env_entry(entry):
     if key_sep == "":
         fail("runner_matrix_test: malformed tool_env '" + entry + "': want TOOL=KEY=VALUE")
     return {"key": key, "tool": tool, "value": value}
+
+def _request_stage(entry):
+    tool, sep, rest = entry.partition(";")
+    classes, paths_sep, paths = rest.partition(";")
+    if sep == "" or paths_sep == "" or not tool or not classes or not paths:
+        fail("runner_matrix_test: malformed stage '" + entry + "': want TOOL;classes;paths")
+    return real_request_stage(tool, classes.split(","), paths.split(","))
 
 def _runner_matrix_test_impl(ctx):
     harness = ctx.executable._harness
@@ -147,10 +155,10 @@ def _runner_matrix_test_impl(ctx):
         "producer": producer,
         "runner_failure": ctx.attr.runner_failure,
         "runner_key": rlocation_path(ctx, runner),
-        "schema_version": 1,
+        "schema_version": 2,
         "siblings": manifest_siblings,
         "sources": manifest_sources,
-        "stages": ctx.attr.stages,
+        "stages": [_request_stage(s) for s in ctx.attr.stages],
         "tools": manifest_tools,
         "update_file": ctx.label.name + ".expected.update",
         "update_hint": "quality/testdata/matrix/" + ctx.label.name + ".expected.txt",

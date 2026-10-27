@@ -199,6 +199,7 @@ workspace_policy(
 | `text` | disabled | `keep_sorted` | disabled |
 | `toml` | `taplo` | `taplo` | disabled |
 | `typescript` | `biome` | `biome` | disabled |
+| `vue` | `prettier` | disabled | disabled |
 
 ### Wired tools
 
@@ -220,7 +221,7 @@ to.
 | `djlint` | format, lint | html_template |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
-| `eslint` | lint | javascript |
+| `eslint` | lint | javascript, vue |
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
 | `fsharplint` | lint | fsharp |
@@ -237,7 +238,7 @@ to.
 | `modfmt` | format | go_module |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
-| `prettier` | format | css, gherkin, graphql, html, javascript, json, sql, typescript, xml |
+| `prettier` | format | css, gherkin, graphql, html, javascript, json, sql, typescript, vue, xml |
 | `psscriptanalyzer` | lint | powershell |
 | `pydoclint` | lint | python |
 | `pylint` | lint | python |
@@ -839,6 +840,68 @@ An unformatted file is reported at the start of the file. A syntax error fails t
 column. It never counts as clean. `prettier` runs with its default options for
 these files. `.prettierrc`, `.editorconfig` and other user config files are
 ignored.
+
+### Vue
+
+`vue_library` from `@rules_dx//vue/rules:defs.bzl` owns `.vue` files. The
+default policy formats them with `prettier` from the managed pin. It runs on
+Linux x86_64.
+
+```sh
+bazel run @rules_dx//:dx -- format //web/...
+bazel run @rules_dx//:dx -- format --apply //web/...
+```
+
+A check never writes. `--apply` rewrites only the files the selected targets
+own. The template, script and style blocks are all formatted. An unformatted
+file is reported at the start of the file. A syntax error fails the run with
+the file, line and column. It never counts as clean. `.prettierrc`,
+`.editorconfig` and other user config files are ignored.
+
+`eslint` lint is opt-in. Select it in the `vue` family and bind an
+`eslint_config` to the library with `aspect_hints`.
+
+```python
+quality_family(
+    name = "vue_family",
+    disabled = ["audit", "typecheck"],
+    family_id = "vue",
+    format = ["prettier"],
+    lint = ["eslint"],
+)
+
+eslint_config(
+    name = "eslint",
+    src = "eslint.config.mjs",
+)
+
+vue_library(
+    name = "hello",
+    srcs = ["Hello.vue"],
+    aspect_hints = [":eslint"],
+)
+```
+
+The config may import `eslint-plugin-vue` 10.12.0, `vue-eslint-parser` 10.4.1
+and `@typescript-eslint/parser` 8.72.1 by name. dx provides them. Any other
+package must resolve from your workspace.
+
+```js
+import pluginVue from "eslint-plugin-vue";
+
+export default [
+  ...pluginVue.configs["flat/essential"],
+  {
+    files: ["**/*.vue"],
+    languageOptions: {
+      parserOptions: { parser: "@typescript-eslint/parser" },
+    },
+  },
+];
+```
+
+Findings point at the line and column in the `.vue` file. A `.vue` file that no
+config entry matches fails the run. It never counts as clean.
 
 ### SQL, XML and Gherkin
 

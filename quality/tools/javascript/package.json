@@ -8,13 +8,16 @@
   },
   "dependencies": {
     "@prettier/plugin-xml": "3.4.2",
+    "@typescript-eslint/parser": "8.72.1",
     "eslint": "10.10.0",
+    "eslint-plugin-vue": "10.12.0",
     "prettier": "3.9.6",
     "prettier-plugin-gherkin": "4.0.0",
     "prettier-plugin-sql": "0.20.0",
     "stylelint": "17.14.1",
     "typedoc": "0.28.20",
     "typescript": "5.9.3",
+    "vue-eslint-parser": "10.4.1",
     "wrangler": "4.152.0"
   },
   "pnpm": {

@@ -15,10 +15,11 @@ def dx_framework_forward_rule(language, ext):
         upstream_providers = [[_JsInfo]],
     )
 
-def dx_framework_library(name, srcs, upstream_rule, forward_rule, visibility = None, **kwargs):
-    """Instantiates one JS-framework library with standard skip tags."""
+def dx_framework_library(name, srcs, upstream_rule, forward_rule, skip, visibility = None, **kwargs):
+    """Instantiates one JS-framework library that skips the named quality capabilities."""
     tags = list(kwargs.pop("tags", []))
-    for tag in ["no-format", "no-lint", "no-typecheck"]:
+    for capability in skip:
+        tag = "no-" + capability
         if tag not in tags:
             tags.append(tag)
     kwargs["tags"] = tags

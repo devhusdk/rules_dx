@@ -67,10 +67,7 @@ def env_name_error(name):
     return ""
 
 def env_tool_error(bin_name, aliases):
-    """Validates one tool record.
-
-    Host names (bin_name and aliases) must be unique within the record without regard to case.
-    """
+    """Validates one tool record, whose host names must be unique without regard to case."""
     primary_error = env_name_error(bin_name)
     if primary_error != "":
         return "invalid bin_name: " + primary_error

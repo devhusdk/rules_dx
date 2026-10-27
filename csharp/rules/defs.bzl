@@ -84,12 +84,7 @@ def csharp_tfm_with_defaults(kwargs):
     return dx_setdefaults(kwargs, {"target_frameworks": ["net10.0"], "treat_warnings_as_errors": True})
 
 def csharp_tfm_forward_kwargs(name, kwargs):
-    """Returns the forwarder kwargs that fan Roslyn out over every declared target framework.
-
-    rules_dotnet compiles only the highest compatible framework, so a list literal with
-    more than one entry gets a split edge to the upstream, one branch per framework.
-    A single framework or a select() value adds nothing.
-    """
+    """Returns the forwarder kwargs that fan Roslyn out over every declared target framework."""
     frameworks = kwargs.get("target_frameworks", None)
     if type(frameworks) != "list" or len(frameworks) < 2:
         return {}

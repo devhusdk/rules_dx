@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use dx_testing::runfiles_root;
-use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, AstLiteral, ExprP};
+use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, AstLiteral, AstStmt, ExprP, StmtP};
 use starlark_syntax::syntax::{AstModule, Dialect};
 
 /// Callees whose calls must pass doc when they pass implementation.
@@ -150,7 +150,31 @@ fn scan(path: &str, source: &str) -> Scan {
     ast.statement()
         .node
         .visit_expr(|expr| walk(&ast, path, expr, &mut out));
+    check_defs(&ast, path, ast.statement(), &mut out);
     out
+}
+
+/// Reports every def whose docstring spans more than one line.
+fn check_defs(ast: &AstModule, path: &str, stmt: &AstStmt, out: &mut Scan) {
+    if let StmtP::Def(def) = &stmt.node {
+        let first = match &def.body.node {
+            StmtP::Statements(stmts) => stmts.first(),
+            _ => Some(&*def.body),
+        };
+        if let Some(StmtP::Expression(expr)) = first.map(|s| &s.node) {
+            if let ExprP::Literal(AstLiteral::String(text)) = &expr.node {
+                if text.node.trim().contains('\n') {
+                    out.findings.push(format!(
+                        "{path}:{}: def {} has a multi-line docstring; use one plain line",
+                        line_of(ast, expr),
+                        def.name.node.ident
+                    ));
+                }
+            }
+        }
+    }
+    stmt.node
+        .visit_stmt(|child| check_defs(ast, path, child, out));
 }
 
 fn walk(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) {
@@ -359,6 +383,21 @@ fn a_multi_line_doc_is_reported() {
         findings("pkg/defs.bzl", source),
         ["pkg/defs.bzl:1: rule() has a multi-line doc; add doc = \"<one plain line>\""]
     );
+}
+
+#[test]
+fn a_multi_line_def_docstring_is_reported() {
+    let source = "def f():\n    \"\"\"One.\n\n    Two.\n    \"\"\"\n    return 1\n";
+    assert_eq!(
+        findings("pkg/defs.bzl", source),
+        ["pkg/defs.bzl:2: def f has a multi-line docstring; use one plain line"]
+    );
+}
+
+#[test]
+fn a_one_line_def_docstring_is_accepted() {
+    let source = "def f():\n    \"\"\"One.\"\"\"\n    return 1\n";
+    assert!(findings("pkg/defs.bzl", source).is_empty());
 }
 
 #[test]

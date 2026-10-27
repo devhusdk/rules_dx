@@ -195,17 +195,7 @@ def _forward_fields(kind):
     return fields
 
 def dx_wrapper_forward_observations(package, name, kinds, overrides = None):
-    """Renders the analysis observations of the forward subjects dx_wrapper_contract_tests creates.
-
-    Args:
-        package: Package of the subjects, without a leading //.
-        name: The dx_wrapper_contract_tests name; subjects are <name>_<kind>.
-        kinds: The wrapper kinds with a subject.
-        overrides: Optional dict of kind to {field: value}; each use must cite an open issue.
-
-    Returns:
-        The expected_observations text.
-    """
+    """Renders the analysis observations of the forward subjects dx_wrapper_contract_tests creates."""
     extra = overrides if overrides != None else {}
     lines = []
     subjects = sorted([("//" + package + ":" + name + "_" + kind, kind) for kind in kinds])
@@ -224,16 +214,7 @@ def dx_wrapper_forward_observations(package, name, kinds, overrides = None):
     return "\n".join(lines)
 
 def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, include_forwarder_checks = True, wrappers = None, known_gaps = None):
-    """Instantiates one wrapper contract test from shared checks.
-
-    Args:
-        name: Unit test name; the wrapper forward analysis test is <name>_forward.
-        file_classes: File classes the language claims.
-        extra_checks: Extra unit checks.
-        include_forwarder_checks: Whether to add the shared forwarder kwarg checks.
-        wrappers: Optional dict of kind ("library", "binary", "test") to a real wrapper label.
-        known_gaps: Optional dict of kind to {field: value} for gaps tracked by an open issue.
-    """
+    """Instantiates one wrapper contract test from shared checks."""
     classes = file_classes if file_classes != None else []
     extras = extra_checks if extra_checks != None else []
     checks = []

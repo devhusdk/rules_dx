@@ -225,10 +225,7 @@ def test_forward_kwargs(kwargs):
     return out
 
 def default_module_name(name, sig):
-    """Returns the module_name default: the target name unless sig names a signature target.
-
-    A configurable or Label sig gets no default; the upstream rule derives the name.
-    """
+    """Returns the module_name default: the target name unless sig names a signature target."""
     if sig == None or (type(sig) == "string" and sig.endswith(".mli")):
         return name
     return None

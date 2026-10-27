@@ -30,10 +30,7 @@ def _ide_rust_test(name, binary, expected, args, size, timeout, kwargs, binary_t
     )
 
 def ide_acquisition_test(name, expected, version_args = None, binary = None, size = "small", timeout = "short", binary_two = None, expected_two = None, version_args_two = None, **kwargs):
-    """Declares one IDE acquisition test over the shared Rust helper.
-
-    Callers that need an OS or CPU limit pass their own target_compatible_with.
-    """
+    """Declares one IDE acquisition test over the shared Rust helper."""
     if " " in expected:
         fail("ide_acquisition_test: expected must be one word")
     if binary == None:

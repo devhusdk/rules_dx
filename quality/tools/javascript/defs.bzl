@@ -20,12 +20,7 @@ def _execution_is_windows(ctx):
     return execution_is_windows(ctx, ctx.attr._windows_os[platform_common.ConstraintValueInfo])
 
 def _generated_script(executable):
-    """Returns the script the generated launcher runs.
-
-    `rules_nodejs` keeps the shell script beside the batch file under the same name, so the
-    script is the executable without its suffix, and both are in the runfiles. Where there is
-    no suffix the executable already is the script.
-    """
+    """Returns the script the generated launcher runs."""
     short_path = executable.short_path
     for suffix in (".bat", ".exe", ".cmd"):
         if short_path.endswith(suffix):

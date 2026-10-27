@@ -241,10 +241,7 @@ _maven_launcher = rule(
 )
 
 def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, profile = "release", sources = None, javadoc = None):
-    """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment.
-
-    Live uploads require both sources and javadoc (Central rule).
-    """
+    """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment."""
     group_error = maven_group_error(group)
     if group_error != "":
         fail(group_error + " (in " + native.package_name() + ":" + name + ")")

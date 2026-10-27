@@ -512,11 +512,7 @@ def dx_binary_upstream_kwargs(kwargs, srcs):
     return out
 
 def dx_wrap_upstream_kwargs(kwargs, srcs = None):
-    """Returns the private upstream kwargs for one library shape.
-
-    `srcs = None` leaves srcs out so the upstream default applies; any list,
-    including `[]`, passes through unchanged.
-    """
+    """Returns the private upstream kwargs for one library shape."""
     out = {key: value for key, value in kwargs.items() if key not in ("tags", "srcs")}
     if srcs != None:
         out["srcs"] = srcs
@@ -537,10 +533,7 @@ def dx_test_forward_kwargs(kwargs):
     return out
 
 def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
-    """Instantiates one private upstream binary plus its public forwarder.
-
-    This is the only binary shape; dx_wrap builds libraries only.
-    """
+    """Instantiates one private upstream binary plus its public forwarder."""
     effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
     upstream_rule(
         name = name + "_upstream",
@@ -571,12 +564,7 @@ def dx_with_tag(tags, tag):
     return out
 
 def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, **kwargs):
-    """Instantiates one private upstream test plus its public forwarder.
-
-    Pass coverage_collector = False for languages whose tests write empty
-    LCOV under `bazel coverage`; the public forwarder then carries
-    DX_NO_COVERAGE_COLLECTOR_TAG.
-    """
+    """Instantiates one private upstream test plus its public forwarder."""
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     effective = dx_test_upstream_kwargs(base, srcs = srcs)
     forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
@@ -599,10 +587,7 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
     )
 
 def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
-    """Instantiates one private upstream library target plus its public forwarder.
-
-    Binaries use dx_wrap_binary.
-    """
+    """Instantiates one private upstream library target plus its public forwarder."""
     if "executable" in kwargs:
         fail("dx_wrap: executable is gone; use dx_wrap_binary for " + name)
     upstream_rule(
@@ -621,16 +606,7 @@ def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, u
     )
 
 def dx_forwarded_run_environment(upstream, environment = {}, inherited = []):
-    """Returns RunEnvironmentInfo merging the upstream's environment with extras.
-
-    Args:
-        upstream: The upstream target; its RunEnvironmentInfo, if any, is merged first.
-        environment: Extra variables; they override upstream values.
-        inherited: Extra inherited variable names, unioned with the upstream's.
-
-    Returns:
-        A RunEnvironmentInfo.
-    """
+    """Returns RunEnvironmentInfo merging the upstream's environment with extras."""
     env = {}
     names = []
     if RunEnvironmentInfo in upstream:
@@ -670,20 +646,7 @@ def dx_args_label_references(args):
     return labels
 
 def dx_args_label_error(name, args, visible_labels, upstream_only):
-    """Returns an error when args expand a label the forwarder cannot see.
-
-    The forwarder only sees `data` and `srcs`; labels that appear only in other
-    upstream attributes (for example deps or tools) do not resolve there.
-
-    Args:
-        name: The target name, for the message.
-        args: The test args.
-        visible_labels: Labels in the forwarder's data and srcs.
-        upstream_only: Dict from attribute name (deps, tools) to its labels.
-
-    Returns:
-        The error string, or None when every referenced label is visible.
-    """
+    """Returns an error when args expand a label the forwarder cannot see."""
     visible = [str(native.package_relative_label(l)) for l in visible_labels]
     for label in dx_args_label_references(args):
         key = str(native.package_relative_label(label))

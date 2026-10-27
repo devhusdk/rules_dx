@@ -1,8 +1,9 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
 load(":coverage_tests.bzl", "dx_dotnet_coverage_tests")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 real_source_target(
     name = "corpus_starlark",
@@ -18,7 +19,7 @@ real_source_target(
 alias(
     name = "coverlet",
     actual = "@paket.main//coverlet.console/tools:coverlet",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
 )
 
 rust_binary(
@@ -30,7 +31,7 @@ rust_binary(
     ],
     crate_name = "coverlet_launcher",
     crate_root = "src/main.rs",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
 )
 
 rust_test(

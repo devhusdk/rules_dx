@@ -1,6 +1,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
 platform(
     name = "windows_msvc_host",

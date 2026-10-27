@@ -3,13 +3,14 @@ load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS_CLI_TEST)
 
 exports_files([
     "consumers/cuda/module_fragment.bazel",
     "qualification_test.rs",
-])
+], visibility = VIS_TOOLS_CLI_TEST)
 
 LINUX = ["@platforms//os:linux"]
 

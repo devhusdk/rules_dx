@@ -1,15 +1,13 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 
 package(
     default_testonly = True,
-    default_visibility = [
-        "//:__subpackages__",
-        "@dx_consumer_completion//:__pkg__",
-    ],
+    default_visibility = VIS_TOOLS_CLI_TEST + ["@dx_consumer_completion//:__pkg__"],
 )
 
-exports_files(["src/main.rs"])
+exports_files(["src/main.rs"], visibility = VIS_TOOLS_CLI_TEST)
 
 rust_binary(
     name = "process_probe",

@@ -5,8 +5,9 @@ load(":site.bzl", "docs_api", "docs_site")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
 load(":user/api.bzl", "user_api_shards")
 load(":user/book.bzl", "USER_BOOK")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 exports_files(
     [
@@ -17,6 +18,7 @@ exports_files(
         "user/api.bzl",
         "user/book.bzl",
     ],
+    visibility = VIS_TOOLS,
 )
 
 exports_files(
@@ -85,6 +87,7 @@ exports_files(
         "browser_test.rs",
         "serve_test.rs",
     ],
+    visibility = VIS_TOOLS,
 )
 
 # keep

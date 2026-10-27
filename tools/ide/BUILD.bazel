@@ -1,13 +1,14 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 exports_files([
     "ide_acquisition.bzl",
     "ide_acquisition_test.rs",
     "ide_tool.bzl",
-])
+], visibility = VIS_TOOLS)
 
 # keep
 rust_test(

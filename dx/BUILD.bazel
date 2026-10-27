@@ -1,31 +1,39 @@
 load("@gazelle//:def.bzl", "gazelle")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_DX_COMMANDS", "VIS_DX_ROOTS")
 
 package(default_visibility = ["//visibility:private"])
 
 gazelle(
     name = "generate",
     gazelle = "//gazelle/dispatch:gazelle",
-    visibility = ["//visibility:public"],
+    visibility = VIS_DX_COMMANDS,
 )
 
 gazelle(
     name = "generate_check",
     gazelle = "//gazelle/dispatch:gazelle",
     mode = "diff",
-    visibility = ["//visibility:public"],
+    visibility = VIS_DX_COMMANDS,
 )
 
 alias(
     name = "env",
     actual = "//cli/env:env",
-    visibility = ["//visibility:public"],
+    visibility = VIS_DX_ROOTS,
 )
 
 filegroup(
     name = "codegen",
     srcs = [],
-    visibility = ["//visibility:public"],
+    visibility = VIS_DX_ROOTS,
+)
+
+filegroup(
+    name = "dx_reaches_tools_probe",
+    srcs = ["//tools/visibility:layer_sentinel"],
+    tags = ["manual"],
+    visibility = ["//tools/visibility:__pkg__"],
 )
 
 real_source_target(

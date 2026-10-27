@@ -38,13 +38,20 @@ maven.install(
 use_repo(maven, "maven")
 
 ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
+ruby.toolchain(
+    name = "ruby",
+    portable_ruby = True,
+    version = "3.4.9",
+)
 ruby.bundle_fetch(
     name = "dx_bundle",
     GEM_CHECKSUMS
     gemfile = "//:Gemfile",
     gemfile_lock = "//:Gemfile.lock",
 )
-use_repo(ruby, "bundle", "dx_bundle", "ruby", "ruby_toolchains")
+use_repo(ruby, "dx_bundle", "ruby_toolchains")
+
+register_toolchains("@ruby_toolchains//:all")
 "#;
 
 const BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "rubocop_config")

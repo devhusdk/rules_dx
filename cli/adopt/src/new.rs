@@ -571,8 +571,14 @@ bazel test //...
 ```
 "#
     .replace("IDENTITY", identity);
+    let module = format!(
+        "{}bazel_dep(name = \"rules_ruby\", version = \"{rules_ruby}\")\n\nruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(\n    name = \"ruby\",\n    portable_ruby = True,\n    version = \"{ruby}\",\n)\nuse_repo(ruby, \"ruby_toolchains\")\n\nregister_toolchains(\"@ruby_toolchains//:all\")\n",
+        consumer_module_bazel(identity, false),
+        rules_ruby = crate::scaffold::CONSUMER_RULES_RUBY_VERSION,
+        ruby = crate::scaffold::CONSUMER_RUBY_VERSION,
+    );
     vec![
-        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        ("MODULE.bazel".to_owned(), module),
         (".bazelversion".to_owned(), consumer_bazelversion()),
         (".bazelrc".to_owned(), consumer_bazelrc()),
         ("BUILD.bazel".to_owned(), build),

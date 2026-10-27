@@ -46,6 +46,10 @@ pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
 
 pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
 
+pub const CONSUMER_RULES_RUBY_VERSION: &str = "0.28.0";
+
+pub const CONSUMER_RUBY_VERSION: &str = "3.4.9";
+
 /// Bazel output base that rust-analyzer discovery runs on.
 pub const IDE_OUTPUT_BASE: &str = ".dx/ide/rust";
 
@@ -420,7 +424,7 @@ mod tests {
     use super::{
         apply_init, entries, plan_init_files, plan_init_files_for_host, plan_init_files_with,
         render_consumer_caller, render_editor_settings, CONSUMER_LLVM_VERSION,
-        CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
+        CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUBY_VERSION, CONSUMER_RUBY_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
         CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER,
         CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
         DX_VERSION,
@@ -1001,6 +1005,8 @@ mod tests {
             ("RUST_EDITION", CONSUMER_RUST_EDITION),
             ("RUST_VERSION", CONSUMER_RUST_VERSION),
             ("RUSTFMT_VERSION", CONSUMER_RUSTFMT_VERSION),
+            ("RULES_RUBY_VERSION", CONSUMER_RULES_RUBY_VERSION),
+            ("RUBY_VERSION", CONSUMER_RUBY_VERSION),
         ] {
             assert!(
                 text.contains(&format!("{key} = \"{value}\"")),

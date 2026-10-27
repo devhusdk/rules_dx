@@ -41,9 +41,9 @@ const UNKNOWN_KEY_CONFIG: &str =
     "{\n  \"schema\": \"api/schema.graphql\",\n  \"extends\": \"recommended\"\n}\n";
 
 const CLOSURE_REPOS: [&str; 4] = [
-    "--repo=@@aspect_rules_js++npm+npm_tools__at_graphql-eslint_eslint-plugin__4.4.2",
-    "--repo=@@aspect_rules_js++npm+npm_tools__eslint__10.10.0",
-    "--repo=@@aspect_rules_js++npm+npm_tools__graphql__16.14.2",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_graphql-eslint_eslint-plugin__4.4.2",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__eslint__10.10.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__graphql__16.14.2",
     "--repo=@@rules_nodejs++node+nodejs_linux_amd64",
 ];
 

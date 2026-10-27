@@ -1,5 +1,4 @@
 shell=bash
 enable=all
-# SC1090,SC1091: quality/tools/dotnet/fsharplint/fsharplint.sh sources runfiles.bash from probed paths.
 # SC2250: repo shell writes $var without braces.
-disable=SC1090,SC1091,SC2250
+disable=SC2250

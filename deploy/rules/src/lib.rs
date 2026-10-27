@@ -534,10 +534,8 @@ mod tests {
                 ("NUGET_PUBLISH_LIVE", None),
                 ("CRATES_PUBLISH_LIVE", None),
                 ("GH_RELEASE_LIVE", None),
-                ("GH_RELEASE_DRY_RUN", Some("1")),
                 ("MAVEN_PUBLISH_LIVE", None),
                 ("OCI_PUBLISH_LIVE", None),
-                ("OCI_PUBLISH_DRY_RUN", Some("1")),
                 ("OCTOPUS_PUBLISH_LIVE", None),
             ],
             || {
@@ -639,7 +637,6 @@ mod tests {
                     Some(invocation.to_string_lossy().as_ref()),
                 ),
                 ("GH_RELEASE_LIVE", None),
-                ("GH_RELEASE_DRY_RUN", Some("1")),
             ],
             || {
                 assert_eq!(

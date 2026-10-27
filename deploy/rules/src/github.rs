@@ -164,11 +164,7 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
     }
     match github_build_staging(&assets, outdir, deploy_name, tag) {
         Ok(staging) => {
-            if std::env::var("GH_RELEASE_DRY_RUN").unwrap_or_default() == "1" {
-                println!("github_deploy: dry run (GH_RELEASE_DRY_RUN=1); would create a draft release, publishing nothing:");
-            } else {
-                println!("github_deploy: staged draft release, publishing nothing:");
-            }
+            println!("github_deploy: staged draft release, publishing nothing:");
             println!("  tag: {tag}");
             for (src, base) in sorted.iter().zip(&bases) {
                 println!("  asset: {base} ({})", src.display());

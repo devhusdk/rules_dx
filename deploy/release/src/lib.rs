@@ -598,7 +598,7 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
         "    4. RELEASE_SIGN_DRY_RUN=1 bazel run //deploy/release:signing_demo (would-sign cosign + attestation)\n",
     );
     out.push_str(
-        "    5. GH_RELEASE_DRY_RUN=1 bazel run //cli/cli:github_draft (would-create draft --draft --verify-tag)\n",
+        "    5. bazel run //cli/cli:github_draft (stages draft --draft --verify-tag, publishes nothing)\n",
     );
     out.push_str(
         "    6. BCR_DRY_RUN=1 bazel run //deploy/release:bcr_demo (would-submit BCR PR, submits nothing)\n",

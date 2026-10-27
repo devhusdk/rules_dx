@@ -17,7 +17,28 @@ pub(super) fn launcher_pin(root: &Path) -> String {
 
 /// Fails before any write when the launcher for `root` cannot be written.
 pub(super) fn preflight(root: &Path) -> Result<(), dx_adopt::AdoptError> {
-    dx_adopt::plan_launcher_files(root, &launcher_pin(root), true).map(|_| ())
+    dx_adopt::plan_launcher_files(root, &launcher_pin(root), true)?;
+    dx_adopt::preflight_overrides(root)
+}
+
+fn write_overrides(
+    invocation: &Invocation,
+    root: &Path,
+    prefix: &str,
+    code: &str,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<(), i32> {
+    let entries = dx_adopt::apply_overrides(root)
+        .map_err(|error| operational(invocation, out, err, code, &error.to_string()))?;
+    for entry in entries {
+        if let Some(refused) = entry.strip_prefix("refused:") {
+            let _ = writeln!(err, "dx: {prefix}{refused}");
+        } else if !summaries_suppressed(invocation) {
+            check_stdout_write(writeln!(out, "wrote {prefix}{entry}"))?;
+        }
+    }
+    Ok(())
 }
 
 fn write_launcher(
@@ -43,7 +64,7 @@ fn write_launcher(
     }
 }
 
-/// Writes the launcher, worktree hooks, allowlist, AGENTS.md block and CLAUDE.md import under `root`, reporting paths with `prefix`.
+/// Writes the launcher, rules_dx overrides, worktree hooks, allowlist, AGENTS.md block and CLAUDE.md import under `root`, reporting paths with `prefix`.
 pub(super) fn apply(
     invocation: &Invocation,
     root: &Path,
@@ -53,6 +74,7 @@ pub(super) fn apply(
     err: &mut dyn Write,
 ) -> Result<(), i32> {
     write_launcher(invocation, root, prefix, code, out, err)?;
+    write_overrides(invocation, root, prefix, code, out, err)?;
     let outcome = setup::apply(root)
         .map_err(|error| operational(invocation, out, err, code, &error.to_string()))?;
     for (path, missing) in &outcome.missing {
@@ -176,7 +198,12 @@ mod tests {
         super::apply(&inv, root, "demo/", CODE_NEW_FAILED, &mut out, &mut err).expect("applies");
         assert_eq!(
             String::from_utf8_lossy(&out),
-            "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n"
+            format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n",
+            overrides = dx_adopt::overrides::render_overrides()
+                .iter()
+                .map(|(path, _)| format!("wrote demo/{path}\n"))
+                .collect::<String>()
+            )
         );
         std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
         let (mut out, mut err) = (Vec::new(), Vec::new());

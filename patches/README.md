@@ -1,101 +1,39 @@
 # Patches
 
-`single_version_override` only works in the root module, and its patches must
-live in the root repository. A module that depends on `rules_dx` copies each
-patch it needs into its own tree and adds the override to its `MODULE.bazel`.
+Bazel applies `single_version_override` only in the root module, and its
+patches must live in the root repository. `dx init --apply` and
+`dx new --apply` write them into your tree:
 
-```sh
-mkdir -p third_party/rules_dx
-cp <rules_dx>/patches/<module>/<file>.patch third_party/rules_dx/<module>.<file>.patch
+```text
+third_party/rules_dx/rules_dx.MODULE.bazel
+third_party/rules_dx/<module>.<file>.patch
+third_party/rules_dx/BUILD.bazel
+third_party/rules_dx/.gitattributes
 ```
 
-`third_party/rules_dx/BUILD.bazel`:
+When `MODULE.bazel` has `bazel_dep(name = "rules_dx")`, dx adds this line after it:
 
 ```python
-exports_files(glob(["*.patch"]))
+include("//third_party/rules_dx:rules_dx.MODULE.bazel")
 ```
 
-Keep the copies byte-identical and update them when you move the `rules_dx` pin.
+dx owns `third_party/rules_dx/` and rewrites it on every `dx init --apply`. Do
+not edit it. Rerun `tools/dx init --apply` after you move the `rules_dx` pin.
+`MODULE.bazel.lock` changes with it. The overrides hold these modules at the
+versions below across your whole module graph.
 
-## rules_rust
+If your `MODULE.bazel` already overrides one of these modules, dx writes the
+files but leaves the `include()` out and says so on stderr. Without a
+`rules_dx` `bazel_dep`, dx writes the files and leaves `MODULE.bazel` alone.
 
-Required for Rust on Windows. Copy `rules_rust/lld_link.patch` to
-`third_party/rules_dx/rules_rust.lld_link.patch`.
-
-```python
-single_version_override(
-    module_name = "rules_rust",
-    patch_strip = 1,
-    patches = ["//third_party/rules_dx:rules_rust.lld_link.patch"],
-    version = "0.74.0",
-)
-```
-
-Upstream: not filed.
-
-## aspect_rules_py
-
-Required for Python on Windows. Copy both patches, in this order.
-
-```python
-single_version_override(
-    module_name = "aspect_rules_py",
-    patch_strip = 1,
-    patches = [
-        "//third_party/rules_dx:aspect_rules_py.site_packages.patch",
-        "//third_party/rules_dx:aspect_rules_py.venv_interpreter.patch",
-    ],
-    version = "2.0.0-alpha.6",
-)
-```
-
-Upstream: not filed.
-
-## rules_android
-
-Required for Android resources and App Bundles. Copy `rules_android/rules_android.patch` to
-`third_party/rules_dx/rules_android.rules_android.patch`.
-
-```python
-single_version_override(
-    module_name = "rules_android",
-    patch_strip = 1,
-    patches = ["//third_party/rules_dx:rules_android.rules_android.patch"],
-    version = "0.6.6",
-)
-```
-
-Upstream: not filed.
-
-## rules_dotnet
-
-Optional. Lets Bazel reuse the .NET SDK from the repository cache.
-
-```python
-single_version_override(
-    module_name = "rules_dotnet",
-    patch_strip = 1,
-    patches = ["//third_party/rules_dx:rules_dotnet.reproducible.patch"],
-    version = "0.22.1",
-)
-```
-
-Upstream: not filed.
-
-## rules_ruby
-
-Optional. Lets Bazel reuse the Ruby toolchain from the repository cache.
-
-```python
-single_version_override(
-    module_name = "rules_ruby",
-    patch_strip = 1,
-    patches = ["//third_party/rules_dx:rules_ruby.reproducible.patch"],
-    version = "0.28.0",
-)
-```
-
-Upstream: not filed.
+| Module | Version | Patches | Why |
+| --- | --- | --- | --- |
+| `rules_rust` | 0.74.0 | `lld_link.patch` | Rust on Windows |
+| `rules_rust_wasm_bindgen` | 0.74.0 | `no_wasm_coverage.patch` | wasm targets under coverage |
+| `rules_android` | 0.6.6 | `rules_android.patch` | Android resources and App Bundles |
+| `rules_dotnet` | 0.22.1 | `reproducible.patch` | .NET SDK from the repository cache |
+| `rules_ruby` | 0.28.0 | `reproducible.patch` | Ruby toolchain from the repository cache |
+| `aspect_rules_py` | 2.0.0-alpha.6 | `site_packages.patch`, `venv_interpreter.patch` | Python on Windows |
 
 ## rules_d, rules_elixir, rules_erlang, rules_fortran, rules_gleam, rules_haskell, rules_ocaml
 

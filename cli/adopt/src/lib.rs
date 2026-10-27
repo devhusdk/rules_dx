@@ -19,6 +19,7 @@ pub mod load_graph;
 pub mod migrate;
 pub mod new;
 mod new_locks;
+pub mod overrides;
 pub mod preset_fragment;
 pub mod scaffold;
 pub mod status;
@@ -41,6 +42,9 @@ pub use migrate::plan_migrate;
 pub use new::{
     apply_new, default_new_name, new_is_known_language, new_language_name_list, plan_new_files,
     removed_new_language, validate_new_destination, NEW_LANGUAGES, SUPPORTED_NEW_LANGUAGES,
+};
+pub use overrides::{
+    apply_overrides, check_overrides, preflight_overrides, OverridesState, OVERRIDES_INCLUDE,
 };
 pub use scaffold::{
     apply_init, bazelignore_covers_dx, plan_init_files, render_consumer_module_setup,

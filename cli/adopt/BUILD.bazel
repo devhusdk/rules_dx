@@ -20,12 +20,23 @@ dx_rust_crate(
         "src/migrate.rs",
         "src/new.rs",
         "src/new_locks.rs",
+        "src/overrides.rs",
         "src/preset_fragment.rs",
         "src/scaffold.rs",
         "src/status.rs",
         "src/upgrade.rs",
         "src/version.rs",
         "src/watch.rs",
+    ],
+    # Patches dx copies into consumers through `include_str!` in src/overrides.rs.
+    compile_data = [
+        "//patches/aspect_rules_py:site_packages.patch",
+        "//patches/aspect_rules_py:venv_interpreter.patch",
+        "//patches/rules_android:rules_android.patch",
+        "//patches/rules_dotnet:reproducible.patch",
+        "//patches/rules_ruby:reproducible.patch",
+        "//patches/rules_rust:lld_link.patch",
+        "//patches/rules_rust_wasm_bindgen:no_wasm_coverage.patch",
     ],
     dev_deps = [
         "insta",

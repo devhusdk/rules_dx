@@ -77,6 +77,20 @@ Exit codes: `0` check passed or apply succeeded, `2` usage error, including
 extra positionals or an invalid module name, `1` check found missing files or
 apply failed.
 
+## rules_dx overrides
+
+`dx init --apply` and `dx new --apply` write the root-only
+`single_version_override`s `rules_dx` needs to `third_party/rules_dx/`:
+`rules_dx.MODULE.bazel`, one `<module>.<file>.patch` per patch, `BUILD.bazel`
+and `.gitattributes`. These files are always rewritten to match the running dx.
+When `MODULE.bazel` has `bazel_dep(name = "rules_dx")`, apply adds
+`include("//third_party/rules_dx:rules_dx.MODULE.bazel")` after it and prints
+`wrote MODULE.bazel`. `MODULE.bazel.snippet` carries the same line. When
+`MODULE.bazel` already overrides one of the modules, the line is left out and
+stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
+`rules_dx` repository nothing is written. See
+[patches/README.md](../../../patches/README.md).
+
 ## Agent commands block
 
 `dx init --apply` writes this block between `<!-- dx:begin -->` and

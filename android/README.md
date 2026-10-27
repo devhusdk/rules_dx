@@ -131,8 +131,8 @@ analysis, as do adb launchers without a serial.
 Package outputs are explicit-label only. See [App Bundles](#app-bundles)
 for the `.aab` output.
 
-A module that depends on `rules_dx` copies the
-rules_android override in [patches/README.md](../patches/README.md#rules_android).
+`dx init --apply` writes the rules_android override; see
+[patches/README.md](../patches/README.md).
 
 Device operations are explicit launchers that never run at build time:
 

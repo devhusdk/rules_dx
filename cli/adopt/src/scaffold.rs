@@ -91,6 +91,17 @@ fn with_cuda_stanza(setup: &str) -> String {
     }
 }
 
+/// Adds the include of the dx-written overrides right after the rules_dx `bazel_dep`.
+fn with_overrides_include(setup: &str) -> String {
+    match setup.split_once('\n') {
+        Some((first, rest)) => format!(
+            "{first}\ninclude(\"{}\")\n{rest}",
+            crate::overrides::OVERRIDES_INCLUDE
+        ),
+        None => setup.to_owned(),
+    }
+}
+
 pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
     let module = if module_name.is_empty() {
         "my_project"
@@ -248,11 +259,11 @@ pub fn plan_init_files_with(
             path: "MODULE.bazel.snippet".to_owned(),
             content: format!(
                 "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
-                setup = if cuda {
+                setup = with_overrides_include(&if cuda {
                     with_cuda_stanza(&render_consumer_module_setup())
                 } else {
                     render_consumer_module_setup()
-                },
+                }),
             ),
         },
     ])
@@ -646,7 +657,10 @@ mod tests {
         }
         assert!(!caller.contains("<reviewed-commit>"), "{caller}");
         for removed in ["scheduling_mode", "code_scanning_opt_in"] {
-            assert!(!caller.contains(removed), "caller passes {removed}: {caller}");
+            assert!(
+                !caller.contains(removed),
+                "caller passes {removed}: {caller}"
+            );
         }
     }
 
@@ -793,6 +807,10 @@ mod tests {
         apply_init(&root, "demo").expect("init");
         let text =
             std::fs::read_to_string(root.join("MODULE.bazel.snippet")).expect("emitted snippet");
+        assert!(text.contains(&format!(
+            "bazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\ninclude(\"{}\")\n",
+            crate::overrides::OVERRIDES_INCLUDE
+        )));
         let setup = parse_consumer_setup(&text);
         assert_eq!(
             setup.deps,

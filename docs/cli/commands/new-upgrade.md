@@ -32,7 +32,8 @@ Every starter also writes `.dx/version`, `.devcontainer/devcontainer.json`,
 them when they are missing.
 
 Like `dx init --apply`, `--apply` also writes the launcher (`tools/dx` and
-`tools/dx.cmd`), the `dx worktree` hooks files (`.claude/settings.json`,
+`tools/dx.cmd`), the `rules_dx` overrides under `third_party/rules_dx/` (the new
+`MODULE.bazel` includes them, see [overrides](init.md#rules_dx-overrides)), the `dx worktree` hooks files (`.claude/settings.json`,
 `.codex/hooks.json`, `.gemini/settings.json`), and the
 marked block in `AGENTS.md` and the `@AGENTS.md` import in `CLAUDE.md` in the new project. Check mode also requires
 `tools/dx` and `tools/dx.cmd`.

@@ -247,8 +247,8 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         .collect();
     assert_eq!(
         wrote.len(),
-        22,
-        "new --apply writes init wiring, launcher, hooks, agents block and a standalone C++ consumer: {apply}"
+        35,
+        "new --apply writes init wiring, launcher, overrides, hooks, agents block and a standalone C++ consumer: {apply}"
     );
     for path in [
         "wrote myproj/.bazelignore",
@@ -265,6 +265,7 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         "wrote myproj/main.cc",
         "wrote myproj/tools/dx",
         "wrote myproj/tools/dx.cmd",
+        "wrote myproj/third_party/rules_dx/rules_dx.MODULE.bazel",
         "wrote myproj/.claude/settings.json",
         "wrote myproj/AGENTS.md",
     ] {
@@ -395,10 +396,15 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        13,
-        "init --apply writes the thirteen wiring files: {apply}"
+        26,
+        "init --apply writes the wiring and override files: {apply}"
     );
-    for file in [".bazelignore", ".claude/settings.json", "AGENTS.md"] {
+    for file in [
+        ".bazelignore",
+        ".claude/settings.json",
+        "AGENTS.md",
+        "third_party/rules_dx/rules_dx.MODULE.bazel",
+    ] {
         assert!(
             apply.contains(&format!("wrote {file}\n")),
             "init writes {file}: {apply}"

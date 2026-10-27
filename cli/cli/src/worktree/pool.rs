@@ -21,6 +21,9 @@ pub(crate) struct Who {
 /// The variable that names the agent inside a session.
 pub(crate) const HOLDER_ENV: &str = "DX_WORKTREE_HOLDER";
 
+/// The variable `hook guard` sets for agents whose shells carry no session id.
+pub(crate) const SESSION_ENV: &str = "DX_WORKTREE_SESSION";
+
 impl Who {
     /// The agent session and agent in the environment and the nearest non-shell ancestor.
     pub(crate) fn from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Who {
@@ -34,7 +37,7 @@ impl Who {
 
 /// The agent session named by the environment, if any.
 pub(crate) fn session_from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
-    ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]
+    ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", SESSION_ENV]
         .iter()
         .find_map(|name| env_get(name).filter(|value| !value.is_empty()))
 }
@@ -744,7 +747,7 @@ mod tests {
     }
 
     #[test]
-    fn sessions_come_from_claude_then_codex_then_nothing() {
+    fn sessions_come_from_claude_then_codex_then_the_guard_then_nothing() {
         let both = |name: &str| match name {
             "CLAUDE_CODE_SESSION_ID" => Some("c1".to_owned()),
             "CODEX_THREAD_ID" => Some("x1".to_owned()),
@@ -753,8 +756,18 @@ mod tests {
         assert_eq!(session_from_env(&both).as_deref(), Some("c1"));
         let codex = |name: &str| (name == "CODEX_THREAD_ID").then(|| "x1".to_owned());
         assert_eq!(session_from_env(&codex).as_deref(), Some("x1"));
+        let codex_and_guard = |name: &str| match name {
+            "CODEX_THREAD_ID" => Some("x1".to_owned()),
+            SESSION_ENV => Some("g1".to_owned()),
+            _ => None,
+        };
+        assert_eq!(session_from_env(&codex_and_guard).as_deref(), Some("x1"));
+        let guard = |name: &str| (name == SESSION_ENV).then(|| "g1".to_owned());
+        assert_eq!(session_from_env(&guard).as_deref(), Some("g1"));
         let empty = |name: &str| (name == "CLAUDE_CODE_SESSION_ID").then(String::new);
         assert_eq!(session_from_env(&empty), None);
+        let empty_guard = |name: &str| (name == SESSION_ENV).then(String::new);
+        assert_eq!(session_from_env(&empty_guard), None);
     }
 
     fn record() -> Record {

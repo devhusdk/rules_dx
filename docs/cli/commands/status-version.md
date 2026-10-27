@@ -68,7 +68,8 @@ Inside a worktree slot there is also `lease`.
   `status_check_failed`.
 - `agents`: `warn` when `AGENTS.md` has no dx block or an out-of-date one, or
   `CLAUDE.md` does not import `AGENTS.md`, or
-  `.claude/settings.json` lacks a `dx worktree` hook.
+  `.claude/settings.json` lacks a `dx worktree` hook, or `.codex/hooks.json`
+  or `.gemini/settings.json` exists and lacks the guard hook.
   `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and

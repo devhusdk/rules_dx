@@ -2270,6 +2270,149 @@ mod hooks {
         );
     }
 
+    /// A shell-tool payload in the shape each agent documents.
+    fn payload(agent: &str, command: &str) -> serde_json::Value {
+        match agent {
+            "claude" => serde_json::json!({
+                "session_id": "c1",
+                "transcript_path": "/t",
+                "cwd": "/r",
+                "permission_mode": "default",
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Bash",
+                "tool_input": {"command": command, "description": "d"},
+            }),
+            "codex" => serde_json::json!({
+                "session_id": "x1",
+                "transcript_path": "/t",
+                "cwd": "/r",
+                "hook_event_name": "PreToolUse",
+                "model": "m",
+                "turn_id": "t1",
+                "tool_name": "Bash",
+                "tool_use_id": "u1",
+                "permission_mode": "default",
+                "tool_input": {"command": command},
+            }),
+            "cursor" => serde_json::json!({
+                "conversation_id": "k'1",
+                "generation_id": "g1",
+                "model": "m",
+                "hook_event_name": "preToolUse",
+                "cursor_version": "2.0",
+                "workspace_roots": ["/r"],
+                "transcript_path": "/t",
+                "tool_name": "Shell",
+                "tool_use_id": "u1",
+                "cwd": "/r",
+                "tool_input": {"command": command, "working_directory": "/r/sub"},
+            }),
+            "gemini" => serde_json::json!({
+                "session_id": "m1",
+                "transcript_path": "/t",
+                "cwd": "/r",
+                "hook_event_name": "BeforeTool",
+                "timestamp": "2026-10-27T00:00:00Z",
+                "tool_name": "run_shell_command",
+                "tool_input": {"command": command, "description": "d", "dir_path": "sub"},
+            }),
+            _ => unreachable!("{agent}"),
+        }
+    }
+
+    #[test]
+    fn dialects_come_from_the_documented_payload_keys() {
+        use hook::Dialect;
+        for (agent, dialect) in [
+            ("claude", Dialect::Claude),
+            ("codex", Dialect::Claude),
+            ("cursor", Dialect::Cursor),
+            ("gemini", Dialect::Gemini),
+        ] {
+            assert_eq!(Dialect::of(&payload(agent, "ls")), dialect, "{agent}");
+        }
+        assert_eq!(
+            Dialect::of(&serde_json::json!({"conversation_id": "k"})),
+            Dialect::Cursor
+        );
+        assert_eq!(
+            Dialect::of(&serde_json::json!({"cursor_version": "2"})),
+            Dialect::Cursor
+        );
+        assert_eq!(Dialect::of(&serde_json::json!({})), Dialect::Claude);
+    }
+
+    #[test]
+    fn guard_blocks_git_worktree_for_every_agent() {
+        for agent in ["claude", "codex", "cursor", "gemini"] {
+            let guard = hook::guard(&payload(agent, "git worktree add ../x"));
+            assert!(matches!(guard, hook::Guard::Block(_)), "{agent}: {guard:?}");
+            let guard = hook::guard(&payload(agent, "ls -la"));
+            assert_eq!(guard, hook::Guard::Allow, "{agent}");
+        }
+    }
+
+    #[test]
+    fn guard_names_the_session_only_for_agents_whose_shells_lack_one() {
+        for agent in ["claude", "codex"] {
+            assert_eq!(
+                hook::guard(&payload(agent, "tools/dx test //x")),
+                hook::Guard::Allow,
+                "{agent}"
+            );
+        }
+        let hook::Guard::Rewrite(cursor) = hook::guard(&payload("cursor", "tools/dx test //x"))
+        else {
+            panic!("cursor dx commands are rewritten");
+        };
+        let output = &cursor["hookSpecificOutput"];
+        assert_eq!(output["hookEventName"], "PreToolUse");
+        assert_eq!(
+            output["updatedInput"]["command"],
+            "export DX_WORKTREE_SESSION='k'\\''1'\ntools/dx test //x"
+        );
+        assert_eq!(output["updatedInput"]["working_directory"], "/r/sub");
+        assert!(output.get("permissionDecision").is_none());
+        let hook::Guard::Rewrite(gemini) =
+            hook::guard(&payload("gemini", "cd sub && tools/dx worktree add b"))
+        else {
+            panic!("gemini dx commands are rewritten");
+        };
+        let output = &gemini["hookSpecificOutput"];
+        assert_eq!(output["hookEventName"], "BeforeTool");
+        assert!(output.get("updatedInput").is_none());
+        assert_eq!(
+            output["tool_input"]["command"],
+            "export DX_WORKTREE_SESSION='m1'\ncd sub && tools/dx worktree add b"
+        );
+        assert_eq!(output["tool_input"]["description"], "d");
+        assert_eq!(output["tool_input"]["dir_path"], "sub");
+        let mut no_session = payload("gemini", "tools/dx test //x");
+        no_session["session_id"] = serde_json::Value::Null;
+        assert_eq!(hook::guard(&no_session), hook::Guard::Allow);
+    }
+
+    #[test]
+    fn guard_exports_the_session_before_the_subagent() {
+        let mut input = payload("cursor", "tools/dx worktree release");
+        input["agent_id"] = serde_json::json!("a1");
+        let hook::Guard::Rewrite(output) = hook::guard(&input) else {
+            panic!("rewritten");
+        };
+        assert_eq!(
+            output["hookSpecificOutput"]["updatedInput"]["command"],
+            "export DX_WORKTREE_SESSION='k'\\''1'\nexport DX_WORKTREE_HOLDER='a1'\ntools/dx worktree release"
+        );
+    }
+
+    #[test]
+    fn a_cursor_subagent_stop_without_an_agent_id_is_ignored() {
+        let cursor = serde_json::json!({"conversation_id": "k1", "subagent_type": "explore"});
+        assert!(hook::ignored(hook::HookKind::Stop, &cursor));
+        assert!(!hook::ignored(hook::HookKind::Stop, &serde_json::json!({})));
+        assert!(!hook::ignored(hook::HookKind::Create, &cursor));
+    }
+
     #[test]
     fn guard_blocks_git_worktree_through_wrappers() {
         for command in [

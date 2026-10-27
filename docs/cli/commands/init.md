@@ -23,13 +23,21 @@ Writes each file only when it is missing. The exceptions are the marked
 block in `AGENTS.md` and stale launchers (see below). It writes `.dx/version`, `.gitignore`, `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, the launcher
-(`tools/dx` and `tools/dx.cmd`), and `.claude/settings.json`
-with the `dx worktree` hooks. The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
+(`tools/dx` and `tools/dx.cmd`), and the `dx worktree` hooks for each agent:
+
+| Agent | Hooks file | Hooks |
+| --- | --- | --- |
+| Claude Code | `.claude/settings.json` | all four |
+| Cursor | `.claude/settings.json`, through Third-Party Imports | all four |
+| Codex | `.codex/hooks.json` | `guard`, after you trust it with `/hooks` |
+| Gemini CLI | `.gemini/settings.json` | `guard`, in a trusted folder |
+
+See [Hooks](worktree.md#hooks). The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
 creating the file when it is missing (see below). It writes `CLAUDE.md` with an
 `@AGENTS.md` import when the import is missing, so Claude Code reads the block.
 The new `.claude/settings.json` also carries a `permissions.allow` list for the
 read-only commands `tools/dx check *`, `test *`, `build *`, `list-tests *`,
-`status *` and `version *`. If `.claude/settings.json`
+`status *` and `version *`. If a hooks file
 already exists, it is left alone and the missing hook and allow entries are printed to
 stderr. The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
@@ -51,7 +59,7 @@ Output: text only. Check mode looks for `.dx/version`,
 `.devcontainer/devcontainer.json`, `.gitignore`, `.bazelignore`, `.envrc`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
-`tools/dx.cmd`. It does not inspect `.claude/settings.json`, `AGENTS.md` or `CLAUDE.md`.
+`tools/dx.cmd`. It does not inspect the hooks files, `AGENTS.md` or `CLAUDE.md`.
 It also flags a dx-written launcher whose version differs from `.dx/version`,
 and an empty or non-semver `.dx/version`.
 When all of them exist, no launcher is stale and the pin is valid, it prints
@@ -88,7 +96,9 @@ An existing file gets the block appended. A block that is out of date is
 replaced. Text outside the markers is never touched, and CRLF files keep CRLF.
 A begin marker without an end marker is an error and the file is left as is.
 `dx status` reports the `agents` check as `warn` when the block is missing or
-out of date, `CLAUDE.md` does not import `AGENTS.md`, or a hook is missing from `.claude/settings.json`.
+out of date, `CLAUDE.md` does not import `AGENTS.md`, or a hook is missing from
+`.claude/settings.json`, or from `.codex/hooks.json` or `.gemini/settings.json`
+when they exist.
 
 ## Launcher
 

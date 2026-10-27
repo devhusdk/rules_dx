@@ -629,6 +629,20 @@ mod tests {
     }
 
     #[test]
+    fn a_session_set_by_the_guard_owns_its_lease() {
+        let scratch = leased_slot(Some("s1"), true);
+        let slot = scratch.path().join("pool").join("1");
+        let guarded = |session: &'static str| {
+            crate::worktree::Who::from_env(&move |name: &str| {
+                (name == "DX_WORKTREE_SESSION").then(|| session.to_owned())
+            })
+        };
+        assert!(lease_refusal_for(Command::Build, &slot, &guarded("s1")).is_none());
+        assert!(lease_refusal_for(Command::Build, &slot, &guarded("s2")).is_some());
+        assert!(lease_refusal_for(Command::Build, &slot, &who(None)).is_some());
+    }
+
+    #[test]
     fn free_slots_and_leases_without_a_session_are_not_refused() {
         let free = leased_slot(Some("s1"), false);
         assert!(lease_refusal_for(

@@ -55,12 +55,11 @@ pub(super) fn apply(
     write_launcher(invocation, root, prefix, code, out, err)?;
     let outcome = setup::apply(root)
         .map_err(|error| operational(invocation, out, err, code, &error.to_string()))?;
-    if !outcome.missing.is_empty() {
+    for (path, missing) in &outcome.missing {
         let _ = writeln!(
             err,
-            "dx: {prefix}{} exists; add these hooks: {}",
-            setup::SETTINGS,
-            outcome.missing.join("; ")
+            "dx: {prefix}{path} exists; add these hooks: {}",
+            missing.join("; ")
         );
     }
     if !outcome.missing_allow.is_empty() {
@@ -177,7 +176,7 @@ mod tests {
         super::apply(&inv, root, "demo/", CODE_NEW_FAILED, &mut out, &mut err).expect("applies");
         assert_eq!(
             String::from_utf8_lossy(&out),
-            "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\nwrote demo/.claude/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n"
+            "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n"
         );
         std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
         let (mut out, mut err) = (Vec::new(), Vec::new());

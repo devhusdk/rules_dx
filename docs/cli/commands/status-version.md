@@ -55,7 +55,7 @@ Inside a worktree slot there is also `lease`.
   `dx`. `error` when a generated file is missing or changed, or when the include
   and a consumer-owned override clash. The hint is `tools/dx init --apply`.
 - `host`: checks the machine is a v1 execution platform: linux_x86_64,
-  linux_arm64, macos_arm64, or windows_x86_64. The target platform never
+  linux_arm64, macos_arm64, windows_x86_64, or windows_arm64. The target platform never
   selects tools. This is not native qualification.
 - `exec_tools`: reads `.bazelrc` and the vendored preset. `warn` when
   `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`, so exec tools build at opt.

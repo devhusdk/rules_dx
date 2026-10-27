@@ -4,6 +4,7 @@ pub fn qualified_hosts() -> &'static [(&'static str, &'static str)] {
         ("linux", "aarch64"),
         ("macos", "aarch64"),
         ("windows", "x86_64"),
+        ("windows", "aarch64"),
     ]
 }
 
@@ -40,11 +41,35 @@ pub fn supported_execution_keys() -> Vec<String> {
         .collect()
 }
 
+fn display_host(os: &str, arch: &str) -> String {
+    let os = match os {
+        "linux" => "Linux",
+        "macos" => "macOS",
+        "windows" => "Windows",
+        other => other,
+    };
+    let cpu = canonical_cpu(arch).unwrap_or(arch);
+    format!("{os} {cpu}")
+}
+
+fn qualified_host_list() -> String {
+    let names: Vec<String> = qualified_hosts()
+        .iter()
+        .map(|(os, arch)| display_host(os, arch))
+        .collect();
+    match names.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{}, and {last}", rest.join(", ")),
+        Some((last, _)) => last.clone(),
+        None => String::new(),
+    }
+}
+
 pub fn refusal(os: &str, arch: &str) -> Option<String> {
     match platform_key(os, arch) {
         Some(key) if supported_execution_keys().contains(&key) => None,
         _ => Some(format!(
-            "unsupported_platform: {os}/{arch} is not a supported host; dx runs on Linux x86_64, Linux arm64, macOS arm64, and Windows x86_64"
+            "unsupported_platform: {os}/{arch} is not a supported host; dx runs on {}",
+            qualified_host_list()
         )),
     }
 }
@@ -69,7 +94,7 @@ mod tests {
 
     #[test]
     fn unqualified_hosts_are_refused_with_pointer() {
-        for (os, arch) in [("windows", "aarch64"), ("macos", "x86_64")] {
+        for (os, arch) in [("linux", "riscv64"), ("macos", "x86_64")] {
             let message = refusal(os, arch).expect("unqualified host must be refused");
             assert!(message.starts_with("unsupported_platform"), "{message}");
             assert!(message.contains(&format!("{os}/{arch}")), "{message}");
@@ -77,16 +102,47 @@ mod tests {
     }
 
     #[test]
-    fn qualified_set_is_seed_plus_arm64_plus_macos_plus_windows() {
+    fn qualified_set_matches_released_hosts() {
         assert_eq!(
             qualified_hosts(),
             &[
                 ("linux", "x86_64"),
                 ("linux", "aarch64"),
                 ("macos", "aarch64"),
-                ("windows", "x86_64")
+                ("windows", "x86_64"),
+                ("windows", "aarch64")
             ]
         );
+    }
+
+    #[test]
+    fn windows_arm64_host_is_qualified() {
+        assert_eq!(refusal("windows", "aarch64"), None);
+    }
+
+    #[test]
+    fn refusal_names_every_qualified_host() {
+        let message = refusal("linux", "riscv64").expect("riscv64 must be refused");
+        assert!(
+            message.ends_with(
+                "dx runs on Linux x86_64, Linux arm64, macOS arm64, Windows x86_64, and Windows arm64"
+            ),
+            "{message}"
+        );
+        for (os, arch) in qualified_hosts() {
+            assert!(message.contains(&display_host(os, arch)), "{message}");
+        }
+    }
+
+    #[test]
+    fn adopt_status_accepts_every_qualified_host() {
+        for (os, arch) in qualified_hosts() {
+            assert_eq!(
+                dx_adopt::status::host_check(os, arch).status,
+                "ok",
+                "dx status must accept qualified host {os}/{arch}"
+            );
+        }
     }
 
     #[test]
@@ -130,7 +186,8 @@ mod tests {
                 "linux_x86_64".to_owned(),
                 "linux_arm64".to_owned(),
                 "macos_arm64".to_owned(),
-                "windows_x86_64".to_owned()
+                "windows_x86_64".to_owned(),
+                "windows_arm64".to_owned()
             ]
         );
         assert_eq!(

@@ -281,11 +281,12 @@ fn host_name(os: &str, arch: &str) -> Option<&'static str> {
         ("linux", "aarch64") => Some("linux_arm64"),
         ("macos", "aarch64") => Some("macos_arm64"),
         ("windows", "x86_64") => Some("windows_x86_64"),
+        ("windows", "aarch64") => Some("windows_arm64"),
         _ => None,
     }
 }
 
-fn host_check(os: &str, arch: &str) -> StatusCheck {
+pub fn host_check(os: &str, arch: &str) -> StatusCheck {
     match host_name(os, arch) {
         Some(name) => check(
             "host",
@@ -297,7 +298,7 @@ fn host_check(os: &str, arch: &str) -> StatusCheck {
             "host",
             "error",
             format!("unavailable: {os}_{arch} is not a v1 execution platform"),
-            "run dx on linux_x86_64, linux_arm64, macos_arm64 or windows_x86_64",
+            "run dx on linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 or windows_arm64",
         ),
     }
 }
@@ -726,6 +727,7 @@ mod tests {
     #[test]
     fn host_check_rejects_unsupported_hosts() {
         assert_eq!(super::host_check("linux", "x86_64").status, "ok");
+        assert_eq!(super::host_check("windows", "aarch64").status, "ok");
         let bad = super::host_check("freebsd", "riscv64");
         assert_eq!(bad.status, "error");
         assert!(bad.detail.starts_with("unavailable:"), "{}", bad.detail);

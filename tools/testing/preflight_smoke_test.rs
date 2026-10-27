@@ -154,6 +154,35 @@ fn dx_builds_and_executes() {
     println!("{}", report());
 }
 
+/// `--help` returns before the host check, so it cannot catch a released
+/// binary that refuses its own host. `completion` needs no workspace and runs
+/// after `dx_plan::platform::host_refusal`.
+#[test]
+fn dx_passes_host_check() {
+    let dx = staged("DX_PREFLIGHT_DX");
+    let scratch = dx_testing::mkscratch("preflight-host").expect("scratch dir");
+    let output = dx_testing::command_for(&dx, &[])
+        .expect("dx command")
+        .args(["completion", "bash"])
+        .current_dir(&scratch)
+        .output()
+        .expect("dx must execute");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stdout.contains("unsupported_platform") && !stderr.contains("unsupported_platform"),
+        "{}: dx refused its own host: {stdout}{stderr}",
+        report()
+    );
+    assert!(
+        output.status.success(),
+        "{}: dx completion bash failed: {stdout}{stderr}",
+        report()
+    );
+    assert!(!stdout.trim().is_empty(), "{}: empty completion", report());
+    println!("{}", report());
+}
+
 #[test]
 fn native_fixture_builds_and_runs() {
     let hello = staged("DX_PREFLIGHT_HELLO");

@@ -923,7 +923,7 @@ config. It replaces the default rules, so add an `overrides` entry with
 
 ### HTML, GraphQL, JSON5 and JSONC
 
-`prettier` runs from the managed pin for format. It runs on Linux x86_64. Select
+`prettier` runs from the managed pin for format. It runs on Linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm64 is not supported yet. Select
 it in the `html`, `graphql` and `json` families. JSON5 and JSONC files belong
 to the `json` family.
 
@@ -1624,8 +1624,8 @@ missing package fails the build. It never counts as clean. Tested with `vite`
 ### SQL, XML and Gherkin
 
 `prettier` runs from the managed pin with the `prettier-plugin-sql`,
-`@prettier/plugin-xml` and `prettier-plugin-gherkin` plugins for format. It runs
-on Linux x86_64. Select it in the `sql`, `xml` and `gherkin` families.
+`@prettier/plugin-xml` and `prettier-plugin-gherkin` plugins for format. It runs on Linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm64 is not supported yet.
+Select it in the `sql`, `xml` and `gherkin` families.
 
 ```python
 quality_family(

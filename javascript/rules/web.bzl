@@ -337,8 +337,8 @@ def _javascript_web_bundle_impl(ctx):
     if ctx.attr.config:
         inputs.append(ctx.file.config)
     ctx.actions.run(
-        executable = exe,
-        inputs = depset(inputs, transitive = [ctx.attr.bundler[DefaultInfo].default_runfiles.files]),
+        executable = ctx.attr.bundler[DefaultInfo].files_to_run,
+        inputs = depset(inputs),
         outputs = [out],
         arguments = arguments,
         mnemonic = "DxWebBundle",

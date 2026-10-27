@@ -161,6 +161,7 @@ def _rules_erlang_impl(rctx):
     rctx.download_and_extract(
         url = rctx.attr.url,
         sha256 = rctx.attr.sha256,
+        type = "tar.gz",
         stripPrefix = "rules_erlang-" + rctx.attr.commit,
     )
     rctx.delete("MODULE.bazel")

@@ -226,7 +226,8 @@ struct Fixture {
 impl Fixture {
     fn new() -> Fixture {
         let scratch = tempfile::tempdir().expect("tempdir");
-        let root = std::fs::canonicalize(scratch.path()).expect("canonical");
+        let root =
+            dx_path::without_verbatim(&std::fs::canonicalize(scratch.path()).expect("canonical"));
         let origin = root.join("origin.git");
         let main = root.join("repo");
         let cache = root.join("cache");

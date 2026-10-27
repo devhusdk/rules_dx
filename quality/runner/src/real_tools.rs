@@ -896,7 +896,7 @@ fn spaced_path_eslint(
         "the spaced file stays under the launch cwd: {file}"
     );
     assert!(
-        file.ends_with("src dir/my file.js"),
+        Path::new(&file).ends_with("src dir/my file.js"),
         "the launch keeps the spaced path as one argv entry: {file}"
     );
     roundtrip_eslint(argv, cwd, env)
@@ -1256,6 +1256,9 @@ fn json_reporting_fixtures_escape_a_path_that_names_a_backslash() {
         .tempdir_in(std::env::temp_dir())
         .expect("claim backslash fixture");
     let file = dir.path().join("a\\b.py");
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent).expect("claim backslash fixture parent");
+    }
     std::fs::write(&file, "import os\nlet unusedVar = 1;\n").expect("write backslash fixture");
     let absolute = file.to_string_lossy().into_owned();
     let relative = "a\\b.py";
@@ -1715,10 +1718,10 @@ fn buf_broken_import(
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
     let root = PathBuf::from(argv.last().expect("root"));
-    let item = root.join("item/v1/item.proto");
+    let item = root.join("item").join("v1").join("item.proto");
     let record = format!(
-        "{{\"path\":\"{}\",\"start_line\":5,\"start_column\":19,\"type\":\"COMPILE\",\"message\":\"syntax error: unexpected '{{'\"}}\n",
-        item.display()
+        "{{\"path\":{},\"start_line\":5,\"start_column\":19,\"type\":\"COMPILE\",\"message\":\"syntax error: unexpected '{{'\"}}\n",
+        serde_json::to_string(&item.display().to_string()).expect("path")
     );
     Ok(ChildOutput {
         code: Some(100),

@@ -100,10 +100,11 @@ def _consumer_policy_impl(ctx):
         fail("consumer policy " + str(ctx.attr.policy_target) + " publishes " +
              str(results) + " real result(s) for " + str(subject.label) +
              ", want " + str(ctx.attr.expected_dx_results))
-    out = ctx.actions.declare_file(ctx.label.name + ".sh")
+    windows = ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo])
+    out = ctx.actions.declare_file(ctx.label.name + (".bat" if windows else ".sh"))
     ctx.actions.write(
         output = out,
-        content = "#!/bin/sh\nexit 0\n",
+        content = "@exit /b 0\r\n" if windows else "#!/bin/sh\nexit 0\n",
         is_executable = True,
     )
     return [DefaultInfo(executable = out)]
@@ -122,6 +123,9 @@ _consumer_policy_test = rule(
             aspects = _ASPECTS,
             cfg = _policy_transition,
             mandatory = True,
+        ),
+        "_windows_os": attr.label(
+            default = "@platforms//os:windows",
         ),
     },
 )

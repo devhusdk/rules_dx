@@ -43,6 +43,9 @@ build --@rules_rust//cargo/settings:use_default_shell_env=False
 # Apple Clang's C++ profiles cannot merge with the hermetic LLVM in Rust test wrappers.
 coverage:macos --copt=-fno-profile-instr-generate
 coverage:macos --copt=-fno-coverage-mapping
+coverage:windows --features=-coverage
+coverage:windows --features=-gcc_coverage_map_format
+coverage:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=
 
 common:bb --remote_cache=grpcs://remote.buildbuddy.io
 common:bb --remote_cache_compression

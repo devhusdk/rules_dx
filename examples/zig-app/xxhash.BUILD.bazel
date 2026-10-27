@@ -4,6 +4,13 @@ cc_library(
     name = "xxhash",
     srcs = ["xxhash.c"],
     hdrs = ["xxhash.h"],
+    copts = select({
+        "@platforms//os:windows": [
+            "/FIstdlib.h",
+            "/GS-",
+        ],
+        "//conditions:default": [],
+    }),
     features = ["-treat_warnings_as_errors"],
     includes = ["."],
     local_defines = ["XXH_NO_STREAM"],

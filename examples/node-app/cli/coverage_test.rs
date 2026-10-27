@@ -24,7 +24,14 @@ fn lcov(var: &str) -> String {
         String::from_utf8_lossy(&run.stdout),
         String::from_utf8_lossy(&run.stderr)
     );
-    std::fs::read_to_string(&output).unwrap_or_else(|err| panic!("{var} wrote no LCOV: {err}"))
+    let report =
+        std::fs::read_to_string(&output).unwrap_or_else(|err| panic!("{var} wrote no LCOV: {err}"));
+    assert!(
+        report.contains("SF:"),
+        "{var} wrote LCOV without sources: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    report.replace('\\', "/")
 }
 
 fn sources(report: &str) -> Vec<&str> {

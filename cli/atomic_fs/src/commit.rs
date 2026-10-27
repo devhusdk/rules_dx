@@ -114,7 +114,7 @@ pub struct PointerSwap {
 /// Removes a leftover staged entry without following it into its target.
 pub fn clear_stale_stage(stage: &Path) -> Result<(), CommitError> {
     match std::fs::symlink_metadata(stage) {
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound && !under_a_file(stage) => Ok(()),
         Err(e) => Err(CommitError::Install {
             reason: format!("cannot inspect stale {}: {e}", stage.display()),
         }),
@@ -133,6 +133,10 @@ pub fn clear_stale_stage(stage: &Path) -> Result<(), CommitError> {
             })
         }
     }
+}
+
+fn under_a_file(path: &Path) -> bool {
+    path.ancestors().skip(1).any(Path::is_file)
 }
 
 /// Stages `target` and atomically publishes it; a failed rename keeps the prior pointer.
@@ -226,7 +230,14 @@ mod tests {
         root.ensure_dir().expect("root");
         let lock = acquire_commit_lock(&root, Duration::from_secs(10)).expect("acquire");
         let file = lock.into_file();
-        super::super::lock_exclusive(&file, Duration::ZERO).expect("handle stays locked");
+        assert_eq!(
+            acquire_commit_lock(&root, Duration::ZERO).expect_err("handle stays locked"),
+            LockError::Busy {
+                path: root.lock_path()
+            }
+        );
+        drop(file);
+        acquire_commit_lock(&root, Duration::ZERO).expect("dropped handle releases");
         scratch.close().expect("cleanup");
     }
 

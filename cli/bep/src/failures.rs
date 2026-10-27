@@ -414,8 +414,13 @@ mod tests {
     }
 
     fn action_line(label: &str, config: &str, mnemonic: &str, output: &str) -> String {
+        let stderr = if cfg!(windows) {
+            "file:///C:/out/stderr-1"
+        } else {
+            "file:///out/stderr-1"
+        };
         format!(
-            r#"{{"id":{{"actionCompleted":{{"primaryOutput":"{output}","label":"{label}","configuration":{{"id":"{config}"}}}}}},"action":{{"success":false,"type":"{mnemonic}","exitCode":1,"stderr":{{"name":"stderr","uri":"file:///out/stderr-1"}},"label":"{label}","configuration":{{"id":"{config}"}}}}}}"#
+            r#"{{"id":{{"actionCompleted":{{"primaryOutput":"{output}","label":"{label}","configuration":{{"id":"{config}"}}}}}},"action":{{"success":false,"type":"{mnemonic}","exitCode":1,"stderr":{{"name":"stderr","uri":"{stderr}"}},"label":"{label}","configuration":{{"id":"{config}"}}}}}}"#
         )
     }
 

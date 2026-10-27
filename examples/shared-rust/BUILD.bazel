@@ -110,6 +110,12 @@ cc_library(
     deps = [":tasks_ffi"],
 )
 
+config_setting(
+    name = "macos_coverage",
+    constraint_values = ["@platforms//os:macos"],
+    values = {"collect_code_coverage": "true"},
+)
+
 cc_test(
     name = "interface_test",
     srcs = ["ffi/ffi_test.c"],
@@ -121,6 +127,10 @@ cc_test(
         "DX_TASKS_BOARD": "$(rootpath assets/board.txt)",
         "DX_TASKS_NOTES": "$(rootpath assets/notes.txt)",
     },
+    target_compatible_with = select({
+        ":macos_coverage": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     deps = [":tasks_interface"],
 )
 

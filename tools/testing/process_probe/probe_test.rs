@@ -213,6 +213,32 @@ fn print_cwd_reports_the_working_directory() {
 }
 
 #[test]
+fn a_shim_run_records_its_call_and_answers_from_the_environment() {
+    let scratch = dx_testing::mkscratch("probe-shim").expect("scratch");
+    let log = scratch.join("argv.txt");
+    let log_text = log.to_string_lossy().into_owned();
+    let run = run_with(
+        &["--nohome_rc", "query", "kind(rule, //pkg:*)"],
+        &[
+            ("PROCESS_PROBE_SHIM_LOG", &log_text),
+            ("PROCESS_PROBE_SHIM_STDOUT", "//pkg:alpha\n"),
+            ("PROCESS_PROBE_SHIM_EXIT", "3"),
+        ],
+    );
+    assert_eq!(run.status.code(), Some(3), "{}", run.stderr);
+    assert_eq!(run.stdout, "//pkg:alpha\n");
+    let cwd = std::env::current_dir().expect("readable working directory");
+    let recorded = std::fs::read_to_string(&log).expect("shim log");
+    assert_eq!(
+        recorded,
+        format!(
+            "{}\n--nohome_rc\nquery\nkind(rule, //pkg:*)\n",
+            cwd.to_string_lossy()
+        )
+    );
+}
+
+#[test]
 fn print_exe_reports_the_probe_binary() {
     let run = run(&["--print-exe"]);
     assert_eq!(run.status.code(), Some(0));

@@ -2,6 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "lld_link.patch",
+    "msvc_stdlib_linkflags.patch",
 ])
 
 real_source_target(

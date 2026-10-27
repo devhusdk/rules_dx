@@ -120,7 +120,7 @@ fn run(args: &[String]) -> Result<(), EnvShardError> {
     })?;
     let output = output.ok_or_else(|| EnvShardError::Usage { message: usage() })?;
     dx_atomic_fs::write_atomic(&output, &bytes).map_err(|error| EnvShardError::Io {
-        detail: error.to_string(),
+        detail: format!("cannot write {}: {error}", output.display()),
     })
 }
 
@@ -339,9 +339,11 @@ mod tests {
         ]);
         argv.push(format!("--output={}", blocked.display()));
         let error = run(&argv).expect_err("writing over a directory fails");
+        let named = format!("cannot write {}: ", blocked.display());
         assert!(
-            matches!(&error, EnvShardError::Io { detail } if detail.contains("Is a directory")),
+            matches!(&error, EnvShardError::Io { detail } if detail.starts_with(&named) && detail.len() > named.len()),
             "want an io error naming the directory, got {error:?}"
         );
+        assert!(blocked.is_dir(), "the directory survives");
     }
 }

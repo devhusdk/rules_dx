@@ -181,7 +181,7 @@ impl Request {
             self.is_ci,
         );
         let workspace = dx_process::discover_real(&self.start, raw.as_deref().map(Path::new))
-            .unwrap_or_else(|_| self.start.clone());
+            .unwrap_or_else(|_| dx_process::canonicalize_or_keep(&self.start));
         dx_process::configure_real(&workspace);
         let startup = tokens
             .iter()
@@ -976,8 +976,10 @@ mod tests {
             std::fs::write(root.join(marker), "").expect("marker");
         }
         #[cfg(unix)]
-        std::os::unix::fs::symlink(root.join("pkg/a"), root.join("linked")).expect("symlink");
-        std::fs::write(root.join("linked/BUILD.bazel"), "").expect("marker");
+        {
+            std::os::unix::fs::symlink(root.join("pkg/a"), root.join("linked")).expect("symlink");
+            std::fs::write(root.join("linked/BUILD.bazel"), "").expect("marker");
+        }
         let mut got = label_candidates_from_workspace(root, "", 100);
         got.sort();
         assert_eq!(got, vec!["//pkg/a/...", "//pkg/b/..."]);
@@ -1104,7 +1106,7 @@ mod tests {
         );
         std::fs::write(
             start.path().join("dx.toml"),
-            format!("[dx]\nworkspace = \"{file_text}\"\n"),
+            format!("[dx]\nworkspace = '{file_text}'\n"),
         )
         .expect("config");
         assert_eq!(
@@ -1154,7 +1156,7 @@ mod tests {
         let missing = start.path().join("missing");
         std::fs::write(
             start.path().join("dx.toml"),
-            format!("[dx]\nworkspace = \"{}\"\n", missing.display()),
+            format!("[dx]\nworkspace = '{}'\n", missing.display()),
         )
         .expect("config");
         assert_eq!(

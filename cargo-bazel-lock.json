@@ -1,5 +1,5 @@
 {
-  "checksum": "ef25e7a43ca7627b049ccdd1adcb5719db2bbe6e5b1f454aff5e948be3338ed9",
+  "checksum": "9b9def8ed139645fd44d2b82ca80ecde1bdcdf800cd8d921fdacf967e1019df2",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -15521,6 +15521,10 @@
           {
             "id": "tracing 0.1.44",
             "target": "tracing"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
           }
         ],
         "edition": "2021"

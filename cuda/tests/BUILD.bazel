@@ -10,6 +10,7 @@ load(":defs.bzl", "component_sources_test", "hermetic_toolchain_test", "with_cla
 
 package(default_visibility = ["//visibility:private"])
 
+# keep
 rust_test(
     name = "saxpy_device_code_test",
     size = "small",
@@ -235,6 +236,7 @@ failure_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",

@@ -47,23 +47,29 @@ fn normalize_path(path: &str) -> String {
 }
 
 fn suffix_for(path: &str) -> String {
-    let spelled = dx_path::native(Path::new(path));
+    let spelled = host_spelling(path);
     if rooted(path) {
         spelled
     } else {
-        format!("{}{spelled}", dx_path::native(Path::new("/")))
+        format!("{MAIN_SEPARATOR_STR}{spelled}")
     }
 }
 
+fn host_spelling(file: &str) -> String {
+    dx_path::native(Path::new(file)).replace('/', MAIN_SEPARATOR_STR)
+}
+
 fn match_spelling<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
-    if let Some(hit) = files.iter().find(|file| **file == path) {
+    if let Some(hit) = files.iter().find(|file| host_spelling(file) == path) {
         return Some(*hit);
     }
     unique_suffix(files, &suffix_for(path))
 }
 
 fn unique_suffix<'a>(files: &[&'a str], suffix: &str) -> Option<&'a str> {
-    let mut hits = files.iter().filter(|file| file.ends_with(suffix));
+    let mut hits = files
+        .iter()
+        .filter(|file| host_spelling(file).ends_with(suffix));
     let hit = hits.next()?;
     hits.next().is_none().then_some(*hit)
 }
@@ -93,6 +99,44 @@ fn parse_reference(tool: &'static str, base: &Url, text: &str) -> Result<Url, Pa
     Ok(url)
 }
 
+fn percent_decoded(path: &str) -> String {
+    let bytes = path.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while at < bytes.len() {
+        let escaped = (bytes[at] == b'%')
+            .then(|| path.get(at + 1..at + 3))
+            .flatten()
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        match escaped {
+            Some(byte) => {
+                out.push(byte);
+                at += 3;
+            }
+            None => {
+                out.push(bytes[at]);
+                at += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Returns the forward-slash path one file URL names, with or without a drive.
+pub(super) fn file_url_path(url: &Url) -> Result<String, dx_path::UriError> {
+    match url.host_str() {
+        None | Some("") if url.query().is_none() && url.fragment().is_none() => {
+            let path = percent_decoded(url.path());
+            match path.strip_prefix('/') {
+                Some(rest) if dx_path::drive_rooted(rest) => Ok(rest.to_owned()),
+                _ => Ok(path),
+            }
+        }
+        _ => dx_path::uri_to_path(url.as_str())
+            .map(|path| path.to_string_lossy().replace(MAIN_SEPARATOR, "/")),
+    }
+}
+
 fn resolve_file<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -100,14 +144,10 @@ fn resolve_file<'a>(
     base_id: Option<&str>,
     bases: &std::collections::BTreeMap<String, ArtifactLocation>,
 ) -> Result<&'a str, ParseError> {
-    let root = parse_reference(
+    let root = Url::parse("file:///").map_err(|err| ParseError::Shape {
         tool,
-        &Url::from_directory_path("/").map_err(|()| ParseError::Shape {
-            tool,
-            detail: "no root URL".to_owned(),
-        })?,
-        "/",
-    )?;
+        detail: format!("no root URL: {err}"),
+    })?;
     let base = match base_id {
         Some(id) => {
             let location = bases.get(id).ok_or_else(|| ParseError::Shape {
@@ -125,15 +165,14 @@ fn resolve_file<'a>(
         None => root,
     };
     let target = parse_reference(tool, &base, uri)?;
-    let path = dx_path::uri_to_path(target.as_str()).map_err(|err| ParseError::Shape {
+    let spelled = file_url_path(&target).map_err(|err| ParseError::Shape {
         tool,
         detail: format!("unsupported file URI {uri:?}: {err}"),
     })?;
-    let spelled = path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
     let normalized = normalize_path(&spelled);
     if base_id.is_none() && !uri.starts_with('/') && !uri.starts_with("file:") {
         let relative = normalized.trim_start_matches(MAIN_SEPARATOR);
-        if let Some(hit) = files.iter().find(|file| **file == relative) {
+        if let Some(hit) = files.iter().find(|file| host_spelling(file) == relative) {
             return Ok(hit);
         }
     }
@@ -556,10 +595,7 @@ mod tests {
         assert_eq!(normalize_path("C:/src/a.cs"), drive);
         assert_eq!(normalize_path("/C:/src/a.cs"), drive);
         assert_eq!(normalize_path("/src/a.cs"), rooted);
-        assert_eq!(
-            suffix_for("C:/src/a.cs"),
-            dx_path::native(Path::new("C:/src/a.cs"))
-        );
+        assert_eq!(suffix_for("C:/src/a.cs"), host_spelling("C:/src/a.cs"));
         assert_eq!(
             suffix_for("src/a.cs"),
             format!("{MAIN_SEPARATOR_STR}{relative}")

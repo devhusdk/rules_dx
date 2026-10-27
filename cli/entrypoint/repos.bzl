@@ -53,6 +53,7 @@ genrule(
     ],
     cmd = """
 set -eu
+export MSYS=winsymlinks:nativestrict
 public="$(location @rules_dx//:dx)"
 out="$$(dirname "$(location status_healthy.txt)")"
 root="$$(mktemp -d)"
@@ -290,12 +291,7 @@ EOF
 done
 cp "$(location sets_ok/apps/frontend/uv.lock)" /tmp/consumer_sets_frontend_uv_lock.orig
 cp "$(location sets_ok/services/worker/uv.lock)" /tmp/consumer_sets_worker_uv_lock.orig
-gitleaks="$$(mktemp -d)/gitleaks"
-cat > "$$gitleaks" <<'EOF'
-#!/bin/sh
-exit 0
-EOF
-chmod +x "$$gitleaks"
+gitleaks="$$(type -P true)"
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" > "$(location security_json.txt)" 2>/dev/null; then
   echo "security passed without a PyPI advisory snapshot" >&2
   exit 1
@@ -401,6 +397,7 @@ root="$$(dirname "$(location new_apply.txt)")"
 foreign="$$root/foreign"
 fortree="$$root/fortree"
 checktree="$$root/checktree"
+rm -rf "$$foreign" "$$fortree" "$$checktree"
 mkdir -p "$$foreign" "$$fortree" "$$checktree"
 "$$public" new --apply cpp myproj --workspace "$$foreign" > "$(location new_apply.txt)" 2>&1
 echo "exit=0" >> "$(location new_apply.txt)"
@@ -504,11 +501,22 @@ _COMPLETION_BUILD_BAZEL = '''genrule(
     cmd = """
 set -eu
 unset CI
+export MSYS=winsymlinks:nativestrict MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
 public="$$PWD/$(location @rules_dx//:dx)"
 probe="$$PWD/$(location @rules_dx//tools/testing/process_probe)"
 out="$$PWD/$$(dirname "$(location completion_flag.txt)")"
 root="$$(cd "$$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$$root"' EXIT
+bin="$$root/bin"
+ext=
+native() { printf '%s' "$$1"; }
+case "$$probe" in
+  *.exe)
+    ext=.exe
+    root="$$(cygpath -m -l "$$root")"
+    native() { printf '%s' "$$(cygpath -m -l "$$1")"; }
+    ;;
+esac
 ws="$$root/consumer ws ü"
 other="$$root/other"
 start="$$root/start"
@@ -518,23 +526,17 @@ for dir in "$$ws" "$$other"; do
   touch "$$dir/BUILD.bazel"
 done
 touch "$$ws/pkg/BUILD.bazel" "$$other/lib/BUILD.bazel"
-ln -s "$$public" "$$root/bin/dx"
-cat > "$$root/bin/bazel" <<'EOF'
-#!/bin/sh
-pwd -P > "$$DX_SHIM_LOG"
-for arg in "$$@"; do echo "$$arg" >> "$$DX_SHIM_LOG"; done
-exec "$$DX_SHIM_PROBE" "--stdout-text=$$DX_SHIM_LABELS" "--exit-code=$$DX_SHIM_EXIT"
-EOF
-chmod +x "$$root/bin/bazel"
+ln -s "$$public" "$$root/bin/dx$$ext"
+cp "$$probe" "$$root/bin/bazel$$ext"
 "$$public" completion bash > "$$root/dx.bash"
 . "$$root/dx.bash"
-export DX_SHIM_PROBE="$$probe" DX_SHIM_LOG="$$root/argv.txt" DX_SHIM_EXIT=0
-export DX_SHIM_LABELS='//pkg:alpha
+export PROCESS_PROBE_SHIM_LOG="$$root/argv.txt" PROCESS_PROBE_SHIM_EXIT=0
+export PROCESS_PROBE_SHIM_STDOUT='//pkg:alpha
 //pkg:beta
 WARNING: not a label
 //pkg:another
 '
-export PATH="$$root/bin:$$PATH"
+export PATH="$$bin:$$PATH"
 complete_words() {
   dest="$$1"
   shift
@@ -552,7 +554,7 @@ complete_words() {
 }
 # Hermetic rc policy (CI set) pins the --nohome_rc --nosystem_rc startup tokens on any host.
 (cd "$$start" && export CI=true && complete_words "$$out/completion_flag.txt" dx build --workspace "$$ws" "--bazel-startup-option=--output_base=$$root/base ü" "--bazel-startup-option=--output_user_root=$$root/user root" "//pkg:a")
-sed "s|$$root|ROOT|g" "$$root/argv.txt" > "$$out/completion_argv.txt"
+{ native "$$(head -n 1 "$$root/argv.txt")"; echo; tail -n +2 "$$root/argv.txt"; } | sed "s|$$root|ROOT|g" > "$$out/completion_argv.txt"
 (cd "$$start" && export DX_WORKSPACE="$$other" && complete_words "$$out/completion_env.txt" dx build "")
 echo '[dx]' > "$$start/dx.toml"
 echo 'workspace = "'"$$ws"'"' >> "$$start/dx.toml"
@@ -560,7 +562,7 @@ echo 'workspace = "'"$$ws"'"' >> "$$start/dx.toml"
 echo 'not toml = [' > "$$start/dx.toml"
 (cd "$$start" && complete_words "$$out/completion_broken.txt" dx build "")
 rm "$$start/dx.toml"
-(cd "$$start" && export DX_SHIM_EXIT=1 && complete_words "$$out/completion_failed_query.txt" dx build --workspace "$$ws" "//pkg:")
+(cd "$$start" && export PROCESS_PROBE_SHIM_EXIT=1 && complete_words "$$out/completion_failed_query.txt" dx build --workspace "$$ws" "//pkg:")
 """,
     tools = [
         "@rules_dx//:dx",

@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use url::Url;
 
 const VERBATIM_PREFIX: &str = r"\\?\";
+const VERBATIM_UNC_PREFIX: &str = r"\\?\UNC\";
 
 /// Why a path and a file URI could not be spelled for each other.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -34,15 +35,26 @@ pub fn uri(path: &Path) -> Result<String, UriError> {
         });
     }
     let encoded: Option<String> = Url::from_file_path(path).map(Url::into).ok();
-    let read_back = match path.strip_prefix(VERBATIM_PREFIX) {
-        Ok(without) => without,
-        Err(_) => path,
-    };
+    let read_back = without_verbatim(path);
     match encoded {
-        Some(uri) if uri_to_path(&uri).ok().as_deref() == Some(read_back) => Ok(uri),
+        Some(uri) if uri_to_path(&uri).ok().as_deref() == Some(read_back.as_path()) => Ok(uri),
         _ => Err(UriError::NotEncodable {
             path: path.to_string_lossy().into_owned(),
         }),
+    }
+}
+
+/// Returns one path without its verbatim prefix.
+pub fn without_verbatim(path: &Path) -> PathBuf {
+    let Some(text) = path.to_str() else {
+        return path.to_path_buf();
+    };
+    if let Some(share) = text.strip_prefix(VERBATIM_UNC_PREFIX) {
+        PathBuf::from(format!(r"\\{share}"))
+    } else if let Some(rest) = text.strip_prefix(VERBATIM_PREFIX) {
+        PathBuf::from(rest)
+    } else {
+        path.to_path_buf()
     }
 }
 

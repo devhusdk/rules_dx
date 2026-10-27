@@ -1,9 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
-exports_files([
-    "site_packages.patch",
-    "venv_interpreter.patch",
-])
+exports_files(["windows_venv.patch"])
 
 real_source_target(
     name = "corpus_starlark",

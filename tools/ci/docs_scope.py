@@ -8,6 +8,7 @@ with the patterns as separate arguments and no shell.
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -50,7 +51,8 @@ def main():
     config = []
     for name in CONFIG_ENVS:
         config.extend(os.environ.get(name, "").split())
-    argv = ["bazel", "run", *config, "@rules_dx//:dx", "--", "lint", "--check"]
+    bazel = shutil.which("bazel") or "bazel"
+    argv = [bazel, "run", *config, "@rules_dx//:dx", "--", "lint", "--check"]
     argv += [*patterns, "--", *config]
     try:
         return subprocess.run(argv, check=False).returncode

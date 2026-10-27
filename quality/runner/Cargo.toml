@@ -14,6 +14,9 @@ serde_json = "1"
 tempfile = "3"
 thiserror = "2"
 tracing = "0.1"
+zip = { version = "9", default-features = false, features = [
+  "deflate-flate2-zlib",
+] }
 
 [[bin]]
 name = "quality_runner"

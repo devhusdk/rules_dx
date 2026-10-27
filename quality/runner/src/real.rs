@@ -457,7 +457,11 @@ mod tests {
     };
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
     use std::ffi::OsString;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
+
+    fn out() -> PathBuf {
+        std::env::temp_dir().join("out")
+    }
 
     use crate::RunnerError;
     use quality_adapter::parsers::ParseError;
@@ -508,7 +512,7 @@ mod tests {
         let absolute = absolute_argv(&relative);
         assert!(Path::new(&absolute[0]).is_absolute());
         assert_eq!(absolute[1], relative[1]);
-        let already = [OsString::from("/out/bin/tool")];
+        let already = [out().join("bin").join("tool").into_os_string()];
         assert_eq!(absolute_argv(&already)[0], already[0]);
         assert!(absolute_argv(&[]).is_empty());
     }
@@ -532,12 +536,13 @@ mod tests {
     /// The manifest sits beside the tool that reads it.
     #[test]
     fn the_manifest_sits_beside_the_binary() {
-        let env = own_runfiles_manifest(Path::new("/out/bin/quality/tools/python/pydoclint"));
+        let binary = out().join("bin").join("pydoclint");
+        let env = own_runfiles_manifest(&binary);
         assert_eq!(
             env,
             vec![(
                 OsString::from("RUNFILES_MANIFEST_FILE"),
-                OsString::from("/out/bin/quality/tools/python/pydoclint.runfiles_manifest")
+                OsString::from(format!("{}.runfiles_manifest", dx_path::native(&binary)))
             )]
         );
     }
@@ -545,13 +550,14 @@ mod tests {
     /// Neither manifest is on disk yet, so the executable's own name is the answer.
     #[test]
     fn a_windows_launcher_keeps_its_own_suffix() {
-        for name in ["/out/bin/prettier_/prettier.bat", "/out/bin/prettier.exe"] {
-            let env = own_runfiles_manifest(Path::new(name));
+        for name in ["prettier_/prettier.bat", "prettier.exe"] {
+            let binary = out().join("bin").join(name);
+            let env = own_runfiles_manifest(&binary);
             assert_eq!(
                 env,
                 vec![(
                     OsString::from("RUNFILES_MANIFEST_FILE"),
-                    OsString::from(format!("{name}.runfiles_manifest"))
+                    OsString::from(format!("{}.runfiles_manifest", dx_path::native(&binary)))
                 )]
             );
         }

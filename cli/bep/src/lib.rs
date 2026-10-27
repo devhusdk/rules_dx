@@ -523,7 +523,7 @@ mod tests {
             );
             assert_eq!(
                 file_uri_to_path("file://srv/share/a%23b.pb").expect("unc share"),
-                PathBuf::from(r"\\srv\share\a#b")
+                PathBuf::from(r"\\srv\share\a#b.pb")
             );
         } else {
             for uri in ["file://relative/path", "file://otherhost/out/a.pb"] {

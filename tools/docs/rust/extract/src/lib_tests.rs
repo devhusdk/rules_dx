@@ -226,6 +226,10 @@ fn sources_parse_and_map_by_exact_path_suffix_or_out_dir() {
         Some(("pkg/src/lib.rs".to_string(), false))
     );
     assert_eq!(
+        map_source(&sources, "pkg/src\\lib.rs"),
+        Some(("pkg/src/lib.rs".to_string(), false))
+    );
+    assert_eq!(
         map_source(&sources, "/execroot/_main/pkg/src/lib.rs"),
         Some(("pkg/src/lib.rs".to_string(), false))
     );

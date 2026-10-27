@@ -64,7 +64,15 @@ fn dir_bytes(dir: &Path) -> Result<u64, CleanError> {
         if meta.is_dir() {
             continue;
         }
-        total = total.saturating_add(meta.len());
+        let len = if meta.file_type().is_symlink() {
+            fs::read_link(path)
+                .map_err(|e| fail(format!("cannot read link {}: {e}", path.display())))?
+                .as_os_str()
+                .len() as u64
+        } else {
+            meta.len()
+        };
+        total = total.saturating_add(len);
     }
     Ok(total)
 }

@@ -67,6 +67,14 @@ pub fn is_change(kind: &notify::EventKind) -> bool {
     }
 }
 
+/// Whether an event only touches directory timestamps, which Windows reports on reads.
+pub fn is_directory_touch(event: &notify::Event) -> bool {
+    use notify::event::{EventKind, ModifyKind};
+    matches!(event.kind, EventKind::Modify(ModifyKind::Any))
+        && !event.paths.is_empty()
+        && event.paths.iter().all(|path| path.is_dir())
+}
+
 /// The platform watcher with read-only access events dropped.
 pub struct ChangeWatcher(notify::RecommendedWatcher);
 
@@ -78,7 +86,9 @@ impl notify::Watcher for ChangeWatcher {
         notify::RecommendedWatcher::new(
             move |event: notify::Result<notify::Event>| {
                 let relevant = match &event {
-                    Ok(event) => is_change(&event.kind),
+                    Ok(event) => {
+                        is_change(&event.kind) && !(cfg!(windows) && is_directory_touch(event))
+                    }
                     Err(_) => true,
                 };
                 if relevant {
@@ -542,6 +552,28 @@ mod tests {
         ] {
             assert!(is_change(&kind), "{kind:?}");
         }
+    }
+
+    #[test]
+    fn only_a_plain_modify_of_directories_is_a_touch() {
+        use notify::event::{CreateKind, DataChange, EventKind, ModifyKind};
+        let scratch = dx_test_scratch::scratch("dx-watch-touch-");
+        let dir = scratch.path().to_path_buf();
+        let file = dir.join("main.rs");
+        std::fs::write(&file, "fn main() {}").expect("source");
+        let event = |kind, path: &Path| notify::Event::new(kind).add_path(path.to_path_buf());
+        let modify = EventKind::Modify(ModifyKind::Any);
+        assert!(is_directory_touch(&event(modify, &dir)));
+        assert!(!is_directory_touch(&event(modify, &file)));
+        assert!(!is_directory_touch(&notify::Event::new(modify)));
+        assert!(!is_directory_touch(&event(
+            EventKind::Create(CreateKind::Folder),
+            &dir
+        )));
+        assert!(!is_directory_touch(&event(
+            EventKind::Modify(ModifyKind::Data(DataChange::Content)),
+            &dir
+        )));
     }
 
     #[test]

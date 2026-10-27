@@ -457,7 +457,7 @@ mod tests {
 
     #[test]
     fn init_scaffold_covers_admitted_editors() {
-        let files = plan_init_files("demo").expect("init plans");
+        let files = plan_init_files_for_host("demo", false).expect("init plans");
         let settings = files
             .iter()
             .find(|f| f.path == ".vscode/settings.json")

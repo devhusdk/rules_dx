@@ -190,16 +190,29 @@ impl RealBackend {
             .transpose()
     }
 
-    pub(super) fn scalafix_classpath(tool: &RealTool, scratch: &Scratch) -> Vec<PathBuf> {
-        ["dx-scalafix/owned/", "dx-scalafix/aux/"]
-            .iter()
-            .flat_map(|prefix| {
-                tool.tool_files
-                    .iter()
-                    .filter(move |(rel, _)| rel.starts_with(prefix) && rel.ends_with(".jar"))
-                    .map(|(rel, _)| scratch.root().join(rel))
-            })
-            .collect()
+    pub(super) fn scalafix_classpath(
+        tool_id: &str,
+        tool: &RealTool,
+        scratch: &Scratch,
+    ) -> Result<Vec<PathBuf>, RunnerError> {
+        let jars = |prefix: &'static str| {
+            tool.tool_files
+                .iter()
+                .filter(move |(rel, _)| rel.starts_with(prefix) && rel.ends_with(".jar"))
+                .map(|(rel, _)| scratch.root().join(rel))
+        };
+        let semanticdb = scratch.root().join("dx-scalafix").join("semanticdb");
+        std::fs::create_dir_all(&semanticdb)
+            .map_err(|err| execution(tool_id, format!("semanticdb dir: {err}")))?;
+        for jar in jars("dx-scalafix/owned/") {
+            extract_semanticdb(&jar, &semanticdb).map_err(|err| {
+                execution(tool_id, format!("semanticdb from {}: {err}", jar.display()))
+            })?;
+        }
+        let mut classpath = vec![semanticdb];
+        classpath.extend(jars("dx-scalafix/owned/"));
+        classpath.extend(jars("dx-scalafix/aux/"));
+        Ok(classpath)
     }
 
     pub(super) fn fsharplint_context(
@@ -364,6 +377,28 @@ pub(super) fn place_qmllint_settings(
         dx_atomic_fs::copy_atomic(config, &target)
             .map_err(|err| execution(tool_id, format!("place settings for {workspace}: {err}")))?;
         placed.push(target);
+    }
+    Ok(())
+}
+
+/// Copies the semanticdb entries of one jar into a directory, which scalafix reads on every platform.
+fn extract_semanticdb(jar: &Path, into: &Path) -> Result<(), String> {
+    let file = std::fs::File::open(jar).map_err(|err| err.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|err| err.to_string())?;
+    for index in 0..archive.len() {
+        let mut entry = archive.by_index(index).map_err(|err| err.to_string())?;
+        let Some(name) = entry.enclosed_name() else {
+            continue;
+        };
+        if !entry.is_file() || !name.starts_with("META-INF/semanticdb") {
+            continue;
+        }
+        let target = into.join(name);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+        }
+        let mut out = std::fs::File::create(&target).map_err(|err| err.to_string())?;
+        std::io::copy(&mut entry, &mut out).map_err(|err| err.to_string())?;
     }
     Ok(())
 }

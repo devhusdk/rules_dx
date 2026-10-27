@@ -1556,12 +1556,16 @@ mod tests {
         let scratch = tempfile::tempdir().expect("scratch");
         let candidate = scratch.path().join("candidate");
         std::fs::create_dir_all(&candidate).expect("candidate dir");
-        let binary = candidate.join("dx");
+        let (name, script): (&str, &[u8]) = if cfg!(windows) {
+            ("dx.bat", b"@echo dx-relocated-ok\r\n")
+        } else {
+            ("dx", b"#!/bin/sh\necho dx-relocated-ok\n")
+        };
+        let binary = candidate.join(name);
         let bundle = candidate.join("dx.bundle");
         let install_dir = scratch.path().join("relocated install");
-        let installed = install_dir.join("dx");
+        let installed = install_dir.join(name);
         let stub = FsStub { cosign_ok: true };
-        let script = b"#!/bin/sh\necho dx-relocated-ok\n";
         std::fs::write(&binary, script).expect("candidate binary");
         std::fs::write(&bundle, &FsStub::bundle_for(script)).expect("candidate bundle");
         let out = verify(&stub_args(&binary, &bundle, &install_dir), &stub).expect("install");

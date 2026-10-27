@@ -77,8 +77,7 @@ def python_runtime_unit_tests(name):
             ),
         ],
         file_checks = {
-            "//:MODULE.bazel": "//patches/aspect_rules_py:site_packages.patch\n" +
-                               "//patches/aspect_rules_py:venv_interpreter.patch\n" +
+            "//:MODULE.bazel": "//patches/aspect_rules_py:windows_venv.patch\n" +
                                "python_version = \"3.12\"",
             "//python/tests/fixtures/hello:pyproject.toml": "requires-python = \">=3.12\"",
             "//quality/tools/python:pyproject.toml": "requires-python = \">=3.12\"",

@@ -488,7 +488,7 @@ impl super::RealBackend {
         let Some(config) = self.config_abs(tool_id, tool, &scratch)? else {
             return Err(execution(tool_id, "scalafix requires a config".to_owned()));
         };
-        let classpath = Self::scalafix_classpath(tool, &scratch);
+        let classpath = Self::scalafix_classpath(tool_id, tool, &scratch)?;
         let jars: Vec<&Path> = classpath.iter().map(PathBuf::as_path).collect();
         let context = commands::ScalafixContext {
             config: &config,

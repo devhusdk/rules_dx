@@ -341,8 +341,11 @@ pub(super) fn rustfmt_missing_module_fails_with_rustfmt_stderr() {
     assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
     assert_eq!(
         err.to_string(),
-        "tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: \
-         failed to resolve mod `child`: src/child.rs does not exist"
+        format!(
+            "tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: \
+             failed to resolve mod `child`: {} does not exist",
+            Path::new("src").join("child.rs").display()
+        )
     );
 }
 
@@ -352,11 +355,11 @@ pub(super) fn rustfmt_fix_without_context_reports_the_missing_module() {
     let err = backend
         .apply_fix("rustfmt", "src/lib.rs", "mod child;  \n", "format")
         .expect_err("missing module is not a no-op fix");
-    assert!(
-        err.to_string()
-            .contains("failed to resolve mod `child`: src/child.rs does not exist"),
-        "{err}"
+    let missing = format!(
+        "failed to resolve mod `child`: {} does not exist",
+        Path::new("src").join("child.rs").display()
     );
+    assert!(err.to_string().contains(&missing), "{err}");
 }
 
 #[test]
@@ -1053,7 +1056,7 @@ pub(super) fn ktlint_defaults(
         .map(|pair| pair[1].clone())
         .expect("ktlint passes --editorconfig");
     assert!(
-        config.to_string_lossy().ends_with(KTLINT_DEFAULTS_REL),
+        Path::new(&config).ends_with(KTLINT_DEFAULTS_REL),
         "unhinted ktlint gets the materialized defaults"
     );
     let text = std::fs::read_to_string(&config).expect("defaults file is materialized");

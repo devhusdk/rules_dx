@@ -146,6 +146,14 @@ mod tests {
     }
 
     #[test]
+    fn flake8_keeps_the_drive_of_a_windows_path() {
+        let stdout = "C:\\s\\a.py:1:1:F401:'os' imported but unused\n";
+        let findings = parse_flake8(stdout.as_bytes(), Some(1), &["C:\\s\\a.py"]).expect("parsed");
+        assert_eq!(findings[0].file, "C:\\s\\a.py");
+        assert_eq!(findings[0].finding.rule_id, "F401");
+    }
+
+    #[test]
     fn flake8_grammar_mismatches_are_fail_closed() {
         assert!(parse_flake8(&[0xff], Some(1), &["/s/dirty.py"]).is_err());
         let blanked_flake8 = "\n/s/dirty.py:3:1:F401:msg\n\n";

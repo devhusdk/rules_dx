@@ -49,7 +49,18 @@ Usage: process_probe [options]
   --raise-signal=N              die by signal N (unix only)
   --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
   --help                        write this text and exit 0
+
+With PROCESS_PROBE_SHIM_LOG set, the probe ignores its arguments, writes the
+working directory and then each argument to that file one per line, writes
+PROCESS_PROBE_SHIM_STDOUT to stdout, and exits with PROCESS_PROBE_SHIM_EXIT.
 ";
+
+/// The file a shim run records its working directory and arguments into.
+const SHIM_LOG: &str = "PROCESS_PROBE_SHIM_LOG";
+/// The text a shim run writes to stdout.
+const SHIM_STDOUT: &str = "PROCESS_PROBE_SHIM_STDOUT";
+/// The exit status a shim run reports.
+const SHIM_EXIT: &str = "PROCESS_PROBE_SHIM_EXIT";
 
 /// A malformed invocation.
 const EXIT_USAGE: i32 = 64;
@@ -453,7 +464,52 @@ fn report_output_error(error: io::Error) -> ! {
     fail(EXIT_OUTPUT, &format!("cannot write the report: {error}"));
 }
 
+/// The working directory without a Windows verbatim prefix.
+fn plain_cwd() -> io::Result<String> {
+    let cwd = env::current_dir()?.to_string_lossy().into_owned();
+    if let Some(rest) = cwd.strip_prefix(r"\\?\") {
+        return Ok(rest.to_owned());
+    }
+    Ok(cwd)
+}
+
+fn run_shim(log: &std::ffi::OsStr) -> ! {
+    let mut record = String::new();
+    let written = plain_cwd().and_then(|cwd| {
+        record.push_str(&cwd);
+        record.push('\n');
+        for arg in env::args_os().skip(1) {
+            record.push_str(&arg.to_string_lossy());
+            record.push('\n');
+        }
+        std::fs::write(log, record.as_bytes())?;
+        let mut out = io::stdout().lock();
+        out.write_all(env_value_or_empty(SHIM_STDOUT).as_bytes())?;
+        out.flush()
+    });
+    if let Err(error) = written {
+        fail(EXIT_OUTPUT, &format!("cannot record the shim run: {error}"));
+    }
+    let code = env_value_or_empty(SHIM_EXIT);
+    if code.is_empty() {
+        std::process::exit(0);
+    }
+    match count::<i32>(&code, SHIM_EXIT) {
+        Ok(code) if (0..=255).contains(&code) => std::process::exit(code),
+        _ => fail(EXIT_USAGE, &format!("{SHIM_EXIT} needs 0-255, got {code}")),
+    }
+}
+
+fn env_value_or_empty(name: &str) -> String {
+    env::var_os(name)
+        .map(|value| value.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 fn main() {
+    if let Some(log) = env::var_os(SHIM_LOG).filter(|log| !log.is_empty()) {
+        run_shim(&log);
+    }
     let args: Vec<String> = env::args().skip(1).collect();
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         print!("{USAGE}");

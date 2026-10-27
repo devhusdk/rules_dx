@@ -178,7 +178,7 @@ fn resolve_refuses_a_missing_artifact_file() {
     match error {
         ResolveError::MissingArtifact { label, path } => {
             assert_eq!(label, "@dx_tools//:gitleaks");
-            assert!(path.ends_with("external/gone/tool"), "{path}");
+            assert!(Path::new(&path).ends_with("external/gone/tool"), "{path}");
         }
         other => panic!("missing files must fail closed: {other}"),
     }

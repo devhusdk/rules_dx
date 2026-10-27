@@ -180,7 +180,8 @@ pub fn select_artifact(cquery_stdout: &str, label: &str) -> Result<String, Resol
 
 /// Joins one output base with one cquery artifact path.
 pub fn join_under(output_base: &str, rel: &str) -> PathBuf {
-    PathBuf::from(output_base).join(rel)
+    rel.split('/')
+        .fold(PathBuf::from(output_base), |path, part| path.join(part))
 }
 
 /// Renders one `NAME=value` environment file line.

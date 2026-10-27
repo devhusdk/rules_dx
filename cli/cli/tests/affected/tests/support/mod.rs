@@ -6,8 +6,8 @@ use dx_testing::{resolve_runfiles, run, Run};
 const BAZELRC: &str = "common:dx_dev --define=dx=dev\ncommon:dx_release --define=dx=release\n";
 
 const DEFS: &str = r##"def _impl(ctx):
-    out = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(out, "#!/bin/sh\nexit 0\n", is_executable = True)
+    out = ctx.actions.declare_file(ctx.label.name + "@SUFFIX@")
+    ctx.actions.write(out, "@BODY@", is_executable = True)
     return [DefaultInfo(executable = out, runfiles = ctx.runfiles(files = ctx.files.data))]
 
 custom_test = rule(
@@ -21,6 +21,12 @@ def _flag_impl(_ctx):
 
 bool_flag = rule(implementation = _flag_impl, build_setting = config.bool(flag = True))
 "##;
+
+const TEST_LAUNCHER: (&str, &str) = if cfg!(windows) {
+    (".bat", r"@exit /b 0\r\n")
+} else {
+    ("", r"#!/bin/sh\nexit 0\n")
+};
 
 const CONFIG_BUILD: &str = r#"load("//:defs.bzl", "bool_flag")
 
@@ -94,7 +100,11 @@ pub fn fixture(root: &Path) {
     write(&root.join("config/BUILD.bazel"), CONFIG_BUILD);
     write(&root.join("BUILD.bazel"), "");
     write(&root.join(".gitignore"), "/bazel-*\n/MODULE.bazel.lock\n");
-    write(&root.join("defs.bzl"), DEFS);
+    let (suffix, body) = TEST_LAUNCHER;
+    write(
+        &root.join("defs.bzl"),
+        &DEFS.replace("@SUFFIX@", suffix).replace("@BODY@", body),
+    );
     write(&root.join("a/BUILD.bazel"), A_BUILD);
     write(&root.join("a/a.txt"), "a\n");
     write(&root.join("b/BUILD.bazel"), B_BUILD);

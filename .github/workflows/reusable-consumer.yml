@@ -327,7 +327,7 @@ jobs:
   coverage:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
-    timeout-minutes: 60
+    timeout-minutes: 120
     defaults:
       run:
         shell: bash

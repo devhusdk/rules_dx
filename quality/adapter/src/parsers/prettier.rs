@@ -1,5 +1,6 @@
 use super::{
-    check_output_size, code_name, finding, known, row_col, unformatted_at, FileFinding, ParseError,
+    check_output_size, code_name, finding, known_native, row_col, unformatted_at, FileFinding,
+    ParseError,
 };
 use crate::ToolSeverity;
 
@@ -33,7 +34,7 @@ pub fn parse_prettier_check(
             continue;
         }
         let normalized = path.strip_prefix("./").unwrap_or(path);
-        let checked = known(TOOL, files, normalized)?;
+        let checked = known_native(TOOL, files, normalized)?;
         findings.push(unformatted_at(TOOL, checked, 1, 1));
     }
     if findings.is_empty() && code != Some(0) {
@@ -51,10 +52,19 @@ fn syntax_error(
     findings: &mut Vec<FileFinding>,
 ) -> Result<(), ParseError> {
     let named = files.iter().find_map(|file| {
-        let message = text
-            .strip_prefix(file)
-            .or_else(|| text.strip_prefix("./").and_then(|t| t.strip_prefix(file)))?
-            .strip_prefix(": ")?;
+        let native = if cfg!(windows) {
+            file.replace('/', "\\")
+        } else {
+            (*file).to_owned()
+        };
+        let message = [*file, native.as_str()].into_iter().find_map(|spelling| {
+            text.strip_prefix(spelling)
+                .or_else(|| {
+                    text.strip_prefix("./")
+                        .and_then(|t| t.strip_prefix(spelling))
+                })?
+                .strip_prefix(": ")
+        })?;
         Some((*file, message))
     });
     let Some((file, message)) = named else {

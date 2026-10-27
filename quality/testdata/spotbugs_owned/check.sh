@@ -9,7 +9,8 @@ if grep -aq "NP_LOAD_OF_KNOWN_NULL_VALUE\|Dirty.java" "$app"; then
 fi
 grep -aq "Clean.java" "$app" || { echo "app result missing"; exit 1; }
 grep -aq "SF_SWITCH_FALLTHROUGH" "$dep" || { echo "multiline finding missing"; exit 1; }
-LC_ALL=C grep -aqP 'SF_SWITCH_FALLTHROUGH\*\*quality/testdata/spotbugs_owned/Dirty\.java0\xbe\x02\x38\xe9\x02' "$dep" || { echo "multiline finding not placed on lines 17 to 19"; exit 1; }
+placed=$(printf 'SF_SWITCH_FALLTHROUGH**quality/testdata/spotbugs_owned/Dirty.java0\276\0028\351\002')
+LC_ALL=C grep -aqF "$placed" "$dep" || { echo "multiline finding not placed on lines 17 to 19"; exit 1; }
 test_result=quality/testdata/spotbugs_owned/app_test-real-lint-jvm.pb
 grep -aq "CleanTest.java" "$test_result" || { echo "test result missing"; exit 1; }
 implicit=quality/testdata/spotbugs_owned/implicit_test-real-lint-jvm.pb

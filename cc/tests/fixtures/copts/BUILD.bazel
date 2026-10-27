@@ -6,6 +6,16 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
+_CXX23 = select({
+    "@platforms//os:windows": ["/clang:-std=c++23"],
+    "//conditions:default": ["-std=c++23"],
+})
+
+_C17 = select({
+    "@platforms//os:windows": ["/clang:-std=c17"],
+    "//conditions:default": ["-std=c17"],
+})
+
 config_setting(
     name = "select_macos",
     constraint_values = ["@platforms//os:macos"],
@@ -52,13 +62,13 @@ cc_library(
     name = "cxx23",
     srcs = ["cxx23.cc"],
     hdrs = ["cxx23.h"],
-    copts = ["-std=c++23"],
+    copts = _CXX23,
 )
 
 cc_test(
     name = "cxx23_test",
     srcs = ["cxx23_test.cc"],
-    copts = ["-std=c++23"],
+    copts = _CXX23,
     deps = [":cxx23"],
 )
 
@@ -66,14 +76,14 @@ cc_library(
     name = "strict_c",
     srcs = ["strict.c"],
     hdrs = ["strict.h"],
-    copts = ["-std=c17"],
+    copts = _C17,
     features = ["treat_warnings_as_errors"],
 )
 
 cc_test(
     name = "strict_c_test",
     srcs = ["strict_test.c"],
-    copts = ["-std=c17"],
+    copts = _C17,
     deps = [":strict_c"],
 )
 

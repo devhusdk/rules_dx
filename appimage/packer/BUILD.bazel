@@ -49,6 +49,7 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":appimage_packer_lib",
+    env = {"RUST_TEST_THREADS": "1"},
     target_compatible_with = _LINUX,
     deps = all_crate_deps(
         package_name = "appimage/appimage_packer",

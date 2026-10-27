@@ -339,7 +339,7 @@ mod tests {
         let harness = Harness::new("clean-apply");
         let stale = commit_clean_pair(&harness, '3', '4');
         let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply"]);
+        let (code, out, err) = harness.run(&["clean", "--apply", "--prune-unobserved"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("pruned 1 setup records and 2 generations"),
@@ -379,7 +379,7 @@ mod tests {
         let harness = Harness::new("clean-apply-shared");
         commit_clean_pair(&harness, '3', '2');
         commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply"]);
+        let (code, out, err) = harness.run(&["clean", "--apply", "--prune-unobserved"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("pruned 1 setup records and 1 generations"),
@@ -410,7 +410,7 @@ mod tests {
             std::time::Duration::from_secs(10),
         )
         .expect("hold a reader lease on the stale generation");
-        let (code, out, err) = harness.run(&["clean", "--apply"]);
+        let (code, out, err) = harness.run(&["clean", "--apply", "--prune-unobserved"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(err, "", "{err}");
         assert!(
@@ -498,7 +498,8 @@ mod tests {
         let harness = Harness::new("clean-live-json");
         let stale = commit_clean_pair(&harness, '3', '4');
         let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--apply", "--output=json"]);
+        let (code, out, err) =
+            harness.run(&["clean", "--apply", "--prune-unobserved", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
         let pruned = events
@@ -543,7 +544,7 @@ mod tests {
         let harness = Harness::new("clean-check-drift");
         let stale = commit_clean_pair(&harness, '3', '4');
         let current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean"]);
+        let (code, out, err) = harness.run(&["clean", "--prune-unobserved"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             out.contains(&format!("prune setup record: .dx/setups/{stale}")),
@@ -579,12 +580,13 @@ mod tests {
         let default = Harness::new("clean-check-matches-default");
         let stale = commit_clean_pair(&default, '3', '4');
         let _current = commit_clean_pair(&default, '1', '2');
-        let (default_code, default_out, _) = default.run(&["clean"]);
+        let (default_code, default_out, _) = default.run(&["clean", "--prune-unobserved"]);
         let explicit = Harness::new("clean-check-matches-explicit");
         let estale = commit_clean_pair(&explicit, '3', '4');
         let _ecurrent = commit_clean_pair(&explicit, '1', '2');
         assert_eq!(stale, estale, "fixtures agree");
-        let (explicit_code, explicit_out, _) = explicit.run(&["clean", "--check"]);
+        let (explicit_code, explicit_out, _) =
+            explicit.run(&["clean", "--check", "--prune-unobserved"]);
         assert_eq!(default_code, explicit_code);
         assert_eq!(default_out, explicit_out);
         assert_eq!(default_code, 1, "{default_out}");
@@ -596,7 +598,7 @@ mod tests {
         let harness = Harness::new("clean-check-json-drift");
         let stale = commit_clean_pair(&harness, '3', '4');
         let _current = commit_clean_pair(&harness, '1', '2');
-        let (code, out, err) = harness.run(&["clean", "--output=json"]);
+        let (code, out, err) = harness.run(&["clean", "--prune-unobserved", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
         let events = json_events(&out);
         let kinds = event_kinds(&events);

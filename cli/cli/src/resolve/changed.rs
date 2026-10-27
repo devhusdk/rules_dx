@@ -606,7 +606,7 @@ fn valid_change_path(path: &str) -> Result<(), ResolveError> {
     if path.is_empty() {
         return Err(ResolveError::EmptyScope);
     }
-    if Path::new(path).is_absolute() || path.split('/').any(|part| part == "..") {
+    if dx_path::is_absolute(path) || path.split('/').any(|part| part == "..") {
         return Err(ResolveError::OutsideWorkspace {
             scope: path.to_owned(),
         });

@@ -1,7 +1,5 @@
 use super::*;
 use std::ffi::OsString;
-#[cfg(unix)]
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 fn probe_argv(flags: &[&str]) -> Vec<OsString> {
@@ -1091,6 +1089,7 @@ fn streamed_withdraw_kills_a_tree_that_ignores_sigterm() {
 #[cfg(unix)]
 #[test]
 fn streamed_stop_during_withdraw_is_a_cancel() {
+    use std::sync::atomic::{AtomicBool, Ordering};
     let sink = Sink::default();
     let script = "trap '' TERM; sleep 3";
     let spec = streamed(

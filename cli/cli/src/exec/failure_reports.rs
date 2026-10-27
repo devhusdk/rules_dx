@@ -321,6 +321,8 @@ mod tests {
 
     #[test]
     fn remote_missing_and_absent_stderr_are_marked_unavailable() {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let gone = dx_path::uri(&scratch.path().join("gone").join("stderr")).expect("uri");
         let harness = with_bep(
             "fr-missing",
             1,
@@ -330,7 +332,7 @@ mod tests {
                     "CppLink",
                     Some("bytestream://cache/blobs/ab/1"),
                 ),
-                action("//a:gone", "CppLink", Some("file:///nonexistent/dx/stderr")),
+                action("//a:gone", "CppLink", Some(&gone)),
                 action("//a:none", "CppLink", None),
             ],
         );

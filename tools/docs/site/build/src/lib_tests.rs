@@ -1,6 +1,6 @@
 use super::{
     alias_errors, alias_route, api_pages, log_error, manifest_error, manifest_pages, pages_error,
-    parse, route_error, run, usage, Options, Page,
+    parse, route_error, run, stage, usage, Options, Page,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -334,6 +334,28 @@ fn run_rejects_an_api_page_that_collides_with_a_manifest_route() {
     assert_eq!(
         run(&options),
         "docs_site: route 'api/rust/demo/add.md' is declared twice"
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn stage_appends_the_api_summary_to_a_read_only_summary() {
+    let dir = scratch("read-only-summary");
+    let summary = write(&dir, "SUMMARY.md", "# Summary");
+    let mut readonly = fs::metadata(&summary).expect("a summary").permissions();
+    readonly.set_readonly(true);
+    fs::set_permissions(&summary, readonly).expect("a read-only summary");
+    let options = Options {
+        book: write(&dir, "book.toml", "[book]\n"),
+        summary,
+        api_summary: write(&dir, "api_summary.md", "- [API](api.md)\n"),
+        ..Options::default()
+    };
+    let book = dir.join("book");
+    assert_eq!(stage(&book, &options, &[]), Ok(()));
+    assert_eq!(
+        fs::read_to_string(book.join("src/SUMMARY.md")).expect("a staged summary"),
+        "# Summary\n- [API](api.md)\n"
     );
     let _ = fs::remove_dir_all(&dir);
 }

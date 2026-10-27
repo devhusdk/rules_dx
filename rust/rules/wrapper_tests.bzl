@@ -250,9 +250,9 @@ def _native_coverage_impl(ctx):
     )
     run_env = target[RunEnvironmentInfo].environment
     script = run_env.get("CC_CODE_COVERAGE_SCRIPT", "")
-    asserts.true(env, script.endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + script)
-    asserts.true(env, run_env.get("LLVM_COV", "").endswith("llvm-cov"), "LLVM_COV=" + run_env.get("LLVM_COV", ""))
-    asserts.true(env, run_env.get("LLVM_PROFDATA", "").endswith("llvm-profdata"), "LLVM_PROFDATA=" + run_env.get("LLVM_PROFDATA", ""))
+    asserts.true(env, script.removesuffix(".exe").endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + script)
+    asserts.true(env, run_env.get("LLVM_COV", "").removesuffix(".exe").endswith("llvm-cov"), "LLVM_COV=" + run_env.get("LLVM_COV", ""))
+    asserts.true(env, run_env.get("LLVM_PROFDATA", "").removesuffix(".exe").endswith("llvm-profdata"), "LLVM_PROFDATA=" + run_env.get("LLVM_PROFDATA", ""))
     return analysistest.end(env)
 
 _native_coverage_test = analysistest.make(
@@ -261,6 +261,7 @@ _native_coverage_test = analysistest.make(
     config_settings = {
         "//command_line_option:collect_code_coverage": True,
         "//command_line_option:experimental_generate_llvm_lcov": True,
+        "//command_line_option:features": ["-coverage", "-gcc_coverage_map_format"],
     },
 )
 

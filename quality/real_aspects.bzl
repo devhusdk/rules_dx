@@ -946,10 +946,6 @@ def _make_real_impl(capability, allowed_tools, output_suffix, has_rust_toolchain
 
     return _impl
 
-def real_wired_tools():
-    """Returns the sorted tool IDs the real aspects can run."""
-    return sorted(_REAL_TOOL_TABLE.keys())
-
 def real_quality_resource_set(tools):
     """Returns the resource_set callback for the costliest tier among the launched tools."""
     return dx_quality_resource_set([_REAL_TOOL_TABLE[tool]["resources"] for tool in tools])
@@ -1392,6 +1388,15 @@ def real_shard_result_stems():
         "real-" + shard["capability"] + shard["suffix"]: shard_name
         for shard_name, shard in _REAL_SHARDS.items()
     }
+
+def real_wired_capabilities():
+    """Maps each tool to the sorted capabilities a built shard aspect runs for it."""
+    wired = {}
+    for shard in _REAL_SHARDS.values():
+        for tool in shard["tools"]:
+            if shard["capability"] not in wired.setdefault(tool, []):
+                wired[tool].append(shard["capability"])
+    return {tool: sorted(caps) for tool, caps in wired.items()}
 
 def _probe_shards(resolved, capability):
     """Names every shard of the capability whose tool filter keeps a stage."""

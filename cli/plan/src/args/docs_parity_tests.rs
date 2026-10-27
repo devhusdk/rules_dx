@@ -213,7 +213,7 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
 }
 
 /// Flags a wrapped command takes that `dx watch` does not forward yet.
-const WATCH_WITHHELD_FLAGS: &[&str] = &["bazel-option"];
+const WATCH_WITHHELD_FLAGS: &[&str] = &["bazel-option", "explain"];
 
 #[test]
 fn watch_advertises_exactly_the_flags_its_wrapped_commands_take() {

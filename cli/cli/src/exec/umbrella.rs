@@ -1298,6 +1298,7 @@ mod tests {
             &resolved,
             &[],
             Some("/tmp/bep.json"),
+            None,
             Some(dx_plan::args::Profile::Dev),
             &[],
         )

@@ -31,6 +31,7 @@ pub enum Command {
     ListTests,
     Rollback,
     Worktree,
+    Explain,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,7 +104,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 31] = [
+pub static COMMANDS: [CommandMeta; 32] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -223,7 +224,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "build",
         scope_policy: "default-//...",
         describe: "run Bazel build over resolved targets",
-        usage: "Usage: dx build [--here] [--affected] [--debug|--release] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx build [--here] [--affected] [--debug|--release] [--explain] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -242,7 +243,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "test",
         scope_policy: "default-//...",
         describe: "run Bazel test over resolved targets",
-        usage: "Usage: dx test [--here] [--affected] [--debug|--release] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx test [--here] [--affected] [--debug|--release] [--explain] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -693,6 +694,25 @@ pub static COMMANDS: [CommandMeta; 31] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
     },
+    CommandMeta {
+        command: Command::Explain,
+        name: "explain",
+        scope_policy: "reject",
+        describe: "explain why actions missed the cache by diffing two execution logs from build/test --explain (non-mutating)",
+        usage: "Usage: dx explain [--old=<log>] [--new=<log>]",
+        scopes: "Scopes: none (explain compares saved execution logs, not scopes).",
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_fail_on: false,
+        default_release: false,
+        skew: SkewKind::Proceed,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+    },
 ];
 
 impl Command {
@@ -926,6 +946,7 @@ mod tests {
             Command::ListTests,
             Command::Rollback,
             Command::Worktree,
+            Command::Explain,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -1028,7 +1049,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree|explain",
             "pipe_list order must match declaration order"
         );
     }

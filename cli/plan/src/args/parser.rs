@@ -523,6 +523,9 @@ fn parse_inner<S: AsRef<OsStr>>(
         bases,
         with,
         full,
+        explain,
+        old_log,
+        new_log,
         bazel_startup_options: startup_tokens,
         bazel_options: option_tokens,
     } = tokenized.flags;
@@ -688,6 +691,11 @@ fn parse_inner<S: AsRef<OsStr>>(
             });
         }
     }
+    if command == Command::Explain {
+        if let Some(scope) = targets.first() {
+            return Err(extra_positional(command, scope));
+        }
+    }
     if command == Command::Upgrade {
         if let Some(scope) = targets.first() {
             return Err(unsupported(command, scope.clone()));
@@ -815,6 +823,9 @@ fn parse_inner<S: AsRef<OsStr>>(
         } else {
             dx_adopt::InitParts::parse_list(&with).map_err(bad_default)?
         },
+        explain,
+        old_log,
+        new_log,
         path_only,
         agent,
         bazel_startup_options,

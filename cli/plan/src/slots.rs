@@ -1991,6 +1991,7 @@ mod tests {
             Command::Version,
             Command::Worktree,
             Command::Completion,
+            Command::Explain,
         ] {
             assert!(!needs_slot(command));
         }

@@ -19,6 +19,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx env`, `dx codegen`](environment-codegen.md)
 - [`dx security`, `dx license`, `dx update`, `dx bump`, `dx add`](audit-update.md)
 - [`dx docs`](docs.md)
+- [`dx explain`](explain.md)
 - [`dx init`](init.md)
 - [`dx status`, `dx version`](status-version.md)
 - [`dx list-tests`](list-tests.md)
@@ -249,7 +250,7 @@ error prints the command list and a `see dx <command> --help` hint.
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The schema is `3.3`.
+`event` name and a `schema` with `major` and `minor`. The schema is `3.4`.
 Readers accept any `3.x` and reject other majors. The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
@@ -307,6 +308,12 @@ configurations appear once, with a `count`.
   `eligible_lines`, `uncovered` (`path` and `line` items), `uninstrumented`,
   `result` (`pass`, `fail`, `not-applicable`, `incomplete`, or
   `unavailable`), and `dx_version`.
+- `cache_miss`: one action that ran in the newer execution log, from
+  `dx explain`, with `mnemonic`, `target`, `primary_output`, and `changes`,
+  plus optional `changes_omitted`. Each change has a `kind` (`input`, `env`,
+  `arg`, `platform`, `not_in_old_log`, or `not_cacheable`), a `change`
+  (`modified`, `added`, `removed`, or `order_changed`) for the first four, and
+  the `path`, `name`, or `value` it is about. Env changes carry names only.
 - `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
   and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,

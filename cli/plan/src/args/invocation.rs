@@ -259,6 +259,12 @@ pub struct Invocation {
     pub bases: bool,
     /// The optional `dx init` parts `--with` or `--full` selected.
     pub init_parts: dx_adopt::InitParts,
+    /// `build`/`test --explain`: save the execution log for `dx explain`.
+    pub explain: bool,
+    /// `dx explain --old`.
+    pub old_log: Option<String>,
+    /// `dx explain --new`.
+    pub new_log: Option<String>,
     pub path_only: bool,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
@@ -616,6 +622,9 @@ mod tests {
             disk: false,
             bases: false,
             init_parts: dx_adopt::InitParts::NONE,
+            explain: false,
+            old_log: None,
+            new_log: None,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),

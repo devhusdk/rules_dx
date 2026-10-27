@@ -1,0 +1,12 @@
+[package]
+name = "dx_execlog"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+ruzstd = "0.9"
+thiserror = "2"
+
+[lib]
+name = "dx_execlog"
+path = "src/lib.rs"

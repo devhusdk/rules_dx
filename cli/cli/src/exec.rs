@@ -13,6 +13,8 @@ mod deploy;
 mod docs;
 #[cfg(test)]
 mod docs_parity_tests;
+mod explain;
+mod explain_store;
 mod failure;
 mod failure_reports;
 mod generate;
@@ -82,7 +84,7 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
 fn slot_exempt(command: Command) -> bool {
     matches!(
         command,
-        Command::Worktree | Command::Version | Command::Completion
+        Command::Worktree | Command::Version | Command::Completion | Command::Explain
     )
 }
 
@@ -231,6 +233,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
             quality::execute_quality(invocation, env)
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
+        Command::Explain => explain::execute_explain(invocation, env),
     }
 }
 
@@ -295,7 +298,7 @@ mod tests {
         (Command::Fix, &["fix"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 14] = [
+    const NO_BAZEL_BUILD: [Command; 15] = [
         Command::Security,
         Command::License,
         Command::Clean,
@@ -310,6 +313,7 @@ mod tests {
         Command::ListTests,
         Command::Rollback,
         Command::Worktree,
+        Command::Explain,
     ];
 
     fn bazel_build_argvs(words: &[&str], agent: bool, output: &str) -> Vec<Vec<String>> {
@@ -623,7 +627,12 @@ mod tests {
         drop(held);
         drop(nested);
         dx_atomic_fs::lease::acquire_exclusive_at(&busy, Duration::from_secs(10)).expect("free");
-        for command in [Command::Worktree, Command::Version, Command::Completion] {
+        for command in [
+            Command::Worktree,
+            Command::Version,
+            Command::Completion,
+            Command::Explain,
+        ] {
             assert!(hold_slot(command, &slot, Duration::ZERO).is_none());
         }
         assert!(hold_slot(Command::Test, scratch.path(), Duration::ZERO).is_none());
@@ -651,7 +660,12 @@ mod tests {
         let scratch = leased_slot(Some("s1"), true);
         let slot = scratch.path().join("pool").join("1");
         assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s1"))).is_none());
-        for command in [Command::Worktree, Command::Version, Command::Completion] {
+        for command in [
+            Command::Worktree,
+            Command::Version,
+            Command::Completion,
+            Command::Explain,
+        ] {
             assert!(lease_refusal_for(command, &slot, &who(Some("s2"))).is_none());
         }
         assert!(lease_refusal_for(Command::Build, scratch.path(), &who(Some("s2"))).is_none());

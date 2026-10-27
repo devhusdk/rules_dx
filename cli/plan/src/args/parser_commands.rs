@@ -1495,3 +1495,32 @@ fn init_with_and_full_select_parts() {
         assert!(!new.iter().any(|name| name == flag), "{new:?}");
     }
 }
+
+#[test]
+fn explain_parses_its_log_pair_and_build_test_take_explain() {
+    let got = parse(&strings(&["explain"])).expect("explain");
+    assert_eq!(got.command, Command::Explain);
+    assert!(got.targets.is_empty());
+    assert_eq!((got.old_log, got.new_log), (None, None));
+    let got = parse(&strings(&["explain", "--old", "a.binpb.zst", "--new=b"])).expect("pair");
+    assert_eq!(got.old_log.as_deref(), Some("a.binpb.zst"));
+    assert_eq!(got.new_log.as_deref(), Some("b"));
+    assert!(
+        parse(&strings(&["build", "--explain"]))
+            .expect("build")
+            .explain
+    );
+    let got = parse(&strings(&["test", "--explain", "--affected"])).expect("test");
+    assert!(got.explain && got.affected);
+    assert!(!parse(&strings(&["build"])).expect("plain").explain);
+    for words in [
+        vec!["explain", "//x"],
+        vec!["explain", "--", "--jobs=1"],
+        vec!["explain", "--old="],
+        vec!["lint", "--explain"],
+        vec!["coverage", "--explain"],
+        vec!["check", "--explain"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
+    }
+}

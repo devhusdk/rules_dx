@@ -69,9 +69,6 @@ fn with_request(mut command: clap::Command, request: Request) -> clap::Command {
     let request = Arc::new(request);
     let selection: Arc<OnceLock<Selection>> = Arc::new(OnceLock::new());
     for entry in COMMANDS.iter() {
-        if entry.command.scope_policy() == "passthrough" {
-            continue;
-        }
         let completer = ArgValueCompleter::new(ScopeCompleter {
             command: entry.command,
             prior: prior.clone(),

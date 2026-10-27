@@ -218,26 +218,6 @@ pub(crate) fn output_line(command: Command) -> String {
     )
 }
 
-/// Whether `dx <command> -- <bazel-options>` passes them through.
-pub(crate) fn advertises_passthrough(command: Command) -> bool {
-    accepts_bazel_options(command) && super::grammar::advertises_passthrough(command)
-}
-
-/// Whether `dx <command> -- <bazel-options>` passes them through.
-pub(crate) fn accepts_bazel_options(command: Command) -> bool {
-    !matches!(
-        command,
-        Command::Security
-            | Command::License
-            | Command::Clean
-            | Command::Update
-            | Command::Bump
-            | Command::Add
-            | Command::Migrate
-            | Command::Upgrade
-    )
-}
-
 /// The prose clap appends to each command's long help.
 pub(crate) fn after_long_help(command: Command) -> String {
     let mut out = String::new();
@@ -256,10 +236,10 @@ BUILD_WORKSPACE_DIRECTORY=<dir> sets the workspace start. `dx --help` lists ever
 
 pub(crate) fn render_command_help(command: Command) -> String {
     let root = super::grammar::cli_command();
-    let mut out = root.find_subcommand(command.name()).map_or_else(
-        || format!("{}\n", command.usage()),
-        |sub| sub.clone().render_long_help().to_string(),
-    );
+    let mut out = String::new();
+    if let Some(sub) = root.find_subcommand(command.name()) {
+        out = sub.clone().render_long_help().to_string();
+    }
     out.push('\n');
     out
 }
@@ -277,6 +257,19 @@ mod tests {
     use super::super::{assert_usage, parse, ArgsError, Command};
     use super::{render_command_help, usage_banner};
     use crate::test_support::strings;
+
+    #[test]
+    fn every_command_has_a_help_subcommand() {
+        use clap::ValueEnum;
+        let root = super::super::grammar::cli_command();
+        for command in Command::value_variants() {
+            assert!(
+                root.find_subcommand(command.name()).is_some(),
+                "{}",
+                command.name()
+            );
+        }
+    }
 
     #[test]
     fn top_level_help_lists_commands_and_flags() {

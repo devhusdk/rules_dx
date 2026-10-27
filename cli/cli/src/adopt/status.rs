@@ -2,7 +2,7 @@ use std::io::Write;
 
 use clap::ValueEnum;
 
-use crate::args::help::advertises_passthrough;
+use crate::args::grammar::advertises_passthrough;
 use crate::args::{Command, Invocation};
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
 use dx_output::{

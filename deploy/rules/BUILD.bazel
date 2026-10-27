@@ -13,7 +13,7 @@ load(":cloudflare_tests.bzl", "cloudflare_program_closure_tests", "cloudflare_un
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
-load(":deploy_tests.bzl", "deploy_analysis_test", "deploy_unit_tests")
+load(":deploy_tests.bzl", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
 load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")

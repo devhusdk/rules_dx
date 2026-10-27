@@ -545,7 +545,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "cOJwUXd7cYg8Tfln/tcAk/sjgMXHSwBi3vVUFqa6MBE=",
+        "bzlTransitiveDigest": "5Y0oyKUwcZpb0bp/c03bVquxLAUBRlzEaQe0aduBeXM=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"

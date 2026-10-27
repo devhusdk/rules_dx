@@ -37,6 +37,7 @@ rust_library(
     ) + [
         "//cli/binfmt:dx_binfmt",
         "//cli/lcov:dx_lcov",
+        "//cli/process:dx_process",
         "//tools/testing:dx_testing",
     ],
 )

@@ -1424,3 +1424,53 @@ fn probe_returns_stdout_only_on_success() {
     assert!(probe("cmd", ["/C", "echo hi"]).is_some_and(|text| text.starts_with("hi")));
     assert_eq!(probe("cmd", ["/C", "exit 1"]), None);
 }
+
+#[cfg(unix)]
+#[test]
+fn remove_tree_deletes_read_only_trees() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let scratch = dx_test_scratch::scratch("dx-remove-tree-");
+    let build = |name: &str| {
+        let dir = scratch.path().join(name).join("ro");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let file = dir.join("f");
+        std::fs::write(&file, "x").expect("file");
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o444)).expect("file");
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).expect("dir");
+        scratch.path().join(name)
+    };
+    let plain = build("plain");
+    let tree = build("tree");
+    let blocked = std::fs::remove_dir_all(&plain).is_err();
+    if !blocked {
+        // Running as root: permission bits are ignored, so only the result is checked.
+        assert!(remove_tree(&tree));
+        assert!(!tree.exists());
+        return;
+    }
+    assert!(remove_tree(&tree));
+    assert!(!tree.exists());
+    make_writable(&plain);
+}
+
+#[cfg(unix)]
+#[test]
+fn remove_tree_never_chmods_a_symlink_target() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let scratch = dx_test_scratch::scratch("dx-remove-tree-link-");
+    let outside = scratch.path().join("outside");
+    std::fs::create_dir_all(&outside).expect("outside");
+    std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o555)).expect("outside");
+    let tree = scratch.path().join("tree");
+    std::fs::create_dir_all(&tree).expect("tree");
+    std::os::unix::fs::symlink(&outside, tree.join("link")).expect("link");
+    make_writable(&tree);
+    assert!(remove_tree(&tree));
+    assert!(outside.is_dir());
+    let mode = std::fs::metadata(&outside)
+        .expect("outside")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o555);
+    std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o755)).expect("restore");
+}

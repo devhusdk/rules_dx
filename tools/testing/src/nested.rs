@@ -286,29 +286,6 @@ fn write(path: &Path, text: &str) -> Result<(), String> {
     std::fs::write(path, text).map_err(|error| format!("cannot write {}: {error}", path.display()))
 }
 
-#[cfg(unix)]
-fn make_writable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-    let Ok(meta) = std::fs::symlink_metadata(path) else {
-        return;
-    };
-    if !meta.is_dir() {
-        return;
-    }
-    let mode = meta.permissions().mode();
-    if mode & 0o700 != 0o700 {
-        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode | 0o700));
-    }
-    if let Ok(entries) = std::fs::read_dir(path) {
-        for entry in entries.filter_map(Result::ok) {
-            make_writable(&entry.path());
-        }
-    }
-}
-
-#[cfg(not(unix))]
-fn make_writable(_path: &Path) {}
-
 /// Empties `root`, keeping the directory itself.
 pub fn reset(root: &Path) -> Result<(), String> {
     std::fs::create_dir_all(root)
@@ -321,7 +298,7 @@ pub fn reset(root: &Path) -> Result<(), String> {
             .map(|meta| meta.is_dir())
             .unwrap_or(false);
         let removed = if is_dir {
-            make_writable(&path);
+            dx_process::make_writable(&path);
             std::fs::remove_dir_all(&path)
         } else {
             // On Windows a directory symlink or junction is removed with remove_dir, never followed.

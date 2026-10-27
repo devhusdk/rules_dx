@@ -754,6 +754,44 @@ pub fn version_line(path: &Path) -> Option<String> {
     text.lines().next().map(|line| line.trim().to_owned())
 }
 
+/// Gives the owner full access to `path` and everything under it, never following a symlink.
+pub fn make_writable(path: &Path) {
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
+        return;
+    };
+    if metadata.file_type().is_symlink() {
+        return;
+    }
+    let mut permissions = metadata.permissions();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        permissions.set_mode(permissions.mode() | 0o700);
+    }
+    #[cfg(not(unix))]
+    {
+        #[allow(clippy::permissions_set_readonly_false)]
+        permissions.set_readonly(false);
+    }
+    let _ = std::fs::set_permissions(path, permissions);
+    if metadata.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                make_writable(&entry.path());
+            }
+        }
+    }
+}
+
+/// Removes a directory tree, including read-only entries, and reports whether it is gone.
+pub fn remove_tree(path: &Path) -> bool {
+    if std::fs::remove_dir_all(path).is_err() {
+        make_writable(path);
+        let _ = std::fs::remove_dir_all(path);
+    }
+    !path.exists()
+}
+
 /// Runs one host query with the inherited environment and returns its stdout only when it succeeds.
 pub fn probe<I, S>(program: &str, args: I) -> Option<String>
 where

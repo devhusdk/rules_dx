@@ -102,12 +102,14 @@ dx_wrapper_subject = rule(
     implementation = _wrapper_subject_impl,
     doc = "Analysis subject comparing a Rust wrapper with its upstream crate.",
     attrs = {
-        "clippy_test": attr.label(),
-        "fmt_test": attr.label(),
+        "clippy_test": attr.label(doc = "Optional clippy test whose check markers are reported."),
+        "fmt_test": attr.label(doc = "Optional rustfmt test whose check markers are reported."),
         "upstream": attr.label(
+            doc = "Upstream crate target the wrapper is compared against.",
             mandatory = True,
         ),
         "wrapper": attr.label(
+            doc = "Rust wrapper target whose crate is compared with upstream.",
             mandatory = True,
         ),
     },
@@ -172,13 +174,15 @@ dx_wrapper_cc_subject = rule(
     implementation = _wrapper_cc_subject_impl,
     doc = "Analysis subject comparing a Rust test wrapper with its upstream crate.",
     attrs = {
-        "clippy_test": attr.label(),
-        "fmt_test": attr.label(),
+        "clippy_test": attr.label(doc = "Optional clippy test whose check markers are reported."),
+        "fmt_test": attr.label(doc = "Optional rustfmt test whose check markers are reported."),
         "upstream": attr.label(
+            doc = "Upstream test crate target the wrapper is compared against.",
             mandatory = True,
             providers = [[_rust_common.test_crate_info]],
         ),
         "wrapper": attr.label(
+            doc = "Rust test wrapper target whose crate is compared with upstream.",
             mandatory = True,
             providers = [[_rust_common.test_crate_info]],
         ),

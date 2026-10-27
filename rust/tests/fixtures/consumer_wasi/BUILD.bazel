@@ -268,3 +268,11 @@ consumer_wasi_acquisition_tests(
     module = ":consumer_wasi_module",
     run = ":default_run",
 )
+
+rustfmt_test(
+    name = "consumer_wasi_more_fmt_test",
+    size = "small",
+    targets = [
+        ":consumer_wasi_build_script_",
+    ],
+)

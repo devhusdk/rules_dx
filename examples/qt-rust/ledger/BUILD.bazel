@@ -1,4 +1,4 @@
-load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -25,4 +25,13 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+rustfmt_test(
+    name = "ledger_fmt_test",
+    size = "small",
+    targets = [
+        ":ledger",
+        ":ledger_test",
+    ],
 )

@@ -1,6 +1,6 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
@@ -683,4 +683,21 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+rustfmt_test(
+    name = "quality_fmt_test",
+    size = "small",
+    targets = [
+        ":clippy_policy_test",
+        ":jvm_classpath_policy_test",
+    ],
+)
+
+rustfmt_test(
+    name = "quality_linux_fmt_test",
+    size = "small",
+    targets = [
+        ":preset_parity_test",
+    ],
 )

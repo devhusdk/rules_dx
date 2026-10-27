@@ -48,4 +48,5 @@ real_source_target(
         "repos.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )

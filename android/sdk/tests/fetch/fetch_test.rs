@@ -54,10 +54,7 @@ fn consumer() -> Case {
             fixture_repo("fixture_bad", &url, &"0".repeat(64)),
         ),
     );
-    write(
-        &root.join(".bazelrc"),
-        &dx_testing::preset_rc(&rules),
-    );
+    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(&root.join("BUILD.bazel"), "");
     case
 }

@@ -2,7 +2,7 @@ load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -122,4 +122,13 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+rustfmt_test(
+    name = "kotlin_fmt_test",
+    size = "small",
+    targets = [
+        ":compile_test",
+    ],
 )

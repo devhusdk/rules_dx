@@ -90,3 +90,11 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+rustfmt_test(
+    name = "ir_fmt_test",
+    size = "small",
+    targets = [
+        ":site_shard_test",
+    ],
+)

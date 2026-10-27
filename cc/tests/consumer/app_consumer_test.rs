@@ -282,10 +282,7 @@ fn write_consumer(root: &Path) {
                 &archive(&module, "cpp_app_fmt", "//third_party:fmt.BUILD.bazel"),
             ),
     );
-    write(
-        &root.join(".bazelrc"),
-        &dx_testing::preset_rc(&rules),
-    );
+    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(
         &root.join("BUILD.bazel"),
         &format!("{ROOT_BUILD}{CPPCHECK_POLICY}"),

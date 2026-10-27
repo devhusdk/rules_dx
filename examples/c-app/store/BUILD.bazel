@@ -1,6 +1,6 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//examples/c-app:__subpackages__"])
 
@@ -99,5 +99,16 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-    visibility = ["//examples:__pkg__"],
+    visibility = [
+        "//examples:__pkg__",
+        "//tools/ci:__pkg__",
+    ],
+)
+
+rustfmt_test(
+    name = "store_fmt_test",
+    size = "small",
+    targets = [
+        ":format_test",
+    ],
 )

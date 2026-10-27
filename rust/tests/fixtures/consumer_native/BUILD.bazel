@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 
 package(
@@ -57,4 +57,14 @@ real_source_target(
         "repos.bzl",
     ],
     tags = ["corpus"],
+)
+
+rustfmt_test(
+    name = "consumer_native_fmt_test",
+    size = "small",
+    targets = [
+        ":consumer_native",
+        ":consumer_native_build_script_",
+        ":consumer_native_test",
+    ],
 )

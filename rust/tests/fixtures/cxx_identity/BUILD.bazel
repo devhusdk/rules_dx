@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//cc/rules:defs.bzl", "cc_library", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
 load(":cxx_bridge.bzl", "CXX_VERSION")
 
 package(
@@ -67,4 +67,13 @@ real_source_target(
     testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
+)
+
+rustfmt_test(
+    name = "cxx_identity_fmt_test",
+    size = "small",
+    targets = [
+        ":cxx_identity",
+        ":cxx_identity_test",
+    ],
 )

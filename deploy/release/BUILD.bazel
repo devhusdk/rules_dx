@@ -553,3 +553,11 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+rustfmt_test(
+    name = "release_fmt_test",
+    size = "small",
+    targets = [
+        ":release_artifacts_verify",
+    ],
+)

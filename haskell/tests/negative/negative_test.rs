@@ -104,10 +104,7 @@ fn consumer_of(rules: &Path) -> Case {
             rules.display()
         ),
     );
-    write(
-        &root.join(".bazelrc"),
-        &dx_testing::preset_rc(&source),
-    );
+    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&source));
     write(&root.join("BUILD.bazel"), "");
     library(&root, "clean", "Clean", "[]", "", CLEAN);
     library(&root, "malformed_source", "Malformed", "[]", "", MALFORMED);

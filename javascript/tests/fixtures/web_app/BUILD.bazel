@@ -2,7 +2,7 @@ load("//javascript/rules:web.bzl", "javascript_web_app", "javascript_web_bundle"
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//python/rules:defs.bzl", "python_binary")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//rust/tests/fixtures/wasm_bindgen:js_parity.bzl", "synthetic_bindgen")
 
 package(
@@ -298,4 +298,24 @@ real_source_target(
         "repos.bzl",
     ],
     tags = ["corpus"],
+)
+
+rustfmt_test(
+    name = "web_app_fmt_test",
+    size = "small",
+    targets = [
+        ":web_app_test",
+        ":web_bundle_test",
+        ":web_companion_test",
+        ":web_server_test",
+    ],
+)
+
+rustfmt_test(
+    name = "web_app_linux_fmt_test",
+    size = "small",
+    targets = [
+        ":web_browser_test",
+        ":web_real_bundle_test",
+    ],
 )

@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -33,4 +33,12 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+rustfmt_test(
+    name = "devcontainer_linux_fmt_test",
+    size = "small",
+    targets = [
+        ":devcontainer_parity_test",
+    ],
 )

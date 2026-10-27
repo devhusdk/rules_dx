@@ -17,8 +17,10 @@ fn main() {
     let target = env::var("TARGET").expect("TARGET is set");
     fs::write(
         out_dir.join("build_probe.rs"),
-        format!("pub const BUILD_SCRIPT_HOST: &str = {host:?};\n\
-            pub const BUILD_SCRIPT_TARGET: &str = {target:?};\n"),
+        format!(
+            "pub const BUILD_SCRIPT_HOST: &str = {host:?};\n\
+            pub const BUILD_SCRIPT_TARGET: &str = {target:?};\n"
+        ),
     )
     .expect("probe is staged");
     println!("cargo:rustc-check-cfg=cfg(has_native_call_stamp)");

@@ -385,3 +385,14 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+rustfmt_test(
+    name = "wasm_bindgen_fmt_test",
+    size = "small",
+    targets = [
+        ":wasm_hello_bundle_test",
+        ":wasm_hello_rlib_subject",
+        ":wasm_stale_bin",
+        ":wasm_stale_lib",
+    ],
+)

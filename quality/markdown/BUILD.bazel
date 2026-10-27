@@ -107,6 +107,7 @@ real_source_target(
         "BUILD.bazel",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )
 
 real_source_target(

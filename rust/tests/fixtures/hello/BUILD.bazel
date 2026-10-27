@@ -411,3 +411,24 @@ dx_default_crate_name_tests(
     expected = "default_staticlib",
     target = ":default-staticlib_upstream",
 )
+
+rustfmt_test(
+    name = "hello_more_fmt_test",
+    size = "small",
+    targets = [
+        ":default-cdylib",
+        ":default-derive",
+        ":default-lib",
+        ":default-name-test",
+        ":default-staticlib",
+        ":default_bin",
+    ],
+)
+
+rustfmt_test(
+    name = "hello_linux_fmt_test",
+    size = "small",
+    targets = [
+        ":release_verify",
+    ],
+)

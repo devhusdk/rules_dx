@@ -162,10 +162,7 @@ fn consumer() -> Case {
             rules.display()
         ),
     );
-    write(
-        &root.join(".bazelrc"),
-        &dx_testing::preset_rc(&rules),
-    );
+    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(&root.join("BUILD.bazel"), ROOT_BUILD);
     write(&root.join("tampered.lock.json"), TAMPERED_LOCK);
     let pkg = root.join("app");

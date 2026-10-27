@@ -26,7 +26,7 @@ pub const DISK_LOW_CODE: &str = "disk_low";
 
 pub mod pressure;
 
-use pressure::{HostPressure, Pressure, PressurePause, PRESSURE_WAIT};
+use pressure::{HostPressure, NoSignal, Pressure, PressurePause, PRESSURE_WAIT};
 
 /// Set once a slot is held; nested dx calls see it and take no second slot.
 pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
@@ -1160,7 +1160,8 @@ struct Resources {
 }
 
 impl Gate {
-    /// A gate over `count` slots in `dir`.
+    /// A gate over `count` slots in `dir`. It reads no host pressure until
+    /// [`Gate::with_pressure`]; [`Gate::from_env`] installs the host reader.
     pub fn new(dir: PathBuf, count: usize, label: String, json: bool) -> Self {
         Gate {
             dir,
@@ -1168,7 +1169,7 @@ impl Gate {
             pool: count,
             extras: 0,
             remote: false,
-            pressure: Arc::new(HostPressure::new(BYTES_PER_SLOT)),
+            pressure: Arc::new(NoSignal),
             clock: Clock(Arc::new(Instant::now)),
             label,
             json,
@@ -2111,6 +2112,12 @@ mod tests {
         let offset = Arc::new(Mutex::new(Duration::ZERO));
         let read = offset.clone();
         (move || start + *read.lock().expect("clock"), offset)
+    }
+
+    #[test]
+    fn a_new_gate_reads_no_host_pressure() {
+        let gate = Gate::new(PathBuf::from("/slots"), 1, "g".to_owned(), false);
+        assert_eq!(gate.pressure.high(), None);
     }
 
     fn base_gate(dir: &Path, high: Arc<dyn Pressure>) -> Gate {

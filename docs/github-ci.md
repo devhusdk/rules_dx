@@ -40,15 +40,15 @@ the check fails in Bazel before the check runs.
 `examples/consumer-ci/` calls `reusable-consumer.yml`. Nine checks run on
 every platform in `platforms`:
 
-- `lint`: `dx lint --check //...`, with a SARIF report
-- `typecheck`: `dx typecheck --check //...`, with a SARIF report
-- `format`: `dx format --check //...`
+- `lint`: `dx lint --check //...` (`--affected` on pull requests), with a SARIF report
+- `typecheck`: `dx typecheck --check //...` (`--affected` on pull requests), with a SARIF report
+- `format`: `dx format --check //...` (`--affected` on pull requests)
 - `generate`: `dx generate --check //...`
 - `security-audit`: `dx security //...`
 - `license-audit`: `dx license //...`
-- `test`: `dx test //...`, with JUnit, failures and results reports
-- `build`: `dx build //...`, with a failures report
-- `coverage`: `dx coverage //...` with failures and results reports, plus `--min-coverage <percent>` when
+- `test`: `dx test //...` (`--affected` on pull requests), with JUnit, failures and results reports
+- `build`: `dx build //...` (`--affected` on pull requests), with a failures report
+- `coverage`: `dx coverage //...` (`--affected` on pull requests when no threshold is set) with failures and results reports, plus `--min-coverage <percent>` when
   `min_coverage` is set. With `min_changed_line_coverage` it also gates the
   lines a pull request adds.
 
@@ -82,6 +82,9 @@ Inputs:
   executable lines a pull request adds are covered, a whole number from 0 to
   100. Empty skips the check. It accepts and rejects the same values as
   `min_coverage`, and it never changes `min_coverage`.
+- `affected_on_pr`: boolean, default `true`. On `pull_request` events, `lint`,
+  `typecheck`, `format`, `test` and `build` run with `--affected`. Set `false`
+  to keep `//...` on pull requests. See "Affected Scope on Pull Requests".
 - `invocation_id`: give each call in one workflow run its own ID, 1 to 40
   letters, digits, underscores or hyphens, such as `api-linux`. Empty suits
   one call per run. The ID suffixes the report and `advisory-snapshots`
@@ -90,6 +93,20 @@ Inputs:
 Grant `contents: read` and `pull-requests: write` on the calling job;
 `coverage` posts its pull-request comment with it.
 `examples/consumer-ci/caller.yml` does.
+
+## Affected Scope on Pull Requests
+
+On `pull_request` events the scoped checks run only the targets a pull request
+affects. Each scoped job fetches two commits and points the base ref at the first
+parent of the pull request merge commit, so the base is the tip of the branch
+the pull request targets. `push` and `merge_group` events keep `//...`.
+
+- `coverage` falls back to `//...` when `min_coverage` or
+  `min_changed_line_coverage` is set, because those gates need whole-workspace
+  results.
+- `generate`, `security-audit` and `license-audit` always use `//...`.
+- An edit to `MODULE.bazel` or another workspace-wide input selects every target.
+- When nothing is affected, the job passes and uploads no report files.
 
 ## Report Artifacts
 

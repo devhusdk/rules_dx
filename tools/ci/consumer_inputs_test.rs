@@ -328,3 +328,145 @@ fn no_matrix_expands_from_a_raw_workflow_input() {
         );
     }
 }
+
+const SCOPED: [&str; 5] = ["lint", "typecheck", "format", "test", "build"];
+
+fn scope_text(value: &Value) -> String {
+    value.as_str().unwrap_or_default().to_string()
+}
+
+#[test]
+fn affected_on_pr_is_a_boolean_defaulting_to_true() {
+    let doc = document(WORKFLOW);
+    let input = &doc["on"]["workflow_call"]["inputs"]["affected_on_pr"];
+    assert_eq!(
+        input["type"],
+        json!("boolean"),
+        "{WORKFLOW} affected_on_pr type"
+    );
+    assert_eq!(
+        input["default"],
+        json!(true),
+        "{WORKFLOW} affected_on_pr default"
+    );
+}
+
+#[test]
+fn the_checks_scope_is_affected_only_for_scoped_cells_on_pull_request() {
+    let scope = scope_text(&job(WORKFLOW, MATRIX_JOB)["env"]["DX_SCOPE"]);
+    for needle in [
+        "'pull_request'",
+        "inputs.affected_on_pr",
+        "matrix.check.id",
+        "'--affected'",
+        "'//...'",
+    ] {
+        assert!(
+            scope.contains(needle),
+            "{WORKFLOW} {MATRIX_JOB} DX_SCOPE misses {needle}: {scope}"
+        );
+    }
+    for id in SCOPED {
+        assert!(
+            scope.contains(&format!("\"{id}\"")),
+            "{WORKFLOW} {MATRIX_JOB} DX_SCOPE must scope {id}: {scope}"
+        );
+    }
+    for id in ["generate", "license-audit"] {
+        assert!(
+            !scope.contains(id),
+            "{WORKFLOW} {MATRIX_JOB} DX_SCOPE must keep {id} on //...: {scope}"
+        );
+    }
+    assert!(
+        !scope.contains("pull_request_target"),
+        "{WORKFLOW} DX_SCOPE: {scope}"
+    );
+}
+
+#[test]
+fn scoped_jobs_pin_the_base_and_run_dx_on_the_scope() {
+    for name in [MATRIX_JOB, "coverage"] {
+        let steps = job(WORKFLOW, name)["steps"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let checkout = steps
+            .iter()
+            .position(|s| {
+                s["uses"]
+                    .as_str()
+                    .is_some_and(|u| u.starts_with("actions/checkout"))
+            })
+            .unwrap_or_else(|| panic!("{name} has no checkout"));
+        let depth = scope_text(&steps[checkout]["with"]["fetch-depth"]);
+        assert!(depth.contains("DX_SCOPE"), "{name} fetch-depth: {depth}");
+        let pin = steps
+            .iter()
+            .position(|s| {
+                s["name"]
+                    .as_str()
+                    .is_some_and(|n| n.starts_with("Pin the pull request base"))
+            })
+            .unwrap_or_else(|| panic!("{name} has no pin step"));
+        assert!(pin > checkout, "{name} pins before checkout");
+        assert!(
+            scope_text(&steps[pin]["if"]).contains("--affected"),
+            "{name} pin guard"
+        );
+        assert!(
+            scope_text(&steps[pin]["env"]["GITHUB_BASE_REF"]).contains("github.base_ref"),
+            "{name} pin must read the base ref through env"
+        );
+        assert!(
+            !scope_text(&steps[pin]["run"]).contains("${{"),
+            "{name} pin run has an expression"
+        );
+        let dx = steps
+            .iter()
+            .position(|s| scope_text(&s["run"]).contains("@rules_dx//:dx"))
+            .unwrap_or_else(|| panic!("{name} has no dx step"));
+        assert!(pin < dx, "{name} pins after dx");
+        let run = scope_text(&steps[dx]["run"]);
+        assert!(run.contains("\"$DX_SCOPE\""), "{name} dx line: {run}");
+        assert!(
+            !run.contains("//..."),
+            "{name} dx line still names //...: {run}"
+        );
+    }
+}
+
+#[test]
+fn security_audit_keeps_the_whole_workspace() {
+    let text = serde_json::to_string(&job(WORKFLOW, "security-audit")).unwrap_or_default();
+    assert!(text.contains("//..."), "security-audit lost //...");
+    assert!(
+        !text.contains("DX_SCOPE"),
+        "security-audit mentions DX_SCOPE"
+    );
+}
+
+#[test]
+fn coverage_scope_falls_back_when_a_threshold_is_set() {
+    let coverage = job(WORKFLOW, "coverage");
+    let scope = scope_text(&coverage["env"]["DX_SCOPE"]);
+    for needle in [
+        "'pull_request'",
+        "inputs.affected_on_pr",
+        "needs.validate.outputs.min_coverage == ''",
+        "needs.validate.outputs.min_changed_line_coverage == ''",
+        "'--affected'",
+        "'//...'",
+    ] {
+        assert!(
+            scope.contains(needle),
+            "coverage DX_SCOPE misses {needle}: {scope}"
+        );
+    }
+    let steps = coverage["steps"].as_array().cloned().unwrap_or_default();
+    let depth = scope_text(&steps[0]["with"]["fetch-depth"]);
+    assert!(
+        depth.starts_with("${{ needs.validate.outputs.min_changed_line_coverage != '' && '0'"),
+        "coverage fetch-depth: {depth}"
+    );
+}

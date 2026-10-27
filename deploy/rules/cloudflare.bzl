@@ -3,11 +3,11 @@
 load("@bazel_skylib//lib:shell.bzl", "shell")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
+load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 _VERIFY = Label("//deploy/rules:cloudflare_verify")
 _HEX = "0123456789abcdef"
 _PROJECT_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789-"
-_BRANCH_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._/-"
 
 def cloudflare_pages_intent(branch, production_branch):
     """Returns 'production' or 'preview' for a branch."""
@@ -17,10 +17,9 @@ def _branch_error(attr, value):
     if type(value) != "string" or value == "" or len(value) > 100:
         return ("cloudflare_pages_deploy: invalid " + attr + " '" + str(value) +
                 "': want 1-100 characters of [A-Za-z0-9._/-]")
-    for c in value.elems():
-        if c not in _BRANCH_CHARS:
-            return ("cloudflare_pages_deploy: invalid " + attr + " '" + value +
-                    "': want 1-100 characters of [A-Za-z0-9._/-]")
+    if not only_chars(value, NAME_CHARS + "/"):
+        return ("cloudflare_pages_deploy: invalid " + attr + " '" + value +
+                "': want 1-100 characters of [A-Za-z0-9._/-]")
     if value.startswith("-") or value.startswith("/") or value.endswith("/") or ".." in value or "//" in value:
         return ("cloudflare_pages_deploy: invalid " + attr + " '" + value +
                 "': no leading '-', no '..', no empty path parts")
@@ -31,15 +30,12 @@ def cloudflare_pages_error(account_id, project, branch, production_branch):
     if type(account_id) != "string" or len(account_id) != 32:
         return ("cloudflare_pages_deploy: invalid account_id '" + str(account_id) +
                 "': want 32 lowercase hex characters")
-    for c in account_id.elems():
-        if c not in _HEX:
-            return ("cloudflare_pages_deploy: invalid account_id '" + account_id +
-                    "': want 32 lowercase hex characters")
+    if not only_chars(account_id, _HEX):
+        return ("cloudflare_pages_deploy: invalid account_id '" + account_id +
+                "': want 32 lowercase hex characters")
     bad_project = type(project) != "string" or project == "" or len(project) > 58 or project.startswith("-") or project.endswith("-")
     if not bad_project:
-        for c in project.elems():
-            if c not in _PROJECT_CHARS:
-                bad_project = True
+        bad_project = not only_chars(project, _PROJECT_CHARS)
     if bad_project:
         return ("cloudflare_pages_deploy: invalid project '" + str(project) +
                 "': want 1-58 characters of [a-z0-9-] that start and end with a letter or digit")

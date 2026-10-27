@@ -22,13 +22,13 @@ def cuda_wrapper_contract_tests(name):
             ),
             expect_equal(
                 "every target is linux x86_64",
-                cuda_target_compatible_with(None),
-                CUDA_TARGET,
+                [str(c) for c in cuda_target_compatible_with(None)],
+                [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))],
             ),
             expect_equal(
                 "extra constraints are kept once",
-                cuda_target_compatible_with(["@platforms//os:linux", "//x:y"]),
-                CUDA_TARGET + ["//x:y"],
+                [str(c) for c in cuda_target_compatible_with(["@platforms//os:linux", "//x:y"])],
+                [str(c) for c in CUDA_TARGET] + ["//x:y"],
             ),
             expect_equal("pinned archs pass", arch_errors(["compute_89:compute_89,sm_89", "sm_120"]), []),
             expect_true("empty archs fail", "archs is empty" in arch_errors([])[0]),

@@ -13,10 +13,13 @@ load("//quality:sources.bzl", "QualitySourcesInfo")
 
 cuda_component_library = _cuda_component_library
 
-CUDA_TARGET = [
+_CUDA_TARGET_NAMES = [
     "@platforms//os:linux",
     "@platforms//cpu:x86_64",
 ]
+
+# Labels, so a consumer without its own platforms dependency can use them.
+CUDA_TARGET = [Label(name) for name in _CUDA_TARGET_NAMES]
 
 _CUDA_SRCS = [".cu"]
 _CUDA_HDRS = [".cuh", ".h", ".hh", ".hpp", ".hxx"]
@@ -50,10 +53,17 @@ _cuda_library_forward = dx_library_forward_rule(
     upstream_cfg = cuda_host_transition,
 )
 
+# The upstream library only builds under cuda_host_transition; analyzed on its own (cquery
+# over //...) it would need the dynamic CUDA runtime, so it is incompatible there.
+_UPSTREAM_ONLY_UNDER_TRANSITION = select({
+    Label("//cuda/toolchain:host_compiler_enabled"): [],
+    "//conditions:default": [Label("@platforms//:incompatible")],
+})
+
 def cuda_target_compatible_with(target_compatible_with):
     """Returns the target constraints of a dx CUDA target."""
     extra = target_compatible_with if target_compatible_with != None else []
-    return CUDA_TARGET + [c for c in extra if c not in CUDA_TARGET]
+    return CUDA_TARGET + [c for c in extra if c not in CUDA_TARGET and c not in _CUDA_TARGET_NAMES]
 
 def cuda_split_srcs(srcs):
     """Splits sources into the nvcc part and the host C/C++ part."""
@@ -75,7 +85,7 @@ def cuda_library(name, srcs, archs, hdrs = None, visibility = None, tags = None,
         hdrs = hdrs or [],
         archs = archs,
         tags = dx_upstream_tags(tags),
-        target_compatible_with = compatible,
+        target_compatible_with = compatible + _UPSTREAM_ONLY_UNDER_TRANSITION,
         visibility = ["//visibility:private"],
         **kwargs
     )

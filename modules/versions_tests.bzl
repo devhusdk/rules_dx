@@ -43,6 +43,14 @@ def versions_contract_tests(name):
         ["use_repo(npm, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_HUBS]) + ")"] +
         ["pnpm_lock = \"" + lock + "\"," for lock in _NPM_LOCKS],
     )
+    cuda_stanza = "\n".join([
+        "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"",
+        "name = \"toolchains_llvm\", version = \"" + _TOOLCHAINS_LLVM_VERSION + "\"",
+        "llvm_version = \"" + _CUDA_HOST_LLVM_VERSION + "\"",
+        "nvcc_version = \"" + _CUDA_VERSION + "\"",
+        "sha256 = \"" + _CUDA_HOST_SYSROOT.sha256 + "\"",
+        _CUDA_HOST_SYSROOT.url,
+    ] + cuda_pins)
     starlark_harness_test(
         name = name,
         checks = [
@@ -72,6 +80,8 @@ def versions_contract_tests(name):
             "//:.bazelrc": "build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n" +
                            "build --tool_java_runtime_version=" + _JAVA_RUNTIME_VERSION,
             "//:.bazelversion": _BAZEL_VERSION,
+            "//:cuda/README.md": cuda_stanza,
+            "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//quality/tools/javascript:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",

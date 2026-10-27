@@ -68,6 +68,7 @@ fn module_renames_rules_dx_and_overrides_it_locally() {
         "hermetic_consumer",
         "my_dx",
         "bazel_dep(name = \"googletest\", version = \"1.18.0\")\n",
+        false,
         Path::new("/src/rules dx"),
     )
     .unwrap();
@@ -79,14 +80,14 @@ fn module_renames_rules_dx_and_overrides_it_locally() {
 
 #[test]
 fn module_keeps_the_default_name_unrenamed() {
-    let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/src")).unwrap();
+    let module = compose_module(SNIPPET, "m", "rules_dx", "", false, Path::new("/src")).unwrap();
     assert!(module.contains("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")"));
     assert!(!module.contains("repo_name"));
 }
 
 #[test]
 fn module_escapes_quotes_in_the_override_path() {
-    let module = compose_module(SNIPPET, "m", "my_dx", "", Path::new("/a\"b\\c")).unwrap();
+    let module = compose_module(SNIPPET, "m", "my_dx", "", false, Path::new("/a\"b\\c")).unwrap();
     assert!(module.contains("path = \"/a\\\"b\\\\c\","), "{module}");
 }
 
@@ -97,11 +98,53 @@ fn module_rejects_a_snippet_without_exactly_one_rules_dx() {
         "m",
         "x",
         "",
+        false,
         Path::new("/"),
     );
     assert!(missing.unwrap_err().contains("exactly once"));
     let twice = format!("{SNIPPET}{SNIPPET}");
-    assert!(compose_module(&twice, "m", "x", "", Path::new("/")).is_err());
+    assert!(compose_module(&twice, "m", "x", "", false, Path::new("/")).is_err());
+}
+
+#[test]
+fn module_puts_the_fragment_before_the_first_toolchain_registration_on_request() {
+    let module = compose_module(
+        SNIPPET,
+        "m",
+        "my_dx",
+        "register_toolchains(\"@cuda_host_llvm//:all\")\n\n",
+        true,
+        Path::new("/src"),
+    )
+    .unwrap();
+    assert_eq!(
+        module,
+        "module(name = \"m\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@cuda_host_llvm//:all\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src\",\n)\n"
+    );
+}
+
+#[test]
+fn module_appends_the_fragment_unchanged_without_the_flag() {
+    let fragment = "register_toolchains(\"@cuda_host_llvm//:all\")\n";
+    let module = compose_module(SNIPPET, "m", "my_dx", fragment, false, Path::new("/src")).unwrap();
+    assert!(
+        module.find("@llvm//toolchain:all").unwrap() < module.find("@cuda_host_llvm").unwrap(),
+        "{module}"
+    );
+}
+
+#[test]
+fn module_rejects_the_flag_when_the_snippet_registers_no_toolchain() {
+    let err = compose_module(
+        "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        "m",
+        "my_dx",
+        "bazel_dep(name = \"rules_cuda\", version = \"0.3.0\")\n",
+        true,
+        Path::new("/"),
+    )
+    .unwrap_err();
+    assert!(err.contains("no register_toolchains"), "{err}");
 }
 
 #[test]
@@ -155,6 +198,14 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
         )]
     );
     assert_eq!(manifest.dx, PathBuf::from("/run/cli/cli/dx"));
+    assert!(
+        !manifest.fragment_before_toolchains,
+        "a manifest without the key appends the fragment"
+    );
+    let mut flagged: Value = serde_json::from_str(&text).unwrap();
+    flagged["fragment_before_toolchains"] = json!(true);
+    let manifest = parse_manifest(&flagged.to_string(), Path::new("/run")).unwrap();
+    assert!(manifest.fragment_before_toolchains);
 }
 
 #[test]

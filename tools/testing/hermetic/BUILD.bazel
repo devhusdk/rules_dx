@@ -6,7 +6,10 @@ load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["qualification_test.rs"])
+exports_files([
+    "consumers/cuda/module_fragment.bazel",
+    "qualification_test.rs",
+])
 
 LINUX = ["@platforms//os:linux"]
 
@@ -385,6 +388,31 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "cuda",
+    files = {
+        "consumers/cuda/apps/format.BUILD.bazel": "examples/cuda-app/format/BUILD.bazel",
+        "consumers/cuda/apps/format_test.sh": "examples/cuda-app/format/format_test.sh",
+        "//:.clang-format": "examples/cuda-app/format/.clang-format",
+        "//examples/cuda-app/app:BUILD.bazel": "examples/cuda-app/app/BUILD.bazel",
+        "//examples/cuda-app/app:main.cc": "examples/cuda-app/app/main.cc",
+        "//examples/cuda-app/app:output_test.sh": "examples/cuda-app/app/output_test.sh",
+        "//examples/cuda-app/kernels:BUILD.bazel": "examples/cuda-app/kernels/BUILD.bazel",
+        "//examples/cuda-app/kernels:common.cuh": "examples/cuda-app/kernels/common.cuh",
+        "//examples/cuda-app/kernels:kernels.h": "examples/cuda-app/kernels/kernels.h",
+        "//examples/cuda-app/kernels:reduce.cu": "examples/cuda-app/kernels/reduce.cu",
+        "//examples/cuda-app/kernels:stencil.cu": "examples/cuda-app/kernels/stencil.cu",
+        "//examples/cuda-app/kernels:vector_add.cu": "examples/cuda-app/kernels/vector_add.cu",
+    },
+    fragment_before_toolchains = True,
+    languages = [
+        "cpp",
+        "cuda",
+    ],
+    module_fragment = "consumers/cuda/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "msix",
     files = {
         "consumers/msix/apps/app.BUILD.bazel": "examples/msix-app/app/BUILD.bazel",
@@ -565,6 +593,7 @@ rustfmt_test(
         ":adopt_android",
         ":appimage",
         ":cpp_rust",
+        ":cuda",
         ":elixir",
         ":erlang",
         ":gleam",
@@ -589,6 +618,7 @@ rust_clippy_test(
         ":adopt_android",
         ":appimage",
         ":cpp_rust",
+        ":cuda",
         ":elixir",
         ":erlang",
         ":gleam",
@@ -623,6 +653,7 @@ real_source_target(
         "consumers/cpp_rust/apps/node_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/node_registry.BUILD.bazel",
         "consumers/cpp_rust/root.BUILD.bazel",
+        "consumers/cuda/apps/format.BUILD.bazel",
         "consumers/msix/apps/app.BUILD.bazel",
         "consumers/msix/apps/greet.BUILD.bazel",
         "consumers/qt_rust/root.BUILD.bazel",

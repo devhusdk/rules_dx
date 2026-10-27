@@ -1085,8 +1085,14 @@ fn coverage_threshold(
     Ok(threshold_ok)
 }
 
+<<<<<<< HEAD
 /// Accounts every owned source of the run against the merged coverage.
 fn account_sources(
+=======
+/// Accounts the run's owned sources against its coverage, prints the counts and every gap; true when none.
+/// With `enforce` (`--min-coverage`) each gap is a JSON `error` event instead of a warning notice.
+fn coverage_sources(
+>>>>>>> eb373572b (dx coverage: fail --min-coverage on unaccounted coverage sources (#1375 slice 1b))
     sources: &Sources,
     lcov_documents: &[String],
     workspace: &Path,
@@ -1130,9 +1136,10 @@ fn coverage_sources(
     sources: &Sources,
     account: &dx_lcov::CellAccount,
     output: OutputMode,
+    enforce: bool,
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> bool {
+) -> Result<bool, i32> {
     let summary = account.summary();
     let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
     let notices = std::iter::once(("info", CODE_COVERAGE_SOURCES, &summary)).chain(
@@ -1142,6 +1149,9 @@ fn coverage_sources(
     );
     for (level, code, message) in notices {
         match output {
+            OutputMode::Json if enforce && code == CODE_COVERAGE_SOURCES_INCOMPLETE => {
+                emit_built(out, dx_output::error_event(code, message, None, None, None))?;
+            }
             OutputMode::Json => {
                 let notice = NoticeEvent {
                     level: level.to_owned(),
@@ -1166,7 +1176,7 @@ fn coverage_sources(
             _ => {}
         }
     }
-    errors.is_empty()
+    Ok(errors.is_empty())
 }
 
 /// Reads the run's test events; a stream Bazel cut short is a problem only when Bazel failed too.
@@ -1362,12 +1372,19 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         true
     };
-    if let Some(account) = &account {
-        coverage_sources(&sources, account, invocation.output, out, err);
-    }
+    let sources_ok = match &account {
+        Some(account) => {
+            let enforce = invocation.min_coverage.is_some();
+            match coverage_sources(&sources, account, invocation.output, enforce, out, err) {
+                Ok(accounted) => accounted || !enforce,
+                Err(exit) => return kept_child(err, bazel_code, exit),
+            }
+        }
+        None => true,
+    };
     let code = if bazel_code != 0 {
         bazel_code
-    } else if complete && reports_ok && threshold_ok && collector_ok {
+    } else if complete && reports_ok && threshold_ok && collector_ok && sources_ok {
         0
     } else {
         1
@@ -1640,6 +1657,7 @@ mod tests {
             ]),
             ..harness
         };
+        let harness = owning_a(harness);
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("meets minimum 100%"), "{err}");
@@ -1657,6 +1675,7 @@ mod tests {
             ]),
             ..harness
         };
+        let harness = owning_a(harness);
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("meets minimum 100%"), "{err}");
@@ -1667,6 +1686,7 @@ mod tests {
     #[test]
     fn coverage_min_coverage_passes_at_threshold() {
         let harness = coverage_harness("cov-threshold-ok", MINIMAL_LCOV.as_bytes());
+        let harness = owning_a(harness);
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
         assert_eq!(code, 0, "{err}");
         assert!(err.contains("meets minimum 100%"), "{err}");
@@ -1743,6 +1763,23 @@ mod tests {
         .to_string()
     }
 
+    /// Prepends a manifest owning `src/a.py`, so `--min-coverage` can account the run's sources.
+    fn owning_a(mut harness: Harness) -> Harness {
+        let uri = write_bep_artifact(
+            &harness,
+            "sources.txt",
+            b"v1 cell linux_x86_64\nprod source src/a.py\n",
+        );
+        let lines = [
+            sources_set("s1", &uri),
+            sources_completed("//a:lib", true, "s1"),
+        ];
+        if let Some(bep) = harness.raw_bep.as_mut() {
+            bep.splice(0..0, lines);
+        }
+        harness
+    }
+
     fn sources_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
         let harness = Harness::new(name);
         let lcov_uri = write_bep_artifact(&harness, "coverage.dat", lcov.as_bytes());
@@ -1764,9 +1801,8 @@ mod tests {
             "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
             MINIMAL_LCOV,
         );
-        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
         assert_eq!(code, 0, "{err}");
-        assert!(err.contains("meets minimum 100%"), "{err}");
         assert!(
             err.contains(
                 "dx: coverage_sources_incomplete: production source absent from coverage report: src/b.py"
@@ -1859,6 +1895,89 @@ mod tests {
             "{err}"
         );
         assert!(err.contains("unknown cell"), "{err}");
+    }
+
+    #[test]
+    fn coverage_absent_production_source_fails_min_coverage() {
+        let harness = sources_harness(
+            "cov-sources-absent-gate",
+            "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("meets minimum 100%"), "{err}");
+        assert!(
+            err.contains(
+                "dx: coverage_sources_incomplete: production source absent from coverage report: src/b.py"
+            ),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_unowned_report_path_fails_min_coverage() {
+        let harness = sources_harness(
+            "cov-sources-unowned-gate",
+            "v1 cell linux_x86_64\nprod source src/other.py\n",
+            "SF:src/a.py\nDA:1,1\nend_of_record\nSF:src/other.py\nDA:1,1\nend_of_record\n",
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "dx: coverage_sources_incomplete: coverage report path not owned by any target: src/a.py"
+            ),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_invalid_source_manifest_fails_min_coverage() {
+        let harness = sources_harness(
+            "cov-sources-invalid-gate",
+            "v1 cell unknown\n",
+            MINIMAL_LCOV,
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains("dx: coverage_sources_incomplete: invalid coverage source manifest"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_sources_error_is_a_json_error_under_min_coverage() {
+        let harness = sources_harness(
+            "cov-sources-json-gate",
+            "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, out, _) = harness.run(&["coverage", "--output=json", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{out}");
+        let error = out
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find(|event| event["code"] == "coverage_sources_incomplete")
+            .unwrap_or_else(|| panic!("no error: {out}"));
+        assert_eq!(error["event"], "error", "{error}");
+        assert_eq!(
+            error["message"],
+            "production source absent from coverage report: src/b.py"
+        );
+    }
+
+    #[test]
+    fn coverage_test_only_sources_pass_min_coverage() {
+        let harness = sources_harness(
+            "cov-sources-test-only-gate",
+            "v1 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("coverage_sources_incomplete"), "{err}");
     }
 
     #[test]
@@ -2371,6 +2490,7 @@ mod tests {
             ]),
             ..harness
         };
+        let harness = owning_a(harness);
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
         assert_eq!(code, 0, "{err}");
         assert!(!err.contains("incomplete_results"), "{err}");
@@ -2421,6 +2541,7 @@ mod tests {
             ]),
             ..harness
         };
+        let harness = owning_a(harness);
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
         assert_eq!(code, 0, "{err}");
         assert!(!err.contains("incomplete_results"), "{err}");

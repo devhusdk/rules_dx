@@ -49,7 +49,7 @@ pub use load_graph::{
 };
 pub use migrate::{
     migrate_is_major_bump, migrate_is_upgrade, migrate_manifest_name, migrate_manifest_name_full,
-    plan_migrate, plan_qualified_migrate, plan_released_migrate, MigratePlan, QUALIFIED_MIGRATIONS,
+    plan_migrate, MigratePlan,
 };
 pub use new::{
     apply_new, default_new_name, derive_new_identity, new_is_known_language,
@@ -75,9 +75,8 @@ pub use scaffold::{
 };
 pub use status::{observed_status_checks, render_status_json, render_status_text, StatusCheck};
 pub use upgrade::{
-    plan_qualified_upgrade, plan_released_upgrade, plan_upgrade, upgrade_recovery_message,
-    upgrade_refresh_commands, upgrade_restore_command_for, upgrade_retry_command, UpgradeIntent,
-    UpgradePlan,
+    plan_upgrade, upgrade_recovery_message, upgrade_refresh_commands, upgrade_restore_command_for,
+    upgrade_retry_command, UpgradeIntent, UpgradePlan,
 };
 pub use version::{
     local_path_overrides, module_dependency_status, parse_consumer_setup, parse_module_dependency,

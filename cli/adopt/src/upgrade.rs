@@ -93,24 +93,6 @@ pub fn plan_upgrade(
     Ok(build_plan(from, to, migrate.manifest, intent))
 }
 
-pub fn plan_qualified_upgrade(
-    from: &str,
-    to: &str,
-    qualified: &[(&str, &str)],
-    intent: &UpgradeIntent,
-) -> Result<UpgradePlan, AdoptError> {
-    let migrate = super::plan_qualified_migrate(from, to, qualified)?;
-    Ok(build_plan(from, to, migrate.manifest, intent))
-}
-
-pub fn plan_released_upgrade(
-    from: &str,
-    to: &str,
-    intent: &UpgradeIntent,
-) -> Result<UpgradePlan, AdoptError> {
-    plan_qualified_upgrade(from, to, super::migrate::QUALIFIED_MIGRATIONS, intent)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,24 +180,5 @@ mod tests {
             .refresh_commands
             .iter()
             .all(|command| command.ends_with("--workspace 'my repo'")));
-    }
-
-    #[test]
-    fn upgrade_qualification_needs_a_shipped_pair() {
-        let intent = UpgradeIntent::default();
-        let table = [("1.2.3", "2.0.0")];
-        let plan =
-            plan_qualified_upgrade("1.2.3", "2.0.0", &table, &intent).expect("listed pair plans");
-        assert_eq!(plan.manifest, "migrate-v1-to-v2.json");
-        assert!(plan.message.contains("dx upgrade --from 1.2.3 --to 2.0.0"));
-        let empty: &[(&str, &str)] = &[];
-        let missing = plan_qualified_upgrade("1.2.3", "2.0.0", empty, &intent).unwrap_err();
-        assert_eq!(
-            missing.to_string(),
-            "no qualified migration 1.2.3 -> 2.0.0: manifest migrate-v1-to-v2.json is not shipped"
-        );
-        assert!(plan_qualified_upgrade("2.0.0", "1.0.0", &table, &intent).is_err());
-        let released = plan_released_upgrade("1.2.3", "2.0.0", &intent).unwrap_err();
-        assert_eq!(released.to_string(), missing.to_string());
     }
 }

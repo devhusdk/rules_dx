@@ -243,12 +243,12 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=all --test_arg=--nocapture "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test $QUALITY_TARGETS
+          bazel test --noshow_progress --nocache_test_results --test_output=all --test_arg=--nocapture "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //examples/zig-app/... //zig/tests/fixtures/hello:all $QUALITY_TARGETS
       - name: Write job summary
         if: always()
         run: |
           echo "### preflight ${{ matrix.platform }} — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools on ${{ matrix.runner }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools, and the Zig example and hello fixture on ${{ matrix.runner }}." >> "$GITHUB_STEP_SUMMARY"
       - name: Prune the Bazel repository cache to this run's downloads
         if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash

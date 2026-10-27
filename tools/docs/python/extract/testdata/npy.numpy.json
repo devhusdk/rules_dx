@@ -1,0 +1,111 @@
+{
+ "docstyle": "numpy",
+ "format": 1,
+ "griffe": "2.4.1",
+ "module": {
+  "analysis": "static",
+  "docstring": {
+   "endlineno": 1,
+   "lineno": 1,
+   "parsed": [
+    {
+     "kind": "text",
+     "value": "Numpy style."
+    }
+   ],
+   "value": "Numpy style."
+  },
+  "filepath": "/root/npy/__init__.py",
+  "is_class_private": false,
+  "is_deprecated": false,
+  "is_exported": false,
+  "is_imported": false,
+  "is_private": false,
+  "is_public": true,
+  "is_special": false,
+  "is_wildcard_exposed": false,
+  "kind": "module",
+  "members": {
+   "scale": {
+    "analysis": "static",
+    "decorators": [],
+    "docstring": {
+     "endlineno": 18,
+     "lineno": 5,
+     "parsed": [
+      {
+       "kind": "text",
+       "value": "Scale values."
+      },
+      {
+       "kind": "parameters",
+       "value": [
+        {
+         "annotation": "list of int",
+         "description": "The values.",
+         "name": "values"
+        },
+        {
+         "annotation": "int",
+         "description": "The factor.",
+         "name": "factor",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "kind": "returns",
+       "value": [
+        {
+         "annotation": "list of int",
+         "description": "The scaled values.",
+         "name": ""
+        }
+       ]
+      }
+     ],
+     "value": "Scale values.\n\nParameters\n----------\nvalues : list of int\n    The values.\nfactor : int\n    The factor.\n\nReturns\n-------\nlist of int\n    The scaled values."
+    },
+    "endlineno": 19,
+    "filepath": "/root/npy/__init__.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": false,
+    "is_imported": false,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": true,
+    "kind": "function",
+    "lineno": 4,
+    "name": "scale",
+    "parameters": [
+     {
+      "annotation": null,
+      "default": null,
+      "kind": "positional or keyword",
+      "name": "values"
+     },
+     {
+      "annotation": null,
+      "default": "2",
+      "kind": "positional or keyword",
+      "name": "factor"
+     }
+    ],
+    "path": "npy.scale",
+    "relative_filepath": "np/npy/__init__.py",
+    "relative_package_filepath": "npy/__init__.py",
+    "returns": null,
+    "runtime": true
+   }
+  },
+  "name": "npy",
+  "path": "npy",
+  "relative_filepath": "np/npy/__init__.py",
+  "relative_package_filepath": "npy/__init__.py",
+  "runtime": true
+ },
+ "package": "npy",
+ "python": "3.12.15"
+}

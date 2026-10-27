@@ -1,5 +1,5 @@
 {
-  "checksum": "dafd14d7de8c8c697801ba161b91bfcc1be7ed4bbcbbea57e5156f824bca117f",
+  "checksum": "0951dc27ee75fa3053d0909eda217d2edbd7d1426a8fdb31c924f607c12ead06",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -16962,6 +16962,29 @@
       ],
       "version": "0.13.4"
     },
+    "python_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_python_extract",
+      "name": "python_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_python_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "qt-build-utils 0.10.0": {
       "common_attrs": {
         "crate_features": [
@@ -27501,6 +27524,7 @@
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "hello 0.0.0": "rust/tests/fixtures/hello",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
+    "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",
     "quality_adapter 0.0.0": "quality/quality_adapter",
     "quality_markdown 0.0.0": "quality/quality_markdown",

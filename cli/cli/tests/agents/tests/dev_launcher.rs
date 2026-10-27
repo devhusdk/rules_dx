@@ -44,6 +44,37 @@ fn dev_launchers_build_dx_from_the_checkout() {
         .lines()
         .filter(|line| line.contains(" build "))
         .all(|line| !line.contains("--noshow_progress")));
+    assert_eq!(sh.matches("CARGO_BAZEL_REPIN=1 bazel $rc build").count(), 1);
+    assert_eq!(
+        sh.matches("CARGO_BAZEL_REPIN").count(),
+        2,
+        "set only in the retry"
+    );
+    assert_eq!(cmd.matches("set \"CARGO_BAZEL_REPIN=1\"").count(), 1);
+    // cmd expands %errorlevel% in a block before the block runs.
+    let mut depth = 0i32;
+    let mut fail_reads = 0;
+    for line in cmd.lines() {
+        let line = line.trim();
+        if line.starts_with(')') {
+            depth -= 1;
+        }
+        if line.contains("DX_FAIL=%errorlevel%") {
+            fail_reads += 1;
+            assert_eq!(depth, 0, "DX_FAIL read inside a block: {line}");
+        }
+        if line.ends_with('(') {
+            depth += 1;
+        }
+    }
+    assert_eq!(depth, 0, "unbalanced blocks in tools/dx.cmd");
+    assert_eq!(fail_reads, 2, "the build and the repin retry");
+    let retry = cmd
+        .find("set \"CARGO_BAZEL_REPIN=1\"\r\ncall bazel %DX_RC% build ")
+        .expect("cmd repin build");
+    assert!(cmd[retry..].contains("\r\nendlocal & set \"DX_FAIL=%errorlevel%\"\r\n:dxbuilt\r\n"));
+    assert!(sh.contains("run tools/dx update --apply cargo to repin"));
+    assert!(cmd.contains("update --apply cargo to repin"));
     assert!(sh.contains("$root/.dx/launcher"));
     assert!(sh.contains("\"$state/inputs\""));
     assert!(!sh.contains("cmd.exe"));
@@ -116,7 +147,7 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(cmd.contains("\r\nif errorlevel 2 goto run\r\nif errorlevel 1 goto dxbuild\r\nset \"BIN=%DX_STATE%\\dx.exe\"\r\ngoto run\r\n:dxbuild\r\n"));
     assert!(cmd.contains("\r\nif defined DX_COPY set \"BIN=%DX_STATE%\\dx.exe\"\r\n:run\r\n"));
     assert_eq!(cmd.matches("\r\n:run\r\n").count(), 1);
-    assert!(cmd.ends_with("\r\n:run\r\n\"%BIN%\" %*\r\nexit /b %errorlevel%\r\n"));
+    assert!(cmd.contains("\r\n:run\r\n\"%BIN%\" %*\r\nexit /b %errorlevel%\r\n"));
     assert!(!cmd.contains(":pinned"));
     assert!(!cmd.contains("goto bazel"));
     assert!(!sh.contains("fail "));
@@ -333,6 +364,26 @@ mod sh {
             std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
         }
 
+        fn repin_gated(&self) {
+            let stub = self.base.join("stub/bazel");
+            std::fs::write(
+                &stub,
+                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ \"${CARGO_BAZEL_REPIN-}\" != 1 ]; then rm -f bazel-bin/cli/cli/dx; exit 1; fi\n      echo repin >> \"$STUB_LOG\"\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" bazel-bin/cli/cli/dx.$$\n      chmod +x bazel-bin/cli/cli/dx.$$\n      mv bazel-bin/cli/cli/dx.$$ bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            )
+            .expect("gated bazel stub");
+            std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            std::fs::write(
+                self.base.join("payload"),
+                "#!/bin/sh\necho ran \"$@\" ${CARGO_BAZEL_REPIN-unset}\n",
+            )
+            .expect("payload");
+        }
+
+        fn repins(&self) -> usize {
+            std::fs::read_to_string(self.base.join("calls"))
+                .map_or(0, |text| text.lines().filter(|l| *l == "repin").count())
+        }
+
         fn run(&self) -> (Option<i32>, String, String) {
             let out = self.spawn().wait_with_output().expect("launcher runs");
             (
@@ -441,6 +492,63 @@ mod sh {
         repo.run_ok();
         assert_eq!(repo.builds(), 1, "tagging does not rebuild");
         assert!(tag.exists());
+    }
+
+    #[test]
+    fn update_apply_cargo_repins_when_dx_does_not_build() {
+        for args in [
+            &["update", "--apply", "cargo"][..],
+            &["update", "--apply"][..],
+        ] {
+            let repo = source_repo("dx-launcher-repin-");
+            repo.repin_gated();
+            let (code, out, err) = repo.run_in(&repo.root(), args);
+            assert_eq!(code, Some(0), "{err}");
+            assert!(out.ends_with(" unset\n"), "{out}");
+            assert_eq!((repo.builds(), repo.repins()), (2, 1));
+            assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+        }
+    }
+
+    #[test]
+    fn checks_and_other_launches_never_repin() {
+        for args in [
+            &["update", "cargo"][..],
+            &["update", "--check", "--apply", "cargo"][..],
+            &["update", "--apply", "--frozen", "cargo"][..],
+            &["update", "--apply", "--offline", "cargo"][..],
+            &["update", "--apply", "npm"][..],
+            &["status"][..],
+        ] {
+            let repo = source_repo("dx-launcher-norepin-");
+            repo.repin_gated();
+            let (code, _, err) = repo.run_in(&repo.root(), args);
+            assert_eq!(code, Some(1), "{args:?} {err}");
+            assert_eq!((repo.builds(), repo.repins()), (1, 0), "{args:?}");
+            assert!(
+                err.contains("run tools/dx update --apply cargo to repin"),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_healthy_build_does_not_repin() {
+        let repo = source_repo("dx-launcher-healthy-");
+        let (code, _, err) = repo.run_in(&repo.root(), &["update", "--apply", "cargo"]);
+        assert_eq!(code, Some(0), "{err}");
+        assert_eq!((repo.builds(), repo.repins()), (1, 0));
+    }
+
+    #[test]
+    fn a_failed_repin_without_a_previous_dx_reports_the_failed_build() {
+        let repo = source_repo("dx-launcher-repin-fails-");
+        repo.break_build();
+        let (code, _, err) = repo.run_in(&repo.root(), &["update", "--apply", "cargo"]);
+        assert_eq!(code, Some(1), "{err}");
+        assert!(err.contains("dx: bazel build //:dx failed"), "{err}");
+        assert_eq!(repo.builds(), 2);
+        assert!(!repo.root().join(".dx/launcher").exists() || repo.state_files().is_empty());
     }
 
     #[test]

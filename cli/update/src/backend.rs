@@ -69,6 +69,7 @@ pub fn plan(
     let planned: Result<BackendPlan, BackendError> = match (set, request) {
         (SetId::Cargo, SetRequest::Full) => Ok(BackendPlan::Run {
             argv: bazel(head, "build", &["//rust/tests/fixtures/hello:hello"]),
+            // tools/dx and tools/dx.cmd mirror this env when //:dx fails to build.
             env: vec![("CARGO_BAZEL_REPIN".to_owned(), "1".to_owned())],
         }),
         (SetId::Cargo, SetRequest::Packages(_)) => Err(BackendError::Unsupported {

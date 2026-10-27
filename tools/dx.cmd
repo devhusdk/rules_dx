@@ -72,8 +72,21 @@ echo dx: the Bazel server crashed (exit %DX_EC%); trying //:dx again 1>&2
 powershell -NoProfile -NonInteractive -Command "Start-Sleep 2"
 goto dxbuildrun
 :dxbdone
-if not "%DX_EC%"=="0" (
+set "DX_FAIL=%DX_EC%"
+set "DX_REPIN="
+if not "%DX_FAIL%"=="0" call :dxwantsrepin %*
+if "%DX_FAIL%"=="0" goto dxbuilt
+if not defined DX_REPIN goto dxbuilt
+echo dx: //:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again 1>&2
+setlocal
+rem Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
+set "CARGO_BAZEL_REPIN=1"
+call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
+endlocal & set "DX_FAIL=%errorlevel%"
+:dxbuilt
+if not "%DX_FAIL%"=="0" (
   popd
+  if not defined DX_REPIN echo dx: if a Cargo.toml dependency changed, run tools\dx update --apply cargo to repin 1>&2
   if exist "%DX_STATE%\dx.exe" (
     echo dx: //:dx does not build; running the previous dx 1>&2
     del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
@@ -115,3 +128,25 @@ if defined DX_COPY set "BIN=%DX_STATE%\dx.exe"
 :run
 "%BIN%" %*
 exit /b %errorlevel%
+
+:dxwantsrepin
+if /i not "%~1"=="update" exit /b 0
+set "DX_APPLY="
+set "DX_SEL=0"
+:dxwantsloop
+shift
+if "%~1"=="" goto dxwantsend
+if /i "%~1"=="--apply" (set "DX_APPLY=1" & goto dxwantsloop)
+if /i "%~1"=="--check" exit /b 0
+if /i "%~1"=="--frozen" exit /b 0
+if /i "%~1"=="--offline" exit /b 0
+set "DX_WORD=%~1"
+if "%DX_WORD:~0,1%"=="-" goto dxwantsloop
+if /i not "%~1"=="cargo" exit /b 0
+set /a DX_SEL+=1
+goto dxwantsloop
+:dxwantsend
+if not defined DX_APPLY exit /b 0
+if %DX_SEL% GTR 1 exit /b 0
+set "DX_REPIN=1"
+exit /b 0

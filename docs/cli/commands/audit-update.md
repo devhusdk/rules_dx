@@ -329,6 +329,8 @@ read-only lockfile check and reports current, and a stale lock reports failed.
 unsupported and fails the run; refresh those with `dx update --apply <set>`.
 No selector checks all sets, so a bare `dx update` reports the unsupported sets
 and exits `1`. Checks never take a [build slot](README.md#build-slots).
+In a rules_dx checkout, `tools/dx update --apply cargo` repins the lock itself
+when `//:dx` no longer builds against it.
 `--apply` takes one only for `cargo`, `maven`, `npm`, `npm-tools` and `nuget`,
 whose updaters run Bazel. `update` never touches the Bazel preset. The preset
 is three generated files under `tools/bazelrc/`, imported in this order at the

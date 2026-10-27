@@ -9,11 +9,11 @@ package(
 typescript_js_test(
     name = "args_test",
     srcs = ["args_test.ts"],
-    aspect_hints = ["//:biome_config"],
     args = [
         "--marker",
         "$(rootpath :marker.txt)",
     ],
+    aspect_hints = ["//:biome_config"],
     data = [":marker.txt"],
     declaration = True,
     entry_point = "args_test.js",

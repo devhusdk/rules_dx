@@ -2280,3 +2280,227 @@ fn format_only_tool_outside_format_makes_no_scratch() {
         .expect_err("config is required");
     assert!(err.to_string().contains("requires a config"), "{err}");
 }
+
+fn statix_config_arg(argv: &[OsString]) -> PathBuf {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("statix always gets --config");
+    PathBuf::from(&argv[at + 1])
+}
+
+const STATIX_DIRTY: &str = "let\n  x = let in 1;\nin\nx\n";
+
+fn statix_tool(argv: &[OsString], env: &[(OsString, OsString)]) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    assert_eq!(argv[argv.len() - 2], OsString::from("--"));
+    let body = std::fs::read_to_string(&file).expect("read staged nix file");
+    let dirty = body.contains("let in");
+    if argv[0] == "fix" {
+        if dirty {
+            std::fs::write(&file, body.replace("let in ", "")).expect("rewrite nix file");
+        }
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    assert_eq!(argv[..3], ["check", "-o", "json"].map(OsString::from));
+    let stdout = if dirty {
+        serde_json::json!({
+            "file": file,
+            "report": [{
+                "note": "Useless let-in expression",
+                "code": 2,
+                "severity": "Warn",
+                "diagnostics": [{
+                    "at": {"from": {"line": 2, "column": 7}, "to": {"line": 2, "column": 15}},
+                    "message": "This let-in expression has no entries",
+                    "suggestion": null,
+                }],
+            }],
+        })
+        .to_string()
+    } else {
+        String::new()
+    };
+    Ok(ChildOutput {
+        code: Some(i32::from(dirty)),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn statix_defaults(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let argv: Vec<OsString> = argv.iter().skip(1).cloned().collect();
+    let config = statix_config_arg(&argv);
+    assert!(
+        config.ends_with("dx-statix-default/statix.toml"),
+        "unbound statix uses the scratch default, got {config:?}"
+    );
+    let staged = std::fs::read(&config).expect("default statix config is staged");
+    assert!(staged.is_empty());
+    statix_tool(&argv, env)
+}
+
+fn statix_bound(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let argv: Vec<OsString> = argv.iter().skip(1).cloned().collect();
+    let config = statix_config_arg(&argv);
+    assert!(config.ends_with("cfg/statix.toml"), "{config:?}");
+    let staged = std::fs::read(&config).expect("bound statix config is staged");
+    assert_eq!(staged, b"disabled = [\"empty_pattern\"]\n");
+    statix_tool(&argv, env)
+}
+
+fn statix_crash(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: b"config error: unable to parse config file\n".to_vec(),
+    })
+}
+
+#[test]
+fn statix_unbound_config_uses_the_scratch_default_and_fixes() {
+    let backend = backend_for("statix", plain_tool(), statix_defaults);
+    let findings = backend
+        .diagnose("statix", "lint", &single("pkgs/a.nix", STATIX_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "statix");
+    assert_eq!(findings[0].rule_id, "W02");
+    assert_eq!(findings[0].path, "pkgs/a.nix");
+    assert!(backend
+        .diagnose("statix", "lint", &single("pkgs/a.nix", "1\n"))
+        .expect("diagnosed")
+        .is_empty());
+    assert_eq!(
+        backend
+            .apply_fix("statix", "pkgs/a.nix", STATIX_DIRTY, "lint")
+            .expect("fixed"),
+        "let\n  x = 1;\nin\nx\n"
+    );
+}
+
+#[test]
+fn statix_bound_config_reaches_the_tool() {
+    let tool = RealTool {
+        config_rel: Some("cfg/statix.toml".to_owned()),
+        tool_files: vec![(
+            "cfg/statix.toml".to_owned(),
+            b"disabled = [\"empty_pattern\"]\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let backend = backend_for("statix", tool, statix_bound);
+    let findings = backend
+        .diagnose("statix", "lint", &single("a.nix", STATIX_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "W02");
+}
+
+#[test]
+fn statix_errors_that_exit_zero_fail_the_action() {
+    let backend = backend_for("statix", plain_tool(), statix_crash);
+    backend
+        .diagnose("statix", "lint", &single("a.nix", "1\n"))
+        .expect_err("config error is never clean");
+}
+
+const DEADNIX_DIRTY: &str = "let\n  a = 1;\nin\n2\n";
+
+fn deadnix_tool(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--")
+        .expect("deadnix ends its flags");
+    let files: Vec<String> = argv[at + 1..]
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert!(!files.is_empty());
+    let edit = argv.iter().any(|arg| arg == "--edit");
+    let mut lines = Vec::new();
+    for file in &files {
+        let body = std::fs::read_to_string(file).expect("read staged nix file");
+        if !body.contains("a = 1;") {
+            continue;
+        }
+        if edit {
+            std::fs::write(file, body.replace("  a = 1;\n", "")).expect("rewrite nix file");
+        } else {
+            lines.push(
+                serde_json::json!({
+                    "file": file,
+                    "results": [{"column": 3, "endColumn": 4, "line": 2, "message": "Unused let binding: a"}],
+                })
+                .to_string(),
+            );
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(!lines.is_empty())),
+        stdout: lines.join("\n").into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn deadnix_garbage(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"a.nix: unused binding\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn deadnix_reports_and_removes_dead_code() {
+    let backend = backend_for("deadnix", plain_tool(), deadnix_tool);
+    let mut files = single("a.nix", DEADNIX_DIRTY);
+    files.insert("b.nix".to_owned(), "2\n".to_owned());
+    let findings = backend
+        .diagnose("deadnix", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "deadnix");
+    assert_eq!(findings[0].rule_id, "unused_let_binding");
+    assert_eq!(findings[0].path, "a.nix");
+    assert_eq!(
+        backend
+            .apply_fix("deadnix", "a.nix", DEADNIX_DIRTY, "lint")
+            .expect("fixed"),
+        "let\nin\n2\n"
+    );
+}
+
+#[test]
+fn deadnix_garbage_fails_the_action() {
+    let backend = backend_for("deadnix", plain_tool(), deadnix_garbage);
+    backend
+        .diagnose("deadnix", "lint", &single("a.nix", DEADNIX_DIRTY))
+        .expect_err("garbage is never clean");
+}

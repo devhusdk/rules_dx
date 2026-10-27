@@ -231,6 +231,7 @@ to.
 | `cppcheck` | lint | cc |
 | `csharpier` | format | csharp |
 | `cue` | format | cue |
+| `deadnix` | lint | nix |
 | `djlint` | format, lint | html_template |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
@@ -272,6 +273,7 @@ to.
 | `spotbugs` | lint | java |
 | `standardrb` | format | ruby |
 | `staticcheck` | lint | go |
+| `statix` | lint | nix |
 | `stylelint` | lint | css |
 | `stylua` | format | lua |
 | `taplo` | format, lint | toml |
@@ -1872,6 +1874,69 @@ yaml_library(
     ],
     srcs = ["app.yaml"],
 )
+```
+
+### Nix
+
+`statix` and `deadnix` lint Nix files. They are built from source with the
+Rust toolchain and are qualified on Linux x86_64. Select them in a `nix`
+family. There is no formatter yet.
+
+```python
+quality_family(
+    name = "nix_family",
+    family_id = "nix",
+    disabled = ["format"],
+    lint = [
+        "deadnix",
+        "statix",
+    ],
+)
+```
+
+Own Nix files with `nix_library` from `@rules_dx//nix/rules:defs.bzl`. List
+the `.nix` files of the package in `srcs`.
+
+```python
+load("@rules_dx//nix/rules:defs.bzl", "nix_library")
+
+nix_library(
+    name = "pkgs",
+    srcs = ["default.nix"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //nix/...
+bazel run @rules_dx//:dx -- lint --apply //nix/...
+```
+
+A check never writes. `--apply` runs `statix fix` and `deadnix --edit` on the
+files the selected targets own, then checks again. `statix` findings keep the
+lint code, such as `W02`, with line and column. `deadnix` findings name the
+unused binding, such as `unused_let_binding`. A file that does not parse is an
+error from both tools and never counts as clean.
+
+`statix` never reads a `statix.toml` from the workspace. To disable lints, bind
+a `statix_config` to the target with `aspect_hints`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "statix_config")
+
+statix_config(
+    name = "statix",
+    src = "statix.toml",
+)
+
+nix_library(
+    name = "pkgs",
+    aspect_hints = [":statix"],
+    srcs = ["default.nix"],
+)
+```
+
+```toml
+disabled = ["empty_let_in"]
 ```
 
 ### HTML templates

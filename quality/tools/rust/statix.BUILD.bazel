@@ -1,0 +1,92 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_proc_macro")
+
+# statix @ 52530001bdbc8e94aae0d406a929c7ad7f09d9d1, built from source; upstream ships no binaries.
+# --cap-lints=allow keeps upstream warnings from failing under --deny=warnings.
+
+rust_proc_macro(
+    name = "macros",
+    srcs = glob(["macros/src/**/*.rs"]),
+    crate_root = "macros/src/lib.rs",
+    edition = "2024",
+    rustc_flags = ["--cap-lints=allow"],
+    deps = [
+        "@dx_quality_crates//:hex",
+        "@dx_quality_crates//:proc-macro2",
+        "@dx_quality_crates//:quote",
+        "@dx_quality_crates//:sha2",
+        "@dx_quality_crates//:syn",
+    ],
+)
+
+rust_library(
+    name = "vfs",
+    srcs = glob(["vfs/src/**/*.rs"]),
+    crate_root = "vfs/src/lib.rs",
+    edition = "2024",
+    rustc_flags = ["--cap-lints=allow"],
+    deps = [
+        "@dx_quality_crates//:indexmap",
+        "@dx_quality_crates//:rayon",
+    ],
+)
+
+rust_library(
+    name = "lib",
+    srcs = glob(["lib/src/**/*.rs"]),
+    crate_features = ["json-out"],
+    crate_root = "lib/src/lib.rs",
+    edition = "2024",
+    proc_macro_deps = [":macros"],
+    rustc_flags = ["--cap-lints=allow"],
+    deps = [
+        "@dx_quality_crates//:lazy_static",
+        "@dx_quality_crates//:rnix",
+        "@dx_quality_crates//:rowan",
+        "@dx_quality_crates//:serde",
+        "@dx_quality_crates//:serde_json",
+    ],
+)
+
+_BIN_DEPS = [
+    ":lib",
+    ":vfs",
+    "@dx_quality_crates//:anyhow",
+    "@dx_quality_crates//:ariadne",
+    "@dx_quality_crates//:clap",
+    "@dx_quality_crates//:ignore",
+    "@dx_quality_crates//:rayon",
+    "@dx_quality_crates//:rnix",
+    "@dx_quality_crates//:rowan",
+    "@dx_quality_crates//:serde",
+    "@dx_quality_crates//:serde_json",
+    "@dx_quality_crates//:similar",
+    "@dx_quality_crates//:tempfile",
+    "@dx_quality_crates//:thiserror",
+    "@dx_quality_crates//:toml",
+]
+
+rust_library(
+    name = "statix_lib",
+    srcs = glob(
+        ["bin/src/**/*.rs"],
+        exclude = ["bin/src/main.rs"],
+    ),
+    crate_features = ["json"],
+    crate_name = "statix",
+    crate_root = "bin/src/lib.rs",
+    edition = "2024",
+    proc_macro_deps = [":macros"],
+    rustc_flags = ["--cap-lints=allow"],
+    deps = _BIN_DEPS,
+)
+
+rust_binary(
+    name = "statix",
+    srcs = ["bin/src/main.rs"],
+    crate_features = ["json"],
+    edition = "2024",
+    proc_macro_deps = [":macros"],
+    rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//visibility:public"],
+    deps = _BIN_DEPS + [":statix_lib"],
+)

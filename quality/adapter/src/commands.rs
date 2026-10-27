@@ -142,6 +142,11 @@ const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
+const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
+const STATIX_FIX_PREFIX: &[&str] = &["fix"];
+const END_OF_FLAGS: &[&str] = &["--"];
+const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
+const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
@@ -1241,6 +1246,40 @@ pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
     )
 }
 
+/// Always `--config <config>`: without it statix searches upward from the cwd for `statix.toml`.
+/// statix takes one target per call.
+pub fn statix_check(binary: &Path, file: &Path, config: &Path) -> Invocation {
+    required_flag(
+        binary,
+        STATIX_CHECK_PREFIX,
+        "--config",
+        config,
+        END_OF_FLAGS,
+        &[file],
+        "",
+    )
+}
+
+pub fn statix_fix(binary: &Path, file: &Path, config: &Path) -> Invocation {
+    required_flag(
+        binary,
+        STATIX_FIX_PREFIX,
+        "--config",
+        config,
+        END_OF_FLAGS,
+        &[file],
+        "",
+    )
+}
+
+pub fn deadnix_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DEADNIX_CHECK_ARGS, files, "")
+}
+
+pub fn deadnix_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DEADNIX_FIX_ARGS, files, "")
+}
+
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
 }
@@ -1274,7 +1313,9 @@ pub enum ArgTransport {
 /// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "keep_sorted" | "ruff" | "flake8" | "pydoclint" | "buildifier" => ArgTransport::Batched,
+        "keep_sorted" | "ruff" | "flake8" | "pydoclint" | "buildifier" | "deadnix" => {
+            ArgTransport::Batched
+        }
         _ => ArgTransport::Single,
     }
 }

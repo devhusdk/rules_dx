@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_nix_deadnix_fail
+capability LINT
+stages 1
+stage deadnix classes=nix sources=matrix/deadnix_dirty.nix
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING deadnix unused_let_binding matrix/deadnix_dirty.nix 15 16 fixable=true "Unused let binding: b"
+terminal 0
+replacements 1
+replacement matrix/deadnix_dirty.nix 13 22 ""

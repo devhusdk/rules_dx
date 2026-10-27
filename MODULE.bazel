@@ -814,12 +814,14 @@ crate.annotation(
         "CFLAGS_aarch64_apple_darwin": "-fno-profile-instr-generate -fno-coverage-mapping",
     },
     crate = "blake3",
+    repositories = ["dx_crates"],
 )
 crate.annotation_select(
     build_script_env = {
         "CARGO_FEATURE_PREFER_INTRINSICS": "1",
     },
     crate = "blake3",
+    repositories = ["dx_crates"],
     triples = ["x86_64-pc-windows-msvc"],
 )
 crate.annotation(
@@ -836,6 +838,7 @@ crate.annotation(
     crate = "cxx-qt",
     extra_aliased_targets = {"cxx_qt_runtime_files": "cxx_qt_runtime_files"},
     gen_build_script = "off",
+    repositories = ["dx_crates"],
 )
 crate.from_cargo(
     name = "dx_crates",
@@ -925,6 +928,26 @@ crate.from_cargo(
     ],
 )
 use_repo(crate, crates = "dx_crates")
+
+# Cargo-built quality tools, kept out of the root hub so its lock does not churn.
+crate.annotation(
+    crate = "deadnix",
+    gen_binaries = ["deadnix"],
+    repositories = ["dx_quality_crates"],
+)
+crate.from_cargo(
+    name = "dx_quality_crates",
+    cargo_lockfile = "//quality/tools/rust:Cargo.lock",
+    lockfile = "//quality/tools/rust:cargo-bazel-lock.json",
+    manifests = ["//quality/tools/rust:Cargo.toml"],
+    supported_platform_triples = [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-pc-windows-msvc",
+        "x86_64-unknown-linux-gnu",
+    ],
+)
+use_repo(crate, "dx_quality_crates")
 
 _consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl", "consumer_hub_repo")
 
@@ -1024,6 +1047,14 @@ use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm6
 
 nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
+
+_http_archive(
+    name = "dx_statix_src",
+    build_file = "//quality/tools/rust:statix.BUILD.bazel",
+    sha256 = "97c97e9b2fc855cb36178234fc787990a65ff92b3ebaadc6356b3711f5b0a742",
+    strip_prefix = "statix-52530001bdbc8e94aae0d406a929c7ad7f09d9d1",
+    urls = ["https://github.com/molybdenumsoftware/statix/archive/52530001bdbc8e94aae0d406a929c7ad7f09d9d1.tar.gz"],
+)
 
 _http_archive(
     name = "shared_tasks_adler2",

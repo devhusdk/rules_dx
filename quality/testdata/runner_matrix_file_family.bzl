@@ -899,6 +899,92 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_dockerfile_lint_inline_ignore.expected.txt",
     },
     {
+        "name": "matrix_nix_statix_pass",
+        "generated": {
+            "matrix/statix_clean.nix": "let\n  name = \"dx\";\nin\n{\n  inherit name;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["statix;nix;matrix/statix_clean.nix"],
+        "tool_names": ["statix"],
+        "tool_binaries": ["//quality/tools/rust:statix"],
+        "expected_file": ":matrix/matrix_nix_statix_pass.expected.txt",
+    },
+    {
+        # An ambient statix.toml never reaches statix: the scratch default is passed explicitly.
+        "name": "matrix_nix_statix_fail",
+        "generated": {
+            "matrix/statix_dirty.nix": "let\n  a = let in 1;\nin\na\n",
+        },
+        "capability": "lint",
+        "stages": ["statix;nix;matrix/statix_dirty.nix"],
+        "tool_names": ["statix"],
+        "tool_binaries": ["//quality/tools/rust:statix"],
+        "ambient_files": {"statix.toml": "disabled = [\"empty_let_in\"]\n"},
+        "expected_file": ":matrix/matrix_nix_statix_fail.expected.txt",
+    },
+    {
+        # A bound statix_config applies: the disabled lint is not reported.
+        "name": "matrix_nix_statix_config",
+        "generated": {
+            "matrix/statix_dirty.nix": "let\n  a = let in 1;\nin\na\n",
+        },
+        "capability": "lint",
+        "stages": ["statix;nix;matrix/statix_dirty.nix"],
+        "tool_names": ["statix"],
+        "tool_binaries": ["//quality/tools/rust:statix"],
+        "toolfile_tools": ["statix"],
+        "toolfile_srcs": [":statix_cfg/statix.toml"],
+        "config_tools": ["statix"],
+        "config_files": [":statix_cfg/statix.toml"],
+        "expected_file": ":matrix/matrix_nix_statix_config.expected.txt",
+    },
+    {
+        # A parse failure is an error finding, never a clean run.
+        "name": "matrix_nix_statix_syntax_error",
+        "generated": {
+            "matrix/statix_broken.nix": "{ a = 1;\n",
+        },
+        "capability": "lint",
+        "stages": ["statix;nix;matrix/statix_broken.nix"],
+        "tool_names": ["statix"],
+        "tool_binaries": ["//quality/tools/rust:statix"],
+        "expected_file": ":matrix/matrix_nix_statix_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_nix_deadnix_pass",
+        "generated": {
+            "matrix/deadnix_clean.nix": "let\n  name = \"dx\";\nin\n{\n  inherit name;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["deadnix;nix;matrix/deadnix_clean.nix"],
+        "tool_names": ["deadnix"],
+        "tool_binaries": ["//quality/tools/rust:deadnix"],
+        "expected_file": ":matrix/matrix_nix_deadnix_pass.expected.txt",
+    },
+    {
+        "name": "matrix_nix_deadnix_fail",
+        "generated": {
+            "matrix/deadnix_dirty.nix": "let\n  a = 1;\n  b = 2;\nin\na\n",
+        },
+        "capability": "lint",
+        "stages": ["deadnix;nix;matrix/deadnix_dirty.nix"],
+        "tool_names": ["deadnix"],
+        "tool_binaries": ["//quality/tools/rust:deadnix"],
+        "expected_file": ":matrix/matrix_nix_deadnix_fail.expected.txt",
+    },
+    {
+        # deadnix exits 0 on a parse failure; it is still an error finding.
+        "name": "matrix_nix_deadnix_syntax_error",
+        "generated": {
+            "matrix/deadnix_broken.nix": "{ a = 1;\n",
+        },
+        "capability": "lint",
+        "stages": ["deadnix;nix;matrix/deadnix_broken.nix"],
+        "tool_names": ["deadnix"],
+        "tool_binaries": ["//quality/tools/rust:deadnix"],
+        "expected_file": ":matrix/matrix_nix_deadnix_syntax_error.expected.txt",
+    },
+    {
         "name": "matrix_text_lint_pass",
         "generated": {
             "matrix/keep_sorted_clean.txt": "a\nb\nc\n",

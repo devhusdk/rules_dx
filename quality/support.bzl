@@ -200,6 +200,34 @@ YAML_YAMLLINT_SUPPORT = {
     "transport": "batched",
 }
 
+NIX_STATIX_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["nix"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "nix",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "statix",
+    "transport": "single",
+}
+
+NIX_DEADNIX_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["nix"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "nix",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "deadnix",
+    "transport": "batched",
+}
+
 TERRAFORM_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -477,6 +505,8 @@ SUPPORT_RECORDS = [
     RUBY_STANDARDRB_SUPPORT,
     YAML_YAMLFMT_SUPPORT,
     YAML_YAMLLINT_SUPPORT,
+    NIX_STATIX_SUPPORT,
+    NIX_DEADNIX_SUPPORT,
     HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT,
     HTML_TEMPLATE_DJLINT_LINT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,

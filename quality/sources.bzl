@@ -79,6 +79,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "terraform",
     "go_module",
     "zig",
+    "nix",
 ]
 
 RUST = "rust"

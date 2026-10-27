@@ -50,6 +50,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "shellcheck": [".shellcheckrc", "shellcheckrc"],
     "standardrb": [".yml", ".yaml"],
     "staticcheck": [".conf"],
+    "statix": [".toml"],
     "stylelint": [".json"],
     "stylua": [".toml"],
     "taplo": [".toml"],
@@ -226,3 +227,5 @@ hadolint_config = _make_native_config_rule("hadolint")
 rubocop_config = _make_native_config_rule("rubocop")
 
 standardrb_config = _make_native_config_rule("standardrb")
+
+statix_config = _make_native_config_rule("statix")

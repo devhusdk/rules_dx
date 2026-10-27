@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_nix_deadnix_syntax_error
+capability LINT
+stages 1
+stage deadnix classes=nix sources=matrix/deadnix_broken.nix
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR deadnix syntax matrix/deadnix_broken.nix 0 0 fixable=false "unexpected end of file"
+terminal 1
+terminal ERROR deadnix syntax matrix/deadnix_broken.nix 0 0 fixable=false "unexpected end of file"
+replacements 0

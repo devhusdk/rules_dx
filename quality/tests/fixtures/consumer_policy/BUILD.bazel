@@ -291,6 +291,35 @@ real_source_target(
 )
 
 quality_family(
+    name = "nix_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "nix",
+    lint = [
+        "deadnix",
+        "statix",
+    ],
+)
+
+workspace_policy(
+    name = "nix_policy",
+    families = [":nix_family"],
+)
+
+filegroup(
+    name = "nix_module",
+    srcs = ["nix_module/clean.nix"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_nix",
+    nix_srcs = [":nix_module"],
+)
+
+quality_family(
     name = "html_template_family",
     disabled = ["typecheck"],
     family_id = "html_template",

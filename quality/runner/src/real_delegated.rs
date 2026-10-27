@@ -18,6 +18,8 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "shellcheck",
         "yamllint",
         "hadolint",
+        "statix",
+        "deadnix",
     ] {
         let scratch = tempfile::tempdir().expect("scratch");
         let tool = delegated_tool(scratch.path().join("missing"));
@@ -64,6 +66,14 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         (
             "hadolint",
             r#"[{"code":"DL4006","column":1,"file":"src/a.scala","level":"warning","line":1,"message":"finding"}]"#,
+        ),
+        (
+            "statix",
+            r#"{"file":"src/a.scala","report":[{"note":"finding","code":2,"severity":"Warn","diagnostics":[{"at":{"from":{"line":1,"column":1},"to":{"line":1,"column":2}},"message":"finding","suggestion":null}]}]}"#,
+        ),
+        (
+            "deadnix",
+            r#"{"file":"src/a.scala","results":[{"column":1,"endColumn":2,"line":1,"message":"Unused let binding: finding"}]}"#,
         ),
         (
             "yamllint",
@@ -204,6 +214,8 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         ("rubocop", r#"{"files":[{"path":"a.txt","offenses":[]}]}"#),
         ("shellcheck", ""),
         ("hadolint", "[]"),
+        ("statix", ""),
+        ("deadnix", ""),
         ("staticcheck", ""),
         ("yamllint", ""),
     ] {

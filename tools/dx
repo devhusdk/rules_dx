@@ -102,11 +102,26 @@ wants_cargo_repin() {
   done
   [ -n "$w_apply" ] && [ "$w_sel" -le 1 ]
 }
+cleanup() {
+  rm -f "$state/built.$$" "$state/inputs.$$" "$state/dx$exe.$$"
+}
+on_signal() {
+  cleanup
+  trap - EXIT INT TERM HUP
+  kill -s "$1" "$$"
+  case $1 in INT) exit 130 ;; TERM) exit 143 ;; *) exit 129 ;; esac
+}
+guard_temps() {
+  trap cleanup EXIT
+  trap 'on_signal INT' INT
+  trap 'on_signal TERM' TERM
+  trap 'on_signal HUP' HUP
+}
 if stale; then
   command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
   mkdir -p "$state"
+  guard_temps
   : > "$state/built.$$"
-  trap 'rm -f "$state/built.$$" "$state/inputs.$$" "$state/dx$exe.$$"' EXIT
   rc="--nohome_rc --nosystem_rc"
   [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
   dc=
@@ -203,7 +218,7 @@ if stale; then
     rm -f "$state/built.$$" "$state/inputs.$$"
   fi
 elif [ ! -x "$state/dx$exe" ] && [ -x "$bin" ]; then
-  trap 'rm -f "$state/dx$exe.$$"' EXIT
+  guard_temps
   keep_copy
 fi
 exec "$bin" "$@"

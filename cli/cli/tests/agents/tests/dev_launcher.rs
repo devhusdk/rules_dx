@@ -124,9 +124,17 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(sh.contains("exec \"$state/dx$exe\" \"$@\""));
     assert!(cmd.contains("set \"BIN=%DX_STATE%\\dx.exe\""));
     assert!(sh.contains(
-        "\nelif [ ! -x \"$state/dx$exe\" ] && [ -x \"$bin\" ]; then\n  trap 'rm -f \"$state/dx$exe.$$\"' EXIT\n  keep_copy\nfi\n"
+        "\nelif [ ! -x \"$state/dx$exe\" ] && [ -x \"$bin\" ]; then\n  guard_temps\n  keep_copy\nfi\n"
     ));
     assert_eq!(sh.matches("\n  keep_copy\n").count(), 2);
+    for sig in ["INT", "TERM", "HUP"] {
+        assert!(sh.contains(&format!("trap 'on_signal {sig}' {sig}\n")));
+    }
+    assert!(
+        sh.find("\n  guard_temps\n  : > \"$state/built.$$\"\n")
+            .is_some(),
+        "guard_temps must come before the first temp file"
+    );
     assert_eq!(cmd.matches("set \"DX_SYNC=").count(), 1);
     assert_eq!(cmd.matches("%DX_SYNC%").count(), 2);
     let sync = cmd
@@ -239,7 +247,7 @@ mod sh {
         let stub = base.join("stub/bazel");
         std::fs::write(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         )
         .expect("bazel stub");
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -903,6 +911,55 @@ mod sh {
         }
     }
 
+    fn signalled_rebuild(name: &str, sig: &str, signo: i32, seeded: bool) {
+        use std::os::unix::process::ExitStatusExt;
+        let repo = source_repo(name);
+        if seeded {
+            repo.run_ok();
+            repo.touch_build_file();
+        }
+        let hold = repo.base.join("hold");
+        let child = spawn(repo.command().env("STUB_BUILD_HOLD", &hold));
+        let started = repo.base.join("hold.started");
+        for _ in 0..600 {
+            if started.exists() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert!(started.exists(), "stub build never started");
+        let built = repo
+            .root()
+            .join(format!(".dx/launcher/built.{}", child.id()));
+        assert!(built.exists(), "{}", built.display());
+        let status = Command::new("kill")
+            .args(["-s", sig, &child.id().to_string()])
+            .status()
+            .expect("kill runs");
+        assert!(status.success());
+        std::fs::write(&hold, "").expect("release the build");
+        let out = child.wait_with_output().expect("launcher exits");
+        let err = String::from_utf8_lossy(&out.stderr).into_owned();
+        assert_eq!(out.status.signal(), Some(signo), "{err}");
+        assert!(out.stdout.is_empty());
+        assert!(!err.contains("running the previous dx"), "{err}");
+        assert!(!err.contains("bazel build //:dx failed"), "{err}");
+        let files = repo.state_files();
+        assert!(
+            files.iter().all(|f| !f
+                .rsplit('.')
+                .next()
+                .is_some_and(|x| !x.is_empty() && x.bytes().all(|b| b.is_ascii_digit()))),
+            "{files:?}"
+        );
+        if seeded {
+            assert_eq!(files, vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
+            let before = repo.builds();
+            repo.run_ok();
+            assert_eq!(repo.builds(), before + 1, "the input is still stale");
+        }
+    }
+
     #[test]
     fn a_symlinked_alias_marker_runs_the_checkout_once() {
         let repo = source_repo("dx-launcher-execroot-alias-");
@@ -927,6 +984,14 @@ mod sh {
         assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert_nothing_built_in(&main);
         assert_nothing_built_in(&other);
+    }
+
+    #[test]
+    fn a_signalled_rebuild_leaves_no_temp_files() {
+        for (sig, signo) in [("TERM", 15), ("INT", 2), ("HUP", 1)] {
+            signalled_rebuild(&format!("dx-launcher-sig-{sig}-"), sig, signo, true);
+            signalled_rebuild(&format!("dx-launcher-sig-fresh-{sig}-"), sig, signo, false);
+        }
     }
 
     #[test]

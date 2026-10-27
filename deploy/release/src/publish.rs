@@ -271,21 +271,19 @@ mod tests {
     }
 
     fn notice_fixture(dir: &Path) -> (PathBuf, Vec<PathBuf>) {
+        let words_a = "Fixture words for demo-lib-a (MIT).\n";
+        let words_b = "Fixture words for demo-lib-b (Apache-2.0).\n";
         let manifest = write_text(
             dir,
             "inventory.txt",
-            "demo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt\ndemo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n",
+            &format!(
+                "demo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt|{}\ndemo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+                crate::notice_text_sha256(words_b),
+                crate::notice_text_sha256(words_a)
+            ),
         );
-        let a = write_text(
-            dir,
-            "demo-lib-a.txt",
-            "Fixture words for demo-lib-a (MIT).\n",
-        );
-        let b = write_text(
-            dir,
-            "demo-lib-b.txt",
-            "Fixture words for demo-lib-b (Apache-2.0).\n",
-        );
+        let a = write_text(dir, "demo-lib-a.txt", words_a);
+        let b = write_text(dir, "demo-lib-b.txt", words_b);
         (manifest, vec![a, b])
     }
 

@@ -608,7 +608,7 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
         "    7. ghcr.yml dispatch + approve:true (separate workflow, push+cosign sign <digest>)\n",
     );
     out.push_str(
-        "    8. bazel run //deploy/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> (fail-before-install)\n",
+        "    8. bazel run //deploy/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> --notice-bundle <NOTICE.bundle> (fail-before-install)\n",
     );
     out.push_str(&format!(
         "  tag creation: git tag {tag} must already exist in the remote (pushed beforehand with owner approval); this program never creates or pushes tags\n"
@@ -731,6 +731,7 @@ pub struct NoticeEntry {
     pub version: String,
     pub license: String,
     pub text_basename: String,
+    pub text_sha256: String,
 }
 
 pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
@@ -741,9 +742,9 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
             continue;
         }
         let fields: Vec<&str> = line.split('|').collect();
-        if fields.len() != 5 {
+        if fields.len() != 6 {
             return Err(format!(
-                "notice manifest line {}: want 5 '|' fields 'package|set|version|license|text', got {}",
+                "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256', got {} (5-field manifests predate the text sha256 column; regenerate the inventory)",
                 index + 1,
                 fields.len()
             ));
@@ -754,6 +755,7 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
             version: fields[2].trim().to_owned(),
             license: fields[3].trim().to_owned(),
             text_basename: fields[4].trim().to_owned(),
+            text_sha256: fields[5].trim().to_owned(),
         };
         if entry.package.is_empty()
             || entry.set.is_empty()
@@ -763,6 +765,20 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
             return Err(format!(
                 "notice manifest line {}: package, set, version, and license must be non-empty",
                 index + 1
+            ));
+        }
+        if entry.text_basename.is_empty() {
+            if !entry.text_sha256.is_empty() {
+                return Err(format!(
+                    "notice manifest line {}: sha256 must be empty when no text file is named",
+                    index + 1
+                ));
+            }
+        } else if !dx_digest::is_lower_hex(&entry.text_sha256, 32) {
+            return Err(format!(
+                "notice manifest line {}: sha256 for text '{}' must be 64 lowercase hex characters",
+                index + 1,
+                entry.text_basename
             ));
         }
         entries.push(entry);
@@ -802,6 +818,67 @@ pub fn notice_entry_body<'a>(
         offset += line.len();
     }
     start.map(|begin| &notice_text[begin..])
+}
+
+/// The sha256 of the body `render_notice` writes under an entry header
+/// (the words with trailing newlines replaced by exactly one `\n`).
+pub fn notice_text_sha256(words: &str) -> String {
+    let mut body = words.trim_end_matches('\n').to_owned();
+    body.push('\n');
+    dx_digest::sha256_hex(body.as_bytes())
+}
+
+/// Shared NOTICE verifier for the release and install sides. Errors carry no
+/// prefix; callers add their own.
+pub fn verify_notice_text(notice_text: &str, entries: &[NoticeEntry]) -> Result<usize, String> {
+    if entries.is_empty() {
+        return Err("notice manifest lists no packages; refusing empty NOTICE".to_owned());
+    }
+    let first = notice_text.lines().next().unwrap_or("");
+    let Some(root) = first.strip_prefix("NOTICE for ") else {
+        return Err("NOTICE missing 'NOTICE for <root>' header".to_owned());
+    };
+    let root = root.trim_end_matches('\r');
+    for entry in entries {
+        if entry.text_basename.is_empty() {
+            return Err(format!(
+                "missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling",
+                entry.package, entry.version, entry.license
+            ));
+        }
+    }
+    let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
+    for header in &headers {
+        if notice_entry_body(notice_text, header, &headers).is_none() {
+            return Err(format!(
+                "NOTICE missing entry header '{header}' (fail closed before install)"
+            ));
+        }
+    }
+    let mut bodies = Vec::with_capacity(entries.len());
+    for (entry, header) in entries.iter().zip(&headers) {
+        let body = notice_entry_body(notice_text, header, &headers).ok_or_else(|| {
+            format!("NOTICE missing entry header '{header}' (fail closed before install)")
+        })?;
+        if body.trim().is_empty() {
+            return Err(format!(
+                "NOTICE missing words for {}@{} ({}): entry body is empty",
+                entry.package, entry.version, entry.license
+            ));
+        }
+        let got = dx_digest::sha256_hex(body.as_bytes());
+        if got != entry.text_sha256 {
+            return Err(format!(
+                "NOTICE missing words for {}@{} ({}): body sha256 {got}, manifest records {}",
+                entry.package, entry.version, entry.license, entry.text_sha256
+            ));
+        }
+        bodies.push((entry.clone(), body.to_owned()));
+    }
+    if render_notice(root, &bodies) != notice_text {
+        return Err("NOTICE has content outside the audited entries".to_owned());
+    }
+    Ok(entries.len())
 }
 
 pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
@@ -883,7 +960,20 @@ pub(crate) fn join_notice_entries(
             ));
         }
         match map.get(&entry.text_basename) {
-            Some(words) => joined.push((entry, words.clone())),
+            Some(words) => {
+                let got = notice_text_sha256(words);
+                if got != entry.text_sha256 {
+                    return Err(format!(
+                        "notice: notice-text-digest: {}@{} ({}) text '{}' sha256 {got}, manifest records {}",
+                        entry.package,
+                        entry.version,
+                        entry.license,
+                        entry.text_basename,
+                        entry.text_sha256
+                    ));
+                }
+                joined.push((entry, words.clone()));
+            }
             None => {
                 return Err(format!(
                     "notice: missing-notice-text: {}@{} ({}) names text '{}' with no matching input file",
@@ -927,47 +1017,9 @@ pub fn notice_verify_files(
             "notice: missing 'NOTICE for <root>' header",
         ));
     }
-    let map = read_text_map(text_files).map_err(io::Error::other)?;
-    let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
-    let mut bound = Vec::with_capacity(entries.len());
-    for (entry, header) in entries.iter().zip(&headers) {
-        if entry.text_basename.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "notice: missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words",
-                    entry.package, entry.version, entry.license
-                ),
-            ));
-        }
-        let words = map.get(&entry.text_basename).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "notice: missing-notice-text: {}@{} ({}) names text '{}' with no matching input file",
-                    entry.package, entry.version, entry.license, entry.text_basename
-                ),
-            )
-        })?;
-        let body = notice_entry_body(&notice_text, header, &headers).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("notice: NOTICE missing entry header '{header}'"),
-            )
-        })?;
-        bound.push((entry, body, words));
-    }
-    for (entry, body, words) in bound {
-        if body.trim() != words.trim() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "notice: NOTICE missing words for {}@{} ({})",
-                    entry.package, entry.version, entry.license
-                ),
-            ));
-        }
-    }
+    join_notice_entries(&manifest_text, text_files).map_err(io::Error::other)?;
+    verify_notice_text(&notice_text, &entries)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, format!("notice: {error}")))?;
     Ok(format!("notice OK: {} entries bundled\n", entries.len()))
 }
 
@@ -1732,35 +1784,41 @@ mod tests {
         assert!(!signing_version_ok("", "v9.8.7"));
     }
 
+    const FIXTURE_WORDS_A: &str = "Fixture words for demo-lib-a (MIT placeholder).\n";
+    const FIXTURE_WORDS_B: &str = "Fixture words for demo-lib-b (Apache-2.0 placeholder).\n";
+
+    fn fixture_manifest() -> String {
+        format!(
+            "demo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt|{}\ndemo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+            notice_text_sha256(FIXTURE_WORDS_B),
+            notice_text_sha256(FIXTURE_WORDS_A)
+        )
+    }
+
     fn notice_fixture(dir: &Path) -> (std::path::PathBuf, Vec<std::path::PathBuf>) {
         let manifest = dir.join("inventory.txt");
-        std::fs::write(
-            &manifest,
-            "demo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt\ndemo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n",
-        )
-        .expect("manifest");
+        std::fs::write(&manifest, fixture_manifest()).expect("manifest");
         let a = dir.join("demo-lib-a.txt");
-        std::fs::write(&a, "Fixture words for demo-lib-a (MIT placeholder).\n").expect("words a");
+        std::fs::write(&a, FIXTURE_WORDS_A).expect("words a");
         let b = dir.join("demo-lib-b.txt");
-        std::fs::write(
-            &b,
-            "Fixture words for demo-lib-b (Apache-2.0 placeholder).\n",
-        )
-        .expect("words b");
+        std::fs::write(&b, FIXTURE_WORDS_B).expect("words b");
         (manifest, vec![a, b])
     }
 
     #[test]
     fn notice_manifest_parses_and_sorts() {
-        let entries = parse_notice_manifest(
-            "# invented distributed-tier root\n\ndemo-lib-b|npm|2.3.4|Apache-2.0|demo-lib-b.txt\ndemo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n",
-        )
+        let entries = parse_notice_manifest(&format!(
+            "# invented distributed-tier root\n\n{}",
+            fixture_manifest()
+        ))
         .expect("parse");
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].package, "demo-lib-a");
         assert_eq!(entries[1].package, "demo-lib-b");
-        assert!(parse_notice_manifest("only|four|fields|here").is_err());
-        assert!(parse_notice_manifest("|npm|1.0.0|MIT|a.txt").is_err());
+        assert!(parse_notice_manifest("only|four|fields|here|x").is_err());
+        assert!(
+            parse_notice_manifest(&format!("|npm|1.0.0|MIT|a.txt|{}", "0".repeat(64))).is_err()
+        );
     }
 
     #[test]
@@ -1810,7 +1868,7 @@ mod tests {
     fn notice_missing_text_fails_actionable() {
         let scratch = scratch_dir();
         let manifest = scratch.path().join("inventory.txt");
-        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|\n").expect("manifest");
+        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
         let out = scratch.path().join("out.NOTICE");
         let err = write_notice(&manifest, &out, "//demo:root", &[]).expect_err("missing");
         assert!(err.to_string().contains("missing-notice-text"));
@@ -1909,7 +1967,10 @@ mod tests {
         let other_words = scratch.path().join("demo-lib-b.txt");
         std::fs::write(&other_words, "Fixture words for demo-lib-b.\n").expect("words b");
         let err = join_notice_entries(
-            "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n",
+            &format!(
+                "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+                "0".repeat(64)
+            ),
             &[other_words],
         )
         .expect_err("no matching input");
@@ -1922,8 +1983,14 @@ mod tests {
         }
         let both = [first.clone(), second.clone()];
         let read_err = read_text_map(&both).expect_err("duplicate basename");
-        let join_err = join_notice_entries("demo-lib-a|cargo|1.0.0|MIT|LICENSE\n", &both)
-            .expect_err("duplicate basename");
+        let join_err = join_notice_entries(
+            &format!(
+                "demo-lib-a|cargo|1.0.0|MIT|LICENSE|{}\n",
+                notice_text_sha256("Words for a.\n")
+            ),
+            &both,
+        )
+        .expect_err("duplicate basename");
         for err in [read_err, join_err] {
             assert!(err.contains("duplicate-notice-text"), "got {err}");
             let want = format!(
@@ -1939,13 +2006,17 @@ mod tests {
     fn notice_verify_rejects_drift_after_first_line() {
         let scratch = scratch_dir();
         let manifest = scratch.path().join("inventory.txt");
-        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n").expect("manifest");
-        let words = scratch.path().join("demo-lib-a.txt");
+        let drift_words = "First line of the words.\nSecond line of the words.\n";
         std::fs::write(
-            &words,
-            "First line of the words.\nSecond line of the words.\n",
+            &manifest,
+            format!(
+                "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+                notice_text_sha256(drift_words)
+            ),
         )
-        .expect("words");
+        .expect("manifest");
+        let words = scratch.path().join("demo-lib-a.txt");
+        std::fs::write(&words, drift_words).expect("words");
         let texts = [words];
         let notice = scratch.path().join("out.NOTICE");
         write_notice(&manifest, &notice, "//demo:root", &texts).expect("write");
@@ -1965,6 +2036,103 @@ mod tests {
             err.to_string().contains("NOTICE missing words for"),
             "got {err}"
         );
+    }
+
+    #[test]
+    fn notice_manifest_requires_six_fields() {
+        let err = parse_notice_manifest("demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n")
+            .expect_err("five fields");
+        assert!(err.contains("want 6"), "got {err}");
+        assert!(err.contains("line 1"), "got {err}");
+        assert!(err.contains("5-field manifests predate"), "got {err}");
+    }
+
+    #[test]
+    fn notice_manifest_rejects_bad_digest() {
+        for bad in ["", "abc", &"A".repeat(64), &"g".repeat(64)] {
+            let err = parse_notice_manifest(&format!("demo-lib-a|cargo|1.0.0|MIT|a.txt|{bad}\n"))
+                .expect_err("bad digest");
+            assert!(
+                err.contains("line 1") && err.contains("sha256"),
+                "got {err}"
+            );
+        }
+        let err =
+            parse_notice_manifest(&format!("demo-lib-a|cargo|1.0.0|MIT||{}\n", "0".repeat(64)))
+                .expect_err("digest without text");
+        assert!(err.contains("sha256 must be empty"), "got {err}");
+    }
+
+    #[test]
+    fn notice_text_sha256_matches_rendered_body() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        let manifest_text = std::fs::read_to_string(&manifest).expect("read");
+        let joined = join_notice_entries(&manifest_text, &texts).expect("join");
+        let text = render_notice("//demo:root", &joined);
+        let headers: Vec<String> = joined.iter().map(|(e, _)| notice_entry_header(e)).collect();
+        for (entry, _) in &joined {
+            let body =
+                notice_entry_body(&text, &notice_entry_header(entry), &headers).expect("body");
+            assert_eq!(dx_digest::sha256_hex(body.as_bytes()), entry.text_sha256);
+        }
+        assert_eq!(notice_text_sha256("x\n\n\n"), notice_text_sha256("x"));
+    }
+
+    #[test]
+    fn notice_gen_rejects_text_digest_drift() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        std::fs::write(&texts[0], "Edited words.\n").expect("drift");
+        let out = scratch.path().join("out.NOTICE");
+        let err = write_notice(&manifest, &out, "//demo:root", &texts).expect_err("drift");
+        let err = err.to_string();
+        assert!(err.contains("notice-text-digest"), "got {err}");
+        assert!(err.contains("demo-lib-a@1.0.0 (MIT)"), "got {err}");
+        assert!(err.contains("manifest records"), "got {err}");
+        assert!(!out.exists());
+    }
+
+    #[test]
+    fn verify_notice_text_binds_bodies_and_rejects_extras() {
+        let scratch = scratch_dir();
+        let (manifest, texts) = notice_fixture(scratch.path());
+        let manifest_text = std::fs::read_to_string(&manifest).expect("read");
+        let entries = parse_notice_manifest(&manifest_text).expect("parse");
+        let joined = join_notice_entries(&manifest_text, &texts).expect("join");
+        let text = render_notice("//demo:root", &joined);
+        assert_eq!(verify_notice_text(&text, &entries), Ok(2));
+
+        let headers_only = "NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) ===\n=== demo-lib-b 2.3.4 (Apache-2.0) ===\n";
+        let err = verify_notice_text(headers_only, &entries).expect_err("headers only");
+        assert!(err.contains("entry body is empty"), "got {err}");
+
+        let changed = text.replace(
+            "Fixture words for demo-lib-a",
+            "Fixture word for demo-lib-a",
+        );
+        let err = verify_notice_text(&changed, &entries).expect_err("one word");
+        assert!(
+            err.contains("NOTICE missing words for demo-lib-a@1.0.0 (MIT)"),
+            "got {err}"
+        );
+        assert!(err.contains("manifest records"), "got {err}");
+
+        let extra = format!("{text}=== other 1.0.0 (MIT) ===\nSneaky.\n");
+        let err = verify_notice_text(&extra, &entries).expect_err("extra section");
+        assert!(err.contains("NOTICE missing words"), "got {err}");
+
+        let preamble = text.replacen("do not edit.", "do not edit. Extra.", 1);
+        let err = verify_notice_text(&preamble, &entries).expect_err("preamble");
+        assert!(err.contains("outside the audited entries"), "got {err}");
+
+        let crlf = text.replace('\n', "\r\n");
+        assert!(verify_notice_text(&crlf, &entries).is_err());
+
+        let err = verify_notice_text("plain\n", &entries).expect_err("no header");
+        assert!(err.contains("NOTICE for"), "got {err}");
+        let err = verify_notice_text(&text, &[]).expect_err("no entries");
+        assert!(err.contains("lists no packages"), "got {err}");
     }
 
     #[test]
@@ -1999,20 +2167,28 @@ mod tests {
         std::fs::write(&manifest, "# no packages\n").expect("manifest");
         let err = notice_verify_files(&notice, &manifest, &[]).expect_err("empty manifest");
         assert!(err.to_string().contains("lists no packages"), "got {err}");
-        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|\n").expect("manifest");
+        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
         let err = notice_verify_files(&notice, &manifest, &[]).expect_err("no words");
         assert!(
             err.to_string().contains("ships no LICENSE*/NOTICE* words"),
             "got {err}"
         );
-        std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n").expect("manifest");
+        let bound_words = "Fixture words for demo-lib-a.\n";
+        std::fs::write(
+            &manifest,
+            format!(
+                "demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt|{}\n",
+                notice_text_sha256(bound_words)
+            ),
+        )
+        .expect("manifest");
         let err = notice_verify_files(&notice, &manifest, &[]).expect_err("no matching input");
         assert!(
             err.to_string().contains("no matching input file"),
             "got {err}"
         );
         let words = scratch.path().join("demo-lib-a.txt");
-        std::fs::write(&words, "Fixture words for demo-lib-a.\n").expect("words");
+        std::fs::write(&words, bound_words).expect("words");
         let err = notice_verify_files(&notice, &manifest, &[words.clone()]).expect_err("no header");
         assert!(
             err.to_string().contains("missing entry header"),

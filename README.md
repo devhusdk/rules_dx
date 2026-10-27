@@ -8,6 +8,10 @@ Language toolchains come from Bazel. No separate installs.
 
 Bazel via Bazelisk (reads `.bazelversion`).
 
+A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
+`.dx/version` without Bazel. See
+[Global Shim](docs/cli/commands/README.md#global-shim).
+
 ## Quickstart
 
 `dx` runs through Bazel.

@@ -1,0 +1,166 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+_UNIX_ONLY = select({
+    "@platforms//os:windows": ["@platforms//:incompatible"],
+    "//conditions:default": [],
+})
+
+rust_library(
+    name = "dx_shim",
+    srcs = [
+        "src/fetch.rs",
+        "src/lib.rs",
+        "src/protocol.rs",
+        "src/protocol_tests.rs",
+        "src/run.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_shim",
+        normal = True,
+    ),
+    crate_name = "dx_shim",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "cli/dx_shim",
+        normal = True,
+    ),
+)
+
+rust_binary(
+    name = "dx_shim_bin",
+    srcs = ["src/main.rs"],
+    crate_name = "dx",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":dx_shim"],
+)
+
+rust_test(
+    name = "dx_shim_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_shim",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_shim",
+    deps = all_crate_deps(
+        package_name = "cli/dx_shim",
+        normal = True,
+        normal_dev = True,
+    ) + ["//cli/adopt:dx_adopt"],
+)
+
+rust_test(
+    name = "fetch_test",
+    size = "small",
+    srcs = [
+        "tests/fetch.rs",
+        "tests/support/mod.rs",
+    ],
+    crate_root = "tests/fetch.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "cli/dx_shim",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_shim"],
+)
+
+rust_test(
+    name = "e2e_test",
+    size = "small",
+    srcs = [
+        "tests/e2e.rs",
+        "tests/support/mod.rs",
+    ],
+    crate_root = "tests/e2e.rs",
+    data = [":dx_shim_bin"],
+    edition = "2021",
+    env = {"DX_SHIM_BIN": "$(rootpath :dx_shim_bin)"},
+    target_compatible_with = _UNIX_ONLY,
+    deps = all_crate_deps(
+        package_name = "cli/dx_shim",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_shim"],
+)
+
+rust_test(
+    name = "interop_test",
+    size = "small",
+    srcs = [
+        "tests/interop.rs",
+        "tests/support/mod.rs",
+    ],
+    crate_root = "tests/interop.rs",
+    data = [":dx_shim_bin"],
+    edition = "2021",
+    env = {"DX_SHIM_BIN": "$(rootpath :dx_shim_bin)"},
+    target_compatible_with = _UNIX_ONLY,
+    deps = all_crate_deps(
+        package_name = "cli/dx_shim",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_shim",
+        "//cli/adopt:dx_adopt",
+    ],
+)
+
+rustfmt_test(
+    name = "dx_shim_fmt_test",
+    size = "small",
+    targets = [
+        ":dx_shim",
+        ":dx_shim_bin",
+        ":dx_shim_test",
+        ":fetch_test",
+        ":e2e_test",
+        ":interop_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "dx_shim_clippy_test",
+    size = "small",
+    targets = [
+        ":dx_shim",
+        ":dx_shim_bin",
+        ":dx_shim_test",
+        ":fetch_test",
+        ":e2e_test",
+        ":interop_test",
+    ],
+)
+
+exports_files(["Cargo.toml"])
+
+test_suite(
+    name = "all",
+    tests = [
+        ":dx_shim_test",
+        ":e2e_test",
+        ":fetch_test",
+        ":interop_test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

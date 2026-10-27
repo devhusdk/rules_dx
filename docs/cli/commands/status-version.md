@@ -150,6 +150,9 @@ bazel run @rules_dx//:dx -- version
 bazel run @rules_dx//:dx -- version --check
 ```
 
+The [global shim](README.md#global-shim) sets `DX_SHIM=1` for the dx binary
+it runs.
+
 ## Version Skew
 
 Every command compares the pin in `.dx/version` with the rules_dx module

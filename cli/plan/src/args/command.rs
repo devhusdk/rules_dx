@@ -1315,4 +1315,19 @@ mod tests {
         assert!(!WorkflowVerb::Build.collects_reports());
         assert!(!WorkflowVerb::Run.collects_reports());
     }
+
+    #[test]
+    fn no_command_or_alias_takes_a_reserved_name() {
+        use clap::CommandFactory;
+        let mut cli = crate::args::grammar::Cli::command();
+        cli.build();
+        for (reserved, _) in crate::args::tokenizer::RESERVED_COMMANDS {
+            assert!(Command::parse(reserved).is_none(), "{reserved}");
+            assert!(COMMANDS.iter().all(|entry| entry.name != *reserved));
+            for sub in cli.get_subcommands() {
+                assert_ne!(sub.get_name(), *reserved);
+                assert!(sub.get_all_aliases().all(|alias| alias != *reserved));
+            }
+        }
+    }
 }

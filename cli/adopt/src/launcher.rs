@@ -52,13 +52,21 @@ case "$os-$arch" in
   linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
   *) fail "no dx binary for $os $arch" ;;
 esac
-if [ "$os" = windows ]; then
+if [ -n "${DX_CACHE_DIR:-}" ]; then
+  cache="$DX_CACHE_DIR"
+elif [ -n "${XDG_CACHE_HOME:-}" ]; then
+  cache="$XDG_CACHE_HOME/dx"
+elif [ "$os" = windows ]; then
   [ -n "${USERPROFILE:-}" ] || fail "USERPROFILE is not set"
-  dir="$(cygpath -u "$USERPROFILE")/.cache/dx/bin/$VERSION"
+  cache="$USERPROFILE/.cache/dx"
 else
   [ -n "${HOME:-}" ] || fail "HOME is not set"
-  dir="$HOME/.cache/dx/bin/$VERSION"
+  cache="$HOME/.cache/dx"
 fi
+if [ "$os" = windows ]; then
+  cache=$(cygpath -u "$cache")
+fi
+dir="$cache/bin/$VERSION"
 bin="$dir/dx-$os-$arch$exe"
 if [ -x "$bin" ]; then
   exec "$bin" "$@"
@@ -109,7 +117,10 @@ if not "%PIN%"=="%VERSION%" (
   echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is '%PIN%'; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
   goto bazel
 )
-set "DIR=%USERPROFILE%\.cache\dx\bin\%VERSION%"
+set "DX_CACHE=%USERPROFILE%\.cache\dx"
+if defined XDG_CACHE_HOME set "DX_CACHE=%XDG_CACHE_HOME%\dx"
+if defined DX_CACHE_DIR set "DX_CACHE=%DX_CACHE_DIR%"
+set "DIR=%DX_CACHE%\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
@@ -331,6 +342,30 @@ mod tests {
         assert!(cmd.contains("DX_URL + '.sha256'"));
         assert!(!cmd.contains("@VERSION@"));
         assert!(!cmd.replace("\r\n", "").contains('\n'));
+    }
+
+    #[test]
+    fn launchers_share_the_shim_cache_root() {
+        let sh = render_launcher_sh("1.2.3");
+        let dx = sh.find("cache=\"$DX_CACHE_DIR\"").expect("DX_CACHE_DIR");
+        let xdg = sh
+            .find("cache=\"$XDG_CACHE_HOME/dx\"")
+            .expect("XDG_CACHE_HOME");
+        let home = sh.find("cache=\"$HOME/.cache/dx\"").expect("HOME");
+        assert!(dx < xdg && xdg < home);
+        assert!(sh.contains("dir=\"$cache/bin/$VERSION\""));
+        let cmd = render_launcher_cmd("1.2.3");
+        let home = cmd
+            .find("set \"DX_CACHE=%USERPROFILE%\\.cache\\dx\"\r\n")
+            .expect("USERPROFILE");
+        let xdg = cmd
+            .find("if defined XDG_CACHE_HOME set \"DX_CACHE=%XDG_CACHE_HOME%\\dx\"\r\n")
+            .expect("XDG_CACHE_HOME");
+        let dx = cmd
+            .find("if defined DX_CACHE_DIR set \"DX_CACHE=%DX_CACHE_DIR%\"\r\n")
+            .expect("DX_CACHE_DIR");
+        assert!(home < xdg && xdg < dx);
+        assert!(cmd.contains("set \"DIR=%DX_CACHE%\\bin\\%VERSION%\"\r\n"));
     }
 
     #[test]

@@ -119,11 +119,20 @@ pub(crate) const REMOVED_COMMANDS: &[(&str, &str)] = &[
     ("doctor", "run `dx status` for diagnostics"),
 ];
 
+/// Command names dx never takes, and the tip each error carries.
+pub(crate) const RESERVED_COMMANDS: &[(&str, &str)] = &[(
+    "shim",
+    "`dx shim ...` is handled by the global dx shim on PATH, not by the dx binary",
+)];
+
 fn removed_command(error: &clap::Error) -> Option<String> {
     let word = match error.get(clap::error::ContextKind::InvalidSubcommand) {
         Some(clap::error::ContextValue::String(word)) => word.as_str(),
         _ => return None,
     };
+    if let Some((_, tip)) = RESERVED_COMMANDS.iter().find(|(name, _)| *name == word) {
+        return Some(format!("error: reserved command '{word}'\n\n  tip: {tip}"));
+    }
     let (_, tip) = REMOVED_COMMANDS.iter().find(|(name, _)| *name == word)?;
     Some(format!(
         "error: unsupported command '{word}'\n\n  tip: {tip}"

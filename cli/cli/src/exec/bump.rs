@@ -68,6 +68,15 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
+    let planned = match plan_widens(&request, workspace) {
+        Ok(planned) => planned,
+        Err(message) => {
+            return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
+        }
+    };
+    if planned.iter().all(|(_, _, changed)| !changed) {
+        return emit_bump_no_change(invocation, out, &request, &planned, verbose);
+    }
     let target = request.target();
     if let Err(exit) = dep_edit::preflight(
         &BUMP_VERB,
@@ -80,20 +89,14 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     ) {
         return exit;
     }
-    let planned = match plan_widens(&request, workspace) {
-        Ok(planned) => planned,
-        Err(message) => {
-            return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
-        }
-    };
-    if request.set == dx_bump::BumpSet::GithubActions
-        && planned.iter().all(|(_, _, changed)| !changed)
-    {
-        return emit_bump_no_change(invocation, out, &request, &planned, verbose);
-    }
-    let manifest = planned
+    let changed: Vec<(String, String)> = planned
+        .into_iter()
+        .filter(|(_, _, changed)| *changed)
+        .map(|(manifest, text, _)| (manifest, text))
+        .collect();
+    let manifest = changed
         .iter()
-        .map(|(manifest, _, _)| manifest.as_str())
+        .map(|(manifest, _)| manifest.as_str())
         .collect::<Vec<_>>()
         .join(", ");
     let edit = dep_edit::DepEdit {
@@ -111,17 +114,13 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             .is_semver()
             .then(dx_bump::generic_major_bump_hint),
     };
-    let writes: Vec<(String, String)> = planned
-        .into_iter()
-        .map(|(manifest, text, _)| (manifest, text))
-        .collect();
     let io = dep_edit::EditIo {
         workspace,
         runner,
         out,
         err,
     };
-    dep_edit::write_and_refresh(&edit, invocation, io, &writes, verbose)
+    dep_edit::write_and_refresh(&edit, invocation, io, &changed, verbose)
 }
 
 const BUMP_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
@@ -587,7 +586,7 @@ scopes = ["tools"]
         assert_eq!(read("MODULE.bazel"), ROOT_MODULE);
         let events = json_events(&out);
         let notice = event(&events, "notice");
-        assert_eq!(notice["code"], "bump_widened");
+        assert_eq!(notice["code"], "bump_no_change");
         assert_eq!(notice["path"], "tools/MODULE.bazel");
         assert_eq!(events.last().expect("finished")["exit_code"], 0);
         assert!(harness.seen_env.borrow().is_empty());
@@ -1593,6 +1592,145 @@ scopes = ["tools"]
         let (code, out, err) = harness.run(&["bump", "cargo:anyhow", "1.2.3"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("current"), "{out}");
+    }
+
+    const GHA_SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    /// One already-current declaration per bump set: selector, version, manifest, text.
+    fn current_pins() -> Vec<(&'static str, &'static str, &'static str, String)> {
+        vec![
+            (
+                "bazel:rules_cc",
+                "0.2.22",
+                "MODULE.bazel",
+                "bazel_dep(name = \"rules_cc\", version = \"0.2.22\")\n".to_owned(),
+            ),
+            (
+                "cargo:anyhow",
+                "1.2.3",
+                "rust/tests/fixtures/hello/Cargo.toml",
+                "[dependencies]\nanyhow = \"1.2.3\"\n".to_owned(),
+            ),
+            (
+                "github-actions:actions/checkout",
+                GHA_SHA,
+                ".github/workflows/ci.yml",
+                format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{GHA_SHA} # v5\n"),
+            ),
+            (
+                "go:example.com/demo",
+                "1.3.0",
+                "third_party/go/go.mod",
+                "module example.com/root\nrequire example.com/demo v1.3.0\n".to_owned(),
+            ),
+            (
+                "maven:junit:junit",
+                "4.13.2",
+                "MODULE.bazel",
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n    ],\n)\n".to_owned(),
+            ),
+            (
+                "npm:demo",
+                "1.2.3",
+                "package.json",
+                "{\n  \"dependencies\": {\n    \"demo\": \"1.2.3\"\n  }\n}\n".to_owned(),
+            ),
+            (
+                "nuget:FSharp.Core",
+                "10.1.201",
+                "third_party/dotnet/paket.dependencies",
+                "source https://api.nuget.org/v3/index.json\nnuget FSharp.Core 10.1.201\n".to_owned(),
+            ),
+        ]
+    }
+
+    fn seed_current(harness: &Harness, path: &str, text: &str) {
+        harness.write_source(path, text);
+    }
+
+    #[test]
+    fn unchanged_version_reports_no_change_for_every_set() {
+        for (selector, version, path, text) in current_pins() {
+            let harness = Harness::new("bump-no-change-every-set");
+            seed_current(&harness, path, &text);
+            let (code, out, err) = harness.run(&["bump", selector, version, "--apply"]);
+            assert_eq!(code, 0, "{selector}: {out}{err}");
+            assert!(out.contains("no-change"), "{selector}: {out}");
+            assert!(err.is_empty(), "{selector}: {err}");
+            let (code, out, err) =
+                harness.run(&["bump", selector, version, "--output=json", "--apply"]);
+            assert_eq!(code, 0, "{selector}: {out}{err}");
+            let events = json_events(&out);
+            assert_eq!(event(&events, "notice")["code"], "bump_no_change", "{out}");
+            assert_eq!(events.last().expect("finished")["exit_code"], 0);
+            assert_eq!(
+                std::fs::read_to_string(harness.workspace.join(path)).expect("manifest"),
+                text,
+                "{selector}: no-change writes nothing"
+            );
+            assert!(
+                harness.seen_env.borrow().is_empty(),
+                "{selector}: no-change refreshes nothing"
+            );
+        }
+    }
+
+    #[test]
+    fn unchanged_version_under_frozen_and_offline_exits_zero() {
+        for flag in ["--frozen", "--offline"] {
+            for (selector, version, path, text) in current_pins() {
+                let harness = Harness::new("bump-no-change-gated");
+                seed_current(&harness, path, &text);
+                let (code, out, err) = harness.run(&[
+                    "bump",
+                    selector,
+                    version,
+                    flag,
+                    "--output=json",
+                    "--apply",
+                ]);
+                assert_eq!(code, 0, "{selector} {flag}: {out}{err}");
+                let events = json_events(&out);
+                assert_eq!(event(&events, "notice")["code"], "bump_no_change", "{out}");
+                assert_eq!(
+                    std::fs::read_to_string(harness.workspace.join(path)).expect("manifest"),
+                    text
+                );
+                assert!(harness.seen_env.borrow().is_empty(), "{selector} {flag}");
+            }
+        }
+    }
+
+    #[test]
+    fn github_actions_writes_only_changed_workflows() {
+        let harness = Harness::new("bump-gha-only-changed");
+        let pinned =
+            format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{GHA_SHA} # v5\n");
+        harness.write_source(
+            ".github/workflows/a.yml",
+            "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4\n",
+        );
+        harness.write_source(".github/workflows/b.yml", &pinned);
+        let (code, out, err) =
+            harness.run(&["bump", "github-actions:actions/checkout", GHA_SHA, "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains(&format!(
+                "widened github-actions:actions/checkout to {GHA_SHA} in .github/workflows/a.yml"
+            )),
+            "{out}"
+        );
+        assert!(!out.contains("b.yml"), "{out}");
+        assert!(
+            std::fs::read_to_string(harness.workspace.join(".github/workflows/a.yml"))
+                .expect("workflow")
+                .contains(GHA_SHA)
+        );
+        assert_eq!(
+            std::fs::read_to_string(harness.workspace.join(".github/workflows/b.yml"))
+                .expect("workflow"),
+            pinned
+        );
     }
 
     #[test]

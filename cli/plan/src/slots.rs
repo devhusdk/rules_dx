@@ -252,6 +252,11 @@ pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>
     if !is_rules_dx {
         return 0;
     }
+    let read = |path: &Path| std::fs::read_to_string(path).ok();
+    let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
+    if !dx_process::rc::nested_bazel_selected(env_get, workspace, &read, read_user_rc, &[], &[]) {
+        return 0;
+    }
     let servers = dx_path::nested_bazel::servers(env_get(NESTED_BAZEL_SLOTS_ENV).as_deref());
     u64::from(servers).saturating_mul(BYTES_PER_NESTED_BAZEL)
 }
@@ -2432,6 +2437,26 @@ mod tests {
     fn rules_dx_reserves_the_default_nested_servers() {
         let scratch = rules_dx_layout("dx-slots-rules-dx-");
         assert_eq!(nested_reserve(scratch.path(), &|_| None), 3 * (2 << 30));
+    }
+
+    #[test]
+    fn rules_dx_reserve_is_zero_when_tag_filters_exclude_nested_bazel() {
+        for (filters, reserved) in [
+            ("-resources:nested_bazel:1,-exclusive", false),
+            ("-resources:nested_bazel", false),
+            ("-exclusive", true),
+            ("smoke", false),
+            ("smoke,resources:nested_bazel:1", true),
+        ] {
+            let scratch = rules_dx_layout("dx-slots-tag-filters-");
+            std::fs::write(
+                scratch.path().join(".bazelrc"),
+                format!("test --test_tag_filters={filters}\n"),
+            )
+            .expect("rc");
+            let want = if reserved { 3 * (2 << 30) } else { 0 };
+            assert_eq!(nested_reserve(scratch.path(), &|_| None), want, "{filters}");
+        }
     }
 
     #[test]

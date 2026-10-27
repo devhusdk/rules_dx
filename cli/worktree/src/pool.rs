@@ -166,6 +166,9 @@ pub struct Record {
     pub pid: Option<u32>,
     #[serde(default)]
     pub gone: bool,
+    /// When the holder's agent last stopped. A stop ends a turn, so the agent may come back.
+    #[serde(default)]
+    pub stopped_at: Option<u64>,
     /// The first agent that runs `dx worktree` inside the slot takes the lease.
     #[serde(default)]
     pub unclaimed: bool,
@@ -218,6 +221,7 @@ impl Record {
         self.agent = who.agent.clone();
         self.pid = Some(who.pid);
         self.gone = false;
+        self.stopped_at = None;
         self.unclaimed = false;
     }
 
@@ -229,6 +233,7 @@ impl Record {
         self.agent = None;
         self.pid = None;
         self.gone = false;
+        self.stopped_at = None;
         self.unclaimed = false;
     }
 
@@ -711,6 +716,7 @@ mod tests {
             agent: None,
             pid: Some(7),
             gone: false,
+            stopped_at: None,
             unclaimed: false,
             broken: false,
             leased_at: 0,
@@ -805,6 +811,7 @@ mod tests {
         let loaded: Record = serde_json::from_str(text).expect("loads");
         assert_eq!(loaded.agent, None);
         assert!(!loaded.gone);
+        assert_eq!(loaded.stopped_at, None);
         assert!(!loaded.unclaimed);
         assert!(loaded.held_by(&who(Some("s1"), None, 1)));
     }

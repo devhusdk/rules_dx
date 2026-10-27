@@ -473,6 +473,7 @@ mod tests {
             agent: agent.map(str::to_owned),
             pid: Some(7),
             gone,
+            stopped_at: None,
             unclaimed,
             broken: false,
             leased_at: 0,

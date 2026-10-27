@@ -301,6 +301,7 @@ mod tests {
             agent: None,
             pid: Some(7),
             gone: false,
+            stopped_at: None,
             unclaimed: false,
             broken: false,
             leased_at: 0,

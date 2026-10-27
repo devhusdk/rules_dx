@@ -1,6 +1,5 @@
 use dx_testing::{read_runfiles, runfiles_root};
 
-
 fn squeezed(text: &str) -> String {
     text.chars().filter(|ch| !ch.is_whitespace()).collect()
 }

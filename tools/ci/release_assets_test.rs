@@ -20,7 +20,12 @@ fn upload_loop_assets(text: &str) -> Vec<String> {
         .lines()
         .filter_map(|line| line.trim().strip_prefix("for asset in "))
         .collect();
-    assert_eq!(loops.len(), 1, "want exactly one `for asset in` loop, found {}", loops.len());
+    assert_eq!(
+        loops.len(),
+        1,
+        "want exactly one `for asset in` loop, found {}",
+        loops.len()
+    );
     let (list, _) = loops[0]
         .split_once("; do")
         .expect("upload loop is `for asset in ...; do`");

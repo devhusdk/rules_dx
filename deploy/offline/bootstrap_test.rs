@@ -111,6 +111,16 @@ fn snapshot_names() -> Vec<String> {
         .collect()
 }
 
+fn meta_names() -> Vec<String> {
+    accepted_sets()
+        .into_iter()
+        .map(|set| format!("{set}.meta.json"))
+        .collect()
+}
+
+/// The date every fixture bundle records for its snapshots.
+const BUNDLE_DATE: &str = "2026-01-01";
+
 fn launcher_names() -> Vec<String> {
     LAUNCHERS.iter().map(|name| (*name).to_owned()).collect()
 }
@@ -129,6 +139,13 @@ fn manifest(dir: &Path, names: &[String], trailing_newline: bool) {
     std::fs::write(dir.join("SHA256SUMS"), text.as_bytes()).expect("write manifest");
 }
 
+/// Every advisory file the manifest pins: snapshots, then their identities.
+fn pinned_names() -> Vec<String> {
+    let mut names = snapshot_names();
+    names.extend(meta_names());
+    names
+}
+
 fn bundle(name: &str) -> Bundle {
     let parent = scratch();
     let staged = parent.join(name);
@@ -144,8 +161,21 @@ fn bundle(name: &str) -> Bundle {
             &format!("{{\"set\":\"{set}\",\"advisories\":[]}}\n"),
         );
     }
+    for set in accepted_sets() {
+        let snapshot = staged.join("advisory").join(format!("{set}.json"));
+        let sha = dx_digest::sha256_file_hex(&snapshot)
+            .unwrap_or_else(|error| panic!("hash {set}: {error}"));
+        write(
+            &staged.join("advisory").join(format!("{set}.meta.json")),
+            &format!(
+                "{{\n  \"set\": \"{set}\",\n  \"url\": \"https://osv.dev/{set}.json\",\n  \
+                 \"sha256\": \"{sha}\",\n  \"retrieved_at\": \"{BUNDLE_DATE}\",\n  \
+                 \"path\": \".dx/advisory/{set}.json\"\n}}\n"
+            ),
+        );
+    }
     manifest(&staged.join("bazelisk"), &launcher_names(), true);
-    manifest(&staged.join("advisory"), &snapshot_names(), true);
+    manifest(&staged.join("advisory"), &pinned_names(), true);
     let path = std::fs::canonicalize(&staged)
         .unwrap_or_else(|error| panic!("canonicalize {}: {error}", staged.display()));
     Bundle { parent, path }
@@ -224,6 +254,7 @@ fn assert_identity_binds_the_vendored_file(bundle: &Bundle, home: &Path, set: &s
         format!("\"set\": \"{set}\""),
         format!("\"sha256\": \"{digest}\""),
         format!("\"path\": \".dx/advisory/{set}.json\""),
+        format!("\"retrieved_at\": \"{BUNDLE_DATE}\""),
     ] {
         assert!(
             meta.contains(&field),
@@ -311,7 +342,7 @@ fn a_tampered_snapshot_is_refused() {
 #[test]
 fn a_snapshot_the_manifest_omits_is_refused() {
     let bundle = bundle("bundle");
-    let pinned: Vec<String> = snapshot_names()
+    let pinned: Vec<String> = pinned_names()
         .into_iter()
         .filter(|name| name != "npm.json")
         .collect();
@@ -329,7 +360,7 @@ fn a_manifest_that_pins_nothing_is_refused() {
 #[test]
 fn the_last_manifest_line_is_verified_without_a_trailing_newline() {
     let bundle = bundle("bundle");
-    let names = snapshot_names();
+    let names = pinned_names();
     let last = names.last().expect("a curated set").clone();
     manifest(&bundle.path().join("advisory"), &names, false);
     assert!(
@@ -347,10 +378,60 @@ fn the_last_manifest_line_is_verified_without_a_trailing_newline() {
 fn an_unknown_advisory_set_is_refused() {
     let bundle = bundle("bundle");
     write(&bundle.advisory("pypi.json"), "{\"advisories\":[]}\n");
-    let mut names = snapshot_names();
+    let mut names = pinned_names();
     names.push("pypi.json".to_owned());
     manifest(&bundle.path().join("advisory"), &names, true);
     run(&bundle, &scratch()).expect_refusal("unknown advisory set: pypi");
+}
+
+#[test]
+fn an_old_snapshot_keeps_its_bundle_date() {
+    let bundle = bundle("bundle");
+    let home = scratch();
+    let result = run(&bundle, &home);
+    result.expect_ok();
+    for set in accepted_sets() {
+        let meta = identity(&home, &set);
+        assert!(
+            meta.contains(&format!("\"retrieved_at\": \"{BUNDLE_DATE}\"")),
+            "{set} keeps the bundle date: {meta}"
+        );
+    }
+    assert!(!result.stdout.contains("retrieved_at"), "{}", result.stdout);
+}
+
+#[test]
+fn a_snapshot_without_a_bundle_date_is_refused() {
+    let bundle = bundle("bundle");
+    std::fs::remove_file(bundle.advisory("go.meta.json")).expect("remove identity");
+    let names: Vec<String> = pinned_names()
+        .into_iter()
+        .filter(|name| name != "go.meta.json")
+        .collect();
+    manifest(&bundle.path().join("advisory"), &names, true);
+    run(&bundle, &scratch()).expect_refusal(
+        "bundle has no recorded date for advisory snapshot: go.json (want advisory/go.meta.json)",
+    );
+}
+
+#[test]
+fn an_unpinned_bundle_identity_is_refused() {
+    let bundle = bundle("bundle");
+    manifest(&bundle.path().join("advisory"), &snapshot_names(), true);
+    run(&bundle, &scratch())
+        .expect_refusal("manifest does not pin advisory identity: cargo.meta.json");
+}
+
+#[test]
+fn a_bundle_identity_is_not_an_unknown_set() {
+    let bundle = bundle("bundle");
+    let result = run(&bundle, &scratch());
+    result.expect_ok();
+    assert!(
+        !result.stderr.contains("unknown advisory set"),
+        "{}",
+        result.stderr
+    );
 }
 
 #[cfg(unix)]
@@ -439,6 +520,11 @@ fn the_demo_offline_bundle_bootstraps() {
     let bundle = std::fs::canonicalize(&staged).expect("canonical demo bundle");
     bootstrap(&bundle.to_string_lossy(), &home, &home).expect_ok();
     assert!(home.join("workspace/.dx/advisory/cargo.json").is_file());
+    assert!(
+        identity(&home, "cargo").contains("\"retrieved_at\": \"2026-01-01\""),
+        "the demo bundle records its own date: {}",
+        identity(&home, "cargo")
+    );
     assert!(
         ["bazel", "bazel.exe"]
             .iter()

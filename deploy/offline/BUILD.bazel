@@ -18,6 +18,7 @@ exports_files(
         "demo/bazelisk-linux-arm64",
         "demo/bazelisk-windows-amd64.exe",
         "demo/cargo.json",
+        "demo/cargo.meta.json",
     ],
     visibility = ["//visibility:private"],
 )
@@ -30,6 +31,7 @@ alias(
 offline_bundle(
     name = "offline_demo",
     advisory = {"cargo": ":demo/cargo.json"},
+    advisory_meta = {"cargo": ":demo/cargo.meta.json"},
     launchers = [
         ":demo/bazelisk-darwin-amd64",
         ":demo/bazelisk-darwin-arm64",

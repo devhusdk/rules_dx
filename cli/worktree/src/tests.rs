@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
@@ -33,6 +33,10 @@ struct FakeHost {
     stubborn: Mutex<BTreeSet<u32>>,
     stuck: Mutex<BTreeSet<PathBuf>>,
     nested: Mutex<Option<PathBuf>>,
+    idle: Mutex<BTreeMap<u32, Option<bool>>>,
+    used: Mutex<BTreeMap<u32, Option<u64>>>,
+    footprint: Mutex<BTreeMap<u32, u64>>,
+    stopped: Mutex<Vec<u32>>,
 }
 
 impl FakeHost {
@@ -52,6 +56,10 @@ impl FakeHost {
             stubborn: Mutex::new(BTreeSet::new()),
             stuck: Mutex::new(BTreeSet::new()),
             nested: Mutex::new(None),
+            idle: Mutex::new(BTreeMap::new()),
+            used: Mutex::new(BTreeMap::new()),
+            footprint: Mutex::new(BTreeMap::new()),
+            stopped: Mutex::new(Vec::new()),
         }
     }
 
@@ -63,6 +71,17 @@ impl FakeHost {
             output_base: None,
             output_user_root: None,
         });
+    }
+
+    /// Scripts a reapable-looking server: its lock state, last use, and footprint.
+    fn script_server(&self, pid: u32, idle: Option<bool>, used: Option<u64>, bytes: u64) {
+        self.idle.lock().expect("idle").insert(pid, idle);
+        self.used.lock().expect("used").insert(pid, used);
+        self.footprint.lock().expect("footprint").insert(pid, bytes);
+    }
+
+    fn stopped(&self) -> Vec<u32> {
+        self.stopped.lock().expect("stopped").clone()
     }
 
     fn stubborn(&self, pid: u32) {
@@ -166,6 +185,51 @@ impl Host for FakeHost {
                     .as_deref()
                     .is_some_and(|dir| same_path(dir, workspace))
         });
+    }
+
+    fn server_idle(&self, server: &Server) -> Option<bool> {
+        self.idle
+            .lock()
+            .expect("idle")
+            .get(&server.pid)
+            .copied()
+            .unwrap_or(Some(true))
+    }
+
+    fn server_last_used(&self, server: &Server) -> Option<u64> {
+        self.used
+            .lock()
+            .expect("used")
+            .get(&server.pid)
+            .copied()
+            .unwrap_or(Some(0))
+    }
+
+    fn server_footprint(&self, server: &Server) -> u64 {
+        self.footprint
+            .lock()
+            .expect("footprint")
+            .get(&server.pid)
+            .copied()
+            .unwrap_or(server.rss_bytes)
+    }
+
+    fn shutdown_server(&self, server: &Server) -> bool {
+        self.stopped.lock().expect("stopped").push(server.pid);
+        if self
+            .stubborn
+            .lock()
+            .expect("stubborn")
+            .contains(&server.pid)
+        {
+            return false;
+        }
+        self.servers
+            .lock()
+            .expect("servers")
+            .retain(|other| other.pid != server.pid);
+        self.alive.lock().expect("alive").remove(&server.pid);
+        true
     }
 
     fn disk_bytes(&self, path: &Path) -> u64 {
@@ -4424,4 +4488,120 @@ fn prune_apply_removes_a_free_base_with_read_only_entries() {
     ops::release(&pool, &host, &me, &first.path, true).expect("release");
     assert!(dx_process::remove_tree(&base));
     assert!(!base.exists());
+}
+
+mod reaping {
+    use super::*;
+    use crate::reap::{reap_idle, Keep, Reaped};
+
+    const ROOT: &str = "/home/u/.cache/bazel/_bazel_u";
+
+    fn server(pid: u32, workspace: &str, root: &str) -> Server {
+        Server {
+            pid,
+            rss_bytes: GIB,
+            workspace: Some(PathBuf::from(workspace)),
+            output_base: Some(PathBuf::from(format!("{root}/{pid:032x}"))),
+            output_user_root: Some(PathBuf::from(root)),
+        }
+    }
+
+    fn host(servers: &[Server]) -> FakeHost {
+        let host = FakeHost::new();
+        for server in servers {
+            host.servers.lock().expect("servers").push(server.clone());
+            host.live(server.pid);
+        }
+        host
+    }
+
+    fn keep(workspaces: &[&str]) -> Keep {
+        Keep {
+            workspaces: workspaces.iter().map(PathBuf::from).collect(),
+            roots: vec![PathBuf::from(ROOT)],
+        }
+    }
+
+    #[test]
+    fn idle_non_holders_stop_while_busy_holders_and_own_servers_stay() {
+        let host = host(&[
+            server(1, "/w/idle", ROOT),
+            server(2, "/w/busy", ROOT),
+            server(3, "/w/holder", ROOT),
+            server(4, "/w/own", ROOT),
+        ]);
+        host.script_server(2, Some(false), Some(0), GIB);
+        let reaped = reap_idle(&host, &keep(&["/w/holder", "/w/own"]), 100 * GIB, 120);
+        assert_eq!(
+            reaped,
+            Reaped {
+                servers: 1,
+                bytes: GIB
+            }
+        );
+        assert_eq!(host.stopped(), vec![1]);
+        let left: Vec<u32> = host.servers().iter().map(|server| server.pid).collect();
+        assert_eq!(left, vec![2, 3, 4]);
+    }
+
+    #[test]
+    fn least_recently_used_go_first_until_the_target_is_freed() {
+        let host = host(&[
+            server(1, "/w/a", ROOT),
+            server(2, "/w/b", ROOT),
+            server(3, "/w/c", ROOT),
+        ]);
+        host.script_server(1, Some(true), Some(500), 2 * GIB);
+        host.script_server(2, Some(true), Some(100), 2 * GIB);
+        host.script_server(3, Some(true), Some(300), 2 * GIB);
+        let reaped = reap_idle(&host, &keep(&[]), 3 * GIB, 120);
+        assert_eq!(host.stopped(), vec![2, 3]);
+        assert_eq!(reaped.bytes, 4 * GIB);
+    }
+
+    #[test]
+    fn recent_unknown_foreign_and_baseless_servers_stay() {
+        let mut baseless = server(4, "/w/d", ROOT);
+        baseless.output_base = None;
+        let host = host(&[
+            server(1, "/w/a", ROOT),
+            server(2, "/w/b", ROOT),
+            server(3, "/w/c", "/nested/root"),
+            baseless,
+            server(5, "/w/e", ROOT),
+        ]);
+        let now = host.now();
+        host.script_server(1, Some(true), Some(now - 60), GIB);
+        host.script_server(2, None, Some(0), GIB);
+        host.script_server(5, Some(true), None, GIB);
+        let reaped = reap_idle(&host, &keep(&[]), 100 * GIB, 120);
+        assert_eq!(reaped, Reaped::default());
+        assert!(host.stopped().is_empty());
+    }
+
+    #[test]
+    fn a_stubborn_server_is_not_counted() {
+        let host = host(&[server(1, "/w/a", ROOT), server(2, "/w/b", ROOT)]);
+        host.stubborn(1);
+        let reaped = reap_idle(&host, &keep(&[]), 100 * GIB, 120);
+        assert_eq!(host.stopped(), vec![1, 2]);
+        assert_eq!(
+            reaped,
+            Reaped {
+                servers: 1,
+                bytes: GIB
+            }
+        );
+    }
+
+    #[test]
+    fn an_interrupt_stops_the_reap() {
+        let host = host(&[server(1, "/w/a", ROOT)]);
+        host.stop_after(0, 15);
+        assert_eq!(
+            reap_idle(&host, &keep(&[]), 100 * GIB, 120),
+            Reaped::default()
+        );
+        assert!(host.stopped().is_empty());
+    }
 }

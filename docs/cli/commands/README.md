@@ -120,6 +120,31 @@ Bazel work ends or dx exits, including when it crashes.
 While dx waits, it keeps the worktree's running Bazel server from shutting down
 for idleness. It never starts a server.
 
+Before it prints the wait line, dx stops idle Bazel servers to free memory for
+the running builds. A server is idle when no Bazel client holds its output base
+lock and it ran no command in the last 120 seconds. dx stops the least recently
+used servers first, until it has freed about one slot's worth of memory: 3 GiB,
+or 1.5 GiB for remote-execution runs. It runs `bazel shutdown` with
+`--noblock_for_lock` on each server's own output base, so a server that a new
+command just started on keeps running. dx keeps:
+
+- servers for its own worktree, slot holders, and other waiting runs;
+- servers outside the default output roots and the `--output_user_root` on the
+  dx command line, such as nested test servers and other users' servers;
+- servers it cannot check.
+
+Only one waiting run stops servers at a time. Stopping servers does not free a
+slot. On Windows dx stops no servers.
+
+When dx stopped servers, the wait line ends with the count:
+
+```text
+dx: waiting for a build slot (held by /path/to/worktree); stopped 2 idle Bazel servers
+```
+
+The `waiting_for_build_slot` notice event carries the count in
+`reaped_servers`, also when it is 0.
+
 If dx cannot write a slot file, it locks it read-only. If it still cannot use
 a slot file, it prints `dx: skipped build slot <path>: <error>` once and runs
 with one slot fewer. With `--output=json` it also writes one warning `notice`

@@ -16,6 +16,7 @@ pub mod hook;
 pub mod host;
 pub mod ops;
 pub mod pool;
+pub mod reap;
 pub mod setup;
 #[cfg(test)]
 mod tests;

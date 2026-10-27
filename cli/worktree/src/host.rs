@@ -91,6 +91,21 @@ fn flag_value(args: &str, flag: &str) -> Option<PathBuf> {
     }
 }
 
+/// Builds a server from one process, or `None` when it is not a Bazel server.
+pub(crate) fn server_from(pid: u32, rss_bytes: u64, args: &str) -> Option<Server> {
+    let args = format!(" {}", args.trim_start());
+    if !args.contains("A-server.jar") {
+        return None;
+    }
+    Some(Server {
+        pid,
+        rss_bytes,
+        workspace: flag_value(&args, "--workspace_directory"),
+        output_base: flag_value(&args, "--output_base"),
+        output_user_root: flag_value(&args, "--output_user_root"),
+    })
+}
+
 /// Reads Bazel servers from `pid rss-kib args` lines.
 pub(crate) fn parse_servers(text: &str) -> Vec<Server> {
     let mut servers = Vec::new();
@@ -100,20 +115,10 @@ pub(crate) fn parse_servers(text: &str) -> Vec<Server> {
         let (Some(pid), Some(rss), Some(args)) = (parts.next(), parts.next(), parts.next()) else {
             continue;
         };
-        let args = format!(" {}", args.trim_start());
-        if !args.contains("A-server.jar") {
-            continue;
-        }
         let (Ok(pid), Ok(rss)) = (pid.parse::<u32>(), rss.parse::<u64>()) else {
             continue;
         };
-        servers.push(Server {
-            pid,
-            rss_bytes: rss * 1024,
-            workspace: flag_value(&args, "--workspace_directory"),
-            output_base: flag_value(&args, "--output_base"),
-            output_user_root: flag_value(&args, "--output_user_root"),
-        });
+        servers.extend(server_from(pid, rss * 1024, args));
     }
     servers
 }
@@ -271,36 +276,8 @@ fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
 pub struct SystemHost;
 
 #[cfg(unix)]
-fn pid_alive(pid: u32) -> bool {
-    let Ok(pid) = libc::pid_t::try_from(pid) else {
-        return false;
-    };
-    let rc = unsafe { libc::kill(pid, 0) };
-    rc == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
-}
-
-#[cfg(not(unix))]
-fn pid_alive(pid: u32) -> bool {
-    dx_process::probe(
-        "tasklist",
-        ["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"],
-    )
-    .is_some_and(|text| text.contains(&format!("\"{pid}\"")))
-}
-
-#[cfg(unix)]
 fn list_servers() -> String {
     dx_process::probe("ps", ["-eo", "pid=,rss=,args="]).unwrap_or_default()
-}
-
-#[cfg(not(unix))]
-fn list_servers() -> String {
-    let script = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*A-server.jar*' } | ForEach-Object { \"$($_.ProcessId) $([int]($_.WorkingSetSize/1024)) $($_.CommandLine)\" }";
-    dx_process::probe(
-        "powershell",
-        ["-NoProfile", "-NonInteractive", "-Command", script],
-    )
-    .unwrap_or_default()
 }
 
 fn home(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
@@ -357,7 +334,7 @@ impl Host for SystemHost {
     }
 
     fn process_alive(&self, pid: u32) -> bool {
-        pid_alive(pid)
+        dx_process::procs::pid_alive(pid)
     }
 
     fn disk_space(&self, path: &Path) -> Option<DiskSpace> {
@@ -365,7 +342,17 @@ impl Host for SystemHost {
     }
 
     fn servers(&self) -> Vec<Server> {
-        parse_servers(&list_servers())
+        #[cfg(unix)]
+        {
+            parse_servers(&list_servers())
+        }
+        #[cfg(windows)]
+        {
+            dx_process::procs::command_lines()
+                .into_iter()
+                .filter_map(|info| server_from(info.pid, info.rss_bytes, &info.command_line))
+                .collect()
+        }
     }
 
     fn output_roots(&self) -> Vec<PathBuf> {
@@ -476,6 +463,17 @@ mod tests {
             roots(&[("USER", "u")]),
             paths(&["/private/var/tmp/_bazel_u", "/var/tmp/_bazel_u"])
         );
+    }
+
+    #[test]
+    fn server_from_reads_a_windows_command_line() {
+        let line = r"C:\jdk\bin\java.exe -jar C:\i\A-server.jar --output_base=C:\x --workspace_directory=C:\w";
+        let server = server_from(9, 5, line).expect("server");
+        assert_eq!(server.pid, 9);
+        assert_eq!(server.rss_bytes, 5);
+        assert_eq!(server.workspace, Some(PathBuf::from(r"C:\w")));
+        assert_eq!(server.output_base, Some(PathBuf::from(r"C:\x")));
+        assert!(server_from(9, 5, r"C:\other.exe").is_none());
     }
 
     #[test]

@@ -67,13 +67,43 @@ pub struct Slot {
     _reserve: Vec<File>,
     holder: PathBuf,
     pub index: usize,
-    pub share: Option<dx_process::LocalShare>,
+    sizing: Option<Arc<ShareSizing>>,
+    token: Option<dx_process::ShareToken>,
+}
+
+/// What a slot needs to work out its share of the host from the slots held right now.
+#[derive(Debug)]
+struct ShareSizing {
+    dir: PathBuf,
+    indices: Vec<usize>,
+    own: usize,
+    resources: Resources,
+}
+
+impl ShareSizing {
+    fn share(&self) -> dx_process::LocalShare {
+        let held = held(&self.dir, self.indices.iter().copied(), self.own);
+        local_share(
+            self.resources.cpus,
+            self.resources.memory,
+            self.resources.reserved,
+            held,
+        )
+    }
+}
+
+impl Slot {
+    /// The share this slot gets now, split over the slots held at this moment.
+    pub fn share(&self) -> Option<dx_process::LocalShare> {
+        self.sizing.as_ref().map(|sizing| sizing.share())
+    }
 }
 
 impl Drop for Slot {
     fn drop(&mut self) {
-        if let Some(share) = &self.share {
-            dx_process::clear_share(share);
+        // Clear the source before the holder goes, so no share runs against a half-removed slot.
+        if let Some(token) = self.token.take() {
+            dx_process::clear_share_source(token);
         }
         let _ = std::fs::remove_file(&self.holder);
     }
@@ -82,7 +112,14 @@ impl Drop for Slot {
 /// A runner whose children see `DX_BUILD_SLOT=1` and the slot's share while the slot is held.
 pub struct SlotEnv<'a> {
     inner: &'a dyn dx_process::Runner,
-    share: Option<String>,
+    sizing: Option<Arc<ShareSizing>>,
+}
+
+impl SlotEnv<'_> {
+    /// The share as of this call, so a child started later sees the current split.
+    fn share_env(&self) -> Option<String> {
+        self.sizing.as_ref().map(|sizing| sizing.share().to_env())
+    }
 }
 
 impl Slot {
@@ -90,7 +127,7 @@ impl Slot {
     pub fn runner<'a>(&'a self, inner: &'a dyn dx_process::Runner) -> SlotEnv<'a> {
         SlotEnv {
             inner,
-            share: self.share.as_ref().map(dx_process::LocalShare::to_env),
+            sizing: self.sizing.clone(),
         }
     }
 }
@@ -124,8 +161,8 @@ impl dx_process::Runner for SlotEnv<'_> {
         cwd: &Path,
         env: &[(&str, &str)],
     ) -> io::Result<dx_process::ChildStatus> {
-        self.inner
-            .run(argv, cwd, &slot_env(env, self.share.as_deref()))
+        let share = self.share_env();
+        self.inner.run(argv, cwd, &slot_env(env, share.as_deref()))
     }
 
     fn run_hermetic(
@@ -144,8 +181,9 @@ impl dx_process::Runner for SlotEnv<'_> {
         env: &[(&str, &str)],
         withdraw: &dyn Fn() -> bool,
     ) -> io::Result<Option<dx_process::ChildStatus>> {
+        let share = self.share_env();
         self.inner
-            .run_withdrawable(argv, cwd, &slot_env(env, self.share.as_deref()), withdraw)
+            .run_withdrawable(argv, cwd, &slot_env(env, share.as_deref()), withdraw)
     }
 
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
@@ -593,7 +631,8 @@ fn scan(
                     _reserve: Vec::new(),
                     holder,
                     index,
-                    share: None,
+                    sizing: None,
+                    token: None,
                 };
                 return (Ok(Some(slot)), skipped);
             }
@@ -1273,11 +1312,15 @@ impl Gate {
         match result {
             Ok(mut slot) => {
                 if let Some(resources) = self.resources {
-                    let held = held(&self.dir, layout.counted(), slot.index);
-                    let share =
-                        local_share(resources.cpus, resources.memory, resources.reserved, held);
-                    slot.share = Some(share);
-                    dx_process::set_share(Some(share));
+                    let sizing = Arc::new(ShareSizing {
+                        dir: self.dir.clone(),
+                        indices: layout.counted().collect(),
+                        own: slot.index,
+                        resources,
+                    });
+                    let live = Arc::clone(&sizing);
+                    slot.token = Some(dx_process::set_share_source(move || live.share()));
+                    slot.sizing = Some(sizing);
                 }
                 self.reclaim(command, err, events);
                 Ok(Some(slot))
@@ -2096,13 +2139,13 @@ mod tests {
             let (base, _, _) = take_gate(&gate);
             let (extra, _, _) = take_gate(&gate);
             assert_eq!(extra.index, 1);
-            let share = extra.share.expect("share");
+            let share = extra.share().expect("share");
             assert_eq!((share.cpus, share.memory_mb), (6, 6 << 10));
             drop(base);
             let local = remote_gate(&dir, false, None).sharing(12, 12 << 30, 0);
             let (again, _, _) = take_gate(&local);
             assert_eq!(again.index, 0);
-            assert_eq!(again.share.expect("share").memory_mb, 6 << 10);
+            assert_eq!(again.share().expect("share").memory_mb, 6 << 10);
         });
     }
 
@@ -2201,15 +2244,61 @@ mod tests {
             cpus: 300,
             memory_mb: 4096,
         };
-        assert_eq!(slot.share, Some(want));
+        assert_eq!(slot.share(), Some(want));
         assert_eq!(dx_process::share(), Some(want));
         drop(slot);
         assert_eq!(dx_process::share(), None);
         drop(other);
         let plain = Gate::new(dir, 2, "plain".to_owned(), false);
         let (slot, _, _) = take_gate(&plain);
-        assert_eq!(slot.share, None);
+        assert_eq!(slot.share(), None);
         assert_eq!(dx_process::share(), None);
+    }
+
+    #[test]
+    fn share_shrinks_when_another_slot_is_taken() {
+        alone("share_shrinks_when_another_slot_is_taken", || {
+            let scratch = dx_test_scratch::scratch("dx-slots-live-share-");
+            let dir = scratch.path().join("slots");
+            let gate = Gate::new(dir.clone(), 2, "me".to_owned(), false).sharing(12, 12 << 30, 0);
+            let (slot, _, _) = take_gate(&gate);
+            let cpus = || dx_process::share().map(|share| share.cpus);
+            assert_eq!(cpus(), Some(12));
+            let other = try_take(&dir, 2, "other").expect("try").expect("other");
+            assert_eq!(cpus(), Some(6));
+            drop(other);
+            assert_eq!(cpus(), Some(12));
+            drop(slot);
+            assert_eq!(cpus(), None);
+        });
+    }
+
+    #[test]
+    fn slot_runner_exports_the_current_share() {
+        use dx_process::Runner as _;
+        alone("slot_runner_exports_the_current_share", || {
+            let scratch = dx_test_scratch::scratch("dx-slots-live-env-");
+            let dir = scratch.path().join("slots");
+            let gate = Gate::new(dir.clone(), 2, "me".to_owned(), false).sharing(12, 12 << 30, 0);
+            let (slot, _, _) = take_gate(&gate);
+            let inner = EnvRecorder::default();
+            let held = slot.runner(&inner);
+            held.run(&["bazel".to_owned()], scratch.path(), &[])
+                .expect("run");
+            let other = try_take(&dir, 2, "other").expect("try").expect("other");
+            held.run(&["bazel".to_owned()], scratch.path(), &[])
+                .expect("run");
+            drop(other);
+            let shares: Vec<String> = inner
+                .seen
+                .borrow()
+                .iter()
+                .flat_map(|(_, env)| env.iter())
+                .filter(|(name, _)| name == SHARE_ENV_VAR)
+                .map(|(_, value)| value.clone())
+                .collect();
+            assert_eq!(shares, vec!["cpu=12,memory=12288", "cpu=6,memory=6144"]);
+        });
     }
 
     #[test]
@@ -2544,10 +2633,16 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-share-env-");
         let dir = scratch.path().join("slots");
         let mut slot = try_take(&dir, 1, "env").expect("try").expect("free");
-        slot.share = Some(dx_process::LocalShare {
-            cpus: 7,
-            memory_mb: 777,
-        });
+        slot.sizing = Some(Arc::new(ShareSizing {
+            dir: dir.clone(),
+            indices: vec![0],
+            own: 0,
+            resources: Resources {
+                cpus: 7,
+                memory: 777 << 20,
+                reserved: 0,
+            },
+        }));
         let inner = EnvRecorder::default();
         let held = slot.runner(&inner);
         held.run(&["bazel".to_owned()], scratch.path(), &[])
@@ -2581,7 +2676,13 @@ mod tests {
         let slot = with_gate(Some(gate), || {
             take(Command::Run, &mut Vec::new(), &mut Vec::new())
         });
-        assert!(matches!(slot, Ok(Some(Slot { share: Some(_), .. }))));
+        assert!(matches!(
+            slot,
+            Ok(Some(Slot {
+                sizing: Some(_),
+                ..
+            }))
+        ));
         assert!(scratch
             .path()
             .join("dx")

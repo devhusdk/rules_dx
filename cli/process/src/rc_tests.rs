@@ -578,8 +578,11 @@ fn a_share_round_trips_through_its_env_value() {
     }
 }
 
+static SHARE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn the_process_share_clears_only_its_own_value() {
+    let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     set_share(Some(SHARE_4));
     assert_eq!(share(), Some(SHARE_4));
     clear_share(&LocalShare {
@@ -588,6 +591,39 @@ fn the_process_share_clears_only_its_own_value() {
     });
     assert_eq!(share(), Some(SHARE_4));
     clear_share(&SHARE_4);
+    assert_eq!(share(), None);
+}
+
+#[test]
+fn a_live_share_source_is_read_on_every_call() {
+    let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    use std::sync::atomic::{AtomicU64, Ordering};
+    let cpus = Arc::new(AtomicU64::new(8));
+    let seen = Arc::clone(&cpus);
+    let token = set_share_source(move || LocalShare {
+        cpus: seen.load(Ordering::SeqCst),
+        memory_mb: 100,
+    });
+    assert_eq!(share().map(|s| s.cpus), Some(8));
+    let first = build_verb_options("build", &[]).join(" ");
+    cpus.store(3, Ordering::SeqCst);
+    assert_eq!(share().map(|s| s.cpus), Some(3));
+    let second = build_verb_options("build", &[]).join(" ");
+    if first.contains("cpu=8") {
+        assert!(second.contains("cpu=3"), "{second}");
+    }
+    // A stale token must not remove a newer source.
+    let newer = set_share_source(|| SHARE_4);
+    clear_share_source(token);
+    assert_eq!(share(), Some(SHARE_4));
+    // A fixed share replaces a live source.
+    set_share(Some(LocalShare {
+        cpus: 2,
+        memory_mb: 1,
+    }));
+    clear_share_source(newer);
+    assert_eq!(share().map(|s| s.cpus), Some(2));
+    set_share(None);
     assert_eq!(share(), None);
 }
 

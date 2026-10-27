@@ -1653,6 +1653,25 @@ fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
     ))
 }
 
+/// Owner-only temp directory that is removed when dropped, including on panic.
+struct PrivateStageDir(std::path::PathBuf);
+
+impl PrivateStageDir {
+    fn new(prefix: &str) -> io::Result<Self> {
+        tempfile_stage_dir(prefix).map(Self)
+    }
+
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for PrivateStageDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 /// Formats one GitHub release command.
 pub fn github_release_command(tag: &str, asset_bases: &[String]) -> String {
     let mut cmd = format!("gh release create {tag}");
@@ -2660,8 +2679,98 @@ pub fn oci_declared_image_id(image: &Path, platform: &str) -> Result<String, Str
     Ok(archive.config_digest)
 }
 
-fn docker_image_id(reference: &str) -> Result<String, String> {
+/// The caller's docker daemon endpoint, carried over to the scoped config.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct DockerEndpoint {
+    host: Option<String>,
+    cert_path: Option<std::path::PathBuf>,
+}
+
+fn caller_docker_config_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("DOCKER_CONFIG")
+        .filter(|value| !value.is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .filter(|value| !value.is_empty())
+                .map(|home| std::path::PathBuf::from(home).join(".docker"))
+        })
+}
+
+/// Reads the caller's docker daemon endpoint.
+fn docker_endpoint() -> Result<DockerEndpoint, String> {
+    let cert_path = std::env::var_os("DOCKER_CERT_PATH")
+        .filter(|value| !value.is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("DOCKER_TLS_VERIFY")
+                .filter(|value| !value.is_empty())
+                .and_then(|_| caller_docker_config_dir())
+        });
+    if let Some(host) = std::env::var("DOCKER_HOST")
+        .ok()
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(DockerEndpoint {
+            host: Some(host),
+            cert_path,
+        });
+    }
     let output = std::process::Command::new("docker")
+        .args(["context", "inspect", "--format", "{{json .}}"])
+        .stderr(std::process::Stdio::null())
+        .output();
+    let value = output
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| serde_json::from_slice::<serde_json::Value>(&output.stdout).ok());
+    let Some(value) = value else {
+        return Ok(DockerEndpoint {
+            host: None,
+            cert_path,
+        });
+    };
+    let has_tls = value
+        .get("TLSMaterial")
+        .and_then(serde_json::Value::as_object)
+        .is_some_and(|material| {
+            material
+                .values()
+                .any(|files| files.as_array().is_some_and(|files| !files.is_empty()))
+        });
+    if has_tls {
+        return Err(
+            "the active docker context uses TLS, which a scoped docker config cannot carry; set DOCKER_HOST, DOCKER_TLS_VERIFY and DOCKER_CERT_PATH explicitly"
+                .to_owned(),
+        );
+    }
+    let host = value
+        .pointer("/Endpoints/docker/Host")
+        .and_then(serde_json::Value::as_str)
+        .filter(|host| !host.is_empty())
+        .map(str::to_owned);
+    Ok(DockerEndpoint { host, cert_path })
+}
+
+/// Builds one docker command bound to the scoped config and the caller's daemon.
+fn docker_command(config: &Path, endpoint: &DockerEndpoint) -> std::process::Command {
+    let mut command = std::process::Command::new("docker");
+    command.env("DOCKER_CONFIG", config);
+    command.env_remove("DOCKER_CONTEXT");
+    if let Some(host) = &endpoint.host {
+        command.env("DOCKER_HOST", host);
+    }
+    if let Some(cert_path) = &endpoint.cert_path {
+        command.env("DOCKER_CERT_PATH", cert_path);
+    }
+    command
+}
+
+fn docker_image_id(
+    docker: &dyn Fn() -> std::process::Command,
+    reference: &str,
+) -> Result<String, String> {
+    let output = docker()
         .args(["image", "inspect", "--format", "{{.Id}}", reference])
         .output()
         .map_err(|error| error.to_string())?;
@@ -2672,8 +2781,8 @@ fn docker_image_id(reference: &str) -> Result<String, String> {
 }
 
 /// Loads a docker-save archive and returns the image reference docker reports.
-fn docker_load(image: &Path) -> Result<String, String> {
-    let output = std::process::Command::new("docker")
+fn docker_load(docker: &dyn Fn() -> std::process::Command, image: &Path) -> Result<String, String> {
+    let output = docker()
         .args(["load", "-q", "-i"])
         .arg(image)
         .stderr(std::process::Stdio::inherit())
@@ -2714,7 +2823,29 @@ fn oci_live_push(
         return 1;
     }
     let reference = format!("{registry}/{repository}:{tag}");
-    let mut login = std::process::Command::new("docker");
+    let endpoint = match docker_endpoint() {
+        Ok(endpoint) => endpoint,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+    };
+    let config_dir = match PrivateStageDir::new("oci-docker-config-") {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+    };
+    let config = serde_json::json!({ "auths": { registry: {} } });
+    if let Err(error) = render_json(&config)
+        .and_then(|text| write_secure_file(config_dir.path(), "config.json", &text))
+    {
+        eprintln!("oci_deploy: {error}");
+        return 1;
+    }
+    let docker = || docker_command(config_dir.path(), &endpoint);
+    let mut login = docker();
     login
         .arg("login")
         .arg(registry)
@@ -2735,23 +2866,22 @@ fn oci_live_push(
         eprintln!("oci_deploy: docker login failed");
         return 1;
     }
-    let loaded = match docker_load(image) {
+    let loaded = match docker_load(&docker, image) {
         Ok(loaded) => loaded,
         Err(error) => {
             eprintln!("oci_deploy: {error}; refusing to push");
             return 1;
         }
     };
-    let tagged = std::process::Command::new("docker")
-        .arg("tag")
-        .arg(&loaded)
-        .arg(&reference)
-        .status();
+    let tagged = docker().arg("tag").arg(&loaded).arg(&reference).status();
     if !tagged.map(|s| s.success()).unwrap_or(false) {
         eprintln!("oci_deploy: docker tag {loaded} {reference} failed");
         return 1;
     }
-    match (docker_image_id(&loaded), docker_image_id(&reference)) {
+    match (
+        docker_image_id(&docker, &loaded),
+        docker_image_id(&docker, &reference),
+    ) {
         (Ok(source), Ok(bound)) if source == bound => {
             println!("oci_deploy: bound {reference} to {bound} (config {image_id})");
         }
@@ -2766,11 +2896,7 @@ fn oci_live_push(
             return 1;
         }
     }
-    match std::process::Command::new("docker")
-        .arg("push")
-        .arg(&reference)
-        .status()
-    {
+    match docker().arg("push").arg(&reference).status() {
         Ok(status) if status.success() => {
             println!("oci_deploy: pushed {reference}");
             println!(
@@ -6947,7 +7073,12 @@ mod tests {
             &script,
             "#!/bin/sh\n\
              echo \"$*\" >> \"$FAKE_DOCKER_LOG\"\n\
-             if [ \"$1\" = login ]; then cat > /dev/null; fi\n\
+             echo \"$1|$DOCKER_CONFIG|${DOCKER_HOST-unset}|${DOCKER_CONTEXT-unset}|${DOCKER_CERT_PATH-unset}\" >> \"$FAKE_DOCKER_ENV_LOG\"\n\
+             if [ \"$1 $2\" = \"context inspect\" ]; then\n\
+             if [ -z \"$FAKE_DOCKER_CONTEXT_JSON\" ]; then exit 1; fi\n\
+             echo \"$FAKE_DOCKER_CONTEXT_JSON\"; exit 0\n\
+             fi\n\
+             if [ \"$1\" = login ]; then cat > /dev/null; cp \"$DOCKER_CONFIG/config.json\" \"$FAKE_DOCKER_CONFIG_COPY\"; fi\n\
              if [ \"$1\" = \"$FAKE_DOCKER_FAIL\" ]; then exit 1; fi\n\
              if [ \"$1\" = load ] && [ -n \"$FAKE_LOADED\" ]; then echo \"$FAKE_LOADED\"; fi\n\
              if [ \"$1 $2\" = \"image inspect\" ]; then\n\
@@ -6994,18 +7125,80 @@ mod tests {
         loaded: &str,
         platform: &str,
     ) -> (i32, Vec<String>) {
+        let run =
+            run_fake_live_push_env(archive, fail, ref_id, loaded, platform, &FakeEnv::default());
+        (run.code, run.calls)
+    }
+
+    /// Caller environment for one fake live push.
+    #[cfg(unix)]
+    #[derive(Default)]
+    struct FakeEnv<'a> {
+        docker_host: Option<&'a str>,
+        docker_context: Option<&'a str>,
+        tls_verify: Option<&'a str>,
+        cert_path: Option<&'a str>,
+        context_json: &'a str,
+    }
+
+    #[cfg(unix)]
+    struct FakeRun {
+        code: i32,
+        /// Docker calls, without the leading `context inspect`.
+        calls: Vec<String>,
+        inspected: bool,
+        /// `verb|DOCKER_CONFIG|DOCKER_HOST|DOCKER_CONTEXT|DOCKER_CERT_PATH` per call.
+        env: Vec<String>,
+        config_copy: Option<String>,
+        caller_config: std::path::PathBuf,
+    }
+
+    #[cfg(unix)]
+    fn run_fake_live_push_env(
+        archive: &Path,
+        fail: &str,
+        ref_id: &str,
+        loaded: &str,
+        platform: &str,
+        caller: &FakeEnv<'_>,
+    ) -> FakeRun {
         let scratch = scratch_dir();
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
         fake_docker(&bin);
         let log = scratch.path().join("docker.log");
+        let env_log = scratch.path().join("docker.env.log");
+        let copy = scratch.path().join("config.copy.json");
+        let caller_config = scratch.path().join("home-docker");
+        let path = format!(
+            "{}:{}",
+            bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
         let code = with_env(
             &[
-                ("PATH", Some(bin.to_string_lossy().as_ref())),
+                ("PATH", Some(path.as_str())),
                 ("FAKE_DOCKER_LOG", Some(log.to_string_lossy().as_ref())),
+                (
+                    "FAKE_DOCKER_ENV_LOG",
+                    Some(env_log.to_string_lossy().as_ref()),
+                ),
+                (
+                    "FAKE_DOCKER_CONFIG_COPY",
+                    Some(copy.to_string_lossy().as_ref()),
+                ),
                 ("FAKE_DOCKER_FAIL", Some(fail)),
                 ("FAKE_REF_ID", Some(ref_id)),
                 ("FAKE_LOADED", Some(loaded)),
+                ("FAKE_DOCKER_CONTEXT_JSON", Some(caller.context_json)),
+                (
+                    "DOCKER_CONFIG",
+                    Some(caller_config.to_string_lossy().as_ref()),
+                ),
+                ("DOCKER_HOST", caller.docker_host),
+                ("DOCKER_CONTEXT", caller.docker_context),
+                ("DOCKER_TLS_VERIFY", caller.tls_verify),
+                ("DOCKER_CERT_PATH", caller.cert_path),
             ],
             || {
                 oci_live_push(
@@ -7019,12 +7212,33 @@ mod tests {
                 )
             },
         );
-        let calls = std::fs::read_to_string(&log)
-            .unwrap_or_default()
-            .lines()
-            .map(str::to_owned)
-            .collect();
-        (code, calls)
+        let read = |path: &Path| -> Vec<String> {
+            std::fs::read_to_string(path)
+                .unwrap_or_default()
+                .lines()
+                .map(str::to_owned)
+                .collect()
+        };
+        let mut calls = read(&log);
+        let mut env = read(&env_log);
+        let inspected = calls
+            .first()
+            .is_some_and(|call| call.starts_with("context inspect"));
+        if inspected {
+            calls.remove(0);
+            env.remove(0);
+        }
+        assert!(calls
+            .iter()
+            .all(|call| !call.starts_with("context inspect")));
+        FakeRun {
+            code,
+            calls,
+            inspected,
+            env,
+            config_copy: std::fs::read_to_string(&copy).ok(),
+            caller_config,
+        }
     }
 
     #[cfg(unix)]
@@ -7090,6 +7304,133 @@ mod tests {
         assert_eq!(code, 0, "{calls:?}");
         assert_eq!(calls[2], "tag demo:1 registry.invalid/demo/app:1.2.3");
         assert!(calls.contains(&"push registry.invalid/demo/app:1.2.3".to_owned()));
+    }
+
+    #[cfg(unix)]
+    fn fake_push(fail: &str, caller: &FakeEnv<'_>) -> FakeRun {
+        let scratch = scratch_dir();
+        let (archive, id) = oci_save(
+            scratch.path(),
+            "image.tar",
+            &[oci_test_layer(false)],
+            "linux/amd64",
+        );
+        let loaded = format!("Loaded image ID: {id}");
+        run_fake_live_push_env(&archive, fail, &id, &loaded, "linux/amd64", caller)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_live_push_scopes_docker_config_to_a_temp_dir() {
+        for fail in ["", "login", "load", "tag", "push"] {
+            let run = fake_push(fail, &FakeEnv::default());
+            assert_eq!(run.code, i32::from(!fail.is_empty()), "{fail}");
+            assert!(!run.env.is_empty(), "{fail}");
+            let configs: std::collections::BTreeSet<&str> = run
+                .env
+                .iter()
+                .map(|line| line.split('|').nth(1).expect("config"))
+                .collect();
+            assert_eq!(configs.len(), 1, "{fail}: {configs:?}");
+            let config = Path::new(configs.iter().next().expect("one"));
+            assert!(!config.as_os_str().is_empty(), "{fail}");
+            assert_ne!(config, run.caller_config, "{fail}");
+            assert!(!config.exists(), "{fail}: temp config left behind");
+            assert!(!run.caller_config.join("config.json").exists(), "{fail}");
+            let copy = run.config_copy.expect("login saw a config");
+            let value: serde_json::Value = serde_json::from_str(&copy).expect("json");
+            assert!(value["auths"]["registry.invalid"].is_object(), "{fail}");
+            assert!(value.get("credsStore").is_none() && value.get("credHelpers").is_none());
+            assert!(!copy.contains("s3cret"), "{fail}");
+            assert!(
+                run.env.iter().all(|line| !line.contains("s3cret")),
+                "{fail}"
+            );
+            assert!(
+                run.calls.iter().all(|call| !call.contains("s3cret")),
+                "{fail}"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn oci_live_push_forwards_the_callers_docker_endpoint() {
+        let colima = r#"{"Name":"colima","Endpoints":{"docker":{"Host":"unix:///tmp/colima.sock"}},"TLSMaterial":{}}"#;
+        let run = fake_push(
+            "",
+            &FakeEnv {
+                docker_context: Some("colima"),
+                context_json: colima,
+                ..FakeEnv::default()
+            },
+        );
+        assert_eq!(run.code, 0, "{:?}", run.calls);
+        assert!(run.inspected);
+        assert_eq!(run.env.len(), 6);
+        for line in &run.env {
+            let fields: Vec<&str> = line.split('|').collect();
+            assert_eq!(fields[2], "unix:///tmp/colima.sock", "{line}");
+            assert_eq!(fields[3], "unset", "{line}");
+        }
+
+        let run = fake_push(
+            "",
+            &FakeEnv {
+                docker_host: Some("tcp://example.invalid:2375"),
+                context_json: colima,
+                ..FakeEnv::default()
+            },
+        );
+        assert_eq!(run.code, 0);
+        assert!(!run.inspected);
+        assert!(run
+            .env
+            .iter()
+            .all(|line| line.split('|').nth(2) == Some("tcp://example.invalid:2375")));
+
+        let run = fake_push("", &FakeEnv::default());
+        assert_eq!(run.code, 0);
+        assert!(run.inspected);
+        assert!(run
+            .env
+            .iter()
+            .all(|line| line.split('|').nth(2) == Some("unset")));
+
+        let tls = r#"{"Endpoints":{"docker":{"Host":"tcp://tls.invalid:2376"}},"TLSMaterial":{"docker":["ca.pem","cert.pem","key.pem"]}}"#;
+        let run = fake_push(
+            "",
+            &FakeEnv {
+                context_json: tls,
+                ..FakeEnv::default()
+            },
+        );
+        assert_eq!(run.code, 1);
+        assert!(run.calls.is_empty() && run.env.is_empty());
+
+        let run = fake_push(
+            "",
+            &FakeEnv {
+                tls_verify: Some("1"),
+                ..FakeEnv::default()
+            },
+        );
+        assert_eq!(run.code, 0);
+        let expected = run.caller_config.to_string_lossy().into_owned();
+        assert!(run
+            .env
+            .iter()
+            .all(|line| line.split('|').nth(4) == Some(expected.as_str())));
+    }
+
+    #[test]
+    fn private_stage_dir_is_removed_on_drop() {
+        let dir = PrivateStageDir::new("dx-private-stage-test-").expect("dir");
+        let path = dir.path().to_path_buf();
+        write_secure_file(&path, "secret", "x").expect("write");
+        assert!(path.join("secret").exists());
+        drop(dir);
+        assert!(!path.exists());
     }
 
     #[test]

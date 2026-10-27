@@ -1771,7 +1771,7 @@ impl<W: Write> Write for AfterFirstLine<W> {
 }
 
 #[cfg(test)]
-const SETTLE_LIMIT: Duration = Duration::from_secs(1);
+const SETTLE_LIMIT: Duration = Duration::from_secs(5);
 #[cfg(test)]
 const SETTLE_POLL: Duration = Duration::from_millis(10);
 

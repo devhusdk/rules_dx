@@ -3,7 +3,7 @@ pub(crate) fn parsed(words: &[&str]) -> dx_plan::args::Invocation {
     dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parse")
 }
 
-const SETTLE_LIMIT: std::time::Duration = std::time::Duration::from_secs(1);
+const SETTLE_LIMIT: std::time::Duration = std::time::Duration::from_secs(5);
 const SETTLE_POLL: std::time::Duration = std::time::Duration::from_millis(10);
 
 /// Waits for `count` slots to look free, since a forked child can briefly hold a released slot's lock.

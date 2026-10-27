@@ -2,7 +2,7 @@ use crate::validation::{check_correlation, check_path, parse_digest, OutputError
 use serde_json::{json, Value};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 0;
+pub const SCHEMA_MINOR: u64 = 1;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -10,6 +10,7 @@ pub const EVENTS: &[&str] = &[
     "change",
     "command_finished",
     "command_started",
+    "coverage",
     "diagnostic",
     "error",
     "notice",
@@ -246,6 +247,53 @@ pub fn slot_event(slot: &SlotEvent) -> Result<Value, OutputError> {
     if let Some(bytes) = slot.disk_bytes {
         map.insert("disk_bytes".to_owned(), Value::from(bytes));
     }
+    Ok(Value::Object(map))
+}
+
+/// One cell's coverage account from `dx coverage`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoverageEvent {
+    pub cell: String,
+    pub covered_lines: u64,
+    pub eligible_lines: u64,
+    pub raw_lines: u64,
+    pub excluded_lines: u64,
+    pub eligible_files: u64,
+    pub support_files: u64,
+    pub excluded_files: u64,
+    pub unsupported_files: u64,
+    pub minimum: Option<u32>,
+    pub passed: bool,
+    pub errors: u64,
+    pub dx_version: String,
+}
+
+pub fn coverage_event(coverage: &CoverageEvent) -> Result<Value, OutputError> {
+    nonempty("cell", &coverage.cell)?;
+    nonempty("dx_version", &coverage.dx_version)?;
+    let mut map = base("coverage");
+    map.insert("cell".to_owned(), Value::String(coverage.cell.clone()));
+    for (key, value) in [
+        ("covered_lines", coverage.covered_lines),
+        ("eligible_lines", coverage.eligible_lines),
+        ("raw_lines", coverage.raw_lines),
+        ("excluded_lines", coverage.excluded_lines),
+        ("eligible_files", coverage.eligible_files),
+        ("support_files", coverage.support_files),
+        ("excluded_files", coverage.excluded_files),
+        ("unsupported_files", coverage.unsupported_files),
+    ] {
+        map.insert(key.to_owned(), Value::from(value));
+    }
+    if let Some(minimum) = coverage.minimum {
+        map.insert("minimum".to_owned(), Value::from(minimum));
+    }
+    map.insert("passed".to_owned(), Value::Bool(coverage.passed));
+    map.insert("errors".to_owned(), Value::from(coverage.errors));
+    map.insert(
+        "dx_version".to_owned(),
+        Value::String(coverage.dx_version.clone()),
+    );
     Ok(Value::Object(map))
 }
 
@@ -1241,10 +1289,10 @@ mod tests {
     }
 
     #[test]
-    fn schema_is_three_zero_with_forward_compat() {
+    fn schema_is_three_one_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 0);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 0}));
+        assert_eq!(SCHEMA_MINOR, 1);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 1}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -1690,5 +1738,61 @@ mod build_failure_tests {
         let mut failure = sample();
         failure.stage.clear();
         assert!(build_failure_event(&failure).is_err());
+    }
+
+    fn coverage_fixture() -> CoverageEvent {
+        CoverageEvent {
+            cell: "linux_x86_64".to_owned(),
+            covered_lines: 7,
+            eligible_lines: 8,
+            raw_lines: 10,
+            excluded_lines: 2,
+            eligible_files: 3,
+            support_files: 4,
+            excluded_files: 1,
+            unsupported_files: 5,
+            minimum: Some(100),
+            passed: false,
+            errors: 2,
+            dx_version: "1.2.3".to_owned(),
+        }
+    }
+
+    #[test]
+    fn coverage_event_carries_every_count() {
+        let event = coverage_event(&coverage_fixture()).expect("coverage");
+        assert_eq!(
+            event,
+            serde_json::json!({
+                "schema": {"major": 3, "minor": 1},
+                "event": "coverage",
+                "cell": "linux_x86_64",
+                "covered_lines": 7,
+                "eligible_lines": 8,
+                "raw_lines": 10,
+                "excluded_lines": 2,
+                "eligible_files": 3,
+                "support_files": 4,
+                "excluded_files": 1,
+                "unsupported_files": 5,
+                "minimum": 100,
+                "passed": false,
+                "errors": 2,
+                "dx_version": "1.2.3",
+            })
+        );
+    }
+
+    #[test]
+    fn coverage_event_omits_an_absent_minimum_and_rejects_empty_names() {
+        let mut coverage = coverage_fixture();
+        coverage.minimum = None;
+        let event = coverage_event(&coverage).expect("coverage");
+        assert!(event.get("minimum").is_none(), "{event}");
+        coverage.cell.clear();
+        assert!(coverage_event(&coverage).is_err());
+        let mut coverage = coverage_fixture();
+        coverage.dx_version.clear();
+        assert!(coverage_event(&coverage).is_err());
     }
 }

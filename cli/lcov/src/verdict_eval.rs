@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{is_covered_language, is_starlark, FileVerdict, GateVerdict};
+use crate::accounting::{count_lines, LineCount};
 use crate::{find_ignores, is_ignored, FileHits, LcovError, ELIGIBLE, SUPPORT};
 
 fn check_file(
@@ -23,23 +24,12 @@ fn check_file(
             return None;
         }
     };
-    let mut covered = 0;
-    let mut eligible = 0;
-    let mut ignored = 0;
-    let mut uncovered = Vec::new();
-    let mut numbered: Vec<u32> = hits.lines.keys().copied().collect();
-    numbered.sort();
-    for line in numbered {
-        if is_ignored(&ignores, line) {
-            ignored += 1;
-        } else if hits.lines[&line] > 0 {
-            covered += 1;
-            eligible += 1;
-        } else {
-            uncovered.push(line);
-            eligible += 1;
-        }
-    }
+    let LineCount {
+        covered,
+        eligible,
+        ignored,
+        uncovered,
+    } = count_lines(hits, &ignores);
     let mut branch_eligible = 0;
     let mut branch_ignored = 0;
     let mut branch_hit = 0;

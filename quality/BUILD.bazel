@@ -571,8 +571,6 @@ rust_test(
         "//libs/gomod:src/lib.rs",
         "//libs/module_bazel:src/lib.rs",
         "//quality/adapter:src/lib.rs",
-        "//quality/evaluator:src/lib.rs",
-        "//quality/evaluator:src/main.rs",
         "//quality/markdown:src/lib.rs",
         "//quality/markdown:src/main.rs",
         "//quality/result:src/lib.rs",

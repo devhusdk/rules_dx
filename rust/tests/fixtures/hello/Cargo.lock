@@ -3413,16 +3413,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quality_evaluator"
-version = "0.0.0"
-dependencies = [
- "clap",
- "tempfile",
- "thiserror 2.0.20",
- "tracing",
-]
-
-[[package]]
 name = "quality_markdown"
 version = "0.0.0"
 dependencies = [

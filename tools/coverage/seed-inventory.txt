@@ -20,8 +20,6 @@ eligible cli/lcov/src/verdict_lang.rs
 eligible cli/lcov/src/verdict_render.rs
 # tests-only module; never linked into production binaries.
 support cli/lcov/src/verdict_tests.rs
-eligible quality/evaluator/src/lib.rs
-eligible quality/evaluator/src/main.rs
 # process entry shim; behavior exercised through run() unit tests.
 support tools/coverage/src/main.rs
 # Go seed: the fully covered gazelle language packages in the measured

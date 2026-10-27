@@ -306,6 +306,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "uv.exe",
                 "checksums_url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-pc-windows-msvc.zip.sha256",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "uv-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "uv.exe",
+                "checksums_url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-pc-windows-msvc.zip.sha256",
+            },
         },
     },
     "gitleaks": {

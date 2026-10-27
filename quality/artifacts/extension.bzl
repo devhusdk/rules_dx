@@ -79,6 +79,7 @@ load("//quality/artifacts:uv.linux_arm64.bzl", _uv_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:uv.linux_x86_64.bzl", _uv_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:uv.macos_arm64.bzl", _uv_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:uv.windows_x86_64.bzl", _uv_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:uv.windows_arm64.bzl", _uv_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.linux_arm64.bzl", _vale_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:vale.linux_x86_64.bzl", _vale_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
@@ -170,6 +171,7 @@ _ARTIFACTS = [
     _uv_linux_arm64,
     _uv_macos_arm64,
     _uv_windows_x86_64,
+    _uv_windows_arm64,
     _vale_linux_x86_64,
     _vale_linux_arm64,
     _vale_macos_arm64,

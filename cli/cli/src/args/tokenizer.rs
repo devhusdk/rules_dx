@@ -253,10 +253,11 @@ fn name_of(word: &str) -> &str {
 /// The flag as typed, with its value attached when the value is a separate word.
 fn spelled(words: &[String], index: usize) -> String {
     let word = &words[index];
-    if word.contains('=') || !super::grammar::VALUE_OPTIONS.contains(&word.as_str()) {
+    let next = words.get(index + 1).map(String::as_str);
+    if !super::grammar::consumes_next(word, next) {
         return word.clone();
     }
-    match words.get(index + 1) {
+    match next {
         Some(value) => format!("{word}={value}"),
         None => word.clone(),
     }
@@ -349,4 +350,17 @@ pub(crate) fn tokenize<S: AsRef<OsStr>>(args: &[S]) -> Result<Tokenized, ArgsErr
         targets,
         bazel_options,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::spelled;
+
+    #[test]
+    fn a_short_cluster_takes_its_value_word() {
+        let words: Vec<String> = ["-qo", "json"].map(str::to_owned).to_vec();
+        assert_eq!(spelled(&words, 0), "-qo=json");
+        let words: Vec<String> = ["-q", "json"].map(str::to_owned).to_vec();
+        assert_eq!(spelled(&words, 0), "-q");
+    }
 }

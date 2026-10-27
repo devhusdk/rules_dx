@@ -1,4 +1,5 @@
 use super::common::*;
+use super::failure::CODE_INVALID_SCOPE;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;
@@ -303,6 +304,93 @@ fn phase_correlation(command: &str, phase: &str) -> String {
 
 /// Forwards one finished phase's streams, nesting its JSON lifecycle under the parent command.
 /// Returns whether every child line was a readable event.
+/// Names the last stderr line of a phase, or says it wrote none.
+fn last_stderr_line(phase_err: &[u8]) -> String {
+    String::from_utf8_lossy(phase_err)
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map_or_else(|| "no stderr output".to_owned(), str::to_owned)
+}
+
+/// Makes a phase that stopped the run as a selection failure say why.
+///
+/// A phase that ends as `Selection` with a failing exit and no `error` event would otherwise
+/// leave only `umbrella_phase_skipped` notices behind. JSON streams gain an `invalid_scope`
+/// error before the phase's closing event; text runs gain a stderr line.
+fn explain_selection_stop(
+    output: OutputMode,
+    phase: &str,
+    code: i32,
+    streams: (&mut Vec<u8>, &mut Vec<u8>),
+) {
+    let (phase_out, phase_err) = streams;
+    let name_of = |line: &[u8]| {
+        serde_json::from_slice::<Value>(line)
+            .ok()
+            .and_then(|event| {
+                event
+                    .get("event")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+    };
+    if output == OutputMode::Json
+        && phase_out
+            .split(|byte| *byte == b'\n')
+            .any(|line| name_of(line).as_deref() == Some("error"))
+    {
+        return;
+    }
+    let message = format!(
+        "{phase} rejected its scope or configuration (exit {code}) without saying why; \
+         last stderr line: {}; pass a Bazel label or package such as //pkg, or use --affected",
+        last_stderr_line(phase_err)
+    );
+    if output != OutputMode::Json {
+        if !phase_err.is_empty() {
+            return;
+        }
+        let _ = writeln!(phase_err, "dx: {CODE_INVALID_SCOPE}: {message}");
+        return;
+    }
+    let Ok(event) = error_event(CODE_INVALID_SCOPE, &message, None, None, Some(phase)) else {
+        return;
+    };
+    let mut line = Vec::new();
+    if write_event(&mut line, &event).is_err() {
+        return;
+    }
+    let lines: Vec<&[u8]> = phase_out
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .collect();
+    let closing = lines.last().is_some_and(|last| {
+        matches!(
+            name_of(last).as_deref(),
+            Some("phase_finished" | "command_finished")
+        )
+    });
+    let keep = if closing {
+        lines.len() - 1
+    } else {
+        lines.len()
+    };
+    let mut rebuilt = Vec::new();
+    for (index, existing) in lines.iter().enumerate() {
+        if index == keep {
+            rebuilt.extend_from_slice(&line);
+        }
+        rebuilt.extend_from_slice(existing);
+        rebuilt.push(b'\n');
+    }
+    if keep == lines.len() {
+        rebuilt.extend_from_slice(&line);
+    }
+    *phase_out = rebuilt;
+}
+
 fn forward_phase(
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -991,6 +1079,14 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
         if effects.touched() {
             last_touched = Some(index);
+        }
+        if kind == PhaseKind::Selection && code != 0 {
+            explain_selection_stop(
+                request.common.output,
+                phase.name(),
+                code,
+                (&mut phase_out, &mut phase_err),
+            );
         }
         collector.record_exit(index, code, kind);
         match forward_phase(
@@ -2638,6 +2734,57 @@ mod tests {
                 .iter()
                 .any(|event| event["code"] == "bazel_failed" && event["correlation"] == "fix/lint"),
             "{out}"
+        );
+    }
+
+    #[test]
+    fn a_selection_stop_without_an_error_event_gains_one_before_the_closing_event() {
+        let started = br#"{"event":"phase_started","phase":"format"}"#;
+        let finished = br#"{"event":"phase_finished","phase":"format","exit_code":2}"#;
+        let mut out = [&started[..], b"\n", &finished[..], b"\n"].concat();
+        let mut err = b"ERROR: no such target\nINFO: done\n".to_vec();
+        explain_selection_stop(OutputMode::Json, "format", 2, (&mut out, &mut err));
+        let lines: Vec<Value> = String::from_utf8(out)
+            .expect("utf8")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("event"))
+            .collect();
+        assert_eq!(lines.len(), 3, "{lines:?}");
+        assert_eq!(lines[1]["event"], "error");
+        assert_eq!(lines[1]["code"], "invalid_scope");
+        assert_eq!(lines[2]["event"], "phase_finished");
+        let message = lines[1]["message"].as_str().expect("message");
+        assert!(message.contains("INFO: done"), "{message}");
+        assert!(
+            message.contains("pass a Bazel label or package"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn a_selection_stop_that_already_has_an_error_event_is_left_alone() {
+        let error = br#"{"event":"error","code":"invalid_arguments","message":"x"}"#;
+        let mut out = [&error[..], b"\n"].concat();
+        let before = out.clone();
+        let mut err = Vec::new();
+        explain_selection_stop(OutputMode::Json, "format", 2, (&mut out, &mut err));
+        assert_eq!(out, before);
+    }
+
+    #[test]
+    fn a_silent_text_selection_stop_writes_a_stderr_line() {
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        explain_selection_stop(
+            OutputMode::Text { quiet: false },
+            "format",
+            2,
+            (&mut out, &mut err),
+        );
+        let text = String::from_utf8(err).expect("utf8");
+        assert!(
+            text.starts_with("dx: invalid_scope: format rejected"),
+            "{text}"
         );
     }
 

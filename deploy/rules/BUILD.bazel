@@ -72,6 +72,7 @@ exports_files([
     "src/lib.rs",
     "src/maven.rs",
     "src/run.rs",
+    "src/stage.rs",
     "src/test_support.rs",
     "validate.bzl",
     "validate_tests.bzl",
@@ -86,6 +87,7 @@ rust_library(
         "src/lib.rs",
         "src/maven.rs",
         "src/run.rs",
+        "src/stage.rs",
         "src/test_support.rs",
     ],
     aliases = aliases(

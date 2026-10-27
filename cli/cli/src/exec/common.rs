@@ -327,6 +327,8 @@ pub struct Env<'a> {
     pub audit_today: Option<&'a str>,
     /// Bazel action counts summed over the run's builds.
     pub actions: &'a ActionTally,
+    /// The process table `dx clean` observes for live leases; `/proc` in production.
+    pub proc_root: &'a Path,
 }
 
 /// Sums the Bazel action counts of every build in one run.

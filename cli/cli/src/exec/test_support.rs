@@ -82,6 +82,8 @@ pub(crate) struct Harness {
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
     pub(crate) actions: ActionTally,
+    /// Process table root `dx clean` observes; point at a missing dir to make observation unknown.
+    pub(crate) proc_root: std::path::PathBuf,
     /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
     pub(crate) probe_shards: Option<Vec<String>>,
     /// An exit code the fake shard probe returns instead of answering.
@@ -229,6 +231,7 @@ impl Harness {
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
             actions: ActionTally::default(),
+            proc_root: std::path::PathBuf::from("/proc"),
             probe_shards: None,
             probe_code: None,
             probe_argv: Rc::new(RefCell::new(Vec::new())),
@@ -572,6 +575,7 @@ impl Harness {
             ci: false,
             audit_today: self.audit_today.as_deref(),
             actions: &self.actions,
+            proc_root: &self.proc_root,
         }
     }
 

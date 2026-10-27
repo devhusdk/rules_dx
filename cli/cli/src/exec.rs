@@ -136,6 +136,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         ci,
         audit_today,
         actions,
+        proc_root,
     } = env;
     let mut latched = common::LatchedOut::new(out);
     let code = dispatch(
@@ -152,6 +153,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             ci,
             audit_today,
             actions,
+            proc_root,
         },
     );
     if code == 0 {

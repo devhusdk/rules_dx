@@ -644,6 +644,7 @@ FILE_FAMILY_CASES = [
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_clean.ps1"],
         "tool_names": ["psscriptanalyzer"],
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
+        "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_lint_pass.expected.txt",
     },
     {
@@ -656,6 +657,7 @@ FILE_FAMILY_CASES = [
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_dirty.ps1"],
         "tool_names": ["psscriptanalyzer"],
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
+        "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_lint_fail.expected.txt",
     },
     {

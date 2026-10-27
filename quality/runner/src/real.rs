@@ -480,7 +480,6 @@ mod tests {
         std::env::temp_dir().join("out")
     }
 
-    use crate::RunnerError;
     use quality_adapter::parsers::ParseError;
 
     /// An incomplete analysis is an execution failure for every tool, never "invalid tool output".

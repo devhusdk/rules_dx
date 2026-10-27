@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "csharp_tfm_with_defaults")
+load(":defs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
 
 def csharp_wrapper_contract_tests(name):
     """Instantiates C# wrapper contract tests."""
@@ -39,6 +39,21 @@ def csharp_wrapper_contract_tests(name):
                 "other kwargs survive",
                 csharp_tfm_with_defaults({"deps": [":hello_lib"]})["deps"],
                 [":hello_lib"],
+            ),
+            expect_equal(
+                "one tfm adds no fan-out edge",
+                csharp_tfm_forward_kwargs("lib", csharp_tfm_with_defaults({})),
+                {},
+            ),
+            expect_equal(
+                "tfm matrix fans out over the upstream",
+                csharp_tfm_forward_kwargs("lib", {"target_frameworks": ["net8.0", "net10.0"]}),
+                {"dx_target_frameworks": ["net8.0", "net10.0"], "dx_tfm_variants": ":lib_upstream"},
+            ),
+            expect_equal(
+                "non-list tfm adds no fan-out edge",
+                csharp_tfm_forward_kwargs("lib", {"target_frameworks": "net8.0"}),
+                {},
             ),
         ],
     )

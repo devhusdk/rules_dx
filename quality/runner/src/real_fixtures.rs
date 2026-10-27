@@ -71,10 +71,19 @@ pub(super) fn upstream_file(name: &str, body: &str) -> tempfile::NamedTempFile {
     file
 }
 
+/// The tool-file key that pairs a Roslyn SARIF log with its csc exit status.
+pub(super) fn roslyn_exit_key(sarif: &Path) -> String {
+    let stem = sarif
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or_default();
+    format!("dx-roslyn/{stem}/exit")
+}
+
 pub(super) fn delegated_tool(path: PathBuf) -> RealTool {
     RealTool {
         binary: PathBuf::new(),
-        tool_files: vec![("dx-roslyn/exit".to_owned(), b"0\n".to_vec())],
+        tool_files: vec![(roslyn_exit_key(&path), b"0\n".to_vec())],
         upstream_diagnostics: vec![path],
         ..plain_tool()
     }

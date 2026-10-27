@@ -423,7 +423,7 @@ fn delegated_roslyn_fails_closed_without_the_csc_exit_status() {
         let report = upstream_file("roslyn", ROSLYN_CLEAN);
         let mut tool = delegated_tool(report.path().to_path_buf());
         tool.tool_files = exit
-            .map(|text| vec![("dx-roslyn/exit".to_owned(), text.as_bytes().to_vec())])
+            .map(|text| vec![(roslyn_exit_key(report.path()), text.as_bytes().to_vec())])
             .unwrap_or_default();
         let backend = backend_for("roslyn", tool, must_not_spawn);
         let error = backend
@@ -437,10 +437,133 @@ fn delegated_roslyn_fails_closed_without_the_csc_exit_status() {
 fn delegated_roslyn_reports_a_nonzero_exit_without_errors() {
     let report = upstream_file("roslyn", ROSLYN_CLEAN);
     let mut tool = delegated_tool(report.path().to_path_buf());
-    tool.tool_files = vec![("dx-roslyn/exit".to_owned(), b"1\r\n".to_vec())];
+    tool.tool_files = vec![(roslyn_exit_key(report.path()), b"1\r\n".to_vec())];
     let backend = backend_for("roslyn", tool, must_not_spawn);
     let error = backend
         .diagnose("roslyn", "lint", &single("src/a.cs", "x\n"))
         .expect_err("incomplete");
     assert!(error.to_string().contains("csc exit 1"), "{error}");
+}
+
+fn roslyn_result(rule: &str, line: u32, message: &str) -> String {
+    format!(
+        r#"{{"ruleId":"{rule}","level":"warning","message":{{"text":"{message}"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"src/a.cs"}},"region":{{"startLine":{line},"startColumn":1,"endLine":{line},"endColumn":2}}}}}}]}}"#
+    )
+}
+
+fn roslyn_sarif(results: &[String]) -> String {
+    format!(
+        r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"csc"}}}},"results":[{}]}}]}}"#,
+        results.join(",")
+    )
+}
+
+/// One Roslyn tool fed a SARIF log and exit status per target framework.
+fn roslyn_pivots(scratch: &Path, pivots: &[(&str, &str, Option<&str>)]) -> RealTool {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    tool.tool_files.clear();
+    for (tfm, sarif, exit) in pivots {
+        let path = scratch.join(format!("{tfm}.sarif"));
+        std::fs::write(&path, sarif).expect("write pivot SARIF");
+        if let Some(exit) = exit {
+            tool.tool_files
+                .push((format!("dx-roslyn/{tfm}/exit"), exit.as_bytes().to_vec()));
+        }
+        tool.upstream_diagnostics.push(path);
+    }
+    tool
+}
+
+const ROSLYN_SOURCE: &str = "a\nb\nc\n";
+
+#[test]
+fn delegated_roslyn_reports_a_finding_shared_by_every_framework_once() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let shared = roslyn_sarif(&[roslyn_result("CA1822", 1, "shared")]);
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", &shared, Some("0")),
+            ("net10.0", &shared, Some("0")),
+        ],
+    );
+    let findings = backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect("merged findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].message, "shared");
+}
+
+#[test]
+fn delegated_roslyn_marks_a_finding_with_the_frameworks_that_report_it() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let net8 = roslyn_sarif(&[
+        roslyn_result("CA1822", 1, "shared"),
+        roslyn_result("CA1822", 2, "only net8"),
+    ]);
+    let net10 = roslyn_sarif(&[roslyn_result("CA1822", 1, "shared")]);
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[("net8.0", &net8, Some("0")), ("net10.0", &net10, Some("0"))],
+    );
+    let findings = backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect("merged findings");
+    let mut messages: Vec<&str> = findings
+        .iter()
+        .map(|found| found.message.as_str())
+        .collect();
+    messages.sort_unstable();
+    assert_eq!(messages, ["only net8 [net8.0]", "shared"]);
+}
+
+#[test]
+fn delegated_roslyn_fails_closed_without_a_framework_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", ROSLYN_CLEAN, Some("0")),
+            ("net10.0", ROSLYN_CLEAN, None),
+        ],
+    );
+    let error = backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect_err("missing net10.0 exit status");
+    assert!(
+        error.to_string().contains("exit status for net10.0"),
+        "{error}"
+    );
+}
+
+#[test]
+fn delegated_roslyn_clean_framework_never_hides_a_failed_one() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", ROSLYN_CLEAN, Some("1")),
+            ("net10.0", ROSLYN_CLEAN, Some("0")),
+        ],
+    );
+    let error = backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect_err("net8.0 csc failed");
+    assert!(error.to_string().contains("csc exit 1"), "{error}");
+}
+
+#[test]
+fn delegated_roslyn_fails_closed_on_one_malformed_framework_log() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", "{<error", Some("0")),
+            ("net10.0", ROSLYN_CLEAN, Some("0")),
+        ],
+    );
+    assert!(backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .is_err());
 }

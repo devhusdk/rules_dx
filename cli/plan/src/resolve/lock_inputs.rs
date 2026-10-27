@@ -38,6 +38,8 @@ pub(crate) struct Hub {
     /// The `pnpm_lock` of an `npm.npm_translate_lock` hub, which has no Cargo
     /// lock (`cargo_lockfile` is empty).
     pub(crate) pnpm_lockfile: Option<String>,
+    /// A `ruby.bundle_fetch` repo; `cargo_lockfile` then holds its Gemfile.lock.
+    pub(crate) gems: bool,
 }
 
 /// The lock format of one changed path and the hubs it feeds.
@@ -50,6 +52,8 @@ pub(crate) enum LockKind {
     /// A go.mod or go.sum named by `go_deps.from_file`.
     Go(Vec<String>),
     Pnpm(Vec<String>),
+    /// A Gemfile.lock named by `ruby.bundle_fetch`.
+    Gemfile(Vec<String>),
     Unknown,
 }
 
@@ -61,7 +65,8 @@ impl LockKind {
             | LockKind::Pip(hubs)
             | LockKind::Maven(hubs)
             | LockKind::Go(hubs)
-            | LockKind::Pnpm(hubs) => hubs,
+            | LockKind::Pnpm(hubs)
+            | LockKind::Gemfile(hubs) => hubs,
             LockKind::Unknown => &[],
         }
     }
@@ -95,6 +100,7 @@ impl LockKind {
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
             LockKind::Go(_) => Err("use changed_go".to_owned()),
             LockKind::Pnpm(_) => changed_npm_packages(base, head),
+            LockKind::Gemfile(_) => changed_gems(base, head),
             LockKind::Unknown => Err("unknown lock format".to_owned()),
         }
     }
@@ -209,6 +215,7 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
                     pip: false,
                     maven: false,
                     go: false,
+                    gems: false,
                     pnpm_lockfile: Some(workspace_path(&pnpm_lock)?),
                 });
             }
@@ -243,6 +250,7 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
             pip: false,
             maven: false,
             go: false,
+            gems: false,
             pnpm_lockfile: None,
         });
     }
@@ -291,6 +299,7 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
             pip: false,
             maven: false,
             go: true,
+            gems: false,
             pnpm_lockfile: None,
         });
     }
@@ -713,6 +722,7 @@ pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
                     pip: true,
                     maven: false,
                     go: false,
+                    gems: false,
                     pnpm_lockfile: None,
                 });
             }
@@ -877,6 +887,7 @@ pub(crate) fn maven_hubs(module_text: &str) -> Vec<Hub> {
                 pip: false,
                 maven: true,
                 go: false,
+                gems: false,
                 pnpm_lockfile: None,
             });
         }
@@ -946,6 +957,14 @@ pub(crate) fn maven_seeds<'a>(
 }
 
 pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
+    let gems: Vec<String> = hubs
+        .iter()
+        .filter(|hub| hub.gems && hub.cargo_lockfile == path)
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !gems.is_empty() {
+        return LockKind::Gemfile(gems);
+    }
     let maven: Vec<String> = hubs
         .iter()
         .filter(|hub| hub.maven && hub.cargo_lockfile == path)
@@ -998,6 +1017,114 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
         return LockKind::Pnpm(pnpm);
     }
     LockKind::Unknown
+}
+
+/// The `ruby.bundle_fetch` repos with the Gemfile.lock each one reads.
+pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
+    let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
+    let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    for call in module.calls_named("use_extension") {
+        if call.unpacked {
+            return Err(format!(
+                "use_extension at MODULE.bazel line {} unpacks its arguments",
+                call.line
+            ));
+        }
+        let bzl = literal(call, "extension_bzl_file", Some(0))?.unwrap_or_default();
+        let name = literal(call, "extension_name", Some(1))?.unwrap_or_default();
+        if bzl.contains("rules_ruby") && name == "ruby" {
+            if let Some(binding) = &call.binding {
+                bindings.insert(binding);
+            }
+        }
+    }
+    let mut hubs = Vec::new();
+    for call in module.calls() {
+        let Some((binding, "bundle_fetch")) = call.name.split_once('.') else {
+            continue;
+        };
+        if !bindings.contains(binding) {
+            continue;
+        }
+        if call.unpacked {
+            return Err(format!(
+                "{} at MODULE.bazel line {} unpacks its arguments",
+                call.name, call.line
+            ));
+        }
+        let name = literal(call, "name", None)?.ok_or_else(|| {
+            format!(
+                "{} at MODULE.bazel line {} has no name",
+                call.name, call.line
+            )
+        })?;
+        let gemfile_lock = literal(call, "gemfile_lock", None)?.ok_or_else(|| {
+            format!(
+                "{} at MODULE.bazel line {} has no gemfile_lock",
+                call.name, call.line
+            )
+        })?;
+        hubs.push(Hub {
+            name,
+            cargo_lockfile: workspace_path(&gemfile_lock)?,
+            lockfile: None,
+            pip: false,
+            maven: false,
+            go: false,
+            pnpm_lockfile: None,
+            gems: true,
+        });
+    }
+    Ok(hubs)
+}
+
+/// The Gemfile.lock diff as crate-style name/version changes.
+fn changed_gems(base: &str, head: &str) -> Result<LockChange, String> {
+    let gems = |text: &str| -> Result<BTreeSet<(String, String)>, String> {
+        Ok(dx_audit::locks::parse_gemfile_lock(text)?
+            .into_iter()
+            .map(|package| {
+                let version = match package.platform {
+                    Some(platform) => format!("{}-{platform}", package.version),
+                    None => package.version,
+                };
+                (package.name, version)
+            })
+            .collect())
+    };
+    let (base, head) = (gems(base)?, gems(head)?);
+    let mut crates = ChangedCrates::new();
+    for (name, version) in base.symmetric_difference(&head) {
+        crates
+            .entry(name.clone())
+            .or_default()
+            .insert(version.clone());
+    }
+    Ok(LockChange {
+        crates,
+        aliases: BTreeSet::new(),
+        pip: false,
+        maven: false,
+        go_repos: BTreeSet::new(),
+        npm: false,
+    })
+}
+
+/// Labels of a bundle repo; rules_ruby names its per-gem targets and repos
+/// differently across versions, so any label in the repo counts as a user.
+pub(crate) fn gem_seeds<'a>(labels: impl Iterator<Item = &'a str>, hub: &str) -> Vec<String> {
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+                .is_some_and(|(repo, _)| apparent_repo_matches(repo, hub))
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// Top-level sections of a pnpm lock other than the package tables, which
@@ -1175,6 +1302,26 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     }
 
     #[test]
+    fn gem_hubs_and_changed_gems() {
+        let module = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"bundle\", gemfile_lock = \"//third_party/ruby:Gemfile.lock\")\n";
+        let hubs = gem_hubs(module).expect("hubs");
+        assert_eq!(
+            classify("third_party/ruby/Gemfile.lock", &hubs),
+            LockKind::Gemfile(vec!["bundle".to_owned()])
+        );
+        assert_eq!(classify("Cargo.lock", &hubs), LockKind::Unknown);
+        let lock = |rake: &str| {
+            format!("GEM\n  remote: https://rubygems.org/\n  specs:\n    rake ({rake})\n    racc (1.8.1)\n\nPLATFORMS\n  ruby\n")
+        };
+        let change = changed_gems(&lock("13.0.0"), &lock("13.1.0")).expect("diff");
+        assert_eq!(change.crates, crates(&[("rake", &["13.0.0", "13.1.0"])]));
+        assert!(changed_gems(&lock("1"), &lock("1"))
+            .expect("same")
+            .crates
+            .is_empty());
+    }
+
+    #[test]
     fn crate_hubs_read_literal_from_cargo_calls() {
         let hubs = crate_hubs(MODULE).expect("hubs");
         assert_eq!(
@@ -1187,6 +1334,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                     pip: false,
                     maven: false,
                     go: false,
+                    gems: false,
                     pnpm_lockfile: None,
                 },
                 Hub {
@@ -1196,6 +1344,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                     pip: false,
                     maven: false,
                     go: false,
+                    gems: false,
                     pnpm_lockfile: None,
                 },
             ]

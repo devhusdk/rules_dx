@@ -446,6 +446,7 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
             let mut hubs = lock_inputs::crate_hubs(&text).ok()?;
             hubs.extend(lock_inputs::pip_hubs(&text));
             hubs.extend(lock_inputs::maven_hubs(&text));
+            hubs.extend(lock_inputs::gem_hubs(&text).ok()?);
             Some(hubs)
         })
     };
@@ -993,6 +994,11 @@ pub fn resolve_affected(
                 repos,
             });
         }
+        let gem_hubs: BTreeSet<&String> = hubs
+            .iter()
+            .filter(|hub| hub.gems)
+            .map(|hub| &hub.name)
+            .collect();
         for (path, changed) in &narrowed {
             let mut repos: BTreeSet<String> = BTreeSet::new();
             let mut seeds: Vec<String> = Vec::new();
@@ -1008,6 +1014,11 @@ pub fn resolve_affected(
                     go_repos,
                     npm,
                 } = change;
+                if gem_hubs.contains(hub) {
+                    seeds.extend(lock_inputs::gem_seeds(loaded.external_inputs(), hub));
+                    repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
+                    continue;
+                }
                 if *maven {
                     seeds.extend(lock_inputs::maven_seeds(
                         loaded.external_inputs(),

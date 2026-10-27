@@ -187,7 +187,9 @@ dx drops orphaned output bases, repository cache downloads unused for 30 days,
 the output bases of free nested-Bazel test slots, and free slots' output bases each time it
 takes a build slot: once for each command above, for each `watch` iteration,
 for the build `run` does before the app starts, and for `update` when it runs
-Bazel. This also happens when build slots are disabled. It never drops the
+Bazel. A workspace without a `dx worktree` pool still drops orphaned output bases,
+stale downloads and nested test cases, but has no free slots to drop; the low
+check then covers the Bazel output roots. This also happens when build slots are disabled. It never drops the
 output base of the workspace being built. dx prints one of these lines to
 stderr only when it removed something or could not reclaim:
 

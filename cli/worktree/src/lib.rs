@@ -27,7 +27,7 @@ use std::path::Path;
 pub use hook::HookKind;
 pub use pool::{hold_busy, lease_for_workspace, Who};
 
-/// Reclaims output bases before a build on low disk; returns a message only when it acted or failed.
+/// Reclaims output bases before a build on low disk (without a pool, only host-wide leftovers); returns a message only when it acted or failed.
 pub fn reclaim_for_build(workspace: &Path) -> Option<String> {
     let env = |name: &str| std::env::var(name).ok();
     let cache_base = pool::cache_base(&env).ok()?;
@@ -39,8 +39,12 @@ fn reclaim_for_build_with(
     cache_base: &Path,
     host: &dyn host::Host,
 ) -> Option<String> {
-    ops::low_disk(host, cache_base)?;
-    let pool = pool::Pool::find(workspace, cache_base)?;
+    let low = ops::low_disk(host, cache_base)?;
+    let Some(pool) = pool::Pool::find(workspace, cache_base) else {
+        // No pool: only host-wide leftovers (orphans, downloads, nested cases) can go; nothing is created.
+        let reclaimed = ops::reclaim_unpooled(host, low);
+        return reclaimed.removed.then_some(reclaimed.warning.message);
+    };
     match ops::reclaim_if_low(&pool, host, pool.slot_of(workspace)) {
         Ok(reclaimed) => reclaimed
             .filter(|reclaimed| reclaimed.removed)

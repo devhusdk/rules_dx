@@ -1912,8 +1912,24 @@ fn reclaim_locked(
     pool: &Pool,
     host: &dyn Host,
     keep: Option<u32>,
-    (disk, before): (PathBuf, DiskSpace),
+    low: (PathBuf, DiskSpace),
     _lock: &dx_atomic_fs::lease::ExclusiveLease,
+) -> Reclaim {
+    reclaim_host_wide(Some((pool, keep)), host, low)
+}
+
+/// Reclaims on the low disk `low` for a workspace without a pool: orphaned output bases, stale downloads and
+/// nested test cases belong to the host, not a repository, so they need no pool and no lock; there are no free
+/// slots to drop.
+pub(crate) fn reclaim_unpooled(host: &dyn Host, low: (PathBuf, DiskSpace)) -> Reclaim {
+    reclaim_host_wide(None, host, low)
+}
+
+/// The shared reclaim; `slots` is the pool (holding its lock) and the slot to keep, when there is one.
+fn reclaim_host_wide(
+    slots_of: Option<(&Pool, Option<u32>)>,
+    host: &dyn Host,
+    (disk, before): (PathBuf, DiskSpace),
 ) -> Reclaim {
     let roots = host.output_roots();
     let bases = scan_output_bases(&roots);
@@ -1962,16 +1978,18 @@ fn reclaim_locked(
         }
     }
     drop(locks);
-    let picked = free_slot_bases(pool, host, &bases, Trigger::LowDisk, |record| {
-        Some(record.slot) == keep || pool.busy(record.slot)
-    });
-    for (slot, owned) in picked {
-        let path = pool.slot_path(slot);
-        if stop_server(host, &path) {
-            continue;
-        }
-        if drop_bases(host, &owned) {
-            slots.push(slot);
+    if let Some((pool, keep)) = slots_of {
+        let picked = free_slot_bases(pool, host, &bases, Trigger::LowDisk, |record| {
+            Some(record.slot) == keep || pool.busy(record.slot)
+        });
+        for (slot, owned) in picked {
+            let path = pool.slot_path(slot);
+            if stop_server(host, &path) {
+                continue;
+            }
+            if drop_bases(host, &owned) {
+                slots.push(slot);
+            }
         }
     }
     let after = host.disk_space(&disk).unwrap_or(before);

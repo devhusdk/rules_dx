@@ -51,6 +51,28 @@ fn dev_launchers_build_dx_from_the_checkout() {
         "set only in the retry"
     );
     assert_eq!(cmd.matches("set \"CARGO_BAZEL_REPIN=1\"").count(), 1);
+    // cmd expands %errorlevel% in a block before the block runs.
+    let mut depth = 0i32;
+    let mut fail_reads = 0;
+    for line in cmd.lines() {
+        let line = line.trim();
+        if line.starts_with(')') {
+            depth -= 1;
+        }
+        if line.contains("DX_FAIL=%errorlevel%") {
+            fail_reads += 1;
+            assert_eq!(depth, 0, "DX_FAIL read inside a block: {line}");
+        }
+        if line.ends_with('(') {
+            depth += 1;
+        }
+    }
+    assert_eq!(depth, 0, "unbalanced blocks in tools/dx.cmd");
+    assert_eq!(fail_reads, 2, "the build and the repin retry");
+    let retry = cmd
+        .find("set \"CARGO_BAZEL_REPIN=1\"\r\ncall bazel %DX_RC% build ")
+        .expect("cmd repin build");
+    assert!(cmd[retry..].contains("\r\nendlocal & set \"DX_FAIL=%errorlevel%\"\r\n:dxbuilt\r\n"));
     assert!(sh.contains("run tools/dx update --apply cargo to repin"));
     assert!(cmd.contains("update --apply cargo to repin"));
     assert!(sh.contains("$root/.dx/launcher"));

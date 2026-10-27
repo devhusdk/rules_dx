@@ -75,14 +75,15 @@ goto dxbuildrun
 set "DX_FAIL=%DX_EC%"
 set "DX_REPIN="
 if not "%DX_FAIL%"=="0" call :dxwantsrepin %*
-if not "%DX_FAIL%"=="0" if defined DX_REPIN (
-  echo dx: //:dx does not build; repinning the Cargo lock ^(CARGO_BAZEL_REPIN=1^) and building it again 1>&2
-  setlocal
-  rem Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
-  set "CARGO_BAZEL_REPIN=1"
-  call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
-  endlocal & set "DX_FAIL=%errorlevel%"
-)
+if "%DX_FAIL%"=="0" goto dxbuilt
+if not defined DX_REPIN goto dxbuilt
+echo dx: //:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again 1>&2
+setlocal
+rem Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
+set "CARGO_BAZEL_REPIN=1"
+call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx 1>&2
+endlocal & set "DX_FAIL=%errorlevel%"
+:dxbuilt
 if not "%DX_FAIL%"=="0" (
   popd
   if not defined DX_REPIN echo dx: if a Cargo.toml dependency changed, run tools\dx update --apply cargo to repin 1>&2

@@ -46,11 +46,45 @@ impl Pressure for HostPressure {
             let meminfo = || std::fs::read_to_string("/proc/meminfo").ok();
             return judge(psi.as_deref(), meminfo().as_deref(), self.low_available);
         }
+        #[cfg(target_os = "macos")]
+        {
+            let _ = self.low_available;
+            return macos_level().and_then(judge_level);
+        }
         #[allow(unreachable_code)]
         {
             let _ = self.low_available;
             None
         }
+    }
+}
+
+/// The kernel's memory pressure level, from `kern.memorystatus_vm_pressure_level`.
+#[cfg(target_os = "macos")]
+fn macos_level() -> Option<i32> {
+    let name = b"kern.memorystatus_vm_pressure_level\0";
+    let mut level: libc::c_int = 0;
+    let mut len = std::mem::size_of::<libc::c_int>();
+    // SAFETY: `name` is NUL-terminated and `level`/`len` are live, sized locals; no value is set.
+    let rc = unsafe {
+        libc::sysctlbyname(
+            name.as_ptr().cast::<libc::c_char>(),
+            (&mut level as *mut libc::c_int).cast::<libc::c_void>(),
+            &mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (rc == 0 && len == std::mem::size_of::<libc::c_int>()).then_some(level)
+}
+
+/// Judges a macOS pressure level: 1 is normal, 2 is warn, 4 is critical. Other values have no signal.
+#[cfg(any(target_os = "macos", test))]
+pub fn judge_level(level: i32) -> Option<bool> {
+    match level {
+        1 => Some(false),
+        2 | 4 => Some(true),
+        _ => None,
     }
 }
 
@@ -192,6 +226,15 @@ mod tests {
         assert!(!pause.hold_back(Some(false), at(10_000)));
         assert!(pause.hold_back(Some(true), at(20_000)));
         assert!(!pause.hold_back(Some(true), at(30_000)));
+    }
+
+    #[test]
+    fn macos_levels_map_to_pressure() {
+        assert_eq!(judge_level(1), Some(false));
+        assert_eq!(judge_level(2), Some(true));
+        assert_eq!(judge_level(4), Some(true));
+        assert_eq!(judge_level(0), None);
+        assert_eq!(judge_level(3), None);
     }
 
     #[test]

@@ -458,6 +458,38 @@ fn no_workflow_comment_names_an_issue_or_another_page() {
 }
 
 #[test]
+fn root_and_container_config_comments_are_one_bare_line() {
+    for rel in [
+        ".bazelrc",
+        ".bazelignore",
+        ".gitignore",
+        ".devcontainer/Dockerfile.prebuilt",
+    ] {
+        let text = read_runfiles(rel);
+        assert_comments_bare(rel, &text);
+        let stacked = stacked_comments(rel, &text);
+        assert!(
+            stacked.is_empty(),
+            "{rel} stacks a comment on the line above; AGENTS.md allows one line: {}",
+            stacked.join(", ")
+        );
+        for (index, line) in text.lines().enumerate().filter(|(_, l)| is_comment(l)) {
+            let numbered = line
+                .split('#')
+                .skip(2)
+                .any(|rest| rest.starts_with(|c: char| c.is_ascii_digit()));
+            let bare = line.trim_start().starts_with('#')
+                && line.trim_start()[1..].starts_with(|c: char| c.is_ascii_digit());
+            assert!(
+                !numbered && !bare,
+                "{rel}:{}: the comment names an issue number: {line:?}",
+                index + 1
+            );
+        }
+    }
+}
+
+#[test]
 fn the_emitted_runfiles_block_names_no_issue_or_another_page() {
     assert_comments_bare(
         "deploy/rules/launcher.bzl",

@@ -521,10 +521,12 @@ bazel run @rules_dx//:dx -- add --apply bazel-modules:rules_go 0.50.0
 
 A workspace outside `rules_dx` declares its own dependency sets in a
 committed `dx.toml` at the workspace root. When `dx.toml` declares at least
-one `[[dependency_set]]`, `update`, `security`, `license`, and `bump` resolve
-names and scopes from it instead of the built-in sets. No built-in set is
-selected. A `dx.toml` with only `[dx]` or `[quality]` tables keeps the built-in
-sets. A `dx.toml` with neither sets nor those tables fails with exit `2`.
+one `[[dependency_set]]`, `update`, `security`, and `license` resolve names and
+scopes from it instead of the built-in sets. No built-in set is selected for
+those commands. `bump` keeps the built-in selectors, such as `cargo:anyhow`,
+unless the selector head names a declared set. A `dx.toml` with only `[dx]` or
+`[quality]` tables keeps the built-in sets. A `dx.toml` with neither sets nor
+those tables fails with exit `2`.
 
 ```toml
 schema_version = 1

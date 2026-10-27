@@ -1,6 +1,7 @@
 input {"DX_INVOCATION_ID": "api-linux_x86_64"}
 exit 0
 says DX_INVOCATION_ID api-linux_x86_64
+out artifact_suffix "-api-linux_x86_64"
 out cache_saver "coverage"
 out disabled ""
 out min_changed_line_coverage ""

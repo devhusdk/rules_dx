@@ -23,7 +23,7 @@ on:
         default: "parallel"
         type: string
       code_scanning_opt_in:
-        description: "Must be false. No SARIF upload step ships in this workflow, so true fails validation instead of being ignored."
+        description: "Must be false. No code-scanning SARIF upload ships in this workflow, so true fails validation instead of being ignored."
         required: false
         default: false
         type: boolean
@@ -77,6 +77,7 @@ jobs:
       platforms: ${{ steps.validate.outputs.platforms }}
       runners: ${{ steps.validate.outputs.runners }}
       snapshot_artifact: ${{ steps.validate.outputs.snapshot_artifact }}
+      artifact_suffix: ${{ steps.validate.outputs.artifact_suffix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -166,7 +167,17 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- lint --check //... -- "$@"
+          reports="${RUNNER_TEMP:-/tmp}/dx-reports/lint"
+          mkdir -p "$reports"
+          bazel run "$@" @rules_dx//:dx -- lint --check --report "sarif=$reports/lint.sarif" //... -- "$@"
+      - name: Upload the lint reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-lint-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/lint
+          if-no-files-found: warn
+          retention-days: 14
   typecheck:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',typecheck,') }}
@@ -213,7 +224,17 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- typecheck --check //... -- "$@"
+          reports="${RUNNER_TEMP:-/tmp}/dx-reports/typecheck"
+          mkdir -p "$reports"
+          bazel run "$@" @rules_dx//:dx -- typecheck --check --report "sarif=$reports/typecheck.sarif" //... -- "$@"
+      - name: Upload the typecheck reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-typecheck-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/typecheck
+          if-no-files-found: warn
+          retention-days: 14
   format:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',format,') }}
@@ -529,7 +550,17 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- test //... -- "$@"
+          reports="${RUNNER_TEMP:-/tmp}/dx-reports/test"
+          mkdir -p "$reports"
+          bazel run "$@" @rules_dx//:dx -- test --report "junit=$reports/junit.xml" --report "failures=$reports/failures.json" --report "results=$reports/results.json" //... -- "$@"
+      - name: Upload the test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-test-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/test
+          if-no-files-found: warn
+          retention-days: 14
       - name: Prune the Bazel repository cache to this run's downloads
         if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
@@ -608,7 +639,17 @@ jobs:
       - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- build //... -- "$@"
+          reports="${RUNNER_TEMP:-/tmp}/dx-reports/build"
+          mkdir -p "$reports"
+          bazel run "$@" @rules_dx//:dx -- build --report "failures=$reports/failures.json" //... -- "$@"
+      - name: Upload the build reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-build-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/build
+          if-no-files-found: warn
+          retention-days: 14
       - name: Prove dx run works noninteractively in CI
         run: |
           # shellcheck disable=SC2086
@@ -699,10 +740,12 @@ jobs:
           set +e
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          extra=()
+          reports="${RUNNER_TEMP:-/tmp}/dx-reports/coverage"
+          mkdir -p "$reports"
+          extra=(--report "failures=$reports/failures.json" --report "results=$reports/results.json")
           # Bash array keeps an empty threshold at zero words.
           if [ -n "$DX_MIN_COVERAGE" ]; then
-            extra=(--min-coverage "$DX_MIN_COVERAGE")
+            extra+=(--min-coverage "$DX_MIN_COVERAGE")
           fi
           if [ -n "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
             extra+=(--report "lcov=${RUNNER_TEMP:-/tmp}/dx_coverage.lcov")
@@ -711,6 +754,14 @@ jobs:
           rc=${PIPESTATUS[0]}
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"
+      - name: Upload the coverage reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dx-reports-coverage-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/coverage
+          if-no-files-found: warn
+          retention-days: 14
       - name: Check changed-line coverage
         if: ${{ needs.validate.outputs.min_changed_line_coverage != '' }}
         env:

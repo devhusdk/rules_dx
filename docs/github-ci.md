@@ -40,15 +40,15 @@ pins a release without `//tools/ci:module_pin_bin`.
 `examples/consumer-ci/` calls `reusable-consumer.yml`. Nine checks run on
 every platform in `platforms`:
 
-- `lint`: `dx lint --check //...`
-- `typecheck`: `dx typecheck --check //...`
+- `lint`: `dx lint --check //...`, with a SARIF report
+- `typecheck`: `dx typecheck --check //...`, with a SARIF report
 - `format`: `dx format --check //...`
 - `generate`: `dx generate --check //...`
 - `security-audit`: `dx security //...`
 - `license-audit`: `dx license //...`
-- `test`: `dx test //...`
-- `build`: `dx build //...`
-- `coverage`: `dx coverage //...`, plus `--min-coverage <percent>` when
+- `test`: `dx test //...`, with JUnit, failures and results reports
+- `build`: `dx build //...`, with a failures report
+- `coverage`: `dx coverage //...` with failures and results reports, plus `--min-coverage <percent>` when
   `min_coverage` is set. With `min_changed_line_coverage` it also writes the
   LCOV report and gates the lines a pull request adds.
 
@@ -72,8 +72,8 @@ Inputs:
   label carrying spaces all fail.
 - `scheduling_mode`: `parallel` only. `sequential` fails; checks always run in
   parallel.
-- `code_scanning_opt_in`: `false` only. `true` fails; no SARIF upload step ships
-  in this workflow.
+- `code_scanning_opt_in`: `false` only. `true` fails; no code-scanning SARIF upload
+  ships in this workflow. The SARIF reports are artifacts only.
 - `min_coverage`: fails below that percent, a whole number from 0 to 100 such as
   `80`. Empty collects without enforcing a threshold. `80%`, `80.5`, `-1`, `101`,
   `eighty` and a leading space fail. Coverage comes from `dx coverage`.
@@ -86,7 +86,34 @@ Inputs:
   in one workflow run, including matrix cells, each need their own ID, such as
   `api-linux`; a repeated ID makes the second upload fail. Anything else fails.
   The ID also keeps the calls' concurrency groups apart, so one call never
-  cancels another. A rerun reuses the same ID.
+  cancels another. The ID also suffixes the report artifacts, as in
+  `dx-reports-test-linux_x86_64-api-linux`. A rerun reuses the same ID.
+
+## Report Artifacts
+
+Each report-capable job uploads its machine-readable reports with
+`if: always()`, so a red run still leaves them. One artifact per job and
+platform is named `dx-reports-<job>-<platform>`, plus `-<invocation_id>` when
+that input is set. Artifacts are kept for 14 days. A missing report only warns.
+
+| Job | Artifact | Files |
+|---|---|---|
+| `lint` | `dx-reports-lint-<platform>` | `lint.sarif` |
+| `typecheck` | `dx-reports-typecheck-<platform>` | `typecheck.sarif` |
+| `test` | `dx-reports-test-<platform>` | `junit.xml`, `failures.json`, `results.json` |
+| `build` | `dx-reports-build-<platform>` | `failures.json` |
+| `coverage` | `dx-reports-coverage-<platform>` | `failures.json`, `results.json` |
+
+`format`, `generate`, `security-audit` and `license-audit` upload no reports;
+`dx` has no report kind for the first two. Download one artifact or all of them:
+
+```sh
+gh run download <run-id> -n dx-reports-test-linux_x86_64
+gh run download <run-id> -p 'dx-reports-*'
+```
+
+Artifacts are not masked like logs. The results and JUnit reports carry test
+output and log tails, so treat them as you treat the logs.
 
 ## Changed-Line Coverage
 

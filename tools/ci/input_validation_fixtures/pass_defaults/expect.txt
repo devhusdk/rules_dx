@@ -5,6 +5,7 @@ says DX_SCHEDULING_MODE parallel
 says DX_CODE_SCANNING_OPT_IN false
 says DX_MIN_COVERAGE (none)
 says DX_MIN_CHANGED_LINE_COVERAGE (none)
+out artifact_suffix ""
 out cache_saver "coverage"
 out disabled ""
 out min_changed_line_coverage ""

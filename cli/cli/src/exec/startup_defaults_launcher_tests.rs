@@ -787,3 +787,57 @@ fn bad_build_slots_exit_two_from_the_binary() {
     assert_eq!(code, Some(2), "{err}");
     assert!(err.contains("DX_BUILD_SLOTS"), "{err}");
 }
+
+#[test]
+fn worktree_release_relative_path_uses_the_working_directory() {
+    let ws = workspace_with_output("dx-startup-wt-release-ws-", "json");
+    let status = std::process::Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(ws.path())
+        .status()
+        .expect("git runs");
+    assert!(status.success(), "git init the workspace");
+    let runfiles = dx_test_scratch::scratch("dx-startup-wt-release-runfiles-");
+    let outside = dx_test_scratch::scratch("dx-startup-wt-release-outside-");
+    let cache = dx_test_scratch::scratch("dx-startup-wt-release-cache-");
+    std::fs::create_dir_all(outside.path().join("slots/4")).expect("outside slot");
+    let ws_dir = ws.path().to_string_lossy().into_owned();
+    let outside_dir = outside.path().to_string_lossy().into_owned();
+    let cache_dir = cache.path().to_string_lossy().into_owned();
+    let expected = outside
+        .path()
+        .canonicalize()
+        .expect("canonical outside")
+        .join("slots/4")
+        .display()
+        .to_string();
+    let unexpected = runfiles
+        .path()
+        .canonicalize()
+        .expect("canonical runfiles")
+        .join("slots/4")
+        .display()
+        .to_string();
+    let (_, out, err) = run_dx(
+        runfiles.path(),
+        &["worktree", "release", "slots/4"],
+        &[
+            ("BUILD_WORKSPACE_DIRECTORY", &ws_dir),
+            ("BUILD_WORKING_DIRECTORY", &outside_dir),
+            ("XDG_CACHE_HOME", &cache_dir),
+        ],
+    );
+    let text = format!("{out}{err}");
+    assert!(
+        text.contains("is not a dx worktree slot"),
+        "release reached the slot lookup: {text}"
+    );
+    assert!(
+        text.contains(&expected),
+        "a relative release path is read from the working directory: {text}"
+    );
+    assert!(
+        !text.contains(&unexpected),
+        "a relative release path ignores the runfiles cwd: {text}"
+    );
+}

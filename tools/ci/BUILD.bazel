@@ -92,8 +92,6 @@ python_test(
         ":aggregate_fixtures",
         ":ci_gate_fixtures",
         ":input_validation_fixtures",
-        "//.github:workflows/android.yml",
-        "//.github:workflows/apple.yml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/reusable-consumer.yml",
@@ -398,6 +396,22 @@ rust_test(
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "workflow_expressions_test",
+    size = "small",
+    srcs = ["workflow_expressions_test.rs"],
+    data = [
+        "//.github:workflows",
+    ],
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
 )
 
 # keep
@@ -931,6 +945,7 @@ rustfmt_test(
         ":starlark_docs_test",
         ":tool_resolve_test",
         ":user_docs_test",
+        ":workflow_expressions_test",
         ":workflow_permissions_test",
         ":workflow_pins_test",
     ],

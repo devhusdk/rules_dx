@@ -2,14 +2,15 @@ load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_library", "rustfmt_test")
 load("//tools/docs/rust:defs.bzl", "rust_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 exports_files([
     "src/lib.rs",
     "src/lib_changed.rs",
     "src/shapes.rs",
-])
+], visibility = VIS_TOOLS)
 
 # keep
 cargo_build_script(

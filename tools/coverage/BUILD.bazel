@@ -1,12 +1,13 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 exports_files([
     "seed-inventory.txt",
     "src/main.rs",
-])
+], visibility = VIS_TOOLS)
 
 real_source_target(
     name = "corpus_starlark",

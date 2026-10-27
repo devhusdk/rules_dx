@@ -1,14 +1,14 @@
 load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
-load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = VIS_PUBLIC)
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
 exports_files([
     "defs.bzl",
     "extract.ps1",
-])
+], visibility = VIS_TOOLS)
 
 # keep
 rust_test(

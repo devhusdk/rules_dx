@@ -1,9 +1,9 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = VIS_PUBLIC)
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
 exports_files([
     "Cargo.toml",
@@ -12,7 +12,7 @@ exports_files([
     "src/lib_tests.rs",
     "src/main.rs",
     "src/types.rs",
-])
+], visibility = VIS_TOOLS)
 
 rust_library(
     name = "dx_docs_typescript_extract",

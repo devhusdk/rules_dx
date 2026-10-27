@@ -2,8 +2,9 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":preset_tests.bzl", "preset_update_tests")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_CLI_TEST")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 rust_library(
     name = "dx_preset",
@@ -15,6 +16,7 @@ rust_library(
     crate_name = "dx_preset",
     crate_root = "src/lib.rs",
     edition = "2021",
+    visibility = VIS_TOOLS_CLI_TEST,
     deps = [],
 )
 
@@ -57,10 +59,11 @@ exports_files([
     "Cargo.toml",
     "correctness.bazelrc",
     "performance.bazelrc",
-    "resources.bazelrc",
     "src/bin_preset_update.rs",
     "src/lib.rs",
-])
+], visibility = VIS_TOOLS)
+
+exports_files(["resources.bazelrc"], visibility = VIS_TOOLS_CLI_TEST)
 
 # The three generated preset layers, in the order the root .bazelrc imports them.
 filegroup(

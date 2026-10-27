@@ -1,7 +1,8 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS_CLI_TEST)
 
 # keep
 rust_binary(

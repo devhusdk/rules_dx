@@ -1,8 +1,9 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 filegroup(
     name = "module_pin_fixtures",
@@ -76,7 +77,7 @@ python_library(
 python_binary(
     name = "input_validation_bin",
     main = "input_validation.py",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [":input_validation"],
 )
 
@@ -118,7 +119,7 @@ python_library(
 python_binary(
     name = "resource_peaks_bin",
     main = "resource_peaks.py",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [":resource_peaks"],
 )
 
@@ -150,7 +151,7 @@ python_library(
 python_binary(
     name = "docs_scope_bin",
     main = "docs_scope.py",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [":docs_scope"],
 )
 
@@ -182,7 +183,7 @@ python_library(
 python_binary(
     name = "module_pin_bin",
     main = "module_pin.py",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [":module_pin"],
 )
 

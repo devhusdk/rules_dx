@@ -1,7 +1,8 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 filegroup(
     name = "ledger_srcs",

@@ -41,6 +41,7 @@ fn unusable_scratch_parent_fails_the_action() {
         tools: BTreeMap::from([("rustfmt".to_owned(), rustfmt_tool())]),
         scratch_parent: PathBuf::from("/nonexistent-dx-scratch-parent"),
         spawn: roundtrip_rustfmt,
+        argv_limit: quality_adapter::commands::windows_argv_limit,
     };
     let err = backend
         .diagnose("rustfmt", "format", &single("src/main.rs", "x\n"))
@@ -1196,15 +1197,194 @@ fn batched_keep_sorted(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     BATCHED_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let mut bytes = 0usize;
-    for arg in argv {
-        bytes += arg.to_string_lossy().len() + 1;
-    }
-    assert!(
-        bytes <= quality_adapter::commands::ARGV_BATCH_BUDGET,
-        "spawn carries {bytes} argv bytes"
-    );
+    assert_within_budget(argv);
     keep_sorted_multi_behavior(argv, cwd, env)
+}
+
+fn assert_within_budget(argv: &[OsString]) {
+    let budget = quality_adapter::commands::argv_budget(&argv[0]);
+    let (bytes, units) = quality_adapter::commands::argv_cost(argv);
+    assert!(bytes <= budget, "spawn carries {bytes} argv bytes");
+    assert!(units <= budget, "spawn carries {units} argv units");
+}
+
+fn python_selection(count: usize, pad: usize) -> BTreeMap<String, String> {
+    let mut files = BTreeMap::new();
+    for index in 0..count {
+        let name = format!("pkg/mod_{index:04}_{}.py", "p".repeat(pad));
+        let body = if index % 2 == 0 {
+            "import os \n"
+        } else {
+            "\"\"\"Module.\"\"\"\n"
+        };
+        files.insert(name, body.to_owned());
+    }
+    files
+}
+
+static RUFF_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_ruff(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    RUFF_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_within_budget(argv);
+    ruff_multi_behavior(argv, cwd, env)
+}
+
+static RUFF_EQUAL_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_ruff_equal(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    RUFF_EQUAL_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_within_budget(argv);
+    ruff_multi_behavior(argv, cwd, env)
+}
+
+static FLAKE8_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_flake8(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    FLAKE8_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_within_budget(argv);
+    flake8_multi_behavior(argv, cwd, env)
+}
+
+static LAUNCHER_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn batched_launcher(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    LAUNCHER_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_eq!(
+        quality_adapter::commands::argv_budget(&argv[0]),
+        quality_adapter::commands::LAUNCHER_BATCH_BUDGET
+    );
+    assert_within_budget(argv);
+    ruff_multi_behavior(argv, cwd, env)
+}
+
+static TY_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn counting_ty(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    TY_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    roundtrip_ty(argv, cwd, env)
+}
+
+#[test]
+fn ruff_large_selection_runs_batched() {
+    let files = python_selection(300, 96);
+    for (capability, kind) in [("lint", "F401"), ("format", "unformatted")] {
+        RUFF_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+        let backend = backend_for("ruff", plain_tool(), batched_ruff);
+        let first = backend
+            .diagnose("ruff", capability, &files)
+            .expect("batched ruff runs");
+        let spawns = RUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+        assert!(spawns > 1, "{capability} splits into {spawns} spawns");
+        assert_eq!(first.len(), 150, "every other file is dirty");
+        assert!(
+            first.iter().all(|found| found.rule_id.contains(kind)),
+            "{capability}"
+        );
+        let paths: Vec<&str> = first.iter().map(|found| found.path.as_str()).collect();
+        let mut ordered = paths.clone();
+        ordered.sort();
+        assert_eq!(paths, ordered, "merged findings stay ordered");
+        let second = backend
+            .diagnose("ruff", capability, &files)
+            .expect("batched ruff reruns");
+        assert_eq!(first, second, "rerun merges identically");
+    }
+}
+
+#[test]
+fn ruff_batches_match_single_file_results() {
+    let files = python_selection(120, 200);
+    RUFF_EQUAL_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let batched = backend_for("ruff", plain_tool(), batched_ruff_equal);
+    let merged = batched
+        .diagnose("ruff", "lint", &files)
+        .expect("batched ruff runs");
+    assert!(
+        RUFF_EQUAL_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 1,
+        "equivalence input spans batches"
+    );
+    let mut singles = Vec::new();
+    for (path, body) in &files {
+        let alone = backend_for("ruff", plain_tool(), roundtrip_ruff);
+        singles.extend(
+            alone
+                .diagnose("ruff", "lint", &single(path, body))
+                .expect("single runs"),
+        );
+    }
+    singles.sort_by(|left, right| left.path.cmp(&right.path));
+    assert_eq!(merged, singles);
+    assert_eq!(merged.len(), 60);
+}
+
+#[test]
+fn flake8_large_selection_runs_batched() {
+    FLAKE8_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = python_selection(300, 96);
+    let backend = backend_for("flake8", plain_tool(), batched_flake8);
+    let findings = backend
+        .diagnose("flake8", "lint", &files)
+        .expect("batched flake8 runs");
+    assert!(FLAKE8_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 1);
+    assert_eq!(findings.len(), 150);
+    let paths: Vec<&str> = findings.iter().map(|found| found.path.as_str()).collect();
+    let mut ordered = paths.clone();
+    ordered.sort();
+    assert_eq!(paths, ordered, "merged findings stay ordered");
+}
+
+#[test]
+fn ty_over_budget_selection_fails_before_spawn() {
+    TY_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = python_selection(300, 120);
+    let backend = backend_for("ty", plain_tool(), counting_ty);
+    let err = backend
+        .diagnose("ty", "lint", &files)
+        .expect_err("oversized ty selection fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(
+        err.to_string()
+            .contains("selection too large for one ty spawn"),
+        "{err}"
+    );
+    assert_eq!(TY_SPAWNS.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
+
+#[test]
+fn batch_launcher_splits_at_launcher_budget() {
+    LAUNCHER_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let files = python_selection(120, 96);
+    let tool = RealTool {
+        binary: PathBuf::from("/fake/bin/ruff.bat"),
+        ..plain_tool()
+    };
+    let backend = backend_for("ruff", tool, batched_launcher);
+    let findings = backend
+        .diagnose("ruff", "lint", &files)
+        .expect("launcher batches stay under the guard");
+    assert!(LAUNCHER_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) > 2);
+    assert_eq!(findings.len(), 60);
 }
 
 static FLAKY_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);

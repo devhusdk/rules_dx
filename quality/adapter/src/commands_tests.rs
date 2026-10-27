@@ -1389,6 +1389,82 @@ fn an_oversized_file_travels_alone() {
 }
 
 #[test]
+fn argv_budget_shrinks_behind_batch_launchers() {
+    assert_eq!(
+        argv_budget(OsStr::new("/bin/tool.bat")),
+        LAUNCHER_BATCH_BUDGET
+    );
+    assert_eq!(
+        argv_budget(OsStr::new("C:\\bin\\TOOL.CMD")),
+        LAUNCHER_BATCH_BUDGET
+    );
+    assert_eq!(
+        argv_budget(OsStr::new("C:\\bin\\tool.exe")),
+        ARGV_BATCH_BUDGET
+    );
+    assert_eq!(argv_budget(OsStr::new("/bin/tool")), ARGV_BATCH_BUDGET);
+    assert!(!is_batch_launcher(OsStr::new("/bin/bat")));
+}
+
+#[test]
+fn windows_limit_is_tighter_for_launchers() {
+    assert_eq!(
+        windows_argv_limit(OsStr::new("tool.bat")),
+        Some(LAUNCHER_COMMAND_LINE_LIMIT)
+    );
+    assert_eq!(
+        windows_argv_limit(OsStr::new("tool.exe")),
+        Some(WINDOWS_COMMAND_LINE_LIMIT)
+    );
+    assert!(ARGV_BATCH_BUDGET < WINDOWS_COMMAND_LINE_LIMIT);
+    assert!(LAUNCHER_BATCH_BUDGET < LAUNCHER_COMMAND_LINE_LIMIT);
+    assert!(LAUNCHER_COMMAND_LINE_LIMIT < WINDOWS_COMMAND_LINE_LIMIT);
+    assert_eq!(
+        native_argv_limit(OsStr::new("tool")).is_some(),
+        cfg!(windows)
+    );
+}
+
+#[test]
+fn plan_batches_honours_launcher_budget() {
+    let head = vec![OsString::from("/bin/tool.bat"), OsString::from("--check")];
+    let owned: Vec<PathBuf> = (0..200)
+        .map(|index| PathBuf::from(format!("/s/{index:04}-{}.txt", "p".repeat(60))))
+        .collect();
+    let refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
+    let batches = plan_batches(&head, &refs);
+    assert!(batches.len() > 2, "launcher budget forces batches");
+    let roundtrip: Vec<&Path> = batches.iter().flatten().copied().collect();
+    assert_eq!(roundtrip, refs);
+    for batch in &batches {
+        let (bytes, units) = batch_cost(&head, batch);
+        assert!(bytes <= LAUNCHER_BATCH_BUDGET, "bytes {bytes} fit");
+        assert!(units <= LAUNCHER_BATCH_BUDGET, "units {units} fit");
+    }
+}
+
+#[test]
+fn file_independent_tools_batch() {
+    for tool in ["keep_sorted", "ruff", "flake8", "pydoclint", "buildifier"] {
+        assert_eq!(transport_for(tool), ArgTransport::Batched, "{tool}");
+    }
+    for tool in [
+        "ty",
+        "pylint",
+        "scalafix",
+        "spotbugs",
+        "fsharplint",
+        "rustfmt",
+        "clang_tidy",
+        "staticcheck",
+        "biome",
+        "eslint",
+    ] {
+        assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
+    }
+}
+
+#[test]
 fn batched_probe_spawns_deliver_every_byte() {
     let probe = dx_testing::process_probe();
     let session = tempfile::TempDir::new().expect("scratch");

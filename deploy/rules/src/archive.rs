@@ -5,7 +5,7 @@ use crate::stage::*;
 use std::io::{self, Read, Write};
 use std::path::Path;
 
-const RECORDSIZE: usize = 20 * 512;
+pub(crate) const RECORDSIZE: usize = 20 * 512;
 
 const MTIME: u64 = 0;
 

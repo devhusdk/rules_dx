@@ -11,9 +11,13 @@ _VALID_ARTIFACT_CHARS = NAME_CHARS
 
 _VALID_VERSION_CHARS = VERSION_CHARS
 
-MAVEN_DEFAULT_REPOSITORY_URL = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
+MAVEN_DEFAULT_REPOSITORY_URL = "https://central.sonatype.com/api/v1/publisher/"
 
 _RETIRED_HOSTS = ["oss.sonatype.org", "s01.oss.sonatype.org"]
+
+_SUPPORTED_HOSTS = ["central.sonatype.com"]
+
+_PUBLISHER_PATH = "/api/v1/publisher/"
 
 def _all_dots(value):
     """Reports whether a value is only dots."""
@@ -81,6 +85,12 @@ def maven_repository_error(repository_url):
         return ("maven_deploy: invalid repository_url '" + repository_url +
                 "': want no quotes, backslashes, spaces, or newlines " +
                 "so the URL embeds safely in the deploy launcher")
+    raw_host = repository_url[len("https://"):].split("/")[0]
+    path = repository_url[len("https://") + len(raw_host):]
+    if host not in _SUPPORTED_HOSTS or path != _PUBLISHER_PATH:
+        return ("maven_deploy: invalid repository_url '" + repository_url +
+                "': want the Central Portal Publisher API '" +
+                MAVEN_DEFAULT_REPOSITORY_URL + "'")
     return ""
 
 def maven_jar_error(filename):

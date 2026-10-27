@@ -7,8 +7,9 @@ use pgp::composed::{
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::types::Password;
 
-use crate::run::{env_or_empty, scrubbed_command, OwnerGate, PUBLISH_CHILD_ENV_KEEP};
-use crate::{copy_verified, deploy_profile, tempfile_stage_dir, write_secure_file, DeployRun};
+use crate::http;
+use crate::run::{env_or_empty, OwnerGate};
+use crate::{copy_verified, deploy_profile, tempfile_stage_dir, zip_archive, DeployRun};
 
 const MAVEN_CHECKSUMS: [&str; 4] = ["md5", "sha1", "sha256", "sha512"];
 
@@ -383,20 +384,13 @@ pub fn maven_verify_detached(public_armored: &str, data: &[u8], asc: &str) -> Re
     }
 }
 
-/// Renders one Maven settings.xml.
-pub fn maven_settings_xml(username: &str, password: &str) -> String {
-    let mut body = format!(
-        "<settings>\n  <servers>\n    <server>\n      <id>dx-staging</id>\n      <username>{}</username>\n      <password>{}</password>\n    </server>\n  </servers>\n",
-        quick_xml::escape::escape(username),
-        quick_xml::escape::escape(password),
-    );
-    body.push_str("</settings>\n");
-    body
-}
+/// Central Portal Publisher API base URL.
+pub const MAVEN_DEFAULT_REPOSITORY_URL: &str = "https://central.sonatype.com/api/v1/publisher/";
 
-/// Central Portal OSSRH staging API deploy URL.
-pub const MAVEN_PORTAL_STAGING_URL: &str =
-    "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/";
+/// Hosts that serve the Central Portal Publisher API.
+pub const MAVEN_SUPPORTED_HOSTS: [&str; 1] = ["central.sonatype.com"];
+
+const MAVEN_PUBLISHER_PATH: &str = "/api/v1/publisher/";
 
 /// Returns the retired OSSRH host named by a repository URL.
 pub fn maven_retired_host(repository_url: &str) -> Option<&'static str> {
@@ -407,53 +401,100 @@ pub fn maven_retired_host(repository_url: &str) -> Option<&'static str> {
         .find(|retired| host.eq_ignore_ascii_case(retired))
 }
 
-/// Pinned maven-gpg-plugin goal that signs and uploads in one run.
-pub const MAVEN_SIGN_GOAL: &str =
-    "org.apache.maven.plugins:maven-gpg-plugin:3.2.8:sign-and-deploy-file";
-
-/// Pinned maven-deploy-plugin goal for the explicit unsigned path.
-pub const MAVEN_DEPLOY_GOAL: &str =
-    "org.apache.maven.plugins:maven-deploy-plugin:3.1.4:deploy-file";
-
-/// Builds the mvn sign-and-deploy-file (signed) or deploy-file (unsigned) arguments.
-#[allow(clippy::too_many_arguments)]
-pub fn maven_deploy_args(
-    signed: bool,
-    settings: &Path,
-    repository_url: &str,
-    jar: &Path,
-    pom: &Path,
-    group: &str,
-    artifact: &str,
-    version: &str,
-) -> Vec<String> {
-    let mut args = vec![
-        "-B".to_owned(),
-        "--settings".to_owned(),
-        settings.display().to_string(),
-        if signed {
-            MAVEN_SIGN_GOAL
-        } else {
-            MAVEN_DEPLOY_GOAL
-        }
-        .to_owned(),
-        format!("-Durl={repository_url}"),
-        "-DrepositoryId=dx-staging".to_owned(),
-        format!("-Dfile={}", jar.display()),
-        format!("-DpomFile={}", pom.display()),
-        format!("-DgroupId={group}"),
-        format!("-DartifactId={artifact}"),
-        format!("-Dversion={version}"),
-        "-Dpackaging=jar".to_owned(),
-    ];
-    if signed {
-        args.extend([
-            "-Dgpg.signer=bc".to_owned(),
-            "-Dgpg.bestPractices=true".to_owned(),
-            "-Dgpg.useagent=false".to_owned(),
-        ]);
+/// Returns why one repository URL is not the Central Portal Publisher API, or None.
+pub fn maven_repository_url_error(repository_url: &str) -> Option<String> {
+    let Some(rest) = repository_url.strip_prefix("https://") else {
+        return Some(format!(
+            "maven_deploy: invalid repository_url '{repository_url}': want an https URL so uploads never go over plaintext"
+        ));
+    };
+    if let Some(host) = maven_retired_host(repository_url) {
+        return Some(format!(
+            "maven_deploy: invalid repository_url '{repository_url}': {host} is retired OSSRH infrastructure (use '{MAVEN_DEFAULT_REPOSITORY_URL}')"
+        ));
     }
-    args
+    let host = rest.split('/').next().unwrap_or("");
+    let supported = MAVEN_SUPPORTED_HOSTS
+        .iter()
+        .any(|supported| host.eq_ignore_ascii_case(supported));
+    if !supported || &rest[host.len()..] != MAVEN_PUBLISHER_PATH {
+        return Some(format!(
+            "maven_deploy: invalid repository_url '{repository_url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"
+        ));
+    }
+    None
+}
+
+fn maven_bundle_walk(dir: &Path, rel: &str, out: &mut Vec<(String, Vec<u8>)>) -> io::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let path = rel.to_owned() + &name;
+        let kind = entry.file_type()?;
+        if kind.is_dir() {
+            maven_bundle_walk(&entry.path(), &(path + "/"), out)?;
+        } else if kind.is_file() && name != "maven-metadata.xml" {
+            out.push((path, std::fs::read(entry.path())?));
+        }
+    }
+    Ok(())
+}
+
+/// Zips one staged Maven file repo as a Central Portal bundle, without maven-metadata.xml.
+pub fn maven_bundle_zip(house: &Path) -> io::Result<Vec<u8>> {
+    let mut files = Vec::new();
+    maven_bundle_walk(house, "", &mut files)?;
+    files.sort();
+    let members: Vec<(&str, &[u8], u32)> = files
+        .iter()
+        .map(|(name, bytes)| (name.as_str(), bytes.as_slice(), 0o644))
+        .collect();
+    zip_archive(&members)
+}
+
+/// Refusal for a Portal upload rejected as unauthorized.
+pub const MAVEN_BAD_CREDENTIALS: &str = "maven_deploy: the Central Portal rejected MAVEN_USERNAME/MAVEN_PASSWORD; refusing (set them to a Portal user token from https://central.sonatype.com/usertoken)";
+
+/// Uploads one bundle zip to the Publisher API as a USER_MANAGED deployment and returns its id.
+pub fn maven_upload_bundle(
+    agent: &ureq::Agent,
+    base_url: &str,
+    bearer: &str,
+    name: &str,
+    zip: &[u8],
+) -> Result<String, String> {
+    use std::io::Read as _;
+    let url = format!(
+        "{base_url}upload?publishingType=USER_MANAGED&name={}",
+        http::query_escape(name)
+    );
+    let (content_type, body) = http::multipart_single_file("bundle", "bundle.zip", zip);
+    let mut response = agent
+        .post(&url)
+        .header("Authorization", bearer)
+        .header("Content-Type", &content_type)
+        .send(&body[..])
+        .map_err(|error| format!("maven_deploy: upload to {url} failed: {error}"))?;
+    let status = response.status().as_u16();
+    let mut text = Vec::new();
+    let read = response
+        .body_mut()
+        .as_reader()
+        .take(2048)
+        .read_to_end(&mut text);
+    let text = String::from_utf8_lossy(&text).trim().to_owned();
+    match status {
+        201 => match read {
+            Ok(_) if !text.is_empty() => Ok(text),
+            _ => Err(format!(
+                "maven_deploy: upload to {url} returned 201 without a deployment id"
+            )),
+        },
+        401 | 403 => Err(MAVEN_BAD_CREDENTIALS.to_owned()),
+        _ => Err(format!(
+            "maven_deploy: upload to {url} failed with HTTP {status}: {text}"
+        )),
+    }
 }
 
 /// Owner approval gate for maven_deploy.
@@ -465,16 +506,6 @@ pub(crate) const MAVEN_GATE: OwnerGate = OwnerGate {
     live: "MAVEN_PUBLISH_LIVE",
 };
 
-/// Extra env names `mvn` keeps beyond the publish base list.
-const MAVEN_CHILD_ENV_EXTRA: &[&str] = &[
-    "JAVA_HOME",
-    "MAVEN_HOME",
-    "M2_HOME",
-    "MAVEN_OPTS",
-    "MAVEN_ARGS",
-    "MAVEN_GPG_KEY_FINGERPRINT",
-];
-
 /// Credentials and signing state for one live Maven upload.
 pub struct MavenLive {
     /// Repository username.
@@ -485,28 +516,6 @@ pub struct MavenLive {
     pub signer: Option<MavenSigner>,
     /// Whether the upload carries no signature.
     pub unsigned: bool,
-    /// Armored key from MAVEN_GPG_KEY, empty when unsigned.
-    pub gpg_key: String,
-    /// Passphrase from MAVEN_GPG_PASSPHRASE, empty when unsigned.
-    pub gpg_passphrase: String,
-}
-
-/// Builds the mvn command in a cleared env, with the GPG key and passphrase when signed.
-pub fn maven_command(mvn: &Path, live: &MavenLive, args: &[String]) -> std::process::Command {
-    let mut extra: Vec<(&str, &str)> = Vec::new();
-    if !live.unsigned {
-        extra.push(("MAVEN_GPG_KEY", &live.gpg_key));
-        if !live.gpg_passphrase.is_empty() {
-            extra.push(("MAVEN_GPG_PASSPHRASE", &live.gpg_passphrase));
-        }
-    }
-    let mut cmd = scrubbed_command(
-        mvn,
-        &[PUBLISH_CHILD_ENV_KEEP, MAVEN_CHILD_ENV_EXTRA],
-        &extra,
-    );
-    cmd.args(args);
-    cmd
 }
 
 /// Checks every live-upload refusal and returns the upload settings.
@@ -521,10 +530,8 @@ pub fn maven_live_gate(
         );
     }
     let secrets = MAVEN_GATE.authorize(env)?;
-    if let Some(host) = maven_retired_host(repository_url) {
-        return Err(format!(
-            "maven_deploy: invalid repository_url '{repository_url}': {host} is retired OSSRH infrastructure (use '{MAVEN_PORTAL_STAGING_URL}')"
-        ));
+    if let Some(error) = maven_repository_url_error(repository_url) {
+        return Err(error);
     }
     let passphrase = env("MAVEN_GPG_PASSPHRASE");
     let key = env("MAVEN_GPG_KEY");
@@ -544,18 +551,11 @@ pub fn maven_live_gate(
             "maven staging: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned(),
         );
     }
-    let (gpg_key, gpg_passphrase) = if unsigned {
-        (String::new(), String::new())
-    } else {
-        (key, passphrase)
-    };
     Ok(MavenLive {
         username: secrets.get("MAVEN_USERNAME").to_owned(),
         password: secrets.get("MAVEN_PASSWORD").to_owned(),
         signer,
         unsigned,
-        gpg_key,
-        gpg_passphrase,
     })
 }
 
@@ -601,18 +601,6 @@ pub fn maven_main(
                 return 1;
             }
         };
-        match std::fs::read(&pom) {
-            Ok(bytes) => {
-                if let Some(error) = maven_pom_metadata_error(&bytes, group, artifact, version) {
-                    eprintln!("maven_deploy: {error}");
-                    return 1;
-                }
-            }
-            Err(error) => {
-                eprintln!("maven_deploy: {error}");
-                return 1;
-            }
-        }
         let workdir = match tempfile_stage_dir("maven-deploy-") {
             Ok(dir) => dir,
             Err(error) => {
@@ -620,53 +608,48 @@ pub fn maven_main(
                 return 1;
             }
         };
-        let settings = match write_secure_file(
+        let bundle = maven_build_file_repo(
+            &jar,
+            &pom,
             &workdir,
-            "settings.xml",
-            &maven_settings_xml(&live.username, &live.password),
-        ) {
-            Ok(path) => path,
+            group,
+            artifact,
+            version,
+            live.signer.as_ref(),
+        )
+        .and_then(|house| maven_bundle_zip(&house));
+        let _ = std::fs::remove_dir_all(&workdir);
+        let bundle = match bundle {
+            Ok(bundle) => bundle,
             Err(error) => {
                 eprintln!("maven_deploy: {error}");
-                let _ = std::fs::remove_dir_all(&workdir);
                 return 1;
             }
         };
-        let mut cmd = maven_command(
-            Path::new("mvn"),
-            &live,
-            &maven_deploy_args(
-                !live.unsigned,
-                &settings,
-                repository_url,
-                &jar,
-                &pom,
-                group,
-                artifact,
-                version,
-            ),
-        );
         if live.unsigned {
             println!(
                 "maven_deploy: unsigned staging recorded (MAVEN_ALLOW_UNSIGNED=1 with owner approval; no GPG signature attached)"
             );
+            println!("maven_deploy: Central Portal validation rejects unsigned bundles");
         }
-        let status = cmd.status();
-        let _ = std::fs::remove_dir_all(&workdir);
-        match status {
-            Ok(status) if status.success() => {
-                println!("maven_deploy: uploaded {group}:{artifact}:{version} to {repository_url}");
+        let name = format!("{group}:{artifact}:{version}");
+        match maven_upload_bundle(
+            &http::publish_agent(),
+            repository_url,
+            &http::bearer_basic(&live.username, &live.password),
+            &name,
+            &bundle,
+        ) {
+            Ok(id) => {
+                println!("maven_deploy: uploaded {name} to {repository_url} as deployment {id}");
                 println!(
                     "maven_deploy: not published yet; validate and publish the deployment in the Central Portal"
                 );
+                println!("  https://central.sonatype.com/publishing/deployments");
                 return 0;
             }
-            Ok(status) => {
-                eprintln!("maven_deploy: mvn failed with {status}");
-                return 1;
-            }
             Err(error) => {
-                eprintln!("maven_deploy: {error}");
+                eprintln!("{error}");
                 return 1;
             }
         }
@@ -956,7 +939,7 @@ pub(crate) mod tests {
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_GPG_PASSPHRASE", "pw"));
         assert_eq!(
-            gate_error(&vars, "0.0.0", MAVEN_PORTAL_STAGING_URL),
+            gate_error(&vars, "0.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
             Some("maven_deploy: live staging refuses version 0.0.0; set a real version".to_owned())
         );
     }
@@ -968,7 +951,7 @@ pub(crate) mod tests {
             &[("MAVEN_USERNAME", "user"), ("MAVEN_PUBLISH_APPROVED", "1")][..],
         ] {
             assert_eq!(
-                gate_error(vars, "1.0.0", MAVEN_PORTAL_STAGING_URL),
+                gate_error(vars, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
                 Some("maven_deploy: live staging needs MAVEN_USERNAME plus MAVEN_PASSWORD plus explicit owner approval (MAVEN_PUBLISH_APPROVED=1); refusing".to_owned())
             );
         }
@@ -977,7 +960,7 @@ pub(crate) mod tests {
     #[test]
     fn maven_gate_rejects_missing_approval() {
         assert_eq!(
-            gate_error(&APPROVED[..2], "1.0.0", MAVEN_PORTAL_STAGING_URL),
+            gate_error(&APPROVED[..2], "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
             Some(
                 "maven_deploy: live staging needs MAVEN_PUBLISH_APPROVED=1 (owner approval); refusing"
                     .to_owned()
@@ -988,12 +971,12 @@ pub(crate) mod tests {
     #[test]
     fn maven_gate_rejects_unsigned_without_allow_and_accepts_with_allow() {
         assert_eq!(
-            gate_error(&APPROVED, "1.0.0", MAVEN_PORTAL_STAGING_URL),
+            gate_error(&APPROVED, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
             Some("maven staging: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned())
         );
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
-        let live = maven_live_gate(&gate_env(&vars), "1.0.0", MAVEN_PORTAL_STAGING_URL)
+        let live = maven_live_gate(&gate_env(&vars), "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL)
             .ok()
             .expect("unsigned allowed");
         assert!(live.unsigned);
@@ -1006,81 +989,11 @@ pub(crate) mod tests {
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_GPG_KEY", &secret));
         vars.push(("MAVEN_GPG_PASSPHRASE", PASSPHRASE));
-        let live = maven_live_gate(&gate_env(&vars), "1.0.0", MAVEN_PORTAL_STAGING_URL)
+        let live = maven_live_gate(&gate_env(&vars), "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL)
             .ok()
             .expect("signed");
         assert!(!live.unsigned);
         assert!(live.signer.is_some());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn maven_command_scrubs_env_and_passes_gpg_only_when_signed() {
-        use std::os::unix::fs::PermissionsExt as _;
-        let scratch = scratch_dir();
-        let mvn = scratch.path().join("mvn");
-        let d = scratch.path().display();
-        std::fs::write(
-            &mvn,
-            format!("#!/bin/sh\nprintf '%s\\n' \"$@\" > '{d}/args.txt'\nenv > '{d}/env.txt'\n"),
-        )
-        .expect("write mvn");
-        std::fs::set_permissions(&mvn, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-        let (secret, _) = test_key(false);
-        let mut signed = APPROVED.to_vec();
-        signed.push(("MAVEN_GPG_KEY", &secret));
-        signed.push(("MAVEN_GPG_PASSPHRASE", PASSPHRASE));
-        let mut unsigned = APPROVED.to_vec();
-        unsigned.push(("MAVEN_ALLOW_UNSIGNED", "1"));
-        let settings = scratch.path().join("settings.xml");
-        for (vars, want_gpg) in [(signed, true), (unsigned, false)] {
-            let live = maven_live_gate(&gate_env(&vars), "1.0.0", MAVEN_PORTAL_STAGING_URL)
-                .ok()
-                .expect("gate");
-            let args = maven_deploy_args(
-                !live.unsigned,
-                &settings,
-                MAVEN_PORTAL_STAGING_URL,
-                Path::new("a.jar"),
-                Path::new("pom.xml"),
-                "com.example",
-                "demo",
-                "1.0.0",
-            );
-            let status = with_env(
-                &[
-                    ("DX_LEAK_PROBE", Some("1")),
-                    ("MAVEN_PASSWORD", Some("pass")),
-                    ("MAVEN_GPG_KEY", None),
-                    ("MAVEN_GPG_PASSPHRASE", None),
-                    ("JAVA_HOME", Some("/opt/jdk")),
-                ],
-                || maven_command(&mvn, &live, &args).status(),
-            )
-            .expect("run mvn");
-            assert!(status.success());
-            let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
-            let argv = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
-            assert!(!env.contains("DX_LEAK_PROBE"), "{env}");
-            assert!(!env.contains("MAVEN_PASSWORD"), "{env}");
-            assert!(env.lines().any(|line| line == "JAVA_HOME=/opt/jdk"));
-            assert_eq!(env.contains("MAVEN_GPG_KEY="), want_gpg, "{env}");
-            assert_eq!(
-                env.lines()
-                    .any(|line| line == format!("MAVEN_GPG_PASSPHRASE={PASSPHRASE}")),
-                want_gpg
-            );
-            assert!(
-                !argv
-                    .lines()
-                    .any(|line| line == "pass" || line.ends_with("=pass")),
-                "{argv}"
-            );
-            assert!(
-                !argv.contains(PASSPHRASE) && !argv.contains("PGP"),
-                "{argv}"
-            );
-        }
     }
 
     #[test]
@@ -1091,7 +1004,7 @@ pub(crate) mod tests {
             if allow {
                 vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
             }
-            let error = gate_error(&vars, "1.0.0", MAVEN_PORTAL_STAGING_URL).expect("refused");
+            let error = gate_error(&vars, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL).expect("refused");
             assert!(error.contains("without MAVEN_GPG_KEY"));
             assert!(!error.contains(PASSPHRASE));
         }
@@ -1125,7 +1038,7 @@ pub(crate) mod tests {
             let mut vars = APPROVED.to_vec();
             vars.push(("MAVEN_GPG_KEY", key));
             vars.push(("MAVEN_GPG_PASSPHRASE", passphrase));
-            let error = gate_error(&vars, "1.0.0", MAVEN_PORTAL_STAGING_URL).expect("refused");
+            let error = gate_error(&vars, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL).expect("refused");
             assert_eq!(error, want);
             assert!(!error.contains(PASSPHRASE) && !error.contains("wrong-passphrase"));
             assert!(!error.contains("PGP PRIVATE KEY"));
@@ -1148,10 +1061,226 @@ pub(crate) mod tests {
         ] {
             assert_eq!(
                 gate_error(&vars, "1.0.0", url),
-                Some(format!("maven_deploy: invalid repository_url '{url}': {host} is retired OSSRH infrastructure (use '{MAVEN_PORTAL_STAGING_URL}')"))
+                Some(format!("maven_deploy: invalid repository_url '{url}': {host} is retired OSSRH infrastructure (use '{MAVEN_DEFAULT_REPOSITORY_URL}')"))
             );
         }
-        assert_eq!(gate_error(&vars, "1.0.0", MAVEN_PORTAL_STAGING_URL), None);
+        assert_eq!(
+            gate_error(&vars, "1.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
+            None
+        );
+    }
+
+    #[test]
+    fn maven_gate_rejects_unsupported_host_at_runtime() {
+        let mut vars = APPROVED.to_vec();
+        vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
+        for url in [
+            "https://repo.example.com/maven2/",
+            "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/",
+            "https://central.sonatype.com/api/v1/",
+            "https://central.sonatype.com/api/v1/publisher/upload",
+        ] {
+            assert_eq!(
+                gate_error(&vars, "1.0.0", url),
+                Some(format!("maven_deploy: invalid repository_url '{url}': want the Central Portal Publisher API '{MAVEN_DEFAULT_REPOSITORY_URL}'"))
+            );
+        }
+        assert_eq!(
+            gate_error(
+                &vars,
+                "1.0.0",
+                "https://Central.Sonatype.com/api/v1/publisher/"
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn maven_gate_rejects_plaintext_url() {
+        let mut vars = APPROVED.to_vec();
+        vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
+        let url = "http://central.sonatype.com/api/v1/publisher/";
+        assert_eq!(
+            gate_error(&vars, "1.0.0", url),
+            Some(format!("maven_deploy: invalid repository_url '{url}': want an https URL so uploads never go over plaintext"))
+        );
+    }
+
+    fn staged_house(scratch: &Path) -> PathBuf {
+        let jar = scratch.join("maven_demo-1.0.0.jar");
+        std::fs::write(&jar, b"maven-demo-jar-bytes").expect("write jar");
+        let pom = scratch.join("maven_demo-1.0.0.pom");
+        std::fs::write(&pom, central_pom("com.example", "maven_demo", "1.0.0")).expect("pom");
+        let outdir = scratch.join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        maven_build_file_repo(
+            &jar,
+            &pom,
+            &outdir,
+            "com.example",
+            "maven_demo",
+            "1.0.0",
+            None,
+        )
+        .expect("repo")
+    }
+
+    #[test]
+    fn maven_bundle_zip_is_deterministic_and_skips_metadata() {
+        let scratch = scratch_dir();
+        let house = staged_house(scratch.path());
+        let first = maven_bundle_zip(&house).expect("zip");
+        let second = maven_bundle_zip(&house).expect("zip again");
+        assert_eq!(first, second);
+        let mut archive = zip::ZipArchive::new(io::Cursor::new(first)).expect("open");
+        let names: Vec<String> = (0..archive.len())
+            .map(|index| {
+                archive
+                    .by_index(index)
+                    .expect("entry")
+                    .name()
+                    .expect("name")
+                    .into_owned()
+            })
+            .collect();
+        let dir = "com/example/maven_demo/1.0.0/";
+        let mut want = Vec::new();
+        for base in ["maven_demo-1.0.0.jar", "maven_demo-1.0.0.pom"] {
+            want.push(format!("{dir}{base}"));
+            for suffix in ["md5", "sha1", "sha256", "sha512"] {
+                want.push(format!("{dir}{base}.{suffix}"));
+            }
+        }
+        want.sort();
+        assert_eq!(names, want);
+    }
+
+    struct Stub {
+        url: String,
+        request: std::sync::mpsc::Receiver<Vec<u8>>,
+    }
+
+    fn stub_server(status: &str, body: String) -> Stub {
+        use std::io::{Read as _, Write as _};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let url = format!(
+            "http://{}/api/v1/publisher/",
+            listener.local_addr().expect("addr")
+        );
+        let (send, request) = std::sync::mpsc::channel();
+        let status = status.to_owned();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut seen = Vec::new();
+            let mut buf = [0u8; 8192];
+            loop {
+                let n = stream.read(&mut buf).expect("read");
+                if n == 0 {
+                    break;
+                }
+                seen.extend_from_slice(&buf[..n]);
+                let text = String::from_utf8_lossy(&seen).into_owned();
+                if let Some(end) = text.find("\r\n\r\n") {
+                    let length = text[..end]
+                        .lines()
+                        .find_map(|line| {
+                            line.to_ascii_lowercase()
+                                .strip_prefix("content-length:")
+                                .map(|value| value.trim().parse::<usize>().expect("length"))
+                        })
+                        .unwrap_or(0);
+                    if seen.len() >= end + 4 + length {
+                        break;
+                    }
+                }
+            }
+            let reply = format!(
+                "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(reply.as_bytes()).expect("reply");
+            send.send(seen).expect("send");
+        });
+        Stub { url, request }
+    }
+
+    fn test_agent() -> ureq::Agent {
+        http::publish_agent_with_proxy(None)
+    }
+
+    #[test]
+    fn maven_upload_posts_bundle_multipart() {
+        let stub = stub_server("201 Created", "deployment-1234\n".to_owned());
+        let zip = b"PK\x03\x04 bundle bytes".to_vec();
+        let id = maven_upload_bundle(
+            &test_agent(),
+            &stub.url,
+            &http::bearer_basic("user", "pass"),
+            "com.example:demo:1.0.0",
+            &zip,
+        )
+        .expect("upload");
+        assert_eq!(id, "deployment-1234");
+        let seen = stub.request.recv().expect("request");
+        let text = String::from_utf8_lossy(&seen).into_owned();
+        assert!(
+            text.starts_with("POST /api/v1/publisher/upload?publishingType=USER_MANAGED&name=com.example%3Ademo%3A1.0.0 HTTP/1.1\r\n"),
+            "{text}"
+        );
+        assert!(text
+            .lines()
+            .any(|line| line.eq_ignore_ascii_case("authorization: Bearer dXNlcjpwYXNz")));
+        let boundary = text
+            .lines()
+            .find_map(|line| {
+                line.to_ascii_lowercase()
+                    .strip_prefix("content-type: multipart/form-data; boundary=")
+                    .map(str::to_owned)
+            })
+            .expect("multipart content type");
+        assert!(text.contains(&format!("--{boundary}\r\nContent-Disposition: form-data; name=\"bundle\"; filename=\"bundle.zip\"\r\nContent-Type: application/octet-stream\r\n\r\n")));
+        assert!(seen.windows(zip.len()).any(|window| window == &zip[..]));
+        assert!(text.ends_with(&format!("\r\n--{boundary}--\r\n")));
+    }
+
+    #[test]
+    fn maven_upload_maps_401_and_403_to_bad_credentials() {
+        for status in ["401 Unauthorized", "403 Forbidden"] {
+            let stub = stub_server(status, "denied".to_owned());
+            let bearer = http::bearer_basic("user", "s3cret-pass");
+            let error = maven_upload_bundle(&test_agent(), &stub.url, &bearer, "g:a:1", b"zip")
+                .expect_err("refused");
+            assert_eq!(error, MAVEN_BAD_CREDENTIALS);
+            assert!(!error.contains("s3cret-pass") && !error.contains(&bearer[7..]));
+        }
+    }
+
+    #[test]
+    fn maven_upload_reports_unexpected_status_with_body_excerpt() {
+        let body = "x".repeat(5000);
+        let stub = stub_server("400 Bad Request", body);
+        let error = maven_upload_bundle(&test_agent(), &stub.url, "Bearer t", "g:a:1", b"zip")
+            .expect_err("rejected");
+        let prefix = format!(
+            "maven_deploy: upload to {}upload?publishingType=USER_MANAGED&name=g%3Aa%3A1 failed with HTTP 400: ",
+            stub.url
+        );
+        assert_eq!(error, prefix + &"x".repeat(2048));
+    }
+
+    #[test]
+    fn maven_upload_reports_unreachable_host() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        drop(listener);
+        let url = format!("http://{addr}/api/v1/publisher/");
+        let error = maven_upload_bundle(&test_agent(), &url, "Bearer t", "g:a:1", b"zip")
+            .expect_err("unreachable");
+        assert!(
+            error.starts_with(&format!("maven_deploy: upload to {url}upload?")),
+            "{error}"
+        );
+        assert!(!error.contains("Bearer"));
     }
 
     #[test]
@@ -1184,7 +1313,7 @@ pub(crate) mod tests {
                 "com.example",
                 "maven_demo",
                 "0.0.0",
-                MAVEN_PORTAL_STAGING_URL,
+                MAVEN_DEFAULT_REPOSITORY_URL,
                 &argv,
             )
         };
@@ -1220,7 +1349,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn maven_repo_builds_layout_and_settings() {
+    fn maven_repo_builds_layout() {
         let scratch = scratch_dir();
         let jar = scratch.path().join("maven_demo-0.0.0.jar");
         std::fs::write(&jar, b"maven-demo-jar-bytes-v1").expect("write jar");
@@ -1244,12 +1373,6 @@ pub(crate) mod tests {
         assert!(house
             .join("com/example/maven_demo/maven-metadata.xml")
             .is_file());
-        let settings = maven_settings_xml("user", "pass");
-        assert!(settings.contains("dx-staging"));
-        assert!(!settings.contains("profile"));
-        assert!(!settings.contains("gpg.passphrase"));
-        let secure = write_secure_file(scratch.path(), "settings.xml", &settings).expect("secure");
-        assert!(secure.is_file());
     }
 
     #[test]
@@ -1262,66 +1385,8 @@ pub(crate) mod tests {
             maven_retired_host("https://s01.oss.sonatype.org/service/local/"),
             Some("s01.oss.sonatype.org")
         );
-        assert_eq!(maven_retired_host(MAVEN_PORTAL_STAGING_URL), None);
+        assert_eq!(maven_retired_host(MAVEN_DEFAULT_REPOSITORY_URL), None);
         assert_eq!(maven_retired_host("https://repo.example.com/maven2/"), None);
-    }
-
-    fn deploy_args(signed: bool) -> Vec<String> {
-        maven_deploy_args(
-            signed,
-            Path::new("/tmp/settings.xml"),
-            MAVEN_PORTAL_STAGING_URL,
-            Path::new("/tmp/a.jar"),
-            Path::new("/tmp/a.pom"),
-            "com.example",
-            "a",
-            "1.0.0",
-        )
-    }
-
-    fn assert_common_deploy_args(args: &[String]) {
-        assert!(args.contains(&format!("-Durl={MAVEN_PORTAL_STAGING_URL}")));
-        assert!(args.contains(&"-Dfile=/tmp/a.jar".to_owned()));
-        assert!(args.contains(&"-Dversion=1.0.0".to_owned()));
-        assert!(!args
-            .iter()
-            .any(|arg| arg.contains("-Pgpg-sign") || arg.contains("gpg.skip")));
-        assert!(!args.iter().any(|arg| {
-            let lower = arg.to_lowercase();
-            lower.contains("password") || lower.contains("passphrase") || lower.contains("key")
-        }));
-    }
-
-    #[test]
-    fn maven_deploy_args_sign_when_signed() {
-        let args = deploy_args(true);
-        assert_common_deploy_args(&args);
-        assert!(args.contains(&MAVEN_SIGN_GOAL.to_owned()));
-        assert!(!args.contains(&MAVEN_DEPLOY_GOAL.to_owned()));
-        for flag in [
-            "-Dgpg.signer=bc",
-            "-Dgpg.bestPractices=true",
-            "-Dgpg.useagent=false",
-        ] {
-            assert!(args.contains(&flag.to_owned()), "{flag}");
-        }
-    }
-
-    #[test]
-    fn maven_deploy_args_unsigned_use_deploy_file() {
-        let args = deploy_args(false);
-        assert_common_deploy_args(&args);
-        assert!(args.contains(&MAVEN_DEPLOY_GOAL.to_owned()));
-        assert!(!args.contains(&MAVEN_SIGN_GOAL.to_owned()));
-        assert!(!args.iter().any(|arg| arg.contains("gpg.")));
-        let strip = |args: Vec<String>| -> Vec<String> {
-            args.into_iter()
-                .filter(|arg| {
-                    !arg.starts_with("-Dgpg.") && arg != MAVEN_SIGN_GOAL && arg != MAVEN_DEPLOY_GOAL
-                })
-                .collect()
-        };
-        assert_eq!(strip(deploy_args(true)), strip(args));
     }
 
     #[test]

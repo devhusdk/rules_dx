@@ -787,4 +787,3 @@ fn bad_build_slots_exit_two_from_the_binary() {
     assert_eq!(code, Some(2), "{err}");
     assert!(err.contains("DX_BUILD_SLOTS"), "{err}");
 }
-

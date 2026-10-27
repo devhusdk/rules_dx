@@ -730,4 +730,3 @@ fn build_slots_flag_is_accepted_on_every_command() {
         slots(3)
     );
 }
-

@@ -1,7 +1,10 @@
 //! Every dx planner starts Bazel with the same startup flags under a local rc policy.
 
 use dx_plan::args::{Command, Profile, WorkflowVerb};
-use dx_plan::plan;
+use dx_plan::plan::{
+    plan_build, plan_deploy_build, plan_deploy_run, plan_generate, plan_managed_with_roots,
+    plan_run_build, plan_run_targets, plan_workflow,
+};
 use dx_plan::resolve::ResolvedScope;
 use dx_process::{RcPolicy, Scope};
 

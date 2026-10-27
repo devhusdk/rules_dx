@@ -2,6 +2,7 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::exec::common::check_stdout_write;
+use dx_adopt::Applied;
 use dx_plan::args::Invocation;
 use dx_worktree::setup;
 

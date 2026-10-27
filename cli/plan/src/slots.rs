@@ -429,7 +429,6 @@ fn enqueue(dir: &Path) -> io::Result<Ticket> {
 }
 
 /// Takes a free slot without waiting; ignores the line of waiters.
-#[cfg(test)]
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
     scan(dir, 0..count, label).0
 }
@@ -471,7 +470,6 @@ fn scan(
 }
 
 /// Takes a slot in arrival order, calling `on_wait` once when it must wait; errors only when no slot file opens.
-#[cfg(test)]
 pub fn acquire(
     dir: &Path,
     count: usize,
@@ -482,7 +480,6 @@ pub fn acquire(
 }
 
 /// Takes a slot like `acquire`, calling `on_poll` before each sleep and `on_skip` for each unusable slot file.
-#[cfg(test)]
 fn acquire_with(
     dir: &Path,
     count: usize,

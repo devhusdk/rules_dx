@@ -272,7 +272,8 @@ fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json
     }
     let stdout = io::stdout();
     let mut out = stdout.lock();
-    if let Err(io_exit) = dx_cli::emit_startup_outcome(&mut out, code, message, exit) {
+    if let Err(io_exit) = dx_cli::exec::common::emit_startup_outcome(&mut out, code, message, exit)
+    {
         return io_exit;
     }
     exit
@@ -303,12 +304,12 @@ fn main() {
 fn run() -> i32 {
     // LCOV_EXCL_START - reason: thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
-    if let Some(kind) = dx_cli::hook_kind(&args) {
+    if let Some(kind) = dx_cli::exec::hook_kind(&args) {
         let hook_cwd =
             dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
         let stdout = io::stdout();
         let mut out = stdout.lock();
-        let code = dx_cli::run_worktree_hook(kind, &hook_cwd, &mut out, &mut io::stderr());
+        let code = dx_cli::exec::run_worktree_hook(kind, &hook_cwd, &mut out, &mut io::stderr());
         return match flush_out(&mut out) {
             Ok(()) => code,
             Err(exit) => exit,
@@ -390,7 +391,7 @@ fn run() -> i32 {
         }
     };
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    dx_cli::set_usage_command(invocation.command);
+    dx_cli::exec::set_usage_command(invocation.command);
     dx_output::init_diagnostics_with_color(invocation.verbose, invocation.color);
     tracing::info!(
         command = invocation.command.name(),

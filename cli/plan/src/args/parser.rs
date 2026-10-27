@@ -45,7 +45,6 @@ fn bad_default(error: dx_adopt::AdoptError) -> ArgsError {
     }
 }
 
-#[cfg(test)]
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
 }
@@ -383,7 +382,6 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
     }))
 }
 
-#[cfg(test)]
 pub fn parse_with<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,

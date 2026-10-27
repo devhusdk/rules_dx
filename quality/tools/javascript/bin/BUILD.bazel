@@ -1,5 +1,4 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
-load("@npm_tools//quality/tools/javascript:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm_tools//quality/tools/javascript:stylelint/package_json.bzl", stylelint_bin = "bin")
 load("@npm_tools//quality/tools/javascript:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@npm_tools//quality/tools/javascript:wrangler/package_json.bzl", wrangler_bin = "bin")
@@ -8,7 +7,16 @@ load("//quality/tools/javascript:defs.bzl", "js_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
-eslint_bin.eslint_binary(name = "eslint_generated")
+js_binary(
+    name = "eslint_generated",
+    data = [
+        "//quality/tools/javascript:node_modules/@typescript-eslint/parser",
+        "//quality/tools/javascript:node_modules/eslint",
+        "//quality/tools/javascript:node_modules/eslint-plugin-vue",
+        "//quality/tools/javascript:node_modules/vue-eslint-parser",
+    ],
+    entry_point = "eslint.mjs",
+)
 
 js_binary(
     name = "prettier_generated",
@@ -36,7 +44,7 @@ wrangler_bin.wrangler_binary(
 
 js_tool(
     name = "eslint",
-    entry_point = ":eslint_generated__entry_point",
+    entry_point = "eslint.mjs",
     js_binary = ":eslint_generated",
 )
 

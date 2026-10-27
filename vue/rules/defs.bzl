@@ -7,4 +7,4 @@ _vue_library_forward = dx_framework_forward_rule("vue", ".vue")
 
 def vue_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over js_library for Vue SFCs."""
-    dx_framework_library(name, srcs, _js_library, _vue_library_forward, visibility = visibility, **kwargs)
+    dx_framework_library(name, srcs, _js_library, _vue_library_forward, skip = [], visibility = visibility, **kwargs)

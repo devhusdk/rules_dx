@@ -97,7 +97,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("eslint", "format"),
                     real_supported_classes("eslint", "typecheck"),
                 ],
-                [["javascript", "jsx"], [], []],
+                [["javascript", "jsx", "vue"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns prettier format support only",
@@ -106,7 +106,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("prettier", "format"),
                     real_supported_classes("prettier", "typecheck"),
                 ],
-                [[], ["css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "xml"], []],
+                [[], ["css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "vue", "xml"], []],
             ),
             expect_equal(
                 "real_supported_classes returns buildifier lint support",

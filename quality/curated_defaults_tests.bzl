@@ -95,6 +95,19 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
+                "vue curated defaults stay Prettier format only",
+                [CURATED_DEFAULTS["vue"], FORMAT_FROZEN["vue"]],
+                [
+                    {
+                        "audit": [],
+                        "format": ["prettier"],
+                        "lint": [],
+                        "typecheck": [],
+                    },
+                    ["prettier"],
+                ],
+            ),
+            expect_equal(
                 "rust curated defaults stay rustfmt + Clippy + rustc",
                 CURATED_DEFAULTS["rust"],
                 {

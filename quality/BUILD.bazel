@@ -186,6 +186,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_vue_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "vue",
+    format = ["prettier"],
+)
+
+quality_family(
     name = "default_java_family",
     disabled = ["typecheck"],
     family_id = "java",
@@ -254,6 +264,7 @@ workspace_policy(
         ":default_text_family",
         ":default_toml_family",
         ":default_typescript_family",
+        ":default_vue_family",
     ],
 )
 

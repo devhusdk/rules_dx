@@ -219,6 +219,28 @@ mod tests {
     }
 
     #[test]
+    fn prettier_check_locates_a_vue_template_error_beside_a_dirty_vue_file() {
+        let stderr = "[error] app/Broken.vue: SyntaxError: Unexpected closing tag \"template\". It may happen when the tag has already been closed by another tag. For more info see https://www.w3.org/TR/html5/syntax.html#closing-elements-that-have-implied-end-tags (4:1)\n[error]   2 |   <div>\n[error]   3 |     <span>hi\n[error] > 4 | </template>\n[error]     | ^^^^^^^^^^^\n[error]   5 |\n[warn] app/Dirty.vue\n[warn] Code style issues found in the above file. Run Prettier with --write to fix.\n";
+        let findings = parse_prettier_check(
+            stderr.as_bytes(),
+            Some(2),
+            &["app/Broken.vue", "app/Dirty.vue"],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, "app/Broken.vue");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.start.line, 4);
+        assert_eq!(findings[0].finding.start.column, 1);
+        assert!(findings[0]
+            .finding
+            .message
+            .contains("Unexpected closing tag \"template\""));
+        assert_eq!(findings[1].file, "app/Dirty.vue");
+        assert_eq!(findings[1].finding.message, "file is not formatted");
+    }
+
+    #[test]
     fn prettier_check_fails_on_an_unnamed_error_after_a_syntax_error() {
         let stderr = "[error] a/bad.json5: SyntaxError: JSON5: invalid end of input at 2:1\n[error] No parser could be inferred for file \"/w/a/x.foo\".\n";
         assert!(

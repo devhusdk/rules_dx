@@ -99,6 +99,12 @@ CURATED_DEFAULTS = {
         "lint": ["biome"],
         "typecheck": [],
     },
+    "vue": {
+        "audit": [],
+        "format": ["prettier"],
+        "lint": [],
+        "typecheck": [],
+    },
 }
 
 FORMAT_FROZEN = {
@@ -118,6 +124,7 @@ FORMAT_FROZEN = {
     "text": [],
     "toml": ["taplo"],
     "typescript": ["biome"],
+    "vue": ["prettier"],
 }
 
 def curated_families():

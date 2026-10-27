@@ -12,7 +12,6 @@ PARITY_DEFERRED = {
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "perl": ["ADR", "perltidy adapter pending in a later #1788 slice"],
     "svelte": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
-    "vue": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
 }
 
 def _adapter_backed_classes():
@@ -141,7 +140,7 @@ def parity_unit_tests(name):
             ),
             expect_equal(
                 "deferred pipeline error names the deferral with owner and route",
-                deferred_pipeline_error(["rust", "vue"], "lint") != "",
+                deferred_pipeline_error(["rust", "svelte"], "lint") != "",
                 True,
             ),
         ],

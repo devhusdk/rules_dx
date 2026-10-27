@@ -4,7 +4,7 @@ use dx_testing::{mkscratch, Run};
 
 mod support;
 
-use support::{commit, dx_in, fixture, write};
+use support::{commit, dx_in, fixture, rules_dx_module, write};
 
 fn repo(name: &str) -> PathBuf {
     let root = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -12,6 +12,8 @@ fn repo(name: &str) -> PathBuf {
     commit(&root);
     root
 }
+
+const OVERRIDE_BODY: &str = "bazel_dep(name = \"lib\", version = \"0\")\nlocal_path_override(module_name = \"lib\", path = \"../lib\")\n";
 
 fn nested_repo(name: &str, module: &str) -> (PathBuf, PathBuf) {
     let root = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -139,7 +141,7 @@ fn module_change_widens_to_the_whole_workspace() {
     let root = repo("dx-affected-widen");
     write(
         &root.join("MODULE.bazel"),
-        "module(name = \"fixture\", version = \"1\")\n",
+        &rules_dx_module(", version = \"1\"", ""),
     );
     let listed = dx_in(&root, &["list-tests", "--affected"]);
     assert_eq!(listed.status.code(), Some(0), "{}", listed.combined());
@@ -162,7 +164,7 @@ fn affected_conflicts_with_scopes_and_here() {
 
 #[test]
 fn workspace_below_the_git_root_maps_changes_without_widening() {
-    let (_root, workspace) = nested_repo("dx-affected-sub", "module(name = \"fixture\")\n");
+    let (_root, workspace) = nested_repo("dx-affected-sub", &rules_dx_module("", ""));
     write(&workspace.join("a/a.txt"), "changed\n");
     let json = dx_in(&workspace, &["list-tests", "--affected", "--output=json"]);
     assert_eq!(json.status.code(), Some(0), "{}", json.combined());
@@ -176,7 +178,7 @@ fn workspace_below_the_git_root_maps_changes_without_widening() {
 
 #[test]
 fn changes_outside_a_nested_workspace_select_nothing() {
-    let (root, workspace) = nested_repo("dx-affected-outside", "module(name = \"fixture\")\n");
+    let (root, workspace) = nested_repo("dx-affected-outside", &rules_dx_module("", ""));
     write(&root.join("frontend/x.ts"), "changed\n");
     write(&root.join("frontend/new.ts"), "new\n");
     let ran = dx_in(&workspace, &["test", "--affected"]);
@@ -192,10 +194,8 @@ fn changes_outside_a_nested_workspace_select_nothing() {
 
 #[test]
 fn local_path_override_change_outside_the_workspace_widens() {
-    let (root, workspace) = nested_repo(
-        "dx-affected-override",
-        "module(name = \"fixture\")\nbazel_dep(name = \"lib\", version = \"0\")\nlocal_path_override(module_name = \"lib\", path = \"../lib\")\n",
-    );
+    let (root, workspace) =
+        nested_repo("dx-affected-override", &rules_dx_module("", OVERRIDE_BODY));
     write(&root.join("lib/l.txt"), "changed\n");
     let listed = dx_in(&workspace, &["list-tests", "--affected"]);
     assert_eq!(listed.status.code(), Some(0), "{}", listed.combined());
@@ -207,4 +207,22 @@ fn local_path_override_change_outside_the_workspace_widens() {
         listed.combined()
     );
     assert_eq!(lines(&listed).len(), 3, "{}", listed.combined());
+}
+
+#[test]
+fn nested_module_test_affected_resolves_rules_dx_settings() {
+    let (_root, workspace) = nested_repo(
+        "dx-affected-nested-test",
+        &rules_dx_module("", OVERRIDE_BODY),
+    );
+    write(&workspace.join("a/a.txt"), "changed\n");
+    let ran = dx_in(&workspace, &["test", "--affected"]);
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert!(
+        !ran.combined().contains("No repository visible"),
+        "{}",
+        ran.combined()
+    );
+    assert!(ran.combined().contains("//a:a_test"), "{}", ran.combined());
+    assert!(ran.combined().contains("//b:b_test"), "{}", ran.combined());
 }

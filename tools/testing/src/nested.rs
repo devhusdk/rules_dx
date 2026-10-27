@@ -1292,6 +1292,42 @@ thread_local! {
 
 static HOME: Mutex<Option<(PathBuf, bool)>> = Mutex::new(None);
 
+/// Shared settings of `@rules_dx//config` that dx passes to Bazel, as `(name, default)`.
+///
+/// Source of truth: `BAZEL_SETTINGS` in `cli/plan/src/plan.rs`; `validate` is kept because
+/// users may pass `--@rules_dx//config:validate=false` through. A new shared setting is one
+/// entry here.
+pub const RULES_DX_FLAGS: &[(&str, bool)] = &[
+    ("validate", true),
+    ("clippy_output_diagnostics", false),
+    ("rustc_output_diagnostics", false),
+];
+
+/// `MODULE.bazel` text for a fixture whose root module is visible as `@rules_dx`.
+///
+/// `attrs` is appended inside `module(...)` (for example `, version = "1"`); `body` follows it.
+pub fn rules_dx_module(attrs: &str, body: &str) -> String {
+    format!("module(name = \"fixture\", repo_name = \"rules_dx\"{attrs})\n{body}")
+}
+
+/// Writes the `config` package declaring [`RULES_DX_FLAGS`] under `root`.
+pub fn write_rules_dx_config(root: &Path) {
+    let dir = root.join("config");
+    std::fs::create_dir_all(&dir).unwrap_or_else(|error| panic!("mkdir {dir:?}: {error}"));
+    let flags = "def _impl(_ctx):\n    return []\n\nbool_flag = rule(implementation = _impl, build_setting = config.bool(flag = True))\n";
+    let mut build = String::from("load(\":flags.bzl\", \"bool_flag\")\n");
+    for (name, default) in RULES_DX_FLAGS {
+        let default = if *default { "True" } else { "False" };
+        build.push_str(&format!(
+            "\nbool_flag(name = \"{name}\", build_setting_default = {default})\n"
+        ));
+    }
+    for (file, text) in [("flags.bzl", flags), ("BUILD.bazel", build.as_str())] {
+        std::fs::write(dir.join(file), text)
+            .unwrap_or_else(|error| panic!("write {file}: {error}"));
+    }
+}
+
 /// One test case holding the shared server and its emptied workspace.
 pub struct Case {
     lease: Rc<Lease>,
@@ -1698,6 +1734,25 @@ mod tests {
             status: std::process::ExitStatus::from_raw(code << 8),
             stdout: String::new(),
             stderr: stderr.to_owned(),
+        }
+    }
+
+    #[test]
+    fn rules_dx_module_keeps_attrs_and_alias() {
+        let text = rules_dx_module(", version = \"1\"", "bazel_dep(name = \"lib\")\n");
+        assert!(text.contains("repo_name = \"rules_dx\""), "{text}");
+        assert!(text.contains("version = \"1\""), "{text}");
+        assert!(text.ends_with("bazel_dep(name = \"lib\")\n"), "{text}");
+    }
+
+    #[test]
+    fn rules_dx_config_names_every_flag() {
+        let dir = std::env::temp_dir().join(format!("dx-nested-config-{}", std::process::id()));
+        write_rules_dx_config(&dir);
+        let build = std::fs::read_to_string(dir.join("config/BUILD.bazel")).unwrap_or_default();
+        let _ = std::fs::remove_dir_all(&dir);
+        for (name, _) in RULES_DX_FLAGS {
+            assert!(build.contains(&format!("name = \"{name}\"")), "{build}");
         }
     }
 

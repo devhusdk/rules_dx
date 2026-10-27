@@ -20,6 +20,12 @@ _SDK_FLOORS = {
     "macosx": "14.0",
 }
 
+_SDK_CEILINGS = {
+    "iphoneos": "18.0",
+    "iphonesimulator": "18.0",
+    "macosx": "15.0",
+}
+
 _HOST_CONSTRAINTS = {
     "macos_arm64": ["@platforms//os:macos", "@platforms//cpu:arm64"],
 }
@@ -60,6 +66,10 @@ def sdk_names():
 def deployment_floor(sdk):
     """Returns the minimum deployment target for one SDK, or empty."""
     return _SDK_FLOORS[sdk] if sdk in _SDK_FLOORS else ""
+
+def ceiling_for(sdk):
+    """Returns the Xcode 16 deployment ceiling for one SDK, or empty."""
+    return _SDK_CEILINGS[sdk] if sdk in _SDK_CEILINGS else ""
 
 def _numbers(version):
     numbers = []

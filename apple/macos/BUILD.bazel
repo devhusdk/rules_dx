@@ -1,0 +1,280 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//apple/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
+load("//apple/signing:defs.bzl", "apple_macos_sign")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":app.bzl", "apple_macos_app")
+load(":app_tests.bzl", "apple_macos_app_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "app.bzl",
+    "app_check.sh",
+    "app_tests.bzl",
+    "run_app.sh",
+])
+
+apple_macos_app_tests(name = "app_metadata")
+
+stub_library(
+    name = "ledger_stub",
+    tags = ["manual"],
+)
+
+apple_macos_app(
+    name = "no_bundle_id",
+    srcs = ["main.m"],
+    deployment = "14.0",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_bundle_id_test",
+    expected_failure_substring = "apple_macos_app: bundle_id must not be empty",
+    target = ":no_bundle_id_selection",
+)
+
+apple_macos_app(
+    name = "freeform_version",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "14.0",
+    tags = ["manual"],
+    version = "one",
+)
+
+failure_test(
+    name = "freeform_version_test",
+    expected_failure_substring = "apple_macos_app: bundle version 'one' is not a dotted version",
+    target = ":freeform_version_selection",
+)
+
+apple_macos_app(
+    name = "no_entry",
+    bundle_id = "com.example.ledger",
+    deployment = "14.0",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_entry_test",
+    expected_failure_substring = "apple_macos_app: srcs or library is required",
+    target = ":no_entry_selection",
+)
+
+apple_macos_app(
+    name = "no_deployment",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_deployment_test",
+    expected_failure_substring = "apple_macos_app: deployment names the minimum macOS version",
+    target = ":no_deployment_selection",
+)
+
+apple_macos_app(
+    name = "low_deployment",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "13.0",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "low_deployment_test",
+    expected_failure_substring = "apple_macos_app: deployment '13.0' is below 14.0",
+    target = ":low_deployment_selection",
+)
+
+apple_macos_app(
+    name = "high_deployment",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "16.0",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "high_deployment_test",
+    expected_failure_substring = "apple_macos_app: deployment '16.0' is above the Xcode 16 'macosx' ceiling 15.0",
+    target = ":high_deployment_selection",
+)
+
+apple_macos_app(
+    name = "x86_app",
+    srcs = ["main.m"],
+    arch = "x86_64",
+    bundle_id = "com.example.ledger",
+    deployment = "14.0",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "x86_app_test",
+    expected_failure_substring = "apple_macos_app: arch 'x86_64' is outside macos: want arm64",
+    target = ":x86_app_selection",
+)
+
+apple_macos_app(
+    name = "profiled_app",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "14.0",
+    provisioning_profile = "main.m",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "profiled_app_test",
+    expected_failure_substring = "apple_macos_app: building signs ad hoc only; signing is a separate operation",
+    target = ":profiled_app_selection",
+)
+
+apple_macos_app(
+    name = "entitled_app",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "14.0",
+    entitlements = "main.m",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "entitled_app_test",
+    expected_failure_substring = "apple_macos_app: building signs ad hoc only; signing is a separate operation",
+    target = ":entitled_app_selection",
+)
+
+apple_macos_app(
+    name = "old_xcode_app",
+    srcs = ["main.m"],
+    bundle_id = "com.example.ledger",
+    deployment = "14.0",
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "15.4",
+)
+
+failure_test(
+    name = "old_xcode_app_test",
+    expected_failure_substring = "apple_macos_app: xcode '15.4' is outside 16",
+    target = ":old_xcode_app_selection",
+)
+
+apple_macos_app(
+    name = "stub_app",
+    bundle_id = "com.example.ledger",
+    deployment = "14.0",
+    library = ":ledger_stub",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "stub_app_on_simulator_test",
+    config = "simulator",
+    expected_failure_substring = "library cell macos/arm64 builds for no macOS platform here",
+    target = ":stub_app_library",
+)
+
+cell_failure_test(
+    name = "stub_app_without_archive_test",
+    config = "macos",
+    expected_failure_substring = "links no static archive",
+    target = ":stub_app_library",
+)
+
+cell_failure_test(
+    name = "stub_app_without_xcode_test",
+    config = "macos_no_xcode",
+    expected_failure_substring = "no Xcode resolved for this build",
+    target = ":stub_app_library",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+apple_macos_app(
+    name = "older_xcode_app",
+    bundle_id = "com.example.ledger",
+    deployment = "14.0",
+    library = ":ledger_stub",
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "16.2",
+)
+
+cell_failure_test(
+    name = "older_xcode_app_test",
+    config = "macos",
+    expected_failure_substring = "selects Xcode 16.2 but Bazel resolved",
+    target = ":older_xcode_app_library",
+)
+
+signing_probe(
+    name = "signing_probe",
+    tags = ["manual"],
+)
+
+signing_probe_device(
+    name = "signing_probe_device",
+    probe = ":signing_probe",
+    tags = ["manual"],
+)
+
+adhoc_signing_test(
+    name = "adhoc_signing_test",
+    target_under_test = ":signing_probe_device",
+)
+
+apple_macos_app(
+    name = "demo",
+    srcs = ["main.m"],
+    bundle_id = "com.example.demo",
+    deployment = "14.0",
+    version = "1.0",
+)
+
+build_test(
+    name = "demo_build_test",
+    target_compatible_with = ["@platforms//os:macos"],
+    targets = [":demo"],
+)
+
+apple_macos_sign(
+    name = "demo_sign",
+    app = ":demo",
+)
+
+build_test(
+    name = "demo_sign_build_test",
+    target_compatible_with = ["@platforms//os:macos"],
+    targets = [":demo_sign_meta"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "app.bzl",
+        "app_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

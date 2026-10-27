@@ -208,6 +208,7 @@ starlark_test(
     file_checks = {
         "//apple/bundle:defs.bzl": "resource_set = dx_apple_compile_resources",
         "//apple/ios:app.bzl": "resource_set = dx_apple_compile_resources",
+        "//apple/macos:app.bzl": "resource_set = dx_apple_compile_resources",
         "//javascript/rules:web.bzl": "resource_set = dx_bundler_resources",
         "//quality:real_aspects.bzl": "resource_set = real_quality_resource_set(",
     },

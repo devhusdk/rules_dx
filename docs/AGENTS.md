@@ -1,6 +1,6 @@
 # Documentation Instructions
 
-- User docs live in `docs/cli/commands/`, `docs/github-ci.md`, and short READMEs. Nothing else is user docs.
+- User docs live in `docs/cli/commands/`, `docs/github-ci.md`, `docs/adopting-existing-bazel.md`, and short READMEs. Nothing else is user docs.
 - Delete anything else. Do not move internal docs. Do not link to them.
 - One page per command or task. Commands first. Short sentences.
 - User docs stay complete: every command page documents its flags, scopes, output, reports, exit codes, and examples. Match `dx <command> --help`.

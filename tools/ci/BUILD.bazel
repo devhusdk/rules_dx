@@ -677,6 +677,7 @@ rust_test(
         "//cc/rules:README.md",
         "//deploy/rules:README.md",
         "//docs:README.md",
+        "//docs:adopting-existing-bazel.md",
         "//docs:command_docs",
         "//docs:github-ci.md",
         "//erlang:README.md",

@@ -16,6 +16,11 @@ USER_BOOK = [
     mdbook_index(BOOK_TITLE, BOOK_INTRO + "\n\n" + INDEX_LINK_LIST),
     mdbook_section("Quickstart"),
     mdbook_page("Documentation", "docs/README.md", "//docs:README.md"),
+    mdbook_page(
+        "Adopting rules_dx In An Existing Bazel Repo",
+        "docs/adopting-existing-bazel.md",
+        "//docs:adopting-existing-bazel.md",
+    ),
     mdbook_section("Command Reference"),
     mdbook_page(
         "Command Reference",

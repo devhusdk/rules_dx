@@ -4,6 +4,8 @@ Start here to use `dx`. There is no `dx` install step: `dx` runs through Bazel.
 Install Bazel via Bazelisk (see `.bazelversion`), then follow the command and CI
 guides below.
 
+- [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md): move from upstream rules one package at a time.
+
 ## Commands
 
 - [Command reference](cli/commands/README.md): behavior of each `dx` command.

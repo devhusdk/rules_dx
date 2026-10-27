@@ -226,3 +226,8 @@ bazel run @rules_dx//:dx -- check //...
 ```
 
 Enforce the same check in CI. See [GitHub CI](../../github-ci.md).
+
+## Existing Bazel repos
+
+To adopt `rules_dx` in a repo that already uses upstream rules, see
+[Adopting rules_dx In An Existing Bazel Repo](../../adopting-existing-bazel.md).

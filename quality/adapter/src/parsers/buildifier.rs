@@ -58,13 +58,13 @@ pub fn parse_buildifier(
                 String::new(),
                 message,
                 ToolSeverity::Error,
-                line,
-                column,
+                TextPosition { line, column },
+                ColumnEncoding::Scalars,
             ));
             continue;
         }
         if !file.formatted {
-            findings.push(unformatted_at(TOOL, checked, 1, 1));
+            findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
         }
         for warning in &file.warnings {
             findings.push(FileFinding {

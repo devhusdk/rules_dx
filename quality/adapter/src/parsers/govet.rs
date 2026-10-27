@@ -2,6 +2,7 @@ use super::{
     columned, finding, lines, located, missing, require_findings, FileFinding, ParseError,
 };
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 pub fn parse_govet(
     stderr: &[u8],
@@ -22,8 +23,11 @@ pub fn parse_govet(
             String::new(),
             message.to_owned(),
             ToolSeverity::Warning,
-            line_no,
-            column,
+            TextPosition {
+                line: line_no,
+                column,
+            },
+            ColumnEncoding::Scalars,
         ));
     }
     require_findings(TOOL, &findings, code)?;

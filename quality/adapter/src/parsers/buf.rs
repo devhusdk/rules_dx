@@ -174,7 +174,13 @@ pub fn parse_buf_format(
     if stdout == input {
         return Ok(Vec::new());
     }
-    Ok(vec![unformatted_at(TOOL, file, 1, 1)])
+    Ok(vec![unformatted_at(
+        TOOL,
+        file,
+        1,
+        1,
+        ColumnEncoding::Scalars,
+    )])
 }
 
 #[cfg(test)]

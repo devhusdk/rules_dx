@@ -2,6 +2,7 @@ use super::{
     check_output_size, code_name, finding, known, missing, unformatted_at, FileFinding, ParseError,
 };
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 struct TaploBlock {
     file: String,
@@ -101,8 +102,11 @@ pub fn parse_taplo_lint(
             String::new(),
             block.message,
             ToolSeverity::Error,
-            block.line,
-            block.column,
+            TextPosition {
+                line: block.line,
+                column: block.column,
+            },
+            ColumnEncoding::Scalars,
         ));
     }
     if findings.is_empty() && code != Some(0) {
@@ -137,7 +141,7 @@ pub fn parse_taplo_format_check(
                 })
                 .ok_or_else(|| missing(TOOL, "format path", line))?;
             let checked = known(TOOL, files, path)?;
-            findings.push(unformatted_at(TOOL, checked, 1, 1));
+            findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
         }
     }
     if findings.is_empty() && code != Some(0) {

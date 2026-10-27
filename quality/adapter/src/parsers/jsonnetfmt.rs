@@ -2,6 +2,7 @@ use super::{
     as_text, code_name, finding, listed_paths, prefixed, row_col, FileFinding, ParseError, Spelling,
 };
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "jsonnetfmt";
 
@@ -76,8 +77,8 @@ fn syntax_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
             String::new(),
             message.trim().to_owned(),
             ToolSeverity::Error,
-            row,
-            column,
+            TextPosition { line: row, column },
+            ColumnEncoding::Scalars,
         ));
     }
     Ok(findings)

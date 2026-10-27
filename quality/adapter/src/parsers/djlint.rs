@@ -1,3 +1,4 @@
+use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
 use super::{as_text, code_name, finding, missing, unformatted_at, FileFinding, ParseError};
@@ -46,8 +47,11 @@ pub fn parse_djlint(
             rule.to_owned(),
             message.trim().to_owned(),
             ToolSeverity::Warning,
-            line_no,
-            column + 1,
+            TextPosition {
+                line: line_no,
+                column: column + 1,
+            },
+            ColumnEncoding::Scalars,
         ));
     }
     let want = if findings.is_empty() { 0 } else { 1 };
@@ -97,7 +101,7 @@ pub fn parse_djlint_format(
     for name in changed {
         let file = named(files, name)?;
         if findings.iter().all(|seen| seen.file != file) {
-            findings.push(unformatted_at(TOOL, file, 1, 1));
+            findings.push(unformatted_at(TOOL, file, 1, 1, ColumnEncoding::Scalars));
         }
     }
     Ok(findings)

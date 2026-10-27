@@ -1,4 +1,5 @@
 use super::{check_output_size, sarif::parse_sarif, FileFinding, ParseError};
+use crate::ColumnEncoding;
 
 pub fn parse_pmd(
     stdout: &[u8],
@@ -6,7 +7,7 @@ pub fn parse_pmd(
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size("pmd", stdout)?;
-    parse_sarif("pmd", stdout, code, files)
+    parse_sarif("pmd", stdout, code, files, ColumnEncoding::Utf16)
 }
 
 #[cfg(test)]

@@ -2,6 +2,7 @@ use super::{
     columned, finding, lines, located, missing, require_findings, FileFinding, ParseError,
 };
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 pub fn parse_shellcheck(
     stdout: &[u8],
@@ -34,7 +35,16 @@ pub fn parse_shellcheck(
             return Err(missing(TOOL, "message", line));
         }
         findings.push(finding(
-            TOOL, file, rule_id, message, severity, line_no, column,
+            TOOL,
+            file,
+            rule_id,
+            message,
+            severity,
+            TextPosition {
+                line: line_no,
+                column,
+            },
+            ColumnEncoding::Scalars,
         ));
     }
     require_findings(TOOL, &findings, code)?;

@@ -1,3 +1,4 @@
+use crate::{ColumnEncoding, TextPosition};
 use serde::Deserialize;
 
 use super::{
@@ -30,8 +31,11 @@ pub fn parse_keep_sorted(
             String::new(),
             message.to_owned(),
             ToolSeverity::Warning,
-            line_no,
-            1,
+            TextPosition {
+                line: line_no,
+                column: 1,
+            },
+            ColumnEncoding::Scalars,
         ));
     }
     require_findings(TOOL, &findings, code)?;
@@ -88,8 +92,11 @@ pub fn parse_keep_sorted_lint(
             String::new(),
             report.message.clone(),
             ToolSeverity::Warning,
-            report.lines.start,
-            1,
+            TextPosition {
+                line: report.lines.start,
+                column: 1,
+            },
+            ColumnEncoding::Scalars,
         ));
     }
     require_findings(TOOL, &findings, code)?;

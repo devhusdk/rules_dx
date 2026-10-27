@@ -1,3 +1,4 @@
+use crate::ColumnEncoding;
 use serde_json::Value;
 
 use super::sarif::{file_url_path, parse_sarif, suppressed};
@@ -199,7 +200,7 @@ pub fn parse_roslyn(
         tool: TOOL,
         detail: err.to_string(),
     })?;
-    parse_sarif(TOOL, &bytes, code, files)
+    parse_sarif(TOOL, &bytes, code, files, ColumnEncoding::Utf16)
 }
 
 #[cfg(test)]

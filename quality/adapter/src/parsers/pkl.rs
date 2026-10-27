@@ -1,5 +1,6 @@
 use super::{as_text, code_name, finding, known, unformatted_at, FileFinding, ParseError};
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "pkl";
 const TRAILER: &str = "An error occurred during formatting.";
@@ -24,7 +25,13 @@ pub fn parse_pkl(
             continue;
         }
         seen.push(line);
-        findings.push(unformatted_at(TOOL, known(TOOL, files, line)?, 1, 1));
+        findings.push(unformatted_at(
+            TOOL,
+            known(TOOL, files, line)?,
+            1,
+            1,
+            ColumnEncoding::Scalars,
+        ));
     }
     match code {
         Some(0) if findings.is_empty() && errors.trim().is_empty() => Ok(findings),
@@ -75,8 +82,8 @@ fn format_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
             String::new(),
             message.to_owned(),
             ToolSeverity::Error,
-            row,
-            column,
+            TextPosition { line: row, column },
+            ColumnEncoding::Scalars,
         ));
     }
     if !closed {

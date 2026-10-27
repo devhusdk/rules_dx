@@ -1,3 +1,4 @@
+use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
 use super::{
@@ -54,7 +55,7 @@ fn unformatted(files: &[&str], cwd: &Path, rest: &[&str]) -> Result<Vec<FileFind
         };
         let file = known_relative(TOOL, files, cwd, path.trim())?;
         if !findings.iter().any(|found| found.file == file) {
-            findings.push(unformatted_at(TOOL, file, 1, 1));
+            findings.push(unformatted_at(TOOL, file, 1, 1, ColumnEncoding::Scalars));
         }
     }
     Ok(findings)
@@ -74,8 +75,8 @@ fn syntax_error(files: &[&str], cwd: &Path, rest: &[&str]) -> Result<FileFinding
         "syntax".to_owned(),
         message(rest),
         ToolSeverity::Error,
-        line,
-        column,
+        TextPosition { line, column },
+        ColumnEncoding::Scalars,
     ))
 }
 

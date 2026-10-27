@@ -3,6 +3,7 @@ use super::{
     ParseError,
 };
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "prettier";
 
@@ -35,7 +36,7 @@ pub fn parse_prettier_check(
         }
         let normalized = path.strip_prefix("./").unwrap_or(path);
         let checked = known_native(TOOL, files, normalized)?;
-        findings.push(unformatted_at(TOOL, checked, 1, 1));
+        findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
     }
     if findings.is_empty() && code != Some(0) {
         return Err(ParseError::shape(
@@ -82,8 +83,8 @@ fn syntax_error(
                         String::new(),
                         format!("{} {}", last.finding.message, text),
                         ToolSeverity::Error,
-                        line,
-                        column,
+                        TextPosition { line, column },
+                        ColumnEncoding::Scalars,
                     );
                     *last = relocated;
                     return Ok(());
@@ -110,8 +111,8 @@ fn syntax_error(
         String::new(),
         message.trim().to_owned(),
         ToolSeverity::Error,
-        line,
-        column,
+        TextPosition { line, column },
+        ColumnEncoding::Scalars,
     ));
     Ok(())
 }

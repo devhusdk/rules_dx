@@ -1,4 +1,5 @@
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 use super::{
     as_text, code_name, finding, known, prefixed, unformatted_at, FileFinding, ParseError,
@@ -32,7 +33,7 @@ pub fn parse_erlfmt(
         if let Some(path) = line.strip_prefix("[warn] ") {
             let checked = known(TOOL, files, path)?;
             if !unformatted.iter().any(|found| found.file == checked) {
-                unformatted.push(unformatted_at(TOOL, checked, 1, 1));
+                unformatted.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
             }
             continue;
         }
@@ -86,8 +87,11 @@ fn located_error(line: &str, files: &[&str]) -> Option<FileFinding> {
         rule.to_owned(),
         message.to_owned(),
         ToolSeverity::Error,
-        row,
-        col,
+        TextPosition {
+            line: row,
+            column: col,
+        },
+        ColumnEncoding::Scalars,
     ))
 }
 

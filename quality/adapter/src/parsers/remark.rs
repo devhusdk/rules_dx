@@ -2,7 +2,7 @@ use super::{
     as_text, check_output_size, code_name, finding, known, located, row_col, unformatted_at,
     FileFinding, ParseError,
 };
-use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "remark";
 
@@ -63,7 +63,7 @@ fn unformatted(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseE
             .and_then(|v| v.as_bool())
             .ok_or_else(|| ParseError::shape(TOOL, format!("missing formatted for {file}")))?;
         if !formatted {
-            findings.push(unformatted_at(TOOL, checked, 1, 1));
+            findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Utf16));
         }
     }
     Ok(findings)
@@ -86,8 +86,8 @@ fn error_line(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
         "syntax".to_owned(),
         reason.to_owned(),
         ToolSeverity::Error,
-        row,
-        column,
+        TextPosition { line: row, column },
+        ColumnEncoding::Utf16,
     ))
 }
 

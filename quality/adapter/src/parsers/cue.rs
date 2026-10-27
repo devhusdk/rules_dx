@@ -1,3 +1,4 @@
+use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
 use super::{
@@ -24,7 +25,7 @@ pub fn parse_cue(
             let mut findings = Vec::new();
             for path in diff_paths(diff) {
                 let file = known_relative(TOOL, files, cwd, &path)?;
-                findings.push(unformatted_at(TOOL, file, 1, 1));
+                findings.push(unformatted_at(TOOL, file, 1, 1, ColumnEncoding::Scalars));
             }
             findings.extend(syntax_errors(errors, files, cwd)?);
             if findings.is_empty() {
@@ -75,8 +76,8 @@ fn syntax_errors(stderr: &str, files: &[&str], cwd: &Path) -> Result<Vec<FileFin
             String::new(),
             message,
             ToolSeverity::Error,
-            row,
-            column,
+            TextPosition { line: row, column },
+            ColumnEncoding::Scalars,
         ));
     }
     Ok(findings)

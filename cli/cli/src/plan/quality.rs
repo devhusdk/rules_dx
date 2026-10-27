@@ -443,7 +443,7 @@ mod tests {
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(
-            argv[..12],
+            argv[..11],
             [
                 "bazel",
                 "--nohome_rc",
@@ -451,7 +451,6 @@ mod tests {
                 "build",
                 "--skip_incompatible_explicit_targets",
                 "--jobs=4",
-                "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
                 "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
@@ -460,7 +459,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            argv[12..],
+            argv[11..],
             [
                 "--keep_going",
                 "--build_event_json_file=/tmp/bep.json",
@@ -645,7 +644,6 @@ mod tests {
         for conflicting in [
             "--aspects=//other.bzl%aspect",
             "--output_groups=other",
-            "--@rules_dx//config:validate=true",
             "--nokeep_going",
             "--build_event_json_file=/tmp/other.json",
             "--build_event_json_file_path_conversion",

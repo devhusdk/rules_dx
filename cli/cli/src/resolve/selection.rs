@@ -288,8 +288,8 @@ mod tests {
             .expect("argv");
         assert_eq!(argv[4], "cquery");
         assert_eq!(argv[5..7], strings(&["--platforms=//:x", "--config=ci"]));
-        assert_eq!(argv[7..10], crate::plan::BAZEL_SETTINGS);
-        assert_eq!(argv[10], "--output=label_kind");
+        assert_eq!(argv[7..9], crate::plan::BAZEL_SETTINGS);
+        assert_eq!(argv[9], "--output=label_kind");
         assert!(argv.contains(&"--output_base=/tmp/a".to_owned()));
         let detail = selection.redacted_detail();
         assert!(detail.contains("configured"));

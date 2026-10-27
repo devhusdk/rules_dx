@@ -350,8 +350,10 @@ mod tests {
         assert_eq!(shell_join(&strings(&["é"])), "'é'");
         assert_eq!(shell_join(&strings(&["^x"])), "'^x'");
         assert_eq!(
-            shell_join(&strings(&["--@rules_dx//config:validate=false"])),
-            "--@rules_dx//config:validate=false"
+            shell_join(&strings(&[
+                "--@rules_dx//config:clippy_output_diagnostics=true"
+            ])),
+            "--@rules_dx//config:clippy_output_diagnostics=true"
         );
         assert_eq!(shell_join(&strings(&["--config=ci"])), "--config=ci");
         assert_eq!(shell_join(&strings(&["--copt=-O2"])), "--copt=-O2");

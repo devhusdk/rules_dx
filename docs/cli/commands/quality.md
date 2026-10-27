@@ -14,11 +14,11 @@ write validated fixes. Args after `--` go to Bazel, and dx always adds
 `--keep_going` and `--remote_download_outputs=toplevel` after them. Pass
 `--remote_download_outputs=all` or `--remote_download_all` to download all outputs instead;
 the last of these wins. All three also pass
-`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+`--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 dx spells them with the name your MODULE.bazel gives rules_dx, for example
-`--@my_dx//config:validate=false` when `repo_name = "my_dx"`.
+`--@my_dx//config:clippy_output_diagnostics=true` when `repo_name = "my_dx"`.
 These args fail the same way: `--aspects`, `--output_groups`,
 `--build_event_json_file`, any `--build_event_json_file_path_conversion` other
 than `false`, `--nokeep_going`, any `--keep_going` other than bare

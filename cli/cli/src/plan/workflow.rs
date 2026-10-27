@@ -212,7 +212,6 @@ mod tests {
                 "test",
                 "--config=dx_dev",
                 SKIP_INCOMPATIBLE_FLAG,
-                "--@rules_dx//config:validate=false",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
                 "--remote_download_outputs=toplevel",
@@ -260,7 +259,6 @@ mod tests {
         for conflicting in [
             "--@rules_rust//rust/settings:rustc_output_diagnostics=false",
             "--@rules_dx//config:clippy_output_diagnostics=false",
-            "--@rules_dx//config:validate=true",
         ] {
             let err = plan_workflow(
                 WorkflowVerb::Build,
@@ -280,7 +278,7 @@ mod tests {
         let plan = plan_workflow(
             WorkflowVerb::Build,
             &resolved(&[]),
-            &strings(&[same, crate::plan::VALIDATE_FLAG]),
+            &strings(&[same, crate::plan::CLIPPY_DIAGNOSTICS_FLAG]),
             None,
             Some(Profile::Dev),
             &[],
@@ -743,7 +741,6 @@ mod tests {
                 SKIP_INCOMPATIBLE_FLAG,
                 "--config=remote",
                 "--jobs=4",
-                crate::plan::VALIDATE_FLAG,
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 crate::plan::DOWNLOAD_TOPLEVEL_FLAG,
@@ -857,7 +854,7 @@ mod tests {
             .expect("plan");
             let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
             assert_eq!(
-                argv[..9],
+                argv[..8],
                 [
                     "bazel",
                     "--nohome_rc",
@@ -865,7 +862,6 @@ mod tests {
                     "build",
                     flag,
                     SKIP_INCOMPATIBLE_FLAG,
-                    crate::plan::VALIDATE_FLAG,
                     crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                     crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 ],

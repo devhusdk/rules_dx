@@ -306,7 +306,6 @@ rust_test(
     data = [
         "//env/env_shard:src/main.rs",
         "//generation/codegen_shard:src/main.rs",
-        "//quality/evaluator:src/main.rs",
         "//quality/runner:src/main.rs",
     ],
     deps = ["//tools/testing:dx_testing"],

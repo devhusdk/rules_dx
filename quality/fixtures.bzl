@@ -1,33 +1,6 @@
-"""Source fixtures for aspects (synthetic, real)."""
+"""Source fixtures for real aspects."""
 
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "dockerfile_name_error")
-
-def _quality_source_target_impl(ctx):
-    direct_sources = {}
-    if len(ctx.files.python_srcs) > 0:
-        direct_sources["python"] = depset(ctx.files.python_srcs)
-    if len(ctx.files.rust_srcs) > 0:
-        direct_sources["rust"] = depset(ctx.files.rust_srcs)
-    check_direct_sources(direct_sources, str(ctx.label))
-    all_files = list(ctx.files.python_srcs) + list(ctx.files.rust_srcs)
-    return [
-        DefaultInfo(files = depset(all_files)),
-        QualitySourcesInfo(direct_sources = direct_sources),
-    ]
-
-quality_source_target = rule(
-    implementation = _quality_source_target_impl,
-    attrs = {
-        "python_srcs": attr.label_list(
-            allow_files = [".py"],
-            default = [],
-        ),
-        "rust_srcs": attr.label_list(
-            allow_files = [".rs"],
-            default = [],
-        ),
-    },
-)
 
 def markdown_sibling_error(what, siblings, markdown_srcs):
     """Returns the validation error for markdown_siblings, or "" when valid."""

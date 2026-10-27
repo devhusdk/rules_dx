@@ -6,6 +6,8 @@ load(":php.bzl", "PHP_SOURCE_EXTS", _PhpInfo = "PhpInfo", _php_binary = "php_bin
 
 PhpInfo = _PhpInfo
 
+PHP_COVERAGE_COLLECTOR = False
+
 PHP_SOURCE_SPECS = [("php", ["php"])]
 
 PHP_COMPATIBLE_WITH = [
@@ -88,7 +90,7 @@ def _php_binary_impl(name, main, srcs, visibility, **kwargs):
 
 def _php_test_impl(name, srcs, visibility, **kwargs):
     kwargs = php_kwargs(dx_strip_none(kwargs))
-    dx_wrap_test(name, _php_test, _php_forward_test, srcs, visibility = visibility, quality_srcs = php_quality_srcs(None, srcs), upstream_visibility = dx_macro_upstream_visibility(), **kwargs)
+    dx_wrap_test(name, _php_test, _php_forward_test, srcs, visibility = visibility, quality_srcs = php_quality_srcs(None, srcs), upstream_visibility = dx_macro_upstream_visibility(), coverage_collector = PHP_COVERAGE_COLLECTOR, **kwargs)
 
 php_library = macro(
     implementation = _php_library_impl,

@@ -22,7 +22,7 @@ load(
     _ocamllex = "ocamllex",
     _ocamlyacc = "ocamlyacc",
 )
-load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_wrap_forward_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_with_tag", "DX_NO_COVERAGE_COLLECTOR_TAG")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ocamllex = _ocamllex
@@ -269,4 +269,4 @@ def ocaml_test(name, visibility = None, **kwargs):
     upstream = test_upstream_kwargs(dx_test_upstream_kwargs(link_kwargs(kwargs)))
     upstream["tags"] = upstream_tags(kwargs.get("tags"))
     _ocaml_binary(name = name + "_upstream", testonly = True, **upstream)
-    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **test_forward_kwargs(kwargs))
+    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dict(test_forward_kwargs(kwargs), tags = dx_with_tag(test_forward_kwargs(kwargs).get("tags"), DX_NO_COVERAGE_COLLECTOR_TAG)))

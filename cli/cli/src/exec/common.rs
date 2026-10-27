@@ -776,7 +776,7 @@ pub(crate) fn run_bazel_withdrawable(
 ) -> Result<Option<i32>, i32> {
     warn_low_disk(invocation.output, out, err, runner, workspace, argv)?;
     match runner
-        .run_withdrawable(argv, workspace, &[], withdraw)
+        .run_app(argv, workspace, &[], Some(withdraw), &[])
         .transpose()
     {
         None => Ok(None),
@@ -942,7 +942,9 @@ pub(crate) fn run_bazel_app(
     argv: &[String],
     env: &[(&str, &str)],
 ) -> Result<AppExit, i32> {
-    let status = runner.run(argv, workspace, env);
+    let status = runner
+        .run_app(argv, workspace, env, None, &[])
+        .map(|status| status.unwrap_or_else(|| dx_process::ChildStatus::signalled(None)));
     app_exit(invocation.output, out, err, status)
 }
 
@@ -957,7 +959,7 @@ pub(crate) fn run_bazel_app_withdrawable(
     withdraw: &dyn Fn() -> bool,
 ) -> Result<Option<AppExit>, i32> {
     match runner
-        .run_withdrawable(argv, workspace, &[], withdraw)
+        .run_app(argv, workspace, &[], Some(withdraw), &[])
         .transpose()
     {
         None => Ok(None),

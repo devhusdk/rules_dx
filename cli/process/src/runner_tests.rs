@@ -96,7 +96,7 @@ fn cancellation_reports_through_on_stop() {
         .run_withdrawable(&argv, &cwd(), &[], &|| false)
         .expect("withdrawable");
     assert_eq!(withdrawable, Some(ChildStatus::signalled(None)));
-    let spec = stream_spec(&argv, &cwd(), &[], false, false);
+    let spec = stream_spec(&argv, &cwd(), &[], false, false, Vec::new());
     assert_eq!(
         cancelling().stream(spec).expect("stream"),
         Some(ChildStatus::signalled(None))
@@ -106,12 +106,12 @@ fn cancellation_reports_through_on_stop() {
 #[test]
 fn stream_spec_follows_flags() {
     let argv = probe_argv(&[]);
-    let hermetic = stream_spec(&argv, &cwd(), &[("A", "b")], true, true);
+    let hermetic = stream_spec(&argv, &cwd(), &[("A", "b")], true, true, Vec::new());
     assert!(matches!(hermetic.env, EnvPolicy::Controlled { .. }));
     assert!(matches!(hermetic.stdout, StreamOutput::Inherit));
     assert!(matches!(hermetic.stdin, StreamStdin::Inherit));
     assert!(matches!(hermetic.stderr, StreamOutput::Inherit));
-    let plain = stream_spec(&argv, &cwd(), &[], false, false);
+    let plain = stream_spec(&argv, &cwd(), &[], false, false, Vec::new());
     assert!(matches!(plain.env, EnvPolicy::Inherited { .. }));
     assert!(matches!(plain.stdout, StreamOutput::Forward(_)));
 }
@@ -146,4 +146,58 @@ fn a_stopped_version_probe_reports_through_on_stop() {
 fn a_failing_version_probe_does_not_report_a_stop() {
     let tool = PathBuf::from("/nonexistent-dx-tool");
     assert_eq!(runner().tool_version(&tool), None);
+}
+
+#[cfg(unix)]
+fn detached_descendant_argv() -> Vec<String> {
+    probe_argv(&[
+        "--detached-descendant",
+        "--descendant-own-group",
+        "--descendant-sleep-ms=3000",
+    ])
+}
+
+#[cfg(unix)]
+#[test]
+fn run_app_hands_held_lock_to_detached_descendant() {
+    let scratch = dx_testing::mkscratch("dx-run-app-held").expect("scratch");
+    let path = scratch.join("busy");
+    let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
+        .expect("lock")
+        .expect("free");
+    let status = runner()
+        .run_app(&detached_descendant_argv(), &cwd(), &[], None, &[&held])
+        .expect("run_app")
+        .expect("ran");
+    assert_eq!(status.code, Some(0));
+    drop(held);
+    assert!(
+        dx_atomic_fs::lease::try_lock_file(&path, false)
+            .expect("probe")
+            .is_none(),
+        "the descendant keeps the lock"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn holding_run_does_not_inherit_held() {
+    let scratch = dx_testing::mkscratch("dx-holding-run").expect("scratch");
+    let path = scratch.join("busy");
+    let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
+        .expect("lock")
+        .expect("free");
+    let inner = runner();
+    let holding = Holding::new(&inner, vec![&held]);
+    let status = holding
+        .run(&detached_descendant_argv(), &cwd(), &[])
+        .expect("run");
+    assert_eq!(status.code, Some(0));
+    drop(held);
+    assert!(
+        dx_atomic_fs::lease::try_lock_file(&path, false)
+            .expect("probe")
+            .is_some(),
+        "plain runs carry no held handle"
+    );
 }

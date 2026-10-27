@@ -27,7 +27,7 @@ pub use rc::{
     LocalShare, RcPolicy, ShareToken, DISK_CACHE_GC_MAX_AGE, DISK_CACHE_GC_MAX_SIZE,
     PRESET_LOCAL_RESOURCES,
 };
-pub use runner::BinaryRunner;
+pub use runner::{BinaryRunner, Holding};
 
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
@@ -660,6 +660,25 @@ pub trait Runner {
             return Ok(None);
         }
         self.run(argv, cwd, env).map(Some)
+    }
+
+    /// Runs a long-lived user app that may carry the invocation's `held` handles
+    /// (for example the worktree busy lock), so a lock outlives dx while the app
+    /// or a descendant keeps the descriptor. `None` means withdrawn. The default
+    /// ignores `held`. On Windows the app runs in a kill-on-close job instead.
+    fn run_app(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: Option<&dyn Fn() -> bool>,
+        held: &[&std::fs::File],
+    ) -> io::Result<Option<ChildStatus>> {
+        let _ = held;
+        match withdraw {
+            Some(withdraw) => self.run_withdrawable(argv, cwd, env, withdraw),
+            None => self.run(argv, cwd, env).map(Some),
+        }
     }
 
     /// Names the absolute path one pinned-tool variable points at.

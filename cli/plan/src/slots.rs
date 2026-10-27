@@ -186,6 +186,23 @@ impl dx_process::Runner for SlotEnv<'_> {
             .run_withdrawable(argv, cwd, &slot_env(env, share.as_deref()), withdraw)
     }
 
+    fn run_app(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: Option<&dyn Fn() -> bool>,
+        held: &[&std::fs::File],
+    ) -> io::Result<Option<dx_process::ChildStatus>> {
+        self.inner.run_app(
+            argv,
+            cwd,
+            &slot_env(env, self.share.as_deref()),
+            withdraw,
+            held,
+        )
+    }
+
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
         self.inner.pinned_tool(var)
     }

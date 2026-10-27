@@ -46,7 +46,8 @@ fn claude_pid(env_get: &dyn Fn(&str) -> Option<String>) -> Option<u32> {
     env_get("CLAUDE_PID").and_then(|value| value.trim().parse().ok())
 }
 
-const SKIPPED: [&str; 20] = [
+/// Shells and wrappers that fork and wait for their child; wrappers that exec never show up in the chain.
+const SKIPPED: &[&str] = &[
     "dx",
     "dx.exe",
     "sh",
@@ -67,6 +68,8 @@ const SKIPPED: [&str; 20] = [
     "stdbuf",
     "time",
     "xargs",
+    "flock",
+    "gtimeout",
 ];
 
 /// `preferred` when it is in the chain, else the first ancestor that is not a shell, wrapper or dx.
@@ -603,6 +606,12 @@ mod tests {
     #[test]
     fn the_recorded_process_skips_wrappers() {
         let chain: Vec<(u32, String)> = ["timeout", "/usr/bin/env", "bash", "nice", "claude"]
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (index as u32 + 10, (*name).to_owned()))
+            .collect();
+        assert_eq!(outliving_ancestor(&chain, None), Some(14));
+        let chain: Vec<(u32, String)> = ["flock", "/usr/bin/timeout", "gtimeout", "bash", "claude"]
             .iter()
             .enumerate()
             .map(|(index, name)| (index as u32 + 10, (*name).to_owned()))

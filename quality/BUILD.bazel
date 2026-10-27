@@ -224,6 +224,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_svelte_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "svelte",
+    format = ["prettier"],
+)
+
+quality_family(
     name = "default_vue_family",
     disabled = [
         "lint",
@@ -303,6 +313,7 @@ workspace_policy(
         ":default_scala_family",
         ":default_shell_family",
         ":default_starlark_family",
+        ":default_svelte_family",
         ":default_text_family",
         ":default_toml_family",
         ":default_typescript_family",

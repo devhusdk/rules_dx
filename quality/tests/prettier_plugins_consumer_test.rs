@@ -25,6 +25,10 @@ const HELLO_ASTRO: &str = "---\nconst message: string = \"world\";\n---\n\n<div 
 
 const HELLO_ASTRO_DIRTY: &str = "---\nconst message: string = 'world'\n---\n\n<div   class=\"hello\">{message}</div>\n\n<style>\n.hello { color: black }\n</style>\n";
 
+const HELLO_SVELTE: &str = "<script>\n  let name = \"world\";\n</script>\n\n<div class=\"hello\">{name}</div>\n\n<style>\n  .hello {\n    color: black;\n  }\n</style>\n";
+
+const HELLO_SVELTE_DIRTY: &str = "<script>\nlet   name = 'world'\n</script>\n<div   class=\"hello\">{name}</div>\n<style>\n.hello { color: black }\n</style>\n";
+
 const LIMITS_SQL: &str = "select\n  max(limit_value)\nfrom\n  limits;\n";
 
 const BROKEN_SQL: &str = "select 'abc from users;\n";
@@ -35,7 +39,10 @@ const BROKEN_FEATURE: &str = "Scenario: no feature line\n  Given a user\n";
 
 const BROKEN_ASTRO: &str = "<div>\n  <span>hi\n</p>\n";
 
-const CLOSURE_REPOS: [&str; 8] = [
+const BROKEN_SVELTE: &str =
+    "<script>\n  let name = \"x\";\n\n  let n = 1;\n</script>\n\n<div>\n  <span>{name}\n</p>\n\n<b>{n}</b>\n";
+
+const CLOSURE_REPOS: [&str; 29] = [
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier__3.9.6",
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier-plugin-astro__1.1.2_prettier_3.9.6",
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_astrojs_compiler-rs__0.5.2",
@@ -43,6 +50,27 @@ const CLOSURE_REPOS: [&str; 8] = [
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier-plugin-sql__0.20.0_prettier_3.9.6",
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_prettier_plugin-xml__3.4.2_prettier_3.9.6",
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier-plugin-gherkin__4.0.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier-plugin-svelte__4.1.1_746233675",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__svelte__5.57.0_2145467488",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__acorn__8.19.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__aria-query__5.3.1",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_jridgewell_gen-mapping__0.3.13",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_jridgewell_remapping__2.3.5",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_jridgewell_resolve-uri__3.1.2",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_jridgewell_sourcemap-codec__1.6.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_jridgewell_trace-mapping__0.3.31",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_sveltejs_acorn-typescript__1.0.13_acorn_8.19.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_types_estree__1.0.9",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_typescript-eslint_types__8.72.1",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__axobject-query__4.1.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__clsx__2.1.1",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__devalue__5.9.4",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__esm-env__1.2.2",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__esrap__2.4.0_2145467488",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__is-reference__3.0.3",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__locate-character__3.0.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__magic-string__0.30.21",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__zimmerframe__1.1.5",
     "--repo=@@rules_nodejs++node+nodejs_linux_amd64",
 ];
 
@@ -61,6 +89,16 @@ quality_family(
         "typecheck",
     ],
     family_id = "astro",
+    format = ["prettier"],
+)
+
+quality_family(
+    name = "svelte_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "svelte",
     format = ["prettier"],
 )
 
@@ -100,6 +138,7 @@ workspace_policy(
         ":astro_family",
         ":gherkin_family",
         ":sql_family",
+        ":svelte_family",
         ":xml_family",
     ],
 )
@@ -143,10 +182,17 @@ gherkin_library(
 "#;
 
 const WEB_BUILD: &str = r#"load("@rules_dx//astro/rules:defs.bzl", "astro_library")
+load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
 
 astro_library(
     name = "hello",
     srcs = ["Hello.astro"],
+    visibility = ["//visibility:public"],
+)
+
+svelte_library(
+    name = "greeting",
+    srcs = ["Greeting.svelte"],
     visibility = ["//visibility:public"],
 )
 "#;
@@ -157,6 +203,7 @@ const APP_BUILD: &str = r#"genrule(
         "//config:settings",
         "//db:schema",
         "//features:greet",
+        "//web:greeting",
         "//web:hello",
     ],
     outs = ["bundle.txt"],
@@ -164,13 +211,14 @@ const APP_BUILD: &str = r#"genrule(
 )
 "#;
 
-const FILES: [(&str, &str, &str); 6] = [
+const FILES: [(&str, &str, &str); 7] = [
     ("db/schema.sql", SCHEMA_SQL, SCHEMA_SQL_DIRTY),
     ("db/report.postgresql.sql", REPORT_SQL, REPORT_SQL_DIRTY),
     ("db/limits.sql", LIMITS_SQL, LIMITS_SQL),
     ("config/settings.xml", SETTINGS_XML, SETTINGS_XML_DIRTY),
     ("features/greet.feature", GREET_FEATURE, GREET_FEATURE_DIRTY),
     ("web/Hello.astro", HELLO_ASTRO, HELLO_ASTRO_DIRTY),
+    ("web/Greeting.svelte", HELLO_SVELTE, HELLO_SVELTE_DIRTY),
 ];
 
 fn write(path: &Path, text: &str) {
@@ -314,6 +362,11 @@ fn a_syntax_error_is_located_and_never_clean_in_every_class() {
             "web/Hello.astro",
             BROKEN_ASTRO,
             "web/Hello.astro:3:3: error",
+        ),
+        (
+            "web/Greeting.svelte",
+            BROKEN_SVELTE,
+            "web/Greeting.svelte:9:1: error",
         ),
     ] {
         let root = consumer();

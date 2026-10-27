@@ -12,19 +12,39 @@ pub fn parse_prettier_check(
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
+    parse_prettier_check_with_sources(stderr, code, files, |_| None)
+}
+
+/// Parses `prettier --check` stderr. `source` returns the original text of a checked file; it is
+/// used only to place a `prettier-plugin-svelte` syntax error, whose code frame numbers the lines
+/// of a copy with every `<script>` and `<style>` body collapsed onto one line. Without the source,
+/// or when the frame does not match exactly one place in it, the error stays at 1:1.
+pub fn parse_prettier_check_with_sources(
+    stderr: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+    source: impl Fn(&str) -> Option<String>,
+) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(TOOL, stderr)?;
     let text =
         std::str::from_utf8(stderr).map_err(|err| ParseError::shape(TOOL, err.to_string()))?;
     let mut findings = Vec::new();
+    let mut frame: Option<SvelteFrame> = None;
     for line in text.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed == "The system cannot find the path specified." {
             continue;
         }
         if let Some(error) = trimmed.strip_prefix("[error]") {
+            let raw = error.strip_prefix(' ').unwrap_or(error);
+            if svelte_frame(raw, &mut frame, &findings) {
+                continue;
+            }
+            place_svelte_error(frame.take(), &mut findings, &source);
             syntax_error(error.trim_start(), files, &mut findings)?;
             continue;
         }
+        place_svelte_error(frame.take(), &mut findings, &source);
         let Some(path) = trimmed.strip_prefix("[warn] ") else {
             return Err(ParseError::shape(
                 TOOL,
@@ -38,6 +58,7 @@ pub fn parse_prettier_check(
         let checked = known_native(TOOL, files, normalized)?;
         findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
     }
+    place_svelte_error(frame.take(), &mut findings, &source);
     if findings.is_empty() && code != Some(0) {
         return Err(ParseError::shape(
             TOOL,
@@ -115,6 +136,139 @@ fn syntax_error(
         ColumnEncoding::Scalars,
     ));
     Ok(())
+}
+
+/// The Svelte compiler's code frame under the last syntax error: the shown lines in order, and
+/// the index and display offset of the caret line once the `^` row has been seen.
+#[derive(Debug, Default)]
+struct SvelteFrame {
+    lines: Vec<String>,
+    caret: Option<(usize, usize)>,
+    pending: Option<usize>,
+}
+
+const SNIPPED: &str = "\u{2702}prettier:content\u{2702}";
+
+fn svelte_frame(raw: &str, frame: &mut Option<SvelteFrame>, findings: &[FileFinding]) -> bool {
+    let Some(last) = findings.last() else {
+        return false;
+    };
+    if last.finding.severity != ToolSeverity::Error {
+        return false;
+    }
+    let text = raw.trim();
+    if text.starts_with("https://svelte.dev/e/") {
+        return true;
+    }
+    if text == "^" {
+        let Some(open) = frame.as_mut() else {
+            return false;
+        };
+        let Some(start) = open.pending.take() else {
+            return false;
+        };
+        let caret = raw.len() - raw.trim_start().len();
+        let Some(offset) = caret.checked_sub(start) else {
+            return false;
+        };
+        if open.caret.is_some() || open.lines.is_empty() {
+            return false;
+        }
+        open.caret = Some((open.lines.len() - 1, offset));
+        return true;
+    }
+    let body = raw.trim_start();
+    let digits = body.len() - body.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+    if digits == 0 {
+        return false;
+    }
+    let rest = &body[digits..];
+    let shown = if rest == ":" {
+        ""
+    } else if let Some(shown) = rest.strip_prefix(": ") {
+        shown
+    } else {
+        return false;
+    };
+    let open = frame.get_or_insert_with(SvelteFrame::default);
+    open.lines.push(shown.trim_end().to_owned());
+    open.pending = Some(raw.len() - body.len() + digits + 2);
+    true
+}
+
+/// Moves the last finding, a Svelte syntax error still at 1:1, to the original line and column
+/// of its frame. The frame's lines between collapsed `<script>`/`<style>` rows are verbatim
+/// source lines (leading tabs shown as two spaces), so they must match exactly one run of lines
+/// in the original file; anything else leaves the error at 1:1.
+fn place_svelte_error(
+    frame: Option<SvelteFrame>,
+    findings: &mut [FileFinding],
+    source: &impl Fn(&str) -> Option<String>,
+) {
+    let Some(SvelteFrame {
+        lines,
+        caret: Some((index, offset)),
+        ..
+    }) = frame
+    else {
+        return;
+    };
+    let Some(last) = findings.last_mut() else {
+        return;
+    };
+    if last.finding.severity != ToolSeverity::Error
+        || last.finding.start.line != 1
+        || last.finding.start.column != 1
+    {
+        return;
+    }
+    let first = lines[..index]
+        .iter()
+        .rposition(|line| line.contains(SNIPPED))
+        .map_or(0, |at| at + 1);
+    let end = lines[index..]
+        .iter()
+        .position(|line| line.contains(SNIPPED))
+        .map_or(lines.len(), |at| index + at);
+    let window = &lines[first..end];
+    let Some(text) = source(&last.file) else {
+        return;
+    };
+    let original: Vec<&str> = text.lines().collect();
+    let shown: Vec<String> = original
+        .iter()
+        .map(|line| tabs_to_spaces(line).trim_end().to_owned())
+        .collect();
+    let mut matches = shown
+        .windows(window.len())
+        .enumerate()
+        .filter(|(_, run)| *run == window)
+        .map(|(at, _)| at);
+    let (Some(at), None) = (matches.next(), matches.next()) else {
+        return;
+    };
+    let row = at + index - first;
+    let tabs = original[row].len() - original[row].trim_start_matches('\t').len();
+    let column = if offset >= 2 * tabs {
+        offset - tabs
+    } else {
+        offset / 2
+    };
+    *last = finding(
+        TOOL,
+        &last.file,
+        String::new(),
+        last.finding.message.clone(),
+        ToolSeverity::Error,
+        row as u64 + 1,
+        column as u64 + 1,
+    );
+}
+
+fn tabs_to_spaces(line: &str) -> String {
+    let body = line.trim_start_matches('\t');
+    let tabs = line.len() - body.len();
+    format!("{}{body}", "  ".repeat(tabs))
 }
 
 fn is_run_error(text: &str) -> bool {
@@ -274,6 +428,144 @@ mod tests {
         let unlocated = "[error] app/Broken.astro: SyntaxError: Unexpected end of frontmatter\n";
         let findings = parse_prettier_check(unlocated.as_bytes(), Some(2), &["app/Broken.astro"])
             .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.start.line, 1);
+        assert_eq!(findings[0].finding.start.column, 1);
+    }
+
+    fn svelte_sources(file: &str, text: &str) -> impl Fn(&str) -> Option<String> {
+        let (file, text) = (file.to_owned(), text.to_owned());
+        move |asked: &str| (asked == file).then(|| text.clone())
+    }
+
+    #[test]
+    fn prettier_check_locates_a_svelte_syntax_error_beside_a_dirty_svelte_file() {
+        let stderr = "[error] app/Broken.svelte: element_invalid_closing_tag: `</p>` attempted to close an element that was not open\n[error] https://svelte.dev/e/element_invalid_closing_tag\n[error] 1: <div>\n[error] 2:   <span>hi\n[error] 3: </p>\n[error]    ^\n[warn] app/Dirty.svelte\n";
+        let source = svelte_sources("app/Broken.svelte", "<div>\n  <span>hi\n</p>\n");
+        let findings = parse_prettier_check_with_sources(
+            stderr.as_bytes(),
+            Some(2),
+            &["app/Broken.svelte", "app/Dirty.svelte"],
+            source,
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, "app/Broken.svelte");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 1);
+        assert!(findings[0]
+            .finding
+            .message
+            .contains("`</p>` attempted to close an element that was not open"));
+        assert_eq!(findings[1].file, "app/Dirty.svelte");
+        assert_eq!(findings[1].finding.message, "file is not formatted");
+        let padded = "[error] app/Broken.svelte: element_unclosed: `<div>` was left open\n[error] https://svelte.dev/e/element_unclosed\n[error]  9: <p>\n[error] 10: let x =\n[error]            ^\n";
+        let text = format!("{}<p>\nlet x =\n", "<b></b>\n".repeat(8));
+        let findings = parse_prettier_check_with_sources(
+            padded.as_bytes(),
+            Some(2),
+            &["app/Broken.svelte"],
+            svelte_sources("app/Broken.svelte", &text),
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.start.line, 10);
+        assert_eq!(findings[0].finding.start.column, 8);
+        let unlocated = "[error] app/Broken.svelte: element_unclosed: `<script>` was left open\n";
+        let findings = parse_prettier_check(unlocated.as_bytes(), Some(2), &["app/Broken.svelte"])
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.start.line, 1);
+        assert_eq!(findings[0].finding.start.column, 1);
+        assert!(parse_prettier_check(
+            b"[error] https://svelte.dev/e/element_unclosed\n",
+            Some(2),
+            &["app/Broken.svelte"],
+        )
+        .is_err());
+    }
+
+    /// Real `prettier-plugin-svelte` 4.1.1 output: the frame shows blank source lines as a bare
+    /// `N:` (trailing space trimmed), and numbers lines with the 3-line `<script>` collapsed.
+    #[test]
+    fn prettier_check_places_a_svelte_error_framed_by_blank_lines_after_a_script() {
+        let stderr = "[error] app/A.svelte: element_invalid_closing_tag: `</p>` attempted to close an element that was not open\n[error] https://svelte.dev/e/element_invalid_closing_tag\n[error] 2: \n[error] 3: <div>\n[error] 4: </p>\n[error]    ^\n[error] 5: \n[error] 6: <b></b>\n[warn] app/Dirty.svelte\n";
+        let text = "<script>\n  let x = 1;\n\n</script>\n\n<div>\n</p>\n\n<b></b>\n";
+        let files = ["app/A.svelte", "app/Dirty.svelte"];
+        let findings = parse_prettier_check_with_sources(
+            stderr.as_bytes(),
+            Some(2),
+            &files,
+            svelte_sources("app/A.svelte", text),
+        )
+        .expect("blank frame lines parse");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, "app/A.svelte");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.start.line, 7);
+        assert_eq!(findings[0].finding.start.column, 1);
+        assert_eq!(findings[1].file, "app/Dirty.svelte");
+        let unsourced = parse_prettier_check(stderr.as_bytes(), Some(2), &files)
+            .expect("parses without the source");
+        assert_eq!(unsourced.len(), 2);
+        assert_eq!(unsourced[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(unsourced[0].finding.start.line, 1);
+        assert_eq!(unsourced[0].finding.start.column, 1);
+    }
+
+    #[test]
+    fn prettier_check_maps_a_svelte_frame_past_a_multi_line_script_to_the_original_line() {
+        let stderr = "[error] app/B.svelte: element_invalid_closing_tag: `</p>` attempted to close an element that was not open\n[error] https://svelte.dev/e/element_invalid_closing_tag\n[error] 2: <div>\n[error] 3: <span>x\n[error] 4: </p>\n[error]    ^\n";
+        let text =
+            "<script>\n  let a = 1;\n  let b = 2;\n  let c = 3;\n</script>\n<div>\n<span>x\n</p>\n";
+        let findings = parse_prettier_check_with_sources(
+            stderr.as_bytes(),
+            Some(2),
+            &["app/B.svelte"],
+            svelte_sources("app/B.svelte", text),
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.start.line, 8);
+        assert_eq!(findings[0].finding.start.column, 1);
+
+        let snipped = "[error] app/U.svelte: element_invalid_closing_tag: `</p>` attempted to close an element that was not open\n[error] https://svelte.dev/e/element_invalid_closing_tag\n[error] 1: <script \u{2702}prettier:content\u{2702}=\"CiAgbGV0IHggPSAxOwo=\">{}</script>\n[error] 2: <div>\n[error] 3: </p>\n[error]    ^\n[error] 4: <div>\n[error] 5: </p>\n";
+        let text = "<script>\n  let x = 1;\n</script>\n<div>\n</p>\n<div>\n</p>\n";
+        let findings = parse_prettier_check_with_sources(
+            snipped.as_bytes(),
+            Some(2),
+            &["app/U.svelte"],
+            svelte_sources("app/U.svelte", text),
+        )
+        .expect("parsed");
+        assert_eq!(findings[0].finding.start.line, 5);
+        assert_eq!(findings[0].finding.start.column, 1);
+
+        let tabbed = "[error] app/T.svelte: element_invalid_closing_tag: `</p>` attempted to close an element that was not open\n[error] https://svelte.dev/e/element_invalid_closing_tag\n[error] 2: <div>\n[error] 3:   <span>\n[error] 4:     </p>\n[error]        ^\n[error] 5:   </span>\n[error] 6: </div>\n";
+        let text =
+            "<script>\n\tlet a = 1;\n</script>\n<div>\n\t<span>\n\t\t</p>\n\t</span>\n</div>\n";
+        let findings = parse_prettier_check_with_sources(
+            tabbed.as_bytes(),
+            Some(2),
+            &["app/T.svelte"],
+            svelte_sources("app/T.svelte", text),
+        )
+        .expect("parsed");
+        assert_eq!(findings[0].finding.start.line, 6);
+        assert_eq!(findings[0].finding.start.column, 3);
+
+        let ambiguous = "[error] app/V.svelte: element_invalid_closing_tag: `</p>` attempted to close an element that was not open\n[error] https://svelte.dev/e/element_invalid_closing_tag\n[error] 2: </p>\n[error]    ^\n";
+        let text = "<script>\n  let x = 1;\n</script>\n</p>\n</p>\n";
+        let findings = parse_prettier_check_with_sources(
+            ambiguous.as_bytes(),
+            Some(2),
+            &["app/V.svelte"],
+            svelte_sources("app/V.svelte", text),
+        )
+        .expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[0].finding.start.line, 1);

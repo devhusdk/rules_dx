@@ -200,6 +200,7 @@ workspace_policy(
 | `scala` | `scalafmt` | disabled | disabled |
 | `shell` | `shfmt` | `shellcheck` | disabled |
 | `starlark` | `buildifier` | `buildifier` | disabled |
+| `svelte` | `prettier` | disabled | disabled |
 | `text` | disabled | `keep_sorted` | disabled |
 | `toml` | `taplo` | `taplo` | disabled |
 | `typescript` | `biome` | `biome` | disabled |
@@ -225,7 +226,7 @@ to.
 | `djlint` | format, lint | html_template |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
-| `eslint` | lint | astro, javascript, mdx, vue |
+| `eslint` | lint | astro, javascript, mdx, svelte, vue |
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
 | `fsharplint` | lint | fsharp |
@@ -244,7 +245,7 @@ to.
 | `modfmt` | format | go_module |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
-| `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, typescript, vue, xml |
+| `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
 | `psscriptanalyzer` | lint | powershell |
 | `pydoclint` | lint | python |
 | `pylint` | lint | python |
@@ -1211,6 +1212,72 @@ Lint is check-only: `lint --apply` never rewrites a file. A config dx rejects,
 a config Redocly rejects, output dx cannot read, or a tool that fails to run
 fails the run with the cause named. It never counts as clean. Telemetry and
 update notices are off.
+
+### Svelte
+
+`svelte_library` from `@rules_dx//svelte/rules:defs.bzl` owns `.svelte` files.
+The default policy formats them with `prettier` and `prettier-plugin-svelte`
+4.1.1 with `svelte` 5.57.0 from the managed pin.
+
+```sh
+bazel run @rules_dx//:dx -- format //web/...
+bazel run @rules_dx//:dx -- format --apply //web/...
+```
+
+A check never writes. `--apply` rewrites only the files the selected targets
+own. The script, markup and style blocks are all formatted. An unformatted file
+is reported at the start of the file. A syntax error fails the run and never
+counts as clean. dx places it at the line and column in the original file by
+matching the compiler's code frame against the file. When the frame matches no
+single place, the error is reported at line 1, column 1. `.prettierrc`,
+`.editorconfig` and other user config files are ignored. `svelte-check` and the
+Svelte compiler are not run.
+
+`eslint` lint is opt-in. Select it in the `svelte` family and bind an
+`eslint_config` to the library with `aspect_hints`.
+
+```python
+quality_family(
+    name = "svelte_family",
+    disabled = ["audit", "typecheck"],
+    family_id = "svelte",
+    format = ["prettier"],
+    lint = ["eslint"],
+)
+
+eslint_config(
+    name = "eslint",
+    src = "eslint.config.mjs",
+)
+
+svelte_library(
+    name = "hello",
+    srcs = ["Hello.svelte"],
+    aspect_hints = [":eslint"],
+)
+```
+
+The config may import `eslint-plugin-svelte` 3.23.1, `svelte-eslint-parser`
+1.10.0 and `@typescript-eslint/parser` 8.72.1 by name. dx provides them. Any
+other package must resolve from your workspace.
+
+```js
+import svelte from "eslint-plugin-svelte";
+
+export default [
+  ...svelte.configs.recommended,
+  {
+    files: ["**/*.svelte"],
+    languageOptions: {
+      parserOptions: { parser: "@typescript-eslint/parser" },
+    },
+  },
+];
+```
+
+Findings point at the line and column in the `.svelte` file, including findings
+in `<script lang="ts">` blocks. A `.svelte` file that no config entry matches
+fails the run. It never counts as clean.
 
 ### Astro
 

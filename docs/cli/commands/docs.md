@@ -233,3 +233,69 @@ bazel run @rules_dx//:dx -- docs //lib:api_docs
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
 failure. Bazel failures keep Bazel's code.
+
+## PowerShell API reference
+
+`powershell_doc_shard` from `@rules_dx//tools/docs/powershell:defs.bzl` reads one
+PowerShell script module and produces a docs IR shard with language `powershell`.
+The parser inside the pinned `pwsh` runtime reads the sources. The rule never
+imports, dot-sources or runs them, so code at the top of a `.psm1` never runs.
+Pass the shard to `docs_site` beside other shards, and the shared pipeline renders
+the pages. Symbol ids have the form `powershell:<package>:<Name>`, with the
+function name spelled as in its definition.
+
+```starlark
+load("@rules_dx//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
+
+powershell_doc_shard(
+    name = "api_docs",
+    srcs = glob(["Ledger/**"]),
+)
+```
+
+Attributes:
+
+- `srcs`: the module's `.psm1`, every `.ps1` file it dot-sources, and its `.psd1`.
+  `pwsh_library` targets work too. Required.
+- `manifest`: the module manifest. Defaults to the one `.psd1` file in `srcs`.
+- `package`: the package segment of the ids. Defaults to the manifest file name
+  without `.psd1`. Required when there is no manifest.
+- `config`: extra text added to the `powershell.config` value of every symbol.
+
+Build the shard's site with the scope of the target:
+
+```sh
+bazel run @rules_dx//:dx -- docs //lib:api_docs
+```
+
+Supported shapes:
+
+- Script modules with or without a `.psd1` manifest.
+- Functions in dot-sourced `.ps1` files, when those files are in `srcs`.
+- `FunctionsToExport` and `AliasesToExport` lists, with `*` and `?` wildcards,
+  matched without regard to case.
+- `Export-ModuleMember -Function` with literal names.
+- `[CmdletBinding()]`, parameter sets, `[Parameter()]`, `[Alias()]` and `[OutputType()]`.
+- Comment-based help: `.SYNOPSIS`, `.DESCRIPTION`, `.PARAMETER`, `.EXAMPLE` and
+  `.OUTPUTS`, before, inside or at the end of the function.
+
+Each function page shows one syntax line per parameter set, the synopsis and
+description, and a link to the definition. A function without help, or with
+parameters that have no `.PARAMETER` text, gets a `powershell.incomplete` value
+that names what is missing.
+
+Not supported yet: binary modules, classes and enums, aliases from `Set-Alias` or
+`New-Alias`, external MAML help and `about_` topics.
+
+The build fails, and writes no shard and no page, when:
+
+- a source has a syntax error. The message has the form
+  `docs_powershell: <file>:<line>: <message>`.
+- `Export-ModuleMember -Function` takes a variable or an expression.
+- an export list names a function that no source defines.
+- the manifest's `RootModule` is a `.dll`.
+- the module exports no functions.
+- two exported functions differ only by case.
+- a manifest key the rule reads is not a constant value.
+
+Exit codes are the same as for TypeScript: Bazel failures keep Bazel's code.

@@ -831,3 +831,49 @@ fn copy_dir(from: &Path, to: &Path) {
         }
     }
 }
+
+#[test]
+fn a_powershell_api_page_renders_every_parameter_set_docs_and_source() {
+    let root = site(DEMO_POLYGLOT_SITE);
+    let add = read(&root, "api/powershell/Ledger/Add-LedgerEntry.html");
+    assert!(
+        add.contains(
+            "<code class=\"language-text\">Add-LedgerEntry [-Ledger] &lt;object&gt; [-Amount] &lt;int&gt; [-Memo &lt;string&gt;] [&lt;CommonParameters&gt;]\n\
+             Add-LedgerEntry [-Ledger] &lt;object&gt; [-Amount] &lt;int&gt; -Transfer -Account &lt;string&gt; [&lt;CommonParameters&gt;]\n"
+        ),
+        "the signature must list both parameter sets: {add}"
+    );
+    assert!(add.contains("Adds one entry to a ledger."), "{add}");
+    assert!(
+        add.contains(
+            "href=\"https://github.com/devhusdk/rules_dx/blob/main/tools/docs/powershell/fixture/Ledger/Public/Add-LedgerEntry.ps1#L1\""
+        ),
+        "{add}"
+    );
+    let mut pages: Vec<String> = std::fs::read_dir(root.join("api/powershell/Ledger"))
+        .unwrap_or_else(|error| panic!("read the PowerShell pages: {error}"))
+        .map(|entry| {
+            entry
+                .unwrap_or_else(|error| panic!("entry: {error}"))
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    pages.sort();
+    assert_eq!(
+        pages,
+        [
+            "Add-LedgerEntry.html",
+            "Get-LedgerBalance.html",
+            "Remove-LedgerEntry.html",
+            "Test-LedgerBalance.html",
+        ],
+        "only exported functions get pages"
+    );
+    let index = read(&root, "searchindex.js");
+    assert!(
+        index.contains("api/powershell/Ledger/Add-LedgerEntry.html"),
+        "the search index never names the PowerShell page"
+    );
+}

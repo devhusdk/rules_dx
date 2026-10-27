@@ -493,6 +493,7 @@ API docs:
 
 - `@rules_dx//tools/docs/go:defs.bzl`: Go API doc shards.
 - `@rules_dx//tools/docs/ruby:defs.bzl`: Ruby API doc shards.
+- `@rules_dx//tools/docs/powershell:defs.bzl`: PowerShell API doc shards.
 - `@rules_dx//tools/docs/rust:defs.bzl`: Rust API doc shards.
 - `@rules_dx//tools/docs/site:site.bzl`: docs sites built from API doc shards.
 - `@rules_dx//tools/docs/typescript:defs.bzl`: TypeScript API doc shards.

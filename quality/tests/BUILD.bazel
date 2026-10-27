@@ -960,6 +960,28 @@ rust_test(
 
 # keep
 rust_test(
+    name = "powershell_docs_consumer_test",
+    size = "enormous",
+    srcs = ["powershell_docs_consumer_test.rs"],
+    data = [
+        "powershell_docs_consumer_test.rs",
+        "//cli/cli:dx",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = _LINUX_X86_64,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "powershell_gallery_lock_test",
     size = "small",
     srcs = ["powershell_gallery_lock_test.rs"],
@@ -994,4 +1016,14 @@ rustfmt_test(
 rust_clippy_test(
     name = "powershell_consumer_clippy_test",
     targets = [":powershell_consumer_test"],
+)
+
+rustfmt_test(
+    name = "powershell_docs_consumer_fmt_test",
+    targets = [":powershell_docs_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "powershell_docs_consumer_clippy_test",
+    targets = [":powershell_docs_consumer_test"],
 )

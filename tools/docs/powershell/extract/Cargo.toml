@@ -1,0 +1,16 @@
+[package]
+name = "powershell_extract"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lib]
+name = "dx_docs_powershell_extract"
+path = "src/lib.rs"
+
+[[bin]]
+name = "powershell_extract"
+path = "src/main.rs"

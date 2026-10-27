@@ -1,0 +1,37 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
+
+package(default_visibility = ["//:__subpackages__"])
+
+filegroup(
+    name = "ledger_srcs",
+    srcs = glob(["Ledger/**"]),
+)
+
+filegroup(
+    name = "tally_srcs",
+    srcs = ["Tally/Tally.psm1"],
+)
+
+filegroup(
+    name = "bad_srcs",
+    srcs = glob(["bad/*"]),
+)
+
+powershell_doc_shard(
+    name = "ledger_docs",
+    srcs = [":ledger_srcs"],
+)
+
+powershell_doc_shard(
+    name = "tally_docs",
+    srcs = [":tally_srcs"],
+    package = "Tally",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -22,6 +22,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
+load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
@@ -147,6 +148,14 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "runfiles_env": True,
         "shard": "py",
+    },
+    "flatc": {
+        "attr": attr.label(default = "//config:tool_flatc", allow_files = True, cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "fallback": " to a flatc binary",
+        "kind": "setting",
+        "resources": "light",
+        "shard": "flatbuffers",
     },
     "fsharplint": {
         "attr": attr.label(default = "//quality/tools/dotnet/fsharplint", cfg = "exec", executable = True),
@@ -1051,6 +1060,16 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    if "flatc" in stage_tools and FlatBuffersInfo in target:
+        for f in target[FlatBuffersInfo].transitive_srcs.to_list():
+            ws_path = f.short_path
+            if ws_path.startswith("../"):
+                ws_path = "_external/" + ws_path[3:]
+            if ".." in ws_path.split("/"):
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     if "buf" in stage_tools and ProtoInfo in target:
         proto_roots = sorted([r for r in target[ProtoInfo].transitive_proto_path.to_list() if r != "."], key = lambda r: -len(r))
         for f in target[ProtoInfo].transitive_sources.to_list():
@@ -1399,6 +1418,12 @@ _REAL_SHARD_SPECS = {
         "shard": "powershell",
         "suffix": "-powershell",
     },
+    "real_flatbuffers_lint": {
+        "capability": "lint",
+        "doc": "Additive FlatBuffers lint family aspect (flatc).",
+        "shard": "flatbuffers",
+        "suffix": "-flatbuffers",
+    },
     "real_protobuf_format": {
         "capability": "format",
         "doc": "Additive Protocol Buffers format family aspect (buf format).",
@@ -1690,6 +1715,7 @@ real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
 
 real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
 
+real_flatbuffers_lint_aspect = _make_real_aspect("real_flatbuffers_lint")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")

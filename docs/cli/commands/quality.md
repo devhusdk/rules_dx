@@ -239,6 +239,7 @@ to.
 | `eslint` | lint | astro, javascript, mdx, svelte, vue |
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
+| `flatc` | lint | flatbuffers |
 | `fsharplint` | lint | fsharp |
 | `gofumpt` | format | go |
 | `google_java_format` | format | java |
@@ -719,6 +720,50 @@ never counts as clean. A syntax error in an imported `.proto` fails lint of
 every target that imports it, with that file, line and column named. An
 unformatted file is reported at the start of the file. To change the rules, bind a `buf_config` to the `proto_library` targets
 with `aspect_hints`. The file is your `buf.yaml`.
+
+### FlatBuffers
+
+`flatc` 25.12.19 lints `.fbs` schemas. It is built from the pinned source
+archive (`@dx_flatbuffers`), not downloaded as a binary, and runs on Linux
+x86_64. Select it in a `flatbuffers` family. The family is opt-in and part of
+no curated default.
+
+```python
+load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+
+quality_family(
+    name = "flatbuffers_family",
+    family_id = "flatbuffers",
+    lint = ["flatc"],
+)
+
+flatbuffers_library(
+    name = "order",
+    srcs = ["order.fbs"],
+    deps = ["//item"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //api/...
+```
+
+Own schemas with `flatbuffers_library`. List the package files in `srcs` and
+the libraries they include in `deps`. An include resolves only from the
+`deps` closure, from a directory under the workspace root, or next to the
+including file. A check parses each schema with `flatc -M --cpp`, which reads
+and writes nothing, and reports every include flatc opened. An include that is
+not a declared input fails with
+`include '<path>' is outside the declared inputs of <schema>`, and an include
+flatc cannot find is reported as `unable to load include file`. Each finding
+is reported at its line and column. Warnings fail the lint. A syntax error, an
+unknown type, an empty file or output the adapter cannot read fails the run
+and never counts as clean. FlatBuffers has no maintained formatter, so format
+is not applicable, and `--apply` has nothing to fix.
+
+To run another `flatc`, point the flag at it:
+`--@rules_dx//config:tool_flatc=//tools:flatc`. A target without an
+executable fails with `set --@rules_dx//config:tool_flatc to a flatc binary`.
 
 ### CUE
 

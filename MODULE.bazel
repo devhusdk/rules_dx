@@ -1123,6 +1123,14 @@ _http_archive(
     urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
 )
 
+# flatc is built from source; literals mirror //flatbuffers:pins.bzl.
+_http_archive(
+    name = "dx_flatbuffers",
+    sha256 = "f81c3162b1046fe8b84b9a0dbdd383e24fdbcf88583b9cb6028f90d04d90696a",
+    strip_prefix = "flatbuffers-25.12.19",
+    urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v25.12.19.tar.gz"],
+)
+
 _http_archive(
     name = "zig_app_xxhash",
     build_file = "//examples/zig-app:xxhash.BUILD.bazel",

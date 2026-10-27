@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_flatbuffers_lint_warning_fail
+capability LINT
+stages 1
+stage flatc classes=flatbuffers sources=matrix/flatbuffers_warning.fbs
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING flatc warning matrix/flatbuffers_warning.fbs 25 25 fixable=false "field names should be lowercase snake_case, got: camelCase"
+terminal 1
+terminal WARNING flatc warning matrix/flatbuffers_warning.fbs 25 25 fixable=false "field names should be lowercase snake_case, got: camelCase"
+replacements 0

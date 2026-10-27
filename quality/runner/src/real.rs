@@ -29,6 +29,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "eslint",
     "fantomas",
     "flake8",
+    "flatc",
     "fsharplint",
     "gofumpt",
     "google_java_format",

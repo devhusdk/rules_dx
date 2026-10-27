@@ -62,6 +62,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "d",
     "elixir",
     "erlang",
+    "flatbuffers",
     "fortran",
     "gherkin",
     "go",

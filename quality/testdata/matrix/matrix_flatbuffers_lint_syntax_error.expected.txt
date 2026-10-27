@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_flatbuffers_lint_syntax_error
+capability LINT
+stages 1
+stage flatc classes=flatbuffers sources=matrix/flatbuffers_syntax.fbs
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR flatc error matrix/flatbuffers_syntax.fbs 21 21 fixable=false "expecting: : instead got: int"
+terminal 1
+terminal ERROR flatc error matrix/flatbuffers_syntax.fbs 21 21 fixable=false "expecting: : instead got: int"
+replacements 0

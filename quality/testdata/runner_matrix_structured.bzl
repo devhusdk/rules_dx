@@ -50,6 +50,64 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_protobuf_lint_fail.expected.txt",
     },
     {
+        "name": "matrix_flatbuffers_lint_pass",
+        "generated": {
+            "quality/testdata/matrix/flatbuffers_pass/main.fbs": "include \"common.fbs\";\n\nnamespace fixtures;\n\ntable Sample {\n  common:Common;\n}\n",
+        },
+        "siblings": [
+            ":matrix/flatbuffers_pass/common.fbs",
+        ],
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;quality/testdata/matrix/flatbuffers_pass/main.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_lint_warning_fail",
+        "generated": {
+            "matrix/flatbuffers_warning.fbs": "table Sample {\n  camelCase:int;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_warning.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_warning_fail.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_lint_semantic_fail",
+        "generated": {
+            "matrix/flatbuffers_semantic.fbs": "table Sample {\n  x:Nope;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_semantic.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_semantic_fail.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_lint_syntax_error",
+        "generated": {
+            "matrix/flatbuffers_syntax.fbs": "table Sample {\n  x int;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_syntax.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_lint_include_undeclared",
+        "generated": {
+            "matrix/flatbuffers_include.fbs": "include \"undeclared.fbs\";\n\ntable Sample {\n  x:int;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_include.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_include_undeclared.expected.txt",
+    },
+    {
         "name": "matrix_qml_format_pass",
         "generated": {
             "matrix/qmlformat_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",

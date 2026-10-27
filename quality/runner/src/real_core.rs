@@ -165,6 +165,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "eslint",
             "fantomas",
             "flake8",
+            "flatc",
             "fsharplint",
             "gofumpt",
             "google_java_format",

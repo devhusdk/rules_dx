@@ -2059,3 +2059,27 @@ fn kubeconform_config_refuses_remote_or_escaping_locations() {
     };
     assert!(kubeconform_check(Path::new(BIN), &remote, &[]).is_err());
 }
+
+#[test]
+fn flatc_check_parses_one_schema_and_writes_nothing() {
+    let invocation = flatc_check(
+        Path::new(BIN),
+        Path::new("/scratch/a/x.fbs"),
+        Path::new("/scratch"),
+        Path::new("/scratch/out"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "-M",
+            "--cpp",
+            "-o",
+            "/scratch/out",
+            "-I",
+            "/scratch",
+            "/scratch/a/x.fbs"
+        ]
+    );
+    assert_eq!(invocation.cwd_rel, "");
+}

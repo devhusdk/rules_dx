@@ -51,6 +51,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_flatc",
+    build_setting_default = "@dx_flatbuffers//:flatc",
+)
+
+label_flag(
     name = "tool_terraform",
     build_setting_default = "@dx_tools//:terraform",
 )

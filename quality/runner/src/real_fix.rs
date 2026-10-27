@@ -316,7 +316,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "pmd" | "spotbugs" | "qmllint"
         | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "errcheck" | "stylelint"
         | "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "redocly" | "kubeconform"
-        | "checkmake" => Ok(Route::Keep),
+        | "checkmake" | "flatc" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(

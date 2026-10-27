@@ -19,6 +19,7 @@ WRAPPER_OWNERS = {
     "d": "//d/rules:defs.bzl",
     "elixir": "//elixir/rules:defs.bzl",
     "erlang": "//erlang/rules:defs.bzl",
+    "flatbuffers": "//flatbuffers/rules:defs.bzl",
     "fortran": "//fortran/rules:defs.bzl",
     "fsharp": "//fsharp/rules:defs.bzl",
     "gherkin": "//gherkin/rules:defs.bzl",

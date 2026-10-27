@@ -63,14 +63,18 @@ func (l *perlLang) Before(ctx context.Context) {
 }
 
 // Imports indexes each library source under its module name.
-func (l *perlLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
+func (l *perlLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind {
 		return nil
+	}
+	pkg := ""
+	if f != nil {
+		pkg = f.Pkg
 	}
 	var specs []resolve.ImportSpec
 	for _, src := range r.AttrStrings("srcs") {
 		if isSupported(src) {
-			specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: ModuleName(src)})
+			specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: ModuleName(pkg, src)})
 		}
 	}
 	return specs

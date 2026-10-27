@@ -3,15 +3,17 @@ package perl
 import "testing"
 
 func TestModuleName(t *testing.T) {
-	cases := map[string]string{
-		"lib/Inventory/Item.pm": "Inventory::Item",
-		"lib/Top.pm":            "Top",
-		"Top.pm":                "Top",
-		"Sub/Mod.pm":            "Sub::Mod",
+	cases := []struct{ pkg, src, want string }{
+		{"", "lib/Inventory/Item.pm", "Inventory::Item"},
+		{"app", "lib/Top.pm", "Top"},
+		{"app", "Top.pm", "Top"},
+		{"app", "Sub/Mod.pm", "Sub::Mod"},
+		{"inventory/lib/Inventory/Plugin", "Base.pm", "Inventory::Plugin::Base"},
+		{"pkg/lib/Acme", "Widget.pm", "Acme::Widget"},
 	}
-	for src, want := range cases {
-		if got := ModuleName(src); got != want {
-			t.Errorf("ModuleName(%q) = %q, want %q", src, got, want)
+	for _, c := range cases {
+		if got := ModuleName(c.pkg, c.src); got != c.want {
+			t.Errorf("ModuleName(%q, %q) = %q, want %q", c.pkg, c.src, got, c.want)
 		}
 	}
 }

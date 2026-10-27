@@ -45,7 +45,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
     match invocation.command {
         Command::Init => init::execute_init(invocation, workspace, out, err),
         Command::New => new::execute_new(invocation, workspace, out, err),
-        Command::Upgrade => upgrade::execute_upgrade(invocation, out, err),
+        Command::Upgrade => upgrade::execute_upgrade(invocation, workspace, out, err),
         Command::Status => status::execute_status(invocation, workspace, out, err),
         Command::Version => version::execute_version(invocation, workspace, out, err),
         Command::Rollback => rollback::execute_rollback(invocation, workspace, out, err),

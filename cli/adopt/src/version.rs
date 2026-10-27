@@ -28,8 +28,12 @@ pub fn version_move_hint(from: &str, to: &str) -> String {
 pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
     if !pin_is_valid(pinned) {
         pin_rewrite_hint(module_version)
+    } else if version_pin_matches_module(pinned, module_version) {
+        "dx version --check".to_owned()
+    } else if crate::migrate::migrate_is_upgrade(pinned, module_version) {
+        format!("dx upgrade --from {pinned} --to {module_version} --apply")
     } else {
-        version_move_hint(pinned, module_version)
+        pin_rewrite_hint(module_version)
     }
 }
 
@@ -424,11 +428,19 @@ mod tests {
         assert_eq!(pin_fix_hint("1.2.3", "1.2.3"), "dx version --check");
         assert_eq!(
             pin_fix_hint("1.2.3", "2.0.0"),
-            "dx upgrade --from 1.2.3 --to 2.0.0"
+            "dx upgrade --from 1.2.3 --to 2.0.0 --apply"
         );
-        assert_eq!(pin_fix_hint("2.0.0", "1.2.3"), "dx rollback");
+        assert_eq!(pin_fix_hint("2.0.0", "1.2.3"), "write 1.2.3 to .dx/version");
         for bad in ["", "v1", "1.2", "garbage"] {
             assert_eq!(pin_fix_hint(bad, "1.2.3"), "write 1.2.3 to .dx/version");
+        }
+        for (pin, module) in [
+            ("1.2.3", "1.2.3"),
+            ("1.2.3", "2.0.0"),
+            ("2.0.0", "1.2.3"),
+            ("bad", "1.2.3"),
+        ] {
+            assert!(!pin_fix_hint(pin, module).contains("dx rollback"));
         }
     }
 

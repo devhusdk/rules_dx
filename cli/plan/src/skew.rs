@@ -31,10 +31,10 @@ fn governing_command(invocation: &Invocation) -> Command {
 
 pub fn diagnostic(pin: &str) -> String {
     format!(
-        "version skew: binary {} pin {pin} module {}; fix with `dx upgrade --from {pin} --to {}` or `dx rollback --apply`",
+        "version skew: binary {} pin {pin} module {}; fix: {}",
         dx_adopt::DX_VERSION,
         dx_adopt::MODULE_VERSION,
-        dx_adopt::MODULE_VERSION,
+        dx_adopt::pin_fix_hint(pin, dx_adopt::MODULE_VERSION),
     )
 }
 
@@ -59,6 +59,7 @@ mod tests {
     const PROCEED: &[Command] = &[
         Command::Version,
         Command::Rollback,
+        Command::Upgrade,
         Command::Status,
         Command::Completion,
         Command::Worktree,
@@ -88,7 +89,6 @@ mod tests {
         Command::Add,
         Command::Migrate,
         Command::New,
-        Command::Upgrade,
         Command::Codegen,
         Command::Env,
         Command::Init,
@@ -199,9 +199,24 @@ mod tests {
         assert!(message.contains(dx_adopt::DX_VERSION), "{message}");
         assert!(message.contains("9.9.9"), "{message}");
         assert!(message.contains(dx_adopt::MODULE_VERSION), "{message}");
-        assert!(message.contains("dx upgrade --from 9.9.9"), "{message}");
-        assert!(message.contains("dx rollback --apply"), "{message}");
+        assert!(
+            message.ends_with(&format!(
+                "; fix: write {} to .dx/version",
+                dx_adopt::MODULE_VERSION
+            )),
+            "{message}"
+        );
+        assert!(!message.contains("dx rollback"), "{message}");
         assert!(!message.contains("dx version --"), "{message}");
+        let older = diagnostic("0.0.0-alpha.1");
+        assert!(
+            older.ends_with(&format!(
+                "; fix: dx upgrade --from 0.0.0-alpha.1 --to {} --apply",
+                dx_adopt::MODULE_VERSION
+            )),
+            "{older}"
+        );
+        assert!(!older.contains("dx rollback"), "{older}");
     }
 
     #[test]

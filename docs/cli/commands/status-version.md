@@ -73,7 +73,7 @@ Inside a worktree slot there is also `lease`.
   `dx init --apply` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
-the hint is the fix, for example `dx upgrade --from <version> --to <version>`.
+the hint is the fix, for example `dx upgrade --from <version> --to <version> --apply`.
 The `toolchain`, `bazel`, `module`, `host`, `exec_tools`, and `tools` detail text starts with
 `available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
 never healthy.
@@ -117,8 +117,10 @@ override and its source.
 
 - `--check`: verify the pin without changing it.
 
-To change the pin, run `dx upgrade`. To restore the previous pin, run
-`dx rollback`.
+To change the pin: when the pin is older than the module version, run
+`dx upgrade --from <pin> --to <module version> --apply`. When it is newer or
+invalid, write the module version to `.dx/version`. `dx rollback --apply`
+restores the last pin `dx upgrade` or `dx rollback` recorded.
 
 Flags: `--check`.
 Scopes: none.
@@ -161,7 +163,7 @@ example, `MODULE.bazel` and `.dx/version` say `1.2.0` and the binary is
 `1.3.0`, so `dx build` stops with
 `version skew: binary 1.3.0 pin 1.2.0 module 1.3.0`.
 
-- Runs anyway: `version`, `status`, `rollback`, `completion`, `worktree`.
+- Runs anyway: `version`, `status`, `rollback`, `upgrade`, `completion`, `worktree`.
 - Warns and runs: `check`, `security`, `license`, `list-tests`.
 - Stops with exit code `1`: every other command.
 
@@ -171,8 +173,9 @@ An empty pin fails the `pin` check in `dx status` and `dx version --check`.
 A missing file makes `dx status` and `dx version` exit `1` with
 `status_pin_mismatch`.
 
-A stop prints `dx: version skew: binary <version> pin <pin> module <version>`
-on stderr and names the fix. Under `--output=json` it adds a `version_skew`
+A stop prints `dx: version skew: binary <version> pin <pin> module <version>; fix: <hint>`
+on stderr. The hint is `dx upgrade --from <pin> --to <module version> --apply`
+when the pin is older, otherwise `write <module version> to .dx/version`. Under `--output=json` it adds a `version_skew`
 error event, then `command_finished` with `exit_code` `1` and
 `results_complete` `false`.
 

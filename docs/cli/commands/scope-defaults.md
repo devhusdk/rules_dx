@@ -99,9 +99,9 @@ exit `2`).
   through `import` or `try-import %workspace%/...`, including nested imports.
   Other `*.bazelrc` files do not widen. So does a file that `MODULE.bazel` or an
   included segment names by label in an extension tag, repo rule, or
-  override, such as `pnpm-lock.yaml`, `requirements_lock.txt`, or a patch, and
-  the included segment itself. A `crate.from_cargo` lockfile in an included
-  segment counts as a lock input, as does the `lock_file` of a `maven.install`
+  override, such as `requirements_lock.txt`, or a patch, and the included
+  segment itself. A `crate.from_cargo` lockfile in an included segment counts
+  as a lock input, as does the `lock_file` of a `maven.install`
   with literal arguments: only the users of artifacts whose entry changed in
   `maven_install.json` are selected. A `go.mod` named by `go_deps.from_file` and
   its `go.sum` do not widen: dx diffs their requirements and checksums and
@@ -130,6 +130,12 @@ exit `2`).
   `conditions`) widens to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
   not widen; it selects its owners like any other file. A patch or
   `additive_build_file` named in a `crate.annotation` tag widens to `//...`.
+- A change to the `pnpm_lock` named by an `npm.npm_translate_lock` call in
+  `MODULE.bazel` selects the targets that use the npm packages whose name or
+  version changed (the `@npm//name` targets and the per-version spoke repos),
+  plus their reverse dependencies. A change to the lock's top-level settings
+  (such as `patchedDependencies` or `overrides`), or a lock dx cannot read,
+  widens to `//...`.
 - A root `MODULE.bazel` change that only edits `bazel_dep` version strings,
   with the matching `MODULE.bazel.lock` change, selects the targets in the
   repos of the changed modules and of every module that depends on them, plus

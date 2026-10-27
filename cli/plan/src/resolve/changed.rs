@@ -1006,6 +1006,7 @@ pub fn resolve_affected(
                     pip,
                     maven,
                     go_repos,
+                    npm,
                 } = change;
                 if *maven {
                     seeds.extend(lock_inputs::maven_seeds(
@@ -1018,6 +1019,15 @@ pub fn resolve_affected(
                 }
                 if *pip {
                     seeds.extend(lock_inputs::pip_seeds(
+                        loaded.external_inputs(),
+                        hub,
+                        crates,
+                    ));
+                    repos.extend(crates.keys().map(|name| format!("@{hub}//{name}")));
+                    continue;
+                }
+                if *npm {
+                    seeds.extend(lock_inputs::npm_seeds(
                         loaded.external_inputs(),
                         hub,
                         crates,
@@ -1603,11 +1613,7 @@ mod tests {
             "deps/go.MODULE.bazel",
             "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
         );
-        for changed in [
-            "pnpm-lock.yaml",
-            "py/requirements_linux.txt",
-            "deps/go.MODULE.bazel",
-        ] {
+        for changed in ["py/requirements_linux.txt", "deps/go.MODULE.bazel"] {
             write(workspace, changed, "x\n");
             widens_as_workspace_input(workspace, changed);
         }
@@ -2179,6 +2185,55 @@ mod tests {
                     repos: strings(&["@crates//:serde"]),
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn pnpm_lock_bump_selects_only_users_of_changed_packages() {
+        let scratch = dx_test_scratch::scratch("dx-changed-pnpm-lock-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            concat!(
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n",
+                "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\")\n",
+            ),
+        );
+        write(workspace, "BUILD.bazel", "");
+        let lock = |lodash: &str| {
+            format!(
+                "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.0.0:\n    resolution: {{integrity: sha512-a}}\n\n  lodash@{lodash}:\n    resolution: {{integrity: sha512-b}}\n"
+            )
+        };
+        write(workspace, "pnpm-lock.yaml", &lock("4.1.0"));
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&lock("4.0.0")),
+            graph(&[
+                ("//a:lib", &["@@aspect_rules_js++npm+npm//lodash:pkg"]),
+                ("//b:lib", &["@@aspect_rules_js++npm+npm//left-pad:pkg"]),
+            ]),
+        ]);
+        let selection = resolve_affected(
+            &[change("pnpm-lock.yaml", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("pnpm lock narrows");
+        assert_eq!(
+            selection.targets,
+            strings(&["@@aspect_rules_js++npm+npm//lodash:pkg"])
+        );
+        assert_eq!(
+            selection.widened,
+            [WidenedScope {
+                scope: "rdeps(//..., @npm//lodash)".to_owned(),
+                reason: "changed crates in pnpm-lock.yaml".to_owned(),
+                repos: strings(&["@npm//lodash"]),
+            }]
         );
     }
 

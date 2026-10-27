@@ -414,15 +414,13 @@ fn run() -> i32 {
             return dx_cli::exec::cancelled(&mut err, signo);
         }
     };
-    let gate = if let Some(slot) = &slot {
-        std::env::set_var(dx_plan::slots::SLOT_ENV_VAR, "1");
-        if let Some(share) = &slot.share {
-            std::env::set_var(dx_plan::slots::SHARE_ENV_VAR, share.to_env());
-        }
-        None
-    } else {
-        gate
-    };
+    let gate = if slot.is_some() { None } else { gate };
+    let held = slot.as_ref().map(|slot| slot.runner(&runner));
+    let slot_runner = held
+        .as_ref()
+        .map_or(&runner as &dyn dx_process::Runner, |held| {
+            held as &dyn dx_process::Runner
+        });
     if let Some(notice) =
         dx_cli::exec::first_run::first_run_notice(&invocation, &workspace, &env_get)
     {
@@ -436,7 +434,7 @@ fn run() -> i32 {
             &invocation,
             Env {
                 workspace: &workspace,
-                runner: &runner,
+                runner: slot_runner,
                 query_runner: &query_runner,
                 temp_dir: temp_dir.path(),
                 pid,

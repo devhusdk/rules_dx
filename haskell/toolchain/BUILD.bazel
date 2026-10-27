@@ -11,6 +11,12 @@ exports_files([
 
 haskell_metadata_tests(name = "metadata")
 
+# Consumers cannot see @dx_haskell_toolchains, so they depend on this alias.
+alias(
+    name = "base",
+    actual = "@dx_haskell_toolchains//:base",
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
@@ -21,4 +27,10 @@ real_source_target(
         "repos.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

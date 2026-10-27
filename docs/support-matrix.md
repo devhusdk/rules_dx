@@ -24,7 +24,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Fortran | `linux_x86_64` | no | no |
 | F# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `fsharp` |
 | Go | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `go` |
-| Haskell | `linux_x86_64` | no | `haskell` |
+| Haskell | `linux_x86_64` | `linux_x86_64` | `haskell` |
 | Java | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `java` |
 | JavaScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `javascript` |
 | Julia | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
@@ -77,7 +77,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |
 | Julia | no | no | no |
 | Kotlin | `ktlint` | `ktfmt` | no |
-| Lua | no | no | no |
+| Lua | no | `stylua` on `linux_x86_64` | no |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
 | OCaml | no | no | no |
 | Perl | no | no | no |

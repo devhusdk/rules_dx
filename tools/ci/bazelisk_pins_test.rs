@@ -107,9 +107,66 @@ const SAVERS: &[(&str, &str, &str)] = &[
         "matrix.platform == 'windows_arm64'",
     ),
 ];
+const DONOR: (&str, &str) = (".github/workflows/ci.yml", "preflight");
 const STAMP: &str = "Stamp the restored Bazel repository cache";
 const PRUNE: &str = "Prune the Bazel repository cache to this run's downloads";
 const STAMP_FILE: &str = "$RUNNER_TEMP/dx-repo-cache.stamp";
+
+/// The OS and arch a GitHub runner label resolves to, as `runner.os`-`runner.arch`.
+fn runner_platform(label: &str) -> String {
+    let arm = label.ends_with("-arm");
+    let os = if label.starts_with("ubuntu") {
+        "linux"
+    } else if label.starts_with("macos") {
+        "macos"
+    } else if label.starts_with("windows") {
+        "windows"
+    } else {
+        panic!("unknown runner label {label}")
+    };
+    let arch = if arm || (os == "macos" && !label.ends_with("-intel") && !label.ends_with("-13")) {
+        "arm64"
+    } else {
+        "x64"
+    };
+    format!("{os}-{arch}")
+}
+
+/// Runner labels a job statically runs on: a literal, `matrix.runner` over the
+/// job's own matrix include, or the quoted literals of an expression such as
+/// `inputs.runner || 'macos-15'`. Dynamic expressions (`fromJSON`) resolve to none.
+fn static_runners(body: &serde_json::Value) -> Vec<String> {
+    let Some(runs_on) = body["runs-on"].as_str() else {
+        return Vec::new();
+    };
+    let expr = runs_on.trim();
+    let Some(inner) = expr
+        .strip_prefix("${{")
+        .and_then(|inner| inner.strip_suffix("}}"))
+    else {
+        return vec![expr.to_owned()];
+    };
+    if inner.trim() == "matrix.runner" {
+        return body["strategy"]["matrix"]["include"]
+            .as_array()
+            .map(|include| {
+                include
+                    .iter()
+                    .filter_map(|entry| entry["runner"].as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default();
+    }
+    if inner.contains("fromJSON") {
+        return Vec::new();
+    }
+    inner
+        .split('\'')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_owned)
+        .collect()
+}
 
 fn steps_named(steps: &[serde_json::Value], name: &str) -> Vec<usize> {
     (0..steps.len())
@@ -133,6 +190,8 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
     let mut checked = 0;
     let mut restore_only = 0;
     let mut savers_seen = Vec::new();
+    let mut restore_runners = Vec::new();
+    let mut donor_platforms = Vec::new();
     let mut prune_runs = Vec::new();
     for (name, document) in setup_bazel_documents() {
         let jobs = document["jobs"]
@@ -226,6 +285,12 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
             let saves = indices("actions/cache/save");
             let stamps = steps_named(&steps, STAMP);
             let prunes = steps_named(&steps, PRUNE);
+            if (name.as_str(), job.as_str()) == DONOR {
+                donor_platforms = static_runners(body)
+                    .iter()
+                    .map(|label| runner_platform(label))
+                    .collect();
+            }
             let Some(&(_, _, guard)) = SAVERS
                 .iter()
                 .find(|(file, saver, _)| *file == name && saver == job)
@@ -235,6 +300,9 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                     "{name} job {job} is not a listed saver but saves, stamps or prunes the repository cache"
                 );
                 restore_only += 1;
+                for label in static_runners(body) {
+                    restore_runners.push((name.clone(), job.clone(), label));
+                }
                 continue;
             };
             savers_seen.push((name.clone(), job.clone()));
@@ -317,6 +385,21 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                 .iter()
                 .any(|(name, seen)| name == file && seen == job),
             "{file} job {job} is a listed repository cache saver but does not exist"
+        );
+    }
+    assert!(
+        !donor_platforms.is_empty(),
+        "{} job {} has no static runner matrix",
+        DONOR.0,
+        DONOR.1
+    );
+    for (file, job, label) in &restore_runners {
+        let platform = runner_platform(label);
+        assert!(
+            donor_platforms.contains(&platform),
+            "{file} job {job} restores the repository cache on {label} ({platform}), but {} job {} never saves for it",
+            DONOR.0,
+            DONOR.1
         );
     }
     assert!(

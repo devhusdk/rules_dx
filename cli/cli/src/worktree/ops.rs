@@ -334,6 +334,29 @@ fn first_quiet<'a>(
     Ok(None)
 }
 
+/// Finds the held record on a branch.
+fn held_on<'a>(records: &'a [Record], branch: &str) -> Option<&'a Record> {
+    records
+        .iter()
+        .find(|record| record.held && record.branch.as_deref() == Some(branch))
+}
+
+/// Returns the slot the caller already holds on a branch, before any fetch.
+fn reuse_held(pool: &Pool, who: &Who, branch: &str) -> Result<Option<Added>, WorktreeError> {
+    let _lock = pool.lock()?;
+    pool.forget_missing();
+    let records = pool.records();
+    Ok(held_on(&records, branch)
+        .filter(|record| record.held_by(who))
+        .map(|record| Added {
+            slot: record.slot,
+            path: pool.slot_path(record.slot),
+            reused: true,
+            base: None,
+            warnings: Vec::new(),
+        }))
+}
+
 /// Leases a slot for a branch and switches it there.
 pub(crate) fn add(
     pool: &Pool,
@@ -342,6 +365,9 @@ pub(crate) fn add(
     request: &AddRequest,
 ) -> Result<Added, WorktreeError> {
     check_branch(pool, &request.branch)?;
+    if let Some(added) = reuse_held(pool, who, &request.branch)? {
+        return Ok(added);
+    }
     let warnings = refresh(pool);
     lease(pool, host, who, request, &[], warnings)
 }
@@ -386,10 +412,7 @@ pub(crate) fn lease(
     let now = host.now();
     let records = pool.records();
     let mut takeover: Option<&Record> = None;
-    if let Some(record) = records
-        .iter()
-        .find(|record| record.held && record.branch.as_deref() == Some(branch))
-    {
+    if let Some(record) = held_on(&records, branch) {
         let path = pool.slot_path(record.slot);
         if record.held_by(who) {
             return Ok(Added {

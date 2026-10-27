@@ -16,10 +16,11 @@ nested_bazel_test(
         "HOME",
         "PATH",
     ],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
+    target_compatible_with = select({
+        "@platforms//os:linux": ["@platforms//cpu:x86_64"],
+        "@platforms//os:windows": ["@platforms//cpu:x86_64"],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",

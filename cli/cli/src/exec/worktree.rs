@@ -577,7 +577,7 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
         event["disk_bytes"] = external.bytes.into();
         events.push(event);
     }
-    for item in kept {
+    for item in plan.kept_externals.iter().chain(kept) {
         let mut event = simple_event("prune", None, &item.path, item.branch.clone(), "kept");
         event["reason"] = item.reason.into();
         events.push(event);
@@ -633,6 +633,9 @@ fn prune_output(
     for base in &plan.kept_bases {
         write_line(out, &kept_base_line(base))?;
     }
+    for item in &plan.kept_externals {
+        write_line(out, &kept_external_line(item))?;
+    }
     if plan.is_empty() && kept.is_empty() && skipped_slots.is_empty() && skipped_bases.is_empty() {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
@@ -640,15 +643,7 @@ fn prune_output(
             write_line(out, &line)?;
         }
         for item in kept {
-            write_line(
-                out,
-                &format!(
-                    "kept external worktree {} ({}): {}",
-                    item.branch.as_deref().unwrap_or("(detached)"),
-                    item.reason,
-                    item.path.display()
-                ),
-            )?;
+            write_line(out, &kept_external_line(item))?;
         }
         for line in prune_lines(plan) {
             write_line(out, &line)?;
@@ -666,6 +661,15 @@ fn prune_output(
         )?;
     }
     Ok(prune_exit(apply, plan))
+}
+
+fn kept_external_line(item: &ops::PruneKept) -> String {
+    format!(
+        "kept external worktree {} ({}): {}",
+        item.branch.as_deref().unwrap_or("(detached)"),
+        item.reason,
+        item.path.display()
+    )
 }
 
 fn prune_exit(apply: bool, plan: &PrunePlan) -> i32 {
@@ -1317,6 +1321,18 @@ mod tests {
                     owner: ops::BaseOwner::Orphan,
                     reason: "locked",
                 }],
+                kept_externals: vec![
+                    ops::PruneKept {
+                        path: PathBuf::from("/agent"),
+                        branch: None,
+                        reason: "recent",
+                    },
+                    ops::PruneKept {
+                        path: PathBuf::from("/open"),
+                        branch: Some("o".to_owned()),
+                        reason: "unmerged",
+                    },
+                ],
                 downloads: vec![ops::PruneDownloads {
                     cache: PathBuf::from("/bazel/cache/repos/v1/content_addressable"),
                     entries: ["aaa", "bbb"]
@@ -1362,6 +1378,7 @@ mod tests {
         assert_eq!(prune_exit(true, &empty), 0);
         let only_kept = PrunePlan {
             kept_bases: full.kept_bases.clone(),
+            kept_externals: full.kept_externals.clone(),
             ..PrunePlan::default()
         };
         assert_eq!(prune_exit(false, &only_kept), 0);
@@ -1392,6 +1409,8 @@ mod tests {
                 ("prune", "skipped"),
                 ("prune", "external"),
                 ("prune", "kept"),
+                ("prune", "kept"),
+                ("prune", "kept"),
                 ("prune_base", "kept"),
                 ("prune_base", "skipped"),
                 ("prune_base", "free"),
@@ -1400,11 +1419,13 @@ mod tests {
                 ("prune_downloads", "stale"),
             ]
         );
-        assert_eq!(events[9]["entries"], 2);
-        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 10] = [
+        assert_eq!(events[11]["entries"], 2);
+        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 12] = [
             ("/cache/slots/3", Some(3), None, Some(100), None),
             ("/cache/slots/4", Some(4), None, None, Some("busy")),
             ("/ext", None, Some("e"), Some(200), None),
+            ("/agent", None, None, None, Some("recent")),
+            ("/open", None, Some("o"), None, Some("unmerged")),
             ("/kept", None, Some("k"), None, Some("server")),
             ("/bazel/kkk", None, None, None, Some("locked")),
             ("/bazel/sss", Some(2), None, None, Some("server")),
@@ -1473,6 +1494,8 @@ mod tests {
         assert_eq!(
             text,
             "kept output base of removed /moved (locked): /bazel/kkk\n\
+             kept external worktree (detached) (recent): /agent\n\
+             kept external worktree o (unmerged): /open\n\
              skipped slot 4 (busy): /cache/slots/4\n\
              skipped output base of free slot 2 (server): /bazel/sss\n\
              kept external worktree k (server): /kept\n\
@@ -1511,6 +1534,31 @@ mod tests {
             assert_eq!(lines[0]["command"], "worktree", "{text}");
             assert_eq!(lines[0]["mode"], mode, "{text}");
             assert_eq!(lines[1..], prune_events(&full)[..], "{text}");
+        }
+    }
+
+    #[test]
+    fn prune_output_prints_kept_externals_with_nothing_to_prune() {
+        let only_kept = ops::Pruned {
+            plan: PrunePlan {
+                kept_externals: pruned().plan.kept_externals,
+                ..PrunePlan::default()
+            },
+            ..ops::Pruned::default()
+        };
+        for words in [
+            &["worktree", "prune"][..],
+            &["worktree", "prune", "--apply"],
+        ] {
+            let (code, text) = run_prune_output(words, &only_kept);
+            assert_eq!(code, 0, "{words:?}");
+            assert_eq!(
+                text,
+                "kept external worktree (detached) (recent): /agent\n\
+                 kept external worktree o (unmerged): /open\n\
+                 dx worktree: nothing to prune\n",
+                "{words:?}"
+            );
         }
     }
 

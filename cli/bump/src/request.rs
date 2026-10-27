@@ -10,8 +10,24 @@ pub struct BumpRequest {
     pub selector: String,
     pub raw_version: String,
     manifest: Option<String>,
+    /// The configured npm or uv set this request edits, if any.
+    configured: Option<ConfiguredSet>,
     /// Which of a MODULE.bazel dep's two versions a bazel bump edits.
     pub dep_version: DepVersion,
+}
+
+/// The ecosystem of a configured dx.toml set a bump edits besides bazel.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConfiguredKind {
+    Npm,
+    Uv,
+}
+
+/// A configured dx.toml npm or uv set: its name and ecosystem.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfiguredSet {
+    pub name: String,
+    pub kind: ConfiguredKind,
 }
 
 /// The version of a MODULE.bazel dependency a bazel bump edits.
@@ -129,20 +145,36 @@ pub struct DepTarget {
     pub set: BumpSet,
     pub package: String,
     pub manifest: Option<String>,
+    /// The configured npm or uv set the dependency belongs to, if any.
+    pub configured: Option<ConfiguredSet>,
 }
 
 impl DepTarget {
     pub fn needs_update_refresh(&self) -> bool {
-        self.set.needs_update_refresh()
+        match &self.configured {
+            Some(_) => true,
+            None => self.set.needs_update_refresh(),
+        }
     }
 
     pub fn refresh_selector(&self) -> String {
-        refresh_selector(self.set, &self.package)
+        configured_refresh_selector(self.configured.as_ref(), &self.package)
+            .unwrap_or_else(|| refresh_selector(self.set, &self.package))
     }
 
     pub fn target_manifest(&self) -> &str {
         target_manifest(self.set, &self.package, self.manifest.as_deref())
     }
+}
+
+fn configured_refresh_selector(
+    configured: Option<&ConfiguredSet>,
+    package: &str,
+) -> Option<String> {
+    configured.map(|set| match set.kind {
+        ConfiguredKind::Npm => format!("{}:{package}", set.name),
+        ConfiguredKind::Uv => set.name.clone(),
+    })
 }
 
 fn refresh_selector(set: BumpSet, package: &str) -> String {
@@ -188,6 +220,7 @@ impl BumpRequest {
             selector: selector.to_owned(),
             raw_version: version.to_owned(),
             manifest: None,
+            configured: None,
             dep_version: DepVersion::Tested,
         })
     }
@@ -198,28 +231,50 @@ impl BumpRequest {
         selector: &str,
         version: &str,
     ) -> Result<BumpRequest, BumpError> {
+        Self::parse_configured_as(None, set_name, manifest, selector, version)
+    }
+
+    /// Parses a request against a configured set of `kind`; `None` is a bazel set.
+    pub fn parse_configured_as(
+        kind: Option<ConfiguredKind>,
+        set_name: &str,
+        manifest: &str,
+        selector: &str,
+        version: &str,
+    ) -> Result<BumpRequest, BumpError> {
         if selector.is_empty() || version.is_empty() {
             return Err(BumpError::Empty);
         }
-        let package = parse_configured_selector(set_name, selector)?;
-        let parsed = version::parse(BumpSet::Bazel, version)?;
+        let package = match kind {
+            None => parse_configured_selector(set_name, selector)?,
+            Some(kind) => parse_foreign_selector(set_name, kind, selector)?,
+        };
+        let set = match kind {
+            Some(ConfiguredKind::Npm) => BumpSet::Npm,
+            Some(ConfiguredKind::Uv) | None => BumpSet::Bazel,
+        };
+        let parsed = version::parse(set, version)?;
         Ok(BumpRequest {
-            set: BumpSet::Bazel,
+            set,
             package,
             version: parsed,
             selector: selector.to_owned(),
             raw_version: version.to_owned(),
             manifest: Some(manifest.to_owned()),
+            configured: kind.map(|kind| ConfiguredSet {
+                name: set_name.to_owned(),
+                kind,
+            }),
             dep_version: DepVersion::Tested,
         })
     }
 
     pub fn needs_update_refresh(&self) -> bool {
-        self.set.needs_update_refresh()
+        self.target().needs_update_refresh()
     }
 
     pub fn refresh_selector(&self) -> String {
-        refresh_selector(self.set, &self.package)
+        self.target().refresh_selector()
     }
 
     pub fn target_manifest(&self) -> &str {
@@ -232,6 +287,7 @@ impl BumpRequest {
             set: self.set,
             package: self.package.clone(),
             manifest: self.manifest.clone(),
+            configured: self.configured.clone(),
         }
     }
 
@@ -249,6 +305,7 @@ impl BumpRequest {
             selector: selector.to_owned(),
             raw_version: raw_version.to_owned(),
             manifest: target.manifest.clone(),
+            configured: target.configured.clone(),
             dep_version: DepVersion::Tested,
         }
     }
@@ -256,7 +313,9 @@ impl BumpRequest {
     /// This request aimed at `dep_version`; a floor applies only to a MODULE.bazel bazel_dep.
     pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<BumpRequest, BumpError> {
         if dep_version != DepVersion::Tested
-            && (self.set != BumpSet::Bazel || self.package == ".bazelversion")
+            && (self.set != BumpSet::Bazel
+                || self.configured.is_some()
+                || self.package == ".bazelversion")
         {
             return Err(BumpError::FloorNotBazelDep {
                 selector: self.selector,
@@ -282,7 +341,9 @@ impl BumpRequest {
         };
         let what = match (&self.dep_version, self.set, self.package.as_str()) {
             (DepVersion::Floor { .. }, _, _) => " floor",
-            (DepVersion::Tested, BumpSet::Bazel, package) if package != ".bazelversion" => {
+            (DepVersion::Tested, BumpSet::Bazel, package)
+                if package != ".bazelversion" && self.configured.is_none() =>
+            {
                 " tested override"
             }
             _ => "",
@@ -305,6 +366,9 @@ impl BumpRequest {
 
     /// The widened `content` of `manifest`, a manifest of this request's set.
     pub fn plan_edit_in(&self, manifest: &str, content: &str) -> Result<String, BumpError> {
+        if matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Uv) {
+            return plan_pyproject_toml(content, &self.package, &self.version);
+        }
         match self.set {
             BumpSet::Bazel => {
                 if self.package == ".bazelversion" {
@@ -415,14 +479,57 @@ pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<Strin
     Ok(tail.to_owned())
 }
 
+/// Parses a configured npm or uv `set:package` selector into its package identity.
+fn parse_foreign_selector(
+    set_name: &str,
+    kind: ConfiguredKind,
+    selector: &str,
+) -> Result<String, BumpError> {
+    let Some((_, tail)) = selector.split_once(':') else {
+        return Err(BumpError::BareSet {
+            set: set_name.to_owned(),
+        });
+    };
+    let set = match kind {
+        ConfiguredKind::Npm => BumpSet::Npm,
+        ConfiguredKind::Uv => BumpSet::Bazel,
+    };
+    if tail.is_empty() {
+        return Err(BumpError::InvalidPackage {
+            set: set.name(),
+            package: tail.to_owned(),
+            reason: "package identity is empty",
+        });
+    }
+    if kind == ConfiguredKind::Uv {
+        let valid = tail
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            && tail.starts_with(|c: char| c.is_ascii_alphanumeric());
+        if !valid {
+            return Err(BumpError::InvalidPackage {
+                set: "uv",
+                package: tail.to_owned(),
+                reason: "python package names use letters, digits, '-', '_' and '.'",
+            });
+        }
+    } else {
+        validate_package(set, tail)?;
+    }
+    Ok(tail.to_owned())
+}
+
 #[path = "request_cargo.rs"]
 mod cargo;
 #[path = "request_plans.rs"]
 pub(crate) mod plans;
+#[path = "request_pyproject.rs"]
+mod pyproject;
 
 pub use cargo::cargo_manifests;
 use cargo::*;
 use plans::*;
+use pyproject::plan_pyproject_toml;
 
 #[cfg(test)]
 #[path = "request_tests.rs"]

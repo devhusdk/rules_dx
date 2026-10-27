@@ -21,6 +21,7 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         runner,
+        query_runner,
         out,
         err,
         ..
@@ -113,6 +114,7 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
     let io = dep_edit::EditIo {
         workspace,
         runner,
+        query_runner,
         out,
         err,
     };

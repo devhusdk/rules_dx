@@ -211,8 +211,8 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
     );
     let bump = read("DX_SETS_BUMP");
     assert!(
-        bump.contains("bump is not supported for ecosystem uv set frontend"),
-        "bump names the unsupported operation: {bump}"
+        bump.contains("bump needs one package, not a whole set"),
+        "bump asks for a package of the configured uv set: {bump}"
     );
     let pinned = read("DX_SETS_UPDATE_PINNED");
     assert!(

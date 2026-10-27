@@ -778,6 +778,16 @@ fn success_line(set: dx_update::sets::SetId, request: &dx_update::selector::SetR
 mod update_check;
 #[path = "update_consumer.rs"]
 mod update_consumer;
+
+/// The pinned uv and interpreter a configured uv set refreshes with.
+pub(super) fn configured_uv_closure(
+    runner: &dyn dx_process::Runner,
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
+    workspace: &std::path::Path,
+    invocation: &Invocation,
+) -> dx_update::backend::UvClosure {
+    update_consumer::uv_closure(runner, query_runner, workspace, invocation)
+}
 #[cfg(test)]
 #[path = "update_live.rs"]
 mod update_live;

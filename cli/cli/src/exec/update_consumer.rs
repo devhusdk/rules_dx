@@ -96,6 +96,20 @@ pub(super) fn execute_configured(
     })
 }
 
+pub(super) fn uv_closure(
+    runner: &dyn dx_process::Runner,
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
+    workspace: &std::path::Path,
+    invocation: &Invocation,
+) -> dx_update::backend::UvClosure {
+    let bazel = QueryBazel {
+        query_runner,
+        workspace,
+        startup: &invocation.bazel_startup_options,
+    };
+    UvTools::new(runner, &bazel, invocation.offline).closure()
+}
+
 fn run_configured_target(
     attempted: &mut Vec<dx_update::outcome::SetOutcome>,
     details: &mut BTreeMap<String, SetDetail>,

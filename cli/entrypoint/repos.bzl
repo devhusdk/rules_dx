@@ -374,10 +374,10 @@ cmp /tmp/consumer_sets_gemfile_lock.orig "$(location sets_ok/apps/rb/Gemfile.loc
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
 if "$$public" bump frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then
-  echo "bump unexpectedly widened a configured uv set" >&2
+  echo "bump accepted a bare configured uv set" >&2
   exit 1
 fi
-grep -q "bump is not supported for ecosystem uv set frontend" "$(location bump_unsupported.txt)"
+grep -q "bump needs one package, not a whole set" "$(location bump_unsupported.txt)"
 if "$$public" update --workspace "$$bad" > "$(location bad_kind.txt)" 2>&1; then
   echo "update accepted an unknown ecosystem" >&2
   exit 1

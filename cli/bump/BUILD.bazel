@@ -19,6 +19,7 @@ dx_rust_crate(
         "src/request.rs",
         "src/request_cargo.rs",
         "src/request_plans.rs",
+        "src/request_pyproject.rs",
         "src/sets.rs",
         "src/version.rs",
     ],

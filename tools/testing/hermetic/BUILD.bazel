@@ -529,8 +529,10 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "rust_wasi",
+    failures = {"//examples/shared-rust:tasks_without_core": "error[E0432]: unresolved import `shared_tasks`"},
     files = {
         "consumers/rust_wasi/app.BUILD.bazel": "examples/shared-rust/BUILD.bazel",
+        "consumers/rust_wasi/consumer_report.rs": "examples/shared-rust/consumer_report.rs",
         "consumers/rust_wasi/root.BUILD.bazel": "BUILD.bazel",
         "//examples/shared-rust:adler2.BUILD.bazel": "examples/shared-rust/adler2.build",
         "//examples/shared-rust:assets/board.txt": "examples/shared-rust/assets/board.txt",
@@ -542,6 +544,7 @@ hermetic_qualification(
     languages = ["rust"],
     module_fragment = "consumers/rust_wasi/module_fragment.bazel",
     patterns = ["//..."],
+    rust_extra_rustc_flags = ["--cfg=consumer_toolchain"],
     rust_target_triples = ["wasm32-wasip1"],
 )
 

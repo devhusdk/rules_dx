@@ -40,6 +40,33 @@ rust_binary(
     deps = [":tasks_core"],
 )
 
+rust_binary(
+    name = "tasks_without_core",
+    srcs = ["cli/main.rs"],
+    crate_name = "shared_tasks_cli",
+    crate_root = "cli/main.rs",
+    tags = ["manual"],
+    deps = [":tasks_model"],
+)
+
+rust_binary(
+    name = "consumer_report",
+    srcs = ["consumer_report.rs"],
+    crate_root = "consumer_report.rs",
+    deps = [":tasks_core"],
+)
+
+rust_wasi_test(
+    name = "consumer_report_test",
+    binary = ":consumer_report",
+    expected_stdout = "\n".join([
+        "ok:done 2",
+        "summary tasks=2 done=2 open=0 assets=0",
+        "core=2.0.0 toolchain=consumer",
+    ]),
+    tags = ["block-network"],
+)
+
 rust_wasi_module(
     name = "tasks_wasi",
     binary = ":tasks",

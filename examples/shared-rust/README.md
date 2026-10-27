@@ -161,6 +161,12 @@ bazel test @shared_consumer//... \
   //examples/shared-rust:consumer_native_test
 ```
 
+`//tools/testing/hermetic:rust_wasi` builds the core from a fresh
+module that names rules_dx `@my_dx`. That module's own `rust.toolchain`
+adds the `wasm32-wasip1` target and the `rustc` flag
+`--cfg=consumer_toolchain`. `consumer_report_test` only compiles with
+that flag.
+
 ## Offline and errors
 
 ```sh
@@ -169,19 +175,19 @@ bazel test //examples/shared-rust/... @shared_consumer//... \
   --repository_disable_download
 ```
 
-Tests tagged `block-network` run without network. With an empty
-repository cache, `--repository_disable_download` fails with
-`download is disabled`. `missing_interface_test` expects a web app
+Tests tagged `block-network` run without network.
+`//tools/testing/hermetic:rust_wasi` runs this check: it fetches with
+network, then tests in a fresh output root with the network denied and
+`--repository_disable_download`. With an empty repository cache and no
+network, the build fails with `Unknown host`. A binary that leaves out
+`tasks_core` fails with ``error[E0432]: unresolved import `shared_tasks` ``.
+`missing_interface_test` expects a web app
 without its bindgen interface to fail with
 `requires bindgen to provide RustWasmBindgenInfo`.
 `missing_asset_test` and `bad_asset_path_test` cover asset errors.
 
 ## Pending
 
-- Custom toolchain override in the consumer: it overrides features,
-  `rustc` flags, and the WASI runtime wrapper only.
-- Automated offline check: the fetch and `--repository_disable_download`
-  commands above are not run by any test.
 - Emulator run: needs KVM. Without it the emulator boot loops.
 - Physical arm64 device run.
 - Multi-ABI install on a device.

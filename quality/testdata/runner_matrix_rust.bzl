@@ -96,7 +96,6 @@ RUST_CASES = [
         "rustfmt_from_toolchain": True,
         "edition_tools": ["rustfmt"],
         "edition_values": ["2021"],
-        "runner_failure": True,
         "expected_file": ":matrix/matrix_rust_format_missing_module.expected.txt",
     },
     {

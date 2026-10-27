@@ -209,6 +209,7 @@ exports_files([
     ".clang-format",
     ".editorconfig",
     ".gitignore",
+    ".npmrc",
     ".shellcheckrc",
     "MODULE.bazel",
     "MODULE.bazel.lock",

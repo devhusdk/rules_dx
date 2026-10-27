@@ -16,6 +16,8 @@ pub(crate) const CODE_UPDATE_SET_PINNED: &str = "update_set_pinned";
 pub(crate) const CODE_UPDATE_SET_BLOCKED: &str = "update_set_blocked";
 pub(crate) const CODE_BUILD_EVENTS_INCOMPLETE: &str = "build_events_incomplete";
 pub(crate) const CODE_TESTS_FILTERED: &str = "tests_filtered";
+pub(crate) const CODE_COVERAGE_SOURCES: &str = "coverage_sources";
+pub(crate) const CODE_COVERAGE_SOURCES_INCOMPLETE: &str = "coverage_sources_incomplete";
 pub(crate) const CODE_MANAGED_DRIFT: &str = "managed_drift";
 pub(crate) const CODE_UMBRELLA_PHASE_SKIPPED: &str = "umbrella_phase_skipped";
 pub(crate) const CODE_UMBRELLA_PHASE_FINDINGS: &str = "umbrella_phase_findings";
@@ -43,6 +45,12 @@ pub(crate) const SHARED_NOTICE_CODES: &[&str] = &[
 
 const WORKFLOW_CODES: &[&str] = &[CODE_BUILD_EVENTS_INCOMPLETE];
 const TEST_CODES: &[&str] = &[CODE_BUILD_EVENTS_INCOMPLETE, CODE_TESTS_FILTERED];
+const COVERAGE_CODES: &[&str] = &[
+    CODE_BUILD_EVENTS_INCOMPLETE,
+    CODE_TESTS_FILTERED,
+    CODE_COVERAGE_SOURCES,
+    CODE_COVERAGE_SOURCES_INCOMPLETE,
+];
 const AUDIT_CODES: &[&str] = &[CODE_AUDIT_SECURITY_CLEAN, CODE_AUDIT_LICENSE_CLEAN];
 const UMBRELLA_CODES: &[&str] = &[CODE_UMBRELLA_PHASE_SKIPPED, CODE_UMBRELLA_PHASE_FINDINGS];
 
@@ -53,7 +61,8 @@ pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
         Command::Security | Command::License => AUDIT_CODES,
         Command::Lint | Command::Typecheck | Command::Format => WORKFLOW_CODES,
         Command::Build | Command::Run | Command::Deploy => WORKFLOW_CODES,
-        Command::Test | Command::Coverage => TEST_CODES,
+        Command::Test => TEST_CODES,
+        Command::Coverage => COVERAGE_CODES,
         Command::Generate => &[dx_plan::generate::IGNORED_IMPORT_CODE],
         Command::Check | Command::Fix => UMBRELLA_CODES,
         Command::Clean => &[

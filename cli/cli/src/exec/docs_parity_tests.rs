@@ -258,6 +258,12 @@ fn every_notice_code_is_named_on_its_command_page() {
     }
 }
 
+/// `mod name {` opens an inline module; `mod name;` only declares a file module.
+fn is_inline_mod(line: &str) -> bool {
+    let line = line.trim();
+    line.starts_with("mod ") && line.ends_with('{')
+}
+
 fn literal_notice_codes(source: &str) -> Vec<String> {
     let lines: Vec<&str> = source.lines().collect();
     let cut = lines
@@ -268,7 +274,7 @@ fn literal_notice_codes(source: &str) -> Vec<String> {
                 && lines[index + 1..]
                     .iter()
                     .find(|next| !next.trim().is_empty())
-                    .is_some_and(|next| next.trim_start().starts_with("mod "))
+                    .is_some_and(|next| is_inline_mod(next))
         })
         .map_or(lines.len(), |(index, _)| index);
     let code = lines[..cut].join("\n");
@@ -341,13 +347,18 @@ fn notice_codes_are_never_literals() {
 
 #[test]
 fn literal_scanner_catches_multi_line_literals_and_skips_test_modules() {
-    let source = "fn a() {\n    NoticeEvent::warning(\n        \"oops\",\n        m,\n    );\n    \
+    let source = "#[cfg(test)]\nmod delivery_sink;\nfn z() { NoticeEvent::info(\"after_decl\", m); }\n\
+                  fn a() {\n    NoticeEvent::warning(\n        \"oops\",\n        m,\n    );\n    \
                   NoticeEvent::info(CODE_OK, m);\n    NoticeEvent::info(&format!(\"x_{y}\"), m);\n}\n\
                   const V: EditVerb = EditVerb { notice_code: \"bad\" };\n\
                   #[cfg(test)]\nconst KEPT: &str = \"\";\nfn b() { NoticeEvent::info(\"after\", m); }\n\
                   #[cfg(test)]\nmod tests {\n    fn t() { NoticeEvent::info(\"test_only\", m); }\n}\n";
     let found = literal_notice_codes(source);
-    assert_eq!(found.len(), 4, "{found:?}");
+    assert_eq!(found.len(), 5, "{found:?}");
+    assert!(
+        found.iter().any(|hit| hit.contains("\"after_decl\"")),
+        "{found:?}"
+    );
     assert!(
         found.iter().any(|hit| hit.contains("warning(\"oops\"")),
         "{found:?}"

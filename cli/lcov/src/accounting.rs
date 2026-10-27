@@ -47,6 +47,8 @@ pub struct CellAccount {
     pub excluded_files: u64,
     pub unsupported_files: u64,
     pub files: BTreeMap<String, Disposition>,
+    /// Production sources owned by an instrumented target that the report never saw.
+    pub absent: Vec<String>,
     pub errors: Vec<String>,
 }
 
@@ -254,6 +256,7 @@ pub fn account(
             result.errors.push(format!(
                 "production source absent from coverage report: {path}"
             ));
+            result.absent.push(path.clone());
             continue;
         };
         match disposition {

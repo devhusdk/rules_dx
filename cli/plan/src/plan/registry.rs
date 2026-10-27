@@ -102,6 +102,7 @@ pub fn spec(command: Command) -> CommandSpec {
             probe: None,
             reports: &[
                 StandardFormat::Lcov,
+                StandardFormat::Sources,
                 StandardFormat::Failures,
                 StandardFormat::Results,
             ],
@@ -317,6 +318,7 @@ mod tests {
             coverage.reports,
             &[
                 StandardFormat::Lcov,
+                StandardFormat::Sources,
                 StandardFormat::Failures,
                 StandardFormat::Results
             ]
@@ -364,6 +366,7 @@ mod tests {
             StandardFormat::Sarif,
             StandardFormat::Junit,
             StandardFormat::Lcov,
+            StandardFormat::Sources,
             StandardFormat::Spdx,
             StandardFormat::Failures,
             StandardFormat::Results,
@@ -382,6 +385,7 @@ mod tests {
             StandardFormat::Sarif,
             StandardFormat::Junit,
             StandardFormat::Lcov,
+            StandardFormat::Sources,
             StandardFormat::Spdx,
             StandardFormat::Failures,
             StandardFormat::Results,

@@ -327,7 +327,7 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--min-coverage <percent>] [--report lcov=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--min-coverage <percent>] [--report lcov=<path>] [--report sources=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` takes a whole number
@@ -341,7 +341,10 @@ on stderr, or emits an `error` event with code `coverage_below_minimum` with
 C and C++ tests report line coverage through LLVM, with no setup needed.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
-combined LCOV. Repeat the flag for more files. Use `-` for stdout. A relative
+combined LCOV. `--report sources=<path>` writes a JSON record (`record_version`, `cell`,
+`owned` with each source's disposition, `absent` production sources the report
+never saw, `errors`); it fails when the evidence is incomplete. Repeat the
+flag for more files. Use `-` for stdout. A relative
 path anchors at the workspace root; an absolute one writes as given. Colliding
 destinations fail before anything runs, parents must exist, and a failed write
 keeps the previous file bytes.

@@ -420,6 +420,7 @@ jobs:
           fi
           if [ -n "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
             extra+=(--report "lcov=${RUNNER_TEMP:-/tmp}/dx_coverage.lcov")
+            extra+=(--report "sources=${RUNNER_TEMP:-/tmp}/dx_coverage_sources.json")
           fi
           bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" "$DX_SCOPE" -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
           rc=${PIPESTATUS[0]}
@@ -451,6 +452,7 @@ jobs:
           bazel run "$@" --noshow_progress --ui_event_filters=-info @rules_dx//tools/ci:changed_line_coverage_bin -- \
             --base "$DX_BASE" \
             --lcov "${RUNNER_TEMP}/dx_coverage.lcov" \
+            --sources "${RUNNER_TEMP}/dx_coverage_sources.json" \
             --threshold "$DX_THRESHOLD" 2>&1 | tee "${RUNNER_TEMP}/dx_changed_lines.txt"
           rc=${PIPESTATUS[0]}
           echo "$rc" > "${RUNNER_TEMP}/dx_changed_lines.rc"

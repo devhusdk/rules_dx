@@ -157,8 +157,11 @@ uncovered `path:line`. It fails when:
   exact, with no rounding.
 - the base commit is not available.
 - the coverage report is missing, empty, or not valid LCOV.
-- a changed file has the extension of files in the report but is not in it.
-  The result is `incomplete`.
+- a changed production source that Bazel instruments has no record in the
+  report. `dx coverage --report sources=<path>` lists these sources. Test
+  sources and files no instrumented target owns are skipped. The result is
+  `incomplete`. A library only reached by `no-coverage` tests stays
+  `incomplete`.
 
 ## Docs Workflow
 

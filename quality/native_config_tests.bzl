@@ -120,8 +120,9 @@ def native_config_unit_tests(name):
                     native_config_extension("djlint"),
                     native_config_extension("yamllint"),
                     native_config_extension("redocly"),
+                    native_config_extension("remark"),
                 ],
-                [".json", "djlint.toml", ".yaml", ".yaml"],
+                [".json", "djlint.toml", ".yaml", ".yaml", ".json"],
             ),
             expect_equal(
                 "native_config_extension pins the graphql_eslint JSON transport",
@@ -196,7 +197,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("prettier", "x.json", True, []),
                 "native_config: unknown tool 'prettier': want one of " +
-                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, pmd, psscriptanalyzer, qmlformat, qmllint, redocly, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
+                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, pmd, psscriptanalyzer, qmlformat, qmllint, redocly, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",
@@ -354,8 +355,9 @@ def native_config_unit_tests(name):
                     missing_required_config_error("taplo", {}, "//q:t"),
                     missing_required_config_error("pmd", {}, "//q:t"),
                     missing_required_config_error("prettier", {}, "//q:t"),
+                    missing_required_config_error("remark", {}, "//q:t"),
                 ],
-                ["", "", "", "", "", "", "", ""],
+                ["", "", "", "", "", "", "", "", ""],
             ),
         ],
         file_checks = {

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_mdx_eslint_plugin_fail
+capability LINT
+stages 1
+stage eslint classes=mdx sources=quality/testdata/real_dirty.mdx
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR eslint no-unused-vars quality/testdata/real_dirty.mdx 45 51 fixable=false "'Legend' is defined but never used."
+terminal 1
+terminal ERROR eslint no-unused-vars quality/testdata/real_dirty.mdx 45 51 fixable=false "'Legend' is defined but never used."
+replacements 0

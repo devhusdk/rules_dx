@@ -298,6 +298,20 @@ API_SPEC_REDOCLY_LINT_SUPPORT = {
     "transport": "single",
 }
 
+MDX_REMARK_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["mdx"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "mdx",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "remark",
+    "transport": "batched",
+}
+
 SQL_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -448,6 +462,7 @@ SUPPORT_RECORDS = [
     CSS_STYLELINT_LINT_SUPPORT,
     GRAPHQL_ESLINT_LINT_SUPPORT,
     API_SPEC_REDOCLY_LINT_SUPPORT,
+    MDX_REMARK_FORMAT_SUPPORT,
     SQL_PRETTIER_FORMAT_SUPPORT,
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
@@ -592,6 +607,10 @@ def support_api_spec_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the OpenAPI and AsyncAPI lint family."""
     return _wiring_error(API_SPEC_REDOCLY_LINT_SUPPORT, wired_tools, "real_js_lint_aspect")
 
+def support_mdx_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the MDX family."""
+    return _wiring_error(MDX_REMARK_FORMAT_SUPPORT, wired_tools, "real_js_format_aspect")
+
 def support_prettier_plugins_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Prettier plugin families."""
     for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
@@ -715,6 +734,10 @@ def support_api_spec_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the OpenAPI and AsyncAPI lint family."""
     return _cli_error(API_SPEC_REDOCLY_LINT_SUPPORT, cli_aspects, "real_js_lint_aspect")
 
+def support_mdx_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the MDX family."""
+    return _cli_error(MDX_REMARK_FORMAT_SUPPORT, cli_aspects, "real_js_format_aspect")
+
 def support_prettier_plugins_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Prettier plugin families."""
     for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
@@ -804,6 +827,10 @@ def support_graphql_artifact_error():
 def support_api_spec_artifact_error():
     """Reports the actionable artifact gap for the OpenAPI and AsyncAPI lint family."""
     return _artifact_error(API_SPEC_REDOCLY_LINT_SUPPORT)
+
+def support_mdx_artifact_error():
+    """Reports the actionable artifact gap for the MDX family."""
+    return _artifact_error(MDX_REMARK_FORMAT_SUPPORT)
 
 def support_prettier_plugins_artifact_error():
     """Reports the actionable artifact gap for the Prettier plugin families."""

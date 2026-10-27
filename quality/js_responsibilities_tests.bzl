@@ -110,6 +110,11 @@ def js_responsibilities_unit_tests(name):
                 [["prettier"], ["eslint"]],
             ),
             expect_equal(
+                "mdx is formatted by remark, linted by eslint, and typechecked by nothing",
+                [_claimants("format", "mdx"), _claimants("lint", "mdx"), _claimants("typecheck", "mdx")],
+                [["remark"], ["eslint"], []],
+            ),
+            expect_equal(
                 "vue is formatted by prettier and linted by eslint only",
                 [_claimants("format", "vue"), _claimants("lint", "vue")],
                 [["prettier"], ["eslint"]],

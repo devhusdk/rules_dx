@@ -69,6 +69,8 @@ const ESLINT_FIX_SUFFIX: &[&str] = &["-f", "json", "--fix"];
 const PRETTIER_BASE: &[&str] = &["--no-editorconfig"];
 const PRETTIER_CHECK_TAIL: &[&str] = &["--check"];
 const PRETTIER_FIX_TAIL: &[&str] = &["--write"];
+const REMARK_CHECK_TAIL: &[&str] = &["--check"];
+const REMARK_FIX_TAIL: &[&str] = &["--write"];
 const SCALAFMT_CHECK_PREFIX: &[&str] = &["--list"];
 const SCALAFMT_EMPTY: &[&str] = &[];
 const CSHARPIER_CHECK_PREFIX: &[&str] = &["check"];
@@ -443,6 +445,32 @@ pub fn prettier_check(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocati
 
 pub fn prettier_fix(launch: &ResolvedTool, files: &[&Path]) -> Result<Invocation, LaunchError> {
     launch.resolve(&prettier_args(PRETTIER_FIX_TAIL), files)
+}
+
+fn remark_args(tail: &[&str], settings: Option<&Path>) -> Vec<OsString> {
+    let mut args = Vec::with_capacity(2 + tail.len());
+    if let Some(settings) = settings {
+        args.push(OsString::from("--settings"));
+        args.push(settings.as_os_str().to_owned());
+    }
+    args.extend(tail.iter().map(OsString::from));
+    args
+}
+
+pub fn remark_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    settings: Option<&Path>,
+) -> Result<Invocation, LaunchError> {
+    launch.resolve(&remark_args(REMARK_CHECK_TAIL, settings), files)
+}
+
+pub fn remark_fix(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    settings: Option<&Path>,
+) -> Result<Invocation, LaunchError> {
+    launch.resolve(&remark_args(REMARK_FIX_TAIL, settings), files)
 }
 
 pub fn markdown_check(

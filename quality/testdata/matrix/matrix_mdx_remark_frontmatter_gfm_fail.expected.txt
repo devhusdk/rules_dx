@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_mdx_remark_frontmatter_gfm_fail
+capability FORMAT
+stages 1
+stage remark classes=mdx sources=quality/testdata/real_gfm_dirty.mdx
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING remark - quality/testdata/real_gfm_dirty.mdx 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement quality/testdata/real_gfm_dirty.mdx 62 152 "- [ ] Check the totals\n- [x] ~~Draft~~ the summary\n\n| Quarter | Revenue |\n| ------- | ------: |\n| Q3      |     "

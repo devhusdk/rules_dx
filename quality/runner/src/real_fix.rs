@@ -94,6 +94,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "remark",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "eslint",
         config: FixConfig::Required,
         keep_exit_one: true,
@@ -263,7 +269,7 @@ impl super::RealBackend {
                     "graphql_eslint requires a config".to_owned(),
                 )),
             },
-            "buf" | "djlint" | "biome" | "prettier" => {
+            "buf" | "djlint" | "biome" | "prettier" | "remark" => {
                 if capability == "format" {
                     self.run_spec_fix(tool_id, tool, path, text, true)
                 } else {
@@ -421,6 +427,11 @@ impl super::RealBackend {
                         config.as_deref(),
                     )),
                     "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs, config.as_deref())),
+                    "remark" => {
+                        let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                        Ok(commands::remark_fix(&launch, refs, config.as_deref())
+                            .map_err(|err| execution(tool_id, err.to_string()))?)
+                    }
                     "clang_format" => Ok(commands::clang_format_fix(
                         &tool.binary,
                         refs,

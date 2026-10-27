@@ -63,6 +63,7 @@ _REAL_TOOL_TABLE = {
     "qmlformat": {"capabilities": ["format"], "shard": "core", "resources": "light"},
     "qmllint": {"capabilities": ["lint"], "shard": "core", "resources": "medium"},
     "redocly": {"capabilities": ["lint"], "shard": "js", "resources": "medium"},
+    "remark": {"capabilities": ["format"], "shard": "js", "resources": "heavy"},
     "rubocop": {"capabilities": ["lint"], "shard": "ruby", "resources": "medium"},
     "roslyn": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
     "ruff": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
@@ -493,6 +494,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_extra["prettier"] = ctx.attr._prettier[DefaultInfo].files.to_list()
     if "pydoclint" in stage_tools:
         tool_binaries["pydoclint"] = ctx.executable._pydoclint
+    if "remark" in stage_tools:
+        tool_binaries["remark"] = ctx.executable._remark
+        tool_extra["remark"] = ctx.attr._remark[DefaultInfo].files.to_list()
     if "pylint" in stage_tools:
         tool_binaries["pylint"] = ctx.executable._pylint
     if "qmlformat" in stage_tools:
@@ -755,6 +759,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "prettier" in stage_tools:
         run_tools.append(ctx.attr._prettier[DefaultInfo].files_to_run)
         tool_env_entries["prettier"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    if "remark" in stage_tools:
+        run_tools.append(ctx.attr._remark[DefaultInfo].files_to_run)
+        tool_env_entries["remark"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "stylelint" in stage_tools:
         run_tools.append(ctx.attr._stylelint[DefaultInfo].files_to_run)
         tool_env_entries["stylelint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
@@ -1063,6 +1070,11 @@ _REAL_TOOL_ATTR_DEFS = {
         cfg = "exec",
         executable = True,
     ),
+    "remark": attr.label(
+        default = "//quality/tools/javascript/bin:remark",
+        cfg = "exec",
+        executable = True,
+    ),
     "stylelint": attr.label(
         default = "//quality/tools/javascript/bin:stylelint",
         cfg = "exec",
@@ -1296,7 +1308,7 @@ _REAL_SHARDS = {
     "real_yaml_format": {"attrs": _REAL_YAML_FORMAT_ATTRS, "capability": "format", "doc": "Additive YAML format family aspect (yamlfmt).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_FORMAT_TOOLS},
     "real_yaml_lint": {"attrs": _REAL_YAML_LINT_ATTRS, "capability": "lint", "doc": "Additive YAML lint family aspect (yamllint).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_LINT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
-    "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
+    "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON/MDX format family aspect (Prettier, remark).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
     "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint/Redocly opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
     "real_jvm_lint": {"attrs": _REAL_JVM_LINT_ATTRS, "capability": "lint", "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_LINT_TOOLS},

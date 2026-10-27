@@ -50,6 +50,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "qmlformat",
     "qmllint",
     "redocly",
+    "remark",
     "roslyn",
     "rubocop",
     "ruff",
@@ -594,6 +595,7 @@ mod tests {
             "graphql_eslint",
             "prettier",
             "redocly",
+            "remark",
             "stylelint",
         ] {
             assert_eq!(
@@ -632,6 +634,7 @@ mod tests {
             "graphql_eslint",
             "prettier",
             "redocly",
+            "remark",
             "stylelint",
         ] {
             assert!(!reads_own_manifest(tool_id), "{tool_id}");

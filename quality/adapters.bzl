@@ -99,6 +99,7 @@ REAL_CLASS_TO_FAMILY = {
     "cuda": "cuda",
     "cue": "cue",
     "dockerfile": "dockerfile",
+    "d": "d",
     "elixir": "elixir",
     "erlang": "erlang",
     "fortran": "fortran",

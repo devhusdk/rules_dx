@@ -1,0 +1,24 @@
+diff --git a/d/private/rules/cc_toolchain.bzl b/d/private/rules/cc_toolchain.bzl
+--- a/d/private/rules/cc_toolchain.bzl
++++ b/d/private/rules/cc_toolchain.bzl
+@@ -15,9 +15,6 @@
+     "use_header_modules",
+     "fdo_instrument",
+     "fdo_optimize",
+-    # disable PIC support for now
+-    # TODO: re-enable, but we need to have pic_objects/pic_static_library everywhere
+-    "supports_pic",
+     # This is a nonspecific unsupported feature which allows the authors of C++
+     # toolchain to apply separate flags when compiling D code.
+     "rules_d_unsupported_feature",
+diff --git a/d/private/rules/link.bzl b/d/private/rules/link.bzl
+--- a/d/private/rules/link.bzl
++++ b/d/private/rules/link.bzl
+@@ -24,6 +24,7 @@
+     ] + ([toolchain.druntime[CcInfo].linking_context] if toolchain.druntime else [])
+     compilation_outputs = cc_common.create_compilation_outputs(
+         objects = depset(direct = [d_info.compilation_output]),
++        pic_objects = depset(direct = [d_info.compilation_output]),
+     )
+     return cc_common.link(
+         name = ctx.label.name,

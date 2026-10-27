@@ -58,6 +58,23 @@ rust_test(
 
 # keep
 rust_test(
+    name = "signing_script_test",
+    size = "small",
+    srcs = ["signing_script_test.rs"],
+    data = [
+        "//apple/signing:codesign_app.sh",
+        "//apple/signing:notarize_app.sh",
+    ],
+    env = {
+        "DX_CODESIGN_APP": "$(rootpath //apple/signing:codesign_app.sh)",
+        "DX_NOTARIZE_APP": "$(rootpath //apple/signing:notarize_app.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "linux_consumer_test",
     size = "large",
     srcs = [
@@ -172,6 +189,7 @@ rustfmt_test(
         ":device_script_test",
         ":linux_consumer_test",
         ":probe_script_test",
+        ":signing_script_test",
         ":simulator_script_test",
         ":xcframework_script_test",
     ],
@@ -183,6 +201,7 @@ rust_clippy_test(
         ":device_script_test",
         ":linux_consumer_test",
         ":probe_script_test",
+        ":signing_script_test",
         ":simulator_script_test",
         ":xcframework_script_test",
     ],

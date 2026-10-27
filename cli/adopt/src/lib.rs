@@ -14,6 +14,7 @@ pub mod defaults;
 pub mod dependency_sets;
 pub mod error;
 pub mod git_changes;
+pub mod init_parts;
 pub mod launcher;
 pub mod load_graph;
 pub mod migrate;
@@ -32,6 +33,10 @@ pub use error::AdoptError;
 pub use git_changes::{
     dedupe_changes, nearest_package_pattern, parse_name_status_nul, ChangeKind, GitChange,
     DEFAULT_BRANCH_CANDIDATES,
+};
+pub use init_parts::{
+    merge_init_record, read_init_record, InitPart, InitParts, InitRecord, INIT_PART_NAMES,
+    INIT_RECORD_REL,
 };
 pub use launcher::{
     launcher_version, plan_launcher_files, refresh_launcher_files, release_pins,

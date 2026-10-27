@@ -112,6 +112,7 @@ fn init(root: &Path, env: &Env) {
         &[
             "init",
             "--apply",
+            "--with=agents",
             "--workspace",
             root.to_str().expect("utf8"),
         ],

@@ -257,6 +257,8 @@ pub struct Invocation {
     pub force: bool,
     pub disk: bool,
     pub bases: bool,
+    /// The optional `dx init` parts `--with` or `--full` selected.
+    pub init_parts: dx_adopt::InitParts,
     pub path_only: bool,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
@@ -610,6 +612,7 @@ mod tests {
             force: false,
             disk: false,
             bases: false,
+            init_parts: dx_adopt::InitParts::NONE,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),

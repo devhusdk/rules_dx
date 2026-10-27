@@ -26,12 +26,13 @@ Removed spellings fail with exit `2` and name the replacement:
 - `c#` and `c-sharp` are now `csharp`.
 - `f#` and `f-sharp` are now `fsharp`.
 
-Every starter also writes `.dx/version`, `.devcontainer/devcontainer.json`,
+Every starter writes the full `dx init` set, every part included:
+`.dx/version`, `.devcontainer/devcontainer.json`,
 `.gitignore`, `.bazelignore`, `.envrc`, `.vscode/settings.json`, `.vscode/extensions.json`,
 `.github/workflows/ci.yml` and `MODULE.bazel.snippet`. Check mode reports
 them when they are missing.
 
-Like `dx init --apply`, `--apply` also writes the launcher (`tools/dx` and
+Like `dx init --apply --full`, `--apply` also writes the launcher (`tools/dx` and
 `tools/dx.cmd`), the `rules_dx` overrides under `third_party/rules_dx/` (the new
 `MODULE.bazel` includes them, see [overrides](init.md#rules_dx-overrides)), the `dx worktree` hooks files (`.claude/settings.json`,
 `.codex/hooks.json`, `.gemini/settings.json`), and the

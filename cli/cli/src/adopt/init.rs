@@ -31,15 +31,31 @@ pub(crate) fn execute_init(
         .targets
         .first()
         .map_or("my_project", String::as_str);
+    let record = match dx_adopt::read_init_record(workspace) {
+        Ok(record) => record,
+        Err(error) => {
+            return operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string())
+        }
+    };
+    let parts = record.parts.union(invocation.init_parts);
+    let agents = parts.contains(dx_adopt::InitPart::Agents);
     if !invocation.applies() {
-        return check_init(invocation, workspace, module, out, err);
+        return check_init(invocation, workspace, module, &record, parts, out, err);
     }
-    if let Err(message) = super::wiring::preflight(workspace, "") {
+    let planned = match dx_adopt::plan_init_files(module, parts) {
+        Ok(files) => files,
+        Err(error) => return invalid_module_code(invocation, out, err, &error),
+    };
+    let mut destinations: Vec<&str> = planned.iter().map(|file| file.path.as_str()).collect();
+    destinations.push(dx_adopt::INIT_RECORD_REL);
+    if let Err(message) = super::wiring::preflight(workspace, "", agents, &destinations) {
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
     let mut applied = dx_adopt::Applied::default();
     let mut notes = Vec::new();
-    let result = match dx_adopt::apply_init(workspace, module, &mut applied) {
+    let written = dx_adopt::merge_init_record(workspace, invocation.init_parts, &mut applied)
+        .and_then(|()| dx_adopt::apply_init(workspace, module, parts, &mut applied));
+    let result = match written {
         Ok(()) => {
             if applied.refused.iter().any(|path| path == ".bazelignore")
                 && !std::fs::read_to_string(workspace.join(".bazelignore"))
@@ -49,7 +65,7 @@ pub(crate) fn execute_init(
                     ".bazelignore lacks .dx; add it so Bazel skips the IDE output base".to_owned(),
                 );
             }
-            super::wiring::apply(workspace, "", &mut applied, &mut notes)
+            super::wiring::apply(workspace, "", agents, &mut applied, &mut notes)
         }
         Err(error @ dx_adopt::AdoptError::InitInvalidModule { .. }) => {
             return invalid_module_code(invocation, out, err, &error);
@@ -71,14 +87,24 @@ fn check_init(
     invocation: &Invocation,
     workspace: &std::path::Path,
     module: &str,
+    record: &dx_adopt::InitRecord,
+    parts: dx_adopt::InitParts,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let files = match dx_adopt::plan_init_files(module) {
+    let files = match dx_adopt::plan_init_files(module, parts) {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
-    let wiring = super::wiring::drift(workspace);
+    if !record.unknown.is_empty() {
+        let _ = writeln!(
+            err,
+            "dx: {} names parts this dx does not know: {}",
+            dx_adopt::INIT_RECORD_REL,
+            record.unknown.join(", ")
+        );
+    }
+    let wiring = super::wiring::drift(workspace, parts.contains(dx_adopt::InitPart::Agents));
     let mut missing: Vec<String> = files
         .iter()
         .map(|file| file.path.clone())
@@ -132,7 +158,7 @@ mod tests {
     fn init_check_names_missing_hooks_and_agents_block() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-check-wiring-");
         let root = scratch.path().to_path_buf();
-        let apply = invocation(&["init", "--apply"]);
+        let apply = invocation(&["init", "--apply", "--with=agents"]);
         let check = invocation(&["init"]);
         assert_eq!(run(&apply, &root).0, 0);
         assert_eq!(run(&check, &root).0, 0);
@@ -167,7 +193,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-vscode-file-");
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join(".vscode"), "file\n").expect("blocker");
-        let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
+        let (code, out, err) = run(&invocation(&["init", "--apply", "--with=vscode"]), &root);
         assert_eq!(code, 1);
         assert!(out.is_empty(), "{out}");
         assert!(err.contains("init_failed"), "{err}");
@@ -181,7 +207,7 @@ mod tests {
     fn init_apply_finishes_every_write_when_stdout_closes() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-closed-stdout-");
         let root = scratch.path().to_path_buf();
-        let inv = invocation(&["init", "--apply"]);
+        let inv = invocation(&["init", "--apply", "--with=agents"]);
         let mut out = Truncated::after_lines(1);
         let mut err = Vec::new();
         let code = super::super::execute_adoption(&inv, env(&root, &mut out, &mut err));
@@ -258,8 +284,8 @@ mod tests {
     }
 
     #[test]
-    fn init_applies_absent_only() {
-        let inv = invocation(&["init", "--apply"]);
+    fn init_full_applies_every_part() {
+        let inv = invocation(&["init", "--apply", "--full"]);
         let scratch = dx_test_scratch::scratch("dx-adopt-init-apply-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&inv, &root);
@@ -294,7 +320,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-claude-");
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("seed");
-        let inv = invocation(&["init", "--apply"]);
+        let inv = invocation(&["init", "--apply", "--with=agents"]);
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(out.contains("wrote CLAUDE.md"), "{out}");
@@ -314,7 +340,7 @@ mod tests {
         std::fs::create_dir_all(root.join(".claude")).expect("dir");
         let own = "{\"hooks\": {}}\n";
         std::fs::write(root.join(".claude/settings.json"), own).expect("seed");
-        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        let (code, _out, err) = run(&invocation(&["init", "--apply", "--with=agents"]), &root);
         assert_eq!(code, 0);
         assert_eq!(
             std::fs::read_to_string(root.join(".claude/settings.json")).expect("read"),
@@ -356,7 +382,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-agents-");
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join("AGENTS.md"), "# Mine\n\nKeep this.\n").expect("seed");
-        let inv = invocation(&["init", "--apply"]);
+        let inv = invocation(&["init", "--apply", "--with=agents"]);
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(out.contains("wrote AGENTS.md"), "{out}");
@@ -426,5 +452,123 @@ mod tests {
             }
             assert_eq!(entries, vec!["sentinel".to_owned()], "{module:?}");
         }
+    }
+
+    #[test]
+    fn init_default_apply_writes_the_essentials_only() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-essentials-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        for path in [
+            ".dx/version",
+            ".gitignore",
+            ".bazelignore",
+            "MODULE.bazel.snippet",
+            "tools/dx",
+        ] {
+            assert!(root.join(path).exists(), "{path}");
+        }
+        for path in [
+            ".envrc",
+            ".devcontainer",
+            ".vscode",
+            ".github",
+            ".claude",
+            ".codex",
+            ".gemini",
+            "AGENTS.md",
+            "CLAUDE.md",
+            dx_adopt::INIT_RECORD_REL,
+        ] {
+            assert!(!root.join(path).exists(), "{path}");
+        }
+        assert_eq!(run(&invocation(&["init"]), &root).0, 0);
+    }
+
+    #[test]
+    fn init_with_records_parts_and_check_follows_the_record() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-with-");
+        let root = scratch.path().to_path_buf();
+        let (code, out, err) = run(
+            &invocation(&["init", "--apply", "--with=vscode,agents"]),
+            &root,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("wrote .dx/init.toml"), "{out}");
+        for path in [
+            ".vscode/settings.json",
+            ".vscode/extensions.json",
+            ".claude/settings.json",
+            "AGENTS.md",
+        ] {
+            assert!(root.join(path).exists(), "{path}");
+        }
+        assert!(!root.join(".envrc").exists());
+        let record = dx_adopt::read_init_record(&root).expect("record");
+        assert_eq!(record.parts.names(), ["vscode", "agents"]);
+        let check = invocation(&["init"]);
+        assert_eq!(run(&check, &root).0, 0);
+        std::fs::remove_file(root.join(".vscode/settings.json")).expect("remove");
+        let (code, _out, err) = run(&check, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("missing .vscode/settings.json"), "{err}");
+    }
+
+    #[test]
+    fn init_apply_merges_parts_into_the_record() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-merge-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(
+            run(&invocation(&["init", "--apply", "--with=vscode"]), &root).0,
+            0
+        );
+        assert_eq!(
+            run(&invocation(&["init", "--apply", "--with=envrc"]), &root).0,
+            0
+        );
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        let record = dx_adopt::read_init_record(&root).expect("record");
+        assert_eq!(record.parts.names(), ["envrc", "vscode"]);
+    }
+
+    #[test]
+    fn init_check_ignores_parts_a_legacy_tree_never_recorded() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-legacy-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(run(&invocation(&["init", "--apply", "--full"]), &root).0, 0);
+        std::fs::remove_file(root.join(dx_adopt::INIT_RECORD_REL)).expect("legacy");
+        for path in [
+            ".envrc",
+            ".vscode/settings.json",
+            "AGENTS.md",
+            ".claude/settings.json",
+        ] {
+            std::fs::remove_file(root.join(path)).expect("remove");
+        }
+        let (code, out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        let (code, _out, err) = run(&invocation(&["init", "--with=github-ci"]), &root);
+        assert_eq!(code, 0, "{err}");
+        std::fs::remove_file(root.join(".github/workflows/ci.yml")).expect("remove");
+        let (code, _out, err) = run(&invocation(&["init", "--with=github-ci"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("missing .github/workflows/ci.yml"), "{err}");
+    }
+
+    #[test]
+    fn init_check_notes_unknown_recorded_parts_and_rejects_a_bad_record() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-unknown-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        std::fs::write(root.join(dx_adopt::INIT_RECORD_REL), "with = [\"later\"]\n")
+            .expect("record");
+        let (code, _out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains("does not know: later"), "{err}");
+        std::fs::write(root.join(dx_adopt::INIT_RECORD_REL), "with = [\n").expect("bad");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("init_failed"), "{err}");
     }
 }

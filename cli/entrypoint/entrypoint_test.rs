@@ -413,18 +413,30 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        28,
-        "init --apply writes the wiring and override files: {apply}"
+        19,
+        "init --apply writes the essentials, launcher and override files: {apply}"
     );
     for file in [
         ".bazelignore",
-        ".claude/settings.json",
-        "AGENTS.md",
+        "tools/dx",
         "third_party/rules_dx/rules_dx.MODULE.bazel",
     ] {
         assert!(
             apply.contains(&format!("wrote {file}\n")),
             "init writes {file}: {apply}"
+        );
+    }
+    for file in [
+        ".envrc",
+        ".vscode/settings.json",
+        ".github/workflows/ci.yml",
+        ".claude/settings.json",
+        "AGENTS.md",
+        ".dx/init.toml",
+    ] {
+        assert!(
+            !apply.contains(&format!("wrote {file}\n")),
+            "init without --with skips {file}: {apply}"
         );
     }
     assert!(

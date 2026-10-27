@@ -132,7 +132,25 @@ fn capability_line(capability: &CapabilityEvent) -> String {
 
 fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     use super::agents::{workspace_state, State, FILE};
-    let (mut status, mut detail) = match workspace_state(workspace) {
+    let selected = !matches!(
+        dx_adopt::read_init_record(workspace),
+        Ok(record) if !record.parts.contains(dx_adopt::InitPart::Agents)
+    );
+    let block = workspace_state(workspace);
+    let untouched = matches!(block, Ok(State::Missing))
+        && dx_worktree::setup::HOOK_FILES
+            .iter()
+            .all(|file| !workspace.join(file.path).exists());
+    if !selected && untouched {
+        return dx_adopt::StatusCheck {
+            name: "agents".to_owned(),
+            status: "ok".to_owned(),
+            detail: "agents part not selected".to_owned(),
+            hint: "dx init --apply --with=agents writes the block, hooks and CLAUDE.md import"
+                .to_owned(),
+        };
+    }
+    let (mut status, mut detail) = match block {
         Ok(State::Current) => ("ok", format!("{FILE} has the current dx block")),
         Ok(State::Stale) => ("warn", format!("{FILE} has an out-of-date dx block")),
         Ok(State::Missing) => ("warn", format!("{FILE} has no dx block")),
@@ -151,7 +169,8 @@ fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
         name: "agents".to_owned(),
         status: status.to_owned(),
         detail,
-        hint: "dx init --apply writes the block, hooks and CLAUDE.md import".to_owned(),
+        hint: "dx init --apply --with=agents writes the block, hooks and CLAUDE.md import"
+            .to_owned(),
     }
 }
 
@@ -305,9 +324,30 @@ mod tests {
     }
 
     #[test]
+    fn status_skips_agents_until_selected_or_present() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-agents-off-");
+        let root = scratch.path();
+        let check = agents_check(root);
+        assert_eq!(check.status, "ok");
+        assert_eq!(check.detail, "agents part not selected");
+        std::fs::write(
+            root.join("AGENTS.md"),
+            "<!-- dx:begin -->\n- old\n<!-- dx:end -->\n",
+        )
+        .expect("stale");
+        assert_eq!(agents_check(root).status, "warn");
+    }
+
+    #[test]
     fn status_flags_a_missing_or_stale_agents_block_and_accepts_a_current_one() {
         let scratch = dx_test_scratch::scratch("dx-adopt-status-agents-");
         let root = scratch.path();
+        dx_adopt::merge_init_record(
+            root,
+            dx_adopt::InitParts::NONE.with(dx_adopt::InitPart::Agents),
+            &mut dx_adopt::Applied::default(),
+        )
+        .expect("record");
         let check = agents_check(root);
         assert_eq!(
             (check.name.as_str(), check.status.as_str()),

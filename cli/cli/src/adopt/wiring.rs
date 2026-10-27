@@ -26,7 +26,14 @@ fn adopt_message(prefix: &str, error: &dx_adopt::AdoptError) -> String {
 }
 
 /// Fails before any write when a file [`apply`] writes under `root` cannot be read or written.
-pub(super) fn preflight(root: &Path, prefix: &str) -> Result<(), String> {
+///
+/// `agents` adds the hooks files, `AGENTS.md` and `CLAUDE.md`; `extra` adds more destinations.
+pub(super) fn preflight(
+    root: &Path,
+    prefix: &str,
+    agents: bool,
+    extra: &[&str],
+) -> Result<(), String> {
     if root.exists() && !root.is_dir() {
         return Err(format!(
             "{} is not a directory",
@@ -34,13 +41,19 @@ pub(super) fn preflight(root: &Path, prefix: &str) -> Result<(), String> {
         ));
     }
     let mut destinations = vec![dx_adopt::LAUNCHER_SH_REL, dx_adopt::LAUNCHER_CMD_REL];
-    destinations.extend(setup::HOOK_FILES.iter().map(|file| file.path));
-    destinations.extend([agents::FILE, claude_md::FILE]);
+    destinations.extend(extra);
+    if agents {
+        destinations.extend(setup::HOOK_FILES.iter().map(|file| file.path));
+        destinations.extend([agents::FILE, claude_md::FILE]);
+    }
     dx_adopt::preflight_destinations(root, &destinations)
         .map_err(|error| adopt_message(prefix, &error))?;
     dx_adopt::plan_launcher_files(root, &launcher_pin(root), true)
         .map_err(|error| adopt_message(prefix, &error))?;
     dx_adopt::preflight_overrides(root).map_err(|error| adopt_message(prefix, &error))?;
+    if !agents {
+        return Ok(());
+    }
     let io = |error: std::io::Error| error.to_string();
     setup::inspect(root).map_err(io)?;
     agents::planned(root, true).map_err(io)?;
@@ -48,12 +61,14 @@ pub(super) fn preflight(root: &Path, prefix: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Writes the launcher, agent hooks, allowlist, AGENTS.md block and CLAUDE.md import under `root`.
+/// Writes the launcher and overrides under `root`, plus with `agents` the agent hooks,
+/// allowlist, AGENTS.md block and CLAUDE.md import.
 ///
 /// Records each path with `prefix` in `applied` as it lands and each advisory in `notes`; prints nothing.
 pub(super) fn apply(
     root: &Path,
     prefix: &str,
+    agents: bool,
     applied: &mut Applied,
     notes: &mut Vec<String>,
 ) -> Result<(), String> {
@@ -68,6 +83,9 @@ pub(super) fn apply(
             Some(refused) => notes.push(format!("{prefix}{refused}")),
             None => applied.wrote.push(format!("{prefix}{entry}")),
         }
+    }
+    if !agents {
+        return Ok(());
     }
     let outcome = setup::apply(root).map_err(|error| error.to_string())?;
     applied
@@ -140,8 +158,8 @@ pub(super) struct Drift {
     pub(super) other: Vec<String>,
 }
 
-/// The launcher, hooks, AGENTS.md block and CLAUDE.md import drift under `root`.
-pub(super) fn drift(root: &Path) -> Drift {
+/// The launcher drift under `root`, plus with `agents` the hooks, AGENTS.md block and CLAUDE.md import.
+pub(super) fn drift(root: &Path, agents: bool) -> Drift {
     let mut drift = Drift::default();
     for rel in [dx_adopt::LAUNCHER_SH_REL, dx_adopt::LAUNCHER_CMD_REL] {
         if !root.join(rel).exists() {
@@ -153,6 +171,9 @@ pub(super) fn drift(root: &Path) -> Drift {
             .into_iter()
             .map(|(rel, _)| rel),
     );
+    if !agents {
+        return drift;
+    }
     for (path, missing) in setup::workspace_missing(root) {
         if root.join(path).exists() {
             drift
@@ -196,7 +217,7 @@ mod tests {
     fn applied(root: &Path, prefix: &str, code: &str, words: &[&str]) -> (i32, String, String) {
         let inv = invocation(words);
         let (mut applied, mut notes) = (Applied::default(), Vec::new());
-        let result = super::apply(root, prefix, &mut applied, &mut notes);
+        let result = super::apply(root, prefix, true, &mut applied, &mut notes);
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let exit = super::report(&inv, &applied, &notes, result, code, &mut out, &mut err);
         (
@@ -252,12 +273,35 @@ mod tests {
     }
 
     #[test]
+    fn without_agents_only_the_launcher_and_overrides_land() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-no-agents-");
+        let root = scratch.path();
+        std::fs::write(root.join("AGENTS.md"), "<!-- dx:begin -->\nno end\n").expect("broken");
+        std::fs::write(root.join(".claude"), "file").expect("blocker");
+        assert_eq!(super::preflight(root, "", false, &[]), Ok(()));
+        assert!(super::preflight(root, "", true, &[]).is_err());
+        let (mut applied, mut notes) = (Applied::default(), Vec::new());
+        super::apply(root, "", false, &mut applied, &mut notes).expect("apply");
+        assert!(root.join("tools/dx").exists());
+        assert!(root.join("tools/dx.cmd").exists());
+        for path in [".codex", ".gemini", "CLAUDE.md"] {
+            assert!(!root.join(path).exists(), "{path}");
+        }
+        assert_eq!(
+            std::fs::read_to_string(root.join("AGENTS.md")).expect("agents"),
+            "<!-- dx:begin -->\nno end\n"
+        );
+        assert_eq!(super::drift(root, false), super::Drift::default());
+        assert_ne!(super::drift(root, true), super::Drift::default());
+    }
+
+    #[test]
     fn a_non_semver_pin_is_an_init_failure() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-semver-");
         let root = scratch.path();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "1\"; x\n").expect("pin");
-        assert!(super::preflight(root, "").is_err());
+        assert!(super::preflight(root, "", true, &[]).is_err());
         let (code, _out, err) = init(root);
         assert_eq!(code, 1);
         assert!(err.contains("init_failed"));
@@ -270,7 +314,7 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("tools"), "file").expect("blocker");
         assert_eq!(
-            super::preflight(root, "demo/"),
+            super::preflight(root, "demo/", true, &[]),
             Err("demo/tools is not a directory".to_owned())
         );
         let (code, _out, err) = init(root);
@@ -279,7 +323,7 @@ mod tests {
         let file = scratch.path().join("file");
         std::fs::write(&file, "x").expect("file");
         assert_eq!(
-            super::preflight(&file, "file/"),
+            super::preflight(&file, "file/", true, &[]),
             Err("file is not a directory".to_owned())
         );
         assert!(!root.join(".claude").exists());
@@ -326,7 +370,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-code-");
         let root = scratch.path();
         std::fs::write(root.join("AGENTS.md"), "# Mine\n\n<!-- dx:begin -->\n").expect("seed");
-        assert!(super::preflight(root, "demo/").is_err());
+        assert!(super::preflight(root, "demo/", true, &[]).is_err());
         let words = ["new", "--apply", "rust", "demo"];
         let (code, _out, err) = applied(root, "demo/", CODE_NEW_FAILED, &words);
         assert_eq!(code, 1);
@@ -394,7 +438,7 @@ mod tests {
     fn drift_names_each_wiring_gap() {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-drift-");
         let root = scratch.path();
-        let fresh = super::drift(root);
+        let fresh = super::drift(root, true);
         for path in [
             "tools/dx",
             ".claude/settings.json",
@@ -404,11 +448,11 @@ mod tests {
             assert!(fresh.missing.iter().any(|m| m == path), "{path}: {fresh:?}");
         }
         assert_eq!(init(root).0, 0);
-        assert_eq!(super::drift(root), super::Drift::default());
+        assert_eq!(super::drift(root, true), super::Drift::default());
         std::fs::write(root.join(".claude/settings.json"), "{}\n").expect("settings");
         std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("agents");
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
-        let drift = super::drift(root);
+        let drift = super::drift(root, true);
         assert_eq!(drift.stale, vec!["AGENTS.md".to_owned()]);
         assert!(
             drift
@@ -424,7 +468,7 @@ mod tests {
             "{drift:?}"
         );
         std::fs::write(root.join("AGENTS.md"), "<!-- dx:begin -->\n").expect("orphan");
-        assert!(super::drift(root)
+        assert!(super::drift(root, true)
             .other
             .iter()
             .any(|o| o.starts_with("AGENTS.md: ")));

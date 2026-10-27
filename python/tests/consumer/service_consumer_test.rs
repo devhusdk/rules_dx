@@ -198,10 +198,7 @@ fn consumer() -> Case {
                 &pin(&versions, "ASPECT_RULES_PY_VERSION"),
             ),
     );
-    write(
-        &root.join(".bazelrc"),
-        &dx_testing::preset_rc(&rules),
-    );
+    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(&root.join("BUILD.bazel"), ROOT_BUILD);
     write(&root.join("ruff.toml"), "[lint]\nselect = [\"E\", \"F\"]\n");
     for file in ["pyproject.toml", "uv.lock"] {
@@ -511,7 +508,7 @@ fn init_adopts_an_existing_python_tree() {
     assert_eq!(checked.status.code(), Some(1), "{checked:?}");
     assert!(String::from_utf8_lossy(&checked.stderr).contains("init drift"));
     assert!(!dir.join(".dx/version").exists());
-    let applied = invoke(&["init", "--apply", "shop"]);
+    let applied = invoke(&["init", "--apply", "--with=github-ci", "shop"]);
     assert_eq!(applied.status.code(), Some(0), "{applied:?}");
     for file in [
         ".dx/version",

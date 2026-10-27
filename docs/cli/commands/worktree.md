@@ -448,7 +448,7 @@ shape: `.codex/hooks.json` with event `PreToolUse` and matcher `Bash`, and
 | Cursor | `.claude/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
 | Gemini CLI | `.gemini/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
 
-`dx init --apply` writes each file when it is absent and never overwrites it. If
+`dx init --apply --with=agents` writes each file when it is absent and never overwrites it. If
 one exists, it prints the hook entries that file lacks, and the missing
 `permissions.allow` entries of `.claude/settings.json`. It also writes
 the launcher and the agent commands block in `AGENTS.md`; see

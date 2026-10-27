@@ -81,6 +81,8 @@ pub(crate) struct Flags {
     pub(crate) force: bool,
     pub(crate) disk: bool,
     pub(crate) bases: bool,
+    pub(crate) with: Vec<String>,
+    pub(crate) full: bool,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
 }
@@ -385,6 +387,36 @@ flag_group! {
     ScaffoldApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
+    }
+}
+
+flag_group! {
+    /// Add optional init parts (comma-separated, repeatable).
+    InitWithFlag, {
+        #[arg(
+            long,
+            value_name = "PARTS",
+            require_equals = true,
+            value_delimiter = ',',
+            value_parser = clap::builder::PossibleValuesParser::new(dx_adopt::INIT_PART_NAMES)
+        )]
+        with: Vec<String>,
+    }
+}
+
+flag_group! {
+    /// Add every optional init part.
+    InitFullFlag, {
+        #[arg(long, conflicts_with = "with", overrides_with = "full")]
+        full: bool,
+    }
+}
+
+composite_group! {
+    /// The flags that pick the optional init parts.
+    InitPartsArgs, {
+        with: InitWithFlag,
+        full: InitFullFlag,
     }
 }
 
@@ -880,7 +912,7 @@ command_args! {
     /// The flags `dx env` accepts.
     Env => 19, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 20, NoPassthroughTail, { apply: ScaffoldApplyFlag, };
+    Init => 20, NoPassthroughTail, { apply: ScaffoldApplyFlag, own: InitPartsArgs, };
     /// The flags `dx new` accepts.
     New => 21, NoPassthroughTail, { apply: ScaffoldApplyFlag, };
     /// The flags `dx upgrade` accepts.
@@ -1172,10 +1204,21 @@ mod tests {
         for words in [
             vec!["build", "--debug", "--release"],
             vec!["build", "--release", "--debug"],
+            vec!["init", "--full", "--with=vscode"],
         ] {
             assert_eq!(
                 kind_of(&words),
                 clap::error::ErrorKind::ArgumentConflict,
+                "words: {words:?}"
+            );
+        }
+        for words in [
+            vec!["init", "--with=bogus"],
+            vec!["init", "--with=vscode,bogus"],
+        ] {
+            assert_eq!(
+                kind_of(&words),
+                clap::error::ErrorKind::InvalidValue,
                 "words: {words:?}"
             );
         }

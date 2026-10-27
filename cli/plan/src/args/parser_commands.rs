@@ -66,7 +66,9 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 12] = [
+    ("--with", &["--with=vscode"], &["init"]),
+    ("--full", &["--full"], &["init"]),
     (
         "--include-edits",
         &["--include-edits", "--output=json"],
@@ -1466,4 +1468,30 @@ fn add_accepts_apply_offline_and_frozen() {
     assert!(got.frozen);
     let check = parse(&strings(&["add", "npm:vue", "3.5.42"])).expect("add check");
     assert!(!check.applies());
+}
+
+#[test]
+fn init_with_and_full_select_parts() {
+    use dx_adopt::{InitPart, InitParts};
+    let parts = |words: &[&str]| parse(&strings(words)).expect("parses").init_parts;
+    let both = InitParts::NONE
+        .with(InitPart::Vscode)
+        .with(InitPart::Agents);
+    assert_eq!(parts(&["init", "--with=vscode,agents"]), both);
+    assert_eq!(parts(&["init", "--with=vscode", "--with=agents"]), both);
+    assert_eq!(parts(&["init", "--apply", "--full"]), InitParts::ALL);
+    assert_eq!(parts(&["init"]), InitParts::NONE);
+    let bogus = parse(&strings(&["init", "--with=bogus"]))
+        .expect_err("unknown part")
+        .to_string();
+    for name in dx_adopt::INIT_PART_NAMES {
+        assert!(bogus.contains(name), "{bogus}");
+    }
+    assert!(parse(&strings(&["new", "rust", "--with=vscode"])).is_err());
+    let init = super::super::grammar::advertised_flags(Command::Init);
+    let new = super::super::grammar::advertised_flags(Command::New);
+    for flag in ["with", "full"] {
+        assert!(init.iter().any(|name| name == flag), "{init:?}");
+        assert!(!new.iter().any(|name| name == flag), "{new:?}");
+    }
 }

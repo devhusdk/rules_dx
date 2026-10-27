@@ -1396,7 +1396,6 @@ version = "0.0.0"
 name = "dx_bump"
 version = "0.0.0"
 dependencies = [
- "regex",
  "saphyr-parser",
  "semver",
  "serde_json",
@@ -1667,7 +1666,6 @@ dependencies = [
 name = "dx_update"
 version = "0.0.0"
 dependencies = [
- "regex",
  "thiserror 2.0.20",
 ]
 

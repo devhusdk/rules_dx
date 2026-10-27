@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `haskell`, or `cuda`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `ocaml`, `haskell`, or `cuda`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -119,6 +119,7 @@ language rule:
 - `zig` takes Bazel module names.
 - `elixir` takes Bazel module names.
 - `erlang` takes Bazel module names.
+- `ocaml` takes Bazel module names.
 - `haskell` takes Bazel module names.
 - `cuda` takes Bazel module names.
 
@@ -151,6 +152,8 @@ The Elixir starter is the OTP application `hello` with sources in `lib/`, an
 escript, and an ExUnit test in `test/`.
 The Erlang starter is the OTP application `hello` in `src/`, with an escript
 and an EUnit test in `test/`.
+`dx new ocaml` scaffolds the same shape with `hello.ml`, `main.ml` and `hello_test.ml`
+at the root, built by the bytecode OCaml toolchain.
 
 ```sh
 bazel run @rules_dx//:dx -- new --apply ruby demo

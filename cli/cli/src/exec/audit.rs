@@ -600,7 +600,7 @@ fn lock_texts_for_configured(
 pub(super) fn bazel_inputs_for_configured(
     workspace: &Path,
     set: &dx_adopt::dependency_sets::ResolvedSet,
-) -> Result<(Vec<dx_audit::locks::BazelInput>, String), AuditError> {
+) -> Result<(dx_audit::locks::BazelInventory, String), AuditError> {
     let find = |files: &[String], suffix: &str, what: &str| -> Result<String, AuditError> {
         files
             .iter()
@@ -626,24 +626,25 @@ pub(super) fn bazel_inputs_for_configured(
         read_workspace_text(workspace, &rel)
             .map_err(|error| format!("cannot read included {label}: {error}"))
     };
-    let inputs = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
+    let inventory = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
         .map_err(|detail| AuditError::LockParse {
             rel: lock_rel.clone(),
             detail,
         })?;
-    Ok((inputs, lock_rel))
+    Ok((inventory, lock_rel))
 }
 
 fn bazel_coverage_diagnostic(
     set: &dx_adopt::dependency_sets::ResolvedSet,
-    inputs: &[dx_audit::locks::BazelInput],
+    inventory: &dx_audit::locks::BazelInventory,
     lock_rel: &str,
 ) -> DiagnosticEvent {
+    let inputs = &inventory.inputs;
     let count = |source: dx_audit::locks::BazelSource| {
         inputs.iter().filter(|input| input.source == source).count()
     };
     use dx_audit::locks::BazelSource;
-    let message = format!(
+    let mut message = format!(
         "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule, {} module extension); no advisory source maps Bazel module or archive identities",
         set.name,
         inputs.len(),
@@ -655,6 +656,13 @@ fn bazel_coverage_diagnostic(
         count(BazelSource::RepoRule),
         count(BazelSource::Extension),
     );
+    if !inventory.unrecorded_extensions.is_empty() {
+        message.push_str(&format!(
+            "; {} root module extensions have no entry in {lock_rel} (reproducible, or the lock is stale), so their repos are not listed: {}",
+            inventory.unrecorded_extensions.len(),
+            inventory.unrecorded_extensions.join(", ")
+        ));
+    }
     DiagnosticEvent {
         rule: Some(format!(
             "{}/no-advisory-coverage",
@@ -1209,8 +1217,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                             incomplete = Some(format!("failed to assess {}: {error}", set.name));
                         }
                     }
-                    Ok((inputs, lock_rel)) => {
-                        diagnostics.push(bazel_coverage_diagnostic(set, &inputs, &lock_rel));
+                    Ok((inventory, lock_rel)) => {
+                        diagnostics.push(bazel_coverage_diagnostic(set, &inventory, &lock_rel));
                     }
                 }
                 continue;

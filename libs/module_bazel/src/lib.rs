@@ -373,6 +373,18 @@ impl ModuleFile {
             .and_then(|call| call.str("repo_name").or_else(|| call.str("name")))
     }
 
+    /// The `use_extension` calls with literal arguments, as `(bzl_file label, extension name)`.
+    pub fn extensions(&self) -> Vec<(&str, &str)> {
+        self.calls_named("use_extension")
+            .filter_map(|call| {
+                Some((
+                    extension_arg(call, 0, "extension_bzl_file")?,
+                    extension_arg(call, 1, "extension_name")?,
+                ))
+            })
+            .collect()
+    }
+
     /// Every literal coordinate in the `artifacts` of rules_jvm_external `maven.install` tags.
     pub fn maven_artifacts(&self) -> Result<Vec<&Str>, ModuleError> {
         let proxies = self.maven_proxies();

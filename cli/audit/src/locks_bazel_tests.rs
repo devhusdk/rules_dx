@@ -10,7 +10,7 @@ fn no_includes(label: &str) -> Result<String, String> {
 }
 
 fn inputs_of(module: &str, lock_text: &str) -> Result<Vec<BazelInput>, String> {
-    parse_bazel_inputs(module, lock_text, &no_includes)
+    parse_bazel_inputs(module, lock_text, &no_includes).map(|inventory| inventory.inputs)
 }
 
 fn modules_of(module: &str, lock_text: &str) -> Result<Vec<LockedPackage>, String> {
@@ -358,7 +358,9 @@ fn included_segments_are_read() {
         assert_eq!(label, "//:deps.MODULE.bazel");
         Ok("bazel_dep(name = \"rules_bar\", version = \"0.1.0\")\ngit_override(module_name = \"rules_bar\", remote = \"https://example.com/bar.git\", commit = \"abc123\")\n".to_owned())
     };
-    let inputs = parse_bazel_inputs(module, &lock(&[]), &read).expect("parses");
+    let inputs = parse_bazel_inputs(module, &lock(&[]), &read)
+        .expect("parses")
+        .inputs;
     assert_eq!(inputs.len(), 1);
     assert_eq!(inputs[0].name, "rules_bar");
     assert_eq!(inputs[0].source, BazelSource::GitOverride);
@@ -592,4 +594,35 @@ fn patched_and_commit_pinned_extension_repos_keep_those_facts() {
 fn a_non_object_module_extensions_entry_fails() {
     let error = extension_inputs_of(serde_json::json!({EXT_A: []})).expect_err("fails");
     assert!(error.contains("invalid MODULE.bazel.lock"), "{error}");
+}
+
+fn unrecorded_of(module: &str, extensions: serde_json::Value) -> Vec<String> {
+    let mut root: serde_json::Value =
+        serde_json::from_str(&lock(&[("rules_a", "1"), ("rules_b", "1")])).expect("json");
+    root["moduleExtensions"] = extensions;
+    parse_bazel_inputs(module, &root.to_string(), &no_includes)
+        .expect("parses")
+        .unrecorded_extensions
+}
+
+#[test]
+fn root_extensions_missing_from_the_lock_are_named() {
+    let module = "bazel_dep(name = \"rules_a\", version = \"1\", repo_name = \"a\")\n\
+bazel_dep(name = \"rules_b\", version = \"1\")\n\
+x = use_extension(\"@a//:ext.bzl\", \"ext\")\n\
+y = use_extension(\"@rules_b//p:b.bzl\", \"b\")\n\
+z = use_extension(\"//:local.bzl\", \"local\")\n";
+    let recorded = serde_json::json!({
+        "@@rules_a+//:ext.bzl%ext": general(serde_json::json!({})),
+        "@@rules_b+//p:b.bzl%b%isolated": general(serde_json::json!({})),
+    });
+    assert_eq!(unrecorded_of(module, recorded), vec!["//:local.bzl%local"]);
+    assert_eq!(
+        unrecorded_of(module, serde_json::json!({})),
+        vec![
+            "//:local.bzl%local",
+            "@a//:ext.bzl%ext",
+            "@rules_b//p:b.bzl%b"
+        ]
+    );
 }

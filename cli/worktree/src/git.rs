@@ -20,6 +20,9 @@ fn command(cwd: &Path) -> Command {
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GIT_OPTIONAL_LOCKS", "0")
         .stdin(Stdio::null());
+    // Tests must not see the developer's global hooks, `insteadOf` or signing config.
+    #[cfg(test)]
+    super::tests::isolate(&mut command);
     command
 }
 

@@ -2571,6 +2571,20 @@ fn one_preparation_job_covers_every_curated_advisory_set() {
     }
 }
 
+/// Whether the text continues with a bare ` --` separator, not a longer flag.
+fn separator_follows(rest: &str) -> bool {
+    rest.strip_prefix(" --")
+        .is_some_and(|after| after.chars().next().is_none_or(char::is_whitespace))
+}
+
+#[test]
+fn the_separator_check_rejects_longer_flags() {
+    assert!(separator_follows(" -- --out x"));
+    assert!(separator_follows(" --"));
+    assert!(!separator_follows(" --workspace . --out x"));
+    assert!(!separator_follows(" x"));
+}
+
 #[test]
 fn docs_name_the_advisory_refresh_command_the_errors_print() {
     let audit = std::fs::read_to_string(docs_dir().join("audit-update.md"))
@@ -2588,7 +2602,7 @@ fn docs_name_the_advisory_refresh_command_the_errors_print() {
         let runs = format!("bazel run {PREP_TARGET}");
         for (at, _) in text.match_indices(&runs) {
             assert!(
-                text[at + runs.len()..].starts_with(" --"),
+                separator_follows(&text[at + runs.len()..]),
                 "{name} runs {PREP_TARGET} without the -- separator"
             );
         }
@@ -2617,7 +2631,7 @@ fn docs_name_the_gitleaks_resolve_command_the_error_prints() {
     for (name, text) in [("audit-update.md", &audit), ("github-ci.md", &ci)] {
         for (at, _) in text.match_indices(runs) {
             assert!(
-                text[at + runs.len()..].starts_with(" --"),
+                separator_follows(&text[at + runs.len()..]),
                 "{name} runs tool_resolve without the -- separator"
             );
         }

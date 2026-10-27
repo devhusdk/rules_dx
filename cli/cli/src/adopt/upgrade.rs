@@ -26,7 +26,7 @@ pub(crate) fn execute_upgrade(
         apply: invocation.applies(),
         workspace: invocation.workspace.clone(),
     };
-    let syntax = match dx_adopt::plan_upgrade(from, to, &intent) {
+    let plan = match dx_adopt::plan_upgrade(from, to, &intent) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
@@ -36,42 +36,21 @@ pub(crate) fn execute_upgrade(
     } else {
         "check"
     };
-    let plan = match dx_adopt::plan_released_upgrade(from, to, &intent) {
-        Ok(plan) => plan,
-        Err(error) => {
-            let message = format!("{error}; {}", syntax.message);
-            if invocation.output == OutputMode::Json {
-                if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode))
-                {
-                    return exit;
-                }
-            } else if verbose {
-                let live_summary = format!(
-                    "Upgrade {} -> {} via {} (pin {}, migrate, env, codegen)",
-                    syntax.from, syntax.to, syntax.manifest, syntax.to
-                );
-                if let Err(exit) = check_stdout_write(writeln!(out, "{live_summary}")) {
-                    return exit;
-                }
-            }
-            return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
-        }
+    let unshipped = dx_adopt::AdoptError::NoQualifiedManifest {
+        from: plan.from.clone(),
+        to: plan.to.clone(),
+        manifest: plan.manifest.clone(),
     };
-    let live_summary = format!(
-        "Upgrade {} -> {} via {} (pin {}, migrate, env, codegen)",
-        plan.from, plan.to, plan.manifest, plan.to
-    );
-    let message = format!(
-        "no live upgrade path {} -> {} yet (manifest {} qualifies the plan only); {}",
-        plan.from, plan.to, plan.manifest, plan.message
-    );
+    let message = format!("{unshipped}; {}", plan.message);
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
             return exit;
         }
-        return operational(invocation, out, err, CODE_UPGRADE_FAILED, &message);
-    }
-    if verbose {
+    } else if verbose {
+        let live_summary = format!(
+            "Upgrade {} -> {} via {} (pin {}, migrate, env, codegen)",
+            plan.from, plan.to, plan.manifest, plan.to
+        );
         if let Err(exit) = check_stdout_write(writeln!(out, "{live_summary}")) {
             return exit;
         }
@@ -97,6 +76,28 @@ mod tests {
         assert!(err.contains("not shipped"), "{err}");
         assert!(err.contains("dx upgrade --from 1.2.3 --to 2.0.0"), "{err}");
         assert!(!out.contains("Would upgrade"), "{out}");
+    }
+
+    #[test]
+    fn upgrade_unshipped_pair_reports_the_qualification_gap() {
+        let inv = invocation(&["upgrade", "-v", "--from=1.2.3", "--to=2.0.0"]);
+        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-unshipped-");
+        let root = scratch.path().to_path_buf();
+        let (code, out, err) = run(&inv, &root);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains(
+                "no qualified migration 1.2.3 -> 2.0.0: manifest migrate-v1-to-v2.json is not shipped; recovery: rerun"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("no live"), "{err}");
+        assert!(
+            out.contains(
+                "Upgrade 1.2.3 -> 2.0.0 via migrate-v1-to-v2.json (pin 2.0.0, migrate, env, codegen)"
+            ),
+            "{out}"
+        );
     }
 
     #[test]

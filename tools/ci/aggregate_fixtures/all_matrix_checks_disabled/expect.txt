@@ -1,0 +1,3 @@
+input {"NEEDS": {"validate": {"result": "success"}, "checks": {"result": "skipped"}, "security-audit": {"result": "success"}, "advisory-snapshots": {"result": "success"}, "coverage": {"result": "success"}}, "DISABLED": "lint,typecheck,format,generate,license-audit,test,build", "CHECKS": "[]"}
+exit 0
+says "checks": "skipped"

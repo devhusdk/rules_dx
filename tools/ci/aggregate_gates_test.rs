@@ -118,7 +118,7 @@ fn the_consumer_gate_requires_every_declared_check() {
         .into_iter()
         .filter(|name| name != "validate")
         .collect();
-    assert_eq!(wanted.len(), 10, "{CONSUMER_WORKFLOW} declares the checks");
+    assert_eq!(wanted.len(), 4, "{CONSUMER_WORKFLOW} declares the checks");
     let script = aggregate_script(CONSUMER_WORKFLOW, AGGREGATE);
     assert_eq!(
         json!(required_of(&script)),
@@ -132,6 +132,7 @@ fn the_consumer_gate_requires_every_declared_check() {
         "missing checks",
         "if bad or lost or missing:",
         "\"aggregate\": \"dx-ci\"",
+        "os.environ[\"CHECKS\"]",
     ] {
         assert!(
             script.contains(needle),

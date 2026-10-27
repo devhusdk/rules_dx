@@ -3,6 +3,7 @@ exit 0
 says DX_INVOCATION_ID api-linux_x86_64
 out artifact_suffix "-api-linux_x86_64"
 out cache_saver "coverage"
+out checks [{"id":"lint","args":["lint","--check"],"reports":["sarif=lint.sarif"],"passthrough":true,"timeout":30},{"id":"typecheck","args":["typecheck","--check"],"reports":["sarif=typecheck.sarif"],"passthrough":true,"timeout":30},{"id":"format","args":["format","--check"],"reports":[],"passthrough":true,"timeout":30},{"id":"generate","args":["generate","--check"],"reports":[],"passthrough":true,"timeout":30},{"id":"license-audit","args":["license"],"reports":[],"passthrough":false,"timeout":30},{"id":"test","args":["test"],"reports":["junit=junit.xml","failures=failures.json","results=results.json"],"passthrough":true,"timeout":60},{"id":"build","args":["build"],"reports":["failures=failures.json"],"passthrough":true,"timeout":60}]
 out disabled ""
 out min_changed_line_coverage ""
 out min_coverage ""

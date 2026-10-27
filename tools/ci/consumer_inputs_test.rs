@@ -11,17 +11,13 @@ const PREP: &str = "advisory-snapshots";
 
 const AGGREGATE: &str = "dx-ci";
 
-const CHECKS: [&str; 9] = [
-    "lint",
-    "typecheck",
-    "format",
-    "generate",
-    "security-audit",
-    "license-audit",
-    "test",
-    "build",
-    "coverage",
-];
+const MATRIX_JOB: &str = "checks";
+
+const PLATFORM_JOBS: [&str; 3] = [MATRIX_JOB, "security-audit", "coverage"];
+
+const CHECKS_LIST: &str = "${{ needs.validate.outputs.checks }}";
+
+const CHECKS_MATRIX: &str = "${{ fromJSON(needs.validate.outputs.checks) }}";
 
 const PLATFORMS_REF: &str = "needs.validate.outputs.platforms";
 
@@ -58,7 +54,7 @@ fn job_names() -> Vec<String> {
 #[test]
 fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
     let mut wanted: Vec<String> = std::iter::once(VALIDATE.to_owned())
-        .chain(CHECKS.iter().map(|name| (*name).to_owned()))
+        .chain(PLATFORM_JOBS.iter().map(|name| (*name).to_owned()))
         .chain(std::iter::once(PREP.to_owned()))
         .chain(std::iter::once(AGGREGATE.to_owned()))
         .collect();
@@ -66,8 +62,8 @@ fn the_workflow_is_valid_yaml_and_names_only_the_expected_jobs() {
     assert_eq!(
         job_names(),
         wanted,
-        "{WORKFLOW} must name the validate job, the nine checks, the shared advisory \
-preparation and the aggregate"
+        "{WORKFLOW} must name the validate job, the checks matrix, security-audit, coverage, the \
+shared advisory preparation and the aggregate"
     );
 }
 
@@ -91,7 +87,7 @@ fn the_validate_job_needs_nothing_so_it_rejects_input_first() {
 
 #[test]
 fn every_check_job_waits_for_the_validated_inputs() {
-    for name in CHECKS {
+    for name in PLATFORM_JOBS {
         let wanted: Vec<&str> = if name == "security-audit" {
             vec![VALIDATE, PREP]
         } else {
@@ -103,6 +99,13 @@ fn every_check_job_waits_for_the_validated_inputs() {
             "{WORKFLOW} job {name} must need the validate job and nothing else it can skip"
         );
         let gate = text_at(&job(WORKFLOW, name)["if"], &format!("{name} if"));
+        if name == MATRIX_JOB {
+            assert_eq!(
+                gate, "${{ needs.validate.outputs.checks != '[]' }}",
+                "{WORKFLOW} job {name} must skip only an empty checks list"
+            );
+            continue;
+        }
         assert!(
             gate.contains(&format!("contains(format(',{{0}},', {DISABLED_REF})")),
             "{WORKFLOW} job {name} must gate on {DISABLED_REF}: {gate}"
@@ -116,7 +119,7 @@ fn every_check_job_waits_for_the_validated_inputs() {
 
 #[test]
 fn every_check_job_expands_its_matrix_from_the_validated_platforms() {
-    for name in CHECKS {
+    for name in PLATFORM_JOBS {
         let job = job(WORKFLOW, name);
         assert_eq!(
             job["strategy"]["matrix"]["platform"],
@@ -128,7 +131,73 @@ fn every_check_job_expands_its_matrix_from_the_validated_platforms() {
             json!(RUNNER),
             "{WORKFLOW} job {name} must pick its runner from {RUNNERS_REF}"
         );
+        assert_eq!(
+            job["strategy"]["fail-fast"],
+            json!(false),
+            "{WORKFLOW} job {name} must let every cell finish"
+        );
     }
+}
+
+/// Returns the checks job step whose name starts with the given prefix.
+fn matrix_step(prefix: &str) -> Value {
+    job(WORKFLOW, MATRIX_JOB)["steps"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{WORKFLOW} job {MATRIX_JOB} has no steps"))
+        .iter()
+        .find(|step| {
+            step["name"]
+                .as_str()
+                .is_some_and(|name| name.starts_with(prefix))
+        })
+        .cloned()
+        .unwrap_or_else(|| panic!("{WORKFLOW} job {MATRIX_JOB} has no step named {prefix:?}"))
+}
+
+#[test]
+fn the_checks_job_runs_one_cell_per_validated_check_and_platform() {
+    let checks = job(WORKFLOW, MATRIX_JOB);
+    assert_eq!(
+        checks["name"],
+        json!("${{ matrix.check.id }} (${{ matrix.platform }})"),
+        "{WORKFLOW} job {MATRIX_JOB} must keep the per-check names branch protection reads"
+    );
+    assert_eq!(
+        checks["timeout-minutes"],
+        json!("${{ matrix.check.timeout }}")
+    );
+    assert_eq!(checks["strategy"]["matrix"]["check"], json!(CHECKS_MATRIX));
+    let run = matrix_step("Run ");
+    for (key, value) in [
+        ("DX_CHECK", "${{ matrix.check.id }}"),
+        ("DX_ARGS", "${{ join(matrix.check.args, ' ') }}"),
+        ("DX_REPORTS", "${{ join(matrix.check.reports, ' ') }}"),
+        ("DX_PASSTHROUGH", "${{ matrix.check.passthrough }}"),
+    ] {
+        assert_eq!(
+            run["env"][key],
+            json!(value),
+            "{WORKFLOW} run step env {key}"
+        );
+    }
+    let script = text_at(&run["run"], "checks run step");
+    assert!(
+        !script.contains("${{"),
+        "{WORKFLOW} job {MATRIX_JOB} must read the row through env: {script}"
+    );
+    let upload = matrix_step("Upload the ");
+    assert_eq!(
+        upload["with"]["name"],
+        json!(
+            "dx-reports-${{ matrix.check.id }}-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}"
+        ),
+        "{WORKFLOW} job {MATRIX_JOB} must keep the report artifact names"
+    );
+    assert_eq!(
+        matrix_step("Prove dx run works noninteractively in CI")["if"],
+        json!("${{ matrix.check.id == 'build' }}"),
+        "{WORKFLOW} job {MATRIX_JOB} must prove dx run on the build cell only"
+    );
 }
 
 #[test]
@@ -213,16 +282,13 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
 #[test]
 fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
     let aggregate = job(WORKFLOW, AGGREGATE);
-    let mut wanted: Vec<&str> = vec![VALIDATE];
-    for name in CHECKS {
-        wanted.push(name);
-        if name == "security-audit" {
-            wanted.push(PREP);
-        }
-    }
-    assert_eq!(aggregate["needs"], json!(wanted));
+    assert_eq!(
+        aggregate["needs"],
+        json!([VALIDATE, MATRIX_JOB, "security-audit", PREP, "coverage"])
+    );
     let step = aggregate["steps"][0].clone();
     assert_eq!(step["env"]["DISABLED"], json!(DISABLED));
+    assert_eq!(step["env"]["CHECKS"], json!(CHECKS_LIST));
     let script = text_at(&step["run"], "aggregate steps.0.run");
     for needle in [
         "os.environ[\"DISABLED\"]",
@@ -231,6 +297,8 @@ fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
         "result == \"skipped\" and name not in disabled",
         "skipped without disabled_checks",
         "results.get(\"validate\") != \"success\"",
+        "os.environ[\"CHECKS\"]",
+        "disabled.add(\"checks\")",
     ] {
         assert!(
             script.contains(needle),
@@ -241,6 +309,11 @@ fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
 
 #[test]
 fn no_matrix_expands_from_a_raw_workflow_input() {
+    assert_eq!(
+        job(WORKFLOW, MATRIX_JOB)["strategy"]["matrix"]["check"],
+        json!(CHECKS_MATRIX),
+        "{WORKFLOW} must expand matrix.check only from the validated checks list"
+    );
     let text = read_runfiles(WORKFLOW);
     for needle in RAW_INPUTS {
         let uses: Vec<&str> = text.lines().filter(|line| line.contains(needle)).collect();

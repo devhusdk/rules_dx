@@ -3418,6 +3418,66 @@ mod hooks {
         );
     }
 
+    fn advance_origin_main(fixture: &Fixture) {
+        let clone = fixture.clone_origin();
+        git(&clone, &["checkout", "--quiet", "main"]);
+        std::fs::write(clone.join("later.txt"), "l\n").expect("write");
+        git(&clone, &["add", "."]);
+        git(&clone, &["commit", "--quiet", "-m", "later"]);
+        git(&clone, &["push", "--quiet", "origin", "main"]);
+        git(&fixture.main, &["fetch", "--quiet", "origin"]);
+    }
+
+    #[test]
+    fn create_skips_a_local_agent_branch_already_behind_the_base() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let me = who("s1", 10);
+        let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &me, &input)
+            .expect("create")
+            .path;
+        let removal = serde_json::json!({"worktree_path": path});
+        hook::remove(&pool, &host, &me, &removal).expect("remove");
+        advance_origin_main(&fixture);
+        let again = hook::create(&pool, &host, &me, &input)
+            .expect("create again")
+            .path;
+        assert_eq!(
+            git(&again, &["branch", "--show-current"]),
+            "worktree-agent-one-2"
+        );
+    }
+
+    #[test]
+    fn create_resumes_a_local_agent_branch_with_unmerged_commits() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let me = who("s1", 10);
+        let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &me, &input)
+            .expect("create")
+            .path;
+        std::fs::write(path.join("work.txt"), "w\n").expect("write");
+        git(&path, &["add", "."]);
+        git(&path, &["commit", "--quiet", "-m", "work"]);
+        git(&path, &["push", "--quiet", "origin", "worktree-agent-one"]);
+        let work = git(&path, &["rev-parse", "HEAD"]);
+        let removal = serde_json::json!({"worktree_path": path});
+        hook::remove(&pool, &host, &me, &removal).expect("remove");
+        advance_origin_main(&fixture);
+        let again = hook::create(&pool, &host, &me, &input)
+            .expect("create again")
+            .path;
+        assert_eq!(
+            git(&again, &["branch", "--show-current"]),
+            "worktree-agent-one"
+        );
+        assert_eq!(git(&again, &["rev-parse", "HEAD"]), work);
+    }
+
     #[test]
     fn a_local_agent_branch_wins_over_origin() {
         let fixture = Fixture::new();

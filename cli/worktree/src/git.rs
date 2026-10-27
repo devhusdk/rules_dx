@@ -298,6 +298,36 @@ pub(super) fn ref_exists(repo: &Path, name: &str) -> bool {
     )
 }
 
+/// Whether local branch `name` is strictly behind `base`: its tip is an
+/// ancestor of `base` but not equal to it, so it holds no unmerged work and
+/// would start an agent on an old commit.
+pub(super) fn branch_behind(repo: &Path, name: &str, base: &str) -> bool {
+    let tip = line(
+        repo,
+        &[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("refs/heads/{name}^{{commit}}"),
+        ],
+    );
+    let head = line(
+        repo,
+        &[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("{base}^{{commit}}"),
+        ],
+    );
+    match (tip, head) {
+        (Ok(tip), Ok(head)) if tip != head => {
+            succeeds(repo, &["merge-base", "--is-ancestor", &tip, &head])
+        }
+        _ => false,
+    }
+}
+
 /// Whether a local branch with this name exists.
 pub(super) fn branch_exists(repo: &Path, branch: &str) -> bool {
     succeeds(

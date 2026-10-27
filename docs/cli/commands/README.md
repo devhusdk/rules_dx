@@ -263,6 +263,12 @@ and exits `1`. `DX_OUTPUT=json` and
 `command_finished`; dx exits `128` plus the signal number. A closed stdout
 exits `141`.
 
+Any command can emit these `notice` events: `waiting_for_build_slot`,
+`build_slot_skipped`, and `build_slots_disabled` from
+[Build Slots](#build-slots), `disk_low` from [Disk Space](#disk-space), and
+`orphan_process_group_stopped` when dx stops a leftover process group from a
+dx run that is gone.
+
 ```sh
 bazel run @rules_dx//:dx -- lint --check //... --output=json
 ```

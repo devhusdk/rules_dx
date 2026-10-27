@@ -187,6 +187,8 @@ pub(crate) enum ExecError {
     BadEnvKey { key: String },
 }
 
+pub(crate) use super::notice_codes::*;
+
 pub(crate) const CODE_LAUNCH_FAILED: &str = "launch_failed";
 pub(crate) const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
 /// Fires before a Bazel run at `dx_worktree::disk::DISK_FULL_BYTES` (1 GiB). Worktree

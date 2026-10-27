@@ -1737,7 +1737,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                         notice_event(&NoticeEvent {
                             related_command: Some(invocation.command.name().to_owned()),
                             scope: Some(effective.clone()),
-                            ..NoticeEvent::info(&format!("audit_{family_name}_clean"), message)
+                            ..NoticeEvent::info(audit_clean_code(outcome.family), message)
                         }),
                     ) {
                         return exit;

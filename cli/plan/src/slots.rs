@@ -15,6 +15,15 @@ use crate::args::Command;
 use dx_adopt::defaults::BuildSlots;
 use dx_worktree::host::{self, Host, Server, SystemHost};
 
+/// Notice code for the one info notice a run prints while it waits for a free build slot.
+pub const WAITING_FOR_BUILD_SLOT_CODE: &str = "waiting_for_build_slot";
+/// Notice code for a build slot the run could not take and skipped.
+pub const BUILD_SLOT_SKIPPED_CODE: &str = "build_slot_skipped";
+/// Notice code for a run that turned build slots off after an error.
+pub const BUILD_SLOTS_DISABLED_CODE: &str = "build_slots_disabled";
+/// Notice code for the disk reclaim a build slot runs before a build.
+pub const DISK_LOW_CODE: &str = "disk_low";
+
 pub mod pressure;
 
 use pressure::{HostPressure, Pressure};
@@ -939,7 +948,7 @@ impl Gate {
                     notice(
                         &mut **events,
                         command,
-                        dx_output::NoticeEvent::info("waiting_for_build_slot", message),
+                        dx_output::NoticeEvent::info(WAITING_FOR_BUILD_SLOT_CODE, message),
                     );
                 }
             },
@@ -963,7 +972,7 @@ impl Gate {
                     notice(
                         &mut **events,
                         command,
-                        dx_output::NoticeEvent::warning("build_slot_skipped", message),
+                        dx_output::NoticeEvent::warning(BUILD_SLOT_SKIPPED_CODE, message),
                     );
                 }
             },
@@ -992,7 +1001,7 @@ impl Gate {
                     notice(
                         &mut *events,
                         command,
-                        dx_output::NoticeEvent::warning("build_slots_disabled", message),
+                        dx_output::NoticeEvent::warning(BUILD_SLOTS_DISABLED_CODE, message),
                     );
                 }
                 self.reclaim(command, err, events);
@@ -1015,7 +1024,7 @@ impl Gate {
             notice(
                 events,
                 command,
-                dx_output::NoticeEvent::warning("disk_low", message),
+                dx_output::NoticeEvent::warning(DISK_LOW_CODE, message),
             );
         }
     }

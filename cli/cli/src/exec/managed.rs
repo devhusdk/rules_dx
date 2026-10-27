@@ -352,7 +352,7 @@ fn check_managed(
             notice_event(&NoticeEvent {
                 related_command: Some(invocation.command.name().to_owned()),
                 ..NoticeEvent::info(
-                    "managed_drift",
+                    CODE_MANAGED_DRIFT,
                     format!("dx {}: {detail}", invocation.command.name()),
                 )
             }),

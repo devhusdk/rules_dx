@@ -388,7 +388,10 @@ fn run() -> i32 {
         if invocation.output == OutputMode::Json {
             let event = dx_output::notice_value(&dx_output::NoticeEvent {
                 related_command: Some(invocation.command.name().to_owned()),
-                ..dx_output::NoticeEvent::warning("orphan_process_group_stopped", message)
+                ..dx_output::NoticeEvent::warning(
+                    dx_process::groups::CODE_ORPHAN_PROCESS_GROUP_STOPPED,
+                    message,
+                )
             });
             let _ = dx_output::lifecycle::write_event(&mut pending, &event);
         }

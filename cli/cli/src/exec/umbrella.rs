@@ -510,7 +510,7 @@ fn announce_skip(
     let notice = NoticeEvent {
         related_command: Some(command.to_owned()),
         ..NoticeEvent::warning(
-            "umbrella_phase_skipped",
+            CODE_UMBRELLA_PHASE_SKIPPED,
             format!("{phase} skipped after {cause}"),
         )
     };
@@ -530,7 +530,7 @@ fn announce_findings(
     let notice = NoticeEvent {
         related_command: Some(command.to_owned()),
         ..NoticeEvent::warning(
-            "umbrella_phase_findings",
+            CODE_UMBRELLA_PHASE_FINDINGS,
             format!("{phase} reported findings"),
         )
     };
@@ -3226,7 +3226,7 @@ mod tests {
         assert_eq!(
             skipped,
             vec![(
-                "umbrella_phase_skipped",
+                CODE_UMBRELLA_PHASE_SKIPPED,
                 "typecheck skipped after lint failed to run its tools"
             )]
         );

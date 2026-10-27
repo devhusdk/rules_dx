@@ -127,7 +127,7 @@ const BUMP_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
     command: "bump",
     noun: "widen",
     set_action: "widen",
-    notice_code: "bump_widened",
+    notice_code: CODE_BUMP_WIDENED,
     failure_code: CODE_BUMP_FAILED,
     noop_note: "pinned module lock; no-op success",
 };
@@ -199,7 +199,7 @@ fn check_bump(
                     related_command: Some("bump".to_owned()),
                     scope: Some(vec![request.selector.clone()]),
                     path: Some(manifest.clone()),
-                    ..NoticeEvent::info("bump_widened", message.clone())
+                    ..NoticeEvent::info(CODE_BUMP_WIDENED, message.clone())
                 }),
             ) {
                 return exit;
@@ -371,7 +371,7 @@ fn emit_bump_no_change(
                 related_command: Some("bump".to_owned()),
                 scope: Some(vec![request.selector.clone()]),
                 path: Some(manifest),
-                ..NoticeEvent::info("bump_no_change", message.clone())
+                ..NoticeEvent::info(CODE_BUMP_NO_CHANGE, message.clone())
             }),
         ) {
             return exit;

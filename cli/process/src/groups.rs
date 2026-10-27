@@ -240,6 +240,9 @@ fn stop_group(pgid: i32) {
     }
 }
 
+/// Notice code for a leftover process group dx stopped at startup.
+pub const CODE_ORPHAN_PROCESS_GROUP_STOPPED: &str = "orphan_process_group_stopped";
+
 /// The one line printed for a stopped group.
 pub fn reaped_message(group: &Reaped) -> String {
     format!(

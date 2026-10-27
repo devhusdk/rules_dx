@@ -7,7 +7,7 @@ rust_library(
     aliases = aliases(
         package_name = "crates/app",
         normal = True,
-    ),
+    ) | {"//crates/api": "apiv"},
     crate_name = "app",
     crate_root = "src/lib.rs",
     edition = "2021",

@@ -36,6 +36,21 @@ func (t cargoTarget) crate() string {
 	return t.name
 }
 
+// libCrateName returns the extern crate name of the manifest's library, or ""
+// when it has none. It does not mutate the manifest.
+func (m *cargoManifest) libCrateName() string {
+	for _, t := range m.targets {
+		if t.kind == libraryKind {
+			return t.crate()
+		}
+	}
+	name, err := CrateName(m.packageName)
+	if err != nil {
+		return ""
+	}
+	return name
+}
+
 type cargoManifest struct {
 	packageName   string
 	edition       string
@@ -166,6 +181,8 @@ type cargoDependency struct {
 	version   string
 	depPath   string
 	workspace bool
+	renamed   bool
+	crate     string
 }
 
 type cargoDepField struct {
@@ -821,7 +838,7 @@ func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[str
 				if first.cfg == "" {
 					continue
 				}
-				same := dep.external == chosen.external && dep.label == chosen.label && dep.depPath == chosen.depPath && dep.workspace == chosen.workspace
+				same := dep.external == chosen.external && dep.label == chosen.label && dep.depPath == chosen.depPath && dep.workspace == chosen.workspace && dep.renamed == chosen.renamed
 				if same && !dep.external && dep.version != chosen.version {
 					same = false
 				}
@@ -872,6 +889,7 @@ func buildCargoDependency(manifestPath string, entry *cargoDepEntry) (cargoDepen
 	}
 	if hasPkg {
 		dep.label = pkg
+		dep.renamed = true
 	}
 	if f, ok := entry.fields["workspace"]; ok {
 		parsed, err := strconv.ParseBool(f.value)
@@ -947,6 +965,7 @@ func (m *cargoManifest) inheritWorkspaceDeps(memberRel, rootRel string, root *ca
 			dep.external = inherited.external
 			dep.label = inherited.label
 			dep.version = inherited.version
+			dep.renamed = inherited.renamed
 			dep.depPath = ""
 			if !inherited.external {
 				dep.depPath = relSlashPath(memberRel, path.Join(rootRel, inherited.depPath))

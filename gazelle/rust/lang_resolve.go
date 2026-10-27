@@ -138,14 +138,25 @@ func validateBuildImports(c *config.Config, manifest *cargoManifest, imports tar
 	return check(imports.test, "test")
 }
 
+func noteRename(result *targetImports, name string, dep cargoDependency) {
+	if dep.crate != "" && dep.crate != name {
+		if result.renames == nil {
+			result.renames = make(map[string]string)
+		}
+		result.renames[name] = dep.crate
+	}
+}
+
 func localCargoImports(c *config.Config, manifest *cargoManifest, imports targetImports, includeDev bool) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
+			noteRename(&result, name, dep)
 		} else if includeDev {
 			if dep, ok := manifest.devDeps[name]; ok && !dep.external {
 				result.production = append(result.production, name)
+				noteRename(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.production = append(result.production, name)
 			}
@@ -157,8 +168,10 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 		for _, name := range imports.test {
 			if dep, normal := manifest.normalDeps[name]; normal && !dep.external {
 				result.test = append(result.test, name)
+				noteRename(&result, name, dep)
 			} else if dep, dev := manifest.devDeps[name]; dev && !dep.external {
 				result.test = append(result.test, name)
+				noteRename(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.test = append(result.test, name)
 			}
@@ -181,6 +194,7 @@ func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependen
 			if !dep.external && dep.depPath != "" && !seen[name] {
 				seen[name] = true
 				result.mirrorPaths = append(result.mirrorPaths, name)
+				noteRename(result, name, dep)
 			}
 		}
 	}
@@ -192,8 +206,10 @@ func localCargoExampleImports(c *config.Config, manifest *cargoManifest, imports
 	for _, name := range imports.production {
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
+			noteRename(&result, name, dep)
 		} else if dep, ok := manifest.devDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
+			noteRename(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
 		}
@@ -207,6 +223,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 	for _, name := range imports.production {
 		if dep, ok := manifest.buildDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
+			noteRename(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
 		}
@@ -214,6 +231,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 	for _, name := range imports.test {
 		if dep, ok := manifest.buildDeps[name]; ok && !dep.external {
 			result.test = append(result.test, name)
+			noteRename(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.test = append(result.test, name)
 		}
@@ -268,6 +286,26 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		all = append(all, imports.test...)
 	}
 	deps := make(map[string]bool)
+	aliases := make(map[string]string)
+	// lookup finds providers by the renamed crate name when no override exists.
+	lookup := func(name string) []resolve.FindResult {
+		target := name
+		if crate, ok := imports.renames[name]; ok {
+			target = crate
+		}
+		return ix.FindRulesByImportWithConfig(c, resolve.ImportSpec{Lang: languageName, Imp: target}, languageName)
+	}
+	noteAlias := func(name string, match resolve.FindResult) {
+		if _, renamed := imports.renames[name]; !renamed {
+			return
+		}
+		rel := match.Label.Rel(from.Repo, from.Pkg).String()
+		if prev, dup := aliases[rel]; dup && prev != name {
+			l.fail("rust: %s: %s is imported under conflicting aliases %q and %q", from, rel, prev, name)
+			return
+		}
+		aliases[rel] = name
+	}
 	for _, name := range all {
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
@@ -279,15 +317,20 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 			deps[override.Rel(from.Repo, from.Pkg).String()] = true
 			continue
 		}
-		matches := ix.FindRulesByImportWithConfig(c, spec, languageName)
+		matches := lookup(name)
 		switch len(matches) {
 		case 1:
 			if matches[0].Label != from {
 				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
+				noteAlias(name, matches[0])
 			}
 		case 0:
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
 				ignore.MarkUsed(from.Pkg)
+				continue
+			}
+			if crate, renamed := imports.renames[name]; renamed {
+				l.fail("rust: %s: unresolved import %q (renamed package crate %q); add a local crate, Cargo mapping, or exact # gazelle:resolve", from, name, crate)
 				continue
 			}
 			l.fail("rust: %s: unresolved import %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", from, name)
@@ -305,8 +348,9 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 			deps[override.Rel(from.Repo, from.Pkg).String()] = true
 			continue
 		}
-		if matches := ix.FindRulesByImportWithConfig(c, spec, languageName); len(matches) == 1 && matches[0].Label != from {
+		if matches := lookup(name); len(matches) == 1 && matches[0].Label != from {
 			deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
+			noteAlias(name, matches[0])
 		}
 	}
 	if imports.siblingLib != "" && imports.siblingLib != from.Name {
@@ -314,6 +358,9 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	}
 	if imports.scriptDep != "" && imports.scriptDep != from.Name {
 		addLocalDep(deps, from, imports.scriptDep)
+	}
+	if len(aliases) > 0 {
+		r.SetAttr("aliases", aliasesUnionExpr{base: r.Attr("aliases"), extra: aliases})
 	}
 	labels := make([]string, 0, len(deps))
 	for dep := range deps {

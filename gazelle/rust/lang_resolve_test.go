@@ -735,3 +735,111 @@ func TestResolveExactMappingForTestImports(t *testing.T) {
 		t.Errorf("unmapped errors = %v", unmapped.errors)
 	}
 }
+
+func TestResolveRenamedImports(t *testing.T) {
+	l := &rustLang{}
+	index := resolverIndex(l, struct{ pkg, name string }{"crates/api", "api"})
+	cfg := resolverConfig(t, nil)
+	cfg.Exts[languageName] = &rustConfig{}
+	from := label.New("", "app", "app")
+	renames := map[string]string{"apiv": "api"}
+
+	r := rule.NewRule(libraryKind, "app")
+	r.SetAttr("aliases", cargoCall("aliases", "app", false))
+	l.Resolve(cfg, index, nil, r, targetImports{production: []string{"apiv"}, renames: renames}, from)
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//crates/api" {
+		t.Errorf("deps = %q", got)
+	}
+	text := bzl.FormatString(r.Attr("aliases"))
+	if !strings.Contains(text, `"//crates/api": "apiv"`) || !strings.Contains(text, "|") {
+		t.Errorf("aliases = %s", text)
+	}
+
+	bare := rule.NewRule(libraryKind, "bare")
+	l.Resolve(cfg, index, nil, bare, targetImports{mirrorPaths: []string{"apiv"}, renames: renames}, from)
+	if got := bzl.FormatString(bare.Attr("aliases")); !strings.Contains(got, `"//crates/api": "apiv"`) || strings.Contains(got, "|") {
+		t.Errorf("mirror aliases = %s", got)
+	}
+
+	plain := rule.NewRule(libraryKind, "plain")
+	l.Resolve(cfg, index, nil, plain, targetImports{production: []string{"api"}}, from)
+	if plain.Attr("aliases") != nil {
+		t.Errorf("unrenamed import set aliases")
+	}
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+
+	// Conflicting names for one label.
+	conflict := rule.NewRule(libraryKind, "conflict")
+	l.Resolve(cfg, index, nil, conflict, targetImports{production: []string{"one", "two"}, renames: map[string]string{"one": "api", "two": "api"}}, from)
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "conflicting aliases") {
+		t.Errorf("conflict errors = %v", l.errors)
+	}
+
+	// Unresolved renamed import.
+	l.errors = nil
+	missing := rule.NewRule(libraryKind, "missing")
+	l.Resolve(cfg, index, nil, missing, targetImports{production: []string{"gone"}, renames: map[string]string{"gone": "nowhere"}}, from)
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `renamed package crate "nowhere"`) {
+		t.Errorf("unresolved errors = %v", l.errors)
+	}
+
+	// An override on the import name wins and adds no alias.
+	l.errors = nil
+	ocfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "rust apiv //other:x"}})
+	ocfg.Exts[languageName] = &rustConfig{}
+	over := rule.NewRule(libraryKind, "over")
+	l.Resolve(ocfg, index, nil, over, targetImports{production: []string{"apiv"}, renames: renames}, from)
+	if got := strings.Join(over.AttrStrings("deps"), ","); got != "//other:x" || over.Attr("aliases") != nil || len(l.errors) != 0 {
+		t.Errorf("override deps=%q aliases=%v errors=%v", got, over.Attr("aliases"), l.errors)
+	}
+}
+
+func TestAliasesUnionExpr(t *testing.T) {
+	e := aliasesUnionExpr{extra: map[string]string{"//b": "y", "//a": "x"}}
+	if got := bzl.FormatString(e.BzlExpr()); strings.Index(got, `"//a": "x"`) < 0 || strings.Index(got, `"//a": "x"`) > strings.Index(got, `"//b": "y"`) {
+		t.Errorf("nil base = %s", got)
+	}
+	if first, second := bzl.FormatString(e.Merge(nil)), bzl.FormatString(e.Merge(e.BzlExpr())); first != second {
+		t.Errorf("Merge not idempotent: %s vs %s", first, second)
+	}
+}
+
+func TestLocalCargoImportsRenames(t *testing.T) {
+	m := &cargoManifest{
+		normalDeps: map[string]cargoDependency{"apiv": {label: "api", depPath: "../api", renamed: true, crate: "api_core"}, "json": {external: true, label: "serde_json", renamed: true}, "same": {label: "same", depPath: "../s", crate: "same"}},
+		devDeps:    map[string]cargoDependency{"devv": {label: "d", depPath: "../d", renamed: true, crate: "d"}, "devr": {label: "d2", depPath: "../d2", renamed: true, crate: "d2x"}},
+		buildDeps:  map[string]cargoDependency{"bld": {label: "b", depPath: "../b", renamed: true, crate: "b2"}},
+	}
+	cfg := config.New()
+	got := localCargoImports(cfg, m, targetImports{production: []string{"apiv", "json", "devr"}, test: []string{"devr"}}, true)
+	if got.renames["apiv"] != "api_core" || got.renames["devr"] != "d2x" || got.renames["same"] != "" || got.renames["json"] != "" {
+		t.Errorf("renames = %v", got.renames)
+	}
+	ex := localCargoExampleImports(cfg, m, targetImports{production: []string{"apiv", "devr"}})
+	if ex.renames["apiv"] != "api_core" || ex.renames["devr"] != "d2x" {
+		t.Errorf("example renames = %v", ex.renames)
+	}
+	build := localCargoBuildImports(cfg, m, targetImports{production: []string{"bld"}, test: []string{"bld"}})
+	if build.renames["bld"] != "b2" {
+		t.Errorf("build renames = %v", build.renames)
+	}
+}
+
+func TestResolveRenamedProviders(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "api/Cargo.toml", "[package]\nname = \"api\"\n[lib]\nname = \"api_core\"\n")
+	writeFixture(t, root, "app/Cargo.toml", "[package]\nname = \"app\"\n")
+	m, err := parseCargoManifest("app/Cargo.toml", []byte("[package]\nname = \"app\"\n[dependencies]\napiv = { path = \"../api\", package = \"api\" }\nmissing = { path = \"../nope\", package = \"nope-pkg\" }\nescape = { path = \"../../..\", package = \"esc\" }\nplain = { path = \"../plain\" }\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := &rustLang{}
+	l.resolveRenamedProviders(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Rel: "app"}, m)
+	for key, want := range map[string]string{"apiv": "api_core", "missing": "nope_pkg", "escape": "esc", "plain": ""} {
+		if got := m.normalDeps[key].crate; got != want {
+			t.Errorf("%s crate = %q, want %q", key, got, want)
+		}
+	}
+}

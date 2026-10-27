@@ -85,7 +85,7 @@ func kindInfo() rule.KindInfo {
 			"crate_root":   true,
 			"srcs":         true,
 		},
-		ResolveAttrs: map[string]bool{"deps": true},
+		ResolveAttrs: map[string]bool{"aliases": true, "deps": true},
 	}
 }
 
@@ -110,6 +110,7 @@ type targetImports struct {
 	mirrorPaths []string
 	siblingLib  string
 	scriptDep   string
+	renames     map[string]string
 }
 
 func NewLanguage() language.Language { return &rustLang{} }

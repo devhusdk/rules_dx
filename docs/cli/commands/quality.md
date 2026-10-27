@@ -979,13 +979,15 @@ rules are the GraphQL validation rules: `executable-definitions`,
 `fields-on-correct-type`, `fragments-on-composite-type`,
 `known-argument-names`, `known-directives`, `known-fragment-names`,
 `known-type-names`, `lone-anonymous-operation`, `no-fragment-cycles`,
-`no-undefined-variables`, `no-unused-fragments`, `no-unused-variables`,
-`one-field-subscriptions`, `overlapping-fields-can-be-merged`,
-`possible-fragment-spread`, `provided-required-arguments`, `scalar-leafs`,
-`unique-argument-names`, `unique-directive-names-per-location`,
-`unique-input-field-names`, `unique-variable-names`,
-`value-literals-of-correct-type`, `variables-are-input-types` and
-`variables-in-allowed-position`. Style rules are off unless you add them.
+`no-undefined-variables`, `no-unused-variables`, `one-field-subscriptions`,
+`overlapping-fields-can-be-merged`, `possible-fragment-spread`,
+`provided-required-arguments`, `scalar-leafs`, `unique-argument-names`,
+`unique-directive-names-per-location`, `unique-input-field-names`,
+`unique-variable-names`, `value-literals-of-correct-type`,
+`variables-are-input-types` and `variables-in-allowed-position`.
+`no-unused-fragments` is not a default: each target is linted on its own, so a
+target that only defines shared fragments would report them as unused. Style
+rules are off unless you add them.
 
 ```sh
 bazel run @rules_dx//:dx -- lint //api/...

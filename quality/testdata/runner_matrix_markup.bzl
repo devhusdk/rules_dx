@@ -35,6 +35,21 @@ MARKUP_CASES = [
         "expected_file": ":matrix/matrix_graphql_lint_pass.expected.txt",
     },
     {
+        "name": "matrix_graphql_lint_shared_fragments_pass",
+        "generated": {
+            "matrix/graphql_shared_fragments.graphql": "fragment UserFields on User {\n  id\n  name\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["graphql_eslint;graphql;matrix/graphql_shared_fragments.graphql"],
+        "tool_names": ["graphql_eslint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:graphql_eslint"],
+        "toolfile_tools": ["graphql_eslint", "graphql_eslint"],
+        "toolfile_srcs": [":graphql_cfg/graphql.json", ":graphql_cfg/schema.graphql"],
+        "config_tools": ["graphql_eslint"],
+        "config_files": [":graphql_cfg/graphql.json"],
+        "expected_file": ":matrix/matrix_graphql_lint_shared_fragments_pass.expected.txt",
+    },
+    {
         "name": "matrix_graphql_lint_unknown_field_fail",
         "generated": {
             "matrix/graphql_unknown_field.graphql": "query GetUser($id: ID!) {\n  user(id: $id) {\n    email\n  }\n}\n",

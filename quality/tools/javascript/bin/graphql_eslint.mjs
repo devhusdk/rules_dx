@@ -29,7 +29,6 @@ const OPERATION_RULES = [
   "lone-anonymous-operation",
   "no-fragment-cycles",
   "no-undefined-variables",
-  "no-unused-fragments",
   "no-unused-variables",
   "one-field-subscriptions",
   "overlapping-fields-can-be-merged",

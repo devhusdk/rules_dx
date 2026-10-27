@@ -235,6 +235,19 @@ fn a_zip64_entry_count_larger_than_the_directory_is_refused() {
 }
 
 #[test]
+fn central_entries_that_do_not_end_at_the_directory_end_are_refused() {
+    let mut bytes = two_advisories();
+    let eocd = bytes.len() - EOCD_FIXED;
+    bytes[eocd + 10..eocd + 12].copy_from_slice(&1u16.to_le_bytes());
+    match archive::json_entries(&bytes) {
+        Err(ArchiveError::BadCentralDirectory { detail }) => {
+            assert!(detail.contains("entries end at"), "{detail}");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
 fn a_zip64_record_offset_past_the_end_of_memory_is_refused() {
     let bytes = zip64(two_advisories(), None, Some(u64::MAX - 1));
     match archive::json_entries(&bytes) {

@@ -112,6 +112,12 @@ Describe "extract.ps1" {
         @((Get-Content -Raw -Path $run.Out | ConvertFrom-Json).files[0].unresolved_uses) | Should -Be @("using module NotInstalledAnywhere")
     }
 
+    It "accepts a file made only of named blocks" {
+        $run = Invoke-Extract @("bad/NamedBlocks.ps1") "" "named"
+        $run.ExitCode | Should -Be 0
+        @((Get-Content -Raw -Path $run.Out | ConvertFrom-Json).files[0].functions).Count | Should -Be 0
+    }
+
     It "never imports, dot-sources or invokes code" {
         $text = Get-Content -Raw -Path $script:Script
         $text | Should -Not -Match 'Import-Module|Import-PowerShellDataFile|Invoke-Expression|(?m)^\s*\.\s|&\s'

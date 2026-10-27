@@ -344,7 +344,10 @@ foreach ($row in [System.IO.File]::ReadAllLines($Sources)) {
     $parsed = Read-Ast $path $rel
     $ast = $parsed[0]
     $functions = @()
-    foreach ($statement in $ast.EndBlock.Statements) {
+    # A file made only of named blocks (begin/process) has no end block.
+    $endStatements = @()
+    if ($null -ne $ast.EndBlock) { $endStatements = $ast.EndBlock.Statements }
+    foreach ($statement in $endStatements) {
         if ($statement -is [System.Management.Automation.Language.FunctionDefinitionAst]) {
             $functions += , (Get-FunctionFact $statement)
         }

@@ -73,6 +73,30 @@ fn keep_locations(result: &mut Value, files: &[&str]) -> bool {
     !locations.is_empty()
 }
 
+fn map_related_locations(result: &mut Value, files: &[&str]) {
+    let Some(related) = result
+        .get_mut("relatedLocations")
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    for location in related {
+        let Some(artifact) = location.pointer_mut("/physicalLocation/artifactLocation") else {
+            continue;
+        };
+        let uri = artifact
+            .get("uri")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !uri.starts_with("file:") || artifact.get("uriBaseId").is_some() {
+            continue;
+        }
+        if let Some(file) = owned_file(uri, files) {
+            artifact["uri"] = Value::String(file.to_owned());
+        }
+    }
+}
+
 fn analyzer_failure(result: &Value) -> Option<String> {
     let rule = result
         .get("ruleId")
@@ -148,6 +172,7 @@ pub fn parse_roslyn(
                 continue;
             }
             if keep_locations(&mut result, files) {
+                map_related_locations(&mut result, files);
                 has_error |= result.get("level").and_then(Value::as_str) == Some("error");
                 kept.push(result);
             } else if result.get("level").and_then(Value::as_str) == Some("error") {
@@ -243,6 +268,19 @@ mod tests {
         assert_eq!(findings[0].file, "core/Greeter.cs");
         assert_eq!(findings[0].finding.rule_id, "CA1822");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
+    }
+
+    #[test]
+    fn roslyn_maps_execroot_related_locations_to_owned_files() {
+        let log = csc(
+            r#"{"ruleId":"CA1822","level":"warning","message":{"text":"static"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///w/execroot/_main/core/Greeter.cs"},"region":{"startLine":6,"startColumn":19}}}],"relatedLocations":[{"message":{"text":"declared here"},"physicalLocation":{"artifactLocation":{"uri":"file:///w/execroot/_main/core/Greeter.cs"},"region":{"startLine":2,"startColumn":3}}},{"message":{"text":"generated"},"physicalLocation":{"artifactLocation":{"uri":"file:///w/execroot/_main/bazel-out/gen/Other.cs"},"region":{"startLine":1,"startColumn":1}}}]}"#,
+        );
+        let findings = parse_exit_zero(log.as_bytes(), &["core/Greeter.cs"]).expect("parsed");
+        let related = &findings[0].finding.related;
+        assert_eq!(related.len(), 2);
+        let location = related[0].location.as_ref().expect("owned related file");
+        assert_eq!(location.file, "core/Greeter.cs");
+        assert!(related[1].location.is_none());
     }
 
     #[test]

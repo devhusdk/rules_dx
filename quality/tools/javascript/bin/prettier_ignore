@@ -1,0 +1,1 @@
+# dx-owned: no patterns. Replaces .gitignore/.prettierignore so explicitly passed files are never skipped.

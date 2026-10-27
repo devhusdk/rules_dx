@@ -6,7 +6,7 @@ const PLUGINS = {
   "@prettier/plugin-xml": [".xml", ".xsd", ".xsl", ".xslt", ".wsdl"],
   "prettier-plugin-gherkin": [".feature"],
 };
-const RESERVED = ["--config", "--no-config", "--config-precedence", "--plugin"];
+const RESERVED = ["--config", "--no-config", "--config-precedence", "--plugin", "--ignore-path"];
 
 const args = process.argv.slice(2);
 const reserved = args.find((arg) => RESERVED.some((flag) => arg === flag || arg.startsWith(`${flag}=`)));
@@ -19,5 +19,6 @@ const plugins = Object.entries(PLUGINS)
   .filter(([, extensions]) => files.some((file) => extensions.some((extension) => file.endsWith(extension))))
   .map(([name]) => `--plugin=${fileURLToPath(import.meta.resolve(name))}`);
 const options = `--config=${fileURLToPath(new URL("./prettier_options.json", import.meta.url))}`;
-process.argv.splice(2, args.length, ...plugins, options, ...args);
+const ignore = `--ignore-path=${fileURLToPath(new URL("./prettier_ignore", import.meta.url))}`;
+process.argv.splice(2, args.length, ...plugins, options, ignore, ...args);
 createRequire(import.meta.url)("prettier/bin/prettier.cjs");

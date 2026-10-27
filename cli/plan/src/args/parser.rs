@@ -575,6 +575,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         bases,
         with,
         full,
+        rust_target_triple,
         explain,
         old_log,
         new_log,
@@ -873,6 +874,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         } else {
             dx_adopt::InitParts::parse_list(&with).map_err(bad_default)?
         },
+        init_rust_target_triples: dx_adopt::validate_rust_target_triples(&rust_target_triple)
+            .map_err(|detail| ArgsError::BadDefault { detail })?,
         explain,
         old_log,
         new_log,

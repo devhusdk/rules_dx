@@ -42,7 +42,11 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, workspace, module, &record, parts, out, err);
     }
-    let planned = match dx_adopt::plan_init_files(module, parts) {
+    let planned = match dx_adopt::plan_init_files_triples(
+        module,
+        parts,
+        &invocation.init_rust_target_triples,
+    ) {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
@@ -54,7 +58,15 @@ pub(crate) fn execute_init(
     let mut applied = dx_adopt::Applied::default();
     let mut notes = Vec::new();
     let written = dx_adopt::merge_init_record(workspace, invocation.init_parts, &mut applied)
-        .and_then(|()| dx_adopt::apply_init(workspace, module, parts, &mut applied));
+        .and_then(|()| {
+            dx_adopt::apply_init_triples(
+                workspace,
+                module,
+                parts,
+                &invocation.init_rust_target_triples,
+                &mut applied,
+            )
+        });
     let result = match written {
         Ok(()) => {
             if applied.refused.iter().any(|path| path == ".bazelignore")
@@ -92,7 +104,11 @@ fn check_init(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let files = match dx_adopt::plan_init_files(module, parts) {
+    let files = match dx_adopt::plan_init_files_triples(
+        module,
+        parts,
+        &invocation.init_rust_target_triples,
+    ) {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };

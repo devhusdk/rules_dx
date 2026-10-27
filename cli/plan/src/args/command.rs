@@ -490,7 +490,7 @@ pub static COMMANDS: [CommandMeta; 32] = [
         name: "init",
         scope_policy: "optional-name",
         describe: "adopt dx into an existing tree (absent-only; check by default; --apply scaffolds)",
-        usage: "Usage: dx init [--apply] [--with=<parts>|--full] [module-name]",
+        usage: "Usage: dx init [--apply] [--with=<parts>|--full] [--rust-target-triple=<triples>] [module-name]",
         scopes: "Scopes: optional single module name (defaults to my_project when absent); Bazel labels/patterns are not scopes; extra positionals are usage failures.",
         is_managed: false,
         is_adoption: true,

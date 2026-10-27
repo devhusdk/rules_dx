@@ -53,8 +53,9 @@ pub use overrides::{
     apply_overrides, check_overrides, preflight_overrides, OverridesState, OVERRIDES_INCLUDE,
 };
 pub use scaffold::{
-    apply_init, bazelignore_covers_dx, plan_init_files, preflight_destinations,
-    render_consumer_module_setup, Applied,
+    apply_init, apply_init_triples, bazelignore_covers_dx, plan_init_files,
+    plan_init_files_triples, preflight_destinations, render_consumer_module_setup,
+    validate_rust_target_triples, Applied,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};
 pub use upgrade::{plan_upgrade, UpgradeIntent};

@@ -1,0 +1,2 @@
+# gazelle:resolve kotlin kotlin.reflect.full.memberProperties @com_github_jetbrains_kotlin//:kotlin-reflect
+# gazelle:resolve kotlin kotlinx.coroutines.runBlocking @com_github_jetbrains_kotlin//:kotlinx-coroutines-core-jvm

@@ -1,6 +1,8 @@
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_java//java:defs.bzl", "java_binary")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -39,6 +41,39 @@ gazelle_generation_test(
     test_data = [":generation_testdata"],
 )
 
+java_binary(
+    name = "javac",
+    testonly = True,
+    main_class = "com.sun.tools.javac.Main",
+    runtime_deps = [],
+)
+
+rust_test(
+    name = "compile_test",
+    srcs = ["//tools/testing:gazelle_compile_test.rs"],
+    data = [
+        "testdata/compile_external/WORKSPACE",
+        ":generation_testdata",
+        ":javac",
+        "//gazelle/dispatch:gazelle",
+        "@maven//:com_google_code_findbugs_jsr305",
+    ],
+    env = {
+        "DX_CLASSPATH": "",
+        "DX_COMPILER": "$(rootpath :javac)",
+        "DX_DEPS": " ".join([
+            "@maven//:com_google_code_findbugs_jsr305=$(rootpath @maven//:com_google_code_findbugs_jsr305)",
+        ]),
+        "DX_EXTENSION": "java",
+        "DX_FIXTURE": "$(rootpath testdata/compile_external/WORKSPACE)",
+        "DX_GAZELLE": "$(rootpath //gazelle/dispatch:gazelle)",
+        "DX_LANGUAGE": "java",
+        "DX_UNRESOLVED_HINT": "add a local library or a # gazelle:resolve mapping on the qualified import or its package",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
 go_test(
     name = "java_test",
     srcs = [
@@ -55,6 +90,7 @@ real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
+        "testdata/compile_external/README.md",
         "testdata/entries/README.md",
         "testdata/merge/README.md",
         "testdata/qualified_import/README.md",

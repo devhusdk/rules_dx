@@ -69,6 +69,7 @@ exports_files([
     "src/bin_hasher.rs",
     "src/bin_npm_pack.rs",
     "src/cloudflare.rs",
+    "src/crates.rs",
     "src/http.rs",
     "src/lib.rs",
     "src/maven.rs",
@@ -87,6 +88,7 @@ rust_library(
     srcs = [
         "src/archive.rs",
         "src/cloudflare.rs",
+        "src/crates.rs",
         "src/http.rs",
         "src/lib.rs",
         "src/maven.rs",

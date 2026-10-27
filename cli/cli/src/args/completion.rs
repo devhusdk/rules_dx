@@ -598,7 +598,9 @@ mod tests {
 
     #[test]
     fn a_short_cluster_value_is_not_a_prior_scope() {
-        let words: Vec<OsString> = ["lint", "-qo", "json", "pkg", "x"].map(OsString::from).to_vec();
+        let words: Vec<OsString> = ["lint", "-qo", "json", "pkg", "x"]
+            .map(OsString::from)
+            .to_vec();
         assert_eq!(prior_scopes(&words), vec!["pkg".to_owned()]);
     }
 

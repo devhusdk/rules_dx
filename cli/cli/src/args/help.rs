@@ -1,7 +1,7 @@
 use std::ffi::OsStr;
 
 use super::command::Command;
-use super::grammar::{Cli, consumes_next};
+use super::grammar::{consumes_next, Cli};
 use super::ArgsError;
 
 fn skip_value_payload<S: AsRef<OsStr>>(args: &[S], index: usize) -> usize {

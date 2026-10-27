@@ -48,11 +48,12 @@ after `command_started`. `hook create` prints the same line on stderr.
 When the caller already holds a slot on `<branch>`, `add` returns that slot
 without fetching origin.
 
-When the pool's disk or the disk of a Bazel output root has under 20 GiB and
+When the pool's disk, the disk of a Bazel output root, or the disk of the
+[nested-Bazel root](#nested-bazel-tests) has under 20 GiB and
 under 10% free, or under 1 GiB free whatever its size, `add` and `hook create`
 (after they fetch and pick a slot) and `release` drop orphaned output bases,
-then repository cache downloads unused for 30 days, then free slots' output
-bases, each oldest first, and print one of these lines before
+then repository cache downloads unused for 30 days, then the test cases of
+free nested-Bazel slots, then free slots' output bases, each oldest first, and print one of these lines before
 the slot line. `add` and `hook create` keep the output base of the slot they
 lease, so it stays warm for the build that follows.
 
@@ -99,12 +100,15 @@ cache's `content_addressable` directory.
 - `free`: also `prune_base` for the output base of a free slot, with its
   `slot`.
 - `kept`: `prune --apply` for a worktree it skipped, and `prune_base` for an
-  orphaned output base it keeps, with its `reason`.
+  orphaned or nested-Bazel output base it keeps, with its `reason`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
+- `nested`: `prune_base` for the output base of a test case in a free
+  nested-Bazel slot.
 - `skipped`: `prune` for a slot, and `prune_base` for an output base (with its
   `slot` when it belongs to a free slot), that `prune --apply` could not
-  delete, with a `reason` (`server`, `held`, or `busy`). `prune` events in this
-  state have no `disk_bytes`.
+  delete, with a `reason` (`server`, `held`, or `busy`). This includes a
+  nested-Bazel test's output base. `prune` events in this state have no
+  `disk_bytes`.
 - `stale`: `prune_downloads` for repository cache downloads unused for 30
   days.
 
@@ -137,7 +141,8 @@ It picks the slot that last held the branch, then a slot with the same
 `MODULE.bazel.lock`, then the most recently used, whatever the free disk.
 When disk is low, under 20 GiB and under 10% free or under 1 GiB free, it then
 deletes orphaned output bases, then repository cache downloads unused for 30
-days, then the output bases of the other free slots,
+days, then the test cases of free nested-Bazel slots, then the output bases of
+the other free slots,
 least recently used first, until each output base's disk is no longer low. It
 keeps the output base of the slot it picked. It reuses a free slot before it creates one. Files
 matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref>`
@@ -169,7 +174,8 @@ of that slot. Only the holder can release a held slot, unless it is
 reclaimable or you pass `--force`. Another agent in the same session is
 another holder. While a `dx` command runs in the slot, `release` exits `1` with
 `slot_busy`, even with `--force`. When disk is low, `release` deletes orphaned
-output bases, then the output bases of free slots, least recently used first,
+output bases, then the test cases of free nested-Bazel slots, then the output
+bases of free slots, least recently used first,
 until each output base's disk is no longer low.
 
 `release <path>` on an `external` worktree of this repository, such as an old
@@ -236,7 +242,8 @@ Without `--apply`, text prints one line per item, and a closing line
 lines are `slot <n> idle <days> days, <size>: <path>`,
 `external worktree <branch>, <size>: <path>`,
 `output base of free slot <n>, <size>: <dir>`,
-`output base of removed <workspace>, <size>: <dir>`, and
+`output base of removed <workspace>, <size>: <dir>`,
+`output base of nested Bazel test <case>, <size>: <dir>`, and
 `repository cache downloads unused for 30 days, <n> entries, <size>: <dir>`,
 one per cache. With `--apply` the closing
 line is `dx worktree: pruned <size>`, and `dx worktree: nothing to prune`
@@ -269,6 +276,24 @@ next prune or `add` tries to delete it again. Skipped items are not counted in
 `--apply` checks each download again right before it deletes it. One that a
 build used since the check is kept without a line and is not counted in
 `pruned <size>`.
+
+### Nested-Bazel tests
+
+Tests that run Bazel inside Bazel keep their servers under the nested-Bazel
+root: `DX_NESTED_BAZEL_ROOT` when you export it, else `/tmp/dxnb-<uid>`. Each
+slot there has a `lock` file the test holds while it runs, an output user root
+`u`, and one workspace per test case under `w`.
+
+`prune` treats each test case, its output base and its workspace, as one item,
+printed as `output base of nested Bazel test <case>, <size>: <dir>`. It lists
+the cases whose workspace has not changed for 30 days, and with `--bases` or
+when the nested-Bazel root's disk is low, every case, least recently used
+first. It only looks at slots whose `lock` it can take without waiting, and
+never creates a `lock` file. `--apply` holds the slot's lock while it deletes.
+A case whose slot a test locked after the check is printed as
+`skipped output base of nested Bazel test <case> (busy): <dir>`; one whose Bazel
+server still runs is kept as
+`kept output base of nested Bazel test <case> (server): <dir>`.
 
 ## Shared disk cache
 

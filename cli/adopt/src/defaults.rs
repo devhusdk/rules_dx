@@ -6,6 +6,7 @@ pub const DX_VERBOSE_ENV: &str = "DX_VERBOSE";
 pub const DX_COLOR_ENV: &str = "DX_COLOR";
 pub const DX_QUIET_ENV: &str = "DX_QUIET";
 pub const DX_FAIL_ON_ENV: &str = "DX_FAIL_ON";
+pub const DX_BUILD_SLOTS_ENV: &str = "DX_BUILD_SLOTS";
 
 /// Environment variables that mark a process started by a coding agent.
 pub const AGENT_ENVS: [&str; 5] = [
@@ -24,13 +25,14 @@ pub fn is_agent(get: &dyn Fn(&str) -> Option<String>) -> bool {
 }
 
 /// Environment defaults, the flag each one defaults, and the value shape.
-pub const ENV_DEFAULTS: [(&str, &str, &str); 6] = [
+pub const ENV_DEFAULTS: [(&str, &str, &str); 7] = [
     (DX_WORKSPACE_ENV, "--workspace", "dir"),
     (DX_QUIET_ENV, "--quiet", "bool"),
     (DX_VERBOSE_ENV, "--verbose", "bool"),
     (DX_COLOR_ENV, "--color", "mode"),
     (DX_OUTPUT_ENV, "--output", "mode"),
     (DX_FAIL_ON_ENV, "--fail-on", "level"),
+    (DX_BUILD_SLOTS_ENV, "--build-slots", "auto|n|off"),
 ];
 
 /// Spellings that turn a boolean environment default on.
@@ -63,7 +65,54 @@ pub struct FileDefaults {
     pub color: Option<String>,
     pub quiet: Option<bool>,
     pub fail_on: Option<String>,
+    pub build_slots: Option<BuildSlots>,
     pub baseline: Option<String>,
+}
+
+/// Every documented `build-slots` spelling.
+pub const BUILD_SLOTS_SPELLINGS: &str = "auto|<n>|off";
+
+/// The largest explicit slot count; each take walks every index up to it.
+pub const MAX_BUILD_SLOTS: usize = 1024;
+
+/// How many build slots this dx process sizes its gate with.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum BuildSlots {
+    /// Size from host memory, as dx always has.
+    #[default]
+    Auto,
+    /// Exactly this many slots, with no memory-based clamp and no remote extras.
+    Count(std::num::NonZeroUsize),
+    /// Take no slot and pass no `--local_resources`.
+    Off,
+}
+
+impl BuildSlots {
+    /// Read `auto`, `off`, or a count from 1 to `MAX_BUILD_SLOTS`; case and surrounding space are ignored.
+    pub fn parse(value: &str) -> Option<Self> {
+        let value = value.trim().to_ascii_lowercase();
+        match value.as_str() {
+            "auto" => Some(BuildSlots::Auto),
+            "off" => Some(BuildSlots::Off),
+            digits if !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()) => digits
+                .parse::<usize>()
+                .ok()
+                .filter(|count| *count <= MAX_BUILD_SLOTS)
+                .and_then(std::num::NonZeroUsize::new)
+                .map(BuildSlots::Count),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for BuildSlots {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BuildSlots::Auto => f.write_str("auto"),
+            BuildSlots::Count(count) => write!(f, "{count}"),
+            BuildSlots::Off => f.write_str("off"),
+        }
+    }
 }
 
 /// Read one boolean default, or `None` when the text is not a documented spelling.
@@ -79,13 +128,14 @@ pub fn parse_bool(value: &str) -> Option<bool> {
 }
 
 const REMOVED_DRY_RUN_DEFAULT: &str = "dry_run was removed; delete it from the config file";
-const DX_KEYS: [&str; 6] = [
+const DX_KEYS: [&str; 7] = [
     "workspace",
     "output",
     "verbose",
     "color",
     "quiet",
     "fail-on",
+    "build-slots",
 ];
 
 /// Refuse the removed `DX_DRY_RUN` environment default whatever its value.
@@ -156,6 +206,28 @@ struct DxTable {
     quiet: Option<bool>,
     #[serde(default, rename = "fail-on")]
     fail_on: Option<String>,
+    #[serde(default, rename = "build-slots")]
+    build_slots: Option<toml::Value>,
+}
+
+/// Read the `[dx] build-slots` value: an integer, or a string spelling.
+fn file_build_slots(value: Option<toml::Value>) -> Result<Option<BuildSlots>, super::AdoptError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let parsed = match &value {
+        toml::Value::Integer(count) => BuildSlots::parse(&count.to_string()),
+        toml::Value::String(text) if text.trim().is_empty() => return Ok(None),
+        toml::Value::String(text) => BuildSlots::parse(text),
+        _ => None,
+    };
+    parsed
+        .map(Some)
+        .ok_or_else(|| super::AdoptError::InvalidDefaults {
+            detail: format!(
+                "invalid build-slots {value}: want {BUILD_SLOTS_SPELLINGS} (n from 1 to {MAX_BUILD_SLOTS})"
+            ),
+        })
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -240,6 +312,7 @@ pub fn parse_file_text(text: &str) -> Result<FileDefaults, super::AdoptError> {
         color: non_empty(table.color),
         quiet: table.quiet,
         fail_on: non_empty(table.fail_on),
+        build_slots: file_build_slots(table.build_slots)?,
         baseline,
     })
 }
@@ -291,6 +364,7 @@ pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefau
         color: local.color.or(committed.color),
         quiet: local.quiet.or(committed.quiet),
         fail_on: local.fail_on.or(committed.fail_on),
+        build_slots: local.build_slots.or(committed.build_slots),
         baseline: local.baseline.or(committed.baseline),
     }
 }
@@ -485,7 +559,8 @@ mod tests {
                 DX_VERBOSE_ENV,
                 DX_COLOR_ENV,
                 DX_OUTPUT_ENV,
-                DX_FAIL_ON_ENV
+                DX_FAIL_ON_ENV,
+                DX_BUILD_SLOTS_ENV
             ]
         );
         assert_eq!(TRUTHY, ["true"]);
@@ -647,6 +722,7 @@ mod tests {
                 "--fail-on" => "\"error\"",
                 "--color" => "\"never\"",
                 "--output" => "\"json\"",
+                "--build-slots" => "\"auto\"",
                 _ => "\"/repo\"",
             };
             parse_file_text(&format!("[dx]\n{key} = {literal}\n"))
@@ -911,6 +987,77 @@ mod tests {
         let (after, primary) = load_defaults_with_mode(&root, false).expect("after");
         assert_eq!(after, before);
         assert_eq!(primary, Some(root.join("dx.toml")));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn build_slots_parse_accepts_only_auto_off_and_counts() {
+        let count = |n: usize| BuildSlots::Count(std::num::NonZeroUsize::new(n).expect("n"));
+        for (text, want) in [
+            ("auto", Some(BuildSlots::Auto)),
+            ("AUTO", Some(BuildSlots::Auto)),
+            (" off ", Some(BuildSlots::Off)),
+            ("2", Some(count(2))),
+            ("1024", Some(count(1024))),
+            ("0", None),
+            ("-1", None),
+            ("+2", None),
+            ("many", None),
+            ("2.5", None),
+            ("1025", None),
+            ("", None),
+        ] {
+            assert_eq!(BuildSlots::parse(text), want, "{text:?}");
+        }
+        for setting in [BuildSlots::Auto, BuildSlots::Off, count(7)] {
+            assert_eq!(BuildSlots::parse(&setting.to_string()), Some(setting));
+        }
+    }
+
+    #[test]
+    fn build_slots_file_values_are_typed_and_checked() {
+        let count = |n: usize| BuildSlots::Count(std::num::NonZeroUsize::new(n).expect("n"));
+        for (value, want) in [
+            ("2", count(2)),
+            ("\"2\"", count(2)),
+            ("\"auto\"", BuildSlots::Auto),
+            ("\"OFF\"", BuildSlots::Off),
+        ] {
+            let parsed = parse_file_text(&format!("[dx]\nbuild-slots = {value}\n")).expect(value);
+            assert_eq!(parsed.build_slots, Some(want), "{value}");
+        }
+        let empty = parse_file_text("[dx]\nbuild-slots = \"\"\n").expect("empty");
+        assert_eq!(empty.build_slots, None);
+        for value in ["0", "-1", "1025", "2.5", "true", "\"many\""] {
+            let error = parse_file_text(&format!("[dx]\nbuild-slots = {value}\n"))
+                .expect_err(value)
+                .to_string();
+            assert!(
+                error.contains("build-slots") && error.contains(BUILD_SLOTS_SPELLINGS),
+                "{value}: {error}"
+            );
+        }
+        let top = parse_file_text("build-slots = 2\n")
+            .expect_err("top level")
+            .to_string();
+        assert!(top.contains("set it under [dx]"), "{top}");
+    }
+
+    #[test]
+    fn build_slots_local_file_beats_committed_and_ci_drops_it() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-build-slots-");
+        let root = scratch.path();
+        std::fs::write(root.join("dx.toml"), "[dx]\nbuild-slots = 3\n").expect("committed");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\nbuild-slots = \"off\"\n").expect("local");
+        let (local, _) = load_defaults_with_mode(root, false).expect("local");
+        assert_eq!(local.build_slots, Some(BuildSlots::Off));
+        let (ci, _) = load_defaults_with_mode(root, true).expect("ci");
+        assert_eq!(
+            ci.build_slots,
+            Some(BuildSlots::Count(
+                std::num::NonZeroUsize::new(3).expect("3")
+            ))
+        );
         scratch.close().expect("cleanup");
     }
 }

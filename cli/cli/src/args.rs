@@ -39,6 +39,9 @@ pub enum ArgsError {
     /// The resolved --fail-on value is not a severity.
     #[error("unknown --fail-on {value:?}: want info|warning|error")]
     BadFailOn { value: String },
+    /// The resolved --build-slots value is not auto, a count, or off.
+    #[error("unknown --build-slots {value:?} from {origin}: want auto|<n>|off (n from 1 to 1024)")]
+    BadBuildSlots { origin: &'static str, value: String },
     /// The resolved --color value is not a mode.
     #[error("unknown --color {value:?}: want auto|always|never")]
     BadColor { value: String },

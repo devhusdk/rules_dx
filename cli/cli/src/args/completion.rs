@@ -798,6 +798,7 @@ mod tests {
             "-q",
             "-v",
             "--color",
+            "--build-slots",
             "-o",
             "--debug",
             "--release",

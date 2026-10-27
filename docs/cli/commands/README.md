@@ -48,7 +48,24 @@ holds it until its updaters finish. `dx update --check` and updaters that do
 not run Bazel take none. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
-at least one and never more than 16. The count has no setting.
+at least one and never more than 16.
+
+`--build-slots auto|<n>|off` sets the count for one run. `DX_BUILD_SLOTS` and
+`build-slots` in `dx.toml` or `dx.local.toml` set a default, and the flag wins.
+The default is `auto`, the count above. In CI the env var and
+`dx.local.toml` are ignored, like every other default.
+
+- `auto`: the memory-based count above, with the remote extras below.
+- `<n>`: exactly `n` slots, from 1 to 1024. There is no 16 cap and no remote
+  extras; raise `n` instead. In the rules_dx workspace the slots kept for
+  nested Bazel test servers sit above `n`.
+- `off`: dx takes no slot, never waits for one, and adds no
+  `--local_resources` flags.
+
+Every dx process applies its own setting, while the slot files are shared
+across the machine. A run with `--build-slots 32` can take slots that `auto`
+runs never look at, so the setting is not a machine-wide cap. `DX_BUILD_SLOT`
+(singular) is an internal marker dx sets for nested calls; do not set it.
 
 When the Bazel config sets a non-empty `--remote_executor`, dx offers more
 slots: the memory divided by 1.5 GiB, at most 16. dx reads this from the rc
@@ -187,6 +204,8 @@ Every command takes these:
   `true`, and `=false` turns off a default inherited from the environment or a
   config file. Short flags cluster (`-qv`); repeating `-v` changes nothing.
 - `--color auto|always|never`: color output. Default `auto`.
+- `--build-slots auto|<n>|off`: build slots for this run. Default `auto`. See
+  [Build Slots](#build-slots).
 - `--bazel-startup-option <token>`: Bazel startup option, repeatable. Takes
   `--output_base=<path>` or `--output_user_root=<path>`. Inserted before the
   Bazel verb for every managed invocation. Isolated output bases isolate
@@ -355,6 +374,7 @@ default off.
 - `DX_COLOR=<mode>`: default for `--color`.
 - `DX_OUTPUT=<mode>`: default for `--output`.
 - `DX_FAIL_ON=<level>`: default for `--fail-on`.
+- `DX_BUILD_SLOTS=auto|<n>|off`: default for `--build-slots`.
 - `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
 - `BUILD_WORKING_DIRECTORY=<dir>`: current directory under `bazel run`.
@@ -378,6 +398,7 @@ verbose = true
 color = "never"
 output = "json"
 fail-on = "error"
+build-slots = "auto"
 ```
 
 Values are TOML, so a boolean key takes `true` or `false`. An empty value is

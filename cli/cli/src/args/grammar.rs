@@ -56,6 +56,7 @@ pub(crate) struct Flags {
     pub(crate) output: Option<String>,
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
+    pub(crate) build_slots: Option<String>,
     pub(crate) include_edits: bool,
     pub(crate) min_coverage: Option<u32>,
     pub(crate) check: bool,
@@ -204,6 +205,19 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Set build slots: auto, a count, or off.
+    BuildSlotsFlag, {
+        #[arg(
+            long = "build-slots",
+            value_name = "auto|n|off",
+            allow_negative_numbers = true,
+            overrides_with = "build_slots"
+        )]
+        build_slots: Option<String>,
+    }
+}
+
 composite_group! {
     /// The flags every command accepts.
     CommonArgs, {
@@ -211,6 +225,7 @@ composite_group! {
         quiet: QuietFlag,
         verbose: VerboseFlag,
         color: ColorFlag,
+        build_slots: BuildSlotsFlag,
         bazel_startup_option: BazelStartupOptionFlag,
     }
 }
@@ -934,6 +949,7 @@ pub(crate) const VALUE_OPTIONS: &[&str] = &[
     "--port",
     "--host",
     "--color",
+    "--build-slots",
     "--bazel-startup-option",
 ];
 

@@ -2438,6 +2438,7 @@ fn literal_for(key: &str) -> &'static str {
         "fail-on" => "\"error\"",
         "color" => "\"never\"",
         "output" => "\"json\"",
+        "build-slots" => "\"auto\"",
         _ => "\"/w\"",
     }
 }

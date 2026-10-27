@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::args::Command;
+use dx_adopt::defaults::BuildSlots;
 use dx_worktree::host::{self, Host, Server, SystemHost};
 
 pub mod pressure;
@@ -222,6 +223,44 @@ pub fn remote_slot_count(memory: u64, reserved: u64) -> usize {
     usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_REMOTE_SLOT)
         .unwrap_or(MAX_SLOTS)
         .clamp(1, MAX_SLOTS)
+}
+
+/// How many slots a gate counts, spans, and adds for remote runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Sizing {
+    /// Slots a run may take.
+    pub count: usize,
+    /// Slots the gate spans; those above `count` are the nested Bazel reserve.
+    pub pool: usize,
+    /// Remote-only slots above the pool.
+    pub extras: usize,
+}
+
+/// The gate sizing for `setting` on a machine with `memory` bytes, `reserved` of them for nested Bazel.
+///
+/// `Auto` sizes from memory. `Count(n)` takes exactly `n`, keeps the reserve's width above `n`,
+/// and adds no remote extras. `Off` has no gate.
+pub fn sizing(setting: BuildSlots, memory: u64, reserved: u64) -> Option<Sizing> {
+    match setting {
+        BuildSlots::Off => None,
+        BuildSlots::Auto => {
+            let count = slot_count(memory, reserved);
+            Some(Sizing {
+                count,
+                pool: slot_count(memory, 0).max(count),
+                extras: remote_slot_count(memory, reserved).saturating_sub(count),
+            })
+        }
+        BuildSlots::Count(count) => {
+            let count = count.get();
+            let width = slot_count(memory, 0).saturating_sub(slot_count(memory, reserved));
+            Some(Sizing {
+                count,
+                pool: count + width,
+                extras: 0,
+            })
+        }
+    }
 }
 
 /// One slot's share of `cpus` and of `memory` bytes less `reserved`, split over `held` slots.
@@ -830,22 +869,29 @@ impl Gate {
         }
     }
 
-    /// The gate for this process; `None` when nested, inside a Bazel test, or without a cache dir.
+    /// The gate for this process; `None` when nested, inside a Bazel test, set `off`, or without a cache dir.
     pub fn from_env(
         workspace: &Path,
         env_get: &dyn Fn(&str) -> Option<String>,
         json: bool,
         bazel_options: &[String],
+        setting: BuildSlots,
     ) -> Option<Self> {
         let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
         if set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
             return None;
         }
+        if setting == BuildSlots::Off {
+            return None;
+        }
         let dir = slots_dir(env_get)?;
         let memory = available_memory()?;
         let reserved = nested_reserve(workspace, env_get);
-        let count = slot_count(memory, reserved);
-        let extras = remote_slot_count(memory, reserved).saturating_sub(count);
+        let Sizing {
+            count,
+            pool,
+            extras,
+        } = sizing(setting, memory, reserved)?;
         let read = |path: &Path| std::fs::read_to_string(path).ok();
         let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
         let remote = dx_process::rc::remote_execution(
@@ -866,7 +912,7 @@ impl Gate {
         Some(Gate {
             warm,
             ..Gate::new(dir, count, workspace.display().to_string(), json)
-                .reserving(slot_count(memory, 0))
+                .reserving(pool)
                 .extra(extras, remote)
                 .sharing(cpus, memory, reserved)
                 .reclaiming(move || dx_worktree::reclaim_for_build(&reclaim_in))
@@ -1297,7 +1343,7 @@ mod tests {
         json: bool,
         events: &mut dyn Write,
     ) -> Result<Option<Slot>, i32> {
-        Gate::from_env(workspace, env_get, json, &[])
+        Gate::from_env(workspace, env_get, json, &[], BuildSlots::Auto)
             .map_or(Ok(None), |gate| gate.hold(command, err, events))
     }
 
@@ -1714,14 +1760,16 @@ mod tests {
         let cache = scratch.path().to_string_lossy().into_owned();
         let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
         let memory = available_memory().expect("memory");
-        let gate = Gate::from_env(scratch.path(), &get, false, &[]).expect("gate");
+        let gate =
+            Gate::from_env(scratch.path(), &get, false, &[], BuildSlots::Auto).expect("gate");
         let resources = gate.resources.expect("resources");
         let cpus = std::thread::available_parallelism().expect("cpus").get();
         assert_eq!(resources.cpus, u64::try_from(cpus).expect("u64"));
         assert_eq!((resources.memory, resources.reserved), (memory, 6 << 30));
         assert_eq!(gate.count, slot_count(memory, 6 << 30));
         assert_eq!(gate.pool, slot_count(memory, 0));
-        let consumer = Gate::from_env(Path::new("/ws"), &get, false, &[]).expect("gate");
+        let consumer =
+            Gate::from_env(Path::new("/ws"), &get, false, &[], BuildSlots::Auto).expect("gate");
         assert_eq!(consumer.pool, consumer.count);
         let narrow = Gate::new(PathBuf::from("/slots"), 3, "r".to_owned(), false).reserving(1);
         assert_eq!(narrow.pool, 3);
@@ -2001,9 +2049,10 @@ mod tests {
             SLOT_ENV_VAR => nested.get().then(|| "1".to_owned()),
             _ => None,
         };
-        let gate = Gate::from_env(Path::new("/ws"), &get, false, &[]).expect("gate");
+        let gate =
+            Gate::from_env(Path::new("/ws"), &get, false, &[], BuildSlots::Auto).expect("gate");
         nested.set(true);
-        assert!(Gate::from_env(Path::new("/ws"), &get, false, &[]).is_none());
+        assert!(Gate::from_env(Path::new("/ws"), &get, false, &[], BuildSlots::Auto).is_none());
         let slot = with_gate(Some(gate), || {
             take(Command::Run, &mut Vec::new(), &mut Vec::new())
         });
@@ -2455,6 +2504,108 @@ mod tests {
         assert!(try_take(&dir, 2, "c").expect("try").is_none());
         drop(slot);
         assert!(crate::test_support::slot_settles_free(&dir, 2));
+    }
+
+    fn count(n: usize) -> BuildSlots {
+        BuildSlots::Count(std::num::NonZeroUsize::new(n).expect("n"))
+    }
+
+    #[test]
+    fn auto_sizing_matches_memory_sizing() {
+        for (memory, reserved) in [
+            (64u64 << 30, 0u64),
+            (64 << 30, 6 << 30),
+            (2 << 30, 0),
+            (19 << 30, 6 << 30),
+        ] {
+            let count = slot_count(memory, reserved);
+            assert_eq!(
+                sizing(BuildSlots::Auto, memory, reserved),
+                Some(Sizing {
+                    count,
+                    pool: slot_count(memory, 0),
+                    extras: remote_slot_count(memory, reserved).saturating_sub(count),
+                }),
+                "{memory} {reserved}"
+            );
+        }
+    }
+
+    #[test]
+    fn count_sizing_keeps_the_reserve_width_above_n() {
+        let memory = 30u64 << 30;
+        assert_eq!(
+            sizing(count(2), memory, 0),
+            Some(Sizing {
+                count: 2,
+                pool: 2,
+                extras: 0
+            })
+        );
+        let width = slot_count(memory, 0) - slot_count(memory, 6 << 30);
+        assert_eq!(width, 2);
+        assert_eq!(
+            sizing(count(2), memory, 6 << 30),
+            Some(Sizing {
+                count: 2,
+                pool: 2 + width,
+                extras: 0
+            })
+        );
+        assert_eq!(
+            sizing(count(40), memory, 0),
+            Some(Sizing {
+                count: 40,
+                pool: 40,
+                extras: 0
+            }),
+            "an explicit count is not clamped to {MAX_SLOTS}"
+        );
+        assert_eq!(sizing(BuildSlots::Off, memory, 0), None);
+    }
+
+    #[test]
+    fn off_and_nested_runs_build_no_gate() {
+        let scratch = dx_test_scratch::scratch("dx-slots-off-");
+        let cache = scratch.path().to_string_lossy().into_owned();
+        let get = |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
+        assert!(Gate::from_env(Path::new("/ws"), &get, false, &[], BuildSlots::Off).is_none());
+        let gate = Gate::from_env(Path::new("/ws"), &get, false, &[], count(3)).expect("gate");
+        assert_eq!((gate.count, gate.pool, gate.extras), (3, 3, 0));
+        let nested = |name: &str| match name {
+            "XDG_CACHE_HOME" => Some(cache.clone()),
+            SLOT_ENV_VAR => Some("1".to_owned()),
+            _ => None,
+        };
+        for setting in [BuildSlots::Auto, BuildSlots::Off, count(1), count(40)] {
+            assert!(
+                Gate::from_env(Path::new("/ws"), &nested, false, &[], setting).is_none(),
+                "a child under a held slot ignores {setting}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_count_gate_waits_on_the_take_past_n() {
+        let scratch = dx_test_scratch::scratch("dx-slots-count-wait-");
+        let dir = scratch.path().join("slots");
+        let size = sizing(count(2), 64 << 30, 0).expect("sizing");
+        let gate = Gate::new(dir.clone(), size.count, "fill".to_owned(), false)
+            .reserving(size.pool)
+            .extra(size.extras, false);
+        let (first, _, _) = take_gate(&gate);
+        let (second, _, _) = take_gate(&gate);
+        assert_eq!((first.index, second.index), (0, 1));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        drop(first);
+        let (third, err, _) = waiter.join().expect("join");
+        assert_eq!(third.index, 0);
+        assert!(
+            err.starts_with("dx: waiting for a build slot (held by fill"),
+            "{err}"
+        );
+        drop(second);
     }
 
     #[test]

@@ -1,7 +1,6 @@
 use crate::args::{Command, Invocation};
 use crate::reports::Destination;
 use crate::resolve::QueryRunner;
-use crate::worktree::ops::size;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
@@ -189,6 +188,8 @@ pub(crate) enum ExecError {
 
 pub(crate) const CODE_LAUNCH_FAILED: &str = "launch_failed";
 pub(crate) const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
+/// Fires before a Bazel run at `disk::DISK_FULL_BYTES` (1 GiB). Worktree reclaim uses the
+/// looser `disk::is_low` rule instead, so the two are distinct signals.
 pub(crate) const CODE_DISK_LOW: &str = "disk_low";
 pub(crate) const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
 pub(crate) const CODE_INVALID_BEP: &str = "invalid_bep";
@@ -724,11 +725,7 @@ fn warn_low_disk(
     else {
         return Ok(());
     };
-    let message = format!(
-        "{} free at {}; free disk space with `dx worktree prune --apply`",
-        size(free),
-        path.display()
-    );
+    let message = crate::disk::low_message(&path, free);
     let _ = writeln!(err, "dx: {CODE_DISK_LOW}: {message}");
     if output != OutputMode::Json {
         return Ok(());

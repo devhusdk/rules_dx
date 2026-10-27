@@ -1,0 +1,32 @@
+load("//javascript/rules:defs.bzl", "javascript_js_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+javascript_js_test(
+    name = "args_test",
+    srcs = ["args_test.mjs"],
+    args = [
+        "--marker",
+        "$(rootpath :marker.txt)",
+    ],
+    aspect_hints = ["//:biome_config"],
+    data = [":marker.txt"],
+    entry_point = "args_test.mjs",
+)
+
+exports_files([
+    "args_test.mjs",
+    "marker.txt",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

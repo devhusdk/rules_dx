@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"errors"
 	"regexp"
 	"fmt"
 	"path"
@@ -49,9 +50,23 @@ type FileFacts struct {
 type AmbiguousError struct {
 	What string
 	Attr string
+	// Path is the workspace-relative file; empty when unknown.
+	Path string
+	// Line and Col are 1-based; Col is a byte column.
+	Line, Col int
+	// StartByte and EndByte are offsets into the original file.
+	StartByte, EndByte int
+}
+
+type attrSpan struct {
+	body       string
+	start, end int
 }
 
 func (e *AmbiguousError) Error() string {
+	if e.Path != "" {
+		return fmt.Sprintf("rust: %s:%d:%d: ambiguous test context on %s: %s is not exactly #[cfg(test)]; disambiguate with #[cfg(test)] or move the item", e.Path, e.Line, e.Col, e.What, e.Attr)
+	}
 	return fmt.Sprintf("rust: ambiguous test context on %s: %s is not exactly #[cfg(test)]; disambiguate with #[cfg(test)] or move the item", e.What, e.Attr)
 }
 
@@ -304,7 +319,7 @@ func isSpace(c byte) bool {
 }
 
 func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
-	attrs := make([]string, 0, 2)
+	attrs := make([]attrSpan, 0, 2)
 	braces := 0
 	for {
 		p.skipSpace()
@@ -325,6 +340,7 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 			return nil
 		}
 		if p.src[p.pos] == '#' {
+			attrStart := p.pos
 			attr, inner, ok := p.scanAttr()
 			if !ok {
 				p.pos++
@@ -337,7 +353,7 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 				}
 				continue
 			}
-			attrs = append(attrs, attr)
+			attrs = append(attrs, attrSpan{body: attr, start: attrStart, end: p.pos})
 			continue
 		}
 		word, ok := p.scanWord()
@@ -391,7 +407,7 @@ func (p *parser) parseItems(depth int, testScope bool, facts *FileFacts) error {
 	}
 }
 
-func (p *parser) parseMod(attrs []string, testScope bool, depth int, facts *FileFacts) error {
+func (p *parser) parseMod(attrs []attrSpan, testScope bool, depth int, facts *FileFacts) error {
 	p.skipSpace()
 	name, ok := p.scanWord()
 	if !ok {
@@ -399,8 +415,9 @@ func (p *parser) parseMod(attrs []string, testScope bool, depth int, facts *File
 	}
 	cfgTest := testScope
 	pathOverride := ""
-	for _, a := range attrs {
-		kind, err := classifyTestAttr("module "+name, a)
+	for _, sp := range attrs {
+		a := sp.body
+		kind, err := p.classifyAttr("module "+name, sp)
 		if err != nil {
 			return err
 		}
@@ -475,10 +492,10 @@ func (p *parser) parseMod(attrs []string, testScope bool, depth int, facts *File
 	}
 }
 
-func (p *parser) parseUse(attrs []string, testScope bool, facts *FileFacts) error {
+func (p *parser) parseUse(attrs []attrSpan, testScope bool, facts *FileFacts) error {
 	cfgTest := testScope
-	for _, a := range attrs {
-		kind, err := classifyTestAttr("use declaration", a)
+	for _, sp := range attrs {
+		kind, err := p.classifyAttr("use declaration", sp)
 		if err != nil {
 			return err
 		}
@@ -512,10 +529,10 @@ func (p *parser) parseUse(attrs []string, testScope bool, facts *FileFacts) erro
 	return nil
 }
 
-func (p *parser) parseExtern(attrs []string, testScope bool, facts *FileFacts) error {
+func (p *parser) parseExtern(attrs []attrSpan, testScope bool, facts *FileFacts) error {
 	cfgTest := testScope
-	for _, a := range attrs {
-		kind, err := classifyTestAttr("extern crate declaration", a)
+	for _, sp := range attrs {
+		kind, err := p.classifyAttr("extern crate declaration", sp)
 		if err != nil {
 			return err
 		}
@@ -573,10 +590,10 @@ func (p *parser) skipMacroGroup() {
 	p.pos = save
 }
 
-func (p *parser) parseFn(attrs []string, testScope bool, depth int, facts *FileFacts) error {
+func (p *parser) parseFn(attrs []attrSpan, testScope bool, depth int, facts *FileFacts) error {
 	isTest := testScope
-	for _, a := range attrs {
-		kind, err := classifyTestAttr("function", a)
+	for _, sp := range attrs {
+		kind, err := p.classifyAttr("function", sp)
 		if err != nil {
 			return err
 		}
@@ -639,6 +656,20 @@ func classifyTestAttr(what, attr string) (attrKind, error) {
 		return attrNone, &AmbiguousError{What: what, Attr: "#[" + body + "]"}
 	}
 	return attrNone, nil
+}
+
+// classifyAttr classifies sp and attaches its source position to ambiguity errors.
+func (p *parser) classifyAttr(what string, sp attrSpan) (attrKind, error) {
+	kind, err := classifyTestAttr(what, sp.body)
+	var amb *AmbiguousError
+	if errors.As(err, &amb) {
+		amb.Path = p.path
+		amb.StartByte, amb.EndByte = sp.start, sp.end
+		pre := p.src[:sp.start]
+		amb.Line = 1 + strings.Count(pre, "\n")
+		amb.Col = sp.start - (strings.LastIndex(pre, "\n") + 1) + 1
+	}
+	return kind, err
 }
 
 func isTestAttr(attr string) bool {

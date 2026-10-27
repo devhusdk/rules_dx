@@ -2,7 +2,6 @@ package fsharp
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"sort"
@@ -346,23 +345,6 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 	}
 }
 
-func TestGenerateNoSourcesStaleSweep(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "pkg", "demo")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"notes.txt"},
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules, want 0", len(result.Gen))
-	}
-}
-
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.fs", "Main.fs"}
 	got := refuseFixture(t, map[string]string{
@@ -389,30 +371,6 @@ func TestGenerateMixedPackagesFail(t *testing.T) {
 	wantRefusal(t, got, "fsharp: pkg/demo: mixed packages Demo, global in one directory;")
 }
 
-func TestGenerateKindMismatchFails(t *testing.T) {
-	root := t.TempDir()
-	for name, content := range map[string]string{
-		"pkg/demo/Demo.fs": "namespace Demo\n\ntype Demo = class end\n",
-	} {
-		writeFixture(t, root, name, content)
-	}
-	existing := &rule.File{}
-	fg := rule.NewRule("filegroup", "demo")
-	existing.Rules = append(existing.Rules, fg)
-	lang := NewLanguage()
-	result := lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          filepath.Join(root, "pkg", "demo"),
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"Demo.fs"},
-		File:         existing,
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
-	}
-	wantRefusal(t, refusal(t, lang), "fsharp: pkg/demo: target name \"demo\" is claimed by generated fsharp_library(pkg/demo) and existing filegroup")
-}
-
 func TestImportsIndexNonTestSources(t *testing.T) {
 	lang := NewLanguage()
 	lib := rule.NewRule(LibraryKind, "demo")
@@ -426,56 +384,6 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule(LibraryKind, "empty"), nil); got != nil {
 		t.Errorf("srcless imports = %+v, want nil", got)
-	}
-}
-
-func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	l := newLang()
-	l.Fail("fsharp: boom")
-	l.AfterResolvingDeps(context.Background())
-	got := common.Errors.Take()
-	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "fsharp: boom" {
-		t.Fatalf("sink = %#v, want one fsharp failure", got)
-	}
-}
-
-func TestAfterResolvingDepsClean(t *testing.T) {
-	l := newLang()
-	l.AfterResolvingDeps(context.Background())
-	if l.Failed() {
-		t.Errorf("errors = %v", common.Messages(common.Errors.Take()))
-	}
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	l := newLang()
-	if l.Name() != "fsharp" || len(l.Kinds()) != 1 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
-		t.Fatal("invalid language metadata")
-	}
-	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	l.Configure(config.New(), "pkg", nil)
-	l.DoneGeneratingRules()
-	if got := l.KnownDirectives(); len(got) != 1 || got[0] != "dx_ignore_import" {
-		t.Fatalf("directives = %v, want [dx_ignore_import]", got)
-	}
-	if l.Embeds(nil, label.NoLabel) != nil {
-		t.Fatal("invalid directives or embeds")
-	}
-	loads := l.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//fsharp/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "fsharp_library" {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := l.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//fsharp/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
-	defaultApparent := l.ApparentLoads(func(string) string { return "" })
-	if defaultApparent[0].Name != "@rules_dx//fsharp/rules:defs.bzl" {
-		t.Errorf("default apparent loads = %+v", defaultApparent)
 	}
 }
 

@@ -77,7 +77,10 @@ gazelle_binary(
 
 go_test(
     name = "dispatch_test",
-    srcs = ["lang_test.go"],
+    srcs = [
+        "conformance_test.go",
+        "lang_test.go",
+    ],
     data = ["BUILD.bazel"],
     embed = [":dispatch"],
     pure = "on",

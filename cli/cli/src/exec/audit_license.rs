@@ -117,7 +117,13 @@ pub(super) fn run_license(
                 }
                 continue;
             }
-            if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Npm {
+            if matches!(
+                set.ecosystem,
+                dx_adopt::dependency_sets::Ecosystem::Npm
+                    | dx_adopt::dependency_sets::Ecosystem::Ruby
+                    | dx_adopt::dependency_sets::Ecosystem::PowerShell
+            ) {
+                let ecosystem = set.ecosystem.name();
                 let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
                     parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
                 });
@@ -129,8 +135,17 @@ pub(super) fn run_license(
                         }
                     }
                     Ok((locks, (locked, paths))) => {
-                        let licensed = configured_npm_licenses(&locks, &locked, &policy.inventory);
-                        let entry = lock_paths.entry("npm".to_owned()).or_insert(LockPaths {
+                        let licensed = match set.ecosystem {
+                            dx_adopt::dependency_sets::Ecosystem::Npm => {
+                                configured_npm_licenses(&locks, &locked, &policy.inventory)
+                            }
+                            _ => dx_audit::locks::inventory_licenses(
+                                &locked,
+                                &policy.inventory,
+                                ecosystem,
+                            ),
+                        };
+                        let entry = lock_paths.entry(ecosystem.to_owned()).or_insert(LockPaths {
                             by_package: BTreeMap::new(),
                             fallback: paths.fallback.clone(),
                         });
@@ -412,10 +427,12 @@ pub(super) fn run_license(
                 dx_adopt::dependency_sets::Ecosystem::Bazel => {
                     selected_sets.insert(dx_audit::locks::BAZEL_SET);
                 }
-                dx_adopt::dependency_sets::Ecosystem::Npm => {
-                    selected_sets.insert("npm");
+                dx_adopt::dependency_sets::Ecosystem::Npm
+                | dx_adopt::dependency_sets::Ecosystem::Ruby
+                | dx_adopt::dependency_sets::Ecosystem::PowerShell => {
+                    selected_sets.insert(set.ecosystem.name());
                 }
-                _ => {}
+                dx_adopt::dependency_sets::Ecosystem::Uv => {}
             }
         }
     }

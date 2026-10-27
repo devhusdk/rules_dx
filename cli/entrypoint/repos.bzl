@@ -135,11 +135,14 @@ _SETS_BUILD_BAZEL = '''genrule(
     name = "consumer_sets_probe",
     outs = [
         "bad_kind.txt",
+        "bump_pinned.txt",
         "bump_unsupported.txt",
         "license_json.txt",
         "nolock_license.txt",
         "security_json.txt",
         "security_npm_json.txt",
+        "security_ruby_json.txt",
+        "update_pinned.txt",
         "sets_ok/dx.toml",
         "sets_ok/MODULE.bazel",
         "sets_ok/.dx/version",
@@ -149,6 +152,10 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/services/worker/uv.lock",
         "sets_ok/apps/web/package.json",
         "sets_ok/apps/web/pnpm-lock.yaml",
+        "sets_ok/apps/rb/Gemfile",
+        "sets_ok/apps/rb/Gemfile.lock",
+        "sets_ok/tools/ps/PSGallery.requirements.psd1",
+        "sets_ok/tools/ps/PSGallery.lock.json",
         "sets_overlap/dx.toml",
         "sets_overlap/MODULE.bazel",
         "sets_overlap/.dx/version",
@@ -196,7 +203,31 @@ ecosystem = "npm"
 manifests = ["apps/web/package.json"]
 locks = ["apps/web/pnpm-lock.yaml"]
 scopes = ["apps/web"]
+[[dependency_set]]
+name = "gems"
+ecosystem = "ruby"
+manifests = ["apps/rb/Gemfile"]
+locks = ["apps/rb/Gemfile.lock"]
+scopes = ["apps/rb"]
+[[dependency_set]]
+name = "modules"
+ecosystem = "powershell"
+manifests = ["tools/ps/PSGallery.requirements.psd1"]
+locks = ["tools/ps/PSGallery.lock.json"]
+scopes = ["tools/ps"]
 EOF
+echo 'source "https://rubygems.org"' > "$(location sets_ok/apps/rb/Gemfile)"
+cat > "$(location sets_ok/apps/rb/Gemfile.lock)" <<'EOF'
+GEM
+  remote: https://rubygems.org/
+  specs:
+
+PLATFORMS
+  ruby
+EOF
+echo '@{}' > "$(location sets_ok/tools/ps/PSGallery.requirements.psd1)"
+echo '{"modules": {}}' > "$(location sets_ok/tools/ps/PSGallery.lock.json)"
+cp "$(location sets_ok/apps/rb/Gemfile.lock)" /tmp/consumer_sets_gemfile_lock.orig
 echo '{"name": "web", "version": "1.0.0", "private": true}' > "$(location sets_ok/apps/web/package.json)"
 cat > "$(location sets_ok/apps/web/pnpm-lock.yaml)" <<'EOF'
 lockfileVersion: '9.0'
@@ -285,6 +316,25 @@ if grep -q "no advisory coverage" "$(location security_npm_json.txt)"; then
   echo "security reported a configured npm set as uncovered" >&2
   exit 1
 fi
+"$$public" update --check --workspace "$$ok" gems modules > "$(location update_pinned.txt)" 2>&1
+grep -q "gems pins are manual" "$(location update_pinned.txt)"
+grep -q "modules pins are manual" "$(location update_pinned.txt)"
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" gems > "$(location security_ruby_json.txt)" 2>/dev/null; then
+  echo "security passed without a RubyGems advisory snapshot" >&2
+  exit 1
+fi
+grep -q "failed to assess gems" "$(location security_ruby_json.txt)"
+grep -q ".dx/advisory/rubygems.json" "$(location security_ruby_json.txt)"
+if grep -q "no advisory coverage" "$(location security_ruby_json.txt)"; then
+  echo "security reported a configured ruby set as uncovered" >&2
+  exit 1
+fi
+if "$$public" bump gems:rack 1.0 --workspace "$$ok" > "$(location bump_pinned.txt)" 2>&1; then
+  echo "bump unexpectedly widened a configured ruby set" >&2
+  exit 1
+fi
+grep -q "bump is not supported for ecosystem ruby set gems (supported operations: audit; check and update report pinned)" "$(location bump_pinned.txt)"
+cmp /tmp/consumer_sets_gemfile_lock.orig "$(location sets_ok/apps/rb/Gemfile.lock)"
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
 if "$$public" bump frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then

@@ -136,7 +136,8 @@ fn run_configured_target(
     if let Err(error) = dependency_sets::check_backend_settings(workspace, set) {
         let status = match error {
             dependency_sets::DependencySetsError::UnsupportedSettings { .. }
-            | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. } => {
+            | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. }
+            | dependency_sets::DependencySetsError::MissingPinnedLock { .. } => {
                 dx_update::outcome::SetStatus::Unsupported
             }
             _ => dx_update::outcome::SetStatus::Failed,
@@ -162,7 +163,9 @@ fn run_configured_target(
             }),
             python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
         },
-        Ecosystem::Npm | Ecosystem::Bazel => dx_update::backend::UvClosure::default(),
+        Ecosystem::Npm | Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => {
+            dx_update::backend::UvClosure::default()
+        }
     };
     let head = invocation.bazel_head();
     let planned = match mode {
@@ -1083,6 +1086,155 @@ scopes = ["consumer-npm/web"]
             "{err}"
         );
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    const PINNED_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "frontend"
+ecosystem = "uv"
+manifests = ["apps/frontend/pyproject.toml"]
+locks = ["apps/frontend/uv.lock"]
+scopes = ["apps/frontend"]
+
+[[dependency_set]]
+name = "gems"
+ecosystem = "ruby"
+manifests = ["apps/rb/Gemfile"]
+locks = ["apps/rb/Gemfile.lock"]
+scopes = ["apps/rb"]
+
+[[dependency_set]]
+name = "modules"
+ecosystem = "powershell"
+manifests = ["tools/ps/PSGallery.requirements.psd1"]
+locks = ["tools/ps/PSGallery.lock.json"]
+scopes = ["tools/ps"]
+"#;
+
+    const PINNED_FILES: [(&str, &str); 4] = [
+        (
+            "apps/rb/Gemfile",
+            "source \"https://rubygems.org\"\ngem \"rspec-core\"\n",
+        ),
+        (
+            "apps/rb/Gemfile.lock",
+            "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n",
+        ),
+        (
+            "tools/ps/PSGallery.requirements.psd1",
+            "@{ Pester = '5.5.0' }\n",
+        ),
+        ("tools/ps/PSGallery.lock.json", "{}\n"),
+    ];
+
+    fn pinned_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, PINNED_TOML, true);
+        for (rel, text) in PINNED_FILES {
+            harness.write_source(rel, text);
+        }
+        harness
+    }
+
+    fn assert_pinned_files_unchanged(harness: &Harness) {
+        for (rel, text) in PINNED_FILES {
+            assert_eq!(read_bytes(harness, rel), text.as_bytes(), "{rel}");
+        }
+    }
+
+    #[test]
+    fn consumer_ruby_and_powershell_sets_report_pinned_and_launch_nothing() {
+        for (argv, uv) in [
+            (vec!["update", "--check"], uv_call(true, "apps/frontend")),
+            (
+                vec!["update", "--check", "--offline", "--frozen"],
+                uv_call(true, "apps/frontend"),
+            ),
+            (vec!["update", "--apply"], uv_call(false, "apps/frontend")),
+        ] {
+            let harness = pinned_harness("pinned");
+            let runner = ScriptRunner::new(&[]);
+            let mut json = argv.clone();
+            json.push("--output=json");
+            let (code, out, err) = run_with(&json, &runner, &harness);
+            let launches: Vec<Vec<String>> = runner
+                .launches
+                .borrow()
+                .iter()
+                .map(|launch| launch.argv.clone())
+                .collect();
+            assert!(
+                launches.iter().all(|argv| argv[0] == fake_pinned("uv")),
+                "only uv runs: {launches:?}"
+            );
+            if !argv.contains(&"--offline") {
+                assert_eq!(code, 0, "{argv:?} {out}{err}");
+                assert_eq!(launches, vec![uv.clone()], "{argv:?}");
+            }
+            let events = json_events(&out);
+            for set in ["gems", "modules"] {
+                assert!(
+                    events
+                        .iter()
+                        .any(|event| event["code"] == "update_set_pinned"
+                            && event["correlation"] == format!("update:{set}")),
+                    "{argv:?} {set}: {out}"
+                );
+            }
+            assert!(!out.contains("gems lockfile current"), "{out}");
+            assert!(!out.contains("updated gems"), "{out}");
+            assert_pinned_files_unchanged(&harness);
+        }
+        let harness = pinned_harness("pinned-text");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("gems pins are manual; nothing to resolve"),
+            "{out}"
+        );
+        assert!(
+            out.contains("modules pins are manual; nothing to resolve"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn consumer_pinned_package_selection_is_unsupported_without_fallback() {
+        for (selector, regenerate) in [
+            ("gems:rspec-core", "bundle lock"),
+            ("modules:Pester", "PSGallery.lock.json by hand"),
+        ] {
+            for mode in ["--apply", "--check"] {
+                let harness = pinned_harness("pinned-selective");
+                let runner = ScriptRunner::new(&[]);
+                let (code, out, err) = run_with(&["update", mode, selector], &runner, &harness);
+                assert_ne!(code, 0, "{selector} {mode}: {out}{err}");
+                assert!(err.contains("update_set_unsupported"), "{err}");
+                assert!(err.contains(regenerate), "{err}");
+                assert!(!out.contains("pins are manual"), "{out}");
+                assert!(runner.launches.borrow().is_empty());
+                assert_pinned_files_unchanged(&harness);
+            }
+        }
+    }
+
+    #[test]
+    fn consumer_pinned_set_without_its_lock_declared_is_unsupported() {
+        let harness = consumer_harness(
+            "pinned-lock",
+            "schema_version = 1\n[[dependency_set]]\nname = \"gems\"\necosystem = \"ruby\"\nmanifests = [\"apps/rb/Gemfile\"]\nlocks = [\"apps/rb/gems.locked\"]\nscopes = [\"apps/rb\"]\n",
+            true,
+        );
+        harness.write_source("apps/rb/Gemfile", PINNED_FILES[0].1);
+        harness.write_source("apps/rb/gems.locked", PINNED_FILES[1].1);
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("apps/rb/Gemfile.lock"), "{err}");
+        assert!(!out.contains("pins are manual"), "{out}");
+        assert!(runner.launches.borrow().is_empty());
     }
 
     #[test]

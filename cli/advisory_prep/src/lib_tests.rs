@@ -519,3 +519,53 @@ fn configured_sets_add_their_advisory_family_once() {
         .collect();
     assert_eq!(families, ["cargo", "npm", "pypi"]);
 }
+
+fn planned_families(files: &[(&str, &str)]) -> Vec<&'static str> {
+    let workspace = workspace();
+    for (rel, text) in files {
+        let path = workspace.path().join(rel);
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");
+        std::fs::write(&path, text).expect("writes");
+    }
+    plan(&options(&workspace))
+        .expect("plans")
+        .into_iter()
+        .map(|(family, _)| family)
+        .collect()
+}
+
+const RUBY_SET: &str = "[[dependency_set]]\nname = \"gems\"\necosystem = \"ruby\"\nmanifests = [\"rb/Gemfile\"]\nlocks = [\"rb/Gemfile.lock\"]\nscopes = [\"rb\"]\n";
+
+const POWERSHELL_SET: &str = "[[dependency_set]]\nname = \"modules\"\necosystem = \"powershell\"\nmanifests = [\"ps/PSGallery.requirements.psd1\"]\nlocks = [\"ps/PSGallery.lock.json\"]\nscopes = [\"ps\"]\n";
+
+#[test]
+fn configured_ruby_sets_plan_rubygems_and_powershell_sets_plan_nothing() {
+    let both = format!("schema_version = 1\n\n{RUBY_SET}\n{POWERSHELL_SET}");
+    assert_eq!(
+        planned_families(&[
+            ("dx.toml", &both),
+            ("rb/Gemfile", "source \"https://rubygems.org\"\n"),
+            ("rb/Gemfile.lock", "GEM\n  specs:\n"),
+            ("ps/PSGallery.requirements.psd1", "@{}\n"),
+            ("ps/PSGallery.lock.json", "{}\n"),
+        ]),
+        ["cargo", "rubygems"]
+    );
+    let powershell_only = format!("schema_version = 1\n\n{POWERSHELL_SET}");
+    assert_eq!(
+        planned_families(&[
+            ("dx.toml", &powershell_only),
+            ("ps/PSGallery.requirements.psd1", "@{}\n"),
+            ("ps/PSGallery.lock.json", "{}\n"),
+        ]),
+        ["cargo"]
+    );
+    let ruby_without_lock = format!("schema_version = 1\n\n{RUBY_SET}");
+    assert_eq!(
+        planned_families(&[
+            ("dx.toml", &ruby_without_lock),
+            ("rb/Gemfile", "source \"https://rubygems.org\"\n"),
+        ]),
+        ["cargo"]
+    );
+}

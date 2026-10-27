@@ -423,6 +423,69 @@ dependencies = ["anyio>=4"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
+    const PINNED_DX_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "gems"
+ecosystem = "ruby"
+manifests = ["apps/rb/Gemfile"]
+locks = ["apps/rb/Gemfile.lock"]
+scopes = ["apps/rb"]
+
+[[dependency_set]]
+name = "modules"
+ecosystem = "powershell"
+manifests = ["tools/ps/PSGallery.requirements.psd1"]
+locks = ["tools/ps/PSGallery.lock.json"]
+scopes = ["tools/ps"]
+"#;
+
+    #[test]
+    fn consumer_pinned_sets_refuse_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer-pinned");
+        harness.write_source("dx.toml", PINNED_DX_TOML);
+        let files = [
+            (
+                "apps/rb/Gemfile",
+                "source \"https://rubygems.org\"\ngem \"rack\"\n",
+            ),
+            ("apps/rb/Gemfile.lock", "GEM\n  specs:\n    rack (3.0.0)\n"),
+            (
+                "tools/ps/PSGallery.requirements.psd1",
+                "@{ Pester = '5.5.0' }\n",
+            ),
+            ("tools/ps/PSGallery.lock.json", "{}\n"),
+        ];
+        for (rel, text) in files {
+            harness.write_source(rel, text);
+        }
+        for (selector, want) in [
+            (
+                "gems:rack",
+                "bump is not supported for ecosystem ruby set gems \
+(supported operations: audit; check and update report pinned)",
+            ),
+            (
+                "modules:Pester",
+                "bump is not supported for ecosystem powershell set modules \
+(supported operations: audit; check and update report pinned)",
+            ),
+        ] {
+            let (code, _, err) = harness.run(&["bump", selector, "1.0", "--apply"]);
+            assert_eq!(code, 1, "{err}");
+            assert!(err.contains(want), "{err}");
+        }
+        for (rel, text) in files {
+            assert_eq!(
+                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
+                text.as_bytes(),
+                "{rel}"
+            );
+        }
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
     const BAZEL_SET_DX_TOML: &str = r#"
 schema_version = 1
 

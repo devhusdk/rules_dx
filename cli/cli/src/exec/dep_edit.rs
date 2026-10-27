@@ -84,26 +84,22 @@ pub(crate) fn configured_bazel_set(
             };
             Ok(Some((set.name.clone(), manifest.clone())))
         }
-        dx_adopt::dependency_sets::Ecosystem::Uv | dx_adopt::dependency_sets::Ecosystem::Npm => {
-            Err(operational(
-                invocation,
-                out,
-                err,
-                verb.failure_code,
-                &format!(
-                    "{} is not supported for ecosystem {} set {} (supported operations: {})",
-                    verb.command,
-                    set.ecosystem.name(),
-                    set.name,
-                    [
-                        set.ecosystem.supported_check(),
-                        set.ecosystem.supported_update(),
-                        set.ecosystem.supported_audit(),
-                    ]
-                    .join(", "),
-                ),
-            ))
-        }
+        dx_adopt::dependency_sets::Ecosystem::Uv
+        | dx_adopt::dependency_sets::Ecosystem::Npm
+        | dx_adopt::dependency_sets::Ecosystem::Ruby
+        | dx_adopt::dependency_sets::Ecosystem::PowerShell => Err(operational(
+            invocation,
+            out,
+            err,
+            verb.failure_code,
+            &format!(
+                "{} is not supported for ecosystem {} set {} (supported operations: {})",
+                verb.command,
+                set.ecosystem.name(),
+                set.name,
+                set.ecosystem.supported_operations(),
+            ),
+        )),
     }
 }
 

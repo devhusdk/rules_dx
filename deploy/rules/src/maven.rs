@@ -7,10 +7,8 @@ use pgp::composed::{
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::types::Password;
 
-use super::{
-    copy_verified, deploy_outdir, env_or_empty, resolve_runfile, tempfile_stage_dir,
-    write_secure_file, OwnerGate,
-};
+use crate::run::{env_or_empty, scrubbed_command, OwnerGate, PUBLISH_CHILD_ENV_KEEP};
+use crate::{copy_verified, deploy_profile, tempfile_stage_dir, write_secure_file, DeployRun};
 
 const MAVEN_CHECKSUMS: [&str; 4] = ["md5", "sha1", "sha256", "sha512"];
 
@@ -464,7 +462,18 @@ pub(crate) const MAVEN_GATE: OwnerGate = OwnerGate {
     action: "staging",
     credentials: &["MAVEN_USERNAME", "MAVEN_PASSWORD"],
     approved: "MAVEN_PUBLISH_APPROVED",
+    live: "MAVEN_PUBLISH_LIVE",
 };
+
+/// Extra env names `mvn` keeps beyond the publish base list.
+const MAVEN_CHILD_ENV_EXTRA: &[&str] = &[
+    "JAVA_HOME",
+    "MAVEN_HOME",
+    "M2_HOME",
+    "MAVEN_OPTS",
+    "MAVEN_ARGS",
+    "MAVEN_GPG_KEY_FINGERPRINT",
+];
 
 /// Credentials and signing state for one live Maven upload.
 pub struct MavenLive {
@@ -476,6 +485,31 @@ pub struct MavenLive {
     pub signer: Option<MavenSigner>,
     /// Whether the upload carries no signature.
     pub unsigned: bool,
+    /// Armored key from MAVEN_GPG_KEY, empty when unsigned.
+    pub gpg_key: String,
+    /// Passphrase from MAVEN_GPG_PASSPHRASE, empty when unsigned.
+    pub gpg_passphrase: String,
+}
+
+/// Builds the mvn command in a cleared env.
+///
+/// A signed upload gets MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE back, because the
+/// bc signer reads them from env; the repository password stays in settings.xml.
+pub fn maven_command(mvn: &Path, live: &MavenLive, args: &[String]) -> std::process::Command {
+    let mut extra: Vec<(&str, &str)> = Vec::new();
+    if !live.unsigned {
+        extra.push(("MAVEN_GPG_KEY", &live.gpg_key));
+        if !live.gpg_passphrase.is_empty() {
+            extra.push(("MAVEN_GPG_PASSPHRASE", &live.gpg_passphrase));
+        }
+    }
+    let mut cmd = scrubbed_command(
+        mvn,
+        &[PUBLISH_CHILD_ENV_KEEP, MAVEN_CHILD_ENV_EXTRA],
+        &extra,
+    );
+    cmd.args(args);
+    cmd
 }
 
 /// Checks every live-upload refusal and returns the upload settings.
@@ -489,9 +523,7 @@ pub fn maven_live_gate(
             "maven_deploy: live staging refuses version 0.0.0; set a real version".to_owned(),
         );
     }
-    if let Some(error) = MAVEN_GATE.refusal(env) {
-        return Err(error);
-    }
+    let secrets = MAVEN_GATE.authorize(env)?;
     if let Some(host) = maven_retired_host(repository_url) {
         return Err(format!(
             "maven_deploy: invalid repository_url '{repository_url}': {host} is retired OSSRH infrastructure (use '{MAVEN_PORTAL_STAGING_URL}')"
@@ -515,11 +547,18 @@ pub fn maven_live_gate(
             "maven staging: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned(),
         );
     }
+    let (gpg_key, gpg_passphrase) = if unsigned {
+        (String::new(), String::new())
+    } else {
+        (key, passphrase)
+    };
     Ok(MavenLive {
-        username: env("MAVEN_USERNAME"),
-        password: env("MAVEN_PASSWORD"),
+        username: secrets.get("MAVEN_USERNAME").to_owned(),
+        password: secrets.get("MAVEN_PASSWORD").to_owned(),
         signer,
         unsigned,
+        gpg_key,
+        gpg_passphrase,
     })
 }
 
@@ -543,26 +582,21 @@ pub fn maven_main(
         eprintln!("maven_deploy: {error}");
         return 1;
     }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("maven_deploy: cannot create {}", outdir.display());
+    let Some(run) = DeployRun::start(
+        "maven_deploy",
+        "the file repo is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let jar = match resolve_runfile(jar_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("maven_deploy: {error}");
-            return 1;
-        }
     };
-    let pom = match resolve_runfile(pom_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("maven_deploy: {error}");
-            return 1;
-        }
+    let outdir = run.outdir();
+    let Some(jar) = run.resolve(jar_rloc) else {
+        return 1;
     };
-    if env_or_empty("MAVEN_PUBLISH_LIVE") == "1" {
+    let Some(pom) = run.resolve(pom_rloc) else {
+        return 1;
+    };
+    if MAVEN_GATE.requested(env_or_empty) {
         let live = match maven_live_gate(&env_or_empty, version, repository_url) {
             Ok(live) => live,
             Err(error) => {
@@ -601,17 +635,20 @@ pub fn maven_main(
                 return 1;
             }
         };
-        let mut cmd = std::process::Command::new("mvn");
-        cmd.args(maven_deploy_args(
-            !live.unsigned,
-            &settings,
-            repository_url,
-            &jar,
-            &pom,
-            group,
-            artifact,
-            version,
-        ));
+        let mut cmd = maven_command(
+            Path::new("mvn"),
+            &live,
+            &maven_deploy_args(
+                !live.unsigned,
+                &settings,
+                repository_url,
+                &jar,
+                &pom,
+                group,
+                artifact,
+                version,
+            ),
+        );
         if live.unsigned {
             println!(
                 "maven_deploy: unsigned staging recorded (MAVEN_ALLOW_UNSIGNED=1 with owner approval; no GPG signature attached)"
@@ -652,14 +689,14 @@ pub fn maven_main(
     match maven_build_file_repo(
         &jar,
         &pom,
-        &outdir,
+        outdir,
         group,
         artifact,
         version,
         signer.as_ref(),
     ) {
         Ok(house) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("maven_deploy: staged {group}:{artifact}:{version} (profile: {profile})");
             println!("  repo: {}", house.display());
             println!("  url: file://{}", house.display());
@@ -676,6 +713,7 @@ pub fn maven_main(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::resolve_runfile;
     use crate::tests::{env_test_in_child, scratch_dir, with_env};
     use pgp::composed::{EncryptionCaps, KeyType, SecretKeyParamsBuilder, SubkeyParamsBuilder};
 
@@ -976,6 +1014,76 @@ pub(crate) mod tests {
             .expect("signed");
         assert!(!live.unsigned);
         assert!(live.signer.is_some());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn maven_command_scrubs_env_and_passes_gpg_only_when_signed() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = scratch_dir();
+        let mvn = scratch.path().join("mvn");
+        let d = scratch.path().display();
+        std::fs::write(
+            &mvn,
+            format!("#!/bin/sh\nprintf '%s\\n' \"$@\" > '{d}/args.txt'\nenv > '{d}/env.txt'\n"),
+        )
+        .expect("write mvn");
+        std::fs::set_permissions(&mvn, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let (secret, _) = test_key(false);
+        let mut signed = APPROVED.to_vec();
+        signed.push(("MAVEN_GPG_KEY", &secret));
+        signed.push(("MAVEN_GPG_PASSPHRASE", PASSPHRASE));
+        let mut unsigned = APPROVED.to_vec();
+        unsigned.push(("MAVEN_ALLOW_UNSIGNED", "1"));
+        let settings = scratch.path().join("settings.xml");
+        for (vars, want_gpg) in [(signed, true), (unsigned, false)] {
+            let live = maven_live_gate(&gate_env(&vars), "1.0.0", MAVEN_PORTAL_STAGING_URL)
+                .ok()
+                .expect("gate");
+            let args = maven_deploy_args(
+                !live.unsigned,
+                &settings,
+                MAVEN_PORTAL_STAGING_URL,
+                Path::new("a.jar"),
+                Path::new("pom.xml"),
+                "com.example",
+                "demo",
+                "1.0.0",
+            );
+            let status = with_env(
+                &[
+                    ("DX_LEAK_PROBE", Some("1")),
+                    ("MAVEN_PASSWORD", Some("pass")),
+                    ("MAVEN_GPG_KEY", None),
+                    ("MAVEN_GPG_PASSPHRASE", None),
+                    ("JAVA_HOME", Some("/opt/jdk")),
+                ],
+                || maven_command(&mvn, &live, &args).status(),
+            )
+            .expect("run mvn");
+            assert!(status.success());
+            let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
+            let argv = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
+            assert!(!env.contains("DX_LEAK_PROBE"), "{env}");
+            assert!(!env.contains("MAVEN_PASSWORD"), "{env}");
+            assert!(env.lines().any(|line| line == "JAVA_HOME=/opt/jdk"));
+            assert_eq!(env.contains("MAVEN_GPG_KEY="), want_gpg, "{env}");
+            assert_eq!(
+                env.lines()
+                    .any(|line| line == format!("MAVEN_GPG_PASSPHRASE={PASSPHRASE}")),
+                want_gpg
+            );
+            assert!(
+                !argv
+                    .lines()
+                    .any(|line| line == "pass" || line.ends_with("=pass")),
+                "{argv}"
+            );
+            assert!(
+                !argv.contains(PASSPHRASE) && !argv.contains("PGP"),
+                "{argv}"
+            );
+        }
     }
 
     #[test]

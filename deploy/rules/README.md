@@ -551,3 +551,11 @@ Except for `cloudflare_pages_deploy`, a default run writes into the
 workspace root, or into the directory given as the first argument. A live
 run without its credentials or its `*_APPROVED=1` variable is refused. Exit
 codes: `0` staged or published, `1` any failure or refusal.
+
+Every launcher, `npm_deploy` included, rejects arguments beyond that output
+directory. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `mvn`, `docker`,
+`octo`, `npm`) run with a cleared environment plus a per-tool keep-list.
+Secrets reach them only through that environment, stdin or an owner-only temp
+file, never argv. The exceptions are the promotion `PROMOTION_HEALTH_CMD`, the
+`docker context inspect` endpoint probe, and `wrangler`, which has its own
+narrower list.

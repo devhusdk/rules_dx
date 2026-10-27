@@ -91,13 +91,8 @@ fn ancestors() -> Vec<(u32, String)> {
     let mut pid = u32::try_from(unsafe { libc::getppid() }).unwrap_or(0);
     while pid > 1 && chain.len() < 8 {
         let ps = |field: &str| {
-            std::process::Command::new("ps")
-                .args(["-o", field, "-p", &pid.to_string()])
-                .stdin(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .output()
-                .ok()
-                .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+            dx_process::probe("ps", ["-o", field, "-p", &pid.to_string()])
+                .map(|text| text.trim().to_owned())
                 .filter(|text| !text.is_empty())
         };
         let Some(name) = ps("comm=") else {

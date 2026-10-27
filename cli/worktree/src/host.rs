@@ -281,35 +281,26 @@ fn pid_alive(pid: u32) -> bool {
 
 #[cfg(not(unix))]
 fn pid_alive(pid: u32) -> bool {
-    Command::new("tasklist")
-        .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
-        .stdin(Stdio::null())
-        .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).contains(&format!("\"{pid}\"")))
-        .unwrap_or(false)
+    dx_process::probe(
+        "tasklist",
+        ["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"],
+    )
+    .is_some_and(|text| text.contains(&format!("\"{pid}\"")))
 }
 
 #[cfg(unix)]
 fn list_servers() -> String {
-    Command::new("ps")
-        .args(["-eo", "pid=,rss=,args="])
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
-        .unwrap_or_default()
+    dx_process::probe("ps", ["-eo", "pid=,rss=,args="]).unwrap_or_default()
 }
 
 #[cfg(not(unix))]
 fn list_servers() -> String {
     let script = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*A-server.jar*' } | ForEach-Object { \"$($_.ProcessId) $([int]($_.WorkingSetSize/1024)) $($_.CommandLine)\" }";
-    Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
-        .unwrap_or_default()
+    dx_process::probe(
+        "powershell",
+        ["-NoProfile", "-NonInteractive", "-Command", script],
+    )
+    .unwrap_or_default()
 }
 
 fn home(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {

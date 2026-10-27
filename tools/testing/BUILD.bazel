@@ -80,6 +80,7 @@ rust_library(
     deps = [
         ":dx_testing",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
     ],
 )
 

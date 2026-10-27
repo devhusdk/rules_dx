@@ -1404,3 +1404,23 @@ fn default_bazel_head_is_the_bare_startup_verb_and_verb_options() {
     expected.extend(build_verb_options("build", &[]));
     assert_eq!(BazelHead::default().argv("build"), expected);
 }
+
+#[test]
+fn probe_is_none_when_the_program_is_missing() {
+    assert_eq!(probe("dx-no-such-program-2174", ["x"]), None);
+}
+
+#[cfg(unix)]
+#[test]
+fn probe_returns_stdout_only_on_success() {
+    assert_eq!(probe("sh", ["-c", "echo hi"]).as_deref(), Some("hi\n"));
+    assert_eq!(probe("sh", ["-c", "echo partial; exit 1"]), None);
+    assert_eq!(probe("false", std::iter::empty::<&str>()), None);
+}
+
+#[cfg(windows)]
+#[test]
+fn probe_returns_stdout_only_on_success() {
+    assert!(probe("cmd", ["/C", "echo hi"]).is_some_and(|text| text.starts_with("hi")));
+    assert_eq!(probe("cmd", ["/C", "exit 1"]), None);
+}

@@ -707,14 +707,7 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
 
 #[cfg(unix)]
 fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
-    let output = Command::new("df")
-        .args(["-Pk"])
-        .arg(dir)
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    space_from_df(&String::from_utf8_lossy(&output.stdout))
+    space_from_df(&probe("df", [OsStr::new("-Pk"), dir.as_os_str()])?)
 }
 
 #[cfg(not(unix))]
@@ -759,6 +752,24 @@ pub fn version_line(path: &Path) -> Option<String> {
     }
     let text = String::from_utf8_lossy(&output.stdout);
     text.lines().next().map(|line| line.trim().to_owned())
+}
+
+/// Runs one host query with the inherited environment and returns its stdout only when it succeeds.
+pub fn probe<I, S>(program: &str, args: I) -> Option<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let output = Command::new(program)
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 pub fn spawn_output(

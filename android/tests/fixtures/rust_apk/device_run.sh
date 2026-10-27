@@ -65,6 +65,36 @@ wait_log() {
     return 1
 }
 
+wait_focus() {
+    waited=0
+    while [ "$waited" -lt 60 ]; do
+        if device shell dumpsys window 2>/dev/null | grep mCurrentFocus | grep -q -- "$1"; then
+            echo "device_run: $1 has window focus"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    echo "device_run: $1 has no window focus after 60 s, sending input anyway" >&2
+}
+
+send_until() {
+    want="$1"
+    shift
+    waited=0
+    while [ "$waited" -lt 60 ]; do
+        device "$@"
+        sleep 2
+        if device logcat -d -s DxRustApk:I 2>/dev/null | grep -q -- "$want"; then
+            echo "device_run: saw $want after $((waited / 2 + 1)) sends"
+            return 0
+        fi
+        waited=$((waited + 2))
+    done
+    echo "device_run: logcat never showed '$want' after 60 s of sends" >&2
+    return 1
+}
+
 not_installed() {
     if device shell pm path "$1" 2>&1 | grep -q '^package:'; then
         echo "device_run: $1 is installed before any explicit run" >&2
@@ -73,24 +103,43 @@ not_installed() {
     echo "device_run: $1 is not installed"
 }
 
-no_signed_outputs() {
-    for target in sign sign_app sign_app_aab sign_test_bundle; do
-        "$BAZEL" cquery --output=files "$pkg:$target" > "$evidence/cquery-$target.txt"
-        while read -r out; do
-            if [ -e "$out" ]; then
-                echo "device_run: a build produced $out" >&2
-                return 1
-            fi
-        done < "$evidence/cquery-$target.txt"
-    done
-    echo "device_run: no signing launcher output exists"
+no_release_signing() {
+    stamp="$1"
+    log="$2"
+    if grep -n 'dx-android-sign:' "$log" >&2; then
+        echo "device_run: a dx command ran a release signing launcher" >&2
+        return 1
+    fi
+    out_base="$("$BAZEL" info output_base)"
+    : > "$evidence/no-effect-files.txt"
+    find "$root" -xdev -newer "$stamp" -type f \( -name '*.idsig' -o -name '*.apk' -o -name '*.aab' \) \
+        ! -path "$evidence/*" >> "$evidence/no-effect-files.txt"
+    find -H "$out_base/execroot" -newer "$stamp" -type f -name '*.idsig' >> "$evidence/no-effect-files.txt"
+    find -H "$out_base/execroot" -newer "$stamp" -type f -name test.log -path '*/testlogs/*' \
+        -exec grep -l 'dx-android-sign:' {} + >> "$evidence/no-effect-files.txt" || true
+    if [ -s "$evidence/no-effect-files.txt" ]; then
+        echo "device_run: release signing left files behind:" >&2
+        cat "$evidence/no-effect-files.txt" >&2
+        return 1
+    fi
+    echo "device_run: no release signing ran and no signed APK, AAB or .idsig appeared"
 }
 
 no_effect() {
-    tools/dx build "$pkg:app_apk_file" "$pkg:custom_apk_file"
-    tools/dx test "$pkg:inspect_apk_test" "$pkg:inspect_custom_apk_test"
-    no_signed_outputs
-    tools/dx check "$pkg/..."
+    unset DX_SIGN_APK DX_SIGN_AAB DX_SIGN_KEYSTORE DX_SIGN_STORE_PASS_FILE DX_SIGN_KEY_PASS_FILE DX_SIGN_KEY_ALIAS DX_SIGN_OUT
+    stamp="$evidence/no-effect.stamp"
+    log="$evidence/no-effect-dx.txt"
+    : > "$stamp"
+    sleep 1
+    rc=0
+    {
+        tools/dx build "$pkg:app_apk_file" "$pkg:custom_apk_file" || rc=1
+        tools/dx test "$pkg:inspect_apk_test" "$pkg:inspect_custom_apk_test" || rc=1
+        tools/dx check "$pkg/..." || rc=1
+    } > "$log" 2>&1
+    cat "$log"
+    [ "$rc" -eq 0 ]
+    no_release_signing "$stamp" "$log"
     not_installed "$app"
     not_installed "$custom"
 }
@@ -99,10 +148,9 @@ default_app() {
     device logcat -c
     tools/dx run "$pkg:install" "$pkg:start"
     wait_log "lifecycle=resume" 1
-    device shell input tap 200 400
-    wait_log "input=touch" 1
-    device shell input keyevent KEYCODE_ENTER
-    wait_log "input=key" 1
+    wait_focus "$app"
+    send_until "input=touch" shell input tap 200 400
+    send_until "input=key" shell input keyevent KEYCODE_ENTER
     device shell input keyevent KEYCODE_HOME
     wait_log "lifecycle=stop" 1
     tools/dx run "$pkg:start"

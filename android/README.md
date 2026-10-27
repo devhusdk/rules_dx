@@ -329,7 +329,7 @@ tools/dx run $pkg:device_check -- logcat "$PWD/logcat.txt" 30
 `bazel run` works the same way. Pass absolute paths to `:device_check`,
 because `bazel run` starts it in its runfiles. `:install_custom` and
 `:start_custom` install and launch the custom package. `dx build`,
-`dx test` and `dx check` never install, launch or sign.
+`dx test` and `dx check` never install, launch or release-sign.
 
 `android/tests/fixtures/rust_apk/device_run.sh <serial> <dir>` runs the
 whole scenario from the repository root and writes logs, `logcat-default.txt`,

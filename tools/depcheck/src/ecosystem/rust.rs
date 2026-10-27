@@ -2,12 +2,19 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::toml_util::{parse_toml_file, toml_bool, toml_string};
-use crate::{DepInfo, DepcheckError};
+use crate::{DepInfo, DepcheckError, LockVersions};
 
 use super::put;
 
 pub fn normalize_rs(name: &str) -> String {
     name.to_lowercase().replace('-', "_")
+}
+
+fn package_name(t: &toml::map::Map<String, toml::Value>) -> String {
+    t.get("package")
+        .and_then(toml_string)
+        .unwrap_or_default()
+        .to_lowercase()
 }
 
 pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
@@ -20,17 +27,17 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
     ] {
         if let Some(tbl) = data.get(key).and_then(|v| v.as_table()) {
             for (name, val) in tbl {
-                let (spec, optional) = match val {
-                    toml::Value::String(s) => (s.clone(), false),
+                let (spec, optional, package) = match val {
+                    toml::Value::String(s) => (s.clone(), false, String::new()),
                     toml::Value::Table(t) => {
                         let spec = t
                             .get("version")
                             .and_then(toml_string)
                             .unwrap_or_else(|| "*".to_owned());
                         let optional = t.get("optional").map(toml_bool).unwrap_or(false);
-                        (spec, optional)
+                        (spec, optional, package_name(t))
                     }
-                    _ => ("*".to_owned(), false),
+                    _ => ("*".to_owned(), false, String::new()),
                 };
                 put(
                     &mut deps,
@@ -43,6 +50,7 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                         raw: name.clone(),
                         peer: false,
                         sha256: String::new(),
+                        package,
                     },
                 );
             }
@@ -65,13 +73,15 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                     "build"
                 };
                 for (name, val) in tbl {
-                    let spec = match val {
-                        toml::Value::String(s) => s.clone(),
-                        toml::Value::Table(t) => t
-                            .get("version")
-                            .and_then(toml_string)
-                            .unwrap_or_else(|| "*".to_owned()),
-                        _ => "*".to_owned(),
+                    let (spec, package) = match val {
+                        toml::Value::String(s) => (s.clone(), String::new()),
+                        toml::Value::Table(t) => (
+                            t.get("version")
+                                .and_then(toml_string)
+                                .unwrap_or_else(|| "*".to_owned()),
+                            package_name(t),
+                        ),
+                        _ => ("*".to_owned(), String::new()),
                     };
                     put(
                         &mut deps,
@@ -84,6 +94,7 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                             raw: name.clone(),
                             peer: false,
                             sha256: String::new(),
+                            package,
                         },
                     );
                 }
@@ -93,10 +104,10 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
     Ok(deps)
 }
 
-pub fn parse_rust_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
+pub fn parse_rust_lock(path: &Path) -> Result<LockVersions, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::LockToml)?;
-    let mut pkgs = BTreeMap::new();
+    let mut pkgs = LockVersions::new();
     if let Some(list) = data.get("package").and_then(|v| v.as_array()) {
         for item in list {
             let name = item
@@ -109,7 +120,7 @@ pub fn parse_rust_lock(path: &Path) -> Result<BTreeMap<String, String>, Depcheck
                 .and_then(toml_string)
                 .unwrap_or_default();
             if !name.is_empty() {
-                pkgs.insert(name, ver);
+                super::push_version(&mut pkgs, name, ver);
             }
         }
     }

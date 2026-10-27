@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::ecosystem::{cc, dotnet, go, js, jvm, python, ruby, rust};
 use crate::version::satisfies_for;
-use crate::{DepInfo, DepcheckError, Ecosystem, WorkspaceLocks};
+use crate::{DepInfo, DepcheckError, Ecosystem, LockVersions, WorkspaceLocks};
 
 pub(crate) fn load_manifest(
     eco: Ecosystem,
@@ -21,23 +21,29 @@ pub(crate) fn load_manifest(
     }
 }
 
-fn load_lock(eco: Ecosystem, lock: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
+fn single(
+    pkgs: Result<BTreeMap<String, String>, DepcheckError>,
+) -> Result<LockVersions, DepcheckError> {
+    Ok(pkgs?.into_iter().map(|(k, v)| (k, vec![v])).collect())
+}
+
+fn load_lock(eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError> {
     match eco {
         Ecosystem::Rust => rust::parse_rust_lock(lock),
         Ecosystem::Python => python::parse_python_lock(lock),
         Ecosystem::Js | Ecosystem::Ts => Err(DepcheckError::LockParse(
             "pnpm locks are read per importer".to_owned(),
         )),
-        Ecosystem::Go => go::parse_go_lock(lock),
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => jvm::parse_jvm_lock(lock),
-        Ecosystem::Csharp | Ecosystem::Fsharp => dotnet::parse_dotnet_lock(lock),
-        Ecosystem::Cc => cc::parse_cc_lock(lock),
-        Ecosystem::Ruby => ruby::parse_ruby_lock(lock),
+        Ecosystem::Go => single(go::parse_go_lock(lock)),
+        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => single(jvm::parse_jvm_lock(lock)),
+        Ecosystem::Csharp | Ecosystem::Fsharp => single(dotnet::parse_dotnet_lock(lock)),
+        Ecosystem::Cc => single(cc::parse_cc_lock(lock)),
+        Ecosystem::Ruby => single(ruby::parse_ruby_lock(lock)),
     }
 }
 
 type DepLoader = fn(Ecosystem, &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError>;
-type PkgLoader = fn(Ecosystem, &Path) -> Result<BTreeMap<String, String>, DepcheckError>;
+type PkgLoader = fn(Ecosystem, &Path) -> Result<LockVersions, DepcheckError>;
 
 /// One manifest/lock pair to check, with the parsers that read it.
 pub(crate) struct Pair<'a> {
@@ -72,22 +78,27 @@ pub fn cmd_consistency(
 fn check_maps(
     eco: Ecosystem,
     deps: &BTreeMap<String, DepInfo>,
-    pkgs: &BTreeMap<String, String>,
+    pkgs: &LockVersions,
     cc_lock_sha: &BTreeMap<String, String>,
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
 ) -> i32 {
     let mut failures = Vec::new();
     for (name, info) in deps {
-        let mut locked = pkgs.get(name).cloned();
-        if locked.is_none() {
-            let alt = if name.contains('_') {
-                name.replace('_', "-")
-            } else {
-                name.replace('-', "_")
-            };
-            locked = pkgs.get(&alt).cloned();
-        }
+        let key = if info.package.is_empty() {
+            name
+        } else {
+            &info.package
+        };
+        let alt = if key.contains('_') {
+            key.replace('_', "-")
+        } else {
+            key.replace('-', "_")
+        };
+        let locked = pkgs
+            .get(key)
+            .filter(|v| !v.is_empty())
+            .or_else(|| pkgs.get(&alt).filter(|v| !v.is_empty()));
         let Some(locked) = locked else {
             failures.push(format!(
                 "missing lock entry for '{}' (manifest requires {})",
@@ -95,10 +106,12 @@ fn check_maps(
             ));
             continue;
         };
-        if !satisfies_for(eco, &info.spec, &locked) {
+        if !locked.iter().any(|v| satisfies_for(eco, &info.spec, v)) {
             failures.push(format!(
-                "stale lock entry for '{}': manifest requires {}, lock has {locked}",
-                info.raw, info.spec
+                "stale lock entry for '{}': manifest requires {}, lock has {}",
+                info.raw,
+                info.spec,
+                locked.join(", ")
             ));
         } else if eco == Ecosystem::Cc {
             let want_sha = info.sha256.trim().to_owned();
@@ -223,8 +236,8 @@ fn maven_deps(
     jvm::parse_maven_artifacts_list(artifacts)
 }
 
-fn maven_lock(_eco: Ecosystem, lock: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
-    jvm::parse_jvm_lock(lock)
+fn maven_lock(_eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError> {
+    single(jvm::parse_jvm_lock(lock))
 }
 
 pub fn cmd_locks(

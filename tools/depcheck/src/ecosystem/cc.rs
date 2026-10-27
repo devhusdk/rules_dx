@@ -58,6 +58,7 @@ pub fn parse_cc_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
                 optional: item.get("optional").map(toml_bool).unwrap_or(false),
                 platform: item.get("platform").map(toml_bool).unwrap_or(false),
                 sha256: sha,
+                package: String::new(),
                 raw: name,
                 peer: false,
             },

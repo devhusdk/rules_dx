@@ -61,6 +61,7 @@ pub fn parse_jvm_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
                 raw: format!("{grp}:{art}"),
                 peer: false,
                 sha256: String::new(),
+                package: String::new(),
             },
         );
     }
@@ -110,6 +111,7 @@ pub fn parse_maven_artifacts_list(path: &Path) -> Result<BTreeMap<String, DepInf
                 raw: format!("{group}:{artifact}"),
                 peer: false,
                 sha256: String::new(),
+                package: String::new(),
             },
         );
     }

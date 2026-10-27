@@ -53,6 +53,7 @@ pub fn parse_dotnet_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
                 raw: name,
                 peer: false,
                 sha256: String::new(),
+                package: String::new(),
             },
         );
     }

@@ -48,6 +48,7 @@ pub fn parse_ruby_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                 raw: name,
                 peer: false,
                 sha256: String::new(),
+                package: String::new(),
             },
         );
     }

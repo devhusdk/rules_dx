@@ -164,7 +164,31 @@ version = "0.0.0"
 "#,
     );
     let pkgs = parse_rust_lock(&lock).expect("parse");
-    assert_eq!(pkgs["anyhow"], "1.0.0");
+    assert_eq!(pkgs["anyhow"], ["1.0.0"]);
+}
+
+#[test]
+fn rust_lock_keeps_every_version() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let lock = dir.path().join("Cargo.lock");
+    write_file(
+        &lock,
+        r#"
+[[package]]
+name = "syn"
+version = "1.0.109"
+
+[[package]]
+name = "syn"
+version = "2.0.48"
+
+[[package]]
+name = "syn"
+version = "2.0.48"
+"#,
+    );
+    let pkgs = parse_rust_lock(&lock).expect("parse");
+    assert_eq!(pkgs["syn"], ["1.0.109", "2.0.48"]);
 }
 
 #[test]
@@ -258,7 +282,29 @@ version = "8.0.0"
 "#,
     );
     let pkgs = parse_python_lock(&lock).expect("parse");
-    assert_eq!(pkgs["pytest"], "8.0.0");
+    assert_eq!(pkgs["pytest"], ["8.0.0"]);
+}
+
+#[test]
+fn python_lock_keeps_marker_forks() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let lock = dir.path().join("uv.lock");
+    write_file(
+        &lock,
+        r#"
+[[package]]
+name = "numpy"
+version = "1.26.4"
+resolution-markers = ["python_full_version < '3.10'"]
+
+[[package]]
+name = "numpy"
+version = "2.1.0"
+resolution-markers = ["python_full_version >= '3.10'"]
+"#,
+    );
+    let pkgs = parse_python_lock(&lock).expect("parse");
+    assert_eq!(pkgs["numpy"], ["1.26.4", "2.1.0"]);
 }
 
 #[test]
@@ -1406,7 +1452,7 @@ fn python_lock_regex_fallback() {
     let lock = dir.path().join("uv.lock");
     write_file(&lock, "name = \"pytest\"\nversion = \"8.0.0\"\n");
     let pkgs = parse_python_lock(&lock).expect("parse");
-    assert_eq!(pkgs["pytest"], "8.0.0");
+    assert_eq!(pkgs["pytest"], ["8.0.0"]);
 }
 
 #[test]
@@ -1735,6 +1781,89 @@ fn consistency_missing_entry_prefers_alt_names() {
         err.contains("missing lock entry for 'underscore_name'"),
         "{err}"
     );
+}
+
+const SYN_TWO_VERSIONS: &str = "[[package]]\nname = \"syn\"\nversion = \"1.0.109\"\n\n[[package]]\nname = \"syn\"\nversion = \"2.0.48\"\n";
+
+#[test]
+fn consistency_passes_when_any_locked_version_matches() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("Cargo.toml");
+    let lock = dir.path().join("Cargo.lock");
+    write_file(&man, "[dependencies]\nsyn = \"2\"\n");
+    write_file(&lock, SYN_TWO_VERSIONS);
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    assert_eq!(code, 0, "{err}");
+}
+
+#[test]
+fn consistency_stale_lists_all_locked_versions() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("Cargo.toml");
+    let lock = dir.path().join("Cargo.lock");
+    write_file(&man, "[dependencies]\nsyn = \"3\"\n");
+    write_file(&lock, SYN_TWO_VERSIONS);
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    assert_eq!(code, 1);
+    assert!(err.contains("lock has 1.0.109, 2.0.48"), "{err}");
+}
+
+const RENAMED_MANIFEST: &str =
+    "[dependencies]\njson = { package = \"serde_json\", version = \"1\" }\n";
+
+#[test]
+fn rust_manifest_keeps_alias_for_renamed_crate() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("Cargo.toml");
+    write_file(
+        &man,
+        "[dependencies]\njson = { package = \"serde_json\", version = \"1\" }\n\n[target.'cfg(unix)'.dependencies]\npm2 = { package = \"Proc-Macro2\", version = \"1\" }\n",
+    );
+    let deps = parse_rust_manifest(&man).expect("parse");
+    assert_eq!(deps["json"].raw, "json");
+    assert_eq!(deps["json"].package, "serde_json");
+    assert_eq!(deps["pm2"].raw, "pm2");
+    assert_eq!(deps["pm2"].package, "proc-macro2");
+}
+
+#[test]
+fn consistency_finds_renamed_crate() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("Cargo.toml");
+    let lock = dir.path().join("Cargo.lock");
+    write_file(&man, RENAMED_MANIFEST);
+    write_file(
+        &lock,
+        "[[package]]\nname = \"serde_json\"\nversion = \"1.0.100\"\n",
+    );
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    assert_eq!(code, 0, "{err}");
+    write_file(
+        &lock,
+        "[[package]]\nname = \"serde_json\"\nversion = \"0.9.0\"\n",
+    );
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    assert_eq!(code, 1);
+    assert!(err.contains("stale lock entry for 'json'"), "{err}");
+}
+
+#[test]
+fn usage_matches_renamed_crate_by_alias() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("Cargo.toml");
+    write_file(&man, RENAMED_MANIFEST);
+    write_file(&dir.path().join("src/lib.rs"), "use json::Value;\n");
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_usage(Ecosystem::Rust, &man, dir.path(), None, &mut out, &mut err);
+    assert_eq!(code, 0, "{err}");
 }
 
 #[test]

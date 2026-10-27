@@ -42,6 +42,9 @@ pub enum DepcheckError {
     NoMavenCoords,
 }
 
+/// Every distinct locked version per package name, in lock order.
+pub type LockVersions = std::collections::BTreeMap<String, Vec<String>>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DepInfo {
     pub spec: String,
@@ -51,6 +54,8 @@ pub struct DepInfo {
     pub raw: String,
     pub peer: bool,
     pub sha256: String,
+    /// Lock name when the dependency is renamed, empty otherwise.
+    pub package: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

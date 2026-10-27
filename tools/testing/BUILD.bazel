@@ -10,6 +10,7 @@ exports_files([
     "child_runfiles.bzl",
     "clang_diagnostics_test.rs",
     "clang_format_test.rs",
+    "gazelle_compile_test.rs",
     "hello_output.bzl",
     "hello_output_test.rs",
     "java_diagnostics_test.rs",

@@ -1,0 +1,14 @@
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
+
+# gazelle:resolve kotlin kotlin.reflect.full.memberProperties @com_github_jetbrains_kotlin//:kotlin-reflect
+# gazelle:resolve kotlin kotlinx.coroutines.runBlocking @com_github_jetbrains_kotlin//:kotlinx-coroutines-core-jvm
+
+kotlin_library(
+    name = "app",
+    srcs = ["App.kt"],
+    deps = [
+        "//util",
+        "@com_github_jetbrains_kotlin//:kotlin-reflect",
+        "@com_github_jetbrains_kotlin//:kotlinx-coroutines-core-jvm",
+    ],
+)

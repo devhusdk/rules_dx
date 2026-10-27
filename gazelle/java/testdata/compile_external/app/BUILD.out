@@ -1,0 +1,12 @@
+load("@rules_dx//java/rules:defs.bzl", "java_library")
+
+# gazelle:resolve java javax.annotation.Nonnull @maven//:com_google_code_findbugs_jsr305
+
+java_library(
+    name = "app",
+    srcs = ["App.java"],
+    deps = [
+        "//util",
+        "@maven//:com_google_code_findbugs_jsr305",
+    ],
+)

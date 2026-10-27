@@ -99,9 +99,15 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":quality_adapter",
-    data = ["//tools/testing/process_probe"],
+    data = [
+        "//javascript/ide:node_tool",
+        "//python/ide:python_tool",
+        "//tools/testing/process_probe",
+    ],
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
+        "DX_TEST_NODE": "$(rootpath //javascript/ide:node_tool)",
+        "DX_TEST_PYTHON": "$(rootpath //python/ide:python_tool)",
     },
     tags = ["no-remote-exec"],
     deps = all_crate_deps(

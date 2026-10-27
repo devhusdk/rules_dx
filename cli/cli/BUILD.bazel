@@ -47,6 +47,7 @@ rust_library(
         "src/exec/managed_prepare.rs",
         "src/exec/managed_staging.rs",
         "src/exec/migrate.rs",
+        "src/exec/notice_codes.rs",
         "src/exec/quality.rs",
         "src/exec/quality_apply.rs",
         "src/exec/quality_baseline.rs",
@@ -226,6 +227,7 @@ rust_test(
         "src/exec/managed_prepare.rs",
         "src/exec/managed_staging.rs",
         "src/exec/migrate.rs",
+        "src/exec/notice_codes.rs",
         "src/exec/package_identity.rs",
         "src/exec/quality.rs",
         "src/exec/quality_apply.rs",
@@ -271,7 +273,7 @@ rust_test(
     ),
     crate_name = "dx_cli",
     crate_root = "src/lib.rs",
-    data = [
+    data = glob(["src/**/*.rs"]) + [
         ":dx",
         "//:MODULE.bazel",
         "//android/sdk:repos.bzl",

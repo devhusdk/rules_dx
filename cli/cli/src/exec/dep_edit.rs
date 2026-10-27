@@ -416,7 +416,7 @@ fn emit_refreshed(
             notice_event(&NoticeEvent {
                 related_command: Some("update".to_owned()),
                 scope: Some(vec![set_name.to_owned()]),
-                ..NoticeEvent::info("update_set_success", refreshed_message)
+                ..NoticeEvent::info(CODE_UPDATE_SET_SUCCESS, refreshed_message)
             }),
         )?;
         let finished = command_finished(

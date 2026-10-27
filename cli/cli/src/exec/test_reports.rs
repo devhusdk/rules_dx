@@ -477,7 +477,7 @@ fn filtered_notice(
         OutputMode::Json => {
             emit_built(
                 out,
-                notice_event(&NoticeEvent::info("tests_filtered", message)),
+                notice_event(&NoticeEvent::info(CODE_TESTS_FILTERED, message)),
             )?;
         }
         OutputMode::Text { .. } => {

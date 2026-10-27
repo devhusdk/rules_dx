@@ -215,7 +215,8 @@ version. Its `package` has `name`, `version`, and `fixed`, the list of fixed
 versions, empty when none exists. A license finding has tool `license`, rule
 `license/<license>`, a message that starts with
 `<package>@<version> license <license>`, and a `package` with `name`,
-`version`, and `license`. A failed family emits an `error` event. Its code is `advisory_refresh_failed` for a
+`version`, and `license`. A family with no findings emits an info `notice`
+with code `audit_security_clean` or `audit_license_clean`. A failed family emits an `error` event. Its code is `advisory_refresh_failed` for a
 missing, stale, or corrupt advisory snapshot, `offline_required` when
 `--offline` blocks a refresh, and `audit_failed` for findings or any other
 incomplete assessment. Reports: `dx security` writes
@@ -435,8 +436,10 @@ needs a refresh under `--offline` fails before widening with
 
 `--check`, `--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.
-Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
-1 a pending widen without `--apply` or an operational failure.
+Output: `--output text|json`. JSON emits a `bump_widened` notice for each
+written manifest and an `update_set_success` notice after the lock refresh.
+Exit codes: 0 success, 2 usage or scope errors, 1 a pending widen without
+`--apply` or an operational failure.
 
 ```sh
 bazel run @rules_dx//:dx -- bump --apply cargo:anyhow 1.0.100
@@ -483,8 +486,10 @@ A set that needs a refresh under `--offline` fails before writing with
 
 `--check`, `--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.
-Output: `--output text|json`. Exit codes: 0 success, 2 usage or scope errors,
-1 a pending add without `--apply`, a declared package, or an operational
+Output: `--output text|json`. JSON emits an `add_declared` notice for the
+written manifest and an `update_set_success` notice after the lock refresh.
+Exit codes: 0 success, 2 usage or scope errors, 1 a pending add without
+`--apply`, a declared package, or an operational
 failure.
 
 ```sh

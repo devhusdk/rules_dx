@@ -8,7 +8,7 @@ const ADD_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
     command: "add",
     noun: "add",
     set_action: "add to",
-    notice_code: "add_declared",
+    notice_code: CODE_ADD_DECLARED,
     failure_code: CODE_ADD_FAILED,
     noop_note: "pinned module lock; no-op success; go.sum is not refreshed",
 };

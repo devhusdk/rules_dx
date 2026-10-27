@@ -451,7 +451,7 @@ fn emit_update_json(
                 let built = notice_event(&NoticeEvent {
                     related_command: Some("update".to_owned()),
                     scope: Some(vec![set_name.to_owned()]),
-                    ..NoticeEvent::info("update_set_success", message)
+                    ..NoticeEvent::info(CODE_UPDATE_SET_SUCCESS, message)
                 })
                 .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
                 if let Err(exit) = emit_built(out, built) {
@@ -461,11 +461,12 @@ fn emit_update_json(
             dx_update::outcome::ReportedStatus::Current
             | dx_update::outcome::ReportedStatus::Pinned => {
                 let (code, fallback) = match outcome.status {
-                    dx_update::outcome::ReportedStatus::Current => {
-                        ("update_set_current", format!("{set_name} lockfile current"))
-                    }
+                    dx_update::outcome::ReportedStatus::Current => (
+                        CODE_UPDATE_SET_CURRENT,
+                        format!("{set_name} lockfile current"),
+                    ),
                     _ => (
-                        "update_set_pinned",
+                        CODE_UPDATE_SET_PINNED,
                         format!("{set_name} pins are manual; nothing to resolve"),
                     ),
                 };
@@ -531,7 +532,7 @@ fn emit_update_json(
                     notice_event(&NoticeEvent {
                         related_command: Some("update".to_owned()),
                         scope: Some(vec![set_name.to_owned()]),
-                        ..NoticeEvent::warning("update_set_blocked", message.clone())
+                        ..NoticeEvent::warning(CODE_UPDATE_SET_BLOCKED, message.clone())
                     })
                     .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
                 ) {

@@ -1,4 +1,4 @@
-use super::common::emit_built;
+use super::common::{emit_built, CODE_BUILD_EVENTS_INCOMPLETE};
 use super::rustc_stderr::{self, ActionDiagnostic};
 use dx_bep::{collect_build_failures, BuildFailure, FailureStage, StderrRef};
 use dx_output::{
@@ -251,7 +251,7 @@ fn unavailable(
 ) -> Result<(), i32> {
     match output {
         OutputMode::Json => {
-            let notice = NoticeEvent::warning("build_events_incomplete", detail.to_owned());
+            let notice = NoticeEvent::warning(CODE_BUILD_EVENTS_INCOMPLETE, detail.to_owned());
             emit_built(out, notice_event(&notice))
         }
         OutputMode::Text { .. } => {

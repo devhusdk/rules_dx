@@ -304,7 +304,7 @@ fn resolve_audit_sets(scopes: &[String]) -> Result<Vec<dx_update::sets::SetId>, 
 }
 
 fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError> {
-    match dx_audit::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
+    match dx_path::workspace::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
         Err(error) => Err(AuditError::Read {
             rel: rel.to_owned(),
             error,
@@ -336,22 +336,23 @@ fn load_advisories(
         });
     }
     let rel = dx_audit::advisory::snapshot_rel(key);
-    let bytes = match dx_audit::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Err(AuditError::AdvisoryMissing {
-                set: set_name.clone(),
-                rel: rel.clone(),
-            });
-        }
-        Err(error) => {
-            return Err(AuditError::AdvisoryRead {
-                set: set_name.clone(),
-                rel: rel.clone(),
-                error,
-            });
-        }
-        Ok(bytes) => bytes,
-    };
+    let bytes =
+        match dx_path::workspace::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(AuditError::AdvisoryMissing {
+                    set: set_name.clone(),
+                    rel: rel.clone(),
+                });
+            }
+            Err(error) => {
+                return Err(AuditError::AdvisoryRead {
+                    set: set_name.clone(),
+                    rel: rel.clone(),
+                    error,
+                });
+            }
+            Ok(bytes) => bytes,
+        };
     let text = match String::from_utf8(bytes.clone()) {
         Err(_) => {
             return Err(AuditError::AdvisoryUtf8 {

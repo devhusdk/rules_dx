@@ -302,8 +302,11 @@ fn run_configured_target(
 
 /// The bytes of a set's manifests and locks before a Bazel-run check, so a check that writes
 /// is caught, undone and failed instead of reported current.
+/// `(rel, resolved path before the check, bytes before the check)`.
+type GuardedFile = (String, Option<std::path::PathBuf>, Option<Vec<u8>>);
+
 struct CheckGuard {
-    files: Vec<(String, Option<Vec<u8>>)>,
+    files: Vec<GuardedFile>,
 }
 
 impl CheckGuard {
@@ -314,22 +317,47 @@ impl CheckGuard {
         CheckGuard {
             files: paths
                 .into_iter()
-                .map(|rel| (rel.clone(), std::fs::read(workspace.join(rel)).ok()))
+                .map(|rel| {
+                    let resolved =
+                        dx_path::workspace::resolve_target_in_workspace(workspace, rel).ok();
+                    let before = resolved.as_ref().and_then(|path| std::fs::read(path).ok());
+                    (rel.clone(), resolved, before)
+                })
                 .collect(),
         }
     }
 
     /// Restores every changed file and names them; `None` when the check wrote nothing.
+    /// Never writes through a path that was not re-resolved inside the workspace.
     fn restore(self, workspace: &std::path::Path) -> Option<Vec<String>> {
         let mut wrote = Vec::new();
-        for (rel, before) in self.files {
-            let path = workspace.join(&rel);
-            if std::fs::read(&path).ok() == before {
+        for (rel, stored, before) in self.files {
+            let Some(stored) = stored else {
+                continue;
+            };
+            let now = dx_path::workspace::resolve_target_in_workspace(workspace, &rel);
+            if now.as_ref().ok() != Some(&stored) {
+                // The check swapped in a link that leaves the workspace or points elsewhere:
+                // drop the link itself, then put the original bytes back at the stored path.
+                let link = workspace.join(&rel);
+                if std::fs::symlink_metadata(&link)
+                    .map(|metadata| metadata.file_type().is_symlink())
+                    .unwrap_or(false)
+                {
+                    let _ = std::fs::remove_file(&link);
+                }
+                if let Some(bytes) = &before {
+                    let _ = dx_atomic_fs::write_atomic(&stored, bytes);
+                }
+                wrote.push(rel);
+                continue;
+            }
+            if std::fs::read(&stored).ok() == before {
                 continue;
             }
             let _ = match &before {
-                Some(bytes) => std::fs::write(&path, bytes),
-                None => std::fs::remove_file(&path),
+                Some(bytes) => dx_atomic_fs::write_atomic(&stored, bytes),
+                None => std::fs::remove_file(&stored),
             };
             wrote.push(rel);
         }
@@ -1789,6 +1817,56 @@ repository = "tool_crates"
             read_bytes(&harness, "consumer-npm/web/pnpm-lock.yaml"),
             PNPM_LOCK.as_bytes()
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn consumer_check_with_a_lock_linking_outside_fails_before_launch() {
+        for (argv, lock) in [
+            (
+                ["update", "--check", "crates"],
+                "consumer-rs/crates/Cargo.lock",
+            ),
+            (["update", "--check", "web"], "consumer-npm/web/pnpm-lock.yaml"),
+        ] {
+            let harness = cargo_harness("link-out");
+            let outside = harness
+                .workspace
+                .parent()
+                .expect("parent")
+                .join("outside-lock.txt");
+            std::fs::write(&outside, b"outside\n").expect("outside");
+            let at = harness.workspace.join(lock);
+            std::fs::remove_file(&at).expect("remove lock");
+            std::os::unix::fs::symlink(&outside, &at).expect("link");
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_eq!(code, 1, "{out}{err}");
+            assert!(err.contains("leaves the workspace"), "{err}");
+            assert!(runner.launches.borrow().is_empty());
+            assert_eq!(std::fs::read(&outside).expect("outside"), b"outside\n");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn consumer_check_that_writes_through_an_inside_link_is_restored() {
+        let harness = cargo_harness("link-in");
+        let at = harness.workspace.join("consumer-rs/crates/Cargo.lock");
+        let real = harness.workspace.join("consumer-rs/crates/real.lock");
+        std::fs::rename(&at, &real).expect("rename");
+        std::os::unix::fs::symlink(&real, &at).expect("link");
+        let before = std::fs::read(&real).expect("real");
+        let runner = ScriptRunner::new(&[]);
+        runner
+            .writes
+            .borrow_mut()
+            .push((at.clone(), b"rewritten\n".to_vec()));
+        let (code, out, err) = run_with(&["update", "--check", "crates"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("check_wrote: consumer-rs/crates/Cargo.lock (restored)"), "{err}");
+        assert!(std::fs::symlink_metadata(&at).expect("meta").file_type().is_symlink());
+        assert_eq!(std::fs::read(&real).expect("real"), before);
     }
 
     #[test]

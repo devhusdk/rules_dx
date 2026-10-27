@@ -192,7 +192,8 @@ fn check_bump(
     };
     let mut drifted: Vec<String> = Vec::new();
     for (manifest, widened, _) in &planned {
-        let current = std::fs::read(workspace.join(manifest))
+        let current = dx_path::workspace::resolve_in_workspace(workspace, manifest)
+            .and_then(std::fs::read)
             .ok()
             .and_then(|bytes| String::from_utf8(bytes).ok());
         if current.as_deref() != Some(widened.as_str()) {
@@ -309,12 +310,21 @@ fn plan_widens(
     let targets = widen_targets(request, workspace)?;
     for manifest in &targets {
         let manifest = manifest.clone();
-        let original = std::fs::read(workspace.join(&manifest)).map_err(|_| {
-            format!(
-                "failed to widen {}: cannot read {manifest}",
-                request.selector
-            )
-        })?;
+        let original = dx_path::workspace::resolve_in_workspace(workspace, &manifest)
+            .and_then(std::fs::read)
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::InvalidInput {
+                    format!(
+                        "failed to widen {}: {manifest} leaves the workspace",
+                        request.selector
+                    )
+                } else {
+                    format!(
+                        "failed to widen {}: cannot read {manifest}",
+                        request.selector
+                    )
+                }
+            })?;
         let text = String::from_utf8(original).map_err(|_| {
             format!(
                 "failed to widen {}: {manifest} is not valid UTF-8",

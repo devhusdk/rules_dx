@@ -357,3 +357,46 @@ fn json_add_exits_with_the_stdout_code_when_the_start_event_cannot_land() {
         "[dependencies]\nanyhow = \"1\"\n"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn apply_refuses_a_manifest_linking_outside_the_workspace() {
+    let harness = Harness::new("add-link-out");
+    let before = "[dependencies]\nanyhow = \"1\"\n";
+    let outside = harness
+        .workspace
+        .parent()
+        .expect("parent")
+        .join("outside-add.toml");
+    std::fs::write(&outside, before).expect("outside");
+    let at = harness.workspace.join(CARGO_PATH);
+    std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+    std::os::unix::fs::symlink(&outside, &at).expect("link");
+    let (code, out, err) = harness.run(&["add", "cargo:serde", "1.0.200", "--apply"]);
+    assert_ne!(code, 0, "{out}{err}");
+    assert!(
+        format!("{out}{err}").contains("leaves the workspace"),
+        "{out}{err}"
+    );
+    assert_eq!(std::fs::read_to_string(&outside).expect("outside"), before);
+}
+
+#[cfg(unix)]
+#[test]
+fn apply_keeps_a_manifest_link_that_stays_inside_the_workspace() {
+    let harness = Harness::new("add-link-in");
+    harness.write_source("real/Cargo.toml", "[dependencies]\nanyhow = \"1\"\n");
+    let at = harness.workspace.join(CARGO_PATH);
+    std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+    std::os::unix::fs::symlink(harness.workspace.join("real/Cargo.toml"), &at).expect("link");
+    let (code, out, err) = harness.run(&["add", "cargo:serde", "1.0.200", "--apply"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(std::fs::symlink_metadata(&at)
+        .expect("meta")
+        .file_type()
+        .is_symlink());
+    assert_eq!(
+        read(&harness, "real/Cargo.toml"),
+        "[dependencies]\nanyhow = \"1\"\nserde = \"1.0.200\"\n"
+    );
+}

@@ -126,8 +126,18 @@ fn plan_insert(
     workspace: &std::path::Path,
     manifest: &str,
 ) -> Result<String, String> {
-    let original = std::fs::read(workspace.join(manifest))
-        .map_err(|_| format!("failed to add {}: cannot read {manifest}", request.selector))?;
+    let original = dx_path::workspace::resolve_in_workspace(workspace, manifest)
+        .and_then(std::fs::read)
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::InvalidInput {
+                format!(
+                    "failed to add {}: {manifest} leaves the workspace",
+                    request.selector
+                )
+            } else {
+                format!("failed to add {}: cannot read {manifest}", request.selector)
+            }
+        })?;
     let text = String::from_utf8(original).map_err(|_| {
         format!(
             "failed to add {}: {manifest} is not valid UTF-8",

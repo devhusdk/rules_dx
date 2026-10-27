@@ -9,6 +9,7 @@ rust_library(
     name = "quality_adapter",
     srcs = [
         "src/api_spec_preflight.rs",
+        "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/exec.rs",
         "src/launch.rs",
@@ -99,6 +100,7 @@ rust_test(
     size = "small",
     srcs = [
         "src/api_spec_preflight.rs",
+        "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/commands_tests.rs",
         "src/exec.rs",

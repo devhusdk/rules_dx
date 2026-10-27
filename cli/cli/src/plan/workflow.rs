@@ -10,6 +10,17 @@ pub use crate::args::WorkflowVerb;
 
 pub const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
 
+pub const COVERAGE_SOURCES_GROUP_FLAG: &str = "--output_groups=+dx_coverage_sources";
+pub const COVERAGE_ALL_TARGETS_FLAG: &str = "--build_tests_only=false";
+
+/// The `--aspects` flag that writes the coverage source manifests.
+pub fn coverage_sources_aspect_flag() -> String {
+    format!(
+        "--aspects={}",
+        super::rules_dx_label(dx_lcov::SOURCES_ASPECT)
+    )
+}
+
 fn is_dx_profile_config(value: &str) -> bool {
     [
         crate::args::Profile::Debug,
@@ -80,6 +91,9 @@ pub fn workflow_options(verb: WorkflowVerb, bep_path: Option<&str>) -> Vec<Strin
     let mut required = Vec::new();
     if verb == WorkflowVerb::Coverage {
         required.push(COVERAGE_COMBINED_REPORT_FLAG.to_owned());
+        required.push(COVERAGE_ALL_TARGETS_FLAG.to_owned());
+        required.push(coverage_sources_aspect_flag());
+        required.push(COVERAGE_SOURCES_GROUP_FLAG.to_owned());
     }
     if verb.collects_reports() {
         required.push(DOWNLOAD_ALL_FLAG.to_owned());
@@ -97,6 +111,15 @@ pub fn workflow_protected(verb: WorkflowVerb) -> Vec<ProtectedFlag> {
             name: "combined_report".to_owned(),
             required: Some(COVERAGE_COMBINED_REPORT_FLAG.to_owned()),
             allowed: Vec::new(),
+        });
+        protected.push(ProtectedFlag {
+            name: "build_tests_only".to_owned(),
+            required: None,
+            allowed: vec![
+                "--build_tests_only=false".to_owned(),
+                "--build_tests_only=0".to_owned(),
+                "--build_tests_only=no".to_owned(),
+            ],
         });
     }
     if verb.collects_reports() {
@@ -387,7 +410,7 @@ mod tests {
                 &resolved(&[]),
                 &strings(&[
                     "--keep_going",
-                    "--config=ci",
+                    "--config=mine",
                     "--config=ci-pr",
                     "--config=sanitizer",
                 ]),
@@ -407,7 +430,7 @@ mod tests {
                 .expect("keep_going is planned");
             let ci = argv
                 .iter()
-                .position(|arg| *arg == "--config=ci")
+                .position(|arg| *arg == "--config=mine")
                 .expect("ci is planned");
             let ci_pr = argv
                 .iter()
@@ -566,6 +589,102 @@ mod tests {
             matches!(err, ForwardError::ConflictingOption { .. }),
             "got {err:?}"
         );
+    }
+
+    #[test]
+    fn coverage_plan_requests_the_source_manifests() {
+        let aspect = coverage_sources_aspect_flag();
+        assert_eq!(
+            aspect,
+            "--aspects=@rules_dx//quality:coverage_sources.bzl%dx_coverage_sources_aspect"
+        );
+        let user = strings(&[
+            "--aspects=//tools:mine.bzl%mine",
+            "--output_groups=default",
+            "--nobuild_tests_only",
+            "--build_tests_only=false",
+        ]);
+        let plan = plan_workflow(
+            WorkflowVerb::Coverage,
+            &resolved(&[]),
+            &user,
+            None,
+            None,
+            &[],
+        )
+        .expect("plan");
+        let position = |flag: &str| {
+            plan.argv
+                .iter()
+                .position(|arg| arg == flag)
+                .unwrap_or_else(|| panic!("{flag} is planned: {plan:?}"))
+        };
+        assert!(position(&aspect) > position("--aspects=//tools:mine.bzl%mine"));
+        assert!(position(COVERAGE_SOURCES_GROUP_FLAG) > position("--output_groups=default"));
+        let forced_last = plan
+            .argv
+            .iter()
+            .rposition(|arg| arg == COVERAGE_ALL_TARGETS_FLAG)
+            .expect("build_tests_only forced off");
+        assert!(forced_last > position("--build_tests_only=false"));
+        let bare = plan_workflow(
+            WorkflowVerb::Coverage,
+            &resolved(&[]),
+            &strings(&["--config=mine"]),
+            None,
+            None,
+            &[],
+        )
+        .expect("plan");
+        let forced = bare
+            .argv
+            .iter()
+            .position(|arg| arg == COVERAGE_ALL_TARGETS_FLAG)
+            .unwrap_or_else(|| panic!("rc build_tests_only is overridden: {bare:?}"));
+        let config = bare
+            .argv
+            .iter()
+            .position(|arg| arg == "--config=mine")
+            .expect("user config kept");
+        assert!(forced > config, "forced after rc expansion: {bare:?}");
+        for verb in [WorkflowVerb::Build, WorkflowVerb::Test] {
+            let plan = plan_workflow(verb, &resolved(&[]), &[], None, None, &[]).expect("plan");
+            assert!(
+                !plan
+                    .argv
+                    .iter()
+                    .any(|arg| arg == &aspect || arg == COVERAGE_SOURCES_GROUP_FLAG),
+                "{verb:?} writes no source manifests: {plan:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn coverage_plan_refuses_build_tests_only() {
+        for flag in ["--build_tests_only", "--build_tests_only=true"] {
+            let err = plan_workflow(
+                WorkflowVerb::Coverage,
+                &resolved(&[]),
+                &strings(&[flag]),
+                None,
+                None,
+                &[],
+            )
+            .expect_err("build_tests_only hides sources");
+            assert!(
+                matches!(err, ForwardError::ConflictingOption { ref flag } if flag == "build_tests_only"),
+                "{flag}: {err:?}"
+            );
+        }
+        plan_workflow(
+            WorkflowVerb::Test,
+            &resolved(&[]),
+            &strings(&["--build_tests_only"]),
+            None,
+            Some(Profile::Dev),
+            &[],
+        )
+        .expect("test keeps build_tests_only");
     }
 
     #[test]

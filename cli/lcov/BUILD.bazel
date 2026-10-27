@@ -12,6 +12,8 @@ dx_rust_crate(
     name = "dx_lcov",
     package_name = "cli/dx_lcov",
     srcs = [
+        "src/accounting.rs",
+        "src/accounting_tests.rs",
         "src/ignores.rs",
         "src/ignores_find.rs",
         "src/ignores_policy.rs",

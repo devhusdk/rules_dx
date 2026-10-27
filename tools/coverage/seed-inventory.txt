@@ -1,6 +1,9 @@
 # Seed cell exact-gate inventory: `<eligible|support> <path>` rows, one per gated file.
 # support marks declared-but-uncounted sources: cfg(test)-only modules, line-less declarations, and the fully excluded entry shim.
 eligible cli/lcov/src/lib.rs
+eligible cli/lcov/src/accounting.rs
+# tests-only module; never linked into production binaries.
+support cli/lcov/src/accounting_tests.rs
 eligible cli/lcov/src/ignores.rs
 eligible cli/lcov/src/ignores_find.rs
 eligible cli/lcov/src/ignores_policy.rs

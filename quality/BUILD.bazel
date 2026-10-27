@@ -2,6 +2,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//rust/rules:defs.bzl", "rust_test")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests")
+load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
@@ -27,6 +28,7 @@ exports_files([
     "adapters.bzl",
     "applicability.bzl",
     "aspects.bzl",
+    "coverage_sources.bzl",
     "aspect_subject.bzl",
     "execution_requirements.bzl",
     "fixtures.bzl",
@@ -280,6 +282,8 @@ native_config_unit_tests(name = "native_config_unit")
 
 policy_analysis_tests(name = "policy_analysis")
 
+coverage_sources_analysis_tests(name = "coverage_sources_analysis_test")
+
 consumer_policy_tests(
     name = "consumer_policy",
     cases = [
@@ -453,6 +457,8 @@ real_source_target(
         "aspect_subject.bzl",
         "aspects.bzl",
         "consumer_policy_tests.bzl",
+        "coverage_sources.bzl",
+        "coverage_sources_tests.bzl",
         "curated_defaults.bzl",
         "curated_defaults_tests.bzl",
         "execution_requirements.bzl",

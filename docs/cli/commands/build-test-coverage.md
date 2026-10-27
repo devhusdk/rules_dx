@@ -347,12 +347,47 @@ there does not make coverage incomplete. `command_finished` counts tests as for
 `--report failures=<path>` and `--report results=<path>` work here too, as
 described above.
 
+### Coverage sources
+
+`dx coverage` also lists the production sources each cell owns. The source
+list comes from the instrumented files of the targets in scope, so
+`--instrumentation_filter` decides which files count. Each source gets one
+disposition:
+
+- `eligible`: a production source in a covered language that the LCOV reports
+  with executable lines.
+- `support`: a test or `testonly` source, a TypeScript declaration file
+  (`.d.ts`, `.d.mts`, `.d.cts`), a source the LCOV reports with no executable
+  lines, or a C or C++ header the LCOV does not report.
+- `excluded`: a source the LCOV does not report, with one valid
+  `LCOV_EXCL_START` / `LCOV_EXCL_STOP` range over every line that is not
+  blank or a comment.
+- `unsupported`: a source in a language the gate does not read. These are
+  counted, never dropped.
+
+In text mode dx prints one counts line on stderr. With `--output=json` the
+same text is the message of a `notice` event with code `coverage_sources` and
+level `info`:
+
+```text
+dx: coverage sources <cell>: <raw> raw, <excluded> excluded, <eligible> eligible lines; <n> eligible, <n> support, <n> excluded, <n> unsupported files
+```
+
+`<cell>` is `<os>_<cpu>`, such as `linux_x86_64`. A production source missing
+from the LCOV, or an LCOV path no target owns, prints
+`dx: coverage_sources_incomplete: <message>` on stderr, or emits a `notice`
+event with code `coverage_sources_incomplete` and level `warning` with
+`--output=json`. These notices do not change the exit code.
+`--build_tests_only` is refused, because it hides library targets from the
+source list. `dx coverage` also passes `--build_tests_only=false` after your
+options, so a `.bazelrc` entry or `--config` that turns it on has no effect.
+
 Exit codes: `0` success. `2` usage, scope or owner errors. `1` operational
 failures, coverage below minimum, or incomplete coverage. Bazel failures
 keep Bazel's code. Coverage is incomplete when Bazel reports a
 `coverage.dat` artifact that is missing or invalid, when no coverage
-artifacts are reported, or when the build events are incomplete as for
-`dx test`. Incomplete coverage fails the run, blocks
+artifacts are reported, when a target's coverage source list is missing or
+unreadable, or when the build events are incomplete as for `dx test`. Incomplete coverage fails the run, blocks
 `--min-coverage`, and marks a written LCOV report incomplete. A retried
 test counts only its final attempt. Tests without coverage outputs are
 not expected to produce coverage. Empty but valid `coverage.dat` files

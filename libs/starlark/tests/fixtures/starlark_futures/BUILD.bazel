@@ -12,7 +12,6 @@ exports_files([
     "config_subjects.bzl",
     "matchers.bzl",
     "output_group_subjects.bzl",
-    "pins.bzl",
     "toolchain_subjects.bzl",
 ])
 
@@ -41,7 +40,6 @@ real_source_target(
         "config_subjects.bzl",
         "matchers.bzl",
         "output_group_subjects.bzl",
-        "pins.bzl",
         "toolchain_subjects.bzl",
     ],
     tags = ["corpus"],

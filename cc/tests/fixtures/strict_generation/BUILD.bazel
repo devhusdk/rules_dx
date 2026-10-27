@@ -20,7 +20,6 @@ cc_test(
 
 exports_files(
     [
-        "pins.bzl",
         "resolution.txt",
         "disposition.txt",
     ],
@@ -32,7 +31,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "pins.bzl",
     ],
     tags = ["corpus"],
 )

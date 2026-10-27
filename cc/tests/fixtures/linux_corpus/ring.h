@@ -3,8 +3,7 @@
 
 // C plus assembly with target-platform libraries. Build scripts keep
 // execution-platform tools while applications link target libs. This stub
-// proves the C closure; the assembly dialect plus target-libs pin lives
-// in pins.bzl with the backend provisional.
+// proves the C closure.
 #ifdef __cplusplus
 extern "C" {
 #endif

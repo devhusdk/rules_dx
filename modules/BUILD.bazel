@@ -38,10 +38,40 @@ rust_clippy_test(
     targets = [":consumer_deps_test"],
 )
 
+# keep
+rust_test(
+    name = "versions_loaded_test",
+    size = "small",
+    srcs = ["versions_loaded_test.rs"],
+    data = [
+        ":module_srcs",
+        "//cuda/toolchain:check.bzl",
+        "//java/ide:BUILD.bazel",
+        "//libs/testing:tested_stack.bzl",
+        "//lua/toolchain:BUILD.bazel",
+        "//python/rules:runtime_tests.bzl",
+        "//rust/rules:edition.bzl",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "versions_loaded_fmt_test",
+    size = "small",
+    targets = [":versions_loaded_test"],
+)
+
+rust_clippy_test(
+    name = "versions_loaded_clippy_test",
+    size = "small",
+    targets = [":versions_loaded_test"],
+)
+
 test_suite(
     name = "all",
     tests = [
         ":consumer_deps_test",
+        ":versions_loaded_test",
         ":versions_contract",
     ],
 )

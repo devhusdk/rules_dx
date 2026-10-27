@@ -629,15 +629,21 @@ impl Server {
         left
     }
 
-    fn apply_env(&self, command: &mut Command, envs: &[(&str, &str)]) {
-        apply_env_at(&self.home, command, envs);
-    }
-
     /// Builds a command for `bin` that reaches Bazel only through this server.
     pub fn command(&self, bin: &Path, envs: &[(&str, &str)]) -> Result<Command, String> {
+        self.command_with_front(bin, envs, &[])
+    }
+
+    /// Like `command`, with the `front` directories ahead of the server's `bin` on `PATH`.
+    pub fn command_with_front(
+        &self,
+        bin: &Path,
+        envs: &[(&str, &str)],
+        front: &[&Path],
+    ) -> Result<Command, String> {
         let mut command = crate::command_for(bin, &[])
             .map_err(|error| format!("cannot prepare {}: {error}", bin.display()))?;
-        self.apply_env(&mut command, envs);
+        apply_env_at(&self.home, &mut command, envs, front);
         Ok(command)
     }
 
@@ -647,7 +653,7 @@ impl Server {
     }
 }
 
-fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)]) {
+fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)], front: &[&Path]) {
     let explicit: Vec<OsString> = command
         .get_envs()
         .filter(|(_, value)| value.is_some())
@@ -669,7 +675,8 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)]) {
     let path = path
         .or_else(|| std::env::var_os("PATH"))
         .unwrap_or_default();
-    let mut dirs = vec![home.join("bin")];
+    let mut dirs: Vec<PathBuf> = front.iter().map(|dir| dir.to_path_buf()).collect();
+    dirs.push(home.join("bin"));
     dirs.extend(std::env::split_paths(&path));
     if let Ok(joined) = std::env::join_paths(dirs) {
         command.env("PATH", joined);
@@ -679,7 +686,7 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)]) {
 fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str)]) -> Command {
     let mut command = Command::new(home.join("bin").join("bazel"));
     command.current_dir(root).args(STARTUP).args(args);
-    apply_env_at(home, &mut command, envs);
+    apply_env_at(home, &mut command, envs, &[]);
     command
 }
 
@@ -957,6 +964,34 @@ impl Case {
     /// Runs `bin` with the shared server on `PATH`.
     pub fn run(&self, bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> Run {
         let mut command = self.command(bin, envs);
+        command.args(args);
+        let offline = self.server().config.offline;
+        capture(command, &bin.display().to_string(), offline, &self.root)
+    }
+
+    /// The server's real `bazel` wrapper. A shim must call it by absolute path, because a bare
+    /// `bazel` would find the shim again and recurse.
+    pub fn wrapper(&self) -> PathBuf {
+        self.server().wrapper()
+    }
+
+    /// Builds a command for `bin` with `shim_dir` ahead of the server's `bin` on `PATH`.
+    pub fn command_with_shim(&self, bin: &Path, envs: &[(&str, &str)], shim_dir: &Path) -> Command {
+        self.server()
+            .command_with_front(bin, envs, &[shim_dir])
+            .unwrap_or_else(|error| panic!("nested bazel: {error}"))
+    }
+
+    /// Runs `bin` with `shim_dir` ahead of the server on `PATH`. The shim must call `wrapper()`
+    /// by absolute path. Do not use a non-`exec` shim in interrupt tests: signals stop at it.
+    pub fn run_with_shim(
+        &self,
+        bin: &Path,
+        args: &[&str],
+        envs: &[(&str, &str)],
+        shim_dir: &Path,
+    ) -> Run {
+        let mut command = self.command_with_shim(bin, envs, shim_dir);
         command.args(args);
         let offline = self.server().config.offline;
         capture(command, &bin.display().to_string(), offline, &self.root)
@@ -1686,6 +1721,25 @@ common --repository_cache=/rc/repos
         );
         assert!(
             !lines.iter().any(|line| line.starts_with("TEST_")),
+            "{}",
+            run.stdout
+        );
+    }
+
+    #[test]
+    fn front_directories_go_ahead_of_the_wrapper_on_path() {
+        let dir = scratch("nested-front-");
+        let (bazel, _) = recorder(dir.path());
+        let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("slot");
+        let shim = dir.path().join("shim");
+        let command = server
+            .command_with_front(Path::new("/usr/bin/env"), &[("PATH", "/custom")], &[&shim])
+            .expect("command");
+        let run = capture(command, "env", false, dir.path());
+        let wrapper_dir = server.home().join("bin");
+        let want = format!("PATH={}:{}:/custom", shim.display(), wrapper_dir.display());
+        assert!(
+            run.stdout.lines().any(|line| line == want),
             "{}",
             run.stdout
         );

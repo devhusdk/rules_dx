@@ -106,7 +106,7 @@ def maven_unit_tests(name):
                 "the deploy launcher",
             ),
             expect_equal(
-                "maven_repository_error accepts the default staging URL",
+                "maven_repository_error accepts the default Publisher URL",
                 maven_repository_error(MAVEN_DEFAULT_REPOSITORY_URL),
                 "",
             ),
@@ -116,6 +116,30 @@ def maven_unit_tests(name):
                 "maven_deploy: invalid repository_url 'https://oss.sonatype.org/service/local/staging/deploy/maven2/': " +
                 "oss.sonatype.org is retired OSSRH infrastructure (use '" +
                 MAVEN_DEFAULT_REPOSITORY_URL + "')",
+            ),
+            expect_equal(
+                "maven_repository_error accepts a mixed-case Publisher host",
+                maven_repository_error("https://Central.Sonatype.com/api/v1/publisher/"),
+                "",
+            ),
+            expect_equal(
+                "maven_repository_error rejects an unsupported host",
+                maven_repository_error("https://repo.example.com/maven2/"),
+                "maven_deploy: invalid repository_url 'https://repo.example.com/maven2/': " +
+                "want the Central Portal Publisher API '" + MAVEN_DEFAULT_REPOSITORY_URL + "'",
+            ),
+            expect_equal(
+                "maven_repository_error rejects the OSSRH staging API host",
+                maven_repository_error("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"),
+                "maven_deploy: invalid repository_url " +
+                "'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/': " +
+                "want the Central Portal Publisher API '" + MAVEN_DEFAULT_REPOSITORY_URL + "'",
+            ),
+            expect_equal(
+                "maven_repository_error rejects a wrong Publisher path",
+                maven_repository_error("https://central.sonatype.com/api/v1/"),
+                "maven_deploy: invalid repository_url 'https://central.sonatype.com/api/v1/': " +
+                "want the Central Portal Publisher API '" + MAVEN_DEFAULT_REPOSITORY_URL + "'",
             ),
             expect_equal(
                 "maven_repository_error rejects plaintext URLs",

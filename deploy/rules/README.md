@@ -18,7 +18,8 @@ maven_deploy(
 - `jar`, `pom`: required. The files to upload.
 - `group`, `artifact`: required. The Maven coordinates.
 - `version`: defaults to `0.0.0`.
-- `repository_url`: defaults to the Central Portal OSSRH staging API below.
+- `repository_url`: defaults to the Central Portal Publisher API below. No
+  other host is accepted.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages a local file repository under `<artifact>-repo/`. No
@@ -42,14 +43,13 @@ from `parent`). `packaging` must be absent or `jar`. It must also have
 `developers/developer`, `scm/url`, `scm/connection` and
 `scm/developerConnection`. The error names every missing field.
 
-Live upload goes to the Central Portal OSSRH staging API:
-`https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/`
+Live upload goes to the Central Portal Publisher API:
+`https://central.sonatype.com/api/v1/publisher/`
 
 Setup:
 
 - A Central Portal account with a verified namespace.
 - A Portal user token for `MAVEN_USERNAME` and `MAVEN_PASSWORD`.
-- `mvn` on `PATH`.
 
 Run:
 
@@ -60,10 +60,11 @@ MAVEN_GPG_KEY=... MAVEN_GPG_PASSPHRASE=... \
 bazel run //pkg:maven_demo
 ```
 
-Upload only stages the deployment. Validate and publish it in the Central
-Portal. Live upload sends the jar and the pom. Live signing runs the pinned
-maven-gpg-plugin `sign-and-deploy-file` goal, which reads the same
-`MAVEN_GPG_KEY` and `MAVEN_GPG_PASSPHRASE` env.
+Live upload builds the same signed file repository as a default run, zips
+it without `maven-metadata.xml`, and uploads it with
+`publishingType=USER_MANAGED`. Output names the deployment id. The
+deployment stays a draft until you validate and publish it in the Central
+Portal. The Portal rejects unsigned bundles.
 
 Refusals, all exit 1:
 
@@ -75,6 +76,8 @@ Refusals, all exit 1:
 - A `MAVEN_GPG_KEY` that is not an armored secret key, or a
   `MAVEN_GPG_PASSPHRASE` that does not unlock it.
 - A `repository_url` on `oss.sonatype.org` or `s01.oss.sonatype.org`.
+- Any other `repository_url` than the Publisher API.
+- Credentials the Portal rejects (HTTP 401 or 403).
 - A pom that is missing Central fields or does not match the coordinates.
 
 # npm_deploy
@@ -555,7 +558,7 @@ run without its credentials or its `*_APPROVED=1` variable is refused. Exit
 codes: `0` staged or published, `1` any failure or refusal.
 
 Every launcher, `npm_deploy` included, rejects arguments beyond that output
-directory. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `mvn`, `docker`,
+directory. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `docker`,
 `octo`, `npm`) run with a cleared environment plus a per-tool keep-list.
 Secrets reach them only through that environment, stdin or an owner-only temp
 file, never argv. The exceptions are the promotion `PROMOTION_HEALTH_CMD`, the

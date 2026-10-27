@@ -9,6 +9,7 @@
 )]
 
 mod cloudflare;
+pub mod http;
 mod maven;
 mod run;
 
@@ -1448,12 +1449,7 @@ const CRATES_GATE: OwnerGate = OwnerGate {
 const CARGO_CHILD_ENV_EXTRA: &[&str] = &["CARGO_HOME", "RUSTUP_HOME"];
 
 /// Runs the crates deploy launcher.
-pub fn crates_main(
-    crate_rlocs: &str,
-    crate_name: &str,
-    version: &str,
-    argv: &[String],
-) -> i32 {
+pub fn crates_main(crate_rlocs: &str, crate_name: &str, version: &str, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
         "crates_deploy",
         "the vendor tree is exactly the files pinned at analysis time",

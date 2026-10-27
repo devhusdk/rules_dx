@@ -12,6 +12,24 @@ def plan_shard_exec_matches(file_path, exec_path):
     """Reports whether a Bazel file path satisfies an exec-path suffix."""
     return file_path == exec_path or file_path.endswith("/" + exec_path)
 
+def plan_shard_emit(ctx, kind, producer, group_flag, group, specs, suffix, mnemonic):
+    """Runs the shard writer over raw entry specs and returns the shard File."""
+    out = ctx.actions.declare_file(ctx.label.name + suffix)
+    args = ctx.actions.args()
+    args.add("--producer", producer)
+    args.add(group_flag, group)
+    for spec in specs:
+        args.add("--entry", spec)
+    args.add("--output", out.path)
+    ctx.actions.run(
+        executable = ctx.executable._writer,
+        arguments = [args],
+        outputs = [out],
+        mnemonic = mnemonic,
+        progress_message = "Dx " + kind + " shard %{label}",
+    )
+    return out
+
 def plan_shard_edge_targets(rule_attr, name):
     """Returns the targets behind one dependency-like rule attribute."""
     value = getattr(rule_attr, name, [])

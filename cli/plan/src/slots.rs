@@ -173,7 +173,6 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Security
             | Command::License
             | Command::Docs
-            | Command::ListTests
     )
 }
 
@@ -1981,7 +1980,6 @@ mod tests {
             Command::Security,
             Command::License,
             Command::Docs,
-            Command::ListTests,
         ] {
             assert!(needs_slot(command));
         }
@@ -2916,9 +2914,9 @@ mod tests {
     }
 
     #[test]
-    fn list_tests_waits_for_a_slot() {
-        let command = Command::ListTests;
-        let scratch = dx_test_scratch::scratch("dx-slots-list-tests-");
+    fn docs_waits_for_a_slot() {
+        let command = Command::Docs;
+        let scratch = dx_test_scratch::scratch("dx-slots-docs-");
         let cache = scratch.path().to_string_lossy().into_owned();
         let dir = scratch.path().join("dx").join("slots");
         let count = slot_count(available_memory().expect("memory"), 0);

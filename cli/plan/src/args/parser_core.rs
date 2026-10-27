@@ -482,13 +482,18 @@ fn setup_is_rejected_with_env_and_codegen_tip() {
 }
 
 #[test]
-fn old_tests_command_is_rejected_with_list_tests_tip() {
-    let words = ["tests", "//..."];
-    assert_usage(
-        &words,
-        parse(&strings(&words)).unwrap_err(),
-        &["unsupported command 'tests'", "dx list-tests"],
-    );
+fn old_tests_command_is_rejected_with_bazel_query_tip() {
+    for name in ["tests", "list-tests"] {
+        let words = [name, "//..."];
+        assert_usage(
+            &words,
+            parse(&strings(&words)).unwrap_err(),
+            &[
+                &format!("unsupported command '{name}'"),
+                "bazel query 'tests(<scope>)'",
+            ],
+        );
+    }
 }
 
 #[test]

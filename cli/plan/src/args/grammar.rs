@@ -65,7 +65,6 @@ pub(crate) struct Flags {
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) prune_unobserved: bool,
-    pub(crate) configured: bool,
     pub(crate) from: Option<String>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
@@ -76,7 +75,6 @@ pub(crate) struct Flags {
     pub(crate) open: bool,
     pub(crate) offline: bool,
     pub(crate) frozen: bool,
-    pub(crate) cases: bool,
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
     pub(crate) disk: bool,
@@ -429,14 +427,6 @@ flag_group! {
 }
 
 flag_group! {
-    /// Use cquery instead of query.
-    ConfiguredFlag, {
-        #[arg(long, overrides_with = "configured")]
-        configured: bool,
-    }
-}
-
-flag_group! {
     /// Migrate from this version.
     FromFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "from", value_parser = non_empty)]
@@ -518,14 +508,6 @@ flag_group! {
     FrozenFlag, {
         #[arg(long, overrides_with = "frozen")]
         frozen: bool,
-    }
-}
-
-flag_group! {
-    /// Enumerate supported test cases via the test runtime.
-    CasesFlag, {
-        #[arg(long = "cases", overrides_with = "cases")]
-        cases: bool,
     }
 }
 
@@ -915,18 +897,10 @@ command_args! {
         here: HereFlag,
         own: ServeArgs,
     };
-    /// The flags `dx list-tests` accepts.
-    ListTests => 28, BazelTail, {
-        output: ReadOutputFlag,
-        own: CasesFlag,
-        configured: ConfiguredFlag,
-        here: HereFlag,
-        affected: AffectedFlag,
-    };
     /// The flags `dx rollback` accepts.
-    Rollback => 29, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
+    Rollback => 28, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
-    Worktree => 30, NoPassthroughTail, {
+    Worktree => 29, NoPassthroughTail, {
         output: WorktreeOutputFlag,
         apply: ApplyFlag,
         create: CreateFlag,

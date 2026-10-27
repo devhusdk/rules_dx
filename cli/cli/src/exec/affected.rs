@@ -124,10 +124,7 @@ fn resolving_line(base: &str) -> String {
 }
 
 fn tests_only(command: Command) -> bool {
-    matches!(
-        command,
-        Command::Test | Command::Coverage | Command::ListTests
-    )
+    matches!(command, Command::Test | Command::Coverage)
 }
 
 fn git_text(runner: &dyn QueryRunner, workspace: &Path, args: &[&str]) -> Option<String> {
@@ -675,7 +672,7 @@ mod tests {
         use clap::ValueEnum;
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Test, &[]);
-        let cases: [(&[&str], &str); 17] = [
+        let cases: [(&[&str], &str); 16] = [
             (&["check", "--affected", "--output=json"], "check"),
             (&["fix", "--affected", "--output=json"], "check"),
             (
@@ -701,7 +698,6 @@ mod tests {
             (&["build", "--affected", "--output=json"], "default"),
             (&["test", "--affected", "--output=json"], "default"),
             (&["coverage", "--affected", "--output=json"], "default"),
-            (&["list-tests", "--affected", "--output=json"], "default"),
             (&["security", "--affected", "--output=json"], "default"),
             (&["license", "--affected", "--output=json"], "default"),
             (
@@ -737,7 +733,7 @@ mod tests {
             assert!(first["affected"].is_object(), "{words:?}");
             if words[0] == "check" {
                 assert_eq!(first["affected"]["tests"], json!([]), "{words:?}");
-            } else if matches!(words[0], "test" | "list-tests") {
+            } else if words[0] == "test" {
                 assert!(first["affected"].get("tests").is_none(), "{words:?}");
             }
         }

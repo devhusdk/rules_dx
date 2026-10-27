@@ -75,7 +75,7 @@ fn entry_value(matcher: Option<&str>, command: &str) -> Value {
 }
 
 /// Read-only commands Claude Code may run without asking. Never add a writer.
-const ALLOW: [&str; 6] = ["check", "test", "build", "list-tests", "status", "version"];
+const ALLOW: [&str; 5] = ["check", "test", "build", "status", "version"];
 
 /// The `permissions.allow` rules a fresh settings file carries.
 pub fn allow_rules() -> Vec<String> {
@@ -325,7 +325,7 @@ mod tests {
         apply(dir.path()).expect("apply");
         let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
         assert!(missing_allow(&settings).is_empty());
-        assert_eq!(allow_rules().len(), 6);
+        assert_eq!(allow_rules().len(), 5);
         for file in [&CODEX, &GEMINI] {
             let text = std::fs::read_to_string(dir.path().join(file.path)).expect("file");
             assert!(!text.contains("permissions"), "{}", file.path);

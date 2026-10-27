@@ -132,12 +132,6 @@ pub fn spec(command: Command) -> CommandSpec {
             probe: None,
             reports: &[StandardFormat::Sarif],
         },
-        Command::ListTests => CommandSpec {
-            command,
-            aspects: &[],
-            probe: None,
-            reports: &[],
-        },
         Command::Clean => CommandSpec {
             command,
             aspects: &[],

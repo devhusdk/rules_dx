@@ -1,10 +1,12 @@
 use std::path::Path;
 
-use crate::exec::test_inventory::{parse_label_kind, SUPPORTED_CASE_KINDS};
 use dx_codegen::quote_label;
 use dx_plan::resolve::{QueryFailure, QueryRunner, ResolveError, SelectionContext};
 
 const ARG_TOLERANT_KINDS: [&str; 2] = ["rust_clippy_test", "rustfmt_test"];
+
+/// Test rule kinds whose binaries take libtest arguments such as `--exact`.
+const SUPPORTED_CASE_KINDS: [&str; 2] = ["rust_test", "_rust_forward_test"];
 
 pub(crate) fn last_test_filter(options: &[String]) -> Option<String> {
     let mut found = None;
@@ -122,6 +124,32 @@ pub(crate) fn without_libtest_harness(
         .collect())
 }
 
+/// Parses `--output=label_kind` query lines into sorted, unique (kind, label) pairs.
+fn parse_label_kind(stdout: &[u8]) -> Result<Vec<(String, String)>, String> {
+    let text = std::str::from_utf8(stdout).map_err(|_| "query output is not UTF-8".to_owned())?;
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut parts = line.split_whitespace();
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some(kind), Some(rule), Some(label)) if rule == "rule" && label.starts_with("//") => {
+                pairs.push((kind.to_owned(), label.to_owned()));
+            }
+            _ => {
+                return Err(format!(
+                    "query returned a malformed test observation: {line}"
+                ));
+            }
+        }
+    }
+    pairs.sort_by(|left, right| left.1.cmp(&right.1).then(left.0.cmp(&right.0)));
+    pairs.dedup_by(|left, right| left.1 == right.1);
+    Ok(pairs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,5 +181,23 @@ mod tests {
             Some("tests(\"//a/...\" + \"//b:t\" - \"//a/skip/...\")")
         );
         assert_eq!(tests_expression(&strings(&["-//a/..."])), None);
+    }
+
+    #[test]
+    fn label_kind_lines_sort_dedup_and_reject_malformed_output() {
+        let pairs = parse_label_kind(
+            b"rust_test rule //b:two\n\nsh_test rule //a:one\nrust_test rule //b:two\n",
+        )
+        .expect("parse");
+        assert_eq!(
+            pairs,
+            [
+                ("sh_test".to_owned(), "//a:one".to_owned()),
+                ("rust_test".to_owned(), "//b:two".to_owned()),
+            ]
+        );
+        let error = parse_label_kind(b"rust_test //a:one\n").expect_err("malformed");
+        assert!(error.contains("malformed test observation"), "{error}");
+        assert!(parse_label_kind(&[0xff]).is_err());
     }
 }

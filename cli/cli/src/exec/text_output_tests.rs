@@ -256,6 +256,7 @@ fn disk_full_from_a_query_text_and_json_agree_on_host_cause_and_exit_36() {
             free_disk_bytes: Some(1 << 20),
             ..Harness::new("text-query-disk-full")
         };
+        harness.write_source("src/BUILD.bazel", "");
         harness.write_source("src/a.py", "x = 1\n");
         harness.query.outputs.borrow_mut().push(QueryResult {
             code: Some(36),
@@ -264,8 +265,8 @@ fn disk_full_from_a_query_text_and_json_agree_on_host_cause_and_exit_36() {
         });
         harness
     };
-    let (text_code, _, err) = build().run(&["list-tests", "//...", "--output=text"]);
-    let (json_code, out, _) = build().run(&["list-tests", "//...", "--output=json"]);
+    let (text_code, _, err) = build().run(&["test", "src/a.py", "--output=text"]);
+    let (json_code, out, _) = build().run(&["test", "src/a.py", "--output=json"]);
     assert_eq!(text_code, 36, "{err}");
     assert_eq!(json_code, 36);
     assert!(err.contains("dx: disk_full: query "), "{err}");

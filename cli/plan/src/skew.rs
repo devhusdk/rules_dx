@@ -65,12 +65,7 @@ mod tests {
         Command::Worktree,
     ];
 
-    const WARN: &[Command] = &[
-        Command::Check,
-        Command::Security,
-        Command::License,
-        Command::ListTests,
-    ];
+    const WARN: &[Command] = &[Command::Check, Command::Security, Command::License];
 
     const REFUSE: &[Command] = &[
         Command::Build,

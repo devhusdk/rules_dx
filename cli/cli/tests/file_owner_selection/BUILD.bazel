@@ -13,11 +13,11 @@ real_source_target(
 )
 
 rust_test(
-    name = "configured_discovery_test",
+    name = "file_owner_selection_test",
     testonly = True,
-    srcs = ["tests/configured_discovery.rs"],
-    crate_name = "configured_discovery",
-    crate_root = "tests/configured_discovery.rs",
+    srcs = ["tests/file_owner_selection.rs"],
+    crate_name = "file_owner_selection",
+    crate_root = "tests/file_owner_selection.rs",
     data = ["//cli/cli:dx"] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
@@ -33,13 +33,13 @@ rust_test(
 )
 
 rustfmt_test(
-    name = "configured_discovery_fmt_test",
+    name = "file_owner_selection_fmt_test",
     size = "small",
-    targets = [":configured_discovery_test"],
+    targets = [":file_owner_selection_test"],
 )
 
 rust_clippy_test(
-    name = "configured_discovery_clippy_test",
+    name = "file_owner_selection_clippy_test",
     size = "small",
-    targets = [":configured_discovery_test"],
+    targets = [":file_owner_selection_test"],
 )

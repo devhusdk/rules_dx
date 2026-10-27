@@ -143,7 +143,6 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/status-version.html",
         "docs/cli/commands/watch.html",
         "docs/cli/commands/completion.html",
-        "docs/cli/commands/list-tests.html",
         "docs/cli/commands/scope-defaults.html",
         "docs/cli/commands/audit-update.html",
         "docs/cli/commands/environment-codegen.html",

@@ -40,7 +40,6 @@ mod rustc_stderr;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;
 mod test_filter;
-mod test_inventory;
 mod test_reports;
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -214,7 +213,6 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
         Command::Check | Command::Fix => umbrella::execute_umbrella(invocation, env),
-        Command::ListTests => test_inventory::execute_tests(invocation, env),
         Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
             workflow::execute_workflow(invocation, env)
         }
@@ -295,7 +293,7 @@ mod tests {
         (Command::Fix, &["fix"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 14] = [
+    const NO_BAZEL_BUILD: [Command; 13] = [
         Command::Security,
         Command::License,
         Command::Clean,
@@ -307,7 +305,6 @@ mod tests {
         Command::Status,
         Command::Version,
         Command::Watch,
-        Command::ListTests,
         Command::Rollback,
         Command::Worktree,
     ];

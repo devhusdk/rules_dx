@@ -44,7 +44,6 @@ real_source_target(
         "cli/commands/quality.md",
         "cli/commands/scope-defaults.md",
         "cli/commands/status-version.md",
-        "cli/commands/list-tests.md",
         "cli/commands/watch.md",
         "cli/commands/worktree.md",
         "github-ci.md",

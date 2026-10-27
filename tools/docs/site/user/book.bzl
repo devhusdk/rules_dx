@@ -78,11 +78,6 @@ USER_BOOK = [
         "//docs:cli/commands/completion.md",
     ),
     mdbook_page(
-        "Tests",
-        "docs/cli/commands/list-tests.md",
-        "//docs:cli/commands/list-tests.md",
-    ),
-    mdbook_page(
         "Scope Defaults",
         "docs/cli/commands/scope-defaults.md",
         "//docs:cli/commands/scope-defaults.md",

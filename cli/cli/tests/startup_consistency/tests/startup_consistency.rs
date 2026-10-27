@@ -16,8 +16,8 @@ fn local() {
         read_user_rc: true,
         disk_cache: Some("/c/dx/disk-cache".to_owned()),
         bazel_disk_cache: Some(std::path::PathBuf::from("/c/dx/disk-cache")),
-        local_cpu: true,
-        local_memory: true,
+        local_cpu: dx_process::VerbMask::ALL,
+        local_memory: dx_process::VerbMask::ALL,
         disk_cache_gc: true,
         gc_idle_delay_secs: None,
     });

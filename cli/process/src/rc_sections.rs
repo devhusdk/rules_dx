@@ -3,13 +3,22 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::{import_path, unquote, MAX_IMPORT_DEPTH};
+use super::{flag_value, import_path, sets_flag, tokenize, unquote, MAX_IMPORT_DEPTH};
 
 const MAX_CONFIG_DEPTH: usize = 32;
 
-const LEVELS: [&[&str]; 2] = [&["common", "always"], &["build"]];
+/// The command names whose lines apply to `command`, least specific first.
+fn levels(command: &str) -> &'static [&'static [&'static str]] {
+    match command {
+        "test" => &[&["common", "always"], &["build"], &["test"]],
+        "coverage" => &[&["common", "always"], &["build"], &["test"], &["coverage"]],
+        "run" => &[&["common", "always"], &["build"], &["run"]],
+        _ => &[&["common", "always"], &["build"]],
+    }
+}
 
-struct Line {
+/// One rc line: its command, optional `:config`, and flag tokens.
+pub(super) struct Line {
     command: String,
     config: Option<String>,
     tokens: Vec<String>,
@@ -24,32 +33,62 @@ pub fn remote_execution(
     startup: &[String],
     flags: &[String],
 ) -> bool {
-    let options = build_options(env_get, workspace, read_file, read_user_rc, startup, flags);
+    let lines = load_rc(env_get, workspace, read_file, read_user_rc, startup);
+    let options = effective_options(&lines, "build", flags);
     last_value(&options, "--remote_executor").is_some_and(|value| !value.is_empty())
 }
 
-/// The `build` options Bazel would apply, rc files first and `flags` last.
-fn build_options(
+/// Every rc line Bazel would read, imports inlined, in read order.
+pub(super) fn load_rc(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
     read_user_rc: bool,
     startup: &[String],
-    flags: &[String],
-) -> Vec<String> {
+) -> Vec<Line> {
     let mut lines = Vec::new();
     let mut seen = HashSet::new();
     for path in rc_files(env_get, workspace, read_user_rc, startup) {
         load(&path, workspace, read_file, &mut seen, 0, &mut lines);
     }
+    lines
+}
+
+/// The options Bazel would apply to `command`, rc files first and `flags` last.
+pub(super) fn effective_options(lines: &[Line], command: &str, flags: &[String]) -> Vec<String> {
+    let levels = levels(command);
     let mut out = Vec::new();
     let mut stack = Vec::new();
-    expand(&lines, None, &mut stack, &mut out);
+    expand(lines, levels, None, &mut stack, &mut out);
     if platform_config_enabled(&out) {
-        expand_config(&lines, std::env::consts::OS, &mut stack, &mut out);
+        expand_config(lines, levels, std::env::consts::OS, &mut stack, &mut out);
     }
-    expand_tokens(&lines, flags, &mut stack, &mut out);
+    expand_tokens(lines, levels, flags, &mut stack, &mut out);
     out
+}
+
+/// Whether any rc line, in any section or config, names one of `names`.
+pub(super) fn any_line_sets(lines: &[Line], names: &[&str]) -> bool {
+    lines.iter().any(|line| {
+        line.tokens
+            .iter()
+            .any(|token| names.iter().any(|name| sets_flag(token, name)))
+    })
+}
+
+/// The last disk cache setting in `options`: `Some(None)` for `--nodisk_cache` or an empty value.
+pub(super) fn last_disk_cache(options: &[String]) -> Option<Option<&str>> {
+    let mut winner = None;
+    for (index, option) in options.iter().enumerate() {
+        let next = options.get(index + 1).map(String::as_str);
+        if sets_flag(option, "--nodisk_cache") {
+            winner = Some(None);
+        } else if sets_flag(option, "--disk_cache") {
+            let value = flag_value(option, next, "--disk_cache").filter(|value| !value.is_empty());
+            winner = Some(value);
+        }
+    }
+    winner
 }
 
 /// The rc files in Bazel's read order: system, workspace, home, `BAZELRC`, then `--bazelrc`.
@@ -130,8 +169,8 @@ fn load(
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let mut words = line.split_whitespace().map(unquote);
-        let Some(first) = words.next() else {
+        let words = tokenize(line);
+        let Some(first) = words.first().map(String::as_str) else {
             continue;
         };
         if matches!(first, "import" | "try-import") {
@@ -147,32 +186,45 @@ fn load(
         lines.push(Line {
             command: command.to_owned(),
             config,
-            tokens: words.map(str::to_owned).collect(),
+            tokens: words[1..].to_vec(),
         });
     }
 }
 
-fn expand(lines: &[Line], config: Option<&str>, stack: &mut Vec<String>, out: &mut Vec<String>) {
-    for level in LEVELS {
+fn expand(
+    lines: &[Line],
+    levels: &[&[&str]],
+    config: Option<&str>,
+    stack: &mut Vec<String>,
+    out: &mut Vec<String>,
+) {
+    for level in levels {
         for line in lines {
             if level.contains(&line.command.as_str()) && line.config.as_deref() == config {
-                expand_tokens(lines, &line.tokens, stack, out);
+                expand_tokens(lines, levels, &line.tokens, stack, out);
             }
         }
     }
 }
 
-fn expand_config(lines: &[Line], name: &str, stack: &mut Vec<String>, out: &mut Vec<String>) {
+fn expand_config(
+    lines: &[Line],
+    levels: &[&[&str]],
+    name: &str,
+    stack: &mut Vec<String>,
+    out: &mut Vec<String>,
+) {
     if stack.len() >= MAX_CONFIG_DEPTH || stack.iter().any(|open| open == name) {
         return;
     }
     stack.push(name.to_owned());
-    expand(lines, Some(name), stack, out);
+    expand(lines, levels, Some(name), stack, out);
     stack.pop();
 }
 
 fn expand_tokens(
     lines: &[Line],
+    levels: &[&[&str]],
     tokens: &[String],
     stack: &mut Vec<String>,
     out: &mut Vec<String>,
@@ -181,10 +233,10 @@ fn expand_tokens(
     while index < tokens.len() {
         let token = tokens[index].as_str();
         if let Some(name) = token.strip_prefix("--config=") {
-            expand_config(lines, name, stack, out);
+            expand_config(lines, levels, name, stack, out);
         } else if token == "--config" {
             if let Some(name) = tokens.get(index + 1) {
-                expand_config(lines, name, stack, out);
+                expand_config(lines, levels, name, stack, out);
                 index += 1;
             }
         } else {
@@ -212,7 +264,7 @@ fn platform_config_enabled(options: &[String]) -> bool {
     enabled
 }
 
-fn last_value<'a>(options: &'a [String], flag: &str) -> Option<&'a str> {
+pub(super) fn last_value<'a>(options: &'a [String], flag: &str) -> Option<&'a str> {
     let mut value = None;
     for (index, option) in options.iter().enumerate() {
         let Some(rest) = option.strip_prefix(flag) else {

@@ -206,3 +206,46 @@ fn bazelrc_files_are_not_read_when_hermetic() {
     let host = Host::new().file(EXTRA_RC, REMOTE_RC).hermetic();
     assert!(!host.remote_with(&["--bazelrc=/rc/extra"], &[("BAZELRC", EXTRA_RC)], &[]));
 }
+
+fn options(host: &Host, command: &str, flags: &[&str]) -> Vec<String> {
+    let flags: Vec<String> = flags.iter().map(|flag| (*flag).to_owned()).collect();
+    let lines = load_rc(
+        &|_| None,
+        Path::new(WS),
+        &|path| host.files.get(path).cloned(),
+        host.read_user_rc,
+        &[],
+    );
+    effective_options(&lines, command, &flags)
+}
+
+#[test]
+fn command_levels_follow_bazel_inheritance() {
+    let host = Host::new().file(
+        "/ws/.bazelrc",
+        "common --a=1\nbuild --a=2\ntest --a=3\nrun --a=4\ncoverage --a=5\n",
+    );
+    let last = |command: &str| {
+        let options = options(&host, command, &[]);
+        last_value(&options, "--a").map(str::to_owned)
+    };
+    assert_eq!(last("build").as_deref(), Some("2"));
+    assert_eq!(last("test").as_deref(), Some("3"));
+    assert_eq!(last("coverage").as_deref(), Some("5"));
+    assert_eq!(last("run").as_deref(), Some("4"));
+}
+
+#[test]
+fn configs_respect_command_levels() {
+    let host = Host::new().file("/ws/.bazelrc", "test:x --a=t\nbuild:x --a=b\n");
+    let flags = ["--config=x"];
+    assert_eq!(options(&host, "build", &flags), ["--a=b"]);
+    assert_eq!(options(&host, "run", &flags), ["--a=b"]);
+    assert_eq!(options(&host, "test", &flags), ["--a=b", "--a=t"]);
+}
+
+#[test]
+fn a_quoted_value_with_a_space_is_one_token() {
+    let host = Host::new().file("/ws/.bazelrc", "build \"--disk_cache=/d d\" --x\n");
+    assert_eq!(options(&host, "build", &[]), ["--disk_cache=/d d", "--x"]);
+}

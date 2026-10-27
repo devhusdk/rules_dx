@@ -5,6 +5,16 @@ load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_quality_resour
 load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
+_PARITY_KWARGS = {
+    "aspect_hints": ["//quality:hint"],
+    "tags": ["cpu:4"],
+    "testonly": True,
+    "target_compatible_with": ["@platforms//os:linux"],
+    "args": ["--x"],
+    "data": [":d"],
+    "copts": ["-Werror"],
+}
+
 def wrapper_optional_forward_tests(name):
     starlark_test(
         name = name,
@@ -309,6 +319,16 @@ def wrapper_shape_kwargs_tests(name):
                 "binary target_compatible_with rides forwarder",
                 dx_binary_forward_kwargs({"target_compatible_with": ["@platforms//os:linux"]}),
                 {"target_compatible_with": ["@platforms//os:linux"]},
+            ),
+            expect_equal(
+                "binary forward is the library forward plus run kwargs",
+                dx_binary_forward_kwargs(_PARITY_KWARGS),
+                dict(dx_wrap_forward_kwargs(_PARITY_KWARGS), args = ["--x"], data = [":d"]),
+            ),
+            expect_equal(
+                "binary upstream keeps testonly and drops empty srcs",
+                dx_binary_upstream_kwargs({"testonly": True}, None),
+                {"testonly": True, "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary none tags stay empty",

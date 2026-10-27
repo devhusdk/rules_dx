@@ -466,16 +466,9 @@ def dx_binary_run_kwargs(kwargs):
     return out
 
 def dx_binary_forward_kwargs(kwargs):
-    """Returns the forwarder kwargs for one binary shape."""
-    out = dx_binary_run_kwargs(kwargs)
-    if kwargs.get("testonly", None) != None:
-        out["testonly"] = kwargs["testonly"]
-    if kwargs.get("tags", None) != None:
-        out["tags"] = kwargs["tags"]
-    if kwargs.get("aspect_hints", None) != None:
-        out["aspect_hints"] = kwargs["aspect_hints"]
-    if kwargs.get("target_compatible_with", None) != None:
-        out["target_compatible_with"] = kwargs["target_compatible_with"]
+    """Returns the forwarder kwargs for one binary shape: the library keys plus run kwargs."""
+    out = dx_wrap_forward_kwargs(kwargs)
+    out.update(dx_binary_run_kwargs(kwargs))
     return out
 
 def dx_upstream_tags(tags):
@@ -544,7 +537,10 @@ def dx_test_forward_kwargs(kwargs):
     return out
 
 def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
-    """Instantiates one private upstream binary plus its public forwarder."""
+    """Instantiates one private upstream binary plus its public forwarder.
+
+    This is the only binary shape; dx_wrap builds libraries only.
+    """
     effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
     upstream_rule(
         name = name + "_upstream",
@@ -602,15 +598,18 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         **forward_kwargs
     )
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, executable = False, **kwargs):
-    """Instantiates one private upstream target plus its public forwarder."""
+def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
+    """Instantiates one private upstream library target plus its public forwarder.
+
+    Binaries use dx_wrap_binary.
+    """
+    if "executable" in kwargs:
+        fail("dx_wrap: executable is gone; use dx_wrap_binary for " + name)
     upstream_rule(
         name = name + "_upstream",
         **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
     )
     forward_kwargs = dx_wrap_forward_kwargs(kwargs)
-    if executable:
-        forward_kwargs.update(dx_binary_run_kwargs(kwargs))
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)
     forward_rule(

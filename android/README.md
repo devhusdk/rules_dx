@@ -128,7 +128,7 @@ fail at analysis, as do adb launchers without a serial. Package outputs are expl
 [App Bundles](#app-bundles) for the `.aab` output.
 
 A module that depends on `rules_dx` copies the
-rules_android override in [patches/README.md](../patches/README.md).
+rules_android override in [patches/README.md](../patches/README.md#rules_android).
 
 Device operations are explicit launchers that never run at build time:
 

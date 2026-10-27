@@ -1,5 +1,6 @@
 use super::check::FindingLine;
 use super::*;
+use crate::frontmatter::{headings, line_starts};
 use std::collections::BTreeMap;
 
 fn siblings(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
@@ -476,29 +477,68 @@ fn sibling_fence_content_headings_are_ignored() {
 }
 
 #[test]
-fn slug_collapses_dashes_and_underscores() {
+fn slug_keeps_underscores_like_github() {
+    let text = "# T\n\n## well-known_name\n\nSee [s](#well-known_name).\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[]));
+    assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
     let text = "# T\n\n## well-known_name\n\nSee [s](#well-known-name).\n";
     let outcome = check_markdown("a.md", text, &siblings(&[]));
+    assert_eq!(kinds(&outcome), vec![(5, FindingKind::MissingAnchor)]);
+}
+
+#[test]
+fn slug_matches_github_fixtures() {
+    assert_eq!(slug("Привет"), "привет");
+    assert_eq!(slug("你好"), "你好");
+    assert_eq!(slug("😄 emoji"), "-emoji");
+    assert_eq!(slug("Æúű"), "æúű");
+    assert_eq!(slug("a   b"), "a---b");
+    assert_eq!(slug("rules_android"), "rules_android");
+    assert_eq!(slug("C# basics"), "c-basics");
+    assert_eq!(slug("x²"), "x");
+    assert_eq!(slug("dx fix --here"), "dx-fix---here");
+}
+
+#[test]
+fn unicode_anchors_resolve() {
+    let text = "# T\n\n## Привет\n\n## 你好\n\nSee [ru](#привет) and [zh](#你好).\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[]));
+    assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
+    let text = "# T\n\n## 😄 emoji\n\n## Æúű\n\nSee [e](#-emoji) and [a](#æúű).\n";
+    let outcome = check_markdown("a.md", text, &siblings(&[]));
     assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
 }
 
 #[test]
-fn slug_transliterates_unicode_fixtures() {
-    assert_eq!(slug("Привет"), "privet");
-    assert_eq!(slug("你好"), "ni-hao");
-    assert_eq!(slug("😄 emoji"), "smile-emoji");
-    assert_eq!(slug("Æúű"), "aeuu");
-    assert_eq!(slug("a   b"), "a-b");
+fn sibling_underscore_anchor_resolves() {
+    let text = "# Android\n\nSee [p](../patches/README.md#rules_android).\n";
+    let outcome = check_markdown(
+        "android/README.md",
+        text,
+        &siblings(&[("patches/README.md", "# Patches\n\n## rules_android\n")]),
+    );
+    assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
 }
 
 #[test]
-fn transliterated_anchors_resolve() {
-    let text = "# T\n\n## Привет\n\n## 你好\n\nSee [ru](#privet) and [zh](#ni-hao).\n";
-    let outcome = check_markdown("a.md", text, &siblings(&[]));
+fn sibling_duplicate_headings_get_numbered_slugs() {
+    let text = "# T\n\nSee [second](other.md#repeat-1).\n";
+    let outcome = check_markdown(
+        "a.md",
+        text,
+        &siblings(&[("other.md", "# O\n\n## Repeat\n\n## Repeat\n")]),
+    );
     assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
-    let text = "# T\n\n## 😄 emoji\n\n## Æúű\n\nSee [e](#smile-emoji) and [a](#aeuu).\n";
-    let outcome = check_markdown("a.md", text, &siblings(&[]));
-    assert!(outcome.findings.is_empty(), "{:?}", outcome.findings);
+}
+
+#[test]
+fn duplicate_slug_skips_taken_suffix() {
+    let text = "# T\n\n## Foo\n\n## Foo\n\n## Foo-1\n";
+    let slugs: Vec<_> = headings(text, &line_starts(text))
+        .into_iter()
+        .map(|h| h.slug)
+        .collect();
+    assert_eq!(slugs, vec!["t", "foo", "foo-1", "foo-1-1"]);
 }
 
 #[test]

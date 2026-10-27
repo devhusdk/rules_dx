@@ -735,7 +735,7 @@ with `aspect_hints`. The file is your `buf.yaml`.
 ### CUE
 
 `cue fmt` runs from the managed pin for format. Select it in a `cue` family.
-It runs on Linux x86_64.
+It runs on Linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm64 is not supported yet.
 
 ```python
 quality_family(

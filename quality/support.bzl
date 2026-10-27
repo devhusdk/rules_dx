@@ -432,7 +432,7 @@ PKL_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "pkl",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "pkl",
     "transport": "batched",

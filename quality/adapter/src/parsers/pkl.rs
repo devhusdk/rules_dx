@@ -1,4 +1,4 @@
-use super::{as_text, code_name, finding, known, unformatted_at, FileFinding, ParseError};
+use super::{as_text, code_name, finding, known_native, unformatted_at, FileFinding, ParseError};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
@@ -21,17 +21,12 @@ pub fn parse_pkl(
         .map(str::trim)
         .filter(|line| !line.is_empty())
     {
-        if seen.contains(&line) {
+        let file = known_native(TOOL, files, line)?;
+        if seen.contains(&file) {
             continue;
         }
-        seen.push(line);
-        findings.push(unformatted_at(
-            TOOL,
-            known(TOOL, files, line)?,
-            1,
-            1,
-            ColumnEncoding::Scalars,
-        ));
+        seen.push(file);
+        findings.push(unformatted_at(TOOL, file, 1, 1, ColumnEncoding::Scalars));
     }
     match code {
         Some(0) if findings.is_empty() && errors.trim().is_empty() => Ok(findings),
@@ -74,7 +69,7 @@ fn format_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
                 format!("unrecognized error output: {line}"),
             ));
         };
-        let file = known(TOOL, files, path)?;
+        let file = known_native(TOOL, files, path)?;
         let (message, row, column) = split_location(message);
         findings.push(finding(
             TOOL,
@@ -163,5 +158,20 @@ mod tests {
         let stderr = b"Could not format `/elsewhere.pkl`: x at (1:1 - 1:2)\nAn error occurred during formatting.\n";
         let err = parse_pkl(b"", stderr, Some(1), &FILES).expect_err("fails");
         assert!(matches!(err, ParseError::UnknownFile { .. }));
+    }
+
+    #[test]
+    fn pkl_backslash_paths_resolve_only_on_windows() {
+        let files = ["m/a.pkl"];
+        let listed = parse_pkl(b"m\\a.pkl\nm/a.pkl\n", b"", Some(11), &files);
+        let stderr = b"Could not format `m\\a.pkl`: x at (2:3 - 2:4)\nAn error occurred during formatting.\n";
+        let located = parse_pkl(b"", stderr, Some(1), &files);
+        if cfg!(windows) {
+            assert_eq!(listed.expect("ok").len(), 1);
+            assert_eq!(located.expect("ok")[0].file, "m/a.pkl");
+        } else {
+            assert!(matches!(listed, Err(ParseError::UnknownFile { .. })));
+            assert!(matches!(located, Err(ParseError::UnknownFile { .. })));
+        }
     }
 }

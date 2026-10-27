@@ -99,9 +99,18 @@ _bcr_launcher = rule(
     implementation = _bcr_launcher_impl,
     doc = "Writes the owner-gated BCR deploy launcher Rust source.",
     attrs = {
-        "inputs": attr.label_list(mandatory = True),
-        "module_name": attr.string(mandatory = True),
-        "version": attr.string(mandatory = True),
+        "inputs": attr.label_list(
+            doc = "Targets whose single output file is submitted with the module.",
+            mandatory = True,
+        ),
+        "module_name": attr.string(
+            doc = "Bazel module name being submitted, which must be rules_dx.",
+            mandatory = True,
+        ),
+        "version": attr.string(
+            doc = "Dotted numeric version of the module being submitted.",
+            mandatory = True,
+        ),
     },
 )
 

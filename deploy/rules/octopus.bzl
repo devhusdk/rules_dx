@@ -135,26 +135,33 @@ _octopus_launcher = rule(
     doc = "Writes the launcher Rust source for one Octopus deployment.",
     attrs = {
         "channel": attr.string(
+            doc = "Octopus channel the deployment publishes to.",
             mandatory = True,
         ),
-        "deploy_to": attr.string_list(),
+        "deploy_to": attr.string_list(doc = "Octopus environments the release deploys to."),
         "drop_name": attr.string(
+            doc = "Deployment name passed to the Octopus launcher.",
             mandatory = True,
         ),
         "octopus_url": attr.string(
+            doc = "Default Octopus Server URL the launcher uses.",
             mandatory = True,
         ),
         "package": attr.label(
+            doc = "Archive package to publish as the deployment.",
             allow_single_file = True,
             mandatory = True,
         ),
         "project": attr.string(
+            doc = "Octopus project the deployment is published under.",
             mandatory = True,
         ),
         "space": attr.string(
+            doc = "Default Octopus space the launcher targets.",
             mandatory = True,
         ),
         "version": attr.string(
+            doc = "Release version sent with the Octopus deployment.",
             mandatory = True,
         ),
     },

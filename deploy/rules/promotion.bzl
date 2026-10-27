@@ -88,19 +88,24 @@ _promotion_launcher = rule(
     doc = "Writes the launcher Rust source for one promotion deployment.",
     attrs = {
         "artifact": attr.label(
+            doc = "Single deploy artifact promoted by the launcher.",
             allow_single_file = True,
             mandatory = True,
         ),
         "deploy_name": attr.string(
+            doc = "Deployment name recorded for the promotion.",
             mandatory = True,
         ),
         "from_environment": attr.string(
+            doc = "Environment the artifact is promoted from.",
             mandatory = True,
         ),
         "to_environment": attr.string(
+            doc = "Environment the artifact is promoted to.",
             mandatory = True,
         ),
         "version": attr.string(
+            doc = "Release version recorded for the promotion.",
             mandatory = True,
         ),
     },

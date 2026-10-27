@@ -64,12 +64,14 @@ dx_deployment = rule(
     executable = True,
     attrs = {
         "app": attr.label(
+            doc = "App target described by the deployment when distinct from the deploy target.",
             cfg = "target",
             executable = True,
             mandatory = False,
             providers = [DefaultInfo],
         ),
         "artifacts": attr.label_list(
+            doc = "Artifact targets staged into the deployment runfiles.",
             allow_files = True,
             cfg = "target",
             mandatory = False,
@@ -80,11 +82,13 @@ dx_deployment = rule(
             doc = "Extra target-config files built and shipped with the deployment.",
         ),
         "deploy": attr.label(
+            doc = "Executable target that performs the deployment when run.",
             cfg = "exec",
             executable = True,
             mandatory = True,
         ),
         "profile": attr.string(
+            doc = "Default deploy profile, one of debug, dev, or release.",
             default = "release",
             values = VALID_DEPLOY_PROFILES,
         ),

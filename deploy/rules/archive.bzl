@@ -23,6 +23,7 @@ _archive_stage = rule(
     doc = "Stages one executable as a single file with its basename.",
     attrs = {
         "app": attr.label(
+            doc = "Executable target staged under its own basename.",
             mandatory = True,
         ),
     },
@@ -42,7 +43,10 @@ _archive_app_name = rule(
     implementation = _archive_app_name_impl,
     doc = "Writes the app executable basename to a text file.",
     attrs = {
-        "app": attr.label(mandatory = True),
+        "app": attr.label(
+            doc = "Executable target whose basename is written to a file.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -68,9 +72,15 @@ _archive_launcher = rule(
     implementation = _archive_launcher_impl,
     doc = "Writes the archive deploy launcher Rust source.",
     attrs = {
-        "app_name": attr.string(mandatory = True),
-        "checksum": attr.string(mandatory = True),
-        "tarball": attr.string(mandatory = True),
+        "app_name": attr.string(
+            doc = "Generated text file naming the app executable.",
+            mandatory = True,
+        ),
+        "checksum": attr.string(doc = "Generated sha256 file for the archive.", mandatory = True),
+        "tarball": attr.string(
+            doc = "Generated archive file the launcher deploys.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -275,16 +285,43 @@ _consumer_stage = rule(
     implementation = _consumer_stage_impl,
     doc = "Stages one consumer app with resources, NOTICE and IDENTITY.",
     attrs = {
-        "app": attr.label(mandatory = True),
-        "arch": attr.string(mandatory = True),
-        "archive_name": attr.string(mandatory = True),
-        "format": attr.string(default = "tar.gz"),
-        "linkage": attr.string(mandatory = True),
-        "min_runtime": attr.string(mandatory = True),
-        "notice": attr.label(allow_files = True),
-        "os": attr.string(mandatory = True),
-        "resources": attr.label_list(allow_files = True),
-        "runtime": attr.label_list(allow_files = True),
+        "app": attr.label(
+            doc = "Consumer app executable target packaged into the archive.",
+            mandatory = True,
+        ),
+        "arch": attr.string(
+            doc = "Target architecture recorded in IDENTITY.txt.",
+            mandatory = True,
+        ),
+        "archive_name": attr.string(
+            doc = "Archive name recorded in IDENTITY.txt.",
+            mandatory = True,
+        ),
+        "format": attr.string(doc = "Archive format, tar.gz or zip.", default = "tar.gz"),
+        "linkage": attr.string(
+            doc = "Linkage mode, either static or dynamic, recorded in IDENTITY.txt.",
+            mandatory = True,
+        ),
+        "min_runtime": attr.string(
+            doc = "Minimum runtime version recorded in IDENTITY.txt.",
+            mandatory = True,
+        ),
+        "notice": attr.label(
+            doc = "License file packaged as NOTICE, exactly one file.",
+            allow_files = True,
+        ),
+        "os": attr.string(
+            doc = "Target operating system recorded in IDENTITY.txt.",
+            mandatory = True,
+        ),
+        "resources": attr.label_list(
+            doc = "Resource targets packaged under derived member paths.",
+            allow_files = True,
+        ),
+        "runtime": attr.label_list(
+            doc = "Runtime library targets packaged beside the app executable.",
+            allow_files = True,
+        ),
     },
 )
 
@@ -316,8 +353,15 @@ _consumer_tarball = rule(
     implementation = _consumer_tarball_impl,
     doc = "Archives one staged consumer tree as a tarball.",
     attrs = {
-        "stage": attr.label(mandatory = True, providers = [_ConsumerStageInfo]),
-        "tarball_name": attr.string(mandatory = True),
+        "stage": attr.label(
+            doc = "Consumer stage target whose members are archived.",
+            mandatory = True,
+            providers = [_ConsumerStageInfo],
+        ),
+        "tarball_name": attr.string(
+            doc = "Output filename of the archive tarball.",
+            mandatory = True,
+        ),
         "_archiver": attr.label(
             cfg = "exec",
             default = _ARCHIVER,

@@ -118,12 +118,16 @@ dx_resources = rule(
     doc = "Stages one file per logical path, optionally through a processor.",
     attrs = {
         "mappings": attr.label_keyed_string_dict(
+            doc = "Maps each source file label to its logical staged path.",
             allow_files = True,
         ),
         "processor": attr.label(
+            doc = "Optional executable run to stage each mapped file.",
             cfg = "exec",
             executable = True,
         ),
-        "processor_args": attr.string_list(),
+        "processor_args": attr.string_list(
+            doc = "Extra arguments passed to the processor before its paths.",
+        ),
     },
 )

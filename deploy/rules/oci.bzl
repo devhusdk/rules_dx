@@ -158,15 +158,19 @@ _oci_launcher = rule(
             mandatory = True,
         ),
         "registry": attr.string(
+            doc = "Container registry host the image is pushed to.",
             mandatory = True,
         ),
         "repository": attr.string(
+            doc = "Image repository path within the registry.",
             mandatory = True,
         ),
         "tag": attr.string(
+            doc = "Image tag the deployment publishes.",
             mandatory = True,
         ),
         "platform": attr.string(
+            doc = "Image platform, one of the supported OCI platforms.",
             mandatory = True,
         ),
     },

@@ -111,6 +111,9 @@ umbrella root gets no rule. A module named in code resolves to the
 - Erlang dependencies such as `:jsx` are not detected. Add them to `deps`
   with a `# keep` comment.
 - Directories without a `mix.exs` are left as written.
+- `deps/` and `_build/` next to a `mix.exs` get no rules, so a checkout after
+  `mix deps.get` generates cleanly. A custom `deps_path` or `build_path` is
+  not read. Add `# gazelle:exclude <dir>` for it.
 
 ## Formatting
 

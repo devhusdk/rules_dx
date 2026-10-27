@@ -105,8 +105,32 @@ func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 	return out, err
 }
 
+// mixOutputDirs are the directories Mix fills next to a mix.exs: fetched Hex
+// checkouts and build output. Their mix.exs files belong to other projects.
+var mixOutputDirs = []string{"deps", "_build"}
+
+// inMixOutput reports whether rel sits under deps/ or _build/ of an ancestor
+// directory that has a mix.exs. A custom deps_path or build_path is not read;
+// exclude it with # gazelle:exclude.
+func inMixOutput(root, rel string) bool {
+	if rel == "" {
+		return false
+	}
+	parts := strings.Split(rel, "/")
+	for i, part := range parts {
+		if !slices.Contains(mixOutputDirs, part) {
+			continue
+		}
+		parent := filepath.Join(append([]string{root}, parts[:i]...)...)
+		if _, err := os.Stat(filepath.Join(parent, MixFile)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
-	if !slices.Contains(args.RegularFiles, MixFile) {
+	if !slices.Contains(args.RegularFiles, MixFile) || inMixOutput(args.Config.RepoRoot, args.Rel) {
 		return language.GenerateResult{}
 	}
 	fail := func(format string, a ...any) language.GenerateResult {

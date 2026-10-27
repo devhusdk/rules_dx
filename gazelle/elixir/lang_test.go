@@ -109,6 +109,33 @@ func TestGenerateWithoutMixLeavesRulesAlone(t *testing.T) {
 	}
 }
 
+func TestGenerateSkipsMixDepsAndBuild(t *testing.T) {
+	for _, rel := range []string{"deps/jason", "_build/dev/lib/jason", "apps/app/deps/jason"} {
+		root := t.TempDir()
+		for _, parent := range []string{"", "apps/app"} {
+			writeTree(t, filepath.Join(root, filepath.FromSlash(parent)), map[string]string{"mix.exs": "defmodule P.MixProject do\nend\n"})
+		}
+		dir := filepath.Join(root, filepath.FromSlash(rel))
+		regular := writeTree(t, dir, map[string]string{
+			"mix.exs":      "defmodule Jason.MixProject do\n  def project, do: [app: :jason]\nend\n",
+			"lib/jason.ex": "defmodule Jason do\n  def f, do: Decimal.new(1)\nend\n",
+		})
+		lang := NewLanguage()
+		result := lang.GenerateRules(language.GenerateArgs{
+			Config:       &config.Config{RepoRoot: root},
+			Dir:          dir,
+			Rel:          rel,
+			RegularFiles: regular,
+		})
+		if len(result.Gen) != 0 || lang.(*elixirLang).Failed() {
+			t.Errorf("%s: gen = %s, want nothing", rel, summary(result))
+		}
+	}
+	if inMixOutput(t.TempDir(), "deps/jason") {
+		t.Error("deps/ without a sibling mix.exs must still generate")
+	}
+}
+
 func TestGenerateReusesNamedApp(t *testing.T) {
 	file := buildFile(t, `elixir_app(name = "erlang_app", app_name = "app", app_env = "[]")
 

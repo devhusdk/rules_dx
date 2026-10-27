@@ -10,3 +10,6 @@ module, such as `Jason`, covers every module under it.
 
 A handwritten `elixir_app` with the same `app_name` keeps its name and its
 other attributes. Directories without a `mix.exs` stay as written.
+
+Mix fills `deps/` and `_build/` next to a `mix.exs` with other projects. They
+get no rules, even when they have their own `mix.exs`.

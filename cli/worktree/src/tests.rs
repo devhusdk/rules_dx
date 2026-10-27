@@ -3729,6 +3729,19 @@ fn release_removes_a_clean_pushed_external_worktree() {
 }
 
 #[test]
+fn release_reports_busy_when_an_external_worktree_cannot_be_deleted() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = hand_checkout(&fixture, "by-hand");
+    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    host.stick(&hand);
+    let refused = ops::release(&pool, &host, &who("s1", 10), &hand, false).expect_err("busy");
+    assert_eq!(refused.code, "busy");
+    assert!(hand.exists());
+}
+
+#[test]
 fn release_refuses_a_dirty_or_unpushed_external_worktree_until_forced() {
     let fixture = Fixture::new();
     let pool = fixture.pool();

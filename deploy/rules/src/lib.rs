@@ -801,7 +801,7 @@ mod tests {
             project: "",
             branch: "",
             production_branch: "",
-            site_ref_rloc: "",
+            site_rloc: "",
             wrangler_rloc: "",
         };
     }

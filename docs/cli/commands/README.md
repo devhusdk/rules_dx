@@ -108,7 +108,10 @@ dx: waiting for a build slot (held by /path/to/worktree and 5 more, 2 ahead in l
 ```
 
 The line names one current holder, how many other slots are held, and how many
-runs wait ahead. Waiting runs get a slot in the order they started waiting. A
+runs wait ahead. Waiting runs get a slot in the order they started waiting, except that a later
+run may take a slot no run ahead can use right now, such as a slot above the
+ahead run's count or a slot while the ahead run waits for its nested Bazel
+reserve. A
 waiter that exits or is stopped leaves the line. A waiter suspended for over 30
 seconds does not hold up the line until it resumes. If dx cannot use the
 `queue` directory next to the slot files, it waits without a line.

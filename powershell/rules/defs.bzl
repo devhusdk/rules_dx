@@ -4,6 +4,10 @@ load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo", _pwsh_bin
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
+# False while powershell tests write empty LCOV under `bazel coverage`; the public
+# test then carries dx-no-coverage-collector and `dx coverage` fails loud (#2308).
+POWERSHELL_COVERAGE_COLLECTOR = False
+
 _DX_POWERSHELL_LIBRARY_PROVIDES = [
     _PwshInfo,
     DefaultInfo,
@@ -60,4 +64,4 @@ def pwsh_binary(name, srcs = None, visibility = None, **kwargs):
 
 def pwsh_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_test; srcs are .ps1 files."""
-    dx_wrap_test(name, _pwsh_test, _pwsh_forward_test, srcs, visibility = visibility, **kwargs)
+    dx_wrap_test(name, _pwsh_test, _pwsh_forward_test, srcs, visibility = visibility, coverage_collector = POWERSHELL_COVERAGE_COLLECTOR, **kwargs)

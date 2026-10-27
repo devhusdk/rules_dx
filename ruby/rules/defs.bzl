@@ -5,6 +5,10 @@ load("@rules_ruby//ruby/private:providers.bzl", "BundlerInfo", "RubyFilesInfo")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
+# False while ruby tests write empty LCOV under `bazel coverage`; the public
+# test then carries dx-no-coverage-collector and `dx coverage` fails loud (#2308). Follow-up: #3954.
+RUBY_COVERAGE_COLLECTOR = False
+
 _DX_RUBY_LIBRARY_PROVIDES = [
     RubyFilesInfo,
     DefaultInfo,
@@ -60,4 +64,4 @@ def ruby_binary(name, srcs = None, visibility = None, **kwargs):
 
 def ruby_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over rb_test; set main to a runner such as an RSpec bin."""
-    dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, **kwargs)
+    dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, coverage_collector = RUBY_COVERAGE_COLLECTOR, **kwargs)

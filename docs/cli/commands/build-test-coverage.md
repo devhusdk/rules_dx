@@ -340,6 +340,20 @@ on stderr, or emits an `error` event with code `coverage_below_minimum` with
 `--output=json`. A collected LCOV with zero executable lines also fails.
 C and C++ tests report line coverage through LLVM, with no setup needed.
 
+Not every language has a coverage collector yet:
+
+| Languages | Under `dx coverage` |
+| --- | --- |
+| Languages with a collector, such as C, C++ and Rust | Write LCOV |
+| Gleam, Elixir, Zig, PowerShell, Ruby, C# and F# | Fail with `no_coverage_collector` |
+
+The test macros of the second row tag the public test
+`dx-no-coverage-collector`. For each such test that ran, `dx coverage`
+prints `dx: no_coverage_collector: no coverage collector for <label>` on
+stderr, or emits an `error` event with code `no_coverage_collector` with
+`--output=json`, and exits `1`. The coverage results stay complete and a
+requested LCOV report is still written.
+
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
 combined LCOV. `--report sources=<path>` writes a JSON record (`record_version`, `cell`,
 `owned` with each source's disposition, `absent` production sources the report
@@ -401,7 +415,14 @@ unreadable, or when the build events are incomplete as for `dx test`. Incomplete
 `--min-coverage`, and marks a written LCOV report incomplete. A retried
 test counts only its final attempt. Tests without coverage outputs are
 not expected to produce coverage. Empty but valid `coverage.dat` files
-are accepted and contribute no lines.
+are accepted and contribute no lines, except from a test tagged
+`dx-no-coverage-collector`, which fails the run with `no_coverage_collector`.
+To opt out, tag one test `tags = ["no-coverage"]`, or add
+`coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector` to the
+repository `.bazelrc`. Keep `-no-coverage` in that line: a
+`--test_tag_filters` value replaces the earlier one, and one passed after
+`--` replaces the `.bazelrc` line too. Plain `bazel coverage` does not
+check the tag and still writes an empty report.
 
 ```sh
 bazel run @rules_dx//:dx -- coverage //...

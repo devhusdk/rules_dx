@@ -553,14 +553,34 @@ def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, u
         **forward_kwargs
     )
 
-def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
-    """Instantiates one private upstream test plus its public forwarder."""
+# Tag that marks a public test forwarder whose language has no coverage
+# collector: `bazel coverage` writes an empty but valid coverage.dat for it.
+# `dx coverage` fails with `no_coverage_collector` for every tagged test that
+# ran (#2308). Opt one test out with `tags = ["no-coverage"]`.
+DX_NO_COVERAGE_COLLECTOR_TAG = "dx-no-coverage-collector"
+
+def dx_with_tag(tags, tag):
+    """Returns a new tag list with tag appended once; never mutates tags."""
+    out = list(tags or [])
+    if tag not in out:
+        out.append(tag)
+    return out
+
+def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, **kwargs):
+    """Instantiates one private upstream test plus its public forwarder.
+
+    Pass coverage_collector = False for languages whose tests write empty
+    LCOV under `bazel coverage`; the public forwarder then carries
+    DX_NO_COVERAGE_COLLECTOR_TAG.
+    """
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     effective = dx_test_upstream_kwargs(base, srcs = srcs)
     forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
     forward_kwargs = dx_test_forward_kwargs(kwargs)
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)
+    if not coverage_collector:
+        forward_kwargs["tags"] = dx_with_tag(forward_kwargs.get("tags", None), DX_NO_COVERAGE_COLLECTOR_TAG)
     upstream_rule(
         name = name + "_upstream",
         **effective

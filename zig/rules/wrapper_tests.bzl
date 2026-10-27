@@ -2,7 +2,8 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "ZIG_QUALITY_TOOLS", "zig_import_name", "zig_quality_srcs")
+load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
+load(":defs.bzl", "ZIG_COVERAGE_COLLECTOR", "ZIG_QUALITY_TOOLS", "zig_import_name", "zig_quality_srcs")
 
 def zig_wrapper_contract_tests(name):
     """Instantiates Zig wrapper contract tests."""
@@ -34,6 +35,26 @@ def zig_wrapper_contract_tests(name):
                 "import name defaults to the public target name",
                 zig_import_name("greet", None),
                 "greet",
+            ),
+            expect_equal(
+                "zig tests have no coverage collector yet",
+                ZIG_COVERAGE_COLLECTOR,
+                False,
+            ),
+            expect_equal(
+                "no-collector tag is appended after user tags",
+                dx_with_tag(["manual"], DX_NO_COVERAGE_COLLECTOR_TAG),
+                ["manual", "dx-no-coverage-collector"],
+            ),
+            expect_equal(
+                "no-collector tag is added once",
+                dx_with_tag(("dx-no-coverage-collector",), DX_NO_COVERAGE_COLLECTOR_TAG),
+                ["dx-no-coverage-collector"],
+            ),
+            expect_equal(
+                "no-collector tag on no tags",
+                dx_with_tag(None, DX_NO_COVERAGE_COLLECTOR_TAG),
+                ["dx-no-coverage-collector"],
             ),
             expect_equal(
                 "explicit import name wins",

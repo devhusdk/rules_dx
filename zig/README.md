@@ -63,3 +63,7 @@ generation. A directory with `pub fn main` fails generation: write its
 | macOS x86_64, arm64 | yes | no |
 | Windows x86_64 | yes | no |
 | Windows arm64 | yes | no |
+
+## Coverage
+
+Zig tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.

@@ -5,6 +5,10 @@ load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
+# False while zig tests write empty LCOV under `bazel coverage`; the public
+# test then carries dx-no-coverage-collector and `dx coverage` fails loud (#2308).
+ZIG_COVERAGE_COLLECTOR = False
+
 _DX_ZIG_LIBRARY_PROVIDES = [
     _ZigModuleInfo,
     DefaultInfo,
@@ -86,4 +90,4 @@ def zig_binary(name, main = None, srcs = None, visibility = None, **kwargs):
 
 def zig_test(name, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_test."""
-    dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, quality_srcs = zig_quality_srcs(main, srcs), main = main, **kwargs)
+    dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, quality_srcs = zig_quality_srcs(main, srcs), main = main, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)

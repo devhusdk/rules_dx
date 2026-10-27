@@ -108,6 +108,9 @@ func (l *javascriptLang) Configure(c *config.Config, rel string, f *rule.File) {
 	}
 	l.ignores = append(l.ignores, declared...)
 	c.Exts[languageName] = &common.IgnoreConfig{Ignores: common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)}
+	if err := common.ConfigureTSPaths(c, rel); err != nil {
+		l.fail("%v", err)
+	}
 }
 
 func (l *javascriptLang) fail(format string, args ...interface{}) {
@@ -413,7 +416,7 @@ func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 			if imports.asset[name] {
 				continue
 			}
-			l.fail("javascript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path, with the module extension removed, or <path>/index)", from, name)
+			l.fail("javascript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)", from, name)
 		default:
 			l.fail("javascript: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
 		}

@@ -100,6 +100,17 @@ matches, so a stale bare-name entry fails the run.
 # gazelle:resolve kotlin com.google.common.collect.ImmutableList @maven//:com_google_guava_guava
 ```
 
+For `javascript` and `typescript`, a bare import such as `@/lib/util` also
+resolves through `compilerOptions.paths` and `baseUrl` in the nearest
+`tsconfig.json`, else `jsconfig.json`, in the package or its parents.
+`extends` (a string or an array) and `${configDir}` work as in TypeScript.
+The order is: a `resolve` mapping for the bare import, then each alias
+target (the exact `paths` key, else the wildcard with the longest prefix,
+then `baseUrl`) as a mapping, a library, or `<target>/index`, then a
+library for the bare import. Alias targets outside the workspace are
+skipped. A malformed config fails the run. Once an alias resolves, a
+`dx_ignore_import` for it is stale and fails the run.
+
 For `csharp`, a `using` resolves by the full namespace that a local
 `csharp_library` declares, or by that namespace plus a source's file name.
 A `using static` or alias directive may name a type, so when its target

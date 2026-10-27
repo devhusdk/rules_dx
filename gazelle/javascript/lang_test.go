@@ -924,3 +924,62 @@ func TestMergeKeepsHandSetPackageJSON(t *testing.T) {
 		t.Errorf("merged package_json = %q, want %q added to a rule without one", got, rootPackageJSON)
 	}
 }
+
+func TestResolveTSConfigPaths(t *testing.T) {
+	root := t.TempDir()
+	for name, content := range map[string]string{
+		"CONFIG":     `{"extends": "./CONFIGBASE", "compilerOptions": {"baseUrl": "."}}`,
+		"CONFIGBASE": `{"compilerOptions": {"paths": {"@/*": ["./*"], "~utils": ["./lib/util.js"], "fs": ["./lib/util.js"]}}}`,
+		"bad/CONFIG": `{`,
+	} {
+		name = strings.NewReplacer("CONFIGBASE", "jsconfig.base.json", "CONFIG", "jsconfig.json").Replace(name)
+		p := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(strings.ReplaceAll(content, "CONFIGBASE", "jsconfig.base.json")), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	l := &javascriptLang{}
+	cfg := resolverConfig(t, nil)
+	cfg.RepoRoot = root
+	l.Configure(cfg, "", nil)
+	app := cfg.Clone()
+	l.Configure(app, "app", nil)
+	if len(l.errors) != 0 {
+		t.Fatalf("configure errors = %v", l.errors)
+	}
+	type entry = struct {
+		pkg, name string
+		ext       string
+	}
+	index := resolverIndex(l, entry{"lib", "util", ""}, entry{"lib/components", "index", ""})
+	for _, tc := range []struct{ name, want string }{
+		{"@/lib/util", "//lib:util"},
+		{"~utils", "//lib:util"},
+		{"lib/util", "//lib:util"},
+		{"@/components", ""},
+		{"@/lib/components", "//lib/components:index"},
+		{"fs", ""},
+	} {
+		r := rule.NewRule(libraryKind, "main")
+		l.Resolve(app, index, nil, r, targetImports{imports: []string{tc.name}}, label.New("", "app", "main"))
+		if got := strings.Join(r.AttrStrings("deps"), ","); got != tc.want {
+			t.Errorf("%q deps = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unresolved import "@/components"`) {
+		t.Errorf("errors = %v", l.errors)
+	}
+	l.errors = nil
+	l.Resolve(app, index, nil, rule.NewRule(libraryKind, "main"), targetImports{imports: []string{"react"}}, label.New("", "app", "main"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "tsconfig/jsconfig paths alias") {
+		t.Errorf("react errors = %v", l.errors)
+	}
+	l.errors = nil
+	l.Configure(app.Clone(), "bad", nil)
+	if len(l.errors) != 1 || !strings.HasPrefix(l.errors[0], "tsconfig: //bad/jsconfig.json: ") {
+		t.Errorf("malformed errors = %v", l.errors)
+	}
+}

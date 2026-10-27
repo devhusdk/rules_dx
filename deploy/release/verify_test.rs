@@ -214,7 +214,11 @@ fn an_inventory_entry_without_license_words_fails() {
     let drifted = write(
         dir.path(),
         "drifted.manifest",
-        &format!("{}demo-lib-c|maven|3.0.0|MIT|absent.txt\n", read(&manifest)),
+        &format!(
+            "{}demo-lib-c|maven|3.0.0|MIT|absent.txt|{}\n",
+            read(&manifest),
+            "0".repeat(64)
+        ),
     );
     let error = notice_verify_files(&notice, &drifted, &texts)
         .expect_err("an inventory entry with no bundled words must not pass");

@@ -952,6 +952,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "mdbook": {
+        "upstream_version": "0.4.52",
+        "release_page": "https://github.com/rust-lang/mdBook/releases/tag/v0.4.52",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/rust-lang/mdBook/blob/v0.4.52/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
+                "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz",
+                "kind": "tar.gz",
+                "executable": "mdbook",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
+                "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-unknown-linux-musl.tar.gz",
+                "kind": "tar.gz",
+                "executable": "mdbook",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
+                "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-aarch64-apple-darwin.tar.gz",
+                "kind": "tar.gz",
+                "executable": "mdbook",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
+                "url": "https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "mdbook.exe",
+            },
+        },
+    },
 }
 
 

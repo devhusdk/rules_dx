@@ -38,6 +38,10 @@ load("//quality/artifacts:keep_sorted.linux_arm64.bzl", _keep_sorted_linux_arm64
 load("//quality/artifacts:keep_sorted.linux_x86_64.bzl", _keep_sorted_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.macos_arm64.bzl", _keep_sorted_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.windows_x86_64.bzl", _keep_sorted_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:mdbook.linux_arm64.bzl", _mdbook_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:mdbook.linux_x86_64.bzl", _mdbook_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:mdbook.macos_arm64.bzl", _mdbook_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:mdbook.windows_x86_64.bzl", _mdbook_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:pkl.linux_arm64.bzl", _pkl_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:pkl.linux_x86_64.bzl", _pkl_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:pkl.macos_arm64.bzl", _pkl_macos_arm64 = "ARTIFACT")
@@ -121,6 +125,10 @@ _ARTIFACTS = [
     _keep_sorted_linux_arm64,
     _keep_sorted_macos_arm64,
     _keep_sorted_windows_x86_64,
+    _mdbook_linux_x86_64,
+    _mdbook_linux_arm64,
+    _mdbook_macos_arm64,
+    _mdbook_windows_x86_64,
     _pkl_linux_x86_64,
     _pkl_linux_arm64,
     _pkl_macos_arm64,

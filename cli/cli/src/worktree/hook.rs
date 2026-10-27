@@ -250,8 +250,34 @@ const GIT_VALUES: &[&str] = &[
     "--super-prefix",
 ];
 
-fn wrapper_values(word: &str) -> Option<&'static [&'static str]> {
+/// Options that take a value, and plain words that follow a wrapper's options.
+struct Wrapper {
+    values: &'static [&'static str],
+    positionals: usize,
+}
+
+fn wrapper_values(word: &str) -> Option<Wrapper> {
+    let plain = |values: &'static [&'static str]| {
+        Some(Wrapper {
+            values,
+            positionals: 0,
+        })
+    };
     match base(word) {
+        "timeout" => Some(Wrapper {
+            values: &["-s", "-k", "--signal", "--kill-after"],
+            positionals: 1,
+        }),
+        "nice" => plain(&["-n", "--adjustment"]),
+        "stdbuf" => plain(&["-i", "-o", "-e", "--input", "--output", "--error"]),
+        "setsid" => plain(&[]),
+        "ionice" => plain(&["-c", "-n", "-p", "-P", "-u", "--class", "--classdata"]),
+        other => legacy_values(other).and_then(|values| plain(values)),
+    }
+}
+
+fn legacy_values(word: &str) -> Option<&'static [&'static str]> {
+    match word {
         "env" => Some(&["-u", "-C", "-S", "--unset", "--chdir", "--split-string"]),
         "command" | "nohup" | "time" => Some(&[]),
         "exec" => Some(&["-a"]),
@@ -303,7 +329,11 @@ fn program<'a>(words: &'a [&'a str]) -> &'a [&'a str] {
             i += 1;
             continue;
         }
-        let Some(values) = wrapper_values(word) else {
+        let Some(Wrapper {
+            values,
+            positionals,
+        }) = wrapper_values(word)
+        else {
             break;
         };
         i += 1;
@@ -318,6 +348,11 @@ fn program<'a>(words: &'a [&'a str]) -> &'a [&'a str] {
                 i += 1;
             } else {
                 break;
+            }
+        }
+        for _ in 0..positionals {
+            if words.get(i).is_some_and(|word| !word.starts_with('-')) {
+                i += 1;
             }
         }
     }
@@ -517,23 +552,58 @@ fn commands(script: &str) -> Vec<Vec<String>> {
     cmds.done
 }
 
-fn runs_dx_worktree(command: &str) -> bool {
-    commands(command).iter().any(|segment| {
+const SHELLS: &[&str] = &["sh", "bash", "zsh", "dash", "ksh"];
+const MAX_SHELL_DEPTH: usize = 4;
+
+/// Every simple command in `script` as its program and arguments, with wrappers skipped
+/// and the scripts of `sh -c` and friends followed. Knows nothing about dx or git.
+fn segments(script: &str) -> Vec<Vec<String>> {
+    let mut out = Vec::new();
+    collect_segments(script, 0, &mut out);
+    out
+}
+
+fn collect_segments(script: &str, depth: usize, out: &mut Vec<Vec<String>>) {
+    for segment in commands(script) {
         let words: Vec<&str> = segment.iter().map(String::as_str).collect();
-        let Some((first, rest)) = program(&words).split_first() else {
+        let tail = program(&words);
+        let Some(first) = tail.first() else {
+            continue;
+        };
+        out.push(tail.iter().map(|word| (*word).to_owned()).collect());
+        if depth >= MAX_SHELL_DEPTH || !SHELLS.contains(&base(first)) {
+            continue;
+        }
+        let mut rest = tail[1..].iter();
+        while let Some(word) = rest.next() {
+            if matches!(*word, "-o" | "+o") {
+                rest.next();
+            } else if word.starts_with("--") {
+                if *word == "--" {
+                    break;
+                }
+            } else if word.starts_with('-') && word[1..].contains('c') {
+                if let Some(inner) = rest.next() {
+                    collect_segments(inner, depth + 1, out);
+                }
+                break;
+            } else if !word.starts_with(['-', '+']) {
+                break;
+            }
+        }
+    }
+}
+
+fn runs_dx(command: &str) -> bool {
+    segments(command).iter().any(|segment| {
+        let Some((first, rest)) = segment.split_first() else {
             return false;
         };
-        let rest = match base(first) {
-            "dx" | "dx.cmd" => rest,
-            "bazel" | "bazelisk" => match rest.iter().position(|word| word.ends_with(":dx")) {
-                Some(at) => &rest[at + 1..],
-                None => return false,
-            },
-            _ => return false,
-        };
-        rest.iter()
-            .find(|word| !word.starts_with('-'))
-            .is_some_and(|word| *word == "worktree")
+        match base(first) {
+            "dx" | "dx.cmd" | "dx.exe" => true,
+            "bazel" | "bazelisk" => rest.iter().any(|word| word.ends_with(":dx")),
+            _ => false,
+        }
     })
 }
 
@@ -549,7 +619,7 @@ pub(crate) enum Guard {
     Rewrite(Value),
 }
 
-/// Blocks `git worktree add|remove|prune`, and names the subagent for `dx worktree`.
+/// Blocks `git worktree add|remove|prune`, and names the subagent for every dx command.
 pub(crate) fn guard(input: &Value) -> Guard {
     if let Some(line) = blocked(input) {
         return Guard::Block(line);
@@ -563,7 +633,7 @@ pub(crate) fn guard(input: &Value) -> Guard {
     ) else {
         return Guard::Allow;
     };
-    if !runs_dx_worktree(command) {
+    if !runs_dx(command) {
         return Guard::Allow;
     }
     let mut updated = tool.clone();
@@ -588,11 +658,11 @@ fn blocked(input: &Value) -> Option<String> {
         .get("tool_input")
         .and_then(|tool| tool.get("command"))
         .and_then(Value::as_str)?;
-    for segment in commands(command) {
-        let words: Vec<&str> = segment.iter().map(String::as_str).collect();
-        let Some((first, tail)) = program(&words).split_first() else {
+    for segment in segments(command) {
+        let Some((first, tail)) = segment.split_first() else {
             continue;
         };
+        let tail: Vec<&str> = tail.iter().map(String::as_str).collect();
         if !is_git(first) {
             continue;
         }

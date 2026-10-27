@@ -644,7 +644,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "cpp_starter",
-    failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: expected unqualified-id"},
+    failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
     files = {
         "consumers/cc_starter/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_starter/cxx_only.cc": "probe/cxx_only.cc",

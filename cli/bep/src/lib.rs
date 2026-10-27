@@ -99,7 +99,7 @@ pub(crate) fn malformed(line: u64, path: &str, detail: &str) -> BepError {
     }
 }
 
-/// Reads stream lines as JSON events, keeping a cut-off last line as the tail.
+/// Reads stream lines as JSON events, skipping garbled lines and keeping the first as the tail.
 pub(crate) struct EventLines<R: BufRead> {
     lines: std::iter::Enumerate<std::io::Lines<R>>,
     pub(crate) tail: Option<(u64, String)>,
@@ -118,30 +118,32 @@ impl<R: BufRead> Iterator for EventLines<R> {
     type Item = Result<(u64, serde_json::Value), BepError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (index, line) = self.lines.next()?;
-        let line_no = (index + 1) as u64;
-        let parsed = match line {
-            Ok(text) => serde_json::from_str::<serde_json::Value>(&text)
-                .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
-            Err(e) => Err((false, format!("unreadable stream line: {e}"))),
-        };
-        match parsed {
-            Ok(event) => Some(Ok((line_no, event))),
-            Err((blank, reason)) => {
-                let ends = self
-                    .lines
-                    .by_ref()
-                    .all(|(_, rest)| rest.is_ok_and(|text| text.trim().is_empty()));
-                if !ends {
+        loop {
+            let (index, line) = self.lines.next()?;
+            let line_no = (index + 1) as u64;
+            let parsed = match line {
+                Ok(text) => serde_json::from_str::<serde_json::Value>(&text)
+                    .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
+                // Invalid UTF-8 spans one line; any other read error would repeat forever.
+                Err(e) if e.kind() == std::io::ErrorKind::InvalidData => {
+                    Err((false, format!("unreadable stream line: {e}")))
+                }
+                Err(e) => {
                     return Some(Err(BepError::MalformedEvent {
                         line: line_no,
-                        reason,
+                        reason: format!("unreadable stream line: {e}"),
                     }));
                 }
-                if !blank {
-                    self.tail = Some((line_no, reason));
+            };
+            match parsed {
+                Ok(event) => return Some(Ok((line_no, event))),
+                // A garbled line is skipped, not fatal: the first one is kept as the tail so
+                // the caller reports the stream as damaged while keeping every other event.
+                Err((blank, reason)) => {
+                    if !blank && self.tail.is_none() {
+                        self.tail = Some((line_no, reason));
+                    }
                 }
-                None
             }
         }
     }

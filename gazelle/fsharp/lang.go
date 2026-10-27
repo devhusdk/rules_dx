@@ -98,11 +98,17 @@ func (*fsharpLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resol
 		return nil
 	}
 	var specs []resolve.ImportSpec
+	seen := make(map[string]bool)
 	for _, src := range r.AttrStrings("srcs") {
 		if !isSupported(src) || IsTestSource(src) {
 			continue
 		}
-		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: ClassIdentity(src)})
+		id := ClassIdentity(src)
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: id})
 	}
 	return specs
 }
@@ -156,65 +162,136 @@ func (l *fsharpLang) Fail(format string, args ...interface{}) { l.fail(format, a
 
 func (l *fsharpLang) Failed() bool { return len(l.errors) > 0 }
 
+type sourceNode struct {
+	stem     string
+	files    []string
+	declared map[string]bool
+	deps     map[*sourceNode]string
+}
+
+func (n *sourceNode) first() string { return n.files[0] }
+
 func orderSourcesByDependency(sources []string, contents map[string][]byte) ([]string, error) {
-	identityToSrc := make(map[string]string, len(sources))
+	byStem := make(map[string]*sourceNode, len(sources))
+	var nodes []*sourceNode
+	owner := make(map[string]*sourceNode, len(sources))
 	for _, src := range sources {
-		id := ClassIdentity(src)
-		if _, ok := identityToSrc[id]; !ok {
-			identityToSrc[id] = src
+		stem := common.Stem(src, SupportedExts)
+		n, ok := byStem[stem]
+		if !ok {
+			id := ClassIdentity(src)
+			n = &sourceNode{stem: stem, declared: map[string]bool{id: true}, deps: make(map[*sourceNode]string)}
+			byStem[stem] = n
+			nodes = append(nodes, n)
+			if _, taken := owner[id]; !taken {
+				owner[id] = n
+			}
+		}
+		n.files = append(n.files, src)
+	}
+	for _, n := range nodes {
+		sort.SliceStable(n.files, func(i, j int) bool {
+			return strings.HasSuffix(n.files[i], ".fsi") && !strings.HasSuffix(n.files[j], ".fsi")
+		})
+		if last := n.files[len(n.files)-1]; strings.HasSuffix(last, ".fsi") {
+			return nil, fmt.Errorf("%s has no implementation %s.fs", last, n.stem)
 		}
 	}
-	deps := make(map[string]map[string]bool, len(sources))
-	for _, src := range sources {
-		deps[src] = make(map[string]bool)
-		content, ok := contents[src]
-		if !ok {
-			continue
+	declaredBy := make(map[string][]*sourceNode)
+	for _, n := range nodes {
+		for _, src := range n.files {
+			for _, name := range ParseDeclaredNames(contents[src]) {
+				if n.declared[name] {
+					continue
+				}
+				n.declared[name] = true
+				declaredBy[name] = append(declaredBy[name], n)
+			}
 		}
-		for _, imp := range ParseImports(content) {
-			if IsStdLib(imp) {
+	}
+	for name, decl := range declaredBy {
+		if _, ok := owner[name]; !ok && len(decl) == 1 {
+			owner[name] = decl[0]
+		}
+	}
+	for _, n := range nodes {
+		for _, src := range n.files {
+			content, ok := contents[src]
+			if !ok {
 				continue
 			}
-			if depSrc, ok := identityToSrc[imp]; ok && depSrc != src {
-				deps[src][depSrc] = true
+			pkg, _ := ParsePackage(content)
+			names := ParseReferencedNames(content, pkg)
+			for _, imp := range ParseImports(content) {
+				if !IsStdLib(imp) {
+					names = append(names, imp)
+				}
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				dep, ok := owner[name]
+				if !ok || dep == n || n.declared[name] {
+					continue
+				}
+				if _, seen := n.deps[dep]; !seen {
+					n.deps[dep] = name
+				}
 			}
 		}
 	}
-	remaining := make(map[string]bool, len(sources))
-	for _, src := range sources {
-		remaining[src] = true
-	}
-	emitted := make(map[string]bool, len(sources))
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].first() < nodes[j].first() })
+	emitted := make(map[*sourceNode]bool, len(nodes))
 	ordered := make([]string, 0, len(sources))
-	for len(remaining) > 0 {
-		var ready []string
-		for src := range remaining {
+	for len(ordered) < len(sources) {
+		var next *sourceNode
+		for _, n := range nodes {
+			if emitted[n] {
+				continue
+			}
 			blocked := false
-			for dep := range deps[src] {
+			for dep := range n.deps {
 				if !emitted[dep] {
 					blocked = true
 					break
 				}
 			}
 			if !blocked {
-				ready = append(ready, src)
+				next = n
+				break
 			}
 		}
-		if len(ready) == 0 {
-			cycle := make([]string, 0, len(remaining))
-			for src := range remaining {
-				cycle = append(cycle, src)
-			}
-			sort.Strings(cycle)
-			return nil, fmt.Errorf("cyclic F# compile order among %s; split the directory or order sources by hand", strings.Join(cycle, ", "))
+		if next == nil {
+			return nil, cycleError(nodes, emitted)
 		}
-		sort.Strings(ready)
-		next := ready[0]
-		ordered = append(ordered, next)
+		ordered = append(ordered, next.files...)
 		emitted[next] = true
-		delete(remaining, next)
 	}
 	return ordered, nil
+}
+
+func cycleError(nodes []*sourceNode, emitted map[*sourceNode]bool) error {
+	var cycle []string
+	edge := ""
+	for _, n := range nodes {
+		if emitted[n] {
+			continue
+		}
+		cycle = append(cycle, n.files...)
+		if edge != "" {
+			continue
+		}
+		var blockers []*sourceNode
+		for dep := range n.deps {
+			if !emitted[dep] {
+				blockers = append(blockers, dep)
+			}
+		}
+		sort.Slice(blockers, func(i, j int) bool { return blockers[i].first() < blockers[j].first() })
+		dep := blockers[0]
+		edge = fmt.Sprintf("%s -> %s (%s)", n.first(), dep.first(), n.deps[dep])
+	}
+	sort.Strings(cycle)
+	return fmt.Errorf("cyclic F# compile order among %s, first edge %s; split the directory or order sources by hand", strings.Join(cycle, ", "), edge)
 }
 
 func (l *fsharpLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {

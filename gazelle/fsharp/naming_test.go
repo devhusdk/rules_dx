@@ -3,7 +3,7 @@ package fsharp
 import "testing"
 
 func TestIsTestSource(t *testing.T) {
-	if !IsTestSource("DemoTest.fs") || !IsTestSource("pkg/DemoTest.fs") {
+	if !IsTestSource("DemoTest.fs") || !IsTestSource("pkg/DemoTest.fs") || !IsTestSource("DemoTest.fsi") {
 		t.Fatal("IsTestSource missed a *Test.fs file")
 	}
 	for _, name := range []string{"Demo.fs", "TestHelper.fs", "Contest.fs", "DemoTest.fs.bak"} {
@@ -23,5 +23,8 @@ func TestDirTargetName(t *testing.T) {
 func TestClassIdentity(t *testing.T) {
 	if got := ClassIdentity("pkg/Demo.fs"); got != "Demo" {
 		t.Errorf("ClassIdentity = %q, want Demo", got)
+	}
+	if got := ClassIdentity("Helper.fsi"); got != "Helper" {
+		t.Errorf("ClassIdentity = %q, want Helper", got)
 	}
 }

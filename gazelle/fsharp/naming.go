@@ -2,7 +2,7 @@ package fsharp
 
 import "github.com/devhusdk/rules_dx/gazelle/common"
 
-var SupportedExts = []string{".fs"}
+var SupportedExts = []string{".fs", ".fsi"}
 
 var TestSourceSuffixes = []string{"Test"}
 

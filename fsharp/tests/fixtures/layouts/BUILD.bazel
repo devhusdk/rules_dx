@@ -1,0 +1,39 @@
+load("//fsharp/rules:defs.bzl", "fsharp_library", "fsharp_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+fsharp_library(
+    name = "layouts_lib",
+    srcs = [
+        # buildifier: disable=sort
+        "Greeting.fsi",
+        "Greeting.fs",
+        "Banner.fs",
+        "Stock.fs",
+        "Order.fs",
+        "Tools.fs",
+        "App.fs",
+    ],
+    deps = ["@paket.main//fsharp.core"],
+)
+
+fsharp_test(
+    name = "layouts_test",
+    srcs = ["LayoutsTest.fs"],
+    deps = [
+        ":layouts_lib",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

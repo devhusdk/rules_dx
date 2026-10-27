@@ -1,6 +1,5 @@
 namespace Demo
 
-open C
 open System.Collections.Generic
 
 type B =

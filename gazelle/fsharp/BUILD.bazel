@@ -62,8 +62,12 @@ real_source_target(
     markdown_srcs = [
         "testdata/entries/README.md",
         "testdata/merge/README.md",
+        "testdata/module_per_file/README.md",
+        "testdata/nested_module/README.md",
         "testdata/order/README.md",
+        "testdata/signature/README.md",
         "testdata/source_only/README.md",
+        "testdata/unqualified_ref/README.md",
     ],
     tags = ["corpus"],
 )

@@ -1120,7 +1120,15 @@ fn release_external(
     }
     let _lock = pool.lock()?;
     let bases = scan_output_bases(&host.output_roots(&host.servers()));
-    let _ = remove_external(pool, host, &checkout.path, &bases)?;
+    if !remove_external(pool, host, &checkout.path, &bases)? {
+        return Err(WorktreeError::refused(
+            "busy",
+            &format!(
+                "worktree {} could not be fully removed and is still on disk; its servers and git registration may already be gone, so close what holds it and run release again",
+                checkout.path.display()
+            ),
+        ));
+    }
     Ok(Released {
         slot: None,
         path: checkout.path,

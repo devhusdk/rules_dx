@@ -732,6 +732,18 @@ mod tests {
             cargo.contains(&format!("wasm-bindgen = \"={bindgen_crate}\"")),
             "{cargo}"
         );
+        let test_marker = "\"rrwbd__wasm-bindgen-test-";
+        let start = module
+            .find(test_marker)
+            .expect("MODULE.bazel provisions the managed wasm-bindgen-test crate")
+            + test_marker.len();
+        let rest = &module[start..];
+        let end = rest.find('"').expect("the managed pin literal is closed");
+        let test_crate = &rest[..end];
+        assert!(
+            cargo.contains(&format!("wasm-bindgen-test = \"={test_crate}\"")),
+            "{cargo}"
+        );
         let generated = template_file("demo", "MODULE.bazel");
         for wanted in ["rules_rust_wasm_bindgen", "platforms"] {
             let pinned = module
@@ -751,6 +763,16 @@ mod tests {
                 !generated.contains(duplicated),
                 "template duplicates {duplicated} pins: {generated}"
             );
+        }
+        for file in dx_adopt::plan_new_files("rust-web", "demo").expect("plans") {
+            for browser in ["geckodriver", "chromedriver", "firefox", "Firefox"] {
+                assert!(
+                    !file.content.contains(browser),
+                    "{} pins {browser}: {}",
+                    file.path,
+                    file.content
+                );
+            }
         }
     }
 }

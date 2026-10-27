@@ -178,6 +178,7 @@ pub const MDX_VERSION: &str = "3.1.1";
 
 pub const RUST_WEB_EDITION: &str = "2021";
 pub const RUST_WEB_WASM_BINDGEN_CRATE_VERSION: &str = "0.2.121";
+pub const RUST_WEB_WASM_BINDGEN_TEST_CRATE_VERSION: &str = "0.3.71";
 pub const RULES_RUST_WASM_BINDGEN_VERSION: &str = "0.74.0";
 pub const RUST_WEB_PLATFORMS_VERSION: &str = "1.1.0";
 pub const RUST_WEB_BAZEL_VERSION: &str = "9.2.0";
@@ -444,9 +445,18 @@ fn rust_web_cargo_manifest(identity: &str) -> Result<String, AdoptError> {
         "wasm-bindgen".to_owned(),
         toml::Value::String(format!("={RUST_WEB_WASM_BINDGEN_CRATE_VERSION}")),
     );
+    let mut dev_dependencies = toml::Table::new();
+    dev_dependencies.insert(
+        "wasm-bindgen-test".to_owned(),
+        toml::Value::String(format!("={RUST_WEB_WASM_BINDGEN_TEST_CRATE_VERSION}")),
+    );
     let mut root = toml::Table::new();
     root.insert("package".to_owned(), toml::Value::Table(package));
     root.insert("dependencies".to_owned(), toml::Value::Table(dependencies));
+    root.insert(
+        "dev-dependencies".to_owned(),
+        toml::Value::Table(dev_dependencies),
+    );
     toml::to_string(&root).map_err(|e| AdoptError::NewInvalidIdentity {
         language: "rust-web".to_owned(),
         name: identity.to_owned(),
@@ -464,15 +474,15 @@ fn rust_web_lib_rs() -> String {
 
 fn rust_web_main_rs(identity: &str) -> String {
     format!(
-        "fn main() {{\n    println!(\"{{}}\", {}::greeting(\"native\"));\n}}\n",
-        rust_web_crate_ident(identity)
+        "fn main() {{\n    println!(\"{{}}\", {ident}::greeting(\"native\"));\n}}\n\n#[cfg(test)]\nmod browser_tests {{\n    use wasm_bindgen_test::*;\n\n    #[cfg(target_arch = \"wasm32\")]\n    #[wasm_bindgen_test]\n    fn greeting_roundtrip() {{\n        assert_eq!({ident}::greeting(\"browser\"), \"Hello from browser!\");\n    }}\n\n    #[cfg(target_arch = \"wasm32\")]\n    #[wasm_bindgen_test]\n    fn add_roundtrip() {{\n        assert_eq!({ident}::add(40, 2), 42);\n    }}\n}}\n",
+        ident = rust_web_crate_ident(identity)
     )
 }
 
 fn rust_web_build_bazel(identity: &str) -> String {
     let crate_ident = rust_web_crate_ident(identity);
     format!(
-        "# gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen\nload(\"@rules_dx//rust/rules:defs.bzl\", \"rust_binary\", \"rust_clippy_test\", \"rust_library\", \"rust_test\", \"rust_wasm_bindgen\", \"rust_wasm_bindgen_test\", \"rustfmt_test\")\n\nrust_library(\n    name = \"{identity}\",\n    srcs = [\"src/lib.rs\"],\n    crate_name = \"{crate_ident}\",\n    crate_root = \"src/lib.rs\",\n    edition = \"{edition}\",\n    deps = [\"@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen\"],\n)\n\nrust_binary(\n    name = \"{identity}_bin\",\n    srcs = [\"src/main.rs\"],\n    crate_name = \"{crate_ident}_bin\",\n    crate_root = \"src/main.rs\",\n    edition = \"{edition}\",\n    deps = [\":{identity}\"],\n)\n\nrust_test(\n    name = \"{identity}_test\",\n    crate = \":{identity}\",\n)\n\nrustfmt_test(\n    name = \"{identity}_fmt_test\",\n    size = \"small\",\n    targets = [\n        \":{identity}\",\n        \":{identity}_bin\",\n    ],\n)\n\nrust_clippy_test(\n    name = \"{identity}_clippy_test\",\n    size = \"small\",\n    targets = [\n        \":{identity}\",\n        \":{identity}_bin\",\n    ],\n)\n\nrust_wasm_bindgen(\n    name = \"{identity}_web\",\n    target = \"web\",\n    wasm_file = \":{identity}_bin_upstream\",\n)\n\nrust_wasm_bindgen_test(\n    name = \"{identity}_browser_test\",\n    tags = [\"manual\"],\n    wasm = \":{identity}_web\",\n)\n",
+        "# gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen\n# gazelle:resolve rust wasm_bindgen_test @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test\nload(\"@rules_dx//rust/rules:defs.bzl\", \"rust_binary\", \"rust_clippy_test\", \"rust_library\", \"rust_test\", \"rust_wasm_bindgen\", \"rust_wasm_bindgen_test\", \"rustfmt_test\")\n\nrust_library(\n    name = \"{identity}\",\n    srcs = [\"src/lib.rs\"],\n    crate_name = \"{crate_ident}\",\n    crate_root = \"src/lib.rs\",\n    edition = \"{edition}\",\n    deps = [\"@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen\"],\n)\n\nrust_binary(\n    name = \"{identity}_bin\",\n    srcs = [\"src/main.rs\"],\n    crate_name = \"{crate_ident}_bin\",\n    crate_root = \"src/main.rs\",\n    edition = \"{edition}\",\n    deps = [\":{identity}\"],\n)\n\nrust_test(\n    name = \"{identity}_test\",\n    crate = \":{identity}\",\n)\n\nrustfmt_test(\n    name = \"{identity}_fmt_test\",\n    size = \"small\",\n    targets = [\n        \":{identity}\",\n        \":{identity}_bin\",\n    ],\n)\n\nrust_clippy_test(\n    name = \"{identity}_clippy_test\",\n    size = \"small\",\n    targets = [\n        \":{identity}\",\n        \":{identity}_bin\",\n    ],\n)\n\nrust_wasm_bindgen(\n    name = \"{identity}_web\",\n    target = \"web\",\n    wasm_file = \":{identity}_bin_upstream\",\n)\n\nrust_wasm_bindgen_test(\n    name = \"{identity}_browser_test\",\n    wasm = \":{identity}_web\",\n)\n",
         edition = RUST_WEB_EDITION,
     )
 }
@@ -488,7 +498,7 @@ fn rust_web_module_bazel(identity: &str) -> String {
 
 fn rust_web_readme(identity: &str) -> String {
     format!(
-        "# {identity}\n\nShared Rust core with a native binary and a browser build.\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nRun the browser test with a local driver:\n\n```sh\ngeckodriver --port 4444 &\nbazel test :{identity}_browser_test --test_env=GECKODRIVER_REMOTE=http://127.0.0.1:4444\n```\n\nThe browser test is manual: it needs Firefox and geckodriver on a\nqualified host. Mobile templates are not included.\n"
+        "# {identity}\n\nShared Rust core with a native binary and a browser build.\n\n```sh\nbazel build //...\nbazel test //...\n```\n\n`bazel test //...` also runs `:{identity}_browser_test` in a browser and\ndriver that Bazel fetches; nothing needs to be installed by hand. The\nbrowser test is qualified on linux x86_64 only, where the host needs GTK 3.\nOther hosts skip it for now. Mobile templates are not included.\n"
     )
 }
 
@@ -1712,7 +1722,7 @@ mod tests {
             .expect("cargo");
         assert_eq!(
             cargo.content,
-            "[dependencies]\nwasm-bindgen = \"=0.2.121\"\n\n[package]\nedition = \"2021\"\nname = \"demo\"\nversion = \"0.1.0\"\n"
+            "[dependencies]\nwasm-bindgen = \"=0.2.121\"\n\n[dev-dependencies]\nwasm-bindgen-test = \"=0.3.71\"\n\n[package]\nedition = \"2021\"\nname = \"demo\"\nversion = \"0.1.0\"\n"
         );
         let build = files
             .iter()
@@ -1732,9 +1742,38 @@ mod tests {
             "name = \"demo_browser_test\"",
             ":demo_bin_upstream",
             "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen",
-            "tags = [\"manual\"]",
+            "# gazelle:resolve rust wasm_bindgen_test @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test",
         ] {
             assert!(build.content.contains(wanted), "{wanted}");
+        }
+        assert_eq!(
+            main.content.matches("#[wasm_bindgen_test]").count(),
+            2,
+            "{main:?}"
+        );
+        assert!(
+            !paths.iter().any(|path| path.ends_with(".bazelrc")),
+            "{paths:?}"
+        );
+        for file in files.iter().filter(|file| {
+            [
+                "demo/Cargo.toml",
+                "demo/src/lib.rs",
+                "demo/src/main.rs",
+                "demo/BUILD.bazel",
+                "demo/MODULE.bazel",
+                "demo/README.md",
+            ]
+            .contains(&file.path.as_str())
+        }) {
+            for banned in ["geckodriver", "GECKODRIVER", "firefox", "Firefox", "manual"] {
+                assert!(
+                    !file.content.contains(banned),
+                    "{} carries {banned}: {}",
+                    file.path,
+                    file.content
+                );
+            }
         }
         let module = files
             .iter()

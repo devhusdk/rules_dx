@@ -197,21 +197,210 @@ fn dev_launchers_build_dx_from_the_checkout() {
     }
 }
 
+use dx_process::RcPolicy;
+
+#[derive(Clone, Copy)]
+enum Rc {
+    System,
+    Workspace,
+    Home,
+    Extra(&'static str),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Expect {
+    Default,
+    Xdg,
+    Unset,
+}
+
+struct RcCase {
+    name: &'static str,
+    env: &'static [(&'static str, &'static str)],
+    files: &'static [(Rc, &'static str)],
+    expect: Expect,
+    rc_gc: bool,
+}
+
+const fn case(
+    name: &'static str,
+    env: &'static [(&'static str, &'static str)],
+    files: &'static [(Rc, &'static str)],
+    expect: Expect,
+) -> RcCase {
+    RcCase {
+        name,
+        env,
+        files,
+        expect,
+        rc_gc: false,
+    }
+}
+
+const WS_USER: &str = "try-import %workspace%/user.bazelrc\n";
+
+const RC_CASES: &[RcCase] = &[
+    case("no rc files", &[], &[], Expect::Default),
+    case("XDG_CACHE_HOME", &[("XDG_CACHE_HOME", "{xdg}")], &[], Expect::Xdg),
+    case("empty XDG_CACHE_HOME", &[("XDG_CACHE_HOME", "")], &[], Expect::Default),
+    case("home rc", &[], &[(Rc::Home, "build --disk_cache=/x\n")], Expect::Unset),
+    case(
+        "try-import",
+        &[],
+        &[
+            (Rc::Workspace, WS_USER),
+            (Rc::Extra("user.bazelrc"), "common --nodisk_cache\n"),
+        ],
+        Expect::Unset,
+    ),
+    case("comment", &[], &[(Rc::Home, "# build --disk_cache=/x\n")], Expect::Default),
+    case("quoted", &[], &[(Rc::Home, "build \"--disk_cache=/x\"\n")], Expect::Unset),
+    case(
+        "single-quoted",
+        &[],
+        &[(Rc::Home, "build '--disk_cache=/x'\n")],
+        Expect::Unset,
+    ),
+    case("split form", &[], &[(Rc::Home, "build --disk_cache /x\n")], Expect::Unset),
+    case(
+        "config line",
+        &[],
+        &[(Rc::Home, "build:cfg --disk_cache=/x\n")],
+        Expect::Unset,
+    ),
+    RcCase {
+        rc_gc: true,
+        ..case(
+            "rc gc bound",
+            &[],
+            &[(Rc::Home, "common --experimental_disk_cache_gc_max_size=40G\n")],
+            Expect::Default,
+        )
+    },
+    RcCase {
+        rc_gc: true,
+        ..case(
+            "imported gc bound",
+            &[],
+            &[
+                (Rc::Workspace, WS_USER),
+                (
+                    Rc::Extra("user.bazelrc"),
+                    "build:x \"--experimental_disk_cache_gc_max_age=3d\"\n",
+                ),
+            ],
+            Expect::Default,
+        )
+    },
+    case(
+        "longer gc flag",
+        &[],
+        &[(Rc::Home, "common --experimental_disk_cache_gc_max_size_x=1\n")],
+        Expect::Default,
+    ),
+    case(
+        "import",
+        &[],
+        &[
+            (Rc::Workspace, "import %workspace%/user.bazelrc\n"),
+            (Rc::Extra("user.bazelrc"), "build --disk_cache=/x\n"),
+        ],
+        Expect::Unset,
+    ),
+    case(
+        "relative import",
+        &[],
+        &[
+            (Rc::Workspace, "import user.bazelrc\n"),
+            (Rc::Extra("user.bazelrc"), "build --disk_cache=/x\n"),
+        ],
+        Expect::Unset,
+    ),
+    case(
+        "quoted import",
+        &[],
+        &[
+            (Rc::Workspace, "try-import \"%workspace%/user.bazelrc\"\n"),
+            (Rc::Extra("user.bazelrc"), "build --disk_cache=/x\n"),
+        ],
+        Expect::Unset,
+    ),
+    case(
+        "missing try-import",
+        &[],
+        &[(Rc::Workspace, "try-import %workspace%/missing.bazelrc\n")],
+        Expect::Default,
+    ),
+    case(
+        "nested import",
+        &[],
+        &[
+            (Rc::Workspace, "import %workspace%/a.bazelrc\n"),
+            (Rc::Extra("a.bazelrc"), "import %workspace%/b.bazelrc\n"),
+            (Rc::Extra("b.bazelrc"), "build --disk_cache=/x\n"),
+        ],
+        Expect::Unset,
+    ),
+    case(
+        "import cycle",
+        &[],
+        &[
+            (Rc::Workspace, "import %workspace%/a.bazelrc\n"),
+            (Rc::Extra("a.bazelrc"), "import %workspace%/b.bazelrc\n"),
+            (Rc::Extra("b.bazelrc"), "import %workspace%/a.bazelrc\n"),
+        ],
+        Expect::Default,
+    ),
+    case("CI", &[("CI", "true")], &[], Expect::Unset),
+    case("BAZEL_TEST", &[("BAZEL_TEST", "1")], &[], Expect::Unset),
+    RcCase {
+        ..case(
+            "ProgramData rc",
+            &[],
+            &[(Rc::System, "build --disk_cache=C:\\x\n")],
+            Expect::Unset,
+        )
+    },
+    RcCase {
+        rc_gc: true,
+        ..case(
+            "ProgramData gc bound",
+            &[],
+            &[(Rc::System, "common --experimental_disk_cache_gc_max_age=3d\n")],
+            Expect::Default,
+        )
+    },
+];
+
+fn rc_names() -> Vec<&'static str> {
+    let mut names: Vec<&str> = RC_CASES
+        .iter()
+        .flat_map(|rc| rc.files.iter())
+        .filter_map(|(slot, _)| match slot {
+            Rc::Extra(name) => Some(*name),
+            _ => None,
+        })
+        .collect();
+    names.sort_unstable();
+    names.dedup();
+    names
+}
+
+fn policy_flags(policy: &RcPolicy) -> Vec<String> {
+    policy
+        .verb_options("build", None, &[])
+        .into_iter()
+        .filter(|flag| !flag.starts_with("--experimental_disk_cache_gc_idle_delay"))
+        .collect()
+}
+
 #[cfg(unix)]
 mod sh {
     use super::*;
-    use dx_process::RcPolicy;
     use dx_testing::mkscratch;
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
     use std::process::Command;
-
-    type Case<'a> = (
-        &'a str,
-        Vec<(String, String)>,
-        Vec<(&'a Path, &'a str)>,
-        Option<&'a Path>,
-    );
 
     const PAYLOAD: &str = "#!/bin/sh\necho ran \"$@\"\n";
 
@@ -655,105 +844,37 @@ mod sh {
         let home = repo.base.join("home");
         let args = repo.base.join("args");
         let xdg = repo.base.join("xdg cache");
-        let home_rc = home.join(".bazelrc");
-        let user_rc = root.join("user.bazelrc");
-        let workspace_rc = root.join(".bazelrc");
         let host_rc = std::fs::read_to_string("/etc/bazel.bazelrc").unwrap_or_default();
         let host_sets = host_rc.contains("disk_cache");
         let in_home = home.join(".cache/dx/disk-cache");
         let in_xdg = xdg.join("dx/disk-cache");
-        let env = |pairs: &[(&str, &str)]| -> Vec<(String, String)> {
-            pairs
-                .iter()
-                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
-                .collect()
-        };
         let xdg_value = xdg.to_string_lossy().into_owned();
-        let cases: Vec<Case> = vec![
-            ("no rc files", vec![], vec![], Some(in_home.as_path())),
-            (
-                "XDG_CACHE_HOME",
-                env(&[("XDG_CACHE_HOME", &xdg_value)]),
-                vec![],
-                Some(in_xdg.as_path()),
-            ),
-            (
-                "empty XDG_CACHE_HOME",
-                env(&[("XDG_CACHE_HOME", "")]),
-                vec![],
-                Some(in_home.as_path()),
-            ),
-            (
-                "home rc",
-                vec![],
-                vec![(home_rc.as_path(), "build --disk_cache=/x\n")],
-                None,
-            ),
-            (
-                "try-import",
-                vec![],
-                vec![
-                    (
-                        workspace_rc.as_path(),
-                        "try-import %workspace%/user.bazelrc\n",
-                    ),
-                    (user_rc.as_path(), "common --nodisk_cache\n"),
-                ],
-                None,
-            ),
-            (
-                "comment",
-                vec![],
-                vec![(home_rc.as_path(), "# build --disk_cache=/x\n")],
-                Some(in_home.as_path()),
-            ),
-            (
-                "quoted",
-                vec![],
-                vec![(home_rc.as_path(), "build \"--disk_cache=/x\"\n")],
-                None,
-            ),
-            (
-                "rc gc bound",
-                vec![],
-                vec![(
-                    home_rc.as_path(),
-                    "common --experimental_disk_cache_gc_max_size=40G\n",
-                )],
-                Some(in_home.as_path()),
-            ),
-            (
-                "imported gc bound",
-                vec![],
-                vec![
-                    (
-                        workspace_rc.as_path(),
-                        "try-import %workspace%/user.bazelrc\n",
-                    ),
-                    (
-                        user_rc.as_path(),
-                        "build:x \"--experimental_disk_cache_gc_max_age=3d\"\n",
-                    ),
-                ],
-                Some(in_home.as_path()),
-            ),
-            (
-                "longer gc flag",
-                vec![],
-                vec![(
-                    home_rc.as_path(),
-                    "common --experimental_disk_cache_gc_max_size_x=1\n",
-                )],
-                Some(in_home.as_path()),
-            ),
-            ("CI", env(&[("CI", "true")]), vec![], None),
-            ("BAZEL_TEST", env(&[("BAZEL_TEST", "1")]), vec![], None),
-        ];
-        for (name, vars, files, expected) in cases {
-            for path in [&home_rc, &user_rc, &workspace_rc] {
+        for rc in RC_CASES
+            .iter()
+            .filter(|rc| !rc.files.iter().any(|(slot, _)| matches!(slot, Rc::System))) {
+            let name = rc.name;
+            let expected = match rc.expect {
+                Expect::Default => Some(in_home.as_path()),
+                Expect::Xdg => Some(in_xdg.as_path()),
+                Expect::Unset => None,
+            };
+            let vars: Vec<(String, String)> = rc
+                .env
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), v.replace("{xdg}", &xdg_value)))
+                .collect();
+            let mut paths = vec![home.join(".bazelrc"), root.join(".bazelrc")];
+            paths.extend(rc_names().iter().map(|extra| root.join(extra)));
+            for path in &paths {
                 let _ = std::fs::remove_file(path);
             }
-            for (path, text) in &files {
+            for (slot, text) in rc.files {
+                let path = match slot {
+                    Rc::Workspace => root.join(".bazelrc"),
+                    Rc::Home => home.join(".bazelrc"),
+                    Rc::Extra(extra) => root.join(extra),
+                    Rc::System => unreachable!("{name}: /etc is not writable"),
+                };
                 std::fs::write(path, text).expect("rc file");
             }
             let _ = std::fs::remove_dir_all(root.join(".dx/launcher"));
@@ -786,12 +907,7 @@ mod sh {
                 .collect();
             let mut want = startup.clone();
             want.push("build".to_owned());
-            want.extend(
-                policy
-                    .verb_options("build", None, &[])
-                    .into_iter()
-                    .filter(|flag| !flag.starts_with("--experimental_disk_cache_gc_idle_delay")),
-            );
+            want.extend(policy_flags(&policy));
             want.extend(
                 [
                     "--curses=no",
@@ -819,8 +935,7 @@ mod sh {
                 .iter()
                 .any(|arg| arg.starts_with("--experimental_disk_cache_gc_max_size="));
             if !host_sets {
-                let rc_bound = name.contains("gc bound");
-                assert_eq!(bounded, expected.is_some() && !rc_bound, "{name}");
+                assert_eq!(bounded, expected.is_some() && !rc.rc_gc, "{name}");
             }
             assert_eq!(calls[1][..startup.len()], startup[..], "{name}");
             assert_eq!(calls[1][startup.len()], "query", "{name}");
@@ -1497,82 +1612,104 @@ mod cmd {
     #[test]
     fn cmd_launcher_uses_the_disk_cache_dx_picks() {
         let repo = source_repo("dx-launcher-cmd-disk-cache-");
+        let root = repo.root();
         let profile = repo.base.join("home");
         std::fs::create_dir_all(&profile).expect("profile");
         let local = repo.base.join("local");
+        let data = repo.base.join("programdata");
+        std::fs::create_dir_all(&data).expect("programdata");
+        let xdg = repo.base.join("xdg cache");
         let args = repo.base.join("args");
-        let flag = format!(
-            "\"--disk_cache={}\"",
-            local
-                .join("dx")
-                .join("disk-cache")
-                .display()
-                .to_string()
-                .replace('/', "\\")
-        );
-        let gc = format!(
-            "--experimental_disk_cache_gc_max_size={} --experimental_disk_cache_gc_max_age={}",
-            dx_process::DISK_CACHE_GC_MAX_SIZE,
-            dx_process::DISK_CACHE_GC_MAX_AGE
-        );
-        for (rc, want, bounded) in [
-            (None, true, true),
-            (Some("build --disk_cache=C:\\x\r\n"), false, false),
-            (
-                Some("common --experimental_disk_cache_gc_max_age=3d\r\n"),
-                true,
-                false,
-            ),
-        ] {
-            let _ = std::fs::remove_dir_all(repo.root().join(".dx/launcher"));
-            let _ = std::fs::remove_file(&args);
-            match rc {
-                Some(text) => std::fs::write(profile.join(".bazelrc"), text).expect("rc"),
-                None => {
-                    let _ = std::fs::remove_file(profile.join(".bazelrc"));
-                }
+        let xdg_value = xdg.to_string_lossy().into_owned();
+        let in_local = local.join("dx").join("disk-cache");
+        let in_xdg = xdg.join("dx").join("disk-cache");
+        for rc in RC_CASES {
+            let name = rc.name;
+            let mut paths = vec![
+                profile.join(".bazelrc"),
+                root.join(".bazelrc"),
+                data.join("bazel.bazelrc"),
+            ];
+            paths.extend(rc_names().iter().map(|extra| root.join(extra)));
+            for path in &paths {
+                let _ = std::fs::remove_file(path);
             }
-            let out = repo
-                .command(&[], &repo.base.join("calls"))
-                .env_remove("CI")
+            for (slot, text) in rc.files {
+                let path = match slot {
+                    Rc::Workspace => root.join(".bazelrc"),
+                    Rc::Home => profile.join(".bazelrc"),
+                    Rc::Extra(extra) => root.join(extra),
+                    Rc::System => data.join("bazel.bazelrc"),
+                };
+                std::fs::write(path, text.replace('\n', "\r\n")).expect("rc file");
+            }
+            let _ = std::fs::remove_dir_all(root.join(".dx/launcher"));
+            let _ = std::fs::remove_file(&args);
+            let mut vars: Vec<(String, String)> = vec![
+                ("USERPROFILE".to_owned(), profile.to_string_lossy().into_owned()),
+                ("LOCALAPPDATA".to_owned(), local.to_string_lossy().into_owned()),
+                ("ProgramData".to_owned(), data.to_string_lossy().into_owned()),
+            ];
+            vars.extend(
+                rc.env
+                    .iter()
+                    .map(|(k, v)| ((*k).to_owned(), v.replace("{xdg}", &xdg_value))),
+            );
+            let mut cmd = repo.command(&[], &repo.base.join("calls"));
+            cmd.env_remove("CI")
                 .env_remove("BAZEL_TEST")
                 .env_remove("HOME")
                 .env_remove("XDG_CACHE_HOME")
-                .env("USERPROFILE", &profile)
-                .env("LOCALAPPDATA", &local)
-                .env("ProgramData", repo.base.join("programdata"))
-                .env("STUB_ARGS", &args)
-                .output()
-                .expect("launcher runs");
+                .env("STUB_ARGS", &args);
+            for (key, value) in &vars {
+                cmd.env(key, value);
+            }
+            let out = cmd.output().expect("launcher runs");
             let text = format!(
                 "{}{}",
                 String::from_utf8_lossy(&out.stdout),
                 String::from_utf8_lossy(&out.stderr)
             );
-            assert_eq!(out.status.code(), Some(0), "{text}");
+            assert_eq!(out.status.code(), Some(0), "{name}: {text}");
+            let lookup: std::collections::HashMap<String, String> = vars.into_iter().collect();
+            let policy = RcPolicy::from_env(&|key| lookup.get(key).cloned(), &root, &|path| {
+                std::fs::read_to_string(path).ok()
+            });
+            let expected = match rc.expect {
+                Expect::Default => Some(&in_local),
+                Expect::Xdg => Some(&in_xdg),
+                Expect::Unset => None,
+            };
+            assert_eq!(
+                policy.disk_cache,
+                expected.map(|path| path.to_string_lossy().into_owned()),
+                "{name}"
+            );
+            let flags: Vec<String> = policy_flags(&policy)
+                .into_iter()
+                .map(|flag| match flag.strip_prefix("--disk_cache=") {
+                    Some(path) => format!("\"--disk_cache={}\"", path.replace('/', "\\")),
+                    None => flag,
+                })
+                .collect();
             let logged = std::fs::read_to_string(&args).expect("bazel argv");
             let build = logged
                 .lines()
-                .find(|line| line.starts_with("build "))
+                .find(|line| line.starts_with("build ") || line.contains(" build "))
                 .expect("build argv");
             let query = logged
                 .lines()
-                .find(|line| line.starts_with("query "))
+                .find(|line| line.starts_with("query ") || line.contains(" query "))
                 .expect("query argv");
-            if want && bounded {
-                assert!(
-                    build.starts_with(&format!("build {flag} {gc} --curses=no ")),
-                    "{logged}"
-                );
-            } else if want {
-                assert!(
-                    build.starts_with(&format!("build {flag} --curses=no ")),
-                    "{logged}"
-                );
+            let want = if flags.is_empty() {
+                "build --curses=no ".to_owned()
             } else {
-                assert!(!build.contains("disk_cache"), "{logged}");
-            }
-            assert!(!query.contains("disk_cache"), "{logged}");
+                format!("build {} --curses=no ", flags.join(" "))
+            };
+            assert!(build.contains(&want), "{name}: want {want}: {logged}");
+            let bounded = build.contains("--experimental_disk_cache_gc_max_size=");
+            assert_eq!(bounded, expected.is_some() && !rc.rc_gc, "{name}: {logged}");
+            assert!(!query.contains("disk_cache"), "{name}: {logged}");
         }
     }
 

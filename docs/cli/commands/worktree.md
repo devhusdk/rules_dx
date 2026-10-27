@@ -99,8 +99,10 @@ cache's `content_addressable` directory.
 - `kept`: `prune --apply` for a worktree it skipped, and `prune_base` for an
   orphaned output base it keeps, with its `reason`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
-- `skipped`: `prune_base` for a free slot's output base that `prune --apply`
-  could not delete, with its `slot` and `reason` (`server`, `held`, or `busy`).
+- `skipped`: `prune` for a slot, and `prune_base` for an output base (with its
+  `slot` when it belongs to a free slot), that `prune --apply` could not
+  delete, with a `reason` (`server`, `held`, or `busy`). `prune` events in this
+  state have no `disk_bytes`.
 - `stale`: `prune_downloads` for repository cache downloads unused for 30
   days.
 
@@ -242,7 +244,8 @@ replaces everything when nothing qualifies.
 external worktree again. One that
 became locked, got a Bazel server, uncommitted changes, or unpushed commits is
 kept and printed as `kept external worktree <branch> (<reason>): <path>`, with
-reason `locked`, `server`, `dirty`, or `unpushed`. JSON reports it with state
+reason `locked`, `server`, `dirty`, `unpushed`, or `busy` (the delete failed and
+part of it is still on disk). JSON reports it with state
 `kept` and that `reason`. It still exits `0`.
 
 An output base whose workspace is gone but that a Bazel server still uses is
@@ -252,8 +255,14 @@ JSON reports it as `prune_base` with state `kept` and reason `server`.
 A free slot's output base whose Bazel server will not stop, whose slot was
 taken, or whose slot runs a `dx` command, is kept and printed as
 `skipped output base of free slot <n> (<reason>): <dir>`, with reason `server`,
-`held`, or `busy`. It is not counted in `pruned <size>`, and the command still exits
-`0`.
+`held`, or `busy`. An orphaned output base that cannot be deleted is printed as
+`skipped output base of removed <workspace> (busy): <dir>`; this also covers
+the output base of a slot that `prune` deleted while the base stayed. A slot
+that was taken after the plan or is in use is printed as
+`skipped slot <n> (<reason>): <path>`. So is a slot whose checkout is still
+partly on disk after the delete; `dx worktree add` no longer leases it, and the
+next prune or `add` tries to delete it again. Skipped items are not counted in
+`pruned <size>`, and the command still exits `0`.
 
 `--apply` checks each download again right before it deletes it. One that a
 build used since the check is kept without a line and is not counted in

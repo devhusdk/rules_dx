@@ -482,18 +482,32 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
     lines
 }
 
-fn skipped_lines(skipped: &[ops::PruneKeptBase]) -> Vec<String> {
-    skipped
+fn skipped_lines(slots: &[ops::PruneSkippedSlot], bases: &[ops::PruneKeptBase]) -> Vec<String> {
+    let mut lines: Vec<String> = slots
         .iter()
-        .filter_map(|base| {
-            Some(format!(
-                "skipped output base of free slot {} ({}): {}",
-                base.slot?,
-                base.reason,
-                base.dir.display()
-            ))
+        .map(|slot| {
+            format!(
+                "skipped slot {} ({}): {}",
+                slot.slot,
+                slot.reason,
+                slot.path.display()
+            )
         })
-        .collect()
+        .collect();
+    lines.extend(bases.iter().map(|base| match base.slot {
+        Some(slot) => format!(
+            "skipped output base of free slot {slot} ({}): {}",
+            base.reason,
+            base.dir.display()
+        ),
+        None => format!(
+            "skipped output base of removed {} ({}): {}",
+            base.workspace.display(),
+            base.reason,
+            base.dir.display()
+        ),
+    }));
+    lines
 }
 
 fn prune(
@@ -511,12 +525,18 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
     let ops::Pruned {
         plan,
         kept,
+        skipped_slots,
         skipped_bases,
     } = pruned;
     let mut events = Vec::new();
     for slot in &plan.slots {
         let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "free");
         event["disk_bytes"] = slot.bytes.into();
+        events.push(event);
+    }
+    for slot in skipped_slots {
+        let mut event = simple_event("prune", Some(slot.slot), &slot.path, None, "skipped");
+        event["reason"] = slot.reason.into();
         events.push(event);
     }
     for external in &plan.externals {
@@ -573,6 +593,7 @@ fn prune_output(
     let ops::Pruned {
         plan,
         kept,
+        skipped_slots,
         skipped_bases,
     } = pruned;
     start(out, invocation, if apply { "default" } else { "check" })?;
@@ -593,10 +614,10 @@ fn prune_output(
             ),
         )?;
     }
-    if plan.is_empty() && kept.is_empty() && skipped_bases.is_empty() {
+    if plan.is_empty() && kept.is_empty() && skipped_slots.is_empty() && skipped_bases.is_empty() {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
-        for line in skipped_lines(skipped_bases) {
+        for line in skipped_lines(skipped_slots, skipped_bases) {
             write_line(out, &line)?;
         }
         for item in kept {
@@ -1172,8 +1193,30 @@ mod tests {
             reason: "server",
         }];
         assert_eq!(
-            skipped_lines(&skipped),
+            skipped_lines(&[], &skipped),
             ["skipped output base of free slot 2 (server): /bazel/bbb"]
+        );
+    }
+
+    #[test]
+    fn skipped_slots_and_orphaned_bases_print_reason() {
+        let slots = [ops::PruneSkippedSlot {
+            slot: 4,
+            path: PathBuf::from("/cache/slots/4"),
+            reason: "busy",
+        }];
+        let bases = [ops::PruneKeptBase {
+            dir: PathBuf::from("/bazel/ooo"),
+            workspace: PathBuf::from("/gone"),
+            slot: None,
+            reason: "busy",
+        }];
+        assert_eq!(
+            skipped_lines(&slots, &bases),
+            [
+                "skipped slot 4 (busy): /cache/slots/4",
+                "skipped output base of removed /gone (busy): /bazel/ooo"
+            ]
         );
     }
 
@@ -1232,6 +1275,11 @@ mod tests {
                 branch: Some("k".to_owned()),
                 reason: "server",
             }],
+            skipped_slots: vec![ops::PruneSkippedSlot {
+                slot: 4,
+                path: PathBuf::from("/cache/slots/4"),
+                reason: "busy",
+            }],
             skipped_bases: vec![ops::PruneKeptBase {
                 dir: PathBuf::from("/bazel/sss"),
                 workspace: PathBuf::from("/cache/slots/2"),
@@ -1278,6 +1326,7 @@ mod tests {
             pairs,
             [
                 ("prune", "free"),
+                ("prune", "skipped"),
                 ("prune", "external"),
                 ("prune", "kept"),
                 ("prune_base", "kept"),
@@ -1287,9 +1336,10 @@ mod tests {
                 ("prune_downloads", "stale"),
             ]
         );
-        assert_eq!(events[7]["entries"], 2);
-        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 8] = [
+        assert_eq!(events[8]["entries"], 2);
+        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 9] = [
             ("/cache/slots/3", Some(3), None, Some(100), None),
+            ("/cache/slots/4", Some(4), None, None, Some("busy")),
             ("/ext", None, Some("e"), Some(200), None),
             ("/kept", None, Some("k"), None, Some("server")),
             ("/bazel/kkk", None, None, None, Some("locked")),
@@ -1358,6 +1408,7 @@ mod tests {
         assert_eq!(
             text,
             "kept output base of removed /moved (locked): /bazel/kkk\n\
+             skipped slot 4 (busy): /cache/slots/4\n\
              skipped output base of free slot 2 (server): /bazel/sss\n\
              kept external worktree k (server): /kept\n\
              slot 3 idle 40 days, 100 B: /cache/slots/3\n\

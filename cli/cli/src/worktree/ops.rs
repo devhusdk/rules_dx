@@ -156,10 +156,19 @@ pub(crate) struct PruneDownloads {
     pub(crate) bytes: u64,
 }
 
-/// What `prune_apply` left in place because it changed after the plan.
+/// One slot `prune --apply` could not delete.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PruneSkippedSlot {
+    pub(crate) slot: u32,
+    pub(crate) path: PathBuf,
+    pub(crate) reason: &'static str,
+}
+
+/// What `prune_apply` kept or could not delete.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct Applied {
     pub(crate) kept: Vec<PruneKept>,
+    pub(crate) skipped_slots: Vec<PruneSkippedSlot>,
     pub(crate) skipped_bases: Vec<PruneKeptBase>,
     pub(crate) used_downloads: Vec<PathBuf>,
 }
@@ -169,6 +178,7 @@ pub(crate) struct Applied {
 pub(crate) struct Pruned {
     pub(crate) plan: PrunePlan,
     pub(crate) kept: Vec<PruneKept>,
+    pub(crate) skipped_slots: Vec<PruneSkippedSlot>,
     pub(crate) skipped_bases: Vec<PruneKeptBase>,
 }
 
@@ -448,7 +458,7 @@ pub(crate) fn lease(
     let digest = git::lock_digest(&pool.main, &target);
     let mut free: Vec<&Record> = records
         .iter()
-        .filter(|record| !record.held && !skip.contains(&record.slot))
+        .filter(|record| !record.held && !record.broken && !skip.contains(&record.slot))
         .collect();
     rank(&mut free, branch, digest.as_deref());
     let mut reclaimed = takeover.is_some();
@@ -470,7 +480,7 @@ pub(crate) fn lease(
         .filter(|record| {
             !record.held
                 && Some(record.slot) != chosen.map(|picked| picked.slot)
-                && now.saturating_sub(record.last_used) >= STALE_AFTER_SECS
+                && (record.broken || now.saturating_sub(record.last_used) >= STALE_AFTER_SECS)
         })
         .map(|record| record.slot)
         .collect();
@@ -509,6 +519,7 @@ pub(crate) fn lease(
         pid: Some(who.pid),
         gone: false,
         unclaimed: request.unclaimed,
+        broken: false,
         leased_at: now,
         last_used: now,
         lock_digest: chosen.and_then(|record| record.lock_digest.clone()),
@@ -519,7 +530,8 @@ pub(crate) fn lease(
     pool.write(&placeholder)?;
     let bases = scan_output_bases(&host.output_roots());
     for slot in &stale {
-        delete_slot(pool, host, *slot, &bases);
+        // A stale slot that cannot be deleted stays recorded as broken; `add` goes on with its own slot.
+        let _ = delete_slot(pool, host, *slot, &bases);
     }
     drop(lock);
     let outcome = switch_slot(pool, host, slot, fresh, reclaimed, &start, branch, &target);
@@ -531,7 +543,8 @@ pub(crate) fn lease(
                 &pool.main,
                 &["worktree", "remove", "--force", &path_text(&path)],
             );
-            remove_tree(&path);
+            // Best-effort cleanup of the slot this call failed to set up.
+            let _ = host.remove_tree(&path);
             let _ = git::run(&pool.main, &["worktree", "prune"]);
         } else {
             let mut freed = placeholder.clone();
@@ -584,7 +597,8 @@ fn make_room(
             .filter(|base| disk_low(host, &base.dir))
             .collect();
         if !owned.is_empty() && !stop_server(host, &path) {
-            drop_bases(&owned);
+            // The free-space reading below decides whether this helped.
+            let _ = drop_bases(host, &owned);
             let after = host.disk_space(&pool.base);
             match full(after) {
                 Some(still) => space = still,
@@ -866,17 +880,19 @@ fn bases_of<'a>(bases: &'a [OutputBase], path: &Path) -> Vec<&'a OutputBase> {
         .collect()
 }
 
-fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) {
+/// Removes an external worktree and its output bases, and reports whether all of it is gone.
+fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) -> bool {
     let owned = bases_of(bases, path);
     stop_server(host, path);
     let arg = path_text(path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
     let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
-    remove_tree(path);
+    let mut gone = host.remove_tree(path);
     let _ = git::run(&pool.main, &["worktree", "prune"]);
     for base in owned {
-        remove_tree(&base.dir);
+        gone &= host.remove_tree(&base.dir);
     }
+    gone
 }
 
 fn release_external(
@@ -917,7 +933,7 @@ fn release_external(
     }
     let _lock = pool.lock()?;
     let bases = scan_output_bases(&host.output_roots());
-    remove_external(pool, host, &checkout.path, &bases);
+    let _ = remove_external(pool, host, &checkout.path, &bases);
     Ok(Released {
         slot: None,
         path: checkout.path,
@@ -1119,11 +1135,14 @@ pub(crate) fn prune(
     let mut plan = prune_plan(pool, host, trigger)?;
     let Applied {
         kept,
+        skipped_slots,
         skipped_bases,
         used_downloads,
     } = prune_apply(pool, host, &plan, &lock)?;
     plan.externals
         .retain(|external| !kept.iter().any(|item| item.path == external.path));
+    plan.slots
+        .retain(|slot| !skipped_slots.iter().any(|item| item.slot == slot.slot));
     plan.bases
         .retain(|base| !skipped_bases.iter().any(|item| item.dir == base.dir));
     if !used_downloads.is_empty() {
@@ -1136,9 +1155,18 @@ pub(crate) fn prune(
         plan.downloads
             .retain(|downloads| !downloads.entries.is_empty());
     }
+    for slot in &mut plan.slots {
+        for base in skipped_bases
+            .iter()
+            .filter(|base| same_path(&base.workspace, &slot.path))
+        {
+            slot.bytes = slot.bytes.saturating_sub(measure(host, &base.dir)?);
+        }
+    }
     Ok(Pruned {
         plan,
         kept,
+        skipped_slots,
         skipped_bases,
     })
 }
@@ -1192,7 +1220,7 @@ pub(crate) fn prune_plan(
     let mut plan = PrunePlan::default();
     for record in pool.records() {
         let idle = now.saturating_sub(record.last_used);
-        if record.held || idle < STALE_AFTER_SECS {
+        if record.held || (!record.broken && idle < STALE_AFTER_SECS) {
             continue;
         }
         let path = pool.slot_path(record.slot);
@@ -1285,11 +1313,34 @@ pub(crate) fn prune_apply(
     _lock: &dx_atomic_fs::lease::ExclusiveLease,
 ) -> Result<Applied, WorktreeError> {
     let bases = scan_output_bases(&host.output_roots());
+    let mut skipped_slots = Vec::new();
+    let mut skipped = Vec::new();
     for slot in &plan.slots {
         stop_check(host)?;
-        if pool.record(slot.slot).is_some_and(|record| !record.held) {
-            delete_slot(pool, host, slot.slot, &bases);
+        let Some(record) = pool.record(slot.slot) else {
+            continue;
+        };
+        let left = if record.held {
+            Leftover {
+                slot: Some("held"),
+                bases: Vec::new(),
+            }
+        } else {
+            delete_slot(pool, host, slot.slot, &bases)
+        };
+        if let Some(reason) = left.slot {
+            skipped_slots.push(PruneSkippedSlot {
+                slot: slot.slot,
+                path: slot.path.clone(),
+                reason,
+            });
         }
+        skipped.extend(left.bases.into_iter().map(|base| PruneKeptBase {
+            dir: base.dir,
+            workspace: base.workspace,
+            slot: None,
+            reason: "busy",
+        }));
     }
     let servers = host.servers();
     let mut kept = Vec::new();
@@ -1306,18 +1357,23 @@ pub(crate) fn prune_apply(
             continue;
         }
         stop_check(host)?;
-        remove_external(pool, host, &external.path, &bases);
+        if !remove_external(pool, host, &external.path, &bases) {
+            kept.push(PruneKept {
+                path: checkout.path,
+                branch: checkout.branch,
+                reason: "busy",
+            });
+        }
     }
-    let mut skipped = Vec::new();
     for base in &plan.bases {
         stop_check(host)?;
+        let skip = |reason| PruneKeptBase {
+            dir: base.dir.clone(),
+            workspace: base.workspace.clone(),
+            slot: base.slot,
+            reason,
+        };
         if let Some(slot) = base.slot {
-            let skip = |reason| PruneKeptBase {
-                dir: base.dir.clone(),
-                workspace: base.workspace.clone(),
-                slot: Some(slot),
-                reason,
-            };
             if !pool.record(slot).is_some_and(|record| !record.held) {
                 skipped.push(skip("held"));
                 continue;
@@ -1332,7 +1388,9 @@ pub(crate) fn prune_apply(
                 continue;
             }
         }
-        remove_tree(&base.dir);
+        if !host.remove_tree(&base.dir) {
+            skipped.push(skip("busy"));
+        }
     }
     let mut used_downloads = Vec::new();
     for entry in plan
@@ -1347,6 +1405,7 @@ pub(crate) fn prune_apply(
     }
     Ok(Applied {
         kept,
+        skipped_slots,
         skipped_bases: skipped,
         used_downloads,
     })
@@ -1389,8 +1448,7 @@ fn drop_download(host: &dyn Host, entry: &Download) -> bool {
     if host.now().saturating_sub(used) < STALE_AFTER_SECS {
         return false;
     }
-    remove_tree(&entry.dir);
-    true
+    host.remove_tree(&entry.dir)
 }
 
 fn is_low(space: DiskSpace) -> bool {
@@ -1430,10 +1488,13 @@ fn low_disk_reading(
     (Some(space), low)
 }
 
-fn drop_bases(owned: &[&OutputBase]) {
+/// Deletes the output bases and reports whether all of them are gone.
+fn drop_bases(host: &dyn Host, owned: &[&OutputBase]) -> bool {
+    let mut gone = true;
     for base in owned {
-        remove_tree(&base.dir);
+        gone &= host.remove_tree(&base.dir);
     }
+    gone
 }
 
 /// Reclaims output bases on low disk, reporting a failure as a disk_low warning.
@@ -1490,8 +1551,9 @@ fn reclaim_locked(
         if !disk_low(host, &base.dir) {
             continue;
         }
-        drop_bases(&[base]);
-        orphans += 1;
+        if drop_bases(host, &[base]) {
+            orphans += 1;
+        }
     }
     let now = host.now();
     let mut stale: Vec<Download> = scan_downloads(&roots, &|| host.interrupted())
@@ -1516,8 +1578,9 @@ fn reclaim_locked(
         if stop_server(host, &path) {
             continue;
         }
-        drop_bases(&owned);
-        slots.push(slot);
+        if drop_bases(host, &owned) {
+            slots.push(slot);
+        }
     }
     let after = host.disk_space(&disk).unwrap_or(before);
     let mut message = format!("low disk: {} free", size(before.free));
@@ -1573,9 +1636,22 @@ pub(crate) fn size(bytes: u64) -> String {
     }
 }
 
-fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {
+/// What `delete_slot` could not delete.
+#[derive(Debug, Default)]
+struct Leftover {
+    /// Why the slot is still there, recorded as broken or untouched.
+    slot: Option<&'static str>,
+    /// Output bases left behind by a slot that is gone.
+    bases: Vec<OutputBase>,
+}
+
+/// Deletes a slot and its output bases, and returns what is still on disk.
+fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) -> Leftover {
     let Ok(Some(_quiet)) = pool.try_quiet(slot) else {
-        return;
+        return Leftover {
+            slot: Some("busy"),
+            bases: Vec::new(),
+        };
     };
     let path = pool.slot_path(slot);
     let owned = bases_of(bases, &path);
@@ -1583,46 +1659,35 @@ fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) {
     let arg = path_text(&path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
     let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
-    remove_tree(&path);
+    let gone = host.remove_tree(&path);
     let _ = git::run(&pool.main, &["worktree", "prune"]);
-    pool.remove(slot);
-    for base in owned {
-        remove_tree(&base.dir);
+    let stuck: Vec<OutputBase> = owned
+        .into_iter()
+        .filter(|base| !host.remove_tree(&base.dir))
+        .cloned()
+        .collect();
+    if gone {
+        pool.remove(slot);
+        return Leftover {
+            slot: None,
+            bases: stuck,
+        };
+    }
+    mark_broken(pool, slot);
+    Leftover {
+        slot: Some("busy"),
+        bases: Vec::new(),
     }
 }
 
-fn make_writable(path: &Path) {
-    let Ok(metadata) = std::fs::symlink_metadata(path) else {
+/// Keeps a half-deleted slot recorded so `prune` retries it, but out of `add`'s reach.
+fn mark_broken(pool: &Pool, slot: u32) {
+    let Some(mut record) = pool.record(slot) else {
         return;
     };
-    if metadata.file_type().is_symlink() {
-        return;
-    }
-    let mut permissions = metadata.permissions();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        permissions.set_mode(permissions.mode() | 0o700);
-    }
-    #[cfg(not(unix))]
-    {
-        #[allow(clippy::permissions_set_readonly_false)]
-        permissions.set_readonly(false);
-    }
-    let _ = std::fs::set_permissions(path, permissions);
-    if metadata.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(path) {
-            for entry in entries.flatten() {
-                make_writable(&entry.path());
-            }
-        }
-    }
-}
-
-/// Removes a directory tree, including read-only entries.
-pub(crate) fn remove_tree(path: &Path) {
-    if std::fs::remove_dir_all(path).is_err() {
-        make_writable(path);
-        let _ = std::fs::remove_dir_all(path);
+    record.broken = true;
+    if pool.write(&record).is_err() {
+        // A free record would hand the partial tree out again; `next_slot` skips the leftover dir.
+        pool.remove(slot);
     }
 }

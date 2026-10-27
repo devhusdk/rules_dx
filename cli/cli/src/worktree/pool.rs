@@ -222,6 +222,9 @@ pub(crate) struct Record {
     /// The first agent that runs `dx worktree` inside the slot takes the lease.
     #[serde(default)]
     pub(crate) unclaimed: bool,
+    /// A delete left part of the checkout on disk; `add` never leases it, `prune` deletes it again.
+    #[serde(default)]
+    pub(crate) broken: bool,
     pub(crate) leased_at: u64,
     pub(crate) last_used: u64,
     pub(crate) lock_digest: Option<String>,
@@ -750,6 +753,7 @@ mod tests {
             pid: Some(7),
             gone: false,
             unclaimed: false,
+            broken: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,

@@ -1,4 +1,4 @@
-input {"NEEDS": {"dogfood": {"result": "success"}, "docs": {"result": "success"}, "devcontainer-check": {"result": "success"}, "hermetic": {"result": "success"}, "preflight": {"result": "success"}, "workflow-check": {"result": "success"}}}
+input {"NEEDS": {"dogfood": {"result": "success"}, "docs": {"result": "success"}, "devcontainer-check": {"result": "success"}, "hermetic": {"result": "success"}, "network": {"result": "success"}, "preflight": {"result": "success"}, "workflow-check": {"result": "success"}}}
 exit 0
 says "aggregate": "ci"
 says "failing checks": []

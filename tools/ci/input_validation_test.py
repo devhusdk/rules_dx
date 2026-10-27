@@ -51,6 +51,7 @@ GATE_JOBS = (
     "docs",
     "devcontainer-check",
     "hermetic",
+    "network",
     "preflight",
     "workflow-check",
 )

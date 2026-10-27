@@ -13,6 +13,11 @@ def cc_wrapper_contract_tests(name):
     dx_wrapper_contract_tests(
         name,
         file_classes = ["c", "cpp", "objc", "objcpp"],
+        wrappers = {
+            "binary": "//cc/tests/fixtures/hello:hello",
+            "library": "//cc/tests/fixtures/hello:hello_lib",
+            "test": "//cc/tests/fixtures/hello:hello_test",
+        },
         extra_checks = [
             expect_equal("coverage off keeps features", cc_coverage_features(["a"], False), ["a"]),
             expect_equal("coverage on adds llvm maps", cc_coverage_features(["a"], True), ["a", "llvm_coverage_map_format", "-gcc_coverage_map_format"]),

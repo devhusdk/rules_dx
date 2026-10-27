@@ -1,6 +1,7 @@
 """Thin-candidate comparison subjects for the wrapper keep review."""
 
 load("//libs/starlark:canonical.bzl", "strip_canonical")
+load("//libs/starlark:conformance.bzl", "dx_render_run_env", "dx_render_run_inherited")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "starlark_test")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -52,30 +53,16 @@ thin_compare_subject = rule(
     },
 )
 
-_COVERAGE_ENV = ["CC_CODE_COVERAGE_SCRIPT", "DX_COVERAGE_CLANG_OBJECTS", "LLVM_COV", "LLVM_PROFDATA"]
-
-def _render_env(info):
-    """Renders a RunEnvironmentInfo env as sorted K=V text, without the dx coverage collector env."""
-    if info == None:
-        return "(none)"
-    return ",".join([k + "=" + info.environment[k] for k in sorted(info.environment.keys()) if k not in _COVERAGE_ENV])
-
-def _render_inherited(info):
-    """Renders a RunEnvironmentInfo inherited env as sorted text."""
-    if info == None:
-        return "(none)"
-    return ",".join(sorted(info.inherited_environment))
-
 def _run_env_compare_impl(ctx):
     """Compares the run environment of a wrapper and its upstream target."""
     wrapper = ctx.attr.wrapper[RunEnvironmentInfo] if RunEnvironmentInfo in ctx.attr.wrapper else None
     thin = ctx.attr.thin[RunEnvironmentInfo] if RunEnvironmentInfo in ctx.attr.thin else None
     fields = {
-        "thin_env": _render_env(thin),
-        "thin_inherited": _render_inherited(thin),
+        "thin_env": dx_render_run_env(thin),
+        "thin_inherited": dx_render_run_inherited(thin),
         "thin_label": strip_canonical(str(ctx.attr.thin.label)),
-        "wrapper_env": _render_env(wrapper),
-        "wrapper_inherited": _render_inherited(wrapper),
+        "wrapper_env": dx_render_run_env(wrapper),
+        "wrapper_inherited": dx_render_run_inherited(wrapper),
         "wrapper_label": strip_canonical(str(ctx.attr.wrapper.label)),
     }
     fields["env_equal"] = str(fields["wrapper_env"] == fields["thin_env"] and fields["wrapper_inherited"] == fields["thin_inherited"])

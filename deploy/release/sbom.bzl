@@ -29,16 +29,16 @@ def sbom_release(name, artifact, package_name = "dx", supplier = "rules_dx", bui
         name = name + "_spdx",
         srcs = [src_target],
         outs = [spdx],
-        tools = ["//deploy/release:sbom_spdx_gen"],
-        cmd = "$(location //deploy/release:sbom_spdx_gen) $(location " + src_target + ") $(OUTS) " + genrule_arg(package_name) + " " + genrule_arg(supplier),
+        tools = ["//deploy/release:release_tool"],
+        cmd = "$(location //deploy/release:release_tool) spdx $(location " + src_target + ") $(OUTS) " + genrule_arg(package_name) + " " + genrule_arg(supplier),
     )
 
     native.genrule(
         name = name + "_provenance",
         srcs = [src_target],
         outs = [provenance],
-        tools = ["//deploy/release:sbom_prov_gen"],
-        cmd = "$(location //deploy/release:sbom_prov_gen) $(location " + src_target + ") $(OUTS) " + genrule_arg(builder_id),
+        tools = ["//deploy/release:release_tool"],
+        cmd = "$(location //deploy/release:release_tool) provenance $(location " + src_target + ") $(OUTS) " + genrule_arg(builder_id),
     )
 
     native.filegroup(

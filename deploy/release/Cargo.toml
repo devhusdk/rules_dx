@@ -8,20 +8,8 @@ name = "dx_release_tools"
 path = "src/lib.rs"
 
 [[bin]]
-name = "sbom_spdx_gen"
-path = "src/bin_sbom_spdx_gen.rs"
-
-[[bin]]
-name = "sbom_prov_gen"
-path = "src/bin_sbom_prov_gen.rs"
-
-[[bin]]
-name = "bcr_source_gen"
-path = "src/bin_bcr_source_gen.rs"
-
-[[bin]]
-name = "notice_gen"
-path = "src/bin_notice_gen.rs"
+name = "release_tool"
+path = "src/bin_release_tool.rs"
 
 [[bin]]
 name = "publish_dry_run_check"

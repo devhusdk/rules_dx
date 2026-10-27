@@ -3722,6 +3722,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruby_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "rust_extract"
 version = "0.0.0"
 dependencies = [

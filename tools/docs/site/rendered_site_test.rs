@@ -7,6 +7,7 @@ use std::process::Command;
 const USER_SITE: &str = "DX_USER_SITE";
 const DEMO_SITE: &str = "DX_DEMO_SITE";
 const DEMO_CHANGED_SITE: &str = "DX_DEMO_CHANGED_SITE";
+const DEMO_POLYGLOT_SITE: &str = "DX_DEMO_POLYGLOT_SITE";
 const SITE_CHECK: &str = "DX_SITE_CHECK";
 const CONSUMER_SITE: &str = "DX_CONSUMER_SITE";
 const PUBLIC_RUST_CRATES: [&str; 12] = [
@@ -539,6 +540,52 @@ fn a_demo_api_page_renders_its_signature_docs_source_and_relations() {
         generated.contains("docs_fixture_build_script.out_dir/generated.rs:2</code> (generated)"),
         "build script output must be marked generated, not linked"
     );
+}
+
+#[test]
+fn a_ruby_api_page_renders_its_signature_docs_source_and_relations() {
+    let root = site(DEMO_POLYGLOT_SITE);
+    let routes = every_html(&root);
+    let area = read(&root, "api/ruby/geometry/Geometry.Circle.area.html");
+    assert!(
+        area.contains("<code class=\"language-ruby\">def area"),
+        "the signature must render as a Ruby code block"
+    );
+    assert!(area.contains("Computes the area of the circle."));
+    let shapes = "tools/docs/ruby/fixture/lib/geometry/shapes.rb";
+    assert!(
+        area.contains(&format!(
+            "href=\"https://github.com/devhusdk/rules_dx/blob/main/{shapes}#L37\""
+        )),
+        "the page must link its source line"
+    );
+    let empty = read(&root, "api/ruby/geometry/Geometry.Circle.empty~3F.html");
+    assert!(
+        empty.contains("<code>Geometry::Circle#empty?</code>"),
+        "a Ruby page must be titled by its display name"
+    );
+    let square = read(&root, "api/ruby/geometry_ext/GeometryExt.Square.html");
+    assert!(
+        square.contains("href=\"../geometry/Geometry.Sized.html\""),
+        "the Square page never links the Sized page it includes"
+    );
+    for hidden in ["cache_key", "recompute"] {
+        assert!(
+            !routes.iter().any(|route| route.contains(hidden)),
+            "the non-public method {hidden} was published"
+        );
+    }
+    let index = read(&root, "searchindex.js");
+    let mut urls = BTreeSet::new();
+    for (start, _) in index.match_indices("\"api/ruby/") {
+        let rest = &index[start + 1..];
+        let end = rest.find('"').expect("closed string");
+        urls.insert(rest[..end].split('#').next().expect("url").to_string());
+    }
+    assert!(!urls.is_empty(), "the search index names no Ruby page");
+    for url in urls {
+        assert!(root.join(&url).is_file(), "search names {url}, no page");
+    }
 }
 
 #[test]

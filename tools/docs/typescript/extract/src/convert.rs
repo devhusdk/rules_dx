@@ -445,6 +445,7 @@ impl Walker<'_> {
                 key: KEY_CONFIG.to_owned(),
                 value: self.settings.config.clone().into_bytes(),
             }],
+            display_name: String::new(),
         })
     }
 

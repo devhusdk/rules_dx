@@ -43,6 +43,8 @@ docs_site(
     prose = ["demo/demo_prose.md"],
     shards = [
         "//tools/docs/go/fixture:money_docs",
+        "//tools/docs/ruby/fixture:geometry_docs",
+        "//tools/docs/ruby/fixture:geometry_ext_docs",
         "//tools/docs/rust/fixture:docs_fixture_docs",
         "//tools/docs/typescript/fixture:geometry_docs",
     ],
@@ -161,6 +163,7 @@ rust_test(
     srcs = ["rendered_site_test.rs"],
     data = [
         ":demo_changed_site",
+        ":demo_polyglot_site",
         ":demo_site",
         ":user_site",
         "//tools/docs/site/check:site_check",
@@ -169,6 +172,7 @@ rust_test(
     env = {
         "DX_CONSUMER_SITE": "$(rootpath @dx_docs_consumer//:site)",
         "DX_DEMO_CHANGED_SITE": "$(rootpath :demo_changed_site)",
+        "DX_DEMO_POLYGLOT_SITE": "$(rootpath :demo_polyglot_site)",
         "DX_DEMO_SITE": "$(rootpath :demo_site)",
         "DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)",
         "DX_USER_SITE": "$(rootpath :user_site)",

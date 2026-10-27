@@ -1,6 +1,6 @@
 //! Tests for the API aggregator.
 
-use super::{api_path, parse, relative, render, title, Options};
+use super::{api_path, code, parse, relative, render, title, Options};
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind};
 use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
 
@@ -285,5 +285,131 @@ fn go_symbols_render_with_a_go_fence_under_their_import_path() {
             .contains("api/go/example.com/ledger/money/Account.html"),
         "{}",
         rendered.records
+    );
+}
+
+fn ruby_shard() -> DocIr {
+    let mut circle = symbol(
+        "ruby:geometry:Geometry.Circle",
+        "class Geometry::Circle < Geometry::Shape",
+        "A circle.",
+        16,
+    );
+    circle.display_name = "Geometry::Circle".to_string();
+    circle.relations = Some(Relations {
+        implements: vec!["ruby:geometry:Geometry.Sized".to_string()],
+        reexported_as: vec!["ruby:geometry:Circle".to_string()],
+        ..Relations::default()
+    });
+    let mut empty = symbol(
+        "ruby:geometry:Geometry.Circle.empty~3F",
+        "def empty?",
+        "Reports whether the circle has no area.",
+        51,
+    );
+    empty.display_name = "Geometry::Circle#empty?".to_string();
+    empty.relations = Some(Relations {
+        member_of: vec!["ruby:geometry:Geometry.Circle".to_string()],
+        ..Relations::default()
+    });
+    let mut tick = symbol(
+        "ruby:geometry:Geometry.Circle.~60",
+        "def `(command)",
+        "Runs.",
+        70,
+    );
+    tick.display_name = "Geometry::Circle#`".to_string();
+    let mut sized = symbol(
+        "ruby:geometry:Geometry.Sized",
+        "module Geometry::Sized",
+        "Sized.",
+        9,
+    );
+    sized.display_name = "Geometry::Sized".to_string();
+    DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "ruby".to_string(),
+        package: "geometry".to_string(),
+        symbols: vec![circle, empty, tick, sized],
+    }
+}
+
+#[test]
+fn display_names_title_ruby_pages_links_and_records() {
+    let rendered = render(&[ruby_shard()], "https://example.com/blob/main/").expect("render");
+    let page = &rendered.pages["ruby/geometry/Geometry.Circle.empty~3F.md"];
+    assert!(
+        page.starts_with("# `Geometry::Circle#empty?`\n\n```ruby\ndef empty?\n```\n"),
+        "{page}"
+    );
+    assert!(
+        page.contains("Member of: [`Geometry::Circle`](Geometry.Circle.md)"),
+        "{page}"
+    );
+    let circle = &rendered.pages["ruby/geometry/Geometry.Circle.md"];
+    assert!(
+        circle.contains("Implements: [`Geometry::Sized`](Geometry.Sized.md)"),
+        "{circle}"
+    );
+    assert!(
+        circle.contains("[`Geometry::Circle#empty?`](Geometry.Circle.empty~3F.md)"),
+        "{circle}"
+    );
+    assert!(
+        rendered.api.contains("## Ruby library `geometry`"),
+        "{}",
+        rendered.api
+    );
+    assert!(
+        rendered.api.contains(
+            "- [`Geometry::Circle#empty?`](api/ruby/geometry/Geometry.Circle.empty~3F.md): Reports"
+        ),
+        "{}",
+        rendered.api
+    );
+    assert!(
+        rendered.summary.contains(
+            "    - [Geometry::Circle#empty?](api/ruby/geometry/Geometry.Circle.empty~3F.md)\n"
+        ),
+        "{}",
+        rendered.summary
+    );
+    let records: serde_json::Value = serde_json::from_str(&rendered.records).expect("records");
+    let titles: Vec<&str> = records
+        .as_array()
+        .expect("records")
+        .iter()
+        .map(|r| r["title"].as_str().expect("title"))
+        .collect();
+    assert!(titles.contains(&"Geometry::Circle#empty?"), "{titles:?}");
+}
+
+#[test]
+fn alias_pages_fall_back_to_the_id_title() {
+    let rendered = render(&[ruby_shard()], "").expect("render");
+    let alias = &rendered.pages["ruby/geometry/Circle.md"];
+    assert!(alias.starts_with("# `geometry.Circle`\n"), "{alias}");
+    assert!(
+        alias.contains("Re-export of [`Geometry::Circle`](Geometry.Circle.md)."),
+        "{alias}"
+    );
+}
+
+#[test]
+fn a_title_with_a_backtick_gets_a_longer_code_fence() {
+    assert_eq!(code("plain"), "`plain`");
+    assert_eq!(code("a`b"), "``a`b``");
+    assert_eq!(code("Foo#`"), "`` Foo#` ``");
+    assert_eq!(code("``x"), "``` ``x ```");
+    let rendered = render(&[ruby_shard()], "").expect("render");
+    let page = &rendered.pages["ruby/geometry/Geometry.Circle.~60.md"];
+    assert!(page.starts_with("# `` Geometry::Circle#` ``\n"), "{page}");
+    assert!(
+        rendered
+            .summary
+            .contains("- [Geometry::Circle#\\`](api/ruby/geometry/Geometry.Circle.~60.md)"),
+        "{}",
+        rendered.summary
     );
 }

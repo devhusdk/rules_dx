@@ -796,7 +796,7 @@ fn run_hook(
             hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
         HookKind::Stop => pool_hook(kind, stdin, workspace, err, |pool, input, _| {
-            hook::stop(pool, who, input).map(|_| 0)
+            hook::stop(pool, host, who, input).map(|_| 0)
         }),
         HookKind::Remove => pool_hook(kind, stdin, workspace, err, |pool, input, err| {
             hook::remove(pool, host, who, input)

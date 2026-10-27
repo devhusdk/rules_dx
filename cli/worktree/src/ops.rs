@@ -263,13 +263,30 @@ impl PrunePlan {
     }
 }
 
+/// How long a stopped or dead holder keeps its slot before another agent may reclaim it (#3044).
+pub const STOP_GRACE_SECS: u64 = 30 * 60;
+
 fn path_text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
 /// Whether the lease holder still runs.
+///
+/// A holder that looks gone (stopped, or its process died) still counts for
+/// `STOP_GRACE_SECS` after its last activity: a stop ends a turn, and the agent may resume.
 pub(crate) fn holder_alive(host: &dyn Host, record: &Record) -> bool {
+    holder_running(host, record) || holder_recent(host, record)
+}
+
+/// Whether the holder's process runs and its agent has not stopped.
+fn holder_running(host: &dyn Host, record: &Record) -> bool {
     !record.gone && record.pid.is_some_and(|pid| host.process_alive(pid))
+}
+
+/// Whether the lease saw activity within the quiet period.
+fn holder_recent(host: &dyn Host, record: &Record) -> bool {
+    let last = record.stopped_at.unwrap_or(0).max(record.last_used);
+    host.now().saturating_sub(last) < STOP_GRACE_SECS
 }
 
 /// How a slot record is held.
@@ -637,6 +654,7 @@ pub(crate) fn lease(
         agent: who.agent.clone(),
         pid: Some(who.pid),
         gone: false,
+        stopped_at: None,
         unclaimed: request.unclaimed,
         broken: false,
         leased_at: now,

@@ -268,7 +268,12 @@ pub fn ignored(kind: HookKind, input: &Value) -> bool {
 }
 
 /// Marks the slots of a finished subagent as held by a gone holder.
-pub fn stop(pool: &Pool, who: &Who, input: &Value) -> Result<Vec<u32>, WorktreeError> {
+pub fn stop(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    input: &Value,
+) -> Result<Vec<u32>, WorktreeError> {
     if ignored(HookKind::Stop, input) {
         return Ok(Vec::new());
     }
@@ -283,6 +288,7 @@ pub fn stop(pool: &Pool, who: &Who, input: &Value) -> Result<Vec<u32>, WorktreeE
             && record.agent.as_deref() == Some(agent.as_str())
         {
             record.gone = true;
+            record.stopped_at = Some(host.now());
             pool.write(&record)?;
             marked.push(record.slot);
         }

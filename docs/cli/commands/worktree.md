@@ -478,7 +478,10 @@ different holders, and `list` shows each one. Under Cursor and Gemini CLI, only 
 has none and is refused in a slot that a session holds. A slot from `hook create` goes
 to the first agent of the same session that runs `dx worktree add` or
 `release` inside it. A holder is gone when its process
-exits or `hook stop` marks it. A slot no agent has claimed stays held until its
+exits or `hook stop` marks it. `hook stop` fires at the end of every turn, so it marks a
+holder as stopped, not finished (#3044): a gone holder keeps its slot until
+30 minutes after its last activity (the stop, or the lease), and only then can
+another agent reclaim it. A slot no agent has claimed stays held until its
 session ends. Any other `dx` command run inside a slot leased
 to a different session exits `2` and names the holder. It also exits `2` when
 another agent of the same session holds the slot. A caller with no agent, a

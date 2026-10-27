@@ -890,6 +890,7 @@ fn a_gone_holder_does_not_let_another_session_release_before_it_is_reclaimable()
     let pool = fixture.pool();
     let host = FakeHost::new();
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.advance(ops::STOP_GRACE_SECS);
     std::fs::write(added.path.join("a.txt"), "dirty\n").expect("dirty");
     let refused =
         ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect_err("not yours");
@@ -1029,12 +1030,13 @@ fn slot_one(listing: &ops::Listing) -> &ops::Row {
 }
 
 #[test]
-fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_at_once() {
+fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_after_the_quiet_period() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.advance(ops::STOP_GRACE_SECS);
     git(
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
@@ -1105,6 +1107,7 @@ fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
         );
     }
     assert_eq!(git(&first.path, &["branch", "--show-current"]), "feature/a");
+    host.advance(ops::STOP_GRACE_SECS);
     drop(running);
     let third = ops::add(&pool, &host, &who("s2", 20), &create("feature/c")).expect("third");
     assert_eq!(third.slot, 1);
@@ -1135,6 +1138,7 @@ fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
     let host = FakeHost::new();
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.advance(ops::STOP_GRACE_SECS);
     git(
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
@@ -1163,6 +1167,7 @@ fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
     let host = FakeHost::new();
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.advance(ops::STOP_GRACE_SECS);
     std::fs::write(first.path.join("a.txt"), "work\n").expect("write");
     git(&first.path, &["add", "a.txt"]);
     git(&first.path, &["commit", "--quiet", "-m", "work"]);
@@ -1184,6 +1189,7 @@ fn a_dead_holder_with_unpushed_commits_and_a_dirty_tree_reports_the_dirty_tree()
     let host = FakeHost::new();
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.advance(ops::STOP_GRACE_SECS);
     std::fs::write(first.path.join("a.txt"), "work\n").expect("write");
     git(&first.path, &["add", "a.txt"]);
     git(&first.path, &["commit", "--quiet", "-m", "work"]);
@@ -2867,16 +2873,31 @@ mod hooks {
         let held = ops::add(&pool, &host, &second, &existing("feature/a")).expect_err("live");
         assert_eq!(held.code, "branch_held");
         let stop = serde_json::json!({"agent_id": "a2"});
-        assert!(hook::stop(&pool, &first, &stop).expect("stop").is_empty());
+        assert!(hook::stop(&pool, &host, &first, &stop)
+            .expect("stop")
+            .is_empty());
         let stop = serde_json::json!({"agent_id": "a1"});
-        assert_eq!(hook::stop(&pool, &first, &stop).expect("stop"), vec![1]);
+        assert_eq!(
+            hook::stop(&pool, &host, &first, &stop).expect("stop"),
+            vec![1]
+        );
+        let row = ops::list(&pool, &host, false).expect("list").rows.remove(0);
+        assert_eq!(
+            row.state,
+            State::Held,
+            "a stop ends a turn; the agent may resume"
+        );
+        let refused = ops::add(&pool, &host, &second, &existing("feature/a")).expect_err("quiet");
+        assert_eq!(refused.code, "branch_held");
+        assert_eq!(pool.record(1).expect("record").stopped_at, Some(host.now()));
+        host.advance(ops::STOP_GRACE_SECS);
         let row = ops::list(&pool, &host, false).expect("list").rows.remove(0);
         assert_eq!(row.state, State::Reclaimable);
         assert!(row.holder.expect("holder").ends_with("(gone)"));
         let taken = ops::add(&pool, &host, &second, &existing("feature/a")).expect("taken");
         assert_eq!(taken.slot, added.slot);
         assert!(!taken.reused);
-        assert!(hook::stop(&pool, &first, &serde_json::json!({})).is_err());
+        assert!(hook::stop(&pool, &host, &first, &serde_json::json!({})).is_err());
     }
 
     #[test]
@@ -3115,7 +3136,11 @@ mod hooks {
             ops::add(&pool, &host, &sibling, &existing("worktree-agent-one")).expect_err("held");
         assert_eq!(held.code, "branch_held");
         let stop = serde_json::json!({"agent_id": "a1"});
-        assert_eq!(hook::stop(&pool, &first, &stop).expect("stop"), vec![slot]);
+        assert_eq!(
+            hook::stop(&pool, &host, &first, &stop).expect("stop"),
+            vec![slot]
+        );
+        host.advance(ops::STOP_GRACE_SECS);
         let row = ops::list(&pool, &host, false).expect("list").rows.remove(0);
         assert!(row.holder.expect("holder").ends_with("(gone)"));
         let released = ops::release(&pool, &host, &first, &path, false).expect("release");
@@ -3231,7 +3256,7 @@ mod hooks {
                 .path;
             std::fs::write(path.join("scratch.txt"), "x").expect("scratch");
             std::fs::remove_file(path.join("scratch.txt")).expect("clean again");
-            host.advance(120);
+            host.advance(ops::STOP_GRACE_SECS);
         }
         assert!(pool.records().len() <= 2, "{:?}", pool.records());
     }
@@ -3265,7 +3290,11 @@ mod hooks {
         let slot = pool.slot_of(&one).expect("slot");
         assert_eq!(ops::claim(&pool, &a1, &one).expect("claim"), Some(slot));
         let stop = serde_json::json!({"agent_id": "a1"});
-        assert_eq!(hook::stop(&pool, &a1, &stop).expect("stop"), vec![slot]);
+        assert_eq!(
+            hook::stop(&pool, &host, &a1, &stop).expect("stop"),
+            vec![slot]
+        );
+        host.advance(ops::STOP_GRACE_SECS);
         let fourth = serde_json::json!({"name": "four", "cwd": fixture.main});
         let four = hook::create(&pool, &host, &me, &fourth).expect("four").path;
         assert_ne!(
@@ -3296,7 +3325,8 @@ mod hooks {
         assert_ne!(two, one);
         assert!(pool.record(slot).expect("record").held);
         let stop = serde_json::json!({"agent_id": "a1"});
-        hook::stop(&pool, &a1, &stop).expect("stop");
+        hook::stop(&pool, &host, &a1, &stop).expect("stop");
+        host.advance(ops::STOP_GRACE_SECS);
         let third = serde_json::json!({"name": "three", "cwd": fixture.main});
         let three = hook::create(&pool, &host, &me, &third).expect("three").path;
         assert_ne!(three, one);
@@ -3340,7 +3370,7 @@ mod hooks {
         assert_ne!(two, one);
         assert!(pool.record(slot).is_some_and(|record| record.held));
         drop(running);
-        host.advance(120);
+        host.advance(ops::STOP_GRACE_SECS);
         let third = serde_json::json!({"name": "three", "cwd": fixture.main});
         hook::create(&pool, &host, &me, &third).expect("three");
         assert!(pool.record(slot).is_some_and(|record| !record.held));
@@ -4107,6 +4137,7 @@ fn a_symlinked_cache_gives_the_same_session_its_branch_back() {
     let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("held");
     assert_eq!(refused.code, "branch_held");
     assert!(refused.message.contains("slot 1"), "{}", refused.message);
+    host.advance(ops::STOP_GRACE_SECS);
     host.alive.lock().expect("alive").clear();
     let taken = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect("takeover");
     assert_eq!(taken.path, added.path);

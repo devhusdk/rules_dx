@@ -299,6 +299,22 @@ rust_test(
 
 # keep
 rust_test(
+    name = "consumer_reports_test",
+    size = "small",
+    srcs = ["consumer_reports_test.rs"],
+    data = [
+        "//.github:workflows/reusable-consumer.yml",
+        "//docs:github-ci.md",
+    ],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "workflow_permissions_test",
     size = "small",
     srcs = ["workflow_permissions_test.rs"],

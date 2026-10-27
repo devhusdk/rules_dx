@@ -161,7 +161,7 @@ def validate_scanning(text):
         return text
     if text == "true":
         fail(
-            f"{SCANNING_ENV}=true is not implemented. No SARIF upload step ships "
+            f"{SCANNING_ENV}=true is not implemented. No code-scanning SARIF upload ships "
             "in this workflow, so leave it false."
         )
         return None
@@ -246,6 +246,11 @@ def main():
         ),
         "min_coverage": accepted_values[MIN_COVERAGE_ENV],
         "min_changed_line_coverage": accepted_values[MIN_CHANGED_ENV],
+        "artifact_suffix": (
+            f"-{accepted_values[INVOCATION_ENV]}"
+            if accepted_values[INVOCATION_ENV]
+            else ""
+        ),
         "snapshot_artifact": "-".join(
             part
             for part in (SNAPSHOT_ARTIFACT, accepted_values[INVOCATION_ENV])

@@ -383,10 +383,7 @@ fn write_lint_workspace(root: &Path) {
     );
     write(
         &root.join(".bazelrc"),
-        &format!(
-            "{}{JAVA}",
-            dx_testing::preset_rc(&rules)
-        ),
+        &format!("{}{JAVA}", dx_testing::preset_rc(&rules)),
     );
     write(&root.join("BUILD.bazel"), LINT_BUILD);
     write(&root.join("src/lib.rs"), LINT_SOURCE);

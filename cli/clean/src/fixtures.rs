@@ -7,7 +7,8 @@ use dx_env::DX_DIR_NAME;
 use dx_setup::{GenerationId, SetupPair};
 
 use crate::planning::GenerationView;
-use crate::records::{validate_record, GenerationKind, SetupRecordView};
+use crate::records::{validate_record, SetupRecordView};
+use dx_atomic_fs::lease::GenerationUse;
 
 pub(crate) fn digest(tag: char) -> String {
     tag.to_string().repeat(64)
@@ -28,7 +29,7 @@ pub(crate) fn record(env: char, gen: char) -> SetupRecordView {
     validate_record(&hex, &environment_hex, &generated_hex).expect("valid record")
 }
 
-pub(crate) fn generation(kind: GenerationKind, tag: char) -> GenerationView {
+pub(crate) fn generation(kind: GenerationUse, tag: char) -> GenerationView {
     GenerationView {
         kind,
         hex: digest(tag),
@@ -54,10 +55,10 @@ pub(crate) fn two_record_workspace(root: &Path) -> (PathBuf, String, String) {
     dx_setup::commit_pair(&workspace, &current).expect("commit current");
     let dx_dir = workspace.join(DX_DIR_NAME);
     for (kind, tag) in [
-        (GenerationKind::Environment, '1'),
-        (GenerationKind::Generated, '2'),
-        (GenerationKind::Environment, '3'),
-        (GenerationKind::Generated, '4'),
+        (GenerationUse::Environment, '1'),
+        (GenerationUse::Generated, '2'),
+        (GenerationUse::Environment, '3'),
+        (GenerationUse::Generated, '4'),
     ] {
         fs::create_dir_all(dx_dir.join(kind.dir_name()).join(digest(tag)))
             .expect("create generation dir");

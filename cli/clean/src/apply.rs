@@ -9,7 +9,6 @@ use dx_setup::{read_current_pair, GenerationId, SETUPS_DIR_NAME};
 
 use super::inventory::collect_inventory;
 use super::planning::{CleanPlan, GenerationView};
-use super::records::GenerationKind;
 use super::CleanError;
 
 pub const CLEAN_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
@@ -26,13 +25,6 @@ pub struct CleanOutcome {
     pub removed_setup_records: Vec<String>,
     pub removed_generations: Vec<GenerationView>,
     pub skipped_leased_generations: Vec<GenerationView>,
-}
-
-fn lease_use(kind: GenerationKind) -> GenerationUse {
-    match kind {
-        GenerationKind::Environment => GenerationUse::Environment,
-        GenerationKind::Generated => GenerationUse::Generated,
-    }
 }
 
 pub fn apply_plan(workspace_root: &Path, plan: &CleanPlan) -> Result<CleanOutcome, CleanError> {
@@ -88,16 +80,13 @@ pub fn apply_plan_with_timeout(
         })?;
         outcome.removed_setup_records.push(hex.clone());
     }
-    let mut live_referenced: Vec<(GenerationKind, String)> = Vec::new();
+    let mut live_referenced: Vec<(GenerationUse, String)> = Vec::new();
     if let Some(pair) = live_pair {
         live_referenced.push((
-            GenerationKind::Environment,
+            GenerationUse::Environment,
             pair.environment.as_str().to_owned(),
         ));
-        live_referenced.push((
-            GenerationKind::Generated,
-            pair.generated.as_str().to_owned(),
-        ));
+        live_referenced.push((GenerationUse::Generated, pair.generated.as_str().to_owned()));
     }
     for generation in &plan.prune_generations {
         if GenerationId::new(&generation.hex).is_err() {
@@ -109,11 +98,7 @@ pub fn apply_plan_with_timeout(
         {
             continue;
         }
-        let lease = match lease::try_acquire_exclusive(
-            &dx_dir,
-            lease_use(generation.kind),
-            &generation.hex,
-        ) {
+        let lease = match lease::try_acquire_exclusive(&dx_dir, generation.kind, &generation.hex) {
             Ok(Some(lease)) => lease,
             Ok(None) => {
                 outcome.skipped_leased_generations.push(generation.clone());
@@ -317,8 +302,8 @@ mod tests {
         let plan = plan_prune(PruneInputs {
             records: &[stale_record],
             generations: &[
-                generation(GenerationKind::Environment, '1'),
-                generation(GenerationKind::Generated, '2'),
+                generation(GenerationUse::Environment, '1'),
+                generation(GenerationUse::Generated, '2'),
             ],
             current_hex: None,
             active_setup_hexes: &[],

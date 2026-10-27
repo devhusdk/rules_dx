@@ -1,8 +1,9 @@
-use super::records::{GenerationKind, SetupRecordView};
+use super::records::SetupRecordView;
+use dx_atomic_fs::lease::GenerationUse;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenerationView {
-    pub kind: GenerationKind,
+    pub kind: GenerationUse,
     pub hex: String,
 }
 
@@ -71,11 +72,11 @@ pub fn plan_prune(inputs: PruneInputs<'_>) -> CleanPlan {
     prune_setup_records.sort();
     prune_setup_records.dedup();
 
-    let mut referenced: Vec<(GenerationKind, &str)> = Vec::new();
+    let mut referenced: Vec<(GenerationUse, &str)> = Vec::new();
     for record in inputs.records {
         if retained.contains(&record.hex.as_str()) {
-            referenced.push((GenerationKind::Environment, record.environment_hex.as_str()));
-            referenced.push((GenerationKind::Generated, record.generated_hex.as_str()));
+            referenced.push((GenerationUse::Environment, record.environment_hex.as_str()));
+            referenced.push((GenerationUse::Generated, record.generated_hex.as_str()));
         }
     }
     let mut prune_generations: Vec<GenerationView> = inputs
@@ -144,7 +145,7 @@ mod tests {
         validate_record(&hex, &environment_hex, &generated_hex).expect("valid record")
     }
 
-    fn generation(kind: GenerationKind, tag: char) -> GenerationView {
+    fn generation(kind: GenerationUse, tag: char) -> GenerationView {
         GenerationView {
             kind,
             hex: digest(tag),
@@ -174,18 +175,18 @@ mod tests {
         let stale = record('3', '4');
         let records = vec![current.clone(), stale.clone()];
         let generations = vec![
-            generation(GenerationKind::Environment, '1'),
-            generation(GenerationKind::Generated, '2'),
-            generation(GenerationKind::Environment, '3'),
-            generation(GenerationKind::Generated, '4'),
+            generation(GenerationUse::Environment, '1'),
+            generation(GenerationUse::Generated, '2'),
+            generation(GenerationUse::Environment, '3'),
+            generation(GenerationUse::Generated, '4'),
         ];
         let plan = plan_prune(inputs(&records, &generations, Some(&current.hex)));
         assert_eq!(plan.prune_setup_records, vec![stale.hex.clone()]);
         assert_eq!(
             plan.prune_generations,
             vec![
-                generation(GenerationKind::Environment, '3'),
-                generation(GenerationKind::Generated, '4'),
+                generation(GenerationUse::Environment, '3'),
+                generation(GenerationUse::Generated, '4'),
             ]
         );
         assert_eq!(plan.preserved_current, Some(current.hex.clone()));
@@ -197,8 +198,8 @@ mod tests {
         let current = record('1', '2');
         let records = vec![current.clone()];
         let generations = vec![
-            generation(GenerationKind::Environment, '1'),
-            generation(GenerationKind::Generated, '2'),
+            generation(GenerationUse::Environment, '1'),
+            generation(GenerationUse::Generated, '2'),
         ];
         let plan = plan_prune(inputs(&records, &generations, Some(&current.hex)));
         assert!(plan.prune_setup_records.is_empty());
@@ -211,8 +212,8 @@ mod tests {
         let active_record = record('3', '4');
         let records = vec![current.clone(), active_record.clone()];
         let generations = vec![
-            generation(GenerationKind::Environment, '3'),
-            generation(GenerationKind::Generated, '4'),
+            generation(GenerationUse::Environment, '3'),
+            generation(GenerationUse::Generated, '4'),
         ];
         let active_setup = vec![active_record.hex.clone()];
         let active_generations = vec![digest('3'), digest('4')];
@@ -257,8 +258,8 @@ mod tests {
         let stale = record('3', '4');
         let records = vec![current.clone(), stale.clone()];
         let generations = vec![
-            generation(GenerationKind::Environment, '3'),
-            generation(GenerationKind::Generated, '4'),
+            generation(GenerationUse::Environment, '3'),
+            generation(GenerationUse::Generated, '4'),
         ];
         let plan = plan_prune(PruneInputs {
             records: &records,
@@ -285,7 +286,7 @@ mod tests {
         let current = record('1', '2');
         let stale = record('3', '4');
         let records = vec![current.clone(), stale.clone()];
-        let generations = vec![generation(GenerationKind::Environment, '3')];
+        let generations = vec![generation(GenerationUse::Environment, '3')];
         let plan = plan_prune(PruneInputs {
             records: &records,
             generations: &generations,

@@ -14,9 +14,11 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use dx_atomic_fs::commit::{
-    acquire_commit_lock, clear_stale_stage, CommitError as StageError, CommitLock, LockError,
-    ManagedRoot, DX_DIR_NAME,
+    acquire_commit_lock, clear_stale_stage, publish_pointer_swap, CommitError as StageError,
+    CommitLock, LockError, ManagedRoot, PointerSwap, DX_DIR_NAME,
 };
+use dx_atomic_fs::lease::GenerationUse;
+use dx_atomic_fs::{create_pointer, PointerKind};
 use dx_digest::blake3 as digest;
 use dx_roots::{resolve_exact_target, ExactScopeError};
 
@@ -124,9 +126,9 @@ pub const CURRENT_LINK_NAME: &str = "current";
 
 pub const CURRENT_STAGE_NAME: &str = "current.next";
 
-pub const ENVIRONMENTS_DIR_NAME: &str = "environments";
+pub const ENVIRONMENTS_DIR_NAME: &str = GenerationUse::Environment.dir_name();
 
-pub const GENERATED_DIR_NAME: &str = "generated";
+pub const GENERATED_DIR_NAME: &str = GenerationUse::Generated.dir_name();
 
 pub const ENVIRONMENT_LINK_NAME: &str = "environment";
 
@@ -194,20 +196,18 @@ fn expected_generated_target(pair: &SetupPair) -> String {
     format!("../../{}/{}/", GENERATED_DIR_NAME, pair.generated.as_str())
 }
 
-#[cfg(windows)]
-fn symlink_dir(target: &Path, link: &Path) -> io::Result<()> {
-    std::os::windows::fs::symlink_dir(target, link)
-}
-
-#[cfg(not(windows))]
-fn symlink_dir(target: &Path, link: &Path) -> io::Result<()> {
-    std::os::unix::fs::symlink(target, link)
-}
-
 fn map_lock_error(error: LockError) -> CommitError {
     match error {
         LockError::Busy { path } => CommitError::Busy { path },
         LockError::LockFailed { path, reason } => CommitError::LockFailed { path, reason },
+    }
+}
+
+fn map_commit_error(error: StageError) -> CommitError {
+    match error {
+        StageError::Foreign { reason, .. } | StageError::Install { reason } => {
+            CommitError::Install { reason }
+        }
     }
 }
 
@@ -336,7 +336,12 @@ fn ensure_setup_record(setups_dir: &Path, pair: &SetupPair) -> Result<PathBuf, C
         reason: format!("cannot create {}: {e}", record.display()),
     })?;
     let created = |link: &str, target: &str| {
-        symlink_dir(Path::new(target), &record.join(link)).map_err(|e| CommitError::Install {
+        create_pointer(
+            Path::new(target),
+            &record.join(link),
+            PointerKind::Directory,
+        )
+        .map_err(|e| CommitError::Install {
             reason: format!("cannot stage setup link '{link}': {e}"),
         })
     };
@@ -349,14 +354,6 @@ fn ensure_setup_record(setups_dir: &Path, pair: &SetupPair) -> Result<PathBuf, C
     Ok(record)
 }
 
-fn clear_staged_pointer(stage: &Path) -> Result<(), CommitError> {
-    clear_stale_stage(stage).map_err(|e| CommitError::Install {
-        reason: match e {
-            StageError::Foreign { reason, .. } | StageError::Install { reason } => reason,
-        },
-    })
-}
-
 fn install_and_swap(
     setups_dir: &Path,
     prior: Option<SetupPair>,
@@ -367,22 +364,20 @@ fn install_and_swap(
     })?;
     let current = setups_dir.join(CURRENT_LINK_NAME);
     let stage = setups_dir.join(CURRENT_STAGE_NAME);
-    clear_staged_pointer(&stage)?;
+    clear_stale_stage(&stage).map_err(map_commit_error)?;
     let record_name = setup_hex(pair);
     ensure_setup_record(setups_dir, pair)?;
     if prior.as_ref() == Some(pair) {
         return Ok(CommitOutcome::AlreadyCurrent);
     }
     let fresh = prior.is_none();
-    symlink_dir(Path::new(&record_name), &stage).map_err(|e| CommitError::Install {
-        reason: format!("cannot stage {}: {e}", stage.display()),
-    })?;
-    fs::rename(&stage, &current).map_err(|e| CommitError::Install {
-        reason: format!(
-            "cannot publish {}: {e}; the prior pointer is preserved",
-            current.display()
-        ),
-    })?;
+    publish_pointer_swap(&PointerSwap {
+        current,
+        stage,
+        target: record_name.into(),
+        kind: PointerKind::Directory,
+    })
+    .map_err(map_commit_error)?;
     if fresh {
         Ok(CommitOutcome::InstalledFresh)
     } else {

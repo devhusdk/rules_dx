@@ -15,7 +15,7 @@ pub const LEASE_ENV_VAR: &str = "DX_MANAGED_LEASES";
 pub const LEASE_FILE_SUFFIX: &str = ".lock";
 
 /// Which managed generation family one lease protects.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerationUse {
     Environment,
     Generated,
@@ -23,7 +23,7 @@ pub enum GenerationUse {
 
 impl GenerationUse {
     /// Generation directory this use protects.
-    pub fn dir_name(self) -> &'static str {
+    pub const fn dir_name(self) -> &'static str {
         match self {
             GenerationUse::Environment => "environments",
             GenerationUse::Generated => "generated",
@@ -32,11 +32,9 @@ impl GenerationUse {
 
     /// Parses the `kind` half of a `kind:hex` lease entry.
     pub fn parse(kind: &str) -> Option<GenerationUse> {
-        match kind {
-            "environments" => Some(GenerationUse::Environment),
-            "generated" => Some(GenerationUse::Generated),
-            _ => None,
-        }
+        [GenerationUse::Environment, GenerationUse::Generated]
+            .into_iter()
+            .find(|candidate| candidate.dir_name() == kind)
     }
 }
 
@@ -239,6 +237,14 @@ mod tests {
 
     fn root(scratch: &std::path::Path) -> PathBuf {
         scratch.join(".dx")
+    }
+
+    #[test]
+    fn parse_round_trips_dir_name() {
+        for kind in [GenerationUse::Environment, GenerationUse::Generated] {
+            assert_eq!(GenerationUse::parse(kind.dir_name()), Some(kind));
+        }
+        assert_eq!(GenerationUse::parse("setups"), None);
     }
 
     #[test]

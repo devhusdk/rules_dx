@@ -635,7 +635,7 @@ mod tests {
             observation_unknown: true,
             preserved_unobserved_setup_records: vec!["3".repeat(64)],
             preserved_unobserved_generations: vec![dx_clean::GenerationView {
-                kind: dx_clean::GenerationKind::Environment,
+                kind: lease::GenerationUse::Environment,
                 hex: "3".repeat(64),
             }],
         }
@@ -646,7 +646,7 @@ mod tests {
             setup_record_bytes: vec![("3".repeat(64), 11)],
             generation_bytes: vec![(
                 dx_clean::GenerationView {
-                    kind: dx_clean::GenerationKind::Environment,
+                    kind: lease::GenerationUse::Environment,
                     hex: "3".repeat(64),
                 },
                 22,
@@ -748,7 +748,7 @@ mod tests {
     #[test]
     fn clean_apply_json_leased_notice_carries_size() {
         let leased = dx_clean::GenerationView {
-            kind: dx_clean::GenerationKind::Generated,
+            kind: lease::GenerationUse::Generated,
             hex: "4".repeat(64),
         };
         let outcome = dx_clean::CleanOutcome {

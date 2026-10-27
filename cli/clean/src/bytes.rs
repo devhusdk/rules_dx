@@ -195,7 +195,8 @@ mod tests {
     use crate::fixtures::*;
     use crate::inventory::collect_inventory;
     use crate::planning::{plan_prune, PruneInputs, UnobservedPolicy};
-    use crate::records::{GenerationKind, SetupRecordView};
+    use crate::records::SetupRecordView;
+    use dx_atomic_fs::lease::GenerationUse;
 
     fn inputs<'a>(
         records: &'a [SetupRecordView],
@@ -219,7 +220,7 @@ mod tests {
         let current = record('1', '2');
         let stale = record('3', '4');
         let records = vec![current.clone(), stale.clone()];
-        let generations = vec![generation(GenerationKind::Environment, '3')];
+        let generations = vec![generation(GenerationUse::Environment, '3')];
         let unmanaged = vec!["latest".to_owned()];
         let plan = plan_prune(PruneInputs {
             records: &records,
@@ -283,7 +284,7 @@ mod tests {
         let ghost = CleanPlan {
             prune_setup_records: vec![digest('a')],
             prune_generations: vec![GenerationView {
-                kind: GenerationKind::Environment,
+                kind: GenerationUse::Environment,
                 hex: digest('b'),
             }],
             refused_unmanaged: Vec::new(),
@@ -316,7 +317,7 @@ mod tests {
         let plan = CleanPlan {
             prune_setup_records: Vec::new(),
             prune_generations: vec![GenerationView {
-                kind: GenerationKind::Generated,
+                kind: GenerationUse::Generated,
                 hex: digest('9'),
             }],
             refused_unmanaged: Vec::new(),
@@ -348,7 +349,7 @@ mod tests {
         fs::create_dir_all(&kept_gen).expect("kept generation");
         fs::write(kept_gen.join("artifact"), b"12345").expect("artifact");
         let kept = GenerationView {
-            kind: GenerationKind::Generated,
+            kind: GenerationUse::Generated,
             hex: digest('8'),
         };
         let plan = CleanPlan {
@@ -395,7 +396,7 @@ mod tests {
     fn reclaimed_counts_only_removed_entries() {
         let removed_hex = digest('3');
         let removed_generation = GenerationView {
-            kind: GenerationKind::Environment,
+            kind: GenerationUse::Environment,
             hex: digest('5'),
         };
         let bytes = PruneBytes {
@@ -404,7 +405,7 @@ mod tests {
                 (removed_generation.clone(), 300),
                 (
                     GenerationView {
-                        kind: GenerationKind::Generated,
+                        kind: GenerationUse::Generated,
                         hex: digest('6'),
                     },
                     400,
@@ -430,11 +431,11 @@ mod tests {
         let stale = record('3', '4');
         let current = record('1', '2');
         let records = vec![current.clone(), stale.clone()];
-        let generations = vec![generation(GenerationKind::Environment, '3')];
+        let generations = vec![generation(GenerationUse::Environment, '3')];
         let plan = plan_prune(inputs(&records, &generations, Some(&current.hex)));
         let bytes = PruneBytes {
             setup_record_bytes: vec![(stale.hex.clone(), 120)],
-            generation_bytes: vec![(generation(GenerationKind::Environment, '3'), 34)],
+            generation_bytes: vec![(generation(GenerationUse::Environment, '3'), 34)],
         };
         let listing = render_prune_listing(&plan, &bytes);
         assert!(

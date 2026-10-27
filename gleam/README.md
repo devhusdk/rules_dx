@@ -1,7 +1,7 @@
 # Gleam
 
 Build, run and test Gleam with a pinned Gleam 1.19.2. Erlang targets run on
-the pinned OTP 29.1.1 runtime. JavaScript targets run on the Node.js runtime
+the pinned OTP 29.1.2 runtime. JavaScript targets run on the Node.js runtime
 from rules_nodejs. Nothing is installed on the host and nothing is fetched
 until a target needs it. rules_dx registers the toolchain, so there is no
 setup in `MODULE.bazel`.

@@ -1,8 +1,8 @@
 """Pinned Erlang/OTP runtime, native closure and rules_erlang identities."""
 
-OTP_VERSION = "29.1.1"
+OTP_VERSION = "29.1.2"
 
-ERTS_VERSION = "17.1"
+ERTS_VERSION = "17.1.1"
 
 OTP_RELEASE = "29"
 
@@ -38,7 +38,7 @@ RUNTIME_MIRROR = "https://launchpad.net/ubuntu/+archive/primary/+files"
 CELLS = {
     "linux_amd64": struct(
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
-        otp_sha256 = "92d4f05939c51fc2d9e1b2b7d35b233e800d51a0e540767335f1d8680ea9a924",
+        otp_sha256 = "1df9e6285b4d14319a789176db60c273131abebdfa6b5474a084dba49b0e54a2",
         otp_url = "https://builds.hex.pm/builds/otp/amd64/ubuntu-22.04/OTP-" + OTP_VERSION + ".tar.gz",
         strip_prefix = "OTP-" + OTP_VERSION,
         runtime = [
@@ -94,7 +94,7 @@ CELLS = {
     ),
     "linux_arm64": struct(
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
-        otp_sha256 = "73979c803d2607402c38aebdff8e029efa4c26471648e57c4d86caf0b96a5216",
+        otp_sha256 = "8e16954a07278e83de260489ed4af9bcca0e22ab7e99eb11de781ec6f01e95d9",
         otp_url = "https://builds.hex.pm/builds/otp/arm64/ubuntu-22.04/OTP-" + OTP_VERSION + ".tar.gz",
         strip_prefix = "OTP-" + OTP_VERSION,
         runtime = [
@@ -150,7 +150,7 @@ CELLS = {
     ),
     "macos_arm64": struct(
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
-        otp_sha256 = "0e80f209b06d9d13cf3b5f7c07228d9561aff983e6e55ea9c8ebda085db286cc",
+        otp_sha256 = "579af3bb043e0692503f7f24c6e65b620bdf1802a13567a7247d1d18f1ec5470",
         otp_url = "https://github.com/erlef/otp_builds/releases/download/OTP-" + OTP_VERSION + "/OTP-" + OTP_VERSION + "-macos-arm64.tar.gz",
         strip_prefix = "",
         runtime = [],

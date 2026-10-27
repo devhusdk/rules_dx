@@ -874,7 +874,7 @@ pipeline failed: invalid tool output for gofumpt: gofumpt output is outside the 
 ```
 
 dx passes `-lang` from the Go SDK the rules_go toolchain resolves, for example
-`-lang=go1.26` for Go 1.26.6. The check and `--apply` use the same version, so
+`-lang=go1.26` for Go 1.26.10. The check and `--apply` use the same version, so
 rewrites that depend on the language version, such as `0644` to `0o644`, agree.
 `gofumpt` takes no config file.
 

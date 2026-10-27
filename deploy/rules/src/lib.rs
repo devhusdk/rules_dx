@@ -10,9 +10,15 @@
 
 mod cloudflare;
 mod maven;
+mod run;
 
 pub use cloudflare::*;
 pub use maven::*;
+pub use run::{deploy_profile, DeployRun};
+
+use run::{
+    env_or_empty, scrubbed_command, OwnerGate, DOTNET_CHILD_ENV_EXTRA, PUBLISH_CHILD_ENV_KEEP,
+};
 
 use std::ffi::OsString;
 use std::io::{self, Read, Write};
@@ -483,112 +489,6 @@ fn absolute_from_invocation(path: &Path) -> std::path::PathBuf {
     base.join(path)
 }
 
-/// Owner approval gate for one live-publish launcher.
-struct OwnerGate {
-    /// Launcher name used as the message prefix.
-    tool: &'static str,
-    /// Live action named in refusals.
-    action: &'static str,
-    /// Env vars that must be non-empty.
-    credentials: &'static [&'static str],
-    /// Env var that must be exactly 1.
-    approved: &'static str,
-}
-
-/// Reads an env var, empty when unset.
-fn env_or_empty(key: &str) -> String {
-    std::env::var(key).unwrap_or_default()
-}
-
-impl OwnerGate {
-    /// Returns the refusal message, or None when credentials and approval are present.
-    fn refusal(&self, var: impl Fn(&str) -> String) -> Option<String> {
-        let (tool, action, approved) = (self.tool, self.action, self.approved);
-        if self.credentials.iter().any(|key| var(key).is_empty()) {
-            let creds = self.credentials.join(" plus ");
-            return Some(format!(
-                "{tool}: live {action} needs {creds} plus explicit owner approval ({approved}=1); refusing"
-            ));
-        }
-        if var(approved) != "1" {
-            return Some(format!(
-                "{tool}: live {action} needs {approved}=1 (owner approval); refusing"
-            ));
-        }
-        None
-    }
-}
-
-/// Filters process env to an allowlist plus extras.
-pub fn minimal_env(
-    keep: &[&str],
-    extra: &[(&str, &str)],
-) -> std::collections::HashMap<String, String> {
-    let mut env = std::collections::HashMap::new();
-    for key in keep {
-        if let Ok(value) = std::env::var(key) {
-            env.insert((*key).to_owned(), value);
-        }
-    }
-    for (key, value) in extra {
-        env.insert((*key).to_owned(), (*value).to_owned());
-    }
-    env
-}
-
-/// Env names a publish child keeps; everything else is dropped.
-const PUBLISH_CHILD_ENV_KEEP: &[&str] = &[
-    "HOME",
-    "LANG",
-    "LC_ALL",
-    "PATH",
-    "TMPDIR",
-    "USER",
-    "LOGNAME",
-    "SystemRoot",
-    "SystemDrive",
-    "PATHEXT",
-    "TEMP",
-    "TMP",
-    "USERPROFILE",
-    "APPDATA",
-    "LOCALAPPDATA",
-    "ProgramFiles",
-    "ProgramData",
-    "http_proxy",
-    "https_proxy",
-    "no_proxy",
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "NO_PROXY",
-    "SSL_CERT_FILE",
-    "SSL_CERT_DIR",
-];
-
-/// Extra env names `dotnet` needs to find its SDK and caches.
-const DOTNET_CHILD_ENV_EXTRA: &[&str] = &[
-    "DOTNET_ROOT",
-    "DOTNET_CLI_HOME",
-    "NUGET_PACKAGES",
-    "DOTNET_CLI_TELEMETRY_OPTOUT",
-    "DOTNET_NOLOGO",
-];
-
-/// Builds a child command with a cleared env, the allowlisted vars, then extras.
-fn scrubbed_command(
-    program: &Path,
-    keep: &[&[&str]],
-    extra: &[(&str, &str)],
-) -> std::process::Command {
-    let names: Vec<&str> = keep.iter().flat_map(|list| list.iter().copied()).collect();
-    let mut cmd = std::process::Command::new(program);
-    cmd.env_clear();
-    for (key, value) in &minimal_env(&names, extra) {
-        cmd.env(key, value);
-    }
-    cmd
-}
-
 /// Serializes one JSON document pretty-printed with a trailing newline.
 fn render_json(value: &serde_json::Value) -> std::io::Result<String> {
     Ok(serde_json::to_string_pretty(value)? + "\n")
@@ -659,26 +559,23 @@ pub fn archive_main(
     checksum_rloc: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "archive_deploy: this deploy target takes at most an output directory; the release is exactly the files pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "archive_deploy",
+        "the release is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("archive_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
+    };
+    let outdir = run.outdir();
     let resolved = (|| -> io::Result<(String, std::path::PathBuf, std::path::PathBuf)> {
         let app = resolve_runfile(app_rloc)?;
         let tarball = resolve_runfile(tarball_rloc)?;
         let checksum = resolve_runfile(checksum_rloc)?;
-        archive_stage_release(&app, &tarball, &checksum, &outdir)
+        archive_stage_release(&app, &tarball, &checksum, outdir)
     })();
     match resolved {
         Ok((app_name, tarball_dest, checksum_dest)) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("archive_deploy: released {app_name} (profile: {profile})");
             println!("  tarball:  {}", tarball_dest.display());
             println!("  checksum: {}", checksum_dest.display());
@@ -799,7 +696,11 @@ const PYPI_GATE: OwnerGate = OwnerGate {
     action: "upload",
     credentials: &["PYPI_API_TOKEN"],
     approved: "PYPI_PUBLISH_APPROVED",
+    live: "PYPI_PUBLISH_LIVE",
 };
+
+/// Extra env names twine keeps beyond the publish base list.
+const TWINE_CHILD_ENV_EXTRA: &[&str] = &["REQUESTS_CA_BUNDLE"];
 
 /// Runs the PyPI deploy launcher.
 pub fn pypi_main(
@@ -809,72 +710,46 @@ pub fn pypi_main(
     repository_url: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "pypi_deploy: this deploy target takes at most an output directory; the wheelhouse is exactly the files pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "pypi_deploy",
+        "the wheelhouse is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("pypi_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
-    let wheel = match resolve_runfile(wheel_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("pypi_deploy: {error}");
-            return 1;
-        }
     };
-    let sdist = if sdist_rloc.is_empty() {
-        None
-    } else {
-        match resolve_runfile(sdist_rloc) {
-            Ok(path) => Some(path),
+    let outdir = run.outdir();
+    let Some(wheel) = run.resolve(wheel_rloc) else {
+        return 1;
+    };
+    let Some(sdist) = run.resolve_optional(sdist_rloc) else {
+        return 1;
+    };
+    if PYPI_GATE.requested(env_or_empty) {
+        let secrets = match PYPI_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
             Err(error) => {
-                eprintln!("pypi_deploy: {error}");
+                eprintln!("{error}");
                 return 1;
             }
-        }
-    };
-    if std::env::var("PYPI_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let token = std::env::var("PYPI_API_TOKEN").unwrap_or_default();
-        if let Some(error) = PYPI_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
+        };
         let mut files = vec![wheel.clone()];
         if let Some(sdist) = &sdist {
             files.push(sdist.clone());
         }
-        let keep = [
-            "HOME",
-            "LANG",
-            "LC_ALL",
-            "PATH",
-            "TMPDIR",
-            "USER",
-            "LOGNAME",
-            "SystemRoot",
-            "SystemDrive",
-            "PATHEXT",
-        ];
-        let env = minimal_env(
-            &keep,
-            &[("TWINE_USERNAME", "__token__"), ("TWINE_PASSWORD", &token)],
+        let mut cmd = scrubbed_command(
+            Path::new("twine"),
+            &[PUBLISH_CHILD_ENV_KEEP, TWINE_CHILD_ENV_EXTRA],
+            &[
+                ("TWINE_USERNAME", "__token__"),
+                ("TWINE_PASSWORD", secrets.get("PYPI_API_TOKEN")),
+            ],
         );
-        let mut cmd = std::process::Command::new("twine");
         cmd.arg("upload")
             .arg("--non-interactive")
             .arg("--repository-url")
             .arg(repository_url);
         for file in &files {
             cmd.arg(file);
-        }
-        cmd.env_clear();
-        for (key, value) in &env {
-            cmd.env(key, value);
         }
         match cmd.status() {
             Ok(status) if status.success() => {
@@ -892,7 +767,7 @@ pub fn pypi_main(
             }
         }
     }
-    match pypi_build_wheelhouse(&wheel, sdist.as_deref(), &outdir, dist_name) {
+    match pypi_build_wheelhouse(&wheel, sdist.as_deref(), outdir, dist_name) {
         Ok(house) => {
             let project = basename(&wheel)
                 .and_then(|base| {
@@ -901,7 +776,7 @@ pub fn pypi_main(
                 })
                 .map(|(project, _)| project)
                 .unwrap_or_default();
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("pypi_deploy: staged {dist_name} (profile: {profile})");
             println!("  wheelhouse: {}", house.display());
             println!(
@@ -1151,6 +1026,7 @@ const NUGET_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["NUGET_API_KEY"],
     approved: "NUGET_PUBLISH_APPROVED",
+    live: "NUGET_PUBLISH_LIVE",
 };
 
 /// Lowest NuGet version that reads the push key from `NUGET_API_KEY`.
@@ -1243,23 +1119,16 @@ pub fn nuget_main(
     package_source: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "nuget_deploy: this deploy target takes at most an output directory; the feed is exactly the file pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "nuget_deploy",
+        "the feed is exactly the file pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("nuget_deploy: cannot create {}", outdir.display());
+    };
+    let outdir = run.outdir();
+    let Some(nupkg) = run.resolve(nupkg_rloc) else {
         return 1;
-    }
-    let nupkg = match resolve_runfile(nupkg_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("nuget_deploy: {error}");
-            return 1;
-        }
     };
     let identity = match nuget_read_identity(&nupkg).and_then(|identity| {
         nuget_check_identity(&identity, expected_id, expected_version).map(|()| identity)
@@ -1271,18 +1140,20 @@ pub fn nuget_main(
         }
     };
     let (package_id, package_version) = (identity.0.as_str(), identity.1.as_str());
-    if std::env::var("NUGET_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let token = std::env::var("NUGET_API_KEY").unwrap_or_default();
+    if NUGET_GATE.requested(env_or_empty) {
         if package_version == "0.0.0" {
             eprintln!(
                 "nuget_deploy: live push refuses {package_id} version {package_version}; set a real version in the nuspec"
             );
             return 1;
         }
-        if let Some(error) = NUGET_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
+        let secrets = match NUGET_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
         let Some(dotnet) = which_on_path("dotnet") else {
             eprintln!("nuget_deploy: 'dotnet' CLI not found on PATH");
             return 1;
@@ -1291,14 +1162,14 @@ pub fn nuget_main(
             &dotnet,
             &nupkg,
             package_source,
-            &token,
+            secrets.get("NUGET_API_KEY"),
             package_id,
             package_version,
         );
     }
-    match nuget_build_feed(&nupkg, &outdir, target_name) {
+    match nuget_build_feed(&nupkg, outdir, target_name) {
         Ok(feed) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("nuget_deploy: staged {package_id} {package_version} (profile: {profile})");
             println!("  feed: {}", feed.display());
             if let Ok(base) = basename(&nupkg) {
@@ -1482,7 +1353,11 @@ const CRATES_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["CARGO_REGISTRY_TOKEN"],
     approved: "CRATES_PUBLISH_APPROVED",
+    live: "CRATES_PUBLISH_LIVE",
 };
+
+/// Extra env names cargo keeps beyond the publish base list.
+const CARGO_CHILD_ENV_EXTRA: &[&str] = &["CARGO_HOME", "RUSTUP_HOME"];
 
 /// Runs the crates deploy launcher.
 pub fn crates_main(
@@ -1492,58 +1367,39 @@ pub fn crates_main(
     allow_dirty: bool,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "crates_deploy: this deploy target takes at most an output directory; the vendor tree is exactly the files pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "crates_deploy",
+        "the vendor tree is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("crates_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
+    };
+    let outdir = run.outdir();
     let mut files = Vec::new();
     for rloc in crate_rlocs.split(';').filter(|s| !s.is_empty()) {
-        match resolve_runfile(rloc) {
-            Ok(path) => files.push(path),
-            Err(error) => {
-                eprintln!("crates_deploy: {error}");
-                return 1;
-            }
-        }
+        let Some(path) = run.resolve(rloc) else {
+            return 1;
+        };
+        files.push(path);
     }
-    if std::env::var("CRATES_PUBLISH_LIVE").unwrap_or_default() == "1" {
+    if CRATES_GATE.requested(env_or_empty) {
         if std::env::var("CRATES_ALLOW_DIRTY").unwrap_or_default() == "1" || allow_dirty {
             eprintln!(
                 "crates_deploy: --allow-dirty rejected by default; publish from a clean tree instead"
             );
             return 1;
         }
-        let token = std::env::var("CARGO_REGISTRY_TOKEN").unwrap_or_default();
         if version == "0.0.0" {
             eprintln!("crates_deploy: live publish refuses version 0.0.0; set a real version");
             return 1;
         }
-        if let Some(error) = CRATES_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
-        let keep = [
-            "HOME",
-            "LANG",
-            "LC_ALL",
-            "PATH",
-            "TMPDIR",
-            "USER",
-            "LOGNAME",
-            "SystemRoot",
-            "SystemDrive",
-            "PATHEXT",
-            "CARGO_HOME",
-            "RUSTUP_HOME",
-        ];
-        let env = minimal_env(&keep, &[("CARGO_REGISTRY_TOKEN", &token)]);
+        let secrets = match CRATES_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
         let staging = match tempfile_stage_dir("crates-publish-") {
             Ok(dir) => dir,
             Err(error) => {
@@ -1574,12 +1430,12 @@ pub fn crates_main(
             eprintln!("crates_deploy: staged crate is missing Cargo.toml; refusing");
             return 1;
         }
-        let mut cmd = std::process::Command::new("cargo");
+        let mut cmd = scrubbed_command(
+            Path::new("cargo"),
+            &[PUBLISH_CHILD_ENV_KEEP, CARGO_CHILD_ENV_EXTRA],
+            &[("CARGO_REGISTRY_TOKEN", secrets.get("CARGO_REGISTRY_TOKEN"))],
+        );
         cmd.arg("publish").arg("--manifest-path").arg(&manifest);
-        cmd.env_clear();
-        for (key, value) in &env {
-            cmd.env(key, value);
-        }
         let output = cmd.output();
         let _ = std::fs::remove_dir_all(&staging);
         match output {
@@ -1597,9 +1453,9 @@ pub fn crates_main(
             }
         }
     }
-    match crates_build_vendor(&files, &outdir, crate_name, version) {
+    match crates_build_vendor(&files, outdir, crate_name, version) {
         Ok(house) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("crates_deploy: staged {crate_name} {version} (profile: {profile})");
             println!(
                 "  vendor: {}",
@@ -1733,30 +1589,40 @@ const GITHUB_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &[],
     approved: "GH_RELEASE_APPROVED",
+    live: "GH_RELEASE_LIVE",
 };
+
+/// Extra env names `gh` keeps: its auth, host, config and session bus.
+const GH_CHILD_ENV_EXTRA: &[&str] = &[
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "GH_ENTERPRISE_TOKEN",
+    "GITHUB_ENTERPRISE_TOKEN",
+    "GH_HOST",
+    "GH_REPO",
+    "GH_CONFIG_DIR",
+    "GH_PROMPT_DISABLED",
+    "XDG_CONFIG_HOME",
+    "XDG_RUNTIME_DIR",
+    "DBUS_SESSION_BUS_ADDRESS",
+];
 
 /// Runs the GitHub deploy launcher.
 pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "github_deploy: this deploy target takes at most an output directory; the release is exactly the artifacts pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "github_deploy",
+        "the release is exactly the artifacts pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("github_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
+    };
+    let outdir = run.outdir();
     let mut assets = Vec::new();
     for rloc in asset_rlocs.split(';').filter(|s| !s.is_empty()) {
-        match resolve_runfile(rloc) {
-            Ok(path) => assets.push(path),
-            Err(error) => {
-                eprintln!("github_deploy: {error}");
-                return 1;
-            }
-        }
+        let Some(path) = run.resolve(rloc) else {
+            return 1;
+        };
+        assets.push(path);
     }
     let mut sorted: Vec<&std::path::PathBuf> = assets.iter().collect();
     sorted.sort();
@@ -1767,7 +1633,7 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
             return 1;
         }
     };
-    if std::env::var("GH_RELEASE_LIVE").unwrap_or_default() == "1" {
+    if GITHUB_GATE.requested(env_or_empty) {
         if tag == "v0.0.0-dryrun" {
             eprintln!(
                 "github_deploy: live publish refuses placeholder tag v0.0.0-dryrun; push a real tag first"
@@ -1782,7 +1648,11 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
             eprintln!("github_deploy: 'gh' CLI not found on PATH");
             return 1;
         }
-        let mut cmd = std::process::Command::new("gh");
+        let mut cmd = scrubbed_command(
+            Path::new("gh"),
+            &[PUBLISH_CHILD_ENV_KEEP, GH_CHILD_ENV_EXTRA],
+            &[],
+        );
         cmd.arg("release").arg("create").arg(tag);
         for src in &assets {
             match std::path::absolute(src) {
@@ -1814,7 +1684,7 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
             }
         }
     }
-    match github_build_staging(&assets, &outdir, deploy_name, tag) {
+    match github_build_staging(&assets, outdir, deploy_name, tag) {
         Ok(staging) => {
             if std::env::var("GH_RELEASE_DRY_RUN").unwrap_or_default() == "1" {
                 println!("github_deploy: dry run (GH_RELEASE_DRY_RUN=1); would create a draft release, publishing nothing:");
@@ -2768,11 +2638,18 @@ fn docker_endpoint() -> Result<DockerEndpoint, String> {
     Ok(DockerEndpoint { host, cert_path })
 }
 
+/// Extra env names `docker` keeps beyond the publish base list.
+const DOCKER_CHILD_ENV_EXTRA: &[&str] =
+    &["DOCKER_TLS_VERIFY", "DOCKER_API_VERSION", "XDG_RUNTIME_DIR"];
+
 /// Builds one docker command bound to the scoped config and the caller's daemon.
 fn docker_command(config: &Path, endpoint: &DockerEndpoint) -> std::process::Command {
-    let mut command = std::process::Command::new("docker");
+    let mut command = scrubbed_command(
+        Path::new("docker"),
+        &[PUBLISH_CHILD_ENV_KEEP, DOCKER_CHILD_ENV_EXTRA],
+        &[],
+    );
     command.env("DOCKER_CONFIG", config);
-    command.env_remove("DOCKER_CONTEXT");
     if let Some(host) = &endpoint.host {
         command.env("DOCKER_HOST", host);
     }
@@ -2937,6 +2814,7 @@ const OCI_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["OCI_REGISTRY_USER", "OCI_REGISTRY_TOKEN"],
     approved: "OCI_PUBLISH_APPROVED",
+    live: "OCI_PUBLISH_LIVE",
 };
 
 /// Runs the OCI deploy launcher.
@@ -2948,36 +2826,38 @@ pub fn oci_main(
     platform: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "oci_deploy: this deploy target takes at most an output directory; the layout is exactly the file pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "oci_deploy",
+        "the layout is exactly the file pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("oci_deploy: cannot create {}", outdir.display());
-        return 1;
-    }
-    let image = match resolve_runfile(image_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("oci_deploy: {error}");
-            return 1;
-        }
     };
-    if std::env::var("OCI_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let user = std::env::var("OCI_REGISTRY_USER").unwrap_or_default();
-        let token = std::env::var("OCI_REGISTRY_TOKEN").unwrap_or_default();
+    let outdir = run.outdir();
+    let Some(image) = run.resolve(image_rloc) else {
+        return 1;
+    };
+    if OCI_GATE.requested(env_or_empty) {
         if tag == "0.0.0" || tag == "0.0.0-dryrun" {
             eprintln!("oci_deploy: live push refuses placeholder tag; set a real tag");
             return 1;
         }
-        if let Some(error) = OCI_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
-        return oci_live_push(&image, registry, repository, tag, platform, &user, &token);
+        let secrets = match OCI_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
+        return oci_live_push(
+            &image,
+            registry,
+            repository,
+            tag,
+            platform,
+            secrets.get("OCI_REGISTRY_USER"),
+            secrets.get("OCI_REGISTRY_TOKEN"),
+        );
     }
     if std::env::var("OCI_PUBLISH_DRY_RUN").unwrap_or_default() == "1" {
         println!(
@@ -2987,9 +2867,9 @@ pub fn oci_main(
             "oci_deploy: signing-first: verify SBOM/provenance plus signing_demo before any live push, then cosign sign <digest>"
         );
     }
-    match oci_build_layout(&image, &outdir, registry, repository, tag, platform) {
+    match oci_build_layout(&image, outdir, registry, repository, tag, platform) {
         Ok(layout) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!("oci_deploy: staged {registry}/{repository}:{tag} (profile: {profile})");
             println!("  layout: {}", layout.display());
             println!("  index: {}", layout.join("index.json").display());
@@ -3133,6 +3013,7 @@ const OCTOPUS_GATE: OwnerGate = OwnerGate {
     action: "push",
     credentials: &["OCTOPUS_API_KEY"],
     approved: "OCTOPUS_PUBLISH_APPROVED",
+    live: "OCTOPUS_PUBLISH_LIVE",
 };
 
 /// Runs one octo step with the key in env only; true on success.
@@ -3192,23 +3073,16 @@ pub fn octopus_live_publish(
 
 /// Runs the Octopus deploy launcher.
 pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "octopus_deploy: this deploy target takes at most an output directory; the drop is exactly the file pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "octopus_deploy",
+        "the drop is exactly the file pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("octopus_deploy: cannot create {}", outdir.display());
+    };
+    let outdir = run.outdir();
+    let Some(package) = run.resolve(spec.package_rloc) else {
         return 1;
-    }
-    let package = match resolve_runfile(spec.package_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("octopus_deploy: {error}");
-            return 1;
-        }
     };
     let space = std::env::var("OCTOPUS_SPACE").unwrap_or_else(|_| spec.space_default.to_owned());
     let server = std::env::var("OCTOPUS_URL").unwrap_or_else(|_| spec.url_default.to_owned());
@@ -3227,8 +3101,7 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
         space: &space,
         server: &server,
     };
-    if std::env::var("OCTOPUS_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let api_key = std::env::var("OCTOPUS_API_KEY").unwrap_or_default();
+    if OCTOPUS_GATE.requested(env_or_empty) {
         if spec.version == "0.0.0" {
             eprintln!("octopus_deploy: live push refuses version 0.0.0; set a real version");
             return 1;
@@ -3239,19 +3112,22 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
             );
             return 1;
         }
-        if let Some(error) = OCTOPUS_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
+        let secrets = match OCTOPUS_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
         let Some(octo) = which_on_path("octo") else {
             eprintln!("octopus_deploy: 'octo' CLI not found on PATH");
             return 1;
         };
-        return octopus_live_publish(&octo, &package, &drop_spec, &api_key);
+        return octopus_live_publish(&octo, &package, &drop_spec, secrets.get("OCTOPUS_API_KEY"));
     }
-    match octopus_build_drop(&package, &outdir, &drop_spec) {
+    match octopus_build_drop(&package, outdir, &drop_spec) {
         Ok(drop) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!(
                 "octopus_deploy: staged {} {} (profile: {profile})",
                 spec.project, spec.version
@@ -3537,6 +3413,7 @@ const PROMOTION_GATE: OwnerGate = OwnerGate {
     action: "promote",
     credentials: &[],
     approved: "PROMOTION_APPROVED",
+    live: "PROMOTION_LIVE",
 };
 
 /// Runs the promotion deploy launcher.
@@ -3548,23 +3425,16 @@ pub fn promotion_main(
     version: &str,
     argv: &[String],
 ) -> i32 {
-    if argv.len() > 2 {
-        eprintln!(
-            "promotion_deploy: this deploy target takes at most an output directory; the promotion is exactly the file pinned at analysis time"
-        );
+    let Some(run) = DeployRun::start(
+        "promotion_deploy",
+        "the promotion is exactly the file pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("promotion_deploy: cannot create {}", outdir.display());
+    };
+    let outdir = run.outdir();
+    let Some(artifact) = run.resolve(artifact_rloc) else {
         return 1;
-    }
-    let artifact = match resolve_runfile(artifact_rloc) {
-        Ok(path) => path,
-        Err(error) => {
-            eprintln!("promotion_deploy: {error}");
-            return 1;
-        }
     };
     let raw_refs = std::env::var("PROMOTION_SECRET_REFS").unwrap_or_default();
     let secret_refs: Vec<String> = raw_refs
@@ -3575,7 +3445,7 @@ pub fn promotion_main(
     if std::env::var("PROMOTION_ROLLBACK").unwrap_or_default() == "1" {
         let promotion = match promotion_build(
             &artifact,
-            &outdir,
+            outdir,
             deploy_name,
             from_env,
             to_env,
@@ -3601,7 +3471,7 @@ pub fn promotion_main(
         println!("  promotion: {}", promotion.display());
         return 0;
     }
-    if std::env::var("PROMOTION_LIVE").unwrap_or_default() == "1" {
+    if PROMOTION_GATE.requested(env_or_empty) {
         if version == "0.0.0" {
             eprintln!("promotion_deploy: live promote refuses version 0.0.0; set a real version");
             return 1;
@@ -3652,7 +3522,7 @@ pub fn promotion_main(
         }
         match promotion_build(
             &artifact,
-            &outdir,
+            outdir,
             deploy_name,
             from_env,
             to_env,
@@ -3682,7 +3552,7 @@ pub fn promotion_main(
     }
     match promotion_build(
         &artifact,
-        &outdir,
+        outdir,
         deploy_name,
         from_env,
         to_env,
@@ -3691,7 +3561,7 @@ pub fn promotion_main(
         PromotionHealth::SkippedLocal,
     ) {
         Ok(promotion) => {
-            let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+            let profile = deploy_profile();
             println!(
                 "promotion_deploy: staged {from_env} -> {to_env} version {version} (profile: {profile})"
             );
@@ -4018,7 +3888,33 @@ pub fn npm_pack_main(argv: &[String]) -> i32 {
     }
 }
 
-/// Runs npm publish with a temporary owner-only npmrc.
+/// Extra env names `npm` keeps: CA and node settings plus the CI identity for provenance.
+const NPM_CHILD_ENV_EXTRA: &[&str] = &[
+    "CI",
+    "NODE_EXTRA_CA_CERTS",
+    "NODE_OPTIONS",
+    "ComSpec",
+    "GITHUB_ACTIONS",
+    "GITHUB_WORKFLOW_REF",
+    "GITHUB_REPOSITORY",
+    "GITHUB_REPOSITORY_ID",
+    "GITHUB_REPOSITORY_OWNER_ID",
+    "GITHUB_SERVER_URL",
+    "GITHUB_EVENT_NAME",
+    "GITHUB_REF",
+    "GITHUB_SHA",
+    "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
+    "RUNNER_ENVIRONMENT",
+    "ACTIONS_ID_TOKEN_REQUEST_URL",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    "GITLAB_CI",
+    "SIGSTORE_ID_TOKEN",
+    "CI_",
+    "GITLAB_",
+];
+
+/// Runs npm publish with a temporary owner-only npmrc, in a cleared env.
 pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::OsString]) -> i32 {
     let npmrc = match npm_write_npmrc(host, token) {
         Ok(path) => path,
@@ -4027,7 +3923,7 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
             return 1;
         }
     };
-    let status = std::process::Command::new(npm)
+    let status = scrubbed_command(npm, &[PUBLISH_CHILD_ENV_KEEP, NPM_CHILD_ENV_EXTRA], &[])
         .args(args)
         .arg("--userconfig")
         .arg(&npmrc)
@@ -4051,6 +3947,7 @@ const NPM_GATE: OwnerGate = OwnerGate {
     action: "publish",
     credentials: &["NPM_TOKEN"],
     approved: "NPM_PUBLISH_APPROVED",
+    live: "NPM_PUBLISH_LIVE",
 };
 
 /// Runs the npm deploy launcher.
@@ -4061,11 +3958,14 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
         );
         return 1;
     }
-    let outdir = deploy_outdir(argv);
-    if std::fs::create_dir_all(&outdir).is_err() {
-        eprintln!("npm_deploy: cannot create {}", outdir.display());
+    let Some(run) = DeployRun::start(
+        "npm_deploy",
+        "the package is exactly the files pinned at analysis time",
+        argv,
+    ) else {
         return 1;
-    }
+    };
+    let outdir = run.outdir();
     let (feed_path, tgz_path) = match npm_find_pack_inputs(feed_rloc, tarball_rloc) {
         Ok(pair) => pair,
         Err(error) => {
@@ -4113,18 +4013,20 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
             return 1;
         }
     }
-    let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
+    let profile = deploy_profile();
     println!("npm_deploy: released {name} (tag {tag}, access {access}, profile: {profile})");
     println!("  registry: {registry}");
     println!("  provenance: {provenance}");
     println!("  tarball: {}", outdir.join(&tgz_base).display());
     println!("  feed: {}", feed_dir.display());
-    if std::env::var("NPM_PUBLISH_LIVE").unwrap_or_default() == "1" {
-        let token = std::env::var("NPM_TOKEN").unwrap_or_default();
-        if let Some(error) = NPM_GATE.refusal(env_or_empty) {
-            eprintln!("{error}");
-            return 1;
-        }
+    if NPM_GATE.requested(env_or_empty) {
+        let secrets = match NPM_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
         if let Some(error) = npm_provenance_unavailable(&provenance) {
             eprintln!("{error}");
             return 1;
@@ -4142,7 +4044,7 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
         return npm_run_publish(
             &npm,
             host,
-            &token,
+            secrets.get("NPM_TOKEN"),
             &npm_publish_args(&staged_tgz, &tag, &access, &registry, &provenance),
         );
     }
@@ -5703,29 +5605,6 @@ mod tests {
     }
 
     #[test]
-    fn minimal_env_keeps_allowlist_and_applies_extras() {
-        if env_test_in_child("tests::minimal_env_keeps_allowlist_and_applies_extras") {
-            return;
-        }
-        with_env(
-            &[
-                ("DX_TEST_KEEP", Some("kept")),
-                ("DX_TEST_DROP", Some("dropped")),
-            ],
-            || {
-                let env = minimal_env(
-                    &["DX_TEST_KEEP", "DX_TEST_ABSENT"],
-                    &[("DX_TEST_EXTRA", "extra")],
-                );
-                assert_eq!(env.get("DX_TEST_KEEP").map(String::as_str), Some("kept"));
-                assert_eq!(env.get("DX_TEST_EXTRA").map(String::as_str), Some("extra"));
-                assert!(!env.contains_key("DX_TEST_DROP"));
-                assert!(!env.contains_key("DX_TEST_ABSENT"));
-            },
-        );
-    }
-
-    #[test]
     fn deploy_outdir_prefers_arg_then_env_then_cwd() {
         if env_test_in_child("tests::deploy_outdir_prefers_arg_then_env_then_cwd") {
             return;
@@ -6398,6 +6277,7 @@ mod tests {
             promotion_main("a", "b", "staging", "production", "1.0.0", &argv),
             1
         );
+        assert_eq!(npm_deploy_main(&argv, "a", "b"), 1);
     }
 
     #[test]
@@ -7115,15 +6995,25 @@ mod tests {
         assert!(std::fs::read_dir(&outdir).expect("outdir").next().is_none());
     }
 
+    /// Quotes one value for a single-quoted sh word.
     #[cfg(unix)]
-    fn fake_docker(dir: &Path) {
+    fn sh_quote(value: &str) -> String {
+        format!("'{}'", value.replace('\'', "'\\''"))
+    }
+
+    /// Writes a fake docker with its settings baked in, since docker runs in a cleared env.
+    #[cfg(unix)]
+    fn fake_docker(dir: &Path, settings: &[(&str, &str)]) {
         use std::os::unix::fs::PermissionsExt;
         let script = dir.join("docker");
-        std::fs::write(
-            &script,
-            "#!/bin/sh\n\
-             echo \"$*\" >> \"$FAKE_DOCKER_LOG\"\n\
+        let mut text = "#!/bin/sh\n".to_owned();
+        for (key, value) in settings {
+            text.push_str(&format!("{key}={}\n", sh_quote(value)));
+        }
+        text.push_str(
+            "echo \"$*\" >> \"$FAKE_DOCKER_LOG\"\n\
              echo \"$1|$DOCKER_CONFIG|${DOCKER_HOST-unset}|${DOCKER_CONTEXT-unset}|${DOCKER_CERT_PATH-unset}\" >> \"$FAKE_DOCKER_ENV_LOG\"\n\
+             if [ -n \"$DX_LEAK_PROBE\" ]; then echo \"$1\" >> \"$FAKE_DOCKER_LEAK_LOG\"; fi\n\
              if [ \"$1 $2\" = \"context inspect\" ]; then\n\
              if [ -z \"$FAKE_DOCKER_CONTEXT_JSON\" ]; then exit 1; fi\n\
              echo \"$FAKE_DOCKER_CONTEXT_JSON\"; exit 0\n\
@@ -7135,8 +7025,8 @@ mod tests {
              case \"$5\" in sha256:*) echo \"$5\" ;; *) echo \"$FAKE_REF_ID\" ;; esac\n\
              fi\n\
              exit 0\n",
-        )
-        .expect("script");
+        );
+        std::fs::write(&script, text).expect("script");
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     }
 
@@ -7199,6 +7089,8 @@ mod tests {
         inspected: bool,
         /// `verb|DOCKER_CONFIG|DOCKER_HOST|DOCKER_CONTEXT|DOCKER_CERT_PATH` per call.
         env: Vec<String>,
+        /// Verbs of the scoped docker calls that saw the caller's DX_LEAK_PROBE.
+        leaked: Vec<String>,
         config_copy: Option<String>,
         caller_config: std::path::PathBuf,
     }
@@ -7215,11 +7107,24 @@ mod tests {
         let scratch = scratch_dir();
         let bin = scratch.path().join("bin");
         std::fs::create_dir_all(&bin).expect("bin");
-        fake_docker(&bin);
         let log = scratch.path().join("docker.log");
         let env_log = scratch.path().join("docker.env.log");
+        let leak_log = scratch.path().join("docker.leak.log");
         let copy = scratch.path().join("config.copy.json");
         let caller_config = scratch.path().join("home-docker");
+        fake_docker(
+            &bin,
+            &[
+                ("FAKE_DOCKER_LOG", log.to_string_lossy().as_ref()),
+                ("FAKE_DOCKER_ENV_LOG", env_log.to_string_lossy().as_ref()),
+                ("FAKE_DOCKER_LEAK_LOG", leak_log.to_string_lossy().as_ref()),
+                ("FAKE_DOCKER_CONFIG_COPY", copy.to_string_lossy().as_ref()),
+                ("FAKE_DOCKER_FAIL", fail),
+                ("FAKE_REF_ID", ref_id),
+                ("FAKE_LOADED", loaded),
+                ("FAKE_DOCKER_CONTEXT_JSON", caller.context_json),
+            ],
+        );
         let path = format!(
             "{}:{}",
             bin.display(),
@@ -7228,19 +7133,7 @@ mod tests {
         let code = with_env(
             &[
                 ("PATH", Some(path.as_str())),
-                ("FAKE_DOCKER_LOG", Some(log.to_string_lossy().as_ref())),
-                (
-                    "FAKE_DOCKER_ENV_LOG",
-                    Some(env_log.to_string_lossy().as_ref()),
-                ),
-                (
-                    "FAKE_DOCKER_CONFIG_COPY",
-                    Some(copy.to_string_lossy().as_ref()),
-                ),
-                ("FAKE_DOCKER_FAIL", Some(fail)),
-                ("FAKE_REF_ID", Some(ref_id)),
-                ("FAKE_LOADED", Some(loaded)),
-                ("FAKE_DOCKER_CONTEXT_JSON", Some(caller.context_json)),
+                ("DX_LEAK_PROBE", Some("1")),
                 (
                     "DOCKER_CONFIG",
                     Some(caller_config.to_string_lossy().as_ref()),
@@ -7271,6 +7164,10 @@ mod tests {
         };
         let mut calls = read(&log);
         let mut env = read(&env_log);
+        let leaked: Vec<String> = read(&leak_log)
+            .into_iter()
+            .filter(|verb| verb != "context")
+            .collect();
         let inspected = calls
             .first()
             .is_some_and(|call| call.starts_with("context inspect"));
@@ -7286,6 +7183,7 @@ mod tests {
             calls,
             inspected,
             env,
+            leaked,
             config_copy: std::fs::read_to_string(&copy).ok(),
             caller_config,
         }
@@ -7376,6 +7274,7 @@ mod tests {
             let run = fake_push(fail, &FakeEnv::default());
             assert_eq!(run.code, i32::from(!fail.is_empty()), "{fail}");
             assert!(!run.env.is_empty(), "{fail}");
+            assert!(run.leaked.is_empty(), "{fail}: {:?}", run.leaked);
             let configs: std::collections::BTreeSet<&str> = run
                 .env
                 .iter()
@@ -7541,7 +7440,32 @@ mod tests {
                     "{message}"
                 );
             }
+            let lookup = |env: &std::collections::HashMap<&str, &str>, key: &str| {
+                env.get(key).copied().unwrap_or_default().to_owned()
+            };
+            for env in [base.clone(), env.clone()] {
+                let refusal = run(&env);
+                match gate.authorize(|key| lookup(&env, key)) {
+                    Ok(secrets) => {
+                        assert_eq!(refusal, None, "{}", gate.tool);
+                        for credential in gate.credentials {
+                            assert_eq!(secrets.get(credential), "x");
+                        }
+                    }
+                    Err(error) => assert_eq!(Some(error), refusal, "{}", gate.tool),
+                }
+            }
+            for value in ["", "0", "true", "yes", " 1", "1 "] {
+                let mut env = base.clone();
+                env.insert(gate.live, value);
+                assert!(!gate.requested(|key| lookup(&env, key)), "{value:?}");
+            }
+            let mut env = base.clone();
+            env.insert(gate.live, "1");
+            assert!(gate.requested(|key| lookup(&env, key)), "{}", gate.tool);
         }
+        let lives: std::collections::BTreeSet<&str> = gates.iter().map(|gate| gate.live).collect();
+        assert_eq!(lives.len(), gates.len());
     }
 
     #[test]
@@ -7978,13 +7902,15 @@ mod tests {
             std::fs::create_dir_all(&bin).expect("bin");
             std::fs::create_dir_all(&workspace).expect("ws");
             let log = scratch.path().join("gh.log");
+            let env_log = scratch.path().join("gh.env");
             let script = bin.join("gh");
             std::fs::write(
                 &script,
                 format!(
-                    "#!/bin/sh\npwd -P > '{}'\nprintf '%s\\n' \"$@\" >> '{}'\n",
+                    "#!/bin/sh\npwd -P > '{}'\nprintf '%s\\n' \"$@\" >> '{}'\nenv > '{}'\n",
                     log.display(),
-                    log.display()
+                    log.display(),
+                    env_log.display()
                 ),
             )
             .expect("script");
@@ -8012,6 +7938,8 @@ mod tests {
                     ("GH_REPO", None),
                     ("GH_RELEASE_LIVE", Some("1")),
                     ("GH_RELEASE_APPROVED", Some("1")),
+                    ("GH_TOKEN", Some("gh-sekret")),
+                    ("DX_LEAK_PROBE", Some("1")),
                 ],
                 || {
                     assert_eq!(
@@ -8033,6 +7961,10 @@ mod tests {
                 "{logged}"
             );
             assert_eq!(&lines[5..], ["--draft", "--verify-tag"], "{logged}");
+            let env = std::fs::read_to_string(&env_log).expect("gh env");
+            assert!(env.lines().any(|line| line == "GH_TOKEN=gh-sekret"));
+            assert!(!env.contains("DX_LEAK_PROBE"), "{env}");
+            assert!(!logged.contains("gh-sekret"), "{logged}");
         }
     }
 
@@ -9327,9 +9259,9 @@ mod tests {
     fn fake_npm(dir: &Path, exit: i32) -> std::path::PathBuf {
         use std::os::unix::fs::PermissionsExt as _;
         let path = dir.join("npm");
+        let d = dir.display();
         let script = format!(
-            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}/args.txt'\nexit {exit}\n",
-            dir.display()
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{d}/args.txt'\nenv > '{d}/env.txt'\nexit {exit}\n"
         );
         std::fs::write(&path, script).expect("write npm");
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -9348,14 +9280,34 @@ mod tests {
             "https://registry.npmjs.org",
             "required",
         );
-        assert_eq!(
-            npm_run_publish(&npm, "registry.npmjs.org", "sekret", &args),
-            0
+        let code = with_env(
+            &[
+                ("DX_LEAK_PROBE", Some("1")),
+                ("NPM_TOKEN", Some("sekret")),
+                ("GITHUB_TOKEN", Some("gh-sekret")),
+                ("CI_JOB_TOKEN", Some("job-sekret")),
+                ("CI_PROJECT_URL", Some("https://gitlab.example/p")),
+                (
+                    "ACTIONS_ID_TOKEN_REQUEST_URL",
+                    Some("https://ci.example/token"),
+                ),
+            ],
+            || npm_run_publish(&npm, "registry.npmjs.org", "sekret", &args),
         );
+        assert_eq!(code, 0);
         let seen = std::fs::read_to_string(scratch.path().join("args.txt")).expect("args");
         assert!(seen.contains("--provenance\n"));
         assert!(seen.contains("--userconfig"));
         assert!(!seen.contains("sekret"));
+        let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
+        assert!(!env.contains("DX_LEAK_PROBE"), "{env}");
+        assert!(!env.contains("sekret"), "{env}");
+        assert!(env
+            .lines()
+            .any(|line| line == "ACTIONS_ID_TOKEN_REQUEST_URL=https://ci.example/token"));
+        assert!(env
+            .lines()
+            .any(|line| line == "CI_PROJECT_URL=https://gitlab.example/p"));
     }
 
     #[cfg(unix)]

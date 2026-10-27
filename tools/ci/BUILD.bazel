@@ -473,6 +473,7 @@ rust_test(
         "//:.shellcheckrc",
         "//:.vale.ini",
         "//:biome.json",
+        "//.devcontainer:Dockerfile.prebuilt",
         "//.github:workflows",
         "//:ruff.toml",
         "//cli/env:src/lib.rs",

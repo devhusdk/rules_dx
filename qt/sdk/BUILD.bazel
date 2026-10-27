@@ -1,11 +1,13 @@
 # gazelle:ignore
 
 load("//quality:fixtures.bzl", "real_source_target")
+load(":cell_json.bzl", "qt_cell_json")
 load(":metadata_tests.bzl", "qt_metadata_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "cell_json.bzl",
     "launcher.c",
     "layout_linux.bzl",
     "linux_arm64.bzl",
@@ -18,11 +20,22 @@ exports_files([
 
 qt_metadata_tests(name = "metadata")
 
+qt_cell_json(
+    name = "linux_arm64_cell",
+    cell = "linux_arm64",
+)
+
+qt_cell_json(
+    name = "linux_x86_64_cell",
+    cell = "linux_x86_64",
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "cell_json.bzl",
         "layout_linux.bzl",
         "linux_arm64.bzl",
         "linux_x86_64.bzl",

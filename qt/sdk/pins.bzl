@@ -42,6 +42,8 @@ DEFAULT_MODULES = ["qtbase"]
 
 RUNTIME_PLUGINS = LINUX_LAYOUT.runtime_plugins
 
+LAYOUTS = {"linux": LINUX_LAYOUT}
+
 CELLS = {
     "linux_arm64": LINUX_ARM64,
     "linux_x86_64": LINUX_X86_64,

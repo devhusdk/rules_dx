@@ -24,6 +24,50 @@ use_repo(qt_sdk, "dx_qt")
 
 Call `configure` once.
 
+## Your own cell
+
+A cell is one platform's Qt archives and runtime closure. Declare your own
+with `qt_sdk.cell` in the root module:
+
+```python
+qt_sdk.cell(
+    name = "custom_x86_64",
+    constraints = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        "//platforms:custom",
+    ],
+    spec = "//third_party/qt:custom_x86_64.json",
+)
+```
+
+`cell` takes:
+
+- `name`: lowercase letters, digits and `_`. The cell is fetched into
+  `@dx_qt_<name>`, and `@dx_qt//:core` and the other targets route to it.
+  A pinned cell of the same name (`linux_x86_64`, `linux_arm64`,
+  `macos_arm64`, `windows_x86_64`) is replaced.
+- `constraints`: the platform constraints the cell serves. They must differ
+  from every other cell's.
+- `layout`: the file layout of the archives. Only `linux` (the default).
+- `spec`: a `.json` file with `archives`, `directory`, `release` and
+  `runtime`.
+
+Start from a pinned spec:
+
+```sh
+bazel build @rules_dx//qt/sdk:linux_x86_64_cell
+cp bazel-bin/external/rules_dx+/qt/sdk/linux_x86_64_cell.json third_party/qt/custom_x86_64.json
+```
+
+The spec is checked like the pinned cells. Every archive and runtime package
+needs a sha256. Archives come from `mirror` (or `download.qt.io`) under
+`directory`. Runtime packages come from `runtime_mirror` (or
+`vault.almalinux.org`). The Qt release must be 6.11.3. Unknown keys fail.
+
+Only the root module may declare cells. `qt_bundle` still packages pinned
+cells only.
+
 ## Targets
 
 | Target | Module | What it is |

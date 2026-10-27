@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_src_path", "dx_strip_none", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _PARITY_KWARGS = {
@@ -194,6 +194,41 @@ def wrapper_shape_kwargs_tests(name):
                 "src path skips external labels",
                 dx_src_path("pkg", "@x//p:B.java"),
                 None,
+            ),
+            expect_equal(
+                "src path resolves a same-repo Label",
+                dx_src_path("pkg", Label("//p:a/B.java")),
+                "p/a/B.java",
+            ),
+            expect_equal(
+                "src path skips an external Label",
+                dx_src_path("pkg", Label("@bazel_tools//tools:x")),
+                None,
+            ),
+            expect_equal(
+                "strip_none drops only None values",
+                dx_strip_none({"a": None, "b": [], "c": False, "d": "x"}),
+                {"b": [], "c": False, "d": "x"},
+            ),
+            expect_equal(
+                "append_flags keeps a trivial select appendable",
+                type(dx_append_flags({"copts": select({"//conditions:default": ["-a"]})}, "copts", ["-b"])["copts"]),
+                "select",
+            ),
+            expect_equal(
+                "library upstream visibility override",
+                dx_wrap_upstream_kwargs({}, ["lib.cc"], ["//pkg:__pkg__"])["visibility"],
+                ["//pkg:__pkg__"],
+            ),
+            expect_equal(
+                "test upstream visibility override",
+                dx_test_upstream_kwargs({}, ["a_test.go"], ["//pkg:__pkg__"])["visibility"],
+                ["//pkg:__pkg__"],
+            ),
+            expect_equal(
+                "binary upstream visibility override",
+                dx_binary_upstream_kwargs({}, [], ["//pkg:__pkg__"])["visibility"],
+                ["//pkg:__pkg__"],
             ),
             expect_equal(
                 "src path skips non-strings",

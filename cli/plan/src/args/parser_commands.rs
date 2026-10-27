@@ -1524,3 +1524,35 @@ fn explain_parses_its_log_pair_and_build_test_take_explain() {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }
 }
+
+#[test]
+fn floor_and_reason_parse_only_on_bump() {
+    let got = parse(&strings(&[
+        "bump",
+        "bazel:rules_cc",
+        "0.2.0",
+        "--floor",
+        "--reason",
+        "oldest passing",
+    ]))
+    .expect("bump floor");
+    assert!(got.floor);
+    assert_eq!(got.reason.as_deref(), Some("oldest passing"));
+    let bare = parse(&strings(&["bump", "bazel:rules_cc", "0.2.0"])).expect("bump");
+    assert!(!bare.floor);
+    assert_eq!(bare.reason, None);
+    for words in [
+        vec!["update", "--floor"],
+        vec!["add", "bazel:rules_cc", "0.2.0", "--floor"],
+        vec!["update", "--reason", "x"],
+        vec!["build", "//a:one", "--reason", "x"],
+    ] {
+        assert!(
+            matches!(
+                parse(&strings(&words)),
+                Err(ArgsError::UnsupportedOption { .. } | ArgsError::UnknownOption { .. })
+            ),
+            "{words:?}"
+        );
+    }
+}

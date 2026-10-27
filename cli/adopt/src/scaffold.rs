@@ -34,10 +34,13 @@ pub const ENVRC_CONTENT: &str = concat!(
     "watch_file .dx/bin\n",
 );
 
+/// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_CC` in `modules/versions.bzl`.
 pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.27";
 
+/// The `bazel_dep` floor `dx init` writes: `FLOOR_LLVM` in `modules/versions.bzl`.
 pub const CONSUMER_LLVM_VERSION: &str = "0.8.23";
 
+/// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_RUST` in `modules/versions.bzl`.
 pub const CONSUMER_RULES_RUST_VERSION: &str = "0.74.0";
 
 pub const CONSUMER_RUST_EDITION: &str = "2021";
@@ -46,6 +49,7 @@ pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
 
 pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
 
+/// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_RUBY` in `modules/versions.bzl`.
 pub const CONSUMER_RULES_RUBY_VERSION: &str = "0.28.0";
 
 pub const CONSUMER_RUBY_VERSION: &str = "3.4.9";
@@ -1055,13 +1059,13 @@ mod tests {
         )
         .expect("modules/versions.bzl ships as test data");
         for (key, value) in [
-            ("RULES_CC_VERSION", CONSUMER_RULES_CC_VERSION),
-            ("LLVM_VERSION", CONSUMER_LLVM_VERSION),
-            ("RULES_RUST_VERSION", CONSUMER_RULES_RUST_VERSION),
+            ("FLOOR_RULES_CC", CONSUMER_RULES_CC_VERSION),
+            ("FLOOR_LLVM", CONSUMER_LLVM_VERSION),
+            ("FLOOR_RULES_RUST", CONSUMER_RULES_RUST_VERSION),
             ("RUST_EDITION", CONSUMER_RUST_EDITION),
             ("RUST_VERSION", CONSUMER_RUST_VERSION),
             ("RUSTFMT_VERSION", CONSUMER_RUSTFMT_VERSION),
-            ("RULES_RUBY_VERSION", CONSUMER_RULES_RUBY_VERSION),
+            ("FLOOR_RULES_RUBY", CONSUMER_RULES_RUBY_VERSION),
             ("RUBY_VERSION", CONSUMER_RUBY_VERSION),
         ] {
             assert!(

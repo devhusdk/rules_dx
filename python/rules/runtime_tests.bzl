@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//modules:python.bzl", _MOD_ASPECT_PY = "ASPECT_RULES_PY_VERSION", _MOD_PY_HUB = "UV_HUB", _MOD_PY_LOCKS = "UV_LOCKS", _MOD_PY_PROJECTS = "UV_PROJECTS", _MOD_PY_REPIN = "UV_REPIN_DIRS", _MOD_PY_VERSION = "PYTHON_VERSION", _MOD_RULES_PY = "RULES_PYTHON_VERSION")
-load("//modules:versions.bzl", _ASPECT_PY = "ASPECT_RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
+load("//modules:versions.bzl", _ASPECT_PY = "FLOOR_ASPECT_RULES_PY", _PY = "PYTHON_VERSION", _RULES_PY = "FLOOR_RULES_PYTHON")
 
 def python_runtime_unit_tests(name):
     """Instantiates the Python runtime ownership keep checks."""

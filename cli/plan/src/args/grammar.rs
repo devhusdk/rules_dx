@@ -76,6 +76,8 @@ pub(crate) struct Flags {
     pub(crate) open: bool,
     pub(crate) offline: bool,
     pub(crate) frozen: bool,
+    pub(crate) floor: bool,
+    pub(crate) reason: Option<String>,
     pub(crate) cases: bool,
     pub(crate) create: Option<String>,
     pub(crate) force: bool,
@@ -557,6 +559,30 @@ flag_group! {
 }
 
 flag_group! {
+    /// Edit the bazel_dep floor instead of the tested override (bump only; needs --reason).
+    FloorFlag, {
+        #[arg(long, overrides_with = "floor")]
+        floor: bool,
+    }
+}
+
+flag_group! {
+    /// Why this floor is the oldest supported version (needs --floor).
+    ReasonFlag, {
+        #[arg(long, value_name = "TEXT", overrides_with = "reason", value_parser = non_empty)]
+        reason: Option<String>,
+    }
+}
+
+composite_group! {
+    /// The bump floor flags.
+    FloorArgs, {
+        floor: FloorFlag,
+        reason: ReasonFlag,
+    }
+}
+
+flag_group! {
     /// Enumerate supported test cases via the test runtime.
     CasesFlag, {
         #[arg(long = "cases", overrides_with = "cases")]
@@ -939,7 +965,7 @@ command_args! {
         apply: UpdateApplyFlag,
     };
     /// The flags `dx bump` accepts.
-    Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
+    Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, floor: FloorArgs, };
     /// The flags `dx add` accepts.
     Add => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: AddApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
     /// The flags `dx migrate` accepts.

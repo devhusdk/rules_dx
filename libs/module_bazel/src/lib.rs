@@ -108,7 +108,22 @@ pub enum ModuleError {
     AlreadyDeclared { name: String },
     #[error("cannot insert into MODULE.bazel: {reason}")]
     NoInsertPoint { reason: String },
+    #[error("no single_version_override for {name:?} in MODULE.bazel")]
+    OverrideNotFound { name: String },
+    #[error("{count} single_version_override calls name {name:?} in MODULE.bazel")]
+    OverrideAmbiguous { name: String, count: usize },
+    #[error("single_version_override at line {line} has no literal module_name")]
+    OverrideComputedName { line: usize },
+    #[error("single_version_override {name:?} at line {line} has no version")]
+    OverrideMissingVersion { name: String, line: usize },
+    #[error("single_version_override {name:?} at line {line} has a computed version")]
+    OverrideComputedVersion { name: String, line: usize },
+    #[error("{value:?} cannot be written into a one-line comment")]
+    UnsafeComment { value: String },
 }
+
+/// The marker that starts the comment line naming why a `bazel_dep` has its floor version.
+pub const FLOOR_MARKER: &str = "# floor: ";
 
 /// One rules_rust `crate.from_cargo` tag: a crate_universe hub and the manifests it reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -222,6 +237,133 @@ impl ModuleFile {
     pub fn set_bazel_dep_version(&self, name: &str, version: &str) -> Result<String, ModuleError> {
         let literal = self.bazel_dep_version(name)?;
         self.replace(literal, version)
+    }
+
+    /// The single `single_version_override` whose `module_name` is `name`.
+    pub fn single_version_override(&self, name: &str) -> Result<&Call, ModuleError> {
+        let mut found = Vec::new();
+        for call in self.calls_named("single_version_override") {
+            match call.arg("module_name") {
+                Some(Value::Str(literal)) => {
+                    if literal.value == name {
+                        found.push(call);
+                    }
+                }
+                _ => return Err(ModuleError::OverrideComputedName { line: call.line }),
+            }
+        }
+        match found.as_slice() {
+            [] => Err(ModuleError::OverrideNotFound {
+                name: name.to_owned(),
+            }),
+            [call] => Ok(call),
+            many => Err(ModuleError::OverrideAmbiguous {
+                name: name.to_owned(),
+                count: many.len(),
+            }),
+        }
+    }
+
+    /// The literal `version` token of the single `single_version_override` for `name`.
+    pub fn override_version(&self, name: &str) -> Result<&Str, ModuleError> {
+        let call = self.single_version_override(name)?;
+        match call.arg("version") {
+            Some(Value::Str(literal)) => Ok(literal),
+            Some(_) => Err(ModuleError::OverrideComputedVersion {
+                name: name.to_owned(),
+                line: call.line,
+            }),
+            None if call.unpacked => Err(ModuleError::OverrideComputedVersion {
+                name: name.to_owned(),
+                line: call.line,
+            }),
+            None => Err(ModuleError::OverrideMissingVersion {
+                name: name.to_owned(),
+                line: call.line,
+            }),
+        }
+    }
+
+    /// The source with the `single_version_override` version of `name` set to `version`,
+    /// keeping its patches and every other byte.
+    pub fn set_override_version(&self, name: &str, version: &str) -> Result<String, ModuleError> {
+        let literal = self.override_version(name)?;
+        self.replace(literal, version)
+    }
+
+    /// The reason of the `# floor: ` comment lines directly above the `bazel_dep` of `name`,
+    /// joined by spaces, or None when there is none.
+    pub fn floor_comment(&self, name: &str) -> Result<Option<String>, ModuleError> {
+        let call = self.bazel_dep(name)?;
+        let (_, lines) = self.floor_lines(call)?;
+        if lines.is_empty() {
+            return Ok(None);
+        }
+        let reasons: Vec<&str> = lines
+            .iter()
+            .map(|line| line.trim_start()[FLOOR_MARKER.len()..].trim())
+            .collect();
+        Ok(Some(reasons.join(" ")))
+    }
+
+    /// The source with the contiguous `# floor: ` lines directly above the `bazel_dep` of
+    /// `name` replaced by one `# floor: <reason>` line, or that line inserted when there is
+    /// none. Other comments and every other byte are kept.
+    pub fn set_floor_comment(&self, name: &str, reason: &str) -> Result<String, ModuleError> {
+        let reason = reason.trim();
+        if reason.is_empty() || reason.chars().any(char::is_control) {
+            return Err(ModuleError::UnsafeComment {
+                value: reason.to_owned(),
+            });
+        }
+        let call = self.bazel_dep(name)?;
+        let (start, _) = self.floor_lines(call)?;
+        let line_start = self.source[..call.span.start]
+            .rfind('\n')
+            .map_or(0, |at| at + 1);
+        let indent = &self.source[line_start..call.span.start];
+        let eol = line_ending(&self.source);
+        let text = format!("{indent}{FLOOR_MARKER}{reason}{eol}");
+        let mut out = String::with_capacity(self.source.len() + text.len());
+        out.push_str(&self.source[..start]);
+        out.push_str(&text);
+        out.push_str(&self.source[line_start..]);
+        let reparsed = ModuleFile::parse(&out)?;
+        if reparsed.floor_comment(name)?.as_deref() != Some(reason) {
+            return Err(ModuleError::NoInsertPoint {
+                reason: "floor comment did not round-trip".to_owned(),
+            });
+        }
+        Ok(out)
+    }
+
+    /// The byte offset where the `# floor: ` lines above `call` start, and those lines.
+    fn floor_lines(&self, call: &Call) -> Result<(usize, Vec<&str>), ModuleError> {
+        let line_start = self.source[..call.span.start]
+            .rfind('\n')
+            .map_or(0, |at| at + 1);
+        if !self.source[line_start..call.span.start].trim().is_empty() {
+            return Err(ModuleError::NoInsertPoint {
+                reason: format!(
+                    "bazel_dep at line {} does not start its own line",
+                    call.line
+                ),
+            });
+        }
+        let mut start = line_start;
+        let mut lines = Vec::new();
+        while start > 0 {
+            let prev_end = start - 1;
+            let prev_start = self.source[..prev_end].rfind('\n').map_or(0, |at| at + 1);
+            let line = self.source[prev_start..prev_end].trim_end_matches('\r');
+            if !line.trim_start().starts_with(FLOOR_MARKER) {
+                break;
+            }
+            lines.push(line);
+            start = prev_start;
+        }
+        lines.reverse();
+        Ok((start, lines))
     }
 
     /// The repository name module `name` is visible as, if it is declared.
@@ -605,6 +747,57 @@ impl ModuleFile {
         out.push_str(&self.source[literal.span.end..]);
         Ok(out)
     }
+}
+
+/// Compares two module versions the way Bazel orders them
+/// (<https://bazel.build/external/module#version_format>): release identifiers first,
+/// numeric before alphanumeric and numerically among themselves, a prerelease below its
+/// release, build metadata ignored, and the empty version above every other.
+pub fn compare_module_versions(a: &str, b: &str) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    fn split(version: &str) -> (Vec<&str>, Option<Vec<&str>>) {
+        let version = version.split_once('+').map_or(version, |(head, _)| head);
+        let (release, pre) = match version.split_once('-') {
+            Some((release, pre)) => (release, Some(pre.split('.').collect())),
+            None => (version, None),
+        };
+        (release.split('.').collect(), pre)
+    }
+    fn identifier(a: &str, b: &str) -> Ordering {
+        let digits = |s: &str| !s.is_empty() && s.bytes().all(|c| c.is_ascii_digit());
+        match (digits(a), digits(b)) {
+            (true, true) => {
+                let (a, b) = (a.trim_start_matches('0'), b.trim_start_matches('0'));
+                a.len().cmp(&b.len()).then_with(|| a.cmp(b))
+            }
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            (false, false) => a.cmp(b),
+        }
+    }
+    fn identifiers(a: &[&str], b: &[&str]) -> Ordering {
+        for (x, y) in a.iter().zip(b) {
+            let order = identifier(x, y);
+            if order != Ordering::Equal {
+                return order;
+            }
+        }
+        a.len().cmp(&b.len())
+    }
+    match (a.is_empty(), b.is_empty()) {
+        (true, true) => return Ordering::Equal,
+        (true, false) => return Ordering::Greater,
+        (false, true) => return Ordering::Less,
+        (false, false) => {}
+    }
+    let (release_a, pre_a) = split(a);
+    let (release_b, pre_b) = split(b);
+    identifiers(&release_a, &release_b).then_with(|| match (pre_a, pre_b) {
+        (None, None) => Ordering::Equal,
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (Some(x), Some(y)) => identifiers(&x, &y),
+    })
 }
 
 fn check_safe(value: &str) -> Result<(), ModuleError> {

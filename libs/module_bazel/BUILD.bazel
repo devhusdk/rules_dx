@@ -2,7 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
 
-package(default_visibility = VIS_CLI_TOOLS)
+package(default_visibility = VIS_CLI_TOOLS + ["//modules:__pkg__"])
 
 dx_rust_crate(
     name = "dx_module_bazel",

@@ -76,6 +76,7 @@ fn hand_built_requests_reject_wrong_version_kinds() {
             selector: "demo".to_owned(),
             raw_version: "v2".to_owned(),
             manifest: None,
+            dep_version: DepVersion::Tested,
         };
         assert!(matches!(
             request.plan_edit(""),
@@ -1368,4 +1369,169 @@ fn cargo_errors_name_the_manifest_planned() {
     assert!(cargo
         .summary()
         .starts_with("Widen cargo:anyhow to 1.2.3 in every manifest of the crate.from_cargo hub in MODULE.bazel ("));
+}
+
+const SPLIT_DEP: &str = "# floor: equals tested\nbazel_dep(name = \"rules_cc\", version = \"0.2.0\")\nsingle_version_override(\n    module_name = \"rules_cc\",\n    patches = [\"//patches/rules_cc:fix.patch\"],\n    version = \"0.2.5\",\n)\n";
+
+fn floor(selector: &str, version: &str, reason: &str) -> BumpRequest {
+    BumpRequest::parse(selector, version)
+        .expect("request")
+        .with_dep_version(DepVersion::from_flags(true, Some(reason)).expect("flags"))
+        .expect("floor target")
+}
+
+#[test]
+fn a_tested_bump_edits_only_the_override() {
+    let bump = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("bazel");
+    let widened = bump.plan_edit(SPLIT_DEP).expect("tested");
+    assert_eq!(
+        widened,
+        SPLIT_DEP.replace("    version = \"0.2.5\",", "    version = \"0.3.0\",")
+    );
+    assert!(widened.contains("bazel_dep(name = \"rules_cc\", version = \"0.2.0\")"));
+    assert!(widened.contains("//patches/rules_cc:fix.patch"));
+    assert!(
+        bump.summary().contains("tested override"),
+        "{}",
+        bump.summary()
+    );
+}
+
+#[test]
+fn a_floor_bump_edits_only_the_bazel_dep_and_its_comment() {
+    let bump = floor("bazel:rules_cc", "0.2.3", "oldest passing the floor job");
+    let widened = bump.plan_edit(SPLIT_DEP).expect("floor");
+    assert_eq!(
+        widened,
+        SPLIT_DEP
+            .replace(
+                "# floor: equals tested",
+                "# floor: oldest passing the floor job"
+            )
+            .replace("version = \"0.2.0\")", "version = \"0.2.3\")")
+    );
+    assert!(bump.summary().contains(" floor "), "{}", bump.summary());
+    let at_tested = floor("bazel:rules_cc", "0.2.5", "r");
+    assert!(at_tested.plan_edit(SPLIT_DEP).is_ok());
+}
+
+#[test]
+fn floor_and_reason_flags_come_together() {
+    assert_eq!(
+        DepVersion::from_flags(true, None),
+        Err(BumpError::FloorNeedsReason)
+    );
+    assert_eq!(
+        DepVersion::from_flags(false, Some("why")),
+        Err(BumpError::ReasonNeedsFloor)
+    );
+    assert_eq!(DepVersion::from_flags(false, None), Ok(DepVersion::Tested));
+    assert!(matches!(
+        DepVersion::from_flags(true, Some("two\nlines")),
+        Err(BumpError::UnsafeReason { .. })
+    ));
+    for error in [BumpError::FloorNeedsReason, BumpError::ReasonNeedsFloor] {
+        assert!(error.is_usage());
+    }
+    for selector in ["cargo:anyhow", "bazel:.bazelversion", "maven:g:a"] {
+        let request = BumpRequest::parse(selector, "2.0.0").expect("request");
+        assert!(
+            matches!(
+                request.with_dep_version(DepVersion::Floor {
+                    reason: "r".to_owned()
+                }),
+                Err(BumpError::FloorNotBazelDep { .. })
+            ),
+            "{selector}"
+        );
+    }
+}
+
+#[test]
+fn a_floor_above_tested_is_refused() {
+    let error = floor("bazel:rules_cc", "0.2.6", "r")
+        .plan_edit(SPLIT_DEP)
+        .expect_err("refused");
+    assert_eq!(
+        error,
+        BumpError::FloorAboveTested {
+            package: "rules_cc".to_owned(),
+            floor: "0.2.6".to_owned(),
+            tested: "0.2.5".to_owned(),
+        }
+    );
+    assert!(error.is_usage());
+}
+
+#[test]
+fn a_tested_version_below_the_floor_is_refused() {
+    let error = BumpRequest::parse("bazel:rules_cc", "0.1.9")
+        .expect("bazel")
+        .plan_edit(SPLIT_DEP)
+        .expect_err("refused");
+    assert_eq!(
+        error,
+        BumpError::TestedBelowFloor {
+            package: "rules_cc".to_owned(),
+            tested: "0.1.9".to_owned(),
+            floor: "0.2.0".to_owned(),
+        }
+    );
+    assert!(error.is_usage());
+}
+
+#[test]
+fn without_an_override_the_default_edits_the_bazel_dep() {
+    let module = "bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\nsingle_version_override(module_name = \"rules_cc\", patches = [])\n";
+    let bump = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("bazel");
+    assert_eq!(
+        bump.plan_edit(module).expect("dep"),
+        module.replace("0.2.0", "0.3.0")
+    );
+    let plain = "bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n";
+    assert_eq!(
+        bump.plan_edit(plain).expect("dep"),
+        plain.replace("0.2.0", "0.3.0")
+    );
+    let floored = floor("bazel:rules_cc", "0.2.1", "r")
+        .plan_edit(plain)
+        .expect("floor");
+    assert_eq!(
+        floored,
+        "# floor: r\nbazel_dep(name = \"rules_cc\", version = \"0.2.1\")\n"
+    );
+}
+
+#[test]
+fn a_configured_set_targets_the_override_the_same_way() {
+    let configured = BumpRequest::parse_configured(
+        "bazel-modules",
+        "tools/MODULE.bazel",
+        "bazel-modules:rules_cc",
+        "0.3.0",
+    )
+    .expect("configured");
+    let builtin = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("builtin");
+    assert_eq!(
+        configured.plan_edit(SPLIT_DEP),
+        builtin.plan_edit(SPLIT_DEP)
+    );
+    let configured_floor = configured
+        .with_dep_version(DepVersion::Floor {
+            reason: "r".to_owned(),
+        })
+        .expect("floor");
+    assert!(matches!(
+        configured_floor.plan_edit(SPLIT_DEP),
+        Err(BumpError::FloorAboveTested { .. })
+    ));
+}
+
+#[test]
+fn a_maven_bump_never_touches_floors_or_overrides() {
+    let module = format!("{SPLIT_DEP}{}", maven_module("        \"g:a:1.0.0\",\n"));
+    let bump = BumpRequest::parse("maven:g:a", "2.0.0").expect("maven");
+    let widened = bump.plan_edit(&module).expect("maven");
+    assert!(widened.starts_with(SPLIT_DEP), "{widened}");
+    assert_eq!(widened, module.replace("g:a:1.0.0", "g:a:2.0.0"));
 }

@@ -3,6 +3,7 @@ module(
     version = "0.0.0",
 )
 
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_rust", version = "0.74.0")
 single_version_override(
     module_name = "rules_rust",
@@ -14,19 +15,78 @@ single_version_override(
     version = "0.74.0",
 )
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.74.0")
+single_version_override(
+    module_name = "rules_rust_wasm_bindgen",
+    version = "0.74.0",
+)
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_cc", version = "0.2.27")
+single_version_override(
+    module_name = "rules_cc",
+    version = "0.2.27",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "llvm", version = "0.8.23")
+single_version_override(
+    module_name = "llvm",
+    version = "0.8.23",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_cuda", version = "0.3.0")
+single_version_override(
+    module_name = "rules_cuda",
+    version = "0.3.0",
+)
+
 bazel_dep(name = "toolchains_llvm", version = "1.12.0", dev_dependency = True)
 bazel_dep(name = "googletest", version = "1.18.0", dev_dependency = True)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_python", version = "1.9.0")
+single_version_override(
+    module_name = "rules_python",
+    version = "1.9.0",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_go", version = "0.63.0")
+single_version_override(
+    module_name = "rules_go",
+    version = "0.63.0",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "gazelle", version = "0.52.2")
+single_version_override(
+    module_name = "gazelle",
+    version = "0.52.2",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_shell", version = "0.8.0")
+single_version_override(
+    module_name = "rules_shell",
+    version = "0.8.0",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "apple_support", version = "2.9.1")
+single_version_override(
+    module_name = "apple_support",
+    version = "2.9.1",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_apple", version = "5.2.0")
+single_version_override(
+    module_name = "rules_apple",
+    version = "5.2.0",
+)
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
@@ -63,12 +123,49 @@ go_sdk.download(
     version = "1.26.10",
 )
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "platforms", version = "1.1.0")
+single_version_override(
+    module_name = "platforms",
+    version = "1.1.0",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
+single_version_override(
+    module_name = "bazel_skylib",
+    version = "1.9.2",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_proto", version = "7.1.0")
+single_version_override(
+    module_name = "rules_proto",
+    version = "7.1.0",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "protobuf", version = "34.0.bcr.1")
+single_version_override(
+    module_name = "protobuf",
+    version = "34.0.bcr.1",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_rust_prost", version = "0.74.0")
+single_version_override(
+    module_name = "rules_rust_prost",
+    version = "0.74.0",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_java", version = "9.7.0")
+single_version_override(
+    module_name = "rules_java",
+    version = "9.7.0",
+)
+
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_android", version = "0.6.6")
 single_version_override(
     module_name = "rules_android",
@@ -77,8 +174,27 @@ single_version_override(
     version = "0.6.6",
 )
 
+# Root-only: rules_android asks for bazel_worker_java 0.0.4. Before the tested
+# overrides above pruned discovery, an older dep version raised it to 0.0.8;
+# keep the root on 0.0.8.
+single_version_override(
+    module_name = "bazel_worker_java",
+    version = "0.0.8",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_kotlin", version = "2.4.10")
+single_version_override(
+    module_name = "rules_kotlin",
+    version = "2.4.10",
+)
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_scala", version = "7.3.0")
+single_version_override(
+    module_name = "rules_scala",
+    version = "7.3.0",
+)
 
 scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
 scala_config.settings(scala_version = "2.13.18")
@@ -93,6 +209,7 @@ register_toolchains(
     dev_dependency = True,
 )
 
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_dotnet", version = "0.22.1")
 single_version_override(
     module_name = "rules_dotnet",
@@ -104,7 +221,12 @@ single_version_override(
     version = "0.22.1",
 )
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "bazel_lib", version = "3.7.0")
+single_version_override(
+    module_name = "bazel_lib",
+    version = "3.7.0",
+)
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.201")
@@ -116,7 +238,12 @@ use_repo(dotnet_nuget, "paket.main")
 dotnet_fsharplint = use_extension("//third_party/dotnet/deps:paket.fsharplint_extension.bzl", "fsharplint_extension")
 use_repo(dotnet_fsharplint, "paket.fsharplint")
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_jvm_external", version = "7.1")
+single_version_override(
+    module_name = "rules_jvm_external",
+    version = "7.1",
+)
 
 maven = use_extension(
     "@rules_jvm_external//:extensions.bzl",
@@ -174,7 +301,12 @@ scalafix.install(
 )
 use_repo(scalafix, "dx_scalafix")
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_powershell", version = "0.2.0")
+single_version_override(
+    module_name = "rules_powershell",
+    version = "0.2.0",
+)
 
 powershell = use_extension("@rules_powershell//powershell:extensions.bzl", "powershell")
 powershell.toolchain(
@@ -242,6 +374,7 @@ register_toolchains("//tools/platforms:protoc_windows_arm64")
 
 register_toolchains("@dx_powershell_toolchains//:all")
 
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_ruby", version = "0.28.0")
 single_version_override(
     module_name = "rules_ruby",
@@ -301,7 +434,12 @@ register_toolchains(
     dev_dependency = True,
 )
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_zig", version = "0.14.0")
+single_version_override(
+    module_name = "rules_zig",
+    version = "0.14.0",
+)
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.16.0")
@@ -311,7 +449,12 @@ bazel_dep(name = "rules_julia", version = "0.8.0", dev_dependency = True)
 julia = use_extension("@rules_julia//julia:extensions.bzl", "julia", dev_dependency = True)
 julia.toolchain(version = "1.12.5")
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_perl", version = "1.5.0")
+single_version_override(
+    module_name = "rules_perl",
+    version = "1.5.0",
+)
 
 cpan = use_extension("//perl/cpan:extensions.bzl", "cpan_dev", dev_dependency = True)
 cpan.install(
@@ -422,7 +565,12 @@ use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
 
 register_toolchains("@dx_fortran_toolchains//:all")
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "lua", version = "5.4.6.bcr.1")
+single_version_override(
+    module_name = "lua",
+    version = "5.4.6.bcr.1",
+)
 
 register_toolchains("//lua/toolchain:all")
 
@@ -441,6 +589,7 @@ use_repo(d, "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
 
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 single_version_override(
     module_name = "aspect_rules_py",
@@ -451,7 +600,14 @@ single_version_override(
     version = "2.0.0-alpha.6",
 )
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "aspect_rules_js", version = "3.5.2")
+single_version_override(
+    module_name = "aspect_rules_js",
+    version = "3.5.2",
+)
+
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "aspect_rules_ts", version = "3.10.0")
 single_version_override(
     module_name = "aspect_rules_ts",
@@ -462,6 +618,7 @@ single_version_override(
     version = "3.10.0",
 )
 
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
 single_version_override(
     module_name = "aspect_rules_jest",
@@ -472,7 +629,12 @@ single_version_override(
     version = "0.26.0",
 )
 
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_nodejs", version = "6.7.7")
+single_version_override(
+    module_name = "rules_nodejs",
+    version = "6.7.7",
+)
 
 typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
 typescript.deps(

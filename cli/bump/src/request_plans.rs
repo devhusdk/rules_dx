@@ -28,11 +28,20 @@ pub(super) fn plan_bazelversion(
     }
 }
 
+/// Widens one MODULE.bazel dep: the tested override by default, or the floor.
+///
+/// A tested bump edits the `single_version_override` version when one has a literal
+/// version, else the `bazel_dep`; it refuses to drop below the `bazel_dep` floor. A floor
+/// bump edits the `bazel_dep` and its `# floor: ` comment; it refuses to rise above the
+/// override's tested version.
 pub(super) fn plan_module_bazel(
     content: &str,
     package: &str,
     version: &WidenVersion,
+    target: &DepVersion,
 ) -> Result<String, BumpError> {
+    use dx_module_bazel::ModuleError;
+    use std::cmp::Ordering;
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
@@ -43,9 +52,52 @@ pub(super) fn plan_module_bazel(
         }
     };
     let module = dx_module_bazel::ModuleFile::parse(content).map_err(module_error(package))?;
-    module
-        .set_bazel_dep_version(package, &new)
-        .map_err(module_error(package))
+    let floor = module
+        .bazel_dep_version(package)
+        .map_err(module_error(package))?
+        .value
+        .clone();
+    let tested = match module.override_version(package) {
+        Ok(literal) => Some(literal.value.clone()),
+        Err(ModuleError::OverrideNotFound { .. } | ModuleError::OverrideMissingVersion { .. }) => {
+            None
+        }
+        Err(other) => return Err(module_error(package)(other)),
+    };
+    match (target, tested) {
+        (DepVersion::Tested, Some(_)) => {
+            if dx_module_bazel::compare_module_versions(&new, &floor) == Ordering::Less {
+                return Err(BumpError::TestedBelowFloor {
+                    package: package.to_owned(),
+                    tested: new,
+                    floor,
+                });
+            }
+            module
+                .set_override_version(package, &new)
+                .map_err(module_error(package))
+        }
+        (DepVersion::Tested, None) => module
+            .set_bazel_dep_version(package, &new)
+            .map_err(module_error(package)),
+        (DepVersion::Floor { reason }, tested) => {
+            if let Some(tested) = tested {
+                if dx_module_bazel::compare_module_versions(&new, &tested) == Ordering::Greater {
+                    return Err(BumpError::FloorAboveTested {
+                        package: package.to_owned(),
+                        floor: new,
+                        tested,
+                    });
+                }
+            }
+            let edited = module
+                .set_bazel_dep_version(package, &new)
+                .map_err(module_error(package))?;
+            dx_module_bazel::ModuleFile::parse(&edited)
+                .and_then(|module| module.set_floor_comment(package, reason))
+                .map_err(module_error(package))
+        }
+    }
 }
 
 fn module_error(package: &str) -> impl Fn(dx_module_bazel::ModuleError) -> BumpError + '_ {

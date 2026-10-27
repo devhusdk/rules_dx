@@ -45,6 +45,13 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Err(exit) => return exit,
     };
+    let request =
+        match dx_bump::DepVersion::from_flags(invocation.floor, invocation.reason.as_deref())
+            .and_then(|target| request.with_dep_version(target))
+        {
+            Ok(request) => request,
+            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+        };
     let request = match resolve_gha_tag_request(&request) {
         Ok(request) => request,
         Err(message) => {
@@ -70,7 +77,10 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     let planned = match plan_widens(&request, workspace) {
         Ok(planned) => planned,
-        Err(message) => {
+        Err(WidenFailure::Usage(message)) => {
+            return pre_exec(invocation.output, out, err, &message);
+        }
+        Err(WidenFailure::Failed(message)) => {
             return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
         }
     };
@@ -168,7 +178,10 @@ fn check_bump(
     }
     let planned = match plan_widens(request, workspace) {
         Ok(planned) => planned,
-        Err(message) => {
+        Err(WidenFailure::Usage(message)) => {
+            return pre_exec(invocation.output, out, err, &message);
+        }
+        Err(WidenFailure::Failed(message)) => {
             return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
         }
     };
@@ -271,10 +284,22 @@ fn widen_targets(
     Ok(manifests)
 }
 
+/// Why a widen could not be planned: a refused argument (exit 2) or a failed edit.
+enum WidenFailure {
+    Usage(String),
+    Failed(String),
+}
+
+impl From<String> for WidenFailure {
+    fn from(message: String) -> Self {
+        WidenFailure::Failed(message)
+    }
+}
+
 fn plan_widens(
     request: &dx_bump::BumpRequest,
     workspace: &std::path::Path,
-) -> Result<Vec<(String, String, bool)>, String> {
+) -> Result<Vec<(String, String, bool)>, WidenFailure> {
     let mut planned = Vec::new();
     let targets = widen_targets(request, workspace)?;
     for manifest in &targets {
@@ -299,8 +324,14 @@ fn plan_widens(
                 planned.push((manifest, text, false));
             }
             Err(dx_bump::BumpError::NotFound { .. }) if request.set.spans_manifests() => {}
+            Err(error) if error.is_usage() => {
+                return Err(WidenFailure::Usage(format!(
+                    "failed to widen {}: {error}",
+                    request.selector
+                )));
+            }
             Err(error) => {
-                return Err(format!("failed to widen {}: {error}", request.selector));
+                return Err(format!("failed to widen {}: {error}", request.selector).into());
             }
         }
     }
@@ -320,7 +351,8 @@ fn plan_widens(
                 manifest,
                 package: request.package.clone(),
             }
-        ));
+        )
+        .into());
     }
     Ok(planned)
 }
@@ -1225,6 +1257,89 @@ scopes = ["tools"]
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("MODULE.bazel does not parse at line"), "{err}");
         assert_eq!(read(), "bazel_dep(name = 'rules_cc', version = '0.2.21'\n");
+    }
+
+    const SPLIT_MODULE: &str = "# floor: equals tested\nbazel_dep(name = \"rules_cc\", version = \"0.2.21\")\nsingle_version_override(\n    module_name = \"rules_cc\",\n    version = \"0.2.21\",\n)\n";
+
+    #[test]
+    fn live_bazel_bump_targets_the_tested_override_or_the_floor() {
+        let harness = Harness::new("bump-live-bazel-floor");
+        harness.write_source("MODULE.bazel", SPLIT_MODULE);
+        let read =
+            || std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        let (code, out, err) = harness.run(&["bump", "bazel:rules_cc", "0.2.22", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let tested = SPLIT_MODULE.replace("    version = \"0.2.21\",", "    version = \"0.2.22\",");
+        assert_eq!(read(), tested);
+        let (code, out, err) = harness.run(&[
+            "bump",
+            "bazel:rules_cc",
+            "0.2.22",
+            "--floor",
+            "--reason",
+            "oldest passing the floor job",
+            "--apply",
+        ]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            read(),
+            tested
+                .replace(
+                    "# floor: equals tested",
+                    "# floor: oldest passing the floor job"
+                )
+                .replace("version = \"0.2.21\")", "version = \"0.2.22\")")
+        );
+    }
+
+    #[test]
+    fn floor_flags_and_order_refusals_are_usage_errors_that_write_nothing() {
+        let harness = Harness::new("bump-floor-refusals");
+        harness.write_source("MODULE.bazel", SPLIT_MODULE);
+        let read =
+            || std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
+        for (args, needle) in [
+            (
+                vec!["bump", "bazel:rules_cc", "0.2.20", "--floor", "--apply"],
+                "--floor needs --reason",
+            ),
+            (
+                vec![
+                    "bump",
+                    "bazel:rules_cc",
+                    "0.2.20",
+                    "--reason",
+                    "x",
+                    "--apply",
+                ],
+                "--reason only applies with --floor",
+            ),
+            (
+                vec!["bump", "cargo:anyhow", "1.2.3", "--floor", "--reason", "x"],
+                "--floor applies only to a MODULE.bazel bazel_dep",
+            ),
+            (
+                vec![
+                    "bump",
+                    "bazel:rules_cc",
+                    "0.3.0",
+                    "--floor",
+                    "--reason",
+                    "x",
+                    "--apply",
+                ],
+                "above its tested version",
+            ),
+            (
+                vec!["bump", "bazel:rules_cc", "0.2.0", "--apply"],
+                "below its floor",
+            ),
+        ] {
+            let (code, _, err) = harness.run(&args);
+            assert_eq!(code, 2, "{args:?}: {err}");
+            assert!(err.contains(needle), "{args:?}: {err}");
+            assert_eq!(read(), SPLIT_MODULE, "{args:?} must not write");
+        }
     }
 
     #[test]

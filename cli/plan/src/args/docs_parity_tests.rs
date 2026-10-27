@@ -2585,7 +2585,7 @@ fn versions_pin(name: &str) -> String {
 #[test]
 fn status_toolchain_detail_tracks_the_canonical_rust_pins() {
     let rust = versions_pin("RUST_VERSION");
-    let rules_rust = versions_pin("RULES_RUST_VERSION");
+    let rules_rust = versions_pin("FLOOR_RULES_RUST");
     let scratch = dx_test_scratch::scratch("dx-docs-toolchain-");
     std::fs::write(
         scratch.path().join("MODULE.bazel"),

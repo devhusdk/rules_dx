@@ -1611,9 +1611,17 @@ fn low_disk_reclaim_keeps_a_free_slot_base_whose_server_will_not_stop() {
     host.serve(83, &a.path);
     host.stubborn(83);
     host.script_space(&[LOW]);
-    let _ = ops::reclaim_if_low(&pool, &host, None).expect("reclaim");
+    let reclaimed = ops::reclaim_if_low(&pool, &host, None)
+        .expect("reclaim")
+        .expect("low disk");
     assert_eq!(host.shutdown_paths(), vec![a.path.clone()]);
     assert!(base.exists(), "a base with a running server stays");
+    assert!(reclaimed.skipped, "the skip is reported");
+    assert!(
+        reclaimed.warning.message.contains("server would not stop"),
+        "{}",
+        reclaimed.warning.message
+    );
 }
 
 #[test]

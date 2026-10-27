@@ -26,8 +26,6 @@ const (
 	plainTestKind   = "javascript_js_test"
 	binaryKind      = "javascript_binary"
 	rootNodeModules = "//:node_modules"
-	// rootPackageJSON is set on generated tests only when the repo root has a
-	// package.json. It is not mergeable, so a hand-set nearer manifest survives.
 	rootPackageJSON = "//:package_json"
 )
 
@@ -436,9 +434,7 @@ func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
 func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
 
-// rootPackageJSONExists reports whether the repo root has a package.json. It
-// checks the file, not the //:package_json target, the same way the generated
-// node_modules label assumes the root target exists.
+// rootPackageJSONExists reports whether the repo root has a package.json file.
 func rootPackageJSONExists(repoRoot string) bool {
 	info, err := os.Stat(filepath.Join(repoRoot, "package.json"))
 	return err == nil && !info.IsDir()

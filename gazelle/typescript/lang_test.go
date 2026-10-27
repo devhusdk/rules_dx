@@ -944,7 +944,7 @@ func TestImportsIndexesDeclarations(t *testing.T) {
 
 func TestGenerateTestPackageJSONFollowsRootManifest(t *testing.T) {
 	result := generateFixture(t, map[string]string{
-		"package.json":                "{\"type\": \"module\"}\n",
+		"package.json":            "{\"type\": \"module\"}\n",
 		"pkg/demo/helper.ts":      "export const helper = 1;\n",
 		"pkg/demo/helper_test.ts": "import { helper } from \"./helper\";\n",
 	}, []string{"helper.ts", "helper_test.ts"})

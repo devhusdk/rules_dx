@@ -894,7 +894,7 @@ func TestResolveIndexDottedAndAssets(t *testing.T) {
 
 func TestGenerateTestPackageJSONFollowsRootManifest(t *testing.T) {
 	result := generateFixture(t, map[string]string{
-		"package.json":                "{\"type\": \"module\"}\n",
+		"package.json":            "{\"type\": \"module\"}\n",
 		"pkg/demo/helper.js":      "export const helper = 1;\n",
 		"pkg/demo/helper_test.js": "import { helper } from \"./helper\";\n",
 	}, []string{"helper.js", "helper_test.js"})

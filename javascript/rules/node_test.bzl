@@ -64,13 +64,7 @@ def node_test_forward_rule(what, allow_files, quality_specs):
     )
 
 def node_test_upstream_data(upstream_data, package_json, label_key):
-    """Returns the upstream test data plus the explicit package.json label, when set.
-
-    No manifest is added by default: a repo may have no `//:package_json`, and a
-    nested package needs its own nearest manifest. The label is deduplicated
-    against `upstream_data` by `label_key`, which the caller passes as
-    `native.package_relative_label` so both spellings resolve in one package.
-    """
+    """Returns upstream data plus package_json when set."""
     data = list(upstream_data)
     if package_json == None:
         return data

@@ -93,7 +93,7 @@ directory and below. `dx generate` fails when no literal reference matches it,
 when the language is unknown, or when the value is malformed. A scoped run
 checks only directives in packages inside the scope.
 
-Accepted languages: `astro`, `cc`, `csharp`, `elixir`, `fsharp`, `go`, `java`,
+Accepted languages: `astro`, `cc`, `csharp`, `elixir`, `fsharp`, `go`, `haskell`, `java`,
 `javascript`, `kotlin`, `mdx`, `powershell`, `python`, `ruby`, `rust`, `scala`,
 `svelte`, `typescript`, `vue`, `zig`.
 

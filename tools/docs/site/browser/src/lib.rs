@@ -341,7 +341,8 @@ fn wait_for_control(
     loop {
         if let Ok(Some(status)) = child.try_wait() {
             return Err(Launch::Fatal(format!(
-                "browser: Firefox exited with {status} before opening its control port on {port}\n{}",
+                "browser: Firefox exited with {status} before opening its control port on {port}\n{}{}",
+                missing_libraries(log),
                 log_tail(log)
             )));
         }
@@ -360,6 +361,31 @@ fn wait_for_control(
         }
         thread::sleep(Duration::from_millis(500));
     }
+}
+
+/// Marks the dynamic loader's report of a shared library it could not open.
+const MISSING_LIBRARY_MARK: &str = ": cannot open shared object file";
+
+/// Names each shared library the loader reported missing, one line per library, so the
+/// failure says which system package to install. Returns "" when the log names none.
+fn missing_libraries(log: &Path) -> String {
+    let text = std::fs::read_to_string(log).unwrap_or_default();
+    let mut libraries: Vec<&str> = Vec::new();
+    for line in text.lines() {
+        let Some(end) = line.find(MISSING_LIBRARY_MARK) else {
+            continue;
+        };
+        let name = line[..end].rsplit(": ").next().unwrap_or("").trim();
+        if !name.is_empty() && !name.contains(char::is_whitespace) && !libraries.contains(&name) {
+            libraries.push(name);
+        }
+    }
+    libraries
+        .iter()
+        .map(|name| {
+            format!("browser: missing shared library {name} (install the system package that provides it)\n")
+        })
+        .collect()
 }
 
 fn log_tail(log: &Path) -> String {

@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use super::{control_port, firefox_executable, wait_for_control, Browser, Frame, Launch};
+use super::{
+    control_port, firefox_executable, missing_libraries, wait_for_control, Browser, Frame, Launch,
+};
 
 fn script(dir: &Path, body: &str) -> PathBuf {
     let path = dir.join("firefox");
@@ -110,9 +112,48 @@ fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
         started.elapsed()
     );
     assert!(error.contains("exited"), "{error}");
-    assert_eq!(error.matches("libfake.so.2").count(), 1, "{error}");
+    assert!(
+        error.contains("browser: missing shared library libfake.so.2 "),
+        "{error}"
+    );
+    assert_eq!(error.matches("libfake.so.2").count(), 2, "{error}");
     assert!(profile.join("attempt-0").is_dir());
     assert!(!profile.join("attempt-1").exists(), "{error}");
+}
+
+#[test]
+fn a_browser_missing_system_libraries_names_each_one_once() {
+    let scratch_tmp = dx_test_scratch::scratch("browser-libraries");
+    let scratch = scratch_tmp.path().to_path_buf();
+    let firefox = script(
+        &scratch,
+        "echo 'firefox: error while loading shared libraries: libasound.so.2: cannot open shared object file: No such file or directory' >&2\necho 'libgtk-3.so.0: cannot open shared object file: No such file or directory' >&2\necho 'libasound.so.2: cannot open shared object file: No such file or directory' >&2\nexit 127",
+    );
+    let profile = scratch.join("profile");
+    let Err(error) = Browser::start(&firefox, &profile) else {
+        panic!("a browser that exits must not start");
+    };
+    assert!(
+        error.contains("browser: missing shared library libasound.so.2 "),
+        "{error}"
+    );
+    assert!(
+        error.contains("browser: missing shared library libgtk-3.so.0 "),
+        "{error}"
+    );
+    assert_eq!(
+        error.matches("browser: missing shared library").count(),
+        2,
+        "{error}"
+    );
+}
+
+#[test]
+fn a_log_without_a_loader_error_names_no_library() {
+    let scratch_tmp = dx_test_scratch::scratch("browser-no-loader");
+    let log = scratch_tmp.path().join("browser.log");
+    std::fs::write(&log, "Segmentation fault\nexit\n").expect("a browser log");
+    assert_eq!(missing_libraries(&log), "");
 }
 
 #[test]

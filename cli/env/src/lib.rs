@@ -306,8 +306,14 @@ pub fn acquire_lock(dx_dir: &Path, timeout: Duration) -> Result<File, LockError>
 
 pub fn probe_symlink(dir: &Path) -> io::Result<()> {
     let link = dir.join("symlink.probe");
+    match fs::remove_file(&link) {
+        Ok(()) => {}
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e),
+    }
     symlink_entry(&PathBuf::from("symlink.target"), &link)?;
-    fs::remove_file(&link)
+    let _ = fs::remove_file(&link);
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -348,10 +354,10 @@ pub fn refresh(
     fs::create_dir_all(&dx_dir).map_err(|e| Error::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;
+    let _lock = acquire_lock(&dx_dir, options.lock_timeout)?;
     probe(&dx_dir).map_err(|e| Error::SymlinkUnsupported {
         detail: format!("{}: {e}", symlink_guidance(options.os)),
     })?;
-    let _lock = acquire_lock(&dx_dir, options.lock_timeout)?;
     let bin_dir = dx_dir.join(BIN_DIR_NAME);
     let prev_dir = dx_dir.join(PREV_DIR_NAME);
     let stage_dir = dx_dir.join(STAGE_DIR_NAME);

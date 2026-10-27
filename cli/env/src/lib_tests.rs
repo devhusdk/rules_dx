@@ -834,8 +834,14 @@ fn busy_lock_fails_after_deadline() {
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let mut opts = options(&root, staged_bin, metadata);
     opts.lock_timeout = Duration::from_millis(1);
-    let error = refresh(&opts, &probe_symlink).unwrap_err();
+    let calls = std::cell::Cell::new(0u32);
+    let counting = |dir: &Path| {
+        calls.set(calls.get() + 1);
+        probe_symlink(dir)
+    };
+    let error = refresh(&opts, &counting).unwrap_err();
     assert!(matches!(error, Error::Busy { .. }));
+    assert_eq!(calls.get(), 0);
     drop(_held);
     let _ = fs::remove_dir_all(&root);
 }
@@ -898,6 +904,8 @@ fn probe_failure_reports_before_mutation() {
         Error::SymlinkUnsupported { detail } if detail.contains("no changes were made")
     ));
     assert!(!root.join("ws").join(".dx").join("bin").exists());
+    acquire_lock(&root.join("ws").join(".dx"), Duration::from_millis(1))
+        .expect("lock released after probe failure");
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -1041,5 +1049,36 @@ fn default_probe_accepts_writable_dir() {
     let root = scratch.path().to_path_buf();
     probe_symlink(&root).expect("probe succeeds");
     assert!(!root.join("symlink.probe").exists());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn default_probe_replaces_stale_probe() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-probe-stale-");
+    let root = scratch.path().to_path_buf();
+    let file_dir = root.join("file");
+    let link_dir = root.join("link");
+    fs::create_dir_all(&file_dir).expect("file dir");
+    fs::create_dir_all(&link_dir).expect("link dir");
+    fs::write(file_dir.join("symlink.probe"), "stale").expect("stale file");
+    test_symlink(Path::new("missing"), &link_dir.join("symlink.probe")).expect("dangling link");
+    probe_symlink(&file_dir).expect("probe replaces file");
+    probe_symlink(&link_dir).expect("probe replaces dangling link");
+    assert!(fs::symlink_metadata(file_dir.join("symlink.probe")).is_err());
+    assert!(fs::symlink_metadata(link_dir.join("symlink.probe")).is_err());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn refresh_succeeds_with_stale_probe() {
+    let scratch = dx_test_scratch::scratch("dx-env-test-refresh-stale-probe-");
+    let root = scratch.path().to_path_buf();
+    let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
+    let opts = options(&root, staged_bin, metadata);
+    let dx = root.join("ws").join(".dx");
+    fs::create_dir_all(&dx).expect("dx dir");
+    fs::write(dx.join("symlink.probe"), "stale").expect("stale probe");
+    assert_eq!(refresh_ok(&opts), RefreshOutcome::InstalledFresh);
+    assert!(fs::symlink_metadata(dx.join("symlink.probe")).is_err());
     let _ = fs::remove_dir_all(&root);
 }

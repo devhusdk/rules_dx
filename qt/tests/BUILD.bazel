@@ -163,6 +163,41 @@ rust_clippy_test(
     targets = [":qt_app_consumer_test"],
 )
 
+rust_test(
+    name = "qt_cell_consumer_test",
+    size = "enormous",
+    srcs = ["qt_cell_consumer_test.rs"],
+    data = [
+        "//qt:module_srcs",
+        "//qt/sdk:linux_x86_64_cell",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "CELL_SPEC": "$(rootpath //qt/sdk:linux_x86_64_cell)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Qt SDK.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "qt_cell_consumer_fmt_test",
+    targets = [":qt_cell_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "qt_cell_consumer_clippy_test",
+    targets = [":qt_cell_consumer_test"],
+)
+
 rust_library(
     name = "qt_board_support",
     testonly = True,

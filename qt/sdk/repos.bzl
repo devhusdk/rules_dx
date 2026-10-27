@@ -6,6 +6,7 @@ load(
     "CLOSURES",
     "DEFAULT_MODULES",
     "EXTRACTORS",
+    "LAYOUTS",
     "LICENSE_TEXTS",
     "MODULES",
     "QT_MIRROR",
@@ -33,6 +34,52 @@ _CELL_PREFIX = "dx_qt_"
 _EXTRACT = "_extract"
 
 _HEX = "0123456789abcdef"
+
+_TOKEN = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+
+_NAME = "abcdefghijklmnopqrstuvwxyz0123456789_"
+
+_KINDS = {
+    "list": "a list",
+    "object": "an object",
+    "runtime": "an object or null",
+    "string": "a string",
+    "strings": "a list of strings",
+}
+
+_SPEC_FIELDS = {"archives": "object", "directory": "string", "release": "string", "runtime": "runtime"}
+
+_ARCHIVE_FIELDS = {"archive": "string", "sha256": "string"}
+
+_RUNTIME_FIELDS = {"arch": "string", "font": "object", "license_texts": "object", "packages": "list", "release": "string"}
+
+_RUNTIME_OPTIONAL = {"glibc": "string", "libstdcxx": "string"}
+
+_FONT_FIELDS = {
+    "file": "string",
+    "fonts": "strings",
+    "license": "string",
+    "license_dir": "string",
+    "name": "string",
+    "repository": "string",
+    "sha256": "string",
+}
+
+_PACKAGE_FIELDS = {
+    "closure": "string",
+    "file": "string",
+    "libraries": "strings",
+    "license": "string",
+    "license_dir": "string",
+    "license_from": "string",
+    "name": "string",
+    "repository": "string",
+    "sha256": "string",
+}
+
+_PACKAGE_OPTIONAL = {"display_libraries": "strings"}
+
+_TEXT_FIELDS = {"sha256": "string", "url": "string"}
 
 _HOST_OSES = {"linux": "linux", "mac os x": "macos"}
 
@@ -78,9 +125,9 @@ def cell_repository_name(cell):
     """Returns the repository name one qualified cell is acquired into."""
     return _CELL_PREFIX + cell
 
-def qualified_cells():
+def qualified_cells(cells = CELLS):
     """Returns the cells with pinned archives and probe evidence."""
-    return [cell for cell in sorted(CELLS.keys()) if CELLS[cell].blocker == ""]
+    return [cell for cell in sorted(cells.keys()) if cells[cell].blocker == ""]
 
 def hub_targets():
     """Returns every target name the hub repository exposes."""
@@ -97,8 +144,37 @@ def _is_sha256(value):
             return False
     return True
 
+def _is_token(value, extra = ""):
+    if value == "":
+        return False
+    for index in range(len(value)):
+        if value[index] not in _TOKEN + extra:
+            return False
+    return True
+
+def _is_file_name(value):
+    if value in ["", ".", ".."]:
+        return False
+    for bad in ["/", "\\", "?", "#"]:
+        if bad in value:
+            return False
+    return True
+
+def _is_relative(value, banned = ""):
+    if value == "" or value.startswith("/") or "\\" in value:
+        return False
+    for bad in banned.elems():
+        if bad in value:
+            return False
+    for segment in value.split("/"):
+        if segment in ["", ".", ".."]:
+            return False
+    return True
+
 def _archive_errors(cell, key, archive, release):
     errors = []
+    if not _is_file_name(archive.archive):
+        errors.append("cell '" + cell + "' archive '" + key + "' file '" + archive.archive + "' is not a plain file name")
     if not archive.archive.startswith(release):
         errors.append("cell '" + cell + "' archive '" + key + "' is not from release " + release)
     if not archive.archive.endswith(".7z"):
@@ -124,6 +200,8 @@ def cell_errors(cell, entry):
         return errors
     if entry.directory == "":
         errors.append("cell '" + cell + "' names no repository directory")
+    elif not _is_relative(entry.directory, "?#:"):
+        errors.append("cell '" + cell + "' directory '" + entry.directory + "' is not a relative url path")
     if not entry.release.startswith(QT_VERSION + "-"):
         errors.append("cell '" + cell + "' release '" + entry.release + "' is not a " + QT_VERSION + " release")
     if entry.layout == None:
@@ -145,6 +223,10 @@ def _archive_keys(entry):
 
 def _rpm_errors(package, arch):
     errors = []
+    if not _is_token(package.name, "+"):
+        errors.append("runtime package '" + package.name + "' name is not a plain package name")
+    if not _is_file_name(package.file):
+        errors.append("runtime package '" + package.name + "' file '" + package.file + "' is not a plain file name")
     if not package.file.startswith(package.name + "-") or not package.file.endswith("." + arch + ".rpm"):
         errors.append("runtime package '" + package.name + "' file '" + package.file + "' is not its " + arch + " rpm")
     if not _is_sha256(package.sha256):
@@ -171,30 +253,49 @@ def _package_errors(runtime, package, names):
         errors.append("runtime package '" + package.name + "' takes its license from an unknown package")
     return errors
 
-def pin_errors():
+def runtime_errors(cell, runtime):
+    """Returns one error string per pin of one runtime closure that is not ready to acquire."""
+    errors = []
+    for field, value in [("release", runtime.release), ("arch", runtime.arch)]:
+        if not _is_token(value):
+            errors.append("cell '" + cell + "' runtime " + field + " '" + value + "' is not made of letters, digits, '.', '_' and '-'")
+    names = [package.name for package in runtime.packages]
+    if names != sorted(names):
+        errors.append("cell '" + cell + "' runtime packages are not sorted by name")
+    for package in runtime.packages:
+        errors.extend(_package_errors(runtime, package, names))
+    errors.extend(_rpm_errors(runtime.font, "noarch"))
+    if len(runtime.font.fonts) == 0 or runtime.font.license_dir == "":
+        errors.append("font package '" + runtime.font.name + "' carries no fonts or license directory")
+    for package in runtime.packages + [runtime.font]:
+        paths = getattr(package, "libraries", []) + getattr(package, "display_libraries", []) + getattr(package, "fonts", [])
+        if package.license_dir != "":
+            paths = paths + [package.license_dir]
+        for path in paths:
+            if not _is_relative(path):
+                errors.append("runtime package '" + package.name + "' path '" + path + "' is not a relative path")
+    for key in sorted(runtime.license_texts.keys()):
+        if not _is_relative(key):
+            errors.append("cell '" + cell + "' license text '" + key + "' is not a relative path")
+    return errors
+
+def pin_errors(cells = CELLS):
     """Returns one error string per pin that is not ready to acquire."""
     errors = []
-    if len(qualified_cells()) == 0:
+    if len(qualified_cells(cells)) == 0:
         errors.append("no cell is qualified")
-    for cell in sorted(CELLS.keys()):
-        errors.extend(cell_errors(cell, CELLS[cell]))
+    for cell in sorted(cells.keys()):
+        errors.extend(cell_errors(cell, cells[cell]))
     for name in sorted(MODULES.keys()):
         for required in MODULES[name].requires:
             if required not in MODULES:
                 errors.append("module '" + name + "' requires unknown module '" + required + "'")
     texts = dict(LICENSE_TEXTS)
-    for cell in qualified_cells():
-        runtime = CELLS[cell].runtime
+    for cell in qualified_cells(cells):
+        runtime = cells[cell].runtime
         if runtime == None:
             continue
-        names = [package.name for package in runtime.packages]
-        if names != sorted(names):
-            errors.append("cell '" + cell + "' runtime packages are not sorted by name")
-        for package in runtime.packages:
-            errors.extend(_package_errors(runtime, package, names))
-        errors.extend(_rpm_errors(runtime.font, "noarch"))
-        if len(runtime.font.fonts) == 0 or runtime.font.license_dir == "":
-            errors.append("font package '" + runtime.font.name + "' carries no fonts or license directory")
+        errors.extend(runtime_errors(cell, runtime))
         for key in runtime.license_texts:
             texts[cell + ": " + key] = runtime.license_texts[key]
     for key in sorted(texts.keys()):
@@ -247,29 +348,169 @@ def request_errors(request):
             errors.append("qt_sdk: " + field + " '" + value + "' must use https")
     return errors
 
-def url_for(cell, key, mirror = ""):
+def cell_spec(entry):
+    """Returns the JSON spec of one cell entry, without its layout, constraints and blocker."""
+    return {
+        "archives": entry.archives,
+        "directory": entry.directory,
+        "release": entry.release,
+        "runtime": entry.runtime,
+    }
+
+def _kind_ok(value, kind):
+    if kind == "strings":
+        return type(value) == "list" and all([type(item) == "string" for item in value])
+    if kind == "object":
+        return type(value) == "dict"
+    if kind == "runtime":
+        return value == None or type(value) == "dict"
+    return type(value) == kind
+
+def _decode(where, value, required, optional, errors):
+    if type(value) != "dict":
+        errors.append(where + " is not an object")
+        return None
+    before = len(errors)
+    fields = {}
+    for key in sorted(value.keys()):
+        kind = required.get(key, optional.get(key))
+        if kind == None:
+            errors.append(where + " has unknown key '" + key + "'")
+        elif not _kind_ok(value[key], kind):
+            errors.append(where + " '" + key + "' is not " + _KINDS[kind])
+        else:
+            fields[key] = value[key]
+    for key in sorted(required.keys()):
+        if key not in value:
+            errors.append(where + " is missing '" + key + "'")
+    return fields if len(errors) == before else None
+
+def _runtime_from_json(where, value, errors):
+    fields = _decode(where, value, _RUNTIME_FIELDS, _RUNTIME_OPTIONAL, errors)
+    if fields == None:
+        return None
+    before = len(errors)
+    font = _decode(where + ".font", fields["font"], _FONT_FIELDS, {}, errors)
+    packages = []
+    for index, package in enumerate(fields["packages"]):
+        decoded = _decode(where + ".packages[" + str(index) + "]", package, _PACKAGE_FIELDS, _PACKAGE_OPTIONAL, errors)
+        if decoded != None:
+            packages.append(struct(**decoded))
+    texts = {}
+    for key in sorted(fields["license_texts"].keys()):
+        text = _decode(where + ".license_texts." + key, fields["license_texts"][key], _TEXT_FIELDS, {}, errors)
+        if text != None:
+            texts[key] = struct(**text)
+    if len(errors) > before:
+        return None
+    fields["font"] = struct(**font)
+    fields["license_texts"] = texts
+    fields["packages"] = packages
+    return struct(**fields)
+
+def cell_from_json(name, data, constraints, layout):
+    """Returns one cell entry decoded from its JSON spec, and one error string per rejected field."""
+    errors = []
+    where = "cell '" + name + "' spec"
+    spec = _decode(where, data, _SPEC_FIELDS, {}, errors)
+    if spec == None:
+        return None, errors
+    archives = {}
+    for key in sorted(spec["archives"].keys()):
+        archive = _decode(where + " archives." + key, spec["archives"][key], _ARCHIVE_FIELDS, {}, errors)
+        if archive != None:
+            archives[key] = struct(**archive)
+    runtime = None
+    if spec["runtime"] != None:
+        runtime = _runtime_from_json(where + " runtime", spec["runtime"], errors)
+    if len(errors) > 0:
+        return None, errors
+    return struct(
+        archives = archives,
+        blocker = "",
+        constraints = list(constraints),
+        directory = spec["directory"],
+        layout = layout,
+        release = spec["release"],
+        runtime = runtime,
+    ), []
+
+def effective_cells(consumer):
+    """Returns the pinned cells overlaid by the consumer cells of the same name."""
+    cells = dict(CELLS)
+    cells.update(consumer)
+    return cells
+
+def canonical_constraints(constraints):
+    """Returns the canonical, sorted labels of one constraint list."""
+    return sorted([str(Label(constraint)) for constraint in constraints])
+
+def _is_cell_name(value):
+    if value == "":
+        return False
+    for index in range(len(value)):
+        if value[index] not in _NAME:
+            return False
+    return True
+
+def consumer_cells(tags):
+    """Returns the consumer cells decoded from qt_sdk.cell tags, and one error string per rejected tag."""
+    cells = {}
+    errors = []
+    seen = {}
+    reserved = hub_targets() + ["cxx_qt"]
+    for tag in tags:
+        where = "cell '" + tag.name + "'"
+        before = len(errors)
+        if not _is_cell_name(tag.name):
+            errors.append(where + " name is not made of lowercase letters, digits and '_'")
+        elif tag.name in reserved:
+            errors.append(where + " name is taken by a @" + HUB_NAME + " target")
+        if tag.name in seen:
+            errors.append(where + " is declared twice")
+        seen[tag.name] = True
+        if tag.layout not in LAYOUTS:
+            errors.append(where + " layout '" + tag.layout + "' is not one of " + ", ".join(sorted(LAYOUTS.keys())))
+        data = json.decode(tag.spec, None)
+        if type(data) != "dict":
+            errors.append(where + " spec is not a JSON object")
+        if len(errors) > before:
+            continue
+        entry, failures = cell_from_json(tag.name, data, tag.constraints, LAYOUTS[tag.layout])
+        errors.extend(failures)
+        if entry != None:
+            cells[tag.name] = entry
+    table = effective_cells(cells)
+    for name in sorted(cells.keys()):
+        mine = canonical_constraints(cells[name].constraints)
+        for other in qualified_cells(table):
+            if other != name and canonical_constraints(table[other].constraints) == mine:
+                errors.append("cell '" + name + "' constraints match cell '" + other + "'; add a constraint that sets it apart")
+    return cells, errors
+
+def url_for(cell, key, mirror = "", cells = CELLS):
     """Returns the download URL of one pinned Qt archive."""
     base = mirror if mirror != "" else QT_MIRROR
-    entry = CELLS[cell]
+    entry = cells[cell]
     return base + "/" + entry.directory + "/" + entry.archives[key].archive
 
-def runtime_url_for(cell, package, mirror = ""):
+def runtime_url_for(cell, package, mirror = "", cells = CELLS):
     """Returns the download URL of one pinned runtime package of one cell."""
     base = mirror if mirror != "" else RUNTIME_MIRROR
-    runtime = CELLS[cell].runtime
+    runtime = cells[cell].runtime
     return base + "/" + runtime.release + "/" + package.repository + "/" + runtime.arch + "/os/Packages/" + package.file.replace("+", "%2B")
 
 def canonical_id_for(url):
     """Returns the stable cache identity for one download URL."""
     return "dx-qt-archive:" + url
 
-def no_match_error():
+def no_match_error(cells = CELLS):
     """Returns the diagnostic for a platform with no qualified Qt cell."""
-    blocked = [cell + " (" + CELLS[cell].blocker + ")" for cell in sorted(CELLS.keys()) if CELLS[cell].blocker != ""]
+    blocked = [cell + " (" + cells[cell].blocker + ")" for cell in sorted(cells.keys()) if cells[cell].blocker != ""]
     return ("rules_dx: no qualified Qt " + QT_VERSION + " cell for this platform; qualified: " +
-            ", ".join(qualified_cells()) + "; not qualified: " + "; ".join(blocked))
+            ", ".join(qualified_cells(cells)) + "; not qualified: " + "; ".join(blocked))
 
-def hub_build(cells, rules):
+def hub_build(cells, rules, constraints = None, no_match = None):
     """Returns the hub BUILD file routing every Qt target to its platform cell."""
     lines = [
         'load("%s", "qt_rust_runtime")' % rules,
@@ -281,11 +522,15 @@ def hub_build(cells, rules):
         ")",
         "",
     ]
+    if constraints == None:
+        constraints = {cell: CELLS[cell].constraints for cell in cells}
+    if no_match == None:
+        no_match = no_match_error()
     for cell in sorted(cells.keys()):
         lines.append("config_setting(")
         lines.append('    name = "%s",' % cell)
         lines.append("    constraint_values = [")
-        for constraint in CELLS[cell].constraints:
+        for constraint in constraints[cell]:
             lines.append('        "%s",' % constraint)
         lines.append("    ],")
         lines.append(")")
@@ -296,16 +541,16 @@ def hub_build(cells, rules):
         lines.append("    actual = select({")
         for cell in sorted(cells.keys()):
             lines.append('        ":%s": "@%s//:%s",' % (cell, cells[cell], target))
-        lines.append("    }, no_match_error = \"%s\")," % no_match_error())
+        lines.append("    }, no_match_error = \"%s\")," % no_match)
         lines.append('    visibility = ["//visibility:public"],')
         lines.append(")")
         lines.append("")
     return "\n".join(lines)
 
-def closure_libraries(cell, closure):
+def closure_libraries(cell, closure, cells = CELLS):
     """Returns the sonames of one runtime closure a Qt library of one cell links against."""
-    names = list(CELLS[cell].layout.icu_libraries) if closure == "core" else []
-    for package in CELLS[cell].runtime.packages:
+    names = list(cells[cell].layout.icu_libraries) if closure == "core" else []
+    for package in cells[cell].runtime.packages:
         if package.closure == closure:
             for library in package.libraries:
                 names.append(library.split("/")[-1])
@@ -350,13 +595,13 @@ def _tool(name):
         "",
     ]
 
-def _closure(cell, name, closure):
+def _closure(cell, name, closure, cells):
     lines = [
         "cc_library(",
         '    name = "%s",' % name,
         "    srcs = [",
     ]
-    for library in closure_libraries(cell, closure):
+    for library in closure_libraries(cell, closure, cells):
         if not library.startswith("libstdc++"):
             lines.append('        "lib/%s",' % library)
     lines.extend([
@@ -378,9 +623,9 @@ def _filegroup(name, srcs):
         "",
     ]
 
-def cell_build(cell, modules, rules_cc, unsupported):
+def cell_build(cell, modules, rules_cc, unsupported, cells = CELLS):
     """Returns the BUILD file of one acquired cell for the enabled modules."""
-    entry = CELLS[cell]
+    entry = cells[cell]
     layout = entry.layout
     lines = [
         'load("%s", "cc_binary", "cc_library")' % rules_cc,
@@ -393,8 +638,8 @@ def cell_build(cell, modules, rules_cc, unsupported):
     lines.extend(_filegroup("licenses", 'glob(["licenses/**"])'))
     lines.extend(_filegroup("sbom", 'glob(["sbom/*.spdx.json"])'))
     if entry.runtime != None:
-        lines.extend(_closure(cell, "closure", "core"))
-        lines.extend(_closure(cell, "gui_closure", "gui"))
+        lines.extend(_closure(cell, "closure", "core", cells))
+        lines.extend(_closure(cell, "gui_closure", "gui", cells))
         lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in entry.runtime.font.fonts])))
     else:
         lines.extend(_filegroup("fonts", "[]"))
@@ -462,23 +707,23 @@ def _move_real(ctx, source, destination):
         fail("qt_sdk: '" + destination + "' is provided twice")
     ctx.rename(path.realpath, destination)
 
-def _acquire_rpm(ctx, extractor, package):
+def _acquire_rpm(ctx, extractor, package, cells):
     root = _EXTRACT + "/rpm/" + package.name
     rpm = root + "/" + package.file
-    url = runtime_url_for(ctx.attr.cell, package, ctx.attr.runtime_mirror)
+    url = runtime_url_for(ctx.attr.cell, package, ctx.attr.runtime_mirror, cells)
     ctx.download(url = url, output = rpm, sha256 = package.sha256, canonical_id = canonical_id_for(url))
     _extract(ctx, extractor, rpm, root)
     _extract(ctx, extractor, root + "/" + package.file.removesuffix(".rpm") + ".cpio", root + "/root", links = True)
     return root + "/root"
 
-def _acquire_runtime(ctx, extractor):
-    runtime = CELLS[ctx.attr.cell].runtime
+def _acquire_runtime(ctx, extractor, cells):
+    runtime = cells[ctx.attr.cell].runtime
     roots = {}
     for package in runtime.packages:
-        roots[package.name] = _acquire_rpm(ctx, extractor, package)
+        roots[package.name] = _acquire_rpm(ctx, extractor, package, cells)
         for library in package.libraries + getattr(package, "display_libraries", []):
             _move_real(ctx, roots[package.name] + "/" + library, "lib/" + library.split("/")[-1])
-    fonts = _acquire_rpm(ctx, extractor, runtime.font)
+    fonts = _acquire_rpm(ctx, extractor, runtime.font, cells)
     for font in runtime.font.fonts:
         _move_real(ctx, fonts + "/" + font, "fonts/" + font.split("/")[-1])
     ctx.file("fonts/fonts.conf", _FONTS_CONF)
@@ -502,15 +747,25 @@ def _check_module(ctx, name):
     if version != QT_VERSION:
         fail("qt_sdk: modules/" + name + ".json is version '" + version + "', want " + QT_VERSION)
 
+def _cell_table(ctx):
+    if ctx.attr.entry == "":
+        return CELLS
+    data = json.decode(ctx.attr.entry)
+    entry, errors = cell_from_json(ctx.attr.cell, data["spec"], data["constraints"], LAYOUTS[data["layout"]])
+    if len(errors) > 0:
+        fail("qt_sdk: " + "; ".join(errors))
+    return effective_cells({ctx.attr.cell: entry})
+
 def _qt_cell_repo_impl(ctx):
-    errors = pin_errors()
+    cells = _cell_table(ctx)
+    errors = pin_errors(cells)
     if len(errors) > 0:
         fail("qt_sdk: " + "; ".join(errors))
     host = host_key(ctx.os.name, ctx.os.arch)
     if host not in EXTRACTORS:
         fail("qt_sdk: the pinned extractor runs on " + ", ".join(sorted(EXTRACTORS.keys())) + " hosts only, not " + ctx.os.name + " " + ctx.os.arch)
     extractor = EXTRACTORS[host]
-    entry = CELLS[ctx.attr.cell]
+    entry = cells[ctx.attr.cell]
     layout = entry.layout
     ctx.download_and_extract(
         url = extractor.url,
@@ -519,7 +774,7 @@ def _qt_cell_repo_impl(ctx):
         canonical_id = canonical_id_for(extractor.url),
     )
     for key in _archive_keys(entry) + ctx.attr.modules:
-        url = url_for(ctx.attr.cell, key, ctx.attr.mirror)
+        url = url_for(ctx.attr.cell, key, ctx.attr.mirror, cells)
         archive = _EXTRACT + "/" + entry.archives[key].archive
         ctx.download(url = url, output = archive, sha256 = entry.archives[key].sha256, canonical_id = canonical_id_for(url))
         kept = MODULES[key].files if key in MODULES else []
@@ -533,7 +788,7 @@ def _qt_cell_repo_impl(ctx):
             continue
         ctx.download(url = LICENSE_TEXTS[key].url, output = "licenses/" + key, sha256 = LICENSE_TEXTS[key].sha256)
     if entry.runtime != None:
-        _acquire_runtime(ctx, extractor)
+        _acquire_runtime(ctx, extractor, cells)
     _check_module(ctx, "Core")
     for module in ctx.attr.modules:
         if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:
@@ -551,11 +806,17 @@ def _qt_cell_repo_impl(ctx):
         ctx.attr.modules,
         str(Label("@rules_cc//cc:defs.bzl")),
         str(Label("//qt/sdk:unsupported.bzl")),
+        cells,
     ))
     return ctx.repo_metadata(reproducible = True)
 
 def _qt_hub_repo_impl(ctx):
-    ctx.file("BUILD.bazel", hub_build(json.decode(ctx.attr.cells), str(Label("//qt/rules:defs.bzl"))))
+    ctx.file("BUILD.bazel", hub_build(
+        json.decode(ctx.attr.cells),
+        str(Label("//qt/rules:defs.bzl")),
+        ctx.attr.constraints,
+        ctx.attr.no_match,
+    ))
     return ctx.repo_metadata(reproducible = True)
 
 _qt_cell_repo = repository_rule(
@@ -564,6 +825,10 @@ _qt_cell_repo = repository_rule(
         "cell": attr.string(
             doc = "Qt platform cell whose pinned archives are acquired.",
             mandatory = True,
+        ),
+        "entry": attr.string(
+            doc = "JSON of a consumer cell spec, constraints and layout; empty for a pinned cell.",
+            default = "",
         ),
         "mirror": attr.string(
             doc = "Optional https mirror of the Qt online repository.",
@@ -588,15 +853,32 @@ _qt_hub_repo = repository_rule(
             doc = "JSON map from cell names to their acquired repository names.",
             mandatory = True,
         ),
+        "constraints": attr.string_list_dict(
+            doc = "Platform constraints of each cell.",
+            mandatory = True,
+        ),
+        "no_match": attr.string(
+            doc = "Diagnostic for a platform no cell matches.",
+            mandatory = True,
+        ),
     },
 )
 
 def _qt_sdk_impl(module_ctx):
-    errors = pin_errors()
-    if len(errors) > 0:
-        fail("qt_sdk: " + "; ".join(errors))
     requests = []
+    tags = []
     for module in module_ctx.modules:
+        for tag in module.tags.cell:
+            if not module.is_root:
+                fail("qt_sdk: cell '" + tag.name + "' comes from module '" + module.name + "'; only the root module may declare cells")
+            if not tag.spec.name.endswith(".json"):
+                fail("qt_sdk: cell '" + tag.name + "' spec '" + str(tag.spec) + "' is not a .json file")
+            tags.append(struct(
+                constraints = [str(label) for label in tag.constraints],
+                layout = tag.layout,
+                name = tag.name,
+                spec = module_ctx.read(module_ctx.path(tag.spec)),
+            ))
         for tag in module.tags.configure:
             requests.append(struct(
                 mirror = tag.mirror,
@@ -610,17 +892,36 @@ def _qt_sdk_impl(module_ctx):
     failures = request_errors(request)
     if len(failures) > 0:
         fail("; ".join(failures))
+    consumer, errors = consumer_cells(tags)
+    table = effective_cells(consumer)
+    errors = errors + pin_errors(table)
+    if len(errors) > 0:
+        fail("qt_sdk: " + "; ".join(errors))
+    layouts = {tag.name: tag.layout for tag in tags}
     cells = {}
-    for cell in qualified_cells():
+    for cell in qualified_cells(table):
         cells[cell] = cell_repository_name(cell)
+        entry = ""
+        if cell in consumer:
+            entry = json.encode({
+                "constraints": consumer[cell].constraints,
+                "layout": layouts[cell],
+                "spec": cell_spec(consumer[cell]),
+            })
         _qt_cell_repo(
             name = cells[cell],
             cell = cell,
+            entry = entry,
             mirror = request.mirror,
             modules = resolve_modules(request.modules),
             runtime_mirror = request.runtime_mirror,
         )
-    _qt_hub_repo(name = HUB_NAME, cells = json.encode(cells))
+    _qt_hub_repo(
+        name = HUB_NAME,
+        cells = json.encode(cells),
+        constraints = {cell: table[cell].constraints for cell in cells},
+        no_match = no_match_error(table),
+    )
 
 qt_sdk = module_extension(
     implementation = _qt_sdk_impl,
@@ -633,6 +934,15 @@ qt_sdk = module_extension(
                 "modules": attr.string_list(default = DEFAULT_MODULES, doc = "Qt modules to acquire."),
                 "runtime_mirror": attr.string(default = "", doc = "Https mirror of vault.almalinux.org."),
                 "version": attr.string(default = QT_VERSION, doc = "Qt version; only the pinned one is accepted."),
+            },
+        ),
+        "cell": tag_class(
+            doc = "Declares a Qt cell from a JSON spec; a pinned cell of the same name is replaced.",
+            attrs = {
+                "constraints": attr.label_list(doc = "Platform constraints the cell serves."),
+                "layout": attr.string(default = "linux", doc = "File layout of the cell's Qt archives."),
+                "name": attr.string(mandatory = True, doc = "Cell name; the cell is acquired into @dx_qt_<name>."),
+                "spec": attr.label(mandatory = True, doc = "JSON file with the cell's archives, directory, release and runtime closure."),
             },
         ),
     },

@@ -438,7 +438,7 @@
   "moduleExtensions": {
     "//android/sdk:repos.bzl%android_sdk": {
       "general": {
-        "bzlTransitiveDigest": "bldZTTCJa9e1aPitvERli+bVA+WtVq3FiQ4cWqZ2Ktw=",
+        "bzlTransitiveDigest": "O4EbAWpimA2C4tGXsfOYRpOS4MCr+Nitzp0dE5xIN9M=",
         "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -504,7 +504,7 @@
     },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "soaaKp6vBvTkiYsrbHEI4UvAfn/+fGEqaqQZRaehz3g=",
+        "bzlTransitiveDigest": "RQkOys2I1MG1vpJggdEsokxU+OnWLZq7InaaavGY4J8=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -512,6 +512,7 @@
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
             "attributes": {
               "cell": "linux_arm64",
+              "entry": "",
               "mirror": "",
               "modules": [
                 "qtbase",
@@ -525,6 +526,7 @@
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_cell_repo",
             "attributes": {
               "cell": "linux_x86_64",
+              "entry": "",
               "mirror": "",
               "modules": [
                 "qtbase",
@@ -537,7 +539,18 @@
           "dx_qt": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%_qt_hub_repo",
             "attributes": {
-              "cells": "{\"linux_arm64\":\"dx_qt_linux_arm64\",\"linux_x86_64\":\"dx_qt_linux_x86_64\"}"
+              "cells": "{\"linux_arm64\":\"dx_qt_linux_arm64\",\"linux_x86_64\":\"dx_qt_linux_x86_64\"}",
+              "constraints": {
+                "linux_arm64": [
+                  "@platforms//os:linux",
+                  "@platforms//cpu:arm64"
+                ],
+                "linux_x86_64": [
+                  "@platforms//os:linux",
+                  "@platforms//cpu:x86_64"
+                ]
+              },
+              "no_match": "rules_dx: no qualified Qt 6.11.3 cell for this platform; qualified: linux_arm64, linux_x86_64; not qualified: macos_arm64 (no runtime closure or probe evidence is pinned for macos_arm64); windows_x86_64 (no runtime closure or probe evidence is pinned for windows_x86_64)"
             }
           }
         }
@@ -1544,7 +1557,7 @@
     },
     "//tools/docs/site/browser:repos.bzl%firefox": {
       "general": {
-        "bzlTransitiveDigest": "7NZ8Lcc/65Z+mAOZx2YJj2TPKNJZnGD5jXOhGz4IwuE=",
+        "bzlTransitiveDigest": "oD0RRpbCewCYEFkuLK+wAzHst3S+Sg29zIxTCnsHyZM=",
         "usagesDigest": "atFrdA2bTlHnAvczl4sTe6Iy4wdyB0s2ZIZRUHGfaMc=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -1577,7 +1590,7 @@
     },
     "//tools/docs/site/mdbook:repos.bzl%mdbook": {
       "general": {
-        "bzlTransitiveDigest": "KQd38cua/KdDwctwoqtXQv0dJVobVggkWRvBvxZjepc=",
+        "bzlTransitiveDigest": "fkNF169InPq2BmPkDlvZGnqjDzYNhXnrZbG+mYnx0Vc=",
         "usagesDigest": "kCzlv/3igKpLbW/WzsBifuQV5jDsBbalAqm7I4HDquQ=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -1634,7 +1647,7 @@
     },
     "//wasi/runtime:repos.bzl%wasmtime": {
       "general": {
-        "bzlTransitiveDigest": "VUACAPnuIgAJ6TJz49KbvHfW0Z/xoHth5IbeQy5VtZI=",
+        "bzlTransitiveDigest": "xuNIsE8A3KaLTZzaQ39lDiMARYikBQywj6EOSpElmnI=",
         "usagesDigest": "u2by8yZ22Xs8W9YzwrgvD4aMnJU0Upk/yjwI0Mhd7G0=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

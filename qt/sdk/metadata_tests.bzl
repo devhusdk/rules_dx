@@ -8,6 +8,7 @@ load(
     "DEFAULT_MODULES",
     "EXTRACTORS",
     "ICU_VERSION",
+    "LAYOUTS",
     "MODULES",
     "QT_LIBRARY_LICENSE",
     "QT_TOOL_LICENSE",
@@ -21,9 +22,13 @@ load(
     "canonical_id_for",
     "cell_build",
     "cell_errors",
+    "cell_from_json",
     "cell_repository_name",
+    "cell_spec",
     "closure_libraries",
+    "consumer_cells",
     "default_request",
+    "effective_cells",
     "host_key",
     "hub_build",
     "hub_targets",
@@ -455,5 +460,128 @@ def qt_metadata_tests(name):
     starlark_test(
         name = name,
         mode = "load",
-        checks = _pin_checks() + _seam_checks() + _url_checks() + _request_checks() + _build_checks(),
+        checks = _pin_checks() + _seam_checks() + _url_checks() + _request_checks() + _build_checks() + _hardening_checks() + _consumer_checks(),
     )
+
+_CUSTOM = [str(Label(constraint)) for constraint in ["@platforms//os:linux", "@platforms//cpu:x86_64", "//qt/sdk:custom"]]
+
+def _spec(cell = "linux_x86_64"):
+    return json.decode(json.encode(cell_spec(CELLS[cell])))
+
+def _tag(spec, name = "custom", constraints = _CUSTOM, layout = "linux"):
+    return struct(
+        constraints = constraints,
+        layout = layout,
+        name = name,
+        spec = spec if type(spec) == "string" else json.encode(spec),
+    )
+
+def _errors(spec, name = "custom", constraints = _CUSTOM):
+    cells, errors = consumer_cells([_tag(spec, name, constraints)])
+    return errors + pin_errors(effective_cells(cells))
+
+def _hardening_checks():
+    archive = _spec()
+    archive["archives"]["qtbase"]["archive"] = archive["release"] + "../qtbase.7z"
+    rpm = _spec()
+    rpm["runtime"]["packages"][0]["file"] = "../" + rpm["runtime"]["packages"][0]["file"]
+    name = _spec()
+    name["runtime"]["packages"][0]["name"] = "../glib2"
+    directory = _spec()
+    directory["directory"] = "linux_x64/../../etc"
+    rooted = _spec()
+    rooted["directory"] = "/linux_x64"
+    query = _spec()
+    query["directory"] = "linux_x64?x=1"
+    host = _spec()
+    host["directory"] = "https://evil.example.com/qt"
+    release = _spec()
+    release["runtime"]["release"] = "9.6/../10"
+    arch = _spec()
+    arch["runtime"]["arch"] = "x86_64/x"
+    library = _spec()
+    library["runtime"]["packages"][0]["libraries"] = ["../../etc/passwd"]
+    font = _spec()
+    font["runtime"]["font"]["fonts"] = ["/etc/passwd"]
+    license_dir = _spec()
+    license_dir["runtime"]["packages"][0]["license_dir"] = "usr/share/licenses/.."
+    text = _spec()
+    text["runtime"]["license_texts"]["../escape"] = text["runtime"]["license_texts"]["pcre2/LICENCE"]
+    first = _spec()["runtime"]["packages"][0]["name"]
+    return [
+        expect_contains("archive file is a plain name", _errors(archive), "cell 'custom' archive 'qtbase' file '" + archive["archives"]["qtbase"]["archive"] + "' is not a plain file name"),
+        expect_contains("rpm file is a plain name", _errors(rpm), "runtime package '" + first + "' file '" + rpm["runtime"]["packages"][0]["file"] + "' is not a plain file name"),
+        expect_contains("package name is plain", _errors(name), "runtime package '../glib2' name is not a plain package name"),
+        expect_contains("directory has no parent segment", _errors(directory), "cell 'custom' directory 'linux_x64/../../etc' is not a relative url path"),
+        expect_contains("directory is relative", _errors(rooted), "cell 'custom' directory '/linux_x64' is not a relative url path"),
+        expect_contains("directory has no query", _errors(query), "cell 'custom' directory 'linux_x64?x=1' is not a relative url path"),
+        expect_contains("directory names no host", _errors(host), "cell 'custom' directory 'https://evil.example.com/qt' is not a relative url path"),
+        expect_contains("runtime release is a token", _errors(release), "cell 'custom' runtime release '9.6/../10' is not made of letters, digits, '.', '_' and '-'"),
+        expect_contains("runtime arch is a token", _errors(arch), "cell 'custom' runtime arch 'x86_64/x' is not made of letters, digits, '.', '_' and '-'"),
+        expect_contains("libraries are relative", _errors(library), "runtime package '" + first + "' path '../../etc/passwd' is not a relative path"),
+        expect_contains("fonts are relative", _errors(font), "runtime package 'dejavu-sans-fonts' path '/etc/passwd' is not a relative path"),
+        expect_contains("license directories are relative", _errors(license_dir), "runtime package '" + first + "' path 'usr/share/licenses/..' is not a relative path"),
+        expect_contains("license texts are relative", _errors(text), "cell 'custom' license text '../escape' is not a relative path"),
+    ]
+
+def _consumer_checks():
+    round_trip = []
+    for cell in qualified_cells():
+        entry, errors = cell_from_json(cell, _spec(cell), CELLS[cell].constraints, LAYOUTS["linux"])
+        round_trip.append(expect_equal(cell + " spec decodes cleanly", errors, []))
+        round_trip.append(expect_true(cell + " spec round trips", entry == CELLS[cell]))
+    sha = _spec()
+    sha["archives"]["qtbase"]["sha256"] = "abc"
+    seven = _spec()
+    seven["archives"]["qtbase"]["archive"] = seven["archives"]["qtbase"]["archive"].removesuffix(".7z") + ".zip"
+    release = _spec()
+    release["release"] = "6.8.3-0-1"
+    missing = _spec()
+    missing["archives"].pop("qttools")
+    unsorted = _spec()
+    unsorted["runtime"]["packages"] = list(reversed(unsorted["runtime"]["packages"]))
+    http = _spec()
+    http["runtime"]["license_texts"]["pcre2/LICENCE"]["url"] = "http://example.com/LICENCE"
+    repository = _spec()
+    repository["runtime"]["packages"][0]["repository"] = "Extras"
+    first = repository["runtime"]["packages"][0]["name"]
+    unknown = _spec()
+    unknown["extra"] = 1
+    typed = _spec()
+    typed["directory"] = 3
+    fontless = _spec()
+    fontless["runtime"].pop("font")
+    url = _spec()
+    url["runtime"]["packages"][0]["url"] = "https://example.com/x.rpm"
+    pinned = [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))]
+    macos = effective_cells(consumer_cells([_tag(_spec(), "macos_arm64", ["@platforms//os:macos", "@platforms//cpu:arm64"])])[0])
+    custom = effective_cells(consumer_cells([_tag(_spec(), "custom_x86_64")])[0])
+    active = qualified_cells(custom)
+    hub = hub_build({cell: cell_repository_name(cell) for cell in active}, "//qt/rules:defs.bzl", {cell: custom[cell].constraints for cell in active}, no_match_error(custom))
+    return round_trip + [
+        expect_equal("a clean consumer cell passes", _errors(_spec()), []),
+        expect_equal("consumer sha256 is checked", _errors(sha), ["cell 'custom' archive 'qtbase' sha256 is not 64 hex characters"]),
+        expect_equal("consumer archives are 7z", _errors(seven), ["cell 'custom' archive 'qtbase' is not a .7z archive"]),
+        expect_contains("consumer release is checked", _errors(release), "cell 'custom' release '6.8.3-0-1' is not a 6.11.3 release"),
+        expect_equal("consumer cells pin every module", _errors(missing), ["cell 'custom' pins no 'qttools' archive"]),
+        expect_equal("consumer runtime packages are sorted", _errors(unsorted), ["cell 'custom' runtime packages are not sorted by name"]),
+        expect_equal("consumer license texts use https", _errors(http), ["license text 'custom: pcre2/LICENCE' does not use https"]),
+        expect_equal("consumer repositories are known", _errors(repository), ["runtime package '" + first + "' repository 'Extras' is not one of AppStream, BaseOS"]),
+        expect_equal("consumer spec keys are known", _errors(unknown), ["cell 'custom' spec has unknown key 'extra'"]),
+        expect_equal("consumer spec fields are typed", _errors(typed), ["cell 'custom' spec 'directory' is not a string"]),
+        expect_equal("consumer runtime needs a font", _errors(fontless), ["cell 'custom' spec runtime is missing 'font'"]),
+        expect_equal("consumer packages take no url", _errors(url), ["cell 'custom' spec runtime.packages[0] has unknown key 'url'"]),
+        expect_equal("consumer spec is JSON", _errors("{"), ["cell 'custom' spec is not a JSON object"]),
+        expect_equal("consumer cell names are plain", consumer_cells([_tag(_spec(), "Bad-Name")])[1], ["cell 'Bad-Name' name is not made of lowercase letters, digits and '_'"]),
+        expect_equal("consumer cell names avoid hub targets", consumer_cells([_tag(_spec(), "core")])[1], ["cell 'core' name is taken by a @dx_qt target"]),
+        expect_equal("consumer layouts are known", consumer_cells([_tag(_spec(), layout = "windows")])[1], ["cell 'custom' layout 'windows' is not one of linux"]),
+        expect_equal("consumer cells are declared once", consumer_cells([_tag(_spec()), _tag(_spec())])[1], ["cell 'custom' is declared twice"]),
+        expect_equal("consumer constraints set the cell apart", consumer_cells([_tag(_spec(), constraints = pinned)])[1], ["cell 'custom' constraints match cell 'linux_x86_64'; add a constraint that sets it apart"]),
+        expect_equal("a consumer cell replaces its pinned namesake", consumer_cells([_tag(_spec(), "linux_x86_64", ["@platforms//os:linux", "@platforms//cpu:x86_64"])])[1], []),
+        expect_equal("an override qualifies a blocked cell", qualified_cells(macos), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
+        expect_false("an override leaves the blocked list", "macos_arm64 (" in no_match_error(macos)),
+        expect_equal("a new consumer cell joins the qualified cells", active, ["custom_x86_64", "linux_arm64", "linux_x86_64"]),
+        expect_contains("hub routes the consumer cell", hub, '":custom_x86_64": "@dx_qt_custom_x86_64//:core"'),
+        expect_contains("hub matches the consumer constraint", hub, '        "%s",\n' % str(Label("//qt/sdk:custom"))),
+        expect_contains("consumer cell builds core", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", custom), '    srcs = ["lib/libQt6Core.so.6"],'),
+    ]

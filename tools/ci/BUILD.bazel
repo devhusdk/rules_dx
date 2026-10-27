@@ -628,8 +628,11 @@ rust_test(
     size = "small",
     srcs = ["release_assets_test.rs"],
     data = [
+        "//:MODULE.bazel",
         "//.github:workflows/release.yml",
         "//cli/adopt:src/launcher.rs",
+        "//cli/adopt:src/version.rs",
+        "//cli/prebuilt:pins.bzl",
     ],
     deps = ["//tools/testing:dx_testing"],
 )

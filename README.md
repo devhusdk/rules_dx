@@ -22,6 +22,21 @@ bazel run @rules_dx//:dx -- build //...
 bazel run @rules_dx//:dx -- test //...
 ```
 
+In your module, `@rules_dx//:dx` runs the released `dx` binary for the
+target platform, checked against the sha256 in `cli/prebuilt/pins.bzl`.
+Release binaries exist for linux x86_64, linux aarch64, macos aarch64,
+windows x86_64 and windows aarch64. Other platforms, and versions with no
+pinned release, fail the build. To pick a binary yourself, add this to your
+root `MODULE.bazel`:
+
+```starlark
+dx_prebuilt = use_extension("@rules_dx//cli/prebuilt:extension.bzl", "dx_prebuilt")
+dx_prebuilt.asset(name = "dx-linux-x86_64", url = "https://...", sha256 = "...")
+```
+
+Or build `dx` from source with `dx_prebuilt.from_source()`. That needs Rust
+and C toolchains. Only the root module's tags count.
+
 `dx init --apply` writes the overrides `rules_dx` needs; see
 [patches/README.md](patches/README.md).
 

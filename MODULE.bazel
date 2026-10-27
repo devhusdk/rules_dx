@@ -522,6 +522,9 @@ dx_dev_hub.link(
 )
 use_repo(dx_dev_hub, "dx_npm_link")
 
+dx_prebuilt = use_extension("//cli/prebuilt:extension.bzl", "dx_prebuilt")
+use_repo(dx_prebuilt, "dx_prebuilt")
+
 python_interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
 python_interpreters.toolchain(python_version = "3.12")
 use_repo(

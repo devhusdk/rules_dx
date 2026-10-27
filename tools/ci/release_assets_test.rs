@@ -237,3 +237,77 @@ fn the_source_archive_is_uploaded_without_clobber() {
     assert!(!text.contains("\"out/$file\" --clobber"));
     assert!(text.contains("sha256sum -c \"$src.sha256\""));
 }
+
+const PINS: &str = "cli/prebuilt/pins.bzl";
+
+fn pins_version(pins: &str) -> String {
+    pins.lines()
+        .find_map(|line| line.strip_prefix("DX_VERSION = \""))
+        .and_then(|rest| rest.strip_suffix('"'))
+        .unwrap_or_else(|| panic!("{PINS} has no DX_VERSION line"))
+        .to_owned()
+}
+
+fn pinned_assets(pins: &str) -> Vec<String> {
+    let start = pins.find("SHA256 = {\n").expect("SHA256 map") + "SHA256 = {\n".len();
+    let end = pins[start..].find("\n}").expect("SHA256 map end") + start;
+    pins[start..end]
+        .lines()
+        .map(|line| {
+            let (name, hash) = line
+                .trim()
+                .split_once(": ")
+                .unwrap_or_else(|| panic!("{PINS} entry {line:?}"));
+            let hash = hash.trim_end_matches(',').trim_matches('"');
+            assert!(
+                hash.is_empty()
+                    || (hash.len() == 64
+                        && hash.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))),
+                "{PINS} pin for {name} is not a sha256"
+            );
+            name.trim_matches('"').to_owned()
+        })
+        .collect()
+}
+
+#[test]
+fn the_prebuilt_pins_name_every_asset_once_in_order() {
+    let pins = read_runfiles(PINS);
+    let names = pinned_assets(&pins);
+    assert_eq!(
+        names,
+        sorted(names.clone()),
+        "{PINS} entries are not sorted"
+    );
+    assert_eq!(names, expected(), "{PINS} keys differ from ASSETS");
+}
+
+#[test]
+fn the_prebuilt_version_matches_the_module_and_the_cli() {
+    let version = pins_version(&read_runfiles(PINS));
+    let module = read_runfiles("MODULE.bazel");
+    assert!(
+        module.contains(&format!(
+            "module(\n    name = \"rules_dx\",\n    version = \"{version}\",\n)"
+        )),
+        "{PINS} DX_VERSION {version} differs from MODULE.bazel"
+    );
+    let cli = read_runfiles("cli/adopt/src/version.rs");
+    assert!(
+        cli.contains(&format!("pub const DX_VERSION: &str = \"{version}\";")),
+        "{PINS} DX_VERSION {version} differs from cli/adopt/src/version.rs"
+    );
+}
+
+#[test]
+fn the_release_build_checks_the_binary_version_against_the_pins() {
+    let text = workflow();
+    let check = text
+        .find("want=\"dx $(sed -n 's/^DX_VERSION = \"\\(.*\\)\"$/\\1/p' cli/prebuilt/pins.bzl)\"")
+        .expect("version check");
+    let hash = text.find("hash=\"$(sha256sum").expect("hash");
+    assert!(
+        check < hash,
+        "{WORKFLOW} hashes before checking the version"
+    );
+}

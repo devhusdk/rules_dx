@@ -18,11 +18,11 @@ fn the_public_label_answers_help_from_the_consumer_repository() {
 }
 
 #[test]
-fn the_public_and_crate_labels_run_one_binary() {
+fn root_module_public_label_is_the_source_binary() {
     assert_eq!(
         read("DX_PUBLIC_HELP"),
         read("DX_CRATE_HELP"),
-        "@rules_dx//:dx must stay the same binary as @rules_dx//cli/cli:dx"
+        "in the root module, @rules_dx//:dx must stay the source binary @rules_dx//cli/cli:dx"
     );
 }
 

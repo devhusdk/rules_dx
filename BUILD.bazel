@@ -186,7 +186,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 alias(
     name = "dx",
-    actual = "//cli/cli:dx",
+    actual = "@dx_prebuilt//:dx",
     visibility = ["//visibility:public"],
 )
 
@@ -244,6 +244,7 @@ filegroup(
         ".bazelversion",
         "BUILD.bazel",
         "MODULE.bazel",
+        "//cli/prebuilt:module_srcs",
         "//config:module_srcs",
         "//libs/starlark:module_srcs",
         "//modules:module_srcs",

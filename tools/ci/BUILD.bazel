@@ -677,6 +677,7 @@ rust_test(
         "//appimage:corpus_starlark",
         "//apple/bundle:corpus_starlark",
         "//apple/ios:corpus_starlark",
+        "//apple/macos:corpus_starlark",
         "//apple/provisioning:corpus_starlark",
         "//apple/signing:corpus_starlark",
         "//astro/rules:corpus_starlark",

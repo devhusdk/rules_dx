@@ -10,6 +10,7 @@ load(
     "QUALIFIED_HOST",
     "REQUIRED_LICENSES",
     "XCODE_LINEAGE",
+    "ceiling_for",
     "default_selection",
     "deployment_floor",
     "host_constraints",
@@ -65,6 +66,10 @@ def _apple_checks():
     checks.append(expect_equal("simulator floor", deployment_floor("iphonesimulator"), "17.0"))
     checks.append(expect_equal("macos sdk floor", deployment_floor("macosx"), "14.0"))
     checks.append(expect_equal("unknown sdk floor is empty", deployment_floor("watchos"), ""))
+    checks.append(expect_equal("iphoneos ceiling", ceiling_for("iphoneos"), "18.0"))
+    checks.append(expect_equal("simulator ceiling", ceiling_for("iphonesimulator"), "18.0"))
+    checks.append(expect_equal("macos sdk ceiling", ceiling_for("macosx"), "15.0"))
+    checks.append(expect_equal("unknown sdk ceiling is empty", ceiling_for("watchos"), ""))
     checks.append(expect_equal(
         "host constraints",
         host_constraints("macos_arm64"),

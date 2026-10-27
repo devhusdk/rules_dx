@@ -10,7 +10,9 @@ filegroup(
         "//:module_srcs",
         "//apple/bundle:module_srcs",
         "//apple/ios:module_srcs",
+        "//apple/macos:module_srcs",
         "//apple/provisioning:module_srcs",
+        "//apple/signing:module_srcs",
     ],
 )
 

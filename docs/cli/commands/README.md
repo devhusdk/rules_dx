@@ -549,6 +549,7 @@ Language rules:
 - `@rules_dx//api_spec/rules:defs.bzl`: OpenAPI and AsyncAPI specs.
 - `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
 - `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
+- `@rules_dx//apple/macos:app.bzl`: macOS apps.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
 - `@rules_dx//csharp/rules:defs.bzl`: C#.
 - `@rules_dx//cuda/rules:defs.bzl`: CUDA.

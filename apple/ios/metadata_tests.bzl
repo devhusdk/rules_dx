@@ -8,7 +8,6 @@ load(
     "SIMULATOR_ENV",
     "arch_errors",
     "arches",
-    "ceiling_for",
     "cell_settings",
     "config_errors",
     "default_config",
@@ -92,9 +91,6 @@ def _ios_checks():
     checks.append(expect_equal("simulator x86_64 triple", triple_for("simulator", "x86_64"), "x86_64-apple-ios"))
     checks.append(expect_equal("device x86_64 triple is empty", triple_for("device", "x86_64"), ""))
     checks.append(expect_equal("unknown environment triple is empty", triple_for("watch", "arm64"), ""))
-    checks.append(expect_equal("iphoneos ceiling", ceiling_for("iphoneos"), "18.0"))
-    checks.append(expect_equal("simulator ceiling", ceiling_for("iphonesimulator"), "18.0"))
-    checks.append(expect_equal("unknown sdk ceiling is empty", ceiling_for("macosx"), ""))
     checks.append(expect_equal(
         "missing environment fails",
         environment_errors(""),

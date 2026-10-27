@@ -75,6 +75,23 @@ rust_test(
 
 # keep
 rust_test(
+    name = "macos_app_script_test",
+    size = "small",
+    srcs = ["macos_app_script_test.rs"],
+    data = [
+        "//apple/macos:app_check.sh",
+        "//apple/macos:run_app.sh",
+    ],
+    env = {
+        "DX_MACOS_APP_CHECK": "$(rootpath //apple/macos:app_check.sh)",
+        "DX_MACOS_RUN_APP": "$(rootpath //apple/macos:run_app.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "linux_consumer_test",
     size = "large",
     srcs = [
@@ -231,6 +248,7 @@ rustfmt_test(
     targets = [
         ":device_script_test",
         ":linux_consumer_test",
+        ":macos_app_script_test",
         ":probe_script_test",
         ":signing_script_test",
         ":simulator_script_test",
@@ -243,6 +261,7 @@ rust_clippy_test(
     targets = [
         ":device_script_test",
         ":linux_consumer_test",
+        ":macos_app_script_test",
         ":probe_script_test",
         ":signing_script_test",
         ":simulator_script_test",

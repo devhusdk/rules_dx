@@ -381,20 +381,31 @@ fn tickets(dir: &Path) -> Vec<(u64, PathBuf)> {
         .collect()
 }
 
-/// A waiter's place in line; dropping it leaves the line.
+/// A waiter's place in line; dropping it leaves the line. The ticket file is
+/// removed before it is unlocked, so no sweep can reuse its number while the
+/// file is still on disk.
 struct Ticket {
     number: u64,
     file: Option<File>,
     path: PathBuf,
 }
 
+impl Ticket {
+    /// Removes the ticket path, runs `between`, then releases the lock. Does
+    /// nothing once the file is gone, so a later drop cannot remove a path a
+    /// newer waiter has reused.
+    fn leave(&mut self, between: impl FnOnce()) {
+        if let Some(file) = self.file.take() {
+            let _ = std::fs::remove_file(&self.path);
+            between();
+            drop(file);
+        }
+    }
+}
+
 impl Drop for Ticket {
     fn drop(&mut self) {
-        #[cfg(unix)]
-        let _ = std::fs::remove_file(&self.path);
-        drop(self.file.take());
-        #[cfg(not(unix))]
-        let _ = std::fs::remove_file(&self.path);
+        self.leave(|| {});
     }
 }
 
@@ -2529,6 +2540,29 @@ mod tests {
         let slot = acquire(&dir, 1, "a", &mut |_| panic!("must not wait")).expect("slot");
         assert_eq!(slot.index, 0);
         assert!(!dead.exists());
+        assert!(tickets(&dir).is_empty());
+    }
+
+    #[test]
+    fn a_leaving_ticket_never_deletes_the_next_waiters_ticket() {
+        let scratch = dx_test_scratch::scratch("dx-slots-leave-");
+        let dir = scratch.path().join("slots");
+        let mut first = enqueue(&dir).expect("first");
+        let mut next = None;
+        first.leave(|| next = Some(enqueue(&dir).expect("next")));
+        let next = next.expect("next ticket");
+        drop(first);
+        assert!(next.path.exists());
+        let listed = tickets(&dir);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].1, next.path);
+    }
+
+    #[test]
+    fn a_dropped_ticket_leaves_no_file() {
+        let scratch = dx_test_scratch::scratch("dx-slots-drop-");
+        let dir = scratch.path().join("slots");
+        drop(enqueue(&dir).expect("ticket"));
         assert!(tickets(&dir).is_empty());
     }
 

@@ -398,7 +398,8 @@ event that runs it.
   first `dx worktree add` or `release` that the same session runs inside the
   slot. That agent then becomes the holder.
 - `remove` reads `worktree_path` and releases that slot. Paths outside the
-  pool are ignored.
+  pool are ignored. Release warnings, such as a low-disk reclaim, go to stderr
+  as `dx worktree: <message>` and do not change the exit code.
 - `stop` reads `agent_id` for the `SubagentStop` event. It marks the slots
   that agent holds as held by a gone holder. Slots no agent has claimed are
   not marked; they stay held until the session ends. Cursor's `subagentStop` input has

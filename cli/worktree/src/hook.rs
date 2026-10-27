@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use super::git;
 use super::host::Host;
-use super::ops::{self, AddRequest, Added};
+use super::ops::{self, AddRequest, Added, Released};
 use super::pool::{Pool, Who, HOLDER_ENV, SESSION_ENV};
 use super::WorktreeError;
 
@@ -236,13 +236,14 @@ pub fn create(
     ops::lease(pool, host, &owner, &request, &freed, warnings)
 }
 
-/// Frees the slot of an agent worktree. Paths outside the pool are left alone.
+/// Frees the slot of an agent worktree and returns what the release did,
+/// warnings included. Paths outside the pool are left alone.
 pub fn remove(
     pool: &Pool,
     host: &dyn Host,
     who: &Who,
     input: &Value,
-) -> Result<Option<PathBuf>, WorktreeError> {
+) -> Result<Option<Released>, WorktreeError> {
     let path = field(input, "worktree_path")
         .map(PathBuf::from)
         .ok_or_else(|| missing(HookKind::Remove, "worktree_path"))?;
@@ -254,7 +255,7 @@ pub fn remove(
         ..who.clone()
     };
     let released = ops::release(pool, host, &owner, &path, false)?;
-    Ok(Some(released.path))
+    Ok(Some(released))
 }
 
 /// Whether a hook has nothing to do for this payload.

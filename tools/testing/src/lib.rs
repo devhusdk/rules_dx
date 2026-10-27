@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 pub mod cli;
 pub mod fatbin;
+pub mod http;
 pub mod latency;
 
 pub use dx_binfmt::machine as image_machine;

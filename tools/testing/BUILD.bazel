@@ -27,6 +27,7 @@ rust_library(
     srcs = [
         "src/cli.rs",
         "src/fatbin.rs",
+        "src/http.rs",
         "src/latency.rs",
         "src/lib.rs",
     ],

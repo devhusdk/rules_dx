@@ -17,16 +17,6 @@ on:
         required: false
         default: ""
         type: string
-      scheduling_mode:
-        description: "parallel. Only parallel is implemented; sequential fails validation instead of being ignored."
-        required: false
-        default: "parallel"
-        type: string
-      code_scanning_opt_in:
-        description: "Must be false. No code-scanning SARIF upload ships in this workflow, so true fails validation instead of being ignored."
-        required: false
-        default: false
-        type: boolean
       min_coverage:
         description: "Required line-coverage percent for the coverage check (e.g. 80), a whole number from 0 to 100. Empty collects without enforcing a threshold."
         required: false
@@ -112,8 +102,6 @@ jobs:
         env:
           DX_PLATFORMS: ${{ inputs.platforms }}
           DX_DISABLED_CHECKS: ${{ inputs.disabled_checks }}
-          DX_SCHEDULING_MODE: ${{ inputs.scheduling_mode }}
-          DX_CODE_SCANNING_OPT_IN: ${{ inputs.code_scanning_opt_in }}
           DX_MIN_COVERAGE: ${{ inputs.min_coverage }}
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ inputs.min_changed_line_coverage }}
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}

@@ -1646,6 +1646,46 @@ fn github_ci_page_matches_the_consumer_workflow() {
     }
 }
 
+#[test]
+fn github_ci_page_names_no_workflow_internals() {
+    let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
+        .expect("docs/github-ci.md ships as test data");
+    let label_char = |c: char| c.is_ascii_alphanumeric() || "_.+@=,~/:-".contains(c);
+    let label_at = |text: &str, at: usize| {
+        let end = text[at..]
+            .find(|c: char| !label_char(c))
+            .map_or(text.len(), |offset| at + offset);
+        text[at..end].to_owned()
+    };
+    let refresh = dx_audit::advisory::REFRESH_COMMAND;
+    let refresh_label = refresh
+        .find("@rules_dx//")
+        .map(|at| label_at(refresh, at))
+        .unwrap_or_else(|| panic!("{refresh} names no @rules_dx label"));
+    let allowed = ["@rules_dx//:dx".to_owned(), refresh_label];
+    for (at, _) in page.match_indices("@rules_dx//") {
+        let label = label_at(&page, at);
+        assert!(
+            allowed.contains(&label),
+            "docs/github-ci.md names the workflow internal {label}; only {allowed:?} are user facing"
+        );
+    }
+    for internal in [
+        "tools/ci",
+        "python3",
+        "diff-cover",
+        "tool_resolve",
+        "evidence.yml",
+        "apple.yml",
+        "bump.yml",
+    ] {
+        assert!(
+            !page.contains(internal),
+            "docs/github-ci.md names the workflow internal {internal}"
+        );
+    }
+}
+
 fn workflow_call_secrets(workflow: &str) -> Vec<String> {
     let mut secrets: Vec<String> = Vec::new();
     let mut inside = false;
@@ -1919,6 +1959,84 @@ fn docs_page_names_every_workflow_input() {
                 page.contains(&format!("`{input}`")),
                 "docs/github-ci.md never names the {workflow} input {input}"
             );
+        }
+    }
+}
+
+fn reusable_calls(caller: &str) -> Vec<(String, String, Vec<String>)> {
+    let mut calls: Vec<(String, String, Vec<String>)> = Vec::new();
+    for (id, body) in job_blocks(caller) {
+        let Some(call) = body
+            .iter()
+            .find_map(|line| line.trim().strip_prefix("uses: "))
+        else {
+            continue;
+        };
+        if !call.contains("/.github/workflows/") {
+            continue;
+        }
+        let pinned = call.split('@').next().unwrap_or(call);
+        let workflow = pinned.rsplit('/').next().unwrap_or(pinned).to_owned();
+        let mut keys: Vec<String> = Vec::new();
+        let mut base: Option<usize> = None;
+        for line in &body {
+            if line.trim().is_empty() {
+                continue;
+            }
+            match base {
+                None if line.trim() == "with:" => base = Some(indent_of(line)),
+                None => {}
+                Some(with) if indent_of(line) <= with => break,
+                Some(with) if indent_of(line) == with + 2 => {
+                    if let Some((key, _)) = line.trim().split_once(':') {
+                        keys.push(key.to_owned());
+                    }
+                }
+                Some(_) => {}
+            }
+        }
+        calls.push((id, workflow, keys));
+    }
+    calls
+}
+
+#[test]
+fn reusable_calls_read_only_top_level_with_keys() {
+    let caller = "jobs:\n  a:\n    uses: o/r/.github/workflows/x.yml@abc\n    with:\n      one: \"1\"\n      two: |\n        nested: no\n    secrets: inherit\n  b:\n    runs-on: ubuntu-latest\n";
+    assert_eq!(
+        reusable_calls(caller),
+        [(
+            "a".to_owned(),
+            "x.yml".to_owned(),
+            vec!["one".to_owned(), "two".to_owned()]
+        )]
+    );
+}
+
+#[test]
+fn every_caller_input_is_a_workflow_input() {
+    let root = workspace_root();
+    let mut callers: Vec<&str> = workflow_callers()
+        .iter()
+        .map(|(_, caller)| *caller)
+        .collect();
+    callers.push(".github/workflows/ci.yml");
+    for caller in callers {
+        let text = std::fs::read_to_string(root.join(caller)).expect("caller ships as test data");
+        let calls = reusable_calls(&text);
+        assert!(!calls.is_empty(), "{caller} calls no reusable workflow");
+        for (id, workflow, keys) in calls {
+            let inputs = workflow_call_inputs(
+                &std::fs::read_to_string(root.join(".github/workflows").join(&workflow))
+                    .unwrap_or_else(|_| panic!("{caller} job {id} calls a missing {workflow}")),
+            );
+            assert!(!keys.is_empty(), "{caller} job {id} passes no inputs");
+            for key in keys {
+                assert!(
+                    inputs.contains(&key),
+                    "{caller} job {id} passes {key}, which {workflow} does not declare"
+                );
+            }
         }
     }
 }

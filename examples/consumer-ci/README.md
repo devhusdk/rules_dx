@@ -10,15 +10,7 @@ Starter caller for the reusable consumer workflow. Pin to a reviewed commit.
 bazel_dep(name = "rules_dx", version = "0.0.0")
 ```
 
-The `validate` job reads that declaration before any check runs. The version must be a
-quoted string, and no other dependency may declare `rules_dx`.
-
-A `validate` job runs before the checks and rejects a bad input with the
-accepted values. Only `parallel` scheduling, `false` for `code_scanning_opt_in`
-and a whole `min_coverage` or `min_changed_line_coverage` from 0 to 100 are
-accepted.
-
-Set approval policy, branch protection, and least-privilege permissions manually.
+Set the pin, inputs and repository settings as [GitHub CI](../../docs/github-ci.md) shows.
 
 ## Default C/C++ and Rust setup
 
@@ -113,4 +105,4 @@ bazel run @rules_dx//:dx -- lint --check //...
 bazel run @rules_dx//:dx -- format --check //...
 ```
 
-The full input contract lives in the GitHub CI docs.
+Inputs, pin and repository settings: [GitHub CI](../../docs/github-ci.md).

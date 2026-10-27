@@ -1,3 +1,0 @@
-input {"DX_SCHEDULING_MODE": " parallel "}
-exit 1
-says dx-ci: DX_SCHEDULING_MODE=' parallel ' is not implemented.

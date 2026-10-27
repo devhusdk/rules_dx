@@ -334,10 +334,36 @@ mod sh {
         assert!(!err.contains("bazel run @rules_dx"), "{err}");
         assert!(!repo.root().join("bazel-bin/cli/cli/dx").exists());
         assert_eq!(repo.builds(), 2);
-        assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx", "inputs"]
+        );
         let (code, out, err) = repo.run();
         assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert_eq!(repo.builds(), 3, "a failed build is tried again");
+    }
+
+    #[test]
+    fn source_launcher_tags_its_state_as_a_cache() {
+        let repo = source_repo("dx-launcher-tag-");
+        repo.run_ok();
+        let tag =
+            std::fs::read_to_string(repo.root().join(".dx/launcher/CACHEDIR.TAG")).expect("tag");
+        assert!(
+            tag.starts_with("Signature: 8a477f597d28d172789f06886806bc55\n"),
+            "{tag}"
+        );
+    }
+
+    #[test]
+    fn the_tag_is_added_to_an_existing_untagged_copy() {
+        let repo = source_repo("dx-launcher-late-tag-");
+        repo.run_ok();
+        let tag = repo.root().join(".dx/launcher/CACHEDIR.TAG");
+        std::fs::remove_file(&tag).expect("remove the tag");
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1, "tagging does not rebuild");
+        assert!(tag.exists());
     }
 
     #[test]
@@ -347,7 +373,10 @@ mod sh {
         std::fs::remove_file(repo.root().join(".dx/launcher/dx")).expect("remove the copy");
         repo.run_ok();
         assert_eq!(repo.builds(), 1, "seeding the copy does not rebuild");
-        assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx", "inputs"]
+        );
         repo.break_build();
         repo.touch_build_file();
         let (code, out, err) = repo.run();
@@ -370,7 +399,7 @@ mod sh {
             (Some(0), "ran worktree hook guard\n"),
             "{err}"
         );
-        assert_eq!(repo.state_files(), vec!["built", "inputs"]);
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "inputs"]);
         assert_eq!(repo.builds(), 1);
     }
 
@@ -635,7 +664,10 @@ mod sh {
             );
         }
         assert_eq!(repo.builds(), 4, "all four runs really built concurrently");
-        assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx", "inputs"]
+        );
         assert!(
             repo.inputs().contains("//cli/cli:BUILD.bazel"),
             "{}",
@@ -878,7 +910,10 @@ mod cmd {
                 String::from_utf8_lossy(&out.stderr)
             );
         }
-        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx.exe", "inputs"]
+        );
         assert!(
             repo.inputs().contains("//cli/cli:BUILD.bazel"),
             "{}",
@@ -980,7 +1015,10 @@ mod cmd {
         running.stop();
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
-        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx.exe", "inputs"]
+        );
     }
 
     #[test]
@@ -1029,7 +1067,10 @@ mod cmd {
             1,
             "a newer bazel-bin dx is copied without Bazel"
         );
-        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx.exe", "inputs"]
+        );
     }
 
     #[test]
@@ -1145,10 +1186,31 @@ mod cmd {
         assert!(!out.contains("bazel run @rules_dx"), "{out}");
         assert!(!root.join("bazel-bin/cli/cli/dx.exe").exists());
         assert_eq!(repo.builds(), 2);
-        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx.exe", "inputs"]
+        );
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert_eq!(repo.builds(), 3, "a failed build is tried again");
+    }
+
+    #[test]
+    fn cmd_launcher_tags_its_state_as_a_cache() {
+        let repo = source_repo("dx-launcher-cmd-tag-");
+        let root = repo.root();
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        let tag = root.join(".dx/launcher/CACHEDIR.TAG");
+        let text = std::fs::read_to_string(&tag).expect("tag");
+        assert!(
+            text.starts_with("Signature: 8a477f597d28d172789f06886806bc55"),
+            "{text}"
+        );
+        std::fs::remove_file(&tag).expect("remove the tag");
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert!(tag.exists(), "an existing untagged copy gets the tag");
     }
 
     #[test]
@@ -1161,7 +1223,10 @@ mod cmd {
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
         assert_eq!(repo.builds(), 1, "seeding the copy does not rebuild");
-        assert_eq!(repo.state_files(), vec!["built", "dx.exe", "inputs"]);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx.exe", "inputs"]
+        );
         std::fs::write(
             repo.base.join("stub/bazel.cmd"),
             "@echo off\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nif \"%OP%\"==\"build\" (\r\n  del /q bazel-bin\\cli\\cli\\dx.exe\r\n  exit /b 1\r\n)\r\nexit /b 0\r\n",

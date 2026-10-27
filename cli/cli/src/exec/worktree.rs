@@ -483,6 +483,14 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
             ),
         });
     }
+    for cache in &plan.caches {
+        lines.push(format!(
+            "cache of free slot {}, {}: {}",
+            cache.slot,
+            size(cache.bytes),
+            cache.path.display()
+        ));
+    }
     for downloads in &plan.downloads {
         lines.push(format!(
             "repository cache downloads unused for 30 days, {} entries, {}: {}",
@@ -494,7 +502,11 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
     lines
 }
 
-fn skipped_lines(slots: &[ops::PruneSkippedSlot], bases: &[ops::PruneKeptBase]) -> Vec<String> {
+fn skipped_lines(
+    slots: &[ops::PruneSkippedSlot],
+    bases: &[ops::PruneKeptBase],
+    caches: &[ops::PruneSkippedCache],
+) -> Vec<String> {
     let mut lines: Vec<String> = slots
         .iter()
         .map(|slot| {
@@ -523,6 +535,14 @@ fn skipped_lines(slots: &[ops::PruneSkippedSlot], bases: &[ops::PruneKeptBase]) 
             base.reason,
             base.dir.display()
         ),
+    }));
+    lines.extend(caches.iter().map(|cache| {
+        format!(
+            "skipped cache of free slot {} ({}): {}",
+            cache.slot,
+            cache.reason,
+            cache.path.display()
+        )
     }));
     lines
 }
@@ -561,6 +581,7 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
         kept,
         skipped_slots,
         skipped_bases,
+        skipped_caches,
     } = pruned;
     let mut events = Vec::new();
     for slot in &plan.slots {
@@ -609,6 +630,22 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
         event["disk_bytes"] = base.bytes.into();
         events.push(event);
     }
+    for cache in skipped_caches {
+        let mut event = simple_event(
+            "prune_cache",
+            Some(cache.slot),
+            &cache.path,
+            None,
+            "skipped",
+        );
+        event["reason"] = cache.reason.into();
+        events.push(event);
+    }
+    for cache in &plan.caches {
+        let mut event = simple_event("prune_cache", Some(cache.slot), &cache.path, None, "free");
+        event["disk_bytes"] = cache.bytes.into();
+        events.push(event);
+    }
     for downloads in &plan.downloads {
         let mut event = simple_event("prune_downloads", None, &downloads.cache, None, "stale");
         event["disk_bytes"] = downloads.bytes.into();
@@ -629,6 +666,7 @@ fn prune_output(
         kept,
         skipped_slots,
         skipped_bases,
+        skipped_caches,
     } = pruned;
     start(out, invocation, if apply { "default" } else { "check" })?;
     if invocation.output == OutputMode::Json {
@@ -643,10 +681,15 @@ fn prune_output(
     for item in &plan.kept_externals {
         write_line(out, &kept_external_line(item))?;
     }
-    if plan.is_empty() && kept.is_empty() && skipped_slots.is_empty() && skipped_bases.is_empty() {
+    if plan.is_empty()
+        && kept.is_empty()
+        && skipped_slots.is_empty()
+        && skipped_bases.is_empty()
+        && skipped_caches.is_empty()
+    {
         write_line(out, "dx worktree: nothing to prune")?;
     } else {
-        for line in skipped_lines(skipped_slots, skipped_bases) {
+        for line in skipped_lines(skipped_slots, skipped_bases, skipped_caches) {
             write_line(out, &line)?;
         }
         for item in kept {
@@ -1251,6 +1294,31 @@ mod tests {
     }
 
     #[test]
+    fn caches_print_slot_size_and_skip_reason() {
+        let plan = PrunePlan {
+            caches: vec![ops::PruneCache {
+                slot: 2,
+                path: PathBuf::from("/cache/slots/2/.dx/c"),
+                bytes: 1024,
+            }],
+            ..PrunePlan::default()
+        };
+        assert_eq!(
+            prune_lines(&plan),
+            ["cache of free slot 2, 1.0 KiB: /cache/slots/2/.dx/c"]
+        );
+        let skipped = [ops::PruneSkippedCache {
+            slot: 2,
+            path: PathBuf::from("/cache/slots/2/.dx/c"),
+            reason: "held",
+        }];
+        assert_eq!(
+            skipped_lines(&[], &[], &skipped),
+            ["skipped cache of free slot 2 (held): /cache/slots/2/.dx/c"]
+        );
+    }
+
+    #[test]
     fn skipped_bases_print_slot_and_reason() {
         let skipped = [
             ops::PruneKeptBase {
@@ -1267,7 +1335,7 @@ mod tests {
             },
         ];
         assert_eq!(
-            skipped_lines(&[], &skipped),
+            skipped_lines(&[], &skipped, &[]),
             [
                 "skipped output base of free slot 2 (server): /bazel/bbb",
                 "skipped output base of nested Bazel test hello (busy): /tmp/dxnb-1000/0/u/nnn",
@@ -1289,7 +1357,7 @@ mod tests {
             reason: "busy",
         }];
         assert_eq!(
-            skipped_lines(&slots, &bases),
+            skipped_lines(&slots, &bases, &[]),
             [
                 "skipped slot 4 (busy): /cache/slots/4",
                 "skipped output base of removed /gone (busy): /bazel/ooo"
@@ -1306,6 +1374,7 @@ mod tests {
                     idle_days: 40,
                     bytes: 100,
                 }],
+                caches: Vec::new(),
                 externals: vec![ops::PruneExternal {
                     path: PathBuf::from("/ext"),
                     branch: Some("e".to_owned()),
@@ -1376,6 +1445,7 @@ mod tests {
                 owner: ops::BaseOwner::Slot(2),
                 reason: "server",
             }],
+            skipped_caches: Vec::new(),
         }
     }
 
@@ -1399,6 +1469,28 @@ mod tests {
         };
         assert_eq!(prune_exit(false, &only_downloads), 1);
         assert_eq!(prune_exit(true, &only_downloads), 0);
+    }
+
+    #[test]
+    fn cache_events_carry_slot_state_and_bytes() {
+        let mut pruned = ops::Pruned::default();
+        pruned.plan.caches.push(ops::PruneCache {
+            slot: 2,
+            path: PathBuf::from("/cache/slots/2/.dx/c"),
+            bytes: 7,
+        });
+        pruned.skipped_caches.push(ops::PruneSkippedCache {
+            slot: 3,
+            path: PathBuf::from("/cache/slots/3/.dx/c"),
+            reason: "busy",
+        });
+        let events = prune_events(&pruned);
+        assert_eq!(events[0]["action"], "prune_cache");
+        assert_eq!(events[0]["state"], "skipped");
+        assert_eq!(events[0]["reason"], "busy");
+        assert_eq!(events[1]["state"], "free");
+        assert_eq!(events[1]["disk_bytes"], 7);
+        assert_eq!(events[1]["slot"], 2);
     }
 
     #[test]

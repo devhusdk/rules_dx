@@ -12,6 +12,7 @@ dx_rust_crate(
     name = "dx_worktree",
     package_name = "cli/dx_worktree",
     srcs = [
+        "src/cache.rs",
         "src/disk.rs",
         "src/git.rs",
         "src/hook.rs",

@@ -1655,6 +1655,134 @@ fn prune_bases_does_not_double_count_stale_slot() {
     assert!(plan.bases.is_empty(), "{:?}", plan.bases);
 }
 
+fn tagged_cache(slot: &Path, name: &str) -> PathBuf {
+    let dir = slot.join(".dx").join(name);
+    std::fs::create_dir_all(&dir).expect("cache dir");
+    std::fs::write(
+        dir.join("CACHEDIR.TAG"),
+        "Signature: 8a477f597d28d172789f06886806bc55\n# test\n",
+    )
+    .expect("tag");
+    std::fs::write(dir.join("dx"), "binary").expect("payload");
+    dir
+}
+
+/// A free slot with a tagged cache and a held slot with one.
+fn cache_fixture(fixture: &Fixture, host: &FakeHost, pool: &Pool) -> (PathBuf, PathBuf, PathBuf) {
+    host.script_disk(&fixture.cache, OK);
+    let me = who("s1", 10);
+    let a = ops::add(pool, host, &me, &create("feature/a")).expect("a");
+    let held = ops::add(pool, host, &me, &create("feature/c")).expect("c");
+    ops::release(pool, host, &me, &a.path, true).expect("release a");
+    (
+        tagged_cache(&a.path, "launcher"),
+        tagged_cache(&held.path, "launcher"),
+        a.path,
+    )
+}
+
+#[test]
+fn prune_bases_lists_tagged_caches_of_free_slots() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let (cache, held, _) = cache_fixture(&fixture, &host, &pool);
+    let dry = ops::prune(&pool, &host, false, true).expect("dry");
+    let dirs: Vec<&PathBuf> = dry.plan.caches.iter().map(|cache| &cache.path).collect();
+    assert_eq!(dirs, vec![&cache]);
+    assert!(cache.exists(), "a dry run deletes nothing");
+    let applied = ops::prune(&pool, &host, true, true).expect("apply");
+    assert!(applied.skipped_caches.is_empty());
+    assert!(!cache.exists());
+    assert!(held.exists(), "a leased slot keeps its cache");
+}
+
+#[test]
+fn prune_without_bases_skips_caches_on_plenty_of_disk() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let (cache, _, _) = cache_fixture(&fixture, &host, &pool);
+    let plain = ops::prune(&pool, &host, false, false).expect("plain");
+    assert!(plain.plan.caches.is_empty());
+    assert!(plain.plan.is_empty());
+    assert!(cache.exists());
+}
+
+#[test]
+fn prune_lists_caches_on_low_disk() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let (cache, _, _) = cache_fixture(&fixture, &host, &pool);
+    host.script_disk(&cache, LOW);
+    let plain = ops::prune(&pool, &host, false, false).expect("plain");
+    assert_eq!(plain.plan.caches.len(), 1);
+    assert_eq!(plain.plan.caches[0].path, cache);
+}
+
+#[test]
+fn prune_apply_skips_cache_of_held_and_busy_slots() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let (cache, held, path) = cache_fixture(&fixture, &host, &pool);
+    let slot = pool.slot_of(&path).expect("slot");
+    let held_slot = pool.slot_of(held.parent().and_then(Path::parent).expect("held slot"));
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::OnDemand).expect("plan");
+    let lock = pool.lock().expect("lock");
+    let mut forged = plan.clone();
+    forged.caches.push(ops::PruneCache {
+        slot: held_slot.expect("held slot number"),
+        path: held.clone(),
+        bytes: 0,
+    });
+    let _busy = run_dx_in(&pool, slot);
+    let applied = ops::prune_apply(&pool, &host, &forged, &lock).expect("apply");
+    let reasons: Vec<&str> = applied.skipped_caches.iter().map(|c| c.reason).collect();
+    assert_eq!(reasons, vec!["busy", "held"]);
+    assert!(cache.exists() && held.exists());
+}
+
+#[test]
+fn prune_ignores_untagged_and_symlinked_dirs() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let (cache, _, path) = cache_fixture(&fixture, &host, &pool);
+    std::fs::remove_dir_all(&cache).expect("remove");
+    std::fs::create_dir_all(path.join(".dx").join("plain")).expect("plain");
+    let real = fixture.cache.join("elsewhere");
+    std::fs::create_dir_all(&real).expect("real");
+    std::fs::write(
+        real.join("CACHEDIR.TAG"),
+        "Signature: 8a477f597d28d172789f06886806bc55\n",
+    )
+    .expect("tag");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&real, path.join(".dx").join("link")).expect("link");
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::OnDemand).expect("plan");
+    assert!(plan.caches.is_empty(), "{:?}", plan.caches);
+}
+
+#[test]
+fn prune_does_not_double_count_cache_of_idle_slot() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let (_, _, _) = cache_fixture(&fixture, &host, &pool);
+    host.advance(31 * 24 * 60 * 60);
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::OnDemand).expect("plan");
+    assert_eq!(plan.slots.len(), 1);
+    assert!(plan.caches.is_empty(), "{:?}", plan.caches);
+}
+
 #[test]
 fn an_add_that_fails_before_picking_a_slot_drops_nothing() {
     let fixture = Fixture::new();

@@ -39,7 +39,7 @@ JSON reports it as a `slot` event with `slot`, action `release`, and state
 `--output=json` streams `command_started`, one `slot` event per slot, and
 `command_finished`. `list` adds a `summary` event after the slots. `prune`
 emits `slot` events with action `prune`, action `prune_base` for output
-bases, and action `prune_downloads` for repository cache downloads.
+bases, action `prune_cache` for rebuildable caches in free slots, and action `prune_downloads` for repository cache downloads.
 
 When `git fetch origin` fails, `add` still uses local refs. Text prints
 `dx worktree: cannot fetch origin, using local refs: <error>` before the slot
@@ -82,10 +82,10 @@ A refusal emits no `slot` event. A branch you already hold still resolves to
 its slot.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
-`prune_base`, `prune_downloads`), `path`, `state`, `server`, and optional
+`prune_base`, `prune_cache`, `prune_downloads`), `path`, `state`, `server`, and optional
 `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, and `entries`.
 `base` is set on `add` when it starts a new branch. `disk_bytes` is set for
-`prune`, `prune_base`, and `prune_downloads` events other than `kept` and
+`prune`, `prune_base`, `prune_cache`, and `prune_downloads` events other than `kept` and
 `skipped`, and for `list` with `--disk`. `entries` is set for
 `prune_downloads`: the number of downloads, and `path` is the repository
 cache's `content_addressable` directory.
@@ -97,14 +97,14 @@ cache's `content_addressable` directory.
 - `reclaimable`: `list` for a held slot that `add` may take over.
 - `external`: `list` and `prune` for a worktree outside the pool.
 - `removed`: `release` of an external worktree.
-- `free`: also `prune_base` for the output base of a free slot, with its
-  `slot`.
+- `free`: also `prune_base` for the output base of a free slot, and
+  `prune_cache` for a cache in a free slot, with its `slot`.
 - `kept`: `prune` for an external worktree it keeps, and `prune_base` for an
   orphaned or nested-Bazel output base it keeps, with its `reason`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
 - `nested`: `prune_base` for the output base of a test case in a free
   nested-Bazel slot.
-- `skipped`: `prune` for a slot, and `prune_base` for an output base (with its
+- `skipped`: `prune` for a slot, `prune_cache` for a cache of a free slot, and `prune_base` for an output base (with its
   `slot` when it belongs to a free slot), that `prune --apply` could not
   delete, with a `reason` (`server`, `held`, or `busy`). This includes a
   nested-Bazel test's output base. `prune` events in this state have no
@@ -232,7 +232,8 @@ branch that tracks `origin/<branch>` and is merged into the default branch or
 whose `origin/<branch>` is deleted, or is detached at a commit in the default
 branch and git has not touched it for 24 hours. It also lists the output
 bases of the other free slots whose disk is low, least recently used first, as
-`output base of free slot <n>, <size>: <dir>`. `--bases` lists the output bases of every free slot, whatever the disk state, least recently used first, except the slots already listed as idle. `--bases` works with `prune` only. It also lists the downloads in
+`output base of free slot <n>, <size>: <dir>`. `--bases` lists the output bases of every free slot, whatever the disk state, least recently used first, except the slots already listed as idle. `--bases` works with `prune` only.
+The same trigger (`--bases`, or low disk) also lists rebuildable caches in free slots: any direct child directory of the slot's `.dx` that holds a standard `CACHEDIR.TAG` (see <https://bford.info/cachedir/>), as `cache of free slot <n>, <size>: <dir>`. `--apply` deletes them unless the slot is leased or a dx command runs in it (`skipped cache of free slot <n> (<reason>)`), and the owning tool recreates them. Symlinks are never followed. It also lists the downloads in
 Bazel's repository cache that no build used for 30 days. Only the default
 cache, `cache/repos/v1/content_addressable` under each Bazel output root, is
 checked. A cache moved with `--repository_cache` is not cleaned, and the
@@ -247,6 +248,7 @@ Without `--apply`, text prints one line per item, and a closing line
 lines are `slot <n> idle <days> days, <size>: <path>`,
 `external worktree <branch>, <size>: <path>`,
 `output base of free slot <n>, <size>: <dir>`,
+`cache of free slot <n>, <size>: <dir>`,
 `output base of removed <workspace>, <size>: <dir>`,
 `output base of nested Bazel test <case>, <size>: <dir>`, and
 `repository cache downloads unused for 30 days, <n> entries, <size>: <dir>`,

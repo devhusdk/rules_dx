@@ -225,11 +225,36 @@ fn withdrawn(invocation: &Invocation, out: &mut dyn Write, err: &mut dyn Write) 
     code
 }
 
+/// Correlation for one target's run events. `check_correlation` admits only `[A-Za-z0-9/_:.-]`
+/// in at most 128 bytes, so a target like `@repo//x` gets a mapped form (disallowed bytes become
+/// `_`) ending in a digest of the full target.
+fn run_correlation(target: &str) -> String {
+    let plain = format!("run:{target}");
+    if dx_output::validation::check_correlation(&plain).is_ok() {
+        return plain;
+    }
+    let mapped: String = target
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '/' | '_' | ':' | '.' | '-') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let digest = dx_digest::sha256_hex(target.as_bytes());
+    // "run:" + mapped + "-" + 16 hex digits must fit in 128 bytes. `mapped` is ASCII, so the
+    // slice lands on a char boundary.
+    let keep = mapped.len().min(128 - "run:-".len() - 16);
+    format!("run:{}-{}", &mapped[..keep], &digest[..16])
+}
+
 fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) -> Result<(), i32> {
     use dx_output::with_correlation;
     for target in targets {
         let scope = [target.clone()];
-        let correlation = format!("run:{target}");
+        let correlation = run_correlation(target);
         let event = operation_event(command, "execute", Some(&scope))
             .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event));
         emit_built(out, event)?;
@@ -247,7 +272,7 @@ fn application_failed_event(
         None => format!("bazel run {target} exited {code} (see stderr diagnostics)"),
     };
     let event = bazel_exit_event(CODE_APPLICATION_FAILED, &message, code, "execute")?;
-    Ok(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
+    Ok(dx_output::with_correlation(event.clone(), &run_correlation(target)).unwrap_or(event))
 }
 
 /// Writes the ending for a run: the JSON failure event and `command_finished`, or just the code in text mode.
@@ -329,6 +354,37 @@ mod tests {
     use dx_plan::args::parse;
     use dx_plan::args::Command;
     use dx_plan::resolve::ResolveError;
+
+    #[test]
+    fn run_correlation_is_always_valid() {
+        assert_eq!(run_correlation("//app:bin"), "run://app:bin");
+        let long = format!("//{}:bin", "a".repeat(200));
+        for target in ["@repo//x", "@repo//x:y+z", "//app:bin~tag", long.as_str()] {
+            let correlation = run_correlation(target);
+            dx_output::validation::check_correlation(&correlation)
+                .unwrap_or_else(|error| panic!("{target}: {error:?}"));
+            assert!(correlation.starts_with("run:"), "{correlation}");
+        }
+        assert_eq!(
+            run_correlation("@repo//x"),
+            format!("run:_repo//x-{}", &dx_digest::sha256_hex(b"@repo//x")[..16])
+        );
+        assert_ne!(run_correlation("@a//x"), run_correlation("+a//x"));
+    }
+
+    #[test]
+    fn run_json_correlates_label_with_at_sign() {
+        let harness = Harness::new("run-at-label");
+        let inv = invocation(&["run", "@repo//app:bin", "--output=json"]);
+        let run = harness.probe_with(&inv, &[Some(0), Some(7)]);
+        let (code, out) = (run.code, run.out);
+        assert_eq!(code, 7, "{out}");
+        let events = json_events(&out);
+        let error = event(&events, "error");
+        let correlation = error["correlation"].as_str().expect("correlation");
+        dx_output::validation::check_correlation(correlation).expect("valid correlation");
+        assert!(correlation.starts_with("run:_repo//app:bin-"), "{out}");
+    }
 
     #[test]
     fn run_label_passthrough_preserves_status_on_stderr() {

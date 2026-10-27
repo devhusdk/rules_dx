@@ -1163,3 +1163,122 @@ pub(super) fn audit_live_target_scopes_to_owning_set_only() {
     assert!(out.contains("audit license: clean"), "{out}");
     assert_eq!(runner.calls.borrow().len(), 0);
 }
+
+/// Runs the pinned gitleaks binary from the test runfiles with a cleared environment.
+struct RealGitleaks {
+    tool: std::path::PathBuf,
+}
+
+impl Runner for RealGitleaks {
+    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        let output = dx_process::spawn_output(argv, cwd, env, true)?;
+        Ok(match output.status.code() {
+            Some(code) => ChildStatus::exited(code),
+            None => ChildStatus::signalled(None),
+        })
+    }
+
+    fn run_hermetic(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+    ) -> io::Result<ChildStatus> {
+        self.run(argv, cwd, env)
+    }
+
+    fn gitleaks_tool(&self) -> Option<std::path::PathBuf> {
+        Some(self.tool.clone())
+    }
+}
+
+/// Answers `git` queries with the real git binary; Bazel queries are unexpected.
+struct RealGit;
+
+impl crate::resolve::QueryRunner for RealGit {
+    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<crate::resolve::QueryResult> {
+        assert_eq!(argv[0], "git", "unexpected query {argv:?}");
+        let output = std::process::Command::new("git")
+            .args(&argv[1..])
+            .current_dir(cwd)
+            .output()?;
+        Ok(crate::resolve::QueryResult {
+            code: output.status.code(),
+            stdout: output.stdout,
+            stderr: output.stderr,
+        })
+    }
+}
+
+fn git(root: &Path, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .args(["-c", "user.name=dx", "-c", "user.email=dx@example.com"])
+        .args(["-c", "commit.gpgsign=false"])
+        .args(args)
+        .current_dir(root)
+        .status()
+        .expect("run git");
+    assert!(status.success(), "git {args:?} failed");
+}
+
+fn real_secret_paths(harness: &Harness) -> (Vec<String>, Option<String>) {
+    let tool = dx_testing::resolve_runfiles(
+        &std::env::var("DX_TEST_GITLEAKS").expect("DX_TEST_GITLEAKS names the pinned gitleaks"),
+    );
+    let tool = std::path::absolute(tool).expect("absolute gitleaks path");
+    let runner = RealGitleaks { tool };
+    let bazel = super::QueryBazel {
+        query_runner: &RealGit,
+        workspace: &harness.workspace,
+        startup: &[],
+    };
+    let (findings, incomplete, _) = super::run_secrets(
+        &harness.workspace,
+        &runner,
+        &RealGit,
+        &bazel,
+        &harness.temp,
+        std::process::id(),
+        1,
+        false,
+    );
+    let mut paths: Vec<String> = findings
+        .into_iter()
+        .filter_map(|finding| finding.path)
+        .map(|path| path.replace('\\', "/"))
+        .collect();
+    paths.sort();
+    paths.dedup();
+    (paths, incomplete)
+}
+
+#[test]
+fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files() {
+    let token = format!("{}{}", "ghp_", "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8");
+    let line = format!("token = \"{token}\"\n");
+    for legacy_config in [false, true] {
+        let harness = Harness::new(&format!("audit-real-gitleaks-{legacy_config}"));
+        let root = harness.workspace.as_path();
+        git(root, &["init", "-q"]);
+        harness.write_source(".gitignore", "ign/\nlocal.env\n");
+        harness.write_source("ign/x.txt", &line);
+        harness.write_source("ign/kept.txt", &line);
+        harness.write_source("local.env", &line);
+        harness.write_source("untracked.txt", &line);
+        if legacy_config {
+            harness.write_source(
+                ".gitleaks.toml",
+                "[extend]\nuseDefault = true\n\n[allowlist]\ndescription = \"fixtures\"\nregexes = [\"never-matches-anything\"]\n",
+            );
+        }
+        git(root, &["add", ".gitignore"]);
+        git(root, &["add", "-f", "ign/kept.txt"]);
+        let (paths, incomplete) = real_secret_paths(&harness);
+        assert_eq!(incomplete, None, "legacy={legacy_config}");
+        assert_eq!(
+            paths,
+            vec!["ign/kept.txt".to_owned(), "untracked.txt".to_owned()],
+            "legacy={legacy_config}"
+        );
+    }
+}

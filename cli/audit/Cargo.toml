@@ -21,6 +21,7 @@ thiserror = "2"
 toml = { version = "1", default-features = false, features = [
   "parse",
   "serde",
+  "display",
 ] }
 url = "2"
 yaml_serde = "0.10"

@@ -91,6 +91,10 @@ pub(crate) struct ScriptQuery {
     pub(crate) info_calls: RefCell<Vec<Vec<String>>>,
     pub(crate) info: RefCell<Option<QueryResult>>,
     pub(crate) free_disk_bytes: Cell<Option<u64>>,
+    /// Answers for `git` queries, kept apart from the Bazel queue so git calls
+    /// never consume scripted cquery answers. Empty means git fails to launch.
+    pub(crate) git_outputs: RefCell<Vec<QueryResult>>,
+    pub(crate) git_calls: RefCell<Vec<Vec<String>>>,
 }
 
 impl ScriptQuery {
@@ -106,6 +110,14 @@ impl ScriptQuery {
         self.script_owners(&crate::test_support::graph_stdout(rules));
     }
 
+    pub(crate) fn script_git(&self, code: i32, stdout: &str) {
+        self.git_outputs.borrow_mut().push(QueryResult {
+            code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+
     pub(crate) fn script_info(&self, output: &str) {
         self.info.replace(Some(QueryResult {
             code: Some(0),
@@ -117,6 +129,14 @@ impl ScriptQuery {
 
 impl QueryRunner for ScriptQuery {
     fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        if argv.first().map(String::as_str) == Some("git") {
+            self.git_calls.borrow_mut().push(argv.to_vec());
+            let mut outputs = self.git_outputs.borrow_mut();
+            if outputs.is_empty() {
+                return Err(io::Error::other("unscripted git query"));
+            }
+            return Ok(outputs.remove(0));
+        }
         let expression = match argv
             .iter()
             .find_map(|arg| arg.strip_prefix("--query_file="))
@@ -174,6 +194,8 @@ impl Harness {
                 info_calls: RefCell::new(Vec::new()),
                 info: RefCell::new(None),
                 free_disk_bytes: Cell::new(None),
+                git_outputs: RefCell::new(Vec::new()),
+                git_calls: RefCell::new(Vec::new()),
             },
             intended: None,
             patch: None,

@@ -124,10 +124,16 @@ export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks 
 
 `dx license` does not read it.
 
-A `.gitleaks.toml` in the workspace root is passed to the scan. It is the only
-config the scan reads. Each scan that uses it reports a warning naming the file,
-because the config carries no hash pin. A secret finding is an error whose rule
-is the Gitleaks rule id, for example `gitleaks/aws-key`.
+A `.gitleaks.toml` in the workspace root is merged into the config dx hands the
+scan. It is the only user config the scan reads. Each scan that uses it reports
+a warning naming the file, because the config carries no hash pin. A secret
+finding is an error whose rule is the Gitleaks rule id, for example
+`gitleaks/aws-key`.
+
+The scan skips files and directories that git ignores. Untracked files that git
+does not ignore are scanned, and so are tracked files inside an ignored
+directory. Outside a git repository, or when git is unavailable, every file is
+scanned.
 
 `dx license` reads `licenses.toml` from the workspace root. Without the file
 every scope is distributed and only `MIT`, `Apache-2.0`, `BSD-2-Clause`,

@@ -35,6 +35,7 @@ fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
     let (findings, incomplete, diagnostics) = super::run_secrets(
         &harness.workspace,
         &Unavailable,
+        &harness.query,
         &bazel,
         &harness.temp,
         1,
@@ -304,6 +305,120 @@ fn audit_stdout_reports_are_single_machine_documents() {
             assert_eq!(value["version"], "2.1.0");
         } else {
             assert_eq!(value["spdxVersion"], "SPDX-2.3");
+        }
+    }
+}
+
+const CLEAN_SARIF: &str =
+    r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}"#;
+
+/// Runs the secrets family against a fake gitleaks and returns its argv and diagnostics.
+fn scan_secrets(harness: &Harness) -> (Vec<String>, Vec<dx_output::DiagnosticEvent>) {
+    let runner = AuditRunner::with_sarif(Some(0), CLEAN_SARIF);
+    let bazel = super::QueryBazel {
+        query_runner: &harness.query,
+        workspace: &harness.workspace,
+        startup: &[],
+    };
+    let (findings, incomplete, diagnostics) = super::run_secrets(
+        &harness.workspace,
+        &runner,
+        &harness.query,
+        &bazel,
+        &harness.temp,
+        7,
+        3,
+        false,
+    );
+    assert!(findings.is_empty());
+    assert_eq!(incomplete, None);
+    let calls = runner.calls.borrow();
+    assert_eq!(calls.len(), 1, "{calls:?}");
+    (calls[0].clone(), diagnostics)
+}
+
+fn config_arg(argv: &[String]) -> Option<String> {
+    let index = argv.iter().position(|arg| arg == "--config")?;
+    argv.get(index + 1).cloned()
+}
+
+fn ignored_query_argv() -> Vec<String> {
+    std::iter::once("git")
+        .chain(dx_audit::secrets::IGNORED_QUERY)
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+const USER_CONFIG: &str = "[allowlist]\ndescription = \"fixtures\"\nregexes = [\"example\"]\n";
+
+#[test]
+fn secrets_scan_skips_git_ignored_paths() {
+    let harness = Harness::new("audit-secrets-ignored");
+    harness.query.script_git(0, "ign/\0local.env\0");
+    harness.write_source(".gitleaks.toml", USER_CONFIG);
+    let (argv, diagnostics) = scan_secrets(&harness);
+    assert_eq!(
+        *harness.query.git_calls.borrow(),
+        vec![ignored_query_argv()]
+    );
+    assert!(harness.query.calls.borrow().is_empty());
+    let config = config_arg(&argv).expect("--config");
+    let config = std::path::PathBuf::from(config);
+    assert!(config.is_absolute(), "{config:?}");
+    assert!(config.starts_with(&harness.temp), "{config:?}");
+    let written = std::fs::read_to_string(&config).expect("config");
+    let expected = dx_audit::secrets::scoped_config(
+        Some(USER_CONFIG),
+        &[r"^ign(?:/|$)".to_owned(), r"^local\.env$".to_owned()],
+    )
+    .expect("expected config");
+    assert_eq!(written, expected);
+    assert!(written.contains("[[allowlists]]"), "{written}");
+    assert!(!written.contains("[allowlist]"), "{written}");
+    assert!(written.contains("fixtures"), "{written}");
+    assert!(diagnostics
+        .iter()
+        .any(|event| event.message.contains("without a hash pin")
+            && event.path.as_deref() == Some(".gitleaks.toml")));
+}
+
+#[test]
+fn secrets_scan_without_user_config_scopes_the_default_rules() {
+    let harness = Harness::new("audit-secrets-ignored-default");
+    harness.query.script_git(0, "ign/\0");
+    let (argv, diagnostics) = scan_secrets(&harness);
+    let config = config_arg(&argv).expect("--config");
+    let written = std::fs::read_to_string(config).expect("config");
+    assert!(written.contains("useDefault = true"), "{written}");
+    assert!(diagnostics.is_empty());
+}
+
+#[test]
+fn secrets_scan_keeps_the_plain_config_when_git_gives_nothing() {
+    for case in ["exit-128", "empty", "unscripted", "invalid-user-toml"] {
+        for user_config in [true, false] {
+            if case == "invalid-user-toml" && !user_config {
+                continue;
+            }
+            let harness = Harness::new(&format!("audit-secrets-fallback-{case}-{user_config}"));
+            match case {
+                "exit-128" => harness.query.script_git(128, ""),
+                "empty" => harness.query.script_git(0, ""),
+                "invalid-user-toml" => harness.query.script_git(0, "ign/\0"),
+                _ => {}
+            }
+            if case == "invalid-user-toml" {
+                harness.write_source(".gitleaks.toml", "[allowlist\n");
+            } else if user_config {
+                harness.write_source(".gitleaks.toml", "title = \"local\"\n");
+            }
+            let (argv, _) = scan_secrets(&harness);
+            assert_eq!(
+                *harness.query.git_calls.borrow(),
+                vec![ignored_query_argv()]
+            );
+            let expected = user_config.then(|| ".gitleaks.toml".to_owned());
+            assert_eq!(config_arg(&argv), expected, "{case} {user_config}");
         }
     }
 }

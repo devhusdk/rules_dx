@@ -289,9 +289,11 @@ rust_test(
         "//tools/bazelrc:preset.bazelrc",
         "//tools/ci:input_validation.py",
         "//tools/testing/process_probe",
+        "@dx_tools//:gitleaks",
     ],
     env = {
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
+        "DX_TEST_GITLEAKS": "$(rootpath @dx_tools//:gitleaks)",
         "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
     },
     deps = all_crate_deps(

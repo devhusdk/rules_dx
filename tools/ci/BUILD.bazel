@@ -105,6 +105,38 @@ python_test(
 
 # keep
 python_library(
+    name = "resource_peaks",
+    srcs = ["resource_peaks.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_binary(
+    name = "resource_peaks_bin",
+    main = "resource_peaks.py",
+    visibility = ["//visibility:public"],
+    deps = [":resource_peaks"],
+)
+
+# keep
+python_test(
+    name = "resource_peaks_test",
+    size = "small",
+    srcs = ["resource_peaks_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        "resource_peaks.py",
+    ],
+    dep_group = "hello",
+    deps = [
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
+)
+
+# keep
+python_library(
     name = "docs_scope",
     srcs = ["docs_scope.py"],
     aspect_hints = ["//:ruff_config"],

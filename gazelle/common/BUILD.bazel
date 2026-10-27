@@ -73,6 +73,7 @@ go_library(
     ],
     deps = [
         "@com_github_pmezard_go_difflib//difflib",
+        "@com_github_tailscale_hujson//:hujson",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//merger",

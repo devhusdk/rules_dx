@@ -1012,6 +1012,15 @@ mod tests {
             "ownership ignores configuration: {:?}",
             calls[0]
         );
+        for index in [1, 3] {
+            for dropped in ["--platforms=//:x", "--config=ci"] {
+                assert!(
+                    !calls[index].contains(&dropped.to_owned()),
+                    "query calls drop build options: {:?}",
+                    calls[index]
+                );
+            }
+        }
     }
 
     #[test]

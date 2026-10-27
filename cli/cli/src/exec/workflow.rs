@@ -494,10 +494,16 @@ mod tests {
             harness.query.script_owners(
                 "_rust_forward_test rule //cli:dx_cli_test\nrust_test rule //cli:raw_test\nrustfmt_test rule //cli:fmt_test\nrust_clippy_test rule //cli:clippy_test\n",
             );
+            harness.query.script_owners("");
             let inv = invocation(&[command, "--", "--test_filter=slots"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             let queries = harness.query.calls.borrow();
-            assert_eq!(queries.len(), 1, "{command}: {queries:?}");
+            assert_eq!(queries.len(), 2, "{command}: {queries:?}");
+            assert!(
+                harness.query.expressions.borrow()[1].contains("attr(use_libtest_harness, 0,"),
+                "{command}: {:?}",
+                harness.query.expressions.borrow()
+            );
             let query = &queries[0];
             assert!(query.contains(&"query".to_owned()), "{query:?}");
             assert!(
@@ -520,6 +526,96 @@ mod tests {
                 .expect("filter reaches the rust test binary");
             assert!(filter < test_arg, "{command}: {argv:?}");
         }
+    }
+
+    #[test]
+    fn test_filter_skips_the_libtest_filter_for_tests_without_the_harness() {
+        for command in ["test", "coverage"] {
+            let harness = Harness::new("wf-rust-no-harness");
+            harness
+                .query
+                .script_owners("_rust_forward_test rule //cli:raw_test\n");
+            harness.query.script_owners("//cli:raw_test_upstream\n");
+            let inv = invocation(&[command, "--", "--test_filter=slots"]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            assert_eq!(harness.query.calls.borrow().len(), 2, "{command}");
+            let argv = &run.argv[0];
+            assert!(
+                !argv.iter().any(|arg| arg.starts_with("--test_arg")),
+                "{command}: {argv:?}"
+            );
+            assert!(argv.contains(&"--test_filter=slots".to_owned()), "{argv:?}");
+        }
+    }
+
+    #[test]
+    fn test_filter_kind_query_failure_stops_before_bazel() {
+        for command in ["test", "coverage"] {
+            let harness = Harness::new("wf-rust-filter-fails");
+            harness.query.script_failure(7, "ERROR: no such package\n");
+            let inv = invocation(&[command, "--", "--test_filter=slots"]);
+            let mut err = Vec::new();
+            let run = harness.probe_streams(&inv, &[Some(0)], &mut Vec::new(), &mut err);
+            let err = String::from_utf8(err).expect("stderr");
+            assert_ne!(run.code, 0, "{command}: {err}");
+            assert!(run.argv.is_empty(), "{command}: {run:?}");
+            assert!(err.contains("query"), "{command}: {err}");
+        }
+    }
+
+    #[test]
+    fn test_filter_kind_query_forwards_only_repository_options() {
+        for command in ["test", "coverage"] {
+            let harness = Harness::new("wf-rust-filter-options");
+            harness
+                .query
+                .script_owners("_rust_forward_test rule //cli:dx_cli_test\n");
+            harness.query.script_owners("");
+            let inv = invocation(&[
+                command,
+                "--",
+                "--test_filter=slots",
+                "--config=ci",
+                "--override_repository=foo=/x",
+                "--repo_env=K=V",
+                "--test_tag_filters=unit",
+                "--platforms=//:x",
+            ]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            let queries = harness.query.calls.borrow();
+            assert_eq!(queries.len(), 2, "{command}: {queries:?}");
+            for query in queries.iter() {
+                for kept in ["--override_repository=foo=/x", "--repo_env=K=V"] {
+                    assert!(query.contains(&kept.to_owned()), "{kept}: {query:?}");
+                }
+                for dropped in [
+                    "--test_filter=slots",
+                    "--test_tag_filters=unit",
+                    "--platforms=//:x",
+                    "--config=ci",
+                ] {
+                    assert!(!query.contains(&dropped.to_owned()), "{dropped}: {query:?}");
+                }
+                assert!(
+                    !query.iter().any(|arg| arg.starts_with("--config=dx_")),
+                    "{query:?}"
+                );
+            }
+            let argv = &run.argv[0];
+            assert!(argv.contains(&"--config=ci".to_owned()), "{argv:?}");
+            assert!(argv.contains(&"--test_arg=slots".to_owned()), "{argv:?}");
+        }
+    }
+
+    #[test]
+    fn test_filter_with_a_conflicting_profile_still_exits_usage() {
+        let harness = Harness::new("wf-rust-filter-conflict");
+        let inv = invocation(&["test", "--", "--test_filter=x", "--config=dx_release"]);
+        let mut err = Vec::new();
+        let run = harness.probe_streams(&inv, &[Some(0)], &mut Vec::new(), &mut err);
+        let err = String::from_utf8(err).expect("stderr");
+        assert_eq!(run.code, 2, "{err}");
+        assert!(run.argv.is_empty(), "{run:?}");
     }
 
     #[test]
@@ -787,11 +883,14 @@ mod tests {
             queries[2].contains(&"--config=dx_dev".to_owned()),
             "mapping shares profile with execution: {queries:?}"
         );
-        assert!(
-            !queries[0].contains(&"--platforms=//:x".to_owned()),
-            "ownership ignores configuration: {:?}",
-            queries[0]
-        );
+        for query in &queries[..2] {
+            for dropped in ["--platforms=//:x", "--config=dx_dev"] {
+                assert!(
+                    !query.contains(&dropped.to_owned()),
+                    "unconfigured queries ignore configuration: {query:?}"
+                );
+            }
+        }
         assert_eq!(run.argv.len(), 1, "{run:?}");
         let argv = &run.argv[0];
         assert!(argv.contains(&"--platforms=//:x".to_owned()), "{argv:?}");

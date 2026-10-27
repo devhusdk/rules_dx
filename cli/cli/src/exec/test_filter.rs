@@ -67,11 +67,45 @@ pub(crate) fn rust_filter_args(
         && kinds
             .iter()
             .all(|(kind, _)| is_rust(kind) || ARG_TOLERANT_KINDS.contains(&kind.as_str()));
-    if all_rust {
-        Ok(vec![format!("--test_arg={filter}")])
-    } else {
-        Ok(Vec::new())
+    if !all_rust {
+        return Ok(Vec::new());
     }
+    let rust_labels: Vec<String> = kinds
+        .into_iter()
+        .filter(|(kind, _)| is_rust(kind))
+        .map(|(_, label)| label)
+        .collect();
+    if !without_libtest_harness(&rust_labels, workspace, runner, selection)?.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(vec![format!("--test_arg={filter}")])
+}
+
+/// Returns the targets among `labels` and their `upstream` tests that set
+/// `use_libtest_harness = False`. Such binaries do not parse libtest filters.
+pub(crate) fn without_libtest_harness(
+    labels: &[String],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    selection: &SelectionContext,
+) -> Result<Vec<String>, ResolveError> {
+    if labels.is_empty() {
+        return Ok(Vec::new());
+    }
+    let set = crate::resolve::set_expression(labels);
+    let expr = format!("attr(use_libtest_harness, 0, {set} + labels(upstream, {set}))");
+    let argv = selection
+        .unconfigured_view()
+        .selection_argv("query", &["--output=label".to_owned()], &expr)
+        .map_err(|error| prepare_failure(&expr, error.to_string()))?;
+    let label = format!("bazel query {expr}");
+    let result = ResolveError::run(runner, &argv, workspace, &label)?;
+    Ok(String::from_utf8_lossy(&result.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect())
 }
 
 #[cfg(test)]

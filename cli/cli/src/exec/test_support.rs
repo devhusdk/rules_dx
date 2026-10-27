@@ -114,6 +114,14 @@ impl ScriptQuery {
         });
     }
 
+    pub(crate) fn script_failure(&self, code: i32, stderr: &str) {
+        self.outputs.borrow_mut().push(QueryResult {
+            code: Some(code),
+            stdout: Vec::new(),
+            stderr: stderr.as_bytes().to_vec(),
+        });
+    }
+
     pub(crate) fn script_graph(&self, rules: &[String]) {
         self.script_owners(&dx_testing::cli::graph_stdout(rules));
     }

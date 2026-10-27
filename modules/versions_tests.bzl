@@ -78,7 +78,8 @@ def versions_contract_tests(name):
         file_checks = {
             "//.devcontainer:Dockerfile.prebuilt": "bazelisk/releases/download/v" + _BAZELISK_VERSION + "/",
             "//:.bazelrc": "build --java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n" +
-                           "build --tool_java_runtime_version=" + _JAVA_RUNTIME_VERSION,
+                           "build --tool_java_runtime_version=" + _JAVA_RUNTIME_VERSION + "\n" +
+                           "common --check_direct_dependencies=error",
             "//:.bazelversion": _BAZEL_VERSION,
             "//:cuda/README.md": cuda_stanza,
             "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,

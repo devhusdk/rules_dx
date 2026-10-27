@@ -14,6 +14,7 @@ test --test_env=DX_NESTED_BAZEL
 test --test_env=BAZELISK_BASE_URL
 test --test_env=BAZELISK_HOME
 common --registry=https://bcr.bazel.build
+common --check_direct_dependencies=error
 
 startup:macos --host_jvm_args=-XX:MaxRAMPercentage=50
 common:macos --local_resources=nested_bazel=1

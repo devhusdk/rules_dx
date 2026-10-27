@@ -1,0 +1,14 @@
+--------- beginning of main
+10-27 12:00:01.100  2101  2101 I ActivityManager: Start proc 2101:com.example.dxrustapk/u0a190
+10-27 12:00:01.200  2101  2101 I DxRustApk: lifecycle=create state=0 status=0
+10-27 12:00:01.201  2101  2101 I DxRustApk: asset=ok name=message.txt bytes=30
+10-27 12:00:01.210  2101  2101 I DxRustApk: lifecycle=start state=1
+10-27 12:00:01.220  2101  2101 I DxRustApk: lifecycle=resume state=2
+10-27 12:00:02.000  2101  2101 I DxRustApk: input=touch total=1
+10-27 12:00:02.010  2101  2101 I DxRustApk: input=touch total=2
+10-27 12:00:02.500  2101  2101 I DxRustApk: input=key total=1
+10-27 12:00:02.510  2101  2101 I DxRustApk: input=key total=2
+10-27 12:00:03.000  2101  2101 I DxRustApk: lifecycle=pause state=3
+10-27 12:00:03.400  2101  2101 I DxRustApk: lifecycle=stop state=4
+10-27 12:00:04.000  2101  2101 I DxRustApk: lifecycle=start state=1
+10-27 12:00:04.010  2101  2101 I DxRustApk: lifecycle=resume state=2

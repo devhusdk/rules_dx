@@ -1,0 +1,21 @@
+Packages:
+  Package [org.example.custom.dxrustapk] (7d3c2f1):
+    appId=10191
+    pkg=Package{9a1b2c3 org.example.custom.dxrustapk}
+    codePath=/data/app/~~Qm3x==/org.example.custom.dxrustapk-Zk1w==
+    resourcePath=/data/app/~~Qm3x==/org.example.custom.dxrustapk-Zk1w==
+    legacyNativeLibraryDir=/data/app/~~Qm3x==/org.example.custom.dxrustapk-Zk1w==/lib
+    extractNativeLibs=false
+    primaryCpuAbi=x86_64
+    secondaryCpuAbi=null
+    cpuAbiOverride=null
+    versionCode=7 minSdk=33 targetSdk=33
+    minExtensionVersions=[]
+    versionName=2.3
+    flags=[ HAS_CODE ALLOW_CLEAR_USER_DATA ALLOW_BACKUP ]
+    requested permissions:
+      android.permission.ACCESS_NETWORK_STATE
+      android.permission.VIBRATE
+    install permissions:
+      android.permission.ACCESS_NETWORK_STATE: granted=true
+      android.permission.VIBRATE: granted=true

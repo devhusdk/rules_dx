@@ -1,0 +1,166 @@
+name: android
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "ubuntu-latest (x86_64 with KVM)."
+        required: false
+        default: "ubuntu-latest"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && '--config=ci --config=ci-pr' || '' }}
+  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  BAZELISK_VERSION: "1.29.0"
+  DX_ANDROID_API: "34"
+  DX_ANDROID_ABI: "x86_64"
+  DX_ANDROID_BUILD_TOOLS: "34.0.0"
+  DX_ANDROID_NDK: "27.2.12479018"
+
+jobs:
+  android:
+    name: android (${{ inputs.runner || 'ubuntu-latest' }})
+    timeout-minutes: 90
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: read
+    steps:
+      - name: Validate inputs
+        env:
+          DX_RUNNER: ${{ inputs.runner || 'ubuntu-latest' }}
+        run: |
+          case "$DX_RUNNER" in
+            ubuntu-latest) ;;
+            *) echo "android input rejected: runner must be ubuntu-latest, got $DX_RUNNER" && exit 1 ;;
+          esac
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          if [ ! -e /dev/kvm ]; then
+            echo "android: /dev/kvm is missing; this runner cannot run a hardware-accelerated emulator" && exit 1
+          fi
+          ls -l /dev/kvm
+      - name: Install the Android SDK packages
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null || true
+          "$sdkmanager" --install \
+            "platforms;android-$DX_ANDROID_API" \
+            "build-tools;$DX_ANDROID_BUILD_TOOLS" \
+            "ndk;$DX_ANDROID_NDK" \
+            "platform-tools" \
+            "emulator" \
+            "system-images;android-$DX_ANDROID_API;google_apis;$DX_ANDROID_ABI" > /dev/null
+          {
+            echo "ANDROID_SDK_ROOT=$ANDROID_HOME"
+            echo "ANDROID_NDK_REVISION=$DX_ANDROID_NDK"
+            echo "SDKMANAGER=$sdkmanager"
+            echo "EMULATOR=$ANDROID_HOME/emulator/emulator"
+          } >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+      - name: Select the NDK toolchains
+        run: |
+          {
+            echo "build --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator"
+            echo "test --test_env=ANDROID_HOME"
+          } > user.bazelrc
+      - name: Boot the emulator
+        run: |
+          mkdir -p evidence
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n dx \
+            -k "system-images;android-$DX_ANDROID_API;google_apis;$DX_ANDROID_ABI"
+          nohup "$EMULATOR" -avd dx -port 5554 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect > evidence/emulator.log 2>&1 &
+          adb start-server
+      - name: Build the APKs
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel build --noshow_progress "$@" //:dx //android/tests/fixtures/rust_apk:app_apk_file //android/tests/fixtures/rust_apk:custom_apk_file 2>&1 | tail -n 40
+      - name: Wait for the emulator to boot
+        run: |
+          timeout 600 adb -s emulator-5554 wait-for-device
+          waited=0
+          until [ "$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+            if [ "$waited" -ge 600 ]; then
+              echo "android: emulator-5554 did not boot within 600 s" && tail -n 50 evidence/emulator.log && exit 1
+            fi
+            sleep 5
+            waited=$((waited + 5))
+          done
+          adb -s emulator-5554 shell settings put global window_animation_scale 0
+          adb -s emulator-5554 shell settings put global transition_animation_scale 0
+          adb -s emulator-5554 shell settings put global animator_duration_scale 0
+          adb -s emulator-5554 shell input keyevent KEYCODE_WAKEUP
+          adb -s emulator-5554 shell wm dismiss-keyguard
+      - name: Run the device scenario
+        run: sh android/tests/fixtures/rust_apk/device_run.sh emulator-5554 evidence
+      - name: Collect test logs
+        if: always()
+        run: |
+          mkdir -p evidence/testlogs
+          if [ -d bazel-testlogs/ ]; then
+            cp -RL bazel-testlogs/. evidence/testlogs/ 2>/dev/null || true
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: android-evidence-${{ inputs.runner || 'ubuntu-latest' }}
+          path: evidence/
+          retention-days: 14
+      - name: Write job summary
+        if: always()
+        env:
+          DX_RUNNER: ${{ inputs.runner || 'ubuntu-latest' }}
+        run: |
+          {
+            printf '## Android %s\n' "$DX_RUNNER"
+            echo ""
+            echo '```'
+            head -n 30 evidence/versions.txt 2>/dev/null || echo "no versions.txt"
+            echo '```'
+            echo ""
+            echo '```'
+            cat evidence/exit-codes.txt 2>/dev/null || echo "no exit-codes.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

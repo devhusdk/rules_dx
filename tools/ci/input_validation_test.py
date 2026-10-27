@@ -25,6 +25,7 @@ EVIDENCE_MARKER = "DX_EVIDENCE_INPUTS"
 # Workflows whose run: blocks must read inputs through env, never through ${{ }}.
 EXPRESSION_FREE_WORKFLOWS = (
     EVIDENCE_WORKFLOW,
+    ".github/workflows/android.yml",
     ".github/workflows/apple.yml",
 )
 INPUTS = (

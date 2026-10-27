@@ -1,6 +1,7 @@
 # gazelle:ignore
 
 load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/packaging:defs.bzl", "android_aab_check", "android_aab_release_sign", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library")
@@ -128,6 +129,30 @@ rust_android_apk(
     version_name = "2.3",
     visibility = ["//visibility:public"],
     deps = [":app_jni"],
+)
+
+android_adb_install(
+    name = "install_custom",
+    apk = ":custom_apk_file",
+    serial = "emulator-5554",
+)
+
+android_adb_start(
+    name = "start_custom",
+    app_id = "org.example.custom.dxrustapk",
+    serial = "emulator-5554",
+)
+
+sh_binary(
+    name = "device_check",
+    srcs = ["device_check.sh"],
+    tags = ["manual"],
+)
+
+sh_binary(
+    name = "device_run",
+    srcs = ["device_run.sh"],
+    tags = ["manual"],
 )
 
 android_apk_release_sign(
@@ -503,6 +528,21 @@ sh_test(
 )
 
 sh_test(
+    name = "start_custom_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "start",
+        "$(location :start_custom)",
+        "$(location :fake_adb.sh)",
+        "org.example.custom.dxrustapk",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":start_custom",
+    ],
+)
+
+sh_test(
     name = "log_test",
     srcs = ["adapter_test.sh"],
     args = [
@@ -529,6 +569,30 @@ sh_test(
         ":log",
     ],
     env = {"ADB_EXIT": "7"},
+)
+
+sh_test(
+    name = "device_check_test",
+    size = "small",
+    srcs = ["device_check_test.sh"],
+    args = [
+        "ok",
+        "$(rootpath device_check.sh)",
+        "$(rootpath testdata/logcat_ok.txt)",
+    ],
+    data = ["device_check.sh"] + glob(["testdata/**"]),
+)
+
+sh_test(
+    name = "device_check_rejects_test",
+    size = "small",
+    srcs = ["device_check_test.sh"],
+    args = [
+        "rejects",
+        "$(rootpath device_check.sh)",
+        "$(rootpath testdata/logcat_ok.txt)",
+    ],
+    data = ["device_check.sh"] + glob(["testdata/**"]),
 )
 
 real_source_target(

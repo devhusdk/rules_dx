@@ -311,9 +311,29 @@ directories, the exported `ANativeActivity_onCreate`, system-only
 `NEEDED` entries, the asset bundle, and the debug signature. The custom
 target packages `x86_64` only at API 33 with its own ID and permissions.
 
+## Run on a device
+
 The fixture app logs `lifecycle=`, `input=` and `asset=` lines under the
-`DxRustApk` tag. After `bazel run //android/tests/fixtures/rust_apk:install`
-and `:start`, touch the screen and run `:log` to see them.
+`DxRustApk` tag. With the SDK host above and an emulator on
+`emulator-5554`:
+
+```sh
+pkg=//android/tests/fixtures/rust_apk
+tools/dx run $pkg:install $pkg:start
+adb -s emulator-5554 shell input tap 200 400
+adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
+tools/dx run $pkg:log > "$PWD/logcat.txt"
+tools/dx run $pkg:device_check -- logcat "$PWD/logcat.txt" 30
+```
+
+`bazel run` works the same way. Pass absolute paths to `:device_check`,
+because `bazel run` starts it in its runfiles. `:install_custom` and
+`:start_custom` install and launch the custom package. `dx build`,
+`dx test` and `dx check` never install, launch or sign.
+
+`android/tests/fixtures/rust_apk/device_run.sh <serial> <dir>` runs the
+whole scenario from the repository root and writes logs, `logcat-default.txt`,
+`dumpsys-custom.txt`, `versions.txt` and `exit-codes.txt` to `<dir>`.
 
 ## Backend decision
 
@@ -326,7 +346,8 @@ package and signature semantics without shedding supported behavior.
 App Bundles come from the upstream `android_application` rule.
 
 APK assembly and device install/launch need a qualified SDK host (see
-above). Selection, negative, and adapter coverage runs everywhere:
+above). The emulator run is qualified on a hosted x86_64 Linux runner;
+the `arm64-v8a` library is packaged but not executed there. Selection, negative, and adapter coverage runs everywhere:
 
 ```sh
 bazel test //android/...

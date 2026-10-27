@@ -2,7 +2,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":codegen.bzl", "codegen_plan_subject", "dx_codegen_shard", "prost_codegen_shard")
-load(":codegen_tests.bzl", "codegen_defs_unit_tests", "codegen_plan_analysis_tests")
+load(":codegen_tests.bzl", "codegen_defs_unit_tests", "codegen_plan_analysis_tests", "codegen_shard_argv_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -61,6 +61,36 @@ codegen_plan_subject(
 )
 
 codegen_plan_analysis_tests(name = "codegen_plan_analysis")
+
+codegen_shard_argv_test(
+    name = "codegen_shard_alpha_argv_test",
+    expected = [
+        "--producer",
+        "//generation:codegen_shard_alpha",
+        "--language",
+        "rust",
+        "--entry",
+        "gen/alpha.rs|gen|alpha",
+        "--output",
+    ],
+    output = "generation/codegen_shard_alpha.dxcodegen.pb",
+    target_under_test = ":codegen_shard_alpha",
+)
+
+codegen_shard_argv_test(
+    name = "codegen_prost_fixture_argv_test",
+    expected = [
+        "--producer",
+        "//generation:codegen_prost_fixture",
+        "--language",
+        "rust",
+        "--entry",
+        "gen/prost_result.rs|gen|result|result_proto.lib.rs",
+        "--output",
+    ],
+    output = "generation/codegen_prost_fixture.dxcodegen.pb",
+    target_under_test = ":codegen_prost_fixture",
+)
 
 real_source_target(
     name = "corpus_starlark",

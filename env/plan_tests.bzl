@@ -1,5 +1,6 @@
 """Unit tests for the normalized environment plans."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":plan.bzl",
@@ -284,3 +285,21 @@ def env_plan_analysis_tests(name):
         ],
         expected_observations = EXPECTED_ENV_PLAN_OBSERVATIONS,
     )
+
+def _shard_argv_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "DxEnvShard"]
+    asserts.equals(env, 1, len(actions))
+    argv = actions[0].argv
+    asserts.true(env, argv[0].endswith("/env_shard_writer"), "action runs " + argv[0])
+    asserts.equals(env, ctx.attr.expected, argv[1:-1])
+    asserts.true(env, argv[-1].endswith("/" + ctx.attr.output), "output " + argv[-1])
+    return analysistest.end(env)
+
+env_shard_argv_test = analysistest.make(
+    _shard_argv_impl,
+    attrs = {
+        "expected": attr.string_list(mandatory = True),
+        "output": attr.string(mandatory = True),
+    },
+)

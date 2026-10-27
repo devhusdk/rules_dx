@@ -1,0 +1,22 @@
+load("@rules_dx//perl/rules:defs.bzl", "perl_library", "perl_test")
+
+perl_library(
+    name = "inventory",
+    srcs = [
+        "Inventory.pm",
+        "lib/Inventory/Item.pm",
+        "lib/Inventory/Ledger.pm",
+    ],
+)
+
+perl_test(
+    name = "item_test",
+    srcs = ["t/item.t"],
+    deps = [":inventory"],
+)
+
+perl_test(
+    name = "ledger_test",
+    srcs = ["t/ledger.t"],
+    deps = [":inventory"],
+)

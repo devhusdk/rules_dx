@@ -95,6 +95,12 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "mdx_library", target: "demo", defs: "mdx/rules:defs.bzl",
 		symbols: []string{"mdx_library"},
 	},
+	"perl": {
+		files: map[string]string{"Demo.pm": "package Demo;\n1;\n"},
+		kind:  "perl_library", target: "demo", defs: "perl/rules:defs.bzl",
+		symbols: []string{"perl_library", "perl_test"},
+		inert:   []string{"script.pl"},
+	},
 	"powershell": {
 		files: map[string]string{"Demo.psm1": "function Get-Greeting { 'hi' }\n"},
 		kind:  "pwsh_library", target: "demo", defs: "powershell/rules:defs.bzl",

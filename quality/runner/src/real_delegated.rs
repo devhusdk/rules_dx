@@ -158,6 +158,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "mix_format",
         "modfmt",
         "pkl",
+        "psscriptanalyzer",
         "qmlformat",
         "scalafmt",
         "shfmt",

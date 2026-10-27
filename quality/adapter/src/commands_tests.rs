@@ -1388,6 +1388,24 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/Sample.ps1"
         ]
     );
+    assert_eq!(
+        argv_strings(&psscriptanalyzer_format_check(Path::new(BIN), &[ps], None)),
+        vec![BIN, "--format-check", "/scratch/Sample.ps1"]
+    );
+    assert_eq!(
+        argv_strings(&psscriptanalyzer_format_fix(
+            Path::new(BIN),
+            &[ps],
+            Some(Path::new("/scratch/PSScriptAnalyzerSettings.psd1"))
+        )),
+        vec![
+            BIN,
+            "--format-write",
+            "--settings",
+            "/scratch/PSScriptAnalyzerSettings.psd1",
+            "/scratch/Sample.ps1"
+        ]
+    );
     let sh = Path::new("/scratch/run.sh");
     assert_eq!(
         argv_strings(&shellcheck_check(Path::new(BIN), &[sh], None)),

@@ -226,6 +226,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "psscriptanalyzer",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "keep_sorted",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -285,9 +291,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
         | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "pmd" | "spotbugs" | "qmllint"
         | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "errcheck" | "stylelint"
-        | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck" | "hadolint" | "redocly" => {
-            Ok(Route::Keep)
-        }
+        | "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "redocly" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(
@@ -295,7 +299,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
                 "graphql_eslint requires a config".to_owned(),
             )),
         },
-        "buf" | "djlint" | "biome" | "prettier" | "remark" => {
+        "buf" | "djlint" | "psscriptanalyzer" | "biome" | "prettier" | "remark" => {
             if capability == "format" {
                 spec(true)
             } else {
@@ -741,6 +745,11 @@ impl super::RealBackend {
                     )),
                     "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
                     "djlint" => Ok(commands::djlint_format_fix(
+                        &tool.binary,
+                        refs,
+                        config.as_deref(),
+                    )),
+                    "psscriptanalyzer" => Ok(commands::psscriptanalyzer_format_fix(
                         &tool.binary,
                         refs,
                         config.as_deref(),

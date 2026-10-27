@@ -644,6 +644,58 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_ruby_lint_fail.expected.txt",
     },
     {
+        "name": "matrix_powershell_format_pass",
+        "tags": ["no-remote-exec"],
+        "generated": {
+            "matrix/psscriptanalyzer_format_clean.ps1": "if ($a) {\n    Write-Output 1\n}\n",
+        },
+        "capability": "format",
+        "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_format_clean.ps1"],
+        "tool_names": ["psscriptanalyzer"],
+        "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
+        "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
+        "expected_file": ":matrix/matrix_powershell_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_powershell_format_fail",
+        "tags": ["no-remote-exec"],
+        "generated": {
+            "matrix/psscriptanalyzer_format_dirty.ps1": "if ($a){\nWrite-Output 1}\n",
+        },
+        "capability": "format",
+        "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_format_dirty.ps1"],
+        "tool_names": ["psscriptanalyzer"],
+        "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
+        "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
+        "expected_file": ":matrix/matrix_powershell_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_powershell_format_syntax_error",
+        "tags": ["no-remote-exec"],
+        "generated": {
+            "matrix/psscriptanalyzer_format_broken.ps1": "function f {\n",
+        },
+        "capability": "format",
+        "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_format_broken.ps1"],
+        "tool_names": ["psscriptanalyzer"],
+        "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
+        "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
+        "expected_file": ":matrix/matrix_powershell_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_powershell_format_crlf_fail",
+        "tags": ["no-remote-exec"],
+        "generated": {
+            "matrix/psscriptanalyzer_format_crlf.ps1": "if ($a){\r\nWrite-Output 1}\r\n",
+        },
+        "capability": "format",
+        "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_format_crlf.ps1"],
+        "tool_names": ["psscriptanalyzer"],
+        "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
+        "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
+        "expected_file": ":matrix/matrix_powershell_format_crlf_fail.expected.txt",
+    },
+    {
         "name": "matrix_powershell_lint_pass",
         "tags": ["no-remote-exec"],
         "generated": {

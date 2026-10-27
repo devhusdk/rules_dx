@@ -1,4 +1,4 @@
-use super::{check_output_size, code_name, known, point, FileFinding, ParseError};
+use super::{check_output_size, code_name, known, point, unformatted_at, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "psscriptanalyzer";
@@ -23,25 +23,10 @@ pub fn parse_psscriptanalyzer(
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    check_output_size(TOOL, stdout)?;
-    if code != Some(0) {
-        return Err(ParseError::shape(TOOL, format!("exit {}", code_name(code))));
-    }
-    let report: serde_json::Value =
-        serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
-            tool: TOOL,
-            detail: err.to_string(),
-        })?;
-    if let Some(error) = report.get("error").and_then(serde_json::Value::as_str) {
-        return Err(ParseError::shape(TOOL, error));
-    }
-    let entries = report
-        .get("files")
-        .and_then(serde_json::Value::as_array)
-        .ok_or_else(|| ParseError::shape(TOOL, "missing files"))?;
+    let entries = report_entries(stdout, code)?;
     let mut findings = Vec::new();
     let mut reported: Vec<&str> = Vec::new();
-    for entry in entries {
+    for entry in &entries {
         let checked = known(TOOL, files, text(entry, "path")?)?;
         reported.push(checked);
         let diagnostics = entry
@@ -82,6 +67,83 @@ pub fn parse_psscriptanalyzer(
                     related: Vec::new(),
                 },
             });
+        }
+    }
+    if let Some(missing) = files.iter().find(|file| !reported.contains(file)) {
+        return Err(ParseError::shape(TOOL, format!("no result for {missing}")));
+    }
+    Ok(findings)
+}
+
+fn report_entries(stdout: &[u8], code: Option<i32>) -> Result<Vec<serde_json::Value>, ParseError> {
+    check_output_size(TOOL, stdout)?;
+    if code != Some(0) {
+        return Err(ParseError::shape(TOOL, format!("exit {}", code_name(code))));
+    }
+    let mut report: serde_json::Value =
+        serde_json::from_slice(stdout).map_err(|err| ParseError::Json {
+            tool: TOOL,
+            detail: err.to_string(),
+        })?;
+    if let Some(error) = report.get("error").and_then(serde_json::Value::as_str) {
+        return Err(ParseError::shape(TOOL, error));
+    }
+    match report.get_mut("files").map(serde_json::Value::take) {
+        Some(serde_json::Value::Array(entries)) => Ok(entries),
+        _ => Err(ParseError::shape(TOOL, "missing files")),
+    }
+}
+
+/// Parses the `--format-check` report: an unformatted file is one fixable finding, a file that
+/// does not parse is an error at each parse failure, and a failed run is never clean.
+pub fn parse_psscriptanalyzer_format(
+    stdout: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
+    let entries = report_entries(stdout, code)?;
+    let mut findings = Vec::new();
+    let mut reported: Vec<&str> = Vec::new();
+    for entry in &entries {
+        let checked = known(TOOL, files, text(entry, "path")?)?;
+        if reported.contains(&checked) {
+            return Err(ParseError::shape(TOOL, format!("{checked} reported twice")));
+        }
+        reported.push(checked);
+        if let Some(errors) = entry.get("parse_errors") {
+            let errors = errors
+                .as_array()
+                .filter(|errors| !errors.is_empty())
+                .ok_or_else(|| ParseError::shape(TOOL, "empty parse_errors"))?;
+            for error in errors {
+                let message = text(error, "message")?;
+                if message.is_empty() {
+                    return Err(ParseError::shape(TOOL, "missing message"));
+                }
+                let (start, end) = point(position(error, "line")?, position(error, "column")?);
+                findings.push(FileFinding {
+                    file: checked.to_owned(),
+                    finding: Finding {
+                        tool_id: TOOL.to_owned(),
+                        rule_id: "ParseError".to_owned(),
+                        message: message.to_owned(),
+                        severity: ToolSeverity::Error,
+                        start,
+                        end,
+                        suggestions: Vec::new(),
+                        encoding: ColumnEncoding::Utf16,
+                        related: Vec::new(),
+                    },
+                });
+            }
+            continue;
+        }
+        match entry.get("formatted").and_then(serde_json::Value::as_bool) {
+            Some(true) => {}
+            Some(false) => {
+                findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Utf16))
+            }
+            None => return Err(ParseError::shape(TOOL, "missing formatted")),
         }
     }
     if let Some(missing) = files.iter().find(|file| !reported.contains(file)) {
@@ -134,5 +196,58 @@ mod tests {
         assert!(error.to_string().contains("unknown rule Nope"), "{error}");
         let odd = DIRTY.replace("Warning", "Fatal");
         assert!(parse_psscriptanalyzer(odd.as_bytes(), Some(0), &["Sample.ps1"]).is_err());
+    }
+
+    const FORMAT: &str = r#"{"analyzer":"1.25.0","files":[{"path":"Bad.ps1","formatted":false},{"path":"Good.ps1","formatted":true},{"path":"Broken.ps1","parse_errors":[{"line":1,"column":12,"message":"Missing closing '}'"}]}]}"#;
+    const FORMAT_FILES: &[&str] = &["Bad.ps1", "Good.ps1", "Broken.ps1"];
+
+    #[test]
+    fn format_reports_unformatted_files_and_parse_errors() {
+        let findings = parse_psscriptanalyzer_format(FORMAT.as_bytes(), Some(0), FORMAT_FILES)
+            .expect("parsed");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, "Bad.ps1");
+        assert_eq!(findings[0].finding.rule_id, "");
+        assert_eq!(findings[0].finding.message, "file is not formatted");
+        assert_eq!(findings[1].file, "Broken.ps1");
+        assert_eq!(findings[1].finding.rule_id, "ParseError");
+        assert_eq!(findings[1].finding.severity, ToolSeverity::Error);
+        assert_eq!(
+            (
+                findings[1].finding.start.line,
+                findings[1].finding.start.column
+            ),
+            (1, 12)
+        );
+    }
+
+    #[test]
+    fn format_never_reports_a_failed_run_as_clean() {
+        let parse = |out: &str, code: Option<i32>, files: &[&str]| {
+            parse_psscriptanalyzer_format(out.as_bytes(), code, files)
+        };
+        assert!(parse(FORMAT, Some(1), FORMAT_FILES).is_err());
+        assert!(parse(FORMAT, None, FORMAT_FILES).is_err());
+        assert!(parse("", Some(0), FORMAT_FILES).is_err());
+        assert!(parse(FORMAT, Some(0), &["Bad.ps1", "Good.ps1"]).is_err());
+        assert!(parse(
+            FORMAT,
+            Some(0),
+            &["Bad.ps1", "Good.ps1", "Broken.ps1", "More.ps1"]
+        )
+        .is_err());
+        let error = parse(
+            r#"{"error":"S.psd1 configures no formatter rule"}"#,
+            Some(0),
+            &["Bad.ps1"],
+        )
+        .expect_err("failed");
+        assert!(error.to_string().contains("no formatter rule"), "{error}");
+        let missing = r#"{"files":[{"path":"Bad.ps1"}]}"#;
+        assert!(parse(missing, Some(0), &["Bad.ps1"]).is_err());
+        let empty = r#"{"files":[{"path":"Bad.ps1","parse_errors":[]}]}"#;
+        assert!(parse(empty, Some(0), &["Bad.ps1"]).is_err());
+        let twice = r#"{"files":[{"path":"Bad.ps1","formatted":true},{"path":"Bad.ps1","formatted":true}]}"#;
+        assert!(parse(twice, Some(0), &["Bad.ps1"]).is_err());
     }
 }

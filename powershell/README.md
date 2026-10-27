@@ -85,10 +85,23 @@ Import-Module Pester -RequiredVersion 5.7.1
 
 ## Formatting and linting
 
-`psscriptanalyzer` lints. No formatter runs. See
-the Quality page of the command reference for the family setup.
+`psscriptanalyzer` formats and lints. Format runs `Invoke-Formatter`, and
+`dx fix` rewrites scripts that would change. A script that does not parse is
+reported and never rewritten. Lint is check-only. Select both in the
+`powershell` family. See the Quality page of the command reference for the
+config rules.
+
+```python
+quality_family(
+    name = "powershell_family",
+    family_id = "powershell",
+    format = ["psscriptanalyzer"],
+    lint = ["psscriptanalyzer"],
+)
+```
 
 ```sh
+bazel run @rules_dx//:dx -- format //scripts/...
 bazel run @rules_dx//:dx -- lint //scripts/...
 ```
 
@@ -100,10 +113,10 @@ modules and a `pwsh_test` per `*.Tests.ps1` script. The
 
 ## Platforms
 
-| Cell | Lint |
-| --- | --- |
-| `linux_x86_64` | Supported |
-| Other cells | Not supported |
+| Cell | Format | Lint |
+| --- | --- | --- |
+| `linux_x86_64` | Supported | Supported |
+| Other cells | Not supported | Not supported |
 
 ## Coverage
 

@@ -245,7 +245,7 @@ _REAL_TOOL_TABLE = {
     },
     "psscriptanalyzer": {
         "attr": attr.label(default = "//quality/tools/powershell:psscriptanalyzer", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
+        "capabilities": ["format", "lint"],
         "env": [["DOTNET_CLI_TELEMETRY_OPTOUT", "1"], ["POWERSHELL_TELEMETRY_OPTOUT", "1"], ["POWERSHELL_UPDATECHECK", "Off"]],
         "kind": "executable",
         "resources": "heavy",
@@ -1299,6 +1299,12 @@ _REAL_SHARD_SPECS = {
         "shared_attrs": True,
         "suffix": "",
     },
+    "real_powershell_format": {
+        "capability": "format",
+        "doc": "Additive PowerShell format family aspect (PSScriptAnalyzer Invoke-Formatter).",
+        "shard": "powershell",
+        "suffix": "-powershell",
+    },
     "real_powershell_lint": {
         "capability": "lint",
         "doc": "Additive PowerShell lint family aspect (PSScriptAnalyzer).",
@@ -1554,6 +1560,8 @@ real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
 real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
+
+real_powershell_format_aspect = _make_real_aspect("real_powershell_format")
 
 real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
 

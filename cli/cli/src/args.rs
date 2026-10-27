@@ -118,6 +118,7 @@ pub use parser::{
     parse_with, parse_with_ci, select_startup_defaults, select_startup_defaults_with_ci,
     startup_workspace, DefaultsFailure, StartupDefaults,
 };
+pub(crate) use profile::filter_profile_configs;
 pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 
 pub use dx_adopt::defaults::FileDefaults;

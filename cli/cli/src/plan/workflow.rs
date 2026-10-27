@@ -21,63 +21,6 @@ pub fn coverage_sources_aspect_flag() -> String {
     )
 }
 
-fn is_dx_profile_config(value: &str) -> bool {
-    [
-        crate::args::Profile::Debug,
-        crate::args::Profile::Dev,
-        crate::args::Profile::Release,
-    ]
-    .iter()
-    .any(|profile| profile.config() == value)
-}
-
-fn filter_configs(
-    options: &[String],
-    profile: Option<crate::args::Profile>,
-) -> Result<Vec<String>, ForwardError> {
-    let Some(profile) = profile else {
-        return Ok(options.to_vec());
-    };
-    let required = profile.config_flag();
-    let mut kept = Vec::with_capacity(options.len());
-    let mut index = 0;
-    while index < options.len() {
-        let arg = &options[index];
-        if arg == &required {
-            index += 1;
-            continue;
-        }
-        let (value, consumed) = if let Some(value) = arg.strip_prefix("--config=") {
-            (Some(value.to_owned()), 1)
-        } else if arg == "--config" {
-            match options.get(index + 1) {
-                Some(value) => (Some(value.clone()), 2),
-                None => (None, 1),
-            }
-        } else {
-            kept.push(arg.clone());
-            index += 1;
-            continue;
-        };
-        if consumed == 2 && Some(profile.config()) == value.as_deref() {
-            index += consumed;
-            continue;
-        }
-        if let Some(value) = value {
-            if is_dx_profile_config(&value) {
-                return Err(ForwardError::ConflictingOption {
-                    flag: "config".to_owned(),
-                });
-            }
-        }
-        for offset in 0..consumed {
-            kept.push(options[index + offset].clone());
-        }
-        index += consumed;
-    }
-    Ok(kept)
-}
-
 fn workflow_defaults(verb: WorkflowVerb) -> &'static [&'static str] {
     match verb {
         WorkflowVerb::Build | WorkflowVerb::Test | WorkflowVerb::Coverage => {
@@ -147,7 +90,7 @@ pub fn plan_workflow(
         .iter()
         .map(ToString::to_string)
         .collect();
-    options.extend(filter_configs(bazel_options, profile)?);
+    options.extend(crate::args::filter_profile_configs(bazel_options, profile)?);
     let bazel_options = profile_options(profile, &options);
     let (scope, labels) = workflow_scope_labels(resolved);
     let argv = bazel_argv(

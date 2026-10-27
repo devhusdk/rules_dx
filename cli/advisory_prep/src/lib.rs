@@ -183,7 +183,6 @@ fn read_archive(options: &PrepareOptions, family: &str, url: &str) -> Result<Vec
         })?;
     let destination = scratch.path().join(format!("{family}.zip"));
     fetch(url, &destination, options.limits)?;
-    // `scratch` stays alive until the read finishes, then removes the file.
     std::fs::read(&destination).map_err(|error| PrepError::ArchiveRead {
         family: family.to_owned(),
         path: destination.display().to_string(),

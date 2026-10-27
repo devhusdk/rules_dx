@@ -12,7 +12,7 @@ use dx_plan::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use dx_plan::plan::spec;
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::QueryRunner;
-use dx_process::{interrupted, BoundedOutcome, ChildStatus, Runner, TimeBound};
+use dx_process::{interrupted, ChildStatus, Runner};
 use serde_json::{json, Value};
 use serde_sarif::sarif::Sarif;
 use std::cell::Cell;
@@ -602,16 +602,6 @@ impl<'a> LaunchWatch<'a> {
 impl Runner for LaunchWatch<'_> {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         self.watch(self.inner.run(argv, cwd, env))
-    }
-
-    fn run_bounded(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-        bound: TimeBound,
-    ) -> io::Result<BoundedOutcome> {
-        self.inner.run_bounded(argv, cwd, env, bound)
     }
 
     fn run_hermetic(

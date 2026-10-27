@@ -38,7 +38,7 @@ pub use launcher::{
     render_launcher_cmd, render_launcher_sh, stale_launchers, write_launcher_files, LauncherPins,
     LAUNCHER_CMD_REL, LAUNCHER_SH_REL, RELEASE_ASSETS,
 };
-pub use load_graph::{bzl_impact, module_inputs, BzlImpact};
+pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
 pub use migrate::plan_migrate;
 pub use new::{
     apply_new, default_new_name, new_is_known_language, new_language_name_list, plan_new_files,

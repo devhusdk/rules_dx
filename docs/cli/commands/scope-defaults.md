@@ -91,9 +91,11 @@ exit `2`).
   tests and only reports fixes; `dx fix --apply --affected` writes them.
   Generate and its re-check run Gazelle on the directories of the affected
   targets.
-- A change to `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`,
-  `WORKSPACE.bazel`, `.bazelversion`, any `*.MODULE.bazel` file, or any
-  `.bazelrc*` file, at any depth, widens the scope to `//...`. So does a file the root `.bazelrc` reaches
+- A change to `WORKSPACE`, `WORKSPACE.bazel`, `.bazelversion`, any
+  `*.MODULE.bazel` file, any `MODULE.bazel` or `MODULE.bazel.lock` below the
+  workspace root, or any `.bazelrc*` file, at any depth, widens the scope to
+  `//...`. So does any edit to the root `MODULE.bazel` or `MODULE.bazel.lock`
+  other than the `bazel_dep` version bump below. So does a file the root `.bazelrc` reaches
   through `import` or `try-import %workspace%/...`, including nested imports.
   Other `*.bazelrc` files do not widen. So does a file that `MODULE.bazel` or an
   included segment names by label in an extension tag, repo rule, or
@@ -119,6 +121,32 @@ exit `2`).
   cannot read, or a crate_universe lockfile change outside `crates` widens
   to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
   not widen; it selects its owners like any other file.
+- A root `MODULE.bazel` change that only edits `bazel_dep` version strings,
+  with the matching `MODULE.bazel.lock` change, selects the targets in the
+  repos of the changed modules and of every module that depends on them, plus
+  their reverse dependencies. Repos that root module extensions create are
+  selected too. Packages whose BUILD files load from those repos, directly or
+  through `.bzl` files, are selected with their reverse dependencies. dx reads
+  the module files from the Bazel repository cache without starting Bazel. It
+  finds the cache from `--repository_cache` in `.bazelrc`, from
+  `--output_user_root`, and from Bazel's default locations, and only trusts a
+  file whose sha256 matches the lock. CI that restores the repository cache
+  keeps the narrow selection. It widens to `//...` with one of these reasons:
+  `workspace input MODULE.bazel` (another edit, no base commit, or a file
+  added or missing), `workspace input MODULE.bazel.lock`,
+  `cannot read MODULE.bazel.lock: <detail>`,
+  `MODULE.bazel.lock changed <key>` (a lock entry outside the changed
+  modules), `MODULE.bazel has <override> for <module>` (`git_override`,
+  `archive_override`, `local_path_override`, or an override with `patches`
+  or `patch_cmds`), `no cached MODULE.bazel for <module>@<version>`,
+  `cannot read MODULE.bazel of <module>@<version>: <detail>`,
+  `changed module <module> registers toolchains` (including `bazel_tools`
+  when a module it uses changes), `MODULE.bazel registers <label>`,
+  `changed modules in MODULE.bazel reach toolchain <label>`,
+  `module extension input loads @<repo>`, `aspect loads @<repo>`,
+  `toolchain input loads @<repo>`, `bazelrc names @<repo>`, or
+  `cannot read load graph: <detail>`. A loading package is listed with the
+  reason `loads @<repo>`.
 - A changed `.bzl` or `.scl` file selects the packages whose BUILD files load
   it, directly or through other `.bzl` files, plus their reverse dependencies.
   dx reads the BUILD and `.bzl` files to find them. Targets that own the
@@ -161,6 +189,8 @@ exit `2`).
   `repos`, the changed crates:
   `{"scope": "rdeps(//..., @crates//:serde)", "reason": "changed crates in Cargo.lock", "repos": ["@crates//:serde"]}`.
   With more than five crates the scope reads `rdeps(//..., <n> repos)`.
+  A `bazel_dep` bump adds one entry with the changed modules:
+  `{"scope": "rdeps(//..., @leaf, @user)", "reason": "changed modules in MODULE.bazel", "repos": ["@leaf", "@user"]}`.
   `tests` appears only for `dx check --affected`. It lists the tests the
   last phase runs: `//...` when widened, empty when no test is affected. dx
   writes `command_started` only after planning finishes.

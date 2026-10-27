@@ -303,6 +303,19 @@ fn no_pattern(rel: &str, call: &Call) -> String {
 struct BazelrcRoots {
     aspects: Vec<String>,
     toolchains: Vec<String>,
+    repos: BTreeSet<String>,
+}
+
+/// The repository a label names, or `None` for a label in the main repository.
+fn label_repo(label: &str) -> Option<&str> {
+    let rest = label.strip_prefix('@')?;
+    let rest = rest.strip_prefix('@').unwrap_or(rest);
+    Some(rest.split_once("//").map_or(rest, |(repo, _)| repo))
+}
+
+/// Whether `name` is the repository `repo`, or one it owns when `repo` is canonical.
+fn repo_matches(name: &str, repo: &str) -> bool {
+    name == repo || ((repo.ends_with('+') || repo.ends_with('~')) && name.starts_with(repo))
 }
 
 fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, String> {
@@ -320,6 +333,7 @@ fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, String> {
     let mut roots = BazelrcRoots {
         aspects: Vec::new(),
         toolchains: Vec::new(),
+        repos: BTreeSet::new(),
     };
     while let Some(rel) = pending.pop() {
         if !seen.insert(rel.clone()) {
@@ -338,6 +352,16 @@ fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, String> {
                     }
                     continue;
                 }
+            }
+            for word in words.iter().skip(1) {
+                let word = word.strip_prefix("--").unwrap_or(word);
+                let named = word
+                    .split(['=', ','])
+                    .map(|item| item.trim_matches(|c| c == '"' || c == '\''))
+                    .filter_map(label_repo)
+                    .filter(|repo| !repo.is_empty())
+                    .map(str::to_owned);
+                roots.repos.extend(named);
             }
             for (index, word) in words.iter().enumerate() {
                 let Some(flag) = word.strip_prefix("--") else {
@@ -520,8 +544,9 @@ pub fn workspace_has_cuda_sources(root: &Path) -> Result<bool, crate::AdoptError
 
 struct LoadGraph<'a> {
     workspace: &'a Path,
-    names: &'a [String],
+    names: Vec<String>,
     loads: BTreeMap<String, Vec<String>>,
+    external: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl LoadGraph<'_> {
@@ -538,9 +563,14 @@ impl LoadGraph<'_> {
             let labels = load_labels(&source).map_err(|error| format!("{rel}: {error}"))?;
             let mut targets = Vec::new();
             for label in labels {
-                if let Some(target) = label_path(&label, &package, self.names) {
+                if let Some(target) = label_path(&label, &package, &self.names) {
                     targets.push(target.0.clone());
                     pending.push(target);
+                } else if let Some(repo) = label_repo(&label) {
+                    self.external
+                        .entry(rel.clone())
+                        .or_default()
+                        .insert(repo.to_owned());
                 }
             }
             self.loads.insert(rel, targets);
@@ -570,17 +600,27 @@ pub enum BzlImpact {
     Packages(BTreeSet<String>),
 }
 
-/// The packages that load each changed .bzl file, or why it affects the whole workspace.
-pub fn bzl_impact(
-    workspace: &Path,
-    changed_bzl: &[String],
+struct ImpactGraph<'a> {
+    graph: LoadGraph<'a>,
+    aspects: Vec<String>,
+    bazelrc_repos: BTreeSet<String>,
+    extension_inputs: BTreeSet<String>,
+    aspect_inputs: BTreeSet<String>,
+    toolchain_inputs: BTreeSet<String>,
+    loaders: BTreeMap<String, Vec<String>>,
+    packages: BTreeMap<String, String>,
+}
+
+fn impact_graph<'a>(
+    workspace: &'a Path,
     aspect_labels: &[String],
-) -> Result<BTreeMap<String, BzlImpact>, String> {
+) -> Result<ImpactGraph<'a>, String> {
     let roots = module_roots(workspace)?;
     let mut graph = LoadGraph {
         workspace,
-        names: &roots.names,
+        names: roots.names.clone(),
         loads: BTreeMap::new(),
+        external: BTreeMap::new(),
     };
     let mut extension_roots = Vec::new();
     for (rel, package) in &roots.extensions {
@@ -619,45 +659,114 @@ pub fn bzl_impact(
     let extension_inputs = graph.closure(&extension_roots);
     let aspect_inputs = graph.closure(&aspect_roots);
     let toolchain_inputs = graph.closure(&toolchain_roots);
-    let mut loaders: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut loaders: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (rel, targets) in &graph.loads {
         for target in targets {
-            loaders
-                .entry(target.as_str())
-                .or_default()
-                .push(rel.as_str());
+            loaders.entry(target.clone()).or_default().push(rel.clone());
         }
     }
-    let packages: BTreeMap<&str, &str> = builds
-        .iter()
-        .map(|(rel, package)| (rel.as_str(), package.as_str()))
-        .collect();
+    let packages = builds.into_iter().collect();
+    Ok(ImpactGraph {
+        graph,
+        aspects,
+        bazelrc_repos: bazelrc.repos,
+        extension_inputs,
+        aspect_inputs,
+        toolchain_inputs,
+        loaders,
+        packages,
+    })
+}
+
+impl ImpactGraph<'_> {
+    fn loading_packages(&self, starts: Vec<&str>) -> BTreeSet<String> {
+        let mut seen: BTreeSet<&str> = BTreeSet::new();
+        let mut pending = starts;
+        let mut selected = BTreeSet::new();
+        while let Some(rel) = pending.pop() {
+            if !seen.insert(rel) {
+                continue;
+            }
+            if let Some(package) = self.packages.get(rel) {
+                selected.insert(format!("//{package}:all"));
+            }
+            if let Some(from) = self.loaders.get(rel) {
+                pending.extend(from.iter().map(String::as_str));
+            }
+        }
+        selected
+    }
+
+    fn loads_repo(&self, inputs: &BTreeSet<String>, repo: &str) -> bool {
+        inputs.iter().any(|rel| {
+            self.graph
+                .external
+                .get(rel)
+                .is_some_and(|repos| repos.iter().any(|name| repo_matches(name, repo)))
+        })
+    }
+}
+
+/// The packages that load each changed .bzl file, or why it affects the whole workspace.
+pub fn bzl_impact(
+    workspace: &Path,
+    changed_bzl: &[String],
+    aspect_labels: &[String],
+) -> Result<BTreeMap<String, BzlImpact>, String> {
+    let graph = impact_graph(workspace, aspect_labels)?;
     let mut impact = BTreeMap::new();
     for path in changed_bzl {
-        let effect = if extension_inputs.contains(path) {
+        let effect = if graph.extension_inputs.contains(path) {
             BzlImpact::Global(format!("module extension input {path}"))
-        } else if aspect_inputs.contains(path) {
+        } else if graph.aspect_inputs.contains(path) {
             BzlImpact::Global(format!("aspect input {path}"))
-        } else if toolchain_inputs.contains(path) {
+        } else if graph.toolchain_inputs.contains(path) {
             BzlImpact::Global(format!("toolchain input {path}"))
         } else {
-            let mut seen: BTreeSet<&str> = BTreeSet::new();
-            let mut pending: Vec<&str> = vec![path.as_str()];
-            let mut selected = BTreeSet::new();
-            while let Some(rel) = pending.pop() {
-                if !seen.insert(rel) {
-                    continue;
-                }
-                if let Some(package) = packages.get(rel) {
-                    selected.insert(format!("//{package}:all"));
-                }
-                if let Some(from) = loaders.get(rel) {
-                    pending.extend(from.iter().copied());
-                }
-            }
-            BzlImpact::Packages(selected)
+            BzlImpact::Packages(graph.loading_packages(vec![path.as_str()]))
         };
         impact.insert(path.clone(), effect);
+    }
+    Ok(impact)
+}
+
+/// The packages that load from each external repository, or why it affects the whole workspace.
+pub fn repo_impact(
+    workspace: &Path,
+    repos: &[String],
+    aspect_labels: &[String],
+) -> Result<BTreeMap<String, BzlImpact>, String> {
+    let graph = impact_graph(workspace, aspect_labels)?;
+    let mut impact = BTreeMap::new();
+    for repo in repos {
+        let effect = if graph.loads_repo(&graph.extension_inputs, repo) {
+            BzlImpact::Global(format!("module extension input loads @{repo}"))
+        } else if graph.loads_repo(&graph.aspect_inputs, repo)
+            || graph
+                .aspects
+                .iter()
+                .any(|label| label_repo(label).is_some_and(|name| repo_matches(name, repo)))
+        {
+            BzlImpact::Global(format!("aspect loads @{repo}"))
+        } else if graph.loads_repo(&graph.toolchain_inputs, repo) {
+            BzlImpact::Global(format!("toolchain input loads @{repo}"))
+        } else if graph
+            .bazelrc_repos
+            .iter()
+            .any(|name| repo_matches(name, repo))
+        {
+            BzlImpact::Global(format!("bazelrc names @{repo}"))
+        } else {
+            let starts = graph
+                .graph
+                .external
+                .iter()
+                .filter(|(_, names)| names.iter().any(|name| repo_matches(name, repo)))
+                .map(|(rel, _)| rel.as_str())
+                .collect();
+            BzlImpact::Packages(graph.loading_packages(starts))
+        };
+        impact.insert(repo.clone(), effect);
     }
     Ok(impact)
 }
@@ -1292,5 +1401,87 @@ mod tests {
         write(root, "app/BUILD.bazel", "load(\"//:defs.bzl\"\n");
         let error = bzl_impact(root, &["defs.bzl".to_owned()], &[]).expect_err("parse error");
         assert!(error.starts_with("app/BUILD.bazel: "), "{error}");
+    }
+
+    fn repo_effects(root: &Path, repos: &[&str], aspects: &[&str]) -> Vec<(String, BzlImpact)> {
+        let repos: Vec<String> = repos.iter().map(ToString::to_string).collect();
+        let aspects: Vec<String> = aspects.iter().map(ToString::to_string).collect();
+        repo_impact(root, &repos, &aspects)
+            .expect("load graph")
+            .into_iter()
+            .collect()
+    }
+
+    fn repo_global(repo: &str, reason: &str) -> (String, BzlImpact) {
+        (
+            repo.to_owned(),
+            BzlImpact::Global(format!("{reason} @{repo}")),
+        )
+    }
+
+    #[test]
+    fn repo_impact_selects_direct_and_transitive_loaders() {
+        let scratch = dx_test_scratch::scratch("dx-repo-loaders-");
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n");
+        write(root, "a/BUILD.bazel", "load(\"@leaf//:defs.bzl\", \"x\")\n");
+        write(root, "b/BUILD.bazel", "load(\"//lib:wrap.bzl\", \"w\")\n");
+        write(
+            root,
+            "lib/wrap.bzl",
+            "load(\"@@leaf+//:defs.bzl\", \"x\")\n",
+        );
+        write(
+            root,
+            "c/BUILD.bazel",
+            "load(\"@leaf_extra//:defs.bzl\", \"x\")\n",
+        );
+        write(
+            root,
+            "d/BUILD.bazel",
+            "load(\"@@leaf+_x+y//:defs.bzl\", \"x\")\n",
+        );
+        assert_eq!(
+            repo_effects(root, &["leaf", "leaf+", "unused"], &[]),
+            [
+                packages("leaf", &["//a:all"]),
+                packages("leaf+", &["//b:all", "//d:all"]),
+                packages("unused", &[]),
+            ]
+        );
+    }
+
+    #[test]
+    fn repo_impact_widens_for_extension_aspect_toolchain_and_bazelrc() {
+        let scratch = dx_test_scratch::scratch("dx-repo-global-");
+        let root = scratch.path();
+        write(
+            root,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\nregister_toolchains(\"//tc:all\")\n",
+        );
+        write(root, "tools/ext.bzl", "load(\"@ext//:defs.bzl\", \"e\")\n");
+        write(root, "tc/BUILD.bazel", "load(\"@tc//:defs.bzl\", \"t\")\n");
+        write(root, "asp/aspect.bzl", "load(\"@asp//:defs.bzl\", \"a\")\n");
+        write(
+            root,
+            ".bazelrc",
+            "build --platforms=@plat//:p\nbuild:ci --@flag//:f=1\n",
+        );
+        assert_eq!(
+            repo_effects(
+                root,
+                &["asp", "ext", "flag", "own", "plat", "tc"],
+                &["//asp:aspect.bzl%a", "@own//:a.bzl%a"]
+            ),
+            [
+                repo_global("asp", "aspect loads"),
+                repo_global("ext", "module extension input loads"),
+                repo_global("flag", "bazelrc names"),
+                repo_global("own", "aspect loads"),
+                repo_global("plat", "bazelrc names"),
+                repo_global("tc", "toolchain input loads"),
+            ]
+        );
     }
 }

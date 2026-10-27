@@ -254,7 +254,8 @@ bazel run @rules_dx//:dx -- test //cli/process/... -- --test_filter=workflow_arg
 
 `--affected` builds or tests the changed targets and their reverse
 dependencies. A `Cargo.lock` or crate_universe lockfile change selects the
-users of the changed crates. Other lock files and patches named in
+users of the changed crates. A `bazel_dep` version bump in the root
+`MODULE.bazel` selects the users of the changed modules. Other lock files and patches named in
 `MODULE.bazel` widen to `//...`; see [scope defaults](scope-defaults.md).
 `dx test --affected` and `dx coverage --affected` run only the
 affected test targets. With nothing affected they print `no affected targets`

@@ -5,6 +5,7 @@ pub mod entry;
 #[cfg(test)]
 pub(crate) mod fake_query;
 pub(crate) mod lock_inputs;
+pub(crate) mod module_inputs;
 pub mod packages;
 pub mod query;
 pub mod rule_graph;

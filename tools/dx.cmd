@@ -43,8 +43,9 @@ if defined DX_FAST if exist "%DX_STATE%\dx.exe" set "BIN=%DX_STATE%\dx.exe"
 if defined DX_FAST if exist "%BIN%" goto run
 if exist "%DX_STATE%\" if not exist "%DX_STATE%\CACHEDIR.TAG" (echo Signature: 8a477f597d28d172789f06886806bc55& echo # Rebuildable copy of dx kept by tools/dx.cmd; see https://bford.info/cachedir/) > "%DX_STATE%\CACHEDIR.TAG" 2>nul
 call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/correctness.bazelrc', 'tools/bazelrc/performance.bazelrc', 'tools/bazelrc/resources.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; %DX_SYNC%"
-if errorlevel 2 goto run
-if errorlevel 1 goto dxbuild
+set "DX_EC=%errorlevel%"
+if "%DX_EC%"=="2" goto run
+if not "%DX_EC%"=="0" goto dxbuild
 set "BIN=%DX_STATE%\dx.exe"
 goto run
 :dxbuild
@@ -104,7 +105,7 @@ if not "%DX_FAIL%"=="0" (
   exit /b 1
 )
 call powershell -NoProfile -NonInteractive -Command "%DX_SYNC%"
-if not errorlevel 1 set "DX_COPY=1"
+if "%errorlevel%"=="0" set "DX_COPY=1"
 :dxqueryrun
 call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//:dx)) + buildfiles(deps(//:dx))" > "%DX_STATE%\query.%DX_TAG%"
 set "DX_EC=%errorlevel%"

@@ -1760,6 +1760,85 @@ mod cmd {
         );
     }
 
+    fn run_with_path(repo: &SourceRepo, path: String, ps_exit: &str) -> (Option<i32>, String) {
+        let out = repo
+            .command(&[], &repo.base.join("calls"))
+            .env("PATH", path)
+            .env("STUB_PS_EXIT", ps_exit)
+            .output()
+            .expect("launcher runs");
+        (
+            out.status.code(),
+            format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            ),
+        )
+    }
+
+    fn hostname() -> String {
+        let name = Command::new(system_exe("hostname.exe"))
+            .output()
+            .expect("hostname runs");
+        String::from_utf8_lossy(&name.stdout).trim().to_owned()
+    }
+
+    #[test]
+    fn cmd_without_powershell_asks_for_it() {
+        let repo = source_repo("cmd-no-powershell");
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        let system = std::env::var("SystemRoot").expect("SystemRoot");
+        let path = format!("{}\\stub;{system}\\System32", repo.base.display());
+        let (code, out) = run_with_path(&repo, path, "0");
+        assert_eq!(code, Some(1), "{out}");
+        assert!(out.contains("powershell is needed to rebuild dx"), "{out}");
+        assert!(!out.contains(&hostname()), "{out}");
+        assert_eq!(repo.builds(), 1, "{out}");
+    }
+
+    #[test]
+    fn cmd_only_sync_exit_0_or_2_runs_dx_without_a_build() {
+        let repo = source_repo("cmd-sync-exit");
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        std::fs::create_dir_all(repo.base.join("nops")).expect("nops dir");
+        std::fs::write(
+            repo.base.join("nops/powershell.cmd"),
+            "@exit /b %STUB_PS_EXIT%\r\n",
+        )
+        .expect("powershell stub");
+        let system = std::env::var("SystemRoot").expect("SystemRoot");
+        let path = format!(
+            "{0}\\nops;{0}\\stub;{system}\\System32",
+            repo.base.display()
+        );
+        let name = hostname();
+        for (ps, runs) in [
+            ("0", true),
+            ("2", true),
+            ("1", false),
+            ("3", false),
+            ("9009", false),
+            ("-1", false),
+        ] {
+            let (code, out) = run_with_path(&repo, path.clone(), ps);
+            assert_eq!(repo.builds(), 1, "{ps}: {out}");
+            if runs {
+                assert_eq!(code, Some(0), "{ps}: {out}");
+                assert!(out.contains(&name), "{ps}: {out}");
+            } else {
+                assert_eq!(code, Some(1), "{ps}: {out}");
+                assert!(
+                    out.contains("powershell is needed to rebuild dx"),
+                    "{ps}: {out}"
+                );
+                assert!(!out.contains(&name), "{ps}: {out}");
+            }
+        }
+    }
+
     /// #3171: `worktree release --force` from a slot, with the inputs query
     /// failing, must still reach the slot dx and pass its exit status through.
     #[test]

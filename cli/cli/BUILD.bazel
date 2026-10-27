@@ -300,6 +300,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/adopt:dx_adopt",
+        "//cli/apply:dx_apply",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/bump:dx_bump",

@@ -25,6 +25,33 @@ pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
 }
 
+/// A real file system whose atomic writes fail for the listed paths, so tests
+/// can make one apply write fail without chmod tricks.
+pub(crate) struct FailingWrites {
+    failing: Vec<PathBuf>,
+}
+
+impl FailingWrites {
+    pub(crate) fn new(failing: &[PathBuf]) -> Self {
+        Self {
+            failing: failing.to_vec(),
+        }
+    }
+}
+
+impl dx_apply::FileSystem for FailingWrites {
+    fn read(&self, path: &Path) -> io::Result<Option<Vec<u8>>> {
+        dx_apply::RealFileSystem.read(path)
+    }
+
+    fn write_atomic(&self, path: &Path, content: &[u8]) -> io::Result<()> {
+        if self.failing.iter().any(|failing| failing == path) {
+            return Err(io::Error::other("injected write failure"));
+        }
+        dx_apply::RealFileSystem.write_atomic(path, content)
+    }
+}
+
 /// The event Bazel ends every complete build event stream with.
 pub(crate) const LAST_EVENT: &str = r#"{"id":{"buildMetrics":{}},"lastMessage":true}"#;
 
@@ -382,35 +409,56 @@ impl Harness {
         self.run_with_ci(words, false)
     }
 
-    pub(crate) fn run_with_ci(&self, words: &[&str], ci: bool) -> (i32, String, String) {
-        let defaults = match crate::args::load_startup_defaults(
+    fn parse_words(&self, words: &[&str], ci: bool) -> Result<Invocation, String> {
+        let defaults = crate::args::load_startup_defaults(
             &dx_process::workspace_start(&self.cwd),
             &self.cwd,
             None,
             None,
             ci,
-        ) {
-            Ok(defaults) => defaults,
-            Err(failure) => return (2, String::new(), format!("dx: {}\n", failure.detail)),
-        };
-        let inv = match crate::args::parse_with_ci(
+        )
+        .map_err(|failure| format!("dx: {}\n", failure.detail))?;
+        let inv = crate::args::parse_with_ci(
             &crate::test_support::strings(words),
             &|_| None,
             &defaults,
             ci,
-        ) {
+        )
+        .map_err(|error| format!("dx: {error}\n{}\n", crate::args::help::usage_banner()))?;
+        crate::args::apply_here(&inv, &self.workspace, &self.cwd)
+            .map_err(|detail| format!("dx: {detail}\n"))
+    }
+
+    /// Runs one quality command whose apply writes go through `fs`.
+    pub(crate) fn run_with_fs(
+        &self,
+        words: &[&str],
+        fs: &dyn dx_apply::FileSystem,
+    ) -> (i32, String, String) {
+        let inv = match self.parse_words(words, false) {
             Ok(inv) => inv,
-            Err(error) => {
-                return (
-                    2,
-                    String::new(),
-                    format!("dx: {error}\n{}\n", crate::args::help::usage_banner()),
-                );
-            }
+            Err(detail) => return (2, String::new(), detail),
         };
-        let inv = match crate::args::apply_here(&inv, &self.workspace, &self.cwd) {
-            Ok(resolved) => resolved,
-            Err(detail) => return (2, String::new(), format!("dx: {detail}\n")),
+        let request = inv.quality_request().expect("quality request");
+        let runner = self.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let run = super::quality::execute_quality_phase_with_fs(
+            &request,
+            self.env(&runner, &mut out, &mut err),
+            fs,
+        );
+        (
+            run.code,
+            String::from_utf8(out).expect("stdout"),
+            String::from_utf8(err).expect("stderr"),
+        )
+    }
+
+    pub(crate) fn run_with_ci(&self, words: &[&str], ci: bool) -> (i32, String, String) {
+        let inv = match self.parse_words(words, ci) {
+            Ok(inv) => inv,
+            Err(detail) => return (2, String::new(), detail),
         };
         let runner = self.runner();
         let mut out = Vec::new();

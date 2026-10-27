@@ -168,6 +168,7 @@ pub(crate) fn emit_bazel_exit(
 pub const REASON_STALE_SOURCE: &str = "stale_source";
 pub const REASON_UNREADABLE_SOURCE: &str = "unreadable_source";
 pub const REASON_INVALID_EDITS: &str = "invalid_edits";
+pub const REASON_WRITE_FAILED: &str = "write_failed";
 pub const REASON_INCOMPLETE_COLLECTION: &str = "incomplete_collection";
 pub const REASON_CONFLICTING_DIGESTS: &str = "conflicting_digests";
 pub const REASON_CONFLICTING_CANDIDATES: &str = "conflicting_candidates";

@@ -293,7 +293,7 @@ configurations appear once, with a `count`.
   empty `fixed` list means no fixed version exists.
 - `change`: one file edit, with `path`, `kind`, `edit_count`, and `effect`.
   `effect` is `proposed` in check mode, and `applied` or `refused` with
-  `--apply`. A `refused` change carries a `reason`. `--include-edits` adds
+  `--apply`. A `refused` change carries a `reason` and makes the run exit `1`. `--include-edits` adds
   `source_digest` and the full `edits`.
 - `phase_started`: a `dx check` or `dx fix` phase began, with `command`,
   `phase`, `mode`, and `correlation`. Every event of the phase carries the same

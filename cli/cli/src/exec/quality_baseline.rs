@@ -104,14 +104,43 @@ fn view_for(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// What a run must show before `--apply` may rewrite the baseline file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct BaselineGate {
+    /// Every target reported results.
+    pub(crate) complete: bool,
+    /// Every result converged.
+    pub(crate) stable: bool,
+    /// Every requested change was written.
+    pub(crate) applied_all: bool,
+}
+
+impl BaselineGate {
+    /// The first reason the baseline must not be refreshed, if any.
+    pub(crate) fn refresh_blocked(self) -> Option<&'static str> {
+        if !self.complete {
+            Some("analysis was incomplete")
+        } else if !self.stable {
+            Some("a result did not converge")
+        } else if !self.applied_all {
+            Some("a fix was not applied")
+        } else {
+            None
+        }
+    }
+
+    /// Whether the findings describe the whole analyzed scope.
+    fn matching_complete(self) -> bool {
+        self.complete && self.stable
+    }
+}
+
 pub(crate) fn apply_baseline(
     workspace: &Path,
     status: &[DiagnosticEvent],
     scope: &AnalyzedScope,
     originals: &BTreeMap<String, [u8; 32]>,
-    complete: bool,
-    stable: bool,
+    gate: BaselineGate,
     apply: bool,
     baseline: Option<&str>,
 ) -> Result<Option<BaselineView>, (String, String)> {
@@ -130,8 +159,9 @@ pub(crate) fn apply_baseline(
         .iter()
         .map(|diagnostic| finding_for(diagnostic, &files, originals))
         .collect();
-    let write = apply && complete && stable;
-    let complete = complete && stable;
+    let blocked = gate.refresh_blocked();
+    let write = apply && blocked.is_none();
+    let complete = gate.matching_complete();
     if write {
         let blind = unidentified(&findings);
         if let Some(first) = blind.first() {
@@ -141,12 +171,7 @@ pub(crate) fn apply_baseline(
         }
     }
     let Some(bytes) = bytes else {
-        if apply && !write {
-            let cause = if stable {
-                "analysis was incomplete"
-            } else {
-                "a result did not converge"
-            };
+        if let (true, Some(cause)) = (apply, blocked) {
             return Err(fail(format!(
                 "baseline {rel} is missing and was not recorded: {cause}"
             )));
@@ -177,7 +202,7 @@ pub(crate) fn apply_baseline(
 
 #[cfg(test)]
 mod tests {
-    use super::super::test_support::{json_events, Harness};
+    use super::super::test_support::{json_events, FailingWrites, Harness};
     use super::*;
     use dx_fingerprint::baseline::{
         normalize_message, render_baseline, BaselineEntry, BaselineFile,
@@ -546,8 +571,11 @@ mod tests {
             &[],
             &AnalyzedScope::default(),
             &BTreeMap::new(),
-            true,
-            true,
+            BaselineGate {
+                complete: true,
+                stable: true,
+                applied_all: true,
+            },
             false,
             Some(REL),
         )
@@ -863,6 +891,105 @@ mod tests {
         assert_eq!(code, 1);
         assert!(err.contains("analysis was incomplete"), "{err}");
         assert!(!harness.workspace.join(REL).exists());
+    }
+
+    fn refused_fix(name: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source(PATH, BODY);
+        commit_baseline(&harness, vec![recorded("unused", LINE)]);
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(
+                vec![Harness::diagnostic("unused", false)],
+                vec![harness.replacement(b"y")],
+            ),
+        );
+        harness
+    }
+
+    fn failing_source(harness: &Harness) -> FailingWrites {
+        FailingWrites::new(&[harness.workspace.join(PATH)])
+    }
+
+    #[test]
+    fn refused_fix_fails_and_keeps_baseline_bytes() {
+        let harness = refused_fix("baseline-refused");
+        let before = std::fs::read(harness.workspace.join(REL)).expect("bytes");
+        let (code, out, err) = harness.run_with_fs(
+            &["lint", "--apply", "--output=text"],
+            &failing_source(&harness),
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("unused [lint-tool/rule] (baselined)"), "{out}");
+        assert!(
+            err.contains("Not applied: src/a.py (write_failed)"),
+            "{err}"
+        );
+        assert!(!out.contains("refreshed"), "{out}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join(REL)).expect("bytes"),
+            before
+        );
+        assert_eq!(
+            std::fs::read(harness.workspace.join(PATH)).expect("source"),
+            BODY.as_bytes()
+        );
+
+        let pruned = refused_fix("baseline-refused-prune");
+        commit_baseline(
+            &pruned,
+            vec![recorded("unused", LINE), recorded("gone", LINE)],
+        );
+        let before = std::fs::read(pruned.workspace.join(REL)).expect("bytes");
+        let (code, out, err) = pruned.run_with_fs(
+            &["lint", "--apply", "--output=text"],
+            &failing_source(&pruned),
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(!out.contains("refreshed"), "{out}");
+        assert_eq!(
+            std::fs::read(pruned.workspace.join(REL)).expect("bytes"),
+            before
+        );
+    }
+
+    #[test]
+    fn refused_fix_never_creates_a_baseline() {
+        let harness = refused_fix("baseline-refused-create");
+        std::fs::remove_file(harness.workspace.join(REL)).expect("remove");
+        let (code, out, err) = harness.run_with_fs(
+            &["lint", "--apply", "--output=text"],
+            &failing_source(&harness),
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("baseline quality/baseline.json is missing and was not recorded: a fix was not applied"),
+            "{err}"
+        );
+        assert!(!harness.workspace.join(REL).exists());
+    }
+
+    #[test]
+    fn baseline_gate_names_the_first_blocking_cause() {
+        let gate = |complete, stable, applied_all| BaselineGate {
+            complete,
+            stable,
+            applied_all,
+        };
+        assert_eq!(gate(true, true, true).refresh_blocked(), None);
+        assert_eq!(
+            gate(false, false, false).refresh_blocked(),
+            Some("analysis was incomplete")
+        );
+        assert_eq!(
+            gate(true, false, false).refresh_blocked(),
+            Some("a result did not converge")
+        );
+        assert_eq!(
+            gate(true, true, false).refresh_blocked(),
+            Some("a fix was not applied")
+        );
+        assert!(gate(true, true, false).matching_complete());
     }
 
     #[test]

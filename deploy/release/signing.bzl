@@ -1,6 +1,6 @@
 """Signing and attestation selection for releases."""
 
-load("//deploy/release:cosign_pins.bzl", "COSIGN_SHA256_LINUX_AMD64", "COSIGN_VERSION")
+load("//deploy/release:cosign_pins.bzl", "COSIGN_VERSION")
 load("//deploy/rules:defs.bzl", "dx_deployment")
 load("//deploy/rules:launcher.bzl", "rlocation_path")
 load("//rust/rules:defs.bzl", "rust_binary")
@@ -9,8 +9,7 @@ SIGNING_TRUST_ROOT = "https://tuf-repo-cdn.sigstore.dev"
 SIGNING_ISSUER = "https://token.actions.githubusercontent.com"
 
 SIGNING_COSIGN_VERSION = COSIGN_VERSION
-SIGNING_COSIGN_SHA256_LINUX_AMD64 = COSIGN_SHA256_LINUX_AMD64
-_COSIGN = Label("@cosign_linux_amd64//file")
+_COSIGN = Label("//deploy/release:cosign")
 SIGNING_BUNDLE_MEDIA_TYPE = "application/vnd.dev.sigstore.bundle.v0.3+json"
 
 def signing_cosign_error(version):
@@ -18,13 +17,6 @@ def signing_cosign_error(version):
     if version != SIGNING_COSIGN_VERSION:
         return ("signing: invalid cosign version '" + str(version) +
                 "': want '" + SIGNING_COSIGN_VERSION + "' (pinned)")
-    return ""
-
-def signing_cosign_sha_error(sha):
-    """Validates the expected cosign linux-amd64 sha pin."""
-    if sha != SIGNING_COSIGN_SHA256_LINUX_AMD64:
-        return ("signing: invalid cosign sha '" + str(sha) +
-                "': want '" + SIGNING_COSIGN_SHA256_LINUX_AMD64 + "' (pinned)")
     return ""
 
 def signing_bundle_media_error(media_type):
@@ -48,6 +40,32 @@ def signing_bundle_names(name):
     """Returns the deterministic bundle output names."""
     return (name + ".bundle", name + ".attestation")
 
+CosignInfo = provider(
+    doc = "A pinned cosign binary and its sha256.",
+    fields = {
+        "file": "The cosign binary File.",
+        "sha256": "The pinned sha256 of the binary.",
+    },
+)
+
+def _cosign_binary_impl(ctx):
+    """Pairs a pinned cosign binary with its sha256."""
+    f = ctx.file.binary
+    return [
+        DefaultInfo(files = depset([f]), runfiles = ctx.runfiles(files = [f])),
+        CosignInfo(file = f, sha256 = ctx.attr.sha256),
+    ]
+
+cosign_binary = rule(
+    implementation = _cosign_binary_impl,
+    doc = "Pairs a pinned cosign binary with its sha256.",
+    attrs = {
+        "binary": attr.label(mandatory = True, allow_single_file = True),
+        "sha256": attr.string(mandatory = True),
+    },
+    provides = [CosignInfo],
+)
+
 def _signing_launcher_impl(ctx):
     """Writes the owner-gated signing deploy launcher Rust source."""
     asset_rlocs = []
@@ -67,8 +85,9 @@ def _signing_launcher_impl(ctx):
                 fail("signed_release " + str(ctx.label) + ": rlocation '" + rloc +
                      "' is not launcher-safe")
         asset_rlocs.append(rloc)
-    cosign_rloc = rlocation_path(ctx, ctx.file.cosign)
-    for value in [ctx.attr.identity, ctx.attr.issuer, ctx.attr.cosign_version, ctx.attr.cosign_sha256, cosign_rloc]:
+    cosign = ctx.attr.cosign[CosignInfo]
+    cosign_rloc = rlocation_path(ctx, cosign.file)
+    for value in [ctx.attr.identity, ctx.attr.issuer, ctx.attr.cosign_version, cosign.sha256, cosign_rloc]:
         for banned in ["\"", "\\", "\n"]:
             if banned in value:
                 fail("signed_release " + str(ctx.label) + ": value '" + value +
@@ -83,7 +102,7 @@ fn run() -> i32 {
     const ISSUER: &str = \"""" + ctx.attr.issuer + """\";
     const COSIGN_RLOC: &str = \"""" + cosign_rloc + """\";
     const COSIGN_VERSION: &str = \"""" + ctx.attr.cosign_version + """\";
-    const COSIGN_SHA256: &str = \"""" + ctx.attr.cosign_sha256 + """\";
+    const COSIGN_SHA256: &str = \"""" + cosign.sha256 + """\";
     const ASSET_RLOCS: &[&str] = &[""" + rloc_list + """];
     if std::env::args_os().len() > 2 {
         eprintln!("signing: this deploy target takes at most an output directory; artifacts are pinned at analysis time");
@@ -141,15 +160,14 @@ _signing_launcher = rule(
     implementation = _signing_launcher_impl,
     attrs = {
         "artifacts": attr.label_list(mandatory = True),
-        "cosign": attr.label(mandatory = True, allow_single_file = True),
-        "cosign_sha256": attr.string(mandatory = True),
+        "cosign": attr.label(mandatory = True, providers = [CosignInfo]),
         "cosign_version": attr.string(mandatory = True),
         "identity": attr.string(mandatory = True),
         "issuer": attr.string(mandatory = True),
     },
 )
 
-def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile = "release", cosign_version = SIGNING_COSIGN_VERSION, cosign_sha256 = SIGNING_COSIGN_SHA256_LINUX_AMD64):
+def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile = "release", cosign_version = SIGNING_COSIGN_VERSION):
     """Creates an owner-gated signing deploy target for pinned artifacts."""
     err = signing_identity_error(identity, issuer)
     if err != "":
@@ -157,9 +175,6 @@ def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile =
     version_err = signing_cosign_error(cosign_version)
     if version_err != "":
         fail(version_err + " (in " + native.package_name() + ":" + name + ")")
-    sha_err = signing_cosign_sha_error(cosign_sha256)
-    if sha_err != "":
-        fail(sha_err + " (in " + native.package_name() + ":" + name + ")")
     if len(artifacts) == 0:
         fail("signed_release " + native.package_name() + ":" + name + ": need at least one artifact")
     program_target = name + "_program"
@@ -168,7 +183,6 @@ def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile =
         name = launcher_target,
         artifacts = artifacts,
         cosign = _COSIGN,
-        cosign_sha256 = cosign_sha256,
         cosign_version = cosign_version,
         identity = identity,
         issuer = issuer,

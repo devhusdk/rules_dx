@@ -1,7 +1,9 @@
 """Unit tests for signing selection (live successor to closed /)."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":signing.bzl", "SIGNING_BUNDLE_MEDIA_TYPE", "SIGNING_COSIGN_SHA256_LINUX_AMD64", "SIGNING_COSIGN_VERSION", "SIGNING_ISSUER", "SIGNING_TRUST_ROOT", "signing_bundle_media_error", "signing_bundle_names", "signing_cosign_error", "signing_cosign_sha_error", "signing_identity_error")
+load("//quality/artifacts:hub.bzl", "TOOL_PLATFORMS")
+load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
+load(":signing.bzl", "SIGNING_BUNDLE_MEDIA_TYPE", "SIGNING_COSIGN_VERSION", "SIGNING_ISSUER", "SIGNING_TRUST_ROOT", "signing_bundle_media_error", "signing_bundle_names", "signing_cosign_error", "signing_identity_error")
 
 def signing_unit_tests(name):
     starlark_test(
@@ -24,9 +26,29 @@ def signing_unit_tests(name):
                 "v2.6.5",
             ),
             expect_equal(
-                "signing cosign sha is pinned linux-amd64",
-                SIGNING_COSIGN_SHA256_LINUX_AMD64,
+                "signing cosign pins cover exactly the tool platforms",
+                sorted(COSIGN_PLATFORMS.keys()),
+                sorted(TOOL_PLATFORMS),
+            ),
+            expect_equal(
+                "signing cosign sha is pinned for linux-amd64",
+                COSIGN_PLATFORMS["linux_x86_64"]["sha256"],
                 "c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644",
+            ),
+            expect_equal(
+                "signing cosign shas are 64 characters",
+                [key for key, pin in COSIGN_PLATFORMS.items() if len(pin["sha256"]) != 64],
+                [],
+            ),
+            expect_equal(
+                "signing cosign shas are pairwise distinct",
+                len({pin["sha256"]: True for pin in COSIGN_PLATFORMS.values()}),
+                len(COSIGN_PLATFORMS),
+            ),
+            expect_equal(
+                "signing cosign windows binary is cosign.exe",
+                COSIGN_PLATFORMS["windows_x86_64"]["exe"],
+                "cosign.exe",
             ),
             expect_equal(
                 "signing bundle media type is Sigstore bundle v0.3",
@@ -42,16 +64,6 @@ def signing_unit_tests(name):
                 "signing cosign pin rejects a floating version",
                 signing_cosign_error("v2.6.50"),
                 "signing: invalid cosign version 'v2.6.50': want 'v2.6.5' (pinned)",
-            ),
-            expect_equal(
-                "signing cosign sha accepts the pinned linux-amd64 sha",
-                signing_cosign_sha_error("c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644"),
-                "",
-            ),
-            expect_equal(
-                "signing cosign sha rejects a floating sha",
-                signing_cosign_sha_error("0" * 64),
-                "signing: invalid cosign sha '0000000000000000000000000000000000000000000000000000000000000000': want 'c3b4f5410e608af03a5eb0aaac84a4313d8da131248e08ff1759ac70c79d1644' (pinned)",
             ),
             expect_equal(
                 "signing bundle media accepts v0.3",

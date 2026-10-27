@@ -117,9 +117,12 @@ exit `2`).
 - A change to a `Cargo.lock` or crate_universe `lockfile` named by a
   `crate.from_cargo` call in `MODULE.bazel` selects the targets that use the
   changed crates, plus the crates that depend on them, and their reverse
-  dependencies. Any other `*.lock` file, an added or deleted lock, a lock dx
-  cannot read, or a crate_universe lockfile change outside `crates` widens
-  to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
+  dependencies. For a crate_universe lockfile this includes users of renamed,
+  binary, and `extra_aliased_targets` hub aliases. Changes to `direct_deps`,
+  `direct_dev_deps`, `workspace_members`, and `binary_crates` narrow. Any other
+  `*.lock` file, an added or deleted lock, a lock dx cannot read, or a
+  crate_universe lockfile change in another key outside `crates` (such as
+  `conditions`) widens to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
   not widen; it selects its owners like any other file.
 - A root `MODULE.bazel` change that only edits `bazel_dep` version strings,
   with the matching `MODULE.bazel.lock` change, selects the targets in the

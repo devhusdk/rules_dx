@@ -2,7 +2,7 @@ use std::path::Path;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::lock_inputs::{self, ChangedCrates, Hub, LockKind};
+use super::lock_inputs::{self, Hub, LockChange, LockKind};
 use super::module_inputs;
 use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
 
@@ -504,7 +504,7 @@ fn lock_change(
     workspace: &Path,
     runner: &dyn QueryRunner,
     base: Option<(&Path, &str)>,
-) -> Result<Vec<(String, ChangedCrates)>, String> {
+) -> Result<Vec<(String, LockChange)>, String> {
     let kind = lock_inputs::classify(path, hubs);
     let workspace_input = || format!("workspace input {path}");
     if kind == LockKind::Unknown {
@@ -915,7 +915,7 @@ pub fn resolve_affected(
     }
     lock_paths.sort();
     lock_paths.dedup();
-    let mut narrowed: Vec<(String, Vec<(String, ChangedCrates)>)> = Vec::new();
+    let mut narrowed: Vec<(String, Vec<(String, LockChange)>)> = Vec::new();
     for path in lock_paths {
         match lock_change(&path, &hubs, workspace, runner, base) {
             Err(reason) => push_widened(&mut widened, "//...".to_owned(), reason),
@@ -977,9 +977,16 @@ pub fn resolve_affected(
         for (path, changed) in &narrowed {
             let mut repos: BTreeSet<String> = BTreeSet::new();
             let mut seeds: Vec<String> = Vec::new();
-            for (hub, crates) in changed {
-                seeds.extend(lock_inputs::seeds(loaded.external_inputs(), hub, crates));
+            for (hub, change) in changed {
+                let LockChange { crates, aliases } = change;
+                seeds.extend(lock_inputs::seeds(
+                    loaded.external_inputs(),
+                    hub,
+                    crates,
+                    aliases,
+                ));
                 repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
+                repos.extend(aliases.iter().map(|name| format!("@{hub}//:{name}")));
             }
             // Bazel picks a toolchain through resolution, so its users have no
             // edge to it; a changed crate behind one can reach any rule.
@@ -2146,7 +2153,15 @@ mod tests {
         let lock = |serde: &str| {
             serde_json::json!({
                 "checksum": serde,
-                "crates": {format!("serde {serde}"): {}, "itoa 1.0.0": {}},
+                "crates": {
+                    format!("serde {serde}"): {},
+                    "itoa 1.0.0": {},
+                    "app 0.1.0": {"common_attrs": {"deps": [{"id": format!("serde {serde}"), "target": "serde"}]}},
+                },
+                "conditions": {},
+                "direct_deps": [format!("serde {serde}")],
+                "direct_dev_deps": [],
+                "workspace_members": {"app 0.1.0": "app"},
             })
             .to_string()
         };

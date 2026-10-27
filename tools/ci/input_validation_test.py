@@ -1,5 +1,6 @@
 """Behavioral fixtures for the workflow and evidence input validators and both aggregates."""
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -442,6 +443,28 @@ def test_evidence_rejects_bad_test_timeout(tmp_path):
             tmp_path, "//a/...", test_timeout=test_timeout
         )
         assert_rejected(test_timeout, status, output, written, "whole seconds")
+
+
+def validator_platforms():
+    """Returns the PLATFORMS table input_validation.py declares, without running its main."""
+    spec = importlib.util.spec_from_file_location("input_validation", ROOT / VALIDATOR)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.PLATFORMS
+
+
+def test_evidence_runners_match_the_validator_platforms(tmp_path):
+    """evidence.yml keeps its own platform table; it must map every platform like the validator."""
+    status, output, written = run_evidence(tmp_path, "//a/...")
+    assert status == 0, f"evidence exited {status}: {output}"
+    assert written is not None, "evidence wrote no outputs"
+    runners = [line for line in written.splitlines() if line.startswith("runners=")]
+    assert len(runners) == 1, f"evidence wrote {len(runners)} runners lines: {written!r}"
+    expected = validator_platforms()
+    assert expected, f"{VALIDATOR} declares an empty PLATFORMS table"
+    assert json.loads(runners[0].partition("=")[2]) == expected, (
+        f"{EVIDENCE_WORKFLOW} PLATFORMS drifted from {VALIDATOR}"
+    )
 
 
 def run_blocks(text):

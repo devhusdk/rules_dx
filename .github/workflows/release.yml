@@ -39,7 +39,7 @@ jobs:
           - name: dx-linux-arm64
             runner: ubuntu-24.04-arm
           - name: dx-macos-arm64
-            runner: macos-14
+            runner: macos-15
           - name: dx-windows-x86_64
             runner: windows-latest
           - name: dx-windows-arm64

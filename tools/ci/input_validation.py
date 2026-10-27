@@ -24,7 +24,7 @@ OUTPUT_ENV = "GITHUB_OUTPUT"
 PLATFORMS = {
     "linux_x86_64": "ubuntu-latest",
     "linux_arm64": "ubuntu-24.04-arm",
-    "macos_arm64": "macos-14",
+    "macos_arm64": "macos-15",
     "windows_x86_64": "windows-latest",
     "windows_arm64": "windows-11-arm",
 }

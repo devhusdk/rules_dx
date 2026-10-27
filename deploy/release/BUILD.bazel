@@ -120,6 +120,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/audit:dx_audit",
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",

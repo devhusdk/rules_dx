@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{AdoptError, DX_VERSION};
+use super::{AdoptError, InitPart, InitParts, DX_VERSION};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScaffoldFile {
@@ -206,26 +206,32 @@ pub fn bazelignore_covers_dx(text: &str) -> bool {
         .any(|line| line == ".dx" || line == ".dx/ide")
 }
 
-pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_for_host(module_name, cfg!(windows))
+pub fn plan_init_files(
+    module_name: &str,
+    parts: InitParts,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_for_host(module_name, cfg!(windows), parts)
 }
 
 pub fn plan_init_files_for_host(
     module_name: &str,
     windows: bool,
+    parts: InitParts,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_with(module_name, windows, false)
+    plan_init_files_with(module_name, windows, false, parts)
 }
 
-/// Plans the init files. `cuda` appends the pinned CUDA stanza to `MODULE.bazel.snippet`;
-/// `dx init` sets it when the workspace has `.cu`/`.cuh` sources.
+/// Plans the essential init files plus the files of each selected part.
+///
+/// `cuda` appends the pinned CUDA stanza to `MODULE.bazel.snippet`.
 pub fn plan_init_files_with(
     module_name: &str,
     windows: bool,
     cuda: bool,
+    parts: InitParts,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
-    Ok(vec![
+    let files = vec![
         ScaffoldFile {
             path: ".dx/version".to_owned(),
             content: format!("{DX_VERSION}\n"),
@@ -270,7 +276,16 @@ pub fn plan_init_files_with(
                 }),
             ),
         },
-    ])
+    ];
+    Ok(files
+        .into_iter()
+        .filter(|file| {
+            InitPart::ALL
+                .into_iter()
+                .find(|part| part.scaffold_paths().contains(&file.path.as_str()))
+                .is_none_or(|part| parts.contains(part))
+        })
+        .collect())
 }
 
 pub fn scaffold_dest_within_root(
@@ -393,11 +408,16 @@ pub fn apply_scaffold(
     Ok(())
 }
 
-pub fn apply_init(root: &Path, module_name: &str, applied: &mut Applied) -> Result<(), AdoptError> {
+pub fn apply_init(
+    root: &Path,
+    module_name: &str,
+    parts: InitParts,
+    applied: &mut Applied,
+) -> Result<(), AdoptError> {
     let cuda = crate::load_graph::workspace_has_cuda_sources(root)?;
     apply_scaffold(
         root,
-        &plan_init_files_with(module_name, cfg!(windows), cuda)?,
+        &plan_init_files_with(module_name, cfg!(windows), cuda, parts)?,
         applied,
     )
 }
@@ -431,23 +451,52 @@ mod tests {
     };
     use crate::version::consumer_setup::parse_consumer_setup;
 
+    fn planned_paths(parts: crate::InitParts) -> Vec<String> {
+        plan_init_files("demo", parts)
+            .expect("init plans")
+            .into_iter()
+            .map(|f| f.path)
+            .collect()
+    }
+
+    const ESSENTIALS: [&str; 4] = [
+        ".dx/version",
+        ".gitignore",
+        ".bazelignore",
+        "MODULE.bazel.snippet",
+    ];
+
     #[test]
-    fn init_plans_nine_absent_only_files() {
-        let files = plan_init_files("demo").expect("init plans");
-        assert_eq!(files.len(), 9);
-        assert!(files.iter().any(|f| f.path == ".bazelignore"));
-        assert!(files.iter().any(|f| f.path == ".gitignore"));
-        assert!(files.iter().any(|f| f.path == ".dx/version"));
-        assert!(files
-            .iter()
-            .any(|f| f.path == ".devcontainer/devcontainer.json"));
-        assert!(files.iter().any(|f| f.path == ".vscode/settings.json"));
-        assert!(files.iter().any(|f| f.path == ".envrc"));
+    fn init_plans_essentials_by_default() {
+        assert_eq!(planned_paths(crate::InitParts::NONE), ESSENTIALS);
+    }
+
+    #[test]
+    fn each_part_adds_its_files() {
+        for part in crate::InitPart::ALL {
+            let mut paths = planned_paths(crate::InitParts::NONE.with(part));
+            paths.retain(|path| !ESSENTIALS.contains(&path.as_str()));
+            assert_eq!(paths, part.scaffold_paths(), "{}", part.name());
+        }
+    }
+
+    #[test]
+    fn full_plans_the_old_nine() {
+        let paths = planned_paths(crate::InitParts::ALL);
+        assert_eq!(paths.len(), 9);
+        for part in crate::InitPart::ALL {
+            for path in part.scaffold_paths() {
+                assert!(paths.iter().any(|p| p == path), "{path}");
+            }
+        }
+        for path in ESSENTIALS {
+            assert!(paths.iter().any(|p| p == path), "{path}");
+        }
     }
 
     #[test]
     fn envrc_scaffold_is_path_only_with_watch_and_regeneration_guard() {
-        let files = plan_init_files("demo").expect("init plans");
+        let files = plan_init_files("demo", crate::InitParts::ALL).expect("init plans");
         let envrc = files
             .iter()
             .find(|f| f.path == ".envrc")
@@ -462,7 +511,7 @@ mod tests {
 
     #[test]
     fn devcontainer_scaffold_runs_bootstrap_not_full_build() {
-        let files = plan_init_files("demo").expect("init plans");
+        let files = plan_init_files("demo", crate::InitParts::ALL).expect("init plans");
         let scaffold = files
             .iter()
             .find(|f| f.path == ".devcontainer/devcontainer.json")
@@ -524,7 +573,8 @@ mod tests {
 
     #[test]
     fn init_scaffold_covers_admitted_editors() {
-        let files = plan_init_files_for_host("demo", false).expect("init plans");
+        let files =
+            plan_init_files_for_host("demo", false, crate::InitParts::ALL).expect("init plans");
         let settings = files
             .iter()
             .find(|f| f.path == ".vscode/settings.json")
@@ -579,11 +629,12 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
-        let first = entries(|a| apply_init(&root, "demo", a)).expect("init");
+        let first = entries(|a| apply_init(&root, "demo", crate::InitParts::ALL, a)).expect("init");
         assert!(first.iter().any(|p| p == ".dx/version"));
         assert!(root.join(".dx/version").exists());
         std::fs::write(root.join(".dx/version"), "custom\n").expect("custom");
-        let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
+        let second =
+            entries(|a| apply_init(&root, "demo", crate::InitParts::ALL, a)).expect("init again");
         assert!(second.iter().any(|p| p == "refused:.dx/version"));
         assert_eq!(
             std::fs::read_to_string(root.join(".dx/version")).expect("read"),
@@ -620,7 +671,7 @@ mod tests {
                 "{hostile:?} must not be a module"
             );
             assert!(
-                plan_init_files(hostile).is_err(),
+                plan_init_files(hostile, crate::InitParts::ALL).is_err(),
                 "{hostile:?} must not plan"
             );
         }
@@ -640,7 +691,7 @@ mod tests {
             "uses: {CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{CONSUMER_WORKFLOW_PATH}@{CONSUMER_WORKFLOW_PIN}"
         );
         for module in ["demo", "my_project", "a.b-c_d"] {
-            let files = plan_init_files(module).expect("init plans");
+            let files = plan_init_files(module, crate::InitParts::ALL).expect("init plans");
             let ci = files
                 .iter()
                 .find(|f| f.path == ".github/workflows/ci.yml")
@@ -657,7 +708,7 @@ mod tests {
                 "module name must not guess the workflow owner: {line}"
             );
         }
-        let files = plan_init_files("demo").expect("init plans");
+        let files = plan_init_files("demo", crate::InitParts::ALL).expect("init plans");
         let snippet = files
             .iter()
             .find(|f| f.path == "MODULE.bazel.snippet")
@@ -838,8 +889,10 @@ mod tests {
 
     #[test]
     fn init_scaffold_matches_on_both_hosts_except_native_names() {
-        let unix = plan_init_files_for_host("demo", false).expect("unix plans");
-        let win = plan_init_files_for_host("demo", true).expect("windows plans");
+        let unix =
+            plan_init_files_for_host("demo", false, crate::InitParts::ALL).expect("unix plans");
+        let win =
+            plan_init_files_for_host("demo", true, crate::InitParts::ALL).expect("windows plans");
         assert_eq!(unix.len(), win.len());
         for (left, right) in unix.iter().zip(win.iter()) {
             assert_eq!(left.path, right.path);
@@ -850,8 +903,9 @@ mod tests {
                 assert_eq!(left.content, right.content, "{}", left.path);
             }
         }
-        let host = plan_init_files("demo").expect("host plans");
-        let expected = plan_init_files_for_host("demo", cfg!(windows)).expect("host plans");
+        let host = plan_init_files("demo", crate::InitParts::ALL).expect("host plans");
+        let expected = plan_init_files_for_host("demo", cfg!(windows), crate::InitParts::ALL)
+            .expect("host plans");
         assert_eq!(
             host.iter().map(|f| &f.path).collect::<Vec<_>>(),
             expected.iter().map(|f| &f.path).collect::<Vec<_>>()
@@ -863,7 +917,7 @@ mod tests {
     fn init_snippet_is_a_complete_consumer_setup() {
         let scratch = dx_test_scratch::scratch("dx-adopt-consumer-setup-");
         let root = scratch.path().to_path_buf();
-        entries(|a| apply_init(&root, "demo", a)).expect("init");
+        entries(|a| apply_init(&root, "demo", crate::InitParts::ALL, a)).expect("init");
         let text =
             std::fs::read_to_string(root.join("MODULE.bazel.snippet")).expect("emitted snippet");
         assert!(text.contains(&format!(
@@ -928,8 +982,9 @@ mod tests {
 
     #[test]
     fn cuda_snippet_adds_the_stanza_and_registers_the_host_compiler_first() {
-        let plain = plan_init_files_with("demo", false, false).expect("plans");
-        let cuda = plan_init_files_with("demo", false, true).expect("plans");
+        let plain =
+            plan_init_files_with("demo", false, false, crate::InitParts::ALL).expect("plans");
+        let cuda = plan_init_files_with("demo", false, true, crate::InitParts::ALL).expect("plans");
         let snippet = |files: &[super::ScaffoldFile]| {
             files
                 .iter()
@@ -958,7 +1013,7 @@ mod tests {
     #[test]
     fn apply_init_adds_the_stanza_only_for_cuda_workspaces() {
         let plain = dx_test_scratch::scratch("dx-adopt-init-nocuda-");
-        entries(|a| apply_init(plain.path(), "demo", a)).expect("init");
+        entries(|a| apply_init(plain.path(), "demo", crate::InitParts::ALL, a)).expect("init");
         let text =
             std::fs::read_to_string(plain.path().join("MODULE.bazel.snippet")).expect("read");
         assert!(!text.contains("rules_cuda"));
@@ -966,7 +1021,7 @@ mod tests {
         let with = dx_test_scratch::scratch("dx-adopt-init-cuda-");
         std::fs::create_dir_all(with.path().join("k")).expect("mkdir");
         std::fs::write(with.path().join("k/a.cu"), "").expect("write");
-        entries(|a| apply_init(with.path(), "demo", a)).expect("init");
+        entries(|a| apply_init(with.path(), "demo", crate::InitParts::ALL, a)).expect("init");
         let text = std::fs::read_to_string(with.path().join("MODULE.bazel.snippet")).expect("read");
         assert!(text.contains("bazel_dep(name = \"rules_cuda\""), "{text}");
         with.close().expect("cleanup");
@@ -976,10 +1031,11 @@ mod tests {
     fn apply_init_snippet_is_absent_only() {
         let scratch = dx_test_scratch::scratch("dx-adopt-snippet-absent-");
         let root = scratch.path().to_path_buf();
-        entries(|a| apply_init(&root, "demo", a)).expect("init");
+        entries(|a| apply_init(&root, "demo", crate::InitParts::ALL, a)).expect("init");
         let snippet = root.join("MODULE.bazel.snippet");
         std::fs::write(&snippet, "custom\n").expect("custom");
-        let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
+        let second =
+            entries(|a| apply_init(&root, "demo", crate::InitParts::ALL, a)).expect("init again");
         assert!(
             second.iter().any(|p| p == "refused:MODULE.bazel.snippet"),
             "snippet must stay absent-only: {second:?}"
@@ -1022,7 +1078,7 @@ mod tests {
             let root = scratch.path().to_path_buf();
             std::fs::write(root.join("sentinel"), "stay").expect("sentinel");
             assert!(
-                entries(|a| apply_init(&root, hostile, a)).is_err(),
+                entries(|a| apply_init(&root, hostile, crate::InitParts::ALL, a)).is_err(),
                 "{hostile:?} must fail"
             );
             let mut entries: Vec<String> = Vec::new();
@@ -1046,7 +1102,8 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::write(root.join(".vscode"), "file\n").expect("blocker");
         let mut applied = super::Applied::default();
-        let err = apply_init(&root, "demo", &mut applied).expect_err("file parent refused");
+        let err = apply_init(&root, "demo", crate::InitParts::ALL, &mut applied)
+            .expect_err("file parent refused");
         assert_eq!(
             err,
             crate::AdoptError::NotADirectory {
@@ -1069,7 +1126,7 @@ mod tests {
         let root = scratch.path().join("root");
         std::fs::create_dir_all(&root).expect("root");
         std::fs::write(root.join(".envrc"), "mine\n").expect("handwritten");
-        let init = entries(|a| apply_init(&root, "demo", a)).expect("init");
+        let init = entries(|a| apply_init(&root, "demo", crate::InitParts::ALL, a)).expect("init");
         assert!(init.contains(&"refused:.envrc".to_owned()), "{init:?}");
         assert!(init.contains(&".dx/version".to_owned()), "{init:?}");
         assert_eq!(
@@ -1112,7 +1169,8 @@ mod tests {
             std::fs::create_dir_all(&root).expect("root");
             std::fs::create_dir_all(&outside).expect("outside");
             symlink(&outside, root.join(".github")).expect("symlink");
-            let err = applied(|a| apply_init(&root, "demo", a)).expect_err("escape refused");
+            let err = applied(|a| apply_init(&root, "demo", crate::InitParts::ALL, a))
+                .expect_err("escape refused");
             assert!(
                 err.to_string().contains(".github/workflows/ci.yml"),
                 "{err}"
@@ -1138,7 +1196,8 @@ mod tests {
             let root = scratch.path().join("root");
             std::fs::create_dir_all(root.join("real")).expect("real");
             symlink(root.join("real"), root.join(".github")).expect("symlink");
-            let written = applied(|a| apply_init(&root, "demo", a)).expect("internal link allowed");
+            let written = applied(|a| apply_init(&root, "demo", crate::InitParts::ALL, a))
+                .expect("internal link allowed");
             assert!(written.contains(&".github/workflows/ci.yml".to_owned()));
             assert!(root.join("real/workflows/ci.yml").is_file());
             scratch.close().expect("cleanup");

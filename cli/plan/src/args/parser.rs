@@ -521,6 +521,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         force,
         disk,
         bases,
+        with,
+        full,
         bazel_startup_options: startup_tokens,
         bazel_options: option_tokens,
     } = tokenized.flags;
@@ -808,6 +810,11 @@ fn parse_inner<S: AsRef<OsStr>>(
         force,
         disk,
         bases,
+        init_parts: if full {
+            dx_adopt::InitParts::ALL
+        } else {
+            dx_adopt::InitParts::parse_list(&with).map_err(bad_default)?
+        },
         path_only,
         agent,
         bazel_startup_options,

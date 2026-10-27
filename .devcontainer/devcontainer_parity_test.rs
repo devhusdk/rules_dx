@@ -17,6 +17,7 @@ fn devcontainer_parity() {
         &[
             "init",
             "--apply",
+            "--with=devcontainer",
             "--workspace",
             scratch.to_string_lossy().as_ref(),
             "--quiet",

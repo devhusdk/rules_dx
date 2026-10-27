@@ -64,13 +64,13 @@ pub(crate) fn execute_new(
     };
     let root = workspace.join(&dest);
     let prefix = format!("{dest}/");
-    if let Err(message) = super::wiring::preflight(&root, &prefix) {
+    if let Err(message) = super::wiring::preflight(&root, &prefix, true, &[]) {
         return operational(invocation, out, err, CODE_NEW_FAILED, &message);
     }
     let mut applied = dx_adopt::Applied::default();
     let mut notes = Vec::new();
     let result = match dx_adopt::apply_new(workspace, language, name, &mut applied) {
-        Ok(()) => super::wiring::apply(&root, &prefix, &mut applied, &mut notes),
+        Ok(()) => super::wiring::apply(&root, &prefix, true, &mut applied, &mut notes),
         Err(
             error @ (dx_adopt::AdoptError::NewInvalidDestination { .. }
             | dx_adopt::AdoptError::NewInvalidIdentity { .. }),

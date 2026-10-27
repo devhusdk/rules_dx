@@ -238,7 +238,7 @@ pub fn plan_new_files(language: &str, name: &str) -> Result<Vec<ScaffoldFile>, A
     let identity = derive_new_identity(canonical, &destination)?;
     let language_files = new_language_files(canonical, &identity)?;
     let mut files = Vec::new();
-    for file in super::plan_init_files(&identity)? {
+    for file in super::plan_init_files(&identity, super::InitParts::ALL)? {
         if language_files
             .iter()
             .any(|(suffix, _)| *suffix == file.path)
@@ -1678,6 +1678,19 @@ mod tests {
     use super::*;
 
     use super::super::version::repo_text as workspace_text;
+
+    #[test]
+    fn new_keeps_every_init_part() {
+        let files = plan_new_files("rust", "demo").expect("plans");
+        for part in crate::InitPart::ALL {
+            for path in part.scaffold_paths() {
+                assert!(
+                    files.iter().any(|f| f.path == format!("demo/{path}")),
+                    "{path}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn js_starter_pins_match_repository_pins() {

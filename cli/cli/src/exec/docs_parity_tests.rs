@@ -86,7 +86,7 @@ fn new_upgrade_page_names_codes_and_starter_files() {
             .unwrap_or_else(|| panic!("new-upgrade.md has a {name} section"));
         backticked(&body)
     };
-    let init_files: Vec<String> = dx_adopt::plan_init_files("demo")
+    let init_files: Vec<String> = dx_adopt::plan_init_files("demo", dx_adopt::InitParts::ALL)
         .expect("demo is a valid module name")
         .into_iter()
         .map(|file| file.path)
@@ -106,6 +106,26 @@ fn new_upgrade_page_names_codes_and_starter_files() {
             assert!(
                 tokens.iter().any(|token| *token == name),
                 "new-upgrade.md {heading} section never names `{name}`"
+            );
+        }
+    }
+}
+
+#[test]
+fn init_page_lists_each_part_with_its_files() {
+    let page = std::fs::read_to_string(docs_dir().join("init.md")).expect("init.md");
+    for part in dx_adopt::InitPart::ALL {
+        let opening = format!("| `{}` |", part.name());
+        let row = page
+            .lines()
+            .find(|line| line.starts_with(&opening))
+            .unwrap_or_else(|| panic!("init.md parts table has no `{}` row", part.name()));
+        let named = backticked(row);
+        for path in part.scaffold_paths() {
+            assert!(
+                named.iter().any(|token| token == path),
+                "init.md `{}` row never names `{path}`",
+                part.name()
             );
         }
     }

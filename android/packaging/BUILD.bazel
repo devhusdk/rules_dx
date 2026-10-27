@@ -57,6 +57,12 @@ failure_test(
     target = ":bad_abi",
 )
 
+failure_test(
+    name = "bad_abi_aab_file_test",
+    expected_failure_substring = "abi 'mips' is unknown",
+    target = ":bad_abi_aab_file",
+)
+
 rust_android_apk(
     name = "bad_api",
     api_level = 29,

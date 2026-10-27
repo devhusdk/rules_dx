@@ -229,17 +229,17 @@ def rust_android_apk(
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
+    plain = not _has_select([abis, app_id, api_level, version_code])
+    invalid = plain and len(rust_android_apk_errors(name, app_id, abis, api_level, version_code)) > 0
     _aab_file(
         name = name + "_aab_file",
         abis = abis,
-        src = ":" + name + "_bundle",
+        src = None if invalid else ":" + name + "_bundle",
         validation = ":" + name + "_validation",
         tags = ["manual"],
         visibility = visibility,
     )
     testonly = kwargs.get("testonly", False)
-    plain = not _has_select([abis, app_id, api_level, version_code])
-    invalid = plain and len(rust_android_apk_errors(name, app_id, abis, api_level, version_code)) > 0
     android_binary(
         name = name + "_bin",
         assets = assets,
@@ -340,6 +340,8 @@ _apk_file = rule(
 )
 
 def _aab_file_impl(ctx):
+    if ctx.attr.src == None or (type(ctx.attr.src) == "list" and len(ctx.attr.src) == 0):
+        fail("android_aab_file: no app bundle; the package declaration was rejected")
     src = ctx.attr.src[0] if type(ctx.attr.src) == "list" else ctx.attr.src
     if AndroidBundleInfo not in src:
         fail("android_aab_file: '" + str(src.label) + "' provides no app bundle")
@@ -350,7 +352,7 @@ _aab_file = rule(
     doc = "Exposes the unsigned App Bundle of one android_application for the selected ABIs.",
     attrs = {
         "abis": attr.string_list(default = [], doc = "ABIs the bundle packages."),
-        "src": attr.label(mandatory = True, cfg = _abi_transition, doc = "android_application that builds the bundle."),
+        "src": attr.label(cfg = _abi_transition, doc = "android_application that builds the bundle; unset when validation rejects the package."),
         "validation": attr.label(doc = "Selection target that fails analysis on a rejected package."),
     },
 )

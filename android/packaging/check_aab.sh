@@ -43,6 +43,7 @@ for abi in $abis; do
 done
 for resource in $resources; do
     found="$(run dump resources --bundle="$aab" --resource="$resource")" || fail "$aab does not resolve resource $resource"
-    [ -n "$found" ] || fail "$aab does not resolve resource $resource"
+    # run merges stderr, so JVM warnings are non-empty; require the resource name itself.
+    echo "$found" | grep -Fq "${resource#*/}" || fail "$aab does not resolve resource $resource"
 done
 echo "dx-android-check-aab: $aab is a valid app bundle"

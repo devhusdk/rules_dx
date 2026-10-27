@@ -424,11 +424,11 @@ fn run_quality_request(
         (Some(probe), Some(build)) => Some(probe + build),
         (probe, build) => probe.or(build),
     };
-    let compile_only = if bazel_code == 0 {
-        false
+    let (compile_only, build_stage) = if bazel_code == 0 {
+        (false, false)
     } else {
         match report_build_failures(&bep, request.common.output, out, err) {
-            Ok(reported) => reported.compile_only,
+            Ok(reported) => (reported.compile_only, reported.build_stage),
             Err(exit) => {
                 let _ = std::fs::remove_file(&bep);
                 return exit;
@@ -454,6 +454,8 @@ fn run_quality_request(
             )
         } else if compile_only {
             (CODE_BAZEL_FAILED, "build", "fix the compile errors above")
+        } else if build_stage {
+            (CODE_BAZEL_FAILED, "build", "fix the build errors above")
         } else {
             (
                 CODE_ANALYSIS_FAILED,

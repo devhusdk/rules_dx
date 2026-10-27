@@ -32,6 +32,8 @@ build:windows --host_per_file_copt=external/protobuf[+]/upb/wire/encode[.]c@-D__
 build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 build --@rules_rust//rust/settings:clippy.toml=//:clippy.toml
 build:linux --@rules_rust//rust/settings:pipelined_compilation=true
+build:linux --linkopt=-Wno-unused-command-line-argument
+build:linux --host_linkopt=-Wno-unused-command-line-argument
 build:macos --@rules_rust//rust/settings:pipelined_compilation=true
 build:windows --@rules_rust//rust/settings:pipelined_compilation=true
 

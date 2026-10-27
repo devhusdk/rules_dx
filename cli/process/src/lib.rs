@@ -206,6 +206,24 @@ pub fn bazel_run_dir(value: Option<&std::ffi::OsStr>, cwd: &Path) -> PathBuf {
     canonicalize_or_keep(&dir)
 }
 
+/// Names the output base behind a `bazel run` execution root (`<output_base>/execroot/<repo>`).
+pub fn output_base_of_execroot(execroot: &Path) -> Option<PathBuf> {
+    if !execroot.is_absolute() {
+        return None;
+    }
+    let parent = execroot.parent()?;
+    if parent.file_name()? != "execroot" {
+        return None;
+    }
+    parent.parent().map(Path::to_path_buf)
+}
+
+/// Returns the output base of the enclosing `bazel run`, read from `BUILD_EXECROOT`.
+pub fn run_output_base() -> Option<PathBuf> {
+    let value = std::env::var_os("BUILD_EXECROOT").filter(|value| !value.is_empty())?;
+    output_base_of_execroot(Path::new(&value))
+}
+
 pub fn workspace_start(cwd: &Path) -> PathBuf {
     bazel_run_dir(
         std::env::var_os("BUILD_WORKSPACE_DIRECTORY").as_deref(),

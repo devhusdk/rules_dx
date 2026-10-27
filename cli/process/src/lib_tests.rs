@@ -1314,3 +1314,34 @@ fn first_line_within_ends_early_when_stopped() {
     assert_eq!(first_line_within(argv, &|| Some(15)), None);
     assert!(started.elapsed() < VERSION_TIMEOUT);
 }
+
+#[test]
+fn output_base_of_execroot_reads_the_grandparent() {
+    assert_eq!(
+        output_base_of_execroot(Path::new("/x/ob/execroot/_main")),
+        Some(PathBuf::from("/x/ob"))
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn output_base_of_execroot_reads_windows_paths() {
+    assert_eq!(
+        output_base_of_execroot(Path::new("C:/bz/abc/execroot/_main")),
+        Some(PathBuf::from("C:/bz/abc"))
+    );
+}
+
+#[test]
+fn output_base_of_execroot_rejects_other_shapes() {
+    for value in [
+        "",
+        "_main",
+        "execroot/_main",
+        "/x/ob/_main",
+        "/",
+        "/execroot",
+    ] {
+        assert_eq!(output_base_of_execroot(Path::new(value)), None, "{value}");
+    }
+}

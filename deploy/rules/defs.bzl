@@ -14,19 +14,7 @@ DxDeployInfo = provider(
 
 VALID_DEPLOY_PROFILES = ["debug", "dev", "release"]
 
-def deploy_profile_error(profile):
-    """Validates one deploy profile value."""
-    if profile == None:
-        return ""
-    if type(profile) != "string" or profile not in VALID_DEPLOY_PROFILES:
-        return ("dx_deployment: invalid profile '" + str(profile) +
-                "': want one of debug, dev, release")
-    return ""
-
 def _dx_deployment_impl(ctx):
-    error = deploy_profile_error(ctx.attr.profile)
-    if error != "":
-        fail(error + " (in " + str(ctx.label) + ")")
     deploy_default = ctx.attr.deploy[DefaultInfo]
     run = deploy_default.files_to_run
     exe = run.executable if run != None else None

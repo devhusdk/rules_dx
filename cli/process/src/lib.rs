@@ -377,7 +377,8 @@ pub enum ForwardError {
     UnsupportedCommand { command: String },
 }
 
-fn flag_name(arg: &str) -> Option<String> {
+/// Returns the option name of a `--name` or `--name=value` token.
+pub fn flag_name(arg: &str) -> Option<String> {
     if !arg.starts_with("--") {
         return None;
     }

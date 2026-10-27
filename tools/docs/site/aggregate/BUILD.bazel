@@ -14,10 +14,7 @@ exports_files([
 
 rust_library(
     name = "dx_site_aggregate",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "tools/docs/site/site_aggregate",
         normal = True,
@@ -50,12 +47,18 @@ rust_binary(
 rust_test(
     name = "dx_site_aggregate_test",
     size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/site/site_aggregate",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_site_aggregate",
+    crate_name = "dx_site_aggregate",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_aggregate",
         normal = True,

@@ -477,9 +477,11 @@ func TestFilterDxCrateCovered(t *testing.T) {
 	otherLib := rule.NewRule(libraryKind, "other")
 	otherUnit := rule.NewRule(testKind, "other_test")
 	otherUnit.SetAttr("crate", ":other")
+	file.Rules = append(file.Rules, rule.NewRule(dxCrateKind, "dx_b"))
+	selfContained := unitTestRule("dx_b_test", "dx_b", "dx_b", "pkg/src/lib.rs", nil, "pkg", true)
 	result := filterDxCrateCovered(file, language.GenerateResult{
-		Gen:     []*rule.Rule{lib, unit, integration, flavored, binary, otherLib, otherUnit},
-		Imports: []interface{}{"lib", "unit", "integration", "flavored", "binary", "otherLib", "otherUnit"},
+		Gen:     []*rule.Rule{lib, unit, integration, flavored, binary, otherLib, otherUnit, selfContained},
+		Imports: []interface{}{"lib", "unit", "integration", "flavored", "binary", "otherLib", "otherUnit", "selfContained"},
 	})
 	var names []string
 	for _, r := range result.Gen {

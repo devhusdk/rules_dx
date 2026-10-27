@@ -16,7 +16,6 @@ rust_library(
         "src/fetch.rs",
         "src/lib.rs",
         "src/protocol.rs",
-        "src/protocol_tests.rs",
         "src/run.rs",
     ],
     aliases = aliases(
@@ -35,21 +34,37 @@ rust_library(
 rust_binary(
     name = "dx_shim_bin",
     srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_shim",
+        normal = True,
+    ),
     crate_name = "dx",
     crate_root = "src/main.rs",
     edition = "2021",
-    deps = [":dx_shim"],
+    deps = all_crate_deps(
+        package_name = "cli/dx_shim",
+        normal = True,
+    ) + [":dx_shim"],
 )
 
 rust_test(
     name = "dx_shim_test",
     size = "small",
+    srcs = [
+        "src/fetch.rs",
+        "src/lib.rs",
+        "src/protocol.rs",
+        "src/protocol_tests.rs",
+        "src/run.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_shim",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_shim",
+    crate_name = "dx_shim",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_shim",
         normal = True,
@@ -64,6 +79,12 @@ rust_test(
         "tests/fetch.rs",
         "tests/support/mod.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_shim",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "fetch_test",
     crate_root = "tests/fetch.rs",
     edition = "2021",
     deps = all_crate_deps(
@@ -80,6 +101,12 @@ rust_test(
         "tests/e2e.rs",
         "tests/support/mod.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_shim",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "e2e_test",
     crate_root = "tests/e2e.rs",
     data = [":dx_shim_bin"],
     edition = "2021",
@@ -99,6 +126,12 @@ rust_test(
         "tests/interop.rs",
         "tests/support/mod.rs",
     ],
+    aliases = aliases(
+        package_name = "cli/dx_shim",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "interop_test",
     crate_root = "tests/interop.rs",
     data = [":dx_shim_bin"],
     edition = "2021",

@@ -21,7 +21,6 @@ rust_library(
         "src/convert.rs",
         "src/exports.rs",
         "src/lib.rs",
-        "src/lib_tests.rs",
         "src/types.rs",
     ],
     aliases = aliases(
@@ -56,12 +55,21 @@ rust_binary(
 rust_test(
     name = "dx_docs_powershell_extract_test",
     size = "small",
+    srcs = [
+        "src/convert.rs",
+        "src/exports.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/types.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/powershell/powershell_extract",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_docs_powershell_extract",
+    crate_name = "dx_docs_powershell_extract",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/powershell/powershell_extract",
         normal = True,

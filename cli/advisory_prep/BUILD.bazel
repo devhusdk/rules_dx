@@ -16,10 +16,7 @@ exports_files([
 
 rust_binary(
     name = "advisory_prep",
-    srcs = [
-        "src/main.rs",
-        "src/main_tests.rs",
-    ],
+    srcs = ["src/main.rs"],
     aliases = aliases(
         package_name = "cli/dx_advisory_prep",
         normal = True,
@@ -39,17 +36,26 @@ rust_binary(
 rust_test(
     name = "dx_advisory_prep_test",
     size = "small",
+    srcs = [
+        "src/archive.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_advisory_prep",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_advisory_prep",
+    crate_name = "dx_advisory_prep",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_advisory_prep",
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/adopt:dx_adopt",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
     ],
@@ -58,12 +64,18 @@ rust_test(
 rust_test(
     name = "advisory_prep_bin_test",
     size = "small",
+    srcs = [
+        "src/main.rs",
+        "src/main_tests.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_advisory_prep",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":advisory_prep",
+    crate_name = "advisory_prep",
+    crate_root = "src/main.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_advisory_prep",
         normal = True,
@@ -78,6 +90,7 @@ rustfmt_test(
     name = "advisory_prep_fmt_test",
     size = "small",
     targets = [
+        ":dx_advisory_prep_test",
         ":advisory_prep",
         ":advisory_prep_bin_test",
         ":dx_advisory_prep",
@@ -111,7 +124,6 @@ rust_library(
     srcs = [
         "src/archive.rs",
         "src/lib.rs",
-        "src/lib_tests.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_advisory_prep",

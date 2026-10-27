@@ -15,7 +15,11 @@ type ModuleDecl struct {
 	ParentFromFileDir bool
 	Inline            bool
 	CfgTest           bool
-	Scope             string
+	// DeclCfgTest records whether the declaration itself sits under an outer
+	// #[cfg(test)] (on the mod item or an enclosing inline module). Unlike
+	// CfgTest it is never widened by an inner #![cfg(test)] of the file.
+	DeclCfgTest bool
+	Scope       string
 }
 
 type UseDecl struct {
@@ -45,6 +49,10 @@ type FileFacts struct {
 	HasTestAttr  bool
 	HasCfgTest   bool
 	InnerCfgTest bool
+	// TestOnly marks a file that rustc reads only under cfg(test): it is
+	// reached through an outer #[cfg(test)] module declaration. Files reached
+	// only through an inner #![cfg(test)] are not TestOnly. Set by LoadCrate.
+	TestOnly bool
 }
 
 type AmbiguousError struct {
@@ -436,14 +444,14 @@ func (p *parser) parseMod(attrs []attrSpan, testScope bool, depth int, facts *Fi
 	switch p.src[p.pos] {
 	case ';':
 		p.pos++
-		facts.Modules = append(facts.Modules, ModuleDecl{Name: name, Path: pathOverride, CfgTest: cfgTest})
+		facts.Modules = append(facts.Modules, ModuleDecl{Name: name, Path: pathOverride, CfgTest: cfgTest, DeclCfgTest: cfgTest})
 		if cfgTest {
 			facts.HasCfgTest = true
 		}
 		return nil
 	case '{':
 		p.pos++
-		facts.Modules = append(facts.Modules, ModuleDecl{Name: name, Inline: true, CfgTest: cfgTest})
+		facts.Modules = append(facts.Modules, ModuleDecl{Name: name, Inline: true, CfgTest: cfgTest, DeclCfgTest: cfgTest})
 		if cfgTest {
 			facts.HasCfgTest = true
 		}

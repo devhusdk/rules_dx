@@ -7,10 +7,7 @@ package(default_visibility = VIS_CLI)
 
 rust_library(
     name = "dx_env",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "cli/dx_env",
         normal = True,
@@ -56,16 +53,22 @@ rust_binary(
 rust_test(
     name = "dx_env_test",
     size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_env",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_env",
+    crate_name = "dx_env",
+    crate_root = "src/lib.rs",
     data = [
         "//env:posix_metadata",
         "//env:windows_metadata",
     ],
+    edition = "2021",
     env = {
         "DX_POSIX_METADATA": "$(rootpath //env:posix_metadata)",
         "DX_WINDOWS_METADATA": "$(rootpath //env:windows_metadata)",
@@ -74,7 +77,14 @@ rust_test(
         package_name = "cli/dx_env",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/test_scratch:dx_test_scratch"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
+        "//cli/test_scratch:dx_test_scratch",
+        "//env:marker_proto_rs",
+        "@rules_rust_prost//private/3rdparty/crates:prost",
+    ],
 )
 
 # keep
@@ -92,6 +102,7 @@ rustfmt_test(
     name = "dx_env_fmt_test",
     size = "small",
     targets = [
+        ":dx_env_test",
         ":bootstrap_test",
         ":dx_env",
         ":env",

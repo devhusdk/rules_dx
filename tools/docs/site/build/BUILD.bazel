@@ -14,10 +14,7 @@ exports_files([
 
 rust_library(
     name = "dx_site_build",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "tools/docs/site/site_build",
         normal = True,
@@ -31,12 +28,18 @@ rust_library(
 
 rust_test(
     name = "dx_site_build_test",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/site/site_build",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_site_build",
+    crate_name = "dx_site_build",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = [],
 )
 

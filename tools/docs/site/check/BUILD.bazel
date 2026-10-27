@@ -16,9 +16,7 @@ rust_library(
     name = "dx_site_check",
     srcs = [
         "src/lib.rs",
-        "src/lib_tests.rs",
         "src/rendered.rs",
-        "src/rendered_tests.rs",
     ],
     aliases = aliases(
         package_name = "tools/docs/site/site_check",
@@ -49,12 +47,20 @@ rust_binary(
 rust_test(
     name = "dx_site_check_test",
     size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/rendered.rs",
+        "src/rendered_tests.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/site/site_check",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_site_check",
+    crate_name = "dx_site_check",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = crate_deps(
         [],
         package_name = "tools/docs/site/site_check",

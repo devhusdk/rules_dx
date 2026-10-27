@@ -11,7 +11,6 @@ rust_library(
     srcs = [
         "src/lib.rs",
         "src/model.rs",
-        "src/tests.rs",
     ],
     crate_name = "demo",
     crate_root = "src/lib.rs",
@@ -20,7 +19,13 @@ rust_library(
 
 rust_test(
     name = "demo_test",
-    crate = ":demo",
+    srcs = [
+        "src/lib.rs",
+        "src/model.rs",
+        "src/tests.rs",
+    ],
+    crate_name = "demo",
+    crate_root = "src/lib.rs",
 )
 
 rust_binary(

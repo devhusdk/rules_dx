@@ -14,10 +14,7 @@ exports_files([
 
 rust_library(
     name = "dx_js_launcher",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "quality/tools/javascript/dx_js_launcher",
         normal = True,
@@ -46,19 +43,25 @@ rust_binary(
 
 rust_test(
     name = "dx_js_launcher_test",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "quality/tools/javascript/dx_js_launcher",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_js_launcher",
+    crate_name = "dx_js_launcher",
+    crate_root = "src/lib.rs",
     data = [
         ":js_launcher",
     ],
+    edition = "2021",
     env = {
         "DX_JS_LAUNCHER": "$(rootpath :js_launcher)",
     },
-    deps = [],
+    deps = ["//cli/path:dx_path"],
 )
 
 rustfmt_test(

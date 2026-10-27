@@ -14,6 +14,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+	bzl "github.com/bazelbuild/buildtools/build"
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
@@ -110,6 +111,9 @@ type targetImports struct {
 	siblingLib  string
 	scriptDep   string
 	renames     map[string]string
+	// inheritedDeps are dependency labels of the existing crate rule that a
+	// self-contained unit test no longer inherits through crate=.
+	inheritedDeps []string
 }
 
 func NewLanguage() language.Language { return &rustLang{} }
@@ -311,41 +315,65 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	var result language.GenerateResult
 	publicLibs := shouldSetVisibility(args)
 	if shape.LibTarget != "" {
-		r := crateRule(libraryKind, shape.LibTarget, shape.Name, roots.LibRoot, trees[roots.LibRoot], args.Rel)
+		tree := trees[roots.LibRoot]
+		split := hasTestOnly(tree)
+		r := crateRule(libraryKind, shape.LibTarget, shape.Name, roots.LibRoot, tree, args.Rel, split)
 		if publicLibs {
 			r.SetAttr("visibility", []string{"//visibility:public"})
 		}
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, importsFor(trees[roots.LibRoot]))
+		result.Imports = append(result.Imports, importsFor(tree))
 		if shape.LibUnitTest {
-			t := rule.NewRule(testKind, common.UnitTestName(shape.LibTarget))
-			t.SetAttr("crate", ":"+shape.LibTarget)
-			result.Gen = append(result.Gen, t)
-			result.Imports = append(result.Imports, targetImports{test: importsFor(trees[roots.LibRoot]).test})
+			result.Gen = append(result.Gen, unitTestRule(common.UnitTestName(shape.LibTarget), shape.LibTarget, shape.Name, roots.LibRoot, tree, args.Rel, split))
+			result.Imports = append(result.Imports, sourceOnlyTestImports(tree, split))
 		}
 	}
 	if shape.BinTarget != "" {
-		r := crateRule(binaryKind, shape.BinTarget, shape.Name, roots.BinRoot, trees[roots.BinRoot], args.Rel)
+		tree := trees[roots.BinRoot]
+		split := hasTestOnly(tree)
+		r := crateRule(binaryKind, shape.BinTarget, shape.Name, roots.BinRoot, tree, args.Rel, split)
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, importsFor(trees[roots.BinRoot]))
+		result.Imports = append(result.Imports, importsFor(tree))
 		if shape.BinUnitTest {
-			t := rule.NewRule(testKind, common.UnitTestName(shape.BinTarget))
-			t.SetAttr("crate", ":"+shape.BinTarget)
-			result.Gen = append(result.Gen, t)
-			result.Imports = append(result.Imports, targetImports{test: importsFor(trees[roots.BinRoot]).test})
+			result.Gen = append(result.Gen, unitTestRule(common.UnitTestName(shape.BinTarget), shape.BinTarget, shape.Name, roots.BinRoot, tree, args.Rel, split))
+			result.Imports = append(result.Imports, sourceOnlyTestImports(tree, split))
 		}
 	}
 	for _, test := range shape.Tests {
-		r := crateRule(testKind, test.Name, strings.TrimSuffix(path.Base(test.Root), ".rs"), test.Root, trees[test.Root], args.Rel)
+		r := crateRule(testKind, test.Name, strings.TrimSuffix(path.Base(test.Root), ".rs"), test.Root, trees[test.Root], args.Rel, false)
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, importsFor(trees[test.Root]))
 	}
 	return l.attachNative(args, result, plan)
 }
 
+// sourceOnlyTestImports returns the imports of a source-only unit test. A
+// self-contained test compiles the whole tree, so it needs the production
+// imports too; a crate= wrapper inherits those from its crate.
+func sourceOnlyTestImports(tree map[string]*FileFacts, selfContained bool) targetImports {
+	imports := importsFor(tree)
+	if selfContained {
+		return imports
+	}
+	return targetImports{test: imports.test}
+}
+
 func (l *rustLang) attachNative(args language.GenerateArgs, result language.GenerateResult, plan *nativePlan) language.GenerateResult {
 	result = filterDxCrateCovered(args.File, result)
 	renamed := adoptExistingNames(args.File, result.Gen)
+	inherited, err := inheritCrateAttrs(args.File, result.Gen)
+	if err != nil {
+		l.fail("%v", err)
+		return language.GenerateResult{}
+	}
+	for i, r := range result.Gen {
+		if labels := inherited[r]; len(labels) > 0 && i < len(result.Imports) {
+			if current, ok := result.Imports[i].(targetImports); ok {
+				current.inheritedDeps = labels
+				result.Imports[i] = current
+			}
+		}
+	}
 	for i, raw := range result.Imports {
 		current, ok := raw.(targetImports)
 		if !ok {
@@ -412,6 +440,9 @@ func filterDxCrateCovered(file *rule.File, result language.GenerateResult) langu
 		if r.Kind() == libraryKind && covered[r.Name()] {
 			continue
 		}
+		if of := unitTestOf(r); of != "" && covered[of] && r.Name() == common.UnitTestName(of) {
+			continue
+		}
 		if r.Kind() == testKind && r.Attr("crate") != nil {
 			if crate := r.AttrString("crate"); len(crate) > 1 && crate[0] == ':' {
 				if covered[crate[1:]] && r.Name() == crate[1:]+"_test" {
@@ -446,41 +477,68 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 	for _, r := range gen {
 		taken[r.Name()] = true
 	}
-	adopt := func(r *rule.Rule, match func(*rule.Rule) bool) {
+	// adopt renames r to the one existing rule of its kind that match
+	// selects. It reports whether some existing rule matched at all.
+	adopt := func(r *rule.Rule, match func(*rule.Rule) bool) bool {
 		var found *rule.Rule
 		for _, existing := range file.Rules {
 			if existing.Kind() != r.Kind() || !match(existing) {
 				continue
 			}
 			if existing.Name() == r.Name() {
-				return
+				return true
 			}
 			if found != nil {
-				return
+				return true
 			}
 			found = existing
 		}
-		if found == nil || taken[found.Name()] {
-			return
+		if found == nil {
+			return false
+		}
+		if taken[found.Name()] {
+			return true
 		}
 		delete(taken, r.Name())
 		taken[found.Name()] = true
 		r.SetName(found.Name())
+		return true
 	}
 	renamed := make(map[string]string)
+	adopted := make(map[*rule.Rule]bool)
 	for _, r := range gen {
 		root := r.AttrString("crate_root")
 		if root == "" {
 			continue
 		}
 		old := r.Name()
-		adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate_root") == root })
+		adopted[r] = adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate_root") == root })
 		if r.Name() != old {
 			renamed[old] = r.Name()
 		}
 	}
+	byName := make(map[string]*rule.Rule, len(gen))
 	for _, r := range gen {
-		if r.Kind() != testKind || r.AttrString("crate_root") != "" {
+		byName[r.Name()] = r
+	}
+	for _, r := range gen {
+		if r.Kind() != testKind {
+			continue
+		}
+		of := unitTestOf(r)
+		if target, ok := renamed[of]; ok {
+			of = target
+			r.SetPrivateAttr(unitTestOfAttr, of)
+		}
+		if r.AttrString("crate_root") != "" {
+			// A self-contained unit test also adopts the crate= wrapper
+			// it replaces.
+			if of != "" && !adopted[r] {
+				crate := ":" + of
+				adopt(r, func(existing *rule.Rule) bool {
+					return existing.AttrString("crate_root") == "" && existing.AttrString("crate") == crate
+				})
+			}
 			continue
 		}
 		crate := r.AttrString("crate")
@@ -491,7 +549,72 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 			crate = ":" + target
 			r.SetAttr("crate", crate)
 		}
-		adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate") == crate })
+		if adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate") == crate }) {
+			continue
+		}
+		// A crate= unit test also adopts the self-contained test it
+		// replaces: same crate root and crate name as its crate target.
+		if lib := byName[crate[1:]]; lib != nil && of != "" {
+			root, name := lib.AttrString("crate_root"), lib.AttrString("crate_name")
+			adopt(r, func(existing *rule.Rule) bool {
+				return existing.Attr("crate") == nil && root != "" &&
+					existing.AttrString("crate_root") == root && existing.AttrString("crate_name") == name
+			})
+		}
 	}
 	return renamed
+}
+
+// crateInheritedAttrs are attributes a crate= unit test inherits from its
+// crate target. A self-contained unit test has to carry them itself.
+var crateInheritedAttrs = []string{"compile_data", "crate_features", "edition", "proc_macro_deps", "rustc_env", "rustc_env_files", "rustc_flags"}
+
+// inheritCrateAttrs copies crateInheritedAttrs from each self-contained unit
+// test's existing crate rule, unless the generated test already sets them.
+// An existing test with a different value is an error: it would silently
+// change what the test compiles. It also returns, per test, the literal deps
+// labels of the existing crate rule, which include hand-maintained deps.
+func inheritCrateAttrs(file *rule.File, gen []*rule.Rule) (map[*rule.Rule][]string, error) {
+	if file == nil {
+		return nil, nil
+	}
+	deps := make(map[*rule.Rule][]string)
+	existing := make(map[string]*rule.Rule, len(file.Rules))
+	for _, r := range file.Rules {
+		existing[r.Name()] = r
+	}
+	for _, t := range gen {
+		of := unitTestOf(t)
+		if of == "" || t.AttrString("crate_root") == "" {
+			continue
+		}
+		crate := existing[of]
+		if crate == nil || (crate.Kind() != libraryKind && crate.Kind() != binaryKind) {
+			continue
+		}
+		if labels := unmanagedDepsLabels(crate.Attr("deps"), nil); len(labels) > 0 {
+			deps[t] = labels
+		}
+		var old *rule.Rule
+		if prev := existing[t.Name()]; prev != nil && prev.Kind() == testKind {
+			old = prev
+		}
+		for _, attr := range crateInheritedAttrs {
+			value := crate.Attr(attr)
+			if value == nil || t.Attr(attr) != nil {
+				continue
+			}
+			if old != nil {
+				if have := old.Attr(attr); have != nil {
+					if bzl.FormatString(have) != bzl.FormatString(value) {
+						return nil, fmt.Errorf("rust: %s: unit test %s sets %s = %s but its crate %s sets %s; a self-contained unit test no longer inherits it, so make them equal",
+							file.Path, t.Name(), attr, bzl.FormatString(have), of, bzl.FormatString(value))
+					}
+					continue
+				}
+			}
+			t.SetAttr(attr, value)
+		}
+	}
+	return deps, nil
 }

@@ -136,6 +136,35 @@ fn default_output_applies(command: Command, name: &str, worktree_verb: Option<&s
     }
 }
 
+/// The one output resolution shared by startup guessing and full parsing.
+///
+/// Precedence is flag, then `DX_OUTPUT`, then the file default, then the
+/// agent default. A non-flag value that does not apply to the command (or
+/// the worktree verb) falls back to the agent default. `command` is `None`
+/// while it is still unknown, in which case every value applies.
+fn resolve_output_name(
+    command: Option<Command>,
+    flag: Option<&str>,
+    env: Option<String>,
+    file: Option<&str>,
+    agent: bool,
+    worktree_verb: Option<&str>,
+) -> String {
+    if let Some(flag) = flag {
+        return flag.to_owned();
+    }
+    if let Some(value) = env.as_deref().or(file) {
+        if command.is_none_or(|command| default_output_applies(command, value, worktree_verb)) {
+            return value.to_owned();
+        }
+    }
+    if agent && command.is_none_or(Command::supports_json) {
+        "json".to_owned()
+    } else {
+        "text".to_owned()
+    }
+}
+
 /// The first positional after the command word, skipping value options.
 fn verb_after_command<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let mut positionals = 0;
@@ -177,13 +206,16 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
     } else {
         dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
     };
-    if let Some(value) = env.as_deref().or(file.output.as_deref()) {
-        let verb = verb_after_command(args);
-        if command.is_none_or(|command| default_output_applies(command, value, verb.as_deref())) {
-            return value == "json";
-        }
-    }
-    !is_ci && dx_adopt::defaults::is_agent(env_get) && command.is_none_or(Command::supports_json)
+    let agent = !is_ci && dx_adopt::defaults::is_agent(env_get);
+    let verb = verb_after_command(args);
+    resolve_output_name(
+        command,
+        None,
+        env,
+        file.output.as_deref(),
+        agent,
+        verb.as_deref(),
+    ) == "json"
 }
 
 /// Whether the raw command line asks for help or the delivered version.
@@ -572,11 +604,13 @@ fn parse_inner<S: AsRef<OsStr>>(
     } else {
         "text"
     };
-    let output_name = invocation_defaults::resolve_string(
-        output,
+    let mut output_name = resolve_output_name(
+        Some(command),
+        output.as_deref(),
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
-        file.output.clone(),
-        default_output,
+        file.output.as_deref(),
+        agent,
+        targets.first().map(String::as_str),
     );
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
@@ -714,13 +748,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, "--open"));
         }
     }
-    let mut output_name = if output_from_flag
-        || default_output_applies(command, &output_name, targets.first().map(String::as_str))
-    {
-        output_name
-    } else {
-        default_output.to_owned()
-    };
+
     let mut path_only = false;
     if command == Command::Worktree {
         validate_worktree(&targets)?;
@@ -1201,6 +1229,51 @@ mod startup_tests {
             &json_file,
             false
         ));
+    }
+
+    #[test]
+    fn json_intent_matches_parsed_output_across_layers() {
+        let agent_env = dx_adopt::defaults::AGENT_ENVS[0];
+        let mut cases = 0;
+        for words in [
+            &["lint"][..],
+            &["lint", "--output=text"][..],
+            &["lint", "--output=json"][..],
+            &["worktree", "add", "branch"][..],
+            &["worktree", "list"][..],
+            &["status"][..],
+        ] {
+            for env_output in [None, Some("json"), Some("text"), Some("path")] {
+                for file_output in [None, Some("json"), Some("path")] {
+                    for agent in [false, true] {
+                        let env = |name: &str| {
+                            if name == dx_adopt::defaults::DX_OUTPUT_ENV {
+                                env_output.map(str::to_owned)
+                            } else if name == agent_env && agent {
+                                Some("1".to_owned())
+                            } else {
+                                None
+                            }
+                        };
+                        let file = crate::args::FileDefaults {
+                            output: file_output.map(str::to_owned),
+                            ..Default::default()
+                        };
+                        let args = strings(words);
+                        let Ok(parsed) = parse_with(&args, &env, &file) else {
+                            continue;
+                        };
+                        cases += 1;
+                        assert_eq!(
+                            json_output_intent(&args, &env, &file, false),
+                            parsed.output == OutputMode::Json,
+                            "{words:?} env={env_output:?} file={file_output:?} agent={agent}"
+                        );
+                    }
+                }
+            }
+        }
+        assert!(cases > 50, "{cases}");
     }
 
     #[test]

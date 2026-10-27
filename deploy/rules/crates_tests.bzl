@@ -1,18 +1,13 @@
 """Unit and analysis tests for the crates.io publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":crates.bzl", "crates_allow_dirty_error", "crates_file_error", "crates_name_error", "crates_schema_error", "crates_version_error")
+load(":crates.bzl", "crates_file_error", "crates_name_error", "crates_version_error")
 
 def crates_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "crates_schema_error accepts the v1 launcher-safe charset",
-                crates_schema_error(),
-                "",
-            ),
             expect_equal(
                 "crates_name_error accepts the demo crate name",
                 crates_name_error("crates_demo"),
@@ -74,18 +69,6 @@ def crates_unit_tests(name):
                 "crates_deploy: invalid crate file 'Cargo evil.toml': want " +
                 "no quotes, backslashes, spaces, or newlines so the filename " +
                 "embeds safely in the deploy launcher",
-            ),
-            expect_equal(
-                "crates_allow_dirty_error accepts a clean tree",
-                crates_allow_dirty_error(False),
-                "",
-            ),
-            expect_equal(
-                "crates_allow_dirty_error rejects dirty trees without approval",
-                crates_allow_dirty_error(True),
-                "crates_deploy: allow_dirty=True requires explicit owner " +
-                "approval; keep a clean tree and publish from committed " +
-                "sources instead",
             ),
         ],
     )

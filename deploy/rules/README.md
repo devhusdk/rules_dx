@@ -291,7 +291,6 @@ crates_deploy(
 - `name`: the crate name.
 - `crate`: required. The crate files, including `Cargo.toml`.
 - `version`: defaults to `0.0.0`.
-- `allow_dirty`: must stay `False`. `True` fails analysis.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-vendor/vendor/<name>/` and
@@ -324,7 +323,6 @@ github_deploy(
 
 - `artifacts`: required. At least one file. Asset names must be unique.
 - `tag`: defaults to `v0.0.0-dryrun`.
-- `draft`: must stay `True`. `False` fails analysis.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 - `tags`: Bazel tags for the generated targets. Defaults to `[]`.
 

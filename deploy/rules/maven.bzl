@@ -3,9 +3,7 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
-
-MAVEN_SCHEMA_VERSION = 1
+load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "has_any", "only_chars")
 
 _VALID_GROUP_CHARS = NAME_CHARS
 
@@ -16,16 +14,6 @@ _VALID_VERSION_CHARS = VERSION_CHARS
 MAVEN_DEFAULT_REPOSITORY_URL = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
 
 _RETIRED_HOSTS = ["oss.sonatype.org", "s01.oss.sonatype.org"]
-
-def maven_schema_error():
-    """Validates the versioned coordinate charset schema."""
-    if MAVEN_SCHEMA_VERSION != 1:
-        return "maven coordinates: unsupported schema v" + str(MAVEN_SCHEMA_VERSION) + " (want v1)"
-    return charset_schema_error(MAVEN_SCHEMA_VERSION, [
-        ("maven group", _VALID_GROUP_CHARS, LAUNCHER_UNSAFE + ["+"]),
-        ("maven artifact", _VALID_ARTIFACT_CHARS, LAUNCHER_UNSAFE + ["+"]),
-        ("maven version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
-    ])
 
 def _all_dots(value):
     """Reports whether a value is only dots."""

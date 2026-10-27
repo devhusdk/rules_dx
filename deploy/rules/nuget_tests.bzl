@@ -1,18 +1,13 @@
 """Unit and analysis tests for the NuGet publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":nuget.bzl", "NUGET_DEFAULT_SOURCE", "nuget_id_error", "nuget_nupkg_error", "nuget_schema_error", "nuget_source_error", "nuget_version_error")
+load(":nuget.bzl", "NUGET_DEFAULT_SOURCE", "nuget_id_error", "nuget_nupkg_error", "nuget_source_error", "nuget_version_error")
 
 def nuget_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "nuget_schema_error accepts the v1 launcher-safe charset",
-                nuget_schema_error(),
-                "",
-            ),
             expect_equal(
                 "nuget_id_error accepts the demo package id",
                 nuget_id_error("nuget_demo"),

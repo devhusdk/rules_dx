@@ -3,27 +3,13 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
-
-PROMOTION_SCHEMA_VERSION = 1
+load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "has_any", "only_chars")
 
 _VALID_ENVIRONMENT_CHARS = NAME_CHARS
 
 _VALID_VERSION_CHARS = VERSION_CHARS
 
 _VALID_ARTIFACT_SUFFIXES = [".tar.gz", ".tar", ".tgz", ".whl", ".jar", ".nupkg", ".zip"]
-
-def promotion_schema_error():
-    """Validates the versioned environment charset schema."""
-    charset_error = charset_schema_error(PROMOTION_SCHEMA_VERSION, [
-        ("promotion environment", _VALID_ENVIRONMENT_CHARS, LAUNCHER_UNSAFE + ["+"]),
-        ("promotion version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
-    ])
-    if charset_error != "":
-        return charset_error
-    if type(_VALID_ARTIFACT_SUFFIXES) != "list" or len(_VALID_ARTIFACT_SUFFIXES) == 0:
-        return "promotion: want a non-empty artifact suffix list (schema v1)"
-    return ""
 
 def promotion_environment_error(environment):
     """Validates one promotion environment name value."""

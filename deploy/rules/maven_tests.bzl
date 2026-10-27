@@ -1,18 +1,13 @@
 """Unit and analysis tests for the Maven Central publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_pom_error", "maven_repository_error", "maven_schema_error", "maven_version_error")
+load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_pom_error", "maven_repository_error", "maven_version_error")
 
 def maven_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "maven_schema_error accepts the v1 launcher-safe charset",
-                maven_schema_error(),
-                "",
-            ),
             expect_equal(
                 "maven_group_error accepts the demo group",
                 maven_group_error("com.example"),

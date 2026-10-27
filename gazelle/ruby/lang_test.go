@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -187,12 +188,12 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 	lib := rule.NewRule(LibraryKind, "demo")
 	lib.SetAttr("srcs", []string{"demo.rb", "helper.rb", "demo_spec.rb", "notes.txt"})
 	imports := lang.Imports(&config.Config{}, lib, nil)
-	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "demo" || imports[1].Imp != "helper" {
-		t.Errorf("imports = %+v, want demo+helper identities", imports)
+	if got := impNames(imports); !reflect.DeepEqual(got, []string{"demo", "//demo", "helper", "//helper"}) {
+		t.Errorf("imports = %v, want demo+helper identities", got)
 	}
 	nested := lang.Imports(&config.Config{}, lib, &rule.File{Pkg: "lib/acme"})
-	if len(nested) != 2 || nested[0].Imp != "acme/demo" || nested[1].Imp != "acme/helper" {
-		t.Errorf("lib imports = %+v, want acme/demo+acme/helper", nested)
+	if got := impNames(nested); !reflect.DeepEqual(got, []string{"acme/demo", "//lib/acme/demo", "acme/helper", "//lib/acme/helper"}) {
+		t.Errorf("lib imports = %v, want acme identities", got)
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule("filegroup", "demo"), nil); got != nil {
 		t.Errorf("other-kind imports = %+v, want nil", got)
@@ -374,5 +375,23 @@ func TestResolveLoadPath(t *testing.T) {
 	got := r.AttrStrings("deps")
 	if strings.Join(got, ",") != "//lib/acme,//tools/lib" {
 		t.Fatalf("deps = %v, want //lib/acme and //tools/lib", got)
+	}
+}
+
+func impNames(specs []resolve.ImportSpec) []string {
+	var out []string
+	for _, s := range specs {
+		out = append(out, s.Imp)
+	}
+	return out
+}
+
+func TestImportsIndexPathIdentity(t *testing.T) {
+	lib := rule.NewRule(LibraryKind, "lib")
+	lib.SetAttr("srcs", []string{"foo.rb", "sub/bar.rb", "foo_test.rb"})
+	got := impNames(NewLanguage().Imports(&config.Config{}, lib, &rule.File{Pkg: "pkg/lib"}))
+	want := []string{"foo", "//pkg/lib/foo", "sub/bar", "//pkg/lib/sub/bar"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
 	}
 }

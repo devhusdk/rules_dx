@@ -1,0 +1,5 @@
+require "securerandom"
+require "open3"
+require "io/console"
+require_relative "../lib/foo"
+require_relative "helper"

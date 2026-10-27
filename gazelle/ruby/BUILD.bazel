@@ -1,6 +1,7 @@
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//ruby/rules:defs.bzl", "ruby_binary", "ruby_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -13,6 +14,7 @@ go_library(
         "parser.go",
         "stdlib.go",
     ],
+    embedsrcs = ["stdlib.txt"],
     importpath = "github.com/devhusdk/rules_dx/gazelle/ruby",
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
@@ -40,6 +42,24 @@ gazelle_generation_test(
     test_data = [":generation_testdata"],
 )
 
+ruby_binary(
+    name = "stdlib_dump",
+    srcs = ["stdlib_dump.rb"],
+    main = "stdlib_dump.rb",
+)
+
+ruby_test(
+    name = "stdlib_test",
+    srcs = ["stdlib_dump.rb"],
+    args = [
+        "--check",
+        "$(rootpath stdlib.txt)",
+    ],
+    data = ["stdlib.txt"],
+    main = "stdlib_dump.rb",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
 go_test(
     name = "ruby_test",
     srcs = [
@@ -57,6 +77,7 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
         "testdata/load_path/README.md",
+        "testdata/require_relative/README.md",
         "testdata/source_only/README.md",
     ],
     tags = ["corpus"],

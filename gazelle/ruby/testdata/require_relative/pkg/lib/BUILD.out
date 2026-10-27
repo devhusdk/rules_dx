@@ -1,0 +1,6 @@
+load("@rules_dx//ruby/rules:defs.bzl", "ruby_library")
+
+ruby_library(
+    name = "lib",
+    srcs = ["foo.rb"],
+)

@@ -38,3 +38,9 @@ func LoadPath(pkg, src string) string {
 	}
 	return path.Join(dir, stem)
 }
+
+// RelativeKey returns the repo-path key require_relative specs resolve to:
+// "//" plus the repo-relative path of src without its extension.
+func RelativeKey(pkg, src string) string {
+	return "//" + strings.TrimSuffix(path.Join(pkg, src), path.Ext(src))
+}

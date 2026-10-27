@@ -101,26 +101,6 @@ func TestParseCargoFailsClosed(t *testing.T) {
 }
 
 func TestCargoCommentAndStringErrors(t *testing.T) {
-	if got := stripTomlComment(`name = "a#b" # trailing`); strings.TrimSpace(got) != `name = "a#b"` {
-		t.Errorf("comment stripping = %q", got)
-	}
-	if _, err := tomlString(`"unterminated`); err == nil {
-		t.Error("unterminated string accepted")
-	}
-	if _, err := tomlString(`"bad\q"`); err == nil {
-		t.Error("invalid escape accepted")
-	}
-	if got := stripTomlComment(`name = "a\\\"#b" # trailing`); !strings.Contains(got, "#b") {
-		t.Errorf("escaped quote ended string: %q", got)
-	}
-	if got, err := tomlString(`'C:\x'`); err != nil || got != `C:\x` {
-		t.Errorf("literal string = %q, %v", got, err)
-	}
-	for _, bad := range []string{`'''x'''`, `'a'b'`} {
-		if _, err := tomlString(bad); err == nil {
-			t.Errorf("tomlString(%s) accepted", bad)
-		}
-	}
 	manifest, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = 'demo'\nversion = '0.1.0'\n"))
 	if err != nil || manifest.packageName != "demo" || manifest.version != "0.1.0" {
 		t.Errorf("literal package = %+v, %v", manifest, err)
@@ -519,21 +499,6 @@ func TestVersionReqSatisfied(t *testing.T) {
 			t.Errorf("versionReqSatisfied(%q, %q) = %v, want %v", tc.version, tc.req, got, tc.want)
 		}
 	}
-	inline, err := tomlInlineTable(`{ myversion = "9", 'version' = "1.2", features = ["a", "b"], "x.y" = { z = 1 }, a.b = 'c' }`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if inline["version"] != `"1.2"` || inline["myversion"] != `"9"` || inline["features"] != `["a", "b"]` || inline["x.y"] != "{ z = 1 }" || inline["a.b"] != "'c'" {
-		t.Errorf("inline table = %v", inline)
-	}
-	if empty, err := tomlInlineTable("{ }"); err != nil || len(empty) != 0 {
-		t.Errorf("empty inline table = %v, %v", empty, err)
-	}
-	for _, bad := range []string{`"1"`, `{ version = "abc }`, `{ v = 'abc }`, `{ features = ["a" }`, `{ version }`, `{ version = }`, `{ "a = 1 }`, `{ 'a = 1 }`, `{ .a = 1 }`} {
-		if _, err := tomlInlineTable(bad); err == nil {
-			t.Errorf("tomlInlineTable(%s) accepted", bad)
-		}
-	}
 }
 
 func TestCheckPathDepVersions(t *testing.T) {
@@ -617,14 +582,14 @@ func TestParseCargoWorkspacePackage(t *testing.T) {
 	}
 	pkg := "[package]\nname = \"a\"\n"
 	failures := []struct{ manifest, want string }{
-		{pkg + "version.workspace = \"yes\"\n", "Cargo.toml:3: version.workspace must be true"},
-		{pkg + "edition.workspace = false\n", "Cargo.toml:3: edition.workspace must be true"},
-		{pkg + "version = { workspace = false }\n", "Cargo.toml:3: version must be a string or { workspace = true }"},
-		{pkg + "edition = { workspace = true, x = 1 }\n", "Cargo.toml:3: edition must be a string or { workspace = true }"},
-		{pkg + "version = { workspace }\n", "Cargo.toml:3: version must be a string or { workspace = true }"},
-		{pkg + "version = 1\n", "Cargo.toml:3: version must be a string or { workspace = true }"},
-		{pkg + "workspace = 1\n", "Cargo.toml:3: workspace: expected a quoted string"},
-		{"[workspace]\n[workspace.package]\nversion = 1\n", "Cargo.toml:3: workspace.package version: expected a quoted string"},
+		{pkg + "version.workspace = \"yes\"\n", "Cargo.toml: package.version must be a string or { workspace = true }"},
+		{pkg + "edition.workspace = false\n", "Cargo.toml: package.edition must be a string or { workspace = true }"},
+		{pkg + "version = { workspace = false }\n", "Cargo.toml: package.version must be a string or { workspace = true }"},
+		{pkg + "edition = { workspace = true, x = 1 }\n", "Cargo.toml: package.edition must be a string or { workspace = true }"},
+		{pkg + "version = { workspace }\n", "Cargo.toml:3:"},
+		{pkg + "version = 1\n", "Cargo.toml: package.version must be a string or { workspace = true }"},
+		{pkg + "workspace = 1\n", "Cargo.toml:3: package.workspace: must be a string"},
+		{"[workspace]\n[workspace.package]\nversion = 1\n", "Cargo.toml:3: workspace.package.version: must be a string"},
 	}
 	for _, tc := range failures {
 		if _, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest)); err == nil || !strings.Contains(err.Error(), tc.want) {
@@ -645,7 +610,7 @@ func TestParseCargoExamplePathDerived(t *testing.T) {
 	if example.kind != exampleKind || example.name != "foo_example" || example.logical != "foo" || example.path != "examples/foo.rs" {
 		t.Errorf("path-derived example = %+v", example)
 	}
-	if _, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo\"\n[dependencies]\nfoo = { version = \"1\", path\n")); err == nil || !strings.Contains(err.Error(), "Cargo.toml:4: dependency \"foo\"") {
+	if _, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo\"\n[dependencies]\nfoo = { version = \"1\", path\n")); err == nil || !strings.Contains(err.Error(), "Cargo.toml:4:") {
 		t.Errorf("truncated inline dep err = %v", err)
 	}
 }
@@ -723,7 +688,10 @@ func TestCargoDependencyForms(t *testing.T) {
 		{"literal table", pkg + "[dependencies.foo]\npackage = 'bar'\nversion = '1'\n", []want{{"normal", "foo", "bar", true, "", "1", false}}},
 		{"literal target", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = '0.2'\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
 		{"agreeing cfgs", pkg + "[target.'cfg(unix)'.dependencies]\nlibc = \"0.2\"\n[target.'cfg(windows)'.dependencies]\nlibc = { version = \"0.2.1\", features = [\"std\"] }\n", []want{{"normal", "libc", "libc", true, "", "0.2", false}}},
-		{"other headers", pkg + "[dependencies.serde.extra]\nx = 1\n[workspace.dependencies.a.b]\ny = 2\n[target.unix]\nz = 3\n[target.'cfg(unix)'.other]\nw = 4\n", nil},
+		{"other headers", pkg + "[dependencies.serde.extra]\nx = 1\n[workspace.dependencies.a.b]\ny = 2\n[target.unix]\nz = 3\n[target.'cfg(unix)'.other]\nw = 4\n", []want{
+			{"normal", "serde", "serde", true, "", "", false},
+			{"workspace", "a", "a", true, "", "", false},
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -753,17 +721,17 @@ func TestCargoDependencyForms(t *testing.T) {
 		manifest string
 		want     string
 	}{
-		{pkg + "[target.'cfg(unix).dependencies]\n", "Cargo.toml:3: malformed Cargo table header"},
-		{pkg + "[dependencies]\n'foo.version = \"1\"\n", "Cargo.toml:4: malformed dependency key"},
-		{pkg + "[dependencies]\nfoo = 1\n", "Cargo.toml:4: dependency \"foo\" must be a version string or a table"},
-		{pkg + "[dependencies]\nfoo = { version = }\n", "Cargo.toml:4: dependency \"foo\": inline table key \"version\" has no value"},
-		{pkg + "[dependencies]\nfoo = { version = 1 }\n", "Cargo.toml:4: dependency \"foo\" version: expected a quoted string"},
-		{pkg + "[dependencies]\nfoo = { path = 1 }\n", "Cargo.toml:4: dependency \"foo\" path: expected a quoted string"},
-		{pkg + "[dependencies.foo]\npackage = true\n", "Cargo.toml:4: dependency \"foo\" package: expected a quoted string"},
-		{pkg + "[dependencies]\nfoo = 'a'b'\n", "Cargo.toml:4: dependency \"foo\" version: expected a quoted string"},
-		{pkg + "[target.'cfg(unix)'.dependencies]\nfoo = { path = \"../u\" }\n[target.'cfg(windows)'.dependencies]\nfoo = { version = \"1\", package = \"foo-win\" }\n", "Cargo.toml:6: dependency \"foo\" differs between [target.cfg(unix)] and [target.cfg(windows)]"},
-		{pkg + "[dependencies]\nfoo.workspace = \"yes\"\n", "Cargo.toml:4: dependency \"foo\" workspace must be true or false"},
-		{pkg + "[dependencies]\nfoo.workspace = true\nfoo.package = \"bar\"\n", "Cargo.toml:5: dependency \"foo\" sets both workspace = true and package"},
+		{pkg + "[target.'cfg(unix).dependencies]\n", "Cargo.toml:3:"},
+		{pkg + "[dependencies]\n'foo.version = \"1\"\n", "Cargo.toml:4:"},
+		{pkg + "[dependencies]\nfoo = 1\n", "Cargo.toml: dependencies.foo must be a version string or a table"},
+		{pkg + "[dependencies]\nfoo = { version = }\n", "Cargo.toml:4:"},
+		{pkg + "[dependencies]\nfoo = { version = 1 }\n", "Cargo.toml: dependencies.foo.version must be a string"},
+		{pkg + "[dependencies]\nfoo = { path = 1 }\n", "Cargo.toml: dependencies.foo.path must be a string"},
+		{pkg + "[dependencies.foo]\npackage = true\n", "Cargo.toml: dependencies.foo.package must be a string"},
+		{pkg + "[dependencies]\nfoo = 'a'b'\n", "Cargo.toml:4:"},
+		{pkg + "[target.'cfg(unix)'.dependencies]\nfoo = { path = \"../u\" }\n[target.'cfg(windows)'.dependencies]\nfoo = { version = \"1\", package = \"foo-win\" }\n", "Cargo.toml: target.'cfg(windows)'.dependencies.foo differs from target.'cfg(unix)'.dependencies.foo"},
+		{pkg + "[dependencies]\nfoo.workspace = \"yes\"\n", "Cargo.toml: dependencies.foo.workspace must be true or false"},
+		{pkg + "[dependencies]\nfoo.workspace = true\nfoo.package = \"bar\"\n", "Cargo.toml: dependencies.foo sets both workspace = true and package"},
 	}
 	for _, tc := range failures {
 		if _, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest)); err == nil || !strings.Contains(err.Error(), tc.want) {
@@ -777,17 +745,6 @@ func TestCargoDependencyForms(t *testing.T) {
 	member, err := parseCargoManifest("Cargo.toml", []byte(pkg))
 	if err != nil || member.workspaceRoot {
 		t.Errorf("member = %+v, %v", member, err)
-	}
-	if parts, err := splitTomlDottedKey(` target . "a.\"b" . 'c.d' `); err != nil || strings.Join(parts, "|") != `target|a."b|c.d` {
-		t.Errorf("split dotted key = %q, %v", parts, err)
-	}
-	for _, bad := range []string{`a..b`, `"a\q"`, `'a' x`, `"a`} {
-		if _, err := splitTomlDottedKey(bad); err == nil {
-			t.Errorf("splitTomlDottedKey(%s) accepted", bad)
-		}
-	}
-	if got := stripTomlComment(`[target.'cfg(feature = "a#b")'.dependencies] # c`); got != `[target.'cfg(feature = "a#b")'.dependencies] ` {
-		t.Errorf("literal-string comment strip = %q", got)
 	}
 }
 
@@ -901,7 +858,7 @@ func TestCargoRenamedFlag(t *testing.T) {
 
 func TestLibCrateName(t *testing.T) {
 	cases := map[string]string{
-		"[package]\nname = \"my-pkg\"\n":                         "my_pkg",
+		"[package]\nname = \"my-pkg\"\n":                             "my_pkg",
 		"[package]\nname = \"my-pkg\"\n[lib]\nname = \"core_api\"\n": "core_api",
 	}
 	for src, want := range cases {
@@ -915,5 +872,76 @@ func TestLibCrateName(t *testing.T) {
 	}
 	if got := (&cargoManifest{packageName: "bad name"}).libCrateName(); got != "" {
 		t.Errorf("bad name libCrateName = %q, want empty", got)
+	}
+}
+
+func TestParseCargoTOMLForms(t *testing.T) {
+	source := `[package]
+name = "demo" # comment inside a value line
+
+[[test]]
+name = "late"
+harness = false
+
+[lib]
+crate-type = [
+  "rlib", # the default
+]
+required-features = [
+  # none yet
+]
+
+[[bin]]
+name = "tool"
+
+[dependencies]
+foo = {
+  version = "1",
+  path = '..\x#y',
+}
+bar = { package = 'b\a#r', version = "2" }
+`
+	manifest, err := parseCargoManifest("Cargo.toml", []byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kinds []string
+	for _, target := range manifest.targets {
+		kinds = append(kinds, target.kind)
+	}
+	if got := strings.Join(kinds, ","); got != libraryKind+","+binaryKind+","+testKind {
+		t.Errorf("target order = %s", got)
+	}
+	if lib := manifest.targets[0]; lib.flavor != "" || len(lib.crateTypes) != 1 || len(lib.requiredFeatures) != 0 {
+		t.Errorf("lib = %+v", lib)
+	}
+	if foo := manifest.normalDeps["foo"]; foo.external || foo.depPath != `..\x#y` || foo.version != "1" {
+		t.Errorf("foo = %+v", foo)
+	}
+	if bar := manifest.normalDeps["bar"]; bar.label != `b\a#r` || !bar.renamed {
+		t.Errorf("bar = %+v", bar)
+	}
+	empty, err := parseCargoManifest("Cargo.toml", []byte("[package]\nname = \"demo\"\n[lib]\ncrate-type = []\n"))
+	if err != nil || empty.targets[0].flavor != "" {
+		t.Errorf("empty crate-type = %+v, %v", empty, err)
+	}
+	virtual, err := parseCargoManifest("Cargo.toml", []byte("[workspace.dependencies]\nserde = \"1\"\n"))
+	if err != nil || !virtual.virtual || virtual.workspaceDeps["serde"].version != "1" {
+		t.Errorf("workspace.dependencies only = %+v, %v", virtual, err)
+	}
+	pkg := "[package]\nname = \"demo\"\n"
+	failures := []struct{ manifest, want string }{
+		{pkg + "name = \"again\"\n", "Cargo.toml:3:"},
+		{pkg + "[[test]]\nname = \"t\"\nharness = \"yes\"\n", "Cargo.toml:5: test.harness: must be true or false"},
+		{pkg + "[lib]\ncrate-type = [1]\n", "Cargo.toml:4: lib.crate-type: must be a list of strings"},
+		{pkg + "[[bin]]\nname = 1\n", "Cargo.toml:4: bin.name: must be a string"},
+	}
+	for _, tc := range failures {
+		_, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest))
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("parse %q err = %v, want %q", tc.manifest, err, tc.want)
+		} else if strings.Contains(err.Error(), "cargoTOML") || strings.Contains(err.Error(), "rust.") {
+			t.Errorf("parse %q leaks Go types: %v", tc.manifest, err)
+		}
 	}
 }

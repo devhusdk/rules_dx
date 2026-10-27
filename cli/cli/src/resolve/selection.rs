@@ -339,6 +339,8 @@ mod tests {
                 "DB=hunter2",
                 "--repo_env=HOME",
                 "--remote_cache=grpcs://ci:hunter2@cache.example",
+                "--define=API_TOKEN=hunter2",
+                "--//pkg:token=hunter2",
                 "--config=ci",
             ]),
             &[],
@@ -352,6 +354,8 @@ mod tests {
             "--test_env DB=(value)",
             "--repo_env=HOME",
             "--remote_cache=grpcs://(credentials)@cache.example",
+            "--define=API_TOKEN=(value)",
+            "--//pkg:token",
             "--config=ci",
         ] {
             assert!(detail.contains(kept), "{kept}: {detail}");

@@ -117,6 +117,39 @@ case "$(uname -s)" in
     export MSYS2_ARG_CONV_EXCL
     ;;
 esac
+# Hand off to the launcher of the checkout we are run from (a worktree slot or
+# another checkout of the same git repo), so that checkout's pin applies.
+# `worktree hook` never hands off: hooks belong to the dx that wrote them.
+if [ "${1:-}" != worktree ] || [ "${2:-}" != hook ]; then
+  here=$(pwd -P) || here=
+  while [ -n "$here" ]; do
+    if [ -x "$here/tools/dx" ] && [ -f "$here/.dx/version" ]; then
+      break
+    fi
+    if [ "$here" = / ]; then
+      here=
+    else
+      here=$(dirname -- "$here")
+    fi
+  done
+  me=$(CDPATH= cd -P -- "$root" && pwd -P) || me=
+  if [ -n "$here" ] && [ "$here" != "$me" ] && command -v git > /dev/null 2>&1; then
+    gcd() {
+      (
+        CDPATH=
+        unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_PREFIX
+        cd -P -- "$1" 2> /dev/null || exit 1
+        c=$(git rev-parse --git-common-dir 2> /dev/null) || exit 1
+        cd -P -- "$c" 2> /dev/null && pwd -P
+      )
+    }
+    a=$(gcd "$here") || a=
+    b=$(gcd "$me") || b=
+    if [ -n "$a" ] && [ "$a" = "$b" ]; then
+      exec "$here/tools/dx" "$@"
+    fi
+  fi
+fi
 pin=
 [ -f "$root/.dx/version" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply"
 IFS= read -r pin < "$root/.dx/version" || true
@@ -200,6 +233,36 @@ set "ARCH=x86_64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 set "WANT="
 if "%ARCH%"=="arm64" (set "WANT=%SHA256_WINDOWS_ARM64%") else set "WANT=%SHA256_WINDOWS_X86_64%"
+set "DX_HERE="
+if /i "%~1"=="worktree" if /i "%~2"=="hook" goto dxdone
+set "DX_HERE=%CD%"
+:dxup
+if exist "%DX_HERE%\tools\dx.cmd" if exist "%DX_HERE%\.dx\version" goto dxfound
+for %%I in ("%DX_HERE%\..") do set "DX_NEXT=%%~fI"
+if /i "%DX_NEXT%"=="%DX_HERE%" (
+  set "DX_HERE="
+  goto dxdone
+)
+set "DX_HERE=%DX_NEXT%"
+goto dxup
+:dxfound
+for %%I in ("%~dp0..") do set "DX_ME=%%~fI"
+if /i "%DX_HERE%"=="%DX_ME%" goto dxdone
+set "GIT_DIR="
+set "GIT_WORK_TREE="
+set "GIT_COMMON_DIR="
+set "GIT_INDEX_FILE="
+set "GIT_OBJECT_DIRECTORY="
+set "GIT_PREFIX="
+set "DX_GA="
+set "DX_GB="
+pushd "%DX_HERE%" 2>nul && (for /f "delims=" %%G in ('git rev-parse --git-common-dir 2^>nul') do if not defined DX_GA set "DX_GA=%%~fG") & popd
+pushd "%DX_ME%" 2>nul && (for /f "delims=" %%G in ('git rev-parse --git-common-dir 2^>nul') do if not defined DX_GB set "DX_GB=%%~fG") & popd
+if not defined DX_GA goto dxdone
+if /i not "%DX_GA%"=="%DX_GB%" goto dxdone
+call "%DX_HERE%\tools\dx.cmd" %*
+exit /b %errorlevel%
+:dxdone
 set "PIN="
 if not exist "%~dp0..\.dx\version" (
   echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
@@ -476,7 +539,8 @@ mod tests {
             .find("\n    export MSYS2_ARG_CONV_EXCL\n")
             .expect("msys export");
         let pin = sh.find("\nIFS= read -r pin").expect("pin check");
-        assert!(os < msys && msys < pin);
+        let handoff = sh.find("exec \"$here/tools/dx\"").expect("handoff");
+        assert!(os < msys && msys < handoff && handoff < pin);
     }
     #[test]
     fn launcher_pins_version_and_hashes() {
@@ -597,7 +661,7 @@ mod tests {
 
     #[test]
     fn launchers_share_the_shim_cache_root() {
-        let sh = render_launcher_sh("1.2.3");
+        let sh = sh("1.2.3");
         let dx = sh.find("cache=\"$DX_CACHE_DIR\"").expect("DX_CACHE_DIR");
         let xdg = sh
             .find("cache=\"$XDG_CACHE_HOME/dx\"")
@@ -605,7 +669,7 @@ mod tests {
         let home = sh.find("cache=\"$HOME/.cache/dx\"").expect("HOME");
         assert!(dx < xdg && xdg < home);
         assert!(sh.contains("dir=\"$cache/bin/$VERSION\""));
-        let cmd = render_launcher_cmd("1.2.3");
+        let cmd = cmd("1.2.3");
         let home = cmd
             .find("set \"DX_CACHE=%USERPROFILE%\\.cache\\dx\"\r\n")
             .expect("USERPROFILE");
@@ -857,9 +921,18 @@ mod tests {
             }
 
             fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
+                self.run_in(&self.base, args)
+            }
+
+            fn run_in(
+                &self,
+                cwd: &std::path::Path,
+                args: &[&str],
+            ) -> (Option<i32>, String, String) {
                 let base = &self.base;
                 let out = spawn(
                     Command::new(base.join("repo/tools/dx"))
+                        .current_dir(cwd)
                         .args(args)
                         .env_clear()
                         .env(
@@ -916,6 +989,77 @@ mod tests {
                     })
                     .unwrap_or_default()
             }
+        }
+
+        impl Fixture {
+            /// A second checkout of the same repo whose launcher prints `slot ARGS`.
+            fn add_slot(&self, with_git: bool) -> std::path::PathBuf {
+                let slot = self.base.join("slot");
+                std::fs::create_dir_all(slot.join(".dx")).expect("slot dx");
+                std::fs::create_dir_all(slot.join("tools")).expect("slot tools");
+                std::fs::create_dir_all(slot.join("sub")).expect("slot sub");
+                std::fs::write(slot.join(".dx/version"), "9.9.9\n").expect("slot pin");
+                let launcher = slot.join("tools/dx");
+                std::fs::write(&launcher, "#!/bin/sh\necho slot \"$@\"\n").expect("slot dx");
+                std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755))
+                    .expect("chmod");
+                if with_git {
+                    let common = format!("{}/repo/.git", self.base.display());
+                    self.stub(
+                        "git",
+                        &format!(
+                            "#!/bin/sh\necho git >> \"$STUB_LOG.git\"\ncase \"$PWD\" in\n  */repo) echo .git ;;\n  */slot*) echo {common} ;;\n  *) echo \"$PWD/.other\" ;;\nesac\n"
+                        ),
+                    );
+                    std::fs::create_dir_all(self.base.join("repo/.git")).expect("git dir");
+                }
+                slot
+            }
+
+            fn git_calls(&self) -> usize {
+                std::fs::read_to_string(self.base.join("calls.git"))
+                    .map_or(0, |text| text.lines().count())
+            }
+        }
+
+        #[test]
+        fn hands_off_to_the_slot_launcher_before_the_pin_check() {
+            let fx = Fixture::new("dx-launcher-handoff-", true, None);
+            let slot = fx.add_slot(true);
+            std::fs::write(fx.base.join("repo/.dx/version"), "0.0.1\n").expect("stale pin");
+            let (code, out, err) = fx.run_in(&slot.join("sub"), &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "slot status\n"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn does_not_hand_off_to_another_repo_or_without_git() {
+            let fx = Fixture::new("dx-launcher-nohandoff-", true, None);
+            let slot = fx.add_slot(true);
+            fx.stub(
+                "git",
+                "#!/bin/sh\ncase \"$PWD\" in\n  */repo) echo .git ;;\n  *) echo \"$PWD/.git\" ;;\nesac\n",
+            );
+            let (code, out, err) = fx.run_in(&slot, &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            std::fs::remove_file(fx.base.join("stub/git")).expect("rm git");
+            let (code, out, err) = fx.run_in(&slot, &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        }
+
+        #[test]
+        fn hooks_and_own_checkout_never_start_git() {
+            let fx = Fixture::new("dx-launcher-nogit-", true, None);
+            let slot = fx.add_slot(true);
+            let (code, out, err) = fx.run_in(&slot, &["worktree", "hook", "guard"]);
+            assert_eq!(
+                (code, out.as_str()),
+                (Some(0), "ran worktree hook guard\n"),
+                "{err}"
+            );
+            let (code, out, err) = fx.run_in(&fx.base.join("repo"), &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(fx.git_calls(), 0);
         }
 
         #[test]

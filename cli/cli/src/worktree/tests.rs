@@ -31,6 +31,7 @@ struct FakeHost {
     disk_cache: Mutex<Option<PathBuf>>,
     stop_after: Mutex<Option<(usize, i32)>>,
     stubborn: Mutex<BTreeSet<u32>>,
+    stuck: Mutex<BTreeSet<PathBuf>>,
 }
 
 impl FakeHost {
@@ -48,6 +49,7 @@ impl FakeHost {
             disk_cache: Mutex::new(None),
             stop_after: Mutex::new(None),
             stubborn: Mutex::new(BTreeSet::new()),
+            stuck: Mutex::new(BTreeSet::new()),
         }
     }
 
@@ -67,6 +69,16 @@ impl FakeHost {
 
     fn shutdown_paths(&self) -> Vec<PathBuf> {
         self.shutdowns.lock().expect("shutdowns").clone()
+    }
+
+    /// Makes `remove_tree` leave `path` on disk and report failure.
+    fn stick(&self, path: &Path) {
+        self.stuck.lock().expect("stuck").insert(path.to_path_buf());
+    }
+
+    /// Lets `remove_tree` delete every path again.
+    fn unstick(&self) {
+        self.stuck.lock().expect("stuck").clear();
     }
 
     fn stop_after(&self, count: usize, signo: i32) {
@@ -164,6 +176,16 @@ impl Host for FakeHost {
 
     fn disk_cache(&self) -> Option<PathBuf> {
         self.disk_cache.lock().expect("disk cache").clone()
+    }
+
+    fn remove_tree(&self, path: &Path) -> bool {
+        if self.stuck.lock().expect("stuck").contains(path) {
+            // `git worktree remove` may already have deleted it; a stuck tree is still on disk.
+            std::fs::create_dir_all(path).expect("stuck path");
+            return false;
+        }
+        let _ = std::fs::remove_dir_all(path);
+        !path.exists()
     }
 
     fn interrupted(&self) -> Option<i32> {
@@ -2975,6 +2997,149 @@ fn prune_apply_removes_external_worktree_still_clean_at_apply() {
         .kept;
     assert!(kept.is_empty());
     assert!(!hand.exists());
+}
+
+/// A free slot idle for 31 days with a base of its own, ready for `prune --apply`.
+fn idle_slot_with_base(
+    fixture: &Fixture,
+    host: &FakeHost,
+    pool: &Pool,
+) -> (ops::Added, PathBuf, PathBuf) {
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let me = who("s1", 10);
+    let slot = ops::add(pool, host, &me, &create("feature/a")).expect("a");
+    let base = output_base(&roots, "aaa", &slot.path);
+    ops::release(pool, host, &me, &slot.path, true).expect("release");
+    host.advance(31 * DAY);
+    let path = slot.path.clone();
+    (slot, path, base)
+}
+
+#[test]
+fn prune_apply_skips_a_slot_that_cannot_be_deleted_as_busy() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let (slot, path, _base) = idle_slot_with_base(&fixture, &host, &pool);
+    host.stick(&path);
+    let pruned = ops::prune(&pool, &host, true, false).expect("prune");
+    assert_eq!(pruned.skipped_slots.len(), 1);
+    assert_eq!(pruned.skipped_slots[0].slot, slot.slot);
+    assert_eq!(pruned.skipped_slots[0].reason, "busy");
+    assert!(pruned.plan.slots.is_empty(), "a skipped slot is not pruned");
+    assert_eq!(pruned.plan.bytes(), 0);
+    let record = pool.record(slot.slot).expect("the record stays");
+    assert!(record.broken && !record.held);
+    let next = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    assert_eq!(next.slots.len(), 1, "the next prune finds it again");
+    host.unstick();
+    let pruned = ops::prune(&pool, &host, true, false).expect("prune again");
+    assert!(pruned.skipped_slots.is_empty());
+    assert_eq!(pruned.plan.slots.len(), 1);
+    assert!(!path.exists());
+    assert!(pool.record(slot.slot).is_none());
+}
+
+#[test]
+fn add_never_leases_a_slot_that_failed_to_delete() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let (slot, path, _base) = idle_slot_with_base(&fixture, &host, &pool);
+    host.stick(&path);
+    ops::prune(&pool, &host, true, false).expect("prune");
+    assert!(pool.record(slot.slot).expect("record").broken);
+    let me = who("s2", 11);
+    let again = ops::add(&pool, &host, &me, &create("feature/a2")).expect("add");
+    assert_ne!(again.slot, slot.slot, "the broken slot is not leased");
+    assert!(pool.record(slot.slot).expect("record").broken);
+    host.unstick();
+    let other = ops::add(&pool, &host, &me, &create("feature/b")).expect("add after");
+    assert_ne!(other.slot, slot.slot);
+    assert!(!path.exists(), "add deletes the broken slot once it can");
+    assert!(pool.record(slot.slot).is_none());
+}
+
+#[test]
+fn prune_apply_prunes_a_slot_and_skips_its_stuck_output_base_as_orphaned() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let (slot, path, base) = idle_slot_with_base(&fixture, &host, &pool);
+    host.stick(&base);
+    let pruned = ops::prune(&pool, &host, true, false).expect("prune");
+    assert!(pruned.skipped_slots.is_empty());
+    assert_eq!(pruned.plan.slots.len(), 1);
+    assert_eq!(pruned.plan.bytes(), 4096, "the stuck base is not counted");
+    assert_eq!(pruned.skipped_bases.len(), 1);
+    assert_eq!(pruned.skipped_bases[0].dir, base);
+    assert_eq!(pruned.skipped_bases[0].slot, None);
+    assert_eq!(pruned.skipped_bases[0].reason, "busy");
+    assert!(!path.exists());
+    assert!(pool.record(slot.slot).is_none());
+    assert!(base.exists());
+    let next = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    assert_eq!(next.bases.len(), 1, "the base is an orphan now");
+    assert_eq!(next.bases[0].dir, base);
+}
+
+#[test]
+fn prune_apply_skips_stuck_bases_as_busy() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    host.script_disk(&fixture.cache, OK);
+    let me = who("s1", 10);
+    let slot = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
+    let owned = output_base(&roots, "aaa", &slot.path);
+    let orphan = output_base(&roots, "bbb", &fixture.cache.join("gone"));
+    ops::release(&pool, &host, &me, &slot.path, true).expect("release");
+    host.stick(&owned);
+    host.stick(&orphan);
+    let pruned = ops::prune(&pool, &host, true, true).expect("prune");
+    assert_eq!(pruned.skipped_bases.len(), 2);
+    assert!(pruned
+        .skipped_bases
+        .iter()
+        .all(|base| base.reason == "busy"));
+    assert!(pruned.skipped_bases.iter().any(|base| base.slot.is_none()));
+    assert!(pruned.plan.bases.is_empty());
+    assert_eq!(pruned.plan.bytes(), 0);
+    assert!(owned.exists() && orphan.exists());
+}
+
+#[test]
+fn prune_apply_keeps_a_stuck_external_worktree_as_busy() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = upstream_deleted_checkout(&fixture);
+    host.stick(&hand);
+    let pruned = ops::prune(&pool, &host, true, false).expect("prune");
+    assert_eq!(pruned.kept.len(), 1);
+    assert_eq!(pruned.kept[0].reason, "busy");
+    assert!(pruned.plan.externals.is_empty());
+    assert_eq!(pruned.plan.bytes(), 0);
+}
+
+#[test]
+fn prune_apply_skips_a_slot_taken_after_the_plan_as_held() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let (slot, path, _base) = idle_slot_with_base(&fixture, &host, &pool);
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    assert_eq!(plan.slots.len(), 1);
+    let taken = ops::add(&pool, &host, &who("s2", 11), &create("feature/b")).expect("take");
+    assert_eq!(taken.slot, slot.slot);
+    let applied =
+        ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
+    assert_eq!(applied.skipped_slots.len(), 1);
+    assert_eq!(applied.skipped_slots[0].reason, "held");
+    assert!(path.exists());
 }
 
 #[test]

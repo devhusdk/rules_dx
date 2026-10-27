@@ -37,6 +37,9 @@ pub(crate) trait Host {
     fn disk_bytes(&self, path: &Path) -> u64;
     fn disk_cache(&self) -> Option<PathBuf>;
     fn interrupted(&self) -> Option<i32>;
+    /// Deletes a directory tree, including read-only entries; true when it is gone afterwards.
+    #[must_use]
+    fn remove_tree(&self, path: &Path) -> bool;
 }
 
 /// Compares two paths the way Bazel prints them.
@@ -348,7 +351,48 @@ fn find_bazel() -> Option<PathBuf> {
     None
 }
 
+fn make_writable(path: &Path) {
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
+        return;
+    };
+    if metadata.file_type().is_symlink() {
+        return;
+    }
+    let mut permissions = metadata.permissions();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        permissions.set_mode(permissions.mode() | 0o700);
+    }
+    #[cfg(not(unix))]
+    {
+        #[allow(clippy::permissions_set_readonly_false)]
+        permissions.set_readonly(false);
+    }
+    let _ = std::fs::set_permissions(path, permissions);
+    if metadata.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                make_writable(&entry.path());
+            }
+        }
+    }
+}
+
+/// Removes a directory tree, including read-only entries, and reports whether it is gone.
+fn remove_tree(path: &Path) -> bool {
+    if std::fs::remove_dir_all(path).is_err() {
+        make_writable(path);
+        let _ = std::fs::remove_dir_all(path);
+    }
+    !path.exists()
+}
+
 impl Host for SystemHost {
+    fn remove_tree(&self, path: &Path) -> bool {
+        remove_tree(path)
+    }
+
     fn now(&self) -> u64 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

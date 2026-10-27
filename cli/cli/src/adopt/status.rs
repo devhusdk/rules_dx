@@ -284,6 +284,7 @@ mod tests {
             pid: Some(7),
             gone: false,
             unclaimed: false,
+            broken: false,
             leased_at: 0,
             last_used: 0,
             lock_digest: None,

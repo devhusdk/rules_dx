@@ -223,13 +223,30 @@ jobs:
           if [ "$DX_TASK" = "build" ]; then
             bazel build --noshow_progress "${patterns[@]}" 2>&1 | tee evidence.log
           else
-            bazel test --noshow_progress --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "${patterns[@]}" 2>&1 | tee evidence.log
+            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "${patterns[@]}" 2>&1 | tee evidence.log
           fi
+      - name: Collect test logs
+        if: always()
+        run: |
+          out="$RUNNER_TEMP/evidence/testlogs"
+          mkdir -p "$out"
+          cp evidence.log "$RUNNER_TEMP/evidence/" || true
+          [ -e bazel-testlogs ] || exit 0
+          find -L bazel-testlogs/ -name test.log -print | while read -r log; do
+            dir="$(dirname "$log")"
+            rel="${dir#bazel-testlogs/}"
+            mkdir -p "$out/$rel"
+            cp "$dir/test.log" "$out/$rel/" || true
+            cp "$dir/test.xml" "$out/$rel/" 2>/dev/null || true
+            if [ -d "$dir/test.outputs" ]; then
+              cp -RL "$dir/test.outputs" "$out/$rel/" || true
+            fi
+          done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: evidence-${{ matrix.platform }}
-          path: evidence.log
+          path: ${{ runner.temp }}/evidence
           retention-days: 7
       - name: Write job summary
         if: always()

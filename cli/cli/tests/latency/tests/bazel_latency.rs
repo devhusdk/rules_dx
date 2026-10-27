@@ -2,7 +2,9 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use dx_nested::{self as nested, Case, FakeBazel};
-use dx_testing::latency::{record, Class, Stats};
+use dx_testing::latency::{
+    judge, missing, record, Class, Host, Limits, Phase, Recorder, Stats, Verdict,
+};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 struct Cell {
@@ -11,13 +13,23 @@ struct Cell {
     class: Class,
     state: &'static str,
     samples: usize,
-    median: Option<Duration>,
-    p95: Option<Duration>,
-    max: Option<Duration>,
+    limits: &'static [Limits],
 }
 
-const fn ms(millis: u64) -> Duration {
-    Duration::from_millis(millis)
+const REQUIRED: &[Host] = &[Host::LinuxX86_64, Host::LinuxArm64];
+
+const fn cold(max_ms: u64) -> [Limits; 2] {
+    [
+        Limits::cold(Host::LinuxX86_64, max_ms),
+        Limits::cold(Host::LinuxArm64, max_ms),
+    ]
+}
+
+const fn warm(median_ms: u64, p95_ms: u64) -> [Limits; 2] {
+    [
+        Limits::warm(Host::LinuxX86_64, median_ms, p95_ms),
+        Limits::warm(Host::LinuxArm64, median_ms, p95_ms),
+    ]
 }
 
 const LINT_FIRST: Cell = Cell {
@@ -26,9 +38,7 @@ const LINT_FIRST: Cell = Cell {
     class: Class::BuildsAndExecutes,
     state: "first",
     samples: 1,
-    median: None,
-    p95: None,
-    max: None,
+    limits: &[],
 };
 
 const LINT_COLD_SERVER: Cell = Cell {
@@ -37,9 +47,7 @@ const LINT_COLD_SERVER: Cell = Cell {
     class: Class::BuildsAndExecutes,
     state: "cold_server",
     samples: 5,
-    median: None,
-    p95: None,
-    max: Some(ms(53_750)),
+    limits: &COLD_53_750,
 };
 
 const LINT_WARM_SERVER: Cell = Cell {
@@ -48,9 +56,7 @@ const LINT_WARM_SERVER: Cell = Cell {
     class: Class::BuildsAndExecutes,
     state: "warm_server",
     samples: 20,
-    median: Some(ms(5_000)),
-    p95: Some(ms(5_250)),
-    max: None,
+    limits: &CEIL_LINT_WARM,
 };
 
 const LIST_EXPUNGED: Cell = Cell {
@@ -59,9 +65,7 @@ const LIST_EXPUNGED: Cell = Cell {
     class: Class::Metadata,
     state: "expunged",
     samples: 5,
-    median: None,
-    p95: None,
-    max: Some(ms(9_000)),
+    limits: &COLD_9_000,
 };
 
 const COMPLETE_EXPUNGED: Cell = Cell {
@@ -70,9 +74,7 @@ const COMPLETE_EXPUNGED: Cell = Cell {
     class: Class::Metadata,
     state: "expunged",
     samples: 5,
-    median: None,
-    p95: None,
-    max: Some(ms(2_000)),
+    limits: &COLD_2_000,
 };
 
 const COMPLETE_BUSY: Cell = Cell {
@@ -81,9 +83,7 @@ const COMPLETE_BUSY: Cell = Cell {
     class: Class::Metadata,
     state: "busy_server",
     samples: 10,
-    median: None,
-    p95: None,
-    max: Some(ms(1_200)),
+    limits: &COLD_1_200,
 };
 
 const COMPLETE_HUNG: Cell = Cell {
@@ -92,9 +92,7 @@ const COMPLETE_HUNG: Cell = Cell {
     class: Class::Metadata,
     state: "hung_server",
     samples: 5,
-    median: None,
-    p95: None,
-    max: Some(ms(2_000)),
+    limits: &COLD_2_000,
 };
 
 const fn cell(
@@ -102,9 +100,7 @@ const fn cell(
     op: &'static str,
     state: &'static str,
     samples: usize,
-    median: Option<Duration>,
-    p95: Option<Duration>,
-    max: Option<Duration>,
+    limits: &'static [Limits],
 ) -> Cell {
     Cell {
         workload,
@@ -112,126 +108,107 @@ const fn cell(
         class: Class::Metadata,
         state,
         samples,
-        median,
-        p95,
-        max,
+        limits,
     }
 }
 
-const LIST_SMALL_FIRST: Cell = cell(
-    "small",
-    "list-tests",
-    "first",
-    1,
-    None,
-    None,
-    Some(ms(CEIL_LIST_SMALL_FIRST)),
-);
+const LIST_SMALL_FIRST: Cell = cell("small", "list-tests", "first", 1, &CEIL_LIST_SMALL_FIRST);
 const LIST_SMALL_COLD: Cell = cell(
     "small",
     "list-tests",
     "cold_server",
     5,
-    None,
-    None,
-    Some(ms(CEIL_LIST_SMALL_COLD)),
+    &CEIL_LIST_SMALL_COLD,
 );
 const LIST_SMALL_WARM: Cell = cell(
     "small",
     "list-tests",
     "warm_server",
     20,
-    Some(ms(CEIL_LIST_SMALL_WARM_MEDIAN)),
-    Some(ms(CEIL_LIST_SMALL_WARM_P95)),
-    None,
+    &CEIL_LIST_SMALL_WARM,
 );
-const LIST_LARGE_FIRST: Cell = cell(
-    "large",
-    "list-tests",
-    "first",
-    1,
-    None,
-    None,
-    Some(ms(CEIL_LIST_LARGE_FIRST)),
-);
+const LIST_LARGE_FIRST: Cell = cell("large", "list-tests", "first", 1, &CEIL_LIST_LARGE_FIRST);
 const LIST_LARGE_COLD: Cell = cell(
     "large",
     "list-tests",
     "cold_server",
     5,
-    None,
-    None,
-    Some(ms(CEIL_LIST_LARGE_COLD)),
+    &CEIL_LIST_LARGE_COLD,
 );
 const LIST_LARGE_WARM: Cell = cell(
     "large",
     "list-tests",
     "warm_server",
     20,
-    Some(ms(CEIL_LIST_LARGE_WARM_MEDIAN)),
-    Some(ms(CEIL_LIST_LARGE_WARM_P95)),
-    None,
+    &CEIL_LIST_LARGE_WARM,
 );
 const SCOPE_WARM: Cell = cell(
     "small",
     "list-tests-file",
     "warm_server",
     20,
-    Some(ms(CEIL_SCOPE_WARM_MEDIAN)),
-    Some(ms(CEIL_SCOPE_WARM_P95)),
-    None,
+    &CEIL_SCOPE_WARM,
 );
 const SCOPE_COLD: Cell = cell(
     "small",
     "list-tests-file",
     "cold_server",
     5,
-    None,
-    None,
-    Some(ms(CEIL_SCOPE_COLD)),
+    &CEIL_SCOPE_COLD,
 );
 const COMPLETE_WARM: Cell = cell(
     "small",
     "complete-test-label",
     "warm_server",
     20,
-    Some(ms(CEIL_COMPLETE_WARM_MEDIAN)),
-    Some(ms(CEIL_COMPLETE_WARM_P95)),
-    None,
+    &CEIL_COMPLETE_WARM,
 );
 const COMPLETE_COLD: Cell = cell(
     "small",
     "complete-test-label",
     "cold_server",
     5,
-    None,
-    None,
-    Some(ms(2_000)),
+    &CEIL_COMPLETE_COLD,
 );
-const LIST_EDIT: Cell = cell(
-    "small",
-    "list-tests",
-    "build_edit",
-    5,
-    None,
-    None,
-    Some(ms(CEIL_EDIT)),
-);
+const LIST_EDIT: Cell = cell("small", "list-tests", "build_edit", 5, &CEIL_EDIT);
 
-const CEIL_LIST_SMALL_FIRST: u64 = 12_000;
-const CEIL_LIST_SMALL_COLD: u64 = 3_000;
-const CEIL_LIST_SMALL_WARM_MEDIAN: u64 = 250;
-const CEIL_LIST_SMALL_WARM_P95: u64 = 400;
-const CEIL_LIST_LARGE_FIRST: u64 = 12_000;
-const CEIL_LIST_LARGE_COLD: u64 = 3_000;
-const CEIL_LIST_LARGE_WARM_MEDIAN: u64 = 250;
-const CEIL_LIST_LARGE_WARM_P95: u64 = 400;
-const CEIL_SCOPE_WARM_MEDIAN: u64 = 300;
-const CEIL_SCOPE_WARM_P95: u64 = 450;
-const CEIL_SCOPE_COLD: u64 = 13_000;
-const CEIL_COMPLETE_WARM_MEDIAN: u64 = 100;
-const CEIL_COMPLETE_WARM_P95: u64 = 150;
-const CEIL_EDIT: u64 = 500;
+const COLD_53_750: [Limits; 2] = cold(53_750);
+const COLD_9_000: [Limits; 2] = cold(9_000);
+const COLD_2_000: [Limits; 2] = cold(2_000);
+const COLD_1_200: [Limits; 2] = cold(1_200);
+const CEIL_LINT_WARM: [Limits; 2] = warm(5_000, 5_250);
+const CEIL_LIST_SMALL_FIRST: [Limits; 2] = cold(12_000);
+const CEIL_LIST_SMALL_COLD: [Limits; 2] = cold(3_000);
+const CEIL_LIST_SMALL_WARM: [Limits; 2] = warm(250, 400);
+const CEIL_LIST_LARGE_FIRST: [Limits; 2] = cold(12_000);
+const CEIL_LIST_LARGE_COLD: [Limits; 2] = cold(3_000);
+const CEIL_LIST_LARGE_WARM: [Limits; 2] = warm(250, 400);
+const CEIL_SCOPE_WARM: [Limits; 2] = warm(300, 450);
+const CEIL_SCOPE_COLD: [Limits; 2] = cold(13_000);
+const CEIL_COMPLETE_WARM: [Limits; 2] = warm(100, 150);
+const CEIL_COMPLETE_COLD: [Limits; 2] = cold(2_000);
+const CEIL_EDIT: [Limits; 2] = cold(500);
+
+const CELLS: &[&Cell] = &[
+    &LINT_FIRST,
+    &LINT_COLD_SERVER,
+    &LINT_WARM_SERVER,
+    &LIST_EXPUNGED,
+    &COMPLETE_EXPUNGED,
+    &COMPLETE_BUSY,
+    &COMPLETE_HUNG,
+    &LIST_SMALL_FIRST,
+    &LIST_SMALL_COLD,
+    &LIST_SMALL_WARM,
+    &LIST_LARGE_FIRST,
+    &LIST_LARGE_COLD,
+    &LIST_LARGE_WARM,
+    &SCOPE_WARM,
+    &SCOPE_COLD,
+    &COMPLETE_WARM,
+    &COMPLETE_COLD,
+    &LIST_EDIT,
+];
 
 const WAIT: Duration = Duration::from_secs(60);
 
@@ -316,19 +293,30 @@ fn rules_dx_root() -> PathBuf {
         .to_path_buf()
 }
 
+fn recorder(case: &Case, test: &str) -> Recorder {
+    let recorder = Recorder::new(test);
+    let version = case.bazel(&["--version"]);
+    recorder.host(&[("bazel", version.stdout.as_str())]);
+    recorder
+}
+
+fn note(recorder: &mut Recorder, cell: &Cell, phase: Phase, elapsed: Duration) -> Duration {
+    recorder.sample(
+        cell.op,
+        cell.class,
+        cell.workload,
+        cell.state,
+        phase,
+        elapsed,
+    );
+    elapsed
+}
+
 fn settle(cell: &Cell, times: Vec<Duration>, failures: &mut Vec<String>) {
     assert_eq!(times.len(), cell.samples, "{} {}", cell.op, cell.state);
-    let stats = Stats::of(times, cell.p95.is_some());
-    let mut ceilings = Vec::new();
-    if let Some(ceiling) = cell.median {
-        ceilings.push(("median", ceiling));
-    }
-    if let Some(ceiling) = cell.p95 {
-        ceilings.push(("p95", ceiling));
-    }
-    if let Some(ceiling) = cell.max {
-        ceilings.push(("max", ceiling));
-    }
+    let with_p95 = cell.limits.iter().any(|limits| limits.p95.is_some());
+    let stats = Stats::of(times, with_p95);
+    let verdict = judge(&stats, cell.limits);
     println!(
         "{}",
         record(
@@ -337,17 +325,14 @@ fn settle(cell: &Cell, times: Vec<Duration>, failures: &mut Vec<String>) {
             cell.workload,
             cell.state,
             &stats,
-            &ceilings
+            cell.limits,
+            &verdict
         )
     );
-    let p95 = stats.p95.unwrap_or(stats.max);
-    let over = cell.median.is_some_and(|c| stats.median > c)
-        || cell.p95.is_some_and(|c| p95 > c)
-        || cell.max.is_some_and(|c| stats.max > c);
-    if over {
+    if let Verdict::Over(why) = verdict {
         failures.push(format!(
-            "{} {}: median {:?} p95 {p95:?} max {:?}",
-            cell.op, cell.state, stats.median, stats.max
+            "{} {} {}: {why}",
+            cell.op, cell.workload, cell.state
         ));
     }
 }
@@ -437,6 +422,7 @@ fn lint_one_file_stays_inside_its_ceilings() {
     let case = nested::case("lint");
     write_lint_workspace(case.root());
     let _stop = Shutdown(&case);
+    let mut rec = recorder(&case, "lint_one_file");
     let mut failures = Vec::new();
     let mut tag = 0;
     let mut next = || {
@@ -445,21 +431,27 @@ fn lint_one_file_stays_inside_its_ceilings() {
     };
 
     let first = lint_sample(&case, next());
+    note(&mut rec, &LINT_FIRST, Phase::Sample, first);
     settle(&LINT_FIRST, vec![first], &mut failures);
 
     let mut cold = Vec::new();
     for _ in 0..LINT_COLD_SERVER.samples {
         let down = case.bazel(&["shutdown"]);
         assert_eq!(down.status.code(), Some(0), "{}", down.combined());
-        cold.push(lint_sample(&case, next()));
+        let elapsed = lint_sample(&case, next());
+        cold.push(note(&mut rec, &LINT_COLD_SERVER, Phase::Sample, elapsed));
     }
     settle(&LINT_COLD_SERVER, cold, &mut failures);
 
     for _ in 0..2 {
-        lint_sample(&case, next());
+        let elapsed = lint_sample(&case, next());
+        note(&mut rec, &LINT_WARM_SERVER, Phase::Warmup, elapsed);
     }
     let warm: Vec<Duration> = (0..LINT_WARM_SERVER.samples)
-        .map(|_| lint_sample(&case, next()))
+        .map(|_| {
+            let elapsed = lint_sample(&case, next());
+            note(&mut rec, &LINT_WARM_SERVER, Phase::Sample, elapsed)
+        })
         .collect();
     settle(&LINT_WARM_SERVER, warm, &mut failures);
     assert!(failures.is_empty(), "over ceiling: {failures:?}");
@@ -537,12 +529,12 @@ fn classify(run: &Run, expected: &Expected) -> Reply {
     }
 }
 
-fn fell_back(case: &Case, expected: &Expected, cell: &Cell) -> Vec<Duration> {
+fn fell_back(case: &Case, expected: &Expected, cell: &Cell, rec: &mut Recorder) -> Vec<Duration> {
     (0..cell.samples)
         .map(|_| {
             let (elapsed, run) = complete(case);
             assert_eq!(classify(&run, expected), Reply::Fallback, "{}", run.stdout);
-            elapsed
+            note(rec, cell, Phase::Sample, elapsed)
         })
         .collect()
 }
@@ -552,6 +544,7 @@ fn expunged_output_base_stays_inside_its_ceilings() {
     let case = nested::case("expunged");
     write_tiny_workspace(case.root());
     let _stop = Shutdown(&case);
+    let mut rec = recorder(&case, "expunged_output_base");
     let expected = expected(&case);
     let mut failures = Vec::new();
     let mut listing = Vec::new();
@@ -561,13 +554,13 @@ fn expunged_output_base_stays_inside_its_ceilings() {
         assert_eq!(cleaned.status.code(), Some(0), "{}", cleaned.combined());
         let (elapsed, listed) = timed(|| dx_at(&case, &["list-tests", "//pkg/..."]));
         assert_eq!(listed.status.code(), Some(0), "{}", listed.combined());
-        listing.push(elapsed);
+        listing.push(note(&mut rec, &LIST_EXPUNGED, Phase::Sample, elapsed));
 
         let cleaned = case.bazel(&["clean", "--expunge"]);
         assert_eq!(cleaned.status.code(), Some(0), "{}", cleaned.combined());
         let (elapsed, run) = complete(&case);
         classify(&run, &expected);
-        completion.push(elapsed);
+        completion.push(note(&mut rec, &COMPLETE_EXPUNGED, Phase::Sample, elapsed));
     }
     settle(&LIST_EXPUNGED, listing, &mut failures);
     settle(&COMPLETE_EXPUNGED, completion, &mut failures);
@@ -622,6 +615,7 @@ fn completion_falls_back_quietly_when_the_server_is_busy() {
     let case = nested::case("busy");
     write_tiny_workspace(case.root());
     let _stop = Shutdown(&case);
+    let mut rec = recorder(&case, "completion_busy");
     let expected = expected(&case);
     let signals =
         mkscratch("bazel-latency-hold").unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -653,7 +647,7 @@ fn completion_falls_back_quietly_when_the_server_is_busy() {
     }
 
     let mut failures = Vec::new();
-    let times = fell_back(&case, &expected, &COMPLETE_BUSY);
+    let times = fell_back(&case, &expected, &COMPLETE_BUSY, &mut rec);
     settle(&COMPLETE_BUSY, times, &mut failures);
 
     let status = holder.release().unwrap_or_else(|| panic!("holder hung"));
@@ -684,6 +678,7 @@ fn completion_falls_back_quietly_when_the_server_hangs() {
     let case = nested::case("hung");
     write_tiny_workspace(case.root());
     let _stop = Shutdown(&case);
+    let mut rec = recorder(&case, "completion_hung");
     let expected = expected(&case);
     let pids = case.servers();
     assert_eq!(pids.len(), 1, "one server expected: {pids:?}");
@@ -692,7 +687,7 @@ fn completion_falls_back_quietly_when_the_server_hangs() {
     resume.signal("-STOP");
 
     let mut failures = Vec::new();
-    let times = fell_back(&case, &expected, &COMPLETE_HUNG);
+    let times = fell_back(&case, &expected, &COMPLETE_HUNG, &mut rec);
     settle(&COMPLETE_HUNG, times, &mut failures);
 
     resume.signal("-CONT");
@@ -784,11 +779,13 @@ fn list_cells(name: &str, packages: usize, per_pkg: usize, cells: [&Cell; 3]) {
     let case = nested::case(name);
     let labels = write_plain_workspace(case.root(), packages, per_pkg);
     let _stop = Shutdown(&case);
+    let mut rec = recorder(&case, name);
     let mut failures = Vec::new();
     let args = ["list-tests"];
 
     let (first, calls) = list_sample(&case, &args, &labels);
     only_queries(&calls);
+    note(&mut rec, cells[0], Phase::Sample, first);
     settle(cells[0], vec![first], &mut failures);
 
     let mut cold = Vec::new();
@@ -796,12 +793,13 @@ fn list_cells(name: &str, packages: usize, per_pkg: usize, cells: [&Cell; 3]) {
         case.shutdown_server();
         let (elapsed, calls) = list_sample(&case, &args, &labels);
         only_queries(&calls);
-        cold.push(elapsed);
+        cold.push(note(&mut rec, cells[1], Phase::Sample, elapsed));
     }
     settle(cells[1], cold, &mut failures);
 
     for _ in 0..2 {
-        list_sample(&case, &args, &labels);
+        let (elapsed, _) = list_sample(&case, &args, &labels);
+        note(&mut rec, cells[2], Phase::Warmup, elapsed);
     }
     let pids = case.servers();
     assert_eq!(pids.len(), 1, "one server expected: {pids:?}");
@@ -809,7 +807,7 @@ fn list_cells(name: &str, packages: usize, per_pkg: usize, cells: [&Cell; 3]) {
     for _ in 0..cells[2].samples {
         let (elapsed, calls) = list_sample(&case, &args, &labels);
         only_queries(&calls);
-        warm.push(elapsed);
+        warm.push(note(&mut rec, cells[2], Phase::Sample, elapsed));
     }
     assert_eq!(case.servers(), pids, "the warm server was replaced");
     settle(cells[2], warm, &mut failures);
@@ -854,6 +852,7 @@ fn file_scope_keeps_the_cross_package_owner() {
     let _stop = Shutdown(&case);
     let owner = vec!["//p1:owner_test".to_owned()];
     let args = ["list-tests", "p0/src.txt"];
+    let mut rec = recorder(&case, "file_scope");
     let mut failures = Vec::new();
 
     let mut cold = Vec::new();
@@ -861,16 +860,17 @@ fn file_scope_keeps_the_cross_package_owner() {
         case.shutdown_server();
         let (elapsed, calls) = list_sample(&case, &args, &owner);
         scope_checks(&calls);
-        cold.push(elapsed);
+        cold.push(note(&mut rec, &SCOPE_COLD, Phase::Sample, elapsed));
     }
     settle(&SCOPE_COLD, cold, &mut failures);
 
-    list_sample(&case, &args, &owner);
+    let (elapsed, _) = list_sample(&case, &args, &owner);
+    note(&mut rec, &SCOPE_WARM, Phase::Warmup, elapsed);
     let mut warm = Vec::new();
     for _ in 0..SCOPE_WARM.samples {
         let (elapsed, calls) = list_sample(&case, &args, &owner);
         scope_checks(&calls);
-        warm.push(elapsed);
+        warm.push(note(&mut rec, &SCOPE_WARM, Phase::Sample, elapsed));
     }
     settle(&SCOPE_WARM, warm, &mut failures);
     assert!(failures.is_empty(), "over ceiling: {failures:?}");
@@ -881,6 +881,7 @@ fn completion_answers_warm_and_falls_back_cold() {
     let case = nested::case("complete");
     write_tiny_workspace(case.root());
     let _stop = Shutdown(&case);
+    let mut rec = recorder(&case, "completion");
     let expected = expected(&case);
     let mut failures = Vec::new();
 
@@ -896,7 +897,7 @@ fn completion_answers_warm_and_falls_back_cold() {
             .filter(|call| call.contains("--noblock_for_lock") && call.contains("//pkg:*"))
             .collect();
         assert_eq!(queries.len(), 1, "{calls:#?}");
-        warm.push(elapsed);
+        warm.push(note(&mut rec, &COMPLETE_WARM, Phase::Sample, elapsed));
     }
     settle(&COMPLETE_WARM, warm, &mut failures);
 
@@ -910,7 +911,7 @@ fn completion_answers_warm_and_falls_back_cold() {
         let queries = calls.iter().filter(|call| call.contains("query")).count();
         assert_eq!(queries, 1, "{calls:#?}");
         println!("complete cold reply={reply:?}");
-        cold.push(elapsed);
+        cold.push(note(&mut rec, &COMPLETE_COLD, Phase::Sample, elapsed));
     }
     settle(&COMPLETE_COLD, cold, &mut failures);
     assert!(failures.is_empty(), "over ceiling: {failures:?}");
@@ -921,7 +922,9 @@ fn build_edit_is_seen_on_the_next_run() {
     let case = nested::case("edit");
     let mut labels = write_plain_workspace(case.root(), 3, 2);
     let _stop = Shutdown(&case);
-    list_sample(&case, &["list-tests"], &labels);
+    let mut rec = recorder(&case, "build_edit");
+    let (elapsed, _) = list_sample(&case, &["list-tests"], &labels);
+    note(&mut rec, &LIST_EDIT, Phase::Warmup, elapsed);
     let mut failures = Vec::new();
     let mut edit = Vec::new();
     for tag in 0..LIST_EDIT.samples {
@@ -933,8 +936,22 @@ fn build_edit_is_seen_on_the_next_run() {
         );
         labels.push(format!("//p2:{name}"));
         let (elapsed, _) = list_sample(&case, &["list-tests"], &labels);
-        edit.push(elapsed);
+        edit.push(note(&mut rec, &LIST_EDIT, Phase::Sample, elapsed));
     }
     settle(&LIST_EDIT, edit, &mut failures);
     assert!(failures.is_empty(), "over ceiling: {failures:?}");
+}
+
+#[test]
+fn every_required_host_has_a_ceiling() {
+    let names: Vec<String> = CELLS
+        .iter()
+        .map(|cell| format!("{} {} {}", cell.op, cell.workload, cell.state))
+        .collect();
+    let cells: Vec<(&str, &[Limits])> = names
+        .iter()
+        .zip(CELLS)
+        .map(|(name, cell)| (name.as_str(), cell.limits))
+        .collect();
+    assert_eq!(missing(&cells, REQUIRED), Vec::<String>::new());
 }

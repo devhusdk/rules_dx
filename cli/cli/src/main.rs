@@ -113,6 +113,7 @@ fn stream_spec(
         },
         stderr: StreamOutput::Inherit,
         group: stream_group(),
+        held: Vec::new(),
     }
 }
 
@@ -245,6 +246,7 @@ impl QueryRunner for BinaryQueryRunner {
             stdout: StreamOutput::Forward(Box::new(stdout.clone())),
             stderr: StreamOutput::Forward(Box::new(stderr.clone())),
             group: stream_group(),
+            held: Vec::new(),
         };
         let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)
             .map_err(|error| {

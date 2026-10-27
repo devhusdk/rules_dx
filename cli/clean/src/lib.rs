@@ -13,6 +13,7 @@ use std::path::PathBuf;
 pub mod apply;
 pub mod bytes;
 pub mod flags;
+pub mod hold;
 pub mod inventory;
 pub mod live;
 pub mod planning;
@@ -22,6 +23,7 @@ pub use apply::{apply_plan, apply_plan_with_timeout, CleanOutcome, CLEAN_LOCK_TI
 
 pub use bytes::{measure_preserved_bytes, measure_prune_bytes, render_prune_listing, PruneBytes};
 pub use flags::PRUNE_UNOBSERVED_FLAG;
+pub use hold::{hold_current, HeldSelection, HoldError};
 pub use inventory::{collect_inventory, walk_filtered, CollectedInventory};
 pub use live::{
     collect_inventory_with_scan, collect_inventory_with_scan_from, scan_live_observation,

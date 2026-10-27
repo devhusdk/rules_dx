@@ -80,10 +80,6 @@ func normalizeImport(dotted string, onDemand bool) string {
 	return dotted + ".*"
 }
 
-func qualifiedIDs(path string) []string {
-	return common.JVMQualifiedIDs(path, ParsePackage, ClassIdentity)
-}
-
 func importClause(src []byte, start int) string {
 	depth := 0
 	end := start

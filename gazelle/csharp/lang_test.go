@@ -377,7 +377,7 @@ csharp_library(
 	if len(result.Gen) != 1 {
 		t.Fatalf("generated %d rules, want 1", len(result.Gen))
 	}
-	merger.MergeFile(file, result.Empty, result.Gen, merger.PreResolve, csharpKinds, nil)
+	merger.MergeFile(file, result.Empty, result.Gen, merger.PreResolve, NewLanguage().Kinds(), nil)
 	var merged *rule.Rule
 	for _, r := range file.Rules {
 		if r.Kind() == LibraryKind && r.Name() == "demo" {

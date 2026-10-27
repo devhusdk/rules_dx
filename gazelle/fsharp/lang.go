@@ -14,41 +14,24 @@ import (
 
 const languageName = "fsharp"
 
-var fsharpKinds = map[string]rule.KindInfo{
-	LibraryKind: common.LibraryKindInfo(),
-}
+var SupportedExts = []string{".fs", ".fsi"}
+
+const LibraryKind = "fsharp_library"
 
 func NewLanguage() language.Language {
-	return common.NewSingleLang(common.SingleLangSpec{
+	return common.NewClassLang(common.ClassLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
-		Kinds:          fsharpKinds,
+		MainRule:       "fsharp_binary",
 		DefsPackage:    "fsharp/rules:defs.bzl",
-		ImportAttr:     "srcs",
-		Identity:       ClassIdentity,
-		IsImportSource: isSupported,
-		IsTestSource:   IsTestSource,
-		IsStdLib:       IsStdLib,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
-		Generate:       generateRules,
-	})
-}
-
-func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
-
-func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
-	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
-		LanguageName: languageName,
-		LibraryKind:  LibraryKind,
-		IsSource:     func(name string) bool { return isSupported(name) && !IsTestSource(name) },
-		DirName:      DirTargetName,
-		CheckPackage: true,
-		ParsePackage: ParsePackage,
-		DefinesMain:  DefinesMain,
-		MainRule:     "fsharp_binary",
-		MainPhrase:   "main-bearing sources",
-		ParseImports: ParseImports,
-		IsStdLib:     IsStdLib,
+		Exts:           SupportedExts,
+		TestSuffixes:   []string{"Test"},
+		ClassIDs:       true,
+		ParsePackage:   ParsePackage,
+		DefinesMain:    DefinesMain,
+		ParseImports:   ParseImports,
+		IsStdLib:       IsStdLib,
 		OrderSrcs: func(_ string, sources []string, contents map[string][]byte) ([]string, error) {
 			return orderSourcesByDependency(sources, contents)
 		},
@@ -61,8 +44,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			}
 			return r
 		},
-		Wrap: common.WrapImportSet,
-	}, rep)
+	})
 }
 
 type sourceNode struct {
@@ -82,7 +64,7 @@ func orderSourcesByDependency(sources []string, contents map[string][]byte) ([]s
 		stem := common.Stem(src, SupportedExts)
 		n, ok := byStem[stem]
 		if !ok {
-			id := ClassIdentity(src)
+			id := common.ClassIdentity(src, SupportedExts)
 			n = &sourceNode{stem: stem, declared: map[string]bool{id: true}, deps: make(map[*sourceNode]string)}
 			byStem[stem] = n
 			nodes = append(nodes, n)

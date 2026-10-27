@@ -75,7 +75,3 @@ func importIdentity(dotted string, static, onDemand bool) string {
 	}
 	return dotted[:i]
 }
-
-func qualifiedIDs(path string) []string {
-	return common.JVMQualifiedIDs(path, ParsePackage, ClassIdentity)
-}

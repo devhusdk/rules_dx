@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/bazel-gazelle/config"
 )
 
 func TestParseImportsSingleType(t *testing.T) {
@@ -159,13 +162,15 @@ func TestParseImportsGlobalUsing(t *testing.T) {
 
 func TestNamespaceIDs(t *testing.T) {
 	dir := t.TempDir()
-	write := func(name, content string) string {
+	ids := func(name string) []string {
 		t.Helper()
-		path := filepath.Join(dir, name)
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			t.Fatal(err)
+		r := rule.NewRule(LibraryKind, "demo")
+		r.SetAttr("srcs", []string{name})
+		var got []string
+		for _, spec := range NewLanguage().Imports(config.New(), r, &rule.File{Path: filepath.Join(dir, "BUILD.bazel")}) {
+			got = append(got, spec.Imp)
 		}
-		return path
+		return got
 	}
 	for _, tc := range []struct {
 		name, content string
@@ -177,12 +182,15 @@ func TestNamespaceIDs(t *testing.T) {
 		{"Global.cs", "class Global {}\n", nil},
 		{"Twice.cs", "namespace A {}\nnamespace B {}\n", nil},
 	} {
-		if got := namespaceIDs(write(tc.name, tc.content)); !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("namespaceIDs(%s) = %v, want %v", tc.name, got, tc.want)
+		if err := os.WriteFile(filepath.Join(dir, tc.name), []byte(tc.content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := ids(tc.name); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("Imports(%s) = %v, want %v", tc.name, got, tc.want)
 		}
 	}
-	if got := namespaceIDs(filepath.Join(dir, "Missing.cs")); got != nil {
-		t.Errorf("namespaceIDs(missing) = %v, want nil", got)
+	if got := ids("Missing.cs"); got != nil {
+		t.Errorf("Imports(missing) = %v, want nil", got)
 	}
 }
 

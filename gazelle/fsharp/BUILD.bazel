@@ -9,7 +9,6 @@ go_library(
     srcs = [
         "doc.go",
         "lang.go",
-        "naming.go",
         "parser.go",
         "stdlib.go",
     ],
@@ -19,7 +18,6 @@ go_library(
         "//gazelle/common",
         "@com_github_bazelbuild_buildtools//build",
         "@gazelle//language",
-        "@gazelle//rule",
         "@gazelle//v2/rule",
     ],
 )
@@ -41,7 +39,6 @@ go_test(
     name = "fsharp_test",
     srcs = [
         "lang_test.go",
-        "naming_test.go",
         "parser_test.go",
     ],
     embed = [":fsharp"],
@@ -52,6 +49,7 @@ go_test(
         "@gazelle//resolve",
         "@gazelle//v2/label",
         "@gazelle//v2/merger",
+        "@gazelle//v2/rule",
     ],
 )
 

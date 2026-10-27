@@ -3,52 +3,30 @@ package kotlin
 import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
-	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
 const languageName = "kotlin"
 
-const unresolvedHint = "add a local library or a # gazelle:resolve mapping on the qualified import or its package"
+const LibraryKind = "kotlin_library"
 
-var kotlinKinds = map[string]rule.KindInfo{
-	LibraryKind: common.LibraryKindInfo(),
-}
+var SupportedExts = []string{".kt"}
 
 func NewLanguage() language.Language {
-	return common.NewSingleLang(common.SingleLangSpec{
+	return common.NewClassLang(common.ClassLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
-		Kinds:          kotlinKinds,
+		MainRule:       "kotlin_binary",
 		DefsPackage:    "kotlin/rules:defs.bzl",
-		ImportAttr:     "srcs",
-		Identity:       ClassIdentity,
-		IsImportSource: isSupported,
-		IsTestSource:   IsTestSource,
+		UnresolvedHint: "add a local library or a # gazelle:resolve mapping on the qualified import or its package",
+		Exts:           SupportedExts,
+		TestSuffixes:   []string{"Test"},
+		ClassIDs:       true,
+		PackageIDs:     true,
+		ParsePackage:   ParsePackage,
+		DefinesMain:    DefinesMain,
+		ParseImports:   ParseImports,
 		IsStdLib:       IsStdLib,
-		UnresolvedHint: unresolvedHint,
-		QualifiedIDs:   qualifiedIDs,
 		Candidates:     common.JVMCandidates,
-		Generate:       generateRules,
 	})
-}
-
-func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
-
-func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
-	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
-		LanguageName: languageName,
-		LibraryKind:  LibraryKind,
-		IsSource:     func(name string) bool { return isSupported(name) && !IsTestSource(name) },
-		DirName:      DirTargetName,
-		CheckPackage: true,
-		ParsePackage: ParsePackage,
-		DefinesMain:  DefinesMain,
-		MainRule:     "kotlin_binary",
-		MainPhrase:   "main-bearing sources",
-		ParseImports: ParseImports,
-		IsStdLib:     IsStdLib,
-		Candidates:   common.JVMCandidates,
-		Wrap:         common.WrapImportSet,
-	}, rep)
 }

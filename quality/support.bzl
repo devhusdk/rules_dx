@@ -382,6 +382,20 @@ JSONNET_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["powershell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "powershell",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "psscriptanalyzer",
+    "transport": "batched",
+}
+
 POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -469,6 +483,7 @@ SUPPORT_RECORDS = [
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
     PKL_FORMAT_SUPPORT,
+    POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
 ]
 

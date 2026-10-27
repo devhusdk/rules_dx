@@ -810,6 +810,18 @@ impl RealBackend {
                 Ok(findings)
             }
             "psscriptanalyzer" => {
+                if capability == "format" {
+                    let invocation = commands::psscriptanalyzer_format_check(
+                        &tool.binary,
+                        &refs,
+                        config.as_deref(),
+                    );
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    return parsed(
+                        tool_id,
+                        parsers::parse_psscriptanalyzer_format(&out.stdout, out.code, &strs),
+                    );
+                }
                 let invocation =
                     commands::psscriptanalyzer_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

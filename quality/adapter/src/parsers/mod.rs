@@ -89,7 +89,7 @@ pub use modfmt::parse_modfmt;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
 pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
-pub use psscriptanalyzer::parse_psscriptanalyzer;
+pub use psscriptanalyzer::{parse_psscriptanalyzer, parse_psscriptanalyzer_format};
 pub use pydoclint::parse_pydoclint;
 pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
@@ -1768,6 +1768,14 @@ mod tests {
         super::psscriptanalyzer::parse_psscriptanalyzer(input, code, files)
     }
 
+    fn fuzz_psscriptanalyzer_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::psscriptanalyzer::parse_psscriptanalyzer_format(input, code, files)
+    }
+
     fn fuzz_pydoclint(
         input: &[u8],
         code: Option<i32>,
@@ -2077,6 +2085,7 @@ mod tests {
         ("pmd", fuzz_pmd),
         ("parse_prettier_check", fuzz_prettier_check),
         ("psscriptanalyzer", fuzz_psscriptanalyzer),
+        ("psscriptanalyzer_format", fuzz_psscriptanalyzer_format),
         ("pydoclint", fuzz_pydoclint),
         ("pylint", fuzz_pylint),
         ("qmlformat", fuzz_qmlformat),

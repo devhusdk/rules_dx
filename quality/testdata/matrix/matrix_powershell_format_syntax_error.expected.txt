@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_powershell_format_syntax_error
+capability FORMAT
+stages 1
+stage psscriptanalyzer classes=powershell sources=matrix/psscriptanalyzer_format_broken.ps1
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR psscriptanalyzer ParseError matrix/psscriptanalyzer_format_broken.ps1 11 11 fixable=false "Missing closing '}' in statement block or type definition."
+terminal 1
+terminal ERROR psscriptanalyzer ParseError matrix/psscriptanalyzer_format_broken.ps1 11 11 fixable=false "Missing closing '}' in statement block or type definition."
+replacements 0

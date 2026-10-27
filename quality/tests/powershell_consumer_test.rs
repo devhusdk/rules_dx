@@ -3,11 +3,11 @@ use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run}
 
 const GREETING_PSM1: &str = "<#\n.SYNOPSIS\nBuilds a greeting.\n#>\nfunction Get-Greeting {\n    [CmdletBinding()]\n    [OutputType([string])]\n    param(\n        [string]$Name = 'powershell'\n    )\n    return \"hello $Name\"\n}\n\nExport-ModuleMember -Function Get-Greeting\n";
 
-const GREETING_PSD1: &str = "@{\n    RootModule = 'Greeting.psm1'\n    ModuleVersion = '0.1.0'\n    GUID = '6f1f5a0e-3b0e-4c53-9d57-5f1d2f7c9a10'\n    FunctionsToExport = @('Get-Greeting')\n}\n";
+const GREETING_PSD1: &str = "@{\n    RootModule        = 'Greeting.psm1'\n    ModuleVersion     = '0.1.0'\n    GUID              = '6f1f5a0e-3b0e-4c53-9d57-5f1d2f7c9a10'\n    FunctionsToExport = @('Get-Greeting')\n}\n";
 
 const FORMAT_PSM1: &str = "<#\n.SYNOPSIS\nWraps text in a banner.\n#>\nfunction Format-Banner {\n    [CmdletBinding()]\n    [OutputType([string])]\n    param(\n        [Parameter(Mandatory)]\n        [string]$Text\n    )\n    return \"== $Text ==\"\n}\n\nExport-ModuleMember -Function Format-Banner\n";
 
-const FORMAT_PSD1: &str = "@{\n    RootModule = 'Banner.psm1'\n    ModuleVersion = '0.1.0'\n    GUID = '0b1b8d8a-52a3-44f4-93d4-9a3f2f2f2d11'\n    FunctionsToExport = @('Format-Banner')\n    RequiredModules = @('Greeting')\n}\n";
+const FORMAT_PSD1: &str = "@{\n    RootModule        = 'Banner.psm1'\n    ModuleVersion     = '0.1.0'\n    GUID              = '0b1b8d8a-52a3-44f4-93d4-9a3f2f2f2d11'\n    FunctionsToExport = @('Format-Banner')\n    RequiredModules   = @('Greeting')\n}\n";
 
 const MAIN_PS1: &str = "using module Greeting\nImport-Module Banner\nWrite-Output (Format-Banner -Text (Get-Greeting -Name 'dx'))\n";
 
@@ -29,6 +29,18 @@ const GALLERY_PS1: &str = "using module Pester\nWrite-Output 'gallery'\n";
 const BAD_PS1: &str = "Write-Host 'hello'\n";
 
 const BROKEN_PS1: &str = "function Broken {\n    Write-Output 'open'\n";
+
+const UNFORMATTED_PS1: &str = "if ($true){\nWrite-Output 1}\n";
+
+const FORMATTED_PS1: &str = "if ($true) {\n    Write-Output 1\n}\n";
+
+const UNFORMATTED_CRLF_PS1: &[u8] = b"\xef\xbb\xbfif ($true){\r\nWrite-Output 1}\r\n";
+
+const FORMATTED_CRLF_PS1: &[u8] = b"\xef\xbb\xbfif ($true) {\r\n    Write-Output 1\r\n}\r\n";
+
+const FORMATTED_NEXT_LINE_PS1: &str = "if ($true)\n{\n    Write-Output 1\n}\n";
+
+const NEXT_LINE_PSD1: &str = "@{\n    Rules = @{\n        PSPlaceOpenBrace           = @{\n            Enable     = $true\n            OnSameLine = $false\n        }\n        PSUseConsistentIndentation = @{\n            Enable = $true\n        }\n    }\n}\n";
 
 const OVERRIDE_PSD1: &str = "@{\n    ExcludeRules = @('PSAvoidUsingWriteHost')\n}\n";
 
@@ -60,6 +72,7 @@ psscriptanalyzer_config(
 quality_family(
     name = "powershell_family",
     family_id = "powershell",
+    format = ["psscriptanalyzer"],
     lint = ["psscriptanalyzer"],
 )
 
@@ -125,6 +138,13 @@ pwsh_binary(
 )
 "#;
 
+const CRLF_BUILD: &str = r#"load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary")
+
+pwsh_binary(
+    name = "crlf",
+    srcs = ["crlf.ps1"],
+)
+"#;
 fn consumer() -> Case {
     let rules = rules_dx_source();
     let root = nested::case("consumer");
@@ -317,4 +337,89 @@ fn the_declared_psscriptanalyzer_is_acquired_from_the_cache_with_the_network_den
         "{}",
         miss.combined()
     );
+}
+
+#[test]
+fn format_reports_a_script_and_fix_rewrites_it_keeping_bom_and_line_endings() {
+    let root = consumer();
+    add_bad(&root, UNFORMATTED_PS1, "[]");
+    write(&root.join("crlf/BUILD.bazel"), CRLF_BUILD);
+    let crlf = root.join("crlf/crlf.ps1");
+    std::fs::write(&crlf, UNFORMATTED_CRLF_PS1).unwrap_or_else(|error| panic!("{error}"));
+    let main = root.join("app/Main.ps1");
+    let untouched = std::fs::metadata(&main)
+        .and_then(|meta| meta.modified())
+        .unwrap_or_else(|error| panic!("{error}"));
+
+    let dirty = dx(&root, "format", &[]);
+    assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
+    for name in ["bad/bad.ps1", "crlf/crlf.ps1"] {
+        assert!(dirty.combined().contains(name), "{}", dirty.combined());
+    }
+    assert_eq!(read(&root.join("bad/bad.ps1")), UNFORMATTED_PS1);
+    assert_eq!(
+        std::fs::read(&crlf).ok().as_deref(),
+        Some(UNFORMATTED_CRLF_PS1)
+    );
+
+    let fixed = dx(&root, "fix", &["--apply"]);
+    assert_eq!(fixed.status.code(), Some(0), "{}", fixed.combined());
+    assert_eq!(read(&root.join("bad/bad.ps1")), FORMATTED_PS1);
+    assert_eq!(
+        std::fs::read(&crlf).ok().as_deref(),
+        Some(FORMATTED_CRLF_PS1)
+    );
+    let after = std::fs::metadata(&main)
+        .and_then(|meta| meta.modified())
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(
+        after, untouched,
+        "an already formatted script was rewritten"
+    );
+
+    let again = dx(&root, "format", &[]);
+    assert_eq!(again.status.code(), Some(0), "{}", again.combined());
+}
+
+#[test]
+fn format_never_rewrites_a_script_that_does_not_parse() {
+    let root = consumer();
+    add_bad(&root, BROKEN_PS1, "[]");
+    let out = dx(&root, "format", &[]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(
+        out.combined().contains("bad/bad.ps1:"),
+        "{}",
+        out.combined()
+    );
+    let applied = dx(&root, "fix", &["--apply"]);
+    assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&root.join("bad/bad.ps1")), BROKEN_PS1);
+}
+
+#[test]
+fn a_bound_config_without_formatter_rules_fails_format_with_the_cause() {
+    let root = consumer();
+    add_bad(&root, UNFORMATTED_PS1, "[\"//:lint_override\"]");
+    let out = dx(&root, "format", &[]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(
+        out.combined().contains("configures no formatter rule"),
+        "{}",
+        out.combined()
+    );
+    assert_eq!(read(&root.join("bad/bad.ps1")), UNFORMATTED_PS1);
+}
+
+#[test]
+fn a_bound_config_changes_the_formatting() {
+    let root = consumer();
+    write(&root.join("PSScriptAnalyzerSettings.psd1"), NEXT_LINE_PSD1);
+    add_bad(&root, FORMATTED_PS1, "[\"//:lint_override\"]");
+    let dirty = dx(&root, "format", &[]);
+    assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
+    assert_eq!(read(&root.join("bad/bad.ps1")), FORMATTED_PS1);
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&root.join("bad/bad.ps1")), FORMATTED_NEXT_LINE_PS1);
 }

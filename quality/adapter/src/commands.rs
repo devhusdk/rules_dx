@@ -81,6 +81,8 @@ const GOFUMPT_CHECK_ARGS: &[&str] = &["-d"];
 const GOFUMPT_FIX_ARGS: &[&str] = &["-w"];
 const STATICCHECK_ARGS: &[&str] = &["-f", "json"];
 const EMPTY_ARGS: &[&str] = &[];
+const PSSCRIPTANALYZER_FORMAT_CHECK_ARGS: &[&str] = &["--format-check"];
+const PSSCRIPTANALYZER_FORMAT_WRITE_ARGS: &[&str] = &["--format-write"];
 const GOOGLE_JAVA_FORMAT_CHECK_ARGS: &[&str] = &["--dry-run", "--set-exit-if-changed"];
 const GOOGLE_JAVA_FORMAT_FIX_ARGS: &[&str] = &["--replace"];
 const KTFMT_CHECK_ARGS: &[&str] = &["--kotlinlang-style", "--dry-run", "--set-exit-if-changed"];
@@ -1125,6 +1127,40 @@ pub fn psscriptanalyzer_check(
     optional_flag(
         binary,
         EMPTY_ARGS,
+        "--settings",
+        settings,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+/// `Invoke-Formatter` in report mode: one JSON entry per file, never a write.
+pub fn psscriptanalyzer_format_check(
+    binary: &Path,
+    files: &[&Path],
+    settings: Option<&Path>,
+) -> Invocation {
+    optional_flag(
+        binary,
+        PSSCRIPTANALYZER_FORMAT_CHECK_ARGS,
+        "--settings",
+        settings,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+/// `Invoke-Formatter` in write mode: rewrites changed files and exits non-zero on any unparsed file.
+pub fn psscriptanalyzer_format_fix(
+    binary: &Path,
+    files: &[&Path],
+    settings: Option<&Path>,
+) -> Invocation {
+    optional_flag(
+        binary,
+        PSSCRIPTANALYZER_FORMAT_WRITE_ARGS,
         "--settings",
         settings,
         SCALAFMT_EMPTY,

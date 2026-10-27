@@ -248,7 +248,7 @@ to.
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
 | `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
-| `psscriptanalyzer` | lint | powershell |
+| `psscriptanalyzer` | format, lint | powershell |
 | `pydoclint` | lint | python |
 | `pylint` | lint | python |
 | `qmlformat` | format | qml |
@@ -1661,18 +1661,21 @@ text stay as written. Gherkin keeps its step text and tags. `.prettierrc`,
 
 ### PowerShell
 
-`psscriptanalyzer` runs from the managed PSScriptAnalyzer 1.25.0 pin for lint.
+`psscriptanalyzer` runs from the managed PSScriptAnalyzer 1.25.0 pin for format
+and lint.
 It runs on Linux x86_64. Select it in the `powershell` family.
 
 ```python
 quality_family(
     name = "powershell_family",
     family_id = "powershell",
+    format = ["psscriptanalyzer"],
     lint = ["psscriptanalyzer"],
 )
 ```
 
 ```sh
+bazel run @rules_dx//:dx -- format //scripts/...
 bazel run @rules_dx//:dx -- lint //scripts/...
 ```
 
@@ -1689,6 +1692,21 @@ tests, add `@rules_dx//powershell/gallery:pester` to the `deps` of a
 Lint is check-only: `lint --apply` never rewrites a script. Each finding shows
 its line and column with the rule name. A script that does not parse is
 reported as an error.
+
+Format runs `Invoke-Formatter` and is fixable: `dx format` reports each script
+that would change, and `dx fix` rewrites it. A script that does not parse, or
+is not UTF-8, is reported as an error at the parse failure and is never
+rewritten, so `dx fix` fails on it. A rewrite keeps the script's UTF-8 BOM, or
+its lack of one, and its line endings: a script whose first line ends in CRLF
+keeps CRLF on every line. Scripts that are already formatted are not touched.
+
+Without a bound `psscriptanalyzer_config`, format uses the upstream
+`CodeFormatting` preset, as `Invoke-Formatter` does by default. A bound `.psd1`
+is passed as is, and `Invoke-Formatter` runs only the formatter rules it
+configures under `Rules`. A config that configures none of them (for example a
+lint-only `IncludeRules` list) fails the format run with the cause named,
+instead of formatting nothing. Add a formatter rule such as `PSPlaceOpenBrace`
+under `Rules`, or unbind the config.
 
 An invalid config or a tool that fails to run fails the run with the cause
 named. It never counts as clean. To change the rules, bind a

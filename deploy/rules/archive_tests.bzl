@@ -24,6 +24,11 @@ def archive_unit_tests(name):
                 archive_filenames("release"),
                 ("release.tar.gz", "release.tar.gz.sha256"),
             ),
+            expect_equal(
+                "archive_filenames names a zip archive and its checksum",
+                archive_filenames("dx-windows-x86_64", "zip"),
+                ("dx-windows-x86_64.zip", "dx-windows-x86_64.zip.sha256"),
+            ),
         ],
     )
 
@@ -99,6 +104,16 @@ def consumer_archive_unit_tests(name):
                 "consumer_identity_error rejects an empty min_runtime",
                 consumer_identity_error("x86_64", "linux", "dynamic", ""),
                 "consumer_archive: min_runtime must be a non-empty requirement",
+            ),
+            expect_equal(
+                "consumer_identity_error accepts the Windows zip record",
+                consumer_identity_error("x86_64", "windows", "static", "windows-10", "zip"),
+                "",
+            ),
+            expect_equal(
+                "consumer_identity_error rejects an unknown format",
+                consumer_identity_error("x86_64", "linux", "dynamic", "glibc-2.17", "rar"),
+                "consumer_archive: unsupported format 'rar': want one of tar.gz, zip",
             ),
             expect_equal(
                 "consumer_identity_text renders the pinned manifest",

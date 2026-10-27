@@ -225,7 +225,7 @@ pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()
     Ok(())
 }
 
-/// Returns one zip image with a fixed DOS time, unix modes and a fixed Deflate level.
+/// Returns one zip image with a fixed DOS time, unix modes on every host and a fixed Deflate level.
 fn zip_archive(members: &[(&str, &[u8], u32)]) -> io::Result<Vec<u8>> {
     let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
     for (name, data, mode) in members {
@@ -234,6 +234,7 @@ fn zip_archive(members: &[(&str, &[u8], u32)]) -> io::Result<Vec<u8>> {
             .compression_level(Some(9))
             .last_modified_time(zip::DateTime::default())
             .unix_permissions(mode & 0o7777)
+            .system(zip::System::Unix)
             .large_file(false);
         writer
             .start_file(*name, options)
@@ -247,32 +248,80 @@ fn listing_error(message: String) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+fn is_zip(path: &Path) -> bool {
+    path.extension().is_some_and(|ext| ext == "zip")
+}
+
+/// Checks one member's type and uniqueness, then hands it to the visitor.
+fn archive_entry<T>(
+    seen: &mut std::collections::HashSet<String>,
+    name: String,
+    regular: bool,
+    mode: u32,
+    body: &mut dyn Read,
+    visit: &mut impl FnMut(String, u32, &mut dyn Read) -> io::Result<Option<T>>,
+) -> io::Result<Option<T>> {
+    if !regular {
+        return Err(listing_error(format!(
+            "archive listing: member {name:?} is not a regular file"
+        )));
+    }
+    if !seen.insert(name.clone()) {
+        return Err(listing_error(format!(
+            "archive listing: duplicate member {name:?}"
+        )));
+    }
+    visit(name, mode, body)
+}
+
 fn archive_entries<T>(
     path: &Path,
     mut visit: impl FnMut(String, u32, &mut dyn Read) -> io::Result<Option<T>>,
 ) -> io::Result<Vec<T>> {
     let file = std::fs::File::open(path)?;
-    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
+    if is_zip(path) {
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|error| listing_error(format!("archive listing: {error}")))?;
+        for index in 0..archive.len() {
+            let mut entry = archive
+                .by_index(index)
+                .map_err(|error| listing_error(format!("archive listing: {error}")))?;
+            let name = entry
+                .name()
+                .map_err(|error| listing_error(format!("archive listing: {error}")))?
+                .into_owned();
+            let unix = entry.system() == zip::System::Unix;
+            let Some(mode) = entry.unix_mode().filter(|_| unix) else {
+                return Err(listing_error(format!(
+                    "archive listing: member {name:?} has no unix mode"
+                )));
+            };
+            let regular = entry.is_file() && !entry.is_symlink();
+            if let Some(item) = archive_entry(
+                &mut seen,
+                name,
+                regular,
+                mode & 0o7777,
+                &mut entry,
+                &mut visit,
+            )? {
+                out.push(item);
+            }
+        }
+        return Ok(out);
+    }
+    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
     for entry in archive.entries()? {
         let mut entry = entry?;
         let name =
             entry.path()?.to_str().map(str::to_owned).ok_or_else(|| {
                 listing_error("archive listing: member name is not UTF-8".to_owned())
             })?;
-        if entry.header().entry_type() != tar::EntryType::Regular {
-            return Err(listing_error(format!(
-                "archive listing: member {name:?} is not a regular file"
-            )));
-        }
-        if !seen.insert(name.clone()) {
-            return Err(listing_error(format!(
-                "archive listing: duplicate member {name:?}"
-            )));
-        }
-        let mode = entry.header().mode()?;
-        if let Some(item) = visit(name, mode, &mut entry)? {
+        let regular = entry.header().entry_type() == tar::EntryType::Regular;
+        let mode = if regular { entry.header().mode()? } else { 0 };
+        if let Some(item) = archive_entry(&mut seen, name, regular, mode, &mut entry, &mut visit)? {
             out.push(item);
         }
     }
@@ -280,14 +329,14 @@ fn archive_entries<T>(
     Ok(out)
 }
 
-/// Lists name, mode and sha256 of every regular member of a tar.gz.
+/// Lists name, mode and sha256 of every regular member of a tar.gz or zip.
 pub fn archive_listing(path: &Path) -> io::Result<Vec<(String, u32, String)>> {
     archive_entries(path, |name, mode, body| {
         Ok(Some((name, mode, dx_digest::sha256_reader_hex(body)?)))
     })
 }
 
-/// Returns the bytes of one named member of a tar.gz.
+/// Returns the bytes of one named member of a tar.gz or zip.
 pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
     let mut found = archive_entries(path, |name, _, body| {
         if name != member {
@@ -303,6 +352,45 @@ pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
             format!("archive has no member {member:?}"),
         )
     })
+}
+
+/// Extracts every regular member of a tar.gz or zip into a new dir and lists name, mode and sha256.
+pub fn archive_extract(path: &Path, dir: &Path) -> io::Result<Vec<(String, u32, String)>> {
+    std::fs::create_dir_all(dir.parent().unwrap_or(dir))?;
+    std::fs::create_dir(dir)?;
+    archive_entries(path, |name, mode, body| {
+        if let Some(reason) = name_error(&name, true) {
+            return Err(listing_error(format!("archive extract: {reason}")));
+        }
+        if name.contains(':') {
+            return Err(listing_error(format!(
+                "archive extract: archive member name {name:?} must not contain ':'"
+            )));
+        }
+        let target = dir.join(&name);
+        std::fs::create_dir_all(target.parent().unwrap_or(dir))?;
+        let mut data = Vec::new();
+        body.read_to_end(&mut data)?;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&target)?;
+        file.write_all(&data)?;
+        drop(file);
+        set_member_mode(&target, mode)?;
+        Ok(Some((name, mode, dx_digest::sha256_hex(&data))))
+    })
+}
+
+#[cfg(unix)]
+fn set_member_mode(path: &Path, mode: u32) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode & 0o7777))
+}
+
+#[cfg(not(unix))]
+fn set_member_mode(_path: &Path, _mode: u32) -> io::Result<()> {
+    Ok(())
 }
 
 /// Archives one executable under its basename.
@@ -9722,6 +9810,7 @@ mod tests {
         for index in 0..archive.len() {
             let mut entry = archive.by_index(index).expect("entry");
             assert_eq!(entry.compression(), zip::CompressionMethod::Deflated);
+            assert_eq!(entry.system(), zip::System::Unix);
             let stamp = entry.last_modified().expect("time");
             assert_eq!((stamp.year(), stamp.month(), stamp.day()), (1980, 1, 1));
             let mut body = Vec::new();
@@ -9828,6 +9917,170 @@ mod tests {
         let cut = scratch.path().join("cut.tar.gz");
         std::fs::write(&cut, &bytes[..bytes.len() - 4]).expect("write");
         assert!(archive_listing(&cut).is_err());
+    }
+
+    fn zip_image(entries: &[(&str, Option<u32>, &[u8])]) -> Vec<u8> {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        for (name, mode, data) in entries {
+            let mut options = zip::write::SimpleFileOptions::default();
+            if let Some(mode) = mode {
+                options = options.unix_permissions(*mode);
+            }
+            writer.start_file(*name, options).expect("start");
+            writer.write_all(data).expect("data");
+        }
+        writer.finish().expect("finish").into_inner()
+    }
+
+    #[test]
+    fn archive_extract_round_trips_tar_gz_and_zip_with_modes() {
+        for suffix in ["tar.gz", "zip"] {
+            let scratch = scratch_dir();
+            let out = scratch.path().join(format!("cell.{suffix}"));
+            archive_tree(
+                &[
+                    ("dx", b"exe\n", 0o755),
+                    ("NOTICE", b"notice\n", 0o644),
+                    ("lib/run=time.dll", b"dll\n", 0o644),
+                ],
+                &out,
+            )
+            .expect("archive");
+            let listed = archive_listing(&out).expect("listing");
+            let dir = scratch.path().join("dx install \u{e9} \u{fc}");
+            let extracted = archive_extract(&out, &dir).expect("extract");
+            assert_eq!(extracted, listed, "{suffix}");
+            assert_eq!(
+                std::fs::read(dir.join("lib/run=time.dll")).expect("read"),
+                b"dll\n"
+            );
+            assert_eq!(
+                archive_read_member(&out, "NOTICE").expect("member"),
+                b"notice\n"
+            );
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+                let mode = |name: &str| {
+                    std::fs::metadata(dir.join(name))
+                        .expect("meta")
+                        .permissions()
+                        .mode()
+                        & 0o7777
+                };
+                assert_eq!(mode("dx"), 0o755, "{suffix}");
+                assert_eq!(mode("NOTICE"), 0o644, "{suffix}");
+            }
+            let error = archive_extract(&out, &dir).expect_err("dir exists");
+            assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        }
+    }
+
+    #[test]
+    fn archive_extract_rejects_traversal_duplicates_links_and_modeless_zip() {
+        let scratch = scratch_dir();
+        let cases: Vec<(&str, Vec<u8>, &str)> = vec![
+            (
+                "up.zip",
+                zip_image(&[("../escape", Some(0o644), b"x")]),
+                "must not contain '.' or '..'",
+            ),
+            (
+                "abs.zip",
+                zip_image(&[("/abs", Some(0o644), b"x")]),
+                "must be relative",
+            ),
+            (
+                "drive.zip",
+                zip_image(&[("C:evil", Some(0o644), b"x")]),
+                "must not contain ':'",
+            ),
+            (
+                "link.zip",
+                {
+                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+                    writer
+                        .add_symlink("link", "/etc", zip::write::SimpleFileOptions::default())
+                        .expect("symlink");
+                    writer.finish().expect("finish").into_inner()
+                },
+                "not a regular file",
+            ),
+            (
+                "dir.zip",
+                {
+                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+                    writer
+                        .add_directory("d/", zip::write::SimpleFileOptions::default())
+                        .expect("dir");
+                    writer.finish().expect("finish").into_inner()
+                },
+                "not a regular file",
+            ),
+            (
+                "modeless.zip",
+                {
+                    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+                    writer
+                        .start_file(
+                            "x",
+                            zip::write::SimpleFileOptions::default().system(zip::System::Dos),
+                        )
+                        .expect("start");
+                    writer.finish().expect("finish").into_inner()
+                },
+                "has no unix mode",
+            ),
+            ("garbage.zip", b"not a zip".to_vec(), "archive listing"),
+        ];
+        for (name, bytes, want) in cases {
+            let path = scratch.path().join(name);
+            std::fs::write(&path, bytes).expect("write");
+            let dir = scratch.path().join(format!("{name}.out"));
+            let error = archive_extract(&path, &dir).expect_err(name);
+            assert!(error.to_string().contains(want), "{name}: {error}");
+            assert!(!scratch.path().join("escape").exists());
+            assert!(!Path::new("/abs").exists());
+        }
+        let mut builder = tar::Builder::new(Vec::new());
+        let mut link = tar::Header::new_ustar();
+        link.set_entry_type(tar::EntryType::Symlink);
+        link.set_size(0);
+        builder
+            .append_link(&mut link, "link", "/etc")
+            .expect("link");
+        let linked = scratch.path().join("link.tar.gz");
+        std::fs::write(
+            &linked,
+            gzip_compress(&builder.into_inner().expect("tar")).expect("gz"),
+        )
+        .expect("write");
+        let error = archive_extract(&linked, &scratch.path().join("tar.out")).expect_err("link");
+        assert!(error.to_string().contains("not a regular file"), "{error}");
+        let dup = tar_archive([("x", &b"1"[..], 0o644), ("x", &b"2"[..], 0o644)].into_iter())
+            .expect("tar");
+        let duplicated = scratch.path().join("dup.tar.gz");
+        std::fs::write(&duplicated, gzip_compress(&dup).expect("gz")).expect("write");
+        let error = archive_extract(&duplicated, &scratch.path().join("dup.out")).expect_err("dup");
+        assert!(error.to_string().contains("duplicate member"), "{error}");
+        let mut raw = tar::Header::new_gnu();
+        raw.set_entry_type(tar::EntryType::Regular);
+        raw.set_size(1);
+        raw.set_mode(0o644);
+        raw.as_gnu_mut().expect("gnu").name[..9].copy_from_slice(b"../escape");
+        raw.set_cksum();
+        let mut builder = tar::Builder::new(Vec::new());
+        builder.append(&raw, &b"x"[..]).expect("append");
+        let escaping = scratch.path().join("escape.tar.gz");
+        std::fs::write(
+            &escaping,
+            gzip_compress(&builder.into_inner().expect("tar")).expect("gz"),
+        )
+        .expect("write");
+        let error =
+            archive_extract(&escaping, &scratch.path().join("esc.out")).expect_err("escape");
+        assert!(error.to_string().contains("'..'"), "{error}");
+        assert!(!scratch.path().join("escape").exists());
     }
 
     #[test]

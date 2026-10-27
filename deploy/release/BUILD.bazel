@@ -31,6 +31,7 @@ exports_files([
     "signing.bzl",
     "signing_tests.bzl",
     "src/bin_publish_dry_run_check.rs",
+    "src/bin_release_cell.rs",
     "src/bin_release_driver.rs",
     "src/bin_release_tool.rs",
     "src/bin_source_archive.rs",
@@ -40,6 +41,8 @@ rust_library(
     name = "dx_release_tools",
     srcs = [
         "src/candidate.rs",
+        "src/cell.rs",
+        "src/cell_tests.rs",
         "src/lib.rs",
         "src/provenance.rs",
         "src/publish.rs",
@@ -57,6 +60,7 @@ rust_library(
         package_name = "deploy/dx_release_tools",
         normal = True,
     ) + [
+        "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//deploy/rules:dx_deploy_tools",
@@ -147,6 +151,7 @@ rust_test(
 # Release binaries that have a bin_test.
 _TESTED_RELEASE_BINS = [
     "publish_dry_run_check",
+    "release_cell",
     "release_driver",
     "source_archive",
 ]
@@ -180,6 +185,22 @@ rust_binary(
     ),
     crate_name = "publish_dry_run_check",
     crate_root = "src/bin_publish_dry_run_check.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_binary(
+    name = "release_cell",
+    srcs = ["src/bin_release_cell.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "release_cell",
+    crate_root = "src/bin_release_cell.rs",
     edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
@@ -228,6 +249,22 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":publish_dry_run_check",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_test(
+    name = "release_cell_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":release_cell",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,

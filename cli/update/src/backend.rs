@@ -1,6 +1,6 @@
 use super::selector::SetRequest;
 use super::sets::SetId;
-use dx_adopt::dependency_sets::{Ecosystem, ResolvedSet, Selection};
+use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, Selection};
 use std::path::Path;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -79,6 +79,69 @@ pub struct UvClosure {
     pub uv_detail: Option<String>,
     /// Why the Bazel fallback could not resolve the interpreter, when it was tried.
     pub python_detail: Option<String>,
+    /// Absolute path from `DX_YARN_BIN`, for yarn.lock npm sets.
+    pub yarn: Option<String>,
+    /// Absolute path from `DX_NPM_BIN`, for package-lock.json npm sets.
+    pub npm: Option<String>,
+}
+
+pub const YARN_BIN_VAR: &str = "DX_YARN_BIN";
+
+pub const NPM_BIN_VAR: &str = "DX_NPM_BIN";
+
+fn node_tool(
+    set: &ResolvedSet,
+    path: &Option<String>,
+    tool: &'static str,
+    var: &'static str,
+    what: &'static str,
+) -> Result<String, BackendError> {
+    match path {
+        Some(path) if Path::new(path).is_absolute() => Ok(path.clone()),
+        _ => Err(BackendError::BackendUnavailable {
+            set: set.name.clone(),
+            tool,
+            var,
+            what,
+            detail: None,
+        }),
+    }
+}
+
+/// Builds the yarn or npm argv for a configured npm set; `None` means pnpm.
+fn configured_node_argv(
+    workspace: &Path,
+    set: &ResolvedSet,
+    closure: &UvClosure,
+    command: &[String],
+) -> Result<Option<Vec<String>>, BackendError> {
+    let dir = match set.dir.as_str() {
+        "." => workspace.to_string_lossy().into_owned(),
+        dir => workspace.join(dir).to_string_lossy().into_owned(),
+    };
+    match dependency_sets::npm_backend(set) {
+        Some(dependency_sets::NpmBackend::Yarn) => {
+            let yarn = node_tool(
+                set,
+                &closure.yarn,
+                "yarn",
+                YARN_BIN_VAR,
+                "a yarn 2+ (berry) executable",
+            )?;
+            let mut argv = strings(&["sh", "-c", "cd \"$0\" && exec \"$@\""]);
+            argv.push(dir);
+            argv.push(yarn);
+            argv.extend(command.iter().cloned());
+            Ok(Some(argv))
+        }
+        Some(dependency_sets::NpmBackend::Npm) => {
+            let npm = node_tool(set, &closure.npm, "npm", NPM_BIN_VAR, "an npm executable")?;
+            let mut argv = vec![npm, "--prefix".to_owned(), dir];
+            argv.extend(command.iter().cloned());
+            Ok(Some(argv))
+        }
+        _ => Ok(None),
+    }
 }
 
 pub fn plan(
@@ -439,17 +502,42 @@ pub fn plan_configured(
                     set: set.name.clone(),
                 });
             }
-            let command = match request {
-                Selection::Full => strings(&["install", "--lockfile-only"]),
-                Selection::Packages(packages) => [
+            let backend = dependency_sets::npm_backend(set);
+            let command = match (backend, request) {
+                (Some(dependency_sets::NpmBackend::Yarn), Selection::Full) => {
+                    strings(&["install", "--mode=update-lockfile"])
+                }
+                (Some(dependency_sets::NpmBackend::Yarn), Selection::Packages(packages)) => {
+                    [
+                        strings(&["up"]),
+                        packages.clone(),
+                        strings(&["--mode=update-lockfile"]),
+                    ]
+                    .concat()
+                }
+                (Some(dependency_sets::NpmBackend::Npm), Selection::Full) => {
+                    strings(&["install", "--package-lock-only", "--ignore-scripts"])
+                }
+                (Some(dependency_sets::NpmBackend::Npm), Selection::Packages(packages)) => [
+                    strings(&["update"]),
+                    packages.clone(),
+                    strings(&["--package-lock-only", "--ignore-scripts"]),
+                ]
+                .concat(),
+                (_, Selection::Full) => strings(&["install", "--lockfile-only"]),
+                (_, Selection::Packages(packages)) => [
                     strings(&["update"]),
                     packages.clone(),
                     strings(&["--lockfile-only"]),
                 ]
                 .concat(),
             };
+            let argv = match configured_node_argv(workspace, set, closure, &command)? {
+                Some(argv) => argv,
+                None => configured_pnpm_argv(workspace, head, set, false, &command),
+            };
             Ok(BackendPlan::Run {
-                argv: configured_pnpm_argv(workspace, head, set, false, &command),
+                argv,
                 env: npm_env(),
             })
         }
@@ -505,18 +593,31 @@ pub fn check_configured(
             reason: "uv repin refreshes the whole uv lock; select the set without a package",
         }),
         (Ecosystem::Npm, Selection::Full) => {
-            let mut command = strings(&["install", "--lockfile-only", "--frozen-lockfile"]);
-            if offline {
+            let backend = dependency_sets::npm_backend(set);
+            let mut command = match backend {
+                Some(dependency_sets::NpmBackend::Yarn) => {
+                    strings(&["install", "--immutable", "--mode=update-lockfile"])
+                }
+                Some(dependency_sets::NpmBackend::Npm) => {
+                    strings(&["ci", "--dry-run", "--ignore-scripts"])
+                }
+                _ => strings(&["install", "--lockfile-only", "--frozen-lockfile"]),
+            };
+            if offline && backend != Some(dependency_sets::NpmBackend::Yarn) {
                 command.push("--offline".to_owned());
             }
+            let argv = match configured_node_argv(workspace, set, closure, &command)? {
+                Some(argv) => argv,
+                None => configured_pnpm_argv(workspace, head, set, offline, &command),
+            };
             Ok(CheckPlan::Run {
-                argv: configured_pnpm_argv(workspace, head, set, offline, &command),
+                argv,
                 env: npm_env(),
             })
         }
         (Ecosystem::Npm, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "pnpm checks the whole lock; select the set without a package",
+            reason: "the npm package manager checks the whole lock; select the set without a package",
         }),
         (Ecosystem::Cargo, Selection::Full) => {
             let repository = cargo_repository(set)?;
@@ -1990,6 +2091,57 @@ mod tests {
                 env: npm_env_expected(),
             }
         );
+    }
+
+    #[test]
+    fn configured_npm_yarn_and_npm_locks_use_their_own_backends() {
+        let head = dx_process::BazelHead {
+            startup: vec![],
+            ..Default::default()
+        };
+        let mut yarn = npm_set("frontend", "apps/web");
+        yarn.locks = vec!["apps/web/yarn.lock".to_owned()];
+        let mut npm = yarn.clone();
+        npm.locks = vec!["apps/web/package-lock.json".to_owned()];
+        let tools = UvClosure {
+            yarn: Some(abs("yarn")),
+            npm: Some(abs("npm")),
+            ..UvClosure::default()
+        };
+        let ws = Path::new("/ws");
+        let plan = |set: &ResolvedSet, closure: &UvClosure| {
+            plan_configured(ws, set, &Selection::Full, false, false, &head, closure)
+        };
+        match plan(&yarn, &tools) {
+            Ok(BackendPlan::Run { argv, .. }) => {
+                assert_eq!(argv[0], "sh");
+                assert!(argv.contains(&abs("yarn")), "{argv:?}");
+                assert!(
+                    argv.contains(&"--mode=update-lockfile".to_owned()),
+                    "{argv:?}"
+                );
+            }
+            other => panic!("{other:?}"),
+        }
+        match plan(&npm, &tools) {
+            Ok(BackendPlan::Run { argv, .. }) => {
+                assert_eq!(argv[0], abs("npm"));
+                assert!(argv.contains(&"--package-lock-only".to_owned()), "{argv:?}");
+            }
+            other => panic!("{other:?}"),
+        }
+        for (set, var) in [(&yarn, YARN_BIN_VAR), (&npm, NPM_BIN_VAR)] {
+            match plan(set, &UvClosure::default()) {
+                Err(BackendError::BackendUnavailable { var: got, .. }) => assert_eq!(got, var),
+                other => panic!("{other:?}"),
+            }
+        }
+        match check_configured(ws, &npm, &Selection::Full, false, false, &head, &tools) {
+            Ok(CheckPlan::Run { argv, .. }) => {
+                assert!(argv.contains(&"ci".to_owned()), "{argv:?}");
+            }
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]

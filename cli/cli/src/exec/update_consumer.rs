@@ -176,8 +176,12 @@ fn run_configured_target(
     let rejected = mode == RunMode::Update && (invocation.offline || invocation.frozen);
     let closure = match set.ecosystem {
         Ecosystem::Uv if !rejected => tools.closure(),
+        Ecosystem::Npm => dx_update::backend::UvClosure {
+            yarn: std::env::var(dx_update::backend::YARN_BIN_VAR).ok(),
+            npm: std::env::var(dx_update::backend::NPM_BIN_VAR).ok(),
+            ..Default::default()
+        },
         Ecosystem::Uv
-        | Ecosystem::Npm
         | Ecosystem::Bazel
         | Ecosystem::Ruby
         | Ecosystem::PowerShell
@@ -438,6 +442,7 @@ impl<'a> UvTools<'a> {
             python,
             uv_detail,
             python_detail,
+            ..Default::default()
         }
     }
 }

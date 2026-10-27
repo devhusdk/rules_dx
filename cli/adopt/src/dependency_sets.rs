@@ -27,6 +27,10 @@ pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
 
 pub const PNPM_LOCK: &str = "pnpm-lock.yaml";
 
+pub const YARN_LOCK: &str = "yarn.lock";
+
+pub const NPM_LOCK: &str = "package-lock.json";
+
 pub const PNPM_WORKSPACE: &str = "pnpm-workspace.yaml";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -1104,6 +1108,26 @@ fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySets
     })
 }
 
+/// The package manager a configured npm set runs, chosen by the lock its `locks` list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NpmBackend {
+    Pnpm,
+    Yarn,
+    Npm,
+}
+
+/// Picks the backend from the locks beside the manifest; pnpm wins over yarn over npm.
+pub fn npm_backend(set: &ResolvedSet) -> Option<NpmBackend> {
+    [
+        (PNPM_LOCK, NpmBackend::Pnpm),
+        (YARN_LOCK, NpmBackend::Yarn),
+        (NPM_LOCK, NpmBackend::Npm),
+    ]
+    .into_iter()
+    .find(|(file, _)| set.locks.contains(&in_dir(&set.dir, file)))
+    .map(|(_, backend)| backend)
+}
+
 fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     let lock = in_dir(&set.dir, PNPM_LOCK);
     let unsupported = |detail: String| DependencySetsError::UnsupportedNpmLayout {
@@ -1111,10 +1135,15 @@ fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependenc
         dir: set.dir.clone(),
         detail,
     };
-    if !set.locks.contains(&lock) {
-        return Err(unsupported(format!(
-            "locks must include {lock}, the lock pnpm writes"
-        )));
+    let backend = npm_backend(set).ok_or_else(|| {
+        unsupported(format!(
+            "locks must include {lock}, {}, or {}",
+            in_dir(&set.dir, YARN_LOCK),
+            in_dir(&set.dir, NPM_LOCK)
+        ))
+    })?;
+    if backend != NpmBackend::Pnpm {
+        return Ok(());
     }
     for dir in parent_dirs(&set.dir).into_iter().skip(1) {
         let config = in_dir(dir, PNPM_WORKSPACE);
@@ -1958,16 +1987,24 @@ scopes = ["services/worker"]
         let scratch = npm_workspace("other-lock");
         let workspace = scratch.path().to_path_buf();
         let mut other = frontend.clone();
-        other.locks = vec!["apps/web/package-lock.json".to_owned()];
+        other.locks = vec!["apps/web/bun.lockb".to_owned()];
         assert_eq!(
             check_backend_settings(&workspace, &other),
             Err(DependencySetsError::UnsupportedNpmLayout {
                 name: "frontend".to_owned(),
                 dir: "apps/web".to_owned(),
-                detail: "locks must include apps/web/pnpm-lock.yaml, the lock pnpm writes"
+                detail: "locks must include apps/web/pnpm-lock.yaml, apps/web/yarn.lock, or apps/web/package-lock.json"
                     .to_owned(),
             })
         );
+        for (lock, backend) in [
+            ("apps/web/yarn.lock", NpmBackend::Yarn),
+            ("apps/web/package-lock.json", NpmBackend::Npm),
+        ] {
+            other.locks = vec![lock.to_owned()];
+            assert_eq!(check_backend_settings(&workspace, &other), Ok(()), "{lock}");
+            assert_eq!(npm_backend(&other), Some(backend));
+        }
     }
 
     const PINNED_SETS: &str = r#"

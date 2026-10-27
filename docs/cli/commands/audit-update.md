@@ -649,6 +649,18 @@ applies. The set is unsupported before pnpm starts when `locks` does not list
 `<set directory>/pnpm-lock.yaml` or when a parent directory inside the
 workspace holds a `pnpm-workspace.yaml`.
 
+A set may list `<set directory>/yarn.lock` or `<set directory>/package-lock.json`
+instead; the first of `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` in
+`locks` picks the backend. Neither tool is Bazel-pinned: set `DX_YARN_BIN` (a
+yarn 2+ executable) or `DX_NPM_BIN` to an absolute path, or the set fails with
+`backend_unavailable`; `PATH` is never searched. yarn runs
+`install --mode=update-lockfile` (`up <packages> --mode=update-lockfile` for a
+selector) and checks with `install --immutable --mode=update-lockfile`, inside
+the set directory. npm runs `--prefix <set directory> install --package-lock-only
+--ignore-scripts` (`update <packages> ...` for a selector) and checks with
+`ci --dry-run --ignore-scripts`. The same `--offline`, `--frozen`, and
+`npm_config_*` rules apply, except yarn ignores `--offline`.
+
 `dx security` matches every `pnpm-lock.yaml` package against
 `.dx/advisory/npm.json`; a missing snapshot fails the set with
 `failed to assess <name>`. `dx license` reports `UNKNOWN` for npm packages

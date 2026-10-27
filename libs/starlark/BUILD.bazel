@@ -3,6 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 exports_files([
     "behavioral_matrix.md",
     "canonical.bzl",
+    "cells.bzl",
     "conformance.bzl",
     "deb_closure.bzl",
     "defs.bzl",
@@ -27,6 +28,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "canonical.bzl",
+        "cells.bzl",
         "conformance.bzl",
         "deb_closure.bzl",
         "defs.bzl",

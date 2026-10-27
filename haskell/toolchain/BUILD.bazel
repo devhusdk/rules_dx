@@ -1,5 +1,7 @@
+load("//libs/starlark:cells.bzl", "cell_settings")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "haskell_metadata_tests")
+load(":pins.bzl", "CELLS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -8,6 +10,11 @@ exports_files([
     "pins.bzl",
     "repos.bzl",
 ])
+
+cell_settings(
+    name = "cell",
+    cells = CELLS,
+)
 
 haskell_metadata_tests(name = "metadata")
 

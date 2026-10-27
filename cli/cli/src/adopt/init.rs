@@ -209,6 +209,54 @@ mod tests {
             "{agents}"
         );
         assert!(agents.contains("tools/dx test --affected"), "{agents}");
+        assert_eq!(
+            std::fs::read_to_string(root.join("CLAUDE.md")).expect("claude"),
+            "@AGENTS.md\n"
+        );
+        let settings: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(root.join(".claude/settings.json")).expect("settings"),
+        )
+        .expect("json");
+        assert_eq!(
+            settings["permissions"]["allow"],
+            serde_json::json!(crate::worktree::setup::allow_rules())
+        );
+    }
+
+    #[test]
+    fn init_apply_appends_the_import_to_an_existing_claude_md() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-claude-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("seed");
+        let inv = invocation(&["init", "--apply"]);
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(out.contains("wrote CLAUDE.md"), "{out}");
+        assert_eq!(
+            std::fs::read_to_string(root.join("CLAUDE.md")).expect("claude"),
+            "# Mine\n\n@AGENTS.md\n"
+        );
+        let (code, out, _err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(!out.contains("CLAUDE.md"), "{out}");
+    }
+
+    #[test]
+    fn init_apply_lists_missing_allow_entries_without_touching_settings() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-allow-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".claude")).expect("dir");
+        let own = "{\"hooks\": {}}\n";
+        std::fs::write(root.join(".claude/settings.json"), own).expect("seed");
+        let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0);
+        assert_eq!(
+            std::fs::read_to_string(root.join(".claude/settings.json")).expect("read"),
+            own
+        );
+        for rule in crate::worktree::setup::allow_rules() {
+            assert!(err.contains(&rule), "{rule}: {err}");
+        }
     }
 
     #[test]

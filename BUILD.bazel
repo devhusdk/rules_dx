@@ -288,6 +288,7 @@ real_source_target(
         "ruby/README.md",
         "zig/README.md",
         "cuda/README.md",
+        "CLAUDE.md",
     ],
     tags = ["corpus"],
 )

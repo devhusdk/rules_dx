@@ -67,6 +67,7 @@ Inside a worktree slot there is also `lease`.
   `bazel run @rules_dx//:dx -- init --apply`. It fails `dx status` with
   `status_check_failed`.
 - `agents`: `warn` when `AGENTS.md` has no dx block or an out-of-date one, or
+  `CLAUDE.md` does not import `AGENTS.md`, or
   `.claude/settings.json` lacks a `dx worktree` hook.
   `dx init --apply` writes it.
 

@@ -568,6 +568,7 @@ mod tests {
             "demo/tools/dx.cmd",
             "demo/.claude/settings.json",
             "demo/AGENTS.md",
+            "demo/CLAUDE.md",
         ] {
             assert!(root.join(path).exists(), "{path}");
         }

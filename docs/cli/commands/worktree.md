@@ -410,15 +410,25 @@ not need to be on `PATH`:
     "WorktreeRemove": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook remove"}]}],
     "SubagentStop": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook stop"}]}],
     "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard"}]}]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(tools/dx check *)",
+      "Bash(tools/dx test *)",
+      "Bash(tools/dx build *)",
+      "Bash(tools/dx list-tests *)",
+      "Bash(tools/dx status *)",
+      "Bash(tools/dx version *)"
+    ]
   }
 }
 ```
 
 `dx init --apply` writes this file when it is absent and never overwrites it. If
-`.claude/settings.json` exists, it prints the missing entries. It also writes
+`.claude/settings.json` exists, it prints the missing hook and `permissions.allow` entries. It also writes
 the launcher and the agent commands block in `AGENTS.md`; see
 [`dx init`](init.md). `dx status` reports the `agents` check as `warn` when a
-hook is missing.
+hook is missing or `CLAUDE.md` does not import `AGENTS.md`.
 
 ## Leases
 

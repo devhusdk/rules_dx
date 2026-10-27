@@ -165,7 +165,6 @@ func TestParseImports(t *testing.T) {
 	}
 }
 
-// Cases follow micromark-extension-mdxjs-esm 3.0.0 on CommonMark 0.31.2.
 func TestExtractESMRegions(t *testing.T) {
 	cases := []struct {
 		name   string

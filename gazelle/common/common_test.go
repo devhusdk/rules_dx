@@ -509,8 +509,6 @@ func TestExtractScripts(t *testing.T) {
 	}
 }
 
-// Expectations follow @vue/compiler-sfc 3.5 and svelte 5 root blocks for
-// TopLevel, and @astrojs/compiler 2 hoisting for Anywhere.
 func TestExtractScriptsScopes(t *testing.T) {
 	one := func(s string) []byte { return []byte(s) }
 	cases := []struct {
@@ -542,6 +540,20 @@ func TestExtractScriptsScopes(t *testing.T) {
 		{"scriptDataEscape", "<script><!--<script></script>--></script><script>y</script>",
 			[][]byte{one("<!--<script></script>-->"), one("y")}, [][]byte{one("<!--<script></script>-->"), one("y")}},
 		{"strayEndTag", "</div></template><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"vueInterpolationLessThan", "<template>{{ a<b }}</template><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"vueInterpolationLoop", "<template><li v-for=\"i in n\">{{ i<n }}</li></template>\n<script setup>\nimport A from './A.vue';\n</script>",
+			[][]byte{one("\nimport A from './A.vue';\n")}, [][]byte{one("\nimport A from './A.vue';\n")}},
+		{"vuePugTemplate", "<template lang=\"pug\">div(a='<b')</template><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"vueCustomBlock", "<i18n>{\"a\":\"<x\"}</i18n><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
+		{"vueNestedTemplate", "<template><template v-if=\"a\"><script>x</script></template></template><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("x"), one("y")}},
+		{"vueCommentedEndTag", "<template><!-- </template> --><div><script>x</script></div></template><script>y</script>",
+			[][]byte{one("y")}, [][]byte{one("x"), one("y")}},
+		{"svelteIfAutoClosedP", "{#if a}<p>x{/if}<script>y</script>",
 			[][]byte{one("y")}, [][]byte{one("y")}},
 	}
 	for _, tc := range cases {
@@ -719,8 +731,6 @@ func TestStripBOM(t *testing.T) {
 	}
 }
 
-// IncompleteJS stands in for acorn failing at the last character, which is
-// when micromark-extension-mdxjs-esm 3 keeps a block open past a blank line.
 func TestIncompleteJS(t *testing.T) {
 	cases := []struct {
 		src  string

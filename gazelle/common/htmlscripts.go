@@ -22,12 +22,11 @@ var voidElements = map[string]bool{
 	"param": true, "source": true, "track": true, "wbr": true,
 }
 
-// ExtractScripts returns the bodies of complete <script> elements as
-// sub-slices of src. A script with no end tag before EOF is dropped.
+// ExtractScripts returns complete <script> bodies as sub-slices of src.
+// TopLevel skips each other root element's body to its matching end tag.
 func ExtractScripts(src []byte, scope ScriptScope) [][]byte {
 	z := html.NewTokenizer(bytes.NewReader(src))
 	var out [][]byte
-	var stack []string
 	off := 0
 	start := -1
 	for {
@@ -45,25 +44,75 @@ func ExtractScripts(src []byte, scope ScriptScope) [][]byte {
 		case html.StartTagToken:
 			raw, _ := z.TagName()
 			name := string(raw)
-			if name == "script" && (scope == Anywhere || len(stack) == 0) {
+			if name == "script" {
 				start = off
+				continue
 			}
-			if !voidElements[name] {
-				stack = append(stack, name)
+			if scope != TopLevel || voidElements[name] {
+				continue
+			}
+			if end := matchingEnd(src, off, raw); end >= 0 {
+				off = end
+				z = html.NewTokenizer(bytes.NewReader(src[off:]))
 			}
 		case html.EndTagToken:
 			raw, _ := z.TagName()
-			name := string(raw)
-			if name == "script" && start >= 0 {
+			if string(raw) == "script" && start >= 0 {
 				out = append(out, src[start:pos])
 				start = -1
 			}
-			for i := len(stack) - 1; i >= 0; i-- {
-				if stack[i] == name {
-					stack = stack[:i]
-					break
-				}
-			}
 		}
 	}
+}
+
+// matchingEnd returns the offset past the end tag closing name, or -1.
+func matchingEnd(src []byte, from int, name []byte) int {
+	depth := 1
+	i := from
+	for {
+		lt := bytes.IndexByte(src[i:], '<')
+		if lt < 0 {
+			return -1
+		}
+		i += lt
+		rest := src[i:]
+		switch {
+		case bytes.HasPrefix(rest, []byte("<!--")):
+			end := bytes.Index(rest[4:], []byte("-->"))
+			if end < 0 {
+				return -1
+			}
+			i += 4 + end + 3
+		case len(rest) > 1 && rest[1] == '/' && tagNameAt(rest[2:], name):
+			depth--
+			gt := bytes.IndexByte(rest, '>')
+			if gt < 0 {
+				return -1
+			}
+			if depth == 0 {
+				return i + gt + 1
+			}
+			i += gt + 1
+		case tagNameAt(rest[1:], name):
+			depth++
+			i++
+		default:
+			i++
+		}
+	}
+}
+
+// tagNameAt reports whether b starts with the whole tag name name.
+func tagNameAt(b, name []byte) bool {
+	if len(b) < len(name) || !bytes.EqualFold(b[:len(name)], name) {
+		return false
+	}
+	if len(b) == len(name) {
+		return true
+	}
+	switch b[len(name)] {
+	case ' ', '\t', '\n', '\r', '\f', '/', '>':
+		return true
+	}
+	return false
 }

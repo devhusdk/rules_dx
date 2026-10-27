@@ -83,7 +83,7 @@ JSON output writes these events in order:
   `generated`.
 - When Bazel fails, an `error` with code `bazel_failed` and phase
   `collect`.
-- Last, `command_finished`.
+- Last, `command_finished`, with the build's Bazel `actions` counts.
 
 Other failures write an `error` with its code, then `command_finished`.
 Codes include `invalid_arguments`, `invalid_result`, `no_capability`,

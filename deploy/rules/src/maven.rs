@@ -410,9 +410,6 @@ pub fn maven_retired_host(repository_url: &str) -> Option<&'static str> {
 }
 
 /// Pinned maven-gpg-plugin goal that signs and uploads in one run.
-///
-/// The Bouncy Castle signer reads MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE from the
-/// inherited environment, so no secret reaches argv or settings.xml.
 pub const MAVEN_SIGN_GOAL: &str =
     "org.apache.maven.plugins:maven-gpg-plugin:3.2.8:sign-and-deploy-file";
 

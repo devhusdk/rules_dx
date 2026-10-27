@@ -30,6 +30,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust dx_setup //cli/setup:dx_setup
 # gazelle:resolve rust dx_test_scratch //cli/test_scratch:dx_test_scratch
 # gazelle:resolve rust dx_update //cli/update:dx_update
+# gazelle:resolve rust dx_worktree //cli/worktree:dx_worktree
 # gazelle:resolve rust doc_ir_proto //tools/docs/ir:doc_ir_proto_rs
 # gazelle:resolve rust documentation_ir //tools/docs/ir/ir:documentation_ir
 # gazelle:resolve rust generation_result //generation/result:generation_result

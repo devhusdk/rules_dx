@@ -2192,7 +2192,7 @@ fn the_lease_is_found_from_a_path_inside_the_slot() {
 
 mod hooks {
     use super::*;
-    use crate::worktree::hook;
+    use crate::hook;
 
     fn blocked(command: &str) -> Option<String> {
         match hook::guard(&serde_json::json!({"tool_input": {"command": command}})) {
@@ -3988,7 +3988,7 @@ fn age(host: &FakeHost, workspace: &Path, days: u64) {
 
 /// Waits for, then holds, a nested slot's lock the way a running test does.
 fn hold_nested(slot: &Path) -> std::fs::File {
-    crate::test_support::eventually(
+    dx_test_scratch::eventually(
         "nested slot lock",
         std::time::Duration::from_secs(30),
         || {
@@ -4042,7 +4042,7 @@ fn prune_lists_nested_cases_idle_for_30_days_and_apply_deletes_them() {
     age(&host, &old_ws, 31);
     age(&host, &fresh_ws, 29);
     // A forked child can briefly keep the lock.
-    let dry = crate::test_support::eventually(
+    let dry = dx_test_scratch::eventually(
         "nested slot idle for planning",
         std::time::Duration::from_secs(30),
         || {
@@ -4061,7 +4061,7 @@ fn prune_lists_nested_cases_idle_for_30_days_and_apply_deletes_them() {
     );
     assert_eq!(dry.plan.bases[0].bytes, 2 * 4096, "base and workspace");
     assert!(old.exists(), "a dry run deletes nothing");
-    let applied = crate::test_support::eventually(
+    let applied = dx_test_scratch::eventually(
         "nested slot idle for apply",
         std::time::Duration::from_secs(30),
         || {

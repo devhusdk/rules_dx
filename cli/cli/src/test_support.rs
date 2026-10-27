@@ -67,23 +67,6 @@ pub(crate) fn events_of_kind<'a>(
         .collect()
 }
 
-/// Retries `probe` every 25ms until it returns `Some`, or panics once
-/// `deadline` has passed.
-pub(crate) fn eventually<T>(
-    what: &str,
-    deadline: std::time::Duration,
-    mut probe: impl FnMut() -> Option<T>,
-) -> T {
-    let start = std::time::Instant::now();
-    loop {
-        if let Some(value) = probe() {
-            return value;
-        }
-        assert!(start.elapsed() < deadline, "timed out waiting for {what}");
-        std::thread::sleep(std::time::Duration::from_millis(25));
-    }
-}
-
 const SETTLE_LIMIT: std::time::Duration = std::time::Duration::from_secs(1);
 const SETTLE_POLL: std::time::Duration = std::time::Duration::from_millis(10);
 
@@ -107,32 +90,6 @@ pub(crate) fn slot_settles_free(dir: &std::path::Path, count: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn eventually_returns_the_first_some() {
-        let mut calls = 0;
-        let got = eventually("x", std::time::Duration::from_secs(5), || {
-            calls += 1;
-            Some(7)
-        });
-        assert_eq!((got, calls), (7, 1));
-    }
-
-    #[test]
-    fn eventually_retries_until_the_probe_succeeds() {
-        let mut calls = 0;
-        let got = eventually("x", std::time::Duration::from_secs(5), || {
-            calls += 1;
-            (calls == 3).then_some(calls)
-        });
-        assert_eq!(got, 3);
-    }
-
-    #[test]
-    #[should_panic(expected = "timed out waiting for a thing")]
-    fn eventually_panics_after_the_deadline() {
-        eventually::<()>("a thing", std::time::Duration::from_millis(50), || None);
-    }
 
     const STREAM: &str = concat!(
         r#"{"event":"command_started","exit_code":0}"#,

@@ -122,6 +122,23 @@ pub fn link_host_tools(dir: &Path, names: &[&str]) -> std::io::Result<Vec<String
     Ok(missing)
 }
 
+/// Retries `probe` every 25ms until it returns `Some`, or panics once
+/// `deadline` has passed.
+pub fn eventually<T>(
+    what: &str,
+    deadline: std::time::Duration,
+    mut probe: impl FnMut() -> Option<T>,
+) -> T {
+    let start = std::time::Instant::now();
+    loop {
+        if let Some(value) = probe() {
+            return value;
+        }
+        assert!(start.elapsed() < deadline, "timed out waiting for {what}");
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,5 +253,31 @@ mod tests {
         isolate_git(&mut list, &sandbox);
         let out = list.output().expect("git");
         assert!(String::from_utf8_lossy(&out.stdout).trim().is_empty());
+    }
+
+    #[test]
+    fn eventually_returns_the_first_some() {
+        let mut calls = 0;
+        let got = eventually("x", std::time::Duration::from_secs(5), || {
+            calls += 1;
+            Some(7)
+        });
+        assert_eq!((got, calls), (7, 1));
+    }
+
+    #[test]
+    fn eventually_retries_until_the_probe_succeeds() {
+        let mut calls = 0;
+        let got = eventually("x", std::time::Duration::from_secs(5), || {
+            calls += 1;
+            (calls == 3).then_some(calls)
+        });
+        assert_eq!(got, 3);
+    }
+
+    #[test]
+    #[should_panic(expected = "timed out waiting for a thing")]
+    fn eventually_panics_after_the_deadline() {
+        eventually::<()>("a thing", std::time::Duration::from_millis(50), || None);
     }
 }

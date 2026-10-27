@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::args::Invocation;
 use crate::exec::common::check_stdout_write;
-use crate::worktree::setup;
+use dx_worktree::setup;
 
 use super::{operational, summaries_suppressed};
 

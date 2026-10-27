@@ -66,7 +66,7 @@ pub(crate) fn execute_until(
 
 /// The refusal for a workspace that is a slot leased to another session.
 fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option<String> {
-    let who = crate::worktree::Who::from_env(&|name| {
+    let who = dx_worktree::Who::from_env(&|name| {
         std::env::var(name).ok().filter(|value| !value.is_empty())
     });
     lease_refusal_for(invocation.command, workspace, &who)
@@ -88,18 +88,18 @@ fn hold_slot(
     if slot_exempt(command) {
         return None;
     }
-    crate::worktree::hold_busy(workspace, wait)
+    dx_worktree::hold_busy(workspace, wait)
 }
 
 fn lease_refusal_for(
     command: Command,
     workspace: &std::path::Path,
-    who: &crate::worktree::Who,
+    who: &dx_worktree::Who,
 ) -> Option<String> {
     if slot_exempt(command) {
         return None;
     }
-    let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
+    let (path, record) = dx_worktree::lease_for_workspace(workspace)?;
     if !record.refuses(who) {
         return None;
     }
@@ -165,7 +165,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     let _busy = match hold_slot(
         invocation.command,
         env.workspace,
-        crate::worktree::pool::POOL_LOCK_WAIT,
+        dx_worktree::pool::POOL_LOCK_WAIT,
     ) {
         Some(Err(refusal)) => {
             let Env { out, err, .. } = env;
@@ -430,7 +430,7 @@ mod tests {
         let slot = scratch.path().join("pool").join("1");
         std::fs::create_dir_all(&slot).expect("slot");
         std::fs::create_dir_all(scratch.path().join("pool").join(".dx")).expect("meta");
-        let record = crate::worktree::pool::Record {
+        let record = dx_worktree::pool::Record {
             slot: 1,
             held,
             branch: Some("feature/a".to_owned()),
@@ -453,8 +453,8 @@ mod tests {
         scratch
     }
 
-    fn who(session: Option<&str>) -> crate::worktree::Who {
-        crate::worktree::Who {
+    fn who(session: Option<&str>) -> dx_worktree::Who {
+        dx_worktree::Who {
             session: session.map(str::to_owned),
             agent: None,
             pid: 99,
@@ -473,8 +473,8 @@ mod tests {
         assert!(lease_refusal_for(Command::Status, &inside, &who(Some("s2"))).is_some());
     }
 
-    fn agent_who(session: &str, agent: &str) -> crate::worktree::Who {
-        crate::worktree::Who {
+    fn agent_who(session: &str, agent: &str) -> dx_worktree::Who {
+        dx_worktree::Who {
             session: Some(session.to_owned()),
             agent: Some(agent.to_owned()),
             pid: 99,
@@ -633,7 +633,7 @@ mod tests {
         let scratch = leased_slot(Some("s1"), true);
         let slot = scratch.path().join("pool").join("1");
         let guarded = |session: &'static str| {
-            crate::worktree::Who::from_env(&move |name: &str| {
+            dx_worktree::Who::from_env(&move |name: &str| {
                 (name == "DX_WORKTREE_SESSION").then(|| session.to_owned())
             })
         };

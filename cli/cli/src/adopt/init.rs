@@ -221,7 +221,7 @@ mod tests {
         .expect("json");
         assert_eq!(
             settings["permissions"]["allow"],
-            serde_json::json!(crate::worktree::setup::allow_rules())
+            serde_json::json!(dx_worktree::setup::allow_rules())
         );
     }
 
@@ -256,7 +256,7 @@ mod tests {
             std::fs::read_to_string(root.join(".claude/settings.json")).expect("read"),
             own
         );
-        for rule in crate::worktree::setup::allow_rules() {
+        for rule in dx_worktree::setup::allow_rules() {
             assert!(err.contains(&rule), "{rule}: {err}");
         }
     }

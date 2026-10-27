@@ -188,8 +188,9 @@ pub(crate) enum ExecError {
 
 pub(crate) const CODE_LAUNCH_FAILED: &str = "launch_failed";
 pub(crate) const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
-/// Fires before a Bazel run at `disk::DISK_FULL_BYTES` (1 GiB). Worktree reclaim uses the
-/// looser `disk::is_low` rule instead, so the two are distinct signals.
+/// Fires before a Bazel run at `dx_worktree::disk::DISK_FULL_BYTES` (1 GiB). Worktree
+/// reclaim uses the looser `dx_worktree::disk::is_low` rule instead, so the two are
+/// distinct signals.
 pub(crate) const CODE_DISK_LOW: &str = "disk_low";
 pub(crate) const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
 pub(crate) const CODE_INVALID_BEP: &str = "invalid_bep";

@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::args::Command;
-use crate::worktree::host::{self, Host, Server, SystemHost};
+use dx_worktree::host::{self, Host, Server, SystemHost};
 
 pub mod pressure;
 
@@ -866,7 +866,7 @@ impl Gate {
                 .reserving(slot_count(memory, 0))
                 .extra(extras, remote)
                 .sharing(cpus, memory, reserved)
-                .reclaiming(move || crate::worktree::reclaim_for_build(&reclaim_in))
+                .reclaiming(move || dx_worktree::reclaim_for_build(&reclaim_in))
         })
     }
 

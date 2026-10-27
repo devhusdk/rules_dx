@@ -16,7 +16,7 @@ const FREE_LOCK_REASON: &str = "dx: free";
 
 /// What a slot is doing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum State {
+pub enum State {
     Held,
     Free,
     Reclaimable,
@@ -24,7 +24,7 @@ pub(crate) enum State {
 }
 
 impl State {
-    pub(crate) fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             State::Held => "held",
             State::Free => "free",
@@ -43,28 +43,28 @@ enum Start {
 
 /// A request to lease a slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct AddRequest {
-    pub(crate) branch: String,
-    pub(crate) create: Option<String>,
-    pub(crate) force: bool,
-    pub(crate) unclaimed: bool,
+pub struct AddRequest {
+    pub branch: String,
+    pub create: Option<String>,
+    pub force: bool,
+    pub unclaimed: bool,
 }
 
 /// The slot an `add` handed out.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Added {
-    pub(crate) slot: u32,
-    pub(crate) path: PathBuf,
-    pub(crate) reused: bool,
-    pub(crate) base: Option<String>,
-    pub(crate) warnings: Vec<Warning>,
+pub struct Added {
+    pub slot: u32,
+    pub path: PathBuf,
+    pub reused: bool,
+    pub base: Option<String>,
+    pub warnings: Vec<Warning>,
 }
 
 /// A problem `add` worked around.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Warning {
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
+pub struct Warning {
+    pub code: &'static str,
+    pub message: String,
 }
 
 /// What a low-disk reclaim did.
@@ -76,50 +76,50 @@ pub(crate) struct Reclaim {
 
 /// The slot a `release` freed.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Released {
-    pub(crate) slot: Option<u32>,
-    pub(crate) path: PathBuf,
-    pub(crate) branch: Option<String>,
-    pub(crate) already_free: bool,
-    pub(crate) removed: bool,
-    pub(crate) warnings: Vec<Warning>,
+pub struct Released {
+    pub slot: Option<u32>,
+    pub path: PathBuf,
+    pub branch: Option<String>,
+    pub already_free: bool,
+    pub removed: bool,
+    pub warnings: Vec<Warning>,
 }
 
 /// One row of `list`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Row {
-    pub(crate) slot: Option<u32>,
-    pub(crate) path: PathBuf,
-    pub(crate) branch: Option<String>,
-    pub(crate) holder: Option<String>,
-    pub(crate) state: State,
-    pub(crate) reason: Option<&'static str>,
-    pub(crate) server: bool,
-    pub(crate) disk_bytes: Option<u64>,
+pub struct Row {
+    pub slot: Option<u32>,
+    pub path: PathBuf,
+    pub branch: Option<String>,
+    pub holder: Option<String>,
+    pub state: State,
+    pub reason: Option<&'static str>,
+    pub server: bool,
+    pub disk_bytes: Option<u64>,
 }
 
 /// The slots plus the machine totals.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Listing {
-    pub(crate) rows: Vec<Row>,
-    pub(crate) servers: u64,
-    pub(crate) servers_rss_bytes: u64,
-    pub(crate) disk_bytes: Option<u64>,
-    pub(crate) disk_cache_bytes: Option<u64>,
+pub struct Listing {
+    pub rows: Vec<Row>,
+    pub servers: u64,
+    pub servers_rss_bytes: u64,
+    pub disk_bytes: Option<u64>,
+    pub disk_cache_bytes: Option<u64>,
 }
 
 /// One slot `prune` would delete.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PruneSlot {
-    pub(crate) slot: u32,
-    pub(crate) path: PathBuf,
-    pub(crate) idle_days: u64,
-    pub(crate) bytes: u64,
+pub struct PruneSlot {
+    pub slot: u32,
+    pub path: PathBuf,
+    pub idle_days: u64,
+    pub bytes: u64,
 }
 
 /// Whose output base `prune` lists, keeps or skips.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum BaseOwner {
+pub enum BaseOwner {
     /// Its workspace is gone.
     Orphan,
     /// A free slot of the pool.
@@ -130,7 +130,7 @@ pub(crate) enum BaseOwner {
 
 impl BaseOwner {
     /// The pool slot, if a pool slot owns the base.
-    pub(crate) fn slot(&self) -> Option<u32> {
+    pub fn slot(&self) -> Option<u32> {
         match self {
             BaseOwner::Slot(slot) => Some(*slot),
             _ => None,
@@ -140,52 +140,52 @@ impl BaseOwner {
 
 /// One output base whose workspace is gone, of a free slot when its disk is low, or of a nested-Bazel test.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PruneBase {
-    pub(crate) dir: PathBuf,
-    pub(crate) workspace: PathBuf,
-    pub(crate) bytes: u64,
-    pub(crate) owner: BaseOwner,
+pub struct PruneBase {
+    pub dir: PathBuf,
+    pub workspace: PathBuf,
+    pub bytes: u64,
+    pub owner: BaseOwner,
 }
 
 /// One output base `prune` keeps.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PruneKeptBase {
-    pub(crate) dir: PathBuf,
-    pub(crate) workspace: PathBuf,
-    pub(crate) owner: BaseOwner,
-    pub(crate) reason: &'static str,
+pub struct PruneKeptBase {
+    pub dir: PathBuf,
+    pub workspace: PathBuf,
+    pub owner: BaseOwner,
+    pub reason: &'static str,
 }
 
 /// One external worktree `prune` would remove.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PruneExternal {
-    pub(crate) path: PathBuf,
-    pub(crate) branch: Option<String>,
-    pub(crate) bytes: u64,
+pub struct PruneExternal {
+    pub path: PathBuf,
+    pub branch: Option<String>,
+    pub bytes: u64,
 }
 
 /// One external worktree `prune` keeps, with the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PruneKept {
-    pub(crate) path: PathBuf,
-    pub(crate) branch: Option<String>,
-    pub(crate) reason: &'static str,
+pub struct PruneKept {
+    pub path: PathBuf,
+    pub branch: Option<String>,
+    pub reason: &'static str,
 }
 
 /// The downloads in one repository cache that no build used for 30 days.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PruneDownloads {
-    pub(crate) cache: PathBuf,
-    pub(crate) entries: Vec<Download>,
-    pub(crate) bytes: u64,
+pub struct PruneDownloads {
+    pub cache: PathBuf,
+    pub entries: Vec<Download>,
+    pub bytes: u64,
 }
 
 /// One slot `prune --apply` could not delete.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PruneSkippedSlot {
-    pub(crate) slot: u32,
-    pub(crate) path: PathBuf,
-    pub(crate) reason: &'static str,
+pub struct PruneSkippedSlot {
+    pub slot: u32,
+    pub path: PathBuf,
+    pub reason: &'static str,
 }
 
 /// What `prune_apply` kept or could not delete.
@@ -199,33 +199,33 @@ pub(crate) struct Applied {
 
 /// What `prune` deleted or would delete, and what it kept.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct Pruned {
-    pub(crate) plan: PrunePlan,
-    pub(crate) kept: Vec<PruneKept>,
-    pub(crate) skipped_slots: Vec<PruneSkippedSlot>,
-    pub(crate) skipped_bases: Vec<PruneKeptBase>,
+pub struct Pruned {
+    pub plan: PrunePlan,
+    pub kept: Vec<PruneKept>,
+    pub skipped_slots: Vec<PruneSkippedSlot>,
+    pub skipped_bases: Vec<PruneKeptBase>,
 }
 
 /// What `prune` found.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct PrunePlan {
-    pub(crate) slots: Vec<PruneSlot>,
-    pub(crate) externals: Vec<PruneExternal>,
-    pub(crate) bases: Vec<PruneBase>,
-    pub(crate) kept_bases: Vec<PruneKeptBase>,
-    pub(crate) kept_externals: Vec<PruneKept>,
-    pub(crate) downloads: Vec<PruneDownloads>,
+pub struct PrunePlan {
+    pub slots: Vec<PruneSlot>,
+    pub externals: Vec<PruneExternal>,
+    pub bases: Vec<PruneBase>,
+    pub kept_bases: Vec<PruneKeptBase>,
+    pub kept_externals: Vec<PruneKept>,
+    pub downloads: Vec<PruneDownloads>,
 }
 
 impl PrunePlan {
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.slots.is_empty()
             && self.externals.is_empty()
             && self.bases.is_empty()
             && self.downloads.is_empty()
     }
 
-    pub(crate) fn bytes(&self) -> u64 {
+    pub fn bytes(&self) -> u64 {
         self.slots.iter().map(|slot| slot.bytes).sum::<u64>()
             + self
                 .externals
@@ -383,7 +383,7 @@ fn reuse_held(pool: &Pool, who: &Who, branch: &str) -> Result<Option<Added>, Wor
 }
 
 /// Leases a slot for a branch and switches it there.
-pub(crate) fn add(
+pub fn add(
     pool: &Pool,
     host: &dyn Host,
     who: &Who,
@@ -633,7 +633,7 @@ fn make_room(
     branch: &str,
     reuse: Option<u32>,
 ) -> Result<Option<String>, WorktreeError> {
-    let full = |space: Option<DiskSpace>| space.filter(|space| crate::disk::is_full(space.free));
+    let full = |space: Option<DiskSpace>| space.filter(|space| super::disk::is_full(space.free));
     let Some(mut space) = full(host.disk_space(&pool.base)) else {
         return Ok(None);
     };
@@ -756,11 +756,7 @@ pub(crate) fn copy_includes(main: &Path, dest: &Path) -> Result<usize, WorktreeE
 }
 
 /// Gives `who` the unclaimed lease of the slot it works in.
-pub(crate) fn claim(
-    pool: &Pool,
-    who: &Who,
-    workspace: &Path,
-) -> Result<Option<u32>, WorktreeError> {
+pub fn claim(pool: &Pool, who: &Who, workspace: &Path) -> Result<Option<u32>, WorktreeError> {
     let Some(slot) = pool.slot_of(workspace) else {
         return Ok(None);
     };
@@ -780,7 +776,7 @@ pub(crate) fn claim(
 }
 
 /// Frees the slot at `path`, refusing to lose work unless forced.
-pub(crate) fn release(
+pub fn release(
     pool: &Pool,
     host: &dyn Host,
     who: &Who,
@@ -1087,7 +1083,7 @@ fn stop_server(host: &dyn Host, path: &Path) -> bool {
 }
 
 /// Lists every slot and hand-made checkout, with disk use when asked.
-pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, WorktreeError> {
+pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, WorktreeError> {
     pool.forget_missing();
     let servers = host.servers();
     let bases = if disk {
@@ -1167,7 +1163,7 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
 }
 
 /// The size of the disk cache Bazel uses for `build`; 0 when it is off or missing.
-pub(crate) fn disk_cache_bytes(host: &dyn Host) -> Result<u64, WorktreeError> {
+pub fn disk_cache_bytes(host: &dyn Host) -> Result<u64, WorktreeError> {
     match host.disk_cache().filter(|dir| dir.is_dir()) {
         Some(dir) => measure(host, &dir),
         None => Ok(0),
@@ -1189,7 +1185,7 @@ fn measure(host: &dyn Host, path: &Path) -> Result<u64, WorktreeError> {
 }
 
 /// The checkout that holds a branch.
-pub(crate) fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeError> {
+pub fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeError> {
     pool.forget_missing();
     if let Some(record) = pool
         .records()
@@ -1210,7 +1206,7 @@ pub(crate) fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeErro
 }
 
 /// Plans `prune` and, with `apply`, deletes the plan under the pool lock.
-pub(crate) fn prune(
+pub fn prune(
     pool: &Pool,
     host: &dyn Host,
     apply: bool,
@@ -1752,7 +1748,7 @@ fn drop_download(host: &dyn Host, entry: &Download) -> bool {
 }
 
 fn is_low(space: DiskSpace) -> bool {
-    crate::disk::is_low(space.free, space.total)
+    super::disk::is_low(space.free, space.total)
 }
 
 /// Whether the disk holding `path` has under 20 GiB and under 10% free, or under 1 GiB.
@@ -1944,7 +1940,7 @@ fn reclaim_locked(
 }
 
 /// A byte count in binary units.
-pub(crate) fn size(bytes: u64) -> String {
+pub fn size(bytes: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
     let mut value = bytes as f64;
     let mut unit = 0;

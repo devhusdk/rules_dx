@@ -566,6 +566,7 @@ rust_test(
         "//cli/setup:src/lib.rs",
         "//cli/test_scratch:src/lib.rs",
         "//cli/update:src/lib.rs",
+        "//cli/worktree:src/lib.rs",
         "//deploy/install:src/lib.rs",
         "//deploy/install:src/main.rs",
         "//deploy/offline/bootstrap:src/lib.rs",

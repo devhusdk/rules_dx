@@ -66,7 +66,7 @@ rust_test(
     ],
     crate_root = "linux_consumer_test.rs",
     data = [
-        "//apple/provisioning:probe.sh",
+        "//apple:module_srcs",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -95,7 +95,7 @@ rust_test(
         "macos_consumer_test.rs",
     ],
     crate_root = "macos_consumer_test.rs",
-    data = ["//apple/provisioning:probe.sh"] + NESTED_BAZEL_DATA,
+    data = ["//apple:module_srcs"] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
@@ -120,7 +120,7 @@ rust_test(
         "macos_app_consumer_test.rs",
     ],
     crate_root = "macos_app_consumer_test.rs",
-    data = ["//apple/provisioning:probe.sh"] + NESTED_BAZEL_DATA,
+    data = ["//apple:module_srcs"] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "HOME",
@@ -146,8 +146,8 @@ rust_test(
     ],
     crate_root = "macos_framework_consumer_test.rs",
     data = [
+        "//apple:module_srcs",
         "//apple/ios:xcframework_check.sh",
-        "//apple/provisioning:probe.sh",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_XCFRAMEWORK_CHECK": "$(rootpath //apple/ios:xcframework_check.sh)",

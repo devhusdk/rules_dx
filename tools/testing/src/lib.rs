@@ -216,6 +216,15 @@ pub fn resolve_runfiles(rel: &str) -> PathBuf {
     panic!("runfile {rel}: {error}");
 }
 
+/// Names the rules_dx checkout behind the `//:MODULE.bazel` runfile of the calling test.
+pub fn rules_dx_source() -> PathBuf {
+    let module = resolve_runfiles("MODULE.bazel");
+    let real = std::fs::canonicalize(&module).unwrap_or_else(|error| panic!("{module:?}: {error}"));
+    real.parent()
+        .unwrap_or_else(|| panic!("no checkout above {real:?}"))
+        .to_path_buf()
+}
+
 /// Names the Bazel-built process probe from the runfiles of the calling test.
 pub fn process_probe() -> PathBuf {
     let rel = std::env::var("DX_PROCESS_PROBE")
@@ -490,6 +499,13 @@ mod tests {
         let mut handle = std::fs::File::create(&path).expect("create");
         handle.write_all(text.as_bytes()).expect("write");
         path
+    }
+
+    #[test]
+    fn rules_dx_source_holds_the_module_and_its_bazel_version() {
+        let source = rules_dx_source();
+        assert!(source.join("MODULE.bazel").is_file(), "{source:?}");
+        assert!(source.join(".bazelversion").is_file(), "{source:?}");
     }
 
     #[test]

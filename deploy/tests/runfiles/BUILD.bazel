@@ -80,8 +80,9 @@ rust_test(
     size = "enormous",
     srcs = ["renamed_consumer_test.rs"],
     data = [
-        "renamed_consumer_test.rs",
         "//cli/cli:dx",
+        "//deploy:module_srcs",
+        "//tools/bazelrc:preset.bazelrc",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",

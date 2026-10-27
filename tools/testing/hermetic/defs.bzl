@@ -27,7 +27,7 @@ def _hermetic_manifest_impl(ctx):
         "workspace_dir": ctx.attr.workspace_dir,
     }, indent = "  ") + "\n")
     runfiles = ctx.runfiles(
-        files = [out, ctx.file._bazelversion, ctx.file._module, ctx.file.module_fragment] + ctx.files.files,
+        files = [out, ctx.file._bazelversion, ctx.file._module, ctx.file.module_fragment] + ctx.files.files + ctx.files.srcs,
     ).merge(ctx.attr._dx[DefaultInfo].default_runfiles)
     return [DefaultInfo(files = depset([out]), runfiles = runfiles)]
 
@@ -50,6 +50,7 @@ hermetic_manifest = rule(
         "qualification": attr.string(mandatory = True, doc = "Label of the qualification test."),
         "repo_name": attr.string(mandatory = True, doc = "Repository name the consumer gives rules_dx."),
         "rust_target_triples": attr.string_list(doc = "Rust target triples added to the dx init rust.toolchain."),
+        "srcs": attr.label_list(allow_files = True, doc = "rules_dx sources the consumer build reads."),
         "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
         "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
         "_dx": attr.label(cfg = "target", default = "//:dx", executable = True),
@@ -77,6 +78,7 @@ def hermetic_qualification(
         module = "hermetic_consumer",
         repo_name = "my_dx",
         rust_target_triples = [],
+        srcs = [],
         workspace_dir = "consumer ws",
         **kwargs):
     """Declares one consumer qualification test and its manifest."""
@@ -91,6 +93,7 @@ def hermetic_qualification(
         qualification = "//%s:%s" % (native.package_name(), name),
         repo_name = repo_name,
         rust_target_triples = rust_target_triples,
+        srcs = srcs,
         target_compatible_with = ["@platforms//os:linux"],
         workspace_dir = workspace_dir,
     )

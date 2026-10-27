@@ -17,27 +17,13 @@ type blockComment struct {
 
 var cStyleComments = []blockComment{{start: "/*", end: "*/"}}
 
-var nestedCStyleComments = []blockComment{{start: "/*", end: "*/", nested: true}}
-
 var fStyleComments = []blockComment{
 	{start: "/*", end: "*/"},
 	{start: "(*", end: "*)", nested: true, operator: "(*)"},
 }
 
-func MaskJavaStyle(content []byte) []byte {
-	return maskCLike(content, cStyleComments, maskSingleQuoted)
-}
-
 func MaskCSharpStyle(content []byte) []byte {
 	return maskCLike(content, cStyleComments, maskSingleQuoted)
-}
-
-func MaskKotlinStyle(content []byte) []byte {
-	return maskCLike(content, nestedCStyleComments, maskSingleQuoted)
-}
-
-func MaskScalaStyle(content []byte) []byte {
-	return maskCLike(content, nestedCStyleComments, maskSingleQuoted)
 }
 
 func MaskFSharpStyle(content []byte) []byte {

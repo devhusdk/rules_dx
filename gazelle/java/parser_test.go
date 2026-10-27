@@ -97,3 +97,33 @@ func TestParseImportsWildcardStaysQualified(t *testing.T) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
 }
+
+func TestParseImportsTreeSitterShapes(t *testing.T) {
+	tests := []struct {
+		name, src string
+		want      []string
+	}{
+		{"comment between segments", "import a./*x*/B;\n", []string{"a.B"}},
+		{"multiline import", "import a.b\n    .C;\n", []string{"a.b.C"}},
+		{"text block inert", "class A { String s = \"\"\"\nimport x.Y;\n\"\"\"; }\nimport k.L;\n", []string{"k.L"}},
+		{"unicode identifiers", "import com.exämple.Wïdget;\n", []string{"com.exämple.Wïdget"}},
+		{"truncated import", "import a.B;\nimport c.D;\nimport e.", []string{"a.B", "c.D"}},
+		{"unclosed string after imports", "package p;\nimport a.B;\nimport c.D;\nclass X { String s = \"oops\n", []string{"a.B", "c.D"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ParseImports([]byte(tt.src)); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseImports = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDefinesMainNestedClass(t *testing.T) {
+	if !DefinesMain([]byte("class Outer {\n  static class Inner {\n    public static void main(String[] a) {}\n  }\n}\n")) {
+		t.Error("DefinesMain missed a nested main")
+	}
+	if DefinesMain([]byte("class A { void main(String[] a) {} static int main() { return 0; } }\n")) {
+		t.Error("DefinesMain matched a non-static or non-void main")
+	}
+}

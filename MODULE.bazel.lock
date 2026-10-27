@@ -230,7 +230,7 @@
   "moduleExtensions": {
     "//android/sdk:repos.bzl%android_sdk": {
       "general": {
-        "bzlTransitiveDigest": "O4EbAWpimA2C4tGXsfOYRpOS4MCr+Nitzp0dE5xIN9M=",
+        "bzlTransitiveDigest": "QZhY7cNivgLrfU6sSMc9ZwaVAdCPlo71QLZJXLtQTAw=",
         "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"

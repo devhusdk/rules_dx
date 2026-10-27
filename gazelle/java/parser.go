@@ -1,26 +1,43 @@
 package java
 
 import (
-	"github.com/devhusdk/rules_dx/gazelle/common"
-	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/devhusdk/rules_dx/gazelle/common/treesitter"
+	ts "github.com/odvcencio/gotreesitter"
+	"github.com/odvcencio/gotreesitter/grammars/java"
 )
 
-var (
-	importRe  = regexp.MustCompile(`(?m)^\s*import\s+(static\s+)?([A-Za-z_][\w]*(?:\.[\w]+)*)(\.\*)?\s*;`)
-	packageRe = regexp.MustCompile(`(?m)^\s*package\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;`)
-	mainRe    = regexp.MustCompile(`static\s+void\s+main\s*\(`)
-)
+var grammar = sync.OnceValue(func() *ts.Language { return java.Language() })
 
+// ParseImports returns the sorted, deduplicated import identities of content.
+// Imports before a syntax error are kept.
 func ParseImports(content []byte) []string {
-	stripped := common.MaskJavaStyle(content)
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
 	set := make(map[string]struct{})
-	for _, m := range importRe.FindAllSubmatch(stripped, -1) {
-		static := len(m[1]) > 0
-		onDemand := len(m[3]) > 0
-		if id := importIdentity(string(m[2]), static, onDemand); id != "" {
-			set[id] = struct{}{}
+	if tree.Root != nil {
+		for _, decl := range tree.Root.Children() {
+			if tree.Type(decl) != "import_declaration" {
+				continue
+			}
+			var dotted string
+			var static, onDemand bool
+			for _, c := range decl.Children() {
+				switch tree.Type(c) {
+				case "identifier", "scoped_identifier":
+					dotted = tree.Dotted(c)
+				case "asterisk":
+					onDemand = true
+				case "static":
+					static = true
+				}
+			}
+			if id := importIdentity(dotted, static, onDemand); id != "" {
+				set[id] = struct{}{}
+			}
 		}
 	}
 	out := make([]string, 0, len(set))
@@ -31,16 +48,31 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
+// ParsePackage returns the package name, or an error when the file declares
+// more than one package.
 func ParsePackage(content []byte) (string, error) {
-	stripped := common.MaskJavaStyle(content)
-	matches := packageRe.FindAllSubmatch(stripped, -1)
-	if len(matches) > 1 {
-		return "", errDuplicatePackage(string(matches[0][1]))
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	var names []string
+	if tree.Root != nil {
+		for _, decl := range tree.Root.Children() {
+			if tree.Type(decl) != "package_declaration" {
+				continue
+			}
+			for _, c := range decl.Children() {
+				if k := tree.Type(c); k == "identifier" || k == "scoped_identifier" {
+					names = append(names, tree.Dotted(c))
+				}
+			}
+		}
 	}
-	if len(matches) == 0 {
+	if len(names) > 1 {
+		return "", errDuplicatePackage(names[0])
+	}
+	if len(names) == 0 {
 		return "", nil
 	}
-	return string(matches[0][1]), nil
+	return names[0], nil
 }
 
 type duplicatePackageError struct{ first string }
@@ -51,8 +83,38 @@ func (e *duplicatePackageError) Error() string {
 
 func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
 
+// DefinesMain reports whether content declares a static void main method.
 func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskJavaStyle(content))
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	found := false
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if found {
+			return false
+		}
+		if tree.Type(n) != "method_declaration" {
+			return true
+		}
+		var name string
+		var static, void bool
+		for _, c := range n.Children() {
+			switch tree.Type(c) {
+			case "identifier":
+				name = tree.Text(c)
+			case "void_type":
+				void = true
+			case "modifiers":
+				for _, m := range c.Children() {
+					if tree.Type(m) == "static" {
+						static = true
+					}
+				}
+			}
+		}
+		found = name == "main" && static && void
+		return !found
+	})
+	return found
 }
 
 func importIdentity(dotted string, static, onDemand bool) string {

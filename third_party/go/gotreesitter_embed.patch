@@ -1,0 +1,29 @@
+diff --git a/BUILD.bazel b/BUILD.bazel
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -219,7 +219,10 @@
+         "work_count_convergence_contract.go",
+         "work_count_hooks.go",
+     ],
+-    embedsrcs = ["testdata/result_compat_ownership_v1.json"],
++    embedsrcs = [
++        "testdata/result_compat_ownership_v1.json",
++        "//grammars/grammar_blobs:go.bin",
++    ],
+     importpath = "github.com/odvcencio/gotreesitter",
+     visibility = ["//visibility:public"],
+     deps = [
+diff --git a/grammars/grammar_blobs/BUILD.bazel b/grammars/grammar_blobs/BUILD.bazel
+--- a/grammars/grammar_blobs/BUILD.bazel
++++ b/grammars/grammar_blobs/BUILD.bazel
+@@ -1,5 +1,10 @@
+ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+ 
++exports_files(
++    ["go.bin"],
++    visibility = ["//:__pkg__"],
++)
++
+ go_library(
+     name = "grammar_blobs",
+     srcs = [

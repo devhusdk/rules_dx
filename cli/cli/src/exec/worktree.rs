@@ -25,7 +25,7 @@ fn open_pool(dir: &Path) -> Result<Pool, WorktreeError> {
 }
 
 fn row_event(action: &str, row: &Row) -> serde_json::Value {
-    slot_event(&SlotEvent {
+    let mut event = slot_event(&SlotEvent {
         action: action.to_owned(),
         path: row.path.to_string_lossy().into_owned(),
         slot: row.slot,
@@ -37,7 +37,11 @@ fn row_event(action: &str, row: &Row) -> serde_json::Value {
         server: row.server,
         disk_bytes: row.disk_bytes,
     })
-    .unwrap_or(serde_json::Value::Null)
+    .unwrap_or(serde_json::Value::Null);
+    if let Some(map) = event.as_object_mut() {
+        map.insert("busy".to_owned(), serde_json::Value::Bool(row.busy));
+    }
+    event
 }
 
 fn simple_event(
@@ -354,10 +358,13 @@ fn list_lines(listing: &Listing) -> Vec<String> {
             .slot
             .map(|slot| slot.to_string())
             .unwrap_or_else(|| "-".to_owned());
-        let state = match row.reason {
+        let mut state = match row.reason {
             Some(reason) => format!("{} ({reason})", row.state.name()),
             None => row.state.name().to_owned(),
         };
+        if row.busy {
+            state.push_str(" busy");
+        }
         lines.push(format!(
             "{slot}\t{}\t{}\t{}\t{}\t{}\t{}",
             row.branch.as_deref().unwrap_or("(detached)"),
@@ -949,6 +956,7 @@ mod tests {
                 state: State::Free,
                 reason: None,
                 server: false,
+                busy: false,
                 disk_bytes: disk,
             }],
             servers: 1,

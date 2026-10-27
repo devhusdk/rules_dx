@@ -3859,8 +3859,10 @@ fn prune_lists_nested_cases_idle_for_30_days_and_apply_deletes_them() {
         "nested slot idle for apply",
         std::time::Duration::from_secs(30),
         || {
+            // A busy slot at planning time drops the base from the plan, so
+            // an empty skip list alone does not mean the base was deleted.
             let applied = ops::prune(&pool, &host, true, false).expect("apply");
-            applied.skipped_bases.is_empty().then_some(applied)
+            (!applied.plan.bases.is_empty() && applied.skipped_bases.is_empty()).then_some(applied)
         },
     );
     assert!(applied.skipped_bases.is_empty());

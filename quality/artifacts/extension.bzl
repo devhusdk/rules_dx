@@ -25,6 +25,10 @@ load("//quality/artifacts:gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "AR
 load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.windows_x86_64.bzl", _gitleaks_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:hadolint.linux_arm64.bzl", _hadolint_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:hadolint.linux_x86_64.bzl", _hadolint_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:hadolint.macos_arm64.bzl", _hadolint_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:hadolint.windows_x86_64.bzl", _hadolint_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "decode_artifacts", "encode_artifacts", "hub_build")
 load("//quality/artifacts:jsonnetfmt.linux_arm64.bzl", _jsonnetfmt_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:jsonnetfmt.linux_x86_64.bzl", _jsonnetfmt_linux_x86_64 = "ARTIFACT")
@@ -105,6 +109,10 @@ _ARTIFACTS = [
     _gitleaks_linux_arm64,
     _gitleaks_macos_arm64,
     _gitleaks_windows_x86_64,
+    _hadolint_linux_x86_64,
+    _hadolint_linux_arm64,
+    _hadolint_macos_arm64,
+    _hadolint_windows_x86_64,
     _jsonnetfmt_linux_x86_64,
     _jsonnetfmt_linux_arm64,
     _jsonnetfmt_macos_arm64,

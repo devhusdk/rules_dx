@@ -562,6 +562,11 @@ pub fn hold_busy(
     )
 }
 
+/// The lease of the slot a directory is in, after resolving links in the path.
+pub fn lease_for_dir(dir: &Path) -> Option<(PathBuf, Record)> {
+    lease_for_workspace(&host::resolved(dir))
+}
+
 /// The slot a workspace is in and its lease, found from the path alone.
 pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
     let mut current = Some(workspace);

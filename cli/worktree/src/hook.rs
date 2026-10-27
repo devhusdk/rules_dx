@@ -737,10 +737,18 @@ pub enum Guard {
     Rewrite(Value),
 }
 
-/// Blocks `git worktree add|remove|prune`, names the subagent for every dx command,
-/// and names the session for dx when the agent's shells do not.
-pub fn guard(input: &Value) -> Guard {
-    guard_with(input, &|name| std::env::var(name).ok())
+/// Looks up the lease of the slot a directory is in.
+pub type LeaseLookup<'a> = &'a dyn Fn(&Path) -> Option<(PathBuf, Record)>;
+
+/// Git subcommands that change the checkout of the slot they run in.
+const SLOT_SWITCHING: &[&str] = &["checkout", "switch", "reset", "rebase"];
+
+/// Blocks `git worktree add|remove|prune`, blocks a checkout-changing git command in a slot
+/// another agent holds, names the subagent for every dx command, and names the session for dx
+/// when the agent's shells do not. `who` carries the environment's session and pid; the agent
+/// comes from the payload, because the rewrite below only reaches later dx commands.
+pub fn guard(input: &Value, who: &Who, lease: LeaseLookup) -> Guard {
+    guard_with(input, who, lease, &|name| std::env::var(name).ok())
 }
 
 /// `guard` with the environment passed in.
@@ -748,8 +756,16 @@ pub fn guard(input: &Value) -> Guard {
 /// Codex sends no `agent_id`, and its shells share one `CODEX_THREAD_ID`. A
 /// payload `session_id` that differs from that thread id names a subagent's
 /// own thread, so it becomes the holder.
-pub fn guard_with(input: &Value, env_get: &dyn Fn(&str) -> Option<String>) -> Guard {
+pub fn guard_with(
+    input: &Value,
+    who: &Who,
+    lease: LeaseLookup,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Guard {
     if let Some(line) = blocked(input) {
+        return Guard::Block(line);
+    }
+    if let Some(line) = foreign_slot(input, who, lease) {
         return Guard::Block(line);
     }
     let Some(tool) = input.get("tool_input").and_then(Value::as_object) else {
@@ -783,6 +799,91 @@ pub fn guard_with(input: &Value, env_get: &dyn Fn(&str) -> Option<String>) -> Gu
         Value::String(format!("{}\n{command}", exports.join("\n"))),
     );
     Guard::Rewrite(dialect.rewrite(Value::Object(updated)))
+}
+
+/// The refusal for a `git checkout|switch|reset|rebase` that runs in a slot someone else holds.
+/// The lookup is only called for such commands whose directory is known.
+fn foreign_slot(input: &Value, who: &Who, lease: LeaseLookup) -> Option<String> {
+    let command = input
+        .get("tool_input")
+        .and_then(|tool| tool.get("command"))
+        .and_then(Value::as_str)?;
+    let dirs = switching_dirs(command, cwd(input));
+    if dirs.is_empty() {
+        return None;
+    }
+    let caller = Who {
+        session: who.session.clone().or_else(|| field(input, "session_id")),
+        agent: field(input, "agent_id"),
+        pid: who.pid,
+    };
+    dirs.iter().find_map(|dir| {
+        let (path, record) = lease(dir)?;
+        record.refuses(&caller).then(|| {
+            format!(
+                "{} is leased to {}; run dx worktree add <branch> for your own slot",
+                path.display(),
+                record.holder(true).unwrap_or_default()
+            )
+        })
+    })
+}
+
+/// The directories where `command` runs a slot-switching git subcommand. Directories follow
+/// `cd` and `git -C`; a call whose directory cannot be told statically is left out.
+fn switching_dirs(command: &str, start: Option<PathBuf>) -> Vec<PathBuf> {
+    let mut current = start;
+    let mut found = Vec::new();
+    for segment in segments(command) {
+        let Some((first, tail)) = segment.split_first() else {
+            continue;
+        };
+        let words: Vec<&str> = tail.iter().map(String::as_str).collect();
+        if base(first) == "cd" {
+            let target = words
+                .iter()
+                .copied()
+                .find(|word| !matches!(*word, "--" | "-L" | "-P" | "-e" | "-@"));
+            current = target.and_then(|target| move_to(current.as_deref(), target));
+            continue;
+        }
+        if !is_git(first) {
+            continue;
+        }
+        let mut dir = current.clone();
+        let mut rest = words.iter().copied();
+        while let Some(option) = rest.next() {
+            if option == "-C" {
+                dir = rest.next().and_then(|value| move_to(dir.as_deref(), value));
+            } else if option == "--git-dir"
+                || option == "--work-tree"
+                || option.starts_with("--git-dir=")
+                || option.starts_with("--work-tree=")
+            {
+                dir = None;
+                if !option.contains('=') {
+                    rest.next();
+                }
+            } else if GIT_VALUES.contains(&option) {
+                rest.next();
+            } else if option.starts_with('-') {
+            } else {
+                if SLOT_SWITCHING.contains(&option) {
+                    found.extend(dir);
+                }
+                break;
+            }
+        }
+    }
+    found
+}
+
+/// `target` seen from `from`, or none when the path depends on the shell or on `from`.
+fn move_to(from: Option<&Path>, target: &str) -> Option<PathBuf> {
+    if target == "-" || target.starts_with('~') || target.contains(['$', '`']) {
+        return None;
+    }
+    Some(from?.join(target))
 }
 
 /// The line that blocks a `git worktree add|remove|prune` command, if the command is one.

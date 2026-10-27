@@ -2671,16 +2671,152 @@ fn the_lease_is_found_from_a_path_inside_the_slot() {
 mod hooks {
     use super::*;
     use crate::hook;
+    use crate::pool::Record;
+    use std::cell::Cell;
+
+    fn guard(input: &serde_json::Value) -> hook::Guard {
+        hook::guard(input, &who("s1", 1), &|_| None)
+    }
+
+    fn lease_record(agent: Option<&str>) -> Record {
+        serde_json::from_value(serde_json::json!({
+            "slot": 1, "held": true, "session": "s1", "agent": agent, "pid": 7, "leased_at": 0, "last_used": 0, "lock_digest": null,
+        }))
+        .expect("record")
+    }
+
+    /// Runs `command` in `cwd` as agent `caller`, where every slot is held by agent a1.
+    fn in_foreign_slot(command: &str, cwd: &str, caller: &str, calls: &Cell<u32>) -> hook::Guard {
+        let input = serde_json::json!({
+            "cwd": cwd, "agent_id": caller, "session_id": "s1",
+            "tool_input": {"command": command},
+        });
+        let lookup = |dir: &Path| {
+            calls.set(calls.get() + 1);
+            let slot = dir
+                .ancestors()
+                .find(|p| p.starts_with("/pool") && p.parent() == Some(Path::new("/pool")))?;
+            Some((slot.to_path_buf(), lease_record(Some("a1"))))
+        };
+        hook::guard(&input, &who("s1", 1), &lookup)
+    }
+
+    fn blocked_in(command: &str, cwd: &str, caller: &str) -> Option<String> {
+        match in_foreign_slot(command, cwd, caller, &Cell::new(0)) {
+            hook::Guard::Block(line) => Some(line),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn slot_switching_git_is_blocked_in_another_agents_slot() {
+        for command in [
+            "git checkout x",
+            "git switch x",
+            "git reset --hard",
+            "git rebase main",
+            "/usr/bin/git switch x",
+            "FOO=1 git reset --hard",
+            "git -c a=b rebase main",
+            "ls && git checkout x",
+        ] {
+            let line = blocked_in(command, "/pool/1/sub", "a2").unwrap_or_default();
+            assert!(line.contains("agent a1"), "{command}: {line}");
+            assert!(line.contains("dx worktree add"), "{command}: {line}");
+        }
+        assert_eq!(blocked_in("git checkout x", "/pool/1", "a1"), None);
+    }
+
+    #[test]
+    fn read_only_and_quoted_git_is_allowed_without_a_lookup() {
+        for command in [
+            "git status",
+            "git log",
+            "git fetch",
+            "git worktree list",
+            "echo git checkout x",
+            "echo 'git reset --hard'",
+            "cat <<EOF\ngit checkout x\nEOF",
+        ] {
+            let calls = Cell::new(0);
+            let guard = in_foreign_slot(command, "/pool/1", "a2", &calls);
+            assert_eq!(guard, hook::Guard::Allow, "{command}");
+            assert_eq!(calls.get(), 0, "{command}");
+        }
+    }
+
+    #[test]
+    fn slot_switching_follows_cd_and_dash_c() {
+        let cases = [
+            ("git -C /pool/1 checkout x", "/elsewhere", true),
+            ("git -C 1 checkout x", "/pool", true),
+            ("cd /pool/1 && git checkout x", "/elsewhere", true),
+            ("cd x; git -C y switch z", "/pool/1", true),
+            ("cd /elsewhere && git checkout x", "/pool/1", false),
+            ("git -C /elsewhere checkout x", "/pool/1", false),
+            ("cd $D && git reset", "/pool/1", false),
+            ("cd - && git reset", "/pool/1", false),
+            ("cd && git reset", "/pool/1", false),
+            ("git --work-tree=w checkout x", "/pool/1", false),
+            ("git --git-dir g checkout x", "/pool/1", false),
+        ];
+        for (command, cwd, blocks) in cases {
+            assert_eq!(
+                blocked_in(command, cwd, "a2").is_some(),
+                blocks,
+                "{command}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_caller_session_prefers_the_environment_over_the_payload() {
+        let input = |session: &str| {
+            serde_json::json!({
+                "cwd": "/pool/1", "agent_id": "a1", "session_id": session,
+                "tool_input": {"command": "git checkout x"},
+            })
+        };
+        let lookup = |_: &Path| Some((PathBuf::from("/pool/1"), lease_record(Some("a1"))));
+        let none = Who {
+            session: None,
+            agent: None,
+            pid: 1,
+        };
+        assert_eq!(
+            hook::guard(&input("s1"), &none, &lookup),
+            hook::Guard::Allow
+        );
+        assert!(matches!(
+            hook::guard(&input("s2"), &none, &lookup),
+            hook::Guard::Block(_)
+        ));
+        assert_eq!(
+            hook::guard(&input("s2"), &who("s1", 1), &lookup),
+            hook::Guard::Allow
+        );
+    }
+
+    #[test]
+    fn a_block_beats_the_dx_rewrite() {
+        let guard = in_foreign_slot(
+            "git checkout x && tools/dx build //x",
+            "/pool/1",
+            "a2",
+            &Cell::new(0),
+        );
+        assert!(matches!(guard, hook::Guard::Block(_)));
+    }
 
     fn blocked(command: &str) -> Option<String> {
-        match hook::guard(&serde_json::json!({"tool_input": {"command": command}})) {
+        match guard(&serde_json::json!({"tool_input": {"command": command}})) {
             hook::Guard::Block(line) => Some(line),
             _ => None,
         }
     }
 
     fn guard_for_agent(command: &str) -> hook::Guard {
-        hook::guard(&serde_json::json!({
+        guard(&serde_json::json!({
             "agent_id": "a'1",
             "tool_input": {"command": command, "description": "d"},
         }))
@@ -2743,7 +2879,7 @@ mod hooks {
             hook::Guard::Block(_)
         ));
         assert_eq!(
-            hook::guard(&serde_json::json!({"tool_input": {"command": "dx worktree list"}})),
+            guard(&serde_json::json!({"tool_input": {"command": "dx worktree list"}})),
             hook::Guard::Allow
         );
     }
@@ -2823,10 +2959,10 @@ mod hooks {
     #[test]
     fn guard_blocks_git_worktree_for_every_agent() {
         for agent in ["claude", "codex", "cursor", "gemini"] {
-            let guard = hook::guard(&payload(agent, "git worktree add ../x"));
-            assert!(matches!(guard, hook::Guard::Block(_)), "{agent}: {guard:?}");
-            let guard = hook::guard(&payload(agent, "ls -la"));
-            assert_eq!(guard, hook::Guard::Allow, "{agent}");
+            let verdict = guard(&payload(agent, "git worktree add ../x"));
+            assert!(matches!(verdict, hook::Guard::Block(_)), "{agent}: {verdict:?}");
+            let verdict = guard(&payload(agent, "ls -la"));
+            assert_eq!(verdict, hook::Guard::Allow, "{agent}");
         }
     }
 
@@ -2835,9 +2971,9 @@ mod hooks {
         let input = payload("codex", "tools/dx test //x");
         let session = input["session_id"].as_str().unwrap().to_owned();
         let same = |_: &str| Some(session.clone());
-        assert_eq!(hook::guard_with(&input, &same), hook::Guard::Allow);
+        assert_eq!(hook::guard_with(&input, &who("s1", 1), &|_| None, &same), hook::Guard::Allow);
         let other = |_: &str| Some("main-thread".to_owned());
-        let hook::Guard::Rewrite(out) = hook::guard_with(&input, &other) else {
+        let hook::Guard::Rewrite(out) = hook::guard_with(&input, &who("s1", 1), &|_| None, &other) else {
             panic!("a subagent thread is rewritten");
         };
         let command = out["hookSpecificOutput"]["updatedInput"]["command"]
@@ -2850,13 +2986,12 @@ mod hooks {
     fn guard_names_the_session_only_for_agents_whose_shells_lack_one() {
         for agent in ["claude", "codex"] {
             assert_eq!(
-                hook::guard(&payload(agent, "tools/dx test //x")),
+                guard(&payload(agent, "tools/dx test //x")),
                 hook::Guard::Allow,
                 "{agent}"
             );
         }
-        let hook::Guard::Rewrite(cursor) = hook::guard(&payload("cursor", "tools/dx test //x"))
-        else {
+        let hook::Guard::Rewrite(cursor) = guard(&payload("cursor", "tools/dx test //x")) else {
             panic!("cursor dx commands are rewritten");
         };
         let output = &cursor["hookSpecificOutput"];
@@ -2868,7 +3003,7 @@ mod hooks {
         assert_eq!(output["updatedInput"]["working_directory"], "/r/sub");
         assert!(output.get("permissionDecision").is_none());
         let hook::Guard::Rewrite(gemini) =
-            hook::guard(&payload("gemini", "cd sub && tools/dx worktree add b"))
+            guard(&payload("gemini", "cd sub && tools/dx worktree add b"))
         else {
             panic!("gemini dx commands are rewritten");
         };
@@ -2883,14 +3018,14 @@ mod hooks {
         assert_eq!(output["tool_input"]["dir_path"], "sub");
         let mut no_session = payload("gemini", "tools/dx test //x");
         no_session["session_id"] = serde_json::Value::Null;
-        assert_eq!(hook::guard(&no_session), hook::Guard::Allow);
+        assert_eq!(guard(&no_session), hook::Guard::Allow);
     }
 
     #[test]
     fn guard_exports_the_session_before_the_subagent() {
         let mut input = payload("cursor", "tools/dx worktree release");
         input["agent_id"] = serde_json::json!("a1");
-        let hook::Guard::Rewrite(output) = hook::guard(&input) else {
+        let hook::Guard::Rewrite(output) = guard(&input) else {
             panic!("rewritten");
         };
         assert_eq!(
@@ -2984,7 +3119,7 @@ mod hooks {
         assert!(block("git status").is_none());
         assert!(block("echo git worktree add").is_none());
         assert!(block("dx worktree add feature/x").is_none());
-        assert_eq!(hook::guard(&serde_json::json!({})), hook::Guard::Allow);
+        assert_eq!(guard(&serde_json::json!({})), hook::Guard::Allow);
     }
 
     #[test]

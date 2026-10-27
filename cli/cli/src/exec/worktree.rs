@@ -760,7 +760,7 @@ pub fn run_worktree_hook(
 ) -> i32 {
     let stdin = read_stdin();
     if kind == HookKind::Guard {
-        return guard_hook(&stdin, out, err);
+        return guard_hook(&stdin, &Who::from_env(&env_var), out, err);
     }
     dx_process::configure_real(workspace);
     let who = Who::from_env(&env_var);
@@ -798,7 +798,7 @@ fn run_hook(
     err: &mut dyn Write,
 ) -> i32 {
     match kind {
-        HookKind::Guard => guard_hook(stdin, out, err),
+        HookKind::Guard => guard_hook(stdin, who, out, err),
         HookKind::Create => pool_hook(kind, stdin, workspace, err, |pool, input, err| {
             hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
@@ -812,7 +812,7 @@ fn run_hook(
     }
 }
 
-fn guard_hook(stdin: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+fn guard_hook(stdin: &str, who: &Who, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let input = match hook::parse(stdin) {
         Ok(input) => input,
         Err(error) => {
@@ -820,7 +820,7 @@ fn guard_hook(stdin: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
             return 0;
         }
     };
-    match hook::guard(&input) {
+    match hook::guard(&input, who, &dx_worktree::lease_for_dir) {
         hook::Guard::Block(line) => {
             let _ = writeln!(err, "{line}");
             dx_process::pre_exec_code()

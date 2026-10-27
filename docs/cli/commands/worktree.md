@@ -408,7 +408,15 @@ event that runs it.
   not marked; they stay held until the session ends. Cursor's `subagentStop` input has
   no `agent_id`; `stop` does nothing for it and exits `0`.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr
-  when the command runs `git worktree add`, `remove`, or `prune`. It tells
+  when the command runs `git worktree add`, `remove`, or `prune`. It also
+  exits `2` when the command runs `git checkout`, `switch`, `reset`, or
+  `rebase` in a slot that another agent holds (the same rule as the slot
+  commands: another session, or another agent of the same session). The
+  directory is the input `cwd`, moved by `cd` and `git -C`; the caller is the
+  input `agent_id` plus the environment's session, else the input
+  `session_id`. Unclaimed slots, slots of gone holders, and commands whose
+  directory the guard cannot tell (`cd -`, `~`, `$`, `--git-dir`,
+  `--work-tree`) are allowed. It tells
   the agent from the input: `hook_event_name` `BeforeTool` is Gemini CLI,
   `cursor_version` or `conversation_id` is Cursor, and anything else has the
   Claude Code shape that Codex also sends. For Cursor and Gemini CLI, whose

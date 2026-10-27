@@ -654,10 +654,6 @@ pub trait Runner {
         self.run(argv, cwd, env).map(Some)
     }
 
-    fn gitleaks_tool(&self) -> Option<PathBuf> {
-        None
-    }
-
     /// Names the absolute path one pinned-tool variable points at.
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
         let _ = var;
@@ -832,12 +828,6 @@ impl Runner for SystemRunner {
                 Ok(BoundedOutcome::OutputTooLarge { limit })
             }
         }
-    }
-
-    fn gitleaks_tool(&self) -> Option<PathBuf> {
-        std::env::var_os("DX_GITLEAKS_BIN")
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute())
     }
 
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {

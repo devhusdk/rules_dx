@@ -831,7 +831,7 @@ fn gitleaks_path(
     bazel: &dyn dx_tool_resolve::Bazel,
 ) -> Result<PathBuf, String> {
     use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
-    if let Some(path) = runner.gitleaks_tool() {
+    if let Some(path) = runner.pinned_tool(TOOL_ENV_VAR) {
         return Ok(path);
     }
     if std::env::var_os(TOOL_ENV_VAR).is_some_and(|value| !value.is_empty()) {

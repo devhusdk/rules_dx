@@ -1146,19 +1146,12 @@ fn hermetic_runner_sets_no_path() {
 }
 
 #[test]
-fn gitleaks_tool_defaults_to_absent() {
-    let runner = FakeRunner {
-        status: ChildStatus::exited(0),
-    };
-    assert!(runner.gitleaks_tool().is_none());
-}
-
-#[test]
 fn pinned_tool_defaults_to_absent() {
     let runner = FakeRunner {
         status: ChildStatus::exited(0),
     };
     assert!(runner.pinned_tool("DX_UV_BIN").is_none());
+    assert!(runner.pinned_tool("DX_GITLEAKS_BIN").is_none());
 }
 
 #[test]

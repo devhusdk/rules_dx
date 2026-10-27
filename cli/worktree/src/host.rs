@@ -65,7 +65,7 @@ pub(crate) fn resolved(path: &Path) -> PathBuf {
 }
 
 fn normalize(path: &Path) -> String {
-    let text = path.to_string_lossy().replace('\\', "/");
+    let text = dx_path::posix(path);
     let text = if let Some(rest) = text.strip_prefix("//?/UNC/") {
         format!("//{rest}")
     } else {

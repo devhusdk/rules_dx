@@ -23,7 +23,7 @@ use std::path::Path;
 
 /// Returns one exec path spelled without the build directory, so a report reads the same on every host.
 fn stable_exec_path(exec_path: &Path) -> String {
-    let text = exec_path.to_string_lossy().replace('\\', "/");
+    let text = dx_path::posix(exec_path);
     if let Some(out) = text.find("/bazel-testlogs/") {
         return text[out + "/bazel-testlogs/".len()..].to_owned();
     }
@@ -1139,30 +1139,20 @@ fn coverage_sources(
 ) -> Result<bool, i32> {
     let summary = account.summary();
     let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
-    let notices = std::iter::once(("info", CODE_COVERAGE_SOURCES, &summary)).chain(
+    let info: fn(&str, String) -> NoticeEvent = NoticeEvent::info;
+    let warning: fn(&str, String) -> NoticeEvent = NoticeEvent::warning;
+    let notices = std::iter::once((info, CODE_COVERAGE_SOURCES, &summary)).chain(
         errors
             .iter()
-            .map(|message| ("warning", CODE_COVERAGE_SOURCES_INCOMPLETE, *message)),
+            .map(|message| (warning, CODE_COVERAGE_SOURCES_INCOMPLETE, *message)),
     );
-    for (level, code, message) in notices {
+    for (notice, code, message) in notices {
         match output {
             OutputMode::Json if enforce && code == CODE_COVERAGE_SOURCES_INCOMPLETE => {
                 emit_built(out, dx_output::error_event(code, message, None, None, None))?;
             }
             OutputMode::Json => {
-                let notice = NoticeEvent {
-                    level: level.to_owned(),
-                    code: code.to_owned(),
-                    message: message.clone(),
-                    related_command: None,
-                    scope: None,
-                    path: None,
-                    language: None,
-                    import: None,
-                };
-                if let Ok(event) = notice_event(&notice) {
-                    let _ = emit_event(out, &event);
-                }
+                emit_built(out, notice_event(&notice(code, message.clone())))?;
             }
             OutputMode::Text { .. } if code == CODE_COVERAGE_SOURCES => {
                 let _ = writeln!(err, "dx: {message}");
@@ -1525,6 +1515,20 @@ mod tests {
     use super::super::test_support::*;
     use super::stable_exec_path;
     use std::path::Path;
+
+    #[test]
+    fn coverage_sources_returns_the_write_code_when_stdout_fails() {
+        let account = dx_lcov::CellAccount::default();
+        let got = super::coverage_sources(
+            &super::Sources::default(),
+            &account,
+            dx_output::OutputMode::Json,
+            false,
+            &mut BrokenPipe,
+            &mut Vec::new(),
+        );
+        assert_eq!(got, Err(dx_process::broken_pipe_code()));
+    }
 
     #[test]
     fn an_exec_path_reads_the_same_on_every_host() {

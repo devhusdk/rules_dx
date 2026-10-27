@@ -150,12 +150,6 @@ impl Runner for BinaryRunner {
         spawn_streamed(argv, cwd, env, true, self.inherit_stdout)
     }
 
-    fn gitleaks_tool(&self) -> Option<std::path::PathBuf> {
-        std::env::var_os("DX_GITLEAKS_BIN")
-            .map(std::path::PathBuf::from)
-            .filter(|path| path.is_absolute())
-    }
-
     fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
         dx_process::pinned_env_path(var)
     }

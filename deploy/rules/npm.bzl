@@ -99,6 +99,7 @@ def _npm_launcher_impl(ctx):
 
 _npm_launcher = rule(
     implementation = _npm_launcher_impl,
+    doc = "Writes the launcher Rust source for one npm deployment.",
     attrs = {
         "feed": attr.label(allow_single_file = True, mandatory = True, doc = "Packed feed JSON."),
         "tarball": attr.label(allow_single_file = True, mandatory = True, doc = "Packed tarball."),

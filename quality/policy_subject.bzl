@@ -21,6 +21,7 @@ def _policy_subject_impl(ctx):
 
 policy_subject = rule(
     implementation = _policy_subject_impl,
+    doc = "Analysis subject reporting a workspace quality policy.",
     attrs = {
         "policy": attr.label(
             providers = [QualityPolicyInfo],

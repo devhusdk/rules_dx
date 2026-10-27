@@ -353,6 +353,7 @@ def dx_library_forward_rule(provides, required_providers, quality_specs, what, a
     attrs.update(_dx_tool_attrs(quality_tools))
     return rule(
         implementation = _impl,
+        doc = "Forwards one " + what + " target with dx quality sources.",
         provides = provides,
         attrs = attrs,
     )
@@ -399,6 +400,7 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
     if kind == "executable":
         return rule(
             implementation = _impl,
+            doc = "Forwards one " + what + " executable with dx quality sources.",
             executable = True,
             provides = provides,
             attrs = attrs,

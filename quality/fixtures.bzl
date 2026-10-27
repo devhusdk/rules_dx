@@ -94,6 +94,7 @@ def _real_source_target_impl(ctx):
 
 real_source_target = rule(
     implementation = _real_source_target_impl,
+    doc = "Sources by language for real quality aspects.",
     attrs = {
         "c_srcs": attr.label_list(
             allow_files = [".c", ".h"],

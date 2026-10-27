@@ -49,6 +49,7 @@ def _dx_aspect_note_impl(target, ctx):
 
 dx_aspect_note = aspect(
     implementation = _dx_aspect_note_impl,
+    doc = "Derives one aspect note for a target.",
     attr_aspects = ["deps"],
 )
 

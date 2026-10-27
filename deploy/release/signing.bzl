@@ -158,6 +158,7 @@ fn main() {
 
 _signing_launcher = rule(
     implementation = _signing_launcher_impl,
+    doc = "Writes the owner-gated signing deploy launcher Rust source.",
     attrs = {
         "artifacts": attr.label_list(mandatory = True),
         "cosign": attr.label(mandatory = True, providers = [CosignInfo]),

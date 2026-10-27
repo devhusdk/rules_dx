@@ -82,6 +82,7 @@ def _ndk_cc_toolchain_config_impl(ctx):
 
 ndk_cc_toolchain_config = rule(
     implementation = _ndk_cc_toolchain_config_impl,
+    doc = "NDK clang toolchain configuration for one Android tuple.",
     attrs = {
         "api_level": attr.int(mandatory = True),
         "clang_resource_dir": attr.string(mandatory = True),

@@ -230,6 +230,7 @@ def _dx_env_shard_impl(ctx):
 
 dx_env_shard = rule(
     implementation = _dx_env_shard_impl,
+    doc = "Declares environment plan entries for dx env.",
     attrs = {
         "deps": attr.label_list(
             default = [],
@@ -269,6 +270,7 @@ def _dx_env_plan_aspect_impl(target, ctx):
 
 dx_env_plan_aspect = aspect(
     implementation = _dx_env_plan_aspect_impl,
+    doc = "Collects environment plan shards through deps.",
     attr_aspects = _ENV_PLAN_ASPECT_ATTRS,
 )
 
@@ -329,6 +331,7 @@ def _rust_env_shard_impl(ctx):
 
 rust_env_shard = rule(
     implementation = _rust_env_shard_impl,
+    doc = "Declares environment plan entries from the sources of one Rust crate.",
     attrs = {
         "entries": attr.string_list(
             mandatory = True,
@@ -365,6 +368,7 @@ def _env_plan_subject_impl(ctx):
 
 env_plan_subject = rule(
     implementation = _env_plan_subject_impl,
+    doc = "Analysis subject reporting the environment plan of one target.",
     attrs = {
         "target": attr.label(
             aspects = [dx_env_plan_aspect],

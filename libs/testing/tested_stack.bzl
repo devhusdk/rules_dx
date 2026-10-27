@@ -53,6 +53,7 @@ def _tested_stack_impl(ctx):
 
 tested_stack = rule(
     implementation = _tested_stack_impl,
+    doc = "Writes the tested-stack manifest JSON.",
     attrs = {
         "bazel_version": attr.string(
             default = _BAZEL_VERSION,

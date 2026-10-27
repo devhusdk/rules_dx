@@ -147,6 +147,7 @@ def _environment_tool_impl(ctx):
 
 environment_tool = rule(
     implementation = _environment_tool_impl,
+    doc = "One tool that dx env puts on PATH under its names.",
     attrs = {
         "aliases": attr.string_list(
             default = [],
@@ -197,6 +198,7 @@ def _environment_config_impl(ctx):
 
 environment_config = rule(
     implementation = _environment_config_impl,
+    doc = "Collects environment tools and rejects host-name collisions.",
     attrs = {
         "tools": attr.label_list(
             default = [],
@@ -244,6 +246,7 @@ def _environment_tree_impl(ctx):
 
 environment_tree = rule(
     implementation = _environment_tree_impl,
+    doc = "Builds the bin directory of tool links for one environment.",
     attrs = {
         "_windows_os": attr.label(
             default = "@platforms//os:windows",
@@ -263,6 +266,7 @@ def _environment_metadata_impl(ctx):
 
 environment_metadata = rule(
     implementation = _environment_metadata_impl,
+    doc = "Writes the metadata JSON of one environment.",
     attrs = {
         "config": attr.label(
             mandatory = True,

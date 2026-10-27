@@ -65,6 +65,7 @@ def _quality_family_impl(ctx):
 
 quality_family = rule(
     implementation = _quality_family_impl,
+    doc = "Quality tool selection for one family.",
     attrs = {
         "audit": attr.string_list(
             default = [],
@@ -97,6 +98,7 @@ def _workspace_policy_impl(ctx):
 
 workspace_policy = rule(
     implementation = _workspace_policy_impl,
+    doc = "Workspace quality policy built from family sections.",
     attrs = {
         "families": attr.label_list(
             providers = [FamilyPolicyInfo],

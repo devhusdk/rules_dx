@@ -96,6 +96,7 @@ def _pypi_launcher_impl(ctx):
 
 _pypi_launcher = rule(
     implementation = _pypi_launcher_impl,
+    doc = "Writes the launcher Rust source for one PyPI deployment.",
     attrs = {
         "dist_name": attr.string(
             mandatory = True,

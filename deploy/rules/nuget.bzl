@@ -98,6 +98,7 @@ def _nuget_launcher_impl(ctx):
 
 _nuget_launcher = rule(
     implementation = _nuget_launcher_impl,
+    doc = "Writes the launcher Rust source for one NuGet deployment.",
     attrs = {
         "nupkg": attr.label(
             allow_single_file = True,

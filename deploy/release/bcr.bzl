@@ -97,6 +97,7 @@ fn main() {
 
 _bcr_launcher = rule(
     implementation = _bcr_launcher_impl,
+    doc = "Writes the owner-gated BCR deploy launcher Rust source.",
     attrs = {
         "inputs": attr.label_list(mandatory = True),
         "module_name": attr.string(mandatory = True),

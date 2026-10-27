@@ -12,6 +12,7 @@ def _settings_subject_impl(ctx):
 
 settings_subject = rule(
     implementation = _settings_subject_impl,
+    doc = "Analysis subject reporting the canonical quality settings.",
     attrs = {
         "_workspace": attr.label(default = "//config:workspace"),
     },

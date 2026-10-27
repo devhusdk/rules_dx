@@ -143,6 +143,7 @@ def _octopus_launcher_impl(ctx):
 
 _octopus_launcher = rule(
     implementation = _octopus_launcher_impl,
+    doc = "Writes the launcher Rust source for one Octopus deployment.",
     attrs = {
         "channel": attr.string(
             mandatory = True,

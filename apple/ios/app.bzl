@@ -207,6 +207,7 @@ def _app_selection_impl(ctx):
 
 _app_selection = rule(
     implementation = _app_selection_impl,
+    doc = "Fails analysis when an iOS app declaration is invalid.",
     attrs = {
         "arch": attr.string(mandatory = True),
         "bundle_id": attr.string(mandatory = True),
@@ -314,6 +315,7 @@ _CELL_ATTRS = {
 
 _library_cell = rule(
     implementation = _library_cell_impl,
+    doc = "Checks and forwards the app library for one iOS environment and arch.",
     attrs = dict(_CELL_ATTRS, **{
         "arch": attr.string(mandatory = True),
         "environment": attr.string(mandatory = True),
@@ -385,6 +387,7 @@ def _framework_cell_impl(ctx):
 
 _framework_cell = rule(
     implementation = _framework_cell_impl,
+    doc = "Checks and forwards the framework library for one iOS slice.",
     attrs = dict(_CELL_ATTRS, **{
         "library": attr.label(mandatory = True, providers = [CcInfo]),
         "slices": attr.string_list(mandatory = True),
@@ -580,6 +583,7 @@ def _test_selection_impl(ctx):
 
 _test_selection = rule(
     implementation = _test_selection_impl,
+    doc = "Fails analysis when an iOS app test declaration is invalid.",
     attrs = {
         "deployment": attr.string(mandatory = True),
         "device_type": attr.string(mandatory = True),
@@ -749,6 +753,7 @@ def _framework_selection_impl(ctx):
 
 _framework_selection = rule(
     implementation = _framework_selection_impl,
+    doc = "Fails analysis when an iOS framework declaration is invalid.",
     attrs = {
         "bundle_id": attr.string(mandatory = True),
         "bundle_name": attr.string(mandatory = True),
@@ -807,6 +812,7 @@ def _xcframework_check_impl(ctx):
 
 _xcframework_check = rule(
     implementation = _xcframework_check_impl,
+    doc = "Checks the slices of one XCFramework and repacks it.",
     attrs = {
         "bundle_id": attr.string(mandatory = True),
         "bundle_name": attr.string(mandatory = True),

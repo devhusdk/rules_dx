@@ -4,14 +4,12 @@ FROM ubuntu:24.04@sha256:69cecf4bbf72d2d44a9eef1b71fb98c7fb973d78af11399deccef19
 ENV DEBIAN_FRONTEND=noninteractive \
     USE_BAZEL_VERSION=9.2.0
 
-# Bootstrap tools only; toolchains resolve via Bazel. The base image is
-# digest-pinned, so apt package versions are not pinned separately.
+# Bootstrap tools only; toolchains resolve via Bazel.
 # hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl git \
     && rm -rf /var/lib/apt/lists/*
 
-# Fail the build if any stage of a piped RUN fails.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Pinned Bazelisk launcher.
@@ -24,7 +22,6 @@ RUN curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 -o /tmp/baze
 
 # Non-root dev user matching the devcontainers convention.
 RUN useradd -m -s /bin/bash vscode
-# The dev user is created by name just above; a numeric UID would drift from it.
 # hadolint ignore=DL3066
 USER vscode
 WORKDIR /workspaces/rules_dx

@@ -72,16 +72,29 @@ def _dx_test_exec_group_keys(groups):
     kept = {key: groups[key] for key in _DX_TEST_FORWARDER_EXEC_GROUPS if key in groups}
     return kept if kept else None
 
+def _dx_test_exec_properties(props):
+    """Keeps unprefixed and forwarder exec group prefixed exec_properties."""
+    kept = {
+        key: value
+        for key, value in props.items()
+        if "." not in key or key.split(".", 1)[0] in _DX_TEST_FORWARDER_EXEC_GROUPS
+    }
+    return kept if kept else None
+
 def dx_forwarded_test_kwargs(kwargs):
     """Extracts the standard test attributes a test forwarder preserves."""
     out = {}
     if "tags" in kwargs and kwargs["tags"] != None:
         out["tags"] = list(kwargs["tags"])
-    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "exec_properties", "flaky", "args"):
+    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "flaky", "args"):
         if key in kwargs and kwargs[key] != None:
             out[key] = kwargs[key]
     if "args" in out and kwargs.get("data", None) != None:
         out["data"] = kwargs["data"]
+    if kwargs.get("exec_properties", None) != None:
+        props = _dx_test_exec_properties(kwargs["exec_properties"])
+        if props != None:
+            out["exec_properties"] = props
     if kwargs.get("exec_group_compatible_with", None) != None:
         groups = _dx_test_exec_group_keys(kwargs["exec_group_compatible_with"])
         if groups != None:

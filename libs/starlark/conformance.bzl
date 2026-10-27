@@ -25,6 +25,8 @@ def dx_forwarder_checks():
         expect_equal("test kwargs keep env upstream", dx_forwarded_test_kwargs({"env": {"K": "1"}}), {}),
         expect_equal("test kwargs keep env_inherit upstream", dx_forwarded_test_kwargs({"env_inherit": ["HOME"]}), {}),
         expect_equal("test kwargs forward exec_properties", dx_forwarded_test_kwargs({"exec_properties": {"Pool": "gpu"}}), {"exec_properties": {"Pool": "gpu"}}),
+        expect_equal("test kwargs drop other exec group properties", dx_forwarded_test_kwargs({"exec_properties": {"cpp_link.Pool": "c"}}), {}),
+        expect_equal("test kwargs keep test and unprefixed properties", dx_forwarded_test_kwargs({"exec_properties": {"Pool": "a", "test.Pool": "b", "cpp_link.Pool": "c"}}), {"exec_properties": {"Pool": "a", "test.Pool": "b"}}),
         expect_equal("test kwargs forward exec_compatible_with", dx_forwarded_test_kwargs({"exec_compatible_with": ["@platforms//os:linux"]}), {"exec_compatible_with": ["@platforms//os:linux"]}),
         expect_equal("test kwargs forward test exec group", dx_forwarded_test_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}}), {"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}}),
         expect_equal("test kwargs keep other exec groups upstream", dx_forwarded_test_kwargs({"exec_group_compatible_with": {"cpp_link": ["@platforms//os:linux"]}}), {}),

@@ -486,6 +486,16 @@ def wrapper_shape_kwargs_tests(name):
                 {"exec_properties": {"Pool": "gpu"}},
             ),
             expect_equal(
+                "test forward drops other exec group properties",
+                dx_test_forward_kwargs({"exec_properties": {"cpp_link.Pool": "c"}}),
+                {},
+            ),
+            expect_equal(
+                "test forward keeps test and unprefixed properties",
+                dx_test_forward_kwargs({"exec_properties": {"Pool": "a", "test.Pool": "b", "cpp_link.Pool": "c"}}),
+                {"exec_properties": {"Pool": "a", "test.Pool": "b"}},
+            ),
+            expect_equal(
                 "test forward rides exec_compatible_with",
                 dx_test_forward_kwargs({"exec_compatible_with": ["@platforms//os:linux"]}),
                 {"exec_compatible_with": ["@platforms//os:linux"]},

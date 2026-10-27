@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use super::{
-    file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, testlog_path,
-    testlog_path_under, BepError, EventGap, EventLedger, EventLines, OutputLocations,
+    file_uri_to_path, is_bytestream_uri, malformed, missing_test_output, prefix_names_repo,
+    testlog_path, testlog_path_under, BepError, EventGap, EventLedger, EventLines, OutputLocations,
     TestOutputIdentity,
 };
 
@@ -543,7 +543,8 @@ fn resolve_bytestream(
         ));
     };
     if let Some(root) = locations.prefix_testlogs_root(&file.path_prefix) {
-        return testlog_path_under(root, label, &file.name, identity);
+        let root_names_repo = prefix_names_repo(&file.path_prefix, label);
+        return testlog_path_under(root, label, &file.name, identity, root_names_repo);
     }
     testlog_path(locations, mnemonic, label, &file.name, identity)
 }
@@ -1290,6 +1291,29 @@ mod tests {
                     "k8-fastbuild",
                     "testlogs",
                     "external",
+                    "repo",
+                    "p",
+                    "t",
+                    "test.xml"
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn bytestream_path_prefix_naming_the_repository_skips_the_external_segments() {
+        let locations = configuration_locations();
+        let prefix = ["bazel-out", "k8-fastbuild", "testlogs", "repo"];
+        let stream = configured_result("@@repo//p:t", "cfgTop", 1, prefixed_xml(&prefix));
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("sibling");
+        assert_eq!(
+            got[0].exec_path,
+            want_path(
+                "/out/execroot",
+                &[
+                    "bazel-out",
+                    "k8-fastbuild",
+                    "testlogs",
                     "repo",
                     "p",
                     "t",

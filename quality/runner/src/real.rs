@@ -703,7 +703,7 @@ mod tests {
         let rules = &config["rules"];
         let pseudo = &rules["selector-pseudo-class-no-unknown"];
         assert_eq!(pseudo[0], true);
-        for name in ["global", "local", "export", "import"] {
+        for name in ["global", "local", "export", "import", "external"] {
             assert!(
                 pseudo[1]["ignorePseudoClasses"]
                     .as_array()
@@ -714,9 +714,23 @@ mod tests {
         }
         let property = &rules["property-no-unknown"];
         assert_eq!(property[0], true);
-        assert!(property[1]["ignoreProperties"]
-            .as_array()
-            .expect("ignoreProperties")
-            .contains(&serde_json::Value::from("composes")));
+        for name in ["composes", "compose-with"] {
+            assert!(
+                property[1]["ignoreProperties"]
+                    .as_array()
+                    .expect("ignoreProperties")
+                    .contains(&serde_json::Value::from(name)),
+                "{name}"
+            );
+        }
+        for name in [":export", "/^:import/"] {
+            assert!(
+                property[1]["ignoreSelectors"]
+                    .as_array()
+                    .expect("ignoreSelectors")
+                    .contains(&serde_json::Value::from(name)),
+                "{name}"
+            );
+        }
     }
 }

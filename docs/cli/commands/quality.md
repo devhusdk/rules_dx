@@ -822,7 +822,7 @@ bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_pkl=//tools:pkl
 ### Terraform
 
 `terraform fmt` runs from the managed pin for format. Select it in a
-`terraform` family. It runs on Linux x86_64. It never runs `init`, reads state
+`terraform` family. It runs on Linux x86_64 and arm64, macOS arm64 and Windows x86_64. It never runs `init`, reads state
 or contacts a backend.
 
 ```python
@@ -847,7 +847,8 @@ run with the file and line. It never counts as clean. `terraform fmt` takes no
 config file.
 
 To use OpenTofu, point `tool_terraform` at a `tofu` executable file. The
-findings keep the `terraform` tool ID.
+findings keep the `terraform` tool ID. The OpenTofu override is checked on
+Linux x86_64 only.
 
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_terraform=@tofu//:tofu

@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load(":real_aspects.bzl", "real_wired_capabilities")
-load(":support.bzl", "SUPPORT_RECORDS", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state")
+load(":support.bzl", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state")
 
 def _without(wired, tool, capability):
     """Returns a copy of the wired map with one tool capability removed."""
@@ -67,6 +67,11 @@ def support_unit_tests(name):
                 "unknown tools stay outside support",
                 [is_support_tool("ruff"), support_state("ruff")],
                 [False, "unknown"],
+            ),
+            expect_equal(
+                "terraform format record covers four platforms",
+                TERRAFORM_FORMAT_SUPPORT["platforms"],
+                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "supported record without a pinned artifact is an actionable failure",

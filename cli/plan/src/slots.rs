@@ -26,7 +26,7 @@ pub const DISK_LOW_CODE: &str = "disk_low";
 
 pub mod pressure;
 
-use pressure::{HostPressure, Pressure};
+use pressure::{HostPressure, Pressure, PressurePause, PRESSURE_WAIT};
 
 /// Set once a slot is held; nested dx calls see it and take no second slot.
 pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
@@ -643,7 +643,14 @@ pub fn acquire(
     label: &str,
     on_wait: &mut dyn FnMut(&str),
 ) -> io::Result<Slot> {
-    acquire_with(dir, count, label, on_wait, &mut || {}, &mut |_, _| {})
+    acquire_with(
+        dir,
+        count,
+        label,
+        &mut |holder, _| on_wait(holder),
+        &mut || {},
+        &mut |_, _| {},
+    )
 }
 
 /// Takes a slot like `acquire`, calling `on_poll` before each sleep and `on_skip` for each unusable slot file.
@@ -651,7 +658,7 @@ fn acquire_with(
     dir: &Path,
     count: usize,
     label: &str,
-    on_wait: &mut dyn FnMut(&str),
+    on_wait: &mut dyn FnMut(&str, WaitReason),
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
@@ -660,7 +667,15 @@ fn acquire_with(
         reserve: count..count,
         extras: count..count,
     };
-    acquire_reserving(dir, &layout, None, label, on_wait, on_poll, on_skip)
+    acquire_reserving(
+        dir,
+        &layout,
+        Admission::none(),
+        label,
+        on_wait,
+        on_poll,
+        on_skip,
+    )
 }
 
 /// Where a gate's slots sit: base `0..count`, the nested reserve, then remote-only extras.
@@ -706,10 +721,10 @@ fn take_extra(
     dir: &Path,
     extras: Range<usize>,
     label: &str,
-    pressure: &dyn Pressure,
+    high: Option<bool>,
     allowed: &dyn Fn(usize) -> bool,
 ) -> Option<Slot> {
-    if extras.is_empty() || extra_recent(dir) || pressure.high() != Some(false) {
+    if extras.is_empty() || extra_recent(dir) || high != Some(false) {
         return None;
     }
     let (taken, _) = scan(dir, extras, label, allowed);
@@ -718,13 +733,98 @@ fn take_extra(
     Some(slot)
 }
 
+/// Why a waiter is not in a slot yet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WaitReason {
+    /// Every slot it may take is held.
+    Held,
+    /// A slot is free but the host is under memory pressure.
+    Pressure,
+}
+
+impl WaitReason {
+    fn as_str(self) -> &'static str {
+        match self {
+            WaitReason::Held => "held",
+            WaitReason::Pressure => "pressure",
+        }
+    }
+}
+
+/// What a waiter needs to decide whether memory pressure holds it back.
+struct Admission<'a> {
+    pressure: Option<&'a dyn Pressure>,
+    remote: bool,
+    pause: PressurePause,
+    now: &'a dyn Fn() -> Instant,
+}
+
+impl Admission<'static> {
+    /// No pressure source: never held back, never takes an extra.
+    fn none() -> Self {
+        Admission {
+            pressure: None,
+            remote: false,
+            pause: PressurePause::new(PRESSURE_WAIT),
+            now: &Instant::now,
+        }
+    }
+}
+
+/// One pressure reading per poll, taken only when something needs it.
+struct Reading<'a> {
+    pressure: Option<&'a dyn Pressure>,
+    value: std::cell::Cell<Option<Option<bool>>>,
+}
+
+impl<'a> Reading<'a> {
+    fn new(pressure: Option<&'a dyn Pressure>) -> Self {
+        Self {
+            pressure,
+            value: std::cell::Cell::new(None),
+        }
+    }
+
+    fn get(&self) -> Option<bool> {
+        if let Some(value) = self.value.get() {
+            return value;
+        }
+        let value = self.pressure.and_then(|pressure| pressure.high());
+        self.value.set(Some(value));
+        value
+    }
+}
+
+/// Whether the waiter should skip a free base slot now: the host is under pressure, another
+/// slot is held so waiting can help, and the waiter has not already paused for the cap.
+fn base_held_back(
+    dir: &Path,
+    layout: &Layout,
+    admission: &mut Admission<'_>,
+    reading: &Reading<'_>,
+    allowed: &dyn Fn(usize) -> bool,
+) -> bool {
+    if admission.pressure.is_none() || admission.pause.expired() {
+        return false;
+    }
+    let free = (0..layout.count).any(|index| {
+        allowed(index) && matches!(lock_slot(&slot_path(dir, index), true), Ok(Some(_)))
+    });
+    if !free || held(dir, layout.counted(), usize::MAX) <= 1 {
+        return false;
+    }
+    let now = (admission.now)();
+    admission.pause.hold_back(reading.get(), now)
+}
+
 /// One all-or-nothing try by a waiter that is not first in line. Takes shared
 /// locks on its reserve and one base or extra slot, all outside `allowed`'s
 /// refusals, and keeps nothing when any step fails.
 fn pass_ahead(
     dir: &Path,
     layout: &Layout,
-    pressure: Option<&dyn Pressure>,
+    admission: &mut Admission<'_>,
+    reading: &Reading<'_>,
     label: &str,
     allowed: &dyn Fn(usize) -> bool,
     on_skip: &mut dyn FnMut(&Path, &io::Error),
@@ -741,13 +841,18 @@ fn pass_ahead(
             Err(error) => on_skip(&path, &error),
         }
     }
+    if base_held_back(dir, layout, admission, reading, allowed) {
+        return None;
+    }
     let (taken, skipped) = scan(dir, 0..layout.count, label, allowed);
     for (path, error) in &skipped {
         on_skip(path, error);
     }
     let taken = taken.ok().flatten().or_else(|| {
-        pressure
-            .and_then(|pressure| take_extra(dir, layout.extras.clone(), label, pressure, allowed))
+        admission
+            .remote
+            .then(|| take_extra(dir, layout.extras.clone(), label, reading.get(), allowed))
+            .flatten()
     });
     let mut slot = taken?;
     slot._reserve = held;
@@ -757,24 +862,35 @@ fn pass_ahead(
 fn acquire_reserving(
     dir: &Path,
     layout: &Layout,
-    pressure: Option<&dyn Pressure>,
+    mut admission: Admission<'_>,
     label: &str,
-    on_wait: &mut dyn FnMut(&str),
+    on_wait: &mut dyn FnMut(&str, WaitReason),
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
-    let ticket = enqueue_wanting(dir, label, &Want::of(layout, pressure.is_some())).ok();
+    let ticket = enqueue_wanting(dir, label, &Want::of(layout, admission.remote)).ok();
     let mut pending: Vec<usize> = layout.reserve.clone().collect();
     let mut held: Vec<File> = Vec::new();
     let mut announced = false;
     loop {
+        let reading = Reading::new(admission.pressure);
+        let mut held_back = false;
         let (ahead, forbidden) = ticket
             .as_ref()
             .map_or((0, Vec::new()), |ticket| ticket.ahead(dir));
         if ahead > 0 {
             // Pass waiters ahead only through slots none of them can use now.
             let allowed = |index: usize| !is_forbidden(&forbidden, index);
-            if let Some(slot) = pass_ahead(dir, layout, pressure, label, &allowed, on_skip) {
+            let passed = pass_ahead(
+                dir,
+                layout,
+                &mut admission,
+                &reading,
+                label,
+                &allowed,
+                on_skip,
+            );
+            if let Some(slot) = passed {
                 return Ok(slot);
             }
         } else {
@@ -792,16 +908,18 @@ fn acquire_reserving(
                     }
                 }
             });
-            if pending.is_empty() {
+            held_back = pending.is_empty()
+                && base_held_back(dir, layout, &mut admission, &reading, &|_| true);
+            if pending.is_empty() && !held_back {
                 let (taken, skipped) = scan(dir, 0..layout.count, label, &|_| true);
                 let taken = taken?;
                 for (path, error) in &skipped {
                     on_skip(path, error);
                 }
                 let taken = taken.or_else(|| {
-                    pressure.and_then(|pressure| {
-                        take_extra(dir, layout.extras.clone(), label, pressure, &|_| true)
-                    })
+                    admission.remote.then(|| {
+                        take_extra(dir, layout.extras.clone(), label, reading.get(), &|_| true)
+                    })?
                 });
                 if let Some(mut slot) = taken {
                     slot._reserve = held;
@@ -812,14 +930,23 @@ fn acquire_reserving(
         if !announced {
             announced = true;
             let names = holder(dir, layout.named(), ahead);
-            let paused = pressure.is_some_and(|pressure| {
-                pressure.high() == Some(true) && extra_free(dir, layout.extras.clone())
-            });
-            on_wait(&if paused {
-                format!("{names}; extra slots paused under memory pressure")
+            let extras_paused = admission.remote
+                && reading.get() == Some(true)
+                && extra_free(dir, layout.extras.clone());
+            let (message, reason) = if held_back {
+                (
+                    format!("{names}; paused under memory pressure"),
+                    WaitReason::Pressure,
+                )
+            } else if extras_paused {
+                (
+                    format!("{names}; extra slots paused under memory pressure"),
+                    WaitReason::Pressure,
+                )
             } else {
-                names
-            });
+                (names, WaitReason::Held)
+            };
+            on_wait(&message, reason);
         }
         if let Some(signo) = dx_process::interrupted() {
             return Err(stopped(signo));
@@ -983,6 +1110,7 @@ pub struct Gate {
     extras: usize,
     remote: bool,
     pressure: Arc<dyn Pressure>,
+    clock: Clock,
     label: String,
     json: bool,
     warm: Option<Warmth>,
@@ -990,6 +1118,16 @@ pub struct Gate {
     resources: Option<Resources>,
     reclaimer: Option<Reclaimer>,
     reaper: Option<Reaper>,
+}
+
+/// The time source a gate paces its pressure pause by.
+#[derive(Clone)]
+struct Clock(Arc<dyn Fn() -> Instant + Send + Sync>);
+
+impl std::fmt::Debug for Clock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Clock")
+    }
 }
 
 /// Stops idle Bazel servers outside the kept workspaces until about `target` bytes are freed; returns how many stopped.
@@ -1030,7 +1168,8 @@ impl Gate {
             pool: count,
             extras: 0,
             remote: false,
-            pressure: Arc::new(HostPressure),
+            pressure: Arc::new(HostPressure::new(BYTES_PER_SLOT)),
+            clock: Clock(Arc::new(Instant::now)),
             label,
             json,
             warm: None,
@@ -1103,7 +1242,16 @@ impl Gate {
         }
     }
 
-    /// Reads memory pressure from `pressure` before taking an extra slot.
+    /// Paces the pressure pause by `clock`.
+    #[cfg(test)]
+    fn with_clock(self, clock: impl Fn() -> Instant + Send + Sync + 'static) -> Self {
+        Gate {
+            clock: Clock(Arc::new(clock)),
+            ..self
+        }
+    }
+
+    /// Reads memory pressure from `pressure` before taking a base or extra slot.
     pub fn with_pressure(self, pressure: Arc<dyn Pressure>) -> Self {
         Gate { pressure, ..self }
     }
@@ -1167,6 +1315,11 @@ impl Gate {
             ..Gate::new(dir, count, workspace.display().to_string(), json)
                 .reserving(pool)
                 .extra(extras, remote)
+                .with_pressure(Arc::new(HostPressure::new(if remote {
+                    BYTES_PER_REMOTE_SLOT
+                } else {
+                    BYTES_PER_SLOT
+                })))
                 .sharing(cpus, memory, reserved)
                 .reclaiming(move || dx_worktree::reclaim_for_build(&reclaim_in))
                 .reaping(move |workspaces, target| {
@@ -1209,13 +1362,18 @@ impl Gate {
         let mut keep = self.warm.clone().map(KeepWarm::new);
         let out = RefCell::new((err, events));
         let layout = self.layout();
-        let pressure = self.remote.then_some(&*self.pressure);
+        let admission = Admission {
+            pressure: Some(&*self.pressure),
+            remote: self.remote,
+            pause: PressurePause::new(PRESSURE_WAIT),
+            now: &*self.clock.0,
+        };
         let result = acquire_reserving(
             &self.dir,
             &layout,
-            pressure,
+            admission,
             &self.label,
-            &mut |holder: &str| {
+            &mut |holder: &str, reason: WaitReason| {
                 let reaped = self.reap(&layout);
                 let (err, events) = &mut *out.borrow_mut();
                 let message = wait_message(holder) + &reaped_suffix(reaped.unwrap_or(0));
@@ -1225,8 +1383,11 @@ impl Gate {
                         command,
                         dx_output::NoticeEvent::info(WAITING_FOR_BUILD_SLOT_CODE, message),
                     );
-                    if let (Some(reaped), Some(map)) = (reaped, event.as_object_mut()) {
-                        map.insert("reaped_servers".to_owned(), reaped.into());
+                    if let Some(map) = event.as_object_mut() {
+                        if let Some(reaped) = reaped {
+                            map.insert("reaped_servers".to_owned(), reaped.into());
+                        }
+                        map.insert("reason".to_owned(), reason.as_str().into());
                     }
                     write_notice(&mut **events, &event);
                 }
@@ -1700,6 +1861,7 @@ mod tests {
         events: &mut dyn Write,
     ) -> Result<Option<Slot>, i32> {
         Gate::from_env(workspace, env_get, json, &[], BuildSlots::Auto)
+            .map(|gate| gate.with_pressure(Arc::new(Fixed(Some(false)))))
             .map_or(Ok(None), |gate| gate.hold(command, err, events))
     }
 
@@ -1911,7 +2073,14 @@ mod tests {
                     .expect("extra")
             })
             .collect();
-        let gate = remote_gate(&dir, true, Some(true));
+        // Each clock read is past the cap, so the second read releases the pause.
+        let start = Instant::now();
+        let ticks = std::sync::atomic::AtomicU32::new(0);
+        let clock = move || {
+            let n = ticks.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            start + PRESSURE_WAIT * (n + 1)
+        };
+        let gate = remote_gate(&dir, true, Some(true)).with_clock(clock);
         let (waiter, rx) = spawn_take(gate);
         announced(&rx);
         drop(fill);
@@ -1922,6 +2091,94 @@ mod tests {
             "dx: waiting for a build slot (held by fill and 2 more)\n"
         );
         drop(extras);
+    }
+
+    #[derive(Debug)]
+    struct Switch(std::sync::atomic::AtomicBool);
+
+    impl Pressure for Switch {
+        fn high(&self) -> Option<bool> {
+            Some(self.0.load(std::sync::atomic::Ordering::SeqCst))
+        }
+    }
+
+    /// A clock that starts now and moves only when told.
+    fn fake_clock() -> (
+        impl Fn() -> Instant + Send + Sync + 'static,
+        Arc<Mutex<Duration>>,
+    ) {
+        let start = Instant::now();
+        let offset = Arc::new(Mutex::new(Duration::ZERO));
+        let read = offset.clone();
+        (move || start + *read.lock().expect("clock"), offset)
+    }
+
+    fn base_gate(dir: &Path, high: Arc<dyn Pressure>) -> Gate {
+        Gate::new(dir.to_path_buf(), 2, "gate".to_owned(), true).with_pressure(high)
+    }
+
+    #[test]
+    fn a_free_base_slot_waits_under_pressure_while_another_is_held() {
+        let scratch = dx_test_scratch::scratch("dx-slots-base-pressure-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
+        let switch = Arc::new(Switch(std::sync::atomic::AtomicBool::new(true)));
+        let (waiter, rx) = spawn_take(base_gate(&dir, switch.clone()));
+        announced(&rx);
+        std::thread::sleep(POLL * 2);
+        assert!(!waiter.is_finished());
+        switch.0.store(false, std::sync::atomic::Ordering::SeqCst);
+        let (slot, err, events) = waiter.join().expect("join");
+        assert_eq!(slot.index, 1);
+        assert_eq!(
+            err,
+            "dx: waiting for a build slot (held by fill; paused under memory pressure)\n"
+        );
+        assert!(events.contains("\"reason\":\"pressure\""), "{events}");
+        drop(fill);
+    }
+
+    #[test]
+    fn the_pause_ends_after_the_cap_even_under_pressure() {
+        let scratch = dx_test_scratch::scratch("dx-slots-base-cap-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
+        let (clock, offset) = fake_clock();
+        let gate = base_gate(&dir, Arc::new(Fixed(Some(true)))).with_clock(clock);
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        std::thread::sleep(POLL * 2);
+        assert!(!waiter.is_finished());
+        *offset.lock().expect("clock") = PRESSURE_WAIT;
+        let (slot, _, _) = waiter.join().expect("join");
+        assert_eq!(slot.index, 1);
+        drop(fill);
+    }
+
+    #[test]
+    fn nothing_pauses_when_no_other_slot_is_held_or_there_is_no_signal() {
+        let scratch = dx_test_scratch::scratch("dx-slots-base-free-");
+        let dir = scratch.path().join("slots");
+        let gate = base_gate(&dir, Arc::new(Fixed(Some(true))));
+        let (slot, err, _) = take_gate(&gate);
+        assert_eq!((slot.index, err.as_str()), (0, ""));
+        let blind = base_gate(&dir, Arc::new(Fixed(None)));
+        let (other, err, _) = take_gate(&blind);
+        assert_eq!((other.index, err.as_str()), (1, ""));
+    }
+
+    #[test]
+    fn a_normal_wait_reports_the_held_reason() {
+        let scratch = dx_test_scratch::scratch("dx-slots-base-held-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
+        let gate = Gate::new(dir.clone(), 1, "gate".to_owned(), true)
+            .with_pressure(Arc::new(Fixed(Some(false))));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        drop(fill);
+        let (_, _, events) = waiter.join().expect("join");
+        assert!(events.contains("\"reason\":\"held\""), "{events}");
     }
 
     #[test]
@@ -3125,9 +3382,9 @@ mod tests {
             acquire_reserving(
                 &head_dir,
                 &layout,
-                None,
+                Admission::none(),
                 "r",
-                &mut |holder| {
+                &mut |holder, _| {
                     sender.send(holder.to_owned()).expect("send");
                 },
                 &mut || {},
@@ -3165,9 +3422,9 @@ mod tests {
             acquire_reserving(
                 &rules_dx_dir,
                 &layout,
-                None,
+                Admission::none(),
                 "r",
-                &mut |holder| {
+                &mut |holder, _| {
                     sender.send(holder.to_owned()).expect("send");
                 },
                 &mut || {},
@@ -3514,7 +3771,7 @@ mod tests {
                 &waiter_dir,
                 1,
                 "tree-b",
-                &mut |_| {},
+                &mut |_, _| {},
                 &mut || {
                     seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 },
@@ -3687,7 +3944,7 @@ mod tests {
             &dir,
             1,
             "tree",
-            &mut |_| {},
+            &mut |_, _| {},
             &mut || polls += 1,
             &mut |_, _| {},
         )

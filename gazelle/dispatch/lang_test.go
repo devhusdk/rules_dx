@@ -476,7 +476,7 @@ func sortedKeys(m map[string]string) []string {
 func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	const oneSource = "add a local one-source library or an exact # gazelle:resolve mapping"
 	const oneSourceRelative = oneSource + " (relative imports use the workspace path without extension and also search TypeScript and JavaScript targets)"
-	const jvm = "add a local library or a # gazelle:resolve mapping on the qualified import or its package"
+	const jvm = "add a local library, a maven_install.json artifact, or a # gazelle:resolve mapping on the qualified import or its package"
 	const csharp = "add a local library that declares the namespace or a # gazelle:resolve mapping on the full namespace"
 	hints := map[string]string{
 		"astro":  oneSourceRelative,

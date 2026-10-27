@@ -3,7 +3,7 @@
      matching third_party/jvm/maven_install.json plus @maven hub). The Java
      Gazelle extension reads only `.java` sources; generation resolves the
      `com.google.common.collect.ImmutableList` import through the
-     `# gazelle:resolve` mapping on its package and never writes this pom. -->
+     `maven_install.json` package list and never writes this pom. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">

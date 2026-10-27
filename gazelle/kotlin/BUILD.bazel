@@ -83,7 +83,7 @@ rust_test(
         "DX_FIXTURE": "$(rootpath testdata/compile_external/WORKSPACE)",
         "DX_GAZELLE": "$(rootpath //gazelle/dispatch:gazelle)",
         "DX_LANGUAGE": "kotlin",
-        "DX_UNRESOLVED_HINT": "add a local library or a # gazelle:resolve mapping on the qualified import or its package",
+        "DX_UNRESOLVED_HINT": "add a local library, a maven_install.json artifact, or a # gazelle:resolve mapping on the qualified import or its package",
     },
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],

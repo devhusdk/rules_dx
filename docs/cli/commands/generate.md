@@ -111,6 +111,22 @@ generated, and `main` fails the run.
 `# gazelle:lang` must list `dx_dispatch` (for example
 `# gazelle:lang go,dx_dispatch`), or `dx generate` fails.
 
+`# gazelle:dx_external <ecosystem> <path|off> [<repo>]` names the manifest or
+lockfile that third-party imports resolve through, for this directory and
+below. The path is relative to the repository root. Ecosystems: `go` (a
+`go.mod`, no repo) and `maven` (a rules_jvm_external `maven_install.json`,
+repo `maven` by default). Repeat the line to feed one ecosystem from several
+files. The lines in one `BUILD` file replace what the directory inherited, and
+`off` drops it. Without a directive, a `go.mod` or `maven_install.json` in a
+directory applies to that directory and below. `dx generate` fails on a
+malformed line, an unknown ecosystem, a repo for `go`, or a file that is
+missing or does not parse.
+
+```starlark
+# gazelle:dx_external maven third_party/jvm/maven_install.json maven
+# gazelle:dx_external go off
+```
+
 `# gazelle:resolve <language> <import> <label>` maps one import to an exact
 label.
 
@@ -149,3 +165,32 @@ or a `dx_ignore_import` names the full namespace, such as `Newtonsoft.Json`.
 A bare last segment such as `Json` no longer matches, so a stale bare-name
 entry fails the run. A namespace that more than one local library declares
 fails as ambiguous.
+
+## Third-party imports
+
+An import resolves in this order:
+
+1. An exact `# gazelle:resolve` mapping.
+2. A library in the workspace.
+3. A `# gazelle:dx_ignore_import` entry.
+4. The `dx_external` sources for the language.
+5. Otherwise the run fails with an unresolved import.
+
+- `go`: an import under a module that `go.mod` requires directly resolves to
+  `@<repo>//<package>`, with the repo named from the module path, as in
+  `@com_github_google_go_cmp//cmp`. A module required only as `// indirect`
+  fails with a hint to require it directly. A module replaced by a local path
+  is skipped.
+- `java`, `kotlin`, `scala`: an import resolves through the `packages` list in
+  `maven_install.json` to `@<repo>//:<group>_<artifact>`, as in
+  `@maven//:com_google_guava_guava`. The import itself is tried first, then its
+  enclosing classes, then its own package. A package that more than one
+  artifact ships fails as ambiguous; add a `resolve` mapping for it.
+- `rust`: crates resolve through `Cargo.toml`.
+- `python`, `javascript`, `typescript`, `csharp`, `fsharp`, `ruby` and the
+  other languages need one `# gazelle:resolve` line per third-party import.
+
+```starlark
+# gazelle:resolve ruby rspec @bundle
+# gazelle:resolve csharp Newtonsoft.Json @paket.main//newtonsoft.json
+```

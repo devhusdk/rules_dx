@@ -388,3 +388,50 @@ func TestResolveQualifiedExternalImport(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveMavenInstall(t *testing.T) {
+	lock := `{"packages": {"com.google.guava:guava": ["com.google.common.collect"]}}`
+	for _, tc := range []struct {
+		name, file, directive string
+	}{
+		{"root lock", "maven_install.json", ""},
+		{"directive", "third_party/jvm/lock.json", "# gazelle:dx_external maven third_party/jvm/lock.json hub\n"},
+	} {
+		root := t.TempDir()
+		path := filepath.Join(root, filepath.FromSlash(tc.file))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(lock), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		lang := NewLanguage().(*common.SingleLang)
+		lang.Before(context.Background())
+		cfg := config.New()
+		cfg.RepoRoot = root
+		resolver := &resolve.Configurer{}
+		resolver.RegisterFlags(nil, "update", cfg)
+		if err := resolver.CheckFlags(nil, cfg); err != nil {
+			t.Fatal(err)
+		}
+		f, err := rule.LoadData("BUILD.bazel", "", []byte(tc.directive))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resolver.Configure(cfg, "", f)
+		lang.Configure(cfg, "", f)
+		want := "@maven//:com_google_guava_guava"
+		if tc.directive != "" {
+			want = "@hub//:com_google_guava_guava"
+		}
+		r := rule.NewRule(LibraryKind, "app")
+		lang.Resolve(cfg, resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return nil }), nil, r,
+			common.WrapImportSet([]string{"com.google.common.collect.ImmutableList"}), label.New("", "app", "app"))
+		if lang.Failed() {
+			t.Fatalf("%s: a lockfile import was reported", tc.name)
+		}
+		if got := strings.Join(r.AttrStrings("deps"), ","); got != want {
+			t.Errorf("%s: deps = %q, want %q", tc.name, got, want)
+		}
+	}
+}

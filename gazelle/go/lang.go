@@ -56,6 +56,7 @@ func newLang() *goLang {
 		Kinds:          goKinds,
 		DefsPackage:    "go/rules:defs.bzl",
 		IsStdLib:       IsStdLib,
+		External:       "go",
 		UnresolvedHint: "add a go_library with that importpath or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})}
@@ -311,14 +312,14 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 		spec.SkipDep = func(dep label.Label) bool { return embeds(r, from, dep) }
 	}
 	unresolved := spec.FailUnresolved
-	spec.FailUnresolved = func(from label.Label, name string) {
+	spec.FailUnresolved = func(from label.Label, name string, hint string) {
 		if leaf := path.Base(name); leaf != name {
 			if override, found := resolve.FindRuleWithOverride(c, resolve.ImportSpec{Lang: languageName, Imp: leaf}, languageName); found {
 				l.Fail("go: %s: unresolved import %q; # gazelle:resolve go %s %s names only the last path element, so key it by the full import path", from, name, leaf, override)
 				return
 			}
 		}
-		unresolved(from, name)
+		unresolved(from, name, hint)
 	}
 	common.ResolveSingle(c, ix, r, raw, from, spec)
 }

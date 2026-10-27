@@ -1,6 +1,5 @@
 load("@rules_dx//go/rules:defs.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
-# gazelle:resolve go github.com/google/go-cmp/cmp @com_github_google_go_cmp//cmp:cmp
 
 go_library(
     name = "greet",

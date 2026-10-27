@@ -1,0 +1,11 @@
+load("@rules_dx//go/rules:defs.bzl", "go_library")
+
+go_library(
+    name = "pkg",
+    srcs = ["pkg.go"],
+    importpath = "example.test/demo/pkg",
+    deps = [
+        "@com_github_google_go_cmp//cmp",
+        "@in_gopkg_yaml_v3//:yaml_v3",
+    ],
+)

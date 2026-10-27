@@ -143,31 +143,49 @@ jobs:
           evidence="$checkout/evidence"
           bazel build --noshow_progress //cli/cli:dx 2>&1 | tail -n 20
           cp -L bazel-bin/cli/cli/dx "$RUNNER_TEMP/dx"
-          starter() {
-            set -e
-            cd "$RUNNER_TEMP"
-            ./dx new --apply rust-android demo-app --workspace "$RUNNER_TEMP"
-            cd demo-app
-            printf 'local_path_override(module_name = "rules_dx", path = "%s")\n' "$checkout" >> MODULE.bazel
-            bazel build --noshow_progress --config=android :demo-app_apk_file
-            bazel test --noshow_progress --config=android :demo-app_check_test
-            adb -s emulator-5554 logcat -c
-            bazel run --noshow_progress --config=android :demo-app_install
-            bazel run --noshow_progress --config=android :demo-app_start
-            waited=0
-            until adb -s emulator-5554 logcat -d -s DxApp:I | grep -q 'greeting=Hello from Rust on Android!'; do
-              if [ "$waited" -ge 60 ]; then
-                echo "android: the starter greeting is absent from logcat after 60 s" && return 1
-              fi
-              sleep 1
-              waited=$((waited + 1))
-            done
-            adb -s emulator-5554 logcat -d -s DxApp:I | tee "$evidence/logcat-starter.txt"
-          }
+          # The body runs as its own `bash -e` script: `set -e` inside a function whose
+          # status is tested by `||` is ignored, so a failed build or check would not stop it.
+          cat > "$RUNNER_TEMP/starter.sh" <<'STARTER'
+          set -euo pipefail
+          checkout="$1"
+          evidence="$2"
+          cd "$RUNNER_TEMP"
+          ./dx new --apply rust-android demo-app --workspace "$RUNNER_TEMP"
+          cd demo-app
+          printf 'local_path_override(module_name = "rules_dx", path = "%s")\n' "$checkout" >> MODULE.bazel
+          bazel build --noshow_progress --config=android :demo-app_apk_file
+          bazel test --noshow_progress --config=android :demo-app_check_test
+          adb -s emulator-5554 logcat -c
+          bazel run --noshow_progress --config=android :demo-app_install
+          bazel run --noshow_progress --config=android :demo-app_start
+          waited=0
+          until adb -s emulator-5554 logcat -d -s DxApp:I | grep -q 'greeting=Hello from Rust on Android!'; do
+            if [ "$waited" -ge 60 ]; then
+              echo "android: the starter greeting is absent from logcat after 60 s"
+              exit 1
+            fi
+            sleep 1
+            waited=$((waited + 1))
+          done
+          adb -s emulator-5554 logcat -d -s DxApp:I | tee "$evidence/logcat-starter.txt"
+          STARTER
           code=0
-          (starter) > "$evidence/rust-android-starter.log" 2>&1 || code=$?
+          bash -e "$RUNNER_TEMP/starter.sh" "$checkout" "$evidence" > "$evidence/rust-android-starter.log" 2>&1 || code=$?
           cat "$evidence/rust-android-starter.log"
           echo "rust-android-starter $code" >> "$evidence/exit-codes.txt"
+          exit "$code"
+      - name: Build the renamed rust-android starter APK
+        if: ${{ !cancelled() }}
+        run: |
+          # starter_test builds the APK and runs its check test for both the plain consumer and one
+          # that renames rules_dx (repo_name = "dxr"), because the ANDROID_* variables are set here.
+          # It runs locally so the test sees the installed SDK.
+          set -o pipefail
+          code=0
+          bazel test --noshow_progress --test_output=errors //android/tests/starter:starter_test \
+            > evidence/rust-android-starter-test.log 2>&1 || code=$?
+          tail -n 80 evidence/rust-android-starter-test.log
+          echo "rust-android-starter-test $code" >> evidence/exit-codes.txt
           exit "$code"
       - name: Collect test logs
         if: always()

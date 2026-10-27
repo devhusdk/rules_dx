@@ -448,6 +448,7 @@ def test_evidence_rejects_bad_test_timeout(tmp_path):
 def validator_platforms():
     """Returns the PLATFORMS table input_validation.py declares, without running its main."""
     spec = importlib.util.spec_from_file_location("input_validation", ROOT / VALIDATOR)
+    assert spec is not None and spec.loader is not None, f"{VALIDATOR} does not load"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.PLATFORMS
@@ -459,7 +460,9 @@ def test_evidence_runners_match_the_validator_platforms(tmp_path):
     assert status == 0, f"evidence exited {status}: {output}"
     assert written is not None, "evidence wrote no outputs"
     runners = [line for line in written.splitlines() if line.startswith("runners=")]
-    assert len(runners) == 1, f"evidence wrote {len(runners)} runners lines: {written!r}"
+    assert len(runners) == 1, (
+        f"evidence wrote {len(runners)} runners lines: {written!r}"
+    )
     expected = validator_platforms()
     assert expected, f"{VALIDATOR} declares an empty PLATFORMS table"
     assert json.loads(runners[0].partition("=")[2]) == expected, (

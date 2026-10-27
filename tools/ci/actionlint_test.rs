@@ -279,12 +279,18 @@ fn every_matrix_runner_is_a_platform_runner() {
 
 #[test]
 fn a_retired_matrix_runner_is_caught() {
-    let text = "jobs:\n  build:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-14\n          - name: dx-macos-arm64\n            runner: macos-14\n";
+    let text = "jobs:\n  build:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-13\n          - name: dx-macos-arm64\n            runner: macos-13\n";
     let (problems, checked) = matrix_runner_problems("retired.yml", text, &platform_table());
     assert_eq!(checked, 2);
     assert_eq!(problems.len(), 2, "{problems:?}");
-    assert!(problems[0].contains("macos_arm64 runs on macos-14"), "{problems:?}");
-    assert!(problems[1].contains("runner macos-14 is not a runner"), "{problems:?}");
+    assert!(
+        problems[0].contains("macos_arm64 runs on macos-13"),
+        "{problems:?}"
+    );
+    assert!(
+        problems[1].contains("runner macos-13 is not a runner"),
+        "{problems:?}"
+    );
 }
 
 #[test]

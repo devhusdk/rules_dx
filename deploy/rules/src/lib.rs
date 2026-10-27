@@ -1592,8 +1592,7 @@ const GITHUB_GATE: OwnerGate = OwnerGate {
     live: "GH_RELEASE_LIVE",
 };
 
-/// Extra env names `gh` keeps: its auth, host and config, plus the session bus
-/// it reaches the Linux keyring through.
+/// Extra env names `gh` keeps: its auth, host, config and session bus.
 const GH_CHILD_ENV_EXTRA: &[&str] = &[
     "GH_TOKEN",
     "GITHUB_TOKEN",
@@ -2644,8 +2643,6 @@ const DOCKER_CHILD_ENV_EXTRA: &[&str] =
     &["DOCKER_TLS_VERIFY", "DOCKER_API_VERSION", "XDG_RUNTIME_DIR"];
 
 /// Builds one docker command bound to the scoped config and the caller's daemon.
-///
-/// The env is cleared, so DOCKER_CONTEXT and any caller DOCKER_CONFIG are dropped.
 fn docker_command(config: &Path, endpoint: &DockerEndpoint) -> std::process::Command {
     let mut command = scrubbed_command(
         Path::new("docker"),
@@ -3891,9 +3888,7 @@ pub fn npm_pack_main(argv: &[String]) -> i32 {
     }
 }
 
-/// Extra env names `npm` keeps: CA and node settings, plus the CI identity that
-/// provenance reads. GITHUB_TOKEN is never kept, and the prefix entries never pass
-/// a name with a secret word, so CI_JOB_TOKEN stays out.
+/// Extra env names `npm` keeps: CA and node settings plus the CI identity for provenance.
 const NPM_CHILD_ENV_EXTRA: &[&str] = &[
     "CI",
     "NODE_EXTRA_CA_CERTS",

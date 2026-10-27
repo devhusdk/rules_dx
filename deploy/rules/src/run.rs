@@ -24,8 +24,6 @@ pub(crate) fn env_or_empty(key: &str) -> String {
 }
 
 /// Credential values read by a passed owner gate.
-///
-/// Deliberately not Debug, Clone or Display, so the values cannot leak into logs.
 pub(crate) struct Secrets(Vec<(&'static str, String)>);
 
 impl Secrets {
@@ -78,17 +76,28 @@ impl OwnerGate {
 /// Words that keep a prefix-matched env name out of a child env.
 const SECRET_WORDS: [&str; 5] = ["TOKEN", "PASSWORD", "SECRET", "JWT", "KEY"];
 
-/// True when one env name passes a keep-list.
-///
-/// An entry ending in `_` matches as a prefix, but never passes a name that
-/// contains a secret word; exact entries match only themselves.
+/// True when one env name passes a keep-list, ignoring case on Windows.
 fn keeps(keep: &[&str], name: &str) -> bool {
+    keeps_in(keep, name, cfg!(windows))
+}
+
+/// Keep-list match; a `_`-suffixed entry is a prefix that skips secret words.
+fn keeps_in(keep: &[&str], name: &str, ignore_case: bool) -> bool {
+    let same = |left: &str, right: &str| {
+        if ignore_case {
+            left.eq_ignore_ascii_case(right)
+        } else {
+            left == right
+        }
+    };
     keep.iter().any(|entry| {
         if entry.ends_with('_') {
             let upper = name.to_ascii_uppercase();
-            name.starts_with(entry) && !SECRET_WORDS.iter().any(|word| upper.contains(word))
+            name.get(..entry.len())
+                .is_some_and(|head| same(head, entry))
+                && !SECRET_WORDS.iter().any(|word| upper.contains(word))
         } else {
-            *entry == name
+            same(entry, name)
         }
     })
 }
@@ -149,8 +158,6 @@ pub(crate) const DOTNET_CHILD_ENV_EXTRA: &[&str] = &[
 ];
 
 /// Builds a child command with a cleared env, the keep-listed vars, then extras.
-///
-/// A bare program name is looked up on the kept PATH.
 pub(crate) fn scrubbed_command(
     program: &Path,
     keep: &[&[&str]],
@@ -313,6 +320,19 @@ mod tests {
         assert!(!keeps(&["GITLAB_"], "GITLAB_PASSWORD"));
         assert!(!keeps(&["GITLAB_"], "GITLAB_Secret"));
         assert!(!keeps(&["CI_"], "XCI_FOO"));
+    }
+
+    #[test]
+    fn keeps_ignores_case_only_on_windows() {
+        assert!(keeps_in(&["PATH"], "Path", true));
+        assert!(keeps_in(&["ComSpec"], "COMSPEC", true));
+        assert!(keeps_in(&["SystemRoot"], "SYSTEMROOT", true));
+        assert!(keeps_in(&["CI_"], "ci_project_url", true));
+        assert!(!keeps_in(&["CI_"], "ci_job_token", true));
+        assert!(!keeps_in(&["PATH"], "Pathext", true));
+        assert!(!keeps_in(&["PATH"], "Path", false));
+        assert!(!keeps_in(&["CI_"], "ci_project_url", false));
+        assert_eq!(keeps(&["PATH"], "Path"), cfg!(windows));
     }
 
     #[test]

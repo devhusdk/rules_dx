@@ -491,10 +491,7 @@ pub struct MavenLive {
     pub gpg_passphrase: String,
 }
 
-/// Builds the mvn command in a cleared env.
-///
-/// A signed upload gets MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE back, because the
-/// bc signer reads them from env; the repository password stays in settings.xml.
+/// Builds the mvn command in a cleared env, with the GPG key and passphrase when signed.
 pub fn maven_command(mvn: &Path, live: &MavenLive, args: &[String]) -> std::process::Command {
     let mut extra: Vec<(&str, &str)> = Vec::new();
     if !live.unsigned {

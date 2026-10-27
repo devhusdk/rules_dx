@@ -2697,8 +2697,7 @@ fn caller_docker_config_dir() -> Option<std::path::PathBuf> {
         })
 }
 
-/// Reads the caller's daemon endpoint before `DOCKER_CONFIG` is replaced, since
-/// the config dir also holds the context store and the default TLS cert path.
+/// Reads the caller's docker daemon endpoint.
 fn docker_endpoint() -> Result<DockerEndpoint, String> {
     let cert_path = std::env::var_os("DOCKER_CERT_PATH")
         .filter(|value| !value.is_empty())
@@ -2831,9 +2830,6 @@ fn oci_live_push(
             return 1;
         }
     };
-    // Every docker call below uses this private config so the token never
-    // lands in the caller's ~/.docker or a host credential helper. The guard
-    // removes it on every return path.
     let config_dir = match PrivateStageDir::new("oci-docker-config-") {
         Ok(dir) => dir,
         Err(error) => {

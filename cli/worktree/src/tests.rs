@@ -114,6 +114,10 @@ impl FakeHost {
         self.alive.lock().expect("alive").insert(pid);
     }
 
+    fn kill(&self, pid: u32) {
+        self.alive.lock().expect("alive").remove(&pid);
+    }
+
     fn disk_paths(&self) -> Vec<PathBuf> {
         self.disk_calls.lock().expect("disk").clone()
     }
@@ -588,6 +592,7 @@ fn add_warns_when_origin_cannot_be_fetched() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
+    host.live(10);
     let missing = fixture.main.parent().expect("root").join("missing.git");
     git(
         &fixture.main,
@@ -611,8 +616,86 @@ fn add_has_no_warnings_when_origin_fetches() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
+    host.live(10);
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     assert!(added.warnings.is_empty(), "{:?}", added.warnings);
+}
+
+#[test]
+fn add_warns_when_the_holder_pid_is_gone() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert_eq!(added.warnings.len(), 1, "{:?}", added.warnings);
+    assert_eq!(added.warnings[0].code, "holder_gone");
+    assert_eq!(pool.records()[0].pid, Some(10));
+    assert!(pool.records()[0].held);
+}
+
+#[test]
+fn re_adding_a_held_branch_renews_a_dead_holder_pid() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.kill(10);
+    host.live(11);
+    let again = ops::add(&pool, &host, &who("s1", 11), &existing("feature/a")).expect("re-add");
+    assert!(again.reused);
+    assert_eq!(again.warnings.len(), 1, "{:?}", again.warnings);
+    assert_eq!(again.warnings[0].code, "holder_renewed");
+    let record = pool
+        .records()
+        .into_iter()
+        .find(|r| r.slot == first.slot)
+        .expect("record");
+    assert_eq!(record.pid, Some(11));
+    host.live(20);
+    let other = ops::add(&pool, &host, &who("s2", 20), &create("feature/b")).expect("add b");
+    assert_ne!(other.slot, first.slot);
+}
+
+#[test]
+fn re_adding_does_not_renew_a_live_holder() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    host.live(11);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let again = ops::add(&pool, &host, &who("s1", 11), &existing("feature/a")).expect("re-add");
+    assert!(again.warnings.is_empty(), "{:?}", again.warnings);
+    let record = pool
+        .records()
+        .into_iter()
+        .find(|r| r.slot == first.slot)
+        .expect("record");
+    assert_eq!(record.pid, Some(10));
+}
+
+#[test]
+fn another_session_cannot_renew() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.kill(10);
+    host.live(20);
+    let other = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a"));
+    let renewed = other
+        .iter()
+        .any(|added| added.warnings.iter().any(|w| w.code == "holder_renewed"));
+    assert!(!renewed, "{other:?}");
+    let record = pool
+        .records()
+        .into_iter()
+        .find(|r| r.slot == first.slot)
+        .expect("record");
+    // The dead holder is taken over outright, never re-pinned under the old session.
+    assert_ne!(record.session.as_deref(), Some("s1"));
 }
 
 #[test]
@@ -1870,7 +1953,11 @@ fn reclaim_for_build_skips_plenty_or_unknown_disk() {
 fn reclaim_for_build_without_a_pool_drops_orphans_and_creates_no_pool() {
     let fixture = Fixture::new();
     let host = FakeHost::new();
-    let roots = fixture.main.parent().expect("parent").join("unpooled-roots");
+    let roots = fixture
+        .main
+        .parent()
+        .expect("parent")
+        .join("unpooled-roots");
     host.roots.lock().expect("roots").push(roots.clone());
     let orphan = output_base(&roots, "orphan", &fixture.main.join("gone"));
     host.script_space(&[LOW, LOW, OK]);
@@ -1887,7 +1974,11 @@ fn reclaim_for_build_without_a_pool_drops_orphans_and_creates_no_pool() {
 fn reclaim_for_build_without_a_pool_keeps_orphans_a_server_uses() {
     let fixture = Fixture::new();
     let host = FakeHost::new();
-    let roots = fixture.main.parent().expect("parent").join("unpooled-roots");
+    let roots = fixture
+        .main
+        .parent()
+        .expect("parent")
+        .join("unpooled-roots");
     host.roots.lock().expect("roots").push(roots.clone());
     let gone = fixture.main.join("gone");
     let orphan = output_base(&roots, "orphan", &gone);
@@ -1911,7 +2002,11 @@ fn reclaim_for_build_without_a_pool_keeps_orphans_a_server_uses() {
 fn reclaim_for_build_without_a_pool_skips_plenty_or_unknown_disk() {
     let fixture = Fixture::new();
     let host = FakeHost::new();
-    let roots = fixture.main.parent().expect("parent").join("unpooled-roots");
+    let roots = fixture
+        .main
+        .parent()
+        .expect("parent")
+        .join("unpooled-roots");
     host.roots.lock().expect("roots").push(roots.clone());
     let orphan = output_base(&roots, "orphan", &fixture.main.join("gone"));
     host.script_space(&[OK]);
@@ -1933,7 +2028,11 @@ fn reclaim_for_build_without_a_pool_skips_plenty_or_unknown_disk() {
 fn reclaim_for_build_without_a_pool_keeps_the_workspace_base() {
     let fixture = Fixture::new();
     let host = FakeHost::new();
-    let roots = fixture.main.parent().expect("parent").join("unpooled-roots");
+    let roots = fixture
+        .main
+        .parent()
+        .expect("parent")
+        .join("unpooled-roots");
     host.roots.lock().expect("roots").push(roots.clone());
     let own = output_base(&roots, "own", &fixture.main);
     host.script_space(&[LOW]);
@@ -2886,6 +2985,7 @@ mod hooks {
         let fixture = Fixture::new();
         let pool = fixture.pool();
         let host = FakeHost::new();
+        host.live(10);
         let me = who("s1", 10);
         let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
         let created = hook::create(&pool, &host, &me, &input).expect("create");
@@ -2915,6 +3015,7 @@ mod hooks {
         let fixture = Fixture::new();
         let pool = fixture.pool();
         let host = FakeHost::new();
+        host.live(10);
         let missing = fixture.main.parent().expect("root").join("missing.git");
         git(
             &fixture.main,

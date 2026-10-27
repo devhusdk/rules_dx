@@ -324,7 +324,9 @@ fn resolve_start(pool: &Pool, branch: &str, create: Option<&str>) -> Result<Star
         if !git::ref_exists(main, requested) {
             return Err(WorktreeError::usage(
                 "unknown_ref",
-                &format!("--create base {requested} does not name a commit; pass --create=origin/<branch> or a commit"),
+                &format!(
+                    "--create base {requested} does not name a commit; pass --create=origin/<branch> or a commit"
+                ),
             ));
         }
         return Ok(Start::Create(requested.to_owned()));
@@ -389,20 +391,54 @@ fn held_on<'a>(records: &'a [Record], branch: &str) -> Option<&'a Record> {
         .find(|record| record.held && record.branch.as_deref() == Some(branch))
 }
 
+/// Re-pins a dead holder pid to the live caller; the caller holds the pool lock and already matched session and agent.
+fn renew(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    record: &Record,
+    now: u64,
+) -> Result<Option<Warning>, WorktreeError> {
+    if holder_alive(host, record) || who.pid == 0 || !host.process_alive(who.pid) {
+        return Ok(None);
+    }
+    let mut renewed = record.clone();
+    renewed.pid = Some(who.pid);
+    renewed.gone = false;
+    renewed.last_used = now;
+    pool.write(&renewed)?;
+    Ok(Some(Warning {
+        code: "holder_renewed",
+        message: format!(
+            "the recorded holder of slot {} was not running; it is now pid {}",
+            record.slot, who.pid
+        ),
+    }))
+}
+
 /// Returns the slot the caller already holds on a branch, before any fetch.
-fn reuse_held(pool: &Pool, who: &Who, branch: &str) -> Result<Option<Added>, WorktreeError> {
+fn reuse_held(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    branch: &str,
+) -> Result<Option<Added>, WorktreeError> {
     let _lock = pool.lock()?;
     pool.forget_missing();
     let records = pool.records();
-    Ok(held_on(&records, branch)
-        .filter(|record| record.held_by(who))
-        .map(|record| Added {
-            slot: record.slot,
-            path: pool.slot_path(record.slot),
-            reused: true,
-            base: None,
-            warnings: Vec::new(),
-        }))
+    let Some(record) = held_on(&records, branch).filter(|record| record.held_by(who)) else {
+        return Ok(None);
+    };
+    let warnings = renew(pool, host, who, record, host.now())?
+        .into_iter()
+        .collect();
+    Ok(Some(Added {
+        slot: record.slot,
+        path: pool.slot_path(record.slot),
+        reused: true,
+        base: None,
+        warnings,
+    }))
 }
 
 /// Leases a slot for a branch and switches it there.
@@ -413,7 +449,7 @@ pub fn add(
     request: &AddRequest,
 ) -> Result<Added, WorktreeError> {
     check_branch(pool, &request.branch)?;
-    if let Some(added) = reuse_held(pool, who, &request.branch)? {
+    if let Some(added) = reuse_held(pool, host, who, &request.branch)? {
         return Ok(added);
     }
     let warnings = refresh(pool);
@@ -425,7 +461,9 @@ pub(crate) fn check_branch(pool: &Pool, branch: &str) -> Result<(), WorktreeErro
     if branch.is_empty() || !git::succeeds(&pool.main, &["check-ref-format", "--branch", branch]) {
         return Err(WorktreeError::usage(
             "invalid_branch",
-            &format!("{branch:?} is not a branch name; pick a name that git check-ref-format --branch accepts"),
+            &format!(
+                "{branch:?} is not a branch name; pick a name that git check-ref-format --branch accepts"
+            ),
         ));
     }
     Ok(())
@@ -463,6 +501,7 @@ pub(crate) fn lease(
     if let Some(record) = held_on(&records, branch) {
         let path = pool.slot_path(record.slot);
         if record.held_by(who) {
+            warnings.extend(renew(pool, host, who, record, now)?);
             return Ok(Added {
                 slot: record.slot,
                 path,
@@ -580,6 +619,15 @@ pub(crate) fn lease(
         }
     }
     warnings.extend(reclaim_warning);
+    if !host.process_alive(who.pid) {
+        warnings.push(Warning {
+            code: "holder_gone",
+            message: format!(
+                "holder pid {} is not running, so the slot can be reclaimed once its tree is clean and pushed; run add from the long-lived agent shell",
+                who.pid
+            ),
+        });
+    }
     let placeholder = Record {
         slot,
         held: true,
@@ -676,9 +724,9 @@ fn make_room(
                 None => {
                     let free = after.map_or_else(|| "unknown".to_owned(), |after| size(after.free));
                     return Ok(Some(format!(
-                            "disk full: {} free; removed the output bases of slot {slot}, which this lease reuses; {free} free now",
-                            size(space.free)
-                        )));
+                        "disk full: {} free; removed the output bases of slot {slot}, which this lease reuses; {free} free now",
+                        size(space.free)
+                    )));
                 }
             }
         }

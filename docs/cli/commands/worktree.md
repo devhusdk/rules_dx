@@ -48,6 +48,12 @@ after `command_started`. `hook create` prints the same line on stderr.
 When the caller already holds a slot on `<branch>`, `add` returns that slot
 without fetching origin.
 
+`add` also warns when the holder pid it records is not running (code
+`holder_gone`): the slot can then be reclaimed once its tree is clean and
+pushed, so run `add` from the long-lived agent shell. When the same session and
+agent re-runs `add` on a branch it holds and the recorded pid is dead, `add`
+re-pins the lease to the live caller and warns with code `holder_renewed`.
+
 When the pool's disk, the disk of a Bazel output root, or the disk of the
 [nested-Bazel root](#nested-bazel-tests) has under 20 GiB and
 under 10% free, or under 1 GiB free whatever its size, `add` and `hook create`
@@ -464,8 +470,8 @@ hook is missing from `.claude/settings.json`, or from `.codex/hooks.json` or
 The holder is the agent session (`CLAUDE_CODE_SESSION_ID`, `CODEX_THREAD_ID`,
 or `DX_WORKTREE_SESSION`, in that order; see the table above), the agent (`DX_WORKTREE_HOLDER`, set by `hook guard`), and
 a process: `CLAUDE_PID` when it is an ancestor of `dx`, else the nearest
-ancestor that is not a shell or a wrapper such as `timeout`, `env`, `nice`,
-`nohup`, `setsid`, `stdbuf`, `time`, or `xargs`. Two agents in one session are
+ancestor that is not a shell or a wrapper such as `timeout`, `gtimeout`,
+`flock`, `env`, `nice`, `nohup`, `setsid`, `stdbuf`, `time`, or `xargs`. Two agents in one session are
 different holders, and `list` shows each one. Under Cursor and Gemini CLI, only commands that
 `hook guard` sees run with the session, so `dx` started from a script or `make`
 has none and is refused in a slot that a session holds. A slot from `hook create` goes

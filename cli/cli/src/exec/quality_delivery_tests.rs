@@ -219,8 +219,7 @@ fn a_report_file_still_lands_beside_clean_output() {
 #[test]
 #[cfg(any(unix, windows))]
 fn closed_pipe_starts_nothing() {
-    let (reader, mut writer) = io::pipe().expect("pipe");
-    drop(reader);
+    let mut writer = closed_pipe();
     let h = harness("q-closed-pipe", true);
     let inv = invocation(&["format", "--apply", "--output=json"]);
     let runner = h.runner();

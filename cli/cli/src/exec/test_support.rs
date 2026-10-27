@@ -14,9 +14,13 @@ use quality_result::{encode_validated, SCHEMA_MAJOR, SCHEMA_MINOR};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::{self};
+#[cfg(unix)]
+use std::os::fd::AsRawFd;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
+#[cfg(unix)]
+use std::time::{Duration, Instant};
 
 pub(crate) use crate::test_support::parsed as invocation;
 pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, graph_rule, json_events};
@@ -1219,4 +1223,45 @@ pub(crate) fn failed_action(
         },
     })
     .to_string()
+}
+
+// Pipe helpers: dropping a reader is not enough when a forked child may
+// still hold a copy of the read end, so wait until the kernel reports it gone.
+#[cfg(unix)]
+/// Reports whether the pipe behind `writer` has no reader left in any process.
+#[cfg(unix)]
+pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
+    let mut fd = libc::pollfd {
+        fd: writer.as_raw_fd(),
+        events: 0,
+        revents: 0,
+    };
+    let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };
+    ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
+}
+
+/// Drops `reader` and waits until no process holds a copy of the read end.
+#[cfg(unix)]
+pub(crate) fn hang_up(reader: io::PipeReader, writer: &io::PipeWriter) {
+    drop(reader);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !reader_gone(writer, 1000) {
+        assert!(Instant::now() < deadline, "pipe reader still held");
+    }
+}
+
+/// Returns the write end of a pipe whose read end is closed everywhere.
+#[cfg(unix)]
+pub(crate) fn closed_pipe() -> io::PipeWriter {
+    let (reader, writer) = io::pipe().expect("pipe");
+    hang_up(reader, &writer);
+    writer
+}
+
+/// Windows has no poll on pipes, so dropping the only reader is the best available.
+#[cfg(windows)]
+pub(crate) fn closed_pipe() -> io::PipeWriter {
+    let (reader, writer) = io::pipe().expect("pipe");
+    drop(reader);
+    writer
 }

@@ -1,3 +1,4 @@
+use super::super::test_support::{closed_pipe, hang_up, reader_gone};
 use std::ffi::{CStr, CString};
 use std::fs;
 use std::io::{self, Write};
@@ -886,33 +887,6 @@ fn bazel_starts(base: &Path) -> usize {
         .lines()
         .filter(|line| line.starts_with("start "))
         .count()
-}
-
-/// Reports whether the pipe behind `writer` has no reader left in any process.
-fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
-    let mut fd = libc::pollfd {
-        fd: writer.as_raw_fd(),
-        events: 0,
-        revents: 0,
-    };
-    let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };
-    ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
-}
-
-/// Drops `reader` and waits until no process holds a copy of the read end.
-fn hang_up(reader: io::PipeReader, writer: &io::PipeWriter) {
-    drop(reader);
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !reader_gone(writer, 1000) {
-        assert!(Instant::now() < deadline, "pipe reader still held");
-    }
-}
-
-/// Returns the write end of a pipe whose read end is closed everywhere.
-fn closed_pipe() -> io::PipeWriter {
-    let (reader, writer) = io::pipe().expect("pipe");
-    hang_up(reader, &writer);
-    writer
 }
 
 #[test]

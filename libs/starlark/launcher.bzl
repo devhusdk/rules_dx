@@ -1,38 +1,14 @@
-"""Windows launcher text for starlark_test.
-
-This is the single place that writes the Windows launcher, so a later move to
-the rules_shell native launcher touches one file.
-"""
+"""Windows launcher text for starlark_test."""
 
 def windows_sh_path_error(sh_path):
-    """Returns an error message when sh_path cannot sit in a set "..." line.
-
-    Args:
-      sh_path: Path to the shell, or the empty string.
-
-    Returns:
-      The empty string for a usable path, otherwise the error message.
-    """
+    """Returns an error message when sh_path cannot be quoted in a .bat, else the empty string."""
     for bad in ['"', "%", "!"]:
         if bad in sh_path:
             return "starlark_test: the sh path " + repr(sh_path) + " contains '" + bad + "', which a .bat launcher cannot quote; use a shell path without it"
     return ""
 
 def windows_launcher_body(runner_key, sh_path):
-    """Returns the text of the .bat launcher that runs the runner under sh.
-
-    The launcher tries the toolchain shell, then %BAZEL_SH%, then sh on PATH.
-    It checks at run time that the file exists, and puts the shell's own
-    directory and its ..\\usr\\bin at the front of PATH. No install directory
-    is hardcoded.
-
-    Args:
-      runner_key: Runfiles manifest key of the runner script.
-      sh_path: Shell path from the rules_shell toolchain, or the empty string.
-
-    Returns:
-      The launcher text with CRLF line endings.
-    """
+    """Returns the CRLF .bat launcher text that runs the runner under sh."""
     lines = [
         "@echo off",
         "setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION",

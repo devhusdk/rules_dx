@@ -19,6 +19,8 @@ pub(crate) struct LockChange {
     pub(crate) maven: bool,
     /// Gazelle repository names of the changed Go modules.
     pub(crate) go_repos: BTreeSet<String>,
+    /// Whether the names are npm packages of an `npm_translate_lock` hub.
+    pub(crate) npm: bool,
 }
 
 /// One `crate.from_cargo` hub with the lock files it reads.
@@ -33,6 +35,9 @@ pub(crate) struct Hub {
     pub(crate) maven: bool,
     /// A `go_deps.from_file` hub: `cargo_lockfile` is its go.mod, `lockfile` its go.sum.
     pub(crate) go: bool,
+    /// The `pnpm_lock` of an `npm.npm_translate_lock` hub, which has no Cargo
+    /// lock (`cargo_lockfile` is empty).
+    pub(crate) pnpm_lockfile: Option<String>,
 }
 
 /// The lock format of one changed path and the hubs it feeds.
@@ -44,6 +49,7 @@ pub(crate) enum LockKind {
     Maven(Vec<String>),
     /// A go.mod or go.sum named by `go_deps.from_file`.
     Go(Vec<String>),
+    Pnpm(Vec<String>),
     Unknown,
 }
 
@@ -54,7 +60,8 @@ impl LockKind {
             | LockKind::CrateBazelLock(hubs)
             | LockKind::Pip(hubs)
             | LockKind::Maven(hubs)
-            | LockKind::Go(hubs) => hubs,
+            | LockKind::Go(hubs)
+            | LockKind::Pnpm(hubs) => hubs,
             LockKind::Unknown => &[],
         }
     }
@@ -67,6 +74,7 @@ impl LockKind {
                 pip: false,
                 maven: false,
                 go_repos: BTreeSet::new(),
+                npm: false,
             }),
             LockKind::Pip(_) => Ok(LockChange {
                 crates: changed_requirements(base, head),
@@ -74,6 +82,7 @@ impl LockKind {
                 pip: true,
                 maven: false,
                 go_repos: BTreeSet::new(),
+                npm: false,
             }),
             LockKind::Maven(_) => Ok(LockChange {
                 crates: changed_maven_artifacts(base, head)?,
@@ -81,9 +90,11 @@ impl LockKind {
                 pip: false,
                 maven: true,
                 go_repos: BTreeSet::new(),
+                npm: false,
             }),
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
             LockKind::Go(_) => Err("use changed_go".to_owned()),
+            LockKind::Pnpm(_) => changed_npm_packages(base, head),
             LockKind::Unknown => Err("unknown lock format".to_owned()),
         }
     }
@@ -91,6 +102,7 @@ impl LockKind {
 
 pub(crate) const CRATE_EXTENSION_BZL: &str = "crate_universe:extensions.bzl";
 const DEFAULT_HUB: &str = "crates";
+const NPM_EXTENSION_BZL: &str = "npm:extensions.bzl";
 
 type Key = (String, String);
 
@@ -147,6 +159,7 @@ fn workspace_path(label: &str) -> Result<String, String> {
 pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
     let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
     let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    let mut npm_bindings: BTreeSet<&str> = BTreeSet::new();
     for call in module.calls_named("use_extension") {
         if call.unpacked {
             return Err(format!(
@@ -161,9 +174,46 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
                 bindings.insert(binding);
             }
         }
+        if bzl.ends_with(NPM_EXTENSION_BZL) && name == "npm" {
+            if let Some(binding) = &call.binding {
+                npm_bindings.insert(binding);
+            }
+        }
     }
     let mut hubs = Vec::new();
     for call in module.calls() {
+        if let Some((binding, "npm_translate_lock")) = call.name.split_once('.') {
+            if npm_bindings.contains(binding) {
+                if call.unpacked {
+                    return Err(format!(
+                        "{} at MODULE.bazel line {} unpacks its arguments",
+                        call.name, call.line
+                    ));
+                }
+                let name = literal(call, "name", Some(0))?.ok_or_else(|| {
+                    format!(
+                        "{} at MODULE.bazel line {} has no name",
+                        call.name, call.line
+                    )
+                })?;
+                let pnpm_lock = literal(call, "pnpm_lock", None)?.ok_or_else(|| {
+                    format!(
+                        "{} at MODULE.bazel line {} has no pnpm_lock",
+                        call.name, call.line
+                    )
+                })?;
+                hubs.push(Hub {
+                    name,
+                    cargo_lockfile: String::new(),
+                    lockfile: None,
+                    pip: false,
+                    maven: false,
+                    go: false,
+                    pnpm_lockfile: Some(workspace_path(&pnpm_lock)?),
+                });
+            }
+            continue;
+        }
         let Some((binding, "from_cargo")) = call.name.split_once('.') else {
             continue;
         };
@@ -193,6 +243,7 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
             pip: false,
             maven: false,
             go: false,
+            pnpm_lockfile: None,
         });
     }
     hubs.extend(go_hubs(&module));
@@ -240,6 +291,7 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
             pip: false,
             maven: false,
             go: true,
+            pnpm_lockfile: None,
         });
     }
     hubs
@@ -294,6 +346,7 @@ pub(crate) fn changed_go(path: &str, base: &str, head: &str) -> Result<LockChang
         pip: false,
         maven: false,
         go_repos,
+        npm: false,
     })
 }
 
@@ -558,6 +611,7 @@ pub(crate) fn changed_crates_from_bazel_lock(base: &str, head: &str) -> Result<L
         pip: false,
         maven: false,
         go_repos: BTreeSet::new(),
+        npm: false,
     })
 }
 
@@ -659,6 +713,7 @@ pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
                     pip: true,
                     maven: false,
                     go: false,
+                    pnpm_lockfile: None,
                 });
             }
         }
@@ -822,6 +877,7 @@ pub(crate) fn maven_hubs(module_text: &str) -> Vec<Hub> {
                 pip: false,
                 maven: true,
                 go: false,
+                pnpm_lockfile: None,
             });
         }
     }
@@ -933,7 +989,119 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
     if !bazel.is_empty() {
         return LockKind::CrateBazelLock(bazel);
     }
+    let pnpm: Vec<String> = hubs
+        .iter()
+        .filter(|hub| hub.pnpm_lockfile.as_deref() == Some(path))
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !pnpm.is_empty() {
+        return LockKind::Pnpm(pnpm);
+    }
     LockKind::Unknown
+}
+
+/// Top-level sections of a pnpm lock other than the package tables, which
+/// feed `npm_translate_lock` through settings, overrides and patches.
+fn pnpm_settings(text: &str) -> BTreeMap<String, String> {
+    let mut out: BTreeMap<String, String> = BTreeMap::new();
+    let mut key: Option<String> = None;
+    for line in text.lines() {
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if !line.starts_with(' ') && !line.starts_with('-') {
+            let name = line.split(':').next().unwrap_or(line).to_owned();
+            key = Some(name);
+        }
+        if let Some(key) = &key {
+            if !matches!(key.as_str(), "importers" | "packages" | "snapshots") {
+                let entry = out.entry(key.clone()).or_default();
+                entry.push_str(line);
+                entry.push('\n');
+            }
+        }
+    }
+    out
+}
+
+/// The npm packages (name and version) that differ between two pnpm locks.
+pub(crate) fn changed_npm_packages(base: &str, head: &str) -> Result<LockChange, String> {
+    if pnpm_settings(base) != pnpm_settings(head) {
+        return Err("pnpm lock settings changed".to_owned());
+    }
+    let packages = |text: &str| -> Result<BTreeSet<(String, String)>, String> {
+        Ok(dx_audit::locks::parse_pnpm_lock(text)?
+            .into_iter()
+            .map(|package| (package.name, package.version))
+            .collect())
+    };
+    let (base, head) = (packages(base)?, packages(head)?);
+    let mut crates = ChangedCrates::new();
+    for (name, version) in base.symmetric_difference(&head) {
+        crates
+            .entry(name.clone())
+            .or_default()
+            .insert(version.clone());
+    }
+    Ok(LockChange {
+        crates,
+        aliases: BTreeSet::new(),
+        pip: false,
+        maven: false,
+        go_repos: BTreeSet::new(),
+        npm: true,
+    })
+}
+
+/// Repo-name form of an npm package: `@scope/name` becomes `at_scope_name`.
+fn npm_repo_name(name: &str) -> String {
+    match name.strip_prefix('@') {
+        Some(scoped) => format!("at_{}", scoped.replace('/', "_")),
+        None => name.to_owned(),
+    }
+}
+
+/// Labels of changed npm packages: the hub's `@npm//name` targets and the
+/// per-version `npm__name__version` spoke repositories.
+pub(crate) fn npm_seeds<'a>(
+    labels: impl Iterator<Item = &'a str>,
+    hub: &str,
+    packages: &ChangedCrates,
+) -> Vec<String> {
+    let mut packages_dirs: BTreeSet<&str> = BTreeSet::new();
+    let mut prefixes: Vec<String> = Vec::new();
+    for (name, versions) in packages {
+        packages_dirs.insert(name);
+        let repo = npm_repo_name(name);
+        for version in versions {
+            prefixes.push(format!("{hub}__{repo}__{version}"));
+        }
+    }
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            let Some((repo, target)) = label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+            else {
+                return false;
+            };
+            if apparent_repo_matches(repo, hub) {
+                let package = target
+                    .split_once(':')
+                    .map_or(target, |(package, _)| package);
+                let package = package.strip_prefix("node_modules/").unwrap_or(package);
+                return packages_dirs.contains(package);
+            }
+            prefixes.iter().any(|prefix| {
+                let local = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+                local.starts_with(prefix.as_str())
+            })
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 #[cfg(test)]
@@ -1019,6 +1187,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                     pip: false,
                     maven: false,
                     go: false,
+                    pnpm_lockfile: None,
                 },
                 Hub {
                     name: "tools".to_owned(),
@@ -1027,6 +1196,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                     pip: false,
                     maven: false,
                     go: false,
+                    pnpm_lockfile: None,
                 },
             ]
         );
@@ -1307,6 +1477,63 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         assert_eq!(
             pip_seeds(labels.iter().copied(), "pypi", &changed),
             [labels[0], labels[1]]
+        );
+    }
+
+    const NPM_MODULE: &str = r#"
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:pnpm-lock.yaml")
+"#;
+
+    fn pnpm_lock(packages: &[(&str, &str)], settings: &str) -> String {
+        let mut out = format!("lockfileVersion: '9.0'\n\nsettings:\n  {settings}\n\npackages:\n");
+        for (name, version) in packages {
+            out.push_str(&format!(
+                "\n  {name}@{version}:\n    resolution: {{integrity: sha512-abc}}\n"
+            ));
+        }
+        out
+    }
+
+    #[test]
+    fn npm_translate_lock_hubs_classify_pnpm_locks() {
+        let hubs = crate_hubs(NPM_MODULE).expect("hubs");
+        assert_eq!(
+            classify("web/pnpm-lock.yaml", &hubs),
+            LockKind::Pnpm(vec!["npm".to_owned()])
+        );
+        assert_eq!(classify("pnpm-lock.yaml", &hubs), LockKind::Unknown);
+        assert!(crate_hubs(&NPM_MODULE.replace("\"//web:pnpm-lock.yaml\"", "LOCK")).is_err());
+    }
+
+    #[test]
+    fn pnpm_diff_names_changed_packages_only() {
+        let base = pnpm_lock(&[("left-pad", "1.0.0"), ("lodash", "4.0.0")], "a: 1");
+        let head = pnpm_lock(&[("left-pad", "1.0.0"), ("lodash", "4.1.0")], "a: 1");
+        let change = changed_npm_packages(&base, &head).expect("diff");
+        assert!(change.npm);
+        assert_eq!(change.crates, crates(&[("lodash", &["4.0.0", "4.1.0"])]));
+        let settings = pnpm_lock(&[("left-pad", "1.0.0"), ("lodash", "4.0.0")], "a: 2");
+        assert!(changed_npm_packages(&base, &settings).is_err());
+    }
+
+    #[test]
+    fn npm_seeds_match_hub_targets_and_version_spokes() {
+        let labels = [
+            "@@aspect_rules_js++npm+npm//lodash:pkg",
+            "@@aspect_rules_js++npm+npm//left-pad:pkg",
+            "@@aspect_rules_js++npm+npm__lodash__4.1.0//:pkg",
+            "@@aspect_rules_js++npm+npm__lodash__3.0.0//:pkg",
+            "@@aspect_rules_js++npm+npm__at_scope_a__1.0.0//:pkg",
+        ];
+        let changed = crates(&[("lodash", &["4.1.0"]), ("@scope/a", &["1.0.0"])]);
+        assert_eq!(
+            npm_seeds(labels.iter().copied(), "npm", &changed),
+            [
+                "@@aspect_rules_js++npm+npm//lodash:pkg",
+                "@@aspect_rules_js++npm+npm__at_scope_a__1.0.0//:pkg",
+                "@@aspect_rules_js++npm+npm__lodash__4.1.0//:pkg",
+            ]
         );
     }
 }

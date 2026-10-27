@@ -1,4 +1,4 @@
-load("@gazelle//:def.bzl", "gazelle_binary", "gazelle_generation_test")
+load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
@@ -35,14 +35,6 @@ go_library(
     ],
 )
 
-gazelle_binary(
-    name = "gazelle",
-    languages = [":rust"],
-    tags = ["no-coverage"],
-    version = 1,
-    visibility = ["//dx:__pkg__"],
-)
-
 filegroup(
     name = "generation_testdata",
     srcs = glob(["testdata/**"]),
@@ -50,7 +42,7 @@ filegroup(
 
 gazelle_generation_test(
     name = "generation_test",
-    gazelle_binary = ":gazelle",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
     pure = "on",
     tags = ["no-coverage"],
     test_data = [":generation_testdata"],
@@ -61,10 +53,10 @@ rust_test(
     name = "failure_test",
     srcs = ["harness_test.rs"],
     data = [
-        ":gazelle",
+        "//gazelle/dispatch:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath :gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
         "DX_GAZELLE_CASE": "failure",
     },
     tags = ["no-coverage"],
@@ -77,10 +69,10 @@ rust_test(
     name = "idempotent_test",
     srcs = ["harness_test.rs"],
     data = [
-        ":gazelle",
+        "//gazelle/dispatch:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath :gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
         "DX_GAZELLE_CASE": "idempotent",
     },
     tags = ["no-coverage"],
@@ -93,10 +85,10 @@ rust_test(
     name = "native_config_test",
     srcs = ["harness_test.rs"],
     data = [
-        ":gazelle",
+        "//gazelle/dispatch:gazelle",
     ],
     env = {
-        "DX_GAZELLE_BIN": "$(rootpath :gazelle)",
+        "DX_GAZELLE_BIN": "$(rootpath //gazelle/dispatch:gazelle)",
         "DX_GAZELLE_CASE": "native_config",
     },
     tags = ["no-coverage"],

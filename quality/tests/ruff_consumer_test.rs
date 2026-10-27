@@ -7,6 +7,8 @@ const CLEAN: &str = "def add(a: int, b: int) -> int:\n    return a + b\n";
 
 const DIRTY_FORMAT: &str = "def add(a:int,b:int)->int:\n    return a+b\n";
 
+const SHIM_EDIT: &str = "def add(a:int,b:int)->int:\n    return a - b  # edited during the run\n";
+
 const DIRTY_LINT: &str = "import os\n\n\ndef add(a: int, b: int) -> int:\n    return a + b\n";
 
 const FIXED_LINT: &str = "\n\ndef add(a: int, b: int) -> int:\n    return a + b\n";
@@ -108,6 +110,10 @@ fn consumer() -> Case {
 }
 
 fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
+    dx_in(root, command, args, None)
+}
+
+fn dx_in(root: &Case, command: &str, args: &[&str], shim: Option<&Path>) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let home = mkscratch("ruff-home").unwrap_or_else(|error| panic!("scratch: {error}"));
@@ -121,11 +127,33 @@ fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
         "--",
         "--@rules_dx//config:workspace=//:policy",
     ]);
-    root.run(
-        &resolve_runfiles(&rel),
-        &argv,
-        &[("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")],
-    )
+    let envs = [("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")];
+    match shim {
+        Some(dir) => root.run_with_shim(&resolve_runfiles(&rel), &argv, &envs, dir),
+        None => root.run(&resolve_runfiles(&rel), &argv, &envs),
+    }
+}
+
+/// Writes a `bazel` shim that runs the real one, then once, after the main build succeeds,
+/// overwrites `target` with `SHIM_EDIT` and logs the arguments. It keeps bazel's exit code.
+fn stale_shim(dir: &Path, real: &Path, target: &Path, sentinel: &Path, log: &Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let q = nested::shell_quote;
+    let edit = dir.join("edit.txt");
+    write(&edit, SHIM_EDIT);
+    let script = format!(
+        "#!/bin/sh\n{real} \"$@\"\ncode=$?\nif [ \"$code\" = 0 ] && [ ! -e {sentinel} ]; then\n  case \" $* \" in\n    *' --output_groups=dx_results '*)\n      : > {sentinel}\n      cat {edit} > {target}\n      echo \"$*\" >> {log}\n      ;;\n  esac\nfi\nexit $code\n",
+        real = q(&real.to_string_lossy()),
+        sentinel = q(&sentinel.to_string_lossy()),
+        edit = q(&edit.to_string_lossy()),
+        target = q(&target.to_string_lossy()),
+        log = q(&log.to_string_lossy()),
+    );
+    let path = dir.join("bazel");
+    write(&path, &script);
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+        .unwrap_or_else(|error| panic!("chmod shim: {error}"));
+    path
 }
 
 fn events(run: &Run) -> Vec<serde_json::Value> {
@@ -269,6 +297,32 @@ fn dirty_format_apply_rewrites_and_reports_the_effect() {
     assert_eq!(events(&applied).len(), 3, "{} bytes", applied.stdout.len());
     let again = dx(&root, "format", &["--output=json"]);
     assert_eq!(again.status.code(), Some(0), "{}", again.combined());
+}
+
+#[test]
+fn format_apply_refuses_a_source_edited_during_the_run() {
+    let root = consumer();
+    let file = root.join("app/app.py");
+    write(&file, DIRTY_FORMAT);
+    let dir = mkscratch("ruff-shim").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let sentinel = dir.join("fired");
+    let log = dir.join("calls.log");
+    stale_shim(&dir, &root.wrapper(), &file, &sentinel, &log);
+    let run = dx_in(&root, "format", &["--apply", "--output=json"], Some(&dir));
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert!(sentinel.exists(), "{}", run.combined());
+    let calls = std::fs::read_to_string(&log).unwrap_or_default();
+    assert_eq!(calls.lines().count(), 1, "{calls}");
+    assert_eq!(read(&file), SHIM_EDIT);
+    let all = events(&run);
+    let changes = of_kind(&all, "change");
+    assert_eq!(changes.len(), 1, "{}", run.stdout);
+    assert_eq!(changes[0]["path"], "app/app.py");
+    assert_eq!(changes[0]["effect"], "refused");
+    assert_eq!(changes[0]["reason"], "stale_source");
+    assert!(of_kind(&all, "mutation").is_empty(), "{}", run.stdout);
+    let finished = of_kind(&all, "command_finished");
+    assert_eq!(finished[0]["exit_code"], 1, "{}", run.stdout);
 }
 
 #[test]

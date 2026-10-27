@@ -207,7 +207,8 @@ def rust_android_apk(
         tags = ["manual"],
         visibility = visibility,
     )
-    testonly = kwargs.get("testonly", False)
+    # None keeps the package default_testonly, matching the inner android_binary.
+    testonly = kwargs.get("testonly")
     plain = not _has_select([abis, app_id, api_level, version_code])
     invalid = plain and len(rust_android_apk_errors(name, app_id, abis, api_level, version_code)) > 0
     android_binary(

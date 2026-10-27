@@ -42,7 +42,7 @@ const UPSTREAM_FLAGS: [Flag; 3] = [
     ),
 ];
 
-const COVERAGE_FLAGS: [Flag; 8] = [
+const COVERAGE_FLAGS: [Flag; 6] = [
     (
         "common --enable_platform_specific_config",
         "Apply the linux, macos and windows config lines on matching hosts.",
@@ -62,14 +62,6 @@ const COVERAGE_FLAGS: [Flag; 8] = [
     (
         "coverage --enable_runfiles",
         "Coverage collectors read their inputs from a runfiles tree.",
-    ),
-    (
-        "coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-        "Use the system gcov for gcc coverage on Linux.",
-    ),
-    (
-        "coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-        "Use the system gcov for gcc coverage on macOS.",
     ),
     (
         "coverage --instrumentation_filter=^//",
@@ -561,8 +553,6 @@ mod tests {
                 "coverage --combined_report=lcov",
                 "coverage --test_tag_filters=-no-coverage",
                 "coverage --enable_runfiles",
-                "coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-                "coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
                 "coverage --instrumentation_filter=^//",
                 "common --nolegacy_external_runfiles",
                 "build:windows --nobuild_runfile_links",
@@ -663,8 +653,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 33);
-        assert_eq!(rendered_flag_lines(&render_all()).len(), 33);
+        assert_eq!(total, 31);
+        assert_eq!(rendered_flag_lines(&render_all()).len(), 31);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -754,7 +744,7 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 33);
+        assert_eq!(flags.len(), 31);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

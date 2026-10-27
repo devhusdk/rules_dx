@@ -40,6 +40,7 @@ docs_site(
     book_toml = "demo/book.toml",
     prose = ["demo/demo_prose.md"],
     shards = [
+        "//tools/docs/go/fixture:money_docs",
         "//tools/docs/rust/fixture:docs_fixture_docs",
         "//tools/docs/typescript/fixture:geometry_docs",
     ],

@@ -235,3 +235,55 @@ fn duplicate_pages_and_empty_shards_fail() {
         Err("the shards name no symbols".to_string())
     );
 }
+
+#[test]
+fn go_symbols_render_with_a_go_fence_under_their_import_path() {
+    let mut deposit = symbol(
+        "go:example.com/ledger/money:Account.Deposit",
+        "func (a *Account) Deposit(amount Amount)",
+        "Deposit adds money.",
+        47,
+    );
+    deposit.kind = SymbolKind::Method as i32;
+    deposit.relations = Some(Relations {
+        member_of: vec!["go:example.com/ledger/money:Account".to_string()],
+        ..Relations::default()
+    });
+    let account = symbol(
+        "go:example.com/ledger/money:Account",
+        "type Account struct{}",
+        "Account holds money.",
+        35,
+    );
+    let shard = DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "go".to_string(),
+        package: "example.com/ledger/money".to_string(),
+        symbols: vec![account, deposit],
+    };
+    let rendered = render(&[shard], "https://example.com/blob/main/").expect("render");
+    let page = &rendered.pages["go/example.com/ledger/money/Account.Deposit.md"];
+    assert!(
+        page.starts_with("# `example.com/ledger/money.Account.Deposit`\n\n```go\nfunc (a *Account) Deposit(amount Amount)\n```\n"),
+        "{page}"
+    );
+    assert!(
+        page.contains("Member of: [`example.com/ledger/money.Account`](Account.md)"),
+        "{page}"
+    );
+    assert!(
+        rendered
+            .api
+            .contains("## Go package `example.com/ledger/money`"),
+        "{}",
+        rendered.api
+    );
+    assert!(
+        rendered
+            .records
+            .contains("api/go/example.com/ledger/money/Account.html"),
+        "{}",
+        rendered.records
+    );
+}

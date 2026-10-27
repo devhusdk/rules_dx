@@ -220,6 +220,18 @@ mod tests {
     }
 
     #[test]
+    fn a_variable_symbol_roundtrips() {
+        let mut shard = example_shard();
+        shard.symbols[0].kind = SymbolKind::Variable as i32;
+        shard.symbols[0].relations = None;
+        let bytes = encode_shard(&shard).unwrap();
+        let decoded = decode_shard(&bytes).unwrap();
+        assert_eq!(decoded.symbols[0].kind(), SymbolKind::Variable);
+        assert_eq!(SymbolKind::Variable as i32, 13);
+        assert_eq!(decoded, shard);
+    }
+
+    #[test]
     fn encode_and_decode_reject_the_same_invalid_shards() {
         let mut bad_major = example_shard();
         bad_major.schema_major = 0;

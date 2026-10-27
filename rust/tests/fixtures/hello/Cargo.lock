@@ -2066,6 +2066,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "go_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "gomod-parser"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

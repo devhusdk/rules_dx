@@ -18,7 +18,8 @@ enum SymbolKind {
   ENUM_VARIANT = 10;
   TYPE_ALIAS = 11;
   MACRO = 12;
-  reserved 13 to 15;
+  VARIABLE = 13;
+  reserved 14 to 15;
 }
 
 enum Visibility {

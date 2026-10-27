@@ -226,6 +226,7 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
 fn group_title(group: &str) -> String {
     match group.split_once(':') {
         Some(("rust", package)) => format!("Rust crate `{package}`"),
+        Some(("go", package)) => format!("Go package `{package}`"),
         Some((language, package)) => format!("{language} package `{package}`"),
         None => group.to_string(),
     }
@@ -249,10 +250,10 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, source_url: &str) -> String {
         ));
     }
     if !symbol.signature_text.is_empty() {
-        let fence = if page.id.starts_with("rust:") {
-            "rust,noplayground"
-        } else {
-            "text"
+        let fence = match page.id.split_once(':') {
+            Some(("rust", _)) => "rust,noplayground",
+            Some(("go", _)) => "go",
+            _ => "text",
         };
         text.push_str(&format!("```{fence}\n{}\n```\n\n", symbol.signature_text));
     }

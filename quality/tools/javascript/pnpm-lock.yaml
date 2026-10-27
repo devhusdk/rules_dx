@@ -30,6 +30,9 @@ importers:
       astro-eslint-parser:
         specifier: 3.2.0
         version: 3.2.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       eslint:
         specifier: 10.10.0
         version: 10.10.0(jiti@2.7.0)

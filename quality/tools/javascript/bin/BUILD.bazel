@@ -1,5 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@npm_tools//quality/tools/javascript:@redocly/cli/package_json.bzl", redocly_bin = "bin")
+load("@npm_tools//quality/tools/javascript:esbuild/package_json.bzl", esbuild_bin = "bin")
 load("@npm_tools//quality/tools/javascript:stylelint/package_json.bzl", stylelint_bin = "bin")
 load("@npm_tools//quality/tools/javascript:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@npm_tools//quality/tools/javascript:wrangler/package_json.bzl", wrangler_bin = "bin")
@@ -71,6 +72,11 @@ typedoc_bin.typedoc_binary(
 wrangler_bin.wrangler_binary(
     name = "wrangler",
     visibility = ["//visibility:public"],
+)
+
+esbuild_bin.esbuild_binary(
+    name = "esbuild",
+    env = {"BAZEL_BINDIR": "."},
 )
 
 js_tool(

@@ -309,8 +309,8 @@ def _javascript_web_bundle_impl(ctx):
     if info.entry_file == None or info.wasm_file == None:
         fail("javascript_web_bundle " + str(ctx.label) + ": app " +
              display_label(ctx.attr.app.label) + " is already bundled")
-    exe = ctx.attr.bundler[DefaultInfo].files_to_run.executable
-    if exe == None:
+    tool = ctx.attr.bundler[DefaultInfo].files_to_run
+    if tool.executable == None:
         fail("javascript_web_bundle " + str(ctx.label) + ": bundler " +
              display_label(ctx.attr.bundler.label) + " has no executable")
     if ctx.attr.entry:

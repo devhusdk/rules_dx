@@ -547,6 +547,7 @@ rust_test(
         "//cli/cli:src/bin_man.rs",
         "//cli/cli:src/lib.rs",
         "//cli/cli:src/main.rs",
+        "//cli/core:src/lib.rs",
         "//cli/codegen:src/lib.rs",
         "//cli/diff:src/lib.rs",
         "//cli/digest:src/lib.rs",

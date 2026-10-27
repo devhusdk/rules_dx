@@ -17,7 +17,8 @@ pub enum OperationMode {
 }
 
 impl OperationMode {
-    pub fn name(self) -> &'static str {
+    #[cfg(test)]
+    pub(crate) fn name(self) -> &'static str {
         match self {
             OperationMode::Check => "check",
             OperationMode::Apply => "apply",
@@ -30,9 +31,9 @@ pub struct CommonOptions {
     pub output: OutputMode,
     pub include_edits: bool,
     pub reports: Vec<ReportRequest>,
-    pub quiet: bool,
-    pub verbose: bool,
-    pub color: ColorMode,
+    pub(crate) quiet: bool,
+    pub(crate) verbose: bool,
+    pub(crate) color: ColorMode,
 }
 
 /// The scope a dx check or dx fix run was given.
@@ -65,29 +66,29 @@ pub struct QualityRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenerateRequest {
-    pub mode: OperationMode,
+    pub(crate) mode: OperationMode,
     pub targets: Vec<String>,
     pub bazel_options: Vec<String>,
     pub bazel_startup_options: Vec<String>,
-    pub workspace: Option<String>,
+    pub(crate) workspace: Option<String>,
     pub common: CommonOptions,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UmbrellaRequest {
     pub command: Command,
-    pub mode: OperationMode,
-    pub apply: bool,
-    pub targets: Vec<String>,
-    pub scope: HintScope,
-    pub generate_targets: Vec<String>,
+    pub(crate) mode: OperationMode,
+    pub(crate) apply: bool,
+    pub(crate) targets: Vec<String>,
+    pub(crate) scope: HintScope,
+    pub(crate) generate_targets: Vec<String>,
     pub test: Option<Box<Invocation>>,
-    pub bazel_options: Vec<String>,
-    pub bazel_startup_options: Vec<String>,
-    pub workspace: Option<String>,
+    pub(crate) bazel_options: Vec<String>,
+    pub(crate) bazel_startup_options: Vec<String>,
+    pub(crate) workspace: Option<String>,
     pub common: CommonOptions,
-    pub fail_on: Threshold,
-    pub baseline: Option<String>,
+    pub(crate) fail_on: Threshold,
+    pub(crate) baseline: Option<String>,
 }
 
 impl CommonOptions {
@@ -111,10 +112,6 @@ impl QualityRequest {
 }
 
 impl GenerateRequest {
-    pub fn operation(&self) -> OperationMode {
-        self.mode
-    }
-
     pub fn applies(&self) -> bool {
         self.mode == OperationMode::Apply
     }
@@ -125,10 +122,6 @@ impl GenerateRequest {
 }
 
 impl UmbrellaRequest {
-    pub fn operation(&self) -> OperationMode {
-        self.mode
-    }
-
     pub fn applies(&self) -> bool {
         self.mode == OperationMode::Apply
     }
@@ -227,7 +220,7 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
-    pub baseline: Option<String>,
+    pub(crate) baseline: Option<String>,
     pub include_edits: bool,
     pub min_coverage: Option<u32>,
     pub targets: Vec<String>,
@@ -291,7 +284,8 @@ impl Invocation {
         &self.bazel_options
     }
 
-    pub fn mode(self) -> &'static str {
+    #[cfg(test)]
+    pub(crate) fn mode(self) -> &'static str {
         if self.check {
             "check"
         } else {
@@ -354,7 +348,7 @@ impl Invocation {
         dx_text_visible(&self.output) && !self.quiet
     }
 
-    pub fn common_options(&self) -> CommonOptions {
+    pub(crate) fn common_options(&self) -> CommonOptions {
         CommonOptions {
             output: self.output,
             include_edits: self.include_edits,
@@ -459,7 +453,10 @@ impl Invocation {
     }
 }
 
-pub fn here_scope(workspace: &std::path::Path, cwd: &std::path::Path) -> Result<String, String> {
+pub(crate) fn here_scope(
+    workspace: &std::path::Path,
+    cwd: &std::path::Path,
+) -> Result<String, String> {
     use std::path::Component;
     let rel = cwd.strip_prefix(workspace).map_err(|_| {
         format!(

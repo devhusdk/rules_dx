@@ -9,7 +9,7 @@ use dx_fingerprint::baseline::{
 use dx_output::{DiagnosticEvent, Snapshot};
 
 use super::results::Collected;
-use crate::reports::finding_identity;
+use dx_cli_core::reports::finding_identity;
 
 use super::common::CODE_VERIFICATION_FAILED;
 

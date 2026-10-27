@@ -1,8 +1,8 @@
 use super::common::*;
-use crate::args::Invocation;
-use crate::plan::{plan_run, plan_run_build, BuildPlan};
-use crate::reports::plan_reports;
-use crate::resolve::resolve_run;
+use dx_cli_core::args::Invocation;
+use dx_cli_core::plan::{plan_run, plan_run_build, BuildPlan};
+use dx_cli_core::reports::plan_reports;
+use dx_cli_core::resolve::resolve_run;
 use dx_output::{command_finished, command_started, operation_event, FinishedCounts, OutputMode};
 use std::io::Write;
 use std::path::Path;
@@ -83,7 +83,7 @@ impl Launcher<'_> {
     ) -> Option<i32> {
         let invocation = self.invocation;
         let json = invocation.output == OutputMode::Json;
-        let slot = match crate::slots::take(invocation.command, &mut *err, &mut *out) {
+        let slot = match dx_cli_core::slots::take(invocation.command, &mut *err, &mut *out) {
             Ok(slot) => slot,
             Err(signo) => {
                 let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
@@ -326,9 +326,9 @@ fn run_targets(
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use crate::args::parse;
-    use crate::args::Command;
-    use crate::resolve::ResolveError;
+    use dx_cli_core::args::parse;
+    use dx_cli_core::args::Command;
+    use dx_cli_core::resolve::ResolveError;
 
     #[test]
     fn run_label_passthrough_preserves_status_on_stderr() {
@@ -372,12 +372,12 @@ mod tests {
             env: &[(&str, &str)],
         ) -> std::io::Result<dx_process::ChildStatus> {
             let busy = !dx_test_scratch::settles(std::time::Duration::from_secs(1), || {
-                crate::slots::try_take(&self.dir, 1, "settle")
+                dx_cli_core::slots::try_take(&self.dir, 1, "settle")
                     .expect("try")
                     .is_some()
             });
             let launch = self.seen.borrow().len();
-            let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
+            let marked = env.contains(&(dx_cli_core::slots::SLOT_ENV_VAR, "1"));
             self.seen.borrow_mut().push((argv.to_vec(), busy, marked));
             Ok(dx_process::ChildStatus::exited(
                 self.codes[launch.min(self.codes.len() - 1)],
@@ -398,10 +398,10 @@ mod tests {
             codes: codes.to_vec(),
             seen: std::cell::RefCell::new(Vec::new()),
         };
-        let gate = crate::slots::Gate::new(dir, 1, "run-tree".to_owned(), true);
+        let gate = dx_cli_core::slots::Gate::new(dir, 1, "run-tree".to_owned(), true);
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = crate::slots::with_gate(Some(gate), || {
+        let code = dx_cli_core::slots::with_gate(Some(gate), || {
             crate::exec::execute(
                 &invocation(words),
                 harness.env_with(&runner, &mut out, &mut err),
@@ -434,7 +434,7 @@ mod tests {
         assert!(run.contains(&"--port=8080".to_owned()), "{run:?}");
         assert!(!*run_busy, "the app runs without a slot");
         assert!(!*run_marked, "the app sees no held slot");
-        for setting in crate::plan::BAZEL_SETTINGS {
+        for setting in dx_cli_core::plan::BAZEL_SETTINGS {
             assert!(build.contains(&setting.to_owned()), "{build:?}");
             assert!(run.contains(&setting.to_owned()), "{run:?}");
         }
@@ -490,11 +490,9 @@ mod tests {
             assert_eq!(finished["event"], serde_json::json!("command_finished"));
             assert_eq!(finished["exit_code"], serde_json::json!(1), "{}", run.out);
             assert!(
-                harness
-                    .seen_env
-                    .borrow()
+                harness.seen_env.borrow().iter().all(|env| env
                     .iter()
-                    .all(|env| env.iter().all(|(key, _)| key != crate::slots::SLOT_ENV_VAR)),
+                    .all(|(key, _)| key != dx_cli_core::slots::SLOT_ENV_VAR)),
                 "{words:?}"
             );
         }
@@ -846,7 +844,7 @@ mod tests {
     fn run_invocation(
         command: Command,
         output: OutputMode,
-        reports: Vec<crate::args::ReportRequest>,
+        reports: Vec<dx_cli_core::args::ReportRequest>,
     ) -> Invocation {
         let mut invocation = invocation(&["run", "//app:bin"]);
         invocation.command = command;
@@ -861,7 +859,7 @@ mod tests {
         let inv = run_invocation(
             Command::Run,
             OutputMode::Text { quiet: false },
-            vec![crate::args::ReportRequest {
+            vec![dx_cli_core::args::ReportRequest {
                 format: "junit".to_owned(),
                 destination: "out.xml".to_owned(),
             }],

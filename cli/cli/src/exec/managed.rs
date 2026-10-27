@@ -1,8 +1,8 @@
 use super::common::*;
 use super::managed_prepare::{map_commit_error, prepare_managed_sides};
-use crate::args::{Command, Invocation};
-use crate::plan::{bep_path, plan_managed, plan_managed_with_roots};
-use crate::resolve::expand_codegen_roots;
+use dx_cli_core::args::{Command, Invocation};
+use dx_cli_core::plan::{bep_path, plan_managed, plan_managed_with_roots};
+use dx_cli_core::resolve::expand_codegen_roots;
 use dx_output::{
     command_finished, command_started, notice_event, operation_event, selection_event,
     FinishedCounts, NoticeEvent, OutputMode,
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn managed_exact_codegen_expansion_failure_is_pre_exec() {
-        use crate::resolve::QueryResult;
+        use dx_cli_core::resolve::QueryResult;
 
         let harness = Harness::new("managed-expand-fail");
         harness.query.outputs.borrow_mut().push(QueryResult {

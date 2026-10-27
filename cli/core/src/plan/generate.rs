@@ -3,17 +3,17 @@ use dx_process::{describe_scope, ForwardError};
 use super::{bazel_argv, workflow_scope_labels, BuildPlan};
 use crate::resolve::ResolvedScope;
 
-pub const GENERATE_TARGET: &str = "//dx:generate";
-pub const GENERATE_CHECK_TARGET: &str = "//dx:generate_check";
+pub(crate) const GENERATE_TARGET: &str = "//dx:generate";
+pub(crate) const GENERATE_CHECK_TARGET: &str = "//dx:generate_check";
 
 pub const GENERATE_ENV_INTENDED: &str = "DX_GENERATE_INTENDED";
 pub const GENERATE_ENV_SCOPE: &str = "DX_GENERATE_SCOPE";
 pub const GENERATE_ENV_MODE: &str = "DX_GENERATE_MODE";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GenerateScopeElement {
-    pub element: String,
-    pub dirs: Vec<String>,
+pub(crate) struct GenerateScopeElement {
+    pub(crate) element: String,
+    pub(crate) dirs: Vec<String>,
 }
 
 /// Maps one scope label to the Gazelle directory it traverses ("" is repo-wide).
@@ -57,7 +57,7 @@ fn generate_traversal_dir(target: &str) -> String {
 }
 
 /// Collapses target labels into sorted, non-overlapping Gazelle package patterns.
-pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
+pub(crate) fn generate_package_scope(targets: &[String]) -> Vec<String> {
     let mut dirs: Vec<String> = targets
         .iter()
         .map(|target| generate_traversal_dir(target))
@@ -79,7 +79,7 @@ pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
     kept.into_iter().map(|dir| format!("//{dir}/...")).collect()
 }
 
-pub fn generate_scope_elements(resolved: &ResolvedScope) -> Vec<GenerateScopeElement> {
+pub(crate) fn generate_scope_elements(resolved: &ResolvedScope) -> Vec<GenerateScopeElement> {
     let (_, labels) = workflow_scope_labels(resolved);
     labels
         .iter()
@@ -100,7 +100,7 @@ pub fn generate_scope_json(resolved: &ResolvedScope) -> String {
     serde_json::Value::Array(items).to_string()
 }
 
-pub fn generate_traversal_dirs(resolved: &ResolvedScope) -> Vec<String> {
+pub(crate) fn generate_traversal_dirs(resolved: &ResolvedScope) -> Vec<String> {
     let mut dirs: Vec<String> = generate_scope_elements(resolved)
         .into_iter()
         .flat_map(|element| element.dirs)

@@ -1,13 +1,13 @@
 use super::common::*;
-use crate::args::{GenerateRequest, Invocation};
-use crate::finalize::{finalize, FinalizeError, FinalizeInput, GazelleStatus};
-use crate::generate::{project, refused_lines, render_diff, text_lines, ProjectedManifest};
-use crate::plan::{
+use dx_cli_core::args::{GenerateRequest, Invocation};
+use dx_cli_core::finalize::{finalize, FinalizeError, FinalizeInput, GazelleStatus};
+use dx_cli_core::generate::{project, refused_lines, render_diff, text_lines, ProjectedManifest};
+use dx_cli_core::plan::{
     generate_scope_json, intended_path, patch_path, plan_generate, GENERATE_ENV_INTENDED,
     GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
 };
-use crate::reports::plan_reports;
-use crate::resolve::resolve;
+use dx_cli_core::reports::plan_reports;
+use dx_cli_core::resolve::resolve;
 use dx_output::{
     change_value, command_finished, command_started, notice_value, FinishedCounts, OutputMode,
 };
@@ -84,7 +84,7 @@ fn run_generate_request(
 ) -> i32 {
     match plan_reports(
         env.workspace,
-        crate::args::Command::Generate,
+        dx_cli_core::args::Command::Generate,
         &request.common.reports,
         &request.common.output,
     ) {
@@ -825,8 +825,9 @@ mod tests {
     }
 
     fn generate_phase(harness: &Harness, words: &[&str]) -> PhaseRun {
-        let parsed = crate::args::parse(&dx_testing::cli::strings(words)).expect("parse");
-        let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
+        let parsed = dx_cli_core::args::parse(&dx_testing::cli::strings(words)).expect("parse");
+        let inv =
+            dx_cli_core::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
         let request = inv.generate_request().expect("generate request");
         let runner = harness.runner();
         let mut out = Vec::new();

@@ -28,7 +28,7 @@ impl StandardFormat {
         }
     }
 
-    pub(crate) fn parse(text: &str) -> Option<Self> {
+    pub fn parse(text: &str) -> Option<Self> {
         match text {
             "sarif" => Some(StandardFormat::Sarif),
             "junit" => Some(StandardFormat::Junit),

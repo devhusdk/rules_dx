@@ -1,5 +1,5 @@
 {
-  "checksum": "72cbab071a81ce3cbbac65f5bbff3f107dc76226e5cf237d4023a22382dc7a5a",
+  "checksum": "ba9f2a42a5509002f01e65bfcb42a90a3410690efa16ad1c6ed9409c5c3083d8",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6461,6 +6461,61 @@
             "target": "clap"
           },
           {
+            "id": "libc 0.2.189",
+            "target": "libc"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde-sarif 0.8.0",
+            "target": "serde_sarif"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_cli",
+      "name": "dx_cli",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_cli",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_cli_core 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "base64 0.22.1",
+            "target": "base64"
+          },
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          },
+          {
             "id": "clap_complete 4.6.11",
             "target": "clap_complete"
           },
@@ -6503,10 +6558,6 @@
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
-          },
-          {
-            "id": "tracing 0.1.44",
-            "target": "tracing"
           }
         ],
         "deps_dev": [
@@ -6525,13 +6576,13 @@
         ],
         "edition": "2021"
       },
-      "library_target_name": "dx_cli",
-      "name": "dx_cli",
+      "library_target_name": "dx_cli_core",
+      "name": "dx_cli_core",
       "repository": null,
       "targets": [
         {
           "Library": {
-            "crate_name": "dx_cli",
+            "crate_name": "dx_cli_core",
             "crate_root": "src/lib.rs"
           }
         }
@@ -24383,6 +24434,7 @@
     "dx_bump 0.0.0": "cli/dx_bump",
     "dx_clean 0.0.0": "cli/dx_clean",
     "dx_cli 0.0.0": "cli/dx_cli",
+    "dx_cli_core 0.0.0": "cli/dx_cli_core",
     "dx_codegen 0.0.0": "cli/dx_codegen",
     "dx_depcheck 0.0.0": "tools/dx_depcheck",
     "dx_deploy_tools 0.0.0": "deploy/dx_deploy_tools",

@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use crate::args::Invocation;
 use crate::exec::common::{check_stdout_write, pre_exec};
+use dx_cli_core::args::Invocation;
 
 use super::{operational, summaries_suppressed};
 
@@ -505,7 +505,7 @@ mod tests {
             vec!["new", "--apply", "gleam", "demo", "--force"],
             vec!["new", "--apply", "erlang", "demo", "--force"],
         ] {
-            let parsed = crate::args::parse(&dx_testing::cli::strings(&words));
+            let parsed = dx_cli_core::args::parse(&dx_testing::cli::strings(&words));
             assert!(parsed.is_err(), "{words:?}");
         }
         for words in [vec!["new", "rb", "demo"], vec!["new", "pwsh", "demo"]] {

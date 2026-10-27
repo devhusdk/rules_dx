@@ -50,7 +50,7 @@ pub fn try_complete() -> Result<bool, String> {
 }
 
 /// Give every command the completer for its own scope slot.
-pub fn with_scope_completers(
+pub(crate) fn with_scope_completers(
     command: clap::Command,
     words: impl IntoIterator<Item = OsString>,
     start: &Path,
@@ -115,7 +115,6 @@ pub fn render_completion(shell: &str) -> Result<String, ArgsError> {
 }
 
 /// Whether a rendered script calls back into dx for this shell.
-#[cfg(test)]
 pub fn registers_callback(script: &str, shell: &str) -> bool {
     !script.is_empty() && script.contains(COMPLETE_VAR) && script.contains(shell)
 }

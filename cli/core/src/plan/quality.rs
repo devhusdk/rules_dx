@@ -48,7 +48,10 @@ fn shard_name(aspect: &str) -> &str {
 const CORE_SHARDS: [&str; 3] = ["real_lint", "real_format", "real_typecheck"];
 
 /// The registry aspects to pass: all of them, or the core ones plus the shards the probe named.
-pub fn select_aspects(entry: &CommandSpec, shards: Option<&BTreeSet<String>>) -> Vec<&'static str> {
+pub(crate) fn select_aspects(
+    entry: &CommandSpec,
+    shards: Option<&BTreeSet<String>>,
+) -> Vec<&'static str> {
     entry
         .aspects
         .iter()
@@ -75,7 +78,7 @@ pub(crate) fn setting_name(option: &str) -> Result<String, ForwardError> {
     Ok(name.to_owned())
 }
 
-pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, ForwardError> {
+pub(crate) fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, ForwardError> {
     let keep_going = required
         .iter()
         .find(|option| option.as_str() == KEEP_GOING_FLAG)
@@ -110,7 +113,7 @@ pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, Forwar
     Ok(protected)
 }
 
-pub(crate) fn workflow_scope_labels(resolved: &ResolvedScope) -> (Scope, Vec<String>) {
+pub fn workflow_scope_labels(resolved: &ResolvedScope) -> (Scope, Vec<String>) {
     if resolved.targets.is_empty() {
         (Scope::Repository, vec![describe_scope(&Scope::Repository)])
     } else {

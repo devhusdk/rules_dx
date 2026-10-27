@@ -53,7 +53,7 @@ scopes = ["."]
 
     fn run(argv: &[&str], harness: &Harness) -> (i32, String, String) {
         let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
-        let invocation = crate::args::parse(&words).expect("parse");
+        let invocation = dx_cli_core::args::parse(&words).expect("parse");
         harness.execute_with(&invocation, &AuditRunner::clean())
     }
 

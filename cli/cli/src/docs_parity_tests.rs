@@ -1,5 +1,5 @@
-use crate::args::Command;
-use crate::plan::spec;
+use dx_cli_core::args::Command;
+use dx_cli_core::plan::spec;
 use dx_testing::cli::{backticked, markdown_sections};
 use std::path::PathBuf;
 

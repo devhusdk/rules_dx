@@ -16,7 +16,7 @@ impl Profile {
         }
     }
 
-    pub fn config(self) -> &'static str {
+    pub(crate) fn config(self) -> &'static str {
         match self {
             Profile::Debug => "dx_debug",
             Profile::Dev => "dx_dev",

@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use crate::args::Invocation;
 use crate::exec::common::{check_stdout_write, refusal};
+use dx_cli_core::args::Invocation;
 
 use super::{operational, summaries_suppressed};
 

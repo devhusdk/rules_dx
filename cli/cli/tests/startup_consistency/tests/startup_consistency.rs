@@ -1,9 +1,8 @@
 //! Every dx planner starts Bazel with the same startup flags under a local rc policy.
 
-use dx_cli::{
-    plan_build, plan_deploy_build, plan_deploy_run, plan_generate, plan_managed_with_roots,
-    plan_run_build, plan_run_targets, plan_workflow, Command, Profile, ResolvedScope, WorkflowVerb,
-};
+use dx_cli_core::args::{Command, Profile, WorkflowVerb};
+use dx_cli_core::plan;
+use dx_cli_core::resolve::ResolvedScope;
 use dx_process::{RcPolicy, Scope};
 
 const OUTPUT_BASE: &str = "--output_base=/ob";
@@ -49,7 +48,7 @@ fn workflow_verbs_share_the_startup_prefix() {
         WorkflowVerb::Coverage,
         WorkflowVerb::Run,
     ] {
-        let plan = plan_workflow(
+        let plan = plan::plan_workflow(
             verb,
             &resolved(),
             &[],
@@ -67,7 +66,7 @@ fn quality_builds_share_the_startup_prefix() {
     local();
     for command in [Command::Lint, Command::Typecheck, Command::Format] {
         let plan =
-            plan_build(command, &resolved(), &[], "/tmp/bep.json", &startup()).expect("plan");
+            plan::plan_build(command, &resolved(), &[], "/tmp/bep.json", &startup()).expect("plan");
         assert_prefix(&plan.argv, "build");
     }
 }
@@ -76,7 +75,7 @@ fn quality_builds_share_the_startup_prefix() {
 fn generate_shares_the_startup_prefix() {
     local();
     for check in [false, true] {
-        let plan = plan_generate(&resolved(), &[], check, &startup(), None).expect("plan");
+        let plan = plan::plan_generate(&resolved(), &[], check, &startup(), None).expect("plan");
         assert_prefix(&plan.argv, "run");
     }
 }
@@ -85,7 +84,7 @@ fn generate_shares_the_startup_prefix() {
 fn managed_builds_share_the_startup_prefix() {
     local();
     for command in [Command::Codegen, Command::Env] {
-        let plan = plan_managed_with_roots(
+        let plan = plan::plan_managed_with_roots(
             command,
             &["//a:x".to_owned()],
             &[],
@@ -101,13 +100,17 @@ fn managed_builds_share_the_startup_prefix() {
 fn run_and_deploy_share_the_startup_prefix() {
     local();
     let targets = vec!["//a:x".to_owned()];
-    let run = plan_run_targets(&targets, &[], &[], Profile::Dev, &startup()).expect("plan");
+    let run = plan::run_deploy::plan_run_targets(&targets, &[], &[], Profile::Dev, &startup())
+        .expect("plan");
     assert_prefix(&run.argv, "run");
-    let build = plan_run_build(&targets, &[], Profile::Dev, &startup()).expect("plan");
+    let build =
+        plan::run_deploy::plan_run_build(&targets, &[], Profile::Dev, &startup()).expect("plan");
     assert_prefix(&build.argv, "build");
-    let deploy_build = plan_deploy_build("//a:x", Profile::Release, &startup()).expect("plan");
+    let deploy_build =
+        plan::run_deploy::plan_deploy_build("//a:x", Profile::Release, &startup()).expect("plan");
     assert_prefix(&deploy_build.argv, "build");
-    let deploy_run = plan_deploy_run("//a:x", &[], Profile::Release, &startup()).expect("plan");
+    let deploy_run = plan::run_deploy::plan_deploy_run("//a:x", &[], Profile::Release, &startup())
+        .expect("plan");
     assert_prefix(&deploy_run.argv, "run");
 }
 

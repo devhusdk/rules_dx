@@ -1,6 +1,6 @@
 use super::common::*;
-use crate::args::{Command, Invocation};
-use crate::reports::plan_reports;
+use dx_cli_core::args::{Command, Invocation};
+use dx_cli_core::reports::plan_reports;
 use dx_output::{command_started, OutputMode};
 
 pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -125,10 +125,10 @@ mod tests {
 
     #[test]
     fn missing_versions_and_non_upgrades_are_pre_exec() {
-        use crate::args::parse;
+        use dx_cli_core::args::parse;
         assert!(matches!(
             parse(&strings(&["migrate", "--from=1.2.3"])),
-            Err(crate::args::ArgsError::MissingValue { .. })
+            Err(dx_cli_core::args::ArgsError::MissingValue { .. })
         ));
         let harness = Harness::new("migrate-minor");
         let (code, _, err) = harness.run(&["migrate", "--from=1.2.3", "--to=1.3.0"]);
@@ -150,14 +150,14 @@ mod tests {
 
     #[test]
     fn from_to_belong_to_migrate_only() {
-        use crate::args::parse;
+        use dx_cli_core::args::parse;
         assert!(matches!(
             parse(&strings(&["lint", "--from=1.0.0"])),
-            Err(crate::args::ArgsError::UnsupportedOption { .. })
+            Err(dx_cli_core::args::ArgsError::UnsupportedOption { .. })
         ));
         assert!(matches!(
             parse(&strings(&["build", "//a:one", "--to=2.0.0"])),
-            Err(crate::args::ArgsError::UnsupportedOption { .. })
+            Err(dx_cli_core::args::ArgsError::UnsupportedOption { .. })
         ));
     }
 }

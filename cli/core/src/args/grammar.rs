@@ -906,7 +906,7 @@ pub(crate) struct Cli {
     pub(crate) verb: Option<Verb>,
 }
 
-pub fn cli_command() -> clap::Command {
+pub(crate) fn cli_command() -> clap::Command {
     use clap::CommandFactory;
     let cwd = dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let start = dx_process::workspace_start(&cwd);
@@ -1012,7 +1012,7 @@ pub(crate) fn consumes_next(word: &str, next: Option<&str>) -> bool {
 }
 
 /// The long names the grammar gives the flags that belong to some commands only.
-pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> {
+pub fn advertised_flags(command: super::command::Command) -> Vec<String> {
     let sub = subcommand_args(command);
     let mut flags = Vec::new();
     for arg in sub.get_arguments() {
@@ -1029,14 +1029,14 @@ pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> 
 }
 
 /// Whether `dx <command>` parses `--<long>`, hidden arguments included.
-pub(crate) fn accepts_long(command: super::command::Command, long: &str) -> bool {
+pub fn accepts_long(command: super::command::Command, long: &str) -> bool {
     subcommand_args(command)
         .get_arguments()
         .any(|arg| arg.get_long() == Some(long))
 }
 
 /// Whether the grammar lets `dx <command> -- <bazel-options>` through.
-pub(crate) fn advertises_passthrough(command: super::command::Command) -> bool {
+pub fn advertises_passthrough(command: super::command::Command) -> bool {
     subcommand_args(command)
         .get_arguments()
         .any(|arg| arg.is_last_set() && !arg.is_hide_set())

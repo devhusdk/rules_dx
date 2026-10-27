@@ -5,7 +5,7 @@ package(default_visibility = ["//visibility:private"])
 
 exports_files(
     ["testdata/intended_manifest.json"],
-    visibility = ["//cli/cli:__pkg__"],
+    visibility = ["//cli/core:__pkg__"],
 )
 
 exports_files(

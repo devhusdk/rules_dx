@@ -1,8 +1,8 @@
 use super::{execute, Env};
-use crate::args::Invocation;
-use crate::plan::GENERATE_ENV_INTENDED;
-use crate::resolve::{QueryResult, QueryRunner};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use dx_cli_core::args::Invocation;
+use dx_cli_core::plan::GENERATE_ENV_INTENDED;
+use dx_cli_core::resolve::{QueryResult, QueryRunner};
 use dx_digest::blake3 as digest;
 use dx_process::{ChildStatus, Runner};
 use dx_setup::{
@@ -22,7 +22,7 @@ pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, graph_rule,
 
 /// Parses test words into one invocation, panicking on a failure.
 pub(crate) fn invocation(words: &[&str]) -> Invocation {
-    crate::args::parse(words).expect("parse")
+    dx_cli_core::args::parse(words).expect("parse")
 }
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
@@ -456,7 +456,7 @@ impl Harness {
     }
 
     fn parse_words(&self, words: &[&str], ci: bool) -> Result<Invocation, String> {
-        let defaults = crate::args::load_startup_defaults(
+        let defaults = dx_cli_core::args::load_startup_defaults(
             &dx_process::workspace_start(&self.cwd),
             &self.cwd,
             None,
@@ -464,10 +464,14 @@ impl Harness {
             ci,
         )
         .map_err(|failure| format!("dx: {}\n", failure.detail))?;
-        let inv =
-            crate::args::parse_with_ci(&dx_testing::cli::strings(words), &|_| None, &defaults, ci)
-                .map_err(|error| format!("dx: {error}\n{}\n", crate::args::help::usage_banner()))?;
-        crate::args::apply_here(&inv, &self.workspace, &self.cwd)
+        let inv = dx_cli_core::args::parse_with_ci(
+            &dx_testing::cli::strings(words),
+            &|_| None,
+            &defaults,
+            ci,
+        )
+        .map_err(|error| format!("dx: {error}\n{}\n", dx_cli_core::args::help::usage_banner()))?;
+        dx_cli_core::args::apply_here(&inv, &self.workspace, &self.cwd)
             .map_err(|detail| format!("dx: {detail}\n"))
     }
 

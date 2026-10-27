@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use crate::plan::OUTPUT_GROUP;
+use dx_cli_core::plan::OUTPUT_GROUP;
 use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
 use quality_result::{decode_validated, proto};
 

@@ -1,8 +1,8 @@
 use super::common::*;
-use crate::args::{Command, Invocation};
-use crate::reports::{plan_reports, Destination};
-use crate::resolve::QueryRunner;
 use dx_audit::secrets::CONFIG_FILE_NAME;
+use dx_cli_core::args::{Command, Invocation};
+use dx_cli_core::reports::{plan_reports, Destination};
+use dx_cli_core::resolve::QueryRunner;
 use dx_output::{
     command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
     DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
@@ -1568,7 +1568,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         if name == "sarif" {
             let tools: Vec<String> = sarif_tools.iter().cloned().collect();
             let snapshots = BTreeMap::new();
-            let document = match crate::reports::render_sarif(
+            let document = match dx_cli_core::reports::render_sarif(
                 &tools,
                 &diagnostics,
                 &snapshots,

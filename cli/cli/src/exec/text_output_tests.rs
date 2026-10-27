@@ -1,5 +1,5 @@
 use super::super::test_support::*;
-use crate::resolve::QueryResult;
+use dx_cli_core::resolve::QueryResult;
 use quality_result::proto::Convergence;
 use quality_result::{decode_validated, encode_validated};
 

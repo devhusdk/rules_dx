@@ -1,37 +1,53 @@
-pub mod generate;
-pub mod managed;
+pub(crate) mod generate;
+pub(crate) mod managed;
 pub mod quality;
 pub mod registry;
 pub mod run_deploy;
-pub mod run_temp;
-pub mod workflow;
+pub(crate) mod run_temp;
+pub(crate) mod workflow;
 
 use std::path::Path;
 use std::sync::OnceLock;
 
 use dx_process::{ForwardError, ProtectedFlag};
 
-pub use generate::{
-    generate_package_scope, generate_scope_json, plan_generate, GENERATE_ENV_INTENDED,
-    GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
-};
-pub use managed::{plan_managed, plan_managed_with_roots};
-pub(crate) use quality::workflow_scope_labels;
-pub use quality::{plan_build, plan_build_with, plan_probe};
+pub(crate) use generate::generate_package_scope;
+pub use generate::generate_scope_json;
+pub use generate::plan_generate;
+pub use generate::GENERATE_ENV_INTENDED;
+pub use generate::GENERATE_ENV_MODE;
+pub use generate::GENERATE_ENV_SCOPE;
+pub use managed::plan_managed;
+pub use managed::plan_managed_with_roots;
+pub use quality::plan_build;
+pub use quality::plan_build_with;
+pub use quality::plan_probe;
+pub use quality::workflow_scope_labels;
 pub use registry::spec;
-pub use run_deploy::{
-    plan_deploy_build, plan_deploy_run, plan_run, plan_run_build, plan_run_targets, shell_join,
-    shell_quote,
-};
-pub use run_temp::{
-    bep_path, clean_for_stop, create_run_temp_dir, intended_path, patch_path, remove_on_stop,
-    remove_stale_run_dirs, results_path, run_id,
-};
-pub use workflow::{plan_workflow, workflow_protected, WorkflowVerb};
+pub use run_deploy::plan_deploy_build;
+pub use run_deploy::plan_deploy_run;
+pub use run_deploy::plan_run;
+pub use run_deploy::plan_run_build;
+pub use run_deploy::plan_run_targets;
+pub use run_deploy::shell_join;
+pub use run_deploy::shell_quote;
+pub use run_temp::bep_path;
+pub use run_temp::clean_for_stop;
+pub use run_temp::create_run_temp_dir;
+pub use run_temp::intended_path;
+pub use run_temp::patch_path;
+pub use run_temp::remove_on_stop;
+pub use run_temp::remove_stale_run_dirs;
+pub use run_temp::results_path;
+pub use run_temp::run_id;
+pub use workflow::plan_workflow;
+pub use workflow::workflow_protected;
+pub use workflow::WorkflowVerb;
 
-pub const CLIPPY_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:clippy_output_diagnostics=true";
+pub(crate) const CLIPPY_DIAGNOSTICS_FLAG: &str =
+    "--@rules_dx//config:clippy_output_diagnostics=true";
 
-pub const RUSTC_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:rustc_output_diagnostics=true";
+pub(crate) const RUSTC_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:rustc_output_diagnostics=true";
 
 pub const BAZEL_SETTINGS: [&str; 2] = [CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG];
 
@@ -57,7 +73,7 @@ pub(crate) fn rules_dx_repo() -> &'static str {
 }
 
 /// Returns the name a MODULE.bazel source gives rules_dx.
-pub fn rules_dx_repo_of(module_text: &str) -> String {
+pub(crate) fn rules_dx_repo_of(module_text: &str) -> String {
     let Ok(file) = dx_module_bazel::ModuleFile::parse(module_text) else {
         return RULES_DX.to_owned();
     };
@@ -84,12 +100,12 @@ fn valid_repo_name(name: &str) -> bool {
 }
 
 /// Returns a label in the rules_dx repository.
-pub fn rules_dx_label(rest: &str) -> String {
+pub(crate) fn rules_dx_label(rest: &str) -> String {
     format!("@{}//{rest}", rules_dx_repo())
 }
 
 /// Returns the shared settings for a Bazel command, spelled with `repo`.
-pub fn settings_for(repo: &str, bazel_command: &str) -> Vec<String> {
+pub(crate) fn settings_for(repo: &str, bazel_command: &str) -> Vec<String> {
     match bazel_command {
         "build" | "test" | "coverage" | "run" | "cquery" | "aquery" => BAZEL_SETTINGS
             .iter()
@@ -100,7 +116,7 @@ pub fn settings_for(repo: &str, bazel_command: &str) -> Vec<String> {
 }
 
 /// Returns the settings every build-like Bazel command shares.
-pub fn shared_settings(bazel_command: &str) -> Vec<String> {
+pub(crate) fn shared_settings(bazel_command: &str) -> Vec<String> {
     settings_for(rules_dx_repo(), bazel_command)
 }
 
@@ -162,13 +178,13 @@ pub const OUTPUT_GROUP: &str = "dx_results";
 /// The output group the shard probe writes `{"shards":[...]}` files to.
 pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";
 
-pub const KEEP_GOING_FLAG: &str = "--keep_going";
+pub(crate) const KEEP_GOING_FLAG: &str = "--keep_going";
 
-pub const SKIP_INCOMPATIBLE_FLAG: &str = "--skip_incompatible_explicit_targets";
+pub(crate) const SKIP_INCOMPATIBLE_FLAG: &str = "--skip_incompatible_explicit_targets";
 
-pub const DOWNLOAD_ALL_FLAG: &str = "--remote_download_outputs=all";
+pub(crate) const DOWNLOAD_ALL_FLAG: &str = "--remote_download_outputs=all";
 
-pub const DOWNLOAD_TOPLEVEL_FLAG: &str = "--remote_download_outputs=toplevel";
+pub(crate) const DOWNLOAD_TOPLEVEL_FLAG: &str = "--remote_download_outputs=toplevel";
 
 /// The download mode for every command that reads outputs: all if the user's last choice was
 /// all, else toplevel. Minimal is never allowed, since dx reads reports from the outputs.
@@ -204,9 +220,9 @@ pub(crate) fn download_guards() -> Vec<ProtectedFlag> {
     ]
 }
 
-pub const BEP_FLAG_NAME: &str = "build_event_json_file";
+pub(crate) const BEP_FLAG_NAME: &str = "build_event_json_file";
 
-pub const BEP_PATH_CONVERSION_FLAG: &str = "--build_event_json_file_path_conversion=false";
+pub(crate) const BEP_PATH_CONVERSION_FLAG: &str = "--build_event_json_file_path_conversion=false";
 
 /// The flags that write the build event file with local file paths.
 pub(crate) fn bep_options(path: &str) -> Vec<String> {

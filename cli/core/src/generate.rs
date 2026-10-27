@@ -6,18 +6,18 @@ use generation_result::{
     Error, FileText,
 };
 
-pub const IGNORED_IMPORT_CODE: &str = "ignored_import";
-pub const IGNORED_IMPORT_LEVEL: &str = "warning";
-pub const IGNORED_IMPORT_MESSAGE: &str =
+pub(crate) const IGNORED_IMPORT_CODE: &str = "ignored_import";
+pub(crate) const IGNORED_IMPORT_LEVEL: &str = "warning";
+pub(crate) const IGNORED_IMPORT_MESSAGE: &str =
     "Static import intentionally contributes no Bazel dependency";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectedFile {
     pub change: ChangeEvent,
-    pub original: String,
-    pub candidate: String,
-    pub outcome: Option<ChangeEffect>,
-    pub failure_code: Option<String>,
+    pub(crate) original: String,
+    pub(crate) candidate: String,
+    pub(crate) outcome: Option<ChangeEffect>,
+    pub(crate) failure_code: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,18 +25,18 @@ pub struct ProjectedManifest {
     pub files: Vec<ProjectedFile>,
     pub notices: Vec<NoticeEvent>,
     pub results_complete: bool,
-    pub is_check: bool,
+    pub(crate) is_check: bool,
 }
 
 impl ProjectedManifest {
-    pub fn creates(&self) -> u64 {
+    pub(crate) fn creates(&self) -> u64 {
         self.files
             .iter()
             .filter(|file| file.change.kind == ChangeKind::Create)
             .count() as u64
     }
 
-    pub fn modifies(&self) -> u64 {
+    pub(crate) fn modifies(&self) -> u64 {
         self.files
             .iter()
             .filter(|file| file.change.kind == ChangeKind::Modify)
@@ -113,7 +113,7 @@ fn hex_digest(bytes: &[u8]) -> String {
     dx_digest::to_hex_bytes(bytes)
 }
 
-pub fn manifest_is_check(manifest: &GenerationManifest) -> bool {
+pub(crate) fn manifest_is_check(manifest: &GenerationManifest) -> bool {
     manifest.mode == Mode::Check as i32
 }
 

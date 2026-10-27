@@ -19,7 +19,7 @@ rust_test(
     crate_name = "startup_consistency",
     crate_root = "tests/startup_consistency.rs",
     deps = [
-        "//cli/cli:dx_cli",
+        "//cli/core:dx_cli_core",
         "//cli/process:dx_process",
     ],
 )

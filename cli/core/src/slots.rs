@@ -14,7 +14,7 @@ use std::time::{Duration, Instant, SystemTime};
 use crate::args::Command;
 use dx_worktree::host::{self, Host, Server, SystemHost};
 
-pub mod pressure;
+pub(crate) mod pressure;
 
 use pressure::{HostPressure, Pressure};
 
@@ -25,25 +25,25 @@ pub const SLOT_ENV_VAR: &str = "DX_BUILD_SLOT";
 pub const SHARE_ENV_VAR: &str = "DX_BUILD_SHARE";
 
 /// Set by Bazel in every test action, so dx inside a test takes no slot.
-pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
+pub(crate) const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 
 /// Memory one Bazel server plus its build is planned to use.
-pub const BYTES_PER_SLOT: u64 = 3 << 30;
+pub(crate) const BYTES_PER_SLOT: u64 = 3 << 30;
 
 /// Memory one remote-execution Bazel server plus its build is planned to use.
-pub const BYTES_PER_REMOTE_SLOT: u64 = 3 << 29;
+pub(crate) const BYTES_PER_REMOTE_SLOT: u64 = 3 << 29;
 
 /// Fewest seconds between two extra slot grants.
 const EXTRA_SPACING: Duration = Duration::from_secs(10);
 
 /// Sets how many nested Bazel test servers rules_dx tests run at once.
-pub const NESTED_BAZEL_SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
+pub(crate) const NESTED_BAZEL_SLOTS_ENV: &str = "DX_NESTED_BAZEL_SLOTS";
 
 /// Nested Bazel test servers rules_dx tests run at once by default.
-pub const DEFAULT_NESTED_BAZEL_SLOTS: u64 = 3;
+pub(crate) const DEFAULT_NESTED_BAZEL_SLOTS: u64 = 3;
 
 /// Memory one nested Bazel test server is planned to use.
-pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
+pub(crate) const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
 
 /// Most slots dx ever offers.
 pub const MAX_SLOTS: usize = 16;
@@ -58,7 +58,7 @@ pub struct Slot {
     _file: File,
     _reserve: Vec<File>,
     holder: PathBuf,
-    pub index: usize,
+    pub(crate) index: usize,
     pub share: Option<dx_process::LocalShare>,
 }
 
@@ -192,7 +192,7 @@ pub fn needs_slot(command: Command) -> bool {
 }
 
 /// Memory kept for nested Bazel test servers; only the rules_dx workspace runs them.
-pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> u64 {
+pub(crate) fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> u64 {
     if !workspace.join("cli/cli/BUILD.bazel").is_file() {
         return 0;
     }
@@ -211,21 +211,26 @@ pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>
 }
 
 /// Slots for a machine with `memory` bytes, `reserved` of them kept aside.
-pub fn slot_count(memory: u64, reserved: u64) -> usize {
+pub(crate) fn slot_count(memory: u64, reserved: u64) -> usize {
     usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_SLOT)
         .unwrap_or(MAX_SLOTS)
         .clamp(1, MAX_SLOTS)
 }
 
 /// Slots for remote-execution runs on a machine with `memory` bytes, `reserved` of them kept aside.
-pub fn remote_slot_count(memory: u64, reserved: u64) -> usize {
+pub(crate) fn remote_slot_count(memory: u64, reserved: u64) -> usize {
     usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_REMOTE_SLOT)
         .unwrap_or(MAX_SLOTS)
         .clamp(1, MAX_SLOTS)
 }
 
 /// One slot's share of `cpus` and of `memory` bytes less `reserved`, split over `held` slots.
-pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_process::LocalShare {
+pub(crate) fn local_share(
+    cpus: u64,
+    memory: u64,
+    reserved: u64,
+    held: usize,
+) -> dx_process::LocalShare {
     let held = u64::try_from(held.max(1)).unwrap_or(u64::MAX);
     dx_process::LocalShare {
         cpus: (cpus / held).max(2),
@@ -234,7 +239,7 @@ pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_pro
 }
 
 /// The slot directory under the user cache.
-pub fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
+pub(crate) fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let cache = dx_process::user_cache_dir(env_get)?;
     Some(cache.join("dx").join("slots"))
 }
@@ -390,7 +395,6 @@ fn enqueue(dir: &Path) -> io::Result<Ticket> {
 }
 
 /// Takes a free slot without waiting; ignores the line of waiters.
-#[cfg(test)]
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
     scan(dir, 0..count, label).0
 }
@@ -432,7 +436,6 @@ fn scan(
 }
 
 /// Takes a slot in arrival order, calling `on_wait` once when it must wait; errors only when no slot file opens.
-#[cfg(test)]
 pub fn acquire(
     dir: &Path,
     count: usize,
@@ -443,7 +446,6 @@ pub fn acquire(
 }
 
 /// Takes a slot like `acquire`, calling `on_poll` before each sleep and `on_skip` for each unusable slot file.
-#[cfg(test)]
 fn acquire_with(
     dir: &Path,
     count: usize,
@@ -589,12 +591,12 @@ fn stopped(signo: i32) -> io::Error {
 }
 
 /// The one line printed while waiting.
-pub fn wait_message(holder: &str) -> String {
+pub(crate) fn wait_message(holder: &str) -> String {
     format!("waiting for a build slot (held by {holder})")
 }
 
 /// Total memory visible to this process, honoring a cgroup limit.
-pub fn available_memory() -> Option<u64> {
+pub(crate) fn available_memory() -> Option<u64> {
     #[cfg(target_os = "linux")]
     {
         let total = std::fs::read_to_string("/proc/meminfo")
@@ -658,14 +660,14 @@ pub fn available_memory() -> Option<u64> {
 }
 
 /// Reads `MemTotal` from `/proc/meminfo` text, in bytes.
-pub fn parse_meminfo(text: &str) -> Option<u64> {
+pub(crate) fn parse_meminfo(text: &str) -> Option<u64> {
     let line = text.lines().find(|line| line.starts_with("MemTotal:"))?;
     let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
     kib.checked_mul(1024)
 }
 
 /// Reads `MemAvailable` from `/proc/meminfo` text, in bytes.
-pub fn parse_mem_available(text: &str) -> Option<u64> {
+pub(crate) fn parse_mem_available(text: &str) -> Option<u64> {
     let line = text
         .lines()
         .find(|line| line.starts_with("MemAvailable:"))?;
@@ -674,7 +676,7 @@ pub fn parse_mem_available(text: &str) -> Option<u64> {
 }
 
 /// Reads a cgroup memory limit; `max` or the v1 unlimited value means no limit.
-pub fn parse_cgroup_limit(text: &str) -> Option<u64> {
+pub(crate) fn parse_cgroup_limit(text: &str) -> Option<u64> {
     text.trim().parse().ok().filter(|value| *value < 1 << 62)
 }
 
@@ -685,7 +687,7 @@ fn cgroup_limit() -> Option<u64> {
 }
 
 /// Reads the memory limit of the cgroup named in `own` under `root`.
-pub fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
+pub(crate) fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
     let v2 = own
         .lines()
         .find_map(|line| line.strip_prefix("0::"))
@@ -789,7 +791,7 @@ impl Gate {
     }
 
     /// Gives each taken slot a share of `cpus` and of `memory` bytes less `reserved`.
-    pub fn sharing(self, cpus: u64, memory: u64, reserved: u64) -> Self {
+    pub(crate) fn sharing(self, cpus: u64, memory: u64, reserved: u64) -> Self {
         Gate {
             resources: Some(Resources {
                 cpus,
@@ -801,7 +803,7 @@ impl Gate {
     }
 
     /// Spans `pool` slots, keeping those above `count` for nested Bazel servers.
-    pub fn reserving(self, pool: usize) -> Self {
+    pub(crate) fn reserving(self, pool: usize) -> Self {
         Gate {
             pool: pool.max(self.count),
             ..self
@@ -809,7 +811,7 @@ impl Gate {
     }
 
     /// Adds `extras` remote-only slots above the pool; only a `remote` gate takes them.
-    pub fn extra(self, extras: usize, remote: bool) -> Self {
+    pub(crate) fn extra(self, extras: usize, remote: bool) -> Self {
         Gate {
             extras,
             remote,
@@ -817,8 +819,9 @@ impl Gate {
         }
     }
 
+    #[cfg(test)]
     /// Reads memory pressure from `pressure` before taking an extra slot.
-    pub fn with_pressure(self, pressure: Arc<dyn Pressure>) -> Self {
+    pub(crate) fn with_pressure(self, pressure: Arc<dyn Pressure>) -> Self {
         Gate { pressure, ..self }
     }
 

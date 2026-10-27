@@ -1,17 +1,17 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::failure_reports::write_failure_reports;
-use crate::args::Invocation;
-use crate::plan::WorkflowVerb;
-use crate::reports::{
-    coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
-    Destination, JunitCase, JunitMessage, PlannedReport, ReportError,
-};
-use crate::resolve::QueryRunner;
 use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
     TestResultRecord,
 };
+use dx_cli_core::args::Invocation;
+use dx_cli_core::plan::WorkflowVerb;
+use dx_cli_core::reports::{
+    coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
+    Destination, JunitCase, JunitMessage, PlannedReport, ReportError,
+};
+use dx_cli_core::resolve::QueryRunner;
 use dx_lcov::{parse_source_manifest, SourceManifest, SOURCES_OUTPUT_GROUP};
 use dx_output::{
     command_finished, notice_event, report_event, test_outcome_event, test_result_record,
@@ -2564,7 +2564,7 @@ mod tests {
 
     #[test]
     fn test_rejects_diff_output_at_parse() {
-        let err = crate::args::parse(
+        let err = dx_cli_core::args::parse(
             &["test", "--output=diff", "--report=junit=out.xml"]
                 .iter()
                 .map(ToString::to_string)
@@ -2573,7 +2573,7 @@ mod tests {
         .expect_err("diff rejected");
         assert_eq!(
             err,
-            crate::args::ArgsError::UnsupportedOption {
+            dx_cli_core::args::ArgsError::UnsupportedOption {
                 command: "test",
                 option: "--output=diff".to_owned(),
             }

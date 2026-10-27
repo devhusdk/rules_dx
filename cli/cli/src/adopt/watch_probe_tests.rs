@@ -267,7 +267,7 @@ fn command_args<'a>(line: &'a str, verb: &str) -> Vec<&'a str> {
 
 fn has_cache_and_settings(args: &[&str], cache: &str) -> bool {
     args.first() == Some(&cache)
-        && crate::plan::BAZEL_SETTINGS
+        && dx_cli_core::plan::BAZEL_SETTINGS
             .iter()
             .all(|setting| args.contains(setting))
 }

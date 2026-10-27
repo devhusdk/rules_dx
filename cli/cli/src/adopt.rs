@@ -15,7 +15,7 @@ mod wiring;
 
 use std::io::Write;
 
-use crate::args::{Command, Invocation};
+use dx_cli_core::args::{Command, Invocation};
 use dx_output::OutputMode;
 
 pub(crate) use crate::exec::common::{operational, pre_exec};

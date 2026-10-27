@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use crate::args::Invocation;
 use crate::exec::common::check_stdout_write;
+use dx_cli_core::args::Invocation;
 
 use super::pre_exec;
 
@@ -11,7 +11,7 @@ pub(crate) fn execute_completion(
     err: &mut dyn Write,
 ) -> i32 {
     let shell = invocation.targets.first().map(String::as_str).unwrap_or("");
-    if !crate::args::COMPLETION_SHELLS.contains(&shell) {
+    if !dx_cli_core::args::COMPLETION_SHELLS.contains(&shell) {
         return pre_exec(
             invocation.output,
             out,
@@ -19,7 +19,7 @@ pub(crate) fn execute_completion(
             &format!("unknown-shell: {shell}"),
         );
     }
-    match crate::args::render_completion(shell) {
+    match dx_cli_core::args::render_completion(shell) {
         Ok(script) => {
             if let Err(exit) = check_stdout_write(write!(out, "{script}")) {
                 return exit;
@@ -36,7 +36,7 @@ mod tests {
 
     #[test]
     fn completion_renders_from_single_source() {
-        for &shell in crate::args::COMPLETION_SHELLS {
+        for &shell in dx_cli_core::args::COMPLETION_SHELLS {
             let inv = invocation(&["completion", shell]);
             let scratch = dx_test_scratch::scratch("dx-adopt-completion-renders-");
             let root = scratch.path().to_path_buf();
@@ -44,11 +44,11 @@ mod tests {
             assert_eq!(code, 0, "shell {shell}");
             let text = out;
             assert!(
-                crate::args::registers_callback(&text, shell),
+                dx_cli_core::args::registers_callback(&text, shell),
                 "shell {shell} must ask dx for candidates: {text}"
             );
             assert!(
-                text.contains(crate::args::COMPLETE_VAR),
+                text.contains(dx_cli_core::args::COMPLETE_VAR),
                 "shell {shell} must name the completion variable: {text}"
             );
             assert!(
@@ -60,17 +60,17 @@ mod tests {
                 "shell {shell} must not splice hand-written candidates: {text}"
             );
         }
-        let unknown = crate::args::render_completion("tcsh");
+        let unknown = dx_cli_core::args::render_completion("tcsh");
         assert!(unknown.is_err());
         assert!(unknown.unwrap_err().to_string().contains("unknown-shell"));
     }
 
     #[test]
     fn completion_embeds_dynamic_callback_without_drift() {
-        for &shell in crate::args::COMPLETION_SHELLS {
-            let text = crate::args::render_completion(shell).expect("render");
+        for &shell in dx_cli_core::args::COMPLETION_SHELLS {
+            let text = dx_cli_core::args::render_completion(shell).expect("render");
             assert!(
-                crate::args::registers_callback(&text, shell),
+                dx_cli_core::args::registers_callback(&text, shell),
                 "shell {shell} misses the dx callback: {text}"
             );
             assert!(

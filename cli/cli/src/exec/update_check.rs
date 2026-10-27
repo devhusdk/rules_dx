@@ -33,9 +33,9 @@ fn updater_spawn_and_signal_failures_keep_other_sets_independent() {
 
 fn run_probe(harness: &Harness, argv: &[&str], codes: &[Option<i32>]) -> ProbeRun {
     let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
-    let parsed = crate::args::parse(&words).expect("parse");
+    let parsed = dx_cli_core::args::parse(&words).expect("parse");
     let invocation =
-        crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("scopes");
+        dx_cli_core::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("scopes");
     harness.probe_with(&invocation, codes)
 }
 

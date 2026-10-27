@@ -2,9 +2,9 @@ use std::io::Write;
 
 use clap::ValueEnum;
 
-use crate::args::grammar::advertises_passthrough;
-use crate::args::{Command, Invocation};
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
+use dx_cli_core::args::grammar::advertises_passthrough;
+use dx_cli_core::args::{Command, Invocation};
 use dx_output::{
     capability_event, command_finished, command_started, status_event, CapabilityEvent,
     FinishedCounts, OutputMode, StatusEvent,
@@ -36,18 +36,18 @@ fn output_names(command: Command) -> Vec<String> {
 }
 
 fn command_capability(command: Command) -> CapabilityEvent {
-    let spec = crate::plan::spec(command);
+    let spec = dx_cli_core::plan::spec(command);
     CapabilityEvent {
         name: command.name().to_owned(),
         source: "cli-grammar".to_owned(),
         availability: "available".to_owned(),
         detail: command.describe().to_owned(),
-        flags: crate::args::grammar::advertised_flags(command)
+        flags: dx_cli_core::args::grammar::advertised_flags(command)
             .into_iter()
             .map(|flag| format!("--{flag}"))
             .collect(),
         outputs: output_names(command),
-        reports: crate::reports::format_names(spec.reports)
+        reports: dx_cli_core::reports::format_names(spec.reports)
             .into_iter()
             .map(ToOwned::to_owned)
             .collect(),
@@ -725,10 +725,10 @@ mod tests {
 
     #[test]
     fn capabilities_command_is_rejected_with_status_guidance() {
-        let err = crate::args::parse(&dx_testing::cli::strings(&["capabilities"]))
+        let err = dx_cli_core::args::parse(&dx_testing::cli::strings(&["capabilities"]))
             .expect_err("removed command");
         match err {
-            crate::args::ArgsError::Usage { text } => {
+            dx_cli_core::args::ArgsError::Usage { text } => {
                 assert!(
                     text.contains("unsupported command 'capabilities'"),
                     "{text}"

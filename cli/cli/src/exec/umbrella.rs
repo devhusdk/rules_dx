@@ -4,10 +4,10 @@ use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;
 use super::quality::{execute_quality_phase, guard_build_output};
-use crate::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
-use crate::plan::spec;
-use crate::reports::plan_reports;
-use crate::resolve::QueryRunner;
+use dx_cli_core::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
+use dx_cli_core::plan::spec;
+use dx_cli_core::reports::plan_reports;
+use dx_cli_core::resolve::QueryRunner;
 use dx_output::{
     command_finished, command_started, error_event, nest_phase_event, notice_event, read_event,
     report_event, with_correlation, write_event, FinishedCounts, NoticeEvent, OutputMode,
@@ -1237,8 +1237,8 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use crate::args::Invocation;
-    use crate::plan::GENERATE_ENV_INTENDED;
+    use dx_cli_core::args::Invocation;
+    use dx_cli_core::plan::GENERATE_ENV_INTENDED;
     use dx_process::{ChildStatus, Runner};
     use std::cell::{Cell, RefCell};
     use std::io::{self, Write};
@@ -1254,55 +1254,58 @@ mod tests {
 
     #[test]
     fn umbrella_phases_and_test_share_the_bazel_settings() {
-        let resolved = crate::resolve::ResolvedScope {
+        let resolved = dx_cli_core::resolve::ResolvedScope {
             scope: dx_process::Scope::Repository,
             targets: Vec::new(),
         };
-        let shared: std::collections::BTreeSet<String> = crate::plan::BAZEL_SETTINGS
+        let shared: std::collections::BTreeSet<String> = dx_cli_core::plan::BAZEL_SETTINGS
             .iter()
             .map(ToString::to_string)
             .collect();
         let mut argvs = Vec::new();
         for phase in UMBRELLA_PHASES {
             let plan = if phase == Command::Generate {
-                crate::plan::plan_generate(&resolved, &[], true, &[], Some("/tmp/dx.patch"))
+                dx_cli_core::plan::plan_generate(&resolved, &[], true, &[], Some("/tmp/dx.patch"))
             } else {
-                crate::plan::plan_build(phase, &resolved, &[], "/tmp/bep.json", &[])
+                dx_cli_core::plan::plan_build(phase, &resolved, &[], "/tmp/bep.json", &[])
             };
             argvs.push((format!("{phase:?}"), plan.expect("phase plan").argv));
         }
-        let test = crate::plan::plan_workflow(
-            crate::plan::WorkflowVerb::Test,
+        let test = dx_cli_core::plan::plan_workflow(
+            dx_cli_core::plan::WorkflowVerb::Test,
             &resolved,
             &[],
             Some("/tmp/bep.json"),
-            Some(crate::args::Profile::Dev),
+            Some(dx_cli_core::args::Profile::Dev),
             &[],
         )
         .expect("test plan");
         argvs.push(("test".to_owned(), test.argv));
-        let profile = crate::args::Profile::Dev;
+        let profile = dx_cli_core::args::Profile::Dev;
         let label = "//app:bin".to_owned();
         let planned = [
-            ("run", crate::plan::plan_run(&label, &[], &[], profile, &[])),
+            (
+                "run",
+                dx_cli_core::plan::plan_run(&label, &[], &[], profile, &[]),
+            ),
             (
                 "run build",
-                crate::plan::plan_run_build(std::slice::from_ref(&label), &[], profile, &[]),
+                dx_cli_core::plan::plan_run_build(std::slice::from_ref(&label), &[], profile, &[]),
             ),
             (
                 "deploy build",
-                crate::plan::plan_deploy_build(&label, profile, &[]),
+                dx_cli_core::plan::plan_deploy_build(&label, profile, &[]),
             ),
             (
                 "deploy run",
-                crate::plan::plan_deploy_run(&label, &[], profile, &[]),
+                dx_cli_core::plan::plan_deploy_run(&label, &[], profile, &[]),
             ),
         ];
         for (name, plan) in planned {
             argvs.push((name.to_owned(), plan.expect("plan").argv));
         }
         for command in [Command::Codegen, Command::Env] {
-            let plan = crate::plan::plan_managed(
+            let plan = dx_cli_core::plan::plan_managed(
                 command,
                 &dx_setup::SetupScope::Repository,
                 &[],
@@ -1312,8 +1315,8 @@ mod tests {
             .expect("managed plan");
             argvs.push((format!("{command:?}"), plan.argv));
         }
-        let selection = crate::resolve::SelectionContext::for_test_execution(
-            crate::args::Profile::Dev,
+        let selection = dx_cli_core::resolve::SelectionContext::for_test_execution(
+            dx_cli_core::args::Profile::Dev,
             &[],
             &[],
         );
@@ -1341,7 +1344,7 @@ mod tests {
     /// Parses one umbrella invocation against a harness workspace.
     fn umbrella_invocation(harness: &Harness, words: &[&str]) -> Invocation {
         let parsed = invocation(words);
-        crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd)
+        dx_cli_core::args::apply_here(&parsed, &harness.workspace, &harness.cwd)
             .expect("resolve workspace")
     }
 
@@ -3413,7 +3416,7 @@ mod tests {
         let missing = dir.path().join("missing.sarif");
         std::fs::write(
             &good,
-            crate::reports::render_sarif(
+            dx_cli_core::reports::render_sarif(
                 &["lint-tool".to_owned()],
                 &[],
                 &std::collections::BTreeMap::new(),
@@ -3473,7 +3476,7 @@ mod tests {
                 let path = dir.path().join(format!("{name}.sarif"));
                 std::fs::write(
                     &path,
-                    crate::reports::render_sarif(
+                    dx_cli_core::reports::render_sarif(
                         &[format!("{name}-tool")],
                         &[],
                         &std::collections::BTreeMap::new(),
@@ -3712,7 +3715,7 @@ mod tests {
             .borrow()
             .iter()
             .flatten()
-            .filter(|(key, _)| key == crate::plan::GENERATE_ENV_SCOPE)
+            .filter(|(key, _)| key == dx_cli_core::plan::GENERATE_ENV_SCOPE)
             .map(|(_, value)| value.clone())
             .collect();
         assert_eq!(
@@ -3808,7 +3811,7 @@ mod tests {
         let missing = dir.path().join("missing.sarif");
         std::fs::write(
             &good,
-            crate::reports::render_sarif(
+            dx_cli_core::reports::render_sarif(
                 &["lint-tool".to_owned()],
                 &[],
                 &std::collections::BTreeMap::new(),
@@ -4054,7 +4057,7 @@ mod tests {
 
     #[test]
     fn parse_capture_keeps_only_well_formed_documents() {
-        let document = crate::reports::render_sarif(
+        let document = dx_cli_core::reports::render_sarif(
             &["lint-tool".to_owned()],
             &[],
             &std::collections::BTreeMap::new(),

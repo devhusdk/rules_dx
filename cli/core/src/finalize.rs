@@ -5,9 +5,9 @@ use generation_result::proto::{
 use serde::Deserialize;
 use std::path::Path;
 
-pub const FAILURE_WRITE_MISMATCH: &str = "write_mismatch";
-pub const FAILURE_MISSING_FILE: &str = "missing_file";
-pub const FAILURE_UNREADABLE_FILE: &str = "unreadable_file";
+pub(crate) const FAILURE_WRITE_MISMATCH: &str = "write_mismatch";
+pub(crate) const FAILURE_MISSING_FILE: &str = "missing_file";
+pub(crate) const FAILURE_UNREADABLE_FILE: &str = "unreadable_file";
 
 pub struct FinalizeInput<'a> {
     pub intended_json: &'a [u8],
@@ -31,7 +31,7 @@ pub struct Finalized {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum IntendedResult {
+pub(crate) enum IntendedResult {
     Clean,
     DiffFound,
 }

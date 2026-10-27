@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::common::*;
-use crate::args::Invocation;
+use dx_cli_core::args::Invocation;
 use dx_output::{
     command_finished, command_started, notice_event, slot_event, summary_event, FinishedCounts,
     NoticeEvent, OutputMode, SlotEvent, SummaryEvent,

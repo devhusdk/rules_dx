@@ -3,10 +3,10 @@ use crate::reports::StandardFormat;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CommandSpec {
-    pub command: Command,
+    pub(crate) command: Command,
     pub aspects: &'static [&'static str],
     /// The cheap aspect that names the shards each target needs; see `select_aspects`.
-    pub probe: Option<&'static str>,
+    pub(crate) probe: Option<&'static str>,
     pub reports: &'static [StandardFormat],
 }
 

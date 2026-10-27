@@ -37,7 +37,7 @@ pub fn patch_path(temp_dir: &Path, pid: u32, nonce: u64) -> PathBuf {
 
 static RUN_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-pub fn run_nonce() -> u64 {
+pub(crate) fn run_nonce() -> u64 {
     RUN_COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 

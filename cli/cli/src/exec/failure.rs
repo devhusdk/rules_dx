@@ -1,5 +1,5 @@
 use super::common::{emit_event, flush_out, stdout_output_code, CODE_INVALID_RESULT};
-use crate::resolve::{QueryFailure, ResolveError};
+use dx_cli_core::resolve::{QueryFailure, ResolveError};
 use dx_output::{
     command_finished, failure_event, Excerpt, FailureFacts, FinishedCounts, OutputMode,
 };
@@ -223,17 +223,17 @@ pub fn emit_failure_events(out: &mut dyn Write, failure: &Failure) -> Result<(),
     flush_out(out)
 }
 
-static USAGE_COMMAND: std::sync::OnceLock<crate::args::Command> = std::sync::OnceLock::new();
+static USAGE_COMMAND: std::sync::OnceLock<dx_cli_core::args::Command> = std::sync::OnceLock::new();
 
 /// Records the command whose usage a later argument error prints.
-pub fn set_usage_command(command: crate::args::Command) {
+pub fn set_usage_command(command: dx_cli_core::args::Command) {
     let _ = USAGE_COMMAND.set(command);
 }
 
 fn usage_text() -> String {
     match USAGE_COMMAND.get() {
         Some(command) => command.usage().to_owned(),
-        None => crate::args::help::usage_banner(),
+        None => dx_cli_core::args::help::usage_banner(),
     }
 }
 

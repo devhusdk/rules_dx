@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::{parse_owners, QueryFailure, QueryRunner, ResolveError};
 
-pub(crate) fn quote_set(items: &[String]) -> String {
+pub fn quote_set(items: &[String]) -> String {
     let mut sorted: Vec<&String> = items.iter().collect();
     sorted.sort();
     sorted
@@ -35,7 +35,7 @@ pub(crate) fn run_label_query(
     parse_owners(&result.stdout, expression)
 }
 
-pub(crate) fn run_label_query_file(
+pub fn run_label_query_file(
     expression: &str,
     label: &str,
     workspace: &Path,

@@ -1,19 +1,28 @@
 mod identity;
-pub mod junit;
+pub(crate) mod junit;
 mod junit_parse;
 mod junit_render;
 mod junit_types;
-pub mod lcov;
-pub mod planning;
+pub(crate) mod lcov;
+pub(crate) mod planning;
 pub mod sarif;
 
-pub(crate) use identity::finding_identity;
-pub use junit::{junit_infrastructure_case, parse_test_xml, render_junit, JunitCase, JunitMessage};
-pub use lcov::{coverage_line_rate, validate_lcov};
-pub use planning::{
-    format_names, plan_reports, resolve_destination, Destination, PlannedReport, StandardFormat,
-};
-pub use sarif::{render_sarif, render_sarif_with_baseline, BaselineReport};
+pub use identity::finding_identity;
+pub use junit::junit_infrastructure_case;
+pub use junit::parse_test_xml;
+pub use junit::render_junit;
+pub use junit::JunitCase;
+pub use junit::JunitMessage;
+pub use lcov::coverage_line_rate;
+pub use lcov::validate_lcov;
+pub use planning::format_names;
+pub use planning::plan_reports;
+pub use planning::resolve_destination;
+pub use planning::Destination;
+pub use planning::PlannedReport;
+pub use planning::StandardFormat;
+pub use sarif::BaselineReport;
+pub use sarif::{render_sarif, render_sarif_with_baseline};
 
 fn unsupported_format_message(command: &str, format: &str, supported: &[&str]) -> String {
     if supported.is_empty() {

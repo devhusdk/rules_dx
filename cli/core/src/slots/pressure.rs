@@ -3,20 +3,20 @@
 use std::fmt::Debug;
 
 /// Memory PSI `some avg10` at or above this is high pressure.
-pub const PSI_HIGH: f64 = 10.0;
+pub(crate) const PSI_HIGH: f64 = 10.0;
 
 /// `MemAvailable` below this is high pressure when PSI is missing.
-pub const LOW_AVAILABLE: u64 = 3 << 29;
+pub(crate) const LOW_AVAILABLE: u64 = 3 << 29;
 
 /// Reads host memory pressure.
-pub trait Pressure: Debug + Send + Sync {
+pub(crate) trait Pressure: Debug + Send + Sync {
     /// `Some(true)` under pressure, `Some(false)` when calm, `None` without a signal.
     fn high(&self) -> Option<bool>;
 }
 
 /// The pressure reader for this host.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct HostPressure;
+pub(crate) struct HostPressure;
 
 impl Pressure for HostPressure {
     fn high(&self) -> Option<bool> {
@@ -32,7 +32,7 @@ impl Pressure for HostPressure {
 }
 
 /// Judges pressure from PSI text, falling back to meminfo text.
-pub fn judge(psi: Option<&str>, meminfo: Option<&str>) -> Option<bool> {
+pub(crate) fn judge(psi: Option<&str>, meminfo: Option<&str>) -> Option<bool> {
     if let Some(avg10) = psi.and_then(parse_psi) {
         return Some(avg10 >= PSI_HIGH);
     }
@@ -41,7 +41,7 @@ pub fn judge(psi: Option<&str>, meminfo: Option<&str>) -> Option<bool> {
 }
 
 /// Reads `some avg10` from `/proc/pressure/memory` text.
-pub fn parse_psi(text: &str) -> Option<f64> {
+pub(crate) fn parse_psi(text: &str) -> Option<f64> {
     let line = text.lines().find(|line| line.starts_with("some "))?;
     line.split_whitespace()
         .find_map(|field| field.strip_prefix("avg10="))?

@@ -13,8 +13,8 @@ use super::common::{
 use super::quality_baseline::BaselineView;
 use super::quality_reconcile::Conflict;
 use super::quality_reports::Snapshots;
-use crate::args::QualityRequest;
-use crate::reports::sarif::byte_to_line;
+use dx_cli_core::args::QualityRequest;
+use dx_cli_core::reports::sarif::byte_to_line;
 
 pub(crate) struct EmitInputs<'a> {
     pub(crate) request: &'a QualityRequest,

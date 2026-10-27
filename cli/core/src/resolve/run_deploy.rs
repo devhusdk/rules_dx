@@ -187,11 +187,11 @@ pub fn resolve_deploy(scopes: &[String]) -> Result<String, ResolveError> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeployInfo {
-    pub label: String,
-    pub has_provider: bool,
+    pub(crate) label: String,
+    pub(crate) has_provider: bool,
     pub profile_raw: String,
-    pub app_raw: String,
-    pub executable: bool,
+    pub(crate) app_raw: String,
+    pub(crate) executable: bool,
 }
 
 fn deploy_starlark_expr() -> String {

@@ -16,7 +16,7 @@ pub struct WidenedScope {
 pub struct AffectedSelection {
     pub targets: Vec<String>,
     pub widened: Vec<WidenedScope>,
-    pub(crate) graph: Option<RuleGraph>,
+    pub graph: Option<RuleGraph>,
 }
 
 fn git_failure(what: &str, detail: String) -> String {
@@ -58,7 +58,7 @@ fn shallow_error() -> String {
     "git history is shallow: fetch full history with `git fetch --unshallow` or pass explicit scopes".to_owned()
 }
 
-pub fn diff_name_status(
+pub(crate) fn diff_name_status(
     git: &Path,
     workspace: &Path,
     runner: &dyn QueryRunner,

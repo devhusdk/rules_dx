@@ -2,7 +2,7 @@ use dx_fingerprint::baseline::{line_context_digest, normalize_message, Finding};
 use dx_output::DiagnosticEvent;
 
 /// Builds the baseline identity of a finding from its file bytes.
-pub(crate) fn finding_identity(diagnostic: &DiagnosticEvent, bytes: Option<&[u8]>) -> Finding {
+pub fn finding_identity(diagnostic: &DiagnosticEvent, bytes: Option<&[u8]>) -> Finding {
     let target = match (&diagnostic.path, diagnostic.origins.first()) {
         (None, Some(origin)) => origin.target.clone(),
         _ => String::new(),

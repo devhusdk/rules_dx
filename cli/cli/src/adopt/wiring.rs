@@ -1,8 +1,8 @@
 use std::io::Write;
 use std::path::Path;
 
-use crate::args::Invocation;
 use crate::exec::common::check_stdout_write;
+use dx_cli_core::args::Invocation;
 use dx_worktree::setup;
 
 use super::{operational, summaries_suppressed};

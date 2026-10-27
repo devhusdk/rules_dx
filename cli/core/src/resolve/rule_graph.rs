@@ -9,7 +9,7 @@ const EXPRESSION: &str = "kind('rule', //...)";
 
 /// The workspace rule graph as Bazel reports it, without loading any external repo.
 #[derive(Debug)]
-pub(crate) struct RuleGraph {
+pub struct RuleGraph {
     inputs: HashMap<String, Vec<String>>,
     users: HashMap<String, Vec<String>>,
     manual: HashSet<String>,
@@ -69,7 +69,7 @@ fn matches_scope(scope: &str, label: &str) -> bool {
 }
 
 impl RuleGraph {
-    pub(crate) fn load(
+    pub fn load(
         workspace: &Path,
         runner: &dyn QueryRunner,
         startup_options: &[String],
@@ -190,7 +190,7 @@ impl RuleGraph {
     }
 
     /// Rules affected by the scopes, without manual rules.
-    pub(crate) fn affected(&self, scopes: &[String]) -> Vec<String> {
+    pub fn affected(&self, scopes: &[String]) -> Vec<String> {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 

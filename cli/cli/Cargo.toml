@@ -7,23 +7,16 @@ edition = "2021"
 base64 = "0.22"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
-clap_complete = { version = "4", features = ["unstable-dynamic"] }
-# Build-step only: the `dx_man` binary renders man/dx.1 from the clap
-# grammar. Kept out of the `dx` binary itself.
-clap_mangen = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde-sarif = "0.8"
 tempfile = "3"
 thiserror = "2"
 tracing = "0.1"
-quick-xml = "0.41"
-quick-junit = "0.8"
 # Pinned to the same spec as dx/process: the `dx` binary shim references
 # libc paths in its signal-forwarding prelude, and crate_universe already
 # carries libc 0.2.189 for the workspace lockfile.
 libc = "0.2"
-line-index = "0.1"
 
 [lib]
 name = "dx_cli"
@@ -36,10 +29,3 @@ path = "src/main.rs"
 [[bin]]
 name = "dx_man"
 path = "src/bin_man.rs"
-
-[dev-dependencies]
-# Golden/process pilot: insta snapshots for high-churn
-# goldens, assert_cmd + predicates for hermetic CLI process tests.
-assert_cmd = "2"
-insta = "1"
-predicates = "3"

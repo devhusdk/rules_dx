@@ -36,6 +36,7 @@ RUST_CRATE_MANIFESTS = [
     "//cli/identity:Cargo.toml",
     "//cli/binfmt:Cargo.toml",
     "//cli/worktree:Cargo.toml",
+    "//cli/core:Cargo.toml",
     "//deploy/rules:Cargo.toml",
     "//deploy/offline/bootstrap:Cargo.toml",
     "//deploy/release:Cargo.toml",

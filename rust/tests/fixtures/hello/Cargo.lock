@@ -1418,9 +1418,24 @@ dependencies = [
 name = "dx_cli"
 version = "0.0.0"
 dependencies = [
- "assert_cmd",
  "base64",
  "chrono",
+ "clap",
+ "libc",
+ "serde",
+ "serde-sarif",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "dx_cli_core"
+version = "0.0.0"
+dependencies = [
+ "assert_cmd",
+ "base64",
  "clap",
  "clap_complete",
  "clap_mangen",
@@ -1435,7 +1450,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.20",
- "tracing",
 ]
 
 [[package]]

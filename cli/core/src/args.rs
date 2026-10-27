@@ -1,11 +1,11 @@
 pub mod command;
-pub mod completion;
+pub(crate) mod completion;
 pub mod grammar;
 pub mod help;
-pub mod invocation;
-pub mod parser;
-pub mod profile;
-pub mod tokenizer;
+pub(crate) mod invocation;
+pub(crate) mod parser;
+pub(crate) mod profile;
+pub(crate) mod tokenizer;
 
 /// A failure raised while reading the command line.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -89,7 +89,7 @@ pub enum ArgsError {
 }
 
 /// Build the scope error that matches the token.
-pub fn scope_error(scope: &str) -> ArgsError {
+pub(crate) fn scope_error(scope: &str) -> ArgsError {
     if scope.is_empty() {
         ArgsError::EmptyScope
     } else if scope.starts_with(':') {
@@ -103,25 +103,34 @@ pub fn scope_error(scope: &str) -> ArgsError {
     }
 }
 
-pub use command::{Command, WorkflowVerb};
-#[cfg(test)]
+pub use command::Command;
+pub use command::WorkflowVerb;
+pub use completion::render_completion;
+pub use completion::try_complete;
+pub use completion::COMPLETION_SHELLS;
 pub use completion::{registers_callback, COMPLETE_VAR};
-pub use completion::{render_completion, try_complete, COMPLETION_SHELLS};
 pub use grammar::man_page;
-pub use invocation::{
-    apply_here, GenerateRequest, HintScope, Invocation, QualityRequest, ReportRequest,
-    UmbrellaRequest,
-};
-#[cfg(test)]
-pub use invocation::{OperationMode, UmbrellaOrigin, AGENT_QUIET_FLAGS};
-pub use parser::{
-    ci_ignores_env, early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
-    load_startup_defaults, parse_with_ci,
-};
-#[cfg(test)]
+pub use invocation::apply_here;
+pub use invocation::GenerateRequest;
+pub use invocation::HintScope;
+pub use invocation::Invocation;
+pub use invocation::QualityRequest;
+pub use invocation::ReportRequest;
+pub use invocation::UmbrellaOrigin;
+pub use invocation::UmbrellaRequest;
+pub use invocation::{OperationMode, AGENT_QUIET_FLAGS};
+pub use parser::ci_ignores_env;
+pub use parser::early_workspace_flag;
+pub use parser::is_discovery_exempt;
+pub use parser::is_help_request;
+pub use parser::json_output_intent;
+pub use parser::load_startup_defaults;
+pub use parser::parse_with_ci;
 pub use parser::{parse, parse_with};
 pub(crate) use profile::filter_profile_configs;
-pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
+pub use profile::resolve_profile;
+pub use profile::Profile;
+pub use profile::DX_PROFILE_ENV;
 
 pub use dx_adopt::defaults::FileDefaults;
 pub use dx_adopt::defaults::DX_WORKSPACE_ENV;

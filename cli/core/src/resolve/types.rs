@@ -26,7 +26,7 @@ pub trait QueryRunner {
 
 // LCOV_EXCL_START - reason: test guard, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 #[cfg(test)]
-pub struct NeverQuery;
+pub(crate) struct NeverQuery;
 
 #[cfg(test)]
 impl QueryRunner for NeverQuery {
@@ -163,7 +163,7 @@ impl QueryFailure {
     }
 
     /// The failure of a query that never started.
-    pub fn launch(error: &io::Error) -> Self {
+    pub(crate) fn launch(error: &io::Error) -> Self {
         QueryFailure::Launch {
             detail: error.to_string(),
         }
@@ -185,7 +185,7 @@ impl QueryFailure {
 
 impl ResolveError {
     /// A failed query named by its expression.
-    pub fn query(label: &str, failure: QueryFailure) -> Self {
+    pub(crate) fn query(label: &str, failure: QueryFailure) -> Self {
         ResolveError::QueryFailed {
             label: label.to_owned(),
             failure,

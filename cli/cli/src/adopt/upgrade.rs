@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use crate::args::Invocation;
 use crate::exec::common::{check_stdout_write, emit_built};
+use dx_cli_core::args::Invocation;
 
 use dx_output::{command_started, OutputMode};
 

@@ -1,9 +1,9 @@
 use super::common::*;
-use crate::args::Invocation;
 use dx_clean::{
     apply_plan, collect_inventory_with_scan, measure_preserved_bytes, measure_prune_bytes,
     render_prune_listing, GenerationView, PruneBytes, UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
 };
+use dx_cli_core::args::Invocation;
 use dx_output::{
     command_finished, command_started, notice_event, operation_event, FinishedCounts, NoticeEvent,
     OutputMode,

@@ -1,7 +1,7 @@
 use super::common::*;
 use super::dep_edit;
-use crate::args::{Command, Invocation};
-use crate::reports::plan_reports;
+use dx_cli_core::args::{Command, Invocation};
+use dx_cli_core::reports::plan_reports;
 use dx_output::{command_started, OutputMode};
 
 const ADD_VERB: dep_edit::EditVerb = dep_edit::EditVerb {

@@ -1,7 +1,7 @@
 //! The write, refresh and report tail shared by the dependency verbs (`dx bump`, `dx add`).
 
 use super::common::*;
-use crate::args::Invocation;
+use dx_cli_core::args::Invocation;
 use dx_output::{
     command_finished, error_event, notice_event, FinishedCounts, NoticeEvent, OutputMode,
 };
@@ -550,7 +550,7 @@ mod tests {
     }
 
     fn json_invocation() -> Invocation {
-        crate::args::parse(&dx_testing::cli::strings(&[
+        dx_cli_core::args::parse(&dx_testing::cli::strings(&[
             "bump",
             "cargo:anyhow",
             "1.2.3",

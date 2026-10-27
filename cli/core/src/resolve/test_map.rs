@@ -14,7 +14,7 @@ pub(crate) fn strip_configuration(line: &str) -> &str {
     }
 }
 
-pub(crate) fn set_expression(labels: &[String]) -> String {
+pub fn set_expression(labels: &[String]) -> String {
     let quoted: Vec<String> = labels.iter().map(|label| quote_label(label)).collect();
     format!("set({})", quoted.join(" "))
 }
@@ -51,7 +51,7 @@ fn run_labels(
 }
 
 #[cfg(test)]
-pub fn map_owners_to_tests_with_selection(
+pub(crate) fn map_owners_to_tests_with_selection(
     owners: &[String],
     workspace: &Path,
     runner: &dyn QueryRunner,

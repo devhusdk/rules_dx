@@ -1,5 +1,5 @@
 use super::{execute_adoption, AdoptEnv, Invocation};
-use crate::resolve::{QueryResult, QueryRunner};
+use dx_cli_core::resolve::{QueryResult, QueryRunner};
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -7,7 +7,7 @@ pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, json_events
 
 /// Parses test words into one invocation, panicking on a failure.
 pub(crate) fn invocation(words: &[&str]) -> Invocation {
-    crate::args::parse(words).expect("parse")
+    dx_cli_core::args::parse(words).expect("parse")
 }
 
 /// A query runner that reports one target and nothing else.

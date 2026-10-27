@@ -8,13 +8,13 @@ use crate::resolve::ResolvedScope;
 
 pub use crate::args::WorkflowVerb;
 
-pub const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
+pub(crate) const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
 
-pub const COVERAGE_SOURCES_GROUP_FLAG: &str = "--output_groups=+dx_coverage_sources";
-pub const COVERAGE_ALL_TARGETS_FLAG: &str = "--build_tests_only=false";
+pub(crate) const COVERAGE_SOURCES_GROUP_FLAG: &str = "--output_groups=+dx_coverage_sources";
+pub(crate) const COVERAGE_ALL_TARGETS_FLAG: &str = "--build_tests_only=false";
 
 /// The `--aspects` flag that writes the coverage source manifests.
-pub fn coverage_sources_aspect_flag() -> String {
+pub(crate) fn coverage_sources_aspect_flag() -> String {
     format!(
         "--aspects={}",
         super::rules_dx_label(dx_lcov::SOURCES_ASPECT)
@@ -30,7 +30,7 @@ fn workflow_defaults(verb: WorkflowVerb) -> &'static [&'static str] {
     }
 }
 
-pub fn workflow_options(
+pub(crate) fn workflow_options(
     verb: WorkflowVerb,
     bazel_options: &[String],
     bep_path: Option<&str>,

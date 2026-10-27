@@ -42,7 +42,7 @@ mod update;
 mod workflow;
 mod worktree;
 
-use crate::args::{Command, Invocation};
+use dx_cli_core::args::{Command, Invocation};
 #[cfg(test)]
 pub(crate) use umbrella::UMBRELLA_PHASES;
 
@@ -230,7 +230,7 @@ mod tests {
     use super::delivery_sink::{Fault, Sink};
     use super::test_support::{invocation, Harness};
     use super::{hold_slot, lease_refusal_for};
-    use crate::args::Command;
+    use dx_cli_core::args::Command;
     use std::io::ErrorKind;
     use std::time::Duration;
 
@@ -317,8 +317,8 @@ mod tests {
 
     #[test]
     fn agent_quiet_flags_reach_every_bazel_backed_json_command() {
-        use crate::args::command::COMMANDS;
-        use crate::args::AGENT_QUIET_FLAGS;
+        use dx_cli_core::args::command::COMMANDS;
+        use dx_cli_core::args::AGENT_QUIET_FLAGS;
         for (command, words) in QUIET_ROWS {
             let argvs = bazel_build_argvs(words, true, "--output=json");
             assert!(
@@ -404,7 +404,7 @@ mod tests {
                 .query
                 .outputs
                 .borrow_mut()
-                .push(crate::resolve::QueryResult {
+                .push(dx_cli_core::resolve::QueryResult {
                     code: Some(1),
                     stdout: Vec::new(),
                     stderr: b"ERROR: no such repository\n".to_vec(),
@@ -564,7 +564,7 @@ mod tests {
                 .query
                 .outputs
                 .borrow_mut()
-                .push(crate::resolve::QueryResult {
+                .push(dx_cli_core::resolve::QueryResult {
                     code: Some(1),
                     stdout: Vec::new(),
                     stderr: Vec::new(),

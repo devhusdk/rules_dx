@@ -34,7 +34,7 @@ pub enum Command {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FirstSlot {
+pub(crate) enum FirstSlot {
     None,
     UpdateSets,
     BumpSets,
@@ -45,7 +45,7 @@ pub enum FirstSlot {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LabelsPolicy {
+pub(crate) enum LabelsPolicy {
     Always,
     Never,
     OnlyEmpty,
@@ -53,7 +53,7 @@ pub enum LabelsPolicy {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SkewKind {
+pub(crate) enum SkewKind {
     Proceed,
     Warn,
     Refuse,
@@ -77,7 +77,7 @@ impl WorkflowVerb {
         }
     }
 
-    pub fn collects_reports(self) -> bool {
+    pub(crate) fn collects_reports(self) -> bool {
         matches!(self, WorkflowVerb::Test | WorkflowVerb::Coverage)
     }
 }
@@ -86,21 +86,21 @@ impl WorkflowVerb {
 pub struct CommandMeta {
     pub command: Command,
     pub name: &'static str,
-    pub scope_policy: &'static str,
-    pub describe: &'static str,
-    pub usage: &'static str,
-    pub scopes: &'static str,
-    pub is_managed: bool,
-    pub is_adoption: bool,
+    pub(crate) scope_policy: &'static str,
+    pub(crate) describe: &'static str,
+    pub(crate) usage: &'static str,
+    pub(crate) scopes: &'static str,
+    pub(crate) is_managed: bool,
+    pub(crate) is_adoption: bool,
     pub supports_json: bool,
-    pub supports_diff: bool,
-    pub supports_here: bool,
-    pub supports_fail_on: bool,
-    pub default_release: bool,
-    pub skew: SkewKind,
-    pub workflow_verb: Option<WorkflowVerb>,
-    pub first_slot: FirstSlot,
-    pub labels: LabelsPolicy,
+    pub(crate) supports_diff: bool,
+    pub(crate) supports_here: bool,
+    pub(crate) supports_fail_on: bool,
+    pub(crate) default_release: bool,
+    pub(crate) skew: SkewKind,
+    pub(crate) workflow_verb: Option<WorkflowVerb>,
+    pub(crate) first_slot: FirstSlot,
+    pub(crate) labels: LabelsPolicy,
 }
 
 pub static COMMANDS: [CommandMeta; 31] = [
@@ -696,13 +696,13 @@ pub static COMMANDS: [CommandMeta; 31] = [
 ];
 
 impl Command {
-    pub fn meta(self) -> &'static CommandMeta {
+    pub(crate) fn meta(self) -> &'static CommandMeta {
         let entry = &COMMANDS[self as usize];
         debug_assert_eq!(entry.command, self);
         entry
     }
 
-    pub fn pipe_list() -> String {
+    pub(crate) fn pipe_list() -> String {
         use clap::ValueEnum;
         Self::value_variants()
             .iter()
@@ -719,7 +719,7 @@ impl Command {
         self.meta().name
     }
 
-    pub(crate) fn parse(text: &str) -> Option<Self> {
+    pub fn parse(text: &str) -> Option<Self> {
         use clap::ValueEnum;
         Self::from_str(text, false).ok()
     }
@@ -732,7 +732,7 @@ impl Command {
         self.meta().is_managed
     }
 
-    pub fn is_adoption(self) -> bool {
+    pub(crate) fn is_adoption(self) -> bool {
         self.meta().is_adoption
     }
 
@@ -744,7 +744,7 @@ impl Command {
         self.meta().supports_diff
     }
 
-    pub fn supports_here(self) -> bool {
+    pub(crate) fn supports_here(self) -> bool {
         self.meta().supports_here
     }
 
@@ -766,7 +766,7 @@ impl Command {
     }
 
     /// The leading positionals the usage line spells with angle brackets, or none when it names none.
-    pub fn required_slot(self) -> Option<&'static str> {
+    pub(crate) fn required_slot(self) -> Option<&'static str> {
         let rest = self.usage().strip_prefix("Usage: dx ")?.split_once(' ')?.1;
         let mut slot: Option<(usize, usize)> = None;
         let mut offset = 0;
@@ -792,7 +792,7 @@ impl Command {
         (!slot.is_empty()).then_some(slot)
     }
 
-    pub fn scopes_text(self) -> &'static str {
+    pub(crate) fn scopes_text(self) -> &'static str {
         if self == Command::New {
             static NEW_SCOPES: std::sync::OnceLock<String> = std::sync::OnceLock::new();
             return NEW_SCOPES.get_or_init(|| {

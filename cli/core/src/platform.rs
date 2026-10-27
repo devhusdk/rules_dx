@@ -1,4 +1,4 @@
-pub fn qualified_hosts() -> &'static [(&'static str, &'static str)] {
+pub(crate) fn qualified_hosts() -> &'static [(&'static str, &'static str)] {
     &[
         ("linux", "x86_64"),
         ("linux", "aarch64"),
@@ -7,7 +7,7 @@ pub fn qualified_hosts() -> &'static [(&'static str, &'static str)] {
     ]
 }
 
-pub fn canonical_os(raw: &str) -> Option<&'static str> {
+pub(crate) fn canonical_os(raw: &str) -> Option<&'static str> {
     let lowered = raw.to_lowercase();
     match lowered.as_str() {
         "linux" => Some("linux"),
@@ -17,7 +17,7 @@ pub fn canonical_os(raw: &str) -> Option<&'static str> {
     }
 }
 
-pub fn canonical_cpu(raw: &str) -> Option<&'static str> {
+pub(crate) fn canonical_cpu(raw: &str) -> Option<&'static str> {
     let lowered = raw.to_lowercase();
     match lowered.as_str() {
         "x86_64" | "x64" | "amd64" => Some("x86_64"),
@@ -26,21 +26,21 @@ pub fn canonical_cpu(raw: &str) -> Option<&'static str> {
     }
 }
 
-pub fn platform_key(os_raw: &str, cpu_raw: &str) -> Option<String> {
+pub(crate) fn platform_key(os_raw: &str, cpu_raw: &str) -> Option<String> {
     match (canonical_os(os_raw), canonical_cpu(cpu_raw)) {
         (Some(os), Some(cpu)) => Some(format!("{os}_{cpu}")),
         _ => None,
     }
 }
 
-pub fn supported_execution_keys() -> Vec<String> {
+pub(crate) fn supported_execution_keys() -> Vec<String> {
     qualified_hosts()
         .iter()
         .filter_map(|(os, arch)| platform_key(os, arch))
         .collect()
 }
 
-pub fn refusal(os: &str, arch: &str) -> Option<String> {
+pub(crate) fn refusal(os: &str, arch: &str) -> Option<String> {
     match platform_key(os, arch) {
         Some(key) if supported_execution_keys().contains(&key) => None,
         _ => Some(format!(

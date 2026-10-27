@@ -79,7 +79,7 @@ impl SelectionContext {
         }
     }
 
-    pub fn provenance(&self) -> &'static str {
+    pub(crate) fn provenance(&self) -> &'static str {
         if self.configured {
             "configured"
         } else {

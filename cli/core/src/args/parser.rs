@@ -45,18 +45,17 @@ fn bad_default(error: dx_adopt::AdoptError) -> ArgsError {
     }
 }
 
-#[cfg(test)]
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
 }
 
 /// The startup defaults and a file-directed workspace hop for one more load.
 #[derive(Debug)]
-pub struct StartupDefaults {
+pub(crate) struct StartupDefaults {
     /// The defaults read from the preliminary workspace.
-    pub defaults: super::FileDefaults,
+    pub(crate) defaults: super::FileDefaults,
     /// The config-directed workspace when no flag or environment value set one.
-    pub file_workspace: Option<String>,
+    pub(crate) file_workspace: Option<String>,
 }
 
 /// Reads the workspace the canonical grammar selects, last flag winning.
@@ -66,7 +65,7 @@ pub fn early_workspace_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
 }
 
 /// Reads the last output value before `--`, short clusters included; an empty value counts.
-pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
+pub(crate) fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let words: Vec<&str> = args
         .iter()
         .map(|word| word.as_ref().to_str())
@@ -229,7 +228,7 @@ pub fn is_discovery_exempt(command: Command) -> bool {
 /// Loads defaults from the selected workspace: the flag, the environment, else
 /// the start directory. A config-directed workspace is reported for one more
 /// load instead of being followed here, so a redirect cycle cannot loop.
-pub fn select_startup_defaults_with_ci(
+pub(crate) fn select_startup_defaults_with_ci(
     start: &std::path::Path,
     base: &std::path::Path,
     flag_workspace: Option<String>,
@@ -260,7 +259,10 @@ pub fn select_startup_defaults_with_ci(
 
 /// Returns the defaults with the workspace pinned to the redirect target, so a
 /// second load never follows another redirect.
-pub fn freeze_workspace(defaults: &super::FileDefaults, workspace: &str) -> super::FileDefaults {
+pub(crate) fn freeze_workspace(
+    defaults: &super::FileDefaults,
+    workspace: &str,
+) -> super::FileDefaults {
     let mut frozen = defaults.clone();
     frozen.workspace = Some(workspace.to_owned());
     frozen
@@ -328,7 +330,7 @@ pub fn load_startup_defaults(
 }
 
 /// The workspace a run selects: the flag, the environment, then the defaults.
-pub fn startup_workspace(
+pub(crate) fn startup_workspace(
     start: &std::path::Path,
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
@@ -383,7 +385,6 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
     }))
 }
 
-#[cfg(test)]
 pub fn parse_with<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,

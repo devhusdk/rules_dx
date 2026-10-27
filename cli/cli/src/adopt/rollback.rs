@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use crate::args::Invocation;
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
+use dx_cli_core::args::Invocation;
 use dx_output::{command_finished, command_started, status_event, FinishedCounts, StatusEvent};
 
 use super::status::CODE_STATUS_PIN_MISMATCH;

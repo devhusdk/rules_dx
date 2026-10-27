@@ -15,6 +15,7 @@ load(":real_aspect_subject.bzl", "real_aspect_subject", "real_shard_probe_subjec
 load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_shard_probe_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
+load(":rmeta_typecheck_tests.bzl", "rmeta_typecheck_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
 load(":tool_override_tests.bzl", "elixir_subject", "erlang_subject", "erlfmt_flag_tests", "mix_format_flag_tests", "qml_lint_subject", "qml_sources", "qml_subject", "qmlformat_flag_tests", "qmllint_flag_tests", "tool_override_subject", "tool_override_tests", "zig_fmt_flag_tests", "zig_subject")
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
@@ -1318,8 +1319,8 @@ real_typecheck_subject(
 
 real_typecheck_subject(
     name = "fixture_real_rust_test_crate_typecheck_subject",
-    target = ":fake_format_test",
     testonly = True,
+    target = ":fake_format_test",
 )
 
 real_typecheck_subject(
@@ -1419,4 +1420,10 @@ sh_test(
         "scalafmt_cfg/.scalafmt.conf",
         "@dx_tools//:scalafmt",
     ],
+)
+
+rmeta_typecheck_test(
+    name = "fixture_upstream_rust_rmeta_typecheck_test",
+    size = "small",
+    target_under_test = ":fixture_upstream_rust",
 )

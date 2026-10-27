@@ -593,7 +593,7 @@ use_repo(haskell, "dx_haskell_toolchains", "rules_haskell")
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d/toolchain:repos.bzl", "d")
-use_repo(d, "dx_d_toolchains", "rules_d")
+use_repo(d, "dx_d_dfmt", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
 

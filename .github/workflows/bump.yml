@@ -288,6 +288,8 @@ jobs:
           echo "Tree reset: next dep starts from a clean tree; red runs are discarded and recorded above, never retried until green."
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### bump widen-one — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### bump widen-one — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 100 //... + dx lint/typecheck/format --check //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + App token + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"

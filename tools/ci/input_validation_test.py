@@ -22,12 +22,6 @@ CI_AGGREGATE_HEREDOC = "python3 - <<'DX_AGGREGATE'"
 CI_AGGREGATE_MARKER = "DX_AGGREGATE"
 EVIDENCE_HEREDOC = "python3 - <<'DX_EVIDENCE_INPUTS'"
 EVIDENCE_MARKER = "DX_EVIDENCE_INPUTS"
-# Workflows whose run: blocks must read inputs through env, never through ${{ }}.
-EXPRESSION_FREE_WORKFLOWS = (
-    EVIDENCE_WORKFLOW,
-    ".github/workflows/android.yml",
-    ".github/workflows/apple.yml",
-)
 INPUTS = (
     "DX_PLATFORMS",
     "DX_DISABLED_CHECKS",
@@ -552,36 +546,3 @@ def test_callers_request_only_mapped_platforms():
         )
 
 
-def run_blocks(text):
-    """Yields (line number, line) for every line inside a run: block of a workflow."""
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines):
-        line = lines[index]
-        stripped = line.lstrip(" ")
-        key = stripped[2:] if stripped.startswith("- ") else stripped
-        if key.startswith("run:"):
-            indent = len(line) - len(stripped)
-            yield index + 1, line
-            index += 1
-            while index < len(lines):
-                inner = lines[index]
-                if inner.strip() and len(inner) - len(inner.lstrip(" ")) <= indent:
-                    break
-                yield index + 1, inner
-                index += 1
-            continue
-        index += 1
-
-
-def test_run_blocks_interpolate_no_expressions():
-    """Shell steps read workflow values through env, so no ${{ }} reaches a run: block."""
-    found = []
-    for workflow in EXPRESSION_FREE_WORKFLOWS:
-        text = (ROOT / workflow).read_text(encoding="utf-8")
-        found += [
-            f"{workflow}:{number}: {line.strip()}"
-            for number, line in run_blocks(text)
-            if "${{" in line
-        ]
-    assert not found, "move these expressions into the step env:\n" + "\n".join(found)

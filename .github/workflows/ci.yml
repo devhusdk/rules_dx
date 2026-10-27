@@ -105,8 +105,10 @@ jobs:
           EOF
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### devcontainer-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### devcontainer-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
@@ -175,8 +177,10 @@ jobs:
           retention-days: 7
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### hermetic (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### hermetic (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, coverage, expected-failure, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
   network:
     name: network (requires-network nested consumer tests)
@@ -212,6 +216,8 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
       - name: Run the opted-in requires-network consumer tests
+        env:
+          REPO_CACHE_PATH: ${{ steps.repo-cache.outputs.path }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
@@ -219,11 +225,13 @@ jobs:
           test -n "$targets"
           echo "$targets" > "$RUNNER_TEMP/network-targets"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${{ steps.repo-cache.outputs.path }}" "$@" $targets
+          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" $targets
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### network (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### network (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Ran the tests tagged network-consumer. A FLAKY result means the test passed on its single retry." >> "$GITHUB_STEP_SUMMARY"
           if [ -f "$RUNNER_TEMP/network-targets" ]; then
             sed 's/^/- /' "$RUNNER_TEMP/network-targets" >> "$GITHUB_STEP_SUMMARY"
@@ -304,9 +312,13 @@ jobs:
           bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //deploy/rules:pypi_probe_verify
       - name: Write job summary
         if: always()
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          JOB_STATUS: ${{ job.status }}
+          RUNNER_LABEL: ${{ matrix.runner }}
         run: |
-          echo "### preflight ${{ matrix.platform }} — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools, and the Zig example and hello fixture on ${{ matrix.runner }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools, and the Zig example and hello fixture on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
       - name: Prune the Bazel repository cache to this run's downloads
         if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
@@ -365,7 +377,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test "$@"
+          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test "$@"
       - name: Fail when bazel mod tidy would change MODULE.bazel
         run: |
           # shellcheck disable=SC2086
@@ -374,9 +386,11 @@ jobs:
           git diff --exit-code -- MODULE.bazel
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### workflow-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; bazel mod tidy." >> "$GITHUB_STEP_SUMMARY"
+          echo "### workflow-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy." >> "$GITHUB_STEP_SUMMARY"
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}
@@ -416,6 +430,8 @@ jobs:
           DX_AGGREGATE
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### ci — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### ci — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Aggregate required check over every ci.yml job (branch-protection single gate; every needed job must succeed)." >> "$GITHUB_STEP_SUMMARY"

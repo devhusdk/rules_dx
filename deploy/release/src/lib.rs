@@ -13,6 +13,7 @@ use std::path::Path;
 
 pub mod candidate;
 pub mod cell;
+pub mod inventory;
 mod provenance;
 mod publish;
 mod spdx;

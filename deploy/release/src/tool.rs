@@ -10,6 +10,7 @@ enum Kind {
     Provenance,
     BcrSource,
     Notice,
+    Inventory,
 }
 
 /// How many arguments a kind takes after its name.
@@ -60,6 +61,12 @@ const KINDS: &[KindSpec] = &[
         usage: "<manifest> <out> <root> <text> [<text> ...]",
         arity: Arity::AtLeast(4),
     },
+    KindSpec {
+        kind: Kind::Inventory,
+        name: "inventory",
+        usage: "<shipped.json> <cargo-bazel-lock.json> <licenses.toml> <manifest> <texts_dir>",
+        arity: Arity::Exactly(5),
+    },
 ];
 
 #[derive(Debug, PartialEq, Eq)]
@@ -86,6 +93,13 @@ enum Invocation {
         root: String,
         texts: Vec<PathBuf>,
     },
+    Inventory {
+        shipped: PathBuf,
+        lock: PathBuf,
+        licenses: PathBuf,
+        dst: PathBuf,
+        texts: PathBuf,
+    },
 }
 
 impl Invocation {
@@ -94,7 +108,8 @@ impl Invocation {
             Self::Spdx { dst, .. }
             | Self::Provenance { dst, .. }
             | Self::BcrSource { dst, .. }
-            | Self::Notice { dst, .. } => dst,
+            | Self::Notice { dst, .. }
+            | Self::Inventory { dst, .. } => dst,
         }
     }
 }
@@ -149,6 +164,13 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
             root: args[2].clone(),
             texts: args[3..].iter().map(PathBuf::from).collect(),
         },
+        Kind::Inventory => Invocation::Inventory {
+            shipped: PathBuf::from(&args[0]),
+            lock: PathBuf::from(&args[1]),
+            licenses: PathBuf::from(&args[2]),
+            dst: PathBuf::from(&args[3]),
+            texts: PathBuf::from(&args[4]),
+        },
     })
 }
 
@@ -173,6 +195,7 @@ fn kind_name(invocation: &Invocation) -> &'static str {
         Invocation::Provenance { .. } => "provenance",
         Invocation::BcrSource { .. } => "bcr-source",
         Invocation::Notice { .. } => "notice",
+        Invocation::Inventory { .. } => "inventory",
     }
 }
 
@@ -196,6 +219,13 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             root,
             texts,
         } => crate::write_notice(manifest, dst, root, texts),
+        Invocation::Inventory {
+            shipped,
+            lock,
+            licenses,
+            dst,
+            texts,
+        } => crate::inventory::write_inventory(shipped, lock, licenses, dst, texts),
     }
 }
 
@@ -237,6 +267,7 @@ mod tests {
             ("provenance", 3, false),
             ("bcr-source", 3, false),
             ("notice", 4, true),
+            ("inventory", 5, false),
         ] {
             assert!(parse(&argv_for(name, exact)).is_ok(), "{name} exact");
             assert_eq!(
@@ -351,6 +382,28 @@ mod tests {
     }
 
     #[test]
+    fn inventory_keeps_all_fields() {
+        assert_eq!(
+            parse(&argv_of(&[
+                PROG,
+                "inventory",
+                "shipped.json",
+                "lock.json",
+                "licenses.toml",
+                "manifest.txt",
+                "texts"
+            ])),
+            Ok(Invocation::Inventory {
+                shipped: PathBuf::from("shipped.json"),
+                lock: PathBuf::from("lock.json"),
+                licenses: PathBuf::from("licenses.toml"),
+                dst: PathBuf::from("manifest.txt"),
+                texts: PathBuf::from("texts"),
+            })
+        );
+    }
+
+    #[test]
     fn unknown_or_missing_kind_exits_one() {
         assert_eq!(parse(&argv_of(&[PROG])), Err(ParseError::UnknownKind));
         assert_eq!(parse(&argv_of(&[])), Err(ParseError::UnknownKind));
@@ -407,6 +460,15 @@ mod tests {
                 "/definitely/missing/NOTICE",
                 "//demo:root",
                 "/definitely/missing/a.txt",
+            ]),
+            argv_of(&[
+                PROG,
+                "inventory",
+                "/definitely/missing/shipped.json",
+                "/definitely/missing/lock.json",
+                "/definitely/missing/licenses.toml",
+                "/definitely/missing/manifest.txt",
+                "/definitely/missing/texts",
             ]),
         ] {
             assert_eq!(release_tool_run(&argv), 1, "{argv:?}");

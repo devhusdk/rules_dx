@@ -19,7 +19,7 @@ def notice_manifest_error(manifest):
         return "notice_bundle: invalid manifest 'None': want the audited inventory manifest label"
     return ""
 
-def notice_bundle(name, root, inventory, texts):
+def notice_bundle(name, root, inventory, texts, target_compatible_with = None):
     """Bundles one aggregated NOTICE; texts are matched by manifest path suffix."""
     root_err = notice_root_error(root)
     if root_err != "":
@@ -36,15 +36,17 @@ def notice_bundle(name, root, inventory, texts):
         name = name + "_notice",
         srcs = [inventory] + texts,
         outs = [notice],
+        target_compatible_with = target_compatible_with,
         tools = ["//deploy/release:release_tool"],
         cmd = "$(location //deploy/release:release_tool) notice $(location " + inventory + ") $(OUTS) " + genrule_arg(root) + " " +
-              " ".join(["$(location " + text + ")" for text in texts]),
+              " ".join(["$(locations " + text + ")" for text in texts]),
     )
 
     native.genrule(
         name = name + "_checksum",
         srcs = [":" + name + "_notice"],
         outs = [checksum],
+        target_compatible_with = target_compatible_with,
         tools = ["//deploy/rules:hasher"],
         cmd = "$(location //deploy/rules:hasher) $(location :" + name + "_notice) $(OUTS)",
     )
@@ -52,4 +54,5 @@ def notice_bundle(name, root, inventory, texts):
     native.filegroup(
         name = name,
         srcs = [":" + name + "_notice", ":" + name + "_checksum"],
+        target_compatible_with = target_compatible_with,
     )

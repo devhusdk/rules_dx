@@ -304,11 +304,9 @@ mod tests {
     fn cells_follow_the_release_matrix() {
         let matrix = include_str!("../../release/matrix.bzl");
         for cell in CELLS {
+            assert_eq!(cell.name, format!("dx-{}-{}", cell.os, cell.arch));
             assert!(
-                matrix.contains(&format!(
-                    "(\"{}\", \"{}\", \"{}\"",
-                    cell.name, cell.os, cell.arch
-                )),
+                matrix.contains(&format!("_cell(\"{}\", \"{}\",", cell.os, cell.arch)),
                 "{} missing from matrix.bzl",
                 cell.name
             );

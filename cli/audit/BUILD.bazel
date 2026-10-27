@@ -64,6 +64,7 @@ dx_rust_crate(
         "src/locks_tests.rs",
         "src/vuln_tests.rs",
     ],
+    visibility = VIS_CLI + ["//deploy/release:__pkg__"],
     deps = [
         "cargo-lock",
         "chrono",

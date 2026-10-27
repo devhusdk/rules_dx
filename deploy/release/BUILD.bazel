@@ -4,6 +4,8 @@ load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library",
 load(":bcr.bzl", "bcr_check")
 load(":bcr_tests.bzl", "bcr_unit_tests")
 load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
+load(":inventory_tests.bzl", "inventory_file_tests", "inventory_unit_tests")
+load(":matrix.bzl", "release_cells", "release_matrix_file")
 load(":matrix_tests.bzl", "matrix_unit_tests")
 load(":notice.bzl", "notice_bundle")
 load(":notice_tests.bzl", "notice_file_tests", "notice_unit_tests")
@@ -18,6 +20,8 @@ exports_files([
     "bcr.bzl",
     "bcr_tests.bzl",
     "cosign_pins.bzl",
+    "inventory.bzl",
+    "inventory_tests.bzl",
     "matrix.bzl",
     "matrix_tests.bzl",
     "notice.bzl",
@@ -45,6 +49,8 @@ rust_library(
     srcs = [
         "src/candidate.rs",
         "src/cell.rs",
+        "src/cell_tests.rs",
+        "src/inventory.rs",
         "src/lib.rs",
         "src/provenance.rs",
         "src/publish.rs",
@@ -62,6 +68,7 @@ rust_library(
         package_name = "deploy/dx_release_tools",
         normal = True,
     ) + [
+        "//cli/audit:dx_audit",
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
@@ -93,6 +100,7 @@ rust_test(
         "src/candidate.rs",
         "src/cell.rs",
         "src/cell_tests.rs",
+        "src/inventory.rs",
         "src/lib.rs",
         "src/provenance.rs",
         "src/publish.rs",
@@ -170,6 +178,26 @@ rust_test(
     ],
 )
 
+# keep
+rust_test(
+    name = "release_host_cell_test",
+    size = "small",
+    srcs = ["host_cell_test.rs"],
+    data = [
+        ":dx_host_cell",
+        ":release_matrix",
+    ],
+    env = {
+        "DX_HOST_CELL": "$(rootpath :dx_host_cell)",
+        "DX_RELEASE_MATRIX": "$(rootpath :release_matrix)",
+    },
+    deps = [
+        ":dx_release_tools",
+        "//deploy/rules:dx_deploy_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 # Release binaries that have a bin_test.
 _TESTED_RELEASE_BINS = [
     "publish_dry_run_check",
@@ -187,6 +215,7 @@ rustfmt_test(
         ":dx_release_tools_test",
         ":candidate_identity_test",
         ":dx_release_tools",
+        ":release_host_cell_test",
     ] + [":" + b for b in _RELEASE_BINS] + [":" + b + "_bin_test" for b in _TESTED_RELEASE_BINS],
 )
 
@@ -196,6 +225,7 @@ rust_clippy_test(
     targets = [
         ":candidate_identity_test",
         ":dx_release_tools",
+        ":release_host_cell_test",
     ] + [":" + b for b in _RELEASE_BINS],
 )
 
@@ -331,6 +361,26 @@ exports_files(["Cargo.toml"])
 
 matrix_unit_tests(name = "matrix_unit")
 
+inventory_unit_tests(name = "inventory_unit")
+
+inventory_file_tests(
+    name = "release_tool_inventory_test",
+    absent = [
+        "dx_audit",
+        "dx_release_tools",
+        "serde_derive",
+    ],
+    app = ":release_tool",
+    present = [
+        "serde",
+        "serde_json",
+    ],
+)
+
+release_cells(name = "dx_host_cell")
+
+release_matrix_file(name = "release_matrix")
+
 sbom_unit_tests(name = "sbom_unit")
 
 notice_unit_tests(name = "notice_unit")
@@ -460,11 +510,14 @@ test_suite(
         ":bcr_unit",
         ":candidate_identity_test",
         ":dx_release_tools_test",
+        ":inventory_unit",
         ":matrix_unit",
         ":notice_demo_contains_words",
         ":notice_shared_demo_contains_words",
         ":notice_unit",
         ":release_artifacts_verify",
+        ":release_host_cell_test",
+        ":release_tool_inventory_test",
         ":sbom_quoting_demo_contains_supplier",
         ":sbom_unit",
         ":signing_unit",
@@ -478,6 +531,8 @@ real_source_target(
         "BUILD.bazel",
         "bcr.bzl",
         "bcr_tests.bzl",
+        "inventory.bzl",
+        "inventory_tests.bzl",
         "matrix.bzl",
         "matrix_tests.bzl",
         "notice.bzl",

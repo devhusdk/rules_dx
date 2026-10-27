@@ -24,3 +24,124 @@ deny = ["GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later"]
 
 [distribution]
 internal = ["//..."]
+
+
+[[exception]]
+package = "allocative"
+set = "cargo"
+license = "Apache-2.0"
+versions = "=0.3.6"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "bitfields"
+set = "cargo"
+license = "MIT"
+versions = "=1.0.3"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "crc24"
+set = "cargo"
+license = "MIT/Apache-2.0"
+versions = "=0.1.6"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "cx448"
+set = "cargo"
+license = "BSD-3-Clause"
+versions = "=0.1.1"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "fxhash"
+set = "cargo"
+license = "Apache-2.0/MIT"
+versions = "=0.2.1"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "lcov"
+set = "cargo"
+license = "MIT/Apache-2.0"
+versions = "=0.8.2"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "line-index"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.1.2"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "lock_free_hashtable"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.1.4"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "nom-language"
+set = "cargo"
+license = "MIT"
+versions = "=0.1.0"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "pagable"
+set = "cargo"
+license = "Apache-2.0"
+versions = "=0.4.2"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "sorted_vector_map"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.2.1"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "starlark_map"
+set = "cargo"
+license = "Apache-2.0"
+versions = "=0.14.2"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "starlark_syntax"
+set = "cargo"
+license = "Apache-2.0"
+versions = "=0.14.2"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "static_interner"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.1.3"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"
+
+[[exception]]
+package = "strong_hash"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.1.0"
+reason = "The crate ships no license file; its NOTICE entry names the declared license."
+expires = "2027-10-27"

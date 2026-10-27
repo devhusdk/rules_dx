@@ -1,7 +1,7 @@
 """Application packaging selection coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "aab_check_errors", "apk_manifest_errors", "release_sign_errors", "rust_android_apk_errors")
+load(":defs.bzl", "aab_check_errors", "aab_sign_errors", "apk_manifest_errors", "release_sign_errors", "rust_android_apk_errors")
 load(
     ":repos.bzl",
     "ABI_PLATFORMS",
@@ -162,6 +162,12 @@ def _packaging_checks():
         "duplicate abi aab check",
         aab_check_errors(["x86_64", "x86_64"], []),
         ["rust_android_apk: abis holds duplicates"],
+    ))
+    checks.append(expect_equal("one aab sign", aab_sign_errors("//:app", 1), []))
+    checks.append(expect_equal(
+        "no aab sign",
+        aab_sign_errors("//:app", 0),
+        ["android_aab_release_sign: '//:app' built 0 aab files, want exactly one"],
     ))
     return checks
 

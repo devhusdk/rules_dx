@@ -477,6 +477,49 @@ def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 
         visibility = visibility,
     )
 
+def aab_sign_errors(label, aab_count):
+    """Returns one error string per rejected App Bundle signing selection."""
+    if aab_count != 1:
+        return ["android_aab_release_sign: '" + label + "' built " + str(aab_count) + " aab files, want exactly one"]
+    return []
+
+def _aab_sign_selection_impl(ctx):
+    aabs = [file for file in ctx.attr.aab[DefaultInfo].files.to_list() if file.extension == "aab"]
+    failures = aab_sign_errors(str(ctx.attr.aab.label), len(aabs))
+    if len(failures) > 0:
+        fail("; ".join(failures))
+    return []
+
+_aab_sign_selection = rule(
+    implementation = _aab_sign_selection_impl,
+    doc = "Fails analysis unless the signing input builds exactly one App Bundle.",
+    attrs = {
+        "aab": attr.label(allow_files = True, mandatory = True, doc = "Target that builds the unsigned App Bundle."),
+    },
+)
+
+def android_aab_release_sign(name, aab, visibility = None):
+    """Declares an explicit App Bundle upload signing launcher; builds never sign or read keys."""
+    _aab_sign_selection(
+        name = name + "_selection",
+        aab = aab,
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+    )
+    sh_binary(
+        name = name,
+        srcs = [Label("//android/packaging:sign_aab.sh")],
+        data = [aab, ":" + name + "_selection", _BUNDLETOOL, _JAVA_RUNTIME],
+        env = {
+            "DX_SIGN_AAB": "$(rootpath " + aab + ")",
+            "DX_SIGN_BUNDLETOOL": "$(rootpath " + str(_BUNDLETOOL) + ")",
+            "DX_SIGN_JAVABASE": "$(JAVABASE_ROOTPATH)",
+        },
+        tags = ["manual"],
+        toolchains = [_JAVA_RUNTIME],
+        visibility = visibility,
+    )
+
 def android_apk_check(name, apk, size = "small", tags = None, visibility = None):
     """Declares a nonmutating test that the package is an unsigned APK ready to sign."""
     sh_test(

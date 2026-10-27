@@ -251,6 +251,45 @@ The inspect tests read the package, version, SDK floors and library
 name from the bundle manifest, and check the asset, the resource table,
 the dex and the ELF machine of each `base/lib/<abi>/lib<name>.so`.
 
+### Upload signing
+
+Sign a bundle with your upload key through an explicit launcher:
+
+```python
+load("@rules_dx//android/packaging:defs.bzl", "android_aab_release_sign")
+
+android_aab_release_sign(name = "sign_aab", aab = ":app_apk_aab_file")
+```
+
+Pass the key through the environment of the run:
+
+```sh
+export DX_SIGN_KEYSTORE=upload.jks DX_SIGN_STORE_PASS_FILE=store.pass
+export DX_SIGN_KEY_ALIAS=upload DX_SIGN_KEY_PASS_FILE=key.pass DX_SIGN_OUT=app-release.aab
+bazel run //path:sign_aab --java_runtime_version=remotejdk_21
+```
+
+The variables match APK signing, except that `DX_SIGN_KEY_ALIAS` is
+required. `DX_SIGN_KEY_PASS_FILE` is optional. Passwords are read from
+the named files only, and relative paths resolve against the directory
+you ran from.
+
+App Bundles carry a JAR signature, so the launcher uses `jarsigner`
+and `keytool` from the selected JDK, not `apksigner`. It rejects a
+bundle that is already signed, runs `bundletool validate`, signs with
+`SHA256withRSA` or `SHA256withECDSA` and a SHA-256 digest, verifies the
+result with `jarsigner -verify -strict`, and only then writes
+`DX_SIGN_OUT`. Upload keys are self-signed, so the self-signed warning
+passes; an expired or not yet valid certificate fails. The upload key
+must be RSA or EC.
+
+Missing inputs or variables exit 2. A missing bundletool or
+`jarsigner` exits 127. A wrong password, wrong alias, already-signed or
+invalid bundle exits 1 without writing a bundle.
+
+Run `bazel test //android/tests/fixtures/rust_apk:sign_aab_test` to
+sign a generated test bundle with a disposable key and verify it.
+
 ## Qualified SDK for packaging builds
 
 Packaging builds read the installed SDK through the upstream

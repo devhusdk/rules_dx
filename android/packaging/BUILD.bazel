@@ -2,7 +2,7 @@ load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_java//java:java_import.bzl", "java_import")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "android_aab_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_release_sign", "rust_android_apk")
+load(":defs.bzl", "android_aab_check", "android_aab_release_sign", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_release_sign", "rust_android_apk")
 load(":metadata_tests.bzl", "android_packaging_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -14,6 +14,7 @@ exports_files([
     "defs.bzl",
     "metadata_tests.bzl",
     "repos.bzl",
+    "sign_aab.sh",
     "sign_apk.sh",
 ])
 
@@ -22,7 +23,7 @@ android_packaging_tests(name = "metadata")
 java_import(
     name = "bundletool_jar",
     jars = ["@dx_android_sdk//:bundletool_jar"],
-    visibility = ["//visibility:private"],
+    visibility = ["//android:__subpackages__"],
 )
 
 java_binary(
@@ -243,6 +244,17 @@ failure_test(
     name = "bad_resource_aab_check_test",
     expected_failure_substring = "resource 'app_name' must be type/name",
     target = ":bad_resource_aab_check_selection",
+)
+
+android_aab_release_sign(
+    name = "apk_as_aab_sign",
+    aab = "//android/tests/fixtures/rust_apk:dummy.apk",
+)
+
+failure_test(
+    name = "apk_as_aab_sign_test",
+    expected_failure_substring = "built 0 aab files, want exactly one",
+    target = ":apk_as_aab_sign_selection",
 )
 
 real_source_target(

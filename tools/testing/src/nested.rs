@@ -27,6 +27,7 @@ pub const DEFAULT_HEAP: &str = "1536m";
 pub const DEFAULT_SLOTS: usize = nested_bazel::DEFAULT_SLOTS as usize;
 pub use nested_bazel::SLOTS_ENV;
 pub const PINNED_ENV: &str = "DX_NESTED_BAZEL_PINNED";
+pub const SHIM_ENV: &str = "DX_NESTED_BAZEL_SHIM";
 pub const CPUS: u32 = 2;
 pub const STARTUP: &[&str] = &["--nohome_rc", "--nosystem_rc"];
 
@@ -49,21 +50,21 @@ pub struct Config {
     pub disk_cache: PathBuf,
     pub repository_cache: Option<PathBuf>,
     pub offline: bool,
+    /// The native `bazel` shim installed in each slot; without it Unix falls back to a sh wrapper.
+    pub shim: Option<PathBuf>,
 }
 
 impl Config {
     /// Reads the settings from the environment and the outer `~/.bazelrc`.
     pub fn from_env() -> Result<Config, String> {
-        let home = std::env::var_os("HOME")
-            .filter(|home| !home.is_empty())
-            .map(PathBuf::from);
+        let home = pick_home(&|name| std::env::var_os(name));
         let rc = home
             .as_ref()
             .and_then(|home| std::fs::read_to_string(home.join(".bazelrc")).ok())
             .unwrap_or_default();
         Self::from_parts(
             &|name| std::env::var_os(name),
-            &resolve_pinned,
+            &resolve_runfile,
             &rc,
             home.as_deref(),
         )
@@ -72,7 +73,7 @@ impl Config {
     /// Builds the settings from an environment lookup, the outer bazelrc text and the home.
     fn from_parts(
         lookup: &dyn Fn(&str) -> Option<OsString>,
-        resolve: &dyn Fn(&str) -> Result<PathBuf, String>,
+        resolve: &dyn Fn(&str, &str) -> Result<PathBuf, String>,
         rc: &str,
         home: Option<&Path>,
     ) -> Result<Config, String> {
@@ -91,10 +92,14 @@ impl Config {
         let path = lookup("PATH").unwrap_or_default();
         let chosen = env_path(lookup, "DX_NESTED_BAZEL");
         let pinned = match text(PINNED_ENV).filter(|key| !key.is_empty()) {
-            Some(key) if chosen.is_none() => Some(resolve(&key)?),
+            Some(key) if chosen.is_none() => Some(resolve(PINNED_ENV, &key)?),
             _ => None,
         };
         let bazel = find_bazel(chosen, pinned, &path, &base)?;
+        let shim = match text(SHIM_ENV).filter(|key| !key.is_empty()) {
+            Some(key) => Some(resolve(SHIM_ENV, &key)?),
+            None => None,
+        };
         let disk_cache = disk_cache(
             env_path(lookup, "DX_NESTED_BAZEL_DISK_CACHE"),
             rc,
@@ -112,15 +117,21 @@ impl Config {
             disk_cache,
             repository_cache,
             offline: lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
+            shim,
         })
     }
 }
 
-fn resolve_pinned(key: &str) -> Result<PathBuf, String> {
+/// Resolves the runfiles key in the variable `name` to an absolute path.
+fn resolve_runfile(name: &str, key: &str) -> Result<PathBuf, String> {
     let found = dx_testing::rlocation(key)
-        .map_err(|error| format!("{PINNED_ENV} {key} is not in the runfiles: {error}"))?;
-    std::path::absolute(&found)
-        .map_err(|error| format!("{PINNED_ENV} {}: {error}", found.display()))
+        .map_err(|error| format!("{name} {key} is not in the runfiles: {error}"))?;
+    std::path::absolute(&found).map_err(|error| format!("{name} {}: {error}", found.display()))
+}
+
+/// Returns `HOME`, else `USERPROFILE` (Windows), ignoring empty values.
+fn pick_home(lookup: &dyn Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
+    env_path(lookup, "HOME").or_else(|| env_path(lookup, "USERPROFILE"))
 }
 
 fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<PathBuf> {
@@ -155,12 +166,13 @@ fn current_uid() -> Result<u32, String> {
 
 #[cfg(unix)]
 fn default_base() -> Result<PathBuf, String> {
-    Ok(nested_bazel::root(None, Some(current_uid()?)))
+    Ok(nested_bazel::root(None, Some(current_uid()?), None))
 }
 
 #[cfg(not(unix))]
 fn default_base() -> Result<PathBuf, String> {
-    Ok(nested_bazel::root(None, None))
+    let profile = env_path(&|name| std::env::var_os(name), "USERPROFILE");
+    Ok(nested_bazel::root(None, None, profile.as_deref()))
 }
 
 /// Returns the configured disk cache, or one cache shared by every slot under the base.
@@ -194,16 +206,21 @@ pub fn rc_path(rc: &str, flag: &str, home: Option<&Path>) -> Option<PathBuf> {
     found
 }
 
+/// Finds the repository cache under the default output roots: `~/.cache/bazel` (Unix), then the home (Windows).
 fn default_repository_cache(home: &Path) -> Option<PathBuf> {
-    let mut roots: Vec<PathBuf> = std::fs::read_dir(home.join(".cache/bazel"))
-        .ok()?
-        .filter_map(Result::ok)
-        .filter(|entry| entry.file_name().to_string_lossy().starts_with("_bazel_"))
-        .map(|entry| entry.path().join("cache/repos/v1"))
-        .filter(|path| path.is_dir())
-        .collect();
-    roots.sort();
-    roots.into_iter().next()
+    [home.join(".cache/bazel"), home.to_path_buf()]
+        .iter()
+        .find_map(|dir| {
+            let mut roots: Vec<PathBuf> = std::fs::read_dir(dir)
+                .ok()?
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_name().to_string_lossy().starts_with("_bazel_"))
+                .map(|entry| entry.path().join("cache/repos/v1"))
+                .filter(|path| path.is_dir())
+                .collect();
+            roots.sort();
+            roots.into_iter().next()
+        })
 }
 
 /// Returns the `DX_NESTED_BAZEL` override, else the pinned binary, else `bazel` or `bazelisk` on `path`.
@@ -228,7 +245,7 @@ pub fn find_bazel(
         }
         return Err(format!("{PINNED_ENV} {} is not a file", pinned.display()));
     }
-    for name in ["bazel", "bazelisk"] {
+    for name in ["bazel", "bazelisk", "bazel.exe", "bazelisk.exe"] {
         for dir in std::env::split_paths(path) {
             if dir.starts_with(base) {
                 continue;
@@ -307,28 +324,190 @@ pub fn reset(root: &Path) -> Result<(), String> {
             make_writable(&path);
             std::fs::remove_dir_all(&path)
         } else {
-            std::fs::remove_file(&path)
+            // On Windows a directory symlink or junction is removed with remove_dir, never followed.
+            std::fs::remove_file(&path).or_else(|error| {
+                if cfg!(windows) {
+                    std::fs::remove_dir(&path).map_err(|_| error)
+                } else {
+                    Err(error)
+                }
+            })
         };
         removed.map_err(|error| format!("cannot remove {}: {error}", path.display()))?;
     }
     Ok(())
 }
 
-/// Renders the `bazel` wrapper that pins every nested startup option.
-pub fn wrapper_script(config: &Config, user_root: &Path, rc: &Path, calls: &Path) -> String {
-    let argv = [
+/// The real Bazel followed by every pinned nested startup option; the one source for both wrappers.
+pub fn wrapper_argv(config: &Config, user_root: &Path, rc: &Path) -> Vec<String> {
+    vec![
         config.bazel.to_string_lossy().into_owned(),
         format!("--output_user_root={}", user_root.display()),
         format!("--max_idle_secs={MAX_IDLE_SECS}"),
         format!("--host_jvm_args=-Xmx{}", config.heap),
         format!("--bazelrc={}", rc.display()),
-    ];
-    let quoted: Vec<String> = argv.iter().map(|arg| shell_quote(arg)).collect();
+    ]
+}
+
+/// Renders the sh `bazel` wrapper that pins every nested startup option and logs each call.
+pub fn wrapper_script(config: &Config, user_root: &Path, rc: &Path, calls: &Path) -> String {
+    let quoted: Vec<String> = wrapper_argv(config, user_root, rc)
+        .iter()
+        .map(|arg| shell_quote(arg))
+        .collect();
     format!(
         "#!/bin/sh\nprintf '%s\\n' \"$*\" >> {}\nexec {} \"$@\"\n",
         shell_quote(&calls.to_string_lossy()),
         quoted.join(" ")
     )
+}
+
+/// Renders the shim's sidecar `.args` file: one argument per line, the real Bazel first.
+pub fn shim_args(argv: &[String]) -> Result<String, String> {
+    let mut text = String::new();
+    for arg in argv {
+        if arg.contains(['\n', '\r']) {
+            return Err(format!(
+                "nested Bazel startup argument has a line break: {arg:?}"
+            ));
+        }
+        text.push_str(arg);
+        text.push('\n');
+    }
+    Ok(text)
+}
+
+/// Parses a shim `.args` file and appends the forwarded arguments: (program, args).
+pub fn shim_argv(text: &str, forwarded: &[OsString]) -> Option<(OsString, Vec<OsString>)> {
+    let mut lines = text
+        .lines()
+        .map(|line| line.strip_suffix('\r').unwrap_or(line));
+    let program = OsString::from(lines.next().filter(|line| !line.is_empty())?);
+    let mut args: Vec<OsString> = lines
+        .filter(|line| !line.is_empty())
+        .map(OsString::from)
+        .collect();
+    args.extend(forwarded.iter().cloned());
+    Some((program, args))
+}
+
+/// The `main` of the native `bazel` shim: runs the real Bazel from `<self>.args` with the forwarded args.
+pub fn shim_main() -> i32 {
+    let me = match std::env::current_exe() {
+        Ok(me) => me,
+        Err(error) => {
+            eprintln!("nested bazel shim: cannot find itself: {error}");
+            return 2;
+        }
+    };
+    let sidecar = me.with_extension("args");
+    let text = match std::fs::read_to_string(&sidecar) {
+        Ok(text) => text,
+        Err(error) => {
+            eprintln!(
+                "nested bazel shim: cannot read {}: {error}",
+                sidecar.display()
+            );
+            return 2;
+        }
+    };
+    let forwarded: Vec<OsString> = std::env::args_os().skip(1).collect();
+    let Some((program, args)) = shim_argv(&text, &forwarded) else {
+        eprintln!("nested bazel shim: {} names no Bazel", sidecar.display());
+        return 2;
+    };
+    let mut command = Command::new(&program);
+    command.args(&args);
+    run_shim(command, &program)
+}
+
+#[cfg(unix)]
+fn run_shim(mut command: Command, program: &std::ffi::OsStr) -> i32 {
+    use std::os::unix::process::CommandExt;
+    let error = command.exec();
+    eprintln!(
+        "nested bazel shim: cannot run {}: {error}",
+        program.to_string_lossy()
+    );
+    127
+}
+
+#[cfg(not(unix))]
+fn run_shim(mut command: Command, program: &std::ffi::OsStr) -> i32 {
+    // No kill-on-close job here: the Bazel server must outlive each client command.
+    match command.status() {
+        Ok(status) => status.code().unwrap_or(1),
+        Err(error) => {
+            eprintln!(
+                "nested bazel shim: cannot run {}: {error}",
+                program.to_string_lossy()
+            );
+            127
+        }
+    }
+}
+
+/// Copies the shim to `dst` unless it is already identical, moving a busy old copy aside on Windows.
+pub fn install_shim(src: &Path, dst: &Path) -> Result<(), String> {
+    let wanted =
+        std::fs::read(src).map_err(|error| format!("cannot read {}: {error}", src.display()))?;
+    if std::fs::read(dst).is_ok_and(|have| have == wanted) {
+        return Ok(());
+    }
+    if let Some(parent) = dst.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("cannot create {}: {error}", parent.display()))?;
+        clean_old_shims(parent, dst);
+    }
+    if std::fs::symlink_metadata(dst).is_ok() {
+        make_file_writable(dst);
+        if std::fs::remove_file(dst).is_err() {
+            // A running bazel.exe cannot be deleted or overwritten, but it can be renamed.
+            let aside = old_shim(dst, std::process::id());
+            std::fs::rename(dst, &aside)
+                .map_err(|error| format!("cannot move {} aside: {error}", dst.display()))?;
+        }
+    }
+    std::fs::write(dst, &wanted)
+        .map_err(|error| format!("cannot write {}: {error}", dst.display()))?;
+    make_file_writable(dst);
+    make_executable(dst)
+}
+
+fn old_shim(dst: &Path, pid: u32) -> PathBuf {
+    let mut name = dst.file_name().unwrap_or_default().to_owned();
+    name.push(format!(".old-{pid}"));
+    dst.with_file_name(name)
+}
+
+/// Removes the moved-aside copies of earlier claims; a still-running one stays until next time.
+fn clean_old_shims(dir: &Path, dst: &Path) {
+    let Some(name) = dst
+        .file_name()
+        .map(|name| format!("{}.old-", name.to_string_lossy()))
+    else {
+        return;
+    };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.filter_map(Result::ok) {
+        if entry.file_name().to_string_lossy().starts_with(&name) {
+            make_file_writable(&entry.path());
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
+fn make_file_writable(path: &Path) {
+    if let Ok(meta) = std::fs::metadata(path) {
+        let mut permissions = meta.permissions();
+        if permissions.readonly() {
+            #[allow(clippy::permissions_set_readonly_false)]
+            permissions.set_readonly(false);
+            let _ = std::fs::set_permissions(path, permissions);
+        }
+    }
 }
 
 /// Renders the bazelrc every nested command reads last.
@@ -371,7 +550,56 @@ mod signal {
     }
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+mod signal {
+    use std::ffi::c_void;
+
+    pub const SIGTERM: i32 = 15;
+    pub const SIGKILL: i32 = 9;
+
+    type Handle = *mut c_void;
+
+    const SYNCHRONIZE: u32 = 0x0010_0000;
+    const PROCESS_TERMINATE: u32 = 0x0001;
+    const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+    const WAIT_TIMEOUT: u32 = 0x0000_0102;
+
+    unsafe extern "system" {
+        fn OpenProcess(access: u32, inherit: i32, process_id: u32) -> Handle;
+        fn WaitForSingleObject(handle: Handle, millis: u32) -> u32;
+        fn TerminateProcess(process: Handle, exit_code: u32) -> i32;
+        fn CloseHandle(handle: Handle) -> i32;
+    }
+
+    /// Terminates `pid`; Windows has no graceful signal for a console-less server, so both kill.
+    pub fn send(pid: u32, _sig: i32) -> bool {
+        let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };
+        if handle.is_null() {
+            return false;
+        }
+        let done = unsafe { TerminateProcess(handle, 1) } != 0;
+        unsafe {
+            CloseHandle(handle);
+        }
+        done
+    }
+
+    /// A process is alive while its handle is unsignaled; an exit code of 259 cannot fool this.
+    pub fn alive(pid: u32) -> bool {
+        let handle =
+            unsafe { OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+        if handle.is_null() {
+            return false;
+        }
+        let waited = unsafe { WaitForSingleObject(handle, 0) };
+        unsafe {
+            CloseHandle(handle);
+        }
+        waited == WAIT_TIMEOUT
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
 mod signal {
     pub const SIGTERM: i32 = 15;
     pub const SIGKILL: i32 = 9;
@@ -398,6 +626,7 @@ pub fn alive(pid: u32) -> bool {
     }
 }
 
+#[cfg(unix)]
 fn command_line(pid: u32) -> Option<String> {
     if let Ok(cmdline) = std::fs::read(format!("/proc/{pid}/cmdline")) {
         return Some(String::from_utf8_lossy(&cmdline).into_owned());
@@ -413,38 +642,7 @@ fn command_line(pid: u32) -> Option<String> {
     Some(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-fn owned_by(pid: u32, user_root: &Path) -> bool {
-    command_line(pid).is_some_and(|line| line.contains(&*user_root.to_string_lossy()))
-}
-
-/// Lists the live Bazel servers under one output user root.
-pub fn servers(user_root: &Path) -> Vec<u32> {
-    let Ok(entries) = std::fs::read_dir(user_root) else {
-        return Vec::new();
-    };
-    let mut pids: Vec<u32> = entries
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            std::fs::read_to_string(entry.path().join("server/server.pid.txt")).ok()
-        })
-        .filter_map(|text| text.trim().parse::<u32>().ok())
-        .filter(|pid| alive(*pid) && owned_by(*pid, user_root))
-        .collect();
-    pids.sort_unstable();
-    pids
-}
-
-fn wait_gone(pids: &[u32], limit: Duration) -> Vec<u32> {
-    let started = Instant::now();
-    loop {
-        let left: Vec<u32> = pids.iter().copied().filter(|pid| alive(*pid)).collect();
-        if left.is_empty() || started.elapsed() >= limit {
-            return left;
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    }
-}
-
+#[cfg(unix)]
 fn all_pids() -> Vec<u32> {
     if let Ok(entries) = std::fs::read_dir("/proc") {
         return entries
@@ -466,49 +664,249 @@ fn all_pids() -> Vec<u32> {
         .collect()
 }
 
-/// Lists the live Bazel servers whose workspace is under `workspaces`, whatever their output root.
-pub fn servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
+/// Lists Windows processes that look like Bazel servers, one `pid<TAB>command line` per line.
+#[cfg(windows)]
+const WINDOWS_PROCESSES: &str = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*--output_user_root=*' -or $_.CommandLine -like '*--workspace_directory=*' } | ForEach-Object { \"$($_.ProcessId)`t$($_.CommandLine)\" }";
+
+/// Parses `pid<TAB>command line` lines, skipping anything else.
+#[cfg(any(windows, test))]
+fn parse_process_lines(text: &str) -> Vec<(u32, String)> {
+    text.lines()
+        .filter_map(|line| {
+            let (pid, cmdline) = line.split_once('\t')?;
+            let pid = pid.trim().parse::<u32>().ok()?;
+            Some((pid, cmdline.trim_end_matches('\r').to_owned()))
+        })
+        .collect()
+}
+
+/// One sweep's view of the process table: Unix reads `/proc` per pid, Windows takes one snapshot.
+struct Processes {
+    #[cfg(not(unix))]
+    table: Vec<(u32, String)>,
+}
+
+impl Processes {
+    #[cfg(unix)]
+    fn snapshot() -> Processes {
+        Processes {}
+    }
+
+    #[cfg(windows)]
+    fn snapshot() -> Processes {
+        let output = Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                WINDOWS_PROCESSES,
+            ])
+            .stdin(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .output();
+        let text = output
+            .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
+            .unwrap_or_default();
+        Processes {
+            table: parse_process_lines(&text),
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    fn snapshot() -> Processes {
+        Processes { table: Vec::new() }
+    }
+
+    #[cfg(unix)]
+    fn command_line(&self, pid: u32) -> Option<String> {
+        command_line(pid)
+    }
+
+    #[cfg(not(unix))]
+    fn command_line(&self, pid: u32) -> Option<String> {
+        self.table
+            .iter()
+            .find(|(each, _)| *each == pid)
+            .map(|(_, line)| line.clone())
+    }
+
+    #[cfg(unix)]
+    fn pids(&self) -> Vec<u32> {
+        all_pids()
+    }
+
+    #[cfg(not(unix))]
+    fn pids(&self) -> Vec<u32> {
+        self.table.iter().map(|(pid, _)| *pid).collect()
+    }
+}
+
+/// Normalizes a path or command line for matching: `/` separators, no `\\?\` prefix, and no case on Windows.
+fn normalized(text: &str) -> String {
+    let text = text.replace('\\', "/");
+    let text = text.replace("//?/", "");
+    if cfg!(windows) {
+        text.to_lowercase()
+    } else {
+        text
+    }
+}
+
+/// Reports whether `cmdline` names `dir` (after `flag`, when given) as a whole path, quoted or not.
+fn names_dir(cmdline: &str, flag: &str, dir: &str) -> bool {
+    let line = normalized(cmdline);
+    let dir = normalized(dir);
+    let dir = dir.trim_end_matches('/');
+    if dir.is_empty() {
+        return false;
+    }
+    let needle = format!("{flag}{dir}");
+    let mut from = 0;
+    while let Some(found) = line[from..].find(&needle) {
+        let at = from + found;
+        let step = needle.chars().next().map_or(1, char::len_utf8);
+        let before = line[..at].chars().next_back();
+        let after = line[at + needle.len()..].chars().next();
+        let starts = flag.is_empty() || before.is_none_or(|c| matches!(c, ' ' | '"' | '\0' | '\t'));
+        let ends = after.is_none_or(|c| matches!(c, '/' | '"' | ' ' | '\0' | '\t'));
+        if starts && ends {
+            return true;
+        }
+        from = at + step;
+    }
+    false
+}
+
+fn owned_in(processes: &Processes, pid: u32, user_root: &Path) -> bool {
+    processes
+        .command_line(pid)
+        .is_some_and(|line| names_dir(&line, "", &user_root.to_string_lossy()))
+}
+
+#[cfg(all(test, unix))]
+fn owned_by(pid: u32, user_root: &Path) -> bool {
+    owned_in(&Processes::snapshot(), pid, user_root)
+}
+
+/// Lists the live Bazel servers under one output user root.
+pub fn servers(user_root: &Path) -> Vec<u32> {
+    servers_from(&Processes::snapshot(), user_root)
+}
+
+fn servers_from(processes: &Processes, user_root: &Path) -> Vec<u32> {
+    let Ok(entries) = std::fs::read_dir(user_root) else {
+        return Vec::new();
+    };
+    let mut pids: Vec<u32> = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            std::fs::read_to_string(entry.path().join("server/server.pid.txt")).ok()
+        })
+        .filter_map(|text| text.trim().parse::<u32>().ok())
+        .filter(|pid| alive(*pid) && owned_in(processes, *pid, user_root))
+        .collect();
+    pids.sort_unstable();
+    pids
+}
+
+fn wait_gone(pids: &[u32], limit: Duration) -> Vec<u32> {
+    let started = Instant::now();
+    loop {
+        let left: Vec<u32> = pids.iter().copied().filter(|pid| alive(*pid)).collect();
+        if left.is_empty() || started.elapsed() >= limit {
+            return left;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn workspace_prefixes(workspaces: &Path) -> Vec<String> {
     let mut prefixes = vec![workspaces.to_string_lossy().into_owned()];
     if let Ok(real) = std::fs::canonicalize(workspaces) {
         prefixes.push(real.to_string_lossy().into_owned());
     }
+    prefixes
+}
+
+fn in_workspaces(cmdline: &str, prefixes: &[String]) -> bool {
+    prefixes
+        .iter()
+        .any(|prefix| names_dir(cmdline, "--workspace_directory=", prefix))
+}
+
+/// Lists the live Bazel servers whose workspace is under `workspaces`, whatever their output root.
+pub fn servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
+    servers_in_workspaces_from(&Processes::snapshot(), workspaces)
+}
+
+fn servers_in_workspaces_from(processes: &Processes, workspaces: &Path) -> Vec<u32> {
+    let prefixes = workspace_prefixes(workspaces);
     let own = std::process::id();
-    let mut pids: Vec<u32> = all_pids()
+    let mut pids: Vec<u32> = processes
+        .pids()
         .into_iter()
         .filter(|pid| *pid != own && alive(*pid))
         .filter(|pid| {
-            command_line(*pid).is_some_and(|line| {
-                line.split(['\0', ' ']).any(|arg| {
-                    arg.strip_prefix("--workspace_directory=")
-                        .is_some_and(|dir| {
-                            prefixes.iter().any(|prefix| {
-                                dir.strip_prefix(prefix.as_str())
-                                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
-                            })
-                        })
-                })
-            })
+            processes
+                .command_line(*pid)
+                .is_some_and(|line| in_workspaces(&line, &prefixes))
         })
         .collect();
     pids.sort_unstable();
     pids
 }
 
+/// Lists the servers under `user_root` or with a workspace under `workspaces`, from one snapshot.
+fn slot_servers(user_root: &Path, workspaces: &Path) -> Vec<u32> {
+    let processes = Processes::snapshot();
+    let mut pids = servers_from(&processes, user_root);
+    pids.extend(servers_in_workspaces_from(&processes, workspaces));
+    pids.sort_unstable();
+    pids.dedup();
+    pids
+}
+
+/// Reports whether `cmdline` still belongs to the slot, so a reused pid is never terminated.
+fn slot_owns(cmdline: &str, user_root: &Path, workspaces: &Path) -> bool {
+    names_dir(cmdline, "", &user_root.to_string_lossy())
+        || in_workspaces(cmdline, &workspace_prefixes(workspaces))
+}
+
+/// Stops every server of the slot and returns the ones that survive.
+fn kill_slot_servers(user_root: &Path, workspaces: &Path) -> Vec<u32> {
+    kill_pids(slot_servers(user_root, workspaces), &|line| {
+        slot_owns(line, user_root, workspaces)
+    })
+}
+
 /// Stops every server under `user_root` and returns the ones that survive.
 pub fn kill_servers(user_root: &Path) -> Vec<u32> {
-    kill_pids(servers(user_root))
+    let root = user_root.to_string_lossy();
+    kill_pids(servers(user_root), &|line| names_dir(line, "", &root))
 }
 
 /// Stops every server whose workspace is under `workspaces` and returns the ones that survive.
 pub fn kill_servers_in_workspaces(workspaces: &Path) -> Vec<u32> {
-    kill_pids(servers_in_workspaces(workspaces))
+    let prefixes = workspace_prefixes(workspaces);
+    kill_pids(servers_in_workspaces(workspaces), &|line| {
+        in_workspaces(line, &prefixes)
+    })
 }
 
-fn kill_pids(mut pids: Vec<u32>) -> Vec<u32> {
+/// Stops `pids`; `still_ours` re-checks each command line on Windows, where pids are reused fast.
+fn kill_pids(mut pids: Vec<u32>, still_ours: &dyn Fn(&str) -> bool) -> Vec<u32> {
     pids.sort_unstable();
     pids.dedup();
     if pids.is_empty() {
         return pids;
+    }
+    if cfg!(windows) {
+        let processes = Processes::snapshot();
+        pids.retain(|pid| {
+            processes
+                .command_line(*pid)
+                .is_some_and(|line| still_ours(&line))
+        });
     }
     for pid in &pids {
         signal::send(*pid, signal::SIGTERM);
@@ -581,25 +979,41 @@ impl Server {
             _slot: slot,
             reaper: None,
         };
-        kill_servers(&server.user_root());
-        kill_servers_in_workspaces(&server.home.join(nested_bazel::WORKSPACES));
+        kill_slot_servers(
+            &server.user_root(),
+            &server.home.join(nested_bazel::WORKSPACES),
+        );
         server.reaper = spawn_reaper(std::process::id(), &server.home, &server._slot);
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
         write(&downloader, DOWNLOADER)?;
         write(&rc, &bazelrc(&server.config, &downloader))?;
         let wrapper = server.wrapper();
-        write(
-            &wrapper,
-            &wrapper_script(
-                &server.config,
-                &server.user_root(),
-                &rc,
-                &server.calls_log(),
-            ),
-        )?;
+        let argv = wrapper_argv(&server.config, &server.user_root(), &rc);
+        match &server.config.shim {
+            Some(shim) => {
+                install_shim(shim, &wrapper)?;
+                write(&wrapper.with_extension("args"), &shim_args(&argv)?)?;
+            }
+            None if cfg!(unix) => {
+                write(
+                    &wrapper,
+                    &wrapper_script(
+                        &server.config,
+                        &server.user_root(),
+                        &rc,
+                        &server.calls_log(),
+                    ),
+                )?;
+                make_executable(&wrapper)?;
+            }
+            None => {
+                return Err(format!(
+                    "{SHIM_ENV} is not set; nested Bazel needs the native shim on this platform (add NESTED_BAZEL_DATA and NESTED_BAZEL_ENV)"
+                ))
+            }
+        }
         write(&server.calls_log(), "")?;
-        make_executable(&wrapper)?;
         Ok(server)
     }
 
@@ -625,7 +1039,7 @@ impl Server {
     }
 
     pub fn wrapper(&self) -> PathBuf {
-        self.home.join("bin").join("bazel")
+        wrapper_at(&self.home)
     }
 
     /// Empties the workspace `name` and makes it current, stopping the server of any other one.
@@ -642,13 +1056,7 @@ impl Server {
 
     /// Lists the live servers this slot owns.
     pub fn servers(&self) -> Vec<u32> {
-        let mut pids = servers(&self.user_root());
-        pids.extend(servers_in_workspaces(
-            &self.home.join(nested_bazel::WORKSPACES),
-        ));
-        pids.sort_unstable();
-        pids.dedup();
-        pids
+        slot_servers(&self.user_root(), &self.home.join(nested_bazel::WORKSPACES))
     }
 
     /// Stops the server and returns any that survive.
@@ -658,10 +1066,7 @@ impl Server {
                 let _ = self.bazel_command(root, &["shutdown"]).output();
             }
         }
-        let strays = kill_servers_in_workspaces(&self.home.join(nested_bazel::WORKSPACES));
-        let mut left = kill_servers(&self.user_root());
-        left.extend(strays);
-        left
+        kill_slot_servers(&self.user_root(), &self.home.join(nested_bazel::WORKSPACES))
     }
 
     /// Builds a command for `bin` that reaches Bazel only through this server.
@@ -718,8 +1123,14 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)], front
     }
 }
 
+/// The `bazel` every nested command runs: `bin/bazel` in the slot, `bin/bazel.exe` on Windows.
+fn wrapper_at(home: &Path) -> PathBuf {
+    home.join("bin")
+        .join(format!("bazel{}", std::env::consts::EXE_SUFFIX))
+}
+
 fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str)]) -> Command {
-    let mut command = Command::new(home.join("bin").join("bazel"));
+    let mut command = Command::new(wrapper_at(home));
     command.current_dir(root).args(STARTUP).args(args);
     apply_env_at(home, &mut command, envs, &[]);
     command
@@ -1167,6 +1578,7 @@ mod tests {
             disk_cache: PathBuf::from("/caches/disk"),
             repository_cache: None,
             offline: false,
+            shim: None,
         }
     }
 
@@ -1193,7 +1605,7 @@ mod tests {
         }
     }
 
-    fn resolve(key: &str) -> Result<PathBuf, String> {
+    fn resolve(_name: &str, key: &str) -> Result<PathBuf, String> {
         Ok(PathBuf::from(key))
     }
 
@@ -1576,7 +1988,7 @@ common --repository_cache=/rc/repos
         ];
         let error = Config::from_parts(
             &lookup(all),
-            &|key| Err(format!("{PINNED_ENV} {key} is not in the runfiles")),
+            &|name, key| Err(format!("{name} {key} is not in the runfiles")),
             "",
             None,
         )
@@ -1602,7 +2014,7 @@ common --repository_cache=/rc/repos
 
     #[test]
     fn resolve_pinned_names_the_variable() {
-        let error = resolve_pinned("no_such_repo/file/bazel").expect_err("absent");
+        let error = resolve_runfile(PINNED_ENV, "no_such_repo/file/bazel").expect_err("absent");
         assert!(
             error.starts_with(
                 "DX_NESTED_BAZEL_PINNED no_such_repo/file/bazel is not in the runfiles"
@@ -1764,6 +2176,40 @@ common --repository_cache=/rc/repos
         assert_eq!(again, root);
         assert!(first.take_calls().is_empty());
         assert_eq!(std::fs::read_dir(&root).expect("list").count(), 0);
+    }
+
+    #[test]
+    fn the_shim_runs_the_pinned_bazel_with_the_startup_options() {
+        let key = std::env::var("DX_TEST_NESTED_BAZEL_SHIM").expect("DX_TEST_NESTED_BAZEL_SHIM");
+        let shim = resolve_runfile("DX_TEST_NESTED_BAZEL_SHIM", &key).expect("shim");
+        let dir = scratch("nested-shim-");
+        let (bazel, log) = recorder(dir.path());
+        let shimmed = Config {
+            shim: Some(shim.clone()),
+            ..config(&dir.path().join("base"), &bazel)
+        };
+        let mut server = Server::acquire(shimmed).expect("slot");
+        assert_eq!(
+            std::fs::read(server.wrapper()).expect("installed"),
+            std::fs::read(&shim).expect("shim")
+        );
+        let root = server.enter("ws").expect("enter");
+        let run = capture(
+            server.bazel_command(&root, &["info", "release"]),
+            "bazel",
+            true,
+            &root,
+        );
+        assert!(run.status.success(), "{}", run.combined());
+        assert_eq!(
+            std::fs::read_to_string(&log).expect("log"),
+            format!(
+                "{}|unset|--output_user_root={} --max_idle_secs=5 --host_jvm_args=-Xmx1536m --bazelrc={} --nohome_rc --nosystem_rc info release\n",
+                root.display(),
+                server.user_root().display(),
+                server.home().join("bazelrc").display()
+            )
+        );
     }
 
     #[test]
@@ -1958,5 +2404,222 @@ common --repository_cache=/rc/repos
         wait_until("the reaper to stop the stand-in", || !alive(pid));
         let _ = stray.wait();
         let _ = reaper.wait();
+    }
+}
+
+#[cfg(test)]
+mod portable_tests {
+    use super::*;
+
+    #[test]
+    fn find_bazel_finds_exe_names() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let base = dir.path().join("base");
+        let bin = dir.path().join("bin");
+        std::fs::create_dir_all(&bin).expect("mkdir");
+        std::fs::write(bin.join("bazelisk.exe"), "").expect("write");
+        let path = std::env::join_paths([&bin]).expect("path");
+        assert_eq!(
+            find_bazel(None, None, &path, &base).expect("found"),
+            bin.join("bazelisk.exe")
+        );
+        std::fs::write(bin.join("bazel.exe"), "").expect("write");
+        assert_eq!(
+            find_bazel(None, None, &path, &base).expect("found"),
+            bin.join("bazel.exe")
+        );
+    }
+
+    #[test]
+    fn home_falls_back_to_userprofile() {
+        let vars = |pairs: &'static [(&'static str, &'static str)]| {
+            move |name: &str| {
+                pairs
+                    .iter()
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| OsString::from(value))
+            }
+        };
+        assert_eq!(
+            pick_home(&vars(&[("HOME", "/h"), ("USERPROFILE", "C:/u")])),
+            Some(PathBuf::from("/h"))
+        );
+        assert_eq!(
+            pick_home(&vars(&[("HOME", ""), ("USERPROFILE", "C:/u")])),
+            Some(PathBuf::from("C:/u"))
+        );
+        assert_eq!(
+            pick_home(&vars(&[("USERPROFILE", "C:/u")])),
+            Some(PathBuf::from("C:/u"))
+        );
+        assert_eq!(pick_home(&vars(&[("USERPROFILE", "")])), None);
+    }
+
+    #[test]
+    fn repository_cache_scans_the_windows_root() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let home = dir.path();
+        assert_eq!(default_repository_cache(home), None);
+        let windows = home.join("_bazel_me/cache/repos/v1");
+        std::fs::create_dir_all(&windows).expect("mkdir");
+        assert_eq!(default_repository_cache(home), Some(windows));
+        let unix = home.join(".cache/bazel/_bazel_me/cache/repos/v1");
+        std::fs::create_dir_all(&unix).expect("mkdir");
+        assert_eq!(default_repository_cache(home), Some(unix));
+    }
+
+    fn os(args: &[&str]) -> Vec<OsString> {
+        args.iter().map(OsString::from).collect()
+    }
+
+    #[test]
+    fn shim_argv_puts_the_startup_flags_before_the_forwarded_args() {
+        let text = "/r/bazel\r\n--output_user_root=/b/0/u\n--max_idle_secs=5\n";
+        let (program, args) = shim_argv(text, &os(&["--nohome_rc", "info", "a b"])).expect("argv");
+        assert_eq!(program, OsString::from("/r/bazel"));
+        assert_eq!(
+            args,
+            os(&[
+                "--output_user_root=/b/0/u",
+                "--max_idle_secs=5",
+                "--nohome_rc",
+                "info",
+                "a b"
+            ])
+        );
+        assert_eq!(shim_argv("", &[]), None);
+        assert_eq!(shim_argv("\n--x\n", &[]), None);
+    }
+
+    #[test]
+    fn shim_args_round_trip_and_reject_newlines() {
+        let config = Config {
+            base: PathBuf::from("/b"),
+            slots: 1,
+            bazel: PathBuf::from("/r/bazel"),
+            heap: DEFAULT_HEAP.to_owned(),
+            disk_cache: PathBuf::from("/d"),
+            repository_cache: None,
+            offline: true,
+            shim: None,
+        };
+        let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
+        let text = shim_args(&argv).expect("args");
+        let (program, args) = shim_argv(&text, &os(&["build"])).expect("argv");
+        let mut back = vec![program];
+        back.extend(args);
+        let mut want: Vec<OsString> = argv.iter().map(OsString::from).collect();
+        want.push(OsString::from("build"));
+        assert_eq!(back, want);
+        let error =
+            shim_args(&["/r/bazel".to_owned(), "--bazelrc=/a\nb".to_owned()]).expect_err("newline");
+        assert!(error.contains("line break"), "{error}");
+    }
+
+    #[test]
+    fn install_shim_replaces_a_read_only_copy_and_skips_an_identical_one() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let src = dir.path().join("shim");
+        std::fs::write(&src, "new").expect("write");
+        let mut readonly = std::fs::metadata(&src).expect("meta").permissions();
+        readonly.set_readonly(true);
+        std::fs::set_permissions(&src, readonly.clone()).expect("chmod");
+        let dst = dir.path().join("bin").join("bazel");
+        std::fs::create_dir_all(dst.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&dst, "old").expect("write");
+        std::fs::set_permissions(&dst, readonly).expect("chmod");
+        std::fs::write(old_shim(&dst, 1), "stale").expect("write");
+        install_shim(&src, &dst).expect("install");
+        assert_eq!(std::fs::read_to_string(&dst).expect("read"), "new");
+        assert!(!std::fs::metadata(&dst)
+            .expect("meta")
+            .permissions()
+            .readonly());
+        assert!(!old_shim(&dst, 1).exists());
+        let before = std::fs::metadata(&dst)
+            .expect("meta")
+            .modified()
+            .expect("mtime");
+        install_shim(&src, &dst).expect("again");
+        let after = std::fs::metadata(&dst)
+            .expect("meta")
+            .modified()
+            .expect("mtime");
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn windows_process_lines_parse() {
+        let text = "4242\tC:\\jdk\\java.exe --output_user_root=C:\\u --workspace_directory=C:\\w\r\nnoise\n\n17\t\"C:\\x.exe\" a\n";
+        assert_eq!(
+            parse_process_lines(text),
+            vec![
+                (
+                    4242,
+                    "C:\\jdk\\java.exe --output_user_root=C:\\u --workspace_directory=C:\\w"
+                        .to_owned()
+                ),
+                (17, "\"C:\\x.exe\" a".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn workspace_match_accepts_backslashes_case_verbatim_prefix_and_quotes() {
+        let flag = "--workspace_directory=";
+        let line = "java.exe \"--workspace_directory=C:\\Users\\me\\.dxnb\\0\\w\\consumer\" --x";
+        assert!(names_dir(line, flag, "C:/Users/me/.dxnb/0/w"));
+        assert!(names_dir(line, flag, r"\\?\C:\Users\me\.dxnb\0\w"));
+        assert!(names_dir(line, flag, "C:/Users/me/.dxnb/0/w/consumer"));
+        assert_eq!(
+            names_dir(line, flag, "c:/users/ME/.dxnb/0/w"),
+            cfg!(windows)
+        );
+        assert!(names_dir(
+            "java\0--output_user_root=/b/0/u\0x",
+            "",
+            "/b/0/u"
+        ));
+        assert!(names_dir("--workspace_directory=/a/ws", flag, "/a/ws/"));
+    }
+
+    #[test]
+    fn workspace_match_rejects_a_sibling_prefix() {
+        let flag = "--workspace_directory=";
+        assert!(!names_dir(
+            "java --workspace_directory=/a/ws2",
+            flag,
+            "/a/ws"
+        ));
+        assert!(!names_dir(
+            "java --workspace_directory=/a/ws2/x",
+            flag,
+            "/a/ws"
+        ));
+        assert!(!names_dir(
+            "java --x--workspace_directory=/a/ws",
+            flag,
+            "/a/ws"
+        ));
+        assert!(!names_dir("java --output_user_root=/b/0/u2", "", "/b/0/u"));
+        assert!(!names_dir("java --workspace_directory=/a/ws", flag, ""));
+        assert!(names_dir(
+            "java --workspace_directory=/a/ws2 --workspace_directory=/a/ws/c",
+            flag,
+            "/a/ws"
+        ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn alive_sees_this_process_and_not_a_dead_child() {
+        assert!(alive(std::process::id()));
+        let mut child = Command::new("cmd")
+            .args(["/C", "exit 259"])
+            .spawn()
+            .expect("spawn");
+        let pid = child.id();
+        child.wait().expect("wait");
+        assert!(!alive(pid));
     }
 }

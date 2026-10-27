@@ -6,14 +6,16 @@ load(":bazel_pins.bzl", "NESTED_BAZEL_SHA256", "NESTED_BAZEL_VERSION")
 def _nested_bazel_impl(mctx):
     """Declares one pinned Bazel binary per platform."""
     for platform, sha256 in NESTED_BAZEL_SHA256.items():
+        suffix = ".exe" if platform.startswith("windows-") else ""
         http_file(
             name = "nested_bazel_" + platform.replace("-", "_"),
-            downloaded_file_path = "bazel",
+            downloaded_file_path = "bazel" + suffix,
             executable = True,
             sha256 = sha256,
-            urls = ["https://github.com/bazelbuild/bazel/releases/download/{v}/bazel-{v}-{p}".format(
+            urls = ["https://github.com/bazelbuild/bazel/releases/download/{v}/bazel-{v}-{p}{s}".format(
                 v = NESTED_BAZEL_VERSION,
                 p = platform,
+                s = suffix,
             )],
         )
     return mctx.extension_metadata(reproducible = True)

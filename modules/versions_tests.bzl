@@ -70,7 +70,7 @@ def versions_contract_tests(name):
             expect_equal("cuda host llvm module follows canonical", _MOD_CUDA_HOST_LLVM_VERSION, _CUDA_HOST_LLVM_VERSION),
             expect_equal("toolchains_llvm module follows canonical", _MOD_TOOLCHAINS_LLVM_VERSION, _TOOLCHAINS_LLVM_VERSION),
             expect_equal("nested bazel pin follows canonical", NESTED_BAZEL_VERSION, _BAZEL_VERSION),
-            expect_equal("nested bazel pins every platform", sorted(NESTED_BAZEL_SHA256.keys()), ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64"]),
+            expect_equal("nested bazel pins every platform", sorted(NESTED_BAZEL_SHA256.keys()), ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-x86_64"]),
         ],
         file_blocks = {
             "//:MODULE.bazel": [manifests_block],

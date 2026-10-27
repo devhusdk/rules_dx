@@ -2,7 +2,7 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":child_runfiles.bzl", "child_runfiles")
-load(":nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
+load(":nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -87,6 +87,8 @@ rust_test(
     name = "dx_nested_test",
     size = "small",
     crate = ":dx_nested",
+    data = [":nested_bazel_shim"],
+    env = {"DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath :nested_bazel_shim)"},
     deps = crate_deps(
         ["tempfile"],
         package_name = "tools/dx_testing",
@@ -117,6 +119,14 @@ child_runfiles(
     ]
 ]
 
+config_setting(
+    name = "nested_bazel_windows_x86_64",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
 alias(
     name = "nested_bazel_bin",
     actual = select({
@@ -124,6 +134,7 @@ alias(
         ":nested_bazel_linux_x86_64": "@nested_bazel_linux_x86_64//file",
         ":nested_bazel_macos_aarch64": "@nested_bazel_darwin_arm64//file",
         ":nested_bazel_macos_x86_64": "@nested_bazel_darwin_x86_64//file",
+        ":nested_bazel_windows_x86_64": "@nested_bazel_windows_x86_64//file",
         "//conditions:default": ":nested_bazel_unpinned",
     }),
 )
@@ -139,7 +150,16 @@ rust_binary(
     testonly = True,
     srcs = ["nested_bazel_probe.rs"],
     edition = "2021",
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
+    deps = [":dx_nested"],
+)
+
+# keep
+rust_binary(
+    name = "nested_bazel_shim",
+    testonly = True,
+    srcs = ["nested_bazel_shim.rs"],
+    edition = "2021",
     deps = [":dx_nested"],
 )
 
@@ -171,14 +191,9 @@ rust_test(
         "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
         "RUST_TEST_THREADS": "1",
     },
-    env_inherit = [
-        "BAZELISK_BASE_URL",
-        "BAZELISK_HOME",
-        "HOME",
-        "PATH",
-    ],
+    env_inherit = NESTED_BAZEL_ENV_INHERIT,
     tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [
         ":dx_nested",
         ":dx_testing",
@@ -210,6 +225,7 @@ rustfmt_test(
         ":nested_bazel_leak_test",
         ":nested_bazel_pinned_test",
         ":nested_bazel_probe",
+        ":nested_bazel_shim",
         ":preflight_smoke_test",
         ":starlark_harness",
         ":starlark_harness_exit_test",
@@ -226,6 +242,7 @@ rust_clippy_test(
         ":nested_bazel_leak_test",
         ":nested_bazel_pinned_test",
         ":nested_bazel_probe",
+        ":nested_bazel_shim",
         ":preflight_smoke_test",
         ":starlark_harness",
         ":starlark_harness_exit_test",

@@ -12,13 +12,31 @@ NESTED_BAZEL_NETWORK_TAGS = NESTED_BAZEL_TAGS + ["requires-network"]
 
 _NESTED_BAZEL_BIN = str(Label("//tools/testing:nested_bazel_bin"))
 
-NESTED_BAZEL_DATA = [_NESTED_BAZEL_BIN]
+_NESTED_BAZEL_SHIM = str(Label("//tools/testing:nested_bazel_shim"))
 
-NESTED_BAZEL_ENV = {"DX_NESTED_BAZEL_PINNED": "$(rlocationpath " + _NESTED_BAZEL_BIN + ")"}
+NESTED_BAZEL_DATA = [_NESTED_BAZEL_BIN, _NESTED_BAZEL_SHIM]
+
+NESTED_BAZEL_ENV = {
+    "DX_NESTED_BAZEL_PINNED": "$(rlocationpath " + _NESTED_BAZEL_BIN + ")",
+    "DX_NESTED_BAZEL_SHIM": "$(rlocationpath " + _NESTED_BAZEL_SHIM + ")",
+}
+
+# The host variables a nested Bazel client needs on Linux, macOS and Windows.
+NESTED_BAZEL_ENV_INHERIT = [
+    "APPDATA",
+    "BAZELISK_BASE_URL",
+    "BAZELISK_HOME",
+    "HOME",
+    "LOCALAPPDATA",
+    "PATH",
+    "ProgramData",
+    "SystemRoot",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+]
 
 NESTED_BAZEL_NETWORK_ENV = NESTED_BAZEL_ENV | {"DX_NESTED_BAZEL_NETWORK": "1"}
 
-NESTED_BAZEL_COMPATIBLE_WITH = select({
-    "@platforms//os:windows": ["@platforms//:incompatible"],
-    "//conditions:default": [],
-})
+# Nested Bazel runs everywhere a pinned binary exists; kept as a symbol so callers need not change.
+NESTED_BAZEL_COMPATIBLE_WITH = []

@@ -97,6 +97,7 @@ def versions_contract_tests(name):
                                "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"\n" +
                                "name = \"toolchains_llvm\", version = \"" + _TOOLCHAINS_LLVM_VERSION + "\"\n" +
                                "llvm_version = \"" + _CUDA_HOST_LLVM_VERSION + "\"\n" +
+                               "cuda_host_llvm = use_extension(\"@toolchains_llvm//toolchain/extensions:llvm.bzl\", \"llvm\", dev_dependency = True)\n" +
                                "nvcc_version = \"" + _CUDA_VERSION + "\"\n" +
                                "sha256 = \"" + _CUDA_HOST_SYSROOT.sha256 + "\"\n" +
                                _CUDA_HOST_SYSROOT.url + "\n" +

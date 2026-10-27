@@ -170,7 +170,7 @@ fn write_launcher(
     content: &str,
     executable: bool,
 ) -> Result<(), AdoptError> {
-    let dest = super::scaffold_dest_within_root(root, rel)?;
+    let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| AdoptError::CreateParent {
             parent: parent.display().to_string(),
@@ -217,7 +217,7 @@ fn written(entries: Vec<String>) -> Vec<String> {
 }
 
 pub fn launcher_version(root: &Path, rel: &str) -> Option<String> {
-    let dest = super::scaffold_dest_within_root(root, rel).ok()?;
+    let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(dest).ok()?;
     let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
     let prefix = match (lines.next()?, lines.next()?) {
@@ -251,7 +251,7 @@ fn sync(
 ) -> Result<Vec<String>, AdoptError> {
     let mut plan = Vec::new();
     for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
-        let dest = super::scaffold_dest_within_root(root, rel)?;
+        let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
         let write = if dest.exists() {
             launcher_version(root, rel).is_some_and(|found| found != version)
         } else {

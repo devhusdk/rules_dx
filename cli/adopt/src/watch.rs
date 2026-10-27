@@ -57,11 +57,6 @@ pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<Pat
     paths
 }
 
-pub fn watch_for_change(watch_root: &Path, timeout: Duration) -> Result<Vec<PathBuf>, AdoptError> {
-    let session = WatchSession::start(watch_root, &[])?;
-    session.wait(timeout)
-}
-
 /// Whether an event changes the tree rather than only reading it.
 pub fn is_change(kind: &notify::EventKind) -> bool {
     use notify::event::{AccessKind, AccessMode, EventKind};
@@ -697,7 +692,7 @@ mod tests {
     }
 
     #[test]
-    fn watch_reports_created_files_and_times_out_when_idle() {
+    fn session_reports_created_files_and_times_out_when_idle() {
         let scratch = dx_test_scratch::scratch("dx-adopt-watch-");
         let root = scratch.path().to_path_buf();
         let session = WatchSession::start(&root, &[]).expect("session starts");
@@ -708,7 +703,10 @@ mod tests {
             "created file must trigger a rebuild: {trigger:?}"
         );
         drop(session);
-        let idle = watch_for_change(&root, Duration::from_millis(300)).expect("watch idle");
+        let idle = WatchSession::start(&root, &[])
+            .expect("idle session starts")
+            .wait(Duration::from_millis(300))
+            .expect("watch idle");
         assert!(idle.is_empty(), "idle watch must time out empty: {idle:?}");
     }
 }

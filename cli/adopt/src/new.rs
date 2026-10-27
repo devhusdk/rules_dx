@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use super::{AdoptError, ScaffoldFile};
+use super::AdoptError;
+use crate::scaffold::ScaffoldFile;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum IdentityRule {
@@ -1393,7 +1394,7 @@ fn new_language_files(
 }
 
 pub fn apply_new(root: &Path, language: &str, name: &str) -> Result<Vec<String>, AdoptError> {
-    super::apply_scaffold(root, &plan_new_files(language, name)?)
+    crate::scaffold::apply_scaffold(root, &plan_new_files(language, name)?)
 }
 
 #[cfg(test)]
@@ -2062,10 +2063,10 @@ mod tests {
     fn scaffold_dest_within_root_refuses_non_normal_paths() {
         let scratch = dx_test_scratch::scratch("dx-new-dest-");
         let root = scratch.path();
-        assert!(super::super::scaffold_dest_within_root(root, "demo/a").is_ok());
+        assert!(crate::scaffold::scaffold_dest_within_root(root, "demo/a").is_ok());
         for hostile in ["../evil", "/absolute", "", "a/../../b"] {
             assert!(
-                super::super::scaffold_dest_within_root(root, hostile).is_err(),
+                crate::scaffold::scaffold_dest_within_root(root, hostile).is_err(),
                 "{hostile:?} escapes"
             );
         }

@@ -1,20 +1,5 @@
 use super::AdoptError;
 
-pub fn migrate_is_major_bump(from: &str, to: &str) -> bool {
-    let from_v = match semver::Version::parse(from) {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
-    let to_v = match semver::Version::parse(to) {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
-    if from_v == to_v {
-        return false;
-    }
-    to_v.major > from_v.major
-}
-
 pub fn migrate_is_upgrade(from: &str, to: &str) -> bool {
     let from_v = match semver::Version::parse(from) {
         Ok(v) => v,
@@ -89,11 +74,6 @@ mod tests {
         assert!(!migrate_is_upgrade("1.2.3", "1.2.3"));
         assert!(!migrate_is_upgrade("abc", "2.0.0"));
         assert!(!migrate_is_upgrade("1.2.3", ""));
-        assert!(migrate_is_major_bump("1.2.3", "2.0.0"));
-        assert!(migrate_is_major_bump("1.9.9", "2.0.0-alpha.1"));
-        assert!(migrate_is_major_bump("0.0.0", "1.0.0"));
-        assert!(!migrate_is_major_bump("1.2.3", "1.3.0"));
-        assert!(!migrate_is_major_bump("1.2.3", "1.2.4"));
         assert_eq!(migrate_manifest_name(1, 2), "migrate-v1-to-v2.json");
         assert_eq!(
             migrate_manifest_name_full("1.2.3", "1.3.0"),
@@ -133,14 +113,11 @@ mod tests {
 
     #[test]
     fn migrate_syntax_pins_semver_prerelease_and_errors() {
-        assert!(migrate_is_major_bump("1.0.0", "2.0.0-alpha.1"));
-        assert!(migrate_is_major_bump("1.0.0+build.1", "2.0.0"));
-        assert!(migrate_is_major_bump("1.0.0-alpha", "2.0.0"));
-        assert!(!migrate_is_major_bump("1.0.0-alpha", "1.0.0"));
-        assert!(!migrate_is_major_bump("1.0.0+build.1", "1.0.1"));
-        assert!(!migrate_is_major_bump("2.0.0-alpha.1", "1.9.9"));
-        assert!(!migrate_is_major_bump("1.0", "2.0.0"));
-        assert!(!migrate_is_major_bump("1.0.0", "2.0"));
+        assert!(migrate_is_upgrade("1.0.0+build.1", "1.0.1"));
+        assert!(migrate_is_upgrade("1.0.0-alpha", "2.0.0"));
+        assert!(!migrate_is_upgrade("2.0.0-alpha.1", "1.9.9"));
+        assert!(!migrate_is_upgrade("1.0", "2.0.0"));
+        assert!(!migrate_is_upgrade("1.0.0", "2.0"));
         assert_eq!(
             plan_migrate("", "2.0.0").unwrap_err().to_string(),
             "migrate needs distinct versions: from and to must both be set"

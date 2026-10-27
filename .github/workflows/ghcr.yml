@@ -54,7 +54,7 @@ jobs:
           # No ambient language toolchains; tools resolve via Bazel.
           ! grep -qiE 'pip install|uv pip|npm install -g|pnpm add -g|cargo install|dotnet tool install|go install' "$df" \
             || { echo "admissibility: language toolchains must not be baked in"; exit 1; }
-          echo "admissibility: pinned bootstrap + Bazel delegation + no ambient tools (devcontainer_is_admissible(true, true, false))"
+          echo "admissibility: pinned bootstrap + Bazel delegation + no ambient tools"
       - name: Write job summary (build-only by default)
         if: always()
         run: |

@@ -66,10 +66,6 @@ pub struct FileDefaults {
     pub baseline: Option<String>,
 }
 
-pub fn is_truthy(value: &str) -> bool {
-    parse_bool(value) == Some(true)
-}
-
 /// Read one boolean default, or `None` when the text is not a documented spelling.
 pub fn parse_bool(value: &str) -> Option<bool> {
     let value = value.trim().to_ascii_lowercase();
@@ -178,8 +174,8 @@ struct ConfigFile {
     schema_version: Option<u32>,
     #[serde(default)]
     quality: Option<QualityTable>,
-    #[serde(default)]
-    dependency_set: Option<Vec<toml::Value>>,
+    #[serde(default, rename = "dependency_set")]
+    _dependency_set: Option<Vec<toml::Value>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -285,11 +281,6 @@ fn check_consumer_schema(version: Option<u32>) -> Result<(), super::AdoptError> 
             detail: format!("unsupported schema_version {other} (want {CONSUMER_SCHEMA_VERSION})"),
         }),
     }
-}
-
-pub fn shares_file_with_other_tables(text: &str) -> bool {
-    let parsed: ConfigFile = toml::from_str(text).unwrap_or_default();
-    parsed.dependency_set.is_some()
 }
 
 pub fn merge_defaults(committed: FileDefaults, local: FileDefaults) -> FileDefaults {
@@ -423,12 +414,12 @@ mod tests {
     #[test]
     fn truthy_spellings_enable_only_documented_values() {
         for truthy in ["true", "TRUE", " True ", " true"] {
-            assert!(is_truthy(truthy), "{truthy:?} must enable");
+            assert_eq!(parse_bool(truthy), Some(true), "{truthy:?} must enable");
         }
         for falsy in [
             "", "1", "yes", "y", "on", "0", "no", "off", "tru", "2", "maybe",
         ] {
-            assert!(!is_truthy(falsy), "{falsy:?} must not enable");
+            assert_ne!(parse_bool(falsy), Some(true), "{falsy:?} must not enable");
         }
     }
 
@@ -436,7 +427,6 @@ mod tests {
     fn falsy_spellings_disable_and_anything_else_is_unreadable() {
         for falsy in ["false", "FALSE", " False ", " false"] {
             assert_eq!(parse_bool(falsy), Some(false), "{falsy:?} must disable");
-            assert!(!is_truthy(falsy), "{falsy:?} must not enable");
         }
         for on in TRUTHY {
             assert_eq!(parse_bool(on), Some(true), "{on:?} must enable");
@@ -829,11 +819,17 @@ mod tests {
 
     #[test]
     fn new_files_ignore_sets_tables() {
-        assert!(!shares_file_with_other_tables("[dx]\nquiet = true\n"));
         let text = "schema_version = 1\n[dx]\nquiet = true\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n";
         let parsed = parse_file_text(text).expect("sets ignored");
         assert_eq!(parsed.quiet, Some(true));
-        assert!(shares_file_with_other_tables(text));
+    }
+
+    #[test]
+    fn new_files_reject_a_non_array_dependency_set() {
+        let err = parse_file_text("schema_version = 1\ndependency_set = 3\n")
+            .expect_err("dependency_set must be an array of tables")
+            .to_string();
+        assert!(err.contains("dependency_set"), "{err}");
     }
 
     #[test]

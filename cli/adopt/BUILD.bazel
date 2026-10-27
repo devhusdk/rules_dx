@@ -20,7 +20,6 @@ dx_rust_crate(
         "src/migrate.rs",
         "src/new.rs",
         "src/new_locks.rs",
-        "src/policy.rs",
         "src/preset_fragment.rs",
         "src/scaffold.rs",
         "src/status.rs",
@@ -33,7 +32,6 @@ dx_rust_crate(
     ],
     extra_deps = [
         "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/fingerprint:dx_fingerprint",
         "//cli/identity:dx_identity",
         "//cli/path:dx_path",
         "//libs/module_bazel:dx_module_bazel",

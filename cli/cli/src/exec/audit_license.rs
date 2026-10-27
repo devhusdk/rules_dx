@@ -122,6 +122,7 @@ pub(super) fn run_license(
                 dx_adopt::dependency_sets::Ecosystem::Npm
                     | dx_adopt::dependency_sets::Ecosystem::Ruby
                     | dx_adopt::dependency_sets::Ecosystem::PowerShell
+                    | dx_adopt::dependency_sets::Ecosystem::Cargo
             ) {
                 let ecosystem = set.ecosystem.name();
                 let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
@@ -138,6 +139,9 @@ pub(super) fn run_license(
                         let licensed = match set.ecosystem {
                             dx_adopt::dependency_sets::Ecosystem::Npm => {
                                 configured_npm_licenses(&locks, &locked, &policy.inventory)
+                            }
+                            dx_adopt::dependency_sets::Ecosystem::Cargo => {
+                                configured_cargo_licenses(&locks, &locked, &policy.inventory)
                             }
                             _ => dx_audit::locks::inventory_licenses(
                                 &locked,
@@ -429,7 +433,8 @@ pub(super) fn run_license(
                 }
                 dx_adopt::dependency_sets::Ecosystem::Npm
                 | dx_adopt::dependency_sets::Ecosystem::Ruby
-                | dx_adopt::dependency_sets::Ecosystem::PowerShell => {
+                | dx_adopt::dependency_sets::Ecosystem::PowerShell
+                | dx_adopt::dependency_sets::Ecosystem::Cargo => {
                     selected_sets.insert(set.ecosystem.name());
                 }
                 dx_adopt::dependency_sets::Ecosystem::Uv => {}
@@ -486,6 +491,33 @@ pub(super) fn run_license(
         detail,
         code: CODE_AUDIT_FAILED,
     }
+}
+
+/// Licenses a configured cargo set from its declared cargo-bazel `*.json` lock, then the inventory.
+fn configured_cargo_licenses(
+    locks: &[(String, String)],
+    locked: &[dx_audit::vuln::LockedPackage],
+    inventory: &[dx_audit::license_policy::LicenseInventory],
+) -> Vec<dx_audit::locks::LicensedPackage> {
+    let bazel_text = locks
+        .iter()
+        .find(|(rel, _)| rel.ends_with(".json"))
+        .map(|(_, text)| text.as_str())
+        .unwrap_or("");
+    let mut licensed = dx_audit::locks::cargo_licenses(bazel_text, locked);
+    let inventoried: BTreeMap<(String, String), String> =
+        dx_audit::locks::inventory_licenses(locked, inventory, "cargo")
+            .into_iter()
+            .map(|entry| ((entry.name, entry.version), entry.license))
+            .collect();
+    for entry in &mut licensed {
+        if let Some(license) = inventoried.get(&(entry.name.clone(), entry.version.clone())) {
+            if license != "UNKNOWN" {
+                entry.license = license.clone();
+            }
+        }
+    }
+    licensed
 }
 
 fn configured_npm_licenses(

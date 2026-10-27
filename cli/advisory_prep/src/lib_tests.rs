@@ -570,6 +570,19 @@ fn configured_ruby_sets_plan_rubygems_and_powershell_sets_plan_nothing() {
     );
 }
 
+#[test]
+fn configured_cargo_sets_plan_the_cargo_family_once() {
+    let text = "schema_version = 1\n\n[[dependency_set]]\nname = \"crates\"\necosystem = \"cargo\"\nmanifests = [\"rs/Cargo.toml\"]\nlocks = [\"rs/Cargo.lock\"]\nscopes = [\"rs\"]\nrepository = \"crates\"\n";
+    assert_eq!(
+        planned_families(&[
+            ("dx.toml", text),
+            ("rs/Cargo.toml", "[package]\nname = \"a\"\n"),
+            ("rs/Cargo.lock", "version = 4\n"),
+        ]),
+        ["cargo"]
+    );
+}
+
 #[cfg(unix)]
 fn file_url(path: &Path) -> String {
     format!("file://{}", path.display())

@@ -497,11 +497,12 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv`, `npm`, `bazel`, `ruby`, or `powershell`), workspace-relative
-`manifests`, `locks`, and owning `scopes`. Manifests are named for the
+(`uv`, `npm`, `bazel`, `ruby`, `powershell`, or `cargo`), workspace-relative
+`manifests`, `locks`, and owning `scopes`. A `cargo` record also names its
+`repository`; any other ecosystem fails with exit `2` when it sets one. Manifests are named for the
 ecosystem: `pyproject.toml` for `uv`, `package.json` for `npm`,
 `MODULE.bazel` for `bazel`, `Gemfile` for `ruby`,
-`PSGallery.requirements.psd1` for `powershell`; any other name
+`PSGallery.requirements.psd1` for `powershell`, `Cargo.toml` for `cargo`; any other name
 fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
 the workspace fails `security` and `license` for that set with exit `1`.
@@ -644,6 +645,66 @@ it with an `[[uncovered]]` entry naming the set. `dx license` reports
 `UNKNOWN` for gems and modules unless `licenses.toml` declares them with
 `[[inventory]]` and `set = "ruby"` or `set = "powershell"`.
 
+A `cargo` set locks one `Cargo.toml` with the workspace's own rules_rust
+crate_universe; dx ships no cargo. `repository` is the `name` given to
+`crate.from_cargo`, and the root `MODULE.bazel` must list it in `use_repo`
+without a rename. Set `lockfile` so the hub keeps its cargo-bazel lock in the
+set, and list both locks:
+
+```starlark
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//apps/rs:Cargo.lock",
+    lockfile = "//apps/rs:cargo-bazel-lock.json",
+    manifests = ["//apps/rs:Cargo.toml"],
+)
+use_repo(crate, "crates")
+```
+
+```toml
+[[dependency_set]]
+name = "crates"
+ecosystem = "cargo"
+manifests = ["apps/rs/Cargo.toml"]
+locks = ["apps/rs/Cargo.lock", "apps/rs/cargo-bazel-lock.json"]
+scopes = ["apps/rs"]
+repository = "crates"
+```
+
+`repository` starts with a letter and uses `[A-Za-z0-9_.-]` only. A missing
+`repository`, an invalid one, and two `cargo` sets sharing one fail with exit
+`2`. `locks` must list `<set directory>/Cargo.lock`; otherwise `dx update`
+reports the set unsupported and names the missing path.
+
+`dx update --apply` runs `bazel fetch --repo=@<repository>` from the workspace
+root with `CARGO_BAZEL_REPIN=workspace`, `REPIN=workspace`,
+`CARGO_BAZEL_REPIN_ONLY=<repository>`, and `CARGO_BAZEL_ISOLATED=true`, so
+crate_universe re-resolves `Cargo.toml` into that hub's `Cargo.lock` and
+cargo-bazel lock only, without upgrading other crates. `dx update --check`
+runs the same command with `CARGO_BAZEL_REPIN=false` and `REPIN=false`;
+crate_universe then fails the set with `updater exited <code>` when the lock
+no longer matches the manifest. Both variables are always set, so a `REPIN`
+exported in the shell does not turn a check into a write. `--check --offline`
+adds `--repository_disable_download`, `--apply --offline` fails with
+`offline_required`, and `--apply --frozen` fails with `frozen_locked`. A
+`set:package` selector is unsupported: select the set without a package.
+`--bazel-startup-option` values reach the `bazel` call. Bazel evaluates
+every `crate.from_cargo` hub of the workspace together, so a stale hub fails
+the check and update of every `cargo` set; update the stale set first.
+
+Every check that runs Bazel (`npm` and `cargo`) keeps the bytes of the set's
+manifests and locks. If the check changed any of them, dx restores them and
+fails the set with `check_wrote: <paths>`. A `crate.from_cargo` hub without
+`lockfile` always repins, so its check ends in `check_wrote`; declare
+`lockfile` and list it in `locks`.
+
+`dx security` matches every `Cargo.lock` crate from crates.io against
+`.dx/advisory/cargo.json`; a missing snapshot fails the set with
+`failed to assess <name>`, and `--offline` fails it with `offline_required`.
+`dx license` reads crate licenses from a declared `*.json` lock, and a
+`licenses.toml` `[[inventory]]` entry with `set = "cargo"` overrides them.
+
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector
 selects every configured set. A scope selects every set whose scope covers
@@ -685,8 +746,8 @@ an unparseable locked version. A missing lock fails the family. A stale,
 missing, or failed advisory snapshot fails the set with
 `failed to assess <name>`, and `--offline` fails with `offline_required` when
 the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
-PEP 440 `versions` range. `dx bump` refuses configured `uv`, `npm`, `ruby`, and
-`powershell` sets;
+PEP 440 `versions` range. `dx bump` refuses configured `uv`, `npm`, `ruby`,
+`powershell`, and `cargo` sets;
 configured `bazel` sets widen as described under `dx bump`.
 
 ```sh

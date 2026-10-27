@@ -236,6 +236,23 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
         ),
         "bump names the pinned operations: {bump}"
     );
+    let cargo = read("DX_SETS_SECURITY_CARGO");
+    assert!(
+        cargo.contains("failed to assess rs") && cargo.contains(".dx/advisory/cargo.json"),
+        "audit checks configured cargo sets against the cargo snapshot: {cargo}"
+    );
+    assert!(
+        !cargo.contains("no advisory coverage"),
+        "configured cargo sets have advisory coverage: {cargo}"
+    );
+    let bump = read("DX_SETS_BUMP_CARGO");
+    assert!(
+        bump.contains(
+            "bump is not supported for ecosystem cargo set rs \
+(supported operations: check, update, audit)"
+        ),
+        "bump names the cargo operations: {bump}"
+    );
 }
 
 #[test]

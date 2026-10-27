@@ -506,6 +506,12 @@ fn parse_locked_for_configured(
                 dx_audit::locks::parse_psgallery_lock(text)
             }
             dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
+            dx_adopt::dependency_sets::Ecosystem::Cargo => match rel.rsplit('/').next() {
+                Some(dx_adopt::dependency_sets::CARGO_LOCK) => {
+                    dx_audit::locks::parse_cargo_lock(text)
+                }
+                _ => Ok(Vec::new()),
+            },
         }
         .map_err(|detail| AuditError::LockParse {
             rel: rel.clone(),

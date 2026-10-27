@@ -289,6 +289,44 @@ fn npm_env() -> Vec<(String, String)> {
         .collect()
 }
 
+/// The env crate_universe reads to decide whether to repin; both triggers are forced so a host
+/// `REPIN` or `CARGO_BAZEL_REPIN` cannot turn a check into a write.
+pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
+    vec![
+        ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
+        ("CARGO_BAZEL_REPIN".to_owned(), repin.to_owned()),
+        ("CARGO_BAZEL_REPIN_ONLY".to_owned(), repository.to_owned()),
+        ("REPIN".to_owned(), repin.to_owned()),
+    ]
+}
+
+/// Fetches the crate_universe hub, which re-evaluates the `crate` extension under `cargo_env`.
+fn configured_cargo_argv(
+    head: &dx_process::BazelHead,
+    repository: &str,
+    offline: bool,
+) -> Vec<String> {
+    let repo = format!("--repo=@{repository}");
+    let mut args = Vec::new();
+    if offline {
+        args.push("--repository_disable_download");
+    }
+    args.push(&repo);
+    bazel(head, "fetch", &args)
+}
+
+fn cargo_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
+    set.repository
+        .as_deref()
+        .ok_or_else(|| BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "cargo sets must name their crate_universe repository in dx.toml",
+        })
+}
+
+const CARGO_SELECTIVE: &str =
+    "crate_universe repins the whole Cargo.lock; select the set without a package";
+
 fn configured_pnpm_argv(
     workspace: &Path,
     head: &dx_process::BazelHead,
@@ -391,6 +429,27 @@ pub fn plan_configured(
                 env: npm_env(),
             })
         }
+        (Ecosystem::Cargo, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let repository = cargo_repository(set)?;
+            Ok(BackendPlan::Run {
+                argv: configured_cargo_argv(head, repository, false),
+                env: cargo_env("workspace", repository),
+            })
+        }
+        (Ecosystem::Cargo, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: CARGO_SELECTIVE,
+        }),
     }
 }
 
@@ -434,6 +493,17 @@ pub fn check_configured(
         (Ecosystem::Npm, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: "pnpm checks the whole lock; select the set without a package",
+        }),
+        (Ecosystem::Cargo, Selection::Full) => {
+            let repository = cargo_repository(set)?;
+            Ok(CheckPlan::Run {
+                argv: configured_cargo_argv(head, repository, offline),
+                env: cargo_env("false", repository),
+            })
+        }
+        (Ecosystem::Cargo, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: CARGO_SELECTIVE,
         }),
     }
 }
@@ -1072,6 +1142,7 @@ mod tests {
             manifests: vec![format!("{dir}/pyproject.toml")],
             locks: vec![format!("{dir}/uv.lock")],
             writable: true,
+            repository: None,
         }
     }
 
@@ -1237,6 +1308,7 @@ mod tests {
             manifests: vec!["tools/MODULE.bazel".to_owned()],
             locks: vec!["tools/MODULE.bazel.lock".to_owned()],
             writable: true,
+            repository: None,
         };
         let request = Selection::Packages(vec!["rules_cc".to_owned()]);
         let planned = plan_configured(ws(), &set, &request, false, false, &no_head(), &closure())
@@ -1267,6 +1339,7 @@ mod tests {
                     manifests: vec!["apps/rb/Gemfile".to_owned()],
                     locks: vec!["apps/rb/Gemfile.lock".to_owned()],
                     writable: true,
+                    repository: None,
                 },
                 "rspec-core",
                 "`bundle lock`",
@@ -1279,6 +1352,7 @@ mod tests {
                     manifests: vec!["tools/ps/PSGallery.requirements.psd1".to_owned()],
                     locks: vec!["tools/ps/PSGallery.lock.json".to_owned()],
                     writable: true,
+                    repository: None,
                 },
                 "Pester",
                 "PSGallery.lock.json by hand",
@@ -1773,6 +1847,7 @@ mod tests {
             manifests: vec![format!("{dir}/package.json")],
             locks: vec![format!("{dir}/pnpm-lock.yaml")],
             writable: true,
+            repository: None,
         }
     }
 
@@ -2050,6 +2125,183 @@ mod tests {
         assert_eq!(
             argv,
             npm_run(&head, &[], "apps/web", &["install", "--lockfile-only"])
+        );
+    }
+
+    fn cargo_set(name: &str, dir: &str, repository: &str) -> ResolvedSet {
+        let at = |file: &str| match dir {
+            "." => file.to_owned(),
+            _ => format!("{dir}/{file}"),
+        };
+        ResolvedSet {
+            name: name.to_owned(),
+            ecosystem: Ecosystem::Cargo,
+            dir: dir.to_owned(),
+            manifests: vec![at("Cargo.toml")],
+            locks: vec![at("Cargo.lock"), at("cargo-bazel-lock.json")],
+            writable: true,
+            repository: Some(repository.to_owned()),
+        }
+    }
+
+    fn cargo_env_expected(repin: &str, repository: &str) -> Vec<(String, String)> {
+        vec![
+            ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
+            ("CARGO_BAZEL_REPIN".to_owned(), repin.to_owned()),
+            ("CARGO_BAZEL_REPIN_ONLY".to_owned(), repository.to_owned()),
+            ("REPIN".to_owned(), repin.to_owned()),
+        ]
+    }
+
+    fn cargo_fetch(head: &dx_process::BazelHead, args: &[&str]) -> Vec<String> {
+        [head.argv("fetch"), strings(args)].concat()
+    }
+
+    #[test]
+    fn configured_cargo_update_repins_only_its_crate_universe_repository() {
+        let head = dx_process::BazelHead {
+            startup: vec!["--output_base=/ob".to_owned()],
+            options: vec!["--config=dx_dev".to_owned()],
+        };
+        for set in [
+            cargo_set("crates", "apps/rs", "crates"),
+            cargo_set("root", ".", "crates"),
+        ] {
+            let planned = plan_configured(
+                ws(),
+                &set,
+                &Selection::Full,
+                false,
+                false,
+                &head,
+                &UvClosure::default(),
+            )
+            .expect("cargo update");
+            assert_eq!(
+                planned,
+                BackendPlan::Run {
+                    argv: cargo_fetch(&head, &["--repo=@crates"]),
+                    env: cargo_env_expected("workspace", "crates"),
+                },
+                "{}",
+                set.name
+            );
+            let BackendPlan::Run { argv, .. } = planned else {
+                panic!("cargo update runs bazel");
+            };
+            assert!(runs_bazel(&argv));
+            let verb = argv.iter().position(|arg| arg == "fetch").expect("verb");
+            assert!(
+                argv.iter().position(|arg| arg == "--output_base=/ob") < Some(verb),
+                "{argv:?}"
+            );
+            assert_eq!(argv.last().map(String::as_str), Some("--repo=@crates"));
+        }
+    }
+
+    #[test]
+    fn configured_cargo_check_forces_repin_off() {
+        let set = cargo_set("tools", "tools/rs", "tool_crates");
+        for frozen in [false, true] {
+            assert_eq!(
+                check_configured(
+                    ws(),
+                    &set,
+                    &Selection::Full,
+                    false,
+                    frozen,
+                    &no_head(),
+                    &UvClosure::default()
+                )
+                .expect("cargo check"),
+                CheckPlan::Run {
+                    argv: cargo_fetch(&no_head(), &["--repo=@tool_crates"]),
+                    env: cargo_env_expected("false", "tool_crates"),
+                },
+                "frozen {frozen}"
+            );
+        }
+        assert_eq!(
+            check_configured(
+                ws(),
+                &set,
+                &Selection::Full,
+                true,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            )
+            .expect("cargo offline check"),
+            CheckPlan::Run {
+                argv: cargo_fetch(
+                    &no_head(),
+                    &["--repository_disable_download", "--repo=@tool_crates"]
+                ),
+                env: cargo_env_expected("false", "tool_crates"),
+            }
+        );
+    }
+
+    #[test]
+    fn configured_cargo_refuses_offline_frozen_and_package_updates() {
+        let set = cargo_set("crates", "apps/rs", "crates");
+        for (offline, frozen, want) in [
+            (
+                true,
+                false,
+                BackendError::OfflineRequired {
+                    set: "crates".to_owned(),
+                },
+            ),
+            (
+                false,
+                true,
+                BackendError::FrozenLocked {
+                    set: "crates".to_owned(),
+                },
+            ),
+        ] {
+            assert_eq!(
+                plan_configured(
+                    ws(),
+                    &set,
+                    &Selection::Full,
+                    offline,
+                    frozen,
+                    &no_head(),
+                    &UvClosure::default()
+                ),
+                Err(want)
+            );
+        }
+        let packages = Selection::Packages(vec!["serde".to_owned()]);
+        let want = BackendError::Unsupported {
+            set: "crates".to_owned(),
+            reason: CARGO_SELECTIVE,
+        };
+        assert_eq!(
+            plan_configured(
+                ws(),
+                &set,
+                &packages,
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            ),
+            Err(want.clone())
+        );
+        assert_eq!(
+            check_configured(
+                ws(),
+                &set,
+                &packages,
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            ),
+            Err(want)
         );
     }
 }

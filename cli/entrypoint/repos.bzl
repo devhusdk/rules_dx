@@ -136,10 +136,12 @@ _SETS_BUILD_BAZEL = '''genrule(
     name = "consumer_sets_probe",
     outs = [
         "bad_kind.txt",
+        "bump_cargo.txt",
         "bump_pinned.txt",
         "bump_unsupported.txt",
         "license_json.txt",
         "nolock_license.txt",
+        "security_cargo_json.txt",
         "security_json.txt",
         "security_npm_json.txt",
         "security_ruby_json.txt",
@@ -157,6 +159,8 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/rb/Gemfile.lock",
         "sets_ok/tools/ps/PSGallery.requirements.psd1",
         "sets_ok/tools/ps/PSGallery.lock.json",
+        "sets_ok/apps/rs/Cargo.toml",
+        "sets_ok/apps/rs/Cargo.lock",
         "sets_overlap/dx.toml",
         "sets_overlap/MODULE.bazel",
         "sets_overlap/.dx/version",
@@ -216,7 +220,27 @@ ecosystem = "powershell"
 manifests = ["tools/ps/PSGallery.requirements.psd1"]
 locks = ["tools/ps/PSGallery.lock.json"]
 scopes = ["tools/ps"]
+[[dependency_set]]
+name = "rs"
+ecosystem = "cargo"
+manifests = ["apps/rs/Cargo.toml"]
+locks = ["apps/rs/Cargo.lock"]
+scopes = ["apps/rs"]
+repository = "crates"
 EOF
+cat > "$(location sets_ok/apps/rs/Cargo.toml)" <<'EOF'
+[package]
+name = "app"
+version = "0.1.0"
+EOF
+cat > "$(location sets_ok/apps/rs/Cargo.lock)" <<'EOF'
+version = 4
+
+[[package]]
+name = "app"
+version = "0.1.0"
+EOF
+cp "$(location sets_ok/apps/rs/Cargo.lock)" /tmp/consumer_sets_cargo_lock.orig
 echo 'source "https://rubygems.org"' > "$(location sets_ok/apps/rb/Gemfile)"
 cat > "$(location sets_ok/apps/rb/Gemfile.lock)" <<'EOF'
 GEM
@@ -298,7 +322,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
 fi
 grep -q "failed to assess frontend" "$(location security_json.txt)"
 grep -q ".dx/advisory/pypi.json" "$(location security_json.txt)"
-if grep -Eq 'no advisory coverage for [^"]*(frontend|gems|web|worker)' "$(location security_json.txt)"; then
+if grep -Eq 'no advisory coverage for [^"]*(frontend|gems|rs|web|worker)' "$(location security_json.txt)"; then
   echo "security reported configured uv, npm, or ruby sets as uncovered" >&2
   exit 1
 fi
@@ -312,6 +336,22 @@ if grep -q "no advisory coverage" "$(location security_npm_json.txt)"; then
   echo "security reported a configured npm set as uncovered" >&2
   exit 1
 fi
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" rs > "$(location security_cargo_json.txt)" 2>/dev/null; then
+  echo "security passed without a cargo advisory snapshot" >&2
+  exit 1
+fi
+grep -q "failed to assess rs" "$(location security_cargo_json.txt)"
+grep -q ".dx/advisory/cargo.json" "$(location security_cargo_json.txt)"
+if grep -q "no advisory coverage" "$(location security_cargo_json.txt)"; then
+  echo "security reported a configured cargo set as uncovered" >&2
+  exit 1
+fi
+if "$$public" bump rs:serde 2.0 --workspace "$$ok" > "$(location bump_cargo.txt)" 2>&1; then
+  echo "bump unexpectedly widened a configured cargo set" >&2
+  exit 1
+fi
+grep -q "bump is not supported for ecosystem cargo set rs (supported operations: check, update, audit)" "$(location bump_cargo.txt)"
+cmp /tmp/consumer_sets_cargo_lock.orig "$(location sets_ok/apps/rs/Cargo.lock)"
 "$$public" update --check --workspace "$$ok" gems modules > "$(location update_pinned.txt)" 2>&1
 grep -q "gems pins are manual" "$(location update_pinned.txt)"
 grep -q "modules pins are manual" "$(location update_pinned.txt)"

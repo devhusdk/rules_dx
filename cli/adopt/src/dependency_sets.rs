@@ -15,7 +15,11 @@ pub const ECOSYSTEM_RUBY: &str = "ruby";
 
 pub const ECOSYSTEM_POWERSHELL: &str = "powershell";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell";
+pub const ECOSYSTEM_CARGO: &str = "cargo";
+
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo";
+
+pub const CARGO_LOCK: &str = "Cargo.lock";
 
 pub const GEMFILE_LOCK: &str = "Gemfile.lock";
 
@@ -32,6 +36,7 @@ pub enum Ecosystem {
     Bazel,
     Ruby,
     PowerShell,
+    Cargo,
 }
 
 impl Ecosystem {
@@ -42,6 +47,7 @@ impl Ecosystem {
             Ecosystem::Bazel => ECOSYSTEM_BAZEL,
             Ecosystem::Ruby => ECOSYSTEM_RUBY,
             Ecosystem::PowerShell => ECOSYSTEM_POWERSHELL,
+            Ecosystem::Cargo => ECOSYSTEM_CARGO,
         }
     }
 
@@ -52,20 +58,21 @@ impl Ecosystem {
             ECOSYSTEM_BAZEL => Some(Ecosystem::Bazel),
             ECOSYSTEM_RUBY => Some(Ecosystem::Ruby),
             ECOSYSTEM_POWERSHELL => Some(Ecosystem::PowerShell),
+            ECOSYSTEM_CARGO => Some(Ecosystem::Cargo),
             _ => None,
         }
     }
 
     pub fn supported_check(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm => "check",
+            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo => "check",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
 
     pub fn supported_update(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm => "update",
+            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo => "update",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
@@ -90,7 +97,8 @@ impl Ecosystem {
             | Ecosystem::Npm
             | Ecosystem::Bazel
             | Ecosystem::Ruby
-            | Ecosystem::PowerShell => "audit",
+            | Ecosystem::PowerShell
+            | Ecosystem::Cargo => "audit",
         }
     }
 
@@ -100,6 +108,7 @@ impl Ecosystem {
             Ecosystem::Uv => Some("pypi"),
             Ecosystem::Npm => Some("npm"),
             Ecosystem::Ruby => Some("rubygems"),
+            Ecosystem::Cargo => Some("cargo"),
             Ecosystem::Bazel | Ecosystem::PowerShell => None,
         }
     }
@@ -112,6 +121,19 @@ impl Ecosystem {
             Ecosystem::Bazel => "MODULE.bazel",
             Ecosystem::Ruby => "Gemfile",
             Ecosystem::PowerShell => "PSGallery.requirements.psd1",
+            Ecosystem::Cargo => "Cargo.toml",
+        }
+    }
+
+    /// Tells whether records of this ecosystem name the Bazel repository dx resolves through.
+    pub fn uses_repository(self) -> bool {
+        match self {
+            Ecosystem::Cargo => true,
+            Ecosystem::Uv
+            | Ecosystem::Npm
+            | Ecosystem::Bazel
+            | Ecosystem::Ruby
+            | Ecosystem::PowerShell => false,
         }
     }
 }
@@ -124,6 +146,7 @@ pub struct DependencySet {
     pub locks: Vec<String>,
     pub scopes: Vec<String>,
     pub writable: bool,
+    pub repository: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -159,6 +182,7 @@ pub struct ResolvedSet {
     pub manifests: Vec<String>,
     pub locks: Vec<String>,
     pub writable: bool,
+    pub repository: Option<String>,
 }
 
 impl ResolvedSet {
@@ -170,6 +194,7 @@ impl ResolvedSet {
             manifests: set.manifests.clone(),
             locks: set.locks.clone(),
             writable: set.writable,
+            repository: set.repository.clone(),
         }
     }
 }
@@ -276,6 +301,31 @@ pub enum DependencySetsError {
         path: String,
         ecosystem: &'static str,
     },
+    #[error("invalid {rel}: dependency set {name:?} is missing repository (the Bazel repository name ecosystem {ecosystem} resolves through)")]
+    MissingRepository {
+        rel: String,
+        name: String,
+        ecosystem: &'static str,
+    },
+    #[error("invalid {rel}: dependency set {name:?} sets repository, which ecosystem {ecosystem} does not use")]
+    UnexpectedRepository {
+        rel: String,
+        name: String,
+        ecosystem: &'static str,
+    },
+    #[error("invalid {rel}: dependency set {name:?} repository {repository:?} must start with a letter and use [A-Za-z0-9_.-] only")]
+    InvalidRepository {
+        rel: String,
+        name: String,
+        repository: String,
+    },
+    #[error("invalid {rel}: dependency sets {names} share {ecosystem} repository {repository:?} (one resolve would write both sets' locks)")]
+    DuplicateRepository {
+        rel: String,
+        names: String,
+        ecosystem: &'static str,
+        repository: String,
+    },
 }
 
 const UV_PROJECT_KEYS: &[&str] = &[
@@ -323,6 +373,8 @@ struct RawSet {
     scopes: Vec<String>,
     #[serde(default = "default_writable")]
     writable: bool,
+    #[serde(default)]
+    repository: Option<String>,
 }
 
 fn default_writable() -> bool {
@@ -489,6 +541,30 @@ fn validate_set(
             name,
         });
     }
+    match (&raw.repository, ecosystem.uses_repository()) {
+        (None, true) => {
+            return Err(DependencySetsError::MissingRepository {
+                rel: rel.to_owned(),
+                name,
+                ecosystem: ecosystem.name(),
+            });
+        }
+        (Some(_), false) => {
+            return Err(DependencySetsError::UnexpectedRepository {
+                rel: rel.to_owned(),
+                name,
+                ecosystem: ecosystem.name(),
+            });
+        }
+        (Some(repository), true) if !valid_repository(repository) => {
+            return Err(DependencySetsError::InvalidRepository {
+                rel: rel.to_owned(),
+                name,
+                repository: repository.clone(),
+            });
+        }
+        _ => {}
+    }
     Ok(DependencySet {
         name,
         ecosystem,
@@ -496,7 +572,18 @@ fn validate_set(
         locks: raw.locks.clone(),
         scopes: raw.scopes.clone(),
         writable: raw.writable,
+        repository: raw.repository.clone(),
     })
+}
+
+/// Accepts a Bazel apparent repository name; it flows into argv and env, so no '@', ',' or '/'.
+fn valid_repository(repository: &str) -> bool {
+    let mut chars = repository.chars();
+    match chars.next() {
+        Some(first) if first.is_ascii_alphabetic() => {}
+        _ => return false,
+    }
+    chars.all(|char| char.is_ascii_alphanumeric() || char == '_' || char == '.' || char == '-')
 }
 
 fn valid_name(name: &str) -> bool {
@@ -564,6 +651,26 @@ fn check_conflicts(sets: &[DependencySet], rel: &str) -> Result<(), DependencySe
             });
         }
     }
+    let mut repositories: BTreeMap<(Ecosystem, &str), Vec<&str>> = BTreeMap::new();
+    for set in sets {
+        if let Some(repository) = &set.repository {
+            repositories
+                .entry((set.ecosystem, repository.as_str()))
+                .or_default()
+                .push(set.name.as_str());
+        }
+    }
+    for ((ecosystem, repository), mut names) in repositories {
+        if names.len() > 1 {
+            names.sort();
+            return Err(DependencySetsError::DuplicateRepository {
+                rel: rel.to_owned(),
+                names: names.join(", "),
+                ecosystem: ecosystem.name(),
+                repository: repository.to_owned(),
+            });
+        }
+    }
     let mut writers: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for set in sets {
         if !set.writable {
@@ -598,6 +705,8 @@ const RUBY_PACKAGE_CHARSET: &str = "gem names use [A-Za-z0-9_.-] only";
 
 const POWERSHELL_PACKAGE_CHARSET: &str = "PowerShell module names use [A-Za-z0-9_.-] only";
 
+const CARGO_PACKAGE_CHARSET: &str = "crate names start alphanumerically and use [A-Za-z0-9_-] only";
+
 const NPM_PACKAGE_CHARSET: &str =
     "npm package names are [@scope/]name with lowercase [a-z0-9._-] parts";
 
@@ -627,6 +736,20 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 Ok(())
             } else {
                 Err(NPM_PACKAGE_CHARSET)
+            }
+        }
+        Ecosystem::Cargo => {
+            if package
+                .chars()
+                .next()
+                .is_some_and(|first| first.is_ascii_alphanumeric())
+                && package
+                    .chars()
+                    .all(|char| char.is_ascii_alphanumeric() || char == '_' || char == '-')
+            {
+                Ok(())
+            } else {
+                Err(CARGO_PACKAGE_CHARSET)
             }
         }
         Ecosystem::Uv | Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => {
@@ -918,6 +1041,7 @@ pub fn check_backend_settings(
         Ecosystem::Bazel => Ok(()),
         Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
+        Ecosystem::Cargo => check_pinned_lock(set, CARGO_LOCK),
     }
 }
 
@@ -1186,7 +1310,7 @@ scopes = ["services/worker"]
             Err(DependencySetsError::MissingEcosystem { .. })
         ));
         assert!(matches!(
-            parse(&base("name = \"a\"\necosystem = \"cargo\"\n"), rel),
+            parse(&base("name = \"a\"\necosystem = \"pip\"\n"), rel),
             Err(DependencySetsError::UnknownEcosystem { .. })
         ));
         assert!(matches!(
@@ -1550,7 +1674,10 @@ scopes = ["services/worker"]
         assert_eq!(Ecosystem::Npm.supported_check(), "check");
         assert_eq!(Ecosystem::Npm.supported_update(), "update");
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
-        assert_eq!(SUPPORTED_ECOSYSTEMS, "uv, npm, bazel, ruby, powershell");
+        assert_eq!(
+            SUPPORTED_ECOSYSTEMS,
+            "uv, npm, bazel, ruby, powershell, cargo"
+        );
     }
 
     #[test]
@@ -1578,6 +1705,8 @@ scopes = ["services/worker"]
             ("bazel", "a/package.json", "MODULE.bazel"),
             ("ruby", "a/gems.rb", "Gemfile"),
             ("ruby", "a/Gemfile.lock", "Gemfile"),
+            ("cargo", "a/cargo.toml", "Cargo.toml"),
+            ("cargo", "a/Cargo.lock", "Cargo.toml"),
             (
                 "powershell",
                 "a/requirements.psd1",
@@ -1833,6 +1962,179 @@ scopes = ["tools/ps"]
                     reason,
                 }),
                 "{set}:{package}"
+            );
+        }
+    }
+
+    const CARGO_SETS: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "crates"
+ecosystem = "cargo"
+manifests = ["apps/rs/Cargo.toml"]
+locks = ["apps/rs/Cargo.lock", "apps/rs/cargo-bazel-lock.json"]
+scopes = ["apps/rs"]
+repository = "crates"
+
+[[dependency_set]]
+name = "tools"
+ecosystem = "cargo"
+manifests = ["tools/rs/Cargo.toml"]
+locks = ["tools/rs/Cargo.lock"]
+scopes = ["tools/rs"]
+repository = "tool_crates"
+"#;
+
+    fn cargo_record(extra: &str) -> String {
+        format!(
+            "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"cargo\"\nmanifests = [\"a/Cargo.toml\"]\nlocks = [\"a/Cargo.lock\"]\nscopes = [\"a\"]\n{extra}"
+        )
+    }
+
+    #[test]
+    fn cargo_sets_load_with_their_repository() {
+        let registry = load_text(CARGO_SETS);
+        assert_eq!(registry.names(), vec!["crates", "tools"]);
+        let crates = registry.find("crates").expect("crates");
+        assert_eq!(crates.ecosystem, Ecosystem::Cargo);
+        assert_eq!(crates.repository.as_deref(), Some("crates"));
+        let resolved = ResolvedSet::of(crates);
+        assert_eq!(resolved.dir, "apps/rs");
+        assert_eq!(resolved.repository.as_deref(), Some("crates"));
+        assert_eq!(Ecosystem::parse("cargo"), Some(Ecosystem::Cargo));
+        assert_eq!(Ecosystem::Cargo.name(), "cargo");
+        assert_eq!(Ecosystem::Cargo.manifest_name(), "Cargo.toml");
+        assert_eq!(Ecosystem::Cargo.supported_check(), "check");
+        assert_eq!(Ecosystem::Cargo.supported_update(), "update");
+        assert_eq!(
+            Ecosystem::Cargo.supported_operations(),
+            "check, update, audit"
+        );
+        assert_eq!(Ecosystem::Cargo.advisory_family(), Some("cargo"));
+        assert!(Ecosystem::Cargo.uses_repository());
+        for other in [
+            Ecosystem::Uv,
+            Ecosystem::Npm,
+            Ecosystem::Bazel,
+            Ecosystem::Ruby,
+            Ecosystem::PowerShell,
+        ] {
+            assert!(!other.uses_repository(), "{}", other.name());
+        }
+        let uv = load_text(TWO_UV_SETS);
+        assert_eq!(uv.find("frontend").expect("frontend").repository, None);
+    }
+
+    #[test]
+    fn cargo_repository_is_required_valid_and_cargo_only() {
+        let rel = DX_TOML_REL;
+        assert_eq!(
+            parse(&cargo_record(""), rel),
+            Err(DependencySetsError::MissingRepository {
+                rel: rel.to_owned(),
+                name: "a".to_owned(),
+                ecosystem: "cargo",
+            })
+        );
+        for bad in [
+            "",
+            "@crates",
+            "crates,other",
+            "a/b",
+            "1crates",
+            "_crates",
+            "cr ates",
+            "crates//:x",
+        ] {
+            assert_eq!(
+                parse(&cargo_record(&format!("repository = \"{bad}\"\n")), rel),
+                Err(DependencySetsError::InvalidRepository {
+                    rel: rel.to_owned(),
+                    name: "a".to_owned(),
+                    repository: bad.to_owned(),
+                }),
+                "{bad}"
+            );
+        }
+        for good in ["crates", "Crate_index.v2-x"] {
+            assert!(
+                parse(&cargo_record(&format!("repository = \"{good}\"\n")), rel).is_ok(),
+                "{good}"
+            );
+        }
+        assert_eq!(
+            parse(
+                "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\nrepository = \"x\"\n",
+                rel
+            ),
+            Err(DependencySetsError::UnexpectedRepository {
+                rel: rel.to_owned(),
+                name: "a".to_owned(),
+                ecosystem: "uv",
+            })
+        );
+    }
+
+    #[test]
+    fn cargo_sets_sharing_a_repository_fail_closed() {
+        let text = CARGO_SETS.replace("\"tool_crates\"", "\"crates\"");
+        assert_eq!(
+            parse(&text, DX_TOML_REL),
+            Err(DependencySetsError::DuplicateRepository {
+                rel: DX_TOML_REL.to_owned(),
+                names: "crates, tools".to_owned(),
+                ecosystem: "cargo",
+                repository: "crates".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn cargo_sets_must_declare_cargo_lock_beside_the_manifest() {
+        let registry = load_text(CARGO_SETS);
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-");
+        let workspace = scratch.path().to_path_buf();
+        for name in ["crates", "tools"] {
+            let set = ResolvedSet::of(registry.find(name).expect("set"));
+            assert_eq!(check_backend_settings(&workspace, &set), Ok(()), "{name}");
+        }
+        let text = cargo_record("repository = \"crates\"\n").replace(
+            "locks = [\"a/Cargo.lock\"]",
+            "locks = [\"a/cargo-bazel-lock.json\"]",
+        );
+        let registry = parse(&text, DX_TOML_REL).expect("valid").expect("registry");
+        let set = ResolvedSet::of(registry.find("a").expect("a"));
+        assert_eq!(
+            check_backend_settings(&workspace, &set),
+            Err(DependencySetsError::MissingPinnedLock {
+                name: "a".to_owned(),
+                path: "a/Cargo.lock".to_owned(),
+                ecosystem: "cargo",
+            })
+        );
+    }
+
+    #[test]
+    fn cargo_packages_use_the_crate_charset() {
+        let registry = load_text(CARGO_SETS);
+        for package in ["serde", "serde_json", "tokio-util", "Inflector"] {
+            let resolved = resolve(&registry, &[format!("crates:{package}")])
+                .unwrap_or_else(|error| panic!("{package}: {error}"));
+            assert_eq!(
+                resolved[0].request,
+                Selection::Packages(vec![package.to_owned()])
+            );
+        }
+        for package in ["serde@1.0.0", "a.b", "a b", "a;rm", "--locked", "_a", "a/b"] {
+            assert_eq!(
+                resolve(&registry, &[format!("crates:{package}")]),
+                Err(DependencySetsError::InvalidPackage {
+                    set: "crates".to_owned(),
+                    package: package.to_owned(),
+                    reason: CARGO_PACKAGE_CHARSET,
+                }),
+                "{package}"
             );
         }
     }

@@ -654,9 +654,10 @@ bazel run @rules_dx//:dx -- format --check //ios/... -- --@rules_dx//config:work
 bazel run @rules_dx//:dx -- format --apply //ios/... -- --@rules_dx//config:workspace=//quality:my_policy
 ```
 
-Own the files with `objc_library` from `@rules_dx//cc/rules:defs.bzl`. The
-files in `srcs`, `non_arc_srcs` and `hdrs` are checked. A plain upstream
-`objc_library` is checked the same way. A check never writes. `--apply`
+The files in `srcs`, `non_arc_srcs` and `hdrs` of an `objc_library` are
+checked. `objc_library` from `@rules_dx//cc/rules:defs.bzl` is the upstream
+rule, so ownership comes from the upstream target, the same as for a plain
+upstream `objc_library`. A check never writes. `--apply`
 rewrites only the files the selected targets own. An unformatted file is
 reported at the start of the file.
 

@@ -3780,14 +3780,41 @@ fn age(host: &FakeHost, workspace: &Path, days: u64) {
         .expect("set mtime");
 }
 
-/// Holds a nested slot's lock the way a running test does.
+/// Waits for, then holds, a nested slot's lock the way a running test does.
 fn hold_nested(slot: &Path) -> std::fs::File {
-    let file = std::fs::File::options()
+    crate::test_support::eventually(
+        "nested slot lock",
+        std::time::Duration::from_secs(30),
+        || {
+            let file = std::fs::File::options()
+                .write(true)
+                .open(slot.join("lock"))
+                .expect("lock");
+            file.try_lock().ok().map(|()| file)
+        },
+    )
+}
+
+#[test]
+fn hold_nested_waits_for_a_released_lock_still_held_by_a_dup() {
+    let fixture = Fixture::new();
+    let (_host, root) = nested_host(&fixture);
+    let slot = nested_slot(&root, "0");
+    let held = hold_nested(&slot);
+    let dup = held.try_clone().expect("dup");
+    drop(held);
+    let probe = std::fs::File::options()
         .write(true)
         .open(slot.join("lock"))
         .expect("lock");
-    file.try_lock().expect("locked");
-    file
+    assert!(probe.try_lock().is_err(), "the dup keeps the lock");
+    drop(probe);
+    let releaser = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        drop(dup);
+    });
+    drop(hold_nested(&slot));
+    releaser.join().expect("releaser");
 }
 
 fn nested_dirs(plan: &ops::PrunePlan) -> Vec<PathBuf> {
@@ -3808,7 +3835,15 @@ fn prune_lists_nested_cases_idle_for_30_days_and_apply_deletes_them() {
     let (fresh, fresh_ws) = nested_case(&slot, "fresh", "bbb");
     age(&host, &old_ws, 31);
     age(&host, &fresh_ws, 29);
-    let dry = ops::prune(&pool, &host, false, false).expect("dry");
+    // A forked child can briefly keep the lock.
+    let dry = crate::test_support::eventually(
+        "nested slot idle for planning",
+        std::time::Duration::from_secs(30),
+        || {
+            let dry = ops::prune(&pool, &host, false, false).expect("dry");
+            (!dry.plan.bases.is_empty()).then_some(dry)
+        },
+    );
     assert_eq!(dry.plan.bases.len(), 1, "{:?}", dry.plan.bases);
     assert_eq!(dry.plan.bases[0].dir, old);
     assert_eq!(
@@ -3820,7 +3855,16 @@ fn prune_lists_nested_cases_idle_for_30_days_and_apply_deletes_them() {
     );
     assert_eq!(dry.plan.bases[0].bytes, 2 * 4096, "base and workspace");
     assert!(old.exists(), "a dry run deletes nothing");
-    let applied = ops::prune(&pool, &host, true, false).expect("apply");
+    let applied = crate::test_support::eventually(
+        "nested slot idle for apply",
+        std::time::Duration::from_secs(30),
+        || {
+            // A busy slot at planning time drops the base from the plan, so
+            // an empty skip list alone does not mean the base was deleted.
+            let applied = ops::prune(&pool, &host, true, false).expect("apply");
+            (!applied.plan.bases.is_empty() && applied.skipped_bases.is_empty()).then_some(applied)
+        },
+    );
     assert!(applied.skipped_bases.is_empty());
     assert!(!old.exists() && !old_ws.exists());
     assert!(fresh.exists() && fresh_ws.exists());
@@ -3939,6 +3983,7 @@ fn nested_bases_are_never_listed_as_orphans() {
     assert!(held.plan.bases.is_empty(), "{:?}", held.plan.bases);
     assert!(base.exists(), "a held slot's base is not an orphan");
     drop(test);
+    drop(hold_nested(&slot));
     let free = ops::prune(&pool, &host, false, false).expect("free");
     assert_eq!(free.plan.bases.len(), 1, "{:?}", free.plan.bases);
     assert!(matches!(

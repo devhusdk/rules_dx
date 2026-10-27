@@ -608,6 +608,111 @@ mod sh {
         assert_eq!(repo.builds(), 2, "the repo runs its dx in place");
     }
 
+    /// Builds `<base>/<name>/execroot/_main` the way Bazel lays it out: symlinks
+    /// into `workspace`, a real `bazel-out/.../bin/cli`, `workspace/bazel-bin`
+    /// pointing at that bin directory, and the `DO_NOT_BUILD_HERE` marker.
+    /// Returns the execroot `_main` directory.
+    fn execroot(
+        base: &Path,
+        name: &str,
+        workspace: &Path,
+        marker: Option<&str>,
+    ) -> std::path::PathBuf {
+        use std::os::unix::fs::symlink;
+        let ob = base.join(name);
+        let main = ob.join("execroot/_main");
+        std::fs::create_dir_all(main.join("bazel-out/k8-fastbuild/bin/cli")).expect("bin");
+        for entry in ["cli", "tools", "MODULE.bazel"] {
+            symlink(workspace.join(entry), main.join(entry)).expect("link");
+        }
+        if let Some(text) = marker {
+            std::fs::write(ob.join("execroot/DO_NOT_BUILD_HERE"), text).expect("marker");
+        }
+        let _ = std::fs::remove_file(workspace.join("bazel-bin"));
+        symlink(
+            main.join("bazel-out/k8-fastbuild/bin"),
+            workspace.join("bazel-bin"),
+        )
+        .expect("bazel-bin");
+        main
+    }
+
+    fn assert_nothing_built_in(main: &Path) {
+        assert!(!main.join(".dx").exists(), "no dx state in the execroot");
+        assert!(!main.join("bazel-bin").exists(), "no build in the execroot");
+    }
+
+    #[test]
+    fn a_launcher_run_from_bazel_bin_runs_its_checkout_dx() {
+        let repo = source_repo("dx-launcher-execroot-");
+        let marker = repo.root().display().to_string();
+        let main = execroot(&repo.base, "ob", &repo.root(), Some(&marker));
+        let (code, out, err) = repo.run_in(&repo.root().join("bazel-bin/cli"), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert_eq!(repo.builds(), 1);
+        assert_nothing_built_in(&main);
+    }
+
+    #[test]
+    fn a_launcher_run_from_another_checkout_bazel_bin_runs_that_checkout_dx() {
+        let repo = source_repo("dx-launcher-execroot-slot-");
+        let slot = repo.base.join("slot");
+        checkout(&slot);
+        std::fs::write(slot.join("payload"), "#!/bin/sh\necho slot \"$@\"\n").expect("payload");
+        let marker = slot.display().to_string();
+        let main = execroot(&repo.base, "ob", &slot, Some(&marker));
+        let (code, out, err) = repo.run_in(&slot.join("bazel-bin/cli"), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "slot status\n"), "{err}");
+        assert!(slot.join(".dx/launcher/built").exists());
+        assert!(!repo.root().join(".dx/launcher").exists());
+        assert_eq!(repo.builds(), 1, "only the slot dx is built");
+        assert_nothing_built_in(&main);
+    }
+
+    #[test]
+    fn an_execroot_with_an_unusable_marker_is_never_entered() {
+        for (i, marker) in [Some(""), Some("/nonexistent/checkout")]
+            .into_iter()
+            .enumerate()
+        {
+            let repo = source_repo("dx-launcher-execroot-bad-");
+            let main = execroot(&repo.base, "ob", &repo.root(), marker);
+            let (code, out, err) = repo.run_in(&repo.root().join("bazel-bin/cli"), &["status"]);
+            assert_eq!(
+                (code, out.as_str()),
+                (Some(0), "ran status\n"),
+                "{i}: {err}"
+            );
+            assert_nothing_built_in(&main);
+        }
+    }
+
+    #[test]
+    fn a_symlinked_alias_marker_runs_the_checkout_once() {
+        let repo = source_repo("dx-launcher-execroot-alias-");
+        let alias = repo.base.join("alias");
+        std::os::unix::fs::symlink(repo.root(), &alias).expect("alias");
+        let marker = alias.display().to_string();
+        let main = execroot(&repo.base, "ob", &repo.root(), Some(&marker));
+        let (code, out, err) = repo.run_in(&repo.root().join("bazel-bin/cli"), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert_eq!(repo.builds(), 1);
+        assert_nothing_built_in(&main);
+    }
+
+    #[test]
+    fn a_marker_naming_another_execroot_is_not_followed() {
+        let repo = source_repo("dx-launcher-execroot-chain-");
+        let other = execroot(&repo.base, "ob2", &repo.root(), Some("unused"));
+        let marker = other.display().to_string();
+        let main = execroot(&repo.base, "ob", &repo.root(), Some(&marker));
+        let (code, out, err) =
+            repo.run_in(&main.join("bazel-out/k8-fastbuild/bin/cli"), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert_nothing_built_in(&main);
+        assert_nothing_built_in(&other);
+    }
+
     #[test]
     fn concurrent_stale_runs_all_succeed_and_keep_the_inputs() {
         let repo = source_repo("dx-launcher-concurrent-");
@@ -830,6 +935,33 @@ mod cmd {
         assert_eq!(builds(), 1, "a hook runs the built dx without Bazel");
         run_ok(&[]);
         assert_eq!(builds(), 2, "a newer preset layer rebuilds dx");
+    }
+
+    #[test]
+    fn cmd_a_launcher_run_from_bazel_bin_runs_its_checkout_dx() {
+        let repo = source_repo("dx-launcher-cmd-execroot-");
+        let slot = repo.base.join("slot");
+        checkout(&slot);
+        let ob = repo.base.join("ob");
+        let main = ob.join("execroot/_main");
+        let bin = main.join("bazel-out/x64_windows-fastbuild/bin/cli");
+        std::fs::create_dir_all(&bin).expect("bin");
+        std::fs::create_dir_all(main.join("tools/bazelrc")).expect("tools");
+        std::fs::create_dir_all(main.join("cli/cli")).expect("cli");
+        std::fs::copy(slot.join("MODULE.bazel"), main.join("MODULE.bazel")).expect("module");
+        std::fs::copy(
+            slot.join("cli/cli/BUILD.bazel"),
+            main.join("cli/cli/BUILD.bazel"),
+        )
+        .expect("build");
+        std::fs::copy(slot.join("tools/dx.cmd"), main.join("tools/dx.cmd")).expect("launcher");
+        let marker = slot.display().to_string().replace('\\', "/");
+        std::fs::write(ob.join("execroot/DO_NOT_BUILD_HERE"), marker).expect("marker");
+        let (code, out) = repo.run_in(&bin, &[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert!(slot.join(".dx/launcher/built").exists());
+        assert!(!main.join(".dx").exists(), "no dx state in the execroot");
+        assert_eq!(repo.builds(), 1, "only the slot dx is built");
     }
 
     #[test]

@@ -20,6 +20,17 @@ if /i "%DX_UP%"=="%DX_HERE%" goto dxself
 set "DX_HERE=%DX_UP%"
 goto dxup
 :dxfound
+set "DX_EXE="
+for %%P in ("%DX_HERE%\..") do if /i "%%~nxP"=="execroot" if exist "%%~fP\DO_NOT_BUILD_HERE" set "DX_EXE=%%~fP\DO_NOT_BUILD_HERE"
+if not defined DX_EXE goto dxchecked
+if defined DX_REDIR goto dxnext
+set "DX_SRC="
+set /p DX_SRC=<"%DX_EXE%"
+if not defined DX_SRC goto dxnext
+for %%Q in ("%DX_SRC%") do set "DX_HERE=%%~fQ"
+set "DX_REDIR=1"
+goto dxup
+:dxchecked
 if /i "%DX_HERE%"=="%DX_SELF%" goto dxself
 if not exist "%DX_HERE%\tools\dx.cmd" goto dxself
 "%DX_HERE%\tools\dx.cmd" %*

@@ -412,7 +412,10 @@ event that runs it.
   shells carry no session id, a command that runs `dx` gets
   `export DX_WORKTREE_SESSION=<id>` before it, where the id is `session_id`
   or else `conversation_id`. When `agent_id` is set and the command runs
-  any `dx` command, it also exports `DX_WORKTREE_HOLDER=<agent_id>`. The
+  any `dx` command, it also exports `DX_WORKTREE_HOLDER=<agent_id>`. Codex
+  sends no `agent_id`; when `CODEX_THREAD_ID` is set and differs from the
+  payload `session_id`, that `session_id` (the subagent's own thread) is
+  exported as the holder instead. The
   rewritten command goes in `hookSpecificOutput.updatedInput`, or
   `hookSpecificOutput.tool_input` for Gemini CLI, and keeps the other
   `tool_input` fields. The guard never approves a command for the agent.

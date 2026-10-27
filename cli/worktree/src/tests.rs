@@ -2812,6 +2812,22 @@ mod hooks {
     }
 
     #[test]
+    fn guard_holds_codex_subagent_by_its_own_thread() {
+        let input = payload("codex", "tools/dx test //x");
+        let session = input["session_id"].as_str().unwrap().to_owned();
+        let same = |_: &str| Some(session.clone());
+        assert_eq!(hook::guard_with(&input, &same), hook::Guard::Allow);
+        let other = |_: &str| Some("main-thread".to_owned());
+        let hook::Guard::Rewrite(out) = hook::guard_with(&input, &other) else {
+            panic!("a subagent thread is rewritten");
+        };
+        let command = out["hookSpecificOutput"]["updatedInput"]["command"]
+            .as_str()
+            .unwrap();
+        assert!(command.starts_with(&format!("export DX_WORKTREE_HOLDER='{session}'")));
+    }
+
+    #[test]
     fn guard_names_the_session_only_for_agents_whose_shells_lack_one() {
         for agent in ["claude", "codex"] {
             assert_eq!(

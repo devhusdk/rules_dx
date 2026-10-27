@@ -692,6 +692,15 @@ pub enum Guard {
 /// Blocks `git worktree add|remove|prune`, names the subagent for every dx command,
 /// and names the session for dx when the agent's shells do not.
 pub fn guard(input: &Value) -> Guard {
+    guard_with(input, &|name| std::env::var(name).ok())
+}
+
+/// `guard` with the environment passed in.
+///
+/// Codex sends no `agent_id`, and its shells share one `CODEX_THREAD_ID`. A
+/// payload `session_id` that differs from that thread id names a subagent's
+/// own thread, so it becomes the holder.
+pub fn guard_with(input: &Value, env_get: &dyn Fn(&str) -> Option<String>) -> Guard {
     if let Some(line) = blocked(input) {
         return Guard::Block(line);
     }
@@ -708,7 +717,11 @@ pub fn guard(input: &Value) -> Guard {
             exports.push(format!("export {SESSION_ENV}={}", shell_quote(&session)));
         }
     }
-    if let Some(agent) = field(input, "agent_id") {
+    let codex_thread = env_get("CODEX_THREAD_ID").filter(|id| !id.is_empty());
+    let subagent_thread = field(input, "session_id").filter(|id| {
+        dialect == Dialect::Claude && codex_thread.as_deref().is_some_and(|t| t != id)
+    });
+    if let Some(agent) = field(input, "agent_id").or(subagent_thread) {
         if runs_dx(command) {
             exports.push(format!("export {HOLDER_ENV}={}", shell_quote(&agent)));
         }

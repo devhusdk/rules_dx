@@ -242,6 +242,48 @@ CSS_STYLELINT_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+SQL_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["sql"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "sql",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
+XML_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["xml"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "xml",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
+GHERKIN_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["gherkin"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "gherkin",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
 CUE_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -346,6 +388,9 @@ SUPPORT_RECORDS = [
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,
     CSS_STYLELINT_LINT_SUPPORT,
+    SQL_PRETTIER_FORMAT_SUPPORT,
+    XML_PRETTIER_FORMAT_SUPPORT,
+    GHERKIN_PRETTIER_FORMAT_SUPPORT,
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
     PKL_FORMAT_SUPPORT,
@@ -475,6 +520,14 @@ def support_css_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the CSS family."""
     return _wiring_error(CSS_STYLELINT_LINT_SUPPORT, wired_tools, "real_js_lint_aspect")
 
+def support_prettier_plugins_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Prettier plugin families."""
+    for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
+        err = _wiring_error(record, wired_tools, "real_js_format_aspect")
+        if err != "":
+            return err
+    return ""
+
 def support_powershell_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the PowerShell family."""
     return _wiring_error(POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT, wired_tools, "real_powershell_lint_aspect")
@@ -574,6 +627,14 @@ def support_css_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the CSS family."""
     return _cli_error(CSS_STYLELINT_LINT_SUPPORT, cli_aspects, "real_js_lint_aspect")
 
+def support_prettier_plugins_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Prettier plugin families."""
+    for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
+        err = _cli_error(record, cli_aspects, "real_js_format_aspect")
+        if err != "":
+            return err
+    return ""
+
 def support_powershell_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the PowerShell family."""
     return _cli_error(POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT, cli_aspects, "real_powershell_lint_aspect")
@@ -639,6 +700,14 @@ def support_protobuf_artifact_error():
 def support_css_artifact_error():
     """Reports the actionable artifact gap for the CSS family."""
     return _artifact_error(CSS_STYLELINT_LINT_SUPPORT)
+
+def support_prettier_plugins_artifact_error():
+    """Reports the actionable artifact gap for the Prettier plugin families."""
+    for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
+        err = _artifact_error(record)
+        if err != "":
+            return err
+    return ""
 
 def support_powershell_artifact_error():
     """Reports the actionable artifact gap for the PowerShell family."""

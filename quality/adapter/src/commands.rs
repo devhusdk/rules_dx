@@ -61,7 +61,7 @@ const BIOME_LINT_TAIL: &[&str] = &["--error-on-warnings", "--vcs-enabled=false"]
 const BIOME_FORMAT_FIX_TAIL: &[&str] = &["--write"];
 const ESLINT_MIDDLE: &[&str] = &["-f", "json"];
 const ESLINT_FIX_SUFFIX: &[&str] = &["-f", "json", "--fix"];
-const PRETTIER_BASE: &[&str] = &["--no-config", "--no-editorconfig"];
+const PRETTIER_BASE: &[&str] = &["--no-editorconfig"];
 const PRETTIER_CHECK_TAIL: &[&str] = &["--check"];
 const PRETTIER_FIX_TAIL: &[&str] = &["--write"];
 const SCALAFMT_CHECK_PREFIX: &[&str] = &["--list"];

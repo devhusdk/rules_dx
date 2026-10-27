@@ -425,6 +425,7 @@ Language rules:
 - `@rules_dx//elixir/rules:defs.bzl`: Elixir.
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.
 - `@rules_dx//fsharp/rules:defs.bzl`: F#.
+- `@rules_dx//gherkin/rules:defs.bzl`: Gherkin.
 - `@rules_dx//gleam/rules:defs.bzl`: Gleam.
 - `@rules_dx//go/rules:defs.bzl`: Go.
 - `@rules_dx//html_template/rules:defs.bzl`: HTML templates.
@@ -443,9 +444,11 @@ Language rules:
 - `@rules_dx//ruby/rules:defs.bzl`: Ruby.
 - `@rules_dx//rust/rules:defs.bzl`: Rust.
 - `@rules_dx//scala/rules:defs.bzl`: Scala.
+- `@rules_dx//sql/rules:defs.bzl`: SQL.
 - `@rules_dx//terraform/rules:defs.bzl`: Terraform.
 - `@rules_dx//typescript/rules:defs.bzl`: TypeScript.
 - `@rules_dx//vue/rules:defs.bzl`: Vue.
+- `@rules_dx//xml/rules:defs.bzl`: XML.
 - `@rules_dx//yaml/rules:defs.bzl`: YAML.
 - `@rules_dx//zig/rules:defs.bzl`: Zig.
 

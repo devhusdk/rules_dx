@@ -1,5 +1,5 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@npm_tools//quality/tools/javascript:eslint/package_json.bzl", eslint_bin = "bin")
-load("@npm_tools//quality/tools/javascript:prettier/package_json.bzl", prettier_bin = "bin")
 load("@npm_tools//quality/tools/javascript:stylelint/package_json.bzl", stylelint_bin = "bin")
 load("@npm_tools//quality/tools/javascript:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@npm_tools//quality/tools/javascript:wrangler/package_json.bzl", wrangler_bin = "bin")
@@ -10,7 +10,17 @@ package(default_visibility = ["//:__subpackages__"])
 
 eslint_bin.eslint_binary(name = "eslint_generated")
 
-prettier_bin.prettier_binary(name = "prettier_generated")
+js_binary(
+    name = "prettier_generated",
+    data = [
+        "prettier_options.json",
+        "//quality/tools/javascript:node_modules/@prettier/plugin-xml",
+        "//quality/tools/javascript:node_modules/prettier",
+        "//quality/tools/javascript:node_modules/prettier-plugin-gherkin",
+        "//quality/tools/javascript:node_modules/prettier-plugin-sql",
+    ],
+    entry_point = "prettier.mjs",
+)
 
 stylelint_bin.stylelint_binary(name = "stylelint_generated")
 
@@ -38,7 +48,7 @@ js_tool(
 
 js_tool(
     name = "prettier",
-    entry_point = ":prettier_generated__entry_point",
+    entry_point = "prettier.mjs",
     js_binary = ":prettier_generated",
 )
 

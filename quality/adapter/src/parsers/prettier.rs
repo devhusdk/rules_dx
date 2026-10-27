@@ -58,8 +58,35 @@ fn syntax_error(
         Some((*file, message))
     });
     let Some((file, message)) = named else {
+        if is_run_error(text) {
+            return Err(ParseError::shape(TOOL, format!("run error: {text:?}")));
+        }
+        if let Some((line, column)) = parenthesised_position(text) {
+            if let Some(last) = findings.last_mut() {
+                if last.finding.severity == ToolSeverity::Error
+                    && last.finding.message.ends_with(':')
+                {
+                    let relocated = finding(
+                        TOOL,
+                        &last.file,
+                        String::new(),
+                        format!("{} {}", last.finding.message, text),
+                        ToolSeverity::Error,
+                        line,
+                        column,
+                    );
+                    *last = relocated;
+                    return Ok(());
+                }
+            }
+        }
         return match findings.last() {
-            Some(last) if last.finding.severity == ToolSeverity::Error && is_frame(text) => Ok(()),
+            Some(last)
+                if last.finding.severity == ToolSeverity::Error
+                    && (is_frame(text) || last.finding.message.starts_with("Error: ")) =>
+            {
+                Ok(())
+            }
             _ => Err(ParseError::shape(
                 TOOL,
                 format!("error without a file: {text:?}"),
@@ -79,8 +106,22 @@ fn syntax_error(
     Ok(())
 }
 
+fn is_run_error(text: &str) -> bool {
+    [
+        "No parser could be inferred",
+        "No files matching the pattern",
+        "Invalid ",
+        "Cannot find",
+    ]
+    .iter()
+    .any(|prefix| text.starts_with(prefix))
+}
+
 fn is_frame(text: &str) -> bool {
     if text.is_empty() {
+        return true;
+    }
+    if text.starts_with("at ") {
         return true;
     }
     let rest = text.strip_prefix('>').unwrap_or(text).trim_start();
@@ -90,8 +131,21 @@ fn is_frame(text: &str) -> bool {
     rest.starts_with('|')
 }
 
+fn parenthesised_position(text: &str) -> Option<(u64, u64)> {
+    let (position, _) = text.strip_prefix('(')?.split_once("): ")?;
+    row_col(position, ':')
+}
+
+fn line_column_words(head: &str) -> Option<(u64, u64)> {
+    let (_, tail) = head.rsplit_once(" at line ")?;
+    row_col(&tail.trim_end_matches('.').replacen(" column ", ":", 1), ':')
+}
+
 fn error_position(message: &str) -> Option<(u64, u64)> {
     let head = message.lines().next()?.trim_end();
+    if let Some(position) = line_column_words(head) {
+        return Some(position);
+    }
     let tail = head
         .strip_suffix(')')
         .and_then(|rest| rest.rsplit_once('('))
@@ -167,5 +221,44 @@ mod tests {
         assert!(
             parse_prettier_check(stderr.as_bytes(), Some(2), &["a/bad.json5", "a/x.foo"]).is_err()
         );
+    }
+
+    #[test]
+    fn prettier_check_fails_on_an_uninferred_file_after_a_plugin_error() {
+        let stderr = "[error] q.sql: Error: Parse error: Unexpected \"'abc from \" at line 1 column 8.\n[error] This likely happens because you're using the default \"sql\" dialect.\n[error] If possible, please select a more specific dialect (like sqlite, postgresql, etc).\n[error]     at TokenizerEngine.createParseError (file:///r/sql-formatter/dist/esm/lexer/TokenizerEngine.js:40:16)\n[error] No parser could be inferred for file \"/w/x.foo\".\n";
+        assert!(parse_prettier_check(stderr.as_bytes(), Some(2), &["q.sql", "x.foo"]).is_err());
+    }
+
+    #[test]
+    fn prettier_check_fails_when_a_plugin_does_not_load() {
+        let missing = "[error] Cannot find module '/nonexistent/prettier-plugin-sql.js' imported from /r/prettier/index.mjs\n";
+        assert!(parse_prettier_check(missing.as_bytes(), Some(2), &["q.sql"]).is_err());
+        assert!(parse_prettier_check(missing.as_bytes(), Some(1), &["q.sql"]).is_err());
+        let dropped = "[warn] Ignored unknown option { formatter: \"sql-formatter\" }.\n[warn] Ignored unknown option { language: \"sql\" }.\n[warn] Ignored unknown option { keywordCase: \"preserve\" }.\n[error] No parser could be inferred for file \"/w/q.sql\".\n";
+        assert!(parse_prettier_check(dropped.as_bytes(), Some(2), &["q.sql"]).is_err());
+    }
+
+    #[test]
+    fn prettier_check_locates_plugin_errors() {
+        let sql = "[error] q.sql: Error: Parse error: Unexpected \"'abc\" at line 3 column 8.\n[error]     at TokenizerEngine.createParseError (file:///x.js:1:1)\n";
+        let findings = parse_prettier_check(sql.as_bytes(), Some(2), &["q.sql"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 8);
+        let gherkin = "[error] a.feature: Error: Parser errors:\n[error] (1:1): expected: #EOF, got 'Scenario: x'\n[error]     at Parser.parse (file:///x.js:1:1)\n";
+        let findings =
+            parse_prettier_check(gherkin.as_bytes(), Some(2), &["a.feature"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].finding.message.contains("got 'Scenario: x'"));
+        let nearley = "[error] q.sql: Error: Parse error at token: ) at line 1 column 8\n[error] Unexpected CLOSE_PAREN token: {}. Instead, I was expecting\n[error] \n[error]     all_columns_asterisk \u{2192}  \u{25cf} %ASTERISK\n";
+        let findings =
+            parse_prettier_check(nearley.as_bytes(), Some(2), &["q.sql"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.start.column, 8);
+        let gherkin = "[error] a.feature: Error: Parser errors:\n[error] (4:3): expected: #EOF, got 'x'\n[error] (6:1): expected: #EOF, got 'y'\n";
+        let findings =
+            parse_prettier_check(gherkin.as_bytes(), Some(2), &["a.feature"]).expect("parsed");
+        assert_eq!(findings[0].finding.start.line, 4);
+        assert_eq!(findings[0].finding.start.column, 3);
     }
 }

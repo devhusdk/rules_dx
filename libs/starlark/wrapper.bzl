@@ -1,5 +1,6 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
+load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources")
@@ -203,8 +204,26 @@ DxDataCoverageInfo = provider(
     },
 )
 
+def dx_native_coverage_toolchains():
+    """Returns the toolchains native coverage needs to find llvm tools in the cc toolchain."""
+    return use_cc_toolchain(mandatory = False)
+
+def _dx_toolchain_tool(cc_toolchain, basename):
+    """Returns the cc toolchain file named basename (with optional .exe), or None."""
+    if cc_toolchain == None:
+        return None
+    for f in cc_toolchain.all_files.to_list():
+        if f.basename == basename or f.basename == basename + ".exe":
+            return f
+    return None
+
 def dx_native_coverage_attrs():
-    """Returns the attributes native (C/C++/LLVM) coverage collection needs."""
+    """Returns the attributes native (C/C++/LLVM) coverage collection needs.
+
+    llvm-cov and llvm-profdata come from the resolved cc toolchain when it ships
+    them, so the raw profile version matches its clang. The @llvm tools are the
+    fallback for toolchains that do not.
+    """
     return dx_collect_cc_coverage_attr(Label("//tools/coverage/collect:collect_native")) | {
         "_llvm_cov": attr.label(
             default = Label("@llvm//tools:llvm-cov"),
@@ -218,13 +237,15 @@ def dx_native_coverage_attrs():
             allow_files = True,
             cfg = config.exec(exec_group = "test"),
         ),
+        "_cc_toolchain": attr.label(default = Label("@rules_cc//cc:current_cc_toolchain")),
     }
 
 def dx_native_test_coverage(ctx, upstream):
     """Returns coverage providers that collect native LLVM coverage."""
     collector = ctx.executable._collect_cc_coverage
-    llvm_cov = ctx.executable._llvm_cov
-    llvm_profdata = ctx.executable._llvm_profdata
+    cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
+    llvm_cov = _dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
+    llvm_profdata = _dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
     metadata = [collector, llvm_cov, llvm_profdata]
     transitive = []
     if DxDataCoverageInfo in upstream:

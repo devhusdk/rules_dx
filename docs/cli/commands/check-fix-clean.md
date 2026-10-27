@@ -73,7 +73,7 @@ never clears it. The run stops, and marks the remaining phases skipped, only
 on a bad scope or configuration, when Bazel cannot run (it fails to launch, is
 killed by a signal, or the disk is full), or on a cancel. A phase whose only
 failures are compile errors does not stop `dx check`, but it stops `dx fix`:
-the remaining phases are skipped with
+the remaining phases are skipped (after `fix --apply` applied changes, `generate` still reruns once) with
 `<phase> skipped after <phase> failed to compile`. The skipped phases are named
 in the JSON `umbrella_phase_skipped` notice events. In text output, a run with a failed
 phase ends with a `dx: phases:` line on stderr that says how each phase ended.

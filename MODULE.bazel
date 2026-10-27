@@ -488,27 +488,37 @@ use_repo(pnpm, "pnpm")
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
-    name = "dx_npm",
-    npmrc = "//:.npmrc",
-    pnpm_lock = "//:pnpm-lock.yaml",
-    verify_node_modules_ignored = "//:.bazelignore",
-)
-npm.npm_translate_lock(
     name = "dx_npm_tools",
     npmrc = "//:.npmrc",
     pnpm_lock = "//quality/tools/javascript:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
-use_repo(npm, "dx_npm", "dx_npm_tools")
+use_repo(npm, "dx_npm_tools")
 
 npm_dev = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
+npm_dev.npm_translate_lock(
+    name = "dx_npm",
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
 npm_dev.npm_translate_lock(
     name = "npm_node_app",
     npmrc = "//:.npmrc",
     pnpm_lock = "//examples/node-app:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
-use_repo(npm_dev, "npm_node_app")
+use_repo(npm_dev, "dx_npm", "npm_node_app")
+
+# The root package links the dev hub @dx_npm. Consumers load that package
+# through @rules_dx//:dx, so it loads this shim, which only forwards to
+# @dx_npm when rules_dx is the root module.
+dx_dev_hub = use_extension("//javascript/private:dev_hub.bzl", "dx_dev_hub")
+dx_dev_hub.link(
+    name = "dx_npm_link",
+    hub = "dx_npm",
+)
+use_repo(dx_dev_hub, "dx_npm_link")
 
 python_interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
 python_interpreters.toolchain(python_version = "3.12")

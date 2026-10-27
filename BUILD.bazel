@@ -1,5 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@dx_npm//:defs.bzl", "npm_link_all_packages")
+# A shim over the dev hub @dx_npm, so consumers that load this package fetch no npm repos.
+load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//quality:native_config.bzl", "biome_config", "buildifier_config", "clang_format_config", "ruff_config", "rustfmt_config", "scalafmt_config", "vale_config")
 load("//quality:fixtures.bzl", "real_source_target")
 

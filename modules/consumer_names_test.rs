@@ -134,4 +134,21 @@ fn common_upstream_repo_names_resolve_next_to_rules_dx() {
     ]);
     assert!(run.status.success(), "{}", run.combined());
     assert!(run.combined().contains("Usage: dx"), "{}", run.combined());
+
+    // The root rules_dx package links the dev hub dx_npm through a shim, so
+    // a consumer that loads @rules_dx//:dx must not fetch that hub or its links.
+    let info = case.bazel(&["info", "output_base"]);
+    assert!(info.status.success(), "{}", info.combined());
+    let external = PathBuf::from(info.stdout.trim()).join("external");
+    let entries = std::fs::read_dir(&external)
+        .unwrap_or_else(|error| panic!("read_dir {external:?}: {error}"));
+    let fetched: Vec<String> = entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.ends_with("+dx_npm") || name.contains("dx_npm__"))
+        .collect();
+    assert!(
+        fetched.is_empty(),
+        "consumer fetched dev hub repos: {fetched:?}"
+    );
 }

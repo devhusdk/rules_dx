@@ -95,10 +95,14 @@ def alias_errors(alias):
     return []
 
 def _add(ctx, entries, seen, kind, dest, file):
-    prior = claim_dest(seen, dest, file.short_path, fold_case = True)
+    """Adds a packaged file once. Returns False for a repeat of the same file."""
+    prior = claim_dest(seen, dest, file, fold_case = True)
+    if prior != None and hasattr(prior, "path") and prior.path == file.path:
+        return False
     if prior != None:
-        fail("dx_msix " + str(ctx.label) + ": " + prior + " and " + file.short_path + " both map to " + dest)
+        fail("dx_msix " + str(ctx.label) + ": " + getattr(prior, "short_path", prior) + " and " + file.short_path + " both map to " + dest)
     entries.append({"dest": dest, "kind": kind, "src": file.path})
+    return True
 
 def _msix_impl(ctx):
     cv = platform_common.ConstraintValueInfo
@@ -151,16 +155,16 @@ def _msix_impl(ctx):
             dlls[name] = file
             owner[name] = "libs " + str(target.label)
     for name in sorted(dlls):
-        _add(ctx, entries, seen, "lib", dlls[name].basename, dlls[name])
-        inputs.append(dlls[name])
+        if _add(ctx, entries, seen, "lib", dlls[name].basename, dlls[name]):
+            inputs.append(dlls[name])
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
-            _add(ctx, entries, seen, "data", "share/" + data_path(file, target.label), file)
-            inputs.append(file)
+            if _add(ctx, entries, seen, "data", "share/" + data_path(file, target.label), file):
+                inputs.append(file)
     for target in ctx.attr.notice:
         for file in target[DefaultInfo].files.to_list():
-            _add(ctx, entries, seen, "notice", "licenses/" + file.basename, file)
-            inputs.append(file)
+            if _add(ctx, entries, seen, "notice", "licenses/" + file.basename, file):
+                inputs.append(file)
 
     package = ctx.actions.declare_file(ctx.label.name + ".msix")
     identity = ctx.actions.declare_file(ctx.label.name + ".msix.identity.json")

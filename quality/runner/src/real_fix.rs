@@ -89,7 +89,7 @@ const FIX_SPECS: &[FixSpec] = &[
     },
     FixSpec {
         tool: "prettier",
-        config: FixConfig::None,
+        config: FixConfig::Optional,
         keep_exit_one: false,
         crash_stderr: None,
     },
@@ -405,6 +405,14 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
+                    "prettier" => {
+                        let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                        let ignore = Self::prettier_ignore_abs(scratch)?;
+                        Ok(
+                            commands::prettier_fix(&launch, refs, config.as_deref(), &ignore)
+                                .map_err(|err| execution(tool_id, err.to_string()))?,
+                        )
+                    }
                     "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
                     "djlint" => Ok(commands::djlint_format_fix(
                         &tool.binary,
@@ -446,11 +454,6 @@ impl super::RealBackend {
             FixConfig::None => match tool_id {
                 "google_java_format" => Ok(commands::google_java_format_fix(&tool.binary, refs)),
                 "ktfmt" => Ok(commands::ktfmt_fix(&tool.binary, refs)),
-                "prettier" => {
-                    let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                    Ok(commands::prettier_fix(&launch, refs)
-                        .map_err(|err| execution(tool_id, err.to_string()))?)
-                }
                 "fantomas" => Ok(commands::fantomas_fix(&tool.binary, refs)),
                 "buf" => Ok(commands::buf_format_fix(&tool.binary, refs, scratch.root())),
                 "gofumpt" => Ok(commands::gofumpt_fix(

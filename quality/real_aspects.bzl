@@ -472,7 +472,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     configs_by_tool = collect_native_configs(hints, stage_tools, str(target.label))
 
     for stage in resolved:
-        config_error = missing_required_config_error(stage["tool"], configs_by_tool, str(target.label))
+        config_error = missing_required_config_error(stage["tool"], capability, configs_by_tool, str(target.label))
         if config_error != "":
             fail(config_error)
 

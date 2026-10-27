@@ -437,16 +437,35 @@ fn eslint_without_a_program_fails_before_any_spawn() {
 fn prettier_check_and_fix_are_hermetic() {
     let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
-    let check = prettier_check(&launch, &[file]).expect("resolves");
+    let ignore = Path::new("/scratch/dx-prettier/ignore");
+    let cfg = Path::new("/scratch/cfg/.prettierrc.json");
+    let check = prettier_check(&launch, &[file], None, ignore).expect("resolves");
     assert_eq!(
         argv_strings(&check),
-        vec![BIN, "--no-editorconfig", "--check", "/scratch/src/a.js"]
+        vec![
+            BIN,
+            "--no-config",
+            "--no-editorconfig",
+            "--ignore-path",
+            "/scratch/dx-prettier/ignore",
+            "--check",
+            "/scratch/src/a.js"
+        ]
     );
     assert_eq!(check.cwd_rel, "");
-    let fix = prettier_fix(&launch, &[file]).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], Some(cfg), ignore).expect("resolves");
     assert_eq!(
         argv_strings(&fix),
-        vec![BIN, "--no-editorconfig", "--write", "/scratch/src/a.js"]
+        vec![
+            BIN,
+            "--config",
+            "/scratch/cfg/.prettierrc.json",
+            "--no-editorconfig",
+            "--ignore-path",
+            "/scratch/dx-prettier/ignore",
+            "--write",
+            "/scratch/src/a.js"
+        ]
     );
     assert_eq!(fix.cwd_rel, "");
 }

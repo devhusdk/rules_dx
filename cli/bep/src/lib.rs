@@ -10,6 +10,7 @@
 
 pub mod failures;
 pub mod ledger;
+pub mod metrics;
 pub mod outputs;
 pub mod test_outputs;
 
@@ -17,6 +18,7 @@ pub use failures::{
     collect_build_failures, BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef,
 };
 pub use ledger::{EventGap, EventLedger};
+pub use metrics::{collect_action_summary, ActionSummary};
 pub use outputs::{collect, collect_account, collect_with_workspace, OutputAccount};
 pub use test_outputs::{
     collect_test_events, collect_test_outputs, TestEvents, TestOutputFile, TestResultFile,

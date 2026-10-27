@@ -287,6 +287,12 @@ pub enum DependencySetsError {
         path: String,
         rel: String,
     },
+    #[error("dependency set {name:?} path {path} leaves the workspace (declared in {rel})")]
+    OutsideWorkspace {
+        name: String,
+        path: String,
+        rel: String,
+    },
     #[error("dependency set {name:?} relies on uv settings dx does not apply: {detail}; keep resolver settings out of uv.toml and [tool.uv]")]
     UnsupportedSettings { name: String, detail: String },
     #[error("dependency set {name:?} cannot run pnpm in {dir}: {detail}")]
@@ -980,25 +986,66 @@ pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
     ordered
 }
 
+/// Fails closed before any backend launches: manifests must exist and every
+/// manifest and lock must stay inside the workspace after links resolve.
+/// `need_lock` only controls whether a lock must exist; containment of a lock
+/// is always checked. A link created after this check is not caught.
 pub fn check_files(
     workspace: &Path,
     set: &ResolvedSet,
     need_lock: bool,
 ) -> Result<(), DependencySetsError> {
-    for path in set.manifests.iter().chain(if need_lock {
-        set.locks.iter()
-    } else {
-        [].iter()
-    }) {
-        if !workspace.join(path).is_file() {
-            return Err(DependencySetsError::MissingFile {
-                name: set.name.clone(),
-                path: path.clone(),
-                rel: DX_TOML_REL.to_owned(),
-            });
+    let missing = |path: &String| DependencySetsError::MissingFile {
+        name: set.name.clone(),
+        path: path.clone(),
+        rel: DX_TOML_REL.to_owned(),
+    };
+    let outside = |path: &String| DependencySetsError::OutsideWorkspace {
+        name: set.name.clone(),
+        path: path.clone(),
+        rel: DX_TOML_REL.to_owned(),
+    };
+    for path in &set.manifests {
+        resolve_existing(workspace, path, &missing, &outside)?;
+    }
+    for path in &set.locks {
+        if need_lock {
+            resolve_existing(workspace, path, &missing, &outside)?;
+        } else {
+            match dx_path::workspace::resolve_target_in_workspace(workspace, path) {
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) if error.kind() == std::io::ErrorKind::InvalidInput => {
+                    return Err(outside(path));
+                }
+                Err(error) => {
+                    return Err(DependencySetsError::Read {
+                        rel: path.clone(),
+                        detail: error.to_string(),
+                    });
+                }
+            }
         }
     }
     Ok(())
+}
+
+fn resolve_existing(
+    workspace: &Path,
+    path: &String,
+    missing: &dyn Fn(&String) -> DependencySetsError,
+    outside: &dyn Fn(&String) -> DependencySetsError,
+) -> Result<std::path::PathBuf, DependencySetsError> {
+    match dx_path::workspace::resolve_in_workspace(workspace, path) {
+        Ok(resolved) if resolved.is_file() => Ok(resolved),
+        Ok(_) => Err(missing(path)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(missing(path)),
+        Err(error) if error.kind() == std::io::ErrorKind::InvalidInput => Err(outside(path)),
+        Err(error) => Err(DependencySetsError::Read {
+            rel: path.clone(),
+            detail: error.to_string(),
+        }),
+    }
 }
 
 fn uv_workspace_root(path: &Path) -> bool {
@@ -1110,11 +1157,25 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
         };
     }
     for manifest in &set.manifests {
-        let bytes =
-            std::fs::read(workspace.join(manifest)).map_err(|error| DependencySetsError::Read {
-                rel: manifest.clone(),
-                detail: error.to_string(),
+        let resolved =
+            dx_path::workspace::resolve_in_workspace(workspace, manifest).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::InvalidInput {
+                    DependencySetsError::OutsideWorkspace {
+                        name: set.name.clone(),
+                        path: manifest.clone(),
+                        rel: DX_TOML_REL.to_owned(),
+                    }
+                } else {
+                    DependencySetsError::Read {
+                        rel: manifest.clone(),
+                        detail: error.to_string(),
+                    }
+                }
             })?;
+        let bytes = std::fs::read(resolved).map_err(|error| DependencySetsError::Read {
+            rel: manifest.clone(),
+            detail: error.to_string(),
+        })?;
         let text = String::from_utf8(bytes).map_err(|_| DependencySetsError::NotUtf8 {
             rel: manifest.clone(),
         })?;
@@ -1640,6 +1701,83 @@ scopes = ["apps/leaf"]
             check_files(&workspace, &frontend, true),
             Err(DependencySetsError::MissingFile { .. })
         ));
+    }
+
+    #[cfg(unix)]
+    mod link_confinement {
+        use super::*;
+
+        fn setup() -> (dx_test_scratch::TempDir, std::path::PathBuf, ResolvedSet) {
+            let outer = dx_test_scratch::scratch("dx-linkconf-");
+            let workspace = outer.path().join("ws");
+            std::fs::create_dir_all(&workspace).expect("ws");
+            let registry = load_text(TWO_UV_SETS);
+            let set = ResolvedSet::of(registry.find("frontend").expect("frontend"));
+            (outer, workspace, set)
+        }
+
+        fn link_out(outer: &Path, workspace: &Path, rel: &str) -> std::path::PathBuf {
+            let outside = outer.join("outside.txt");
+            std::fs::write(&outside, "x").expect("outside");
+            let at = workspace.join(rel);
+            std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+            std::os::unix::fs::symlink(&outside, at).expect("link");
+            outside
+        }
+
+        fn is_outside(result: Result<(), DependencySetsError>) -> bool {
+            matches!(result, Err(DependencySetsError::OutsideWorkspace { .. }))
+        }
+
+        #[test]
+        fn manifest_linking_outside_is_rejected() {
+            let (outer, workspace, set) = setup();
+            link_out(outer.path(), &workspace, &set.manifests[0]);
+            assert!(is_outside(check_files(&workspace, &set, false)));
+        }
+
+        #[test]
+        fn lock_linking_outside_is_rejected_with_and_without_need_lock() {
+            let (outer, workspace, set) = setup();
+            for manifest in &set.manifests {
+                let at = workspace.join(manifest);
+                std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+                std::fs::write(at, "").expect("manifest");
+            }
+            link_out(outer.path(), &workspace, &set.locks[0]);
+            assert!(is_outside(check_files(&workspace, &set, false)));
+            assert!(is_outside(check_files(&workspace, &set, true)));
+        }
+
+        #[test]
+        fn dangling_lock_link_is_rejected_without_need_lock() {
+            let (outer, workspace, set) = setup();
+            for manifest in &set.manifests {
+                let at = workspace.join(manifest);
+                std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+                std::fs::write(at, "").expect("manifest");
+            }
+            let at = workspace.join(&set.locks[0]);
+            std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+            std::os::unix::fs::symlink(outer.path().join("nope"), at).expect("link");
+            assert!(is_outside(check_files(&workspace, &set, false)));
+        }
+
+        #[test]
+        fn lock_linking_inside_is_accepted() {
+            let (_outer, workspace, set) = setup();
+            for manifest in &set.manifests {
+                let at = workspace.join(manifest);
+                std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+                std::fs::write(at, "").expect("manifest");
+            }
+            let real = workspace.join("real.lock");
+            std::fs::write(&real, "x").expect("real");
+            let at = workspace.join(&set.locks[0]);
+            std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+            std::os::unix::fs::symlink(&real, at).expect("link");
+            assert_eq!(check_files(&workspace, &set, true), Ok(()));
+        }
     }
 
     const TWO_NPM_SETS: &str = r#"

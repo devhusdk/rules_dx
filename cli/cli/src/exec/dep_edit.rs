@@ -208,7 +208,9 @@ pub(crate) fn write_and_refresh(
     let verb = edit.verb;
     let request = edit.target;
     for (manifest, text) in planned {
-        if dx_atomic_fs::write_atomic(&workspace.join(manifest), text.as_bytes()).is_err() {
+        let written = dx_path::workspace::resolve_target_in_workspace(workspace, manifest)
+            .and_then(|target| dx_atomic_fs::write_atomic(&target, text.as_bytes()));
+        if written.is_err() {
             return operational(
                 invocation,
                 out,

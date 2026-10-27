@@ -470,19 +470,42 @@ Flags:
 
 - `--certificate`: the Developer ID Application identity `.p12` file.
 - `--password-file`: the file holding the `.p12` password.
+- `--identity`: instead of the two flags above, the SHA-1 or name of a
+  code signing identity that is already in a keychain. A name must match
+  exactly one identity.
+- `--keychain`: with `--identity`, the keychain to search. It must be
+  unlocked. Without it, the user keychain search list is used.
 - `--out`: the `.app` to write, outside `bazel-out`.
 
-The launcher unpacks the built app and signs it inside out: each entry
-in `Contents/Frameworks` first, then the app with its entitlements.
-Every call uses `--force --options runtime --timestamp`, so the ad hoc
-build signature is replaced, the hardened runtime is on, and Apple's
-secure timestamp is attached. It never signs with `--deep`.
+When no credential flag is given, the launcher reads the identity from
+`DX_APPLE_SIGN_IDENTITY` and the keychain from `DX_APPLE_KEYCHAIN`.
+
+The launcher unpacks the built app and signs it inside out. In each
+bundle it signs, in order:
+
+1. each entry in `Contents/Frameworks`;
+2. each entry in `Contents/PlugIns`, `Contents/XPCServices`,
+   `Contents/Helpers`, and `Contents/Library/LoginItems`,
+   `SystemExtensions`, `QuickLook` and `Spotlight`, signing the nested
+   code of each nested bundle first;
+3. any other Mach-O file in `Contents/MacOS`;
+4. the bundle itself.
+
+Nested code keeps its own entitlements through
+`--preserve-metadata=entitlements`. The app itself is signed with the
+target's entitlements. Every call uses `--force --options runtime
+--timestamp`, so the ad hoc build signature is replaced, the hardened
+runtime is on, and Apple's secure timestamp is attached. It never signs
+with `--deep`.
 
 Input that fails before signing:
 
-- entitlements that set `com.apple.security.get-task-allow`;
-- apps with `Contents/PlugIns`, `Contents/XPCServices`, or
-  `Contents/Library/LoginItems`, or with code nested inside a framework.
+- entitlements on the app or on nested code that set
+  `com.apple.security.get-task-allow`;
+- a nested bundle without `Contents/Info.plist`;
+- code nested inside a framework;
+- a Mach-O file anywhere else, such as `Contents/Resources`, since it
+  would keep its ad hoc signature and fail notarization.
 
 After signing, the launcher checks `codesign --verify --deep --strict`
 and that `codesign -dvv` shows the runtime flag, a timestamp, and a
@@ -490,9 +513,10 @@ signing authority. It then writes `<out>` and `<out>.txt`, which records
 the bundle id, team, signing authority, certificate SHA-1, timestamp,
 entitlement keys, archs, and the runtime flag.
 
-The certificate and password are never Bazel inputs. The identity goes
-into a temporary keychain that is deleted on exit, and the keychain
-search list is restored.
+The certificate and password are never Bazel inputs. A `.p12` identity
+goes into a temporary keychain that is deleted on exit, and the keychain
+search list is restored. An `--identity` is used where it is and no
+keychain is changed.
 
 ### Notarize
 

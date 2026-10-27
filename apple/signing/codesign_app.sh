@@ -29,20 +29,26 @@ need_tool "$OPENSSL" openssl
 need_tool "$PLUTIL" plutil
 need_tool "$DITTO" ditto
 
-usage="usage: bazel run <sign> -- --certificate <identity.p12> --password-file <file> --out <App.app>"
+usage="usage: bazel run <sign> -- (--certificate <identity.p12> --password-file <file> | --identity <SHA-1 or name> [--keychain <keychain>]) --out <App.app>"
 cert=""
 password_file=""
+identity=""
+user_keychain=""
 out=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --certificate=*) cert="${1#*=}" ;;
         --password-file=*) password_file="${1#*=}" ;;
+        --identity=*) identity="${1#*=}" ;;
+        --keychain=*) user_keychain="${1#*=}" ;;
         --out=*) out="${1#*=}" ;;
-        --certificate | --password-file | --out)
+        --certificate | --password-file | --identity | --keychain | --out)
             [ $# -ge 2 ] || die 2 "$1 needs a value; $usage"
             case "$1" in
                 --certificate) cert="$2" ;;
                 --password-file) password_file="$2" ;;
+                --identity) identity="$2" ;;
+                --keychain) user_keychain="$2" ;;
                 --out) out="$2" ;;
             esac
             shift
@@ -51,8 +57,17 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-[ -n "$cert" ] || die 2 "--certificate names the Developer ID identity .p12 file; $usage"
-[ -n "$password_file" ] || die 2 "--password-file names the file holding the .p12 password; $usage"
+if [ -z "$cert$password_file$identity$user_keychain" ]; then
+    identity="${DX_APPLE_SIGN_IDENTITY:-}"
+    user_keychain="${DX_APPLE_KEYCHAIN:-}"
+fi
+if [ -n "$identity" ]; then
+    [ -z "$cert$password_file" ] || die 2 "pass --identity or --certificate with --password-file, not both; $usage"
+else
+    [ -z "$user_keychain" ] || die 2 "--keychain only goes with --identity; $usage"
+    [ -n "$cert" ] || die 2 "--certificate names the Developer ID identity .p12 file, or --identity names one in a keychain; $usage"
+    [ -n "$password_file" ] || die 2 "--password-file names the file holding the .p12 password; $usage"
+fi
 [ -n "$out" ] || die 2 "--out names the .app to write; $usage"
 
 here="$(pwd -P)"
@@ -63,11 +78,21 @@ absolute() {
         *) printf '%s/%s\n' "$2" "$1" ;;
     esac
 }
-cert="$(absolute "$cert" "$caller")"
-password_file="$(absolute "$password_file" "$caller")"
 out="$(absolute "$out" "$caller")"
-[ -f "$cert" ] || die 2 "--certificate $cert is not a file"
-[ -f "$password_file" ] || die 2 "--password-file $password_file is not a file"
+if [ -n "$identity" ]; then
+    case "$user_keychain" in
+        */*)
+            user_keychain="$(absolute "$user_keychain" "$caller")"
+            [ -f "$user_keychain" ] || die 2 "--keychain $user_keychain is not a file"
+            ;;
+        ?*) [ ! -f "$caller/$user_keychain" ] || user_keychain="$caller/$user_keychain" ;;
+    esac
+else
+    cert="$(absolute "$cert" "$caller")"
+    password_file="$(absolute "$password_file" "$caller")"
+    [ -f "$cert" ] || die 2 "--certificate $cert is not a file"
+    [ -f "$password_file" ] || die 2 "--password-file $password_file is not a file"
+fi
 case "$out" in
     *.app) ;;
     *) die 2 "--out $out must name an .app bundle" ;;
@@ -105,7 +130,6 @@ work=""
 keychain=""
 keychains_saved=""
 
-# Restores the user keychain search list and deletes the temporary keychain.
 keychain_close() {
     if [ -n "$keychains_saved" ]; then
         set --
@@ -150,17 +174,6 @@ for bundle in "$unpacked"/*.app; do
 done
 [ -n "$app" ] || die 2 "$archive holds no .app bundle"
 name="$(basename "$app")"
-for nested in PlugIns XPCServices Library/LoginItems; do
-    [ ! -e "$app/Contents/$nested" ] || die 2 "$name carries Contents/$nested; signing nested PlugIns, XPCServices and LoginItems is not supported yet"
-done
-if [ -d "$app/Contents/Frameworks" ]; then
-    for framework in "$app"/Contents/Frameworks/*; do
-        [ -d "$framework" ] && [ ! -L "$framework" ] || continue
-        inner="$(find "$framework" -mindepth 1 \( -name '*.app' -o -name '*.appex' -o -name '*.framework' -o -name '*.xpc' -o -name Helpers -o -name XPCServices -o -name PlugIns \) | head -n 1)"
-        [ -z "$inner" ] || die 2 "$name carries nested code at ${inner#"$app"/}; signing code nested in a framework is not supported yet"
-    done
-fi
-
 value() {
     "$PLUTIL" -extract "$1" raw -o - "$2" 2>/dev/null
 }
@@ -176,6 +189,94 @@ keys() {
         }
     ' "$1" | LC_ALL=C sort -u
 }
+debuggable() {
+    tr -d ' \t\r\n' <"$1" | grep -q '<key>com\.apple\.security\.get-task-allow</key><true/>'
+}
+macho() {
+    [ -f "$1" ] && [ ! -L "$1" ] || return 1
+    case "$(od -An -tx1 -N4 "$1" 2>/dev/null | tr -d ' \n')" in
+        cefaedfe | cffaedfe | feedface | feedfacf | cafebabe | cafebabf) return 0 ;;
+    esac
+    return 1
+}
+inside() {
+    if [ "$1" = "$app" ]; then
+        printf '%s\n' "$name"
+    else
+        printf '%s\n' "${1#"$app"/}"
+    fi
+}
+plan_nested() {
+    if [ -d "$1" ]; then
+        plan_bundle "$1" nested
+        return
+    fi
+    "$CODESIGN" -d --entitlements - --xml "$1" >"$work/nested.plist" 2>/dev/null || : >"$work/nested.plist"
+    ! debuggable "$work/nested.plist" || die 2 "$(inside "$1") sets entitlement 'com.apple.security.get-task-allow'; notarization rejects debuggable code"
+    echo "file $1" >>"$work/covered.txt"
+    echo "nested $1" >>"$work/plan.txt"
+}
+plan_bundle() (
+    bundle="$1"
+    contents="$bundle/Contents"
+    [ -f "$contents/Info.plist" ] || die 2 "$name carries $(inside "$bundle") without Contents/Info.plist; cannot sign it"
+    main="$(value CFBundleExecutable "$contents/Info.plist")" || die 2 "$(inside "$bundle") names no CFBundleExecutable"
+    if [ "$2" = nested ]; then
+        "$CODESIGN" -d --entitlements - --xml "$bundle" >"$work/nested.plist" 2>/dev/null || : >"$work/nested.plist"
+        ! debuggable "$work/nested.plist" || die 2 "$(inside "$bundle") sets entitlement 'com.apple.security.get-task-allow'; notarization rejects debuggable code"
+    fi
+    if [ -d "$contents/Frameworks" ]; then
+        for item in "$contents"/Frameworks/*; do
+            [ -e "$item" ] && [ ! -L "$item" ] || continue
+            if [ -d "$item" ]; then
+                inner="$(find "$item" -mindepth 1 \( -name '*.app' -o -name '*.appex' -o -name '*.framework' -o -name '*.xpc' -o -name Helpers -o -name XPCServices -o -name PlugIns \) | head -n 1)"
+                [ -z "$inner" ] || die 2 "$name carries nested code at $(inside "$inner"); signing code nested in a framework is not supported yet"
+                echo "prefix $item/" >>"$work/covered.txt"
+            else
+                echo "file $item" >>"$work/covered.txt"
+            fi
+            echo "framework $item" >>"$work/plan.txt"
+        done
+    fi
+    for dir in PlugIns XPCServices Helpers Library/LoginItems Library/SystemExtensions Library/QuickLook Library/Spotlight; do
+        [ -d "$contents/$dir" ] || continue
+        for item in "$contents/$dir"/*; do
+            [ -e "$item" ] && [ ! -L "$item" ] || continue
+            plan_nested "$item"
+        done
+    done
+    if [ -d "$contents/MacOS" ]; then
+        for item in "$contents"/MacOS/*; do
+            [ "$item" != "$contents/MacOS/$main" ] || continue
+            ! macho "$item" || plan_nested "$item"
+        done
+    fi
+    echo "file $contents/MacOS/$main" >>"$work/covered.txt"
+    echo "$2 $bundle" >>"$work/plan.txt"
+)
+covered() {
+    while IFS= read -r line; do
+        case "$line" in
+            "file $1") return 0 ;;
+            prefix\ *)
+                case "$1" in
+                    "${line#prefix }"*) return 0 ;;
+                esac
+                ;;
+        esac
+    done <"$work/covered.txt"
+    return 1
+}
+: >"$work/plan.txt"
+: >"$work/covered.txt"
+plan_bundle "$app" main
+find "$app" -type f >"$work/files.txt"
+while IFS= read -r file; do
+    if macho "$file" && ! covered "$file"; then
+        die 2 "$name carries code at $(inside "$file") outside the places this launcher signs; move it into Contents/Frameworks, PlugIns, XPCServices, Helpers, MacOS, or Library/LoginItems, SystemExtensions, QuickLook or Spotlight"
+    fi
+done <"$work/files.txt"
+
 entitlements=""
 : >"$work/keys.txt"
 if [ -n "$declared_entitlements" ]; then
@@ -183,21 +284,13 @@ if [ -n "$declared_entitlements" ]; then
     "$PLUTIL" -convert xml1 -o "$entitlements" "$declared_entitlements" >/dev/null 2>&1 ||
         die 2 "cannot read the entitlements $declared_entitlements"
     keys "$entitlements" >"$work/keys.txt"
-    debuggable="$(awk '
-        found { if ($0 ~ /<true\/>/) print "true"; exit }
-        /<key>com\.apple\.security\.get-task-allow<\/key>/ {
-            if ($0 ~ /<true\/>/) { print "true"; exit }
-            found = 1
-        }
-    ' "$entitlements")"
-    [ "$debuggable" != true ] || die 2 "entitlement 'com.apple.security.get-task-allow' is true; notarization rejects debuggable apps"
+    ! debuggable "$entitlements" || die 2 "entitlement 'com.apple.security.get-task-allow' is true; notarization rejects debuggable apps"
 fi
 
 fingerprint() {
     "$OPENSSL" x509 "$@" -noout -fingerprint -sha1 2>/dev/null | sed 's/.*=//' | tr -d ':' | tr 'abcdef' 'ABCDEF'
 }
 
-# Imports the .p12 identity into a temporary keychain on the user search list; sets keychain and sha1.
 keychain_open() {
     "$OPENSSL" rand -hex 24 >"$work/transfer.pass"
     "$OPENSSL" pkcs12 -in "$cert" -passin "file:$password_file" -nodes 2>/dev/null |
@@ -231,12 +324,44 @@ keychain_open() {
         die 2 "$cert holds no valid code signing identity $sha1"
 }
 
-sha1=""
-keychain_open
+identity_find() {
+    if [ -n "$user_keychain" ]; then
+        "$SECURITY" find-identity -v -p codesigning "$user_keychain" >"$work/identities.txt" 2>/dev/null ||
+            die 2 "cannot list the code signing identities in $user_keychain"
+    else
+        "$SECURITY" find-identity -v -p codesigning >"$work/identities.txt" 2>/dev/null ||
+            die 2 "cannot list the code signing identities"
+    fi
+    awk -v id="$identity" '
+        $1 ~ /^[0-9]+\)$/ && NF >= 3 {
+            label = $0
+            sub(/^[^"]*"/, "", label)
+            sub(/"[^"]*$/, "", label)
+            if (toupper($2) == toupper(id) || index(label, id) > 0) print toupper($2)
+        }
+    ' "$work/identities.txt" | LC_ALL=C sort -u >"$work/matches.txt"
+    matches="$(wc -l <"$work/matches.txt" | tr -d ' ')"
+    [ "$matches" != 0 ] || die 2 "no valid code signing identity matches --identity $identity"
+    [ "$matches" = 1 ] || die 2 "--identity $identity matches more than one code signing identity; pass its SHA-1"
+    sha1="$(cat "$work/matches.txt")"
+    sign_keychain="$user_keychain"
+}
 
-# Signs one path with the hardened runtime and a secure timestamp, never with --deep.
+sha1=""
+sign_keychain=""
+if [ -n "$identity" ]; then
+    identity_find
+else
+    keychain_open
+    sign_keychain="$keychain"
+fi
+
 sign() {
-    "$CODESIGN" --force --options runtime --timestamp --keychain "$keychain" --sign "$sha1" "$@" 2>"$work/codesign.err" || {
+    set -- --sign "$sha1" "$@"
+    if [ -n "$sign_keychain" ]; then
+        set -- --keychain "$sign_keychain" "$@"
+    fi
+    "$CODESIGN" --force --options runtime --timestamp "$@" 2>"$work/codesign.err" || {
         code=$?
         cat "$work/codesign.err" >&2
         if grep -q 'timestamp service is not available' "$work/codesign.err"; then
@@ -246,17 +371,20 @@ sign() {
     }
 }
 
-if [ -d "$app/Contents/Frameworks" ]; then
-    for nested in "$app"/Contents/Frameworks/*; do
-        [ -e "$nested" ] && [ ! -L "$nested" ] || continue
-        sign "$nested"
-    done
-fi
-if [ -n "$entitlements" ]; then
-    sign --entitlements "$entitlements" "$app"
-else
-    sign "$app"
-fi
+while IFS= read -r step; do
+    target="${step#* }"
+    case "${step%% *}" in
+        framework) sign "$target" ;;
+        nested) sign --preserve-metadata=entitlements "$target" ;;
+        main)
+            if [ -n "$entitlements" ]; then
+                sign --entitlements "$entitlements" "$target"
+            else
+                sign "$target"
+            fi
+            ;;
+    esac
+done <"$work/plan.txt"
 
 "$CODESIGN" --verify --deep --strict "$app" >/dev/null 2>&1 || die 1 "signed $name fails codesign --verify --deep --strict"
 details="$("$CODESIGN" -dvv "$app" 2>&1)" || die 1 "cannot read the signature of $name"

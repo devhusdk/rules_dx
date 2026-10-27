@@ -19,6 +19,10 @@ case "$1" in
         ;;
     find-identity)
         printf '  1) %s "Developer ID Application: Ledger (ABCDE12345)"\n' "$FAKE_IDENTITY"
+        if [ -n "${FAKE_OTHER_IDENTITY:-}" ]; then
+            printf '  2) %s "Developer ID Application: Ledger Labs (FGHIJ67890)"\n' "$FAKE_OTHER_IDENTITY"
+        fi
+        printf '     2 valid identities found\n'
         ;;
 esac
 "#;
@@ -85,6 +89,12 @@ printf 'codesign %s\n' "$*" >>"$FAKE_LOG"
 for last; do :; done
 case "$1" in
     -d*)
+        if [ "${2:-}" = --entitlements ]; then
+            case "$last" in
+                */Share.appex) printf '%s' "${FAKE_NESTED_ENTITLEMENTS:-}" ;;
+            esac
+            exit 0
+        fi
         printf 'Executable=%s/Contents/MacOS/Ledger\n' "$last" >&2
         printf 'CodeDirectory v=20500 size=512 flags=%s hashes=8+7 location=embedded\n' "${FAKE_FLAGS:-0x10000(runtime)}" >&2
         if [ -n "${FAKE_ADHOC:-}" ]; then
@@ -202,6 +212,25 @@ fn write(path: &Path, text: &str) {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
     }
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
+}
+
+fn write_bytes(path: &Path, body: &[u8]) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
+    }
+    std::fs::write(path, body).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
+}
+
+const MACHO: [u8; 8] = [0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01];
+
+const NESTED_DEBUGGABLE: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict><key>com.apple.security.get-task-allow</key><true/></dict></plist>";
+
+fn nested_bundle(bundle: &Path, executable: &str) {
+    write(
+        &bundle.join("Contents/Info.plist"),
+        &format!("CFBundleExecutable={executable}\n"),
+    );
+    write_bytes(&bundle.join("Contents/MacOS").join(executable), &MACHO);
 }
 
 fn tool(root: &Path, name: &str, body: &str) -> String {
@@ -513,13 +542,13 @@ type Case<'a> = (Vec<&'a str>, Vec<(&'a str, &'a str)>, String);
 #[test]
 fn sign_rejects_bad_input_before_signing() {
     let fixture = Fixture::new("apple-sign-args");
-    let usage = "usage: bazel run <sign> -- --certificate <identity.p12> --password-file <file> --out <App.app>";
+    let usage = "usage: bazel run <sign> -- (--certificate <identity.p12> --password-file <file> | --identity <SHA-1 or name> [--keychain <keychain>]) --out <App.app>";
     let ws = fixture.path("ws");
     let cases: Vec<Case> = vec![
         (
             SIGN[2..].to_vec(),
             vec![],
-            format!("--certificate names the Developer ID identity .p12 file; {usage}"),
+            format!("--certificate names the Developer ID identity .p12 file, or --identity names one in a keychain; {usage}"),
         ),
         (
             [&SIGN[..2], &SIGN[4..]].concat(),
@@ -554,6 +583,22 @@ fn sign_rejects_bad_input_before_signing() {
             [&SIGN[..4], &["--out", "gone/Ledger.app"][..]].concat(),
             vec![],
             format!("--out directory {ws}/gone does not exist"),
+        ),
+        (
+            [&SIGN[..], &["--identity", "ABCDEF01"][..]].concat(),
+            vec![],
+            format!("pass --identity or --certificate with --password-file, not both; {usage}"),
+        ),
+        (
+            [&SIGN[4..], &["--keychain", "ci.keychain-db"][..]].concat(),
+            vec![],
+            format!("--keychain only goes with --identity; {usage}"),
+        ),
+        (
+            [&SIGN[4..], &["--identity", "ABCDEF01", "--keychain", "keys/gone.keychain-db"][..]]
+                .concat(),
+            vec![],
+            format!("--keychain {ws}/keys/gone.keychain-db is not a file"),
         ),
         (
             SIGN.to_vec(),
@@ -620,23 +665,204 @@ fn sign_rejects_debuggable_apps_and_nested_code() {
     assert!(signs(&debuggable.log()).is_empty(), "{}", debuggable.log());
     debuggable.assert_clean(&ran);
 
-    for (nested, want) in [
-        (
-            "Contents/PlugIns/Share.appex/Contents/Info.plist",
-            "Ledger.app carries Contents/PlugIns; signing nested PlugIns, XPCServices and LoginItems is not supported yet",
-        ),
-        (
-            "Contents/Library/LoginItems/Helper.app/Contents/Info.plist",
-            "Ledger.app carries Contents/Library/LoginItems; signing nested PlugIns, XPCServices and LoginItems is not supported yet",
-        ),
+    for (nested, body, want) in [
         (
             "Contents/Frameworks/Share.framework/Versions/A/XPCServices/Fetch.xpc/Contents/Info.plist",
+            &b"x"[..],
             "Ledger.app carries nested code at Contents/Frameworks/Share.framework/Versions/A/XPCServices; signing code nested in a framework is not supported yet",
+        ),
+        (
+            "Contents/Resources/tool",
+            &MACHO[..],
+            "Ledger.app carries code at Contents/Resources/tool outside the places this launcher signs; move it into Contents/Frameworks, PlugIns, XPCServices, Helpers, MacOS, or Library/LoginItems, SystemExtensions, QuickLook or Spotlight",
+        ),
+        (
+            "Contents/PlugIns/Share.appex/Contents/Resources/tool",
+            &MACHO[..],
+            "Ledger.app carries code at Contents/PlugIns/Share.appex/Contents/Resources/tool outside the places this launcher signs; move it into Contents/Frameworks, PlugIns, XPCServices, Helpers, MacOS, or Library/LoginItems, SystemExtensions, QuickLook or Spotlight",
+        ),
+        (
+            "Contents/XPCServices/Fetch.xpc/Contents/MacOS/Fetch",
+            &MACHO[..],
+            "Ledger.app carries Contents/XPCServices/Fetch.xpc without Contents/Info.plist; cannot sign it",
         ),
     ] {
         let fixture = Fixture::with("apple-sign-nested", true, Some(ENTITLEMENTS));
-        write(&fixture.root.join("bin-out/Ledger.app").join(nested), "x");
+        let app = fixture.root.join("bin-out/Ledger.app");
+        if nested.starts_with("Contents/PlugIns/") {
+            nested_bundle(&app.join("Contents/PlugIns/Share.appex"), "Share");
+        }
+        write_bytes(&app.join(nested), body);
         let ran = fixture.sign(&SIGN, &[]);
+        fails(&ran, "dx-apple-sign", 2, want);
+        assert!(signs(&fixture.log()).is_empty(), "{}", fixture.log());
+        assert!(!fixture.root.join("ws/dist/Ledger.app").exists());
+        fixture.assert_clean(&ran);
+    }
+
+    let fixture = Fixture::with("apple-sign-nested-debug", true, Some(ENTITLEMENTS));
+    nested_bundle(
+        &fixture
+            .root
+            .join("bin-out/Ledger.app/Contents/PlugIns/Share.appex"),
+        "Share",
+    );
+    let ran = fixture.sign(&SIGN, &[("FAKE_NESTED_ENTITLEMENTS", NESTED_DEBUGGABLE)]);
+    fails(
+        &ran,
+        "dx-apple-sign",
+        2,
+        "Contents/PlugIns/Share.appex sets entitlement 'com.apple.security.get-task-allow'; notarization rejects debuggable code",
+    );
+    assert!(signs(&fixture.log()).is_empty(), "{}", fixture.log());
+    fixture.assert_clean(&ran);
+}
+
+#[test]
+fn sign_signs_nested_code_inside_out_and_keeps_its_entitlements() {
+    let fixture = Fixture::with("apple-sign-inside-out", true, Some(ENTITLEMENTS));
+    let app = fixture.root.join("bin-out/Ledger.app");
+    nested_bundle(&app.join("Contents/PlugIns/Share.appex"), "Share");
+    nested_bundle(&app.join("Contents/XPCServices/Fetch.xpc"), "Fetch");
+    let login = app.join("Contents/Library/LoginItems/Agent.app");
+    nested_bundle(&login, "Agent");
+    write_bytes(
+        &login.join("Contents/Frameworks/Core.framework/Versions/A/Core"),
+        &MACHO,
+    );
+    write_bytes(&app.join("Contents/Helpers/ledgerctl"), &MACHO);
+    write_bytes(&app.join("Contents/MacOS/ledger-cli"), &MACHO);
+    write(&app.join("Contents/MacOS/README"), "not code");
+    let ran = fixture.sign(&SIGN, &[("FAKE_NESTED_ENTITLEMENTS", ENTITLEMENTS)]);
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    let log = fixture.log();
+    let signed: Vec<String> = signs(&log)
+        .iter()
+        .map(|line| {
+            let path = line.rsplit(' ').next().unwrap_or_default();
+            path.split_once("/Ledger.app")
+                .map(|(_, rest)| format!("Ledger.app{rest}"))
+                .unwrap_or_default()
+        })
+        .collect();
+    let position = |want: &str| {
+        signed
+            .iter()
+            .position(|path| path == want)
+            .unwrap_or_else(|| panic!("{want} is not signed: {log}"))
+    };
+    let core = position(
+        "Ledger.app/Contents/Library/LoginItems/Agent.app/Contents/Frameworks/Core.framework",
+    );
+    let agent = position("Ledger.app/Contents/Library/LoginItems/Agent.app");
+    let main = position("Ledger.app");
+    assert!(core < agent, "{log}");
+    for nested in [
+        "Ledger.app/Contents/Frameworks/Share.framework",
+        "Ledger.app/Contents/Frameworks/libz.dylib",
+        "Ledger.app/Contents/PlugIns/Share.appex",
+        "Ledger.app/Contents/XPCServices/Fetch.xpc",
+        "Ledger.app/Contents/Helpers/ledgerctl",
+        "Ledger.app/Contents/MacOS/ledger-cli",
+    ] {
+        assert!(position(nested) < main, "{log}");
+    }
+    assert_eq!(main, signed.len() - 1, "{log}");
+    assert_eq!(signed.len(), 9, "{log}");
+    for line in signs(&log) {
+        assert!(!line.contains("--deep"), "{log}");
+        let path = line.rsplit(' ').next().unwrap_or_default();
+        let bundle_or_tool = [".appex", ".xpc", "/Agent.app", "/ledgerctl", "/ledger-cli"]
+            .iter()
+            .any(|suffix| path.ends_with(suffix));
+        assert_eq!(
+            line.contains(" --preserve-metadata=entitlements "),
+            bundle_or_tool,
+            "{log}"
+        );
+        assert_eq!(
+            line.contains(" --entitlements "),
+            path.ends_with("/Ledger.app"),
+            "{log}"
+        );
+    }
+    fixture.assert_clean(&ran);
+}
+
+#[test]
+fn sign_with_a_keychain_identity_skips_the_temporary_keychain() {
+    let fixture = Fixture::new("apple-sign-identity");
+    write(&fixture.root.join("ws/ci.keychain-db"), "keychain");
+    let keychain = fixture.path("ws/ci.keychain-db");
+    let ran = fixture.sign(
+        &[
+            "--identity",
+            "abcdef01",
+            "--keychain",
+            "ci.keychain-db",
+            "--out",
+            "dist/Ledger.app",
+        ],
+        &[],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    let log = fixture.log();
+    assert!(
+        log.contains(&format!(
+            "security find-identity -v -p codesigning {keychain}\n"
+        )),
+        "{log}"
+    );
+    for line in signs(&log) {
+        assert!(
+            line.starts_with(&format!(
+                "codesign --force --options runtime --timestamp --keychain {keychain} --sign ABCDEF01 "
+            )),
+            "{log}"
+        );
+    }
+    assert!(!log.contains("create-keychain"), "{log}");
+    assert!(!log.contains("delete-keychain"), "{log}");
+    assert!(!log.contains("openssl"), "{log}");
+    assert_eq!(text(&fixture.root.join("ws/dist/Ledger.app.txt")), REPORT);
+    fixture.assert_clean(&ran);
+
+    let by_name = Fixture::new("apple-sign-identity-env");
+    let ran = by_name.sign(
+        &["--out", "dist/Ledger.app"],
+        &[(
+            "DX_APPLE_SIGN_IDENTITY",
+            "Developer ID Application: Ledger (ABCDE12345)",
+        )],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    let log = by_name.log();
+    assert!(
+        log.contains("security find-identity -v -p codesigning\n"),
+        "{log}"
+    );
+    for line in signs(&log) {
+        assert!(
+            line.starts_with("codesign --force --options runtime --timestamp --sign ABCDEF01 "),
+            "{log}"
+        );
+    }
+    by_name.assert_clean(&ran);
+
+    for (identity, envs, want) in [
+        (
+            "Apple Development",
+            vec![],
+            "no valid code signing identity matches --identity Apple Development",
+        ),
+        (
+            "Developer ID Application: Ledger",
+            vec![("FAKE_OTHER_IDENTITY", "0123ABCD")],
+            "--identity Developer ID Application: Ledger matches more than one code signing identity; pass its SHA-1",
+        ),
+    ] {
+        let fixture = Fixture::new("apple-sign-identity-bad");
+        let ran = fixture.sign(&["--identity", identity, "--out", "dist/Ledger.app"], &envs);
         fails(&ran, "dx-apple-sign", 2, want);
         assert!(signs(&fixture.log()).is_empty(), "{}", fixture.log());
         assert!(!fixture.root.join("ws/dist/Ledger.app").exists());

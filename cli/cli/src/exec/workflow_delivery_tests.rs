@@ -146,8 +146,7 @@ fn a_stdout_report_owns_stdout_so_no_summary_is_written() {
 #[test]
 #[cfg(any(unix, windows))]
 fn closed_pipe_schedules_no_work() {
-    let (reader, mut writer) = io::pipe().expect("pipe");
-    drop(reader);
+    let mut writer = closed_pipe();
     let harness = Harness::new("wf-closed-pipe");
     let inv = invocation(&["build", "--output=json"]);
     let run = harness.probe_streams(&inv, &[Some(0)], &mut writer, &mut Vec::new());

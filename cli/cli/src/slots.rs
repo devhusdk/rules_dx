@@ -1429,11 +1429,12 @@ mod tests {
         let dir = scratch.path().join("slots");
         let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
         let gate = remote_gate(&dir, false, Some(false));
-        let waiter = std::thread::spawn(move || take_gate(&gate).0.index);
-        std::thread::sleep(Duration::from_millis(600));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        std::thread::sleep(POLL * 2);
         assert!(free(&dir, 1) && free(&dir, 2));
         drop(fill);
-        assert_eq!(waiter.join().expect("join"), 0);
+        assert_eq!(waiter.join().expect("join").0.index, 0);
     }
 
     #[test]
@@ -1455,15 +1456,13 @@ mod tests {
             let dir = scratch.path().join("slots");
             let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
             let gate = remote_gate(&dir, true, high);
-            let waiter = std::thread::spawn(move || {
-                let (slot, err, _) = take_gate(&gate);
-                (slot.index, err)
-            });
-            std::thread::sleep(Duration::from_millis(600));
+            let (waiter, rx) = spawn_take(gate);
+            announced(&rx);
+            std::thread::sleep(POLL * 2);
             assert!(free(&dir, 1) && free(&dir, 2));
             drop(fill);
-            let (index, err) = waiter.join().expect("join");
-            assert_eq!(index, 0);
+            let (slot, err, _) = waiter.join().expect("join");
+            assert_eq!(slot.index, 0);
             let want = match high {
                 Some(true) => "dx: waiting for a build slot (held by fill; extra slots paused under memory pressure)\n",
                 _ => "dx: waiting for a build slot (held by fill)\n",
@@ -1479,16 +1478,14 @@ mod tests {
         let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
         let queued = enqueue(&dir).expect("queued");
         let gate = remote_gate(&dir, true, Some(false));
-        let waiter = std::thread::spawn(move || {
-            let (slot, err, _) = take_gate(&gate);
-            (slot.index, err)
-        });
-        std::thread::sleep(Duration::from_millis(600));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        std::thread::sleep(POLL * 2);
         assert!(!waiter.is_finished(), "a remote waiter must keep its place");
         assert!(free(&dir, 1) && free(&dir, 2));
         drop(queued);
-        let (index, err) = waiter.join().expect("join");
-        assert_eq!(index, 1);
+        let (slot, err, _) = waiter.join().expect("join");
+        assert_eq!(slot.index, 1);
         assert_eq!(
             err,
             "dx: waiting for a build slot (held by fill, 1 ahead in line)\n"
@@ -1510,14 +1507,11 @@ mod tests {
             })
             .collect();
         let gate = remote_gate(&dir, true, Some(true));
-        let waiter = std::thread::spawn(move || {
-            let (slot, err, _) = take_gate(&gate);
-            (slot.index, err)
-        });
-        std::thread::sleep(Duration::from_millis(600));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
         drop(fill);
-        let (index, err) = waiter.join().expect("join");
-        assert_eq!(index, 0);
+        let (slot, err, _) = waiter.join().expect("join");
+        assert_eq!(slot.index, 0);
         assert_eq!(
             err,
             "dx: waiting for a build slot (held by fill and 2 more)\n"
@@ -1556,11 +1550,12 @@ mod tests {
         std::fs::write(extra_mark(&dir), "earlier").expect("mark");
         let gate = remote_gate(&dir, true, Some(false));
         let waiting = gate.clone();
-        let waiter = std::thread::spawn(move || take_gate(&waiting).0);
-        std::thread::sleep(Duration::from_millis(600));
+        let (waiter, rx) = spawn_take(waiting);
+        announced(&rx);
+        std::thread::sleep(POLL * 2);
         assert!(free(&dir, 1) && free(&dir, 2));
         drop(fill);
-        let base = waiter.join().expect("join");
+        let base = waiter.join().expect("join").0;
         assert_eq!(base.index, 0);
         let old = SystemTime::now() - EXTRA_SPACING - Duration::from_secs(1);
         File::options()
@@ -2199,15 +2194,17 @@ mod tests {
         assert_eq!(first.index, 0);
         let mut seen = Vec::new();
         let second_dir = dir.clone();
+        let (sender, receiver) = std::sync::mpsc::channel();
         let waiter = std::thread::spawn(move || {
             let mut holders = Vec::new();
             let slot = acquire(&second_dir, 1, "tree-b", &mut |holder| {
                 holders.push(holder.to_owned());
+                let _ = sender.send(());
             })
             .expect("second");
             (slot.index, holders)
         });
-        std::thread::sleep(Duration::from_millis(600));
+        announced(&receiver);
         drop(first);
         let (index, holders) = waiter.join().expect("join");
         seen.extend(holders);
@@ -2366,6 +2363,79 @@ mod tests {
         assert_eq!((first.index, second.index), (0, 1));
     }
 
+    /// A writer that buffers everything and signals once on its first write.
+    ///
+    /// `Gate::take` writes the wait line from `on_wait`, which `acquire_reserving` runs only after
+    /// the waiter is queued and failed to take a slot, so the signal proves the waiter is in line.
+    struct Announce {
+        buf: Vec<u8>,
+        signal: Option<std::sync::mpsc::Sender<()>>,
+    }
+
+    impl Announce {
+        fn new() -> (Self, std::sync::mpsc::Receiver<()>) {
+            let (signal, rx) = std::sync::mpsc::channel();
+            let announce = Self {
+                buf: Vec::new(),
+                signal: Some(signal),
+            };
+            (announce, rx)
+        }
+
+        fn text(self) -> String {
+            String::from_utf8(self.buf).expect("utf8")
+        }
+    }
+
+    impl Write for Announce {
+        fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+            self.buf.extend_from_slice(data);
+            if let Some(signal) = self.signal.take() {
+                let _ = signal.send(());
+            }
+            Ok(data.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    const ANNOUNCE_TIMEOUT: Duration = Duration::from_secs(30);
+
+    /// Waits for the waiter's announcement; panics rather than hanging when it never comes.
+    fn announced(rx: &std::sync::mpsc::Receiver<()>) {
+        rx.recv_timeout(ANNOUNCE_TIMEOUT)
+            .expect("waiter never announced a wait");
+    }
+
+    /// Waits for the announcement, then always drops `held`, so a missing wait fails the caller's
+    /// assertions instead of hanging `hold()` forever. Returns whether the wait was announced.
+    fn released_after_wait<T>(rx: &std::sync::mpsc::Receiver<()>, held: T) -> bool {
+        let seen = rx.recv_timeout(ANNOUNCE_TIMEOUT).is_ok();
+        drop(held);
+        seen
+    }
+
+    /// Like `take_gate` on a thread; the receiver fires once the thread is waiting in line.
+    fn spawn_take(
+        gate: Gate,
+    ) -> (
+        std::thread::JoinHandle<(Slot, String, String)>,
+        std::sync::mpsc::Receiver<()>,
+    ) {
+        let (mut err, rx) = Announce::new();
+        let waiter = std::thread::spawn(move || {
+            let mut events = Vec::new();
+            let slot = gate
+                .take(Command::Test, &mut err, &mut events)
+                .expect("take")
+                .expect("slot");
+            (slot, err.text(), String::from_utf8(events).expect("utf8"))
+        });
+        (waiter, rx)
+    }
+
     fn take_gate(gate: &Gate) -> (Slot, String, String) {
         let mut err = Vec::new();
         let mut events = Vec::new();
@@ -2416,14 +2486,11 @@ mod tests {
         assert_eq!(consumer.index, 1);
         drop(fill);
         let gate = Gate::new(dir.clone(), 1, "r".to_owned(), true).reserving(2);
-        let waiter = std::thread::spawn(move || {
-            let (slot, err, events) = take_gate(&gate);
-            (slot.index, err, events)
-        });
-        std::thread::sleep(Duration::from_millis(600));
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
         drop(consumer);
-        let (index, err, events) = waiter.join().expect("join");
-        assert_eq!(index, 0);
+        let (slot, err, events) = waiter.join().expect("join");
+        assert_eq!(slot.index, 0);
         assert_eq!(err, "dx: waiting for a build slot (held by consumer)\n");
         assert_eq!(
             events.matches("waiting_for_build_slot").count(),
@@ -2662,11 +2729,8 @@ mod tests {
             .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
             .collect();
         let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
-        let releaser = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(600));
-            drop(held);
-        });
-        let mut err = Vec::new();
+        let (mut err, rx) = Announce::new();
+        let releaser = std::thread::spawn(move || released_after_wait(&rx, held));
         let mut events = Vec::new();
         let slot = hold(
             Command::Test,
@@ -2676,9 +2740,12 @@ mod tests {
             true,
             &mut events,
         );
-        releaser.join().expect("join");
+        assert!(
+            releaser.join().expect("join"),
+            "waiter never announced a wait"
+        );
         assert!(matches!(slot, Ok(Some(_))));
-        let text = String::from_utf8(err).expect("utf8");
+        let text = err.text();
         assert_eq!(text.lines().count(), 1);
         assert!(text.contains(&wait_message(&busy(count))), "{text}");
         let json = String::from_utf8(events).expect("utf8");
@@ -2732,11 +2799,8 @@ mod tests {
             .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
             .collect();
         let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
-        let releaser = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(600));
-            drop(held);
-        });
-        let mut err = Vec::new();
+        let (mut err, rx) = Announce::new();
+        let releaser = std::thread::spawn(move || released_after_wait(&rx, held));
         let mut events = Vec::new();
         let slot = hold(
             command,
@@ -2746,9 +2810,12 @@ mod tests {
             false,
             &mut events,
         );
-        releaser.join().expect("join");
+        assert!(
+            releaser.join().expect("join"),
+            "waiter never announced a wait"
+        );
         assert!(matches!(slot, Ok(Some(_))), "{}", command.name());
-        let text = String::from_utf8(err).expect("utf8");
+        let text = err.text();
         assert!(text.contains(&wait_message(&busy(count))), "{text}");
         let nested = |name: &str| (name == SLOT_ENV_VAR).then(|| "1".to_owned());
         let slot = hold(

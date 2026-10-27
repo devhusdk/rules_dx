@@ -33,7 +33,26 @@ pub enum Descendants {
     /// Every descendant ends with the run.
     Owned,
     /// Descendants that leave the console or session, like a Bazel server, may outlive the run.
+    /// On Windows, a forced stop without a console also ends them (see `attached_targets`).
     Detachable,
+}
+
+/// The job members a Detachable stop kills: those on dx's console, except dx itself.
+/// `None` means the attached members cannot be told apart (no member list, or dx has no
+/// console), so a forced stop falls back to ending the whole job, detached server included.
+#[cfg(any(windows, test))]
+fn attached_targets(own: u32, members: Option<&[u32]>, console: &[u32]) -> Option<Vec<u32>> {
+    let members = members?;
+    if console.is_empty() {
+        return None;
+    }
+    Some(
+        members
+            .iter()
+            .copied()
+            .filter(|pid| *pid != own && console.contains(pid))
+            .collect(),
+    )
 }
 
 /// Everything one spawn needs.
@@ -1127,23 +1146,24 @@ mod backend {
             }
 
             fn stop_attached(&self) -> bool {
-                let Some(members) = self.members() else {
+                let members = self.members();
+                let console = console_members();
+                let Some(targets) = super::super::attached_targets(
+                    std::process::id(),
+                    members.as_deref(),
+                    &console,
+                ) else {
                     return false;
                 };
-                let console = console_members();
-                if console.is_empty() {
-                    return false;
-                }
-                let own = std::process::id();
-                for pid in members {
-                    if pid != own && console.contains(&pid) {
-                        self.kill_member(pid);
-                    }
+                for pid in targets {
+                    self.kill_member(pid);
                 }
                 true
             }
 
             fn stop(&self) {
+                // Without a console this ends the whole job, server included; see
+                // docs/cli/commands/completion.md.
                 if self.descendants == Descendants::Owned || !self.stop_attached() {
                     self.terminate();
                 }
@@ -1153,6 +1173,7 @@ mod backend {
         impl Drop for Job {
             fn drop(&mut self) {
                 if self.descendants == Descendants::Detachable {
+                    // No console: nothing is killed, so a normal exit leaves the server alone.
                     self.stop_attached();
                 }
                 unsafe {

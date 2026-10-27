@@ -20,6 +20,16 @@ fn skip_value_payload<S: AsRef<OsStr>>(args: &[S], index: usize) -> usize {
     }
 }
 
+/// Index of the word after the flag `arg` at `index`, skipping its separate value word.
+fn skip_flag<S: AsRef<OsStr>>(args: &[S], index: usize, arg: &str) -> usize {
+    let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
+    if consumes_next(arg, next) {
+        skip_value_payload(args, index)
+    } else {
+        index + 1
+    }
+}
+
 pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
     let mut index = 0;
     while index < args.len() {
@@ -29,12 +39,7 @@ pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
             return None;
         }
         if arg.starts_with('-') {
-            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
-            if consumes_next(arg, next) {
-                index = skip_value_payload(args, index);
-                continue;
-            }
-            index += 1;
+            index = skip_flag(args, index, arg);
             continue;
         }
         return Command::parse(arg);
@@ -54,12 +59,7 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
             break;
         }
         if arg.starts_with('-') {
-            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
-            if consumes_next(arg, next) {
-                index = skip_value_payload(args, index);
-                continue;
-            }
-            index += 1;
+            index = skip_flag(args, index, arg);
             continue;
         }
         if arg == "help" {
@@ -80,12 +80,7 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
             break;
         }
         if arg.starts_with('-') {
-            let next = args.get(scan + 1).and_then(|next| next.as_ref().to_str());
-            if consumes_next(arg, next) {
-                scan = skip_value_payload(args, scan);
-                continue;
-            }
-            scan += 1;
+            scan = skip_flag(args, scan, arg);
             continue;
         }
         target = Some(arg.to_owned());
@@ -292,6 +287,12 @@ mod tests {
             Some(Command::Lint)
         );
         assert_eq!(super::help_command_in(&["-qo", "lint"]), None);
+    }
+
+    #[test]
+    fn help_scan_skips_short_cluster_value_words() {
+        assert!(super::help_verb_error_in(&["-qo", "json", "help"]).is_some());
+        assert!(super::help_verb_error_in(&["-qo", "json", "lint"]).is_none());
     }
 
     #[test]

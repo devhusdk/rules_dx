@@ -3105,7 +3105,7 @@ fn prune_apply_prunes_a_slot_and_skips_its_stuck_output_base_as_orphaned() {
     assert_eq!(pruned.plan.bytes(), 4096, "the stuck base is not counted");
     assert_eq!(pruned.skipped_bases.len(), 1);
     assert_eq!(pruned.skipped_bases[0].dir, base);
-    assert_eq!(pruned.skipped_bases[0].slot, None);
+    assert_eq!(pruned.skipped_bases[0].owner, ops::BaseOwner::Orphan);
     assert_eq!(pruned.skipped_bases[0].reason, "busy");
     assert!(!path.exists());
     assert!(pool.record(slot.slot).is_none());

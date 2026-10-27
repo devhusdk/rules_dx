@@ -1400,8 +1400,8 @@ mod tests {
                 ("prune_downloads", "stale"),
             ]
         );
-        assert_eq!(events[8]["entries"], 2);
-        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 9] = [
+        assert_eq!(events[9]["entries"], 2);
+        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 10] = [
             ("/cache/slots/3", Some(3), None, Some(100), None),
             ("/cache/slots/4", Some(4), None, None, Some("busy")),
             ("/ext", None, Some("e"), Some(200), None),

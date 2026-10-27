@@ -17,7 +17,11 @@ fn a_lease_without_a_live_dx_stops_its_group() {
     std::fs::create_dir_all(&dir).expect("dir");
     let mut child = sleeper();
     let pgid = child.id() as i32;
-    std::fs::write(dir.join("424242-0.lock"), format!("{}\n", lease_line(pgid))).expect("lease");
+    std::fs::write(
+        dir.join("424242-0.lock"),
+        format!("{}\n", lease_line(pgid).expect("line")),
+    )
+    .expect("lease");
     let reaped = reap_in(&dir);
     let _ = child.wait();
     assert_eq!(reaped, vec![Reaped { pid: 424242, pgid }]);
@@ -37,7 +41,7 @@ fn a_lease_held_by_a_live_dx_is_left_alone() {
     let held = dx_atomic_fs::lease::try_lock_file(&path, true)
         .expect("lock")
         .expect("free");
-    std::fs::write(&path, format!("{}\n", lease_line(pgid))).expect("lease");
+    std::fs::write(&path, format!("{}\n", lease_line(pgid).expect("line"))).expect("lease");
     assert!(reap_in(&dir).is_empty());
     assert!(group_alive(pgid));
     sys::signal_group(pgid, 9);
@@ -55,8 +59,9 @@ fn a_lease_for_a_finished_group_is_dropped_quietly() {
         .spawn()
         .expect("probe");
     let pgid = child.id() as i32;
+    let line = lease_line(pgid).expect("line");
     let _ = child.wait();
-    std::fs::write(dir.join("424244-0.lock"), format!("{}\n", lease_line(pgid))).expect("lease");
+    std::fs::write(dir.join("424244-0.lock"), format!("{line}\n")).expect("lease");
     assert!(reap_in(&dir).is_empty());
     assert!(!dir.join("424244-0.lock").exists());
 }
@@ -285,4 +290,141 @@ fn an_old_empty_lease_held_by_a_live_dx_is_kept() {
     assert!(reap_in(&dir).is_empty());
     assert!(path.exists());
     drop(held);
+}
+
+fn recorded(start: &str) -> Recorded {
+    Recorded {
+        pgid: 4000,
+        namespace: "pid:[1]".to_owned(),
+        start: start.to_owned(),
+        boot: Some("boot-a".to_owned()),
+    }
+}
+
+fn observed() -> Observed {
+    Observed {
+        namespace: "pid:[1]".to_owned(),
+        group_alive: true,
+        leader: Leader::Present("77".to_owned()),
+        boot: "boot-a".to_owned(),
+        own: vec![10, 11, 12],
+    }
+}
+
+#[test]
+fn verdict_table() {
+    let ok = recorded("77");
+    assert_eq!(verdict(&ok, &observed()), Verdict::Stop);
+    let mut now = observed();
+    now.namespace = "pid:[2]".to_owned();
+    assert_eq!(verdict(&ok, &now), Verdict::Keep);
+    let mut now = observed();
+    now.group_alive = false;
+    assert_eq!(verdict(&ok, &now), Verdict::Drop);
+    assert_eq!(verdict(&recorded("-"), &observed()), Verdict::Drop);
+    let mut now = observed();
+    now.boot = "boot-b".to_owned();
+    assert_eq!(verdict(&ok, &now), Verdict::Drop);
+    let mut legacy = recorded("77");
+    legacy.boot = None;
+    assert_eq!(verdict(&legacy, &now), Verdict::Stop);
+    let mut now = observed();
+    now.own = vec![4000];
+    assert_eq!(verdict(&ok, &now), Verdict::Drop);
+    let mut now = observed();
+    now.leader = Leader::Present("78".to_owned());
+    assert_eq!(verdict(&ok, &now), Verdict::Drop);
+    now.leader = Leader::Unknown;
+    assert_eq!(verdict(&ok, &now), Verdict::Keep);
+    now.leader = Leader::Absent;
+    assert_eq!(verdict(&ok, &now), Verdict::Stop);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn verdict_drops_a_dash_namespace_on_linux() {
+    let mut rec = recorded("77");
+    rec.namespace = "-".to_owned();
+    let mut now = observed();
+    now.namespace = "-".to_owned();
+    assert_eq!(verdict(&rec, &now), Verdict::Drop);
+}
+
+#[test]
+fn a_lease_with_unknown_start_is_dropped_without_a_signal() {
+    let scratch = dx_test_scratch::scratch("dx-groups-unknown-");
+    let dir = scratch.path().join("groups");
+    std::fs::create_dir_all(&dir).expect("dir");
+    let mut child = sleeper();
+    let pgid = child.id() as i32;
+    let path = dir.join("424250-0.lock");
+    std::fs::write(&path, format!("{pgid} {} -\n", sys::namespace())).expect("lease");
+    let reaped = reap_in(&dir);
+    let alive = group_alive(pgid);
+    sys::signal_group(pgid, 9);
+    let _ = child.wait();
+    assert!(reaped.is_empty());
+    assert!(alive);
+    assert!(!path.exists());
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_lease_from_another_boot_is_dropped_without_a_signal() {
+    let scratch = dx_test_scratch::scratch("dx-groups-boot-");
+    let dir = scratch.path().join("groups");
+    std::fs::create_dir_all(&dir).expect("dir");
+    let mut child = sleeper();
+    let pgid = child.id() as i32;
+    let line = lease_line(pgid).expect("line");
+    let mut fields: Vec<&str> = line.split(' ').collect();
+    fields[3] = "not-this-boot";
+    let path = dir.join("424251-0.lock");
+    std::fs::write(&path, format!("{}\n", fields.join(" "))).expect("lease");
+    let reaped = reap_in(&dir);
+    let alive = group_alive(pgid);
+    sys::signal_group(pgid, 9);
+    let _ = child.wait();
+    assert!(reaped.is_empty());
+    assert!(alive);
+    assert!(!path.exists());
+}
+
+#[test]
+fn a_three_field_legacy_lease_still_stops_its_group() {
+    let scratch = dx_test_scratch::scratch("dx-groups-legacy-");
+    let dir = scratch.path().join("groups");
+    std::fs::create_dir_all(&dir).expect("dir");
+    let mut child = sleeper();
+    let pgid = child.id() as i32;
+    let line = lease_line(pgid).expect("line");
+    let legacy = line.rsplit_once(' ').expect("fields").0.to_owned();
+    std::fs::write(dir.join("424252-0.lock"), format!("{legacy}\n")).expect("lease");
+    let reaped = reap_in(&dir);
+    let _ = child.wait();
+    assert_eq!(reaped, vec![Reaped { pid: 424252, pgid }]);
+}
+
+#[test]
+fn a_stop_is_written_to_the_reap_log() {
+    let scratch = dx_test_scratch::scratch("dx-groups-log-");
+    let dir = scratch.path().join("groups");
+    std::fs::create_dir_all(&dir).expect("dir");
+    let mut child = sleeper();
+    let pgid = child.id() as i32;
+    std::fs::write(
+        dir.join("424253-0.lock"),
+        format!("{}\n", lease_line(pgid).expect("line")),
+    )
+    .expect("lease");
+    reap_in(&dir);
+    let _ = child.wait();
+    let log = std::fs::read_to_string(dir.join("reaped.log")).expect("log");
+    assert!(log.contains(&format!("stop reaper={}", std::process::id())));
+    assert!(log.contains(&format!("pgid={pgid}")));
+}
+
+#[test]
+fn record_writes_no_line_when_the_start_is_unknown() {
+    assert!(lease_line(i32::MAX).is_none());
 }

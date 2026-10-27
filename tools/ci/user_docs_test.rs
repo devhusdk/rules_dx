@@ -199,7 +199,10 @@ fn supported_surface() -> Vec<String> {
 /// Returns each `.bzl` label user docs and examples load, with the files that load it.
 fn documented_loads() -> BTreeMap<String, Vec<String>> {
     let scanned: Vec<String> = files_under(&runfiles_root(), &|name| {
-        name.ends_with(".md") || name.ends_with(".bzl") || name == "BUILD.bazel"
+        name.ends_with(".md")
+            || name.ends_with(".bzl")
+            || name == "BUILD.bazel"
+            || name.ends_with(".BUILD.bazel")
     })
     .into_iter()
     .filter(|rel| rel.ends_with(".md") || rel.starts_with("examples/"))

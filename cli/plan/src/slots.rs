@@ -1834,6 +1834,7 @@ const SETTLE_LIMIT: Duration = Duration::from_secs(1);
 const SETTLE_POLL: Duration = Duration::from_millis(10);
 
 /// Waits for `count` slots to look free, since a forked child can briefly hold a released slot's lock.
+/// See `a_child_forked_while_a_slot_is_held_keeps_it_until_exec` for why.
 #[cfg(test)]
 fn slot_settles_free(dir: &Path, count: usize) -> bool {
     let start = Instant::now();
@@ -2269,6 +2270,50 @@ mod tests {
         assert_eq!(share(12, 19 << 30, 6 << 30, 2), (6, 6656));
         assert_eq!(share(12, 4 << 30, 6 << 30, 2), (6, 1));
         assert_eq!(share(12, 19 << 30, 0, 0), (12, 19 << 10));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
+        use std::io::Read;
+        use std::os::fd::AsRawFd;
+        use std::os::unix::net::UnixStream;
+        use std::os::unix::process::CommandExt;
+        let scratch = dx_test_scratch::scratch("dx-slots-fork-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let slot = try_take(&dir, 1, "held").expect("try").expect("free");
+        let (mut reader, writer) = UnixStream::pair().expect("pair");
+        let fd = writer.as_raw_fd();
+        let spawner = std::thread::spawn(move || {
+            let mut cmd = Process::new("/bin/sh");
+            cmd.args(["-c", "exit 0"]);
+            // SAFETY: the hook only calls write and nanosleep, both async-signal-safe.
+            unsafe {
+                cmd.pre_exec(move || {
+                    let byte = 1u8;
+                    libc::write(fd, (&byte as *const u8).cast(), 1);
+                    let nap = libc::timespec {
+                        tv_sec: 0,
+                        tv_nsec: 150_000_000,
+                    };
+                    libc::nanosleep(&nap, std::ptr::null_mut());
+                    Ok(())
+                });
+            }
+            let mut child = cmd.spawn().expect("spawn");
+            drop(writer);
+            child.wait().expect("wait");
+        });
+        let mut byte = [0u8; 1];
+        reader.read_exact(&mut byte).expect("forked");
+        drop(slot);
+        assert!(
+            try_take(&dir, 1, "probe").expect("try").is_none(),
+            "the forked child holds the lock until it execs"
+        );
+        assert!(slot_settles_free(&dir, 1));
+        spawner.join().expect("spawner");
     }
 
     #[test]

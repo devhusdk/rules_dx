@@ -241,9 +241,24 @@ const WS_USER: &str = "try-import %workspace%/user.bazelrc\n";
 
 const RC_CASES: &[RcCase] = &[
     case("no rc files", &[], &[], Expect::Default),
-    case("XDG_CACHE_HOME", &[("XDG_CACHE_HOME", "{xdg}")], &[], Expect::Xdg),
-    case("empty XDG_CACHE_HOME", &[("XDG_CACHE_HOME", "")], &[], Expect::Default),
-    case("home rc", &[], &[(Rc::Home, "build --disk_cache=/x\n")], Expect::Unset),
+    case(
+        "XDG_CACHE_HOME",
+        &[("XDG_CACHE_HOME", "{xdg}")],
+        &[],
+        Expect::Xdg,
+    ),
+    case(
+        "empty XDG_CACHE_HOME",
+        &[("XDG_CACHE_HOME", "")],
+        &[],
+        Expect::Default,
+    ),
+    case(
+        "home rc",
+        &[],
+        &[(Rc::Home, "build --disk_cache=/x\n")],
+        Expect::Unset,
+    ),
     case(
         "try-import",
         &[],
@@ -253,15 +268,30 @@ const RC_CASES: &[RcCase] = &[
         ],
         Expect::Unset,
     ),
-    case("comment", &[], &[(Rc::Home, "# build --disk_cache=/x\n")], Expect::Default),
-    case("quoted", &[], &[(Rc::Home, "build \"--disk_cache=/x\"\n")], Expect::Unset),
+    case(
+        "comment",
+        &[],
+        &[(Rc::Home, "# build --disk_cache=/x\n")],
+        Expect::Default,
+    ),
+    case(
+        "quoted",
+        &[],
+        &[(Rc::Home, "build \"--disk_cache=/x\"\n")],
+        Expect::Unset,
+    ),
     case(
         "single-quoted",
         &[],
         &[(Rc::Home, "build '--disk_cache=/x'\n")],
         Expect::Unset,
     ),
-    case("split form", &[], &[(Rc::Home, "build --disk_cache /x\n")], Expect::Unset),
+    case(
+        "split form",
+        &[],
+        &[(Rc::Home, "build --disk_cache /x\n")],
+        Expect::Unset,
+    ),
     case(
         "config line",
         &[],
@@ -273,7 +303,10 @@ const RC_CASES: &[RcCase] = &[
         ..case(
             "rc gc bound",
             &[],
-            &[(Rc::Home, "common --experimental_disk_cache_gc_max_size=40G\n")],
+            &[(
+                Rc::Home,
+                "common --experimental_disk_cache_gc_max_size=40G\n",
+            )],
             Expect::Default,
         )
     },
@@ -295,7 +328,10 @@ const RC_CASES: &[RcCase] = &[
     case(
         "longer gc flag",
         &[],
-        &[(Rc::Home, "common --experimental_disk_cache_gc_max_size_x=1\n")],
+        &[(
+            Rc::Home,
+            "common --experimental_disk_cache_gc_max_size_x=1\n",
+        )],
         Expect::Default,
     ),
     case(
@@ -366,7 +402,10 @@ const RC_CASES: &[RcCase] = &[
         ..case(
             "ProgramData gc bound",
             &[],
-            &[(Rc::System, "common --experimental_disk_cache_gc_max_age=3d\n")],
+            &[(
+                Rc::System,
+                "common --experimental_disk_cache_gc_max_age=3d\n",
+            )],
             Expect::Default,
         )
     },
@@ -959,7 +998,8 @@ mod sh {
         let xdg_value = xdg.to_string_lossy().into_owned();
         for rc in RC_CASES
             .iter()
-            .filter(|rc| !rc.files.iter().any(|(slot, _)| matches!(slot, Rc::System))) {
+            .filter(|rc| !rc.files.iter().any(|(slot, _)| matches!(slot, Rc::System)))
+        {
             let name = rc.name;
             let expected = match rc.expect {
                 Expect::Default => Some(in_home.as_path()),
@@ -1826,9 +1866,18 @@ mod cmd {
             let _ = std::fs::remove_dir_all(root.join(".dx/launcher"));
             let _ = std::fs::remove_file(&args);
             let mut vars: Vec<(String, String)> = vec![
-                ("USERPROFILE".to_owned(), profile.to_string_lossy().into_owned()),
-                ("LOCALAPPDATA".to_owned(), local.to_string_lossy().into_owned()),
-                ("ProgramData".to_owned(), data.to_string_lossy().into_owned()),
+                (
+                    "USERPROFILE".to_owned(),
+                    profile.to_string_lossy().into_owned(),
+                ),
+                (
+                    "LOCALAPPDATA".to_owned(),
+                    local.to_string_lossy().into_owned(),
+                ),
+                (
+                    "ProgramData".to_owned(),
+                    data.to_string_lossy().into_owned(),
+                ),
             ];
             vars.extend(
                 rc.env

@@ -70,6 +70,9 @@ message Diagnostic {
   // Tool-provided labels, notes, help, and related locations in tool order.
   // They explain the diagnostic and never count as findings or edits.
   repeated Related related = 9;
+  // Why `fixable` is false for an initial diagnostic with a path; empty
+  // when fixable or unknown. One of: no_change, unstable, persists.
+  string unfixable_reason = 16;
   reserved 10 to 15;
 }
 

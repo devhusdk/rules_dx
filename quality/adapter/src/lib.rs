@@ -250,6 +250,7 @@ pub fn place_finding_with<'t>(
         start_byte: Some(start),
         end_byte: Some(end),
         fixable: false,
+        unfixable_reason: String::new(),
         related,
     })
 }

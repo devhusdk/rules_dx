@@ -335,6 +335,15 @@ fn assemble(
                 && terminal_diagnostic.path == diagnostic.path
         });
         diagnostic.fixable = stable && resolved && !persists;
+        diagnostic.unfixable_reason = if diagnostic.fixable || diagnostic.path.is_empty() {
+            String::new()
+        } else if !stable {
+            "unstable".to_owned()
+        } else if !resolved {
+            "no_change".to_owned()
+        } else {
+            "persists".to_owned()
+        };
     }
     let stages_proto = stages
         .iter()

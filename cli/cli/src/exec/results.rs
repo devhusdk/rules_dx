@@ -168,6 +168,8 @@ fn map_diagnostic(diagnostic: &proto::Diagnostic, snapshot: Snapshot) -> Option<
         range,
         snapshot,
         fixable: diagnostic.fixable,
+        unfixable_reason: (!diagnostic.unfixable_reason.is_empty())
+            .then(|| diagnostic.unfixable_reason.clone()),
         related: diagnostic.related.iter().map(map_related).collect(),
         ..DiagnosticEvent::new(
             map_severity(diagnostic.severity)?,

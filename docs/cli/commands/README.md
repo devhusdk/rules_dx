@@ -366,7 +366,8 @@ configurations appear once, with a `count`.
   and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
   `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
-  `package`, `resolution`, `baseline`, `origins`, and `related`. `location` is
+  `package`, `resolution`, `unfixable_reason` (`no_change`, `unstable`, or
+  `persists`, set when `fixable` is false), `baseline`, `origins`, and `related`. `location` is
   `unknown`, `file`, `bytes`, or `lines`. A `range` with `lines` location adds
   `start_line`, `start_column`, `end_line`, and `end_column`, all 1-based.
   `count` is how many identical findings this one stands for. `baseline` is

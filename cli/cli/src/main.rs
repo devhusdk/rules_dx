@@ -12,14 +12,15 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::time::Duration;
 
-use dx_cli::flush_out;
-use dx_cli::{create_run_temp_dir, remove_on_stop};
-use dx_cli::{
+use dx_cli::exec::common::flush_out;
+use dx_cli::{execute, Env};
+use dx_output::OutputMode;
+use dx_plan::args::{
     early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
     load_startup_defaults, parse_with_ci, DX_WORKSPACE_ENV,
 };
-use dx_cli::{execute, Env, QueryResult, QueryRunner};
-use dx_output::OutputMode;
+use dx_plan::plan::{create_run_temp_dir, remove_on_stop};
+use dx_plan::resolve::{QueryResult, QueryRunner};
 use dx_process::lifecycle::{
     self, CleanupBudget, EnvPolicy, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
     StreamStdin,
@@ -71,7 +72,7 @@ fn install_forwarding() {}
 #[cfg(unix)]
 fn die_by_signal(signo: i32) {
     if signo > 0 {
-        let _cleaned = dx_cli::clean_for_stop();
+        let _cleaned = dx_plan::plan::clean_for_stop();
         unsafe {
             libc::signal(signo, libc::SIG_DFL);
             libc::raise(signo);
@@ -277,8 +278,13 @@ fn startup_failure(stderr_text: &str, code: &str, message: &str, exit: i32, json
     exit
 }
 
-fn usage_error(code: &str, message: &str, json: bool, command: Option<dx_cli::Command>) -> i32 {
-    let usage = command.map_or_else(dx_cli::usage_banner, |c| c.usage().to_owned());
+fn usage_error(
+    code: &str,
+    message: &str,
+    json: bool,
+    command: Option<dx_plan::args::Command>,
+) -> i32 {
+    let usage = command.map_or_else(dx_plan::args::help::usage_banner, |c| c.usage().to_owned());
     startup_failure(
         &format!("dx: {message}\n{usage}"),
         code,
@@ -310,13 +316,18 @@ fn run() -> i32 {
     }
     let env_get = |name: &str| std::env::var(name).ok();
     let is_ci = dx_process::is_ci();
-    let bare_intent = json_output_intent(&args, &env_get, &dx_cli::FileDefaults::default(), is_ci);
-    match dx_cli::try_complete() {
+    let bare_intent = json_output_intent(
+        &args,
+        &env_get,
+        &dx_plan::args::FileDefaults::default(),
+        is_ci,
+    );
+    match dx_plan::args::try_complete() {
         Ok(true) => return 0,
         Ok(false) => {}
         Err(message) => {
             return startup_failure(
-                &format!("dx: {message}\n{}", dx_cli::usage_banner()),
+                &format!("dx: {message}\n{}", dx_plan::args::help::usage_banner()),
                 "completion_failed",
                 &message,
                 pre_exec_code(),
@@ -331,7 +342,7 @@ fn run() -> i32 {
     let env_workspace = std::env::var(DX_WORKSPACE_ENV)
         .ok()
         .filter(|value| !value.is_empty())
-        .filter(|_| !dx_cli::ci_ignores_env(DX_WORKSPACE_ENV, is_ci));
+        .filter(|_| !dx_plan::args::ci_ignores_env(DX_WORKSPACE_ENV, is_ci));
     let file_defaults = match load_startup_defaults(
         &initial_start,
         &initial_cwd,
@@ -357,7 +368,7 @@ fn run() -> i32 {
     };
     let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, is_ci) {
         Ok(invocation) => invocation,
-        Err(dx_cli::ArgsError::Help { text }) => {
+        Err(dx_plan::args::ArgsError::Help { text }) => {
             let stdout = io::stdout();
             let mut out = stdout.lock();
             if let Err(error) = write!(out, "{text}") {
@@ -371,10 +382,10 @@ fn run() -> i32 {
         Err(error) => {
             let json = json_output_intent(&args, &env_get, &file_defaults, is_ci);
             let code = match error {
-                dx_cli::ArgsError::BadDefault { .. } => "invalid_defaults",
+                dx_plan::args::ArgsError::BadDefault { .. } => "invalid_defaults",
                 _ => "invalid_arguments",
             };
-            let command = dx_cli::help_command_in(&args);
+            let command = dx_plan::args::help::help_command_in(&args);
             return usage_error(code, &error.to_string(), json, command);
         }
     };
@@ -387,7 +398,7 @@ fn run() -> i32 {
         quiet = invocation.quiet,
         "dx invocation parsed"
     );
-    if let Some(message) = dx_cli::host_refusal() {
+    if let Some(message) = dx_plan::platform::host_refusal() {
         return startup_failure(
             &format!("dx: {message}"),
             "unsupported_platform",
@@ -434,9 +445,9 @@ fn run() -> i32 {
         }
     };
     dx_process::configure_real(&workspace);
-    dx_cli::set_rules_dx_repo(&workspace);
+    dx_plan::plan::set_rules_dx_repo(&workspace);
     if invocation.here {
-        match dx_cli::apply_here(&invocation, &workspace, &cwd) {
+        match dx_plan::args::apply_here(&invocation, &workspace, &cwd) {
             Ok(resolved) => invocation = resolved,
             Err(detail) => {
                 return startup_failure(
@@ -449,18 +460,18 @@ fn run() -> i32 {
             }
         }
     }
-    let pin = dx_cli::skew::read_pin(&workspace);
-    match dx_cli::skew::disposition(&invocation, dx_cli::skew::is_skewed(&pin)) {
-        dx_cli::skew::SkewDisposition::Proceed => {}
-        dx_cli::skew::SkewDisposition::Warn => {
+    let pin = dx_plan::skew::read_pin(&workspace);
+    match dx_plan::skew::disposition(&invocation, dx_plan::skew::is_skewed(&pin)) {
+        dx_plan::skew::SkewDisposition::Proceed => {}
+        dx_plan::skew::SkewDisposition::Warn => {
             let _ = writeln!(
                 io::stderr(),
                 "dx: warning: {} (proceeding: read-only invocation)",
-                dx_cli::skew::diagnostic(&pin)
+                dx_plan::skew::diagnostic(&pin)
             );
         }
-        dx_cli::skew::SkewDisposition::Refuse => {
-            let message = dx_cli::skew::diagnostic(&pin);
+        dx_plan::skew::SkewDisposition::Refuse => {
+            let message = dx_plan::skew::diagnostic(&pin);
             return startup_failure(
                 &format!("dx: {message}"),
                 "version_skew",
@@ -496,7 +507,7 @@ fn run() -> i32 {
     if workspace.join("MODULE.bazel").is_file() {
         dx_process::groups::set_lease_root(&workspace.join(".dx"));
     }
-    dx_cli::remove_stale_run_dirs(&temp_base);
+    dx_plan::plan::remove_stale_run_dirs(&temp_base);
     let reaped = dx_process::groups::reap_orphans();
     let runner = BinaryRunner { inherit_stdout };
     let query_runner = BinaryQueryRunner;
@@ -515,10 +526,10 @@ fn run() -> i32 {
             let _ = dx_output::lifecycle::write_event(&mut pending, &event);
         }
     }
-    dx_cli::inherit_share(&env_get);
+    dx_plan::slots::inherit_share(&env_get);
     let mut slot_options = vec![invocation.profile().config_flag()];
     slot_options.extend(invocation.raw_bazel_options().iter().cloned());
-    let gate = dx_cli::Gate::from_env(
+    let gate = dx_plan::slots::Gate::from_env(
         &workspace,
         &env_get,
         invocation.output == OutputMode::Json,
@@ -535,17 +546,17 @@ fn run() -> i32 {
         }
     };
     let gate = if let Some(slot) = &slot {
-        std::env::set_var(dx_cli::SLOT_ENV_VAR, "1");
+        std::env::set_var(dx_plan::slots::SLOT_ENV_VAR, "1");
         if let Some(share) = &slot.share {
-            std::env::set_var(dx_cli::SHARE_ENV_VAR, share.to_env());
+            std::env::set_var(dx_plan::slots::SHARE_ENV_VAR, share.to_env());
         }
         None
     } else {
         gate
     };
-    let mut after_first = dx_cli::AfterFirstLine::new(&mut out, pending);
-    let audit_today = std::env::var(dx_cli::AUDIT_TODAY_ENV).ok();
-    let code = dx_cli::with_gate(gate, || {
+    let mut after_first = dx_plan::slots::AfterFirstLine::new(&mut out, pending);
+    let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
+    let code = dx_plan::slots::with_gate(gate, || {
         execute(
             &invocation,
             Env {

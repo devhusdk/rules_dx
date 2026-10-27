@@ -330,20 +330,6 @@ mod tests {
     }
 
     #[test]
-    fn help_process_exits_zero_with_brand() {
-        let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-        let binary = std::path::Path::new(&root)
-            .join(workspace)
-            .join("cli/cli/dx");
-        assert_cmd::Command::new(binary)
-            .arg("--help")
-            .assert()
-            .success()
-            .stdout(predicates::str::contains("Run Bazel workflows"));
-    }
-
-    #[test]
     fn top_help_environment_names_every_env_default() {
         let text = super::render_top_help();
         for (env, flag, shape) in dx_adopt::defaults::ENV_DEFAULTS {

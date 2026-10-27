@@ -14,7 +14,7 @@ pub(crate) fn strip_configuration(line: &str) -> &str {
     }
 }
 
-pub(crate) fn set_expression(labels: &[String]) -> String {
+pub fn set_expression(labels: &[String]) -> String {
     let quoted: Vec<String> = labels.iter().map(|label| quote_label(label)).collect();
     format!("set({})", quoted.join(" "))
 }

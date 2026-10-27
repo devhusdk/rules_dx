@@ -52,16 +52,16 @@ fn probed_shards_narrow_the_build_aspects() {
 #[test]
 fn failed_probe_falls_back_to_every_shard() {
     for (command, parsed) in [
-        ("lint", crate::args::Command::Lint),
-        ("format", crate::args::Command::Format),
-        ("typecheck", crate::args::Command::Typecheck),
+        ("lint", dx_plan::args::Command::Lint),
+        ("format", dx_plan::args::Command::Format),
+        ("typecheck", dx_plan::args::Command::Typecheck),
     ] {
         let harness = clean_harness(&format!("probe-fallback-{command}"));
         let (code, _, _) = harness.run(&[command, "--check", "--output=text"]);
         assert_eq!(code, 0, "{command}");
         assert_eq!(harness.probe_argv.borrow().len(), 1, "{command}");
         let builds = harness.build_argv.borrow();
-        let all = crate::plan::spec(parsed).aspects.len();
+        let all = dx_plan::plan::spec(parsed).aspects.len();
         assert_eq!(aspects_of(&builds[0]).len(), all, "{command}");
     }
 }
@@ -85,13 +85,13 @@ fn probe_keeps_json_stdout_to_the_build_events() {
 fn interrupted_probe_cancels_the_phase_without_a_build() {
     let mut harness = clean_harness("probe-interrupted");
     harness.probe_code = Some(super::super::common::BAZEL_INTERRUPTED);
-    let parsed = crate::args::parse(&dx_testing::cli::strings(&[
+    let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&[
         "lint",
         "--check",
         "--output=text",
     ]))
     .expect("parse");
-    let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
+    let inv = dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
     let request = inv.quality_request().expect("quality request");
     let runner = harness.runner();
     let (mut out, mut err) = (Vec::new(), Vec::new());

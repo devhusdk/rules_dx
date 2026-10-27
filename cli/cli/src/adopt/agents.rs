@@ -1,7 +1,7 @@
 use std::io;
 use std::path::Path;
 
-use crate::args::Command;
+use dx_plan::args::Command;
 
 pub(crate) const FILE: &str = "AGENTS.md";
 const BEGIN: &str = "<!-- dx:begin -->";
@@ -174,7 +174,7 @@ mod tests {
         }
         for command in [Command::Fix, Command::Test] {
             assert!(
-                crate::args::grammar::advertised_flags(command).contains(&"affected".to_owned())
+                dx_plan::args::grammar::advertised_flags(command).contains(&"affected".to_owned())
             );
         }
     }
@@ -194,10 +194,10 @@ mod tests {
                 .map(str::to_owned)
                 .collect()
         };
-        let fix = crate::args::parse(&line("- Fix first:")).expect("fix parses");
+        let fix = dx_plan::args::parse(&line("- Fix first:")).expect("fix parses");
         assert_eq!(fix.command, Command::Fix);
         assert!(fix.applies() && fix.affected);
-        let test = crate::args::parse(&line("- Then verify:")).expect("test parses");
+        let test = dx_plan::args::parse(&line("- Then verify:")).expect("test parses");
         assert_eq!(test.command, Command::Test);
         assert!(!test.applies() && test.affected);
     }

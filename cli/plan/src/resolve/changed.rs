@@ -16,7 +16,7 @@ pub struct WidenedScope {
 pub struct AffectedSelection {
     pub targets: Vec<String>,
     pub widened: Vec<WidenedScope>,
-    pub(crate) graph: Option<RuleGraph>,
+    pub graph: Option<RuleGraph>,
 }
 
 fn git_failure(what: &str, detail: String) -> String {

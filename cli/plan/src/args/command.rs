@@ -719,7 +719,7 @@ impl Command {
         self.meta().name
     }
 
-    pub(crate) fn parse(text: &str) -> Option<Self> {
+    pub fn parse(text: &str) -> Option<Self> {
         use clap::ValueEnum;
         Self::from_str(text, false).ok()
     }

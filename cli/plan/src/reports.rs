@@ -7,7 +7,7 @@ pub mod lcov;
 pub mod planning;
 pub mod sarif;
 
-pub(crate) use identity::finding_identity;
+pub use identity::finding_identity;
 pub use junit::{junit_infrastructure_case, parse_test_xml, render_junit, JunitCase, JunitMessage};
 pub use lcov::{coverage_line_rate, validate_lcov};
 pub use planning::{

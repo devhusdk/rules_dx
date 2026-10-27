@@ -1,6 +1,6 @@
-use crate::args::{Command, HintScope, QualityRequest};
+use dx_plan::args::{Command, HintScope, QualityRequest};
 
-pub(crate) use crate::plan::shell_quote as quote;
+pub(crate) use dx_plan::plan::shell_quote as quote;
 
 fn secret_bearing(option: &str) -> bool {
     let lower = option.to_ascii_lowercase();
@@ -123,7 +123,7 @@ mod tests {
     }
 
     pub(crate) fn request_of(words: &[&str]) -> QualityRequest {
-        crate::args::parse(&dx_testing::cli::strings(words))
+        dx_plan::args::parse(&dx_testing::cli::strings(words))
             .expect("parse")
             .quality_request()
             .expect("quality")
@@ -152,7 +152,7 @@ mod tests {
 
     fn umbrella(command: Command, scope: HintScope) -> QualityRequest {
         let mut request = request_of(&["format", "//a:x", "//a:y", "--", "--config=ci"]);
-        request.origin = Some(crate::args::UmbrellaOrigin { command, scope });
+        request.origin = Some(dx_plan::args::UmbrellaOrigin { command, scope });
         request
     }
 

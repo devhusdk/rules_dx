@@ -15,17 +15,20 @@ pub use changed::{
     collect_range, collect_working_tree, local_override_changes, merge_base, resolve_affected,
     AffectedSelection, WidenedScope,
 };
-pub(crate) use classify::{classify_scopes, first_line, owners_in_graph, parse_owners};
+pub use classify::first_line;
+pub(crate) use classify::{classify_scopes, owners_in_graph, parse_owners};
 pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_test_with_selection};
 pub(crate) use packages::PackageCache;
-pub(crate) use query::{quote_set, run_label_query, run_label_query_file};
-pub(crate) use rule_graph::RuleGraph;
-pub use run_deploy::{check_deployable, resolve_deploy, resolve_run};
+pub use query::quote_set;
+pub(crate) use query::run_label_query;
+pub use query::run_label_query_file;
+pub use rule_graph::RuleGraph;
+pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
 pub use selection::SelectionContext;
-#[cfg(test)]
-pub use test_map::map_owners_to_tests_with_selection;
-pub(crate) use test_map::{set_expression, tests_for_owners};
+pub use test_map::set_expression;
+pub(crate) use test_map::tests_for_owners;
+pub use test_map::{map_owners_to_tests, map_owners_to_tests_with_selection};
 #[cfg(test)]
 pub(crate) use types::NeverQuery;
 pub use types::{QueryFailure, QueryResult, QueryRunner, ResolveError, ResolvedScope};

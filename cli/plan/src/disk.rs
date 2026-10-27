@@ -5,10 +5,10 @@ use std::path::{Component, Path, PathBuf};
 use dx_worktree::disk::is_full;
 
 /// Bazel exit code for a failure of the local environment, such as a full disk.
-pub(crate) const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
+pub const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
 
 /// The directories a Bazel run writes to: workspace, output roots, temp dir and home.
-pub(crate) fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
+pub fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
     let mut paths = vec![workspace.to_path_buf()];
     for arg in argv {
         for flag in ["--output_base=", "--output_user_root="] {
@@ -40,7 +40,7 @@ pub(crate) fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
 }
 
 /// The probed path with the least free space, when that is under `DISK_FULL_BYTES`.
-pub(crate) fn shortage(
+pub fn shortage(
     probe: &dyn Fn(&Path) -> Option<u64>,
     workspace: &Path,
     argv: &[String],
@@ -53,7 +53,7 @@ pub(crate) fn shortage(
 }
 
 /// The diagnosis of a Bazel exit `code` with `free` bytes left at `path`.
-pub(crate) fn full_message(code: i32, path: &Path, free: u64) -> String {
+pub fn full_message(code: i32, path: &Path, free: u64) -> String {
     format!(
         "Bazel exited {code} with {} free at {}; the disk is full",
         dx_worktree::ops::size(free),
@@ -62,7 +62,7 @@ pub(crate) fn full_message(code: i32, path: &Path, free: u64) -> String {
 }
 
 /// The `disk_low` warning for `free` bytes left at `path`, shown before a Bazel run.
-pub(crate) fn low_message(path: &Path, free: u64) -> String {
+pub fn low_message(path: &Path, free: u64) -> String {
     format!(
         "{} free at {}; free disk space with `dx worktree prune --apply`",
         dx_worktree::ops::size(free),

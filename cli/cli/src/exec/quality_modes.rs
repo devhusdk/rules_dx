@@ -759,8 +759,8 @@ fn typed_quality_request_preserves_passthrough_and_default_scope() {
 }
 
 fn quality_phase(harness: &Harness, words: &[&str]) -> super::PhaseRun {
-    let parsed = crate::args::parse(&dx_testing::cli::strings(words)).expect("parse");
-    let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
+    let parsed = dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parse");
+    let inv = dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
     let request = inv.quality_request().expect("quality request");
     let runner = harness.runner();
     let mut out = Vec::new();

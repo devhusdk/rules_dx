@@ -37,7 +37,7 @@ fn dir_pattern(rel: &str) -> String {
     }
 }
 
-pub(crate) fn first_line(bytes: &[u8]) -> String {
+pub fn first_line(bytes: &[u8]) -> String {
     dx_output::first_diagnostic_line(bytes, 300, "no Bazel diagnostic")
 }
 

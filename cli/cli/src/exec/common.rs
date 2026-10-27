@@ -1,6 +1,3 @@
-use crate::args::{Command, Invocation};
-use crate::reports::Destination;
-use crate::resolve::QueryRunner;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
@@ -8,6 +5,9 @@ use dx_output::{
     command_started, notice_event, write_event, ChangeEvent, ChangeKind, FindingRecord,
     NoticeEvent, OutputMode, Span,
 };
+use dx_plan::args::{Command, Invocation};
+use dx_plan::reports::Destination;
+use dx_plan::resolve::QueryRunner;
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
 use std::io::{self, BufReader, Write};
 use std::path::Path;
@@ -525,7 +525,7 @@ pub(crate) fn resolve_failed(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
-    error: &crate::resolve::ResolveError,
+    error: &dx_plan::resolve::ResolveError,
 ) -> i32 {
     report_failure(output, out, err, &Failure::resolve(error))
 }
@@ -580,7 +580,7 @@ pub(crate) fn write_report_file(
     destination: &str,
     document: &str,
 ) -> Result<(), ReportWriteError> {
-    let target = crate::reports::resolve_destination(workspace, destination);
+    let target = dx_plan::reports::resolve_destination(workspace, destination);
     let display = target.display().to_string();
     if target.is_dir() {
         return Err(ReportWriteError {
@@ -722,11 +722,12 @@ fn warn_low_disk(
     workspace: &Path,
     argv: &[String],
 ) -> Result<(), i32> {
-    let Some((path, free)) = crate::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)
+    let Some((path, free)) =
+        dx_plan::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)
     else {
         return Ok(());
     };
-    let message = crate::disk::low_message(&path, free);
+    let message = dx_plan::disk::low_message(&path, free);
     let _ = writeln!(err, "dx: {CODE_DISK_LOW}: {message}");
     if output != OutputMode::Json {
         return Ok(());
@@ -748,13 +749,13 @@ fn host_failure(
     argv: &[String],
     code: i32,
 ) -> Option<i32> {
-    if code != crate::disk::BAZEL_LOCAL_ENVIRONMENT_EXIT {
+    if code != dx_plan::disk::BAZEL_LOCAL_ENVIRONMENT_EXIT {
         return None;
     }
-    let (path, free) = crate::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)?;
+    let (path, free) = dx_plan::disk::shortage(&|p| runner.free_disk_bytes(p), workspace, argv)?;
     let mut failure = Failure::new(
         CODE_DISK_FULL,
-        &crate::disk::full_message(code, &path, free),
+        &dx_plan::disk::full_message(code, &path, free),
         code,
     )
     .without_usage();
@@ -1061,7 +1062,7 @@ mod tests {
     }
 
     fn bazel_invocation() -> Invocation {
-        crate::args::parse(&["build".to_owned(), "//...".to_owned()]).expect("parse")
+        dx_plan::args::parse(&["build".to_owned(), "//...".to_owned()]).expect("parse")
     }
 
     #[test]
@@ -1376,7 +1377,7 @@ mod tests {
         assert!(!err.contains("disk_full"), "{err}");
         assert_eq!(
             runner.probed.borrow().len(),
-            crate::disk::disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len()
+            dx_plan::disk::disk_paths(Path::new("/ws"), &["--output_base=/ob".to_owned()]).len()
         );
     }
 
@@ -1916,7 +1917,7 @@ mod tests {
 
     #[test]
     fn operational_returns_broken_pipe_on_truncated_stdout() {
-        use crate::args::parse;
+        use dx_plan::args::parse;
         let invocation = parse(&["status".to_owned(), "--output=json".to_owned()]).expect("parse");
         let mut err = Vec::new();
         let code = operational(

@@ -1,13 +1,13 @@
 use super::common::{emit_built, emit_event, refusal, resolve_failed, Env};
 use super::execute;
-use crate::args::{Command, Invocation};
-use crate::resolve::{
+use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
+use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
+use dx_plan::args::{Command, Invocation};
+use dx_plan::resolve::{
     collect_range, collect_working_tree, local_override_changes, merge_base, quote_set,
     resolve_affected, run_label_query_file, AffectedSelection, QueryRunner, ResolveError,
     RuleGraph, WidenedScope,
 };
-use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
-use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
 use serde_json::{json, Value};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -261,7 +261,7 @@ pub(crate) fn plan(
             workspace,
             runner,
             startup_options,
-            &crate::plan::registry::all_aspect_labels(),
+            &dx_plan::plan::registry::all_aspect_labels(),
             Some((git.as_path(), plan.base.as_str())),
         )?
     };
@@ -502,7 +502,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::QueryResult;
+    use dx_plan::resolve::QueryResult;
     use std::cell::RefCell;
     use std::process::Command as Process;
 
@@ -709,7 +709,7 @@ mod tests {
             .iter()
             .filter(|command| {
                 **command != Command::Watch
-                    && crate::args::grammar::accepts_long(**command, "affected")
+                    && dx_plan::args::grammar::accepts_long(**command, "affected")
             })
             .map(|command| command.name().to_owned())
             .collect();
@@ -719,7 +719,8 @@ mod tests {
             "cases must cover every command that takes --affected"
         );
         for (words, expected) in cases {
-            let invocation = crate::args::parse(&dx_testing::cli::strings(words)).expect("parses");
+            let invocation =
+                dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parses");
             let mut out = Vec::new();
             assert_eq!(finished_empty(&invocation, &plan, &mut out), 0, "{words:?}");
             let text = String::from_utf8(out).expect("utf8");

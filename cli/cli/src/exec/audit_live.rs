@@ -92,7 +92,7 @@ fn run_on(
     audit_today: &str,
     setup: &dyn Fn(&Harness),
 ) -> (i32, String, String) {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -280,7 +280,7 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
 }
 
 fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32, String, String) {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     use dx_testing::cli::strings;
     let mut invocation = parse(&strings(argv)).expect("parse");
     invocation.targets = Vec::new();
@@ -379,7 +379,7 @@ fn run_unpinned(
     runner: &UnpinnedRunner,
     setup: &dyn Fn(&Harness),
 ) -> (i32, String, String, Vec<Vec<String>>, Vec<Vec<String>>) {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     use dx_testing::cli::strings;
     assert!(runner.gitleaks_tool().is_none());
     let invocation = parse(&strings(&["security"])).expect("parse");
@@ -397,7 +397,7 @@ fn script_cquery(harness: &Harness, code: i32, stdout: &str, stderr: &str) {
         .query
         .outputs
         .borrow_mut()
-        .push(crate::resolve::QueryResult {
+        .push(dx_plan::resolve::QueryResult {
             code: Some(code),
             stdout: stdout.as_bytes().to_vec(),
             stderr: stderr.as_bytes().to_vec(),
@@ -1195,14 +1195,14 @@ impl Runner for RealGitleaks {
 /// Answers `git` queries with the real git binary; Bazel queries are unexpected.
 struct RealGit;
 
-impl crate::resolve::QueryRunner for RealGit {
-    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<crate::resolve::QueryResult> {
+impl dx_plan::resolve::QueryRunner for RealGit {
+    fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<dx_plan::resolve::QueryResult> {
         assert_eq!(argv[0], "git", "unexpected query {argv:?}");
         let output = std::process::Command::new("git")
             .args(&argv[1..])
             .current_dir(cwd)
             .output()?;
-        Ok(crate::resolve::QueryResult {
+        Ok(dx_plan::resolve::QueryResult {
             code: output.status.code(),
             stdout: output.stdout,
             stderr: output.stderr,

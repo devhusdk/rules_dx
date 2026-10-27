@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use crate::plan::OUTPUT_GROUP;
 use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
+use dx_plan::plan::OUTPUT_GROUP;
 use quality_result::{decode_validated, proto};
 
 use super::common::{collect_output_account, FileChange};

@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::args::Command;
+use dx_plan::args::Command;
 
 fn workspace_root() -> PathBuf {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
@@ -125,7 +125,7 @@ fn sentence_names(page: &str, opening: &str) -> Vec<String> {
 
 #[test]
 fn umbrella_phase_flag_routing_matches_docs() {
-    use crate::plan::registry::spec;
+    use dx_plan::plan::registry::spec;
     let phases: Vec<Command> = super::UMBRELLA_PHASES
         .into_iter()
         .chain([Command::Test])

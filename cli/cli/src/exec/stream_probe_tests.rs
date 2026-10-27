@@ -1104,12 +1104,12 @@ fn generate_and_adoption_with_a_failing_destination_start_nothing() {
     }
 }
 
-fn hold_all_slots(base: &Path) -> Vec<crate::slots::Slot> {
+fn hold_all_slots(base: &Path) -> Vec<dx_plan::slots::Slot> {
     let slots = base.join(".cache/dx/slots");
     fs::create_dir_all(&slots).expect("slot dir");
-    (0..crate::slots::MAX_SLOTS)
+    (0..dx_plan::slots::MAX_SLOTS)
         .map(|_| {
-            crate::slots::acquire(&slots, crate::slots::MAX_SLOTS, "other-tree", &mut |_| {})
+            dx_plan::slots::acquire(&slots, dx_plan::slots::MAX_SLOTS, "other-tree", &mut |_| {})
                 .expect("slot")
         })
         .collect()

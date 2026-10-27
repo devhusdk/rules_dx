@@ -1,9 +1,9 @@
 use super::build_failures::to_event;
 use super::common::*;
-use crate::args::Invocation;
-use crate::reports::PlannedReport;
 use dx_bep::{collect_build_failures, BuildFailure, StderrRef};
 use dx_output::{build_failure_event, report_event, OutputMode};
+use dx_plan::args::Invocation;
+use dx_plan::reports::PlannedReport;
 use serde_json::{json, Map, Value};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
@@ -182,7 +182,7 @@ pub(crate) fn write_failure_reports(
                 report_event("failures", planned.destination.display(), complete),
             )?;
         } else if matches!(invocation.output, OutputMode::Text { .. })
-            && planned.destination != crate::reports::Destination::Stdout
+            && planned.destination != dx_plan::reports::Destination::Stdout
         {
             let _ = writeln!(
                 out,

@@ -1,10 +1,10 @@
 use super::common::*;
-use crate::args::{Command, Invocation};
-use crate::reports::plan_reports;
 use dx_output::{
     change_event, command_finished, command_started, error_event, notice_event, with_correlation,
     ChangeEffect, ChangeEvent, ChangeKind, Edit, FinishedCounts, NoticeEvent, OutputMode,
 };
+use dx_plan::args::{Command, Invocation};
+use dx_plan::reports::plan_reports;
 use std::collections::BTreeMap;
 
 pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -286,14 +286,14 @@ struct SlotGate<'a> {
     err: &'a mut dyn std::io::Write,
     events: &'a mut dyn std::io::Write,
     asked: bool,
-    slot: Option<crate::slots::Slot>,
+    slot: Option<dx_plan::slots::Slot>,
 }
 
 impl SlotGate<'_> {
     fn before(&mut self, argv: &[String]) -> Result<(), i32> {
         if !self.asked && dx_update::backend::runs_bazel(argv) {
             self.asked = true;
-            self.slot = crate::slots::take(self.command, &mut *self.err, &mut *self.events)?;
+            self.slot = dx_plan::slots::take(self.command, &mut *self.err, &mut *self.events)?;
         }
         Ok(())
     }

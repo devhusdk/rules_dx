@@ -1,5 +1,5 @@
 use super::{execute_adoption, AdoptEnv, Invocation};
-use crate::resolve::{QueryResult, QueryRunner};
+use dx_plan::resolve::{QueryResult, QueryRunner};
 use std::io::{self, Write};
 use std::path::Path;
 

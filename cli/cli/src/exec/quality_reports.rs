@@ -10,7 +10,7 @@ use super::common::{
     SourceRead,
 };
 use super::results::Collected;
-use crate::reports::{render_sarif_with_baseline, BaselineReport, PlannedReport, ReportError};
+use dx_plan::reports::{render_sarif_with_baseline, BaselineReport, PlannedReport, ReportError};
 
 pub(crate) struct StandardReports<'a> {
     pub(crate) workspace: &'a Path,

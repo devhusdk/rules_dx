@@ -336,7 +336,7 @@ fn json_add_exits_with_the_stdout_code_when_the_start_event_cannot_land() {
 
     let harness = Harness::new("add-start-broken");
     harness.write_source(CARGO_PATH, "[dependencies]\nanyhow = \"1\"\n");
-    let parsed = crate::args::parse(&dx_testing::cli::strings(&[
+    let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&[
         "add",
         "cargo:serde",
         "1.0.200",
@@ -345,7 +345,7 @@ fn json_add_exits_with_the_stdout_code_when_the_start_event_cannot_land() {
     ]))
     .expect("parse");
     let inv =
-        crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("workspace");
+        dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("workspace");
     let runner = harness.runner();
     let mut err = Vec::new();
     assert_eq!(

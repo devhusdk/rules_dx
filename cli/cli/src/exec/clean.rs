@@ -1,5 +1,4 @@
 use super::common::*;
-use crate::args::Invocation;
 use dx_clean::{
     apply_plan, collect_inventory_with_scan, measure_preserved_bytes, measure_prune_bytes,
     render_prune_listing, GenerationView, PruneBytes, UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
@@ -8,6 +7,7 @@ use dx_output::{
     command_finished, command_started, notice_event, operation_event, FinishedCounts, NoticeEvent,
     OutputMode,
 };
+use dx_plan::args::Invocation;
 
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {

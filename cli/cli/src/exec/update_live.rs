@@ -176,7 +176,7 @@ impl Runner for ScriptRunner {
 }
 
 pub(super) fn run_with(argv: &[&str], runner: &ScriptRunner) -> (i32, String, String) {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -431,26 +431,27 @@ pub(super) fn default_checks_like_explicit_check_and_apply_updates() {
 fn run_with_busy_slot(argv: &[&str], json: bool) -> (i32, String, String) {
     let scratch = dx_test_scratch::scratch("dx-update-slot-");
     let dir = scratch.path().join("slots");
-    let held = crate::slots::acquire(&dir, 1, "tree-0", &mut |_| {}).expect("fill");
+    let held = dx_plan::slots::acquire(&dir, 1, "tree-0", &mut |_| {}).expect("fill");
     let releaser = std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(600));
         drop(held);
     });
-    let gate = crate::slots::Gate::new(dir, 1, "me".to_owned(), json);
+    let gate = dx_plan::slots::Gate::new(dir, 1, "me".to_owned(), json);
     let runner = ScriptRunner::new(&[]);
-    let result = crate::slots::with_gate(Some(gate), || run_with(argv, &runner));
+    let result = dx_plan::slots::with_gate(Some(gate), || run_with(argv, &runner));
     releaser.join().expect("join");
     result
 }
 
 #[test]
 pub(super) fn bazel_backends_see_the_held_slot() {
-    let marked = (crate::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
+    let marked = (dx_plan::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
     for (set, bazel) in [("cargo", true), ("uv", false)] {
         let scratch = dx_test_scratch::scratch("dx-update-slot-env-");
-        let gate = crate::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
+        let gate =
+            dx_plan::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = crate::slots::with_gate(Some(gate), || {
+        let (code, out, err) = dx_plan::slots::with_gate(Some(gate), || {
             run_with(&["update", "--apply", set], &runner)
         });
         assert_eq!(code, 0, "{out}{err}");

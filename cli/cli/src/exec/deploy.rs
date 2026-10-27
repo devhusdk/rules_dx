@@ -1,8 +1,8 @@
 use super::common::*;
-use crate::args::{resolve_profile, Command, Invocation, Profile, DX_PROFILE_ENV};
-use crate::plan::{plan_deploy_build, plan_deploy_run, shell_join};
-use crate::reports::plan_reports;
-use crate::resolve::{check_deployable, resolve_deploy};
+use dx_plan::args::{resolve_profile, Command, Invocation, Profile, DX_PROFILE_ENV};
+use dx_plan::plan::{plan_deploy_build, plan_deploy_run, shell_join};
+use dx_plan::reports::plan_reports;
+use dx_plan::resolve::{check_deployable, resolve_deploy};
 
 pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
@@ -93,7 +93,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
             }
             words.push(label.clone());
             if !invocation.raw_bazel_options().is_empty() {
-                let (safe, withheld) = crate::plan::quality::partition_provenance_options(
+                let (safe, withheld) = dx_plan::plan::quality::partition_provenance_options(
                     invocation.raw_bazel_options(),
                 );
                 words.push("--".to_owned());
@@ -155,8 +155,8 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use crate::args::parse;
-    use crate::resolve::QueryResult;
+    use dx_plan::args::parse;
+    use dx_plan::resolve::QueryResult;
 
     fn deploy_query_output(output: &str) -> QueryResult {
         QueryResult {
@@ -285,11 +285,11 @@ mod tests {
             Some(&"//deploy:prod".to_owned()),
             "{cquery:?}"
         );
-        for setting in crate::plan::BAZEL_SETTINGS {
+        for setting in dx_plan::plan::BAZEL_SETTINGS {
             assert!(cquery.contains(&setting.to_owned()), "{cquery:?}");
         }
         for argv in &run.argv {
-            for setting in crate::plan::BAZEL_SETTINGS {
+            for setting in dx_plan::plan::BAZEL_SETTINGS {
                 assert!(argv.contains(&setting.to_owned()), "{argv:?}");
             }
         }

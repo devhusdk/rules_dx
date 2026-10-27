@@ -547,7 +547,7 @@ fn lock_loading_requires_readable_inputs_and_deduplicates_npm_siblings() {
 
 #[test]
 fn audit_live_names_the_lockfile_each_finding_came_from() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     fn sarif_paths(
         harness: &Harness,
         report: &str,
@@ -635,7 +635,7 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
 
 #[test]
 fn audit_live_names_the_gemfile_lock_each_ruby_finding_came_from() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     let harness = Harness::new("audit-ruby-lock-paths");
     harness.write_source(
         "third_party/ruby/Gemfile.lock",
@@ -864,7 +864,7 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
 
 #[test]
 fn audit_reports_sarif_and_spdx_to_files() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-reports-cargo");
     write_cargo_license_set(&harness);
@@ -950,7 +950,7 @@ fn audit_reports_sarif_and_spdx_to_files() {
 
 #[test]
 fn audit_reports_reject_cross_format_collisions_before_execution() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-report-collision");
     write_cargo_license_set(&harness);
@@ -974,7 +974,7 @@ fn audit_reports_reject_cross_format_collisions_before_execution() {
 
 #[test]
 fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-sarif-license-shape");
     write_cargo_license_set(&harness);
@@ -1026,7 +1026,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
 
 #[test]
 fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     let github = format!("{}{}", "ghp_", "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8");
     let sarif_in = format!(
         "{{\"version\": \"2.1.0\", \"runs\": [{{\"tool\": {{\"driver\": {{\"name\": \"gitleaks\"}}}}, \"results\": [{{\"ruleId\": \"gitleaks/aws-key\", \"message\": {{\"text\": \"leaked {github}\"}}, \"locations\": [{{\"physicalLocation\": {{\"artifactLocation\": {{\"uri\": \"src/app.py\"}}}}}}]}}]}}]}}"
@@ -1074,7 +1074,7 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
 
 #[test]
 fn audit_spdx_live_golden_is_single_deterministic_document() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     fn emit(nonce: u64) -> (serde_json::Value, i32, String) {
         let runner = AuditRunner::clean();
         let harness = Harness::new(&format!("audit-spdx-determinism-{nonce}"));
@@ -1444,7 +1444,7 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
 
 #[test]
 fn audit_sarif_spdx_write_failures_are_fail_closed() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     for (format, path) in [
         ("sarif", "missing-dir/out.sarif"),
         ("spdx", "missing-dir/out.spdx.json"),
@@ -1470,7 +1470,7 @@ fn audit_sarif_spdx_write_failures_are_fail_closed() {
 
 #[test]
 fn audit_report_write_failure_json_reports_error_event() {
-    use crate::args::parse;
+    use dx_plan::args::parse;
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-report-fail-json");
     write_cargo_license_set(&harness);

@@ -84,14 +84,18 @@ mod tests {
         assert_eq!(github_main(&["a".to_owned()], "b", "v1.0.0", &argv), 1);
         assert_eq!(
             maven_main(
-                "a",
-                "b",
-                "com.example",
-                "demo",
-                "1.0.0",
-                "https://maven.invalid",
-                &argv
-            ),
+&MavenLaunch {
+jar_rloc: "a",
+pom_rloc: "b",
+sources_rloc: "",
+javadoc_rloc: "",
+group: "com.example",
+artifact: "demo",
+version: "1.0.0",
+repository_url: "https://maven.invalid",
+},
+&argv
+),
             1
         );
         assert_eq!(
@@ -143,14 +147,18 @@ mod tests {
                 );
                 assert_eq!(
                     maven_main(
-                        missing,
-                        missing,
-                        "com.example",
-                        "demo",
-                        "1.0.0",
-                        "https://maven.invalid",
-                        &argv
-                    ),
+&MavenLaunch {
+jar_rloc: missing,
+pom_rloc: missing,
+sources_rloc: "",
+javadoc_rloc: "",
+group: "com.example",
+artifact: "demo",
+version: "1.0.0",
+repository_url: "https://maven.invalid",
+},
+&argv
+),
                     1
                 );
                 assert_eq!(
@@ -332,14 +340,18 @@ mod tests {
             || {
                 assert_eq!(
                     maven_main(
-                        missing,
-                        missing,
-                        "com.example",
-                        "demo",
-                        "0.0.0",
-                        "https://maven.invalid",
-                        &argv
-                    ),
+&MavenLaunch {
+jar_rloc: missing,
+pom_rloc: missing,
+sources_rloc: "",
+javadoc_rloc: "",
+group: "com.example",
+artifact: "demo",
+version: "0.0.0",
+repository_url: "https://maven.invalid",
+},
+&argv
+),
                     1
                 );
             },
@@ -582,14 +594,18 @@ mod tests {
                 );
                 assert_eq!(
                     maven_main(
-                        "maven_demo-0.0.0.jar",
-                        "maven_demo-0.0.0.pom",
-                        "com.example",
-                        "maven_demo",
-                        "1.0.0",
-                        "https://maven.invalid",
-                        &argv
-                    ),
+&MavenLaunch {
+jar_rloc: "maven_demo-0.0.0.jar",
+pom_rloc: "maven_demo-0.0.0.pom",
+sources_rloc: "",
+javadoc_rloc: "",
+group: "com.example",
+artifact: "maven_demo",
+version: "1.0.0",
+repository_url: "https://maven.invalid",
+},
+&argv
+),
                     0
                 );
                 assert_eq!(
@@ -777,13 +793,12 @@ mod tests {
         type Main3 = fn(&str, &str, &str, &[String]) -> i32;
         type Main4 = fn(&str, &str, &str, &str, &[String]) -> i32;
         type Main5 = fn(&str, &str, &str, &str, &str, &[String]) -> i32;
-        type Main6 = fn(&str, &str, &str, &str, &str, &str, &[String]) -> i32;
         let archive: Main3 = crate::archive_main;
         let pypi: Main4 = crate::pypi_main;
         let nuget: Main5 = crate::nuget_main;
         let crates: Main3 = crate::crates_main;
         let github: fn(&[String], &str, &str, &[String]) -> i32 = crate::github_main;
-        let maven: Main6 = crate::maven_main;
+        let maven: fn(&crate::MavenLaunch<'_>, &[String]) -> i32 = crate::maven_main;
         let oci: Main5 = crate::oci_main;
         let promotion: Main5 = crate::promotion_main;
         let octopus: fn(&crate::OctopusLaunch<'_>, &[String]) -> i32 = crate::octopus_main;
@@ -794,6 +809,16 @@ mod tests {
             archive, pypi, nuget, crates, github, maven, oci, promotion, octopus, npm_deploy,
             npm_pack, pages,
         );
+        let _ = crate::MavenLaunch {
+            jar_rloc: "",
+            pom_rloc: "",
+            sources_rloc: "",
+            javadoc_rloc: "",
+            group: "",
+            artifact: "",
+            version: "",
+            repository_url: "",
+        };
         let _ = crate::OctopusLaunch {
             package_rloc: "",
             deploy_name: "",

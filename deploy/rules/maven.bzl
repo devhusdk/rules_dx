@@ -93,19 +93,31 @@ def maven_repository_error(repository_url):
                 MAVEN_DEFAULT_REPOSITORY_URL + "'")
     return ""
 
-def maven_jar_error(filename):
-    """Validates one jar filename value."""
+def _maven_jar_kind_error(kind, filename):
+    """Validates one jar-like filename value for a given kind."""
     if type(filename) != "string" or filename == "":
-        return ("maven_deploy: invalid jar '" + str(filename) +
+        return ("maven_deploy: invalid " + kind + " '" + str(filename) +
                 "': want a non-empty .jar filename")
     if not filename.endswith(".jar"):
-        return ("maven_deploy: invalid jar '" + filename +
+        return ("maven_deploy: invalid " + kind + " '" + filename +
                 "': want a filename ending in .jar")
     if has_any(filename, EMBED_UNSAFE):
-        return ("maven_deploy: invalid jar '" + filename +
+        return ("maven_deploy: invalid " + kind + " '" + filename +
                 "': want no quotes, backslashes, spaces, or newlines " +
                 "so the filename embeds safely in the deploy launcher")
     return ""
+
+def maven_jar_error(filename):
+    """Validates one jar filename value."""
+    return _maven_jar_kind_error("jar", filename)
+
+def maven_sources_error(filename):
+    """Validates one sources jar filename value."""
+    return _maven_jar_kind_error("sources jar", filename)
+
+def maven_javadoc_error(filename):
+    """Validates one javadoc jar filename value."""
+    return _maven_jar_kind_error("javadoc jar", filename)
 
 def maven_pom_error(filename):
     """Validates one pom filename value."""
@@ -145,16 +157,45 @@ def _maven_launcher_impl(ctx):
         fail(pom_error + " (in " + str(ctx.label) + ")")
     pom_rloc = rlocation_path(ctx, pom_file)
 
+    sources_rloc = ""
+    javadoc_rloc = ""
+    seen = {jar_file.path: "jar"}
+    for kind, attr_value, check in [
+        ("sources", ctx.attr.sources, maven_sources_error),
+        ("javadoc", ctx.attr.javadoc, maven_javadoc_error),
+    ]:
+        if attr_value == None:
+            continue
+        files = attr_value[DefaultInfo].files.to_list()
+        if len(files) != 1:
+            fail("maven_deploy " + str(ctx.label) + ": " + kind + " " +
+                 str(attr_value.label) + " provides " + str(len(files)) +
+                 " files, want exactly one .jar")
+        extra = files[0]
+        extra_error = check(extra.basename)
+        if extra_error != "":
+            fail(extra_error + " (in " + str(ctx.label) + ")")
+        if extra.path in seen:
+            fail("maven_deploy " + str(ctx.label) + ": " + kind +
+                 " is the same file as " + seen[extra.path])
+        seen[extra.path] = kind
+        if kind == "sources":
+            sources_rloc = rlocation_path(ctx, extra)
+        else:
+            javadoc_rloc = rlocation_path(ctx, extra)
+
     launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
     ctx.actions.write(
         output = launcher,
         content = "const JAR_RLOC: &str = \"" + jar_rloc + "\";\n" +
                   "const POM_RLOC: &str = \"" + pom_rloc + "\";\n" +
+                  "const SOURCES_RLOC: &str = \"" + sources_rloc + "\";\n" +
+                  "const JAVADOC_RLOC: &str = \"" + javadoc_rloc + "\";\n" +
                   "const GROUP: &str = \"" + ctx.attr.group + "\";\n" +
                   "const ARTIFACT: &str = \"" + ctx.attr.artifact + "\";\n" +
                   "const VERSION: &str = \"" + ctx.attr.version + "\";\n" +
                   "const REPOSITORY_URL: &str = \"" + ctx.attr.repository_url + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::maven_main(JAR_RLOC, POM_RLOC, GROUP, ARTIFACT, VERSION, REPOSITORY_URL, &std::env::args().collect::<Vec<_>>())); }\n",
+                  "fn main() { std::process::exit(dx_deploy_tools::maven_main(&dx_deploy_tools::MavenLaunch { jar_rloc: JAR_RLOC, pom_rloc: POM_RLOC, sources_rloc: SOURCES_RLOC, javadoc_rloc: JAVADOC_RLOC, group: GROUP, artifact: ARTIFACT, version: VERSION, repository_url: REPOSITORY_URL }, &std::env::args().collect::<Vec<_>>())); }\n",
     )
     return [DefaultInfo(files = depset([launcher]))]
 
@@ -175,6 +216,10 @@ _maven_launcher = rule(
             allow_single_file = True,
             mandatory = True,
         ),
+        "javadoc": attr.label(
+            doc = "Optional javadoc jar published as -javadoc.jar.",
+            allow_single_file = True,
+        ),
         "pom": attr.label(
             doc = "Single pom file published alongside the jar.",
             allow_single_file = True,
@@ -184,6 +229,10 @@ _maven_launcher = rule(
             doc = "Maven repository endpoint that receives the publish.",
             mandatory = True,
         ),
+        "sources": attr.label(
+            doc = "Optional sources jar published as -sources.jar.",
+            allow_single_file = True,
+        ),
         "version": attr.string(
             doc = "Maven version of the published artifact.",
             mandatory = True,
@@ -191,8 +240,11 @@ _maven_launcher = rule(
     },
 )
 
-def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, profile = "release"):
-    """Publishes one jar plus its pom as a local-first Maven deployment."""
+def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_url = MAVEN_DEFAULT_REPOSITORY_URL, profile = "release", sources = None, javadoc = None):
+    """Publishes one jar plus its pom, and optional sources and javadoc jars, as a local-first Maven deployment.
+
+    Live uploads require both sources and javadoc (Central rule).
+    """
     group_error = maven_group_error(group)
     if group_error != "":
         fail(group_error + " (in " + native.package_name() + ":" + name + ")")
@@ -213,7 +265,9 @@ def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_
         artifact = artifact,
         group = group,
         jar = jar,
+        javadoc = javadoc,
         pom = pom,
+        sources = sources,
         repository_url = repository_url,
         version = version,
     )
@@ -221,7 +275,7 @@ def maven_deploy(name, jar, pom, group, artifact, version = "0.0.0", repository_
     rust_binary(
         name = program_target,
         srcs = [":" + launcher_target],
-        data = [jar, pom],
+        data = [jar, pom] + ([sources] if sources else []) + ([javadoc] if javadoc else []),
         deps = [Label("//deploy/rules:dx_deploy_tools")],
     )
 

@@ -74,15 +74,22 @@ code=0
 env -i "$root/AppRun" >/dev/null 2>&1 || code=$?
 [ "$code" = 2 ] || fail "AppRun without APPDIR exited $code, want 2"
 
+greeting_bak="$TEST_TMPDIR/greeting.txt"
+cp "$root/usr/share/dxappimage/greeting.txt" "$greeting_bak"
 rm "$root/usr/share/dxappimage/greeting.txt"
 code=0
 env -i APPDIR="$root" "$root/AppRun" >/dev/null 2>&1 || code=$?
 [ "$code" = 3 ] || fail "AppRun without the resource exited $code, want 3"
 
+cp "$greeting_bak" "$root/usr/share/dxappimage/greeting.txt"
 rm "$root/usr/lib/libgreet_shared.so"
 code=0
-env -i APPDIR="$root" "$root/AppRun" >/dev/null 2>&1 || code=$?
-[ "$code" != 0 ] || fail "AppRun without libgreet_shared.so exited 0"
+err=$(env -i APPDIR="$root" "$root/AppRun" 2>&1 >/dev/null) || code=$?
+[ "$code" = 127 ] || fail "AppRun without libgreet_shared.so exited $code, want 127"
+case "$err" in
+  *libgreet_shared.so*) ;;
+  *) fail "AppRun without libgreet_shared.so did not name it on stderr: $err" ;;
+esac
 
 size=$(wc -c < "$relocated")
 head -c $((size / 2)) "$relocated" > "$work/truncated.AppImage"

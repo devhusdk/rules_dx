@@ -19,7 +19,8 @@ env:
   BAZELISK_VERSION: "1.29.0"
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Main pushes get one group per commit so a newer push never replaces a waiting main run.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -309,7 +309,7 @@ fn closed_pull_requests_join_the_ci_concurrency_group() {
     assert_eq!(ci["name"], json!("ci"));
     assert_eq!(
         ci["concurrency"]["group"],
-        json!("ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"),
+        json!("ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}"),
     );
     assert_eq!(
         ci["concurrency"]["cancel-in-progress"],

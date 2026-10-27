@@ -362,18 +362,7 @@ _rust_wasm_bindgen_browser_test = rule(
 _FORWARDER_ONLY_KWARGS = ("tags", "timeout", "shard_count", "size", "local", "flaky", "args")
 
 def rust_wasm_bindgen_test(name, wasm = None, **kwargs):
-    """Wraps upstream rust_wasm_bindgen_test with a managed, platform-qualified browser.
-
-    The test runs only on qualified platform cells (today linux x86_64, with
-    the Firefox and geckodriver that Bazel fetches; the host needs GTK 3).
-    On those cells the wrapper sets
-    `@rules_rust_wasm_bindgen//settings:test_browser` for the test, which
-    overrides any value given on the command line. Every other cell reports
-    the test as incompatible and skips it. The test runs locally only
-    (`no-remote-exec`), since the browser needs a display-capable host.
-    The whole test subgraph builds without coverage instrumentation, so
-    `bazel coverage` runs the test but reports no Wasm coverage.
-    """
+    """Wraps upstream rust_wasm_bindgen_test with a managed, platform-qualified browser."""
     forward = dx_forwarded_test_kwargs(kwargs)
     upstream = {k: v for k, v in kwargs.items() if k not in _FORWARDER_ONLY_KWARGS}
     user_tags = forward.pop("tags", [])

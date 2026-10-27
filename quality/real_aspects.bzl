@@ -466,19 +466,11 @@ def rustc_diagnostics_group(groups):
     return None
 
 def inherits_test_crate_sources(capability):
-    """Whether a Rust test crate's inherited sources feed this capability's diagnostics.
-
-    Allow-list: only the delegated rustc typecheck reads the harness compile.
-    """
+    """Whether a Rust test crate's inherited sources feed this capability's diagnostics."""
     return capability == "typecheck"
 
 def merge_inherited_sources(direct_sources, inherited, class_id):
-    """Adds inherited in-workspace .rs sources to a copy of direct_sources.
-
-    A rust_test(crate = ...) has no srcs of its own, but its harness compile
-    builds the crate's cfg(test) code. Own files stay first and win on a
-    duplicate path; the result is diagnostics-only and never changes ownership.
-    """
+    """Adds inherited in-workspace .rs sources to a copy of direct_sources."""
     merged = {k: v.to_list() for k, v in direct_sources.items()}
     seen = {}
     for files in merged.values():
@@ -600,12 +592,7 @@ def _jacoco_runtime_jars(ctx):
     return ctx.attr._jacoco_runtime[JavaInfo].transitive_runtime_jars.to_list()
 
 def _jvm_aux_jars(java_info, owned):
-    """Returns the runtime classpath jars plus compile-only jars not in owned.
-
-    This is the only place JVM tools may read JavaInfo classpaths, so neverlink
-    (compile-only) jars are never dropped (#3167). It is enforced by
-    //quality:jvm_classpath_policy_test.
-    """
+    """Returns the runtime classpath jars plus compile-only jars not in owned."""
     runtime = [java_info.transitive_runtime_jars]
     compile = [java_info.transitive_compile_time_jars]
     if java_info.compilation_info != None:

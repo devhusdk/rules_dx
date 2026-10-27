@@ -56,18 +56,7 @@ def _check_options(where, options):
             fail(where + ": option '" + option + "' is set by the rule and cannot be overridden")
 
 def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs):
-    """Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.
-
-    Args:
-      name: Name of the shard target.
-      srcs: The project's TypeScript sources.
-      tsconfig: The project's tsconfig.json, relative to this package.
-      entry_points: Entry point files, relative to this package.
-      package: Package segment of every symbol id.
-      deps: Extra files or npm packages the sources import.
-      options: Extra TypeDoc flags; the ones the rule owns are rejected.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard."""
     where = "typescript_doc_shard " + native.package_name() + ":" + name
     if len(entry_points) == 0:
         fail(where + ": need at least one entry point")

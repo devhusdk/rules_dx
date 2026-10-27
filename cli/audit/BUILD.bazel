@@ -51,9 +51,11 @@ dx_rust_crate(
     dev_deps = ["tempfile"],
     extra_deps = [
         "//cli/digest:dx_digest",
+        "//cli/sbom:dx_sbom",
         "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",
     ],
+    extra_test_deps = ["//cli/sbom/schema:dx_sbom_schema"],
     test_srcs = [
         "src/advisory_prep_tests.rs",
         "src/exception_tests.rs",

@@ -911,22 +911,33 @@ fn audit_reports_sarif_and_spdx_to_files() {
         namespace.starts_with("https://dx-audit.local/"),
         "invocation-unique namespace: {namespace}"
     );
+    assert_eq!(
+        spdx_value["creationInfo"]["creators"],
+        serde_json::json!(["Tool: dx"])
+    );
     let packages = spdx_value["packages"].as_array().expect("packages");
-    assert_eq!(packages.len(), 1, "{spdx_value}");
+    assert_eq!(packages.len(), 2, "{spdx_value}");
+    let by_id = |id: &str| {
+        packages
+            .iter()
+            .find(|package| package["SPDXID"] == serde_json::json!(id))
+            .unwrap_or_else(|| panic!("package {id} in {spdx_value}"))
+    };
+    let root = by_id("SPDXRef-Root-1");
     assert_eq!(
-        packages[0]["SPDXID"],
-        serde_json::json!("SPDXRef-Package-1")
+        root["name"],
+        serde_json::json!("//rust/tests/fixtures/hello:hello")
     );
-    assert_eq!(packages[0]["name"], serde_json::json!("serde"));
-    assert_eq!(packages[0]["versionInfo"], serde_json::json!("1.0.100"));
-    assert_eq!(packages[0]["licenseConcluded"], serde_json::json!("MIT"));
-    assert_eq!(packages[0]["licenseDeclared"], serde_json::json!("MIT"));
+    assert_eq!(root["downloadLocation"], serde_json::json!("NOASSERTION"));
+    let serde = by_id("SPDXRef-Package-1");
+    assert_eq!(serde["name"], serde_json::json!("serde"));
+    assert_eq!(serde["versionInfo"], serde_json::json!("1.0.100"));
+    assert_eq!(serde["licenseConcluded"], serde_json::json!("MIT"));
+    assert_eq!(serde["licenseDeclared"], serde_json::json!("MIT"));
+    assert_eq!(serde["copyrightText"], serde_json::json!("NOASSERTION"));
+    assert_eq!(serde["downloadLocation"], serde_json::json!("NOASSERTION"));
     assert_eq!(
-        packages[0]["copyrightText"],
-        serde_json::json!("NOASSERTION")
-    );
-    assert_eq!(
-        packages[0]["externalRefs"],
+        serde["externalRefs"],
         serde_json::json!([{
             "referenceCategory": "PACKAGE-MANAGER",
             "referenceType": "purl",
@@ -940,12 +951,13 @@ fn audit_reports_sarif_and_spdx_to_files() {
     assert_eq!(
         rels,
         &vec![serde_json::json!({
-            "spdxElementId": "//rust/tests/fixtures/hello:hello",
+            "spdxElementId": "SPDXRef-DOCUMENT",
             "relationshipType": "DESCRIBES",
-            "relatedSpdxElement": "SPDXRef-DOCUMENT",
+            "relatedSpdxElement": "SPDXRef-Root-1",
         })],
         "one DESCRIBES per audited root, no V1 CONTAINS: {spdx_value}"
     );
+    assert_eq!(dx_sbom_schema::spdx_errors(&spdx), Vec::<String>::new());
 }
 
 #[test]

@@ -219,6 +219,11 @@ missing, stale, or corrupt advisory snapshot, `offline_required` when
 incomplete assessment. Reports: `dx security` writes
 `--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
 `--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
+The SPDX report is an SPDX 2.3 JSON document with `creationInfo` naming
+`Tool: dx`. Each audited scope label is a package `SPDXRef-Root-<n>`, numbered
+over the sorted labels, and the document has one
+`SPDXRef-DOCUMENT DESCRIBES SPDXRef-Root-<n>` relationship per label. Every
+package sets `downloadLocation` to `NOASSERTION`.
 A relative destination anchors at the workspace root; an absolute one writes as
 given. Colliding destinations fail before anything runs, parents must exist, and
 a failed write keeps the previous file bytes.

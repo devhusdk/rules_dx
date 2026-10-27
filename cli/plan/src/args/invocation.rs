@@ -232,6 +232,8 @@ pub struct Invocation {
     pub baseline: Option<String>,
     pub include_edits: bool,
     pub min_coverage: Option<u32>,
+    /// The `--min-changed-line-coverage` percent gate on lines changed since the merge-base.
+    pub min_changed_line_coverage: Option<u32>,
     pub targets: Vec<String>,
     pub(super) bazel_options: Vec<String>,
     pub prune_unobserved: bool,
@@ -580,6 +582,7 @@ mod tests {
             baseline: None,
             include_edits: false,
             min_coverage: None,
+            min_changed_line_coverage: None,
             targets: targets.iter().map(ToString::to_string).collect(),
             bazel_options: Vec::new(),
             prune_unobserved: false,

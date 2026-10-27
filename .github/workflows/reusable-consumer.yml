@@ -140,16 +140,21 @@ jobs:
           persist-credentials: false
           fetch-depth: ${{ env.DX_SCOPE == '--affected' && '2' || '1' }}
       - name: Pin the pull request base for --affected
-        if: ${{ env.DX_SCOPE == '--affected' }}
+        if: ${{ env.DX_SCOPE == '--affected' || (github.event_name == 'pull_request' && needs.validate.outputs.min_changed_line_coverage != '') }}
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
+          DX_PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
+          base='HEAD^1'
           if ! git rev-parse --verify -q 'HEAD^2' >/dev/null; then
-            echo "::warning::checkout is not a merge commit; falling back to //..."
-            echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
-            exit 0
+            if [ "$DX_SCOPE" = "--affected" ]; then
+              echo "::warning::checkout is not a merge commit; falling back to //..."
+              echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
+              exit 0
+            fi
+            base="$DX_PR_BASE"
           fi
-          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" 'HEAD^1'
+          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" "$base"
           git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$GITHUB_BASE_REF"
           echo '/bazel-*' >> "$(git rev-parse --git-path info/exclude)"
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
@@ -369,16 +374,21 @@ jobs:
           persist-credentials: false
           fetch-depth: ${{ needs.validate.outputs.min_changed_line_coverage != '' && '0' || env.DX_SCOPE == '--affected' && '2' || '1' }}
       - name: Pin the pull request base for --affected
-        if: ${{ env.DX_SCOPE == '--affected' }}
+        if: ${{ env.DX_SCOPE == '--affected' || (github.event_name == 'pull_request' && needs.validate.outputs.min_changed_line_coverage != '') }}
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
+          DX_PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
+          base='HEAD^1'
           if ! git rev-parse --verify -q 'HEAD^2' >/dev/null; then
-            echo "::warning::checkout is not a merge commit; falling back to //..."
-            echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
-            exit 0
+            if [ "$DX_SCOPE" = "--affected" ]; then
+              echo "::warning::checkout is not a merge commit; falling back to //..."
+              echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
+              exit 0
+            fi
+            base="$DX_PR_BASE"
           fi
-          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" 'HEAD^1'
+          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" "$base"
           git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$GITHUB_BASE_REF"
           echo '/bazel-*' >> "$(git rev-parse --git-path info/exclude)"
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
@@ -407,6 +417,7 @@ jobs:
         env:
           DX_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
           DX_MIN_CHANGED_LINE_COVERAGE: ${{ needs.validate.outputs.min_changed_line_coverage }}
+          DX_EVENT: ${{ github.event_name }}
         run: |
           set +e
           # shellcheck disable=SC2086
@@ -419,8 +430,12 @@ jobs:
             extra+=(--min-coverage "$DX_MIN_COVERAGE")
           fi
           if [ -n "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
-            extra+=(--report "lcov=${RUNNER_TEMP:-/tmp}/dx_coverage.lcov")
-            extra+=(--report "sources=${RUNNER_TEMP:-/tmp}/dx_coverage_sources.json")
+            if [ "$DX_EVENT" = "pull_request" ]; then
+              extra+=(--min-changed-line-coverage "$DX_MIN_CHANGED_LINE_COVERAGE")
+            else
+              echo "dx-ci: changed-line coverage needs a pull_request event, so it did not run on $DX_EVENT." | tee -a "$GITHUB_STEP_SUMMARY"
+              echo skipped > "${RUNNER_TEMP}/dx_changed_lines.rc"
+            fi
           fi
           bazel run "$@" @rules_dx//:dx -- coverage "${extra[@]}" "$DX_SCOPE" -- "$@" 2>&1 | tee "${RUNNER_TEMP:-/tmp}"/dx_coverage.log
           rc=${PIPESTATUS[0]}
@@ -435,26 +450,16 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - name: Check changed-line coverage
-        if: ${{ needs.validate.outputs.min_changed_line_coverage != '' }}
-        env:
-          DX_THRESHOLD: ${{ needs.validate.outputs.min_changed_line_coverage }}
-          DX_EVENT: ${{ github.event_name }}
-          DX_BASE: ${{ github.event.pull_request.base.sha }}
+        if: ${{ always() && needs.validate.outputs.min_changed_line_coverage != '' && github.event_name == 'pull_request' }}
         run: |
-          if [ "$DX_EVENT" != "pull_request" ]; then
-            echo "dx-ci: changed-line coverage needs a pull_request event, so it did not run on $DX_EVENT." | tee -a "$GITHUB_STEP_SUMMARY"
-            echo skipped > "${RUNNER_TEMP}/dx_changed_lines.rc"
-            exit 0
+          grep -E -e '^dx: (changed-line coverage |changed_line_)' "${RUNNER_TEMP}/dx_coverage.log" > "${RUNNER_TEMP}/dx_changed_lines.txt" 2>/dev/null || true
+          if grep -q -e '^dx: changed_line_coverage_' "${RUNNER_TEMP}/dx_changed_lines.txt"; then
+            rc=1
+          elif grep -q -e '^dx: changed-line coverage ' "${RUNNER_TEMP}/dx_changed_lines.txt"; then
+            rc=0
+          else
+            rc="not run"
           fi
-          set +e
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" --noshow_progress --ui_event_filters=-info @rules_dx//tools/ci:changed_line_coverage_bin -- \
-            --base "$DX_BASE" \
-            --lcov "${RUNNER_TEMP}/dx_coverage.lcov" \
-            --sources "${RUNNER_TEMP}/dx_coverage_sources.json" \
-            --threshold "$DX_THRESHOLD" 2>&1 | tee "${RUNNER_TEMP}/dx_changed_lines.txt"
-          rc=${PIPESTATUS[0]}
           echo "$rc" > "${RUNNER_TEMP}/dx_changed_lines.rc"
           {
             echo "## Changed-line coverage - ${{ matrix.platform }}"
@@ -462,7 +467,6 @@ jobs:
             cat "${RUNNER_TEMP}/dx_changed_lines.txt"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          exit "$rc"
       - name: Render first-party coverage summary (per-cell, no union)
         # Presents this cell's counts; the gate above stays authoritative.
         if: always()
@@ -472,7 +476,7 @@ jobs:
           set -euo pipefail
           cell="coverage ${{ matrix.platform }}"
           dx_rc="$(cat "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc 2>/dev/null || echo unknown)"
-          dx_line="$(grep -E -e 'coverage .*lines.*meets minimum|coverage_below_minimum' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 1 || true)"
+          dx_line="$(grep -E -e '^dx: (coverage .*lines.*meets minimum|coverage_below_minimum)' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 1 || true)"
           sources_lines="$(grep -E -e '^dx: (coverage sources |coverage_sources_incomplete: )' "${RUNNER_TEMP:-/tmp}"/dx_coverage.log 2>/dev/null | head -n 200 || true)"
           if [[ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]]; then
             changed_rc="not configured"

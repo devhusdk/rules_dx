@@ -16,6 +16,8 @@ pub enum OutputError {
     BadSource { value: String },
     #[error("invalid capability availability {value:?}: want available|unavailable|unknown")]
     BadAvailability { value: String },
+    #[error("invalid {field} {value:?}")]
+    BadValue { field: &'static str, value: String },
     #[error("invalid threshold {value:?}")]
     BadThreshold { value: String },
     #[error("invalid color {value:?}: want auto|always|never")]

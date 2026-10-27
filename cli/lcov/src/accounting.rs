@@ -110,7 +110,7 @@ pub(crate) fn count_lines(hits: &FileHits, ignores: &Ignores) -> LineCount {
 }
 
 /// The path key a manifest row and an LCOV SF record share.
-fn source_key(path: &str) -> String {
+pub(crate) fn source_key(path: &str) -> String {
     let normalized = normalize_path(path);
     if let Some(rest) = normalized.strip_prefix("bazel-out/") {
         if let Some((_, tail)) = rest.split_once("/bin/") {

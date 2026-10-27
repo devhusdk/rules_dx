@@ -66,7 +66,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 10] = [
     (
         "--include-edits",
         &["--include-edits", "--output=json"],
@@ -75,6 +75,11 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 9] = [
     ("--configured", &["--configured"], &["list-tests"]),
     ("--cases", &["--cases"], &["list-tests"]),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
+    (
+        "--min-changed-line-coverage",
+        &["--min-changed-line-coverage=1"],
+        &["coverage"],
+    ),
     ("--serve", &["--serve"], &["docs"]),
     ("--port", &["--serve", "--port=8080"], &["docs"]),
     ("--host", &["--serve", "--host=127.0.0.1"], &["docs"]),

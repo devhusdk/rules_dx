@@ -1409,9 +1409,25 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             return kept_child(err, bazel_code, exit);
         }
     }
+    let changed_ok = if verb == WorkflowVerb::Coverage {
+        let gate = super::changed_coverage::ChangedGate {
+            minimum: invocation.min_changed_line_coverage,
+            account: account.as_ref(),
+            lcov_documents: &lcov_documents,
+            workspace,
+            runner: query_runner,
+            output: invocation.output,
+        };
+        match super::changed_coverage::changed_line_threshold(&gate, out, err) {
+            Ok(met) => met,
+            Err(exit) => return kept_child(err, bazel_code, exit),
+        }
+    } else {
+        true
+    };
     let code = if bazel_code != 0 {
         bazel_code
-    } else if complete && reports_ok && threshold_ok && collector_ok && sources_ok {
+    } else if complete && reports_ok && threshold_ok && collector_ok && sources_ok && changed_ok {
         0
     } else {
         1

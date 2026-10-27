@@ -36,6 +36,43 @@ fn min_coverage_parses_for_coverage_only() {
 }
 
 #[test]
+fn min_changed_line_coverage_parses_for_coverage_only() {
+    let got = parse(&strings(&["coverage", "--min-changed-line-coverage=80"])).expect("parse");
+    assert_eq!(got.min_changed_line_coverage, Some(80));
+    assert_eq!(got.min_coverage, None);
+    let spaced = parse(&strings(&[
+        "coverage",
+        "--min-changed-line-coverage",
+        "100",
+    ]))
+    .expect("parse");
+    assert_eq!(spaced.min_changed_line_coverage, Some(100));
+    let zero = parse(&strings(&["coverage", "--min-changed-line-coverage=0"])).expect("parse");
+    assert_eq!(zero.min_changed_line_coverage, Some(0));
+    let bare = parse(&strings(&["coverage"])).expect("parse");
+    assert_eq!(bare.min_changed_line_coverage, None);
+    for bad in ["101", "-1", "eighty"] {
+        let words = [
+            "coverage".to_owned(),
+            format!("--min-changed-line-coverage={bad}"),
+        ];
+        let refs: Vec<&str> = words.iter().map(String::as_str).collect();
+        assert_usage(
+            &refs,
+            parse(&words).unwrap_err(),
+            &["min-changed-line-coverage"],
+        );
+    }
+    assert_eq!(
+        parse(&strings(&["test", "--min-changed-line-coverage=80"])),
+        Err(ArgsError::UnsupportedOption {
+            command: "test",
+            option: "--min-changed-line-coverage".to_owned(),
+        })
+    );
+}
+
+#[test]
 fn min_coverage_rejects_bad_values_and_other_commands() {
     assert_usage(
         &["coverage", "--min-coverage=eighty"],

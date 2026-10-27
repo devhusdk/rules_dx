@@ -54,8 +54,8 @@ every platform in `platforms`:
 - `test`: `dx test //...` (`--affected` on pull requests), with JUnit, failures and results reports
 - `build`: `dx build //...` (`--affected` on pull requests), with a failures report
 - `coverage`: `dx coverage //...` (`--affected` on pull requests when no threshold is set) with failures and results reports, plus `--min-coverage <percent>` when
-  `min_coverage` is set. With `min_changed_line_coverage` it also gates the
-  lines a pull request adds.
+  `min_coverage` is set. With `min_changed_line_coverage` on pull requests it
+  adds `--min-changed-line-coverage <percent>`.
 
 Each check reports once per platform as `<check> (<platform>)`, for example
 `lint (linux_x86_64)`.
@@ -150,23 +150,30 @@ the whole-repo threshold:
       min_changed_line_coverage: "80"
 ```
 
-It runs on `pull_request` events only. Other events print a notice and skip
-it. It needs the pull request base commit. Deleted lines and lines the coverage
-report does not list, such as comments and docs, do not count. With no line to
+It runs on `pull_request` events only, as
+`dx coverage --min-changed-line-coverage <percent>` in the `coverage` job. Other events
+print a notice and skip it. The job fetches full history and points
+`origin/HEAD` at the first parent of the pull request merge commit, or at the
+pull request base commit when the checkout is not a merge commit. Deleted lines
+and lines the coverage report does not list, such as comments and docs, do not
+count. Lines under `LCOV_EXCL_*` markers do not count either. With no line to
 count the result is `not-applicable`, not 100 percent.
 
-The check prints the threshold, the covered and eligible line counts, and each
-uncovered `path:line`. It fails when:
+The `dx: changed…` lines from the coverage log go to the step summary: the
+covered and eligible line counts and each uncovered `path:line`. The
+`coverage` job fails when:
 
 - fewer than the threshold percent of eligible lines are covered. The compare is
   exact, with no rounding.
 - the base commit is not available.
-- the coverage report is missing, empty, or not valid LCOV.
 - a changed production source that Bazel instruments has no record in the
   report. `dx coverage --report sources=<path>` lists these sources. Test
   sources and files no instrumented target owns are skipped. The result is
   `incomplete`. A library only reached by `no-coverage` tests stays
   `incomplete`.
+
+See `dx coverage` in the [command reference](cli/commands/build-test-coverage.md)
+for the output lines and error codes.
 
 ## Docs Workflow
 

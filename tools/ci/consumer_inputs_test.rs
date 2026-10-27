@@ -242,9 +242,25 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
         "{WORKFLOW} changed-line step must record its exit code: {changed_run}"
     );
     assert!(
-        changed_run.contains("echo skipped > \"${RUNNER_TEMP}/dx_changed_lines.rc\""),
-        "{WORKFLOW} changed-line step must record a skipped run: {changed_run}"
+        changed_run.contains("/dx_coverage.log"),
+        "{WORKFLOW} changed-line step must read the dx coverage log: {changed_run}"
     );
+    let changed_if = text_at(&changed["if"], "changed-line step if");
+    assert!(
+        changed_if.contains("always()"),
+        "{WORKFLOW} changed-line step must record a failed gate: {changed_if}"
+    );
+    let run = coverage_step("Run coverage");
+    let coverage_run = text_at(&run["run"], "coverage step run");
+    for needle in [
+        "extra+=(--min-changed-line-coverage \"$DX_MIN_CHANGED_LINE_COVERAGE\")",
+        "echo skipped > \"${RUNNER_TEMP}/dx_changed_lines.rc\"",
+    ] {
+        assert!(
+            coverage_run.contains(needle),
+            "{WORKFLOW} coverage step must state {needle:?}: {coverage_run}"
+        );
+    }
 
     let render = coverage_step("Render first-party coverage summary");
     assert_eq!(render["if"], json!("always()"));

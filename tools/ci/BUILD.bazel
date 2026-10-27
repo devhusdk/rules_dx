@@ -221,43 +221,6 @@ python_test(
 )
 
 # keep
-python_library(
-    name = "changed_line_coverage",
-    srcs = ["changed_line_coverage.py"],
-    aspect_hints = ["//:ruff_config"],
-    imports = ["."],
-)
-
-# keep
-python_binary(
-    name = "changed_line_coverage_bin",
-    dep_group = "dx-ci-tools",
-    main = "changed_line_coverage.py",
-    visibility = ["//visibility:public"],
-    deps = [
-        ":changed_line_coverage",
-        "@pypi//diff_cover",
-    ],
-)
-
-# keep
-python_test(
-    name = "changed_line_coverage_test",
-    size = "medium",
-    srcs = ["changed_line_coverage_test.py"],
-    aspect_hints = ["//:ruff_config"],
-    data = [
-        "changed_line_coverage.py",
-    ],
-    dep_group = "dx-ci-tools",
-    deps = [
-        ":workflow_testing",
-        "@pypi//diff_cover",
-        "@pypi//pytest",
-    ],
-)
-
-# keep
 rust_library(
     name = "ci_workflow",
     testonly = True,
@@ -735,7 +698,6 @@ rust_test(
     size = "small",
     srcs = ["workflow_pins_test.rs"],
     data = [
-        "changed_line_coverage.py",
         "docs_scope.py",
         "input_validation.py",
         "module_pin.py",

@@ -9,6 +9,7 @@
 )]
 
 pub mod accounting;
+pub mod changed;
 pub mod ignores;
 pub mod inventory;
 pub mod parse;
@@ -18,6 +19,10 @@ pub mod verdict;
 pub use accounting::{
     account, parse_source_manifest, CellAccount, Disposition, SourceManifest, SourceRow,
     SOURCES_ASPECT, SOURCES_OUTPUT_GROUP,
+};
+pub use changed::{
+    all_lines, changed_account, parse_added_lines, AddedLines, ChangedAccount, ChangedLine,
+    ChangedResult,
 };
 pub use ignores::{find_ignores, is_ignored, Ignores};
 pub use inventory::{parse_inventory, ELIGIBLE, SUPPORT};

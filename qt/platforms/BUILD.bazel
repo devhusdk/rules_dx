@@ -1,6 +1,18 @@
+load("//qt/sdk:pins.bzl", "CELLS")
+load("//qt/sdk:repos.bzl", "qualified_cells")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
+
+# One os+cpu setting per qualified Qt cell. QT_COMPATIBLE_WITH and the
+# consumer identity selects in //qt/rules:defs.bzl key on these.
+[
+    config_setting(
+        name = "cell_" + cell,
+        constraint_values = CELLS[cell].constraints,
+    )
+    for cell in qualified_cells()
+]
 
 platform(
     name = "linux_arm64",

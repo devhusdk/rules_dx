@@ -2,7 +2,7 @@
 
 A headless Qt 6 ledger whose model is Rust. QML calls the Rust type,
 reads its properties and handles its signal. It builds against the pinned
-`@dx_qt` SDK on Linux x86_64 and packages into a relocatable archive.
+`@dx_qt` SDK on Linux x86_64 and Linux arm64 and packages into a relocatable archive.
 
 | Package | Role |
 | --- | --- |

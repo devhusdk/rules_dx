@@ -1,6 +1,11 @@
 load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 
 platform(
+    name = "qt_linux_arm64",
+    parents = ["@rules_dx//qt/platforms:linux_arm64"],
+)
+
+platform(
     name = "qt_linux_x86_64",
     parents = ["@rules_dx//qt/platforms:linux_x86_64"],
 )

@@ -16,7 +16,8 @@ load(
     "dx_upstream_tags",
 )
 load("//qt/sdk:needs.bzl", "QtNeedsInfo")
-load("//qt/sdk:pins.bzl", "RUNTIME_PLUGINS")
+load("//qt/sdk:pins.bzl", "CELLS", "RUNTIME_PLUGINS")
+load("//qt/sdk:repos.bzl", "qualified_cells")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -982,6 +983,40 @@ def qt_rust_cc_library(
 def _soname(basename):
     stem, separator, version = basename.rpartition(".so.")
     return separator != "" and stem != "" and version.isdigit()
+
+def qt_consumer_identity(cell):
+    """Returns the consumer_archive arch and min_runtime of one qualified Qt cell."""
+    runtime = CELLS[cell].runtime
+    return struct(arch = runtime.arch, min_runtime = "glibc-" + runtime.glibc)
+
+# Qualified cells with a glibc runtime identity. Non-glibc cells (macos_arm64)
+# need a per-OS runtime field first (#3301).
+_CONSUMER_CELLS = [
+    cell
+    for cell in qualified_cells()
+    if CELLS[cell].runtime != None and hasattr(CELLS[cell].runtime, "glibc")
+]
+
+def _cell_setting(cell):
+    return Label("//qt/platforms:cell_" + cell)
+
+# target_compatible_with for targets that build against @dx_qt: every glibc cell.
+QT_COMPATIBLE_WITH = select(
+    {_cell_setting(cell): [] for cell in _CONSUMER_CELLS} |
+    {"//conditions:default": [Label("@platforms//:incompatible")]},
+)
+
+# consumer_archive arch of the qualified cell the build targets.
+QT_CONSUMER_ARCH = select(
+    {_cell_setting(cell): qt_consumer_identity(cell).arch for cell in _CONSUMER_CELLS} |
+    {"//conditions:default": ""},
+)
+
+# consumer_archive min_runtime of the qualified cell the build targets.
+QT_CONSUMER_MIN_RUNTIME = select(
+    {_cell_setting(cell): qt_consumer_identity(cell).min_runtime for cell in _CONSUMER_CELLS} |
+    {"//conditions:default": ""},
+)
 
 def qt_bundle_members(runfiles, licenses, modules, needs):
     """Returns the sorted (member, short path) pairs one bundle stages."""

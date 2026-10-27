@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_framework_path", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
+load("//qt/rules:defs.bzl", "QtInfo", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_uri_error")
 load("//qt/sdk:pins.bzl", "CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -17,6 +17,8 @@ _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
 def _unit_checks():
     return [
+        expect_equal("consumer identity linux_arm64", qt_consumer_identity("linux_arm64"), struct(arch = "aarch64", min_runtime = "glibc-2.39")),
+        expect_equal("consumer identity linux_x86_64", qt_consumer_identity("linux_x86_64"), struct(arch = "x86_64", min_runtime = "glibc-2.34")),
         expect_equal("module path", qt_module_path("Org.Example.Tally"), "Org/Example/Tally"),
         expect_equal("framework path", qt_framework_path("../dx_qt/lib/QtCore.framework/Versions/A/QtCore"), "QtCore.framework/Versions/A/QtCore"),
         expect_equal("framework path skips plain libraries", qt_framework_path("_solib_k8/libQt6Core.so.6"), None),
@@ -391,7 +393,7 @@ def qt_rules_tests(name):
     _module_test(
         name = name + "_module",
         target_under_test = "//examples/qt-app/tally",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _compile_test(
         name = name + "_compile",
@@ -422,13 +424,13 @@ def qt_rules_tests(name):
         name = name + "_runpath",
         bundled = True,
         target_under_test = ":plain_app_upstream",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _runpath_test(
         name = name + "_test_runpath",
         bundled = False,
         target_under_test = ":plain_test_upstream",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _frameworks_test(
         name = name + "_frameworks",
@@ -444,17 +446,17 @@ def qt_rules_tests(name):
     _bundle_test(
         name = name + "_bundle",
         target_under_test = "//examples/qt-tasks/app:runtime",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _rust_module_test(
         name = name + "_rust_module",
         target_under_test = "//examples/qt-rust/model",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     _bridge_test(
         name = name + "_bridge",
         target_under_test = "//examples/qt-rust/model:model_bridge",
-        target_compatible_with = _LINUX_X86_64,
+        target_compatible_with = _LINUX,
     )
     failures = {
         "bad_depends": "qml_depends uri 'QtQml.2Models' segment '2Models' must start with a letter",
@@ -471,7 +473,7 @@ def qt_rules_tests(name):
             name = name + "_" + fixture,
             target_under_test = ":" + fixture,
             message = failures[fixture],
-            target_compatible_with = _LINUX_X86_64 if fixture == "bundle_unknown_module" else _LINUX,
+            target_compatible_with = _LINUX,
         )
     native.test_suite(
         name = name,

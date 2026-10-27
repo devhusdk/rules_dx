@@ -64,6 +64,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude java/tests/fixtures/testonly_binary
 # gazelle:exclude cc/tests/fixtures/hello
 # gazelle:exclude cc/rules/testdata
+# gazelle:exclude cc/tests/fixtures/no_srcs
 # gazelle:exclude cc/tests/fixtures/consumer_cc
 # gazelle:exclude cuda/testing
 # gazelle:exclude cuda/tests
@@ -119,6 +120,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude kotlin/tests/fixtures/hello
 # gazelle:exclude scala/tests/fixtures/hello
 # gazelle:exclude python/tests/fixtures/hello
+# gazelle:exclude go/tests/fixtures/no_srcs
+# gazelle:exclude java/tests/fixtures/no_srcs
+# gazelle:exclude kotlin/tests/fixtures/no_srcs
+# gazelle:exclude scala/tests/fixtures/no_srcs
+# gazelle:exclude python/tests/fixtures/no_srcs
 # gazelle:exclude javascript/tests/fixtures/hello
 # gazelle:exclude javascript/tests/fixtures/skip_tags
 # gazelle:exclude typescript/tests/fixtures/hello

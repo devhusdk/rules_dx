@@ -92,7 +92,7 @@ def java_entry_kwargs(name, srcs, package, kwargs, attr):
         return kwargs
     return dict(kwargs, **{attr: entry})
 
-def java_library(name, srcs, visibility = None, **kwargs):
+def java_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_library."""
     dx_wrap(name, _java_library, _java_library_forward, srcs, visibility = visibility, upstream_kwargs = java_javacopts_with_werror(kwargs), **kwargs)
 
@@ -101,7 +101,7 @@ def java_binary(name, srcs = None, visibility = None, **kwargs):
     upstream_kwargs = java_entry_kwargs(name, srcs, native.package_name(), java_javacopts_with_werror(kwargs), "main_class")
     dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
 
-def java_test(name, srcs, visibility = None, **kwargs):
+def java_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_test."""
     upstream_kwargs = java_entry_kwargs(name, srcs, native.package_name(), java_javacopts_with_werror(kwargs), "test_class")
     dx_wrap_test(name, _java_test, _java_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)

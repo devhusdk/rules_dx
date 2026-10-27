@@ -88,7 +88,7 @@ def _python_main_kwargs(kind, name, srcs, kwargs):
         return None
     return dict(kwargs, main = main)
 
-def python_library(name, srcs, visibility = None, **kwargs):
+def python_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over py_library."""
     dx_wrap(name, _py_library, _python_library_forward, srcs, visibility = visibility, **kwargs)
 
@@ -106,14 +106,14 @@ def python_test_rejection(kwargs):
                 "for a custom main.")
     return None
 
-def python_test(name, srcs, visibility = None, **kwargs):
+def python_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over py_pytest_test."""
     rejection = python_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
     dx_wrap_test(name, _py_pytest_test, _python_forward_test, srcs, visibility = visibility, **kwargs)
 
-def python_py_test(name, srcs, visibility = None, **kwargs):
+def python_py_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over py_test."""
     upstream_kwargs = _python_main_kwargs("python_py_test", name, srcs, kwargs)
     dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)

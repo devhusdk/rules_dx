@@ -1,0 +1,55 @@
+load("//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "main_lib",
+    srcs = ["main.cc"],
+    alwayslink = True,
+)
+
+cc_binary(
+    name = "app",
+    deps = [":main_lib"],
+)
+
+dx_direct_sources_test(
+    name = "app_sources_test",
+    expected = {},
+    target_under_test = ":app",
+)
+
+cc_library(
+    name = "x_tests",
+    srcs = ["x_test.cc"],
+    copts = ["-std=c++17"],
+    deps = ["@googletest//:gtest"],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "x_test",
+    deps = [
+        ":x_tests",
+        "@googletest//:gtest_main",
+    ],
+)
+
+dx_direct_sources_test(
+    name = "x_test_sources_test",
+    expected = {},
+    target_under_test = ":x_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

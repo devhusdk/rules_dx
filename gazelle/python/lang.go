@@ -1,19 +1,12 @@
 package python
 
 import (
-	"context"
-	"flag"
-	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
-	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
-	"github.com/bazelbuild/bazel-gazelle/repo"
-	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
@@ -59,98 +52,25 @@ func binaryKindInfo() rule.KindInfo {
 	}
 }
 
-type pythonLang struct {
-	language.BaseLang
-	errors    []string
-	ignores   []*common.IgnoreEntry
-	generated common.GeneratedRels
+func NewLanguage() language.Language { return newLang() }
+
+func newLang() *common.SingleLang {
+	return common.NewSingleLang(common.SingleLangSpec{
+		LanguageName:   languageName,
+		LibraryKind:    libraryKind,
+		ExtraKinds:     []string{testKind, binaryKind},
+		Kinds:          pythonKinds,
+		DefsPackage:    "python/rules:defs.bzl",
+		ImportAttr:     "srcs",
+		Identity:       ModuleName,
+		IsImportSource: func(name string) bool { return strings.HasSuffix(name, ".py") },
+		IsStdLib:       IsStdLib,
+		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
+		Generate:       generateRules,
+	})
 }
 
-type targetImports struct {
-	imports []string
-}
-
-func NewLanguage() language.Language { return &pythonLang{} }
-
-func (l *pythonLang) Before(context.Context) {
-	l.errors = nil
-	l.ignores = nil
-	l.generated = common.GeneratedRels{}
-	common.Errors.Reset()
-}
-
-func (l *pythonLang) DoneGeneratingRules() {}
-
-func (l *pythonLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
-
-func (l *pythonLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
-
-func (*pythonLang) KnownDirectives() []string { return []string{"dx_ignore_import"} }
-
-func (l *pythonLang) Configure(c *config.Config, rel string, f *rule.File) {
-	declared, errs := common.DeclaredIgnores(languageName, rel, f)
-	for _, msg := range errs {
-		l.fail("%s", msg)
-	}
-	l.ignores = append(l.ignores, declared...)
-	c.Exts[languageName] = &common.IgnoreConfig{Ignores: common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)}
-}
-
-func (l *pythonLang) fail(format string, args ...interface{}) {
-	l.errors = append(l.errors, fmt.Sprintf(format, args...))
-}
-
-func (l *pythonLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
-		l.fail("%s", msg)
-	}
-	common.Errors.Add(languageName, "", l.errors...)
-}
-
-func (*pythonLang) Name() string { return languageName }
-
-func (*pythonLang) Kinds() map[string]rule.KindInfo { return pythonKinds }
-
-func (*pythonLang) Loads() []rule.LoadInfo {
-	return pythonLoads("rules_dx")
-}
-
-func (l *pythonLang) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
-	repoName := moduleToApparentName("rules_dx")
-	if repoName == "" {
-		repoName = "rules_dx"
-	}
-	return pythonLoads(repoName)
-}
-
-func pythonLoads(rulesRepo string) []rule.LoadInfo {
-	return []rule.LoadInfo{
-		{Name: "@" + rulesRepo + "//python/rules:defs.bzl", Symbols: []string{libraryKind, testKind, binaryKind}},
-	}
-}
-
-func (*pythonLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
-	if r.Kind() != libraryKind {
-		return nil
-	}
-	var specs []resolve.ImportSpec
-	for _, src := range r.AttrStrings("srcs") {
-		if !strings.HasSuffix(src, ".py") {
-			continue
-		}
-		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: ModuleName(src)})
-	}
-	return specs
-}
-
-func (*pythonLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
-
-func (l *pythonLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
-	l.generated.Add(args.Rel)
-	return l.generateRules(args)
-}
-
-func (l *pythonLang) generateRules(args language.GenerateArgs) language.GenerateResult {
+func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	var sources []string
 	stubs := make(map[string]bool)
 	for _, name := range args.RegularFiles {
@@ -178,12 +98,12 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 	for _, src := range sources {
 		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
-			l.fail("python: %s: read %s: %v", args.Rel, src, err)
+			rep.Fail("python: %s: read %s: %v", args.Rel, src, err)
 			continue
 		}
 		name, err := TargetName(src)
 		if err != nil {
-			l.fail("python: %s: %v", args.Rel, err)
+			rep.Fail("python: %s: %v", args.Rel, err)
 			continue
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
@@ -202,7 +122,7 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 		sort.Strings(p.imports)
 		plans = append(plans, p)
 	}
-	if len(l.errors) > 0 {
+	if rep.Failed() {
 		return language.GenerateResult{}
 	}
 
@@ -217,12 +137,12 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.src, Kind: binaryKind})
 		}
 	}
-	if err := common.CheckClaims(args.File, args.OtherGen, claimants, claimAliases); err != nil {
-		l.fail("python: %s: %v", args.Rel, err)
+	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
+		rep.Fail("python: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 
-	plain := common.RuleNamesOfKind(args.File, args.OtherGen, plainKind)
+	plain := handPlainTests(args.File, args.OtherGen)
 	var result language.GenerateResult
 	for _, p := range plans {
 		kind := libraryKind
@@ -240,14 +160,14 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 		r.SetAttr("srcs", srcs)
 		r.SetAttr("imports", []string{importsAttr})
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...)})
+		result.Imports = append(result.Imports, common.WrapImportSet(append([]string(nil), p.imports...)))
 		if p.entry {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("main", p.src)
 			bin.SetAttr("imports", []string{importsAttr})
 			bin.SetAttr("deps", []string{":" + p.name})
 			result.Gen = append(result.Gen, bin)
-			result.Imports = append(result.Imports, targetImports{})
+			result.Imports = append(result.Imports, common.WrapImportSet(nil))
 		}
 	}
 	if isFixturePath(args.Rel) {
@@ -258,63 +178,44 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 	return mergeStale(args.File, result)
 }
 
+func claimKind(c Claimant) string {
+	if c.Kind != "" {
+		return c.Kind
+	}
+	if IsTestFile(c.Source) {
+		return testKind
+	}
+	return libraryKind
+}
+
+func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
+	filled := make([]Claimant, len(claimants))
+	for i, c := range claimants {
+		c.Kind = claimKind(c)
+		filled[i] = c
+	}
+	return common.CheckClaims(file, other, filled, claimAliases)
+}
+
+func handPlainTests(file *rule.File, other []*rule.Rule) map[string]bool {
+	owned := make(map[string]bool)
+	if file != nil {
+		for _, r := range file.Rules {
+			if r.Kind() == plainKind {
+				owned[r.Name()] = true
+			}
+		}
+	}
+	for _, r := range other {
+		if r.Kind() == plainKind {
+			owned[r.Name()] = true
+		}
+	}
+	return owned
+}
+
 func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStale(file, result, pythonKinds)
 }
-
-func (l *pythonLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
-	imports, ok := raw.(targetImports)
-	if !ok {
-		return
-	}
-	deps := make(map[string]bool)
-	for _, name := range imports.imports {
-		if IsStdLib(name) {
-			continue
-		}
-		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
-		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
-			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.MarkUsed(from.Pkg)
-				l.fail("python: %s: import %q has both an exact resolve mapping and ignore", from, name)
-				continue
-			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
-			continue
-		}
-		matches := ix.FindRulesByImportWithConfig(c, spec, languageName)
-		switch len(matches) {
-		case 1:
-			if matches[0].Label != from {
-				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
-			}
-		case 0:
-			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.MarkUsed(from.Pkg)
-				continue
-			}
-			l.fail("%s", common.UnresolvedImport(c, "python", from, name, "add a local one-source library or an exact # gazelle:resolve mapping"))
-		default:
-			l.fail("%s", common.AmbiguousImport(c, "python", from, name, formatMatches(matches)))
-		}
-	}
-	if len(deps) == 0 {
-		return
-	}
-	labels := make([]string, 0, len(deps))
-	for dep := range deps {
-		labels = append(labels, dep)
-	}
-	sort.Strings(labels)
-	if r.Attr("deps") == nil {
-		r.SetAttr("deps", labels)
-		return
-	}
-	r.SetAttr("deps", unionStrings(r.AttrStrings("deps"), labels))
-}
-
-func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
-
-func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }

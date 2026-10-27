@@ -374,10 +374,6 @@ func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 		labels = append(labels, dep)
 	}
 	sort.Strings(labels)
-	if r.Attr(resolveAttr) == nil {
-		r.SetAttr(resolveAttr, unionStrings(r.AttrStrings(resolveAttr), labels))
-		return
-	}
 	r.SetAttr(resolveAttr, unionStrings(r.AttrStrings(resolveAttr), labels))
 }
 

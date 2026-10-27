@@ -16,6 +16,15 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+func importNames(t *testing.T, raw any) []string {
+	t.Helper()
+	names, ok := common.UnwrapImportSet(raw)
+	if !ok {
+		t.Fatalf("import set = %#v, want common.ImportSet", raw)
+	}
+	return names
+}
+
 func writeFixture(t *testing.T, root, name, content string) {
 	t.Helper()
 	file := filepath.Join(root, filepath.FromSlash(name))
@@ -29,7 +38,7 @@ func writeFixture(t *testing.T, root, name, content string) {
 
 func TestConfigureRoutesIgnoreDirectivesToTheSharedConfig(t *testing.T) {
 	cfg := config.New()
-	lang := &goLang{}
+	lang := newLang()
 	lang.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{
 		{Key: "other"},
 		{Key: "dx_ignore_import", Value: "go go example.com/widget"},
@@ -42,8 +51,8 @@ func TestConfigureRoutesIgnoreDirectivesToTheSharedConfig(t *testing.T) {
 	if entry == nil || entry.Path != "parent" {
 		t.Fatalf("declared ignore = %+v", entry)
 	}
-	if len(lang.errors) != 1 {
-		t.Fatalf("malformed directive accepted: %v", lang.errors)
+	if len(lang.Errors()) != 1 {
+		t.Fatalf("malformed directive accepted: %v", lang.Errors())
 	}
 }
 
@@ -120,9 +129,9 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "demo.go,helper.go" {
 		t.Errorf("library srcs = %q, want demo.go,helper.go", got)
 	}
-	got := result.Imports[0].(targetImports)
-	if strings.Join(got.imports, ",") != "rules_dx/stuff/thing" {
-		t.Errorf("library imports = %+v, want [rules_dx/stuff/thing]", got.imports)
+	got := importNames(t, result.Imports[0])
+	if strings.Join(got, ",") != "rules_dx/stuff/thing" {
+		t.Errorf("library imports = %+v, want [rules_dx/stuff/thing]", got)
 	}
 	testRule := result.Gen[1]
 	if testRule.Kind() != TestKind || testRule.Name() != "demo_test" {
@@ -134,8 +143,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	if got := strings.Join(testRule.AttrStrings("embed"), ","); got != ":demo" {
 		t.Errorf("test embed = %q, want :demo", got)
 	}
-	if got := result.Imports[1].(testTargetImports); len(got.imports) != 0 {
-		t.Errorf("test imports = %+v, want empty (stdlib-only)", got.imports)
+	if got := importNames(t, result.Imports[1]); len(got) != 0 {
+		t.Errorf("test imports = %+v, want empty (stdlib-only)", got)
 	}
 }
 
@@ -151,14 +160,14 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "demo.go" {
 		t.Errorf("library srcs = %q, want demo.go", got)
 	}
-	if got := result.Imports[0].(targetImports); len(got.imports) != 0 {
-		t.Errorf("library imports = %+v, want empty (test-only import stays off the library)", got.imports)
+	if got := importNames(t, result.Imports[0]); len(got) != 0 {
+		t.Errorf("library imports = %+v, want empty (test-only import stays off the library)", got)
 	}
 	if got := strings.Join(result.Gen[1].AttrStrings("srcs"), ","); got != "demo_test.go" {
 		t.Errorf("test srcs = %q, want demo_test.go", got)
 	}
-	if got := result.Imports[1].(testTargetImports); strings.Join(got.imports, ",") != "rules_dx/stuff/only_by_test" {
-		t.Errorf("test imports = %+v, want [rules_dx/stuff/only_by_test]", got.imports)
+	if got := importNames(t, result.Imports[1]); strings.Join(got, ",") != "rules_dx/stuff/only_by_test" {
+		t.Errorf("test imports = %+v, want [rules_dx/stuff/only_by_test]", got)
 	}
 }
 
@@ -222,7 +231,7 @@ func TestGenerateToolsTaggedPackageSkipped(t *testing.T) {
 	if got := result.Gen[0].AttrStrings("srcs"); strings.Join(got, ",") != "lib.go,lib_linux.go" {
 		t.Errorf("srcs = %v, want [lib.go lib_linux.go]", got)
 	}
-	if imports := result.Imports[0].(targetImports).imports; len(imports) != 0 {
+	if imports := importNames(t, result.Imports[0]); len(imports) != 0 {
 		t.Errorf("imports = %v, want none", imports)
 	}
 }
@@ -263,7 +272,7 @@ func TestGenerateOnlyExcludedSourcesSweep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	l := &goLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
@@ -271,8 +280,8 @@ func TestGenerateOnlyExcludedSourcesSweep(t *testing.T) {
 		RegularFiles: []string{"gen.go"},
 		File:         existing,
 	})
-	if len(l.errors) != 0 {
-		t.Fatalf("errors = %v, want none", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v, want none", l.Errors())
 	}
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules, want 0", len(result.Gen))
@@ -290,15 +299,15 @@ func TestGenerateBadBuildConstraintFails(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/lib.go", "package demo\n")
 	writeFixture(t, root, "pkg/demo/bad.go", "//go:build &&\n\npackage demo\n")
-	l := &goLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
 		Rel:          "pkg/demo",
 		RegularFiles: []string{"bad.go", "lib.go"},
 	})
-	if len(l.errors) != 1 {
-		t.Fatalf("errors = %v, want one build constraint failure", l.errors)
+	if len(l.Errors()) != 1 {
+		t.Fatalf("errors = %v, want one build constraint failure", l.Errors())
 	}
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules, want 0", len(result.Gen))
@@ -362,11 +371,11 @@ func TestGenerateTestMainAndSharedImport(t *testing.T) {
 	if len(result.Gen) != 2 {
 		t.Fatalf("generated %d rules, want 2", len(result.Gen))
 	}
-	if got := result.Imports[0].(targetImports); strings.Join(got.imports, ",") != "rules_dx/stuff/shared" {
-		t.Errorf("library imports = %+v, want [rules_dx/stuff/shared]", got.imports)
+	if got := importNames(t, result.Imports[0]); strings.Join(got, ",") != "rules_dx/stuff/shared" {
+		t.Errorf("library imports = %+v, want [rules_dx/stuff/shared]", got)
 	}
-	if got := result.Imports[1].(testTargetImports); strings.Join(got.imports, ",") != "rules_dx/stuff/only_by_test" {
-		t.Errorf("test imports = %+v, want [rules_dx/stuff/only_by_test]", got.imports)
+	if got := importNames(t, result.Imports[1]); strings.Join(got, ",") != "rules_dx/stuff/only_by_test" {
+		t.Errorf("test imports = %+v, want [rules_dx/stuff/only_by_test]", got)
 	}
 }
 
@@ -546,9 +555,9 @@ func TestImportsExportImportpath(t *testing.T) {
 }
 
 func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	l.Before(context.Background())
-	l.fail("go: boom")
+	l.Fail("go: boom")
 	l.AfterResolvingDeps(context.Background())
 	got := common.Errors.Take()
 	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "go: boom" {
@@ -557,16 +566,16 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 }
 
 func TestAfterResolvingDepsClean(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	l.Before(context.Background())
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("errors = %v", l.Errors())
 	}
 }
 
 func TestLanguageMetadata(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	if l.Name() != "go" || len(l.Kinds()) != 2 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
 		t.Fatal("invalid language metadata")
 	}
@@ -639,106 +648,106 @@ func resolverIndex(lang *goLang, entries ...indexEntry) *resolve.RuleIndex {
 }
 
 func TestResolveBranches(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		indexEntry{"lib/b", "b", "example.test/lib/b"},
 		indexEntry{"lib/a", "a", "example.test/lib/a"},
 	)
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"example.test/lib/b", "example.test/lib/a"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"example.test/lib/b", "example.test/lib/a"}), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/a,//lib/b" {
 		t.Errorf("resolved deps = %q", got)
 	}
 
 	self := rule.NewRule(LibraryKind, "a")
-	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"example.test/lib/a"}}, label.New("", "lib/a", "a"))
+	l.Resolve(cfg, index, nil, self, common.WrapImportSet([]string{"example.test/lib/a"}), label.New("", "lib/a", "a"))
 	if self.Attr("deps") != nil {
 		t.Errorf("self dependency was emitted: %v", self.AttrStrings("deps"))
 	}
 
 	otherKind := rule.NewRule("filegroup", "other")
-	l.Resolve(cfg, index, nil, otherKind, targetImports{imports: []string{"example.test/lib/a"}}, label.New("", "app", "other"))
+	l.Resolve(cfg, index, nil, otherKind, common.WrapImportSet([]string{"example.test/lib/a"}), label.New("", "app", "other"))
 	if otherKind.Attr("deps") != nil {
 		t.Errorf("non-library resolution emitted deps = %v", otherKind.AttrStrings("deps"))
 	}
 
 	std := rule.NewRule(LibraryKind, "uses_std")
-	l.Resolve(cfg, index, nil, std, targetImports{imports: []string{"fmt"}}, label.New("", "app", "uses_std"))
-	if std.Attr("deps") != nil || len(l.errors) != 0 {
-		t.Errorf("stdlib resolution = %v, errors = %v", std.AttrStrings("deps"), l.errors)
+	l.Resolve(cfg, index, nil, std, common.WrapImportSet([]string{"fmt"}), label.New("", "app", "uses_std"))
+	if std.Attr("deps") != nil || len(l.Errors()) != 0 {
+		t.Errorf("stdlib resolution = %v, errors = %v", std.AttrStrings("deps"), l.Errors())
 	}
 
 	hand := rule.NewRule(LibraryKind, "hand")
 	hand.SetAttr("deps", []string{":kept"})
-	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"example.test/lib/a"}}, label.New("", "app", "hand"))
+	l.Resolve(cfg, index, nil, hand, common.WrapImportSet([]string{"example.test/lib/a"}), label.New("", "app", "hand"))
 	if got := strings.Join(hand.AttrStrings("deps"), ","); got != "//lib/a,:kept" {
 		t.Errorf("merged deps = %q", got)
 	}
 
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "unknown"), targetImports{imports: []string{"example.test/unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") || !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import go example.test/unknown" to app/BUILD.bazel`) {
-		t.Errorf("unresolved errors = %v", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "unknown"), common.WrapImportSet([]string{"example.test/unknown"}), label.New("", "app", "unknown"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "unresolved import") || !strings.Contains(l.Errors()[0], `or add "# gazelle:dx_ignore_import go example.test/unknown" to app/BUILD.bazel`) {
+		t.Errorf("unresolved errors = %v", l.Errors())
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
 }
 
 func TestResolveOverride(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "go go github.com/google/go-cmp/cmp @com_github_google_go_cmp//cmp:cmp"}})
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"github.com/google/go-cmp/cmp"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"github.com/google/go-cmp/cmp"}), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "@com_github_google_go_cmp//cmp" {
 		t.Errorf("override deps = %q", got)
 	}
-	if len(l.errors) != 0 {
-		t.Errorf("errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("errors = %v", l.Errors())
 	}
 }
 
 func TestResolveDuplicateLeafPackagesStayDistinct(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		indexEntry{"a/lib", "lib", "example.test/demo/a/lib"},
 		indexEntry{"b/lib", "lib", "example.test/demo/b/lib"},
 	)
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"example.test/demo/a/lib", "example.test/demo/b/lib"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"example.test/demo/a/lib", "example.test/demo/b/lib"}), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//a/lib,//b/lib" {
 		t.Errorf("deps = %q, want //a/lib,//b/lib", got)
 	}
 	only := rule.NewRule(LibraryKind, "only")
-	l.Resolve(cfg, index, nil, only, targetImports{imports: []string{"example.test/demo/b/lib"}}, label.New("", "app", "only"))
+	l.Resolve(cfg, index, nil, only, common.WrapImportSet([]string{"example.test/demo/b/lib"}), label.New("", "app", "only"))
 	if got := strings.Join(only.AttrStrings("deps"), ","); got != "//b/lib" {
 		t.Errorf("deps = %q, want //b/lib", got)
 	}
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "leaf"), targetImports{imports: []string{"lib"}}, label.New("", "app", "leaf"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unresolved import "lib"`) {
-		t.Errorf("leaf import errors = %v, want unresolved", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "leaf"), common.WrapImportSet([]string{"lib"}), label.New("", "app", "leaf"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], `unresolved import "lib"`) {
+		t.Errorf("leaf import errors = %v, want unresolved", l.Errors())
 	}
 }
 
 func TestResolveLeafMappingIsNotReinterpreted(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "go go lib //lib"}})
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"example.test/demo/lib"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"example.test/demo/lib"}), label.New("", "app", "app"))
 	if r.Attr("deps") != nil {
 		t.Errorf("leaf mapping applied to a qualified import: %v", r.AttrStrings("deps"))
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "# gazelle:resolve go lib //lib names only the last path element") {
-		t.Errorf("errors = %v, want leaf mapping failure", l.errors)
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "# gazelle:resolve go lib //lib names only the last path element") {
+		t.Errorf("errors = %v, want leaf mapping failure", l.Errors())
 	}
 	exact := rule.NewRule(LibraryKind, "exact")
-	l.Resolve(cfg, resolverIndex(l), nil, exact, targetImports{imports: []string{"lib"}}, label.New("", "app", "exact"))
-	if got := strings.Join(exact.AttrStrings("deps"), ","); got != "//lib" || len(l.errors) != 1 {
-		t.Errorf("exact leaf import deps = %q, errors = %v", got, l.errors)
+	l.Resolve(cfg, resolverIndex(l), nil, exact, common.WrapImportSet([]string{"lib"}), label.New("", "app", "exact"))
+	if got := strings.Join(exact.AttrStrings("deps"), ","); got != "//lib" || len(l.Errors()) != 1 {
+		t.Errorf("exact leaf import deps = %q, errors = %v", got, l.Errors())
 	}
 }
 
 func TestResolveTestBranches(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		indexEntry{"lib/sib", "sib", "example.test/lib/sib"},
 		indexEntry{"pkg/demo", "demo", "example.test/pkg/demo"},
@@ -746,37 +755,26 @@ func TestResolveTestBranches(t *testing.T) {
 	cfg := resolverConfig(t, nil)
 
 	sib := rule.NewRule(TestKind, "demo_test")
-	l.Resolve(cfg, index, nil, sib, testTargetImports{imports: []string{"example.test/lib/sib"}}, label.New("", "pkg/demo", "demo_test"))
+	l.Resolve(cfg, index, nil, sib, common.WrapImportSet([]string{"example.test/lib/sib"}), label.New("", "pkg/demo", "demo_test"))
 	if got := strings.Join(sib.AttrStrings("deps"), ","); got != "//lib/sib" {
 		t.Errorf("test sibling deps = %q, want //lib/sib", got)
 	}
 
 	self := rule.NewRule(TestKind, "demo_test")
 	self.SetAttr("embed", []string{":demo"})
-	l.Resolve(cfg, index, nil, self, testTargetImports{imports: []string{"example.test/pkg/demo"}}, label.New("", "pkg/demo", "demo_test"))
+	l.Resolve(cfg, index, nil, self, common.WrapImportSet([]string{"example.test/pkg/demo"}), label.New("", "pkg/demo", "demo_test"))
 	if self.Attr("deps") != nil {
 		t.Errorf("same-package test dep was emitted: %v", self.AttrStrings("deps"))
 	}
 
-	cross := rule.NewRule(TestKind, "demo_test")
-	l.Resolve(cfg, index, nil, cross, targetImports{imports: []string{"example.test/lib/sib"}}, label.New("", "pkg/demo", "demo_test"))
-	if cross.Attr("deps") != nil {
-		t.Errorf("wrong import type resolved onto test: %v", cross.AttrStrings("deps"))
-	}
-	libCross := rule.NewRule(LibraryKind, "demo")
-	l.Resolve(cfg, index, nil, libCross, testTargetImports{imports: []string{"example.test/lib/sib"}}, label.New("", "pkg/demo", "demo"))
-	if libCross.Attr("deps") != nil {
-		t.Errorf("test import type resolved onto library: %v", libCross.AttrStrings("deps"))
-	}
-
 	std := rule.NewRule(TestKind, "uses_std_test")
-	l.Resolve(cfg, index, nil, std, testTargetImports{imports: []string{"fmt"}}, label.New("", "pkg/demo", "uses_std_test"))
-	if std.Attr("deps") != nil || len(l.errors) != 0 {
-		t.Errorf("stdlib test resolution = %v, errors = %v", std.AttrStrings("deps"), l.errors)
+	l.Resolve(cfg, index, nil, std, common.WrapImportSet([]string{"fmt"}), label.New("", "pkg/demo", "uses_std_test"))
+	if std.Attr("deps") != nil || len(l.Errors()) != 0 {
+		t.Errorf("stdlib test resolution = %v, errors = %v", std.AttrStrings("deps"), l.Errors())
 	}
-	l.Resolve(cfg, index, nil, rule.NewRule(TestKind, "unknown_test"), testTargetImports{imports: []string{"example.test/unknown"}}, label.New("", "pkg/demo", "unknown_test"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
-		t.Errorf("unresolved test errors = %v", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(TestKind, "unknown_test"), common.WrapImportSet([]string{"example.test/unknown"}), label.New("", "pkg/demo", "unknown_test"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "unresolved import") {
+		t.Errorf("unresolved test errors = %v", l.Errors())
 	}
 }
 
@@ -797,11 +795,11 @@ func TestResolveTestKeepsNonEmbeddedSamePackageDeps(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			l := &goLang{}
+			l := newLang()
 			cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: tc.mapping}})
 			r := rule.NewRule(TestKind, "pkg_test")
 			r.SetAttr("embed", tc.embed)
-			l.Resolve(cfg, resolverIndex(l), nil, r, testTargetImports{imports: []string{"helper"}}, from)
+			l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"helper"}), from)
 			if got := strings.Join(r.AttrStrings("deps"), ","); got != tc.want {
 				t.Errorf("deps = %q, want %q", got, tc.want)
 			}
@@ -810,7 +808,7 @@ func TestResolveTestKeepsNonEmbeddedSamePackageDeps(t *testing.T) {
 }
 
 func TestResolveIndexedTestKeepsNonEmbeddedSamePackageDeps(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		indexEntry{"pkg", "pkg", "example.test/pkg"},
 		indexEntry{"pkg", "helper", "example.test/pkg/helper"},
@@ -818,14 +816,14 @@ func TestResolveIndexedTestKeepsNonEmbeddedSamePackageDeps(t *testing.T) {
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(TestKind, "pkg_test")
 	r.SetAttr("embed", []string{":pkg"})
-	l.Resolve(cfg, index, nil, r, testTargetImports{imports: []string{"example.test/pkg", "example.test/pkg/helper"}}, label.New("", "pkg", "pkg_test"))
+	l.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"example.test/pkg", "example.test/pkg/helper"}), label.New("", "pkg", "pkg_test"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != ":helper" {
 		t.Errorf("deps = %q, want :helper", got)
 	}
 }
 
 func TestResolveIgnore(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import go dropped\n"))
@@ -834,18 +832,18 @@ func TestResolveIgnore(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"dropped"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"dropped"}), label.New("", "app", "app"))
 	if r.Attr("deps") != nil {
 		t.Errorf("ignored import emitted deps = %v", r.AttrStrings("deps"))
 	}
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("ignore errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("ignore errors = %v", l.Errors())
 	}
 }
 
 func TestAfterResolvingDepsSkipsIgnoresOutsideGeneratedPackages(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "c", []byte("# gazelle:dx_ignore_import go unused\n"))
@@ -853,15 +851,15 @@ func TestAfterResolvingDepsSkipsIgnoresOutsideGeneratedPackages(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "c", file)
-	l.generated.Add("a")
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: t.TempDir(), Rel: "a"})
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("errors = %v, want the out-of-scope directive skipped", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("errors = %v, want the out-of-scope directive skipped", l.Errors())
 	}
 }
 
 func TestResolveStaleIgnoreFails(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import go unused\n"))
@@ -869,7 +867,7 @@ func TestResolveStaleIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
-	l.generated.Add("app")
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: t.TempDir(), Rel: "app"})
 	l.AfterResolvingDeps(context.Background())
 	if msg := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(msg, "stale # gazelle:dx_ignore_import") {
 		t.Fatalf("errors = %q, want stale ignore failure", msg)
@@ -877,18 +875,15 @@ func TestResolveStaleIgnoreFails(t *testing.T) {
 }
 
 func TestResolveAmbiguousFails(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		indexEntry{"lib/one", "dup", "example.test/dup"},
 		indexEntry{"lib/two", "dup", "example.test/dup"},
 	)
 	cfg := resolverConfig(t, nil)
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), targetImports{imports: []string{"example.test/dup"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous import") {
-		t.Errorf("ambiguous errors = %v", l.errors)
-	}
-	if len(l.errors) == 1 && !strings.Contains(l.errors[0], `; add "# gazelle:resolve go example.test/dup <label>" to app/BUILD.bazel`) {
-		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0])
+	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), common.WrapImportSet([]string{"example.test/dup"}), label.New("", "app", "app"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "ambiguous import") {
+		t.Errorf("ambiguous errors = %v", l.Errors())
 	}
 }
 
@@ -930,22 +925,22 @@ func TestGeneratePureGoScopeHasNoCgoRaceAttrs(t *testing.T) {
 
 func generateAt(t *testing.T, root, rel string, regular []string) language.GenerateResult {
 	t.Helper()
-	l := &goLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, filepath.FromSlash(rel)),
 		Rel:          rel,
 		RegularFiles: regular,
 	})
-	if len(l.errors) != 0 {
-		t.Fatalf("generate %s: %v", rel, l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("generate %s: %v", rel, l.Errors())
 	}
 	return result
 }
 
 func resolveGenerated(t *testing.T, root string, libSources []string) (string, string) {
 	t.Helper()
-	l := &goLang{}
+	l := newLang()
 	index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
 		if _, ok := goKinds[r.Kind()]; ok {
 			return l
@@ -970,8 +965,8 @@ func resolveGenerated(t *testing.T, root string, libSources []string) (string, s
 			l.Resolve(cfg, index, nil, r, result.Imports[i], label.New("", rel, r.Name()))
 		}
 	}
-	if len(l.errors) != 0 {
-		t.Fatalf("resolve errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("resolve errors = %v", l.Errors())
 	}
 	if deps := generated["lib"].Gen[1].Attr("deps"); deps != nil {
 		t.Errorf("external test of its own package gained deps %v", generated["lib"].Gen[1].AttrStrings("deps"))

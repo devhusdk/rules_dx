@@ -230,21 +230,30 @@ func (l *SingleLang) Fail(format string, args ...interface{}) { l.fail(format, a
 
 func (l *SingleLang) Failed() bool { return len(l.errors) > 0 }
 
+// Errors returns a copy of the errors reported so far.
+func (l *SingleLang) Errors() []string { return slices.Clone(l.errors) }
+
 func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
+	ResolveSingle(c, ix, r, raw, from, l.ResolveSpecFor(c, r, from))
+}
+
+// ResolveSpecFor builds the ResolveSpec the driver resolves r with. Languages
+// that embed SingleLang adjust it for their own hooks before ResolveSingle.
+func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.Label) ResolveSpec {
 	want := l.spec.LibraryKind
 	if slices.Contains(l.spec.ExtraKinds, r.Kind()) {
 		want = r.Kind()
 	}
-	ResolveSingle(c, ix, r, raw, from, ResolveSpec{
-		LanguageName: l.spec.LanguageName,
-		WantKind:     want,
-		Attr:         "deps",
-		Unwrap:       UnwrapImportSet,
-		UnwrapRefs:   UnwrapRefImportSet,
-		Fallback:     l.spec.Fallback,
-		IsStdLib:     l.spec.IsStdLib,
-		Candidates:   l.spec.Candidates,
-		Lookups:      l.spec.Lookups,
+	return ResolveSpec{
+		LanguageName:   l.spec.LanguageName,
+		WantKind:       want,
+		Attr:           "deps",
+		Unwrap:         UnwrapImportSet,
+		UnwrapRefs:     UnwrapRefImportSet,
+		Fallback:       l.spec.Fallback,
+		IsStdLib:       l.spec.IsStdLib,
+		Candidates:     l.spec.Candidates,
+		Lookups:        l.spec.Lookups,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
 				ignore.MarkUsed(from.Pkg)
@@ -261,7 +270,7 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		FailAmbiguous: func(from label.Label, name string, matches string) {
 			l.fail("%s", AmbiguousImport(c, l.spec.LanguageName, from, name, matches))
 		},
-	})
+	}
 }
 
 func HasExt(name string, exts []string) bool {

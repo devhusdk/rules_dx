@@ -1394,3 +1394,70 @@ func TestWrapAndUnwrapRefImportSet(t *testing.T) {
 		t.Errorf("Roots = %v", got)
 	}
 }
+
+func TestResolveSelfOverrideSkipped(t *testing.T) {
+	l := newDotLang()
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot Self //app:app"}})
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapImportSet([]string{"Self"}), label.New("", "app", "app"))
+	if r.Attr("deps") != nil || len(l.errors) != 0 {
+		t.Errorf("self override deps = %v, errors = %v", r.AttrStrings("deps"), l.errors)
+	}
+}
+
+func TestResolveSkipDep(t *testing.T) {
+	l := newJVMDotLang()
+	index := resolverIndex(l,
+		struct{ pkg, name string }{"lib/a", "A"},
+		struct{ pkg, name string }{"lib/b", "B"},
+		struct{ pkg, name string }{"lib/x", "com.x"},
+	)
+	cfg := resolverConfig(t, []rule.Directive{
+		{Key: "resolve", Value: "dot dot Mapped //skip:mapped"},
+		{Key: "resolve", Value: "dot dot org.y //skip:y"},
+	})
+	from := label.New("", "app", "app")
+	skipped := []label.Label{
+		label.New("", "skip", "mapped"),
+		label.New("", "skip", "y"),
+		label.New("", "lib/a", "A"),
+		label.New("", "lib/x", "com.x"),
+	}
+	r := rule.NewRule(dotKind, "app")
+	spec := l.ResolveSpecFor(cfg, r, from)
+	spec.SkipDep = func(dep label.Label) bool { return slices.Contains(skipped, dep) }
+	ResolveSingle(cfg, index, r, WrapImportSet([]string{"Mapped", "org.y.Thing", "A", "B", "com.x.Thing"}), from, spec)
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/b:B" {
+		t.Errorf("deps = %q, want only //lib/b:B", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
+	}
+}
+
+func TestErrorsReturnsCopy(t *testing.T) {
+	l := newDotLang()
+	l.Fail("one")
+	got := l.Errors()
+	got[0] = "changed"
+	if l.Errors()[0] != "one" {
+		t.Errorf("Errors aliases the driver state: %v", l.Errors())
+	}
+}
+
+func TestResolveSpecForWantKind(t *testing.T) {
+	spec := dotSpec()
+	spec.ExtraKinds = []string{"dot_test"}
+	l := NewSingleLang(spec)
+	from := label.New("", "app", "app")
+	for _, tc := range []struct{ kind, want string }{
+		{dotKind, dotKind},
+		{"dot_test", "dot_test"},
+		{"filegroup", dotKind},
+	} {
+		got := l.ResolveSpecFor(config.New(), rule.NewRule(tc.kind, "app"), from)
+		if got.WantKind != tc.want || got.Attr != "deps" {
+			t.Errorf("%s: spec = {WantKind:%q Attr:%q}, want WantKind %q", tc.kind, got.WantKind, got.Attr, tc.want)
+		}
+	}
+}

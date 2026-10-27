@@ -55,6 +55,7 @@ fn git(root: &Path, args: &[&str]) {
 }
 
 struct Env {
+    base: PathBuf,
     home: PathBuf,
     session: &'static str,
     project: PathBuf,
@@ -79,6 +80,9 @@ fn run_env(
         .env("XDG_CACHE_HOME", env.home.join(".cache"))
         .env("CLAUDE_CODE_SESSION_ID", env.session)
         .env("CLAUDE_PROJECT_DIR", &env.project)
+        // Git must not find the enclosing checkout: a bazel test scratch dir sits
+        // under the execroot, whose `.git` links to the source repository.
+        .env("GIT_CEILING_DIRECTORIES", &env.base)
         .envs(extra.iter().copied())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -130,6 +134,7 @@ fn scratch_env(name: &str) -> (PathBuf, Env) {
     let root = base.join("app");
     std::fs::create_dir_all(&root).expect("root");
     let env = Env {
+        base,
         home,
         session: "session-a",
         project: root.clone(),
@@ -297,6 +302,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     assert!(slot.join("tools/dx").exists());
 
     let other = Env {
+        base: env.base.clone(),
         home: env.home.clone(),
         session: "session-b",
         project: root.clone(),
@@ -494,9 +500,11 @@ fn hooks_fall_back_to_the_bazel_run_working_directory() {
     std::fs::create_dir_all(&runfiles).expect("runfiles");
     let dx = env_path("DX_BIN");
     let dx = dx.to_str().expect("utf8");
+    // `bazel run` sets both variables. Without BUILD_WORKSPACE_DIRECTORY, dx
+    // walks up from the runfiles dir and finds the execroot's MODULE.bazel.
     let user_dir = [
+        ("BUILD_WORKSPACE_DIRECTORY", root.to_str().expect("utf8")),
         ("BUILD_WORKING_DIRECTORY", root.to_str().expect("utf8")),
-        ("GIT_CEILING_DIRECTORIES", base.to_str().expect("utf8")),
     ];
     let run = |args: &[&str], stdin: &str| run_env(dx, args, &runfiles, &env, stdin, &user_dir);
 
@@ -505,6 +513,12 @@ fn hooks_fall_back_to_the_bazel_run_working_directory() {
     assert_eq!(created.stdout.lines().count(), 1, "{}", created.stdout);
     let path = PathBuf::from(created.stdout.trim());
     assert!(path.join(".git").exists(), "{path:?}");
+    // The slot must belong to the scratch repo, not the rules_dx checkout that
+    // the execroot's `.git` and `MODULE.bazel` expose to this test.
+    assert!(
+        path.starts_with(env.home.join(".cache/dx/worktrees/app")),
+        "{path:?}"
+    );
 
     let removed = run(
         &["worktree", "hook", "remove"],

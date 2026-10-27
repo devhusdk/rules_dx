@@ -35,6 +35,12 @@ if /i "%DX_HERE%"=="%DX_SELF%" goto dxself
 if not exist "%DX_HERE%\tools\dx.cmd" goto dxself
 "%DX_HERE%\tools\dx.cmd" %*
 :dxself
+rem Worktree add and release run the last built dx without a stale check or a build. Keep in sync with tools/dx.
+set "DX_FAST="
+if /i "%~1"=="worktree" if /i "%~2"=="add" set "DX_FAST=1"
+if /i "%~1"=="worktree" if /i "%~2"=="release" set "DX_FAST=1"
+if defined DX_FAST if exist "%DX_STATE%\dx.exe" set "BIN=%DX_STATE%\dx.exe"
+if defined DX_FAST if exist "%BIN%" goto run
 if exist "%DX_STATE%\" if not exist "%DX_STATE%\CACHEDIR.TAG" (echo Signature: 8a477f597d28d172789f06886806bc55& echo # Rebuildable copy of dx kept by tools/dx.cmd; see https://bford.info/cachedir/) > "%DX_STATE%\CACHEDIR.TAG" 2>nul
 call powershell -NoProfile -NonInteractive -Command "$s=$env:DX_STATE; $b=Join-Path $s 'built'; $i=Join-Path $s 'inputs'; if (-not ([IO.File]::Exists($env:BIN) -and [IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 1 }; if ((Get-Item -LiteralPath $i).Length -eq 0) { exit 1 }; $t=[IO.File]::GetLastWriteTimeUtc($b); $p=@(Get-Content -LiteralPath $i | ForEach-Object { $_.TrimStart('/').TrimStart(':').Replace(':', '/') }) + @('.bazelrc', '.bazelversion', 'user.bazelrc', 'tools/bazelrc/correctness.bazelrc', 'tools/bazelrc/performance.bazelrc', 'tools/bazelrc/resources.bazelrc', 'MODULE.bazel', 'MODULE.bazel.lock', 'cargo-bazel-lock.json'); foreach ($f in $p) { if ([IO.File]::GetLastWriteTimeUtc((Join-Path $env:DX_ROOT $f)) -gt $t) { exit 1 } }; %DX_SYNC%"
 if errorlevel 2 goto run

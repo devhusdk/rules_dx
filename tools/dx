@@ -51,6 +51,16 @@ done
 if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
   exec "$here/tools/dx" "$@"
 fi
+# Worktree add and release must stay fast and must not wait on Bazel: run the last built dx without a stale check.
+# Keep this list in sync with tools/dx.cmd.
+if [ "${1:-}" = worktree ]; then
+  case "${2:-}" in
+    add | release)
+      [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
+      [ -x "$bin" ] && exec "$bin" "$@"
+      ;;
+  esac
+fi
 tag_state() {
   { printf '%s\n%s\n' 'Signature: 8a477f597d28d172789f06886806bc55' '# Rebuildable copy of dx kept by tools/dx; see https://bford.info/cachedir/' > "$state/CACHEDIR.TAG.$$" && mv -f "$state/CACHEDIR.TAG.$$" "$state/CACHEDIR.TAG"; } 2> /dev/null || rm -f "$state/CACHEDIR.TAG.$$"
 }

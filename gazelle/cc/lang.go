@@ -97,6 +97,7 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
 		LanguageName: languageName,
 		LibraryKind:  LibraryKind,
+		OwnsByName:   true,
 		IsSource:     func(name string) bool { return IsSource(name) && !IsTestSource(name) },
 		IsHeader:     func(name string) bool { return IsHeader(name) && !IsTestSource(name) },
 		IsMainFile:   IsSource,

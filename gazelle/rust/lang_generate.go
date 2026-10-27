@@ -739,6 +739,9 @@ func staleRules(file *rule.File, desired map[string]bool) language.GenerateResul
 		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
 			continue
 		}
+		if hasHandwrittenAttr(existing) {
+			continue
+		}
 		empty := rule.NewRule(existing.Kind(), existing.Name())
 		result.Empty = append(result.Empty, empty)
 	}
@@ -757,4 +760,15 @@ func siblingLibName(manifest *cargoManifest, bin cargoTarget) string {
 		}
 	}
 	return ""
+}
+
+// hasHandwrittenAttr reports whether r sets attributes the generator never
+// writes, so the rule is handwritten and must not be removed as stale.
+func hasHandwrittenAttr(r *rule.Rule) bool {
+	for _, attr := range []string{"env", "rustc_env", "data", "compile_data", "rustc_flags", "args"} {
+		if r.Attr(attr) != nil {
+			return true
+		}
+	}
+	return false
 }

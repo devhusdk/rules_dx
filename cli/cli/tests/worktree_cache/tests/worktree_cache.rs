@@ -171,11 +171,17 @@ fn a_second_slot_on_the_same_commit_hits_the_shared_disk_cache() {
     let two = add(&case, &scratch, "two");
     assert_ne!(one, two, "both branches got the same slot");
 
+    // Expunge both: the output bases outlive the case dir and stay warm across runs.
+    for slot in [&one, &two] {
+        let cleaned = nested::bazel_in(slot, &["clean", "--expunge"]);
+        ok(&cleaned, &format!("cold start in {}", slot.display()));
+    }
+
     let first = build(&case, &scratch, &one, &case.root().join("one.json"));
     let disk_cache = scratch.cache.join("dx/disk-cache");
     assert!(
         dir_has_files(&disk_cache),
-        "{} is empty after the first build; an rc such as /etc/bazel.bazelrc may set --disk_cache",
+        "{} is empty after a cold first build; the disk cache was not written",
         disk_cache.display()
     );
     let executed = first.iter().filter(|spawn| runner(spawn) != HIT).count();

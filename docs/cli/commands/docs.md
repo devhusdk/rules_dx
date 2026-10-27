@@ -183,3 +183,51 @@ Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or prev
 failure. Bazel failures keep Bazel's code. A parse error, mixed package names,
 `package main`, no files left after build constraints, or no exported API fails the
 build, and no pages are written.
+
+## Ruby API reference
+
+`ruby_doc_shard` from `@rules_dx//tools/docs/ruby:defs.bzl` reads one Ruby library's
+public API with YARD 0.9.45, run by the registered `rules_ruby` toolchain, and produces
+a docs IR shard with language `ruby`. YARD parses the sources without running them, and
+the sources are never changed. Pass the shard to `docs_site` beside other shards.
+
+```starlark
+load("@rules_dx//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
+
+ruby_doc_shard(
+    name = "api_docs",
+    lib = ":geometry",
+)
+```
+
+Attributes:
+
+- `lib`: the documented `ruby_library`. Its own `srcs` are documented; files from its `deps` are only read for context.
+- `package`: the package segment of the symbol ids. Defaults to the name of `lib`.
+- `deps`: `ruby_doc_shard` targets of libraries whose modules this one includes, extends or subclasses. Their symbols are linked, not documented again.
+
+Symbol ids have the form `ruby:<package>:<Namespace>.<Name>`, for example
+`ruby:geometry:Geometry.Circle.area`. Singleton methods add a `self` segment, as in
+`ruby:geometry:Geometry.Circle.self.unit`. Characters other than letters, digits and
+`_` are written as `~` and two hex digits, so `empty?` becomes `empty~3F`. Pages are
+titled with the Ruby name: `Geometry::Circle#area`, `Geometry::Circle.unit`.
+
+Modules, classes, methods, constants and attributes are documented, with the types
+and text of their `@param` and `@return` tags. Private and protected
+methods, and objects tagged `@private` or `@api private`, are left out. A method with
+no doc text, an untyped `@param` or no `@return` type is listed in its
+`ruby.incomplete` extension; the `ruby.config` extension records the Ruby and YARD
+versions.
+
+YARD plugins, `.yardopts` and `~/.yard` are never loaded. Any YARD warning, a syntax
+error, a public API that is empty, or two objects with the same id fails the build,
+and no pages are written.
+
+Build the shard's site with the scope of the target:
+
+```sh
+bazel run @rules_dx//:dx -- docs //lib:api_docs
+```
+
+Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
+failure. Bazel failures keep Bazel's code.

@@ -1,0 +1,86 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//ruby/rules:defs.bzl", "ruby_library")
+load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "ext/square.rb",
+    "lib/geometry.rb",
+    "lib/geometry/shapes.rb",
+    "testdata/broken.rb",
+])
+
+ruby_library(
+    name = "geometry",
+    srcs = [
+        "lib/geometry.rb",
+        "lib/geometry/shapes.rb",
+    ],
+)
+
+ruby_library(
+    name = "geometry_changed",
+    srcs = [
+        "changed/geometry.rb",
+        "changed/geometry/shapes.rb",
+    ],
+)
+
+ruby_library(
+    name = "geometry_crlf",
+    srcs = [
+        "crlf/shapes.rb",
+        "lib/geometry.rb",
+    ],
+)
+
+ruby_library(
+    name = "geometry_ext",
+    srcs = ["ext/square.rb"],
+    deps = [":geometry"],
+)
+
+ruby_doc_shard(
+    name = "geometry_docs",
+    lib = ":geometry",
+)
+
+ruby_doc_shard(
+    name = "geometry_changed_docs",
+    lib = ":geometry_changed",
+    package = "geometry",
+)
+
+ruby_doc_shard(
+    name = "geometry_crlf_docs",
+    lib = ":geometry_crlf",
+    package = "geometry",
+)
+
+ruby_doc_shard(
+    name = "geometry_ext_docs",
+    lib = ":geometry_ext",
+    deps = [":geometry_docs"],
+)
+
+filegroup(
+    name = "testdata",
+    testonly = True,
+    srcs = [
+        "testdata/broken.rb",
+        "testdata/plugin/.yardopts",
+        "testdata/plugin/home/.yard/config",
+        "testdata/plugin/lib/yard-evil.rb",
+        "testdata/private_only.rb",
+        "testdata/reopen/dep.rb",
+        "testdata/reopen/own.rb",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

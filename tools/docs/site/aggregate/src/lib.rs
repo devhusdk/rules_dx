@@ -97,6 +97,48 @@ pub fn title(id: &str) -> String {
     format!("{package}.{qualified}")
 }
 
+/// Returns one inline code span of `text`, fenced with more backticks than the text holds.
+pub fn code(text: &str) -> String {
+    let mut longest = 0;
+    let mut run = 0;
+    for c in text.chars() {
+        run = if c == '`' { run + 1 } else { 0 };
+        longest = longest.max(run);
+    }
+    let fence = "`".repeat(longest + 1);
+    if longest > 0 && (text.starts_with('`') || text.ends_with('`')) {
+        format!("{fence} {text} {fence}")
+    } else {
+        format!("{fence}{text}{fence}")
+    }
+}
+
+/// Escapes the characters that would end or nest a Markdown link text.
+fn link_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        if matches!(c, '\\' | '[' | ']' | '<' | '>' | '`') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// Reader-facing titles: a symbol's display name when its shard sets one, else `title(id)`.
+struct Titles<'a> {
+    names: BTreeMap<&'a str, &'a str>,
+}
+
+impl Titles<'_> {
+    fn of(&self, id: &str) -> String {
+        match self.names.get(id) {
+            Some(name) => (*name).to_string(),
+            None => title(id),
+        }
+    }
+}
+
 /// Reads, renders and writes every output, returning "" on success.
 pub fn run(options: &Options) -> String {
     let mut shards = Vec::new();
@@ -175,6 +217,14 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
         return Err("the shards name no symbols".to_string());
     }
     let known: BTreeSet<&str> = pages.keys().map(String::as_str).collect();
+    let titles = Titles {
+        names: shards
+            .iter()
+            .flat_map(|shard| &shard.symbols)
+            .filter(|symbol| !symbol.display_name.is_empty())
+            .map(|symbol| (symbol.id.as_str(), symbol.display_name.as_str()))
+            .collect(),
+    };
     let mut rendered = Rendered {
         summary: "- [API](api.md)\n".to_string(),
         api: "# API Reference\n".to_string(),
@@ -194,24 +244,25 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
             };
             let path = api_path(&id);
             let summary = first_line(&page.symbol.doc_markdown);
+            let name = titles.of(&id);
             rendered
                 .summary
-                .push_str(&format!("    - [{}]({path})\n", title(&id)));
+                .push_str(&format!("    - [{}]({path})\n", link_text(&name)));
             match summary {
                 Some(line) => rendered
                     .api
-                    .push_str(&format!("- [`{}`]({path}): {line}\n", title(&id))),
+                    .push_str(&format!("- [{}]({path}): {line}\n", code(&name))),
                 None => rendered
                     .api
-                    .push_str(&format!("- [`{}`]({path})\n", title(&id))),
+                    .push_str(&format!("- [{}]({path})\n", code(&name))),
             }
             let rel = path.strip_prefix("api/").unwrap_or(&path).to_string();
             rendered
                 .pages
-                .insert(rel, page_text(page, &known, source_url));
+                .insert(rel, page_text(page, &known, &titles, source_url));
             records.push(serde_json::json!({
                 "body": summary.unwrap_or_default(),
-                "title": title(&id),
+                "title": name,
                 "url": format!("{}.html", path.strip_suffix(".md").unwrap_or(&path)),
             }));
         }
@@ -227,6 +278,7 @@ fn group_title(group: &str) -> String {
     match group.split_once(':') {
         Some(("rust", package)) => format!("Rust crate `{package}`"),
         Some(("go", package)) => format!("Go package `{package}`"),
+        Some(("ruby", package)) => format!("Ruby library `{package}`"),
         Some((language, package)) => format!("{language} package `{package}`"),
         None => group.to_string(),
     }
@@ -239,20 +291,21 @@ fn first_line(doc: &str) -> Option<&str> {
         .filter(|line| !line.starts_with('#') && !line.starts_with("```"))
 }
 
-fn page_text(page: &Page, known: &BTreeSet<&str>, source_url: &str) -> String {
+fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &str) -> String {
     let symbol = page.symbol;
     let from = api_path(&page.id);
-    let mut text = format!("# `{}`\n\n", title(&page.id));
+    let mut text = format!("# {}\n\n", code(&titles.of(&page.id)));
     if let Some(canonical) = &page.canonical {
         text.push_str(&format!(
             "Re-export of {}.\n\n",
-            link(&from, canonical, known)
+            link(&from, canonical, known, titles)
         ));
     }
     if !symbol.signature_text.is_empty() {
         let fence = match page.id.split_once(':') {
             Some(("rust", _)) => "rust,noplayground",
             Some(("go", _)) => "go",
+            Some(("ruby", _)) => "ruby",
             _ => "text",
         };
         text.push_str(&format!("```{fence}\n{}\n```\n\n", symbol.signature_text));
@@ -283,7 +336,10 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, source_url: &str) -> String {
                 continue;
             }
             if !ids.is_empty() {
-                let links: Vec<String> = ids.iter().map(|id| link(&from, id, known)).collect();
+                let links: Vec<String> = ids
+                    .iter()
+                    .map(|id| link(&from, id, known, titles))
+                    .collect();
                 text.push_str(&format!("{label}: {}\n\n", links.join(", ")));
             }
         }
@@ -295,7 +351,7 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, source_url: &str) -> String {
                 .and_then(|rest| rest.strip_prefix('.'))
                 .is_some_and(|rest| !rest.contains('.'))
         })
-        .map(|id| link(&from, id, known))
+        .map(|id| link(&from, id, known, titles))
         .collect();
     if page.canonical.is_none() && !members.is_empty() {
         text.push_str(&format!("Members: {}\n\n", members.join(", ")));
@@ -303,11 +359,12 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, source_url: &str) -> String {
     text.trim_end().to_string() + "\n"
 }
 
-fn link(from: &str, id: &str, known: &BTreeSet<&str>) -> String {
+fn link(from: &str, id: &str, known: &BTreeSet<&str>, titles: &Titles) -> String {
+    let name = code(&titles.of(id));
     if !known.contains(id) {
-        return format!("`{}`", title(id));
+        return name;
     }
-    format!("[`{}`]({})", title(id), relative(from, &api_path(id)))
+    format!("[{name}]({})", relative(from, &api_path(id)))
 }
 
 /// Returns the link from one book page to another, relative to the first page's folder.

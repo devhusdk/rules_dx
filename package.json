@@ -7,13 +7,19 @@
     "node": "22"
   },
   "devDependencies": {
+    "@astrojs/check": "0.9.12",
     "@astrojs/compiler": "4.0.0",
+    "@astrojs/preact": "6.0.6",
     "@mdx-js/mdx": "3.1.1",
     "@vue/compiler-sfc": "3.5.42",
+    "astro": "7.3.8",
     "jest": "30.2.0",
     "jest-cli": "30.2.0",
+    "jest-environment-jsdom": "30.2.0",
     "jest-junit": "16.0.0",
+    "preact": "10.29.8",
     "svelte": "5.57.0",
+    "typescript": "6.0.3",
     "vue": "3.5.42"
   },
   "pnpm": {

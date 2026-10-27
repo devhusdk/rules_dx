@@ -1276,6 +1276,59 @@ Findings point at the line and column in the `.astro` file, including findings
 in `<script>` blocks. A `.astro` file that no config entry matches fails the
 run. It never counts as clean.
 
+#### Building and checking an app
+
+`astro_build` and `astro_check` are Bazel targets. They run the `astro` and
+`@astrojs/check` from your own `node_modules`. `dx check` does not run them.
+
+```python
+load("@rules_dx//astro/rules:defs.bzl", "astro_build", "astro_check")
+load("@rules_dx//javascript/rules:web.bzl", "javascript_web_server")
+
+astro_build(
+    name = "site",
+    srcs = glob(["src/**"]),
+    config = "astro.config.mjs",
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    public = glob(["public/**"]),
+    deps = ["//:node_modules/@astrojs/preact", "//:node_modules/preact"],
+)
+
+astro_check(
+    name = "check",
+    srcs = glob(["src/**"]),
+    config = "astro.config.mjs",
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    tsconfig = "tsconfig.json",
+    deps = ["//:node_modules/@astrojs/preact", "//:node_modules/preact"],
+)
+
+javascript_web_server(
+    name = "serve",
+    app = ":site",
+)
+```
+
+```sh
+bazel build //web:site
+bazel test //web:check
+bazel run //web:serve
+```
+
+`astro_build` writes the static site to a `site/` tree. `javascript_web_server`
+serves it. `astro_check` runs `astro check` once into
+`check.astro_check.txt`. The file starts with `exit_code: <n>` and holds the
+diagnostics, for example
+`src/pages/index.astro:7:15 - error ts(2322): ...`. The test fails and prints
+the report when the exit code is not 0. A crash or a missing package fails the
+build. It never counts as clean.
+
+`package_json` must list the integrations your config uses. Astro reads it to
+bundle them. Tested with `astro` 7.3.8, `@astrojs/check` 0.9.12,
+`@astrojs/preact` 6.0.6 and `typescript` 6.0.3.
+
 ### MDX
 
 `mdx_library` from `@rules_dx//mdx/rules:defs.bzl` owns `.mdx` files. The

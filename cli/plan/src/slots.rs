@@ -279,6 +279,34 @@ fn slot_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.lock"))
 }
 
+/// Lists the `slot-N.lock` files in `dir` that dx cannot open, without creating or locking anything.
+pub fn unusable_slot_files(dir: &Path) -> Vec<(PathBuf, io::Error)> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(PathBuf, io::Error)> = entries
+        .flatten()
+        .filter(|entry| {
+            let name = entry.file_name();
+            name.to_str()
+                .and_then(|n| n.strip_prefix("slot-")?.strip_suffix(".lock"))
+                .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        })
+        .filter_map(|entry| {
+            let path = entry.path();
+            match OpenOptions::new().read(true).open(&path) {
+                Err(error) => Some((path, error)),
+                Ok(file) if !file.metadata().is_ok_and(|meta| meta.is_file()) => {
+                    Some((path, io::Error::other("not a regular file")))
+                }
+                Ok(_) => None,
+            }
+        })
+        .collect();
+    found.sort_by(|a, b| a.0.cmp(&b.0));
+    found
+}
+
 /// Locks a slot file shared or exclusive, falling back to a read-only open when it cannot be written.
 fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
     let locked = if shared {

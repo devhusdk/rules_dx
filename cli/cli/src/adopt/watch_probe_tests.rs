@@ -297,6 +297,9 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
             .collect::<Vec<_>>();
         assert!(
             has_cache_and_settings(&args, &cache)
+                && args
+                    .windows(2)
+                    .any(|pair| pair == ["--config=dx_dev", dx_plan::plan::SKIP_INCOMPATIBLE_FLAG])
                 && args.windows(2).any(|pair| pair == ["--jobs=4", "--apply"])
                 && args.iter().filter(|arg| **arg == "--jobs=4").count() == 1
                 && args.iter().filter(|arg| **arg == "--apply").count() == 1
@@ -536,6 +539,7 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         let build = command_args(pair[0], "build");
         assert!(
             has_cache_and_settings(&build, &cache)
+                && build.contains(&"--config=dx_dev")
                 && build.last() == Some(&"//app:bin")
                 && !build.contains(&"--")
                 && !build.contains(&"--help"),
@@ -545,6 +549,7 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
         let run = command_args(pair[1], "run");
         assert!(
             has_cache_and_settings(&run, &cache)
+                && run.contains(&"--config=dx_dev")
                 && run.ends_with(&["//app:bin", "--", "--help"])
                 && run.iter().filter(|arg| **arg == "--").count() == 1
                 && run.iter().filter(|arg| **arg == "--help").count() == 1,

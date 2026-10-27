@@ -45,6 +45,7 @@ REAL_ADAPTERS = {
     "flake8": {"lint": ["python", "python_stub"]},
     "fsharplint": {"lint": ["fsharp"]},
     "gofumpt": {"format": ["go"]},
+    "graphql_eslint": {"lint": ["graphql"]},
     "hadolint": {"lint": ["dockerfile"]},
     "google_java_format": {"format": ["java"]},
     "govet": {"lint": ["go"]},

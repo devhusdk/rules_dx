@@ -68,7 +68,7 @@ pub use cue::parse_cue;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
-pub use eslint::parse_eslint;
+pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
 pub use fsharplint::parse_fsharplint;
@@ -1551,6 +1551,14 @@ mod tests {
         super::eslint::parse_eslint(input, code, files)
     }
 
+    fn fuzz_graphql_eslint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::eslint::parse_graphql_eslint(input, code, files)
+    }
+
     fn fuzz_fantomas(
         input: &[u8],
         code: Option<i32>,
@@ -1973,6 +1981,7 @@ mod tests {
         ("gleam_format", fuzz_gleam_format),
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
+        ("graphql_eslint", fuzz_graphql_eslint),
         ("govet", fuzz_govet),
         ("hadolint", fuzz_hadolint),
         ("jsonnetfmt", fuzz_jsonnetfmt),

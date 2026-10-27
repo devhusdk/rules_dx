@@ -19,6 +19,16 @@ js_binary(
 )
 
 js_binary(
+    name = "graphql_eslint_generated",
+    data = [
+        "//quality/tools/javascript:node_modules/@graphql-eslint/eslint-plugin",
+        "//quality/tools/javascript:node_modules/eslint",
+        "//quality/tools/javascript:node_modules/graphql",
+    ],
+    entry_point = "graphql_eslint.mjs",
+)
+
+js_binary(
     name = "prettier_generated",
     data = [
         "prettier_ignore",
@@ -47,6 +57,12 @@ js_tool(
     name = "eslint",
     entry_point = "eslint.mjs",
     js_binary = ":eslint_generated",
+)
+
+js_tool(
+    name = "graphql_eslint",
+    entry_point = "graphql_eslint.mjs",
+    js_binary = ":graphql_eslint_generated",
 )
 
 js_tool(

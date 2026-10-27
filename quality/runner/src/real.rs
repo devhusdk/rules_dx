@@ -32,6 +32,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "gofumpt",
     "google_java_format",
     "govet",
+    "graphql_eslint",
     "hadolint",
     "jsonnetfmt",
     "keep_sorted",
@@ -523,7 +524,7 @@ mod tests {
     /// The resolved JavaScript launch names its own runfiles on every platform.
     #[test]
     fn javascript_tools_resolve_to_their_own_manifest() {
-        for tool_id in ["eslint", "prettier", "stylelint"] {
+        for tool_id in ["eslint", "graphql_eslint", "prettier", "stylelint"] {
             assert_eq!(
                 policy_for(tool_id),
                 RunfilesPolicy::OwnManifest,
@@ -555,7 +556,7 @@ mod tests {
         for tool_id in ALWAYS_OWN_MANIFEST {
             assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit, "{tool_id}");
         }
-        for tool_id in ["eslint", "prettier", "stylelint"] {
+        for tool_id in ["eslint", "graphql_eslint", "prettier", "stylelint"] {
             assert!(!reads_own_manifest(tool_id), "{tool_id}");
         }
     }

@@ -1179,6 +1179,43 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
 }
 
 #[test]
+fn graphql_eslint_check_passes_config_root_and_files_after_a_separator() {
+    let query = Path::new("/scratch/api/query.graphql");
+    let launch = ResolvedTool::javascript("graphql_eslint", Path::new(BIN));
+    let check = graphql_eslint_check(
+        &launch,
+        &[query],
+        Path::new("/scratch/api/graphql.json"),
+        Path::new("/scratch"),
+    )
+    .expect("resolves");
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/api/graphql.json",
+            "--root",
+            "/scratch",
+            "--",
+            "/scratch/api/query.graphql"
+        ]
+    );
+    let blank = ResolvedTool::javascript("graphql_eslint", Path::new(""));
+    assert_eq!(
+        graphql_eslint_check(
+            &blank,
+            &[query],
+            Path::new("/scratch/api/graphql.json"),
+            Path::new("/scratch"),
+        ),
+        Err(LaunchError::MissingProgram {
+            tool: "graphql_eslint".to_owned()
+        })
+    );
+}
+
+#[test]
 fn file_family_lint_checks_are_check_only() {
     let css = Path::new("/scratch/style.css");
     let launch = ResolvedTool::javascript("stylelint", Path::new(BIN));

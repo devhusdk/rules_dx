@@ -270,6 +270,33 @@ impl RealBackend {
                 };
                 parsed(tool_id, parsers::parse_stylelint(report, out.code, &strs))
             }
+            "graphql_eslint" => {
+                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                let Some(cfg) = config.as_ref() else {
+                    return Err(execution(
+                        tool_id,
+                        "graphql_eslint requires a config".to_owned(),
+                    ));
+                };
+                let invocation =
+                    commands::graphql_eslint_check(&launch, &refs, cfg, scratch.root())
+                        .map_err(|err| execution(tool_id, err.to_string()))?;
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                if !matches!(out.code, Some(0 | 1)) {
+                    let code = out
+                        .code
+                        .map_or_else(|| "signal".to_owned(), |code| code.to_string());
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    return Err(execution(
+                        tool_id,
+                        format!("exit {code}: {}", stderr.trim()),
+                    ));
+                }
+                parsed(
+                    tool_id,
+                    parsers::parse_graphql_eslint(&out.stdout, out.code, &strs),
+                )
+            }
             "prettier" => {
                 let launch = ResolvedTool::javascript(tool_id, &tool.binary);
                 let invocation = commands::prettier_check(&launch, &refs)

@@ -230,6 +230,7 @@ to.
 | `gofumpt` | format | go |
 | `google_java_format` | format | java |
 | `govet` | lint | go |
+| `graphql_eslint` | lint | graphql |
 | `hadolint` | lint | dockerfile |
 | `jsonnetfmt` | format | jsonnet |
 | `keep_sorted` | lint | text |
@@ -905,6 +906,102 @@ export default [
 
 Findings point at the line and column in the `.vue` file. A `.vue` file that no
 config entry matches fails the run. It never counts as clean.
+
+### GraphQL lint
+
+`graphql_eslint` checks GraphQL schemas and operations against the schema. It
+runs `@graphql-eslint/eslint-plugin` 4.4.2 with `graphql` 16.14.2 on the managed
+ESLint 10.10.0 pin. It runs on Linux x86_64. Linux arm64, macOS arm64 and
+Windows x86_64 are not supported yet. It is opt-in: select it in the `graphql`
+family next to `prettier`, which keeps format.
+
+```python
+quality_family(
+    name = "graphql_family",
+    disabled = ["typecheck"],
+    family_id = "graphql",
+    format = ["prettier"],
+    lint = ["graphql_eslint"],
+)
+```
+
+The tool needs a schema, so it needs a config. Bind a `graphql_eslint_config`
+to the library with `aspect_hints`, and list the schema and any shared
+documents in `data`:
+
+```python
+load("@rules_dx//quality:native_config.bzl", "graphql_eslint_config")
+
+graphql_eslint_config(
+    name = "graphql_lint",
+    src = "graphql_lint.json",
+    data = [
+        "fragments.graphql",
+        "schema.graphql",
+    ],
+)
+```
+
+```json
+{
+  "schema": "graph/schema.graphql",
+  "documents": ["graph/fragments.graphql"],
+  "rules": {
+    "operations": {
+      "@graphql-eslint/fields-on-correct-type": "error",
+      "@graphql-eslint/known-fragment-names": "error"
+    }
+  }
+}
+```
+
+The config is a JSON object with these keys. Any other key fails the run.
+
+- `schema` (required): one workspace-relative path or a list of them. Each
+  path must name a file. Globs, URLs, absolute paths and `..` are rejected.
+- `documents` (optional): the same shape. These are the operations and
+  fragments the checked files may use. The files a target owns are always
+  added.
+- `rules` (optional): `{"schema": {...}, "operations": {...}}`. Each map
+  replaces its default rule set. Every rule ID must start with
+  `@graphql-eslint/`.
+- `baseline`: reserved for the breaking-change check. It is not supported yet,
+  so setting it fails the run.
+
+A file named in `schema` gets the schema rules. Every other file gets the
+operation rules. The default schema rules are `known-type-names`,
+`known-directives`, `known-argument-names`, `provided-required-arguments`,
+`unique-type-names`, `unique-field-definition-names`,
+`unique-enum-value-names`, `unique-directive-names`,
+`unique-directive-names-per-location`, `unique-operation-types`,
+`lone-schema-definition` and `possible-type-extension`. The default operation
+rules are the GraphQL validation rules: `executable-definitions`,
+`fields-on-correct-type`, `fragments-on-composite-type`,
+`known-argument-names`, `known-directives`, `known-fragment-names`,
+`known-type-names`, `lone-anonymous-operation`, `no-fragment-cycles`,
+`no-undefined-variables`, `no-unused-variables`, `one-field-subscriptions`,
+`overlapping-fields-can-be-merged`, `possible-fragment-spread`,
+`provided-required-arguments`, `scalar-leafs`, `unique-argument-names`,
+`unique-directive-names-per-location`, `unique-input-field-names`,
+`unique-variable-names`, `value-literals-of-correct-type`,
+`variables-are-input-types` and `variables-in-allowed-position`.
+`no-unused-fragments` is not a default: each target is linted on its own, so a
+target that only defines shared fragments would report them as unused. Style
+rules are off unless you add them.
+
+```sh
+bazel run @rules_dx//:dx -- lint //graph/...
+bazel run @rules_dx//:dx -- format --apply //graph/...
+```
+
+Lint is check-only: `lint --apply` never rewrites a file. Each finding has the
+file, line, column, the rule ID such as
+`@graphql-eslint/fields-on-correct-type`, and the message. A syntax error is
+reported at its line and column. A schema that does not build is reported at
+the start of each checked file. A missing config, an invalid config, a path
+that names no file, or a tool that fails to run fails the run with the cause
+named. It never counts as clean. The tool never reads `graphql.config.*`
+files and never fetches a schema over the network.
 
 ### SQL, XML and Gherkin
 

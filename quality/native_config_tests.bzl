@@ -23,6 +23,7 @@ _HINTS = [
 _RUNNER_CONFIG_REQUIRED_TOOLS = [
     "checkstyle",
     "eslint",
+    "graphql_eslint",
     "scalafix",
     "vale",
 ]
@@ -122,6 +123,11 @@ def native_config_unit_tests(name):
                 [".json", "djlint.toml", ".yaml"],
             ),
             expect_equal(
+                "native_config_extension pins the graphql_eslint JSON transport",
+                native_config_extension("graphql_eslint"),
+                ".json",
+            ),
+            expect_equal(
                 "native_config_extension pins the shellcheck rc suffix",
                 native_config_extension("shellcheck"),
                 ".shellcheckrc",
@@ -189,7 +195,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("prettier", "x.json", True, []),
                 "native_config: unknown tool 'prettier': want one of " +
-                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, hadolint, pmd, psscriptanalyzer, qmlformat, qmllint, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
+                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, pmd, psscriptanalyzer, qmlformat, qmllint, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",
@@ -310,6 +316,11 @@ def native_config_unit_tests(name):
                 "real_aspect (//q:t): applicable ESLint requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
             ),
             expect_equal(
+                "missing_required_config_error names an unbound graphql_eslint stage",
+                missing_required_config_error("graphql_eslint", {}, "//q:t"),
+                "real_aspect (//q:t): applicable graphql-eslint requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
+            ),
+            expect_equal(
                 "missing_required_config_error names an unbound scalafmt stage",
                 missing_required_config_error("scalafmt", {}, "//q:t"),
                 "real_aspect (//q:t): applicable Scalafmt requires declared config; supply and bind native policy via aspect_hints (no usable upstream default)",
@@ -329,7 +340,7 @@ def native_config_unit_tests(name):
                     native_config_extension(tool)
                     for tool in _RUNNER_CONFIG_REQUIRED_TOOLS
                 ],
-                [".xml", ".js", ".conf", ".ini"],
+                [".xml", ".js", ".json", ".conf", ".ini"],
             ),
             expect_equal(
                 "missing_required_config_error accepts bound and default-only tools",

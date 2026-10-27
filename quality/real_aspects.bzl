@@ -45,6 +45,7 @@ _REAL_TOOL_TABLE = {
     "fsharplint": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
     "gleam_format": {"capabilities": ["format"], "shard": "core", "resources": "light"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm", "resources": "heavy"},
+    "graphql_eslint": {"capabilities": ["lint"], "shard": "js", "resources": "heavy"},
     "hadolint": {"capabilities": ["lint"], "shard": "dockerfile", "resources": "light"},
     "jsonnetfmt": {"capabilities": ["format"], "shard": "jsonnet", "resources": "light"},
     "keep_sorted": {"capabilities": ["lint"], "shard": "text", "resources": "light"},
@@ -539,6 +540,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "stylelint" in stage_tools:
         tool_binaries["stylelint"] = ctx.executable._stylelint
         tool_extra["stylelint"] = ctx.attr._stylelint[DefaultInfo].files.to_list()
+    if "graphql_eslint" in stage_tools:
+        tool_binaries["graphql_eslint"] = ctx.executable._graphql_eslint
+        tool_extra["graphql_eslint"] = ctx.attr._graphql_eslint[DefaultInfo].files.to_list()
     if "ty" in stage_tools:
         tool_binaries["ty"] = ctx.file._ty
     if "vale" in stage_tools:
@@ -709,6 +713,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "stylelint" in stage_tools:
         run_tools.append(ctx.attr._stylelint[DefaultInfo].files_to_run)
         tool_env_entries["stylelint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    if "graphql_eslint" in stage_tools:
+        run_tools.append(ctx.attr._graphql_eslint[DefaultInfo].files_to_run)
+        tool_env_entries["graphql_eslint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "pydoclint" in stage_tools:
         run_tools.append(ctx.attr._pydoclint[DefaultInfo].files_to_run)
         tool_env_entries["pydoclint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
@@ -969,6 +976,11 @@ _REAL_TOOL_ATTR_DEFS = {
         cfg = "exec",
         executable = True,
     ),
+    "graphql_eslint": attr.label(
+        default = "//quality/tools/javascript/bin:graphql_eslint",
+        cfg = "exec",
+        executable = True,
+    ),
     "ktfmt": attr.label(
         default = "//quality/tools/jvm:ktfmt",
         cfg = "exec",
@@ -1220,7 +1232,7 @@ _REAL_SHARDS = {
     "real_yaml_lint": {"attrs": _REAL_YAML_LINT_ATTRS, "capability": "lint", "doc": "Additive YAML lint family aspect (yamllint).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_LINT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
-    "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
+    "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
     "real_jvm_lint": {"attrs": _REAL_JVM_LINT_ATTRS, "capability": "lint", "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_LINT_TOOLS},
     "real_lint": {"attrs": _REAL_CORE_ATTRS, "capability": "lint", "doc": "Registers the exact-input real lint pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_LINT_TOOLS},

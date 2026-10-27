@@ -256,6 +256,20 @@ CSS_STYLELINT_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+GRAPHQL_ESLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["graphql"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "graphql",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "graphql_eslint",
+    "transport": "batched",
+}
+
 SQL_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -403,6 +417,7 @@ SUPPORT_RECORDS = [
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,
     CSS_STYLELINT_LINT_SUPPORT,
+    GRAPHQL_ESLINT_LINT_SUPPORT,
     SQL_PRETTIER_FORMAT_SUPPORT,
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
@@ -535,6 +550,10 @@ def support_css_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the CSS family."""
     return _wiring_error(CSS_STYLELINT_LINT_SUPPORT, wired_tools, "real_js_lint_aspect")
 
+def support_graphql_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the GraphQL lint family."""
+    return _wiring_error(GRAPHQL_ESLINT_LINT_SUPPORT, wired_tools, "real_js_lint_aspect")
+
 def support_prettier_plugins_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Prettier plugin families."""
     for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
@@ -646,6 +665,10 @@ def support_css_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the CSS family."""
     return _cli_error(CSS_STYLELINT_LINT_SUPPORT, cli_aspects, "real_js_lint_aspect")
 
+def support_graphql_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the GraphQL lint family."""
+    return _cli_error(GRAPHQL_ESLINT_LINT_SUPPORT, cli_aspects, "real_js_lint_aspect")
+
 def support_prettier_plugins_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Prettier plugin families."""
     for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
@@ -723,6 +746,10 @@ def support_protobuf_artifact_error():
 def support_css_artifact_error():
     """Reports the actionable artifact gap for the CSS family."""
     return _artifact_error(CSS_STYLELINT_LINT_SUPPORT)
+
+def support_graphql_artifact_error():
+    """Reports the actionable artifact gap for the GraphQL lint family."""
+    return _artifact_error(GRAPHQL_ESLINT_LINT_SUPPORT)
 
 def support_prettier_plugins_artifact_error():
     """Reports the actionable artifact gap for the Prettier plugin families."""

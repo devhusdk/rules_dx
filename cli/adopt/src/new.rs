@@ -144,6 +144,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         identity: IdentityRule::BazelModule,
     },
     NewLanguage {
+        name: "ocaml",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
         name: "haskell",
         identity: IdentityRule::BazelModule,
     },
@@ -1285,6 +1289,76 @@ bazel test //...
     ]
 }
 
+fn ocaml_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_test")
+
+ocaml_module(
+    name = "hello",
+    struct = "hello.ml",
+)
+
+ocaml_library(
+    name = "IDENTITY",
+    manifest = [":hello"],
+)
+
+ocaml_module(
+    name = "main",
+    struct = "main.ml",
+    deps = [":IDENTITY"],
+)
+
+ocaml_binary(
+    name = "IDENTITY_bin",
+    main = ":main",
+)
+
+ocaml_module(
+    name = "hello_test_main",
+    testonly = True,
+    struct = "hello_test.ml",
+    deps = [":IDENTITY"],
+)
+
+ocaml_test(
+    name = "IDENTITY_test",
+    main = ":hello_test_main",
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        (
+            "MODULE.bazel".to_owned(),
+            consumer_module_bazel(identity, false),
+        ),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "hello.ml".to_owned(),
+            "let greet name = \"hello \" ^ name\n".to_owned(),
+        ),
+        (
+            "main.ml".to_owned(),
+            "let () = print_endline (Hello.greet \"world\")\n".to_owned(),
+        ),
+        (
+            "hello_test.ml".to_owned(),
+            "let () = assert (Hello.greet \"world\" = \"hello world\")\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
 fn haskell_files(identity: &str) -> Vec<(String, String)> {
     let build = r#"load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
 
@@ -1718,6 +1792,7 @@ fn new_language_files(
         "zig" => zig_files(identity),
         "elixir" => elixir_files(identity),
         "erlang" => erlang_files(identity),
+        "ocaml" => ocaml_files(identity),
         "haskell" => haskell_files(identity),
         "cuda" => cuda_files(identity),
         "c" => c_files(identity),
@@ -1827,6 +1902,7 @@ mod tests {
         assert_eq!(normalize_new_language("zig"), Some("zig"));
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("erlang"), Some("erlang"));
+        assert_eq!(normalize_new_language("ocaml"), Some("ocaml"));
         assert_eq!(normalize_new_language("haskell"), Some("haskell"));
         assert_eq!(normalize_new_language("cuda"), Some("cuda"));
     }

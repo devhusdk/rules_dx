@@ -460,6 +460,11 @@ mod tests {
             &["src/hello.erl", "src/hello_cli.erl", "test/hello_tests.erl"],
         ),
         (
+            "ocaml",
+            "demo-app",
+            &["hello.ml", "main.ml", "hello_test.ml"],
+        ),
+        (
             "haskell",
             "demo-app",
             &["src/Hello.hs", "src/Main.hs", "test/HelloTest.hs"],
@@ -511,7 +516,14 @@ mod tests {
                 build.contains("\"demo-app_bin\""),
                 matches!(
                     *language,
-                    "ruby" | "powershell" | "zig" | "elixir" | "erlang" | "haskell" | "cuda"
+                    "ruby"
+                        | "powershell"
+                        | "zig"
+                        | "elixir"
+                        | "erlang"
+                        | "ocaml"
+                        | "haskell"
+                        | "cuda"
                 ),
                 "{language}: {build}"
             );

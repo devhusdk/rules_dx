@@ -94,7 +94,6 @@ type rustLang struct {
 	errors         []string
 	ignores        []*common.IgnoreEntry
 	generated      common.GeneratedRels
-	manifest       *common.ManifestRecorder
 	workspaceRoots map[string]*cargoManifest
 }
 
@@ -119,17 +118,8 @@ func (l *rustLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
 	l.generated = common.GeneratedRels{}
-	l.manifest = nil
 	common.Errors.Reset()
 	l.workspaceRoots = nil
-	if rec, err := common.LoadManifestRecorder("rust"); err != nil {
-		l.fail("%v", err)
-	} else {
-		l.manifest = rec
-	}
-	if l.manifest != nil {
-		l.manifest.ApparentLoads = l.ApparentLoads
-	}
 }
 
 func (*rustLang) DoneGeneratingRules() {}
@@ -199,11 +189,6 @@ func (l *rustLang) AfterResolvingDeps(context.Context) {
 	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
-	if len(l.errors) == 0 && l.manifest != nil {
-		if err := l.manifest.Emit(common.UsedImports(languageName, l.ignores)); err != nil {
-			l.fail("%v", err)
-		}
-	}
 	common.Errors.Add(languageName, "", l.errors...)
 }
 
@@ -264,11 +249,7 @@ func (*rustLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	l.generated.Add(args.Rel)
-	res := l.generateRules(args)
-	if l.manifest != nil {
-		l.manifest.Record(args, res)
-	}
-	return res
+	return l.generateRules(args)
 }
 
 func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateResult {

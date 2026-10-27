@@ -740,3 +740,26 @@ func TestFallbackLanguagesAreComposed(t *testing.T) {
 		t.Error("no language declares a fallback")
 	}
 }
+
+func TestOnlyDispatchWritesTheManifest(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateMode, "default")
+	for _, lang := range composedLanguages() {
+		lm, ok := lang.(language.LifecycleManager)
+		if !ok {
+			continue
+		}
+		lm.Before(context.Background())
+		lm.AfterResolvingDeps(context.Background())
+		if _, err := os.Stat(out); !os.IsNotExist(err) {
+			t.Fatalf("language %s wrote the intended manifest (stat err = %v)", lang.Name(), err)
+		}
+	}
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	l.AfterResolvingDeps(context.Background())
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("dispatch did not write the manifest: %v", err)
+	}
+}

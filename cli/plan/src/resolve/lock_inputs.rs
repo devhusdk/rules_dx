@@ -13,6 +13,8 @@ pub(crate) type ChangedCrates = BTreeMap<String, BTreeSet<String>>;
 pub(crate) struct LockChange {
     pub(crate) crates: ChangedCrates,
     pub(crate) aliases: BTreeSet<String>,
+    /// The names are Python packages of a `pip.parse` hub, not crates.
+    pub(crate) pip: bool,
 }
 
 /// One `crate.from_cargo` hub with the lock files it reads.
@@ -21,6 +23,8 @@ pub(crate) struct Hub {
     pub(crate) name: String,
     pub(crate) cargo_lockfile: String,
     pub(crate) lockfile: Option<String>,
+    /// A `pip.parse` hub; `cargo_lockfile` then holds a requirements file.
+    pub(crate) pip: bool,
 }
 
 /// The lock format of one changed path and the hubs it feeds.
@@ -28,13 +32,14 @@ pub(crate) struct Hub {
 pub(crate) enum LockKind {
     Cargo(Vec<String>),
     CrateBazelLock(Vec<String>),
+    Pip(Vec<String>),
     Unknown,
 }
 
 impl LockKind {
     pub(crate) fn hubs(&self) -> &[String] {
         match self {
-            LockKind::Cargo(hubs) | LockKind::CrateBazelLock(hubs) => hubs,
+            LockKind::Cargo(hubs) | LockKind::CrateBazelLock(hubs) | LockKind::Pip(hubs) => hubs,
             LockKind::Unknown => &[],
         }
     }
@@ -44,6 +49,12 @@ impl LockKind {
             LockKind::Cargo(_) => Ok(LockChange {
                 crates: changed_crates(base, head)?,
                 aliases: BTreeSet::new(),
+                pip: false,
+            }),
+            LockKind::Pip(_) => Ok(LockChange {
+                crates: changed_requirements(base, head),
+                aliases: BTreeSet::new(),
+                pip: true,
             }),
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
             LockKind::Unknown => Err("unknown lock format".to_owned()),
@@ -152,6 +163,7 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
             name,
             cargo_lockfile: workspace_path(&cargo_lockfile)?,
             lockfile,
+            pip: false,
         });
     }
     Ok(hubs)
@@ -393,7 +405,11 @@ pub(crate) fn changed_crates_from_bazel_lock(base: &str, head: &str) -> Result<L
             }
         }
     }
-    Ok(LockChange { crates, aliases })
+    Ok(LockChange {
+        crates,
+        aliases,
+        pip: false,
+    })
 }
 
 pub(crate) fn seeds<'a>(
@@ -438,10 +454,181 @@ pub(crate) fn seeds<'a>(
     out
 }
 
+const PIP_EXTENSION_BZL: &str = "python/extensions:pip.bzl";
+const PIP_REQUIREMENT_ARGS: &[&str] = &[
+    "requirements_lock",
+    "requirements_linux",
+    "requirements_darwin",
+    "requirements_windows",
+];
+
+/// `pip.parse` hubs and the literal requirements files they read. Calls with
+/// computed arguments are skipped, so their files keep the wide fallback.
+pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
+    let Ok(module) = ModuleFile::parse(module_text) else {
+        return Vec::new();
+    };
+    let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    for call in module.calls_named("use_extension") {
+        if call.unpacked {
+            continue;
+        }
+        let bzl = literal(call, "extension_bzl_file", Some(0))
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        let name = literal(call, "extension_name", Some(1))
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        if bzl.ends_with(PIP_EXTENSION_BZL) && name == "pip" {
+            if let Some(binding) = &call.binding {
+                bindings.insert(binding);
+            }
+        }
+    }
+    let mut hubs = Vec::new();
+    for call in module.calls() {
+        let Some((binding, "parse")) = call.name.split_once('.') else {
+            continue;
+        };
+        if !bindings.contains(binding) || call.unpacked {
+            continue;
+        }
+        let Ok(Some(name)) = literal(call, "hub_name", None) else {
+            continue;
+        };
+        for arg in PIP_REQUIREMENT_ARGS {
+            let Ok(Some(label)) = literal(call, arg, None) else {
+                continue;
+            };
+            if let Ok(path) = workspace_path(&label) {
+                hubs.push(Hub {
+                    name: name.clone(),
+                    cargo_lockfile: path,
+                    lockfile: None,
+                    pip: true,
+                });
+            }
+        }
+    }
+    hubs
+}
+
+/// PEP 503 name with `-`, `_` and `.` runs folded to one `-`.
+fn pip_name(raw: &str) -> String {
+    let mut out = String::new();
+    let mut separator = false;
+    for ch in raw.trim().chars() {
+        if matches!(ch, '-' | '_' | '.') {
+            separator = true;
+        } else {
+            if separator && !out.is_empty() {
+                out.push('-');
+            }
+            separator = false;
+            out.push(ch.to_ascii_lowercase());
+        }
+    }
+    out
+}
+
+/// Requirement name to its whole logical line (version, markers, hashes).
+fn requirement_lines(text: &str) -> BTreeMap<String, String> {
+    let mut out: BTreeMap<String, String> = BTreeMap::new();
+    let mut logical = String::new();
+    let mut flush = |logical: &mut String| {
+        let line = logical.split_whitespace().collect::<Vec<_>>().join(" ");
+        logical.clear();
+        if line.is_empty() || line.starts_with('-') {
+            return;
+        }
+        let end = line
+            .find(|ch: char| !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.')))
+            .unwrap_or(line.len());
+        let name = pip_name(&line[..end]);
+        if !name.is_empty() {
+            let rest = &line[end..];
+            out.entry(name.clone())
+                .or_default()
+                .push_str(&format!("{name}{rest}\n"));
+        }
+    };
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.starts_with('#') {
+            continue;
+        }
+        if let Some(rest) = line.strip_suffix('\\') {
+            logical.push_str(rest);
+            logical.push(' ');
+        } else {
+            logical.push_str(line);
+            flush(&mut logical);
+        }
+    }
+    flush(&mut logical);
+    out
+}
+
+pub(crate) fn changed_requirements(base: &str, head: &str) -> ChangedCrates {
+    let (base, head) = (requirement_lines(base), requirement_lines(head));
+    let mut out = ChangedCrates::new();
+    for name in base.keys().chain(head.keys()) {
+        if base.get(name) != head.get(name) {
+            out.entry(name.clone()).or_default();
+        }
+    }
+    out
+}
+
+/// Labels of the changed packages in a `pip.parse` hub, and in its per
+/// package spoke repos (`<hub>_<name>` or `<hub>_<python>_<name>`).
+pub(crate) fn pip_seeds<'a>(
+    labels: impl Iterator<Item = &'a str>,
+    hub: &str,
+    packages: &ChangedCrates,
+) -> Vec<String> {
+    let forms: BTreeSet<String> = packages
+        .keys()
+        .flat_map(|name| [name.clone(), name.replace('-', "_")])
+        .collect();
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            let Some((repo, target)) = label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+            else {
+                return false;
+            };
+            if apparent_repo_matches(repo, hub) {
+                let package = target.split_once(':').map_or(target, |(package, _)| package);
+                let top = package.split('/').next().unwrap_or_default();
+                return forms.contains(&pip_name(top)) || forms.contains(top);
+            }
+            let last = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+            last.strip_prefix(&format!("{hub}_"))
+                .is_some_and(|rest| forms.iter().any(|form| rest.ends_with(&format!("_{form}")) || rest == form))
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
 pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
+    let pip: Vec<String> = hubs
+        .iter()
+        .filter(|hub| hub.pip && hub.cargo_lockfile == path)
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !pip.is_empty() {
+        return LockKind::Pip(pip);
+    }
     let cargo: Vec<String> = hubs
         .iter()
-        .filter(|hub| hub.cargo_lockfile == path)
+        .filter(|hub| !hub.pip && hub.cargo_lockfile == path)
         .map(|hub| hub.name.clone())
         .collect();
     if !cargo.is_empty() {
@@ -449,7 +636,7 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
     }
     let bazel: Vec<String> = hubs
         .iter()
-        .filter(|hub| hub.lockfile.as_deref() == Some(path))
+        .filter(|hub| !hub.pip && hub.lockfile.as_deref() == Some(path))
         .map(|hub| hub.name.clone())
         .collect();
     if !bazel.is_empty() {
@@ -516,11 +703,13 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                     name: "crates".to_owned(),
                     cargo_lockfile: "Cargo.lock".to_owned(),
                     lockfile: Some("cargo-bazel-lock.json".to_owned()),
+                    pip: false,
                 },
                 Hub {
                     name: "tools".to_owned(),
                     cargo_lockfile: "tools/rust/Cargo.lock".to_owned(),
                     lockfile: None,
+                    pip: false,
                 },
             ]
         );
@@ -733,6 +922,36 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                 "@@rules_rust++crate+crates__serde-1.0.1//:serde",
                 "@@rules_rust~~crate~crates__serde-1.0.2//:serde",
             ]
+        );
+    }
+
+    #[test]
+    fn pip_requirements_diff_by_package() {
+        let base = "requests==2.0 \\\n    --hash=sha256:a\nFoo_Bar==1\n# c\nnumpy==1\n";
+        let head = "requests==2.1 \\\n    --hash=sha256:b\nfoo-bar==1\nflask==3\n";
+        let changed = changed_requirements(base, head);
+        let names: Vec<&str> = changed.keys().map(String::as_str).collect();
+        assert_eq!(names, ["flask", "numpy", "requests"]);
+    }
+
+    #[test]
+    fn pip_hubs_and_seeds() {
+        let module = "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\npip.parse(hub_name = \"pypi\", requirements_lock = \"//py:requirements_lock.txt\")\n";
+        let hubs = pip_hubs(module);
+        assert_eq!(
+            classify("py/requirements_lock.txt", &hubs),
+            LockKind::Pip(vec!["pypi".to_owned()])
+        );
+        let changed = changed_requirements("foo-bar==1\n", "foo-bar==2\n");
+        let labels = [
+            "@@rules_python++pip+pypi//foo_bar:pkg",
+            "@@rules_python++pip+pypi_311_foo_bar//:pkg",
+            "@@rules_python++pip+pypi//other:pkg",
+            "@@rules_python++pip+pypi_311_other//:pkg",
+        ];
+        assert_eq!(
+            pip_seeds(labels.iter().copied(), "pypi", &changed),
+            [labels[0], labels[1]]
         );
     }
 }

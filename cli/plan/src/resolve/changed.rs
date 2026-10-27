@@ -444,7 +444,11 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
     let hubs_of = |path: &Path| {
         std::fs::read_to_string(path)
             .ok()
-            .and_then(|text| lock_inputs::crate_hubs(&text).ok())
+            .and_then(|text| {
+                let mut hubs = lock_inputs::crate_hubs(&text).ok()?;
+                hubs.extend(lock_inputs::pip_hubs(&text));
+                Some(hubs)
+            })
     };
     let root_hubs = hubs_of(&workspace.join("MODULE.bazel"));
     let mut hubs = root_hubs.clone().unwrap_or_default();
@@ -991,7 +995,20 @@ pub fn resolve_affected(
             let mut repos: BTreeSet<String> = BTreeSet::new();
             let mut seeds: Vec<String> = Vec::new();
             for (hub, change) in changed {
-                let LockChange { crates, aliases } = change;
+                let LockChange {
+                    crates,
+                    aliases,
+                    pip,
+                } = change;
+                if *pip {
+                    seeds.extend(lock_inputs::pip_seeds(
+                        loaded.external_inputs(),
+                        hub,
+                        crates,
+                    ));
+                    repos.extend(crates.keys().map(|name| format!("@{hub}//{name}")));
+                    continue;
+                }
                 seeds.extend(lock_inputs::seeds(
                     loaded.external_inputs(),
                     hub,
@@ -1569,7 +1586,6 @@ mod tests {
             "third_party/go/go.mod",
             "third_party/go/go.sum",
             "third_party/jvm/maven_install.json",
-            "requirements_lock.txt",
             "py/requirements_linux.txt",
             "deps/go.MODULE.bazel",
         ] {

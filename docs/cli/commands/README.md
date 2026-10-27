@@ -460,6 +460,7 @@ Packaging and deploy:
 - `@rules_dx//apple/ios:device.bzl`: signed iOS IPA export.
 - `@rules_dx//apple/provisioning:defs.bzl`: Apple provisioning.
 - `@rules_dx//apple/provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx//apple/signing:defs.bzl`: macOS app signing and notarization.
 - `@rules_dx//deploy/offline:offline.bzl`: offline bundles.
 - `@rules_dx//deploy/rules:archive.bzl`: release archives.
 - `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.

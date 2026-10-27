@@ -1,0 +1,3 @@
+input {"NEEDS": {"validate": {"result": "success"}, "checks": {"result": "failure"}, "security-audit": {"result": "success"}, "advisory-snapshots": {"result": "success"}, "coverage": {"result": "success"}}, "DISABLED": "", "CHECKS": ""}
+exit 1
+says dx-ci: validate wrote no checks list; pin the workflow and rules_dx to the same commit

@@ -38,6 +38,62 @@ CHECKS = (
     "build",
     "coverage",
 )
+# The checks the matrix job runs, one cell per enabled row and platform.
+MATRIX_CHECKS = (
+    {
+        "id": "lint",
+        "args": ["lint", "--check"],
+        "reports": ["sarif=lint.sarif"],
+        "passthrough": True,
+        "timeout": 30,
+    },
+    {
+        "id": "typecheck",
+        "args": ["typecheck", "--check"],
+        "reports": ["sarif=typecheck.sarif"],
+        "passthrough": True,
+        "timeout": 30,
+    },
+    {
+        "id": "format",
+        "args": ["format", "--check"],
+        "reports": [],
+        "passthrough": True,
+        "timeout": 30,
+    },
+    {
+        "id": "generate",
+        "args": ["generate", "--check"],
+        "reports": [],
+        "passthrough": True,
+        "timeout": 30,
+    },
+    {
+        "id": "license-audit",
+        "args": ["license"],
+        "reports": [],
+        "passthrough": False,
+        "timeout": 30,
+    },
+    {
+        "id": "test",
+        "args": ["test"],
+        "reports": [
+            "junit=junit.xml",
+            "failures=failures.json",
+            "results=results.json",
+        ],
+        "passthrough": True,
+        "timeout": 60,
+    },
+    {
+        "id": "build",
+        "args": ["build"],
+        "reports": ["failures=failures.json"],
+        "passthrough": True,
+        "timeout": 60,
+    },
+)
 # The one job per platform that saves the shared repository cache, in order.
 CACHE_SAVERS = ("coverage", "test", "build")
 WHOLE_PERCENT = re.compile(r"[0-9]+")
@@ -210,6 +266,13 @@ def main():
         "platforms": compact(accepted_values[PLATFORMS_ENV]),
         "runners": compact(PLATFORMS),
         "disabled": ",".join(accepted_values[DISABLED_ENV]),
+        "checks": compact(
+            [
+                row
+                for row in MATRIX_CHECKS
+                if row["id"] not in accepted_values[DISABLED_ENV]
+            ]
+        ),
         "cache_saver": next(
             (job for job in CACHE_SAVERS if job not in accepted_values[DISABLED_ENV]),
             "",
@@ -231,6 +294,12 @@ def main():
         return 1
     print(f"{PLATFORMS_ENV} {outputs['platforms']}")
     print(f"{DISABLED_ENV} {outputs['disabled'] or '(none)'}")
+    enabled = [
+        row["id"]
+        for row in MATRIX_CHECKS
+        if row["id"] not in accepted_values[DISABLED_ENV]
+    ]
+    print(f"checks {','.join(enabled) or '(none)'}")
     print(f"{MIN_COVERAGE_ENV} {outputs['min_coverage'] or '(none)'}")
     print(f"{MIN_CHANGED_ENV} {outputs['min_changed_line_coverage'] or '(none)'}")
     print(f"{INVOCATION_ENV} {accepted_values[INVOCATION_ENV] or '(none)'}")

@@ -52,6 +52,9 @@ every platform in `platforms`:
   `min_coverage` is set. With `min_changed_line_coverage` it also gates the
   lines a pull request adds.
 
+Each check reports once per platform as `<check> (<platform>)`, for example
+`lint (linux_x86_64)`.
+
 `--check` applies to the four quality checks. `dx security`, `dx license`,
 `dx test`, `dx build`, and `dx coverage` reject it.
 

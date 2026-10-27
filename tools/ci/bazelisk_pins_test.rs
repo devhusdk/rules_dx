@@ -98,13 +98,8 @@ const SAVERS: &[(&str, &str, &str)] = &[
     ),
     (
         ".github/workflows/reusable-consumer.yml",
-        "test",
-        "needs.validate.outputs.cache_saver == github.job",
-    ),
-    (
-        ".github/workflows/reusable-consumer.yml",
-        "build",
-        "needs.validate.outputs.cache_saver == github.job",
+        "checks",
+        "needs.validate.outputs.cache_saver == matrix.check.id",
     ),
     (
         ".github/workflows/ci.yml",

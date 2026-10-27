@@ -201,7 +201,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if len(tests) > 0 {
 		claimants = append(claimants, common.Claimant{Name: testName, Source: args.Rel, Kind: TestKind})
 	}
-	if err := common.CheckClaimsMulti(args.File, args.OtherGen, claimants, func(c common.Claimant) string { return c.Kind }); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
 		return fail("%v; rename the handwritten rule or add # gazelle:exclude for this directory", err)
 	}
 	var result language.GenerateResult

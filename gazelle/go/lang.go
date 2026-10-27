@@ -284,7 +284,7 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 	if len(testSources) > 0 {
 		claimants = append(claimants, Claimant{Name: testName, Source: args.Rel, Kind: TestKind})
 	}
-	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
 		l.fail("go: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
@@ -310,10 +310,6 @@ func (l *goLang) generateRules(args language.GenerateArgs) language.GenerateResu
 		}
 	}
 	return mergeStale(args.File, result)
-}
-
-func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	return common.CheckClaimsPerKind(file, other, claimants)
 }
 
 func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }

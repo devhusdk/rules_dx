@@ -26,6 +26,9 @@ const (
 	importsAttr  = "."
 )
 
+// claimAliases lets a handwritten plain-runner test stand in for the generated test of the same name.
+var claimAliases = map[string]string{plainKind: testKind}
+
 var pythonKinds = map[string]rule.KindInfo{
 	libraryKind: kindInfo(),
 	testKind:    kindInfo(),
@@ -214,12 +217,12 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.src, Kind: binaryKind})
 		}
 	}
-	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants, claimAliases); err != nil {
 		l.fail("python: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 
-	plain := handPlainTests(args.File, args.OtherGen)
+	plain := common.RuleNamesOfKind(args.File, args.OtherGen, plainKind)
 	var result language.GenerateResult
 	for _, p := range plans {
 		kind := libraryKind
@@ -253,64 +256,6 @@ func (l *pythonLang) generateRules(args language.GenerateArgs) language.Generate
 		}
 	}
 	return mergeStale(args.File, result)
-}
-
-func claimKind(c Claimant) string {
-	if c.Kind != "" {
-		return c.Kind
-	}
-	if IsTestFile(c.Source) {
-		return testKind
-	}
-	return libraryKind
-}
-
-func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	return common.CheckClaimsMulti(plainTestsAsTests(file), plainTestsAsTestsOther(other), claimants, claimKind)
-}
-
-func handPlainTests(file *rule.File, other []*rule.Rule) map[string]bool {
-	owned := make(map[string]bool)
-	if file != nil {
-		for _, r := range file.Rules {
-			if r.Kind() == plainKind {
-				owned[r.Name()] = true
-			}
-		}
-	}
-	for _, r := range other {
-		if r.Kind() == plainKind {
-			owned[r.Name()] = true
-		}
-	}
-	return owned
-}
-
-func plainTestsAsTests(file *rule.File) *rule.File {
-	if file == nil {
-		return nil
-	}
-	view := rule.EmptyFile(file.Path, file.Pkg)
-	for _, r := range file.Rules {
-		kind := r.Kind()
-		if kind == plainKind {
-			kind = testKind
-		}
-		view.Rules = append(view.Rules, rule.NewRule(kind, r.Name()))
-	}
-	return view
-}
-
-func plainTestsAsTestsOther(other []*rule.Rule) []*rule.Rule {
-	out := make([]*rule.Rule, 0, len(other))
-	for _, r := range other {
-		kind := r.Kind()
-		if kind == plainKind {
-			kind = testKind
-		}
-		out = append(out, rule.NewRule(kind, r.Name()))
-	}
-	return out
 }
 
 func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }

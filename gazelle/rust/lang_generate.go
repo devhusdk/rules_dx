@@ -392,26 +392,16 @@ func claimSources(owners map[string]sourceOwner, owner string, shared bool, tree
 	return nil
 }
 
-func checkExistingClaims(file *rule.File, other, generated []*rule.Rule) error {
-	claims := make(map[string]string)
-	if file != nil {
-		for _, existing := range file.Rules {
-			claims[existing.Name()] = existing.Kind()
-		}
+// rustClaimAliases lets a handwritten dx crate stand in for the generated rust_library of the same name.
+var rustClaimAliases = map[string]string{dxCrateKind: libraryKind}
+
+// generatedClaims turns the generated rules of package rel into claimants for common.CheckClaims.
+func generatedClaims(rel string, gen []*rule.Rule) []common.Claimant {
+	claimants := make([]common.Claimant, 0, len(gen))
+	for _, r := range gen {
+		claimants = append(claimants, common.Claimant{Name: r.Name(), Source: rel, Kind: r.Kind()})
 	}
-	for _, existing := range other {
-		claims[existing.Name()] = existing.Kind()
-	}
-	for _, proposed := range generated {
-		if kind, ok := claims[proposed.Name()]; ok && kind != proposed.Kind() {
-			if kind == dxCrateKind && proposed.Kind() == libraryKind {
-				continue
-			}
-			return fmt.Errorf("rust: target name %q is claimed by generated %s and existing %s", proposed.Name(), proposed.Kind(), kind)
-		}
-		claims[proposed.Name()] = proposed.Kind()
-	}
-	return nil
+	return claimants
 }
 
 type crateDepsCall struct {

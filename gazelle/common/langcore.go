@@ -34,50 +34,15 @@ func LibraryKindInfo() rule.KindInfo {
 	}
 }
 
-func CheckClaimsDir(file *rule.File, other []*rule.Rule, claimants []Claimant, libraryKind string) error {
-	existing := make(map[string]string)
-	if file != nil {
-		for _, r := range file.Rules {
-			existing[r.Name()] = r.Kind()
-		}
-	}
-	for _, r := range other {
-		existing[r.Name()] = r.Kind()
-	}
-	for _, c := range claimants {
-		if have, ok := existing[c.Name]; ok && have != libraryKind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", c.Name, libraryKind, c.Source, have)
-		}
-	}
-	return nil
-}
-
-func CheckClaimsPerKind(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
-	existing := make(map[string]string)
-	if file != nil {
-		for _, r := range file.Rules {
-			existing[r.Name()] = r.Kind()
-		}
-	}
-	for _, r := range other {
-		existing[r.Name()] = r.Kind()
-	}
-	for _, c := range claimants {
-		if have, ok := existing[c.Name]; ok && have != c.Kind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", c.Name, c.Kind, c.Source, have)
-		}
-	}
-	return nil
-}
-
-func CheckClaimsFile(file *rule.File, other []*rule.Rule, claimants []Claimant, libraryKind string) error {
-	byName := make(map[string][]string, len(claimants))
+// CheckClaims rejects duplicate generated names and names whose existing rule kind, after kindAliases, differs from the claimant's kind.
+func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kindAliases map[string]string) error {
+	byName := make(map[string][]Claimant, len(claimants))
 	order := make([]string, 0, len(claimants))
 	for _, c := range claimants {
 		if _, ok := byName[c.Name]; !ok {
 			order = append(order, c.Name)
 		}
-		byName[c.Name] = append(byName[c.Name], c.Source)
+		byName[c.Name] = append(byName[c.Name], c)
 	}
 	existing := make(map[string]string)
 	if file != nil {
@@ -89,60 +54,49 @@ func CheckClaimsFile(file *rule.File, other []*rule.Rule, claimants []Claimant, 
 		existing[r.Name()] = r.Kind()
 	}
 	for _, name := range order {
-		sources := byName[name]
-		if len(sources) > 1 {
-			all := append([]string(nil), sources...)
-			if have, ok := existing[name]; ok {
+		claims := byName[name]
+		have, handwritten := existing[name]
+		if len(claims) > 1 {
+			all := make([]string, 0, len(claims)+1)
+			for _, c := range claims {
+				all = append(all, c.Source)
+			}
+			if handwritten {
 				all = append(all, "handwritten:"+have+":"+name)
 			}
 			return &CollisionError{Name: name, Claimants: all}
 		}
-		if have, ok := existing[name]; ok && have != libraryKind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", name, libraryKind, sources[0], have)
+		if !handwritten {
+			continue
+		}
+		c := claims[0]
+		effective := have
+		if alias, ok := kindAliases[have]; ok {
+			effective = alias
+		}
+		if effective != c.Kind {
+			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", name, c.Kind, c.Source, have)
 		}
 	}
 	return nil
 }
 
-func CheckClaimsMulti(file *rule.File, other []*rule.Rule, claimants []Claimant, kindOf func(Claimant) string) error {
-	byName := make(map[string][]string, len(claimants))
-	order := make([]string, 0, len(claimants))
-	for _, c := range claimants {
-		if _, ok := byName[c.Name]; !ok {
-			order = append(order, c.Name)
-		}
-		byName[c.Name] = append(byName[c.Name], c.Source)
-	}
-	existing := make(map[string]string)
+// RuleNamesOfKind returns the names of rules of the given kind in file and other.
+func RuleNamesOfKind(file *rule.File, other []*rule.Rule, kind string) map[string]bool {
+	names := make(map[string]bool)
 	if file != nil {
 		for _, r := range file.Rules {
-			existing[r.Name()] = r.Kind()
+			if r.Kind() == kind {
+				names[r.Name()] = true
+			}
 		}
 	}
 	for _, r := range other {
-		existing[r.Name()] = r.Kind()
-	}
-	for _, name := range order {
-		sources := byName[name]
-		kind := ""
-		for _, p := range claimants {
-			if p.Name == name {
-				kind = kindOf(p)
-				break
-			}
-		}
-		if len(sources) > 1 {
-			all := append([]string(nil), sources...)
-			if have, ok := existing[name]; ok {
-				all = append(all, "handwritten:"+have+":"+name)
-			}
-			return &CollisionError{Name: name, Claimants: all}
-		}
-		if have, ok := existing[name]; ok && have != kind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", name, kind, sources[0], have)
+		if r.Kind() == kind {
+			names[r.Name()] = true
 		}
 	}
-	return nil
+	return names
 }
 
 func MergeStale(file *rule.File, result language.GenerateResult, kinds map[string]rule.KindInfo) language.GenerateResult {
@@ -261,7 +215,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	for _, p := range plans {
 		claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: spec.LibraryKind})
 	}
-	if err := CheckClaimsFile(args.File, args.OtherGen, claimants, spec.LibraryKind); err != nil {
+	if err := CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
 		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
@@ -400,7 +354,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			return language.GenerateResult{}
 		}
 	}
-	if err := CheckClaimsDir(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: spec.LibraryKind}}, spec.LibraryKind); err != nil {
+	if err := CheckClaims(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: spec.LibraryKind}}, nil); err != nil {
 		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}

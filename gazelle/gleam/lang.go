@@ -145,7 +145,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if len(helpers) > 0 {
 		claimants = append(claimants, common.Claimant{Name: name + "_test_support", Source: args.Rel, Kind: TestLibraryKind})
 	}
-	if err := common.CheckClaimsMulti(args.File, args.OtherGen, claimants, func(c common.Claimant) string { return c.Kind }); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
 		rep.Fail("gleam: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}

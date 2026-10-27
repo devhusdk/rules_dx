@@ -254,41 +254,41 @@ func TestGenerateSkipsTestClaimedByOtherPlainRunner(t *testing.T) {
 }
 
 func TestCheckClaims(t *testing.T) {
-	claimants := []Claimant{{Name: "demo", Source: "demo.js"}}
-	if err := checkClaims(nil, nil, claimants); err != nil {
+	claimants := []Claimant{{Name: "demo", Source: "demo.js", Kind: libraryKind}}
+	if err := common.CheckClaims(nil, nil, claimants, claimAliases); err != nil {
 		t.Errorf("unique claims = %v", err)
 	}
 	sameKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	sameKind.Rules = append(sameKind.Rules, rule.NewRule(libraryKind, "demo"))
-	if err := checkClaims(sameKind, nil, claimants); err != nil {
+	if err := common.CheckClaims(sameKind, nil, claimants, claimAliases); err != nil {
 		t.Errorf("same-kind handwritten claims = %v", err)
 	}
 	otherSame := []*rule.Rule{rule.NewRule(libraryKind, "demo")}
-	if err := checkClaims(nil, otherSame, claimants); err != nil {
+	if err := common.CheckClaims(nil, otherSame, claimants, claimAliases); err != nil {
 		t.Errorf("same-kind other claims = %v", err)
 	}
 	wrongKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "demo"))
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "a_b"))
-	if err := checkClaims(wrongKind, nil, claimants); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(wrongKind, nil, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("kind mismatch = %v", err)
 	}
 	otherWrong := []*rule.Rule{rule.NewRule(testKind, "demo")}
-	if err := checkClaims(nil, otherWrong, claimants); err == nil || !strings.Contains(err.Error(), "existing javascript_test") {
+	if err := common.CheckClaims(nil, otherWrong, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing javascript_test") {
 		t.Errorf("other kind mismatch = %v", err)
 	}
 	plainClaimants := []Claimant{{Name: "demo", Source: "demo_test.js", Kind: testKind}}
 	plainFile := rule.EmptyFile("BUILD.bazel", "pkg")
 	plainFile.Rules = append(plainFile.Rules, rule.NewRule(plainTestKind, "demo"))
-	if err := checkClaims(plainFile, nil, plainClaimants); err != nil {
+	if err := common.CheckClaims(plainFile, nil, plainClaimants, claimAliases); err != nil {
 		t.Errorf("plain-runner handwritten claims = %v", err)
 	}
 	plainOther := []*rule.Rule{rule.NewRule(plainTestKind, "demo")}
-	if err := checkClaims(nil, plainOther, plainClaimants); err != nil {
+	if err := common.CheckClaims(nil, plainOther, plainClaimants, claimAliases); err != nil {
 		t.Errorf("plain-runner other claims = %v", err)
 	}
-	dupes := []Claimant{{Name: "a_b", Source: "a-b.js"}, {Name: "a_b", Source: "a_b.jsx"}}
-	if err := checkClaims(wrongKind, nil, dupes); err == nil || !strings.Contains(err.Error(), "handwritten") {
+	dupes := []Claimant{{Name: "a_b", Source: "a-b.js", Kind: libraryKind}, {Name: "a_b", Source: "a_b.jsx", Kind: libraryKind}}
+	if err := common.CheckClaims(wrongKind, nil, dupes, claimAliases); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
 	}
 }
@@ -766,18 +766,6 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 		t.Errorf("malformed errors = %v", malformed.errors)
 	}
 	l.AfterResolvingDeps(context.Background())
-}
-
-func TestClaimKind(t *testing.T) {
-	if got := claimKind(Claimant{Name: "x", Source: "x.js", Kind: binaryKind}); got != binaryKind {
-		t.Errorf("explicit kind = %q, want %q", got, binaryKind)
-	}
-	if got := claimKind(Claimant{Name: "a_test", Source: "a_test.js"}); got != testKind {
-		t.Errorf("test kind = %q, want %q", got, testKind)
-	}
-	if got := claimKind(Claimant{Name: "a", Source: "a.js"}); got != libraryKind {
-		t.Errorf("library kind = %q, want %q", got, libraryKind)
-	}
 }
 
 func TestMatchingIgnoreMiss(t *testing.T) {

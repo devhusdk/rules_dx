@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -506,23 +507,28 @@ func TestFilterDxCrateCovered(t *testing.T) {
 	}
 }
 
-func TestCheckExistingClaimsDxCrate(t *testing.T) {
+func TestCheckClaimsDxCrate(t *testing.T) {
 	file := rule.EmptyFile("BUILD.bazel", "pkg")
 	file.Rules = append(file.Rules, rule.NewRule(dxCrateKind, "dx_a"))
-	if err := checkExistingClaims(file, nil, []*rule.Rule{rule.NewRule(libraryKind, "dx_a")}); err != nil {
+	if err := common.CheckClaims(file, nil, generatedClaims("pkg", []*rule.Rule{rule.NewRule(libraryKind, "dx_a")}), rustClaimAliases); err != nil {
 		t.Errorf("macro-owned library rejected: %v", err)
 	}
 	flavored := rule.NewRule(procMacroKind, "dx_a")
-	if err := checkExistingClaims(file, nil, []*rule.Rule{flavored}); err == nil {
+	if err := common.CheckClaims(file, nil, generatedClaims("pkg", []*rule.Rule{flavored}), rustClaimAliases); err == nil {
 		t.Error("macro/flavored collision accepted")
 	}
-	if err := checkExistingClaims(file, nil, []*rule.Rule{rule.NewRule(libraryKind, "other")}); err != nil {
+	if err := common.CheckClaims(file, nil, generatedClaims("pkg", []*rule.Rule{rule.NewRule(libraryKind, "other")}), rustClaimAliases); err != nil {
 		t.Errorf("unique generated target rejected: %v", err)
 	}
 	colliding := rule.EmptyFile("BUILD.bazel", "pkg")
 	colliding.Rules = append(colliding.Rules, rule.NewRule("filegroup", "dx_a"))
-	if err := checkExistingClaims(colliding, nil, []*rule.Rule{rule.NewRule(libraryKind, "dx_a")}); err == nil {
+	if err := common.CheckClaims(colliding, nil, generatedClaims("pkg", []*rule.Rule{rule.NewRule(libraryKind, "dx_a")}), rustClaimAliases); err == nil {
 		t.Error("filegroup/library collision accepted")
+	}
+	var ce *common.CollisionError
+	dupes := []*rule.Rule{rule.NewRule(libraryKind, "dup"), rule.NewRule(libraryKind, "dup")}
+	if err := common.CheckClaims(nil, nil, generatedClaims("pkg", dupes), rustClaimAliases); !errors.As(err, &ce) {
+		t.Errorf("same-kind generated duplicates = %v, want CollisionError", err)
 	}
 }
 

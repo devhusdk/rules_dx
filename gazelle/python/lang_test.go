@@ -185,35 +185,35 @@ func TestGenerateFixturePathMarksTestonly(t *testing.T) {
 }
 
 func TestCheckClaims(t *testing.T) {
-	claimants := []Claimant{{Name: "demo", Source: "demo.py"}}
-	if err := checkClaims(nil, nil, claimants); err != nil {
+	claimants := []Claimant{{Name: "demo", Source: "demo.py", Kind: libraryKind}}
+	if err := common.CheckClaims(nil, nil, claimants, claimAliases); err != nil {
 		t.Errorf("unique claims = %v", err)
 	}
 	sameKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	sameKind.Rules = append(sameKind.Rules, rule.NewRule(libraryKind, "demo"))
-	if err := checkClaims(sameKind, nil, claimants); err != nil {
+	if err := common.CheckClaims(sameKind, nil, claimants, claimAliases); err != nil {
 		t.Errorf("same-kind handwritten claims = %v", err)
 	}
 	otherSame := []*rule.Rule{rule.NewRule(libraryKind, "demo")}
-	if err := checkClaims(nil, otherSame, claimants); err != nil {
+	if err := common.CheckClaims(nil, otherSame, claimants, claimAliases); err != nil {
 		t.Errorf("same-kind other claims = %v", err)
 	}
 	wrongKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "demo"))
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "a_b"))
-	if err := checkClaims(wrongKind, nil, claimants); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(wrongKind, nil, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("kind mismatch = %v", err)
 	}
 	otherWrong := []*rule.Rule{rule.NewRule(testKind, "demo")}
-	if err := checkClaims(nil, otherWrong, claimants); err == nil || !strings.Contains(err.Error(), "existing python_test") {
+	if err := common.CheckClaims(nil, otherWrong, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing python_test") {
 		t.Errorf("other kind mismatch = %v", err)
 	}
-	dupes := []Claimant{{Name: "a_b", Source: "a-b.py"}, {Name: "a_b", Source: "a_b.py"}}
-	if err := checkClaims(wrongKind, nil, dupes); err == nil || !strings.Contains(err.Error(), "handwritten") {
+	dupes := []Claimant{{Name: "a_b", Source: "a-b.py", Kind: libraryKind}, {Name: "a_b", Source: "a_b.py", Kind: libraryKind}}
+	if err := common.CheckClaims(wrongKind, nil, dupes, claimAliases); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
 	}
-	testDupes := []Claimant{{Name: "a_test", Source: "a-test_test.py"}, {Name: "a_test", Source: "a_test_test.py"}}
-	if err := checkClaims(nil, nil, testDupes); err == nil || !strings.Contains(err.Error(), "a_test") {
+	testDupes := []Claimant{{Name: "a_test", Source: "a-test_test.py", Kind: testKind}, {Name: "a_test", Source: "a_test_test.py", Kind: testKind}}
+	if err := common.CheckClaims(nil, nil, testDupes, claimAliases); err == nil || !strings.Contains(err.Error(), "a_test") {
 		t.Errorf("test collision = %v", err)
 	}
 }
@@ -500,29 +500,17 @@ func TestGenerateEntryHandwrittenMismatch(t *testing.T) {
 	}
 }
 
-func TestClaimKind(t *testing.T) {
-	if got := claimKind(Claimant{Name: "main_bin", Source: "main.py", Kind: binaryKind}); got != binaryKind {
-		t.Errorf("explicit kind = %q, want %q", got, binaryKind)
-	}
-	if got := claimKind(Claimant{Name: "a_test", Source: "a_test.py"}); got != testKind {
-		t.Errorf("inferred test kind = %q", got)
-	}
-	if got := claimKind(Claimant{Name: "demo", Source: "demo.py"}); got != libraryKind {
-		t.Errorf("inferred library kind = %q", got)
-	}
-}
-
 func TestCheckClaimsBinary(t *testing.T) {
 	bin := rule.NewRule(binaryKind, "main_bin")
 	same := rule.EmptyFile("BUILD.bazel", "pkg")
 	same.Rules = append(same.Rules, bin)
 	claim := []Claimant{{Name: "main", Source: "main.py", Kind: libraryKind}, {Name: "main_bin", Source: "main.py", Kind: binaryKind}}
-	if err := checkClaims(same, nil, claim); err != nil {
+	if err := common.CheckClaims(same, nil, claim, claimAliases); err != nil {
 		t.Errorf("same-kind binary claims = %v", err)
 	}
 	wrong := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrong.Rules = append(wrong.Rules, rule.NewRule(libraryKind, "main_bin"))
-	if err := checkClaims(wrong, nil, claim); err == nil || !strings.Contains(err.Error(), "main_bin") {
+	if err := common.CheckClaims(wrong, nil, claim, claimAliases); err == nil || !strings.Contains(err.Error(), "main_bin") {
 		t.Errorf("binary kind mismatch = %v", err)
 	}
 }

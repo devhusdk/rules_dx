@@ -628,50 +628,35 @@ func TestImportsNonProjectKind(t *testing.T) {
 	}
 }
 
-func TestClaimKindFallback(t *testing.T) {
-	if got := claimKind(Claimant{Name: "x", Source: "x.ts"}); got != projectKind {
-		t.Errorf("fallback kind = %q, want %q", got, projectKind)
-	}
-	if got := claimKind(Claimant{Name: "a_test", Source: "a_test.ts"}); got != testKind {
-		t.Errorf("test kind = %q, want %q", got, testKind)
-	}
-	if got := claimKind(Claimant{Name: "x", Source: "x.ts", Kind: projectKind}); got != projectKind {
-		t.Errorf("explicit kind = %q, want %q", got, projectKind)
-	}
-	if got := claimKind(Claimant{Name: "x_bin", Source: "x.ts", Kind: binaryKind}); got != binaryKind {
-		t.Errorf("binary kind = %q, want %q", got, binaryKind)
-	}
-}
-
 func TestCheckClaimsOtherAndMismatch(t *testing.T) {
 	claimants := []Claimant{{Name: "demo", Source: "demo.ts", Kind: projectKind}}
 	otherSame := []*rule.Rule{rule.NewRule(projectKind, "demo")}
-	if err := checkClaims(nil, otherSame, claimants); err != nil {
+	if err := common.CheckClaims(nil, otherSame, claimants, claimAliases); err != nil {
 		t.Errorf("same-kind other claims = %v", err)
 	}
 	otherWrong := []*rule.Rule{rule.NewRule("filegroup", "demo")}
-	if err := checkClaims(nil, otherWrong, claimants); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(nil, otherWrong, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("other kind mismatch = %v", err)
 	}
 	wrongKind := rule.EmptyFile("BUILD.bazel", "pkg")
 	wrongKind.Rules = append(wrongKind.Rules, rule.NewRule("filegroup", "demo"))
-	if err := checkClaims(wrongKind, nil, claimants); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
+	if err := common.CheckClaims(wrongKind, nil, claimants, claimAliases); err == nil || !strings.Contains(err.Error(), "existing filegroup") {
 		t.Errorf("kind mismatch = %v", err)
 	}
 	dupes := []Claimant{{Name: "a_b", Source: "a-b.ts", Kind: projectKind}, {Name: "a_b", Source: "a_b.tsx", Kind: projectKind}}
 	existing := rule.EmptyFile("BUILD.bazel", "pkg")
 	existing.Rules = append(existing.Rules, rule.NewRule("filegroup", "a_b"))
-	if err := checkClaims(existing, nil, dupes); err == nil || !strings.Contains(err.Error(), "handwritten") {
+	if err := common.CheckClaims(existing, nil, dupes, claimAliases); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Errorf("collision with handwritten = %v", err)
 	}
 	plainClaimants := []Claimant{{Name: "demo", Source: "demo_test.ts", Kind: testKind}}
 	plainFile := rule.EmptyFile("BUILD.bazel", "pkg")
 	plainFile.Rules = append(plainFile.Rules, rule.NewRule(plainTestKind, "demo"))
-	if err := checkClaims(plainFile, nil, plainClaimants); err != nil {
+	if err := common.CheckClaims(plainFile, nil, plainClaimants, claimAliases); err != nil {
 		t.Errorf("plain-runner handwritten claims = %v", err)
 	}
 	plainOther := []*rule.Rule{rule.NewRule(plainTestKind, "demo")}
-	if err := checkClaims(nil, plainOther, plainClaimants); err != nil {
+	if err := common.CheckClaims(nil, plainOther, plainClaimants, claimAliases); err != nil {
 		t.Errorf("plain-runner other claims = %v", err)
 	}
 }

@@ -406,8 +406,8 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 			r.SetAttr("testonly", true)
 		}
 	}
-	if err := checkExistingClaims(args.File, args.OtherGen, result.Gen); err != nil {
-		l.fail("%v", err)
+	if err := common.CheckClaims(args.File, args.OtherGen, generatedClaims(args.Rel, result.Gen), rustClaimAliases); err != nil {
+		l.fail("rust: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 	merged := mergeStale(args.File, result)

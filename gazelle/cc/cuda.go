@@ -109,7 +109,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 			}
 		}
 	}
-	if err := common.CheckClaimsDir(args.File, args.OtherGen, []common.Claimant{{Name: name, Source: args.Rel, Kind: CudaKind}}, CudaKind); err != nil {
+	if err := common.CheckClaims(args.File, args.OtherGen, []common.Claimant{{Name: name, Source: args.Rel, Kind: CudaKind}}, nil); err != nil {
 		rep.Fail("cc: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}

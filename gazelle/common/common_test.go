@@ -2,9 +2,12 @@ package common
 
 import (
 	"bytes"
+	"errors"
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 )
 
 func TestNormalize(t *testing.T) {
@@ -23,16 +26,70 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
-func TestCheckCollisions(t *testing.T) {
-	if err := CheckCollisions([]Claimant{{Name: "a", Source: "a.js", Kind: "k"}}); err != nil {
-		t.Fatalf("CheckCollisions = %v, want nil", err)
+func TestCheckClaims(t *testing.T) {
+	fileWith := func(rules ...*rule.Rule) *rule.File {
+		f := rule.EmptyFile("BUILD.bazel", "")
+		f.Rules = append(f.Rules, rules...)
+		return f
 	}
-	err := CheckCollisions([]Claimant{
-		{Name: "a", Source: "a.js", Kind: "k"},
-		{Name: "a", Source: "b.js", Kind: "k"},
-	})
-	if err == nil {
-		t.Fatalf("CheckCollisions succeeded, want collision")
+	one := []Claimant{{Name: "demo", Source: "src", Kind: "k"}}
+	aliases := map[string]string{"plain": "k"}
+	cases := []struct {
+		name      string
+		file      *rule.File
+		other     []*rule.Rule
+		claimants []Claimant
+		aliases   map[string]string
+		want      string
+	}{
+		{name: "unique with nil inputs", claimants: []Claimant{{Name: "a", Source: "a", Kind: "k"}, {Name: "b", Source: "b", Kind: "j"}}},
+		{name: "same kind in file", file: fileWith(rule.NewRule("k", "demo")), claimants: one},
+		{name: "same kind in other", other: []*rule.Rule{rule.NewRule("k", "demo")}, claimants: one},
+		{name: "mismatch in file", file: fileWith(rule.NewRule("filegroup", "demo")), claimants: one,
+			want: `target name "demo" is claimed by generated k(src) and existing filegroup`},
+		{name: "other overrides file", file: fileWith(rule.NewRule("filegroup", "demo")), other: []*rule.Rule{rule.NewRule("k", "demo")}, claimants: one},
+		{name: "alias from file", file: fileWith(rule.NewRule("plain", "demo")), claimants: one, aliases: aliases},
+		{name: "alias from other", other: []*rule.Rule{rule.NewRule("plain", "demo")}, claimants: one, aliases: aliases},
+		{name: "alias is one way", file: fileWith(rule.NewRule("k", "demo")), claimants: []Claimant{{Name: "demo", Source: "src", Kind: "plain"}}, aliases: aliases,
+			want: `target name "demo" is claimed by generated plain(src) and existing k`},
+		{name: "alias reports real kind", file: fileWith(rule.NewRule("plain", "demo")), claimants: []Claimant{{Name: "demo", Source: "src", Kind: "j"}}, aliases: aliases,
+			want: `target name "demo" is claimed by generated j(src) and existing plain`},
+		{name: "first seen name wins", file: fileWith(rule.NewRule("filegroup", "b"), rule.NewRule("filegroup", "a")),
+			claimants: []Claimant{{Name: "a", Source: "a.x", Kind: "k"}, {Name: "b", Source: "b.x", Kind: "k"}},
+			want:      `target name "a" is claimed by generated k(a.x) and existing filegroup`},
+	}
+	for _, tc := range cases {
+		err := CheckClaims(tc.file, tc.other, tc.claimants, tc.aliases)
+		got := ""
+		if err != nil {
+			got = err.Error()
+		}
+		if got != tc.want {
+			t.Errorf("%s: CheckClaims = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+
+	dupes := []Claimant{{Name: "a_b", Source: "a-b.x", Kind: "k"}, {Name: "a_b", Source: "a_b.x", Kind: "k"}}
+	var ce *CollisionError
+	if err := CheckClaims(nil, nil, dupes, nil); !errors.As(err, &ce) || !reflect.DeepEqual(ce.Claimants, []string{"a-b.x", "a_b.x"}) {
+		t.Errorf("duplicates: CheckClaims = %v, want CollisionError with both sources in order", err)
+	}
+	ce = nil
+	err := CheckClaims(fileWith(rule.NewRule("filegroup", "a_b")), nil, dupes, map[string]string{"filegroup": "k"})
+	if !errors.As(err, &ce) || !reflect.DeepEqual(ce.Claimants, []string{"a-b.x", "a_b.x", "handwritten:filegroup:a_b"}) {
+		t.Errorf("handwritten duplicates: CheckClaims = %v, want CollisionError naming handwritten:filegroup:a_b", err)
+	}
+}
+
+func TestRuleNamesOfKind(t *testing.T) {
+	if got := RuleNamesOfKind(nil, nil, "plain"); len(got) != 0 {
+		t.Errorf("RuleNamesOfKind(nil) = %v, want empty", got)
+	}
+	f := rule.EmptyFile("BUILD.bazel", "")
+	f.Rules = append(f.Rules, rule.NewRule("plain", "a"), rule.NewRule("k", "b"))
+	got := RuleNamesOfKind(f, []*rule.Rule{rule.NewRule("plain", "c")}, "plain")
+	if want := map[string]bool{"a": true, "c": true}; !reflect.DeepEqual(got, want) {
+		t.Errorf("RuleNamesOfKind = %v, want %v", got, want)
 	}
 }
 

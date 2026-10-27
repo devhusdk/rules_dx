@@ -104,3 +104,37 @@ fn interrupted_probe_cancels_the_phase_without_a_build() {
         "no build after an interrupted probe"
     );
 }
+
+#[test]
+fn probe_action_counts_add_to_the_build() {
+    let mut harness = clean_harness("probe-action-counts");
+    harness.probe_shards = Some(vec![]);
+    harness.probe_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
+    harness.build_metrics = Some(build_metrics_line(1, 1, 0, 0, 0));
+    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(harness.probe_argv.borrow().len(), 1);
+    assert_eq!(
+        finished_actions(&out),
+        Some(
+            serde_json::json!({"created": 11, "executed": 5, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
+        ),
+        "{out}"
+    );
+}
+
+#[test]
+fn probe_action_counts_alone_are_reported() {
+    let mut harness = clean_harness("probe-action-counts-alone");
+    harness.probe_shards = Some(vec![]);
+    harness.probe_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
+    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(
+        finished_actions(&out),
+        Some(
+            serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
+        ),
+        "{out}"
+    );
+}

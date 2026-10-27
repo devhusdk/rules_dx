@@ -22,7 +22,7 @@ fn echoed(options: &[String]) -> (Vec<String>, bool) {
             });
         let unit = &options[index..index + if paired { 2 } else { 1 }];
         index += unit.len();
-        let (safe, withheld) = crate::plan::quality::partition_provenance_options(unit);
+        let (safe, withheld) = dx_plan::plan::quality::partition_provenance_options(unit);
         if withheld.is_empty() && safe == unit {
             words.extend_from_slice(unit);
         } else {
@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn hints_redact_url_credentials_and_env_values() {
         let mut secret = request();
-        secret.bazel_options = crate::test_support::strings(&[
+        secret.bazel_options = dx_testing::cli::strings(&[
             "--remote_cache=https://u:p@h",
             "--bes_backend=grpcs://u:p@h",
             "--action_env=GH_PAT=x",
@@ -240,7 +240,7 @@ mod tests {
     fn startup_option_secrets_are_withheld() {
         let mut secret = request();
         secret.bazel_startup_options =
-            crate::test_support::strings(&["--host_jvm_args=-Dauth.token=hunter2"]);
+            dx_testing::cli::strings(&["--host_jvm_args=-Dauth.token=hunter2"]);
         let line = apply_hint(&secret, 1);
         assert!(!line.contains("hunter2"), "{line}");
         assert!(
@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn split_secret_values_drop_their_flag_and_keep_order() {
         let mut secret = request();
-        secret.bazel_options = crate::test_support::strings(&[
+        secret.bazel_options = dx_testing::cli::strings(&[
             "--keep_going",
             "--copt",
             "-DAPI_KEY=x",
@@ -276,7 +276,7 @@ mod tests {
     fn safe_only_options_add_no_note() {
         let mut safe = request();
         safe.bazel_options =
-            crate::test_support::strings(&["--config=ci", "--remote_cache=grpcs://cache.example"]);
+            dx_testing::cli::strings(&["--config=ci", "--remote_cache=grpcs://cache.example"]);
         let line = apply_hint(&safe, 1);
         assert!(
             line.ends_with("-- --config=ci --remote_cache=grpcs://cache.example"),

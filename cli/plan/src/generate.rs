@@ -85,6 +85,7 @@ impl ProjectedManifest {
             },
             baseline: None,
             tests: None,
+            actions: None,
         }
     }
 
@@ -531,6 +532,7 @@ mod tests {
                 effects: None,
                 baseline: None,
                 tests: None,
+                actions: None,
             }
         );
         assert_eq!(projected.exit_code(0), 0);

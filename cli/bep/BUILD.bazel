@@ -15,6 +15,7 @@ dx_rust_crate(
         "src/failures.rs",
         "src/ledger.rs",
         "src/lib.rs",
+        "src/metrics.rs",
         "src/outputs.rs",
         "src/test_outputs.rs",
     ],

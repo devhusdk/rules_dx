@@ -2,7 +2,7 @@ use crate::validation::{check_correlation, check_path, parse_digest, OutputError
 use serde_json::{json, Value};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 2;
+pub const SCHEMA_MINOR: u64 = 3;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -900,6 +900,40 @@ pub struct FinishedCounts {
     pub baseline: Option<[u64; 3]>,
     /// Test result counts; see `TestCounts` for the unit.
     pub tests: Option<TestCounts>,
+    /// Bazel action counts summed over the command's builds.
+    pub actions: Option<ActionCounts>,
+}
+
+/// Bazel action counts; `executed` excludes disk and remote cache hits.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ActionCounts {
+    pub created: u64,
+    pub executed: u64,
+    pub disk: u64,
+    pub remote: u64,
+    pub local: u64,
+}
+
+impl std::ops::Add for ActionCounts {
+    type Output = ActionCounts;
+
+    fn add(self, other: ActionCounts) -> ActionCounts {
+        ActionCounts {
+            created: self.created.saturating_add(other.created),
+            executed: self.executed.saturating_add(other.executed),
+            disk: self.disk.saturating_add(other.disk),
+            remote: self.remote.saturating_add(other.remote),
+            local: self.local.saturating_add(other.local),
+        }
+    }
+}
+
+impl ActionCounts {
+    pub fn cached(&self) -> u64 {
+        self.disk
+            .saturating_add(self.remote)
+            .saturating_add(self.local)
+    }
 }
 
 /// Test result counts; `no_cases` is the part of `passed` whose report had no cases.
@@ -952,6 +986,12 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
         map.insert(
             "tests".to_owned(),
             json!({"passed": t.passed, "failed": t.failed, "cached": t.cached, "no_cases": t.no_cases, "skipped": t.skipped}),
+        );
+    }
+    if let Some(a) = &counts.actions {
+        map.insert(
+            "actions".to_owned(),
+            json!({"created": a.created, "executed": a.executed, "cache_hits": {"disk": a.disk, "remote": a.remote, "local": a.local}}),
         );
     }
     Value::Object(map)
@@ -1116,6 +1156,7 @@ mod tests {
             effects: Some([1, 1]),
             baseline: None,
             tests: None,
+            actions: None,
         };
         let event = command_finished(1, &counts);
         assert_eq!(event["exit_code"], Value::from(1));
@@ -1133,6 +1174,42 @@ mod tests {
     }
 
     #[test]
+    fn command_finished_reports_action_counts() {
+        let counts = FinishedCounts {
+            actions: Some(ActionCounts {
+                created: 9,
+                executed: 4,
+                disk: 1,
+                remote: 2,
+                local: 3,
+            }),
+            ..FinishedCounts::default()
+        };
+        assert_eq!(
+            command_finished(0, &counts)["actions"],
+            serde_json::json!({"created": 9, "executed": 4, "cache_hits": {"disk": 1, "remote": 2, "local": 3}})
+        );
+        assert!(command_finished(0, &FinishedCounts::default())
+            .get("actions")
+            .is_none());
+        let sum = ActionCounts {
+            created: 1,
+            executed: 2,
+            disk: 3,
+            remote: 4,
+            local: 5,
+        } + ActionCounts {
+            created: 1,
+            executed: 1,
+            disk: 1,
+            remote: 1,
+            local: 1,
+        };
+        assert_eq!(sum.executed, 3);
+        assert_eq!(sum.cached(), 15);
+    }
+
+    #[test]
     fn finished_changes_render() {
         let counts = FinishedCounts {
             results_complete: None,
@@ -1142,6 +1219,7 @@ mod tests {
             effects: None,
             baseline: Some([5, 1, 4]),
             tests: None,
+            actions: None,
         };
         let event = command_finished(0, &counts);
         assert_eq!(event["changes"]["create"], Value::from(1));
@@ -1362,10 +1440,10 @@ mod tests {
     }
 
     #[test]
-    fn schema_is_three_two_with_forward_compat() {
+    fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 2);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 2}));
+        assert_eq!(SCHEMA_MINOR, 3);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 3}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -1837,7 +1915,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 2},
+                "schema": {"major": 3, "minor": 3},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -1876,7 +1954,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 2},
+                "schema": {"major": 3, "minor": 3},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

@@ -72,7 +72,11 @@ rustc and clippy diagnostics, `--remote_download_outputs=toplevel` (test and cov
 `--combined_report=lcov` (coverage), and `--build_event_json_file`. Another value
 for one of them, and Bazel startup options after `--`, exit `2`.
 
-Output: `--output text|json`. Reports: `dx test` writes
+Output: `--output text|json`. `command_finished` carries `actions`, the
+Bazel action counts of the build (see the
+[JSON output](README.md#json-output) list). Text output ends with
+`dx: <total> actions, <executed> executed, <cached> cached` on stderr, where
+`<total>` is executed plus cached. `--quiet` drops that line. Reports: `dx test` writes
 `--report junit=<path>` JUnit reports. Repeat the flag for more files. Use `-`
 for stdout. A relative path anchors at the workspace root; an absolute one writes
 as given. Colliding destinations fail before anything runs, parents must exist,

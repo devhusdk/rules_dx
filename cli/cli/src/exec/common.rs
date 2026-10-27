@@ -2,13 +2,14 @@ use dx_apply::{FileSystem, RealFileSystem};
 use dx_bep::ArtifactReader;
 use dx_digest::blake3 as digest;
 use dx_output::{
-    command_started, notice_event, write_event, ChangeEvent, ChangeKind, FindingRecord,
-    NoticeEvent, OutputMode, Span,
+    command_started, notice_event, write_event, ActionCounts, ChangeEvent, ChangeKind,
+    FindingRecord, NoticeEvent, OutputMode, Span,
 };
 use dx_plan::args::{Command, Invocation};
 use dx_plan::reports::Destination;
 use dx_plan::resolve::QueryRunner;
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
+use std::cell::Cell;
 use std::io::{self, BufReader, Write};
 use std::path::Path;
 
@@ -322,6 +323,57 @@ pub struct Env<'a> {
     pub ci: bool,
     /// The pinned audit date, if any.
     pub audit_today: Option<&'a str>,
+    /// Bazel action counts summed over the run's builds.
+    pub actions: &'a ActionTally,
+}
+
+/// Sums the Bazel action counts of every build in one run.
+#[derive(Debug, Default)]
+pub struct ActionTally(Cell<Option<ActionCounts>>);
+
+impl ActionTally {
+    pub fn record(&self, counts: ActionCounts) {
+        let total = self.0.get().map_or(counts, |total| total + counts);
+        self.0.set(Some(total));
+    }
+
+    pub fn total(&self) -> Option<ActionCounts> {
+        self.0.get()
+    }
+}
+
+/// Reads the action counts of one build event file and records them in `tally`.
+pub(crate) fn read_actions(bep: &Path, tally: &ActionTally) -> Option<ActionCounts> {
+    let file = std::fs::File::open(bep).ok()?;
+    let summary = dx_bep::collect_action_summary(BufReader::new(file))?;
+    let counts = ActionCounts {
+        created: summary.created,
+        executed: summary.executed,
+        disk: summary.disk_cache_hits,
+        remote: summary.remote_cache_hits,
+        local: summary.local_cache_hits,
+    };
+    tally.record(counts);
+    Some(counts)
+}
+
+/// Prints the run's action total on stderr in visible text mode.
+pub fn print_actions(output: OutputMode, tally: &ActionTally, err: &mut dyn Write) {
+    if !dx_output::dx_text_visible(&output) {
+        return;
+    }
+    if let Some(line) = tally.total().map(|counts| actions_line(&counts)) {
+        let _ = writeln!(err, "{line}");
+    }
+}
+
+fn actions_line(counts: &ActionCounts) -> String {
+    let cached = counts.cached();
+    format!(
+        "dx: {} actions, {} executed, {cached} cached",
+        counts.executed.saturating_add(cached),
+        counts.executed
+    )
 }
 
 pub(crate) struct FsArtifacts;
@@ -934,6 +986,31 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn actions_line_formats_action_counts() {
+        let tally = ActionTally::default();
+        let mut err = Vec::new();
+        print_actions(OutputMode::Text { quiet: false }, &tally, &mut err);
+        assert!(err.is_empty());
+        let counts = ActionCounts {
+            created: 50,
+            executed: 3,
+            disk: 1,
+            remote: 2,
+            local: 4,
+        };
+        tally.record(counts);
+        tally.record(counts);
+        print_actions(OutputMode::Json, &tally, &mut err);
+        print_actions(OutputMode::Text { quiet: true }, &tally, &mut err);
+        assert!(err.is_empty());
+        print_actions(OutputMode::Text { quiet: false }, &tally, &mut err);
+        assert_eq!(
+            String::from_utf8(err).expect("utf8"),
+            "dx: 20 actions, 6 executed, 14 cached\n"
+        );
+    }
     use dx_output::{command_finished, DiagnosticEvent, FinishedCounts, Severity};
     use std::cell::RefCell;
     use std::path::PathBuf;

@@ -249,7 +249,7 @@ error prints the command list and a `see dx <command> --help` hint.
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The schema is `3.2`.
+`event` name and a `schema` with `major` and `minor`. The schema is `3.3`.
 Readers accept any `3.x` and reject other majors. The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
@@ -366,7 +366,12 @@ configurations appear once, with a `count`.
   the passed tests that came from the cache. `no_cases` counts passed tests
   whose report had no test cases; they are also in `passed`. `skipped` counts tests
   with outcome `skipped` or `filtered`. `changes` has `create` and
-  `modify`, and with `--apply` also `applied` and `refused`.
+  `modify`, and with `--apply` also `applied` and `refused`. `actions` has
+  the Bazel action counts summed over the command's builds: `created`,
+  `executed`, and `cache_hits` with `disk`, `remote`, and `local`.
+  `executed` leaves out disk and remote cache hits, and is approximate when an
+  action runs several spawns. `actions` is absent when no build reported
+  metrics.
 
 `dx run` and `dx update` add `correlation` to their events, so you can group
 them by target or set.

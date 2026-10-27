@@ -59,7 +59,9 @@ dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|erro
   Runs set `columnKind` to `unicodeCodePoints`.
 - `dx lint` without `--apply` also fails with exit `1` when the checkout holds
   build output or a file over 1 MiB, as described for `dx check`.
-- `--output text|diff|json`: result shape.
+- `--output text|diff|json`: result shape. JSON `command_finished` carries
+  the Bazel `actions` counts of the probe and the build together, and text ends with a
+  `dx: <total> actions, ...` line on stderr.
 - `--include-edits`: add `source_digest` and full `edits` to JSON `change`
   events. Needs `--output json`; otherwise exits `2`.
 

@@ -160,7 +160,7 @@ pub(crate) fn execute_upgrade(
 mod tests {
     use super::*;
     use crate::adopt::test_support::{event, event_kinds, invocation, json_events, run};
-    use crate::skew::{disposition, is_skewed, SkewDisposition};
+    use dx_plan::skew::{disposition, is_skewed, SkewDisposition};
     use dx_process::pre_exec_code;
     use std::path::PathBuf;
 
@@ -212,7 +212,8 @@ mod tests {
         let (_scratch, root) = pinned("dx-adopt-upgrade-hint-", OLD);
         assert!(is_skewed(&read_pin(&root)));
         std::fs::write(root.join("AGENTS.md"), STALE_AGENTS).expect("agents");
-        dx_adopt::write_launcher_files(&root, OLD).expect("launchers");
+        dx_adopt::write_launcher_files(&root, OLD, &mut dx_adopt::Applied::default())
+            .expect("launchers");
         std::fs::remove_file(root.join("tools/dx.cmd")).expect("drop cmd");
         let hint = dx_adopt::pin_fix_hint(OLD, module());
         let words: Vec<&str> = hint.split_whitespace().skip(1).collect();

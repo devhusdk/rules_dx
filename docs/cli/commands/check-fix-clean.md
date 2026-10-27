@@ -104,6 +104,12 @@ correlated `collection_failed` error and fails the run. A phase that reported fi
 correlated `error`. `--include-edits` adds full edits to JSON `change` events
 and needs `--output json`.
 
+The run's `command_finished` carries `actions`, the Bazel action counts summed
+over every phase, including `verify/<phase>` and the test phase. Each
+`phase_finished` carries the counts of its own phase. Text output prints one
+`dx: <total> actions, <executed> executed, <cached> cached` line on stderr for
+the whole run.
+
 Findings keep the tool's labels, notes, help, and related locations. Text
 prints them under the finding, JSON adds an ordered `related` list, and SARIF
 adds `relatedLocations`. They are never counted as findings or applied as

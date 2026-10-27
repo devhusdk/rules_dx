@@ -138,3 +138,21 @@ fn json_stream_stops_at_the_first_broken_write() {
     assert!(!text.contains("command_finished"), "{text}");
     assert!(out.writes >= 2, "the second event hit the closed pipe");
 }
+
+#[test]
+fn quality_json_reports_action_counts() {
+    let mut harness = Harness::new("json-action-counts");
+    harness.write_source("src/a.py", "x = 1\n");
+    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(finished_actions(&out), None, "{out}");
+    harness.build_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
+    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(
+        finished_actions(&out),
+        Some(
+            serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
+        )
+    );
+}

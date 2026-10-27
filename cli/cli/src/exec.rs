@@ -275,7 +275,16 @@ mod tests {
         (Command::Docs, &["docs"]),
         (Command::Env, &["env"]),
         (Command::Codegen, &["codegen"]),
-        (Command::Run, &["run", "//app:bin", "--", "--app-flag"]),
+        (
+            Command::Run,
+            &[
+                "run",
+                "--bazel-option=--jobs=4",
+                "//app:bin",
+                "--",
+                "--app-flag",
+            ],
+        ),
         (Command::Build, &["build"]),
         (Command::Test, &["test"]),
         (Command::Coverage, &["coverage"]),
@@ -360,6 +369,17 @@ mod tests {
                     .expect("app args");
                 let end = argv.iter().position(|arg| arg == "--").expect("app args");
                 assert_eq!(argv[end + 1..], ["--app-flag".to_owned()], "{argv:?}");
+                for argv in &argvs {
+                    let position = |word: &str| argv.iter().position(|arg| arg == word);
+                    let jobs = position("--jobs=4").expect("user option");
+                    assert!(
+                        AGENT_QUIET_FLAGS
+                            .iter()
+                            .all(|flag| position(flag).is_some_and(|at| at < jobs)),
+                        "{argv:?}"
+                    );
+                    assert!(jobs < position("//app:bin").expect("label"), "{argv:?}");
+                }
             }
             for (agent, output) in [(true, "--output=text"), (false, "--output=json")] {
                 for argv in bazel_build_argvs(words, agent, output) {

@@ -280,7 +280,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "run",
         scope_policy: "require",
         describe: "build and run runnable targets sequentially (explicit labels/patterns; file/dir scopes need exactly one runnable)",
-        usage: "Usage: dx run [--debug|--release] <label> ... [-- app-args ...]",
+        usage: "Usage: dx run [--debug|--release] [--bazel-option <token>]... <label> ... [-- app-args ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target, @repo//...), or workspace-relative files/dirs resolved via Bazel query. Requires a scope (empty scope is a usage error); file/dir scopes need exactly one runnable.",
         is_managed: false,
         is_adoption: false,

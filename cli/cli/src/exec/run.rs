@@ -93,7 +93,7 @@ impl Launcher<'_> {
         };
         let plan = match plan_run_build(
             targets,
-            &invocation.agent_quiet_flags(),
+            &invocation.quiet_bazel_options(),
             invocation.profile(),
             &invocation.bazel_startup_options,
         ) {
@@ -149,8 +149,8 @@ impl Launcher<'_> {
         let invocation = self.invocation;
         plan_run(
             target,
-            &invocation.agent_quiet_flags(),
-            invocation.raw_bazel_options(),
+            &invocation.quiet_bazel_options(),
+            invocation.app_args(),
             invocation.profile(),
             &invocation.bazel_startup_options,
         )
@@ -357,6 +357,51 @@ mod tests {
         assert!(!run.argv[0].contains(&"--apply".to_owned()), "{run:?}");
         assert!(run.argv[1].contains(&"run".to_owned()), "{run:?}");
         assert!(run.argv[1].contains(&"--apply".to_owned()), "{run:?}");
+    }
+
+    fn option_slice<'a>(argv: &'a [String], verb: &str) -> &'a [String] {
+        let start = argv.iter().position(|word| word == verb).expect("verb") + 1;
+        let end = argv
+            .iter()
+            .position(|word| word == "//app:bin")
+            .expect("label");
+        &argv[start..end]
+    }
+
+    #[test]
+    fn run_bazel_options_reach_build_and_run_but_not_the_app() {
+        let harness = Harness::new("run-bazel-options");
+        let inv = invocation(&[
+            "run",
+            "--bazel-option=--jobs=4",
+            "--bazel-option",
+            "--config=ci",
+            "//app:bin",
+            "--",
+            "--port=8080",
+        ]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 0, "{run:?}");
+        assert_eq!(run.argv.len(), 2, "{run:?}");
+        let build_options = option_slice(&run.argv[0], "build");
+        let run_options = option_slice(&run.argv[1], "run");
+        assert_eq!(build_options, run_options, "{run:?}");
+        let jobs = build_options.iter().position(|word| word == "--jobs=4");
+        let config = build_options.iter().position(|word| word == "--config=ci");
+        assert!(jobs.is_some() && jobs < config, "{build_options:?}");
+        assert!(!run.argv[0].contains(&"--port=8080".to_owned()), "{run:?}");
+        let separator = run.argv[1].iter().position(|word| word == "--");
+        assert_eq!(separator, Some(run.argv[1].len() - 2), "{run:?}");
+        assert_eq!(run.argv[1].last(), Some(&"--port=8080".to_owned()));
+    }
+
+    #[test]
+    fn run_rejects_a_startup_bazel_option_before_launching() {
+        let harness = Harness::new("run-bazel-option-startup");
+        let inv = invocation(&["run", "--bazel-option=--output_base=/x", "//app:bin"]);
+        let run = harness.probe_with(&inv, &[Some(0)]);
+        assert_eq!(run.code, 2, "{run:?}");
+        assert!(run.argv.is_empty(), "{run:?}");
     }
 
     struct SlotRunner {

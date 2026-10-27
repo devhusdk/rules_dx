@@ -675,7 +675,44 @@ fn run_rejects_machine_output_and_reports() {
     let got = parse(&strings(&["run", "//app:bin", "--", "--port=8080"])).expect("parse run");
     assert_eq!(got.command, Command::Run);
     assert_eq!(got.targets, vec!["//app:bin".to_owned()]);
-    assert_eq!(got.bazel_options, vec!["--port=8080".to_owned()]);
+    assert_eq!(got.app_args(), ["--port=8080".to_owned()]);
+    assert!(got.bazel_options.is_empty());
+}
+
+#[test]
+fn run_bazel_options_route_apart_from_app_args() {
+    let got = parse(&strings(&[
+        "run",
+        "--bazel-option=--jobs=4",
+        "--bazel-option",
+        "--config=ci",
+        "//app:bin",
+    ]))
+    .expect("parse run");
+    assert_eq!(got.bazel_options, strings(&["--jobs=4", "--config=ci"]));
+    assert!(got.app_args().is_empty());
+    let got = parse(&strings(&["run", "//a", "--", "--bazel-option=x"])).expect("app arg");
+    assert!(got.bazel_options.is_empty());
+    assert_eq!(got.app_args(), strings(&["--bazel-option=x"]));
+    let got = parse(&strings(&[
+        "run",
+        "--bazel-option=--config=x",
+        "//a",
+        "--",
+        "--y",
+    ]))
+    .expect("both");
+    assert_eq!(got.bazel_options, strings(&["--config=x"]));
+    assert_eq!(got.app_args(), strings(&["--y"]));
+    for command in ["build", "deploy", "watch"] {
+        assert!(
+            matches!(
+                parse(&strings(&[command, "--bazel-option=--jobs=4", "//a"])),
+                Err(ArgsError::UnsupportedOption { .. })
+            ),
+            "{command}"
+        );
+    }
 }
 
 #[test]

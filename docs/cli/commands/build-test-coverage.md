@@ -219,8 +219,8 @@ In an agent session (`CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`,
 `--noshow_loading_progress`, `--noshow_timestamps`, `--curses=no`,
 `--ui_event_filters=-info,-debug` and `--test_summary=none` to Bazel before
 your own Bazel options, so Bazel prints no progress on stderr. Those quiet
-Bazel flags apply only when the output is JSON. For `dx run`,
-args after `--` still go only to the app. `--output`, `DX_OUTPUT` and the `output` setting in `dx.toml` still
+Bazel flags apply only when the output is JSON. For `dx run`, they come
+before the `--bazel-option` values, and args after `--` still go only to the app. `--output`, `DX_OUTPUT` and the `output` setting in `dx.toml` still
 win. In CI these variables are ignored.
 
 If Bazel fails and its event file is missing or ends early, dx still returns
@@ -282,13 +282,17 @@ reported as `passed_after_retry` with its attempt number.
 ## `dx run`
 
 ```text
-dx run [--debug|--release] <label...> [-- args...]
+dx run [--debug|--release] [--bazel-option <token>]... <label...> [-- args...]
 ```
 
 Builds the runnable targets in scope, then launches them in scope
 order. Explicit labels and patterns run sequentially. File and directory
 scopes must resolve to exactly one runnable target. Args after `--` go to
-the app. The default profile is development; `--release` selects release.
+the app. `--bazel-option <token>` passes one Bazel option to both the build
+and the run, and is repeatable. Bazel startup options and `--test_arg` are
+usage errors there. For example,
+`dx run --bazel-option=--jobs=4 //app:bin -- --port=8080`.
+The default profile is development; `--release` selects release.
 `dx run` works with `CI=true`. `dx run --apply` is a usage error.
 The build holds a [build slot](README.md#build-slots). The slot frees before
 the app starts.

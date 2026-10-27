@@ -11,7 +11,10 @@ pub fn plan_run_targets(
 ) -> Result<BuildPlan, ForwardError> {
     let mut argv = super::bazel_argv(
         "run",
-        &super::profile_options(Some(profile), bazel_options),
+        &super::profile_options(
+            Some(profile),
+            &crate::args::filter_profile_configs(bazel_options, Some(profile))?,
+        ),
         &[],
         &[],
         targets,
@@ -34,7 +37,10 @@ pub fn plan_run_build(
 ) -> Result<BuildPlan, ForwardError> {
     let argv = super::bazel_argv(
         "build",
-        &super::profile_options(Some(profile), bazel_options),
+        &super::profile_options(
+            Some(profile),
+            &crate::args::filter_profile_configs(bazel_options, Some(profile))?,
+        ),
         &[],
         &[],
         targets,
@@ -261,6 +267,52 @@ mod tests {
                     "--noshow_progress",
                     "--curses=no",
                     "//app:bin",
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn run_plans_filter_profile_configs_from_user_options() {
+        let conflicting = strings(&["--config=dx_release"]);
+        assert_eq!(
+            plan_run("//app:bin", &conflicting, &[], Profile::Dev, &[]).expect_err("conflict"),
+            ForwardError::ConflictingOption {
+                flag: "config".to_owned(),
+            }
+        );
+        assert_eq!(
+            plan_run_build(&strings(&["//app:bin"]), &conflicting, Profile::Dev, &[])
+                .expect_err("conflict"),
+            ForwardError::ConflictingOption {
+                flag: "config".to_owned(),
+            }
+        );
+        let options = strings(&["--noshow_progress", "--config=dx_dev", "--jobs=4"]);
+        let run = plan_run("//app:bin", &options, &[], Profile::Dev, &[]).expect("plan");
+        assert_eq!(
+            run.argv,
+            expected(
+                "run",
+                &[
+                    "--config=dx_dev",
+                    "--noshow_progress",
+                    "--jobs=4",
+                    "//app:bin"
+                ]
+            )
+        );
+        let build =
+            plan_run_build(&strings(&["//app:bin"]), &options, Profile::Dev, &[]).expect("plan");
+        assert_eq!(
+            build.argv,
+            expected(
+                "build",
+                &[
+                    "--config=dx_dev",
+                    "--noshow_progress",
+                    "--jobs=4",
+                    "//app:bin"
                 ]
             )
         );

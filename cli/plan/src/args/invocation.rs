@@ -236,6 +236,7 @@ pub struct Invocation {
     pub min_changed_line_coverage: Option<u32>,
     pub targets: Vec<String>,
     pub(super) bazel_options: Vec<String>,
+    pub(super) app_args: Vec<String>,
     pub prune_unobserved: bool,
     pub configured: bool,
     pub from: Option<String>,
@@ -293,6 +294,11 @@ impl Invocation {
     /// Bazel options as typed, without agent quiet flags; not for build argv.
     pub fn raw_bazel_options(&self) -> &[String] {
         &self.bazel_options
+    }
+
+    /// The `--` payload `dx run` and `dx deploy` hand to the app.
+    pub fn app_args(&self) -> &[String] {
+        &self.app_args
     }
 
     pub fn mode(self) -> &'static str {
@@ -585,6 +591,7 @@ mod tests {
             min_changed_line_coverage: None,
             targets: targets.iter().map(ToString::to_string).collect(),
             bazel_options: Vec::new(),
+            app_args: Vec::new(),
             prune_unobserved: false,
             configured: false,
             from: None,

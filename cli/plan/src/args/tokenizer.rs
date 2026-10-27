@@ -347,17 +347,17 @@ pub(crate) struct Tokenized {
     pub(crate) command: Command,
     pub(crate) flags: Flags,
     pub(crate) targets: Vec<OsString>,
-    pub(crate) bazel_options: Vec<String>,
+    pub(crate) passthrough: Vec<String>,
 }
 
 pub(crate) fn tokenize<S: AsRef<OsStr>>(args: &[S]) -> Result<Tokenized, ArgsError> {
     let command = parse_tokens(args)?.ok_or(ArgsError::MissingCommand)?;
-    let (command, flags, targets, bazel_options) = command.into_parts();
+    let (command, flags, targets, passthrough) = command.into_parts();
     Ok(Tokenized {
         command,
         flags,
         targets,
-        bazel_options,
+        passthrough,
     })
 }
 

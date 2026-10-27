@@ -387,7 +387,8 @@ fn short_booleans_leave_the_target_alone() {
 fn short_options_after_the_separator_belong_to_the_payload() {
     let got = parse(&strings(&["run", "//app:bin", "--", "-v", "-q", "-o", "x"])).expect("parse");
     assert!(!got.verbose && !got.quiet);
-    assert_eq!(got.bazel_options, strings(&["-v", "-q", "-o", "x"]));
+    assert_eq!(got.app_args(), strings(&["-v", "-q", "-o", "x"]));
+    assert!(got.bazel_options.is_empty());
 }
 
 #[test]

@@ -797,10 +797,11 @@ mod tests {
         .expect("release");
         assert!(release.release);
         assert_eq!(
-            release.raw_bazel_options(),
-            vec!["--hi".to_owned()],
+            release.app_args(),
+            ["--hi".to_owned()],
             "app args ride the cloned invocation"
         );
+        assert!(release.raw_bazel_options().is_empty());
         assert!(dx_plan::args::parse(&["watch", "--debug", "lint", "//..."]).is_err());
     }
 

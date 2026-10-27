@@ -795,3 +795,90 @@ fn the_idle_scan_survives_cycles_and_the_depth_cap() {
     machine = machine.file(&last, "startup --max_idle_secs=90\n");
     assert_eq!(machine.policy().gc_idle_delay_secs, None);
 }
+
+fn repo_caches(machine: &Machine, startup: &[&str]) -> Vec<PathBuf> {
+    repository_caches(
+        &|name| machine.env.get(name).cloned(),
+        Path::new("/ws"),
+        &|path| machine.files.get(path).cloned(),
+        &strings(startup),
+    )
+}
+
+fn user_default(base: &str) -> PathBuf {
+    PathBuf::from(base).join("_bazel_me/cache/repos/v1")
+}
+
+#[test]
+fn repository_cache_flags_come_first_in_read_order() {
+    let machine = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            "build --repository_cache=/a\ncommon:ci --repository_cache /b\nimport %workspace%/more.rc",
+        )
+        .file("/ws/more.rc", "fetch --repository_cache=%workspace%/c")
+        .file("/home/u/.bazelrc", "common --repository_cache=~/d");
+    assert_eq!(
+        repo_caches(&machine, &[]),
+        vec![
+            PathBuf::from("/a"),
+            PathBuf::from("/b"),
+            PathBuf::from("/ws/c"),
+            PathBuf::from("/home/u/d"),
+        ]
+    );
+}
+
+#[test]
+fn empty_and_negated_repository_caches_are_skipped_and_duplicates_removed() {
+    let machine = Machine::local().file(
+        "/ws/.bazelrc",
+        "build --repository_cache=\nbuild --norepository_cache\nbuild --repository_cache=/a\ntest --repository_cache=/a\nbuild --repository_cache_urls_as_default_canonical_id",
+    );
+    assert_eq!(repo_caches(&machine, &[]), vec![PathBuf::from("/a")]);
+}
+
+#[test]
+fn output_user_roots_follow_dx_startup_options_then_rc() {
+    let machine = Machine::local().file(
+        "/ws/.bazelrc",
+        "startup --output_user_root=/rc\nstartup:linux --output_user_root /rc2\nbuild --output_user_root=/ignored",
+    );
+    let caches = repo_caches(&machine, &["--output_user_root=/dx"]);
+    assert_eq!(
+        caches[..3],
+        [
+            PathBuf::from("/dx/cache/repos/v1"),
+            PathBuf::from("/rc/cache/repos/v1"),
+            PathBuf::from("/rc2/cache/repos/v1"),
+        ]
+    );
+    assert!(!caches.contains(&PathBuf::from("/ignored/cache/repos/v1")));
+}
+
+#[test]
+fn default_user_roots_follow_test_tmpdir_then_xdg_then_home() {
+    let machine = Machine::local().env("USER", "me").env("TEST_TMPDIR", "/tt");
+    let caches = repo_caches(&machine, &[]);
+    assert_eq!(
+        caches[..5],
+        [
+            user_default("/tt"),
+            user_default("/xdg/bazel"),
+            user_default("/home/u/.cache/bazel"),
+            user_default("/home/u/Library/Caches/bazel"),
+            user_default("/private/var/tmp"),
+        ]
+    );
+}
+
+#[test]
+fn no_user_name_means_no_default_user_roots() {
+    let machine = Machine::local();
+    assert!(repo_caches(&machine, &[]).is_empty());
+    let logname = Machine::local().env("LOGNAME", "me");
+    assert_eq!(
+        repo_caches(&logname, &[]).first(),
+        Some(&user_default("/xdg/bazel"))
+    );
+}

@@ -20,8 +20,8 @@ pub mod rc;
 
 pub use rc::{
     build_verb_options, clear_share, configure, configure_real, current, default_disk_cache,
-    set_share, share, user_cache_dir, LocalShare, RcPolicy, DISK_CACHE_GC_MAX_AGE,
-    DISK_CACHE_GC_MAX_SIZE, PRESET_LOCAL_RESOURCES,
+    repository_caches, set_share, share, user_cache_dir, LocalShare, RcPolicy,
+    DISK_CACHE_GC_MAX_AGE, DISK_CACHE_GC_MAX_SIZE, PRESET_LOCAL_RESOURCES,
 };
 
 pub trait Fs {

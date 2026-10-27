@@ -381,13 +381,92 @@ fn resolve_disk_cache(
         }
     }
     let value = winner?.1.filter(|value| !value.is_empty())?;
+    Some(expand_path(value, env_get, workspace))
+}
+
+/// The repository cache directories Bazel may use, most likely first, without duplicates.
+pub fn repository_caches(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    startup_options: &[String],
+) -> Vec<PathBuf> {
+    let roots = rc_roots(env_get, workspace);
+    let mut flagged = Vec::new();
+    let mut rc_user_roots = Vec::new();
+    let mut visit = |tokens: &[&str]| {
+        let startup = tokens
+            .first()
+            .is_some_and(|command| *command == "startup" || command.starts_with("startup:"));
+        for (index, token) in tokens.iter().enumerate().skip(1) {
+            let next = tokens.get(index + 1).copied();
+            if startup {
+                if let Some(value) = flag_value(token, next, "--output_user_root") {
+                    rc_user_roots.push(value.to_owned());
+                }
+            } else if let Some(value) = flag_value(token, next, "--repository_cache") {
+                flagged.push(value.to_owned());
+            }
+        }
+        false
+    };
+    visit_roots(&roots, workspace, read_file, &mut visit);
+    let expand = |value: &str| expand_path(value, env_get, workspace);
+    let mut candidates: Vec<PathBuf> = flagged
+        .iter()
+        .filter(|value| !value.is_empty())
+        .map(|value| expand(value))
+        .collect();
+    let dx_user_roots = startup_options
+        .iter()
+        .enumerate()
+        .filter_map(|(index, token)| {
+            let next = startup_options.get(index + 1).map(String::as_str);
+            flag_value(token, next, "--output_user_root").map(str::to_owned)
+        });
+    let user_roots: Vec<String> = dx_user_roots.chain(rc_user_roots).collect();
+    for root in user_roots.iter().filter(|root| !root.is_empty()) {
+        candidates.push(expand(root).join("cache").join("repos").join("v1"));
+    }
+    let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
+    let user = non_empty("USER")
+        .or_else(|| non_empty("LOGNAME"))
+        .or_else(|| non_empty("USERNAME"));
+    if let Some(user) = user {
+        let mut bases: Vec<PathBuf> = Vec::new();
+        bases.extend(non_empty("TEST_TMPDIR").map(PathBuf::from));
+        bases.extend(non_empty("XDG_CACHE_HOME").map(|cache| PathBuf::from(cache).join("bazel")));
+        if let Some(home) = home_dir(env_get) {
+            bases.push(home.join(".cache").join("bazel"));
+            bases.push(home.join("Library").join("Caches").join("bazel"));
+        }
+        bases.push(PathBuf::from("/private/var/tmp"));
+        if cfg!(windows) {
+            bases.extend(non_empty("USERPROFILE").map(PathBuf::from));
+        }
+        for base in bases {
+            candidates.push(
+                base.join(format!("_bazel_{user}"))
+                    .join("cache")
+                    .join("repos")
+                    .join("v1"),
+            );
+        }
+    }
+    let mut seen = HashSet::new();
+    candidates.retain(|path| seen.insert(path.clone()));
+    candidates
+}
+
+/// Expands a leading `~` to the home directory and `%workspace%` to the workspace.
+fn expand_path(value: &str, env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> PathBuf {
     let expanded = match (value.strip_prefix('~'), home_dir(env_get)) {
         (Some(rest), Some(home)) if rest.is_empty() || rest.starts_with('/') => {
             home.join(rest.trim_start_matches('/'))
         }
         _ => PathBuf::from(value),
     };
-    Some(import_path(&expanded.to_string_lossy(), workspace))
+    import_path(&expanded.to_string_lossy(), workspace)
 }
 
 /// Whether any rc file reachable from `roots` sets the gc max size or max age.

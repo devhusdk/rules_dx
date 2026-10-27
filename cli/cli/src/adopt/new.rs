@@ -107,7 +107,7 @@ fn shell_word(word: &str) -> String {
     let plain = !word.is_empty()
         && word
             .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '_' | '-' | '+'));
+            .all(|c| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c));
     if plain {
         word.to_owned()
     } else {
@@ -191,6 +191,8 @@ mod tests {
         assert_eq!(super::shell_word("teams/demo"), "teams/demo");
         assert_eq!(super::shell_word("teams/My App"), "'teams/My App'");
         assert_eq!(super::shell_word("it's"), "'it'\\''s'");
+        assert_eq!(super::shell_word("50%,core"), "50%,core");
+        assert_eq!(super::shell_word("tag:v1,x=y@z+w"), "tag:v1,x=y@z+w");
     }
 
     #[test]

@@ -46,6 +46,8 @@ Usage: process_probe [options]
   --marker=PATH                 file this probe creates when it finishes
   --alive-lock=PATH             hold a lock on PATH until this probe exits
   --descendant-alive-lock=PATH  lock the descendant holds; wait until it is held
+  --nested-server-lock=PATH     descendant is a client that starts a detached server
+                                holding PATH; wait until it is held
   --descendant-gate=PATH        end the descendant's sleep early once PATH exists
   --raise-signal=N              die by signal N (unix only)
   --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
@@ -102,6 +104,7 @@ struct Plan {
     marker: Option<String>,
     alive_lock: Option<String>,
     descendant_alive_lock: Option<String>,
+    nested_server_lock: Option<String>,
     descendant_gate: Option<String>,
     raise_signal: Option<i32>,
     count_sigint: Option<String>,
@@ -133,6 +136,7 @@ const VALUE_FLAGS: &[&str] = &[
     "--marker",
     "--alive-lock",
     "--descendant-alive-lock",
+    "--nested-server-lock",
     "--descendant-gate",
     "--raise-signal",
     "--count-sigint",
@@ -252,6 +256,14 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 }
                 plan.descendant_alive_lock = Some(value.to_owned());
             }
+            "--nested-server-lock" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.nested_server_lock = Some(value.to_owned());
+                plan.spawn_descendant = true;
+                plan.detached_descendant = true;
+            }
             "--descendant-gate" => {
                 if value.is_empty() {
                     return Err(format!("{flag} needs a path"));
@@ -337,8 +349,26 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     if let Some(gate) = &plan.descendant_gate {
         args.push(format!("--gate={gate}"));
     }
+    if let Some(lock) = &plan.nested_server_lock {
+        // The descendant is a client that starts a detached server one
+        // level deeper, so the chain is wrapper -> client -> server.
+        args = vec![
+            "--detached-descendant".to_owned(),
+            "--descendant-own-group".to_owned(),
+            "--descendant-sleep-ms=30000".to_owned(),
+            format!("--descendant-alive-lock={lock}"),
+            "--sleep-ms=30000".to_owned(),
+        ];
+    }
     let mut command = Command::new(exe);
     command.args(&args).stdin(Stdio::null());
+    if let Some(lock) = &plan.nested_server_lock {
+        let _client = command
+            .spawn()
+            .map_err(|err| format!("cannot spawn a client: {err}"))?;
+        wait_for_lock(lock)?;
+        return Ok(plan.exit_code);
+    }
     if plan.descendant_own_group {
         command.stdout(Stdio::null()).stderr(Stdio::null());
         own_group(&mut command);

@@ -350,6 +350,26 @@ fn attached_targets_is_the_intersection_in_any_order() {
 
 #[cfg(windows)]
 #[test]
+fn a_detachable_run_reaps_a_client_but_keeps_its_detached_server() {
+    let scratch = dx_testing::mkscratch("dx-lifecycle-detachable-chain").expect("scratch");
+    let lock = scratch.join("server.alive");
+    let mut spec = controlled_spec(
+        probe_argv(&[
+            &format!("--nested-server-lock={}", lock.display()),
+            "--sleep-ms=30000",
+        ]),
+        Duration::from_millis(1000),
+    );
+    spec.descendants = Descendants::Detachable;
+    assert_eq!(
+        run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
+        ChildOutcome::TimedOut
+    );
+    assert_still_held(&lock);
+}
+
+#[cfg(windows)]
+#[test]
 fn an_owned_run_kills_a_detached_server() {
     let scratch = dx_testing::mkscratch("dx-lifecycle-owned-server").expect("scratch");
     let lock = scratch.join("server.alive");

@@ -1,6 +1,4 @@
-use std::path::{Path, PathBuf};
-
-use dx_nested::{self as nested, Case};
+use dx_nested::Case;
 
 const APP_BUILD: &str = r#"load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
 
@@ -66,168 +64,107 @@ const FAILING_SUITE: &str = "-module(failing_SUITE).\n\n-export([all/0, always_f
 
 const FAILING_SRC: &str = "-module(failing).\n\n-export([ok/0]).\n\nok() -> ok.\n";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    dx_testing::rules_dx_source()
-}
-
-fn app(root: &Path, name: &str, module: &str, source: &str) {
-    let dir = root.join(name);
-    write(&dir.join("BUILD.bazel"), &APP_BUILD.replace("{name}", name));
-    write(&dir.join(format!("src/{module}.erl")), source);
+fn app(case: &Case, name: &str, module: &str, source: &str) {
+    case.write(
+        format!("{name}/BUILD.bazel"),
+        &APP_BUILD.replace("{name}", name),
+    );
+    case.write(format!("{name}/src/{module}.erl"), source);
 }
 
 fn consumer() -> Case {
-    let rules = rules_dx_root();
-    let case = nested::case("negative");
-    let root = case.root().to_path_buf();
-    write(
-        &root.join(".bazelversion"),
-        &read(&rules.join(".bazelversion")),
-    );
-    write(
-        &root.join("MODULE.bazel"),
-        &format!(
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n",
-            rules.display()
-        ),
-    );
-    write(
-        &root.join(".bazelrc"),
-        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
-    );
-    write(&root.join("BUILD.bazel"), "");
-    app(&root, "clean", "clean", CLEAN);
-    app(&root, "syntax_error", "syntax_error", SYNTAX);
-    app(&root, "unused_variable", "unused_variable", WARNING);
-    app(&root, "base_dep", "base_dep", "-module(base_dep).\n");
-    write(&root.join("base_dep/include/base_dep.hrl"), BASE_HEADER);
+    let case = Case::consumer("negative", "");
+    case.write("BUILD.bazel", "");
+    app(&case, "clean", "clean", CLEAN);
+    app(&case, "syntax_error", "syntax_error", SYNTAX);
+    app(&case, "unused_variable", "unused_variable", WARNING);
+    app(&case, "base_dep", "base_dep", "-module(base_dep).\n");
+    case.write("base_dep/include/base_dep.hrl", BASE_HEADER);
     for (name, deps) in [
         ("missing_dep", "[]"),
         ("declared_dep", "[\"//base_dep:erlang_app\"]"),
     ] {
-        let dir = root.join(name);
-        write(
-            &dir.join("BUILD.bazel"),
+        case.write(
+            format!("{name}/BUILD.bazel"),
             &format!("DEPS = {deps}\n\n{DEP_BUILD}"),
         );
-        write(&dir.join("src/needs_dep.erl"), NEEDS_DEP);
+        case.write(format!("{name}/src/needs_dep.erl"), NEEDS_DEP);
     }
-    write(&root.join("failing/BUILD.bazel"), SUITE_BUILD);
-    write(&root.join("failing/src/failing.erl"), FAILING_SRC);
-    write(&root.join("failing/test/failing_SUITE.erl"), FAILING_SUITE);
-    write(&root.join("portable/BUILD.bazel"), PLATFORMS_BUILD);
-    write(
-        &root.join("portable/src/portable.erl"),
-        "-module(portable).\n",
-    );
+    case.write("failing/BUILD.bazel", SUITE_BUILD);
+    case.write("failing/src/failing.erl", FAILING_SRC);
+    case.write("failing/test/failing_SUITE.erl", FAILING_SUITE);
+    case.write("portable/BUILD.bazel", PLATFORMS_BUILD);
+    case.write("portable/src/portable.erl", "-module(portable).\n");
     case
-}
-
-struct Outcome {
-    code: Option<i32>,
-    text: String,
-}
-
-fn bazel(case: &Case, verb: &str, target: &str, flags: &[&str]) -> Outcome {
-    let mut args = vec![verb, "--color=no", "--curses=no"];
-    args.extend_from_slice(flags);
-    args.push(target);
-    let run = case.bazel(&args);
-    Outcome {
-        code: run.status.code(),
-        text: run.combined(),
-    }
-}
-
-fn fails_with(case: &Case, target: &str, expected: &str) {
-    let built = bazel(case, "build", target, &[]);
-    assert_eq!(built.code, Some(1), "{}", built.text);
-    assert!(built.text.contains(expected), "{}", built.text);
 }
 
 #[test]
 fn a_clean_app_builds() {
     let case = consumer();
-    let built = bazel(&case, "build", "//clean:erlang_app", &[]);
-    assert_eq!(built.code, Some(0), "{}", built.text);
+    let built = case.plain("build", "//clean:erlang_app", &[]);
+    assert_eq!(built.status.code(), Some(0), "{}", built.combined());
 }
 
 #[test]
 fn a_syntax_error_fails_the_build_with_its_diagnostic() {
     let case = consumer();
-    fails_with(
-        &case,
+    case.build_fails_with(
         "//syntax_error:erlang_app",
-        "syntax_error.erl:5:18: syntax error before: '.'",
+        &["syntax_error.erl:5:18: syntax error before: '.'"],
     );
 }
 
 #[test]
 fn a_warning_fails_the_build_with_its_diagnostic() {
     let case = consumer();
-    fails_with(
-        &case,
+    case.build_fails_with(
         "//unused_variable:erlang_app",
-        "unused_variable.erl:5:14: variable 'Unused' is unused",
+        &["unused_variable.erl:5:14: variable 'Unused' is unused"],
     );
 }
 
 #[test]
 fn an_undeclared_dependency_fails_the_build() {
     let case = consumer();
-    fails_with(
-        &case,
+    case.build_fails_with(
         "//missing_dep:erlang_app",
-        "can't find include lib \"base_dep/include/base_dep.hrl\"",
+        &["can't find include lib \"base_dep/include/base_dep.hrl\""],
     );
 }
 
 #[test]
 fn a_declared_dependency_builds() {
     let case = consumer();
-    let built = bazel(&case, "build", "//declared_dep:erlang_app", &[]);
-    assert_eq!(built.code, Some(0), "{}", built.text);
+    let built = case.plain("build", "//declared_dep:erlang_app", &[]);
+    assert_eq!(built.status.code(), Some(0), "{}", built.combined());
 }
 
 #[test]
 fn a_failing_suite_fails_the_test() {
     let case = consumer();
-    let tested = bazel(
-        &case,
-        "test",
-        "//failing:failing_SUITE",
-        &["--test_output=all"],
+    let tested = case.plain("test", "//failing:failing_SUITE", &["--test_output=all"]);
+    assert_eq!(tested.status.code(), Some(3), "{}", tested.combined());
+    assert!(
+        tested.combined().contains("always_fails"),
+        "{}",
+        tested.combined()
     );
-    assert_eq!(tested.code, Some(3), "{}", tested.text);
-    assert!(tested.text.contains("always_fails"), "{}", tested.text);
 }
 
 #[test]
 fn another_target_platform_does_not_resolve_the_toolchain() {
     let case = consumer();
-    let built = bazel(
-        &case,
+    let built = case.plain(
         "build",
         "//portable:erlang_app",
         &["--platforms=@rules_dx//appimage/platforms:linux_arm64"],
     );
-    assert_eq!(built.code, Some(1), "{}", built.text);
+    assert_eq!(built.status.code(), Some(1), "{}", built.combined());
     assert!(
         built
-            .text
+            .combined()
             .contains("No matching toolchains found for types"),
         "{}",
-        built.text
+        built.combined()
     );
 }

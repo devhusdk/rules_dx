@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use dx_nested::{self as nested, Case};
+use dx_nested::Case;
 
 const LIBRARY_BUILD: &str = r#"load("@rules_dx//gleam/rules:defs.bzl", "GLEAM_COMPATIBLE_WITH", "gleam_js_library", "gleam_library")
 
@@ -100,130 +100,43 @@ const EMPTY_TEST: &str = "pub fn helper() -> Int {\n  1\n}\n";
 
 const CRASH: &str = "pub fn main() -> Nil {\n  panic as \"the ledger is empty\"\n}\n";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    dx_testing::rules_dx_source()
-}
-
-fn library(root: &Path, name: &str, deps: &str, source: &str) {
-    let dir = root.join(name);
+fn library(case: &Case, name: &str, deps: &str, source: &str) {
     let js_deps = deps.replace("\"]", "_js\"]");
-    write(
-        &dir.join("BUILD.bazel"),
+    case.write(
+        format!("{name}/BUILD.bazel"),
         &format!(
             "DEPS = {deps}\n\nJS_DEPS = {js_deps}\n\n{}",
             LIBRARY_BUILD.replace("{name}", name)
         ),
     );
-    write(&dir.join(format!("src/{name}.gleam")), source);
+    case.write(format!("{name}/src/{name}.gleam"), source);
 }
 
 fn consumer() -> Case {
-    let rules = rules_dx_root();
-    let case = nested::case("negative");
-    let root = case.root().to_path_buf();
-    write(
-        &root.join(".bazelversion"),
-        &read(&rules.join(".bazelversion")),
-    );
-    write(
-        &root.join("MODULE.bazel"),
-        &format!(
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{BAD_HEX_MODULE}",
-            rules.display()
-        ),
-    );
-    write(
-        &root.join(".bazelrc"),
-        &read(&rules.join("tools/bazelrc/preset.bazelrc")),
-    );
-    write(&root.join("BUILD.bazel"), "");
-    library(&root, "clean", "[]", CLEAN);
-    library(&root, "syntax_error", "[]", SYNTAX);
-    library(&root, "unused_variable", "[]", WARNING);
-    library(&root, "type_error", "[]", TYPE_ERROR);
-    library(&root, "base_dep", "[]", BASE_DEP);
+    let case = Case::consumer("negative", BAD_HEX_MODULE);
+    case.write("BUILD.bazel", "");
+    library(&case, "clean", "[]", CLEAN);
+    library(&case, "syntax_error", "[]", SYNTAX);
+    library(&case, "unused_variable", "[]", WARNING);
+    library(&case, "type_error", "[]", TYPE_ERROR);
+    library(&case, "base_dep", "[]", BASE_DEP);
     for (name, deps) in [
         ("missing_dep", "[]"),
         ("declared_dep", "[\"//base_dep:base_dep\"]"),
     ] {
-        library(&root, name, deps, NEEDS_DEP);
+        library(&case, name, deps, NEEDS_DEP);
     }
-    write(&root.join("tested/BUILD.bazel"), TEST_BUILD);
-    write(&root.join("tested/src/tested.gleam"), TESTED);
-    write(&root.join("tested/src/crash.gleam"), CRASH);
-    write(&root.join("tested/test/failing_test.gleam"), FAILING_TEST);
-    write(&root.join("tested/test/empty_test.gleam"), EMPTY_TEST);
-    write(&root.join("portable/BUILD.bazel"), PLATFORMS_BUILD);
-    write(
-        &root.join("portable/src/portable.gleam"),
+    case.write("tested/BUILD.bazel", TEST_BUILD);
+    case.write("tested/src/tested.gleam", TESTED);
+    case.write("tested/src/crash.gleam", CRASH);
+    case.write("tested/test/failing_test.gleam", FAILING_TEST);
+    case.write("tested/test/empty_test.gleam", EMPTY_TEST);
+    case.write("portable/BUILD.bazel", PLATFORMS_BUILD);
+    case.write(
+        "portable/src/portable.gleam",
         "pub fn value() -> Int {\n  1\n}\n",
     );
     case
-}
-
-fn snapshot(dir: &Path, root: &Path, files: &mut Vec<(PathBuf, Vec<u8>)>) {
-    let mut entries: Vec<_> = std::fs::read_dir(dir)
-        .unwrap_or_else(|error| panic!("list {dir:?}: {error}"))
-        .map(|entry| {
-            entry
-                .unwrap_or_else(|error| panic!("entry: {error}"))
-                .path()
-        })
-        .collect();
-    entries.sort();
-    for path in entries {
-        let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
-        let name = relative.to_string_lossy();
-        if name.starts_with("bazel-") || name == "MODULE.bazel.lock" {
-            continue;
-        }
-        if path.is_dir() {
-            snapshot(&path, root, files);
-        } else {
-            files.push((relative, std::fs::read(&path).unwrap_or_default()));
-        }
-    }
-}
-
-fn workspace_files(case: &Case) -> Vec<(PathBuf, Vec<u8>)> {
-    let mut files = Vec::new();
-    snapshot(case.root(), case.root(), &mut files);
-    files
-}
-
-struct Outcome {
-    code: Option<i32>,
-    text: String,
-}
-
-fn bazel(case: &Case, verb: &str, target: &str, flags: &[&str]) -> Outcome {
-    let mut args = vec![verb, "--color=no", "--curses=no"];
-    args.extend_from_slice(flags);
-    args.push(target);
-    let run = case.bazel(&args);
-    Outcome {
-        code: run.status.code(),
-        text: run.combined(),
-    }
-}
-
-fn fails_with(case: &Case, target: &str, expected: &[&str]) {
-    let built = bazel(case, "build", target, &[]);
-    assert_eq!(built.code, Some(1), "{}", built.text);
-    for line in expected {
-        assert!(built.text.contains(line), "{line}\n{}", built.text);
-    }
 }
 
 fn both(name: &str) -> [String; 2] {
@@ -234,24 +147,39 @@ fn both(name: &str) -> [String; 2] {
 fn a_clean_library_builds_for_both_targets() {
     let case = consumer();
     for target in both("clean") {
-        let built = bazel(&case, "build", &target, &[]);
-        assert_eq!(built.code, Some(0), "{target}\n{}", built.text);
+        let built = case.plain("build", &target, &[]);
+        assert_eq!(
+            built.status.code(),
+            Some(0),
+            "{target}\n{}",
+            built.combined()
+        );
     }
 }
 
 #[test]
 fn building_and_testing_leaves_the_workspace_unchanged() {
     let case = consumer();
-    let before = workspace_files(&case);
+    let before = case.files();
     for target in both("declared_dep") {
-        let built = bazel(&case, "build", &target, &[]);
-        assert_eq!(built.code, Some(0), "{target}\n{}", built.text);
+        let built = case.plain("build", &target, &[]);
+        assert_eq!(
+            built.status.code(),
+            Some(0),
+            "{target}\n{}",
+            built.combined()
+        );
     }
     for target in ["//tested:failing_test", "//tested:failing_js_test"] {
-        let tested = bazel(&case, "test", target, &[]);
-        assert_eq!(tested.code, Some(3), "{target}\n{}", tested.text);
+        let tested = case.plain("test", target, &[]);
+        assert_eq!(
+            tested.status.code(),
+            Some(3),
+            "{target}\n{}",
+            tested.combined()
+        );
     }
-    let after = workspace_files(&case);
+    let after = case.files();
     let names = |files: &[(PathBuf, Vec<u8>)]| -> Vec<PathBuf> {
         files.iter().map(|(path, _)| path.clone()).collect()
     };
@@ -263,8 +191,7 @@ fn building_and_testing_leaves_the_workspace_unchanged() {
 fn a_syntax_error_fails_the_build_with_its_diagnostic() {
     let case = consumer();
     for target in both("syntax_error") {
-        fails_with(
-            &case,
+        case.build_fails_with(
             &target,
             &[
                 "error: Syntax error",
@@ -279,8 +206,7 @@ fn a_syntax_error_fails_the_build_with_its_diagnostic() {
 fn a_type_error_fails_the_build_with_its_diagnostic() {
     let case = consumer();
     for target in both("type_error") {
-        fails_with(
-            &case,
+        case.build_fails_with(
             &target,
             &[
                 "error: Type mismatch",
@@ -296,8 +222,7 @@ fn a_type_error_fails_the_build_with_its_diagnostic() {
 fn a_warning_fails_the_build_with_its_diagnostic() {
     let case = consumer();
     for target in both("unused_variable") {
-        fails_with(
-            &case,
+        case.build_fails_with(
             &target,
             &[
                 "warning: Unused variable",
@@ -312,8 +237,7 @@ fn a_warning_fails_the_build_with_its_diagnostic() {
 fn an_undeclared_dependency_fails_the_build() {
     let case = consumer();
     for target in both("missing_dep") {
-        fails_with(
-            &case,
+        case.build_fails_with(
             &target,
             &[
                 "error: Unknown module",
@@ -328,20 +252,25 @@ fn an_undeclared_dependency_fails_the_build() {
 fn a_declared_dependency_builds() {
     let case = consumer();
     for target in both("declared_dep") {
-        let built = bazel(&case, "build", &target, &[]);
-        assert_eq!(built.code, Some(0), "{target}\n{}", built.text);
+        let built = case.plain("build", &target, &[]);
+        assert_eq!(
+            built.status.code(),
+            Some(0),
+            "{target}\n{}",
+            built.combined()
+        );
     }
 }
 
 #[test]
 fn a_tampered_hex_package_fails_the_fetch() {
     let case = consumer();
-    let built = bazel(&case, "build", "@tampered_json//...", &[]);
-    assert_ne!(built.code, Some(0), "{}", built.text);
+    let built = case.plain("build", "@tampered_json//...", &[]);
+    assert_ne!(built.status.code(), Some(0), "{}", built.combined());
     assert!(
-        built.text.contains("Checksum was 44fdaa8847be8fc48ca7a1c089706bd54badcc4c45b237a992eddf9f2cdb2836 but wanted 0000000000000000000000000000000000000000000000000000000000000000"),
+        built.combined().contains("Checksum was 44fdaa8847be8fc48ca7a1c089706bd54badcc4c45b237a992eddf9f2cdb2836 but wanted 0000000000000000000000000000000000000000000000000000000000000000"),
         "{}",
-        built.text
+        built.combined()
     );
 }
 
@@ -349,13 +278,18 @@ fn a_tampered_hex_package_fails_the_fetch() {
 fn a_failing_test_fails_with_its_assertion() {
     let case = consumer();
     for target in ["//tested:failing_test", "//tested:failing_js_test"] {
-        let tested = bazel(&case, "test", target, &["--test_output=all"]);
-        assert_eq!(tested.code, Some(3), "{target}\n{}", tested.text);
+        let tested = case.plain("test", target, &["--test_output=all"]);
+        assert_eq!(
+            tested.status.code(),
+            Some(3),
+            "{target}\n{}",
+            tested.combined()
+        );
         for line in ["the_answer_is_right_test", "Assertion failed", "41"] {
             assert!(
-                tested.text.contains(line),
+                tested.combined().contains(line),
                 "{target}: {line}\n{}",
-                tested.text
+                tested.combined()
             );
         }
     }
@@ -365,12 +299,17 @@ fn a_failing_test_fails_with_its_assertion() {
 fn a_suite_that_runs_no_tests_fails() {
     let case = consumer();
     for target in ["//tested:empty_test", "//tested:empty_js_test"] {
-        let tested = bazel(&case, "test", target, &["--test_output=all"]);
-        assert_eq!(tested.code, Some(3), "{target}\n{}", tested.text);
-        assert!(
-            tested.text.contains("No tests found!"),
+        let tested = case.plain("test", target, &["--test_output=all"]);
+        assert_eq!(
+            tested.status.code(),
+            Some(3),
             "{target}\n{}",
-            tested.text
+            tested.combined()
+        );
+        assert!(
+            tested.combined().contains("No tests found!"),
+            "{target}\n{}",
+            tested.combined()
         );
     }
 }
@@ -379,12 +318,12 @@ fn a_suite_that_runs_no_tests_fails() {
 fn a_panic_fails_the_run_with_its_message() {
     let case = consumer();
     for target in ["//tested:crash", "//tested:crash_js"] {
-        let ran = bazel(&case, "run", target, &[]);
-        assert_eq!(ran.code, Some(1), "{target}\n{}", ran.text);
+        let ran = case.plain("run", target, &[]);
+        assert_eq!(ran.status.code(), Some(1), "{target}\n{}", ran.combined());
         assert!(
-            ran.text.contains("the ledger is empty"),
+            ran.combined().contains("the ledger is empty"),
             "{target}\n{}",
-            ran.text
+            ran.combined()
         );
     }
 }
@@ -393,19 +332,23 @@ fn a_panic_fails_the_run_with_its_message() {
 fn another_target_platform_does_not_resolve_the_toolchain() {
     let case = consumer();
     for target in both("portable") {
-        let built = bazel(
-            &case,
+        let built = case.plain(
             "build",
             &target,
             &["--platforms=@rules_dx//appimage/platforms:linux_arm64"],
         );
-        assert_eq!(built.code, Some(1), "{target}\n{}", built.text);
+        assert_eq!(
+            built.status.code(),
+            Some(1),
+            "{target}\n{}",
+            built.combined()
+        );
         assert!(
             built
-                .text
+                .combined()
                 .contains("No matching toolchains found for types"),
             "{target}\n{}",
-            built.text
+            built.combined()
         );
     }
 }

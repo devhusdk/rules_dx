@@ -1441,6 +1441,87 @@ impl Case {
     pub fn bazel_command(&self, args: &[&str]) -> Command {
         bazel_command_at(self.server().home(), &self.root, args, &[])
     }
+
+    /// Starts a case whose workspace depends on this rules_dx checkout, with `extra_module` appended.
+    pub fn consumer(name: &str, extra_module: &str) -> Case {
+        let rules = dx_testing::rules_dx_source();
+        let case = case(name);
+        case.write(
+            ".bazelversion",
+            &dx_testing::read_text(&rules.join(".bazelversion")),
+        );
+        case.write("MODULE.bazel", &consumer_module(&rules, extra_module));
+        case.write(
+            ".bazelrc",
+            &dx_testing::read_text(&rules.join("tools/bazelrc/preset.bazelrc")),
+        );
+        case
+    }
+
+    /// Writes `text` to `rel` under the workspace, creating its parent directories.
+    pub fn write(&self, rel: impl AsRef<Path>, text: &str) {
+        dx_testing::write_text(&self.root.join(rel), text);
+    }
+
+    /// Lists every workspace file with its bytes, sorted, without `bazel-*` links or the lockfile.
+    pub fn files(&self) -> Vec<(PathBuf, Vec<u8>)> {
+        files_under(&self.root)
+    }
+
+    /// Runs `bazel <verb> --color=no --curses=no <flags> <target>` in the workspace.
+    pub fn plain(&self, verb: &str, target: &str, flags: &[&str]) -> Run {
+        let mut args = vec![verb, "--color=no", "--curses=no"];
+        args.extend_from_slice(flags);
+        args.push(target);
+        self.bazel(&args)
+    }
+
+    /// Asserts that building `target` exits 1 with every one of `needles` in its output.
+    pub fn build_fails_with(&self, target: &str, needles: &[&str]) {
+        let built = self.plain("build", target, &[]);
+        let text = built.combined();
+        assert_eq!(built.status.code(), Some(1), "{text}");
+        for needle in needles {
+            assert!(text.contains(needle), "{needle}\n{text}");
+        }
+    }
+}
+
+fn consumer_module(rules: &Path, extra: &str) -> String {
+    format!(
+        "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{extra}",
+        rules.display()
+    )
+}
+
+fn files_under(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut files = Vec::new();
+    collect_files(root, root, &mut files);
+    files
+}
+
+fn collect_files(dir: &Path, root: &Path, files: &mut Vec<(PathBuf, Vec<u8>)>) {
+    let mut entries: Vec<_> = std::fs::read_dir(dir)
+        .unwrap_or_else(|error| panic!("list {dir:?}: {error}"))
+        .map(|entry| {
+            entry
+                .unwrap_or_else(|error| panic!("entry: {error}"))
+                .path()
+        })
+        .collect();
+    entries.sort();
+    for path in entries {
+        let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
+        let name = relative.to_string_lossy();
+        if name.starts_with("bazel-") || name == "MODULE.bazel.lock" {
+            continue;
+        }
+        if path.is_dir() {
+            collect_files(&path, root, files);
+        } else {
+            files.push((relative, std::fs::read(&path).unwrap_or_default()));
+        }
+    }
 }
 
 impl std::ops::Deref for Case {
@@ -2373,6 +2454,51 @@ common --repository_cache=/rc/repos
 #[cfg(test)]
 mod portable_tests {
     use super::*;
+
+    #[test]
+    fn consumer_module_appends_extra_after_override() {
+        let text = consumer_module(Path::new("/src/rules_dx"), "\nuse_repo(x)\n");
+        assert_eq!(
+            text,
+            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"/src/rules_dx\")\n\nuse_repo(x)\n"
+        );
+    }
+
+    #[test]
+    fn files_skip_bazel_links_and_lockfile() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        dx_testing::write_text(&root.join("BUILD.bazel"), "");
+        dx_testing::write_text(&root.join("MODULE.bazel.lock"), "lock");
+        dx_testing::write_text(&root.join("bazel-out/x"), "out");
+        dx_testing::write_text(&root.join("bazel-bin"), "bin");
+        dx_testing::write_text(&root.join("sub/MODULE.bazel.lock"), "kept");
+        let names: Vec<PathBuf> = files_under(root).into_iter().map(|(p, _)| p).collect();
+        assert_eq!(
+            names,
+            vec![
+                PathBuf::from("BUILD.bazel"),
+                PathBuf::from("sub/MODULE.bazel.lock")
+            ]
+        );
+    }
+
+    #[test]
+    fn files_are_sorted() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        dx_testing::write_text(&root.join("c"), "3");
+        dx_testing::write_text(&root.join("a/b"), "2");
+        dx_testing::write_text(&root.join("a/a"), "1");
+        assert_eq!(
+            files_under(root),
+            vec![
+                (PathBuf::from("a/a"), b"1".to_vec()),
+                (PathBuf::from("a/b"), b"2".to_vec()),
+                (PathBuf::from("c"), b"3".to_vec()),
+            ]
+        );
+    }
 
     #[test]
     fn find_bazel_finds_exe_names() {

@@ -71,10 +71,16 @@ pub const OVERRIDES: &[Override] = &[
         module: "rules_dotnet",
         version: "0.22.1",
         patch_strip: 1,
-        patches: &[OverridePatch {
-            file: "reproducible.patch",
-            content: include_str!("../../../patches/rules_dotnet/reproducible.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "reproducible.patch",
+                content: include_str!("../../../patches/rules_dotnet/reproducible.patch"),
+            },
+            OverridePatch {
+                file: "fsharp_signature.patch",
+                content: include_str!("../../../patches/rules_dotnet/fsharp_signature.patch"),
+            },
+        ],
     },
     Override {
         module: "rules_ruby",

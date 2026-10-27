@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -128,31 +129,37 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	}
 }
 
-func TestGenerateDependencyOrder(t *testing.T) {
-	regular := []string{"Demo.fs", "Helper.fs"}
-	result := generateFixture(t, map[string]string{
-		"pkg/demo/Demo.fs":   "namespace Demo\n\nopen Helper\n\ntype Demo = class end\n",
-		"pkg/demo/Helper.fs": "namespace Demo\n\nopen System.Collections.Generic\n\ntype Helper = class end\n",
-	}, regular)
+func generatedSrcs(t *testing.T, files map[string]string) string {
+	t.Helper()
+	var regular []string
+	for name := range files {
+		regular = append(regular, strings.TrimPrefix(name, "pkg/demo/"))
+	}
+	sort.Strings(regular)
+	result := generateFixture(t, files, regular)
 	if len(result.Gen) != 1 {
 		t.Fatalf("generated %d rules, want 1", len(result.Gen))
 	}
-	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Helper.fs,Demo.fs" {
+	return strings.Join(result.Gen[0].AttrStrings("srcs"), ",")
+}
+
+func TestGenerateDependencyOrder(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Demo.fs":   "module Demo\n\nlet greet name = \"hello \" + name + Helper.suffix\n",
+		"pkg/demo/Helper.fs": "module Helper\n\nlet suffix = \"\"\n",
+	})
+	if got != "Helper.fs,Demo.fs" {
 		t.Errorf("library srcs = %q, want Helper.fs,Demo.fs (dependency first)", got)
 	}
 }
 
 func TestGenerateChainOrder(t *testing.T) {
-	regular := []string{"A.fs", "B.fs", "C.fs"}
-	result := generateFixture(t, map[string]string{
-		"pkg/demo/A.fs": "namespace Demo\n\nopen B\n\ntype A = class end\n",
-		"pkg/demo/B.fs": "namespace Demo\n\nopen C\n\ntype B = class end\n",
-		"pkg/demo/C.fs": "namespace Demo\n\ntype C = class end\n",
-	}, regular)
-	if len(result.Gen) != 1 {
-		t.Fatalf("generated %d rules, want 1", len(result.Gen))
-	}
-	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "C.fs,B.fs,A.fs" {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/A.fs": "namespace Demo\n\ntype A =\n    static member Value() = B.Value() + \"a\"\n",
+		"pkg/demo/B.fs": "namespace Demo\n\ntype B =\n    static member Value() = C.Value() + \"b\"\n",
+		"pkg/demo/C.fs": "namespace Demo\n\ntype C =\n    static member Value() = \"c\"\n",
+	})
+	if got != "C.fs,B.fs,A.fs" {
 		t.Errorf("library srcs = %q, want C.fs,B.fs,A.fs (chain dependency order)", got)
 	}
 }
@@ -160,31 +167,133 @@ func TestGenerateChainOrder(t *testing.T) {
 func TestGenerateCycleFails(t *testing.T) {
 	regular := []string{"A.fs", "B.fs"}
 	got := refuseFixture(t, map[string]string{
-		"pkg/demo/A.fs": "namespace Demo\n\nopen B\n\ntype A = class end\n",
-		"pkg/demo/B.fs": "namespace Demo\n\nopen A\n\ntype B = class end\n",
+		"pkg/demo/A.fs": "namespace Demo\n\ntype A = { b: B option }\n",
+		"pkg/demo/B.fs": "namespace Demo\n\ntype B = { a: A option }\n",
 	}, regular)
-	wantRefusal(t, got, "fsharp: pkg/demo: cyclic F# compile order among A.fs, B.fs;")
+	wantRefusal(t, got, "fsharp: pkg/demo: cyclic F# compile order among A.fs, B.fs, first edge A.fs -> B.fs (B);")
+}
+
+func TestGenerateNestedModule(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Core.fs": "namespace Demo\n\nmodule Utils =\n    let twice x = x * 2\n\ntype Core = { size: int }\n",
+		"pkg/demo/App.fs":  "namespace Demo\n\nmodule App =\n    let run () = Utils.twice 21\n",
+	})
+	if got != "Core.fs,App.fs" {
+		t.Errorf("library srcs = %q, want Core.fs,App.fs", got)
+	}
+}
+
+func TestGenerateModulePerFile(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Alpha.fs":  "module Alpha\n\nlet run () = Format.wrap Zeta.value\n",
+		"pkg/demo/Zeta.fs":   "module Zeta\n\nlet value = 1\n",
+		"pkg/demo/Format.fs": "module Format\n\nlet wrap x = string x\n",
+	})
+	if got != "Format.fs,Zeta.fs,Alpha.fs" {
+		t.Errorf("library srcs = %q, want Format.fs,Zeta.fs,Alpha.fs", got)
+	}
+}
+
+func TestGenerateDottedModulePerFile(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/App.fs":   "module Demo.App\n\nopen Demo.Types\n\nlet run (o: Order) = o.qty\n",
+		"pkg/demo/Model.fs": "module Demo.Types\n\ntype Order = { qty: int }\n",
+	})
+	if got != "Model.fs,App.fs" {
+		t.Errorf("library srcs = %q, want Model.fs,App.fs", got)
+	}
+}
+
+func TestGenerateUnqualifiedTypeRef(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/A.fs": "namespace Demo\n\ntype A = { b: Item }\n",
+		"pkg/demo/B.fs": "namespace Demo\n\ntype Item = { size: int }\n",
+	})
+	if got != "B.fs,A.fs" {
+		t.Errorf("library srcs = %q, want B.fs,A.fs", got)
+	}
+}
+
+func TestGenerateSignaturePair(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Demo.fs":    "module Demo\n\nlet greet name = name + Helper.suffix\n",
+		"pkg/demo/Helper.fs":  "module Helper\n\nlet suffix = \"!\"\n",
+		"pkg/demo/Helper.fsi": "module Helper\n\nval suffix: string\n",
+	})
+	if got != "Helper.fsi,Helper.fs,Demo.fs" {
+		t.Errorf("library srcs = %q, want Helper.fsi,Helper.fs,Demo.fs", got)
+	}
+}
+
+func TestGenerateLoneSignatureFails(t *testing.T) {
+	got := refuseFixture(t, map[string]string{
+		"pkg/demo/Demo.fs":    "module Demo\n\nlet x = 1\n",
+		"pkg/demo/Helper.fsi": "module Helper\n\nval suffix: string\n",
+	}, []string{"Demo.fs", "Helper.fsi"})
+	wantRefusal(t, got, "fsharp: pkg/demo: Helper.fsi has no implementation Helper.fs")
+}
+
+func TestGenerateNamespaceAndSubmoduleOneGroup(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/Demo.fs":   "namespace Demo\n\ntype Greeter =\n    static member Greet() = Helper.suffix\n",
+		"pkg/demo/Helper.fs": "module Demo.Helper\n\nlet suffix = \"!\"\n",
+	})
+	if got != "Helper.fs,Demo.fs" {
+		t.Errorf("library srcs = %q, want Helper.fs,Demo.fs", got)
+	}
+}
+
+func TestGenerateAmbiguousDeclaredNameIgnored(t *testing.T) {
+	got := generatedSrcs(t, map[string]string{
+		"pkg/demo/A.fs": "namespace Demo\n\ntype A = { s: Shared }\n",
+		"pkg/demo/B.fs": "namespace Demo\n\ntype Shared = int\n",
+		"pkg/demo/C.fs": "namespace Demo\n\ntype Shared = string\n",
+	})
+	if got != "A.fs,B.fs,C.fs" {
+		t.Errorf("library srcs = %q, want A.fs,B.fs,C.fs", got)
+	}
 }
 
 func TestOrderSourcesByDependencyUnit(t *testing.T) {
 	ordered, err := orderSourcesByDependency(
 		[]string{"Demo.fs", "Helper.fs"},
 		map[string][]byte{
-			"Demo.fs":   []byte("namespace Demo\n\nopen Helper\n"),
-			"Helper.fs": []byte("namespace Demo\n"),
+			"Demo.fs":   []byte("module Demo\n\nlet x = Helper.suffix\n"),
+			"Helper.fs": []byte("module Helper\n\nlet suffix = 1\n"),
 		},
 	)
 	if err != nil || strings.Join(ordered, ",") != "Helper.fs,Demo.fs" {
 		t.Errorf("orderSourcesByDependency = %v, %v; want Helper.fs,Demo.fs", ordered, err)
 	}
+	ordered, err = orderSourcesByDependency(
+		[]string{"Demo.fs", "Lib.fs"},
+		map[string][]byte{
+			"Demo.fs": []byte("namespace Demo\n\nopen Acme.Lib\n"),
+			"Lib.fs":  []byte("namespace Acme\n"),
+		},
+	)
+	if err != nil || strings.Join(ordered, ",") != "Lib.fs,Demo.fs" {
+		t.Errorf("orderSourcesByDependency open = %v, %v; want Lib.fs,Demo.fs", ordered, err)
+	}
+	ordered, err = orderSourcesByDependency(
+		[]string{"App.fs", "Model.fs", "Root.fs"},
+		map[string][]byte{
+			"App.fs":   []byte("module Demo.App\n\nopen Demo.Types.Orders\n\nlet run (o: Order) = o.qty\n"),
+			"Model.fs": []byte("module Demo.Types\n\nmodule Orders =\n    type Order = { qty: int }\n"),
+			"Root.fs":  []byte("module Root\n\nopen Demo.Types\n\nlet zero: Orders.Order = { qty = 0 }\n"),
+		},
+	)
+	if err != nil || strings.Join(ordered, ",") != "Model.fs,App.fs,Root.fs" {
+		t.Errorf("orderSourcesByDependency dotted open = %v, %v; want Model.fs,App.fs,Root.fs", ordered, err)
+	}
 	if _, err := orderSourcesByDependency(
 		[]string{"A.fs", "B.fs"},
 		map[string][]byte{
-			"A.fs": []byte("namespace Demo\n\nopen B\n"),
-			"B.fs": []byte("namespace Demo\n\nopen A\n"),
+			"A.fs": []byte("module A\n\nlet x = B.y\n"),
+			"B.fs": []byte("module B\n\nlet y = A.x\n"),
 		},
-	); err == nil {
-		t.Error("orderSourcesByDependency succeeded on a cycle, want failure")
+	); err == nil || !strings.Contains(err.Error(), "first edge A.fs -> B.fs (B)") {
+		t.Errorf("orderSourcesByDependency cycle = %v, want named edge", err)
 	}
 }
 
@@ -250,6 +359,9 @@ func TestGenerateMainFails(t *testing.T) {
 		"pkg/demo/Main.fs": "namespace Demo\n\nmodule Main =\n  [<EntryPoint>]\n  let main _ = 0\n",
 	}, regular)
 	wantRefusal(t, got, "fsharp: pkg/demo: Main.fs defines main;")
+	if strings.Contains(got, "duplicate") {
+		t.Errorf("refusal = %q, want no duplicate-declaration error", got)
+	}
 }
 
 func TestGenerateMixedPackagesFail(t *testing.T) {
@@ -259,6 +371,11 @@ func TestGenerateMixedPackagesFail(t *testing.T) {
 		"pkg/demo/B.fs": "namespace Beta\n\ntype B = class end\n",
 	}, regular)
 	wantRefusal(t, got, "fsharp: pkg/demo: mixed packages Alpha, Beta in one directory;")
+	got = refuseFixture(t, map[string]string{
+		"pkg/demo/A.fs": "namespace Demo\n\ntype A = class end\n",
+		"pkg/demo/B.fs": "module Helper\n\nlet b = 1\n",
+	}, regular)
+	wantRefusal(t, got, "fsharp: pkg/demo: mixed packages Demo, global in one directory;")
 }
 
 func TestGenerateKindMismatchFails(t *testing.T) {
@@ -288,7 +405,7 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 func TestImportsIndexNonTestSources(t *testing.T) {
 	lang := NewLanguage()
 	lib := rule.NewRule(LibraryKind, "demo")
-	lib.SetAttr("srcs", []string{"Demo.fs", "Helper.fs", "DemoTest.fs", "notes.txt"})
+	lib.SetAttr("srcs", []string{"Demo.fs", "Helper.fsi", "Helper.fs", "DemoTest.fs", "notes.txt"})
 	imports := lang.Imports(&config.Config{}, lib, nil)
 	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "Demo" || imports[1].Imp != "Helper" {
 		t.Errorf("imports = %+v, want Demo+Helper identities", imports)
@@ -509,7 +626,7 @@ func TestAspectHintsSurviveRegen(t *testing.T) {
 	root := t.TempDir()
 	for name, content := range map[string]string{
 		"pkg/demo/Demo.fs":   "module Demo\n\nlet current () = ()\n",
-		"pkg/demo/Helper.fs": "module Demo\n\nlet helper () = ()\n",
+		"pkg/demo/Helper.fs": "module Helper\n\nlet helper () = ()\n",
 	} {
 		writeFixture(t, root, name, content)
 	}

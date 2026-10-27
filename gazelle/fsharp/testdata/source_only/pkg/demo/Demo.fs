@@ -1,6 +1,5 @@
 namespace Demo
 
-open Helper
 open System.Collections.Generic
 
 type Demo =

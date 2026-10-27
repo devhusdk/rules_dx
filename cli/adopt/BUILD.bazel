@@ -34,6 +34,7 @@ dx_rust_crate(
         "//patches/aspect_rules_py:venv_interpreter.patch",
         "//patches/rules_android:rules_android.patch",
         "//patches/rules_dotnet:reproducible.patch",
+        "//patches/rules_dotnet:fsharp_signature.patch",
         "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_rust:lld_link.patch",
         "//patches/rules_rust_wasm_bindgen:no_wasm_coverage.patch",

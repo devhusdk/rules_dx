@@ -1,0 +1,11 @@
+load("@rules_dx//fsharp/rules:defs.bzl", "fsharp_library")
+
+fsharp_library(
+    name = "demo",
+    # do not sort: F# compile order, dependencies first
+    srcs = [
+        "Greeting.fsi",
+        "Greeting.fs",
+        "Banner.fs",
+    ],
+)

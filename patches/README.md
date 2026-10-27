@@ -31,7 +31,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `rules_rust` | 0.74.0 | `lld_link.patch` | Rust on Windows |
 | `rules_rust_wasm_bindgen` | 0.74.0 | `no_wasm_coverage.patch` | wasm targets under coverage |
 | `rules_android` | 0.6.6 | `rules_android.patch` | Android resources and App Bundles |
-| `rules_dotnet` | 0.22.1 | `reproducible.patch` | .NET SDK from the repository cache |
+| `rules_dotnet` | 0.22.1 | `reproducible.patch`, `fsharp_signature.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs` |
 | `rules_ruby` | 0.28.0 | `reproducible.patch` | Ruby toolchain from the repository cache |
 | `aspect_rules_py` | 2.0.0-alpha.6 | `site_packages.patch`, `venv_interpreter.patch` | Python on Windows |
 

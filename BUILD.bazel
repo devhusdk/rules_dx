@@ -88,6 +88,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude ocaml/tests/runtime
 # gazelle:exclude haskell/tests/runtime/src
 # gazelle:exclude fsharp/tests/fixtures/order
+# gazelle:exclude fsharp/tests/fixtures/layouts
 # gazelle:exclude quality/tools/dotnet/fsharplint
 # gazelle:exclude gazelle
 # gazelle:exclude astro/tests/fixtures/hello

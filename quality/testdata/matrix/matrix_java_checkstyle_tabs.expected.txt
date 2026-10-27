@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_java_checkstyle_tabs
+capability LINT
+stages 1
+stage checkstyle classes=java sources=quality/testdata/real_tabs.java
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR checkstyle com.puppycrawl.tools.checkstyle.checks.coding.MagicNumberCheck quality/testdata/real_tabs.java 62 62 fixable=false "'42' is a magic number."
+terminal 1
+terminal ERROR checkstyle com.puppycrawl.tools.checkstyle.checks.coding.MagicNumberCheck quality/testdata/real_tabs.java 62 62 fixable=false "'42' is a magic number."
+replacements 0

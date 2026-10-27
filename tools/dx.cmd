@@ -64,9 +64,9 @@ if not errorlevel 1 set "DX_COPY=1"
 call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query.%DX_TAG%"
 if errorlevel 1 (
   popd
-  echo dx: bazel query for the inputs of //cli/cli:dx failed 1>&2
+  echo dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway 1>&2
   del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
-  exit /b 1
+  goto dxcopy
 )
 popd
 findstr /b /c:"//" "%DX_STATE%\query.%DX_TAG%" > "%DX_STATE%\inputs.%DX_TAG%"
@@ -74,6 +74,7 @@ del /q "%DX_STATE%\query.%DX_TAG%"
 move /y "%DX_STATE%\inputs.%DX_TAG%" "%DX_STATE%\inputs" >nul
 move /y "%DX_STATE%\built.%DX_TAG%" "%DX_STATE%\built" >nul
 del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
+:dxcopy
 if defined DX_COPY set "BIN=%DX_STATE%\dx.exe"
 :run
 "%BIN%" %*

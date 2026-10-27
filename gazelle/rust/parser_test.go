@@ -430,118 +430,11 @@ func TestParseMalformedItems(t *testing.T) {
 	}
 }
 
-func TestParseBrIdentifiersAndLeadingColons(t *testing.T) {
-	facts := mustParse(t, "src/lib.rs", "mod bridge;\nuse brotli::X;\nuse ::serde::Value;\nextern crate serde_json as json;\n")
-	if len(facts.Modules) != 1 || facts.Modules[0].Name != "bridge" {
-		t.Errorf("modules = %+v, want bridge", facts.Modules)
-	}
-	roots := map[string]bool{}
-	for _, u := range facts.Uses {
-		roots[useRoot(u.Path)] = true
-	}
-	if !roots["brotli"] || !roots["serde"] || len(roots) != 2 {
-		t.Errorf("use roots = %v, want brotli and serde", roots)
-	}
-	if len(facts.Externs) != 1 || facts.Externs[0].Name != "serde_json" {
-		t.Errorf("externs = %+v, want serde_json", facts.Externs)
-	}
-	if got := cleanSource("mod bridge; br\"x\" use brotli::X;"); !strings.Contains(got, "mod bridge") || !strings.Contains(got, "use brotli") || strings.Contains(got, "x\"") {
-		t.Errorf("cleanSource = %q", got)
-	}
-}
-
 func TestExternAliasImportsCrateName(t *testing.T) {
 	tree := map[string]*FileFacts{"src/lib.rs": mustParse(t, "src/lib.rs", "extern crate serde_json as json;\nuse json::Value;\n")}
 	got := importsForEdition(tree, "2021", "src/lib.rs")
 	if len(got.production) != 1 || got.production[0] != "serde_json" {
 		t.Errorf("production = %v, want [serde_json]", got.production)
-	}
-}
-
-func TestParserLiteralEdges(t *testing.T) {
-	unterminated := cleanSource("const A: &str = \"unterminated")
-	if strings.Contains(unterminated, "unterminated") {
-		t.Errorf("unterminated string not blanked: %q", unterminated)
-	}
-	raw := cleanSource("const A: &str = r###\"raw\"###;")
-	if strings.Contains(raw, "raw") {
-		t.Errorf("raw string not blanked: %q", raw)
-	}
-	for _, source := range []string{"'", "''", "'ab'", "'\\u{41}'", "'\\n'"} {
-		cleanSource(source)
-	}
-	for _, source := range []string{`b'x'`, `br"bytes"`, `r#missing`, `macro_rules! name {`, `macro name [use fake::X;]`} {
-		cleanSource(source)
-	}
-	for _, source := range []string{`"a\\"b"`, "'\\u0041'", "'\\x'", "'a\n", "'é'"} {
-		cleanSource(source)
-	}
-	if _, ok := matchBalanced([]byte("{missing"), 0); ok {
-		t.Error("unbalanced group accepted")
-	}
-}
-
-func TestParseAttributesAndUseEdges(t *testing.T) {
-	facts := mustParse(t, "edge.rs", `
-#![cfg(test)]
-#[other]
-pub(crate) mod inline { use foo::{self, nested::{Item}}; }
-extern "C" { fn foreign(); }
-fn declaration();
-`)
-	if !facts.InnerCfgTest || len(facts.Modules) != 1 || len(facts.Uses) != 2 {
-		t.Errorf("facts = %+v", facts)
-	}
-	if got := expandUse(""); got != nil {
-		t.Errorf("empty use = %v", got)
-	}
-	if got := expandUse("foo::{bar"); len(got) != 1 || got[0] != "foo::{bar" {
-		t.Errorf("malformed group fallback = %v", got)
-	}
-	if _, ok := parsePathAttr("other = 1, pathname = 2"); ok {
-		t.Error("non-path attribute accepted")
-	}
-	for _, attr := range []string{"path", "path = bare", "pathology = \"x\""} {
-		if _, ok := parsePathAttr(attr); ok {
-			t.Errorf("invalid path attribute accepted: %q", attr)
-		}
-	}
-	if isCfgTest("other") || isCfgTest("cfg test") || isCfgTest("cfg(test") {
-		t.Error("invalid cfg recognized")
-	}
-	if mentionsTest(`cfg(feature = "test")`) || !mentionsTest("cfg(any(test, unix))") {
-		t.Error("test token classification failed")
-	}
-}
-
-func TestParserScannerEdges(t *testing.T) {
-	p := &parser{src: "not-an-attribute"}
-	if _, _, ok := p.scanAttr(); ok {
-		t.Error("non-attribute accepted")
-	}
-	p = &parser{src: "# nope"}
-	if _, _, ok := p.scanAttr(); ok {
-		t.Error("attribute without bracket accepted")
-	}
-	p = &parser{src: "#[unterminated"}
-	if _, _, ok := p.scanAttr(); ok {
-		t.Error("unterminated attribute accepted")
-	}
-	p = &parser{src: "#! [inner]"}
-	if body, inner, ok := p.scanAttr(); !ok || !inner || body != "inner" {
-		t.Errorf("inner attribute = %q %v %v", body, inner, ok)
-	}
-	p = &parser{src: "  42"}
-	if _, ok := p.scanWord(); ok {
-		t.Error("numeric word accepted")
-	}
-	p = &parser{src: "pub(unclosed"}
-	if word, ok := p.scanWord(); !ok || word != "pub" {
-		t.Fatal("pub not scanned")
-	}
-	p.skipPubRestrict()
-	if p.pos != 3 {
-		t.Errorf("unbalanced restriction advanced to %d", p.pos)
 	}
 }
 
@@ -574,9 +467,12 @@ func TestParseAmbiguousAttributesOnAllItems(t *testing.T) {
 }
 
 func TestParseFunctionAndExternEdges(t *testing.T) {
-	facts := mustParse(t, "edge.rs", "extern crate plain next;\nfn declaration();\nfn unclosed() {\n")
+	facts := mustParse(t, "edge.rs", "extern crate plain;\nfn declaration();\nfn unclosed() {\n")
 	if len(facts.Externs) != 1 || facts.Externs[0].Name != "plain" {
 		t.Errorf("externs = %+v", facts.Externs)
+	}
+	if _, err := ParseFacts("edge.rs", []byte("extern crate plain next;\n")); err == nil {
+		t.Error("malformed extern crate accepted")
 	}
 }
 
@@ -601,10 +497,6 @@ func TestParseFnBodyUses(t *testing.T) {
 		{"fn pointer field", "struct S { cb: fn(u8) }\nuse foo::Bar;", []use{{"foo::Bar", false, ""}}},
 		{"array sig", "#[test] fn t(x: [u8; 4]) { use z::Y; }", []use{{"z::Y", true, ""}}},
 		{"macro group", "fn e() { quote! { use serde::Serialize; } let a = b != c; }", nil},
-		{"bang no group", "fn e() { x! y; use q::R; }", []use{{"q::R", false, ""}}},
-		{"unclosed macro", "fn e() { m!(", nil},
-		{"unclosed sig", "fn e(", nil},
-		{"stray close", "fn e() }\nuse k::L;", []use{{"k::L", false, ""}}},
 	}
 	for _, c := range cases {
 		facts := mustParse(t, "body.rs", c.src)
@@ -627,82 +519,228 @@ func TestParseFnBodyUses(t *testing.T) {
 	}
 }
 
+
+func TestParseBrIdentifiersAndLeadingColons(t *testing.T) {
+	facts := mustParse(t, "src/lib.rs", "mod bridge;\nconst X: &[u8] = br\"x\"; use brotli::X;\nuse ::serde::Value;\nextern crate serde_json as json;\n")
+	if len(facts.Modules) != 1 || facts.Modules[0].Name != "bridge" {
+		t.Errorf("modules = %+v, want bridge", facts.Modules)
+	}
+	roots := map[string]bool{}
+	for _, u := range facts.Uses {
+		roots[useRoot(u.Path)] = true
+	}
+	if !roots["brotli"] || !roots["serde"] || len(roots) != 2 {
+		t.Errorf("use roots = %v, want brotli and serde", roots)
+	}
+	if len(facts.Externs) != 1 || facts.Externs[0].Name != "serde_json" {
+		t.Errorf("externs = %+v, want serde_json", facts.Externs)
+	}
+}
+
+func TestParserLiteralEdges(t *testing.T) {
+	if _, err := ParseFacts("a.rs", []byte("const A: &str = \"unterminated")); err == nil {
+		t.Error("unterminated string accepted")
+	}
+	for _, source := range []string{
+		"const A: &str = r###\"use raw::X;\"###;",
+		"const A: char = '\\'';",
+		"const A: char = '\\u{41}';",
+		"const A: u8 = b'x';",
+		"const A: &[u8] = br\"use bytes::X;\";",
+		"const A: &str = \"a\\\\\"; use real::X;",
+		"const A: char = 'é';",
+		"fn f<'a>(x: &'a str) -> &'a str { x }",
+	} {
+		facts := mustParse(t, "lit.rs", source)
+		for _, u := range facts.Uses {
+			if u.Path != "real::X" {
+				t.Errorf("source %q: literal leaked use %q", source, u.Path)
+			}
+		}
+	}
+}
+
+func TestParseAttributesAndUseEdges(t *testing.T) {
+	facts := mustParse(t, "edge.rs", `
+#![cfg(test)]
+#[other]
+pub(crate) mod inline { use foo::{self, nested::{Item}}; }
+extern "C" { fn foreign(); }
+fn declaration();
+`)
+	if !facts.InnerCfgTest || len(facts.Modules) != 1 || len(facts.Uses) != 2 {
+		t.Errorf("facts = %+v", facts)
+	}
+	facts = mustParse(t, "edge.rs", "#[other(a = 1, pathname = 2)]\nmod m;\n#[path]\nmod n;\n#[path = bare]\nmod o;\n#[pathology = \"x\"]\nmod p;\n")
+	for _, m := range facts.Modules {
+		if m.Path != "" {
+			t.Errorf("module %+v must not carry a path override", m)
+		}
+	}
+	for _, source := range []string{"#[cfg(feature = \"test\")] mod a;", "#[cfg(unix)] mod a;", "#[derive(Debug)] struct S;"} {
+		if facts := mustParse(t, "attr.rs", source); facts.HasCfgTest {
+			t.Errorf("source %q marked cfg(test)", source)
+		}
+	}
+	if facts := mustParse(t, "attr.rs", "#[ cfg ( test ) ] mod a;"); !facts.HasCfgTest {
+		t.Error("spaced cfg(test) not recognized")
+	}
+	if _, err := ParseFacts("attr.rs", []byte("#[tokio::test]\nasync fn t() {}\n")); err == nil {
+		t.Error("path attribute ending in test must be ambiguous")
+	}
+}
+
+func TestParserScannerEdges(t *testing.T) {
+	for _, source := range []string{"# nope", "#[unterminated", "#!", "42"} {
+		if _, err := ParseFacts("scan.rs", []byte(source)); err == nil {
+			t.Errorf("invalid source accepted: %q", source)
+		}
+	}
+	if facts := mustParse(t, "scan.rs", "#![ cfg ( test ) ]\n"); !facts.InnerCfgTest {
+		t.Error("spaced inner attribute not recognized")
+	}
+	if facts := mustParse(t, "scan.rs", "pub(crate) fn f() {}\nuse a::B;\n"); len(facts.Uses) != 1 {
+		t.Errorf("uses = %+v", facts.Uses)
+	}
+}
+
 func TestUseAndAttributeNestedEdges(t *testing.T) {
-	if got := expandUse("{foo, bar}"); strings.Join(got, ",") != "foo,bar" {
-		t.Errorf("root use group = %v", got)
+	facts := mustParse(t, "nested.rs", "use {foo, bar};\nuse foo::{bar::{baz, qux as q}, self as me, *};\n#[nested[a]]\nmod m;\n")
+	want := "foo,bar,foo::bar::baz,foo::bar::qux,foo,foo::*"
+	if got := strings.Join(usePaths(facts), ","); got != want {
+		t.Errorf("uses = %s, want %s", got, want)
 	}
-	if got := expandUse("foo::{,bar}"); len(got) != 1 || got[0] != "foo::bar" {
-		t.Errorf("empty grouped use = %v", got)
-	}
-	p := &parser{src: "#[nested[a]]"}
-	if body, _, ok := p.scanAttr(); !ok || body != "nested[a]" {
-		t.Errorf("nested attribute = %q %v", body, ok)
+	for _, source := range []string{"use foo::{bar;", "use foo::{;", "use ;"} {
+		if _, err := ParseFacts("nested.rs", []byte(source)); err == nil {
+			t.Errorf("malformed use accepted: %q", source)
+		}
 	}
 }
 
 func TestParserCoverageClosure(t *testing.T) {
-	cleaned := cleanSource("#[foo([bar])]\nmod m;\n")
-	if !strings.Contains(cleaned, "mod m") {
-		t.Errorf("nested attr bracket blanked module: %q", cleaned)
-	}
 	facts := mustParse(t, "closure.rs", "#[foo([bar])]\nmod m;\n")
 	if len(facts.Modules) != 1 || facts.Modules[0].Name != "m" {
 		t.Errorf("modules = %+v", facts.Modules)
 	}
-	facts = mustParse(t, "closure.rs", "# lone\nmod m;\n")
-	if len(facts.Modules) != 1 || facts.Modules[0].Name != "m" {
-		t.Errorf("lone hash modules = %+v", facts.Modules)
+	if _, err := ParseFacts("closure.rs", []byte("# lone\nmod m;\n")); err == nil {
+		t.Error("lone hash accepted")
 	}
-	facts = mustParse(t, "closure.rs", "extern C foo;\n")
-	if len(facts.Externs) != 0 {
-		t.Errorf("externs = %+v, want none", facts.Externs)
+	if _, err := ParseFacts("closure.rs", []byte("extern C foo;\n")); err == nil {
+		t.Error("malformed extern accepted")
 	}
-	if end, ok := scanChar([]byte("'x'"), 0); !ok || end != 3 {
-		t.Errorf("scanChar('x') = %d %v", end, ok)
-	}
-	if _, ok := scanChar([]byte("'\\x"), 0); ok {
-		t.Error("unterminated escape accepted as char literal")
-	}
-	if end := scanString([]byte("bx"), 0); end != 1 {
-		t.Errorf("scanString(bx) = %d, want 1", end)
-	}
-	if !mentionsTest("doc = \"a\\\\b\" test") {
+	if _, err := ParseFacts("closure.rs", []byte("#[doc = \"a\\\\b\"] #[cfg(any(test, unix))] mod m;")); err == nil {
 		t.Error("escaped string hid the test token")
 	}
 }
 
 func TestPrivateScannerBranches(t *testing.T) {
-	if end := scanString([]byte(`r#"unterminated`), 0); end != len(`r#"unterminated`) {
-		t.Errorf("unterminated raw end = %d", end)
+	facts := mustParse(t, "branch.rs", "#[path = \"a\\\\b.rs\"]\nmod x;\n#[path = \"q\\\"uote\"]\nmod y;\n")
+	if len(facts.Modules) != 2 || facts.Modules[0].Path != `a\b.rs` || facts.Modules[1].Path != `q"uote` {
+		t.Errorf("escaped paths = %+v", facts.Modules)
 	}
-	if end := scanString([]byte("r#bad"), 0); end != 1 {
-		t.Errorf("invalid raw prefix end = %d", end)
+	facts = mustParse(t, "branch.rs", "#[cfg(test)]\nfn declaration();\n")
+	if !facts.HasTestAttr {
+		t.Error("cfg(test) function signature not marked")
 	}
-	if end := scanString([]byte("'a\n"), 0); end != 2 {
-		t.Errorf("newline char end = %d", end)
+	facts = mustParse(t, "branch.rs", "#[cfg(test)] extern crate name;\n#[cfg(test)] use body;\n")
+	if !facts.HasCfgTest || !facts.Externs[0].CfgTest || !facts.Uses[0].CfgTest {
+		t.Errorf("direct test items = %+v", facts)
 	}
-	for _, source := range []string{"'\\u0041'", "'abcdefgh'", "'\\x'"} {
-		scanChar([]byte(source), 0)
+}
+
+func TestParseTopLevelMacroIsInert(t *testing.T) {
+	facts := mustParse(t, "src/lib.rs", "cfg_if! { use x; mod hidden; }\nuse real::Dep;\n")
+	if len(facts.Modules) != 0 || len(facts.Uses) != 1 || facts.Uses[0].Path != "real::Dep" {
+		t.Errorf("facts = %+v", facts)
 	}
-	if !isTestAttr("test") || isTestAttr("cfg(any(test, unix))") {
-		t.Error("isTestAttr classification failed")
+}
+
+func TestParseLexicalForms(t *testing.T) {
+	cases := []struct {
+		name, src string
+		uses      []string
+	}{
+		{"shebang", "#!/usr/bin/env run\nuse a::B;\n", []string{"a::B"}},
+		{"raw identifier", "use r#type::Thing;\nmod r#mod;\n", []string{"r#type::Thing"}},
+		{"nested block comment", "/* outer /* use hidden::X; */ use hidden::Y; */\nuse real::Z;\n", []string{"real::Z"}},
+		{"line comment", "// use hidden::X;\nuse real::Z; // trailing\n", []string{"real::Z"}},
+		{"doc comment", "/// use hidden::X;\nfn f() {}\nuse real::Z;\n", []string{"real::Z"}},
+		{"closure", "fn f() { let c = || { use inner::A; }; }\n", []string{"inner::A"}},
+		{"if", "fn f() { if c { use inner::B; } else { use inner::C; } }\n", []string{"inner::B", "inner::C"}},
+		{"comment inside path", "use a /* c */ :: b;\n", []string{"a::b"}},
+		{"spaced path", "use a :: b ::\n c;\n", []string{"a::b::c"}},
 	}
-	if value, ok := parsePathAttr(`path = "a\\b.rs"`); !ok || value != `a\b.rs` {
-		t.Errorf("escaped path = %q %v", value, ok)
+	for _, c := range cases {
+		facts := mustParse(t, "lex.rs", c.src)
+		if got := strings.Join(usePaths(facts), ","); got != strings.Join(c.uses, ",") {
+			t.Errorf("%s: uses = %s, want %s", c.name, got, strings.Join(c.uses, ","))
+		}
 	}
-	p := &parser{path: "direct.rs", src: " body;"}
-	facts := &FileFacts{}
-	if err := p.parseUse([]attrSpan{{body: "cfg(test)"}}, false, facts); err != nil || !facts.HasCfgTest {
-		t.Errorf("direct test use = %+v, %v", facts, err)
+}
+
+func TestParseSyntaxErrorPositions(t *testing.T) {
+	cases := []struct {
+		src       string
+		line, col int
+		contains  string
+	}{
+		{"mod;", 1, 1, "expected module name after `mod`"},
+		{"use missing", 1, 12, "unterminated"},
+		{"const S: &str = \"é\"; mod ;", 1, 23, "expected module name"},
+		{"fn a() {}\n\nstruct = ;\n", 3, 1, "syntax error"},
 	}
-	p = &parser{path: "direct.rs", src: " crate name;"}
-	facts = &FileFacts{}
-	if err := p.parseExtern([]attrSpan{{body: "cfg(test)"}}, false, facts); err != nil || !facts.HasCfgTest {
-		t.Errorf("direct test extern = %+v, %v", facts, err)
+	for _, c := range cases {
+		_, err := ParseFacts("src/lib.rs", []byte(c.src))
+		if err == nil {
+			t.Errorf("src %q: expected error", c.src)
+			continue
+		}
+		prefix := fmt.Sprintf("rust: src/lib.rs:%d:", c.line)
+		if !strings.HasPrefix(err.Error(), prefix) || !strings.Contains(err.Error(), c.contains) {
+			t.Errorf("src %q: error %q, want prefix %q containing %q", c.src, err, prefix, c.contains)
+		}
+		if want := fmt.Sprintf(":%d:%d:", c.line, c.col); !strings.Contains(err.Error(), want) {
+			t.Errorf("src %q: error %q lacks position %s", c.src, err, want)
+		}
 	}
-	p = &parser{path: "direct.rs", src: " declaration();"}
-	facts = &FileFacts{}
-	if err := p.parseFn([]attrSpan{{body: "cfg(test)"}}, false, 0, facts); err != nil || !facts.HasTestAttr {
-		t.Errorf("direct test fn = %+v, %v", facts, err)
+}
+
+func TestParseToleratesOlderEditionKeywords(t *testing.T) {
+	facts := mustParse(t, "old.rs", "pub fn gate() -> i32 {\n    let async = 1;\n    async.max(0)\n}\nuse real::Dep;\n")
+	if len(facts.Uses) != 1 || facts.Uses[0].Path != "real::Dep" {
+		t.Errorf("uses = %+v", facts.Uses)
 	}
+	if _, err := ParseFacts("old.rs", []byte("fn f() { use broken::; }")); err == nil {
+		t.Error("malformed use inside a function body accepted")
+	}
+}
+
+const truncationSample = `#![cfg(test)]
+#[path = "x.rs"]
+pub(crate) mod a { use b::{c as d, e::*}; extern crate f as g; enum E { V } }
+fn h() { let c = || { use i::j; }; }
+cfg_if! { use hidden; }
+const S: &str = "é\n";
+`
+
+func TestParseTruncatedInputsDoNotPanic(t *testing.T) {
+	for i := 0; i <= len(truncationSample); i++ {
+		_, _ = ParseFacts("trunc.rs", []byte(truncationSample[:i]))
+	}
+}
+
+func FuzzParseFacts(f *testing.F) {
+	for _, seed := range []string{
+		truncationSample,
+		"mod a;",
+		"#[cfg(test)] mod tests { use x::Y; }",
+		"use std::{fmt::{self, Display}, io};",
+		"#[cfg(any(test, unix))] fn f() {}",
+		"fn f() { use a::B; }",
+	} {
+		f.Add([]byte(seed))
+	}
+	f.Fuzz(func(t *testing.T, src []byte) {
+		_, _ = ParseFacts("fuzz.rs", src)
+	})
 }

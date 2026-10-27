@@ -7,6 +7,13 @@ java_library(
     deps = ["//examples/java-app/billing"],
 )
 
+java_library(
+    name = "cli_indirect",
+    srcs = ["Cli.java"],
+    tags = ["manual"],
+    deps = [":cli"],
+)
+
 java_binary(
     name = "invoice",
     srcs = ["Main.java"],

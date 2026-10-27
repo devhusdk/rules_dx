@@ -36,6 +36,7 @@ rust_library(
         package_name = "tools/dx_testing",
     ) + [
         "//cli/binfmt:dx_binfmt",
+        "//cli/lcov:dx_lcov",
         "//tools/testing:dx_testing",
     ],
 )
@@ -85,6 +86,26 @@ rust_test(
 
 hermetic_qualification(
     name = "cpp_rust",
+    coverage = [
+        "//examples/java-app/...",
+        "//examples/kotlin-app/...",
+    ],
+    covered = [
+        "examples/java-app/billing/Invoice.java",
+        "examples/java-app/billing/InvoiceReader.java",
+        "examples/java-app/billing/LineItem.java",
+        "examples/java-app/billing/Totals.java",
+        "examples/java-app/cli/Cli.java",
+        "examples/kotlin-app/cli/Cli.kt",
+        "examples/kotlin-app/grades/GradeReader.kt",
+        "examples/kotlin-app/grades/Stats.kt",
+        "examples/kotlin-app/grades/Student.kt",
+    ],
+    failures = {
+        "//examples/java-app/billing:billing_without_gson": "package com.google.gson does not exist",
+        "//examples/java-app/cli:cli_indirect": "[strict] Using type billing.BuildInfo from an indirect dependency",
+        "//examples/kotlin-app/grades:grades_without_gson": "unresolved reference 'gson'",
+    },
     files = {
         "consumers/cpp_rust/config_test.cc": "config_test.cc",
         "consumers/cpp_rust/consumer.bazelrc": ".bazelrc",

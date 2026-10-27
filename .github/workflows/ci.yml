@@ -176,7 +176,7 @@ jobs:
         if: always()
         run: |
           echo "### hermetic (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
+          echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, coverage, expected-failure, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
     timeout-minutes: 30

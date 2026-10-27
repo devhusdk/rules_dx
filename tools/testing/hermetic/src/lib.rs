@@ -144,6 +144,9 @@ pub struct Manifest {
     pub rust_target_triples: Vec<String>,
     pub workspace_dir: String,
     pub patterns: Vec<String>,
+    pub failures: Vec<(String, String)>,
+    pub coverage: Vec<String>,
+    pub covered: Vec<String>,
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: PathBuf,
     pub fragment_before_toolchains: bool,
@@ -188,6 +191,74 @@ pub fn checked_dest(dest: &str) -> Result<String, String> {
     Ok(dest.to_owned())
 }
 
+/// Names the probe that builds one expected-failure target.
+pub fn failure_probe_name(label: &str) -> String {
+    let body: String = label
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("fails_{body}")
+}
+
+fn parse_failures(value: &Value) -> Result<Vec<(String, String)>, String> {
+    let mut failures = Vec::new();
+    for (label, marker) in value["failures"]
+        .as_object()
+        .ok_or_else(|| "manifest field failures must be a map".to_owned())?
+    {
+        if !label.starts_with("//") {
+            return Err(format!("failure target {label} must be a //label"));
+        }
+        let marker = marker
+            .as_str()
+            .filter(|marker| !marker.is_empty())
+            .ok_or_else(|| format!("failure target {label} needs a non-empty marker"))?;
+        failures.push((label.clone(), marker.to_owned()));
+    }
+    failures.sort();
+    let mut names: Vec<String> = failures
+        .iter()
+        .map(|(label, _)| failure_probe_name(label))
+        .collect();
+    names.sort();
+    if let Some(pair) = names.windows(2).find(|pair| pair[0] == pair[1]) {
+        return Err(format!(
+            "two failure targets share the probe name {}",
+            pair[0]
+        ));
+    }
+    Ok(failures)
+}
+
+fn parse_coverage(
+    value: &Value,
+    files: &[(PathBuf, String)],
+) -> Result<(Vec<String>, Vec<String>), String> {
+    let coverage = strings(value, "coverage")?;
+    if let Some(bad) = coverage.iter().find(|pattern| !pattern.starts_with("//")) {
+        return Err(format!(
+            "coverage pattern {bad} must be a positive //pattern"
+        ));
+    }
+    let covered = strings(value, "covered")?;
+    if coverage.is_empty() != covered.is_empty() {
+        return Err("manifest fields coverage and covered must be set together".to_owned());
+    }
+    for path in &covered {
+        checked_dest(path)?;
+        if !files.iter().any(|(_, dest)| dest == path) {
+            return Err(format!("covered path {path} is not a consumer file"));
+        }
+    }
+    Ok((coverage, covered))
+}
+
 /// Parses the manifest a qualification target writes, resolving paths against `base`.
 pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let value: Value =
@@ -218,6 +289,8 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     if languages.is_empty() {
         return Err("manifest names no languages".to_owned());
     }
+    let failures = parse_failures(&value)?;
+    let (coverage, covered) = parse_coverage(&value, &files)?;
     Ok(Manifest {
         label: string(&value, "label")?,
         languages,
@@ -226,6 +299,9 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         rust_target_triples: strings(&value, "rust_target_triples")?,
         workspace_dir: checked_dest(&string(&value, "workspace_dir")?)?,
         patterns,
+        failures,
+        coverage,
+        covered,
         files,
         module_fragment: base.join(string(&value, "module_fragment")?),
         fragment_before_toolchains: value["fragment_before_toolchains"]
@@ -340,7 +416,7 @@ pub fn leaks_build(tool: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expect {
     Pass,
-    Fail(&'static str),
+    Fail(String),
 }
 
 /// Reports whether one probe ended the way the qualification requires.
@@ -349,7 +425,7 @@ pub fn verdict(expect: &Expect, exit: i32, log: &str) -> Result<(), String> {
         Expect::Pass if exit == 0 => Ok(()),
         Expect::Pass => Err(format!("exited {exit}, want 0")),
         Expect::Fail(_) if exit == 0 => Err("succeeded, want a failure".to_owned()),
-        Expect::Fail(marker) if log.contains(marker) => Ok(()),
+        Expect::Fail(marker) if log.contains(marker.as_str()) => Ok(()),
         Expect::Fail(marker) => Err(format!("exited {exit} without {marker:?}")),
     }
 }
@@ -574,7 +650,7 @@ pub fn capture(mut command: Command) -> Result<Outcome, String> {
 }
 
 pub struct Probe<'a> {
-    pub name: &'static str,
+    pub name: String,
     pub net: Net,
     pub home: &'a Path,
     pub output_root: &'a Path,
@@ -640,7 +716,7 @@ impl Session {
         let checked = verdict(&probe.expect, outcome.exit, &log);
         let (expect, marker) = match &probe.expect {
             Expect::Pass => ("pass", ""),
-            Expect::Fail(marker) => ("fail", *marker),
+            Expect::Fail(marker) => ("fail", marker.as_str()),
         };
         self.probes.push(json!({
             "name": probe.name,
@@ -716,13 +792,140 @@ fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     machines
 }
 
-/// Checks evidence against the commit and label it must describe.
-pub fn verify_evidence(
-    evidence: &Value,
-    commit: &str,
-    label: &str,
-    languages: &[String],
-) -> Result<(), String> {
+/// One source file of a coverage report with its line counts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoveredSource {
+    pub path: String,
+    pub lines_found: u64,
+    pub lines_hit: u64,
+}
+
+/// Turns coverage patterns into the workspace path prefixes they own.
+pub fn owned_prefixes(coverage: &[String]) -> Vec<String> {
+    coverage
+        .iter()
+        .map(|pattern| {
+            let body = pattern.trim_start_matches("//");
+            let package = match body.strip_suffix("...") {
+                Some(rest) => rest.trim_end_matches('/'),
+                None => body.split(':').next().unwrap_or_default(),
+            };
+            if package.is_empty() {
+                String::new()
+            } else {
+                format!("{package}/")
+            }
+        })
+        .collect()
+}
+
+/// Reads the per-file line counts of an LCOV report.
+pub fn coverage_sources(report: &str) -> Result<Vec<CoveredSource>, String> {
+    let files = dx_lcov::parse_lcov(report).map_err(|err| format!("coverage report: {err}"))?;
+    Ok(files
+        .into_iter()
+        .map(|(path, hits)| CoveredSource {
+            path,
+            lines_found: hits.lines.len() as u64,
+            lines_hit: hits.lines.values().filter(|count| **count > 0).count() as u64,
+        })
+        .collect())
+}
+
+/// Reads coverage sources back from recorded evidence.
+pub fn sources_from_json(value: &Value) -> Result<Vec<CoveredSource>, String> {
+    value
+        .as_array()
+        .ok_or_else(|| "evidence records no coverage sources".to_owned())?
+        .iter()
+        .map(|source| {
+            Ok(CoveredSource {
+                path: source["path"]
+                    .as_str()
+                    .ok_or_else(|| "coverage source has no path".to_owned())?
+                    .to_owned(),
+                lines_found: source["lines_found"]
+                    .as_u64()
+                    .ok_or_else(|| "coverage source has no lines_found".to_owned())?,
+                lines_hit: source["lines_hit"]
+                    .as_u64()
+                    .ok_or_else(|| "coverage source has no lines_hit".to_owned())?,
+            })
+        })
+        .collect()
+}
+
+fn source_package_path(path: &str) -> &str {
+    let parts: Vec<&str> = path.splitn(4, '/').collect();
+    match parts.as_slice() {
+        ["bazel-out", _, "bin", rest] => rest,
+        _ => path,
+    }
+}
+
+/// Checks a coverage report holds only owned consumer sources and hits every covered one.
+pub fn check_coverage(sources: &[CoveredSource], manifest: &Manifest) -> Result<(), String> {
+    if sources.is_empty() {
+        return Err("coverage report has no source files".to_owned());
+    }
+    let prefixes = owned_prefixes(&manifest.coverage);
+    for source in sources {
+        let path = source.path.as_str();
+        if path.starts_with('/')
+            || path.ends_with(".jar")
+            || path.ends_with(".class")
+            || path.split('/').any(|part| part == "external")
+        {
+            return Err(format!("coverage report names a non-source file {path}"));
+        }
+        let owned = source_package_path(path);
+        if !prefixes
+            .iter()
+            .any(|prefix| owned.starts_with(prefix.as_str()))
+        {
+            return Err(format!(
+                "coverage report names {path} outside the coverage patterns"
+            ));
+        }
+    }
+    for path in &manifest.covered {
+        let Some(source) = sources.iter().find(|source| source.path == *path) else {
+            return Err(format!("coverage report misses {path}"));
+        };
+        if source.lines_hit == 0 {
+            return Err(format!("coverage report shows no hit lines in {path}"));
+        }
+    }
+    Ok(())
+}
+
+fn required_probes(manifest: &Manifest) -> Vec<(String, &str, &str, Net)> {
+    let mut required: Vec<(String, &str, &str, Net)> = REQUIRED_PROBES
+        .iter()
+        .map(|name| {
+            let (expect, marker) = probe_expectation(name);
+            let net = if *name == "fetch" {
+                Net::Allowed
+            } else {
+                Net::Denied
+            };
+            ((*name).to_owned(), expect, marker, net)
+        })
+        .collect();
+    if !manifest.coverage.is_empty() {
+        required.push(("fetch_coverage".to_owned(), "pass", "", Net::Allowed));
+        required.push(("coverage".to_owned(), "pass", "", Net::Denied));
+    }
+    for (label, marker) in &manifest.failures {
+        required.push((failure_probe_name(label), "fail", marker, Net::Denied));
+    }
+    required
+}
+
+/// Checks evidence against the commit and the manifest it must describe.
+pub fn verify_evidence(evidence: &Value, commit: &str, manifest: &Manifest) -> Result<(), String> {
+    let label = manifest.label.as_str();
+    let languages = manifest.languages.as_slice();
     if evidence["schema"] != SCHEMA {
         return Err(format!("evidence schema must be {SCHEMA}"));
     }
@@ -767,23 +970,42 @@ pub fn verify_evidence(
         }
     }
     let probes = evidence["probes"].as_array().cloned().unwrap_or_default();
-    for name in REQUIRED_PROBES {
-        let Some(probe) = probes.iter().find(|probe| probe["name"] == *name) else {
+    for (name, expect, marker, net) in required_probes(manifest) {
+        let Some(probe) = probes.iter().find(|probe| probe["name"] == name.as_str()) else {
             return Err(format!("evidence is missing required probe {name}"));
         };
         if probe["verdict"] != "ok" {
             return Err(format!("required probe {name} did not hold"));
         }
-        let (expect, marker) = probe_expectation(name);
         if probe["expect"] != expect || probe["marker"] != marker {
             return Err(format!(
                 "required probe {name} recorded expect {} marker {}, want {expect} {marker:?}",
                 probe["expect"], probe["marker"]
             ));
         }
-        if *name != "fetch" && probe["network"] != "denied" {
+        if net == Net::Denied && probe["network"] != "denied" {
             return Err(format!("required probe {name} ran with network"));
         }
+    }
+    for (label, _) in &manifest.failures {
+        let name = failure_probe_name(label);
+        let built = probes
+            .iter()
+            .filter(|probe| probe["name"] == name.as_str())
+            .all(|probe| {
+                probe["argv"]
+                    .as_array()
+                    .is_some_and(|argv| argv.iter().any(|arg| arg == label.as_str()))
+            });
+        if !built {
+            return Err(format!("probe {name} did not build {label}"));
+        }
+    }
+    if !manifest.coverage.is_empty() {
+        check_coverage(
+            &sources_from_json(&evidence["coverage"]["sources"])?,
+            manifest,
+        )?;
     }
     let artifacts = evidence["artifacts"]
         .as_array()
@@ -1118,9 +1340,11 @@ fn run_all(
     let warm = root.join("warm");
     let miss = root.join("miss");
     let patterns = session.manifest.patterns.clone();
+    let coverage = session.manifest.coverage.clone();
+    let failures = session.manifest.failures.clone();
     let leak = |name: &str| vec![format!("//{LEAKS_PACKAGE}:{name}")];
     session.run(Probe {
-        name: "fetch",
+        name: "fetch".to_owned(),
         net: Net::Allowed,
         home: &clean_home,
         output_root: &cold,
@@ -1130,6 +1354,23 @@ fn run_all(
         extra: vec!["--nobuild".to_owned()],
         expect: Expect::Pass,
     })?;
+    if !coverage.is_empty() {
+        session.run(Probe {
+            name: "fetch_coverage".to_owned(),
+            net: Net::Allowed,
+            home: &clean_home,
+            output_root: &cold,
+            repos: &repos,
+            command: "build",
+            targets: coverage.clone(),
+            extra: vec![
+                "--nobuild".to_owned(),
+                "--collect_code_coverage".to_owned(),
+                "--combined_report=lcov".to_owned(),
+            ],
+            expect: Expect::Pass,
+        })?;
+    }
     let version = capture({
         let mut command = Command::new(&session.bazelisk);
         command
@@ -1146,7 +1387,7 @@ fn run_all(
         "bazelisk": found,
     });
     session.run(Probe {
-        name: "hermetic_test",
+        name: "hermetic_test".to_owned(),
         net: Net::Denied,
         home: &clean_home,
         output_root: &cold,
@@ -1157,7 +1398,7 @@ fn run_all(
         expect: Expect::Pass,
     })?;
     let listed = session.run(Probe {
-        name: "artifacts",
+        name: "artifacts".to_owned(),
         net: Net::Denied,
         home: &clean_home,
         output_root: &cold,
@@ -1177,7 +1418,7 @@ fn run_all(
         ("home_config", HOME_MARKER),
     ] {
         session.run(Probe {
-            name,
+            name: name.to_owned(),
             net: Net::Denied,
             home: &clean_home,
             output_root: &cold,
@@ -1185,11 +1426,11 @@ fn run_all(
             command: "build",
             targets: leak(name),
             extra: Vec::new(),
-            expect: Expect::Fail(marker),
+            expect: Expect::Fail(marker.to_owned()),
         })?;
     }
     session.run(Probe {
-        name: "home_config_control",
+        name: "home_config_control".to_owned(),
         net: Net::Denied,
         home: &planted_home,
         output_root: &cold,
@@ -1200,7 +1441,7 @@ fn run_all(
         expect: Expect::Pass,
     })?;
     session.run(Probe {
-        name: "warm_cache",
+        name: "warm_cache".to_owned(),
         net: Net::Denied,
         home: &clean_home,
         output_root: &warm,
@@ -1210,8 +1451,56 @@ fn run_all(
         extra: vec!["--test_output=errors".to_owned()],
         expect: Expect::Pass,
     })?;
+    if !coverage.is_empty() {
+        session.run(Probe {
+            name: "coverage".to_owned(),
+            net: Net::Denied,
+            home: &clean_home,
+            output_root: &warm,
+            repos: &repos,
+            command: "coverage",
+            targets: coverage,
+            extra: vec![
+                "--combined_report=lcov".to_owned(),
+                "--test_output=errors".to_owned(),
+            ],
+            expect: Expect::Pass,
+        })?;
+        let report_path = session
+            .workspace
+            .join("bazel-out/_coverage/_coverage_report.dat");
+        let report = std::fs::read_to_string(&report_path)
+            .map_err(|err| format!("cannot read {}: {err}", report_path.display()))?;
+        write(&out.join("coverage.lcov"), &report)?;
+        let sources = coverage_sources(&report)?;
+        evidence["coverage"] = json!({
+            "report": "coverage.lcov",
+            "sources": sources
+                .iter()
+                .map(|source| json!({
+                    "path": source.path,
+                    "lines_found": source.lines_found,
+                    "lines_hit": source.lines_hit,
+                }))
+                .collect::<Vec<_>>(),
+        });
+        check_coverage(&sources, &session.manifest)?;
+    }
+    for (label, marker) in failures {
+        session.run(Probe {
+            name: failure_probe_name(&label),
+            net: Net::Denied,
+            home: &clean_home,
+            output_root: &warm,
+            repos: &repos,
+            command: "build",
+            targets: vec![label],
+            extra: Vec::new(),
+            expect: Expect::Fail(marker),
+        })?;
+    }
     session.run(Probe {
-        name: "cache_miss",
+        name: "cache_miss".to_owned(),
         net: Net::Denied,
         home: &clean_home,
         output_root: &miss,
@@ -1219,7 +1508,7 @@ fn run_all(
         command: "build",
         targets: patterns,
         extra: Vec::new(),
-        expect: Expect::Fail(MISS_MARKER),
+        expect: Expect::Fail(MISS_MARKER.to_owned()),
     })?;
     Ok(())
 }

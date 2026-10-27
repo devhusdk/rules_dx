@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+pub use dx_nested::rules_dx_module;
+use dx_nested::write_rules_dx_config;
 use dx_testing::{resolve_runfiles, run, Run};
 
 const BAZELRC: &str = "common:dx_dev --define=dx=dev\ncommon:dx_release --define=dx=release\n";
@@ -15,11 +17,6 @@ custom_test = rule(
     test = True,
     attrs = {"data": attr.label_list(allow_files = True)},
 )
-
-def _flag_impl(_ctx):
-    return []
-
-bool_flag = rule(implementation = _flag_impl, build_setting = config.bool(flag = True))
 "##;
 
 const TEST_LAUNCHER: (&str, &str) = if cfg!(windows) {
@@ -27,15 +24,6 @@ const TEST_LAUNCHER: (&str, &str) = if cfg!(windows) {
 } else {
     ("", r"#!/bin/sh\nexit 0\n")
 };
-
-const CONFIG_BUILD: &str = r#"load("//:defs.bzl", "bool_flag")
-
-bool_flag(name = "validate", build_setting_default = True)
-
-bool_flag(name = "clippy_output_diagnostics", build_setting_default = False)
-
-bool_flag(name = "rustc_output_diagnostics", build_setting_default = False)
-"#;
 
 const A_BUILD: &str = r#"load("//:defs.bzl", "custom_test")
 
@@ -92,12 +80,9 @@ pub fn commit(root: &Path) {
 }
 
 pub fn fixture(root: &Path) {
-    write(
-        &root.join("MODULE.bazel"),
-        "module(name = \"fixture\", repo_name = \"rules_dx\")\n",
-    );
+    write(&root.join("MODULE.bazel"), &rules_dx_module("", ""));
     write(&root.join(".bazelrc"), BAZELRC);
-    write(&root.join("config/BUILD.bazel"), CONFIG_BUILD);
+    write_rules_dx_config(root);
     write(&root.join("BUILD.bazel"), "");
     write(&root.join(".gitignore"), "/bazel-*\n/MODULE.bazel.lock\n");
     let (suffix, body) = TEST_LAUNCHER;

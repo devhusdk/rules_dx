@@ -9,21 +9,6 @@ use dx_testing::{resolve_runfiles, Run};
 
 const BAZELRC: &str = "common:dx_dev --define=dx=dev\ncommon:dx_release --define=dx=release\n";
 
-const DEFS: &str = r#"def _flag_impl(_ctx):
-    return []
-
-bool_flag = rule(implementation = _flag_impl, build_setting = config.bool(flag = True))
-"#;
-
-const CONFIG_BUILD: &str = r#"load("//:defs.bzl", "bool_flag")
-
-bool_flag(name = "validate", build_setting_default = True)
-
-bool_flag(name = "clippy_output_diagnostics", build_setting_default = False)
-
-bool_flag(name = "rustc_output_diagnostics", build_setting_default = False)
-"#;
-
 const PKG_BUILD: &str = r#"genrule(
     name = "gen_a",
     outs = ["a.txt"],
@@ -77,14 +62,10 @@ fn fixture(case: &Case) -> Scratch {
         cache: case.root().join("cache"),
     };
     let repo = &scratch.repo;
-    write(
-        &repo.join("MODULE.bazel"),
-        "module(name = \"fixture\", repo_name = \"rules_dx\")\n",
-    );
+    write(&repo.join("MODULE.bazel"), &nested::rules_dx_module("", ""));
     write(&repo.join(".bazelrc"), BAZELRC);
     write(&repo.join("BUILD.bazel"), "");
-    write(&repo.join("defs.bzl"), DEFS);
-    write(&repo.join("config/BUILD.bazel"), CONFIG_BUILD);
+    nested::write_rules_dx_config(repo);
     write(&repo.join("pkg/BUILD.bazel"), PKG_BUILD);
     write(&repo.join(".gitignore"), "/bazel-*\n/MODULE.bazel.lock\n");
     std::fs::create_dir_all(&scratch.home).unwrap_or_else(|error| panic!("mkdir: {error}"));

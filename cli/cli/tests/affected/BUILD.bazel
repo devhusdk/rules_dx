@@ -23,7 +23,10 @@ rust_test(
         "PATH",
     ],
     tags = NESTED_BAZEL_TAGS,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rust_test(
@@ -45,7 +48,10 @@ rust_test(
         "PATH",
     ],
     tags = NESTED_BAZEL_TAGS,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(

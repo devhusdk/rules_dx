@@ -1,0 +1,6 @@
+load("@rules_dx//astro/rules:defs.bzl", "astro_library")
+
+astro_library(
+    name = "Button",
+    srcs = ["Button.astro"],
+)

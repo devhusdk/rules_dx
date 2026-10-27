@@ -1,6 +1,7 @@
 package mdx
 
 import (
+	"github.com/devhusdk/rules_dx/gazelle/common"
 	"reflect"
 	"strings"
 	"testing"
@@ -159,7 +160,7 @@ func TestParseImports(t *testing.T) {
 		} else {
 			content = []byte(mdxWrap(tc.source))
 		}
-		if got := ParseImports(content, ""); !reflect.DeepEqual(got, tc.want) {
+		if got := common.RefRoots(ParseImports(content, "")); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseImports = %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -234,7 +235,7 @@ func TestExtractESMRegions(t *testing.T) {
 func TestParseImportsKeepsDirectories(t *testing.T) {
 	content := []byte(mdxWrap("import a from '../a/util.mdx';\nimport b from '../b/util.mdx';\nimport c from './util.mdx';\nimport r from 'react';\n"))
 	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
-	if got := ParseImports(content, "app/web"); !reflect.DeepEqual(got, want) {
+	if got := common.RefRoots(ParseImports(content, "app/web")); !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseImports = %q, want %q", got, want)
 	}
 }
@@ -246,5 +247,17 @@ func TestExtractESMRegionsNoPanic(t *testing.T) {
 	}
 	for _, s := range seeds {
 		_ = extractESMRegions([]byte(s))
+	}
+}
+
+func TestParseImportsRefs(t *testing.T) {
+	content := []byte(mdxWrap("import a from './Button.mdx';\nimport s from './store.ts';\nimport d from './data.json';\n"))
+	want := []common.ImportRef{
+		{Spec: "./Button.mdx", Root: "app/Button", ModuleExt: ".mdx", Relative: true},
+		{Spec: "./data.json", Root: "app/data.json", Ext: ".json", Relative: true},
+		{Spec: "./store.ts", Root: "app/store", ModuleExt: ".ts", Relative: true},
+	}
+	if got := ParseImports(content, "app"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseImports = %+v, want %+v", got, want)
 	}
 }

@@ -37,10 +37,10 @@ func TestCheckCollisions(t *testing.T) {
 }
 
 func normalizeJSSpec(spec string) string {
-	var set SpecSet
+	var set RefSet
 	set.Add(spec)
-	if roots := set.Roots(); len(roots) > 0 {
-		return roots[0]
+	if refs := set.Refs(); len(refs) > 0 {
+		return refs[0].Root
 	}
 	return ""
 }
@@ -221,7 +221,7 @@ func TestIsRegexStart(t *testing.T) {
 	}
 }
 
-func TestSpecSetIdentity(t *testing.T) {
+func TestRefSetIdentity(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"", ""},
 		{"   ", ""},
@@ -252,16 +252,48 @@ func TestSpecSetIdentity(t *testing.T) {
 	}
 }
 
-func TestSpecSetKeepsDirectories(t *testing.T) {
-	set := SpecSet{Dir: "app/web"}
+func TestRefSetKeepsDirectories(t *testing.T) {
+	set := RefSet{Dir: "app/web"}
 	set.Add("../a/util")
 	set.Add("../b/util.ts")
 	set.Add("./util")
 	set.Add("react")
 	want := []string{"app/b/util", "app/web/util", "app/a/util", "react"}
 	sort.Strings(want)
-	if got := set.Roots(); !reflect.DeepEqual(got, want) {
+	if got := RefRoots(set.Refs()); !reflect.DeepEqual(got, want) {
 		t.Errorf("Roots = %q, want %q", got, want)
+	}
+}
+
+func TestRefSetRefs(t *testing.T) {
+	set := RefSet{Dir: "app"}
+	for _, spec := range []string{
+		"./Button.svelte", "./Card.vue", "./store.ts", "./util.js", "./app.css", "./data.json",
+		"react", "./x.svelte", "./x.ts", "./x.svelte", "/abs/y.astro",
+	} {
+		set.Add(spec)
+	}
+	want := []ImportRef{
+		{Spec: "/abs/y.astro", Root: "abs/y", ModuleExt: ".astro", Relative: true},
+		{Spec: "./Button.svelte", Root: "app/Button", ModuleExt: ".svelte", Relative: true},
+		{Spec: "./Card.vue", Root: "app/Card", ModuleExt: ".vue", Relative: true},
+		{Spec: "./app.css", Root: "app/app.css", Ext: ".css", Relative: true},
+		{Spec: "./data.json", Root: "app/data.json", Ext: ".json", Relative: true},
+		{Spec: "./store.ts", Root: "app/store", ModuleExt: ".ts", Relative: true},
+		{Spec: "./util.js", Root: "app/util", ModuleExt: ".js", Relative: true},
+		{Spec: "./x.svelte", Root: "app/x", ModuleExt: ".svelte", Relative: true},
+		{Spec: "./x.ts", Root: "app/x", ModuleExt: ".ts", Relative: true},
+		{Spec: "react", Root: "react"},
+	}
+	if got := set.Refs(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Refs = %+v, want %+v", got, want)
+	}
+	var root RefSet
+	root.Add("./x")
+	root.Add("x")
+	want = []ImportRef{{Spec: "./x", Root: "x", Relative: true}}
+	if got := root.Refs(); !reflect.DeepEqual(got, want) {
+		t.Errorf("root Refs = %+v, want relative preferred %+v", got, want)
 	}
 }
 
@@ -410,20 +442,20 @@ func TestParseImportRefsRelative(t *testing.T) {
 		source string
 		want   []ImportRef
 	}{
-		{"relativeStdlibCollision", "import { fmt } from \"./util.js\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", Relative: true}}},
+		{"relativeStdlibCollision", "import { fmt } from \"./util.js\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", ModuleExt: ".js", Relative: true}}},
 		{"bareStdlib", "import fs from \"fs\";\n", []ImportRef{{Spec: "fs", Root: "fs"}}},
 		{"bareNonStdlib", "import React from \"react\";\n", []ImportRef{{Spec: "react", Root: "react"}}},
-		{"mixedCollision", "import { fmt } from \"./util.js\";\nimport u from \"util\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", Relative: true}, {Spec: "util", Root: "util"}}},
-		{"absolute", "import x from \"/abs/path.js\";\n", []ImportRef{{Spec: "/abs/path.js", Root: "abs/path", Relative: true}}},
-		{"repeatedBasenames", "import a from \"../a/util\";\nimport b from \"../b/util.ts\";\n", []ImportRef{{Spec: "../a/util", Root: "a/util", Relative: true}, {Spec: "../b/util.ts", Root: "b/util", Relative: true}}},
+		{"mixedCollision", "import { fmt } from \"./util.js\";\nimport u from \"util\";\n", []ImportRef{{Spec: "./util.js", Root: "pkg/util", ModuleExt: ".js", Relative: true}, {Spec: "util", Root: "util"}}},
+		{"absolute", "import x from \"/abs/path.js\";\n", []ImportRef{{Spec: "/abs/path.js", Root: "abs/path", ModuleExt: ".js", Relative: true}}},
+		{"repeatedBasenames", "import a from \"../a/util\";\nimport b from \"../b/util.ts\";\n", []ImportRef{{Spec: "../a/util", Root: "a/util", Relative: true}, {Spec: "../b/util.ts", Root: "b/util", ModuleExt: ".ts", Relative: true}}},
 		{"index", "import c from \"./components\";\n", []ImportRef{{Spec: "./components", Root: "pkg/components", Relative: true}}},
 		{"dotted", "import c from \"./config.prod\";\n", []ImportRef{{Spec: "./config.prod", Root: "pkg/config.prod", Ext: ".prod", Relative: true}}},
 		{"json", "import d from \"./data.json\";\n", []ImportRef{{Spec: "./data.json", Root: "pkg/data.json", Ext: ".json", Relative: true}}},
 		{"css module", "import s from \"./styles.module.css\";\n", []ImportRef{{Spec: "./styles.module.css", Root: "pkg/styles.module.css", Ext: ".css", Relative: true}}},
-		{"mts", "import x from \"./x.mts\";\n", []ImportRef{{Spec: "./x.mts", Root: "pkg/x", Relative: true}}},
-		{"importEqualsRelative", "import x = require(\"./z.js\");\n", []ImportRef{{Spec: "./z.js", Root: "pkg/z", Relative: true}}},
+		{"mts", "import x from \"./x.mts\";\n", []ImportRef{{Spec: "./x.mts", Root: "pkg/x", ModuleExt: ".mts", Relative: true}}},
+		{"importEqualsRelative", "import x = require(\"./z.js\");\n", []ImportRef{{Spec: "./z.js", Root: "pkg/z", ModuleExt: ".js", Relative: true}}},
 		{"commentInList", "import {\n a, // from utils\n} from './x';\n", []ImportRef{{Spec: "./x", Root: "pkg/x", Relative: true}}},
-		{"sameTarget", "import a from \"./x/../util.js\";\nimport b from \"./util\";\n", []ImportRef{{Spec: "./x/../util.js", Root: "pkg/util", Relative: true}}},
+		{"sameTarget", "import a from \"./x/../util.js\";\nimport b from \"./util\";\n", []ImportRef{{Spec: "./x/../util.js", Root: "pkg/util", ModuleExt: ".js", Relative: true}}},
 	}
 	for _, tc := range cases {
 		if got := ParseImportRefs([]byte(tc.source), "pkg"); !reflect.DeepEqual(got, tc.want) {
@@ -442,14 +474,14 @@ func TestParseImportRefsRelative(t *testing.T) {
 	}
 }
 
-func TestSpecSetRoots(t *testing.T) {
-	var set SpecSet
-	if got := set.Roots(); got != nil {
+func TestRefSetRoots(t *testing.T) {
+	var set RefSet
+	if got := RefRoots(set.Refs()); got != nil {
 		t.Errorf("empty Roots = %q, want nil", got)
 	}
 	set.Add("")
 	set.Add("./")
-	if got := set.Roots(); got != nil {
+	if got := RefRoots(set.Refs()); got != nil {
 		t.Errorf("unnormalizable Roots = %q, want nil", got)
 	}
 	set.Add("./b.js")
@@ -457,8 +489,8 @@ func TestSpecSetRoots(t *testing.T) {
 	set.Add("./a.tsx")
 	set.Add("react")
 	set.Add(" ./a.js ")
-	if got := set.Roots(); !reflect.DeepEqual(got, []string{"a", "b", "react"}) {
-		t.Errorf("Roots = %q, want [a b react]", got)
+	if got := RefRoots(set.Refs()); !reflect.DeepEqual(got, []string{"a", "a", "a", "b", "react"}) {
+		t.Errorf("Roots = %q, want [a a a b react]", got)
 	}
 }
 

@@ -1,6 +1,7 @@
 package astro
 
 import (
+	"github.com/devhusdk/rules_dx/gazelle/common"
 	"reflect"
 	"testing"
 )
@@ -152,7 +153,7 @@ func TestParseImports(t *testing.T) {
 		} else {
 			content = []byte(wrap(tc.source))
 		}
-		if got := ParseImports(content, ""); !reflect.DeepEqual(got, tc.want) {
+		if got := common.RefRoots(ParseImports(content, "")); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseImports = %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -192,7 +193,19 @@ func TestSplitFence(t *testing.T) {
 func TestParseImportsKeepsDirectories(t *testing.T) {
 	content := []byte(wrap("import a from '../a/util.astro';\nimport b from '../b/util.astro';\nimport c from './util.astro';\nimport r from 'react';\n"))
 	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
-	if got := ParseImports(content, "app/web"); !reflect.DeepEqual(got, want) {
+	if got := common.RefRoots(ParseImports(content, "app/web")); !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseImports = %q, want %q", got, want)
+	}
+}
+
+func TestParseImportsRefs(t *testing.T) {
+	content := []byte(wrap("import a from './Button.astro';\nimport s from './store.ts';\nimport d from './data.json';\n"))
+	want := []common.ImportRef{
+		{Spec: "./Button.astro", Root: "app/Button", ModuleExt: ".astro", Relative: true},
+		{Spec: "./data.json", Root: "app/data.json", Ext: ".json", Relative: true},
+		{Spec: "./store.ts", Root: "app/store", ModuleExt: ".ts", Relative: true},
+	}
+	if got := ParseImports(content, "app"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseImports = %+v, want %+v", got, want)
 	}
 }

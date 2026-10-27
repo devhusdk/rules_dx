@@ -21,7 +21,7 @@ var webComponentCases = []struct {
 	{"mdx", ".mdx"},
 }
 
-func noImports([]byte, string) []string { return nil }
+func noImports([]byte, string) []ImportRef { return nil }
 
 func TestNewWebComponentLangMetadata(t *testing.T) {
 	for _, tc := range webComponentCases {
@@ -207,7 +207,7 @@ func TestParseScriptImportsVue(t *testing.T) {
 		default:
 			content = []byte(vueWrap(tc.source))
 		}
-		if got := ParseScriptImports(content, ""); !reflect.DeepEqual(got, tc.want) {
+		if got := RefRoots(ParseScriptImports(content, "")); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseScriptImports = %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -216,7 +216,7 @@ func TestParseScriptImportsVue(t *testing.T) {
 func TestParseScriptImportsVueKeepsDirectories(t *testing.T) {
 	content := []byte(vueWrap("import a from '../a/util.vue';\nimport b from '../b/util.vue';\nimport c from './util.vue';\nimport r from 'react';\n"))
 	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
-	if got := ParseScriptImports(content, "app/web"); !reflect.DeepEqual(got, want) {
+	if got := RefRoots(ParseScriptImports(content, "app/web")); !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseScriptImports = %q, want %q", got, want)
 	}
 }
@@ -347,7 +347,7 @@ func TestParseScriptImportsSvelte(t *testing.T) {
 		default:
 			content = []byte(svelteWrap(tc.source))
 		}
-		if got := ParseScriptImports(content, ""); !reflect.DeepEqual(got, tc.want) {
+		if got := RefRoots(ParseScriptImports(content, "")); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: ParseScriptImports = %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -356,7 +356,20 @@ func TestParseScriptImportsSvelte(t *testing.T) {
 func TestParseScriptImportsSvelteKeepsDirectories(t *testing.T) {
 	content := []byte(svelteWrap("import a from '../a/util.svelte';\nimport b from '../b/util.svelte';\nimport c from './util.svelte';\nimport r from 'react';\n"))
 	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
-	if got := ParseScriptImports(content, "app/web"); !reflect.DeepEqual(got, want) {
+	if got := RefRoots(ParseScriptImports(content, "app/web")); !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseScriptImports = %q, want %q", got, want)
+	}
+}
+
+func TestParseScriptImportsRefs(t *testing.T) {
+	content := []byte(svelteWrap("import a from './Button.svelte';\nimport s from './store.ts';\nimport './app.css';\nimport { writable } from 'svelte/store';\n"))
+	want := []ImportRef{
+		{Spec: "./Button.svelte", Root: "app/Button", ModuleExt: ".svelte", Relative: true},
+		{Spec: "./app.css", Root: "app/app.css", Ext: ".css", Relative: true},
+		{Spec: "./store.ts", Root: "app/store", ModuleExt: ".ts", Relative: true},
+		{Spec: "svelte/store", Root: "svelte/store"},
+	}
+	if got := ParseScriptImports(content, "app"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseScriptImports = %+v, want %+v", got, want)
 	}
 }

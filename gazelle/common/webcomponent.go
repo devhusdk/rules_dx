@@ -5,7 +5,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
-func NewWebComponentLang(name string, exts []string, parseImports func([]byte, string) []string) *SingleLang {
+func NewWebComponentLang(name string, exts []string, parseImports func([]byte, string) []ImportRef) *SingleLang {
 	kind := name + "_library"
 	isSource := func(n string) bool { return HasExt(n, exts) }
 	return NewSingleLang(SingleLangSpec{
@@ -17,7 +17,8 @@ func NewWebComponentLang(name string, exts []string, parseImports func([]byte, s
 		Identity:       func(n string) string { return Stem(n, exts) },
 		PathIdentity:   true,
 		IsImportSource: isSource,
-		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path without extension)",
+		Fallback:       []string{"typescript", "javascript"},
+		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping (relative imports use the workspace path without extension and also search TypeScript and JavaScript targets)",
 		Generate: func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult {
 			return GenerateSingleFile(args, kinds, SingleFileSpec{
 				LanguageName: name,
@@ -26,16 +27,16 @@ func NewWebComponentLang(name string, exts []string, parseImports func([]byte, s
 				TargetName:   func(n string) (string, error) { return Normalize(Stem(n, exts)) },
 				ParseImports: parseImports,
 				IsStdLib:     IsNodeBuiltin,
-				Wrap:         WrapImportSet,
+				Wrap:         WrapRefImportSet,
 			}, rep)
 		},
 	})
 }
 
-func ParseScriptImports(content []byte, dir string) []string {
-	set := SpecSet{Dir: dir}
+func ParseScriptImports(content []byte, dir string) []ImportRef {
+	set := RefSet{Dir: dir}
 	for _, script := range ExtractScripts(content, TopLevel) {
 		ScanEmbedded(script, set.Add)
 	}
-	return set.Roots()
+	return set.Refs()
 }

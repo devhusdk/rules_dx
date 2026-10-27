@@ -3,14 +3,12 @@ load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//quality:aspect_subject.bzl", "aspect_subject")
-load("//quality:fixtures.bzl", "quality_source_target", "real_source_target")
+load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "pmd_config", "ruff_config", "rustfmt_config", "scalafix_config", "scalafmt_config", "vale_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 load("//quality/tools/javascript:defs.bzl", "js_tool_binary")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
-load(":aspect_tests.bzl", "aspect_fixture_tests")
 load(":foreign_hint.bzl", "foreign_hint")
 load(":js_node_fixture.bzl", "ambiguous_nodes", "windows_failure_test")
 load(":real_aspect_subject.bzl", "real_aspect_subject", "real_shard_probe_subject")
@@ -22,32 +20,6 @@ load(":tool_override_tests.bzl", "elixir_subject", "erlang_subject", "erlfmt_fla
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
 
 package(default_visibility = VIS_QUALITY)
-
-quality_source_target(
-    name = "fixture_rust",
-    rust_srcs = ["clean.rs"],
-)
-
-quality_source_target(
-    name = "fixture_python",
-    aspect_hints = [":ruff_cfg"],
-    python_srcs = ["clean.py"],
-)
-
-quality_source_target(
-    name = "fixture_mixed_clean",
-    aspect_hints = [":ruff_cfg"],
-    python_srcs = ["clean.py"],
-    rust_srcs = ["clean.rs"],
-)
-
-quality_source_target(
-    name = "fixture_no_lint",
-    aspect_hints = [":ruff_cfg"],
-    python_srcs = ["clean.py"],
-    rust_srcs = ["clean.rs"],
-    tags = ["no-lint"],
-)
 
 filegroup(
     name = "plain",
@@ -71,42 +43,6 @@ exports_files(
         "//quality:__pkg__",
         "//quality:__subpackages__",
         "//tools/ci:__pkg__",
-    ],
-)
-
-aspect_subject(
-    name = "fixture_rust_subject",
-    target = ":fixture_rust",
-)
-
-aspect_subject(
-    name = "fixture_python_subject",
-    target = ":fixture_python",
-)
-
-aspect_subject(
-    name = "fixture_mixed_clean_subject",
-    target = ":fixture_mixed_clean",
-)
-
-aspect_subject(
-    name = "fixture_no_lint_subject",
-    target = ":fixture_no_lint",
-)
-
-aspect_subject(
-    name = "plain_subject",
-    target = ":plain",
-)
-
-aspect_fixture_tests(
-    name = "aspect_presence",
-    subjects = [
-        ":fixture_mixed_clean_subject",
-        ":fixture_no_lint_subject",
-        ":fixture_python_subject",
-        ":fixture_rust_subject",
-        ":plain_subject",
     ],
 )
 

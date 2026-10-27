@@ -1,14 +1,11 @@
 """Analysis subject exposing the canonical quality settings."""
 
-load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 
 def _settings_subject_impl(ctx):
     return [
         DefaultInfo(files = depset([])),
         DxSubjectInfo(fields = {
-            "fail_on": ctx.attr._fail_on[BuildSettingInfo].value,
-            "validate": str(ctx.attr._validate[BuildSettingInfo].value),
             "workspace": str(ctx.attr._workspace.label),
         }),
     ]
@@ -16,8 +13,6 @@ def _settings_subject_impl(ctx):
 settings_subject = rule(
     implementation = _settings_subject_impl,
     attrs = {
-        "_fail_on": attr.label(default = "//config:fail_on"),
-        "_validate": attr.label(default = "//config:validate"),
         "_workspace": attr.label(default = "//config:workspace"),
     },
 )

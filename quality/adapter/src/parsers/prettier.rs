@@ -265,10 +265,8 @@ mod tests {
             .expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
-        assert_eq!(
-            (findings[0].finding.start.line, findings[0].finding.start.column),
-            (1, 1)
-        );
+        assert_eq!(findings[0].finding.start.line, 1);
+        assert_eq!(findings[0].finding.start.column, 1);
     }
 
     #[test]

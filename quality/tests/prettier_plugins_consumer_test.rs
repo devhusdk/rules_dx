@@ -35,8 +35,11 @@ const BROKEN_FEATURE: &str = "Scenario: no feature line\n  Given a user\n";
 
 const BROKEN_ASTRO: &str = "<div>\n  <span>hi\n</p>\n";
 
-const CLOSURE_REPOS: [&str; 5] = [
+const CLOSURE_REPOS: [&str; 8] = [
     "--repo=@@aspect_rules_js++npm+npm_tools__prettier__3.9.6",
+    "--repo=@@aspect_rules_js++npm+npm_tools__prettier-plugin-astro__1.1.2_prettier_3.9.6",
+    "--repo=@@aspect_rules_js++npm+npm_tools__at_astrojs_compiler-rs__0.5.2",
+    "--repo=@@aspect_rules_js++npm+npm_tools__at_astrojs_compiler-binding-linux-x64-gnu__0.5.2",
     "--repo=@@aspect_rules_js++npm+npm_tools__prettier-plugin-sql__0.20.0_prettier_3.9.6",
     "--repo=@@aspect_rules_js++npm+npm_tools__at_prettier_plugin-xml__3.4.2_prettier_3.9.6",
     "--repo=@@aspect_rules_js++npm+npm_tools__prettier-plugin-gherkin__4.0.0",
@@ -307,7 +310,11 @@ fn a_syntax_error_is_located_and_never_clean_in_every_class() {
             BROKEN_FEATURE,
             "features/greet.feature:1:1: error",
         ),
-        ("web/Hello.astro", BROKEN_ASTRO, "web/Hello.astro:3:3: error"),
+        (
+            "web/Hello.astro",
+            BROKEN_ASTRO,
+            "web/Hello.astro:3:3: error",
+        ),
     ] {
         let root = consumer();
         write(&root.join(path), broken);

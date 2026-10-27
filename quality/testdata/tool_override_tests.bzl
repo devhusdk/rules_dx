@@ -27,9 +27,6 @@ _ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
 _ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
 _MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
 _MIX_FORMAT_TOOL = _CANONICAL + "//elixir/tools:mix_format"
-_GLEAM_POLICY = _CANONICAL + "//quality/testdata:gleam_policy"
-_GLEAM_FORMAT_SETTING = _CANONICAL + "//config:tool_gleam_format"
-_GLEAM_FORMAT_TOOL = _CANONICAL + "//gleam/tools:gleam_format"
 
 def _tool_override_subject_impl(ctx):
     """Exposes the resolved ruff binary path beside the real aspect results."""
@@ -151,27 +148,6 @@ elixir_subject = rule(
     implementation = _elixir_subject_impl,
     attrs = {
         "_mix_format": attr.label(default = "//config:tool_mix_format"),
-        "target": attr.label(
-            aspects = [real_format_aspect],
-            mandatory = True,
-        ),
-    },
-)
-
-def _gleam_subject_impl(ctx):
-    """Exposes the resolved gleam format launcher and the format results beside the real aspect."""
-    tool = ctx.attr._gleam_format[DefaultInfo].files_to_run.executable
-    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
-    fields = {
-        "gleam_format": tool.short_path if tool else "",
-        "results": ",".join([f.short_path for f in results]),
-    }
-    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
-
-gleam_subject = rule(
-    implementation = _gleam_subject_impl,
-    attrs = {
-        "_gleam_format": attr.label(default = "//config:tool_gleam_format"),
         "target": attr.label(
             aspects = [real_format_aspect],
             mandatory = True,
@@ -359,43 +335,6 @@ def mix_format_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_mix_format",
     )
     _mix_format_set_test(
-        name = name + "_set_test",
-        size = "small",
-        target_under_test = subject,
-    )
-
-_gleam_format_unset_test = analysistest.make(
-    _rejected_impl,
-    expect_failure = True,
-    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _GLEAM_POLICY},
-)
-
-def _gleam_format_wired_impl(ctx):
-    """Asserts the flag wires the gleam format launcher and a format stage result."""
-    env = analysistest.begin(ctx)
-    fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["gleam_format"].endswith("/gleam_format"), "want the gleam format launcher, got " + fields["gleam_format"])
-    asserts.true(env, fields["results"] != "", "want a format stage result for the gleam target")
-    return analysistest.end(env)
-
-_gleam_format_set_test = analysistest.make(
-    _gleam_format_wired_impl,
-    config_settings = {
-        _WORKSPACE_SETTING: _GLEAM_POLICY,
-        _GLEAM_FORMAT_SETTING: _GLEAM_FORMAT_TOOL,
-    },
-)
-
-def gleam_format_flag_tests(name, subject):
-    """Instantiates the gleam format flag proofs."""
-    _gleam_format_unset_test(
-        name = name + "_unset_test",
-        size = "small",
-        target_under_test = subject,
-        expected_failure_substring = "--@rules_dx//config:tool_gleam_format",
-    )
-    _gleam_format_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

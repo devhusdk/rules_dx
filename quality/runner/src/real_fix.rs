@@ -314,7 +314,6 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "scalafix" => Ok(Route::Scalafix),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
         "mix_format" => Ok(Route::Rewrite(commands::mix_format_fix)),
-        "gleam_format" => Ok(Route::Rewrite(commands::gleam_format_fix)),
         "keep_sorted" => {
             if tool.upstream_diagnostics.is_empty() {
                 spec(false)

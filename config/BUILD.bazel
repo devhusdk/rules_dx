@@ -43,13 +43,6 @@ label_flag(
 filegroup(name = "no_erlfmt")
 
 label_flag(
-    name = "tool_gleam_format",
-    build_setting_default = ":no_gleam_format",
-)
-
-filegroup(name = "no_gleam_format")
-
-label_flag(
     name = "tool_mix_format",
     build_setting_default = ":no_mix_format",
 )

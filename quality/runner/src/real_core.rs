@@ -164,7 +164,6 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "fantomas",
             "flake8",
             "fsharplint",
-            "gleam_format",
             "gofumpt",
             "google_java_format",
             "govet",

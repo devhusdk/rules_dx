@@ -200,42 +200,6 @@ rust_clippy_test(
 
 # keep
 rust_test(
-    name = "gleam_format_consumer_test",
-    size = "enormous",
-    srcs = ["gleam_format_consumer_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-        "//gleam/tests/runtime:src/dx_runtime_probe.gleam",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//tools/testing:dx_nested",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rustfmt_test(
-    name = "gleam_format_consumer_fmt_test",
-    targets = [":gleam_format_consumer_test"],
-)
-
-rust_clippy_test(
-    name = "gleam_format_consumer_clippy_test",
-    targets = [":gleam_format_consumer_test"],
-)
-
-# keep
-rust_test(
     name = "zig_fmt_consumer_test",
     size = "enormous",
     srcs = ["zig_fmt_consumer_test.rs"],

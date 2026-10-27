@@ -1145,15 +1145,6 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&mix_format_fix(Path::new(BIN), &[ex])),
         vec![BIN, "/scratch/sample.ex"]
     );
-    let gleam = Path::new("/scratch/sample.gleam");
-    assert_eq!(
-        argv_strings(&gleam_format_check(Path::new(BIN), &[gleam])),
-        vec![BIN, "--check", "/scratch/sample.gleam"]
-    );
-    assert_eq!(
-        argv_strings(&gleam_format_fix(Path::new(BIN), &[gleam])),
-        vec![BIN, "/scratch/sample.gleam"]
-    );
     let pkl = Path::new("/scratch/Sample.pkl");
     assert_eq!(
         argv_strings(&pkl_check(Path::new(BIN), &[pkl])),

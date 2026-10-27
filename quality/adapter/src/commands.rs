@@ -113,7 +113,6 @@ const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
-const GLEAM_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const ZIG_FMT_FIX_ARGS: &[&str] = &["fmt", "--color", "off"];
 const MODFMT_CHECK_ARGS: &[&str] = &["-c", "-l"];
 const MODFMT_FIX_ARGS: &[&str] = &["-w"];
@@ -941,14 +940,6 @@ pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn erlfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ERLFMT_FIX_ARGS, files, "")
-}
-
-pub fn gleam_format_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, GLEAM_FORMAT_CHECK_ARGS, files, "")
-}
-
-pub fn gleam_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, &[], files, "")
 }
 
 pub fn mix_format_check(binary: &Path, files: &[&Path]) -> Invocation {

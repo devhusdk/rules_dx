@@ -20,7 +20,6 @@ WRAPPER_OWNERS = {
     "fortran": "//fortran/rules:defs.bzl",
     "fsharp": "//fsharp/rules:defs.bzl",
     "gherkin": "//gherkin/rules:defs.bzl",
-    "gleam": "//gleam/rules:defs.bzl",
     "go": "//go/rules:defs.bzl",
     "go_module": "other",
     "graphql": "//javascript/rules:defs.bzl",

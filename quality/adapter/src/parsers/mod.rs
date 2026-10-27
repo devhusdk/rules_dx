@@ -14,7 +14,6 @@ pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
 pub mod fsharplint;
-pub mod gleam_format;
 pub mod gofumpt;
 pub mod google_java_format;
 pub mod govet;
@@ -74,7 +73,6 @@ pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
 pub use fsharplint::parse_fsharplint;
-pub use gleam_format::parse_gleam_format;
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
@@ -876,10 +874,10 @@ mod tests {
 
     #[test]
     fn path_row_col_needs_a_path_line_and_column() {
-        assert_eq!(path_row_col("src/a.gleam:3:7"), Some(("src/a.gleam", 3, 7)));
+        assert_eq!(path_row_col("src/a.ex:3:7"), Some(("src/a.ex", 3, 7)));
         assert_eq!(path_row_col(":3:7"), None);
-        assert_eq!(path_row_col("src/a.gleam:3"), None);
-        assert_eq!(path_row_col("src/a.gleam"), None);
+        assert_eq!(path_row_col("src/a.ex:3"), None);
+        assert_eq!(path_row_col("src/a.ex"), None);
         assert_eq!(path_row_col(r"C:\a.x:3:7"), Some((r"C:\a.x", 3, 7)));
     }
 
@@ -1808,14 +1806,6 @@ mod tests {
         super::erlfmt::parse_erlfmt(b"", input, code, files)
     }
 
-    fn fuzz_gleam_format(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::gleam_format::parse_gleam_format(b"", input, code, files, std::path::Path::new("/"))
-    }
-
     fn fuzz_mix_format(
         input: &[u8],
         code: Option<i32>,
@@ -2067,7 +2057,6 @@ mod tests {
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
         ("fsharplint", fuzz_fsharplint),
-        ("gleam_format", fuzz_gleam_format),
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
         ("graphql_eslint", fuzz_graphql_eslint),
@@ -2136,7 +2125,6 @@ mod tests {
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),
         ("fsharplint", include_str!("fsharplint.rs")),
-        ("gleam_format", include_str!("gleam_format.rs")),
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),
         ("govet", include_str!("govet.rs")),

@@ -131,7 +131,7 @@ dx new [--apply] erlang [name]
 Scaffolds a standalone consumer with a library, a binary and a test:
 `MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, sources, and
 `README.md`. Ruby, PowerShell, Zig, Elixir, Gleam and Erlang come from the rules_dx toolchains, so nothing needs to be
-installed. The PowerShell targets are Linux only. The Elixir, Gleam and Erlang targets need Linux x86_64. The Zig library imports as `hello`.
+installed. The PowerShell targets are Linux only. The Elixir and Gleam targets need Linux x86_64. The Erlang targets need Linux x86_64, Linux arm64 or macOS arm64. The Zig library imports as `hello`.
 The Elixir starter is the OTP application `hello` with sources in `lib/`, an
 escript, and an ExUnit test in `test/`.
 The Gleam starter has the module `hello` in `src/`, a gleeunit test in `test/`,

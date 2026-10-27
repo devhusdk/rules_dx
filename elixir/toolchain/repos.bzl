@@ -4,6 +4,7 @@ load("//erlang/toolchain:pins.bzl", "CELLS")
 load(
     ":pins.bzl",
     "ELIXIR_APPLICATIONS",
+    "ELIXIR_CELLS",
     "ELIXIR_SHA256",
     "ELIXIR_URL",
     "ELIXIR_VERSION",
@@ -100,16 +101,17 @@ _dist = repository_rule(
     doc = "Acquires the pinned precompiled Elixir distribution.",
 )
 
+def hub_build(cells):
+    """Returns the hub BUILD file that registers Elixir on the given OTP cells."""
+    return "\n".join([_TOOLCHAIN.format(
+        cell = cell,
+        constraints = repr(CELLS[cell].exec_compatible_with),
+        repo = DIST_NAME,
+    ) for cell in cells])
+
 def _hub_impl(rctx):
-    content = []
-    for cell in sorted(CELLS.keys()):
-        content.append(_TOOLCHAIN.format(
-            cell = cell,
-            constraints = repr(CELLS[cell].exec_compatible_with),
-            repo = DIST_NAME,
-        ))
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", "\n".join(content))
+    rctx.file("BUILD.bazel", hub_build(ELIXIR_CELLS))
     return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(

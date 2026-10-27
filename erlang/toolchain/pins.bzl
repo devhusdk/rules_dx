@@ -40,6 +40,7 @@ CELLS = {
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         otp_sha256 = "92d4f05939c51fc2d9e1b2b7d35b233e800d51a0e540767335f1d8680ea9a924",
         otp_url = "https://builds.hex.pm/builds/otp/amd64/ubuntu-22.04/OTP-" + OTP_VERSION + ".tar.gz",
+        strip_prefix = "OTP-" + OTP_VERSION,
         runtime = [
             struct(
                 deb = "libtinfo6_6.3-2ubuntu0.3_amd64.deb",
@@ -90,6 +91,69 @@ CELLS = {
                 sha256 = "d1b4636e32ac6d3b95d583ac05ac548b1aa248414bae1c51b14f54be0f8fd7bc",
             ),
         ],
+    ),
+    "linux_arm64": struct(
+        exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+        otp_sha256 = "73979c803d2607402c38aebdff8e029efa4c26471648e57c4d86caf0b96a5216",
+        otp_url = "https://builds.hex.pm/builds/otp/arm64/ubuntu-22.04/OTP-" + OTP_VERSION + ".tar.gz",
+        strip_prefix = "OTP-" + OTP_VERSION,
+        runtime = [
+            struct(
+                deb = "libtinfo6_6.3-2ubuntu0.3_arm64.deb",
+                libraries = {"libtinfo.so.6": "lib/aarch64-linux-gnu/libtinfo.so.6"},
+                license = "X11",
+                copyright = "usr/share/doc/libtinfo6/copyright",
+                package = "libtinfo6",
+                sha256 = "971b5fd1cf8f7d68ba00f40d8eec6474fae6a6adbe19883aa42dd2b74c672e4a",
+            ),
+            struct(
+                deb = "zlib1g_1.2.11.dfsg-2ubuntu9.2_arm64.deb",
+                libraries = {"libz.so.1": "lib/aarch64-linux-gnu/libz.so.1"},
+                license = "Zlib",
+                copyright = "usr/share/doc/zlib1g/copyright",
+                package = "zlib1g",
+                sha256 = "cfd99d1ca41e710fdd3f68bfdc4d36dd24e14377656764f00b215b89cf6976e8",
+            ),
+            struct(
+                copyright = "usr/share/doc/gcc-12-base/copyright",
+                deb = "gcc-12-base_12.3.0-1ubuntu1~22.04.3_arm64.deb",
+                libraries = {},
+                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
+                package = "gcc-12-base",
+                sha256 = "b2bc566681989941dd059d6391b01c41854857f26d83c53358287d620dfb0fd4",
+            ),
+            struct(
+                deb = "libgcc-s1_12.3.0-1ubuntu1~22.04.3_arm64.deb",
+                libraries = {"libgcc_s.so.1": "lib/aarch64-linux-gnu/libgcc_s.so.1"},
+                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
+                copyright = None,
+                package = "libgcc-s1",
+                sha256 = "46626e1af6b159061e055f843654ee1f0f1e65fa280331ed47ee76ba1b1f6045",
+            ),
+            struct(
+                deb = "libstdc++6_12.3.0-1ubuntu1~22.04.3_arm64.deb",
+                libraries = {"libstdc++.so.6": "usr/lib/aarch64-linux-gnu/libstdc++.so.6"},
+                license = "GPL-3.0-or-later WITH GCC-exception-3.1",
+                copyright = None,
+                package = "libstdc++6",
+                sha256 = "59d244119e6129c7e9c0897491c0e210e925d15881b2dedcf8965ceb4fbf1aa3",
+            ),
+            struct(
+                deb = "libssl3_3.0.2-0ubuntu1.30_arm64.deb",
+                libraries = {"libcrypto.so.3": "usr/lib/aarch64-linux-gnu/libcrypto.so.3"},
+                license = "Apache-2.0",
+                copyright = "usr/share/doc/libssl3/copyright",
+                package = "libssl3",
+                sha256 = "1c4b8cc736eed8a0caafc385f854fa6852382221d84be4795f1d19a52b9fec53",
+            ),
+        ],
+    ),
+    "macos_arm64": struct(
+        exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
+        otp_sha256 = "0e80f209b06d9d13cf3b5f7c07228d9561aff983e6e55ea9c8ebda085db286cc",
+        otp_url = "https://github.com/erlef/otp_builds/releases/download/OTP-" + OTP_VERSION + "/OTP-" + OTP_VERSION + "-macos-arm64.tar.gz",
+        strip_prefix = "",
+        runtime = [],
     ),
 }
 

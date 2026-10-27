@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "ERLANG_COMPATIBLE_WITH", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "lcov_apps_dirs", "runfiles_path")
+load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "lcov_apps_dirs", "runfiles_path")
 
 def _glob(patterns, exclude = [], **_kwargs):
     return [",".join(patterns) + "!" + ",".join(exclude)]
@@ -31,7 +31,7 @@ def erlang_wrapper_contract_tests(name):
             expect_equal("suite args follow the local node", ct_run_args(["-ct_hooks cth_surefire"]), LOCAL_NODE_ARGS + ["-ct_hooks cth_surefire"]),
             expect_equal("named suites keep their node", ct_run_args(["-sname peer_host"]), ["-sname peer_host"]),
             expect_equal("long names keep their node", ct_run_args(["-name", "a@b"]), ["-name", "a@b"]),
-            expect_equal("apps compile on the toolchain cell", [str(constraint) for constraint in ERLANG_COMPATIBLE_WITH], [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))]),
+            expect_equal("apps compile on every OTP cell", ERLANG_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64"]),
             expect_equal("default apps own the globs", app_sources({}, _glob), [",".join(ERLANG_SOURCE_GLOBS) + "!"]),
             expect_equal("explicit srcs are the owned files", app_sources({"srcs": ["lib/a.erl"], "hdrs": ["lib/a.hrl"]}, _glob), ["lib/a.erl", "lib/a.hrl"]),
             expect_equal("prebuilt beams own no sources", app_sources({"beam_files": [":beams"]}, _glob), []),

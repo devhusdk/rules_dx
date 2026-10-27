@@ -67,20 +67,27 @@ No Erlang linter runs yet.
 
 ## Runtime
 
-The OTP build comes from `builds.hex.pm` for Ubuntu 22.04. Its shared
-libraries (`libtinfo`, `zlib`, `libgcc_s`, `libstdc++`, `libcrypto`) come
-from pinned Ubuntu packages, so the host needs only glibc 2.35 or newer. The
-`wx` application, sources and docs are dropped. The library license texts
-ship in the OTP runtime tree under `dx_closure/licenses`.
+On Linux the OTP build comes from `builds.hex.pm` for Ubuntu 22.04. Its
+shared libraries (`libtinfo`, `zlib`, `libgcc_s`, `libstdc++`, `libcrypto`)
+come from pinned Ubuntu packages, so the host needs only glibc 2.35 or newer.
+The library license texts ship in the OTP runtime tree under
+`dx_closure/licenses`.
+
+On macOS the OTP build comes from `erlef/otp_builds`. OpenSSL is linked into
+it, so it needs no extra libraries.
+
+The `wx` application, sources and docs are dropped on every cell.
 
 ## Platforms
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Qualified |
-| `linux_arm64` | Not qualified |
-| `macos_x86_64` | Not qualified |
-| `macos_arm64` | Not qualified |
-| `windows_x86_64` | Not qualified |
+| Cell | Status | Reason |
+| --- | --- | --- |
+| `linux_x86_64` | Qualified | |
+| `linux_arm64` | Qualified | |
+| `macos_arm64` | Qualified | |
+| `macos_x86_64` | Not qualified | No CI cell. |
+| `windows_x86_64` | Not qualified | The `erl` launcher is POSIX sh and rules_erlang is not ported to Windows. |
+| `windows_arm64` | Not qualified | No upstream OTP build. |
 
-On other platforms Erlang targets fail toolchain resolution.
+Elixir and Gleam targets still run only on `linux_x86_64`. On other platforms
+Erlang, Elixir and Gleam targets are skipped.

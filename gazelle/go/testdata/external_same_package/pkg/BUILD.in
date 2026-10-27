@@ -1,0 +1,2 @@
+# gazelle:resolve go example.test/ext/helper @other//pkg:helper
+# gazelle:resolve go example.test/ext/other @other//different:helper

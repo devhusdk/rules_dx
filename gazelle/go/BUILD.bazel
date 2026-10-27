@@ -58,6 +58,7 @@ real_source_target(
     markdown_srcs = [
         "testdata/build_constraints/README.md",
         "testdata/entries/README.md",
+        "testdata/external_same_package/README.md",
         "testdata/importpath/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",

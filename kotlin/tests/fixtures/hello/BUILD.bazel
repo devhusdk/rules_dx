@@ -29,6 +29,15 @@ kotlin_test(
     ],
 )
 
+kotlin_test(
+    name = "InferredTest",
+    srcs = ["src/test/kotlin/hello/InferredTest.kt"],
+    deps = [
+        ":hello_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
 dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",

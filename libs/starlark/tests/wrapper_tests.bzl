@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 def wrapper_optional_forward_tests(name):
@@ -150,6 +150,46 @@ def wrapper_shape_kwargs_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "src path joins package",
+                dx_src_path("pkg", "a/B.java"),
+                "pkg/a/B.java",
+            ),
+            expect_equal(
+                "src path strips colon",
+                dx_src_path("pkg", ":a/B.java"),
+                "pkg/a/B.java",
+            ),
+            expect_equal(
+                "src path resolves absolute label",
+                dx_src_path("pkg", "//p:a/B.java"),
+                "p/a/B.java",
+            ),
+            expect_equal(
+                "src path resolves shorthand label",
+                dx_src_path("pkg", "//p/q"),
+                "p/q/q",
+            ),
+            expect_equal(
+                "src path resolves root label",
+                dx_src_path("pkg", "//:B.java"),
+                "B.java",
+            ),
+            expect_equal(
+                "src path at root has no leading slash",
+                dx_src_path("", "a/B.java"),
+                "a/B.java",
+            ),
+            expect_equal(
+                "src path skips external labels",
+                dx_src_path("pkg", "@x//p:B.java"),
+                None,
+            ),
+            expect_equal(
+                "src path skips non-strings",
+                dx_src_path("pkg", None),
+                None,
+            ),
             expect_equal(
                 "library upstream without tags stays private",
                 dx_wrap_upstream_kwargs({}, ["lib.cc"]),

@@ -263,6 +263,18 @@ func TestLoadCrateAmbiguousFails(t *testing.T) {
 	}
 }
 
+func TestLoadCrateAmbiguousCfgNamesOwnedFile(t *testing.T) {
+	files := map[string]string{
+		"a/src/lib.rs": "mod sub;\n",
+		"a/src/sub.rs": "fn ok() {}\n\n#[cfg(any(unix, test))]\nfn bad() {}\n",
+	}
+	read, exists := memFS(files)
+	_, err := LoadCrate("a/src/lib.rs", read, exists)
+	if err == nil || !strings.Contains(err.Error(), "a/src/sub.rs:3:") || strings.Contains(err.Error(), "a/src/lib.rs") {
+		t.Errorf("wrong error: %v", err)
+	}
+}
+
 func TestLoadCrateCycleFails(t *testing.T) {
 	files := map[string]string{
 		"a/src/lib.rs": "mod a;\n",

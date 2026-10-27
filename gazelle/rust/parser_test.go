@@ -1,6 +1,8 @@
 package rust
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -326,16 +328,34 @@ func TestParseInnerCfgTest(t *testing.T) {
 }
 
 func TestParseAmbiguousCfgFails(t *testing.T) {
-	for _, src := range []string{
-		"#[cfg(any(test, feature = \"x\"))]\nmod maybe;\n",
-		"#[cfg(all(test, unix))]\nuse maybe::Thing;\n",
-		"#[cfg_attr(test, ignore)]\nfn flaky() {}\n",
-		"#[cfg(not(test))]\nmod also_mentions;\n",
+	for _, tc := range []struct {
+		src       string
+		line, col int
+		attr      string
+	}{
+		{"#[cfg(any(test, feature = \"x\"))]\nmod maybe;\n", 1, 1, "#[cfg(any(test, feature = \"x\"))]"},
+		{"#[cfg(all(test, unix))]\nuse maybe::Thing;\n", 1, 1, "#[cfg(all(test, unix))]"},
+		{"#[cfg_attr(test, ignore)]\nfn flaky() {}\n", 1, 1, "#[cfg_attr(test, ignore)]"},
+		{"#[cfg(not(test))]\nmod also_mentions;\n", 1, 1, "#[cfg(not(test))]"},
+		{"// c\nconst S: &str = \"a\nb\";\nfn a() {}\n\n#[cfg(any(target_os = \"linux\", test))]\nfn b() {}\n", 6, 1, "#[cfg(any(target_os = \"linux\", test))]"},
+		{"mod x {\n    #[test]\n    #[cfg(any(unix, test))]\n    fn b() {}\n}\n", 3, 5, "#[cfg(any(unix, test))]"},
+		{"const S: &str = \"é\"; #[cfg(all(test, unix))] fn b() {}\n", 1, 23, "#[cfg(all(test, unix))]"},
 	} {
-		if _, err := ParseFacts("src/lib.rs", []byte(src)); err == nil {
-			t.Errorf("src %q: expected ambiguous-context error", src)
-		} else if !strings.Contains(err.Error(), "ambiguous test context") {
-			t.Errorf("src %q: wrong error: %v", src, err)
+		_, err := ParseFacts("src/lib.rs", []byte(tc.src))
+		var amb *AmbiguousError
+		if !errors.As(err, &amb) {
+			t.Errorf("src %q: expected ambiguous-context error, got %v", tc.src, err)
+			continue
+		}
+		if amb.Path != "src/lib.rs" || amb.Line != tc.line || amb.Col != tc.col {
+			t.Errorf("src %q: got %s:%d:%d want %d:%d", tc.src, amb.Path, amb.Line, amb.Col, tc.line, tc.col)
+		}
+		if got := tc.src[amb.StartByte:amb.EndByte]; got != tc.attr {
+			t.Errorf("src %q: span %q want %q", tc.src, got, tc.attr)
+		}
+		want := fmt.Sprintf("src/lib.rs:%d:%d: ambiguous test context", tc.line, tc.col)
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("src %q: message %v lacks %q", tc.src, err, want)
 		}
 	}
 }
@@ -672,17 +692,17 @@ func TestPrivateScannerBranches(t *testing.T) {
 	}
 	p := &parser{path: "direct.rs", src: " body;"}
 	facts := &FileFacts{}
-	if err := p.parseUse([]string{"cfg(test)"}, false, facts); err != nil || !facts.HasCfgTest {
+	if err := p.parseUse([]attrSpan{{body: "cfg(test)"}}, false, facts); err != nil || !facts.HasCfgTest {
 		t.Errorf("direct test use = %+v, %v", facts, err)
 	}
 	p = &parser{path: "direct.rs", src: " crate name;"}
 	facts = &FileFacts{}
-	if err := p.parseExtern([]string{"cfg(test)"}, false, facts); err != nil || !facts.HasCfgTest {
+	if err := p.parseExtern([]attrSpan{{body: "cfg(test)"}}, false, facts); err != nil || !facts.HasCfgTest {
 		t.Errorf("direct test extern = %+v, %v", facts, err)
 	}
 	p = &parser{path: "direct.rs", src: " declaration();"}
 	facts = &FileFacts{}
-	if err := p.parseFn([]string{"cfg(test)"}, false, 0, facts); err != nil || !facts.HasTestAttr {
+	if err := p.parseFn([]attrSpan{{body: "cfg(test)"}}, false, 0, facts); err != nil || !facts.HasTestAttr {
 		t.Errorf("direct test fn = %+v, %v", facts, err)
 	}
 }

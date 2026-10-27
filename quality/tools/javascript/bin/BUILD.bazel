@@ -53,6 +53,7 @@ js_binary(
 )
 
 redocly_bin.redocly_binary(name = "redocly_generated")
+
 js_binary(
     name = "remark_generated",
     data = [

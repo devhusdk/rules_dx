@@ -218,7 +218,9 @@ QT_QPA_PLATFORM=offscreen bazel run //app:viewer
 `bazel run` and `bazel test` carry only `minimal` and `offscreen`. Any other
 plugin fails with `Could not find the Qt platform plugin`. `qt_bundle` ships
 `xcb` and `wayland` with `display`. They carry no image format, TLS or theme
-plugins either; `qt_bundle` ships those with `plugins`. The target's `env`
+plugins either; list `imageformats`, `platformthemes` or `tls` in `plugins` on
+`qt_cc_binary`, `qt_cc_test` or `qt_bundle` to ship them; the first two also
+put them on `QT_PLUGIN_PATH`. The target's `env`
 overrides these variables.
 
 Run Qt Quick Test suites through `quick_test_main`, and pass the `tst_*.qml`

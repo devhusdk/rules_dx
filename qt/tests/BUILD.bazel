@@ -570,3 +570,11 @@ exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
 )
+
+qt_cc_test(
+    name = "plugin_path_test",
+    size = "small",
+    srcs = ["fixtures/plugin_path.cc"],
+    plugins = ["imageformats"],
+    target_compatible_with = _HOSTS,
+)

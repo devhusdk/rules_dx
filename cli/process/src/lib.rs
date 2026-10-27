@@ -731,15 +731,49 @@ pub fn pinned_env_path(var: &str) -> Option<PathBuf> {
         .filter(|path| path.is_absolute())
 }
 
+/// Bound for one `--version` probe; a tool that cannot answer in this time is treated as absent.
+const VERSION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Cleanup bound for a version probe that overran or was stopped.
+const VERSION_CLEANUP: lifecycle::CleanupBudget = lifecycle::CleanupBudget {
+    graceful: std::time::Duration::from_secs(1),
+    forced: std::time::Duration::from_secs(1),
+    drain: std::time::Duration::from_secs(1),
+};
+
 /// Reads the first line `path --version` prints with an empty environment.
-pub fn version_line(path: &Path) -> Option<String> {
-    let argv = [path.to_string_lossy().into_owned(), "--version".to_owned()];
-    let output = spawn_output(&argv, Path::new("."), &[], true).ok()?;
-    if !output.status.success() {
-        return None;
+///
+/// The probe is bounded by [`VERSION_TIMEOUT`] and ends early when `stop` reports a signal.
+/// A timeout, a stop, a failure to start, or a non-zero exit all give `None`.
+pub fn version_line(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<String> {
+    first_line_within(vec![path.as_os_str().to_owned(), "--version".into()], stop)
+}
+
+fn first_line_within(
+    argv: Vec<std::ffi::OsString>,
+    stop: &dyn Fn() -> Option<i32>,
+) -> Option<String> {
+    let spec = lifecycle::SpawnSpec {
+        argv,
+        cwd: PathBuf::from("."),
+        env: lifecycle::EnvPolicy::Controlled { vars: Vec::new() },
+        capture: lifecycle::CapturePolicy {
+            max_bytes: 64 * 1024,
+        },
+        timeout: VERSION_TIMEOUT,
+        descendants: lifecycle::Descendants::Owned,
+    };
+    match lifecycle::run_within_until(&spec, VERSION_CLEANUP, stop).ok()? {
+        lifecycle::ChildOutcome::Finished {
+            exit: lifecycle::Exit::Code(0),
+            stdout,
+            ..
+        } => String::from_utf8_lossy(&stdout)
+            .lines()
+            .next()
+            .map(|line| line.trim().to_owned()),
+        _ => None,
     }
-    let text = String::from_utf8_lossy(&output.stdout);
-    text.lines().next().map(|line| line.trim().to_owned())
 }
 
 /// Gives the owner full access to `path` and everything under it, never following a symlink.
@@ -796,24 +830,6 @@ where
         .status
         .success()
         .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
-}
-
-pub fn spawn_output(
-    argv: &[String],
-    cwd: &Path,
-    env: &[(&str, &str)],
-    clear_env: bool,
-) -> io::Result<std::process::Output> {
-    let (binary, args) = argv
-        .split_first()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
-    let mut command = Command::new(OsStr::new(binary));
-    command.args(args).current_dir(cwd);
-    if clear_env {
-        command.env_clear();
-    }
-    command.envs(env.iter().copied());
-    command.output()
 }
 
 #[cfg(test)]

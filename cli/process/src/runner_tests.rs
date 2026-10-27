@@ -127,3 +127,23 @@ fn stream_cleanup_budget_is_fixed() {
 fn free_disk_bytes_delegates() {
     assert!(runner().free_disk_bytes(&cwd()).is_some());
 }
+
+static VERSION_STOPPED: AtomicI32 = AtomicI32::new(0);
+
+#[test]
+fn a_stopped_version_probe_reports_through_on_stop() {
+    let tool = PathBuf::from(&probe_argv(&[])[0]);
+    let stopping = BinaryRunner {
+        inherit_stdout: false,
+        stop: || Some(15),
+        on_stop: |signo| VERSION_STOPPED.store(signo, Ordering::SeqCst),
+    };
+    assert_eq!(stopping.tool_version(&tool), None);
+    assert_eq!(VERSION_STOPPED.load(Ordering::SeqCst), 15);
+}
+
+#[test]
+fn a_failing_version_probe_does_not_report_a_stop() {
+    let tool = PathBuf::from("/nonexistent-dx-tool");
+    assert_eq!(runner().tool_version(&tool), None);
+}

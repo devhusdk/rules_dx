@@ -978,8 +978,7 @@ mod tests {
                     assert_eq!(errors[0]["status"], 139, "{out}");
                     assert_eq!(errors[0]["correlation"], "run://a:one", "{out}");
                     assert_eq!(
-                        errors[0]["message"],
-                        "bazel run //a:one terminated by signal 11",
+                        errors[0]["message"], "bazel run //a:one terminated by signal 11",
                         "{out}"
                     );
                     assert!(!out.contains("bazel_signalled"), "{out}");

@@ -569,3 +569,84 @@ fn configured_ruby_sets_plan_rubygems_and_powershell_sets_plan_nothing() {
         ["cargo"]
     );
 }
+
+#[cfg(unix)]
+fn file_url(path: &Path) -> String {
+    format!("file://{}", path.display())
+}
+
+#[cfg(unix)]
+fn two_archives() -> (Vec<u8>, Vec<u8>) {
+    (
+        archive(&[Fixture::stored(
+            "all/1/GHSA-a.json",
+            &advisory("GHSA-a", "aaa"),
+        )]),
+        archive(&[
+            Fixture::stored("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa")),
+            Fixture::stored("all/2/GHSA-b.json", &advisory("GHSA-b", "bbb")),
+        ]),
+    )
+}
+
+#[cfg(unix)]
+fn prepare_from_url(workspace: &TempDir, body: &[u8]) -> Prepared {
+    let source = workspace.path().join("source.zip");
+    std::fs::write(&source, body).expect("writes the source");
+    let options = options(workspace);
+    prepare_family(&options, "cargo", &file_url(&source)).expect("prepares")
+}
+
+#[cfg(unix)]
+#[test]
+fn concurrent_downloads_each_read_their_own_archive() {
+    let (one, two) = two_archives();
+    for _ in 0..20 {
+        let (first, second) = (workspace(), workspace());
+        let (a, b) = std::thread::scope(|scope| {
+            let a = scope.spawn(|| prepare_from_url(&first, &one));
+            let b = scope.spawn(|| prepare_from_url(&second, &two));
+            (a.join().expect("first"), b.join().expect("second"))
+        });
+        assert_eq!(a.advisories, 1);
+        assert_eq!(b.advisories, 2);
+        for (prepared, dir) in [(a, &first), (b, &second)] {
+            let bytes = std::fs::read(dir.path().join(DEFAULT_OUT).join("cargo.json"))
+                .expect("reads the snapshot");
+            assert_eq!(prepared.identity, dx_digest::sha256_hex(&bytes));
+        }
+    }
+}
+
+#[cfg(unix)]
+struct Planted(std::path::PathBuf);
+
+#[cfg(unix)]
+impl Drop for Planted {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_planted_file_at_the_old_temp_path_has_no_effect() {
+    let old = std::env::temp_dir().join("dx-advisory-cargo.zip");
+    let _ = std::fs::remove_file(&old);
+    let _guard = Planted(old.clone());
+    let (one, _) = two_archives();
+
+    std::fs::write(&old, b"junk").expect("plants a file");
+    let prepared = prepare_from_url(&workspace(), &one);
+    assert_eq!(prepared.advisories, 1);
+    assert_eq!(std::fs::read(&old).expect("still there"), b"junk");
+
+    std::fs::remove_file(&old).expect("clears the plant");
+    let elsewhere = tempfile::tempdir().expect("temp");
+    let target = elsewhere.path().join("victim");
+    std::fs::write(&target, b"victim").expect("writes the target");
+    std::os::unix::fs::symlink(&target, &old).expect("plants a symlink");
+    let prepared = prepare_from_url(&workspace(), &one);
+    assert_eq!(prepared.advisories, 1);
+    assert_eq!(std::fs::read(&target).expect("untouched"), b"victim");
+}

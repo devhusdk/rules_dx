@@ -423,6 +423,22 @@ mod tests {
     }
 
     #[test]
+    fn reject_scope_commands_do_not_render_a_targets_positional() {
+        use super::super::command::COMMANDS;
+        for entry in COMMANDS
+            .iter()
+            .filter(|entry| entry.scope_policy == "reject" && entry.name != "worktree")
+        {
+            let text = render_command_help(entry.command);
+            assert!(
+                !text.contains("[TARGETS]"),
+                "{} rejects scopes but help renders [TARGETS]:\n{text}",
+                entry.name
+            );
+        }
+    }
+
+    #[test]
     fn per_command_help_names_owned_flags_and_reconciles_bazel_naming() {
         let clean = match parse(&strings(&["clean", "--help"])) {
             Err(ArgsError::Help { text }) => text,
@@ -463,6 +479,14 @@ mod tests {
         );
         assert_eq!(
             apply_help(Command::Clean).as_deref(),
+            Some("Prune unselected managed state")
+        );
+        assert_eq!(
+            apply_help(Command::Lint).as_deref(),
+            Some("Write fixes to source files")
+        );
+        assert_eq!(
+            apply_help(Command::Deploy).as_deref(),
             Some("Authorize the managed mutation or effect")
         );
         assert!(

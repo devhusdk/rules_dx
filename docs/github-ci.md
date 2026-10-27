@@ -87,8 +87,9 @@ Inputs:
   one call per run. The ID suffixes the report and `advisory-snapshots`
   artifacts, as in `dx-reports-test-linux_x86_64-api-linux`.
 
-Grant `contents: read`, `checks: write` and `pull-requests: write` on the
-calling job. `examples/consumer-ci/caller.yml` does.
+Grant `contents: read` and `pull-requests: write` on the calling job;
+`coverage` posts its pull-request comment with it.
+`examples/consumer-ci/caller.yml` does.
 
 ## Report Artifacts
 
@@ -197,8 +198,7 @@ permissions, so a read-only repository default is fine.
   never publish Pages.
 - Pages source: GitHub Actions, before the first publishing run.
 - Workflow permissions: read-only by default. Each calling job then grants
-  what its reusable jobs request: the consumer caller `checks: write` plus
-  `pull-requests: write`, the docs caller `pages: write` plus
+  what its reusable jobs request: the consumer caller `pull-requests: write`, the docs caller `pages: write` plus
   `id-token: write`.
 
 ## Caching

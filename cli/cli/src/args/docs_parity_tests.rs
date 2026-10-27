@@ -1629,6 +1629,37 @@ fn workflow_call_inputs(workflow: &str) -> Vec<String> {
     inputs
 }
 
+fn workflow_call_required_inputs(workflow: &str) -> Vec<String> {
+    let mut required: Vec<String> = Vec::new();
+    let mut inside = false;
+    let mut current: Option<String> = None;
+    for line in workflow.lines() {
+        if line == "    inputs:" {
+            inside = true;
+            continue;
+        }
+        if !inside {
+            continue;
+        }
+        if !line.starts_with("      ") {
+            break;
+        }
+        if let Some(name) = line
+            .strip_prefix("      ")
+            .and_then(|rest| rest.strip_suffix(':'))
+            .filter(|name| !name.is_empty() && !name.contains(char::is_whitespace))
+        {
+            current = Some(name.to_owned());
+        } else if line.trim() == "required: true" {
+            if let Some(name) = current.clone() {
+                required.push(name);
+            }
+        }
+    }
+    required.sort();
+    required
+}
+
 #[test]
 fn github_ci_page_matches_the_consumer_workflow() {
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
@@ -1884,18 +1915,16 @@ fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
                 "{name} requests no permissions, so {caller} job {id} grants none"
             );
             let granted = granted_scopes(&body);
-            if call.starts_with("./") {
-                for (scope, level) in &granted {
-                    let ceiling = requested
-                        .iter()
-                        .filter(|(name, _)| name == scope)
-                        .map(|(_, level)| permission_rank(level))
-                        .max();
-                    assert!(
-                        ceiling.is_some_and(|ceiling| permission_rank(level) <= ceiling),
-                        "{caller} job {id} grants {scope}: {level}, but {name} requests it at most at {ceiling:?}; grant exactly what the called jobs request"
-                    );
-                }
+            for (scope, level) in &granted {
+                let ceiling = requested
+                    .iter()
+                    .filter(|(name, _)| name == scope)
+                    .map(|(_, level)| permission_rank(level))
+                    .max();
+                assert!(
+                    ceiling.is_some_and(|ceiling| permission_rank(level) <= ceiling),
+                    "{caller} job {id} grants {scope}: {level}, but {name} requests it at most at {ceiling:?}; grant exactly what the called jobs request"
+                );
             }
             for (scope, level) in requested {
                 let held = granted
@@ -2049,6 +2078,31 @@ fn every_caller_input_is_a_workflow_input() {
                 assert!(
                     inputs.contains(&key),
                     "{caller} job {id} passes {key}, which {workflow} does not declare"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn every_caller_passes_every_required_workflow_input() {
+    let root = workspace_root();
+    let mut callers: Vec<&str> = workflow_callers()
+        .iter()
+        .map(|(_, caller)| *caller)
+        .collect();
+    callers.push(".github/workflows/ci.yml");
+    for caller in callers {
+        let text = std::fs::read_to_string(root.join(caller)).expect("caller ships as test data");
+        for (id, workflow, keys) in reusable_calls(&text) {
+            let required = workflow_call_required_inputs(
+                &std::fs::read_to_string(root.join(".github/workflows").join(&workflow))
+                    .unwrap_or_else(|_| panic!("{caller} job {id} calls a missing {workflow}")),
+            );
+            for name in required {
+                assert!(
+                    keys.contains(&name),
+                    "{caller} job {id} does not pass {name}, which {workflow} requires"
                 );
             }
         }

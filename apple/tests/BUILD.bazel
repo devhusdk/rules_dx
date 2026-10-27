@@ -195,6 +195,37 @@ rust_test(
     ],
 )
 
+# keep
+rust_test(
+    name = "macos_shared_rust_consumer_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos.rs",
+        "macos_shared_rust_consumer_test.rs",
+    ],
+    crate_root = "macos_shared_rust_consumer_test.rs",
+    data = [
+        "//apple:module_srcs",
+        "//examples/shared-rust:core_srcs",
+    ] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Apple and Rust toolchain archives.
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 rustfmt_test(
     name = "linux_tests_fmt_test",
     targets = [
@@ -225,6 +256,7 @@ rustfmt_test(
         ":macos_app_consumer_test",
         ":macos_consumer_test",
         ":macos_framework_consumer_test",
+        ":macos_shared_rust_consumer_test",
     ],
 )
 
@@ -234,6 +266,7 @@ rust_clippy_test(
         ":macos_app_consumer_test",
         ":macos_consumer_test",
         ":macos_framework_consumer_test",
+        ":macos_shared_rust_consumer_test",
     ],
 )
 

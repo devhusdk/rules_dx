@@ -1,8 +1,9 @@
 # Shared Rust task board
 
 One Rust task board runs as a native CLI, a browser app, a WASI module,
-and an Android NativeActivity. Every output loads the same board and
-asset files, applies the same commands, and prints the same replies.
+an Android NativeActivity, a macOS CLI, an iOS simulator app, and an
+iOS XCFramework. Every output loads the same board and asset files,
+applies the same commands, and prints the same replies.
 
 ```sh
 bazel build //examples/shared-rust/... @shared_consumer//...
@@ -88,6 +89,28 @@ tap or key press.
 Tools: NDK 27.2.12479018, build-tools 34.0.0, platform-tools 37.0.0,
 emulator 37.2.12.0, system image `android-34;default;x86_64`.
 
+## Apple
+
+```sh
+bazel test //apple/tests:macos_shared_rust_consumer_test
+```
+
+Runs on an arm64 Mac with Xcode 16. A separate consumer workspace
+reuses `tasks_core` with its own features and `rustc` flags, and
+builds:
+
+- A native macOS arm64 release CLI. The test relocates it, checks the
+  replies, exit codes 0, 1, and 2, and the `notes.txt` digest. Evidence:
+  `native-evidence.txt`.
+- An iOS simulator release app. The test relocates the bundle, runs
+  XCTest, installs it, and checks the state it writes on launch.
+  Evidence: `pocket-evidence.txt`.
+- An iOS XCFramework with device and simulator slices. An independent
+  host app embeds it, runs XCTest, and launches in the simulator.
+  Evidence: `framework-evidence.txt`.
+
+Evidence files are written to the test's undeclared outputs.
+
 ## Release
 
 ```sh
@@ -162,6 +185,8 @@ without its bindgen interface to fail with
 - Emulator run: needs KVM. Without it the emulator boot loops.
 - Physical arm64 device run.
 - Multi-ABI install on a device.
-- Apple simulator and device outputs.
+- iOS device run: needs a physical device.
+- iOS device signing and IPA export: needs a consumer provisioning
+  profile and signing identity.
 
 Debugger integration and game-engine portability are not supported.

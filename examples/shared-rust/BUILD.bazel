@@ -43,6 +43,16 @@ rust_library(
     ],
 )
 
+filegroup(
+    name = "core_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "adler2.BUILD.bazel",
+        "core/lib.rs",
+        "model/lib.rs",
+    ],
+)
+
 rust_test(
     name = "tasks_core_test",
     aspect_hints = ["//:rustfmt_config"],

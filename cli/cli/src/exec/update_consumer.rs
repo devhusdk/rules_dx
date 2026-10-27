@@ -5,8 +5,8 @@ use super::{
     record_backend_error, record_named, runner_status, unavailable_message, RunMode, SetDetail,
     SlotGate,
 };
-use crate::args::Invocation;
 use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, ResolvedTarget, Selection};
+use dx_plan::args::Invocation;
 use std::collections::BTreeMap;
 
 pub(super) fn execute_configured(
@@ -388,7 +388,7 @@ source = { registry = "https://pypi.org/simple" }
 
     fn run_with(argv: &[&str], runner: &ScriptRunner, harness: &Harness) -> (i32, String, String) {
         let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
-        let invocation = crate::args::parse(&words).expect("parse");
+        let invocation = dx_plan::args::parse(&words).expect("parse");
         harness.execute_with(&invocation, runner)
     }
 
@@ -996,13 +996,14 @@ scopes = ["consumer-npm/web"]
     fn consumer_npm_bazel_run_sees_the_held_slot() {
         let harness = mixed_harness("npm-slot");
         let scratch = dx_test_scratch::scratch("dx-update-consumer-slot-");
-        let gate = crate::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
+        let gate =
+            dx_plan::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = crate::slots::with_gate(Some(gate), || {
+        let (code, out, err) = dx_plan::slots::with_gate(Some(gate), || {
             run_with(&["update", "--check", "web"], &runner, &harness)
         });
         assert_eq!(code, 0, "{out}{err}");
-        let marked = (crate::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
+        let marked = (dx_plan::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
         let launches = runner.launches.borrow();
         assert!(!launches.is_empty());
         for launch in launches.iter() {

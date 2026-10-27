@@ -1,13 +1,6 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::failure_reports::write_failure_reports;
-use crate::args::Invocation;
-use crate::plan::WorkflowVerb;
-use crate::reports::{
-    coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
-    Destination, JunitCase, JunitMessage, PlannedReport, ReportError,
-};
-use crate::resolve::QueryRunner;
 use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
     TestResultRecord,
@@ -17,6 +10,13 @@ use dx_output::{
     command_finished, notice_event, report_event, test_outcome_event, test_result_record,
     FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
 };
+use dx_plan::args::Invocation;
+use dx_plan::plan::WorkflowVerb;
+use dx_plan::reports::{
+    coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
+    Destination, JunitCase, JunitMessage, PlannedReport, ReportError,
+};
+use dx_plan::resolve::QueryRunner;
 use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
 use std::path::Path;
@@ -2564,7 +2564,7 @@ mod tests {
 
     #[test]
     fn test_rejects_diff_output_at_parse() {
-        let err = crate::args::parse(
+        let err = dx_plan::args::parse(
             &["test", "--output=diff", "--report=junit=out.xml"]
                 .iter()
                 .map(ToString::to_string)
@@ -2573,7 +2573,7 @@ mod tests {
         .expect_err("diff rejected");
         assert_eq!(
             err,
-            crate::args::ArgsError::UnsupportedOption {
+            dx_plan::args::ArgsError::UnsupportedOption {
                 command: "test",
                 option: "--output=diff".to_owned(),
             }

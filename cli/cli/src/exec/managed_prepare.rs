@@ -3,7 +3,7 @@ use std::path::Path;
 use super::common::*;
 use super::managed_codegen::{collect_managed_codegen, empty_generated_id, stage_codegen_side};
 use super::managed_env::{collect_managed_env, empty_env_id, stage_env_side};
-use crate::args::Command;
+use dx_plan::args::Command;
 
 pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> (String, String) {
     match error {

@@ -1,10 +1,10 @@
 use super::common::*;
 use super::dep_edit;
-use crate::args::{Command, Invocation};
-use crate::reports::plan_reports;
 use dx_output::{
     command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
 };
+use dx_plan::args::{Command, Invocation};
+use dx_plan::reports::plan_reports;
 
 pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(

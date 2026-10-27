@@ -9,14 +9,14 @@ use super::quality_reports::{
     verified_snapshots, write_standard_reports, Snapshots, StandardReports,
 };
 use super::results::collect_results;
-use crate::args::{Command, Invocation, QualityRequest};
-use crate::plan::{bep_path, plan_build_with, plan_probe, SHARD_OUTPUT_GROUP};
-use crate::reports::{plan_reports, BaselineReport, Destination};
-use crate::resolve::resolve;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
     command_finished, command_started, meets_threshold, FinishedCounts, OutputMode, Severity,
 };
+use dx_plan::args::{Command, Invocation, QualityRequest};
+use dx_plan::plan::{bep_path, plan_build_with, plan_probe, SHARD_OUTPUT_GROUP};
+use dx_plan::reports::{plan_reports, BaselineReport, Destination};
+use dx_plan::resolve::resolve;
 use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::Path;
@@ -175,7 +175,7 @@ enum ProbeStop {
 /// progress goes to stderr. A stop signal or interrupted Bazel ends the run instead.
 fn probe_shards(
     request: &QualityRequest,
-    resolved: &crate::resolve::ResolvedScope,
+    resolved: &dx_plan::resolve::ResolvedScope,
     workspace: &Path,
     runner: &dyn dx_process::Runner,
     temp_dir: &Path,

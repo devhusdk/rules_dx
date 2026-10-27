@@ -1,18 +1,18 @@
 use std::io::Write;
 
-use crate::args::{Command, Invocation};
 use crate::exec::common::{
     check_stdout_write, emit_built, emit_event, error_event_of, operational, pre_exec,
     report_failure, resolve_failed, Failure, CODE_BAZEL_FAILED, CODE_DISK_FULL,
     CODE_INVALID_ARGUMENTS, CODE_LAUNCH_FAILED, CODE_QUERY_FAILED, CODE_QUERY_LAUNCH_FAILED,
 };
 use crate::exec::failure::CODE_NO_TESTS;
-use crate::resolve::{
-    first_line, resolve_for_test_with_selection, QueryFailure, QueryRunner, ResolveError,
-    SelectionContext,
-};
 use dx_output::{
     command_finished, command_started, status_event, FinishedCounts, OutputMode, StatusEvent,
+};
+use dx_plan::args::{Command, Invocation};
+use dx_plan::resolve::{
+    first_line, resolve_for_test_with_selection, QueryFailure, QueryRunner, ResolveError,
+    SelectionContext,
 };
 use dx_process::{operational_code, pre_exec_code};
 
@@ -58,12 +58,12 @@ fn query_argv(selection: &SelectionContext, verb: &str, expr: &str) -> Result<Ve
 }
 
 fn run_list_prefix(ctx: &Ctx) -> Result<Vec<String>, String> {
-    let protected = crate::plan::workflow_protected(crate::plan::WorkflowVerb::Run);
+    let protected = dx_plan::plan::workflow_protected(dx_plan::plan::WorkflowVerb::Run);
     let filtered = ctx
         .selection
         .filtered_options()
         .map_err(|error| error.to_string())?;
-    crate::plan::bazel_argv(
+    dx_plan::plan::bazel_argv(
         "run",
         &filtered,
         &[],
@@ -133,7 +133,7 @@ fn run_inventory_query(ctx: &Ctx, expr: &str) -> Result<Vec<(String, String)>, F
         return Ok(expanded);
     }
     let labels: Vec<String> = expanded.into_iter().map(|(_, label)| label).collect();
-    let filter = crate::resolve::set_expression(&labels);
+    let filter = dx_plan::resolve::set_expression(&labels);
     run_label_kind_query(ctx, &ctx.selection, ctx.verb, &filter)
 }
 
@@ -502,7 +502,7 @@ fn emit_cases_json(
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use crate::resolve::{QueryResult, QueryRunner};
+    use dx_plan::resolve::{QueryResult, QueryRunner};
     use std::cell::RefCell;
     use std::io;
     use std::path::Path;
@@ -666,7 +666,7 @@ mod tests {
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[1][3], "run");
         assert!(calls[1].contains(&"//a:one".to_owned()), "{calls:?}");
-        for setting in crate::plan::BAZEL_SETTINGS {
+        for setting in dx_plan::plan::BAZEL_SETTINGS {
             assert!(calls[1].contains(&setting.to_owned()), "{calls:?}");
         }
         assert!(calls[1].contains(&"--list".to_owned()), "{calls:?}");

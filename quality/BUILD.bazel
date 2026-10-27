@@ -570,6 +570,7 @@ rust_test(
         "//cli/output:src/clap_errors.rs",
         "//cli/output:src/lib.rs",
         "//cli/path:src/lib.rs",
+        "//cli/plan:src/lib.rs",
         "//cli/process:src/lib.rs",
         "//cli/proto_validate:src/lib.rs",
         "//cli/roots:src/lib.rs",

@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::exec::test_inventory::{parse_label_kind, SUPPORTED_CASE_KINDS};
-use crate::resolve::{QueryRunner, ResolveError};
 use dx_codegen::quote_label;
+use dx_plan::resolve::{QueryRunner, ResolveError};
 
 const ARG_TOLERANT_KINDS: [&str; 2] = ["rust_clippy_test", "rustfmt_test"];
 
@@ -78,7 +78,7 @@ pub(crate) fn rust_filter_args(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     #[test]
     fn last_test_filter_reads_both_forms_and_keeps_the_last() {

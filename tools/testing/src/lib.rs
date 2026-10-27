@@ -10,6 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
+pub mod cli;
 pub mod fatbin;
 pub mod latency;
 

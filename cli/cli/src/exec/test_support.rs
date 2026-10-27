@@ -1,9 +1,9 @@
 use super::{execute, Env};
-use crate::args::Invocation;
-use crate::plan::GENERATE_ENV_INTENDED;
-use crate::resolve::{QueryResult, QueryRunner};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use dx_digest::blake3 as digest;
+use dx_plan::args::Invocation;
+use dx_plan::plan::GENERATE_ENV_INTENDED;
+use dx_plan::resolve::{QueryResult, QueryRunner};
 use dx_process::{ChildStatus, Runner};
 use dx_setup::{
     commit_pair, setup_hex, GenerationId, SetupPair, ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME,
@@ -18,8 +18,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-pub(crate) use crate::args::parsed as invocation;
-pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, graph_rule, json_events};
+pub(crate) use crate::test_support::parsed as invocation;
+pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, graph_rule, json_events};
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
@@ -115,7 +115,7 @@ impl ScriptQuery {
     }
 
     pub(crate) fn script_graph(&self, rules: &[String]) {
-        self.script_owners(&crate::test_support::graph_stdout(rules));
+        self.script_owners(&dx_testing::cli::graph_stdout(rules));
     }
 
     pub(crate) fn script_git(&self, code: i32, stdout: &str) {
@@ -452,7 +452,7 @@ impl Harness {
     }
 
     fn parse_words(&self, words: &[&str], ci: bool) -> Result<Invocation, String> {
-        let defaults = crate::args::load_startup_defaults(
+        let defaults = dx_plan::args::load_startup_defaults(
             &dx_process::workspace_start(&self.cwd),
             &self.cwd,
             None,
@@ -460,14 +460,14 @@ impl Harness {
             ci,
         )
         .map_err(|failure| format!("dx: {}\n", failure.detail))?;
-        let inv = crate::args::parse_with_ci(
-            &crate::test_support::strings(words),
+        let inv = dx_plan::args::parse_with_ci(
+            &dx_testing::cli::strings(words),
             &|_| None,
             &defaults,
             ci,
         )
-        .map_err(|error| format!("dx: {error}\n{}\n", crate::args::help::usage_banner()))?;
-        crate::args::apply_here(&inv, &self.workspace, &self.cwd)
+        .map_err(|error| format!("dx: {error}\n{}\n", dx_plan::args::help::usage_banner()))?;
+        dx_plan::args::apply_here(&inv, &self.workspace, &self.cwd)
             .map_err(|detail| format!("dx: {detail}\n"))
     }
 

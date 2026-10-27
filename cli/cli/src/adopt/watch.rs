@@ -6,9 +6,9 @@ use std::time::Duration;
 use dx_adopt::AdoptError;
 use dx_output::OutputMode;
 
-use crate::args::{Command, Invocation};
 use crate::exec::common::check_stdout_write;
 use crate::exec::Env;
+use dx_plan::args::{Command, Invocation};
 
 use super::{operational, pre_exec, summaries_suppressed};
 
@@ -30,7 +30,7 @@ fn report_paths(iteration: &Invocation, workspace: &Path) -> Vec<PathBuf> {
         .reports
         .iter()
         .filter(|report| report.destination != "-")
-        .map(|report| crate::reports::resolve_destination(workspace, &report.destination))
+        .map(|report| dx_plan::reports::resolve_destination(workspace, &report.destination))
         .collect()
 }
 
@@ -155,8 +155,8 @@ fn watch(
             }
         };
         let mut notices = Vec::new();
-        let slot = if crate::slots::needs_slot(iteration.command) {
-            match crate::slots::take(iteration.command, &mut *err, &mut notices) {
+        let slot = if dx_plan::slots::needs_slot(iteration.command) {
+            match dx_plan::slots::take(iteration.command, &mut *err, &mut notices) {
                 Ok(slot) => slot,
                 Err(signo) => return stopped(progress, out, err, signo),
             }
@@ -164,7 +164,7 @@ fn watch(
             None
         };
         let held = slot.as_ref().map(|slot| slot.runner(runner));
-        let mut iteration_out = crate::slots::AfterFirstLine::new(&mut *out, notices);
+        let mut iteration_out = dx_plan::slots::AfterFirstLine::new(&mut *out, notices);
         let code = crate::exec::execute_until(
             &iteration,
             Env {
@@ -263,7 +263,7 @@ mod tests {
     use crate::adopt::test_support::{
         event_kinds, events_of_kind, invocation, json_events, NullQuery, Truncated,
     };
-    use crate::args::OperationMode;
+    use dx_plan::args::OperationMode;
     use std::cell::RefCell;
     use std::io;
     use std::path::Path;
@@ -792,7 +792,7 @@ mod tests {
             vec!["--hi".to_owned()],
             "app args ride the cloned invocation"
         );
-        assert!(crate::args::parse(&["watch", "--debug", "lint", "//..."]).is_err());
+        assert!(dx_plan::args::parse(&["watch", "--debug", "lint", "//..."]).is_err());
     }
 
     #[test]
@@ -801,15 +801,15 @@ mod tests {
         assert_eq!(got.raw_bazel_options(), vec!["--jobs=4".to_owned()]);
         let got = invocation(&["watch", "--apply", "fix", "//app:bin"]);
         assert!(got.apply);
-        assert!(crate::args::parse(&["watch", "--apply", "run", "//app:bin"]).is_err());
+        assert!(dx_plan::args::parse(&["watch", "--apply", "run", "//app:bin"]).is_err());
         let got = invocation(&["watch", "lint", "--fail-on=error", "--report=sarif=a.sarif"]);
         assert_eq!(got.fail_on, dx_output::Threshold::Error);
         assert_eq!(got.reports.len(), 1);
         let got = invocation(&["watch", "-v", "test", "//..."]);
         assert!(got.verbose);
-        assert!(crate::args::parse(&["watch", "--check", "build"]).is_err());
-        assert!(crate::args::parse(&["watch", "--fail-on=error", "build"]).is_err());
-        assert!(crate::args::parse(&["watch", "--report=failures=a.json", "build"]).is_ok());
+        assert!(dx_plan::args::parse(&["watch", "--check", "build"]).is_err());
+        assert!(dx_plan::args::parse(&["watch", "--fail-on=error", "build"]).is_err());
+        assert!(dx_plan::args::parse(&["watch", "--report=failures=a.json", "build"]).is_ok());
     }
 
     #[test]
@@ -1265,7 +1265,7 @@ mod tests {
             ],
             "{events:?}"
         );
-        let settings = crate::plan::BAZEL_SETTINGS.join(" ");
+        let settings = dx_plan::plan::BAZEL_SETTINGS.join(" ");
         assert!(
             events[1].ends_with(&format!(
                 " run --config=dx_dev {settings} //app:bin -- --help"
@@ -1378,7 +1378,7 @@ mod tests {
             env: &[(&str, &str)],
         ) -> io::Result<dx_process::ChildStatus> {
             let busy = !crate::test_support::slot_settles_free(&self.dir, 1);
-            let marked = env.contains(&(crate::slots::SLOT_ENV_VAR, "1"));
+            let marked = env.contains(&(dx_plan::slots::SLOT_ENV_VAR, "1"));
             self.busy.borrow_mut().push((busy, marked));
             self.inner.run(argv, cwd, env)
         }
@@ -1393,12 +1393,12 @@ mod tests {
             Duration,
         ) -> Result<Vec<PathBuf>, AdoptError>,
     ) -> (i32, Vec<(bool, bool)>, String) {
-        let gate = crate::slots::Gate::new(dir.to_path_buf(), 1, "watch-tree".to_owned(), false);
+        let gate = dx_plan::slots::Gate::new(dir.to_path_buf(), 1, "watch-tree".to_owned(), false);
         slot_watch_through(gate, dir, words, max_iterations, wait_for_change)
     }
 
     fn slot_watch_through(
-        gate: crate::slots::Gate,
+        gate: dx_plan::slots::Gate,
         dir: &Path,
         words: &[&str],
         max_iterations: Option<u32>,
@@ -1417,7 +1417,7 @@ mod tests {
         };
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = crate::slots::with_gate(Some(gate), || {
+        let code = dx_plan::slots::with_gate(Some(gate), || {
             watch(
                 &invocation(words),
                 Env {
@@ -1477,7 +1477,7 @@ mod tests {
         let dir = scratch.path().join("slots");
         let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let counter = std::sync::Arc::clone(&calls);
-        let gate = crate::slots::Gate::new(dir.clone(), 1, "watch-tree".to_owned(), false)
+        let gate = dx_plan::slots::Gate::new(dir.clone(), 1, "watch-tree".to_owned(), false)
             .reclaiming(move || {
                 counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Some("low disk: reclaimed".to_owned())
@@ -1503,7 +1503,7 @@ mod tests {
     fn watch_iteration_waits_for_a_taken_slot() {
         let scratch = dx_test_scratch::scratch("dx-watch-slot-wait-");
         let dir = scratch.path().join("slots");
-        let held = crate::slots::acquire(&dir, 1, "tree-a", &mut |_| {}).expect("hold");
+        let held = dx_plan::slots::acquire(&dir, 1, "tree-a", &mut |_| {}).expect("hold");
         let releaser = std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(600));
             drop(held);

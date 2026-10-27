@@ -1,0 +1,285 @@
+pub mod changed;
+pub mod classify;
+pub mod codegen_expand;
+pub mod entry;
+pub(crate) mod lock_inputs;
+pub mod packages;
+pub mod query;
+pub mod rule_graph;
+pub mod run_deploy;
+pub mod selection;
+pub mod test_map;
+pub mod types;
+
+pub use changed::{
+    collect_range, collect_working_tree, local_override_changes, merge_base, resolve_affected,
+    AffectedSelection, WidenedScope,
+};
+pub use classify::first_line;
+pub(crate) use classify::{classify_scopes, owners_in_graph, parse_owners};
+pub use codegen_expand::expand_codegen_roots;
+pub use entry::{resolve, resolve_for_test_with_selection};
+pub(crate) use packages::PackageCache;
+pub use query::quote_set;
+pub(crate) use query::run_label_query;
+pub use query::run_label_query_file;
+pub use rule_graph::RuleGraph;
+pub use run_deploy::{check_deployable, resolve_deploy, resolve_run, DeployInfo};
+pub use selection::SelectionContext;
+#[cfg(test)]
+pub use test_map::map_owners_to_tests_with_selection;
+pub use test_map::set_expression;
+pub(crate) use test_map::tests_for_owners;
+#[cfg(test)]
+pub(crate) use types::NeverQuery;
+pub use types::{QueryFailure, QueryResult, QueryRunner, ResolveError, ResolvedScope};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dx_testing::cli::strings;
+    use std::io;
+    use std::path::Path;
+
+    fn write(workspace: &Path, rel: &str, text: &str) {
+        let full = workspace.join(rel);
+        std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
+        std::fs::write(full, text).expect("write file");
+    }
+
+    #[test]
+    fn resolve_errors_render_actionable_messages() {
+        let cases = [
+            (ResolveError::EmptyScope, "empty scope"),
+            (
+                ResolveError::RelativeLabel {
+                    scope: ":c".to_owned(),
+                },
+                ":c",
+            ),
+            (
+                ResolveError::ExternalScope {
+                    scope: "@r//p".to_owned(),
+                },
+                "@r//p",
+            ),
+            (
+                ResolveError::OutsideWorkspace {
+                    scope: "../x".to_owned(),
+                },
+                "../x",
+            ),
+            (
+                ResolveError::PathNotFound {
+                    scope: "n.py".to_owned(),
+                },
+                "n.py",
+            ),
+            (
+                ResolveError::NotFileOrDir {
+                    scope: "s".to_owned(),
+                },
+                "unsupported path",
+            ),
+            (
+                ResolveError::NotAPackage {
+                    scope: "docs/g.md".to_owned(),
+                },
+                "not a package",
+            ),
+            (
+                ResolveError::UnsupportedName {
+                    scope: "n".to_owned(),
+                },
+                "control characters",
+            ),
+            (
+                ResolveError::NoOwner {
+                    files: strings(&["f.py"]),
+                    labels: strings(&["//:f.py"]),
+                },
+                "f.py",
+            ),
+            (
+                ResolveError::QueryFailed {
+                    label: "//:f.py".to_owned(),
+                    failure: QueryFailure::Launch {
+                        detail: "boom".to_owned(),
+                    },
+                },
+                "boom",
+            ),
+        ];
+        for (error, needle) in cases {
+            assert!(error.to_string().contains(needle), "{error:?}");
+        }
+    }
+
+    struct FailIo;
+
+    impl QueryRunner for FailIo {
+        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+            Err(io::Error::other("boom"))
+        }
+    }
+
+    #[test]
+    fn query_io_errors_become_query_failed() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-query-io-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "pkg/a.py", "x = 1\n");
+        let err = resolve(&strings(&["pkg/a.py"]), &workspace, &FailIo, &[]).expect_err("io");
+        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
+        let err = resolve_run(&strings(&["pkg/a.py"]), &workspace, &FailIo, &[]).expect_err("io");
+        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
+        let err = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &FailIo,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect_err("io");
+        assert!(matches!(err, ResolveError::QueryFailed { .. }), "{err:?}");
+    }
+
+    #[test]
+    fn scope_through_a_regular_file_is_not_found() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-not-a-dir-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg", "file, not dir\n");
+        let query = NeverQuery;
+        for err in [
+            resolve(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("resolve"),
+            resolve_for_test_with_selection(
+                &strings(&["pkg/a.py"]),
+                &workspace,
+                &query,
+                &[],
+                &SelectionContext::unconfigured(&[]),
+            )
+            .expect_err("resolve_for_test"),
+            resolve_run(&strings(&["pkg/a.py"]), &workspace, &query, &[]).expect_err("resolve_run"),
+        ] {
+            assert_eq!(
+                err,
+                ResolveError::PathNotFound {
+                    scope: "pkg/a.py".to_owned(),
+                },
+                "{err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_scope_rejects_external_and_relative() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-reject-");
+        let workspace = scratch.path().to_path_buf();
+        let query = NeverQuery;
+        assert_eq!(
+            resolve_for_test_with_selection(
+                &strings(&["@r//p"]),
+                &workspace,
+                &query,
+                &[],
+                &SelectionContext::unconfigured(&[])
+            )
+            .expect_err("ext"),
+            ResolveError::ExternalScope {
+                scope: "@r//p".to_owned(),
+            }
+        );
+        assert_eq!(
+            resolve_for_test_with_selection(
+                &strings(&[":c"]),
+                &workspace,
+                &query,
+                &[],
+                &SelectionContext::unconfigured(&[])
+            )
+            .expect_err("rel"),
+            ResolveError::RelativeLabel {
+                scope: ":c".to_owned(),
+            }
+        );
+        assert_eq!(
+            resolve_run(&strings(&["@r//p", "//a:b"]), &workspace, &query, &[]).expect("ext"),
+            strings(&["@r//p", "//a:b"])
+        );
+        assert_eq!(
+            resolve_run(&strings(&["@r"]), &workspace, &query, &[]).expect_err("bare repo"),
+            ResolveError::ExternalScope {
+                scope: "@r".to_owned(),
+            }
+        );
+        assert_eq!(
+            resolve_run(&strings(&[":c"]), &workspace, &query, &[]).expect_err("rel"),
+            ResolveError::RelativeLabel {
+                scope: ":c".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_scope_missing_files_fail() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-missing-");
+        let workspace = scratch.path().to_path_buf();
+        let query = NeverQuery;
+        assert_eq!(
+            resolve_for_test_with_selection(
+                &strings(&["nope.py"]),
+                &workspace,
+                &query,
+                &[],
+                &SelectionContext::unconfigured(&[])
+            )
+            .expect_err("missing"),
+            ResolveError::PathNotFound {
+                scope: "nope.py".to_owned(),
+            }
+        );
+        assert_eq!(
+            resolve_run(&strings(&["nope.py"]), &workspace, &query, &[]).expect_err("missing"),
+            ResolveError::PathNotFound {
+                scope: "nope.py".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn control_chars_in_names_are_rejected() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-control-names-");
+        let workspace = scratch.path().to_path_buf();
+        let query = NeverQuery;
+        for scope in ["app\x01", "app\x01/main.py"] {
+            assert_eq!(
+                resolve_run(&strings(&[scope]), &workspace, &query, &[]).expect_err("control"),
+                ResolveError::UnsupportedName {
+                    scope: scope.to_owned(),
+                },
+                "{scope:?}"
+            );
+            assert_eq!(
+                resolve(&strings(&[scope]), &workspace, &query, &[]).expect_err("control"),
+                ResolveError::UnsupportedName {
+                    scope: scope.to_owned(),
+                },
+                "{scope:?}"
+            );
+            assert_eq!(
+                resolve_for_test_with_selection(
+                    &strings(&[scope]),
+                    &workspace,
+                    &query,
+                    &[],
+                    &SelectionContext::unconfigured(&[])
+                )
+                .expect_err("control"),
+                ResolveError::UnsupportedName {
+                    scope: scope.to_owned(),
+                },
+                "{scope:?}"
+            );
+        }
+    }
+}

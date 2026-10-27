@@ -1,12 +1,12 @@
 use super::common::*;
 use super::managed_prepare::{map_commit_error, prepare_managed_sides};
-use crate::args::{Command, Invocation};
-use crate::plan::{bep_path, plan_managed, plan_managed_with_roots};
-use crate::resolve::expand_codegen_roots;
 use dx_output::{
     command_finished, command_started, notice_event, operation_event, selection_event,
     FinishedCounts, NoticeEvent, OutputMode,
 };
+use dx_plan::args::{Command, Invocation};
+use dx_plan::plan::{bep_path, plan_managed, plan_managed_with_roots};
+use dx_plan::resolve::expand_codegen_roots;
 use dx_process::ForwardError;
 use std::path::Path;
 
@@ -433,7 +433,7 @@ mod tests {
     }
 
     fn prost_fixture_graph() -> Vec<String> {
-        use crate::test_support::graph_rule_of_kind;
+        use dx_testing::cli::graph_rule_of_kind;
         vec![
             graph_rule_of_kind(
                 "//generation:result_proto",
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn managed_exact_codegen_expansion_failure_is_pre_exec() {
-        use crate::resolve::QueryResult;
+        use dx_plan::resolve::QueryResult;
 
         let harness = Harness::new("managed-expand-fail");
         harness.query.outputs.borrow_mut().push(QueryResult {

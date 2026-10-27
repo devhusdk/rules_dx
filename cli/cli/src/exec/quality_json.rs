@@ -119,7 +119,7 @@ fn json_stream_stops_at_the_first_broken_write() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
     );
-    let inv = crate::args::parse(&crate::test_support::strings(&[
+    let inv = dx_plan::args::parse(&dx_testing::cli::strings(&[
         "lint",
         "--check",
         "--output=json",

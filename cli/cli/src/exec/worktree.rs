@@ -3,11 +3,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::common::*;
-use crate::args::Invocation;
 use dx_output::{
     command_finished, command_started, notice_event, slot_event, summary_event, FinishedCounts,
     NoticeEvent, OutputMode, SlotEvent, SummaryEvent,
 };
+use dx_plan::args::Invocation;
 use dx_worktree::host::{Host, SystemHost};
 use dx_worktree::ops::{self, size, AddRequest, Added, Listing, PrunePlan, Released, Row, Warning};
 use dx_worktree::pool::{cache_base, Pool, Who};
@@ -803,7 +803,7 @@ fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::args::parsed;
+    use crate::test_support::parsed;
     use dx_worktree::host::Download;
     use dx_worktree::ops::State;
 

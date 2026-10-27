@@ -4,11 +4,11 @@ use super::deploy::execute_deploy;
 use super::failure_reports::write_failure_reports;
 use super::run::execute_run;
 use super::test_reports::{execute_test_reports, TestReportsRequest};
-use crate::args::{Command, Invocation};
-use crate::plan::{bep_path, plan_workflow, results_path, run_id, WorkflowVerb};
-use crate::reports::{plan_reports, Destination, PlannedReport, StandardFormat};
-use crate::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
 use dx_output::{command_finished, FinishedCounts, OutputMode};
+use dx_plan::args::{Command, Invocation};
+use dx_plan::plan::{bep_path, plan_workflow, results_path, run_id, WorkflowVerb};
+use dx_plan::reports::{plan_reports, Destination, PlannedReport, StandardFormat};
+use dx_plan::resolve::{resolve, resolve_for_test_with_selection, SelectionContext};
 use dx_process::ForwardError;
 use std::io::Write;
 
@@ -283,7 +283,7 @@ mod tests {
     #[test]
     fn workflow_phase_reports_test_completeness() {
         let harness = Harness::new("workflow-phase-build");
-        let inv = crate::args::apply_here(
+        let inv = dx_plan::args::apply_here(
             &invocation(&["build", "--output=text"]),
             &harness.workspace,
             &harness.cwd,
@@ -307,7 +307,7 @@ mod tests {
             )]),
             ..harness
         };
-        let inv = crate::args::apply_here(
+        let inv = dx_plan::args::apply_here(
             &invocation(&["test", "--output=text"]),
             &harness.workspace,
             &harness.cwd,
@@ -346,7 +346,7 @@ mod tests {
             .expect("quiet flag");
         let jobs = argv.iter().position(|arg| arg == "--jobs=2").expect("jobs");
         assert!(quiet < jobs, "{argv:?}");
-        for flag in crate::args::AGENT_QUIET_FLAGS {
+        for flag in dx_plan::args::AGENT_QUIET_FLAGS {
             assert!(argv.contains(&flag.to_owned()), "{flag}: {argv:?}");
         }
         let plain = Harness::new("agent-off");
@@ -362,15 +362,15 @@ mod tests {
     #[test]
     fn agent_env_test_run_is_short_quiet_and_complete() {
         let env = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
-        let inv = crate::args::parse_with(
-            &crate::test_support::strings(&["test", "//..."]),
+        let inv = dx_plan::args::parse_with(
+            &dx_testing::cli::strings(&["test", "//..."]),
             &env,
-            &crate::args::FileDefaults::default(),
+            &dx_plan::args::FileDefaults::default(),
         )
         .expect("parse");
         let harness = Harness::new("agent-done");
         let run = harness.probe_with(&inv, &[Some(0)]);
-        for flag in crate::args::AGENT_QUIET_FLAGS {
+        for flag in dx_plan::args::AGENT_QUIET_FLAGS {
             assert!(
                 run.argv[0].contains(&flag.to_owned()),
                 "{flag}: {:?}",

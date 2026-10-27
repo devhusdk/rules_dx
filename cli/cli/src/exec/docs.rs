@@ -1,9 +1,9 @@
 use super::common::*;
-use crate::args::Invocation;
-use crate::resolve::{first_line, quote_set, resolve, QueryRunner, SelectionContext};
 use dx_output::{
     command_finished, command_started, error_event, operation_event, FinishedCounts, OutputMode,
 };
+use dx_plan::args::Invocation;
+use dx_plan::resolve::{first_line, quote_set, resolve, QueryRunner, SelectionContext};
 use std::path::{Path, PathBuf};
 
 const DOCS_CHECK_TARGET: &str = "//tools/docs/site:user_site_check";
@@ -130,7 +130,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         )
     };
     let bazel_options = invocation.quiet_bazel_options();
-    let argv = match crate::plan::bazel_argv(
+    let argv = match dx_plan::plan::bazel_argv(
         "build",
         &bazel_options,
         &[],
@@ -297,8 +297,8 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
 mod tests {
     use super::super::test_support::*;
     use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET, DOCS_CHECK_TARGET};
-    use crate::resolve::QueryResult;
-    use crate::test_support::strings;
+    use dx_plan::resolve::QueryResult;
+    use dx_testing::cli::strings;
 
     fn script_site_tree(harness: &Harness, rel: &str) {
         harness.write_source(&format!("{rel}/index.html"), "<!doctype html>\n");
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn docs_port_requires_serve() {
-        let err = crate::args::parse(&strings(&["docs", "--port=8080"]))
+        let err = dx_plan::args::parse(&strings(&["docs", "--port=8080"]))
             .expect_err("port without serve must fail");
         assert!(err.to_string().contains("--port"), "{err}");
         for words in [
@@ -418,7 +418,7 @@ mod tests {
             vec!["docs", "--open"],
             vec!["docs", "--port=0", "--serve"],
         ] {
-            assert!(crate::args::parse(&strings(&words)).is_err(), "{words:?}");
+            assert!(dx_plan::args::parse(&strings(&words)).is_err(), "{words:?}");
         }
     }
 
@@ -436,7 +436,7 @@ mod tests {
 
     #[test]
     fn docs_rejects_apply() {
-        let err = crate::args::parse(&strings(&["docs", "--serve", "--apply"]))
+        let err = dx_plan::args::parse(&strings(&["docs", "--serve", "--apply"]))
             .expect_err("docs takes no --apply");
         assert!(err.to_string().contains("--apply"), "{err}");
     }
@@ -513,7 +513,7 @@ mod tests {
             .iter()
             .find(|argv| argv.contains(&"build".to_owned()))
             .expect("docs build argv");
-        for setting in crate::plan::BAZEL_SETTINGS {
+        for setting in dx_plan::plan::BAZEL_SETTINGS {
             assert!(build.contains(&setting.to_owned()), "{build:?}");
         }
         let serve = calls

@@ -3,6 +3,12 @@
 CURATED_SCHEMA_VERSION = 1
 
 CURATED_DEFAULTS = {
+    "astro": {
+        "audit": [],
+        "format": ["prettier"],
+        "lint": [],
+        "typecheck": [],
+    },
     "cc": {
         "audit": [],
         "format": ["clang_format"],
@@ -114,6 +120,7 @@ CURATED_DEFAULTS = {
 }
 
 FORMAT_FROZEN = {
+    "astro": ["prettier"],
     "cc": ["clang_format"],
     "dockerfile": [],
     "graphql": ["prettier"],

@@ -194,6 +194,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_astro_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "astro",
+    format = ["prettier"],
+)
+
+quality_family(
     name = "default_vue_family",
     disabled = [
         "lint",
@@ -256,6 +266,7 @@ quality_family(
 workspace_policy(
     name = "default_workspace_policy",
     families = [
+        ":default_astro_family",
         ":default_cc_family",
         ":default_dockerfile_family",
         ":default_graphql_family",

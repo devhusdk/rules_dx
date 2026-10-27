@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const PLUGINS = {
+  "prettier-plugin-astro": [".astro"],
   "prettier-plugin-sql": [".sql"],
   "@prettier/plugin-xml": [".xml", ".xsd", ".xsl", ".xslt", ".wsdl"],
   "prettier-plugin-gherkin": [".feature"],

@@ -97,7 +97,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("eslint", "format"),
                     real_supported_classes("eslint", "typecheck"),
                 ],
-                [["javascript", "jsx", "vue"], [], []],
+                [["astro", "javascript", "jsx", "vue"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns graphql_eslint lint support only",
@@ -115,7 +115,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("prettier", "format"),
                     real_supported_classes("prettier", "typecheck"),
                 ],
-                [[], ["css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "vue", "xml"], []],
+                [[], ["astro", "css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "vue", "xml"], []],
             ),
             expect_equal(
                 "real_supported_classes returns buildifier lint support",

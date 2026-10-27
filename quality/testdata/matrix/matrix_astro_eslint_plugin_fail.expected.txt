@@ -1,0 +1,17 @@
+producer //quality/testdata:matrix_astro_eslint_plugin_fail
+capability LINT
+stages 1
+stage eslint classes=astro sources=quality/testdata/real_dirty.astro
+completed_rounds 1
+convergence STABLE
+initial 4
+initial ERROR eslint no-unused-vars quality/testdata/real_dirty.astro 88 102 fixable=false "'unused' is assigned a value but never used."
+initial ERROR eslint astro/no-conflict-set-directives quality/testdata/real_dirty.astro 131 147 fixable=false "'set:html' conflicts with 'set:text'."
+initial ERROR eslint astro/no-conflict-set-directives quality/testdata/real_dirty.astro 148 164 fixable=false "'set:text' conflicts with 'set:html'."
+initial ERROR eslint no-unused-vars quality/testdata/real_dirty.astro 237 242 fixable=false "'stale' is assigned a value but never used."
+terminal 4
+terminal ERROR eslint no-unused-vars quality/testdata/real_dirty.astro 88 102 fixable=false "'unused' is assigned a value but never used."
+terminal ERROR eslint astro/no-conflict-set-directives quality/testdata/real_dirty.astro 131 147 fixable=false "'set:html' conflicts with 'set:text'."
+terminal ERROR eslint astro/no-conflict-set-directives quality/testdata/real_dirty.astro 148 164 fixable=false "'set:text' conflicts with 'set:html'."
+terminal ERROR eslint no-unused-vars quality/testdata/real_dirty.astro 237 242 fixable=false "'stale' is assigned a value but never used."
+replacements 0

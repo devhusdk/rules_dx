@@ -183,6 +183,7 @@ workspace_policy(
 
 | Family | Format | Lint | Typecheck |
 | --- | --- | --- | --- |
+| `astro` | `prettier` | disabled | disabled |
 | `cc` | `clang_format` | disabled | disabled |
 | `dockerfile` | disabled | `hadolint` | disabled |
 | `graphql` | `prettier` | disabled | disabled |
@@ -222,7 +223,7 @@ to.
 | `djlint` | format, lint | html_template |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
-| `eslint` | lint | javascript, vue |
+| `eslint` | lint | astro, javascript, vue |
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
 | `fsharplint` | lint | fsharp |
@@ -241,7 +242,7 @@ to.
 | `modfmt` | format | go_module |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
-| `prettier` | format | css, gherkin, graphql, html, javascript, json, sql, typescript, vue, xml |
+| `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, typescript, vue, xml |
 | `psscriptanalyzer` | lint | powershell |
 | `pydoclint` | lint | python |
 | `pylint` | lint | python |
@@ -1002,6 +1003,70 @@ the start of each checked file. A missing config, an invalid config, a path
 that names no file, or a tool that fails to run fails the run with the cause
 named. It never counts as clean. The tool never reads `graphql.config.*`
 files and never fetches a schema over the network.
+
+### Astro
+
+`astro_library` from `@rules_dx//astro/rules:defs.bzl` owns `.astro` files. The
+default policy formats them with `prettier` and `prettier-plugin-astro` 1.1.2
+from the managed pin. It runs on Linux x86_64.
+
+```sh
+bazel run @rules_dx//:dx -- format //web/...
+bazel run @rules_dx//:dx -- format --apply //web/...
+```
+
+A check never writes. `--apply` rewrites only the files the selected targets
+own. The frontmatter, template, style and script blocks are all formatted. An
+unformatted file is reported at the start of the file. A syntax error fails the
+run with the file, line and column. It never counts as clean. `.prettierrc`,
+`.editorconfig` and other user config files are ignored. `astro check` and
+`astro build` are not run.
+
+`eslint` lint is opt-in. Select it in the `astro` family and bind an
+`eslint_config` to the library with `aspect_hints`.
+
+```python
+quality_family(
+    name = "astro_family",
+    disabled = ["audit", "typecheck"],
+    family_id = "astro",
+    format = ["prettier"],
+    lint = ["eslint"],
+)
+
+eslint_config(
+    name = "eslint",
+    src = "eslint.config.mjs",
+)
+
+astro_library(
+    name = "hello",
+    srcs = ["Hello.astro"],
+    aspect_hints = [":eslint"],
+)
+```
+
+The config may import `eslint-plugin-astro` 3.2.1, `astro-eslint-parser` 3.2.0
+and `@typescript-eslint/parser` 8.72.1 by name. dx provides them. Any other
+package must resolve from your workspace.
+
+```js
+import eslintPluginAstro from "eslint-plugin-astro";
+
+export default [
+  ...eslintPluginAstro.configs.recommended,
+  {
+    files: ["**/*.astro"],
+    languageOptions: {
+      parserOptions: { parser: "@typescript-eslint/parser" },
+    },
+  },
+];
+```
+
+Findings point at the line and column in the `.astro` file, including findings
+in `<script>` blocks. A `.astro` file that no config entry matches fails the
+run. It never counts as clean.
 
 ### SQL, XML and Gherkin
 

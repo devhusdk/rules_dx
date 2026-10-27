@@ -1,0 +1,3 @@
+{
+  "overrides": [{ "files": "api/**/*.graphql", "options": { "tabWidth": 4 } }]
+}

@@ -762,11 +762,8 @@ impl super::RealBackend {
                     )),
                     "prettier" => {
                         let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                        let ignore = Self::prettier_ignore_abs(scratch)?;
-                        Ok(
-                            commands::prettier_fix(&launch, refs, config.as_deref(), &ignore)
-                                .map_err(|err| execution(tool_id, err.to_string()))?,
-                        )
+                        Ok(commands::prettier_fix(&launch, refs, config.as_deref())
+                            .map_err(|err| execution(tool_id, err.to_string()))?)
                     }
                     "remark" => {
                         let launch = ResolvedTool::javascript(tool_id, &tool.binary);

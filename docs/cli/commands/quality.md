@@ -966,11 +966,21 @@ javascript_library(
 ```
 
 Accepted file names end in `.prettierrc`, `.json`, `.json5`, `.yaml`, `.yml`,
-`.toml`, `.mjs`, `.cjs` or `.js`. List files the config imports in `data`.
+`.toml`, `.mjs`, `.cjs` or `.js`. A bound config replaces dx's default options;
+it does not extend them. Those defaults are the `.sql` options (`sql-formatter`,
+`keywordCase: "preserve"`, and the dialect picked from names such as
+`*.postgresql.sql` or `*.mysql.sql`), the XML options
+(`xmlWhitespaceSensitivity: "strict"`, `xmlQuoteAttributes: "preserve"`,
+`xmlSortAttributesByKey: false`) and the Gherkin options
+(`escapeBackslashes: false`, `forceNewlineBetweenStepBlocks: false`). Copy the
+ones you still want into your config.
+
 `overrides` globs match from the config's directory. `.editorconfig` and
-`.prettierignore` are not read, and plugins are not loaded. An unknown parser or
-an invalid config fails the run. `requirePragma` still skips files without a
-pragma.
+`.prettierignore` are never read. A `plugins` entry or a shared npm config
+fails the run; dx loads the plugins it pins by file extension. A `.mjs`, `.cjs`
+or `.js` config can import only the files listed in `data`. An unknown parser
+or an invalid config fails the run and never counts as clean.
+`requirePragma` still skips files without a pragma.
 
 ### Vue
 

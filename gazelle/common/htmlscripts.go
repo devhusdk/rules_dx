@@ -65,7 +65,8 @@ func ExtractScripts(src []byte, scope ScriptScope) [][]byte {
 	}
 }
 
-// matchingEnd returns the offset past the end tag closing name, or -1.
+// matchingEnd is framing-only: it skips a root block to its end tag; x/net/html tokenizes the rest.
+// It returns the offset past the end tag closing name, or -1.
 func matchingEnd(src []byte, from int, name []byte) int {
 	depth := 1
 	i := from
@@ -94,7 +95,10 @@ func matchingEnd(src []byte, from int, name []byte) int {
 			}
 			i += gt + 1
 		case tagNameAt(rest[1:], name):
-			depth++
+			// A self-closing same-name tag (<div/>) opens nothing.
+			if gt := bytes.IndexByte(rest, '>'); gt < 0 || rest[gt-1] != '/' {
+				depth++
+			}
 			i++
 		default:
 			i++
@@ -102,7 +106,7 @@ func matchingEnd(src []byte, from int, name []byte) int {
 	}
 }
 
-// tagNameAt reports whether b starts with the whole tag name name.
+// tagNameAt is framing-only: it reports whether b starts with the whole tag name name.
 func tagNameAt(b, name []byte) bool {
 	if len(b) < len(name) || !bytes.EqualFold(b[:len(name)], name) {
 		return false

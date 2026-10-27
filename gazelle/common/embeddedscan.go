@@ -228,7 +228,8 @@ func parseEmbeddedRequire(src []byte, j int, add func(string)) int {
 	return k + 1
 }
 
-// IncompleteJS reports whether src ends inside an open bracket, template
+// IncompleteJS is framing-only (it finds where an MDX ESM block ends; ScanEmbedded reads imports).
+// It reports whether src ends inside an open bracket, template
 // literal, or block comment, so later lines could still complete it.
 func IncompleteJS(src []byte) bool {
 	n := len(src)

@@ -555,6 +555,9 @@ func TestExtractScriptsScopes(t *testing.T) {
 			[][]byte{one("y")}, [][]byte{one("x"), one("y")}},
 		{"svelteIfAutoClosedP", "{#if a}<p>x{/if}<script>y</script>",
 			[][]byte{one("y")}, [][]byte{one("y")}},
+		// Vue/Svelte treat <div/> as self-closing, so it must not deepen the root block.
+		{"selfClosingSameNameThenStrayEnd", "<div><div/></div>\n<script>y</script>\n<div></div></div>",
+			[][]byte{one("y")}, [][]byte{one("y")}},
 	}
 	for _, tc := range cases {
 		if got := ExtractScripts([]byte(tc.source), TopLevel); !reflect.DeepEqual(got, tc.top) {

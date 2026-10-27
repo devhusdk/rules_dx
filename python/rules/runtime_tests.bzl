@@ -41,9 +41,9 @@ def python_runtime_unit_tests(name):
                 _PY,
             ),
             expect_equal(
-                "wheel hub stays pypi",
+                "wheel hub stays dx_pypi",
                 _MOD_PY_HUB,
-                "pypi",
+                "dx_pypi",
             ),
             expect_equal(
                 "wheel projects stay hello, ledger and tools",

@@ -1317,6 +1317,12 @@ real_typecheck_subject(
 )
 
 real_typecheck_subject(
+    name = "fixture_real_rust_test_crate_typecheck_subject",
+    target = ":fake_format_test",
+    testonly = True,
+)
+
+real_typecheck_subject(
     name = "fixture_real_starlark_typecheck_subject",
     target = ":fixture_real_starlark",
 )
@@ -1337,6 +1343,7 @@ real_typecheck_fixture_tests(
         ":fixture_real_python_no_typecheck_subject",
         ":fixture_real_python_typecheck_subject",
         ":fixture_real_rust_typecheck_clean_subject",
+        ":fixture_real_rust_test_crate_typecheck_subject",
         ":fixture_real_rust_typecheck_no_typecheck_subject",
         ":fixture_real_starlark_typecheck_subject",
     ],

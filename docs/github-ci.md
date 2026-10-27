@@ -84,9 +84,8 @@ Inputs:
   one call per run. The ID suffixes the report and `advisory-snapshots`
   artifacts, as in `dx-reports-test-linux_x86_64-api-linux`.
 
-The workflow needs `contents: read`, `checks: write` and `pull-requests: write`
-for its pull-request coverage comment. Grant them on the calling job.
-`examples/consumer-ci/caller.yml` does.
+Grant `contents: read`, `checks: write` and `pull-requests: write` on the
+calling job. `examples/consumer-ci/caller.yml` does.
 
 ## Report Artifacts
 

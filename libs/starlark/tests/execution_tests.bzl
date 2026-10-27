@@ -1,10 +1,11 @@
 """Execution tests over runfiles fixtures."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_harness_test")
+load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 
 def fixture_execution_tests(name):
-    starlark_harness_test(
+    starlark_test(
         name = name,
+        mode = "execution",
         checks = [
             expect_equal("record encoding is deterministic", expect_equal("x", 1, 2), "{\"actual\":1,\"expected\":2,\"kind\":\"equal\",\"name\":\"x\"}"),
             expect_equal("multiline value", "first\nsecond", "first\nsecond"),

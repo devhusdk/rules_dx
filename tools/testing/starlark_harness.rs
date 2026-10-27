@@ -3,9 +3,9 @@
 //! The Starlark rule writes one JSON manifest per case and runs this binary as
 //! the test executable. The harness resolves every input through its own
 //! runfiles, evaluates the analysis-time assertions Starlark already decided,
-//! checks the required file substrings byte for byte, and renders the same
-//! PASS and FAIL lines the shell runner printed. No sh, awk, grep, cat, or
-//! batch interpreter is launched.
+//! checks the required file substrings byte for byte, prints the analysis
+//! observations, and renders one PASS or FAIL line per assertion. No sh, awk,
+//! grep, cat, or batch interpreter is launched.
 
 #![cfg_attr(
     not(test),
@@ -24,12 +24,12 @@ use dx_path::Resolver;
 /// Names the environment entry carrying the manifest runfiles key.
 pub const MANIFEST_ENV: &str = "STARLARK_HARNESS_MANIFEST";
 /// Accepts only manifests written for this evaluator.
-pub const MANIFEST_VERSION: u64 = 1;
+pub const MANIFEST_VERSION: u64 = 2;
 
 /// The rendered outcome of one manifest evaluation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Report {
-    /// Every PASS and FAIL line plus the summary line, in order.
+    /// Every PASS, FAIL, and observation line plus the summary line, in order.
     pub lines: Vec<String>,
     /// The number of passing assertions.
     pub passed: usize,
@@ -38,7 +38,7 @@ pub struct Report {
 }
 
 impl Report {
-    /// Renders the whole report the way the shell runner printed it.
+    /// Renders the whole report as test output text.
     pub fn text(&self) -> String {
         let mut out = self.lines.join("\n");
         out.push('\n');
@@ -76,7 +76,7 @@ fn string_list(value: &serde_json::Value, path: &str, name: &str) -> std::io::Re
     Ok(out)
 }
 
-/// Evaluates one equality assertion the way the shell check did.
+/// Evaluates one equality assertion.
 fn evaluate_equal(name: &str, expected: &str, actual: &str, report: &mut Report) {
     if expected == actual {
         pass(report, format!("PASS: {name}"));
@@ -88,7 +88,7 @@ fn evaluate_equal(name: &str, expected: &str, actual: &str, report: &mut Report)
     }
 }
 
-/// Evaluates one boolean assertion the way the shell check did.
+/// Evaluates one boolean assertion.
 fn evaluate_bool(name: &str, want: &str, actual: &str, passed: &str, report: &mut Report) {
     if passed == "True" {
         pass(report, format!("PASS: {name}"));
@@ -100,7 +100,7 @@ fn evaluate_bool(name: &str, want: &str, actual: &str, passed: &str, report: &mu
     }
 }
 
-/// Evaluates one membership assertion the way the shell check did.
+/// Evaluates one membership assertion.
 fn evaluate_contains(name: &str, haystack: &str, needle: &str, passed: &str, report: &mut Report) {
     if passed == "True" {
         pass(report, format!("PASS: {name}"));
@@ -112,7 +112,7 @@ fn evaluate_contains(name: &str, haystack: &str, needle: &str, passed: &str, rep
     }
 }
 
-/// Evaluates one substring assertion the way the shell check did.
+/// Evaluates one substring assertion.
 fn evaluate_match(name: &str, value: &str, want: &str, passed: &str, report: &mut Report) {
     if passed == "True" {
         pass(report, format!("PASS: {name}"));
@@ -236,7 +236,8 @@ pub fn evaluate(manifest: &serde_json::Value) -> std::io::Result<Report> {
         .get("files")
         .and_then(serde_json::Value::as_array)
         .ok_or_else(|| bad("manifest has no array field files".to_owned()))?;
-    if checks.is_empty() && files.is_empty() {
+    let observations = string_list(manifest, "manifest", "observations")?;
+    if checks.is_empty() && files.is_empty() && observations.is_empty() {
         return Err(bad(format!("manifest for {name} carries no evidence")));
     }
     let mut report = Report {
@@ -266,6 +267,23 @@ pub fn evaluate_files(
     Ok(())
 }
 
+/// Appends the analysis observations after the assertion lines.
+///
+/// Observation lines carry no verdict; they never change the pass or fail
+/// counts.
+pub fn evaluate_observations(
+    manifest: &serde_json::Value,
+    report: &mut Report,
+) -> std::io::Result<()> {
+    let observations = string_list(manifest, "manifest", "observations")?;
+    if observations.is_empty() {
+        return Ok(());
+    }
+    report.lines.push("--- observations ---".to_owned());
+    report.lines.extend(observations);
+    Ok(())
+}
+
 /// Records one passing assertion.
 fn pass(report: &mut Report, line: String) {
     report.lines.push(line);
@@ -278,7 +296,7 @@ fn fail(report: &mut Report, line: String) {
     report.failed += 1;
 }
 
-/// Appends the closing summary line the shell runner printed.
+/// Appends the closing summary line.
 fn summarize(report: &mut Report) {
     let passed = report.passed;
     let failed = report.failed;
@@ -357,6 +375,7 @@ pub fn run_with(exe: &Path, key: &str) -> std::io::Result<Report> {
     })?;
     let mut report = evaluate(&manifest)?;
     evaluate_files(&manifest, &resolver, &mut report)?;
+    evaluate_observations(&manifest, &mut report)?;
     summarize(&mut report);
     Ok(report)
 }
@@ -418,10 +437,11 @@ mod tests {
 
     fn manifest(checks: serde_json::Value, files: serde_json::Value) -> serde_json::Value {
         serde_json::json!({
-            "version": 1,
+            "version": 2,
             "name": "//pkg:probe",
             "checks": checks,
             "files": files,
+            "observations": [],
         })
     }
 
@@ -453,6 +473,7 @@ mod tests {
         let dir = scratch();
         let resolver = Resolver::for_tree(&dir).expect("tree resolver");
         evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
+        evaluate_observations(&value, &mut report).expect("observations evaluate");
         summarize(&mut report);
         report
     }
@@ -593,9 +614,87 @@ mod tests {
     #[test]
     fn a_wrong_manifest_version_is_an_error() {
         let mut value = bare();
-        value["version"] = serde_json::json!(2);
+        value["version"] = serde_json::json!(3);
         let error = evaluate(&value).expect_err("version");
-        assert!(error.to_string().contains("version 2"), "{error}");
+        assert!(error.to_string().contains("version 3"), "{error}");
+    }
+
+    #[test]
+    fn a_version_one_manifest_is_rejected() {
+        let mut value = bare();
+        value["version"] = serde_json::json!(1);
+        let error = evaluate(&value).expect_err("version");
+        assert!(error.to_string().contains("version 1"), "{error}");
+    }
+
+    #[test]
+    fn an_observations_only_manifest_prints_them_before_the_summary() {
+        let mut value = bare();
+        value["observations"] = serde_json::json!(["subject //pkg:a", "file a.txt"]);
+        let report = evaluated(value);
+        assert_eq!(
+            report.lines,
+            [
+                "--- observations ---",
+                "subject //pkg:a",
+                "file a.txt",
+                "starlark_test: 0 passed, 0 failed",
+            ]
+        );
+        assert!(report.ok());
+    }
+
+    #[test]
+    fn observations_follow_checks_and_files() {
+        let mut value = manifest(
+            serde_json::json!([
+                {"kind": "equal", "name": "sum", "expected": "3", "actual": "3"},
+            ]),
+            serde_json::json!([
+                {"label": "//pkg:answer", "key": "_main/pkg/answer.txt", "needles": ["answer=42"]},
+            ]),
+        );
+        value["observations"] = serde_json::json!(["subject //pkg:answer"]);
+        let report = files_on_tree(&[("_main/pkg/answer.txt", b"answer=42\n")], &value)
+            .expect("run with tree");
+        assert_eq!(
+            report.lines,
+            [
+                "PASS: sum",
+                "PASS: file //pkg:answer contains substring 1/1",
+                "--- observations ---",
+                "subject //pkg:answer",
+                "starlark_test: 2 passed, 0 failed",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_missing_observations_field_is_an_error() {
+        let mut value = manifest(
+            serde_json::json!([
+                {"kind": "equal", "name": "sum", "expected": "3", "actual": "3"},
+            ]),
+            serde_json::json!([]),
+        );
+        if let Some(object) = value.as_object_mut() {
+            object.remove("observations");
+        }
+        let error = evaluate(&value).expect_err("observations");
+        assert!(error.to_string().contains("observations"), "{error}");
+    }
+
+    #[test]
+    fn a_non_array_observations_field_is_an_error() {
+        let mut value = manifest(
+            serde_json::json!([
+                {"kind": "equal", "name": "sum", "expected": "3", "actual": "3"},
+            ]),
+            serde_json::json!([]),
+        );
+        value["observations"] = serde_json::json!("subject //pkg:a");
+        let error = evaluate(&value).expect_err("observations");
+        assert!(error.to_string().contains("observations"), "{error}");
     }
 
     #[test]

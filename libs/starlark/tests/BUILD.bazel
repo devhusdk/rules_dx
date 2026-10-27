@@ -1,17 +1,16 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//cc/rules:defs.bzl", "cc_test")
-load("//libs/starlark:defs.bzl", "starlark_harness_test", "starlark_test")
+load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//libs/starlark/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
 load("//libs/starlark/tests/fixtures/starlark_futures:config_subjects.bzl", "config_group", "config_leaf")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":action_tests.bzl", "action_unit_tests")
-load(":analysis_tests.bzl", "subject_analysis_tests")
+load(":analysis_tests.bzl", "observations_only_tests", "runner_shape_tests", "subject_analysis_tests")
 load(":arithmetic_tests.bzl", "arithmetic_load_tests", "arithmetic_unit_tests")
 load(":aspect_tests.bzl", "aspect_subject_tests")
 load(":config_tests.bzl", "config_subject_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
-load(":launcher_tests.bzl", "launcher_unit_tests")
 load(":matcher_tests.bzl", "matcher_unit_tests")
 load(":matrix_tests.bzl", "matrix_validation_tests")
 load(":output_group_tests.bzl", "output_group_unit_tests")
@@ -70,13 +69,15 @@ action_unit_tests(name = "action_unit")
 
 subject_analysis_tests(name = "subject_analysis")
 
+runner_shape_tests(name = "runner_shape_analysis")
+
+observations_only_tests(name = "observations_only_analysis")
+
 aspect_subject_tests(name = "aspect_subject_analysis")
 
 config_subject_tests(name = "config_subject_analysis")
 
 fixture_execution_tests(name = "fixture_execution")
-
-launcher_unit_tests(name = "launcher_unit")
 
 matcher_unit_tests(name = "matcher_unit")
 
@@ -153,11 +154,12 @@ test_suite(
         ":config_subject_analysis",
         ":exec_group_forwarder_analysis",
         ":fixture_execution",
-        ":launcher_unit",
         ":matcher_unit",
         ":matrix_validation",
+        ":observations_only_analysis",
         ":output_group_unit",
         ":packaging_unit",
+        ":runner_shape_analysis",
         ":subject_analysis",
         ":thin_demo_missing_executable_test",
         ":thin_demo_missing_provider_test",
@@ -188,7 +190,6 @@ real_source_target(
         "config_tests.bzl",
         "direct_sources.bzl",
         "execution_tests.bzl",
-        "launcher_tests.bzl",
         "matcher_tests.bzl",
         "matrix_tests.bzl",
         "output_group_tests.bzl",
@@ -202,15 +203,15 @@ real_source_target(
     tags = ["corpus"],
 )
 
-starlark_harness_test(
+starlark_test(
     name = "resource_set_wiring",
-    checks = [],
     file_checks = {
         "//apple/bundle:defs.bzl": "resource_set = dx_apple_compile_resources",
         "//apple/ios:app.bzl": "resource_set = dx_apple_compile_resources",
         "//javascript/rules:web.bzl": "resource_set = dx_bundler_resources",
         "//quality:real_aspects.bzl": "resource_set = real_quality_resource_set(",
     },
+    mode = "execution",
 )
 
 constraint_setting(

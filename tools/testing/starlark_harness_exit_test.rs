@@ -39,12 +39,13 @@ fn run_case(name: &str, expected: &str, actual: &str) -> Output {
     std::fs::copy(harness(), &exe)
         .unwrap_or_else(|err| panic!("cannot copy the harness to {}: {err}", exe.display()));
     let manifest = serde_json::json!({
-        "version": 1,
+        "version": 2,
         "name": "//pkg:probe",
         "checks": [
             {"kind": "equal", "name": name, "expected": expected, "actual": actual},
         ],
         "files": [],
+        "observations": [],
     });
     write(
         &dir.join("probe_test.runfiles/_main/pkg/case.starlark_manifest.json"),

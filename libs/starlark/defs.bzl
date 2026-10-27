@@ -1,7 +1,6 @@
 """Project-owned Starlark testing facade."""
 
 load("//libs/starlark:canonical.bzl", "strip_canonical")
-load("//libs/starlark:launcher.bzl", "windows_launcher_body", "windows_sh_path_error")
 
 DxSubjectInfo = provider(
     doc = "Analysis observations a subject rule exposes to starlark_test.",
@@ -121,223 +120,51 @@ def display_label(label):
     """Renders a label with the canonical-repository marker stripped."""
     return _display_label(label)
 
-def _shell_quote(s):
-    """Single-quote a string for embedding in the generated runner script."""
-    return "'" + s.replace("'", "'\\''") + "'"
+def _require_keys(record, keys, raw):
+    """Fails analysis when a check record lacks one of the required keys."""
+    for key in keys:
+        if key not in record:
+            fail("starlark_test: check record is missing key '" + key + "': " + raw)
 
-def _parse_check(raw):
-    """Parses one JSON check record into a struct."""
+def _harness_check_record(raw):
+    """Normalizes one JSON check record into a manifest entry with string fields."""
     record = json.decode(raw)
     kind = record["kind"] if "kind" in record else "equal"
     if kind == "equal":
-        for key in ("name", "expected", "actual"):
-            if key not in record:
-                fail("starlark_test: check record is missing key '" + key + "': " + raw)
-        return struct(
-            kind = "equal",
-            name = str(record["name"]),
-            expected = str(record["expected"]),
-            actual = str(record["actual"]),
-        )
-    elif kind == "true" or kind == "false":
-        for key in ("name", "actual", "passed"):
-            if key not in record:
-                fail("starlark_test: check record is missing key '" + key + "': " + raw)
-        return struct(
-            kind = kind,
-            name = str(record["name"]),
-            actual = str(record["actual"]),
-            passed = str(record["passed"]),
-        )
-    elif kind == "contains":
-        for key in ("name", "haystack", "needle", "passed"):
-            if key not in record:
-                fail("starlark_test: check record is missing key '" + key + "': " + raw)
-        return struct(
-            kind = "contains",
-            name = str(record["name"]),
-            haystack = str(record["haystack"]),
-            needle = str(record["needle"]),
-            passed = str(record["passed"]),
-        )
-    elif kind == "match":
-        for key in ("name", "value", "want", "passed"):
-            if key not in record:
-                fail("starlark_test: check record is missing key '" + key + "': " + raw)
-        return struct(
-            kind = "match",
-            name = str(record["name"]),
-            value = str(record["value"]),
-            want = str(record["want"]),
-            passed = str(record["passed"]),
-        )
-    else:
-        fail("starlark_test: unknown check kind '" + kind + "': " + raw)
-
-def _check_lines(checks):
-    """Renders one shell assertion per check record, in declaration order."""
-    lines = []
-    for raw in checks:
-        check = _parse_check(raw)
-        if check.kind == "equal":
-            lines.append(
-                "check " + _shell_quote(check.name) + " " +
-                _shell_quote(check.expected) + " " + _shell_quote(check.actual),
-            )
-        elif check.kind == "true":
-            lines.append(
-                "check_true " + _shell_quote(check.name) + " " +
-                _shell_quote(check.actual) + " " + _shell_quote(check.passed),
-            )
-        elif check.kind == "false":
-            lines.append(
-                "check_false " + _shell_quote(check.name) + " " +
-                _shell_quote(check.actual) + " " + _shell_quote(check.passed),
-            )
-        elif check.kind == "contains":
-            lines.append(
-                "check_contains " + _shell_quote(check.name) + " " +
-                _shell_quote(check.haystack) + " " + _shell_quote(check.needle) + " " +
-                _shell_quote(check.passed),
-            )
-        else:
-            lines.append(
-                "check_match " + _shell_quote(check.name) + " " +
-                _shell_quote(check.value) + " " + _shell_quote(check.want) + " " +
-                _shell_quote(check.passed),
-            )
-    return lines
-
-def _file_check_lines(file_checks):
-    """Renders one grep assertion per required substring."""
-    lines = []
-    for target in sorted(file_checks.keys(), key = lambda t: str(t.label)):
-        want = file_checks[target]
-        required = [line for line in want.split("\n") if line != ""]
-        if len(required) == 0:
-            fail("starlark_test: file_checks value is empty for " + str(target.label))
-        for f in sorted(target.files.to_list(), key = lambda f: f.short_path):
-            for i, needle in enumerate(required):
-                lines.append(
-                    "check_file " + _shell_quote(_display_label(target.label)) + " " +
-                    _shell_quote(f.short_path) + " " +
-                    _shell_quote(str(i + 1) + "/" + str(len(required))) + " " +
-                    _shell_quote(needle),
-                )
-    return lines
-
-_RUNNER_PRELUDE = [
-    "#!/bin/sh",
-    "# Generated by starlark_test. Do not edit.",
-    "fail=0",
-    "pass_count=0",
-    "fail_count=0",
-    "check() {",
-    '    name="$1"; expected="$2"; actual="$3"',
-    '    if [ "$expected" = "$actual" ]; then',
-    '        echo "PASS: $name"',
-    "        pass_count=$((pass_count + 1))",
-    "    else",
-    '        echo "FAIL: $name"',
-    '        echo "  expected: $expected"',
-    '        echo "  actual:   $actual"',
-    "        fail=1",
-    "        fail_count=$((fail_count + 1))",
-    "    fi",
-    "}",
-    "check_true() {",
-    '    name="$1"; actual="$2"; passed="$3"',
-    '    if [ "$passed" = "True" ]; then',
-    '        echo "PASS: $name"',
-    "        pass_count=$((pass_count + 1))",
-    "    else",
-    '        echo "FAIL: $name"',
-    '        echo "  expected: True"',
-    '        echo "  actual:   $actual"',
-    "        fail=1",
-    "        fail_count=$((fail_count + 1))",
-    "    fi",
-    "}",
-    "check_false() {",
-    '    name="$1"; actual="$2"; passed="$3"',
-    '    if [ "$passed" = "True" ]; then',
-    '        echo "PASS: $name"',
-    "        pass_count=$((pass_count + 1))",
-    "    else",
-    '        echo "FAIL: $name"',
-    '        echo "  expected: False"',
-    '        echo "  actual:   $actual"',
-    "        fail=1",
-    "        fail_count=$((fail_count + 1))",
-    "    fi",
-    "}",
-    "check_contains() {",
-    '    name="$1"; haystack="$2"; needle="$3"; passed="$4"',
-    '    if [ "$passed" = "True" ]; then',
-    '        echo "PASS: $name"',
-    "        pass_count=$((pass_count + 1))",
-    "    else",
-    '        echo "FAIL: $name"',
-    '        echo "  haystack: $haystack"',
-    '        echo "  missing:  $needle"',
-    "        fail=1",
-    "        fail_count=$((fail_count + 1))",
-    "    fi",
-    "}",
-    "check_match() {",
-    '    name="$1"; value="$2"; want="$3"; passed="$4"',
-    '    if [ "$passed" = "True" ]; then',
-    '        echo "PASS: $name"',
-    "        pass_count=$((pass_count + 1))",
-    "    else",
-    '        echo "FAIL: $name"',
-    '        echo "  value: $value"',
-    '        echo "  missing substring: $want"',
-    "        fail=1",
-    "        fail_count=$((fail_count + 1))",
-    "    fi",
-    "}",
-    "rloc() {",
-    '    p="$TEST_SRCDIR/$TEST_WORKSPACE/$1"',
-    '    if [ -f "$p" ]; then',
-    '        echo "$p"',
-    "        return 0",
-    "    fi",
-    '    p="$0.runfiles/$TEST_WORKSPACE/$1"',
-    '    if [ -f "$p" ]; then',
-    '        echo "$p"',
-    "        return 0",
-    "    fi",
-    '    m="$TEST_SRCDIR/MANIFEST"',
-    '    [ -f "$m" ] || m="$0.runfiles/MANIFEST"',
-    '    [ -f "$m" ] || m="$0.runfiles_manifest"',
-    '    r=$(awk -v k="$TEST_WORKSPACE/$1" \'$1 == k { print $2; exit }\' "$m")',
-    '    if [ -n "$r" ]; then',
-    '        echo "$r"',
-    "        return 0",
-    "    fi",
-    "    return 1",
-    "}",
-    "check_file() {",
-    '    label="$1"; short_path="$2"; ordinal="$3"; want="$4"',
-    "    path=$(rloc \"$short_path\")",
-    '    if grep -q -F -e "$want" "$path"; then',
-    '        echo "PASS: file $label contains substring $ordinal"',
-    "        pass_count=$((pass_count + 1))",
-    "    else",
-    '        echo "FAIL: file $label is missing substring $ordinal"',
-    '        echo "  substring: $want"',
-    '        echo "  file: $path"',
-    "        fail=1",
-    "        fail_count=$((fail_count + 1))",
-    "    fi",
-    "}",
-]
-
-_RUNNER_EPILOGUE = [
-    'echo "starlark_test: $pass_count passed, $fail_count failed"',
-    "exit $fail",
-]
+        _require_keys(record, ("name", "expected", "actual"), raw)
+        return {
+            "actual": str(record["actual"]),
+            "expected": str(record["expected"]),
+            "kind": "equal",
+            "name": str(record["name"]),
+        }
+    if kind == "true" or kind == "false":
+        _require_keys(record, ("name", "actual", "passed"), raw)
+        return {
+            "actual": str(record["actual"]),
+            "kind": kind,
+            "name": str(record["name"]),
+            "passed": str(record["passed"]),
+        }
+    if kind == "contains":
+        _require_keys(record, ("name", "haystack", "needle", "passed"), raw)
+        return {
+            "haystack": str(record["haystack"]),
+            "kind": "contains",
+            "name": str(record["name"]),
+            "needle": str(record["needle"]),
+            "passed": str(record["passed"]),
+        }
+    if kind == "match":
+        _require_keys(record, ("name", "value", "want", "passed"), raw)
+        return {
+            "kind": "match",
+            "name": str(record["name"]),
+            "passed": str(record["passed"]),
+            "value": str(record["value"]),
+            "want": str(record["want"]),
+        }
+    fail("starlark_test: unknown check kind '" + kind + "': " + raw)
 
 def _target_is_windows(ctx):
     """Returns whether this target builds for a Windows target platform."""
@@ -345,87 +172,124 @@ def _target_is_windows(ctx):
         ctx.attr._windows_os[platform_common.ConstraintValueInfo],
     )
 
-_SH_TOOLCHAIN = Label("@rules_shell//shell:toolchain_type")
-_SH_TOOLCHAINS = [config_common.toolchain_type(_SH_TOOLCHAIN, mandatory = False)]
+def _validate_common(mode, ctx):
+    """Fails analysis when a test declares no evidence in any channel."""
+    attr = ctx.attr
+    if len(attr.checks) == 0 and len(attr.subjects) == 0 and len(attr.file_checks) == 0 and len(attr.file_blocks) == 0:
+        fail("starlark_test (" + mode + " mode): no evidence: " +
+             "provide checks, subjects, file_checks, or file_blocks")
 
-def _sh_path(ctx):
-    """Returns the rules_shell toolchain's sh path, or "" when it has none."""
-    toolchain = ctx.toolchains[_SH_TOOLCHAIN]
-    path = getattr(toolchain, "path", None) if toolchain else None
-    if not path:
-        return ""
-    error = windows_sh_path_error(path)
-    if error:
-        fail(error)
-    return path
+_HARNESS_MANIFEST_VERSION = 2
 
-def _write_windows_launcher(ctx, runner):
-    """Writes the .bat launcher that runs the runner under the toolchain's sh."""
-    launcher = ctx.actions.declare_file(ctx.label.name + ".bat")
-    key = ctx.workspace_name + "/" + runner.short_path
-    ctx.actions.write(launcher, windows_launcher_body(key, _sh_path(ctx)), is_executable = True)
-    return launcher
+_HARNESS_MANIFEST_ENV = "STARLARK_HARNESS_MANIFEST"
 
-def _write_runner(ctx, body_lines, runfiles_files):
-    """Writes the executable runner and stages its runfiles closure."""
-    runner = ctx.actions.declare_file(ctx.label.name + ".sh")
+def _harness_runfiles_key(ctx, f):
+    """Returns the runfiles key naming one staged file."""
+    short_path = f.short_path
+    if short_path.startswith("../"):
+        return short_path[3:]
+    return ctx.workspace_name + "/" + short_path
+
+def _file_check_files(target):
+    """Returns one file_checks target's files, failing analysis when it has none."""
+    target_files = target.files.to_list()
+    if len(target_files) == 0:
+        fail("starlark_test: file_checks target has no files: " + str(target.label))
+    return sorted(target_files, key = lambda f: f.short_path)
+
+def _harness_file_entries(ctx):
+    """Renders one manifest file entry per staged file behind file_checks and file_blocks."""
+    entries = []
+    staged = []
+    for target in sorted(ctx.attr.file_checks.keys(), key = lambda t: str(t.label)):
+        files = _file_check_files(target)
+        want = ctx.attr.file_checks[target]
+        required = [line for line in want.split("\n") if line != ""]
+        if len(required) == 0:
+            fail("starlark_test: file_checks value is empty for " + str(target.label))
+        for f in files:
+            entries.append({
+                "key": _harness_runfiles_key(ctx, f),
+                "label": _display_label(target.label),
+                "needles": required,
+            })
+            staged.append(f)
+    for target in sorted(ctx.attr.file_blocks.keys(), key = lambda t: str(t.label)):
+        files = sorted(target.files.to_list(), key = lambda f: f.short_path)
+        blocks = json.decode(ctx.attr.file_blocks[target])
+        if type(blocks) != "list" or len(blocks) == 0:
+            fail("starlark_test: file_blocks value is empty for " + str(target.label))
+        for block in blocks:
+            if type(block) != "string":
+                fail("starlark_test: file_blocks block is not a string for " + str(target.label))
+            if block == "":
+                fail("starlark_test: file_blocks block is empty for " + str(target.label))
+        for f in files:
+            entries.append({
+                "key": _harness_runfiles_key(ctx, f),
+                "label": _display_label(target.label),
+                "needles": blocks,
+            })
+            staged.append(f)
+    return (entries, staged)
+
+def _write_harness(ctx, records, observations):
+    """Writes the v2 manifest and runs it through the native harness binary."""
+    (entries, staged) = _harness_file_entries(ctx)
+    manifest = ctx.actions.declare_file(ctx.label.name + "_starlark_manifest.json")
     ctx.actions.write(
-        runner,
-        "\n".join(_RUNNER_PRELUDE + body_lines + _RUNNER_EPILOGUE) + "\n",
-        is_executable = True,
+        manifest,
+        json.encode({
+            "checks": records,
+            "files": entries,
+            "name": _display_label(ctx.label),
+            "observations": observations,
+            "version": _HARNESS_MANIFEST_VERSION,
+        }) + "\n",
     )
+    harness = ctx.executable._harness
+    if _target_is_windows(ctx):
+        executable = ctx.actions.declare_file(ctx.label.name + ".exe")
+    else:
+        executable = ctx.actions.declare_file(ctx.label.name)
+    ctx.actions.symlink(output = executable, target_file = harness, is_executable = True)
     transitive = []
-    for target in ctx.attr.file_checks.keys():
+    for target in ctx.attr.file_checks.keys() + ctx.attr.file_blocks.keys():
         transitive.append(target[DefaultInfo].default_runfiles.files)
     runfiles = ctx.runfiles(
-        files = runfiles_files + [runner],
+        files = staged + [manifest],
         transitive_files = depset(transitive = transitive),
     )
-    if _target_is_windows(ctx):
-        return [DefaultInfo(executable = _write_windows_launcher(ctx, runner), runfiles = runfiles)]
-    return [DefaultInfo(executable = runner, runfiles = runfiles)]
+    runfiles = runfiles.merge(ctx.attr._harness[DefaultInfo].default_runfiles)
+    return [
+        DefaultInfo(executable = executable, runfiles = runfiles),
+        RunEnvironmentInfo({_HARNESS_MANIFEST_ENV: _harness_runfiles_key(ctx, manifest)}),
+        OutputGroupInfo(starlark_manifest = depset([manifest])),
+    ]
 
-def _validate_common(mode, checks, subjects, file_checks):
-    """Fails analysis when a test declares no evidence in any channel."""
-    if len(checks) == 0 and len(subjects) == 0 and len(file_checks) == 0:
-        fail("starlark_test (" + mode + " mode): no evidence: " +
-             "provide checks, subjects, or file_checks")
-
-def _file_check_files(file_checks):
-    """Collects the staged files behind the file_checks mapping."""
-    files = []
-    for target in file_checks.keys():
-        target_files = target.files.to_list()
-        if len(target_files) == 0:
-            fail("starlark_test: file_checks target has no files: " + str(target.label))
-        files.extend(target_files)
-    return files
+def _check_records(ctx):
+    """Normalizes every declared check record in declaration order."""
+    return [_harness_check_record(raw) for raw in ctx.attr.checks]
 
 def _load_test_impl(ctx):
-    _validate_common("load", ctx.attr.checks, ctx.attr.subjects, ctx.attr.file_checks)
+    _validate_common("load", ctx)
     if len(ctx.attr.checks) == 0:
         fail("starlark_test (load mode): checks must be non-empty: " +
              "load tests assert values computed while test files load")
     if len(ctx.attr.subjects) != 0:
         fail("starlark_test (load mode): subjects must be empty: " +
              "load tests observe loading, not analysis")
-    files = _file_check_files(ctx.attr.file_checks)
-    body = _check_lines(ctx.attr.checks)
-    body.extend(_file_check_lines(ctx.attr.file_checks))
-    return _write_runner(ctx, body, files)
+    return _write_harness(ctx, _check_records(ctx), [])
 
 def _unit_test_impl(ctx):
-    _validate_common("unit", ctx.attr.checks, ctx.attr.subjects, ctx.attr.file_checks)
+    _validate_common("unit", ctx)
     if len(ctx.attr.checks) == 0:
         fail("starlark_test (unit mode): checks must be non-empty: " +
              "unit tests assert pure function results")
     if len(ctx.attr.subjects) != 0:
         fail("starlark_test (unit mode): subjects must be empty: " +
              "unit tests take no analysis subjects")
-    files = _file_check_files(ctx.attr.file_checks)
-    body = _check_lines(ctx.attr.checks)
-    body.extend(_file_check_lines(ctx.attr.file_checks))
-    return _write_runner(ctx, body, files)
+    return _write_harness(ctx, _check_records(ctx), [])
 
 def _observed_basename(name):
     """Renders a basename without the Windows executable suffix."""
@@ -453,182 +317,41 @@ def _observe_subjects(subjects):
                 lines.append("config_field " + key + "=" + config_fields[key])
     return lines
 
-def _observe_output_groups(subjects):
-    """Renders dx_results output-group plus instrumented-files lines."""
-    lines = []
-    for target in sorted(subjects, key = lambda t: str(t.label)):
-        if OutputGroupInfo in target:
-            groups = target[OutputGroupInfo]
-            if "dx_results" in groups:
-                dx_files = sorted(groups["dx_results"].to_list(), key = lambda f: f.basename)
-                lines.append("output_group " + _display_label(target.label) + " dx_results=" + (",".join([f.basename for f in dx_files]) if len(dx_files) > 0 else "(none)"))
-            else:
-                lines.append("output_group " + _display_label(target.label) + " dx_results=(none)")
-        else:
-            lines.append("output_group " + _display_label(target.label) + " dx_results=(none)")
-        lines.append("instrumented " + _display_label(target.label) + "=" + str(InstrumentedFilesInfo in target))
-    return lines
-
 def _analysis_test_impl(ctx):
-    _validate_common("analysis", ctx.attr.checks, ctx.attr.subjects, ctx.attr.file_checks)
+    _validate_common("analysis", ctx)
     if len(ctx.attr.subjects) == 0:
         fail("starlark_test (analysis mode): subjects must be non-empty: " +
              "analysis tests observe subject targets")
     observed = _observe_subjects(ctx.attr.subjects)
-    if ctx.attr.observe_output_groups:
-        observed = observed + _observe_output_groups(ctx.attr.subjects)
-    observations = ctx.actions.declare_file(ctx.label.name + "_observations.txt")
-    ctx.actions.write(observations, "\n".join(observed) + "\n")
-    body = _check_lines(ctx.attr.checks)
-    body.extend(_file_check_lines(ctx.attr.file_checks))
+    records = _check_records(ctx)
     if ctx.attr.expected_observations != "":
         expected = ctx.attr.expected_observations
         if _target_is_windows(ctx) and ctx.attr.windows_expected_observations != "":
             expected = ctx.attr.windows_expected_observations
-        body.append("check " + _shell_quote("observations") + " " +
-                    _shell_quote(expected.strip()) + " " +
-                    _shell_quote("\n".join(observed)))
-    body.append("echo '--- observations ---'")
-    body.append("obs=$(rloc " + _shell_quote(observations.short_path) + ")")
-    body.append("cat \"$obs\"")
-    files = _file_check_files(ctx.attr.file_checks)
-    files.append(observations)
-    return _write_runner(ctx, body, files)
+        records.append({
+            "actual": "\n".join(observed),
+            "expected": expected.strip(),
+            "kind": "equal",
+            "name": "observations",
+        })
+    return _write_harness(ctx, records, observed)
 
 def _execution_test_impl(ctx):
-    _validate_common("execution", ctx.attr.checks, ctx.attr.subjects, ctx.attr.file_checks)
-    if len(ctx.attr.file_checks) == 0:
-        fail("starlark_test (execution mode): file_checks must be non-empty: " +
+    _validate_common("execution", ctx)
+    if len(ctx.attr.file_checks) == 0 and len(ctx.attr.file_blocks) == 0:
+        fail("starlark_test (execution mode): file_checks or file_blocks must be non-empty: " +
              "execution tests assert on files read while the test runs")
     if len(ctx.attr.subjects) != 0:
         fail("starlark_test (execution mode): subjects must be empty: " +
              "execution tests read runfiles, not analysis subjects")
-    files = _file_check_files(ctx.attr.file_checks)
-    body = _check_lines(ctx.attr.checks)
-    body.extend(_file_check_lines(ctx.attr.file_checks))
-    return _write_runner(ctx, body, files)
-
-_HARNESS_MANIFEST_VERSION = 1
-
-_HARNESS_MANIFEST_ENV = "STARLARK_HARNESS_MANIFEST"
-
-def _harness_runfiles_key(ctx, f):
-    """Returns the runfiles key naming one staged file."""
-    short_path = f.short_path
-    if short_path.startswith("../"):
-        return short_path[3:]
-    return ctx.workspace_name + "/" + short_path
-
-def _harness_check_record(raw):
-    """Normalizes one JSON check record into a manifest entry with string fields."""
-    check = _parse_check(raw)
-    if check.kind == "equal":
-        return {
-            "actual": check.actual,
-            "expected": check.expected,
-            "kind": "equal",
-            "name": check.name,
-        }
-    if check.kind == "true" or check.kind == "false":
-        return {
-            "actual": check.actual,
-            "kind": check.kind,
-            "name": check.name,
-            "passed": check.passed,
-        }
-    if check.kind == "contains":
-        return {
-            "haystack": check.haystack,
-            "kind": "contains",
-            "name": check.name,
-            "needle": check.needle,
-            "passed": check.passed,
-        }
-    return {
-        "kind": "match",
-        "name": check.name,
-        "passed": check.passed,
-        "value": check.value,
-        "want": check.want,
-    }
-
-def _harness_file_entries(ctx):
-    """Renders one manifest file entry per staged file behind file_checks and file_blocks."""
-    entries = []
-    staged = []
-    for target in sorted(ctx.attr.file_checks.keys(), key = lambda t: str(t.label)):
-        want = ctx.attr.file_checks[target]
-        required = [line for line in want.split("\n") if line != ""]
-        if len(required) == 0:
-            fail("starlark_test: file_checks value is empty for " + str(target.label))
-        for f in sorted(target.files.to_list(), key = lambda f: f.short_path):
-            entries.append({
-                "key": _harness_runfiles_key(ctx, f),
-                "label": _display_label(target.label),
-                "needles": required,
-            })
-            staged.append(f)
-    for target in sorted(ctx.attr.file_blocks.keys(), key = lambda t: str(t.label)):
-        blocks = json.decode(ctx.attr.file_blocks[target])
-        if type(blocks) != "list" or len(blocks) == 0:
-            fail("starlark_test: file_blocks value is empty for " + str(target.label))
-        for block in blocks:
-            if type(block) != "string":
-                fail("starlark_test: file_blocks block is not a string for " + str(target.label))
-            if block == "":
-                fail("starlark_test: file_blocks block is empty for " + str(target.label))
-        for f in sorted(target.files.to_list(), key = lambda f: f.short_path):
-            entries.append({
-                "key": _harness_runfiles_key(ctx, f),
-                "label": _display_label(target.label),
-                "needles": blocks,
-            })
-            staged.append(f)
-    return (entries, staged)
-
-def _harness_execution_impl(ctx):
-    _validate_common("execution", ctx.attr.checks, ctx.attr.subjects, ctx.attr.file_checks | ctx.attr.file_blocks)
-    if len(ctx.attr.file_checks) == 0 and len(ctx.attr.file_blocks) == 0:
-        fail("starlark_harness_test: file_checks or file_blocks must be non-empty: " +
-             "execution tests assert on files read while the test runs")
-    if len(ctx.attr.subjects) != 0:
-        fail("starlark_harness_test: subjects must be empty: " +
-             "execution tests read runfiles, not analysis subjects")
-    records = [_harness_check_record(raw) for raw in ctx.attr.checks]
-    (entries, staged) = _harness_file_entries(ctx)
-    manifest = ctx.actions.declare_file(ctx.label.name + "_starlark_manifest.json")
-    ctx.actions.write(
-        manifest,
-        json.encode({
-            "checks": records,
-            "files": entries,
-            "name": _display_label(ctx.label),
-            "version": _HARNESS_MANIFEST_VERSION,
-        }) + "\n",
-    )
-    harness = ctx.executable._harness
-    if _target_is_windows(ctx):
-        executable = ctx.actions.declare_file(ctx.label.name + ".exe")
-    else:
-        executable = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.symlink(output = executable, target_file = harness, is_executable = True)
-    transitive = []
-    for target in ctx.attr.file_checks.keys() + ctx.attr.file_blocks.keys():
-        transitive.append(target[DefaultInfo].default_runfiles.files)
-    runfiles = ctx.runfiles(
-        files = staged + [manifest],
-        transitive_files = depset(transitive = transitive),
-    )
-    runfiles = runfiles.merge(ctx.attr._harness[DefaultInfo].default_runfiles)
-    return [
-        DefaultInfo(executable = executable, runfiles = runfiles),
-        testing.TestEnvironment(
-            {_HARNESS_MANIFEST_ENV: _harness_runfiles_key(ctx, manifest)},
-            [],
-        ),
-    ]
+    return _write_harness(ctx, _check_records(ctx), [])
 
 _common_attrs = {
+    "_harness": attr.label(
+        cfg = "target",
+        default = Label("//tools/testing:starlark_harness"),
+        executable = True,
+    ),
     "_windows_os": attr.label(default = "@platforms//os:windows"),
     "checks": attr.string_list(
         doc = "JSON check records asserting expected against actual values.",
@@ -641,13 +364,13 @@ _common_attrs = {
         doc = "Expected observation text used instead on Windows targets.",
         default = "",
     ),
+    "file_blocks": attr.label_keyed_string_dict(
+        doc = "Map from file targets to JSON lists of multi-line blocks each file must contain.",
+        allow_files = True,
+    ),
     "file_checks": attr.label_keyed_string_dict(
         doc = "Map from file targets to newline separated substrings each file must contain.",
         allow_files = True,
-    ),
-    "observe_output_groups": attr.bool(
-        doc = "Whether to also observe dx_results output groups of subjects.",
-        default = False,
     ),
     "subjects": attr.label_list(
         doc = "Analysis subject targets whose fields and files are observed.",
@@ -659,51 +382,24 @@ _starlark_load_test = rule(
     implementation = _load_test_impl,
     test = True,
     attrs = _common_attrs,
-    toolchains = _SH_TOOLCHAINS,
 )
 
 _starlark_unit_test = rule(
     implementation = _unit_test_impl,
     test = True,
     attrs = _common_attrs,
-    toolchains = _SH_TOOLCHAINS,
 )
 
 _starlark_analysis_test = rule(
     implementation = _analysis_test_impl,
     test = True,
     attrs = _common_attrs,
-    toolchains = _SH_TOOLCHAINS,
 )
 
 _starlark_execution_test = rule(
     implementation = _execution_test_impl,
     test = True,
     attrs = _common_attrs,
-    toolchains = _SH_TOOLCHAINS,
-)
-
-_starlark_harness_execution_test = rule(
-    implementation = _harness_execution_impl,
-    test = True,
-    attrs = {
-        "_harness": attr.label(
-            cfg = "target",
-            default = Label("//tools/testing:starlark_harness"),
-            executable = True,
-        ),
-        "_windows_os": attr.label(default = "@platforms//os:windows"),
-        "checks": attr.string_list(),
-        "file_blocks": attr.label_keyed_string_dict(
-            allow_files = True,
-        ),
-        "file_checks": attr.label_keyed_string_dict(
-            allow_files = True,
-        ),
-        "subjects": attr.label_list(
-            aspects = [dx_aspect_note],
-        ),
-    },
 )
 
 _MODES = {
@@ -713,7 +409,7 @@ _MODES = {
     "unit": _starlark_unit_test,
 }
 
-def starlark_test(name, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, observe_output_groups = False, **kwargs):
+def starlark_test(name, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, file_blocks = {}, **kwargs):
     """Instantiates one test target in the given mode."""
     if mode not in _MODES:
         fail("starlark_test: unknown mode '" + mode + "': want one of " +
@@ -725,18 +421,6 @@ def starlark_test(name, mode, checks = [], subjects = [], expected_observations 
         subjects = subjects,
         expected_observations = expected_observations,
         windows_expected_observations = windows_expected_observations,
-        file_checks = file_checks,
-        observe_output_groups = observe_output_groups,
-        **kwargs
-    )
-
-def starlark_harness_test(name, checks = [], subjects = [], file_checks = {}, file_blocks = {}, **kwargs):
-    """Instantiates one execution test running the native harness binary."""
-    kwargs.setdefault("size", "small")
-    _starlark_harness_execution_test(
-        name = name,
-        checks = checks,
-        subjects = subjects,
         file_checks = file_checks,
         file_blocks = {label: json.encode(blocks) for label, blocks in file_blocks.items()},
         **kwargs

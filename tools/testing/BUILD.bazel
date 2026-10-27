@@ -71,31 +71,6 @@ rust_test(
     ),
 )
 
-rust_library(
-    name = "dx_nested",
-    srcs = ["src/nested.rs"],
-    crate_name = "dx_nested",
-    crate_root = "src/nested.rs",
-    edition = "2021",
-    deps = [
-        ":dx_testing",
-        "//cli/path:dx_path",
-        "//cli/process:dx_process",
-    ],
-)
-
-rust_test(
-    name = "dx_nested_test",
-    size = "small",
-    crate = ":dx_nested",
-    data = [":nested_bazel_shim"],
-    env = {"DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath :nested_bazel_shim)"},
-    deps = crate_deps(
-        ["tempfile"],
-        package_name = "tools/dx_testing",
-    ),
-)
-
 child_runfiles(
     name = "process_probe_child",
     testonly = True,
@@ -261,6 +236,7 @@ rust_binary(
     crate_name = "starlark_harness",
     crate_root = "starlark_harness.rs",
     edition = "2021",
+    visibility = ["//visibility:public"],
     deps = crate_deps(
         ["serde_json"],
         package_name = "tools/dx_testing",

@@ -1,6 +1,6 @@
 """Canonical version pins stay equal to MODULE.bazel literals."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_harness_test")
+load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//tools/testing:bazel_pins.bzl", "NESTED_BAZEL_SHA256", "NESTED_BAZEL_VERSION")
 load(":cuda.bzl", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_HOST_SYSROOT = "CUDA_HOST_SYSROOT", _MOD_CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _MOD_TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
 load(":dotnet.bzl", _MOD_DOTNET_VERSION = "DOTNET_VERSION", _MOD_RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION")
@@ -51,8 +51,9 @@ def versions_contract_tests(name):
         "sha256 = \"" + _CUDA_HOST_SYSROOT.sha256 + "\"",
         _CUDA_HOST_SYSROOT.url,
     ] + cuda_pins)
-    starlark_harness_test(
+    starlark_test(
         name = name,
+        mode = "execution",
         checks = [
             expect_equal("dotnet module follows canonical", _MOD_DOTNET_VERSION, _DOTNET_VERSION),
             expect_equal("dotnet rules module follows canonical", _MOD_RULES_DOTNET_VERSION, _RULES_DOTNET_VERSION),

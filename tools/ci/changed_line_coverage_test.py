@@ -55,8 +55,38 @@ def lcov(entries):
     return "\n".join(out) + "\n"
 
 
-def run_gate(repo, report, base="main~0", threshold=80, extra=(), pythonpath=()):
+def sources(path, absent=(), owned=None):
+    """Writes a sources record and returns its path."""
+    if owned is None:
+        owned = {"app.py": "eligible", **{item: "absent" for item in absent}}
+    path.write_text(
+        json.dumps(
+            {
+                "record_version": 1,
+                "cell": "linux_x86_64",
+                "owned": owned,
+                "absent": list(absent),
+                "errors": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def run_gate(
+    repo,
+    report,
+    base="main~0",
+    threshold=80,
+    extra=(),
+    pythonpath=(),
+    absent=(),
+    record=None,
+):
     """Runs the gate in the repository and returns status and text."""
+    if record is None:
+        record = sources(report.parent / f"{report.stem}.sources.json", absent)
     env = dict(
         os.environ, PYTHONPATH=os.pathsep.join([*map(str, pythonpath), *sys.path])
     )
@@ -68,6 +98,8 @@ def run_gate(repo, report, base="main~0", threshold=80, extra=(), pythonpath=())
             base,
             "--lcov",
             str(report),
+            "--sources",
+            str(record),
             "--threshold",
             str(threshold),
             *extra,
@@ -80,14 +112,17 @@ def run_gate(repo, report, base="main~0", threshold=80, extra=(), pythonpath=())
     return done.returncode, done.stdout + done.stderr
 
 
-def feature(tmp_path, report_text, files, threshold=80):
+def feature(tmp_path, report_text, files, threshold=80, absent=(), owned=None):
     """Branches off main, commits the files and runs the gate against main."""
     repo = make_repo(tmp_path)
     git(repo, "checkout", "-q", "-b", "topic")
     commit(repo, files)
     report = tmp_path / "coverage.lcov"
     report.write_text(report_text, encoding="utf-8")
-    return repo, run_gate(repo, report, base="main", threshold=threshold)
+    record = sources(tmp_path / "sources.json", absent, owned)
+    return repo, run_gate(
+        repo, report, base="main", threshold=threshold, record=record
+    )
 
 
 def test_a_new_covered_line_passes_and_reports_the_revision_pair(tmp_path):
@@ -204,7 +239,7 @@ def test_a_new_root_file_sharing_a_basename_is_incomplete(tmp_path):
         commit(repo, {"util.py": "b = 2\n"})
         report = tmp_path / f"coverage{index}.lcov"
         report.write_text(lcov({spelled: {1: 1}}), encoding="utf-8")
-        code, text = run_gate(repo, report, base="main")
+        code, text = run_gate(repo, report, base="main", absent=["util.py"])
         assert code == 1, f"{spelled}: {text}"
         assert "uninstrumented: util.py" in text, f"{spelled}: {text}"
         assert "result: incomplete" in text, f"{spelled}: {text}"
@@ -345,12 +380,58 @@ def test_a_changed_source_the_report_never_saw_is_incomplete(tmp_path):
         tmp_path,
         lcov({"app.py": {1: 1, 2: 1, 3: 1, 4: 1, 5: 1}}),
         {"fresh.py": "x = 1\n", "README.md": "hello\nmore\n"},
+        absent=["fresh.py"],
     )
     assert code == 1, text
     assert "complete: no" in text
     assert "uninstrumented: fresh.py" in text
     assert "uninstrumented: README.md" not in text
     assert "result: incomplete" in text
+
+
+def test_a_covered_source_and_a_test_file_pass(tmp_path):
+    _, (code, text) = feature(
+        tmp_path,
+        lcov({"app.py": {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}}),
+        {"app.py": APP + "line_6 = 6\n", "tests/test_app.py": "x = 1\n"},
+        owned={"app.py": "eligible", "tests/test_app.py": "support"},
+    )
+    assert code == 0, text
+    assert "complete: yes" in text
+    assert "result: pass" in text
+
+
+def test_a_file_no_instrumented_target_owns_is_skipped(tmp_path):
+    _, (code, text) = feature(
+        tmp_path,
+        lcov({"app.py": {1: 1, 2: 1, 3: 1, 4: 1, 5: 1}}),
+        {"other.py": "x = 1\n"},
+    )
+    assert "uninstrumented:" not in text
+    assert "complete: yes" in text
+
+
+def test_a_missing_sources_record_never_passes(tmp_path):
+    repo = make_repo(tmp_path)
+    report = tmp_path / "coverage.lcov"
+    report.write_text(lcov({"app.py": {1: 1}}), encoding="utf-8")
+    code, text = run_gate(repo, report, base="main", record=tmp_path / "none.json")
+    assert code == 1, text
+    assert "unreadable" in text
+    assert "result:" not in text
+
+
+def test_an_invalid_or_empty_sources_record_never_passes(tmp_path):
+    repo = make_repo(tmp_path)
+    report = tmp_path / "coverage.lcov"
+    report.write_text(lcov({"app.py": {1: 1}}), encoding="utf-8")
+    broken = tmp_path / "broken.json"
+    broken.write_text("{", encoding="utf-8")
+    empty = sources(tmp_path / "empty.json", owned={})
+    for record in (broken, empty):
+        code, text = run_gate(repo, report, base="main", record=record)
+        assert code == 1, text
+        assert "result:" not in text
 
 
 def test_an_empty_report_never_passes(tmp_path):

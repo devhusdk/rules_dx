@@ -1,10 +1,11 @@
 """Gates the executable lines a change adds against an existing LCOV report.
 
 The consumer workflow runs this with bazel run after `dx coverage`
-wrote the report. The base revision is explicit. The head is the checked out
+wrote the report and its sources record. The base revision is explicit. The head is the checked out
 HEAD. The diff between their merge-base and HEAD is handed to diff-cover,
 which maps the added lines onto the report. Missing history, a missing or
-malformed report, and changed sources the report never saw fail the gate.
+malformed report or sources record, and changed production sources the
+report never saw fail the gate.
 """
 
 import argparse
@@ -147,14 +148,27 @@ def added_files(merge_base, head):
     return files
 
 
-def uninstrumented(files, recorded):
-    """Returns the changed files the report lacks, among kinds the report covers."""
-    extensions = {os.path.splitext(item)[1] for item in recorded} - {""}
-    return sorted(
-        path
-        for path in files
-        if os.path.splitext(path)[1] in extensions and path not in recorded
-    )
+def owned_sources(path):
+    """Returns the production sources `dx coverage` found absent from the report."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            record = json.load(handle)
+    except (OSError, ValueError) as error:
+        raise RuntimeError(f"sources record {path} is unreadable: {error}") from error
+    if not isinstance(record, dict) or record.get("record_version") != 1:
+        raise RuntimeError(f"sources record {path} has an unsupported record_version")
+    owned = record.get("owned")
+    absent = record.get("absent")
+    if not isinstance(owned, dict) or not isinstance(absent, list):
+        raise RuntimeError(f"sources record {path} lacks owned and absent")
+    if not owned and not absent:
+        raise RuntimeError(f"sources record {path} lists no owned sources")
+    return {item for item in absent if isinstance(item, str)}
+
+
+def uninstrumented(files, absent):
+    """Returns the changed files whose production source the report never saw."""
+    return sorted(path for path in files if path in absent)
 
 
 def tracked_files():
@@ -246,11 +260,10 @@ def evaluate(arguments):
     base, merge_base, head = revision_pair(arguments.base)
     toplevel = repository_root()
     tracked = tracked_files()
-    recorded = {
-        repo_path(item, toplevel, tracked) for item in report_files(arguments.lcov)
-    }
+    report_files(arguments.lcov)
+    absent = owned_sources(arguments.sources)
     files = added_files(merge_base, head)
-    missing = uninstrumented(files, recorded)
+    missing = uninstrumented(files, absent)
     with tempfile.TemporaryDirectory() as scratch:
         diff = os.path.join(scratch, "change.diff")
         text = git("diff", "--no-color", "--no-ext-diff", "-U0", "-M", merge_base, head)
@@ -321,6 +334,11 @@ def parse(argv):
         "--base", required=True, help="Base revision to compare against."
     )
     parser.add_argument("--lcov", required=True, help="LCOV report from dx coverage.")
+    parser.add_argument(
+        "--sources",
+        required=True,
+        help="Sources record from dx coverage --report sources=<path>.",
+    )
     parser.add_argument(
         "--threshold", required=True, type=int, help="Whole percent from 0 to 100."
     )

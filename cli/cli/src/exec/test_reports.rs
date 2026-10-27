@@ -14,7 +14,7 @@ use dx_plan::args::Invocation;
 use dx_plan::plan::WorkflowVerb;
 use dx_plan::reports::{
     coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
-    Destination, JunitCase, JunitMessage, PlannedReport, ReportError,
+    Destination, JunitCase, JunitMessage, PlannedReport, ReportError, StandardFormat,
 };
 use dx_plan::resolve::QueryRunner;
 use std::collections::BTreeMap;
@@ -945,7 +945,19 @@ fn render_report(
     suites: &[(String, Vec<JunitCase>)],
     lcov_documents: &[String],
     detail: &str,
+    format: StandardFormat,
+    sources_document: Option<&str>,
 ) -> Result<String, String> {
+    if format == StandardFormat::Sources {
+        return match sources_document {
+            Some(document) if detail.is_empty() => Ok(document.to_owned()),
+            _ => Err(if detail.is_empty() {
+                "no coverage source account is available".to_owned()
+            } else {
+                detail.to_owned()
+            }),
+        };
+    }
     match verb {
         WorkflowVerb::Test => render_junit(suites).map_err(|error| error.to_string()),
         WorkflowVerb::Coverage => {
@@ -1033,20 +1045,54 @@ fn coverage_threshold(
     Ok(threshold_ok)
 }
 
-/// Accounts the run's owned sources against its coverage, prints the counts and every gap; true when none.
-fn coverage_sources(
+/// Accounts every owned source of the run against the merged coverage.
+fn account_sources(
     sources: &Sources,
     lcov_documents: &[String],
     workspace: &Path,
+) -> dx_lcov::CellAccount {
+    dx_lcov::account(&sources.manifests, lcov_documents, &|path| {
+        std::fs::read_to_string(workspace.join(path)).map_err(|error| dx_lcov::LcovError::Io {
+            message: format!("{path}: {error}"),
+        })
+    })
+}
+
+/// The `sources` report: the cell's owned sources with dispositions and the production sources the report never saw.
+fn sources_report(sources: &Sources, account: &dx_lcov::CellAccount) -> String {
+    let owned: std::collections::BTreeMap<&str, &str> = account
+        .files
+        .iter()
+        .map(|(path, disposition)| {
+            let name = match disposition {
+                dx_lcov::Disposition::Eligible => "eligible",
+                dx_lcov::Disposition::Support => "support",
+                dx_lcov::Disposition::Excluded => "excluded",
+                dx_lcov::Disposition::Unsupported => "unsupported",
+            };
+            (path.as_str(), name)
+        })
+        .chain(account.absent.iter().map(|path| (path.as_str(), "absent")))
+        .collect();
+    let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
+    let document = serde_json::json!({
+        "record_version": 1,
+        "cell": account.cell,
+        "owned": owned,
+        "absent": account.absent,
+        "errors": errors,
+    });
+    serde_json::to_string_pretty(&document).unwrap_or_default() + "\n"
+}
+
+/// Prints the account's counts and every gap; true when none.
+fn coverage_sources(
+    sources: &Sources,
+    account: &dx_lcov::CellAccount,
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> bool {
-    let account = dx_lcov::account(&sources.manifests, lcov_documents, &|path| {
-        std::fs::read_to_string(workspace.join(path)).map_err(|error| dx_lcov::LcovError::Io {
-            message: format!("{path}: {error}"),
-        })
-    });
     let summary = account.summary();
     let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
     let notices = std::iter::once(("info", CODE_COVERAGE_SOURCES, &summary)).chain(
@@ -1221,9 +1267,21 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             }
         }
     }
+    let account = (verb == WorkflowVerb::Coverage && detail.is_empty())
+        .then(|| account_sources(&sources, &lcov_documents, workspace));
+    let sources_document = account
+        .as_ref()
+        .map(|account| sources_report(&sources, account));
     for planned in planned_reports {
         let name = planned.format.name();
-        let document = match render_report(verb, &suites, &lcov_documents, &detail) {
+        let document = match render_report(
+            verb,
+            &suites,
+            &lcov_documents,
+            &detail,
+            planned.format,
+            sources_document.as_deref(),
+        ) {
             Ok(document) => document,
             Err(reason) => {
                 reports_ok = false;
@@ -1259,15 +1317,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         true
     };
-    if verb == WorkflowVerb::Coverage && detail.is_empty() {
-        coverage_sources(
-            &sources,
-            &lcov_documents,
-            workspace,
-            invocation.output,
-            out,
-            err,
-        );
+    if let Some(account) = &account {
+        coverage_sources(&sources, account, invocation.output, out, err);
     }
     let code = if bazel_code != 0 {
         bazel_code
@@ -1677,6 +1728,28 @@ mod tests {
             ),
             "{err}"
         );
+    }
+
+    #[test]
+    fn coverage_sources_report_lists_owned_and_absent() {
+        let harness = sources_harness(
+            "cov-sources-report",
+            "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\ntest source src/a_test.py\n",
+            MINIMAL_LCOV,
+        );
+        let path = harness.workspace.join("sources.json");
+        let (code, _, err) = harness.run(&[
+            "coverage",
+            "--output=text",
+            &format!("--report=sources={}", path.display()),
+        ]);
+        assert_eq!(code, 0, "{err}");
+        let document: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("sources report")).unwrap();
+        assert_eq!(document["record_version"], serde_json::json!(1));
+        assert_eq!(document["absent"], serde_json::json!(["src/b.py"]));
+        assert_eq!(document["owned"]["src/a.py"], serde_json::json!("eligible"));
+        assert_eq!(document["owned"]["src/a_test.py"], serde_json::json!("support"));
     }
 
     #[test]

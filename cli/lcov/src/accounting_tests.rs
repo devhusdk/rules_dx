@@ -403,3 +403,20 @@ fn summary_names_every_count() {
         "coverage sources linux_x86_64: 10 raw, 2 excluded, 8 eligible lines; 3 eligible, 4 support, 1 excluded, 5 unsupported files"
     );
 }
+
+#[test]
+fn absent_lists_only_missing_production_sources() {
+    let manifests = [manifest(
+        "v1 cell linux_x86_64\nprod source a.rs\nprod source missing.rs\ntest source t_test.rs\nprod source cc/decl.hpp\n",
+    )];
+    let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &sources(&[]));
+    assert_eq!(result.absent, vec!["missing.rs".to_string()]);
+}
+
+#[test]
+fn whole_file_excluded_source_is_not_absent() {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let source = format!("\n{}", excluded_source());
+    let result = account(&manifests, &[], &sources(&[("a.rs", source.as_str())]));
+    assert!(result.absent.is_empty());
+}

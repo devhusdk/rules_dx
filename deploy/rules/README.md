@@ -415,6 +415,19 @@ OCI_REGISTRY_USER=... OCI_REGISTRY_TOKEN=... \
 dx deploy --apply //pkg:oci_demo
 ```
 
+A live run stages the same layout into the output dir and uploads it over
+HTTPS with the OCI Distribution API. No docker needed. It prints
+`oci_deploy: pushed <registry>/<repository>:<tag>@sha256:...`, the digest of
+the staged manifest. Layers go up as staged, so uncompressed layers stay
+uncompressed.
+
+- Auth: `OCI_REGISTRY_USER` and `OCI_REGISTRY_TOKEN`, sent as a Basic login or
+  exchanged for a bearer token, as the registry asks.
+- `registry` may carry a path prefix, such as `ghcr.io/example`.
+- `docker.io` pushes to `registry-1.docker.io`; a single-segment repository
+  gets `library/`.
+- Plain-HTTP registries are not supported.
+
 A live run refuses tags `0.0.0` and `0.0.0-dryrun`.
 
 # octopus_deploy

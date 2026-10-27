@@ -3279,6 +3279,145 @@ mod hooks {
         );
     }
 
+    fn push_agent_branch(fixture: &Fixture, branch: &str) -> PathBuf {
+        let clone = fixture.clone_origin();
+        git(&clone, &["checkout", "--quiet", "-b", branch]);
+        std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
+        git(&clone, &["add", "."]);
+        git(&clone, &["commit", "--quiet", "-m", "agent work"]);
+        git(&clone, &["push", "--quiet", "origin", branch]);
+        clone
+    }
+
+    #[test]
+    fn a_second_create_with_a_held_name_gets_the_next_branch() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        host.live(20);
+        let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
+        let first = hook::create(&pool, &host, &who("s1", 10), &input).expect("first");
+        let same = hook::create(&pool, &host, &who("s1", 10), &input).expect("same session");
+        let other = hook::create(&pool, &host, &who("s2", 20), &input).expect("other session");
+        assert_ne!(first.slot, same.slot);
+        assert_ne!(same.slot, other.slot);
+        assert_eq!(
+            git(&first.path, &["branch", "--show-current"]),
+            "worktree-agent-two"
+        );
+        assert_eq!(
+            git(&same.path, &["branch", "--show-current"]),
+            "worktree-agent-two-2"
+        );
+        assert_eq!(
+            git(&other.path, &["branch", "--show-current"]),
+            "worktree-agent-two-3"
+        );
+    }
+
+    #[test]
+    fn concurrent_creates_with_one_name_get_different_branches() {
+        for shared_session in [true, false] {
+            let fixture = Fixture::new();
+            let host = FakeHost::new();
+            for n in 0..3u32 {
+                host.live(100 + n);
+            }
+            let input = serde_json::json!({"name": "agent", "cwd": fixture.main});
+            let results: Vec<_> = std::thread::scope(|scope| {
+                let handles: Vec<_> = (0..3u32)
+                    .map(|n| {
+                        let pool = fixture.pool();
+                        let host = &host;
+                        let input = &input;
+                        scope.spawn(move || {
+                            let session = if shared_session {
+                                "s".to_owned()
+                            } else {
+                                format!("s{n}")
+                            };
+                            hook::create(&pool, host, &who(&session, 100 + n), input)
+                        })
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .map(|h| h.join().expect("joins"))
+                    .collect()
+            });
+            let mut slots = Vec::new();
+            let mut branches = Vec::new();
+            for result in results {
+                let added = result.expect("create");
+                slots.push(added.slot);
+                branches.push(git(&added.path, &["branch", "--show-current"]));
+            }
+            slots.sort_unstable();
+            slots.dedup();
+            branches.sort();
+            branches.dedup();
+            assert_eq!(slots.len(), 3);
+            assert_eq!(branches.len(), 3);
+        }
+    }
+
+    #[test]
+    fn create_ignores_a_deleted_origin_branch() {
+        let fixture = Fixture::new();
+        let clone = push_agent_branch(&fixture, "worktree-agent-two");
+        git(&fixture.main, &["fetch", "--quiet", "origin"]);
+        git(
+            &clone,
+            &[
+                "push",
+                "--quiet",
+                "origin",
+                "--delete",
+                "worktree-agent-two",
+            ],
+        );
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &who("s1", 10), &input)
+            .expect("create")
+            .path;
+        assert_eq!(
+            git(&path, &["branch", "--show-current"]),
+            "worktree-agent-two"
+        );
+        git(
+            &fixture.main,
+            &[
+                "show-ref",
+                "--verify",
+                "refs/remotes/origin/worktree-agent-two",
+            ],
+        );
+    }
+
+    #[test]
+    fn create_falls_back_to_local_refs_when_origin_is_unreachable() {
+        let fixture = Fixture::new();
+        push_agent_branch(&fixture, "worktree-agent-two");
+        git(&fixture.main, &["fetch", "--quiet", "origin"]);
+        let missing = fixture.main.parent().expect("root").join("missing.git");
+        git(
+            &fixture.main,
+            &["remote", "set-url", "origin", &missing.to_string_lossy()],
+        );
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
+        let created = hook::create(&pool, &host, &who("s1", 10), &input).expect("create");
+        assert_eq!(created.warnings[0].code, "fetch_failed");
+        assert_eq!(
+            git(&created.path, &["branch", "--show-current"]),
+            "worktree-agent-two-2"
+        );
+    }
+
     #[test]
     fn a_local_agent_branch_wins_over_origin() {
         let fixture = Fixture::new();

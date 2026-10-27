@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
@@ -5,7 +6,7 @@ use serde_json::Value;
 use super::git;
 use super::host::Host;
 use super::ops::{self, AddRequest, Added, Released};
-use super::pool::{Pool, Who, HOLDER_ENV, SESSION_ENV};
+use super::pool::{Pool, Record, Who, HOLDER_ENV, SESSION_ENV};
 use super::WorktreeError;
 
 fn field(input: &Value, name: &str) -> Option<String> {
@@ -162,22 +163,42 @@ pub fn branch_for(name: &str) -> String {
     )
 }
 
-/// The first agent branch name that is local or not on origin.
-fn free_branch(main: &Path, name: &str) -> String {
-    let stem = branch_for(name);
+/// The first agent branch name no pool record holds, no checkout has, and
+/// origin does not carry (unless it is also local). `remote` is the live
+/// origin branch set, or `None` to fall back to local `origin/*` refs.
+fn free_branch(
+    main: &Path,
+    stem: &str,
+    records: &[Record],
+    checkouts: &[git::Checkout],
+    remote: Option<&HashSet<String>>,
+) -> String {
     (1..)
         .map(|n| {
             if n == 1 {
-                stem.clone()
+                stem.to_owned()
             } else {
                 format!("{stem}-{n}")
             }
         })
         .find(|candidate| {
-            git::branch_exists(main, candidate)
-                || !git::ref_exists(main, &format!("origin/{candidate}"))
+            if ops::held_on(records, candidate).is_some()
+                || checkouts
+                    .iter()
+                    .any(|checkout| checkout.branch.as_deref() == Some(candidate.as_str()))
+            {
+                return false;
+            }
+            if git::branch_exists(main, candidate) {
+                return true;
+            }
+            let on_origin = match remote {
+                Some(set) => set.contains(candidate),
+                None => git::ref_exists(main, &format!("origin/{candidate}")),
+            };
+            !on_origin
         })
-        .unwrap_or(stem)
+        .unwrap_or_else(|| stem.to_owned())
 }
 
 fn recycle_gone(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
@@ -221,8 +242,30 @@ pub fn create(
     let name = field(input, "name").ok_or_else(|| missing(HookKind::Create, "name"))?;
     let freed = recycle_gone(pool, host, who);
     let warnings = ops::refresh(pool, host)?;
-    let branch = free_branch(&pool.main, &name);
-    ops::check_branch(pool, &branch)?;
+    let stem = branch_for(&name);
+    // Every `-N` form of a valid stem is valid too.
+    ops::check_branch(pool, &stem)?;
+    let has_origin = git::succeeds(&pool.main, &["remote", "get-url", "origin"]);
+    let fetched = !warnings.iter().any(|w| w.code == "fetch_failed");
+    let remote = if has_origin && fetched {
+        match git::remote_heads(&pool.main, &stem, &|| host.interrupted()) {
+            Ok(set) => Some(set),
+            Err(error) => match host.interrupted() {
+                Some(signo) => return Err(WorktreeError::stopped(signo)),
+                None => {
+                    let _ = error;
+                    None
+                }
+            },
+        }
+    } else {
+        None
+    };
+    let lock = pool.lock()?;
+    pool.forget_missing();
+    let records = pool.records();
+    let checkouts = pool.checkouts()?;
+    let branch = free_branch(&pool.main, &stem, &records, &checkouts, remote.as_ref());
     let owner = Who {
         agent: Some(branch.clone()),
         ..who.clone()
@@ -233,7 +276,7 @@ pub fn create(
         force: false,
         unclaimed: true,
     };
-    ops::lease(pool, host, &owner, &request, &freed, warnings)
+    ops::lease_locked(pool, host, &owner, &request, &freed, warnings, lock)
 }
 
 /// Frees the slot of an agent worktree and returns what the release did,

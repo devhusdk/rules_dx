@@ -240,6 +240,23 @@ fn secret_key(name: &str) -> bool {
     })
 }
 
+/// True when `text` holds a `KEY=` assignment whose key names a secret, such as `-DAPI_KEY=x`.
+fn embedded_secret(text: &str) -> bool {
+    text.match_indices('=').any(|(at, _)| {
+        let head = &text[..at];
+        let start = head
+            .rfind(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-')))
+            .map_or(0, |index| index + 1);
+        let key = &head[start..];
+        let key = key
+            .strip_prefix("--")
+            .or_else(|| key.strip_prefix("-D"))
+            .or_else(|| key.strip_prefix('-'))
+            .unwrap_or(key);
+        !key.is_empty() && secret_key(key)
+    })
+}
+
 /// Returns the target name of a Starlark flag such as `//pkg:flag` or `no@repo//:flag`.
 fn starlark_target(name: &str) -> Option<&str> {
     let rest = match name.strip_prefix("no") {
@@ -326,7 +343,10 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
             continue;
         }
         if let Some(target) = starlark_target(&name) {
-            if secret_key(target) {
+            let value_secret = option
+                .split_once('=')
+                .is_some_and(|(_, v)| embedded_secret(v));
+            if secret_key(target) || value_secret {
                 withheld.push(format!("--{}", provenance_option_name(option)));
             } else {
                 safe.push(redact_url_credentials(option));
@@ -337,7 +357,20 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
             .iter()
             .any(|secret| name == *secret || name.ends_with(&format!("_{secret}")));
         if !secret {
-            safe.push(redact_url_credentials(option));
+            if !option.starts_with("--") {
+                if embedded_secret(option) {
+                    withheld.push("(value)".to_owned());
+                } else {
+                    safe.push(redact_url_credentials(option));
+                }
+            } else if option
+                .split_once('=')
+                .is_some_and(|(_, v)| embedded_secret(v))
+            {
+                withheld.push(format!("--{}", provenance_option_name(option)));
+            } else {
+                safe.push(redact_url_credentials(option));
+            }
             continue;
         }
         withheld.push(format!("--{}", provenance_option_name(option)));
@@ -384,6 +417,26 @@ mod tests {
                 &["--define=GH_PAT=hunter2"],
                 &[],
                 &["--define=GH_PAT=(value)"],
+            ),
+            (&["--copt=-DAPI_KEY=hunter2"], &[], &["--copt"]),
+            (
+                &["--host_jvm_args=-Dauth.token=hunter2"],
+                &[],
+                &["--host_jvm_args"],
+            ),
+            (&["--test_arg=--token=hunter2"], &[], &["--test_arg"]),
+            (&["--copt", "-DAPI_KEY=hunter2"], &["--copt"], &["(value)"]),
+            (
+                &["--host_jvm_args=-Dfile.encoding=UTF-8"],
+                &["--host_jvm_args=-Dfile.encoding=UTF-8"],
+                &[],
+            ),
+            (&["--copt=-DNDEBUG"], &["--copt=-DNDEBUG"], &[]),
+            (&["--config=ci"], &["--config=ci"], &[]),
+            (
+                &["--remote_cache=grpcs://cache.example/x"],
+                &["--remote_cache=grpcs://cache.example/x"],
+                &[],
             ),
             (&["--define=version=1.2"], &["--define=version=1.2"], &[]),
             (

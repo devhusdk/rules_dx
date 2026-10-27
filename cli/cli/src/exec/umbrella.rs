@@ -11,7 +11,7 @@ use dx_output::{
 use dx_plan::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use dx_plan::plan::spec;
 use dx_plan::reports::plan_reports;
-use dx_plan::resolve::QueryRunner;
+use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner};
 use dx_process::{interrupted, Runner};
 use serde_json::{json, Value};
 use serde_sarif::sarif::Sarif;
@@ -888,6 +888,9 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         bump_commit_json,
     } = env;
     let fix_apply = request.command == Command::Fix && request.applies();
+    // One rule-graph load serves every phase until a phase may have rewritten BUILD files.
+    let graph_memo = MemoizedGraphQuery::new(query_runner);
+    let query_runner: &dyn QueryRunner = &graph_memo;
     let phase_check = !fix_apply;
     let mode = if phase_check { "check" } else { "default" };
     let command = request.command.name();
@@ -1035,6 +1038,9 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         if effects.touched() {
             last_touched = Some(index);
         }
+        if fix_apply && (code != 0 || effects.changes + effects.applied + effects.not_applied > 0) {
+            graph_memo.invalidate();
+        }
         if phase == Command::Generate {
             generate_clean |= code == 0 && label == phase.name();
         } else {
@@ -1153,6 +1159,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         None
     };
     if let Some(through) = verify_through {
+        graph_memo.invalidate();
         let context = VerifyContext {
             workspace,
             runner,
@@ -4421,6 +4428,98 @@ mod tests {
             parse_capture(br#"{"runs":[]}"#),
             Err(CaptureState::Malformed),
             "a document without a version is not SARIF 2.1.0"
+        );
+    }
+
+    fn graph_calls(harness: &Harness) -> usize {
+        harness
+            .query
+            .calls
+            .borrow()
+            .iter()
+            .filter(|argv| argv.last().map(String::as_str) == Some("kind('rule', //...)"))
+            .count()
+    }
+
+    fn pkg_harness(name: &str) -> Harness {
+        let harness = umbrella_clean(name);
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness
+    }
+
+    #[test]
+    fn check_loads_the_rule_graph_once_across_phases() {
+        let harness = pkg_harness("umbrella-graph-once-check");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:extra", &["//pkg:a.py"], &[]),
+        ]);
+        let (code, out, err) = harness.run(&["check", "--output=text", "pkg/a.py"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(harness.seen_env.borrow().len(), 4, "every phase ran");
+        assert_eq!(
+            out.matches("for //pkg:extra //pkg:lib").count(),
+            4,
+            "every phase plans the same owners: {out}"
+        );
+        assert_eq!(graph_calls(&harness), 1, "one graph load for the run");
+    }
+
+    #[test]
+    fn fix_without_changes_loads_the_rule_graph_once() {
+        let harness = pkg_harness("umbrella-graph-once-fix");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+        let (code, out, err) = harness.run(&["fix", "--output=text", "pkg/a.py"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(graph_calls(&harness), 1, "default fix never writes");
+    }
+
+    #[test]
+    fn fix_apply_reloads_the_rule_graph_after_a_write() {
+        let mut harness = pkg_harness("umbrella-graph-reload");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:new", &["//pkg:a.py"], &[]),
+        ]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:new", &["//pkg:a.py"], &[]),
+        ]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:new", &["//pkg:a.py"], &[]),
+        ]);
+        let staged = harness.staged_artifacts();
+        let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+        let verify_files: Vec<(PathBuf, Vec<u8>)> = staged
+            .iter()
+            .map(|(path, _)| (path.clone(), clean.clone()))
+            .collect();
+        let (_, out, err) = fix_apply_with_staged_verify(
+            &harness,
+            verify_files,
+            Some(intended_witness("check", true, "", "")),
+            5,
+            &["fix", "--apply", "--output=text", "pkg/a.py"],
+        );
+        assert!(
+            graph_calls(&harness) >= 2,
+            "a phase that applied edits invalidates the graph: {out}{err}"
+        );
+        assert!(
+            out.contains("//pkg:new"),
+            "later plans see the new owner: {out}"
         );
     }
 }

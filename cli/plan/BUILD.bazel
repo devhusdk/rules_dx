@@ -48,6 +48,7 @@ dx_rust_crate(
         "src/resolve/classify.rs",
         "src/resolve/codegen_expand.rs",
         "src/resolve/entry.rs",
+        "src/resolve/graph_memo.rs",
         "src/resolve/lock_inputs.rs",
         "src/resolve/module_inputs.rs",
         "src/resolve/packages.rs",

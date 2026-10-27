@@ -16,23 +16,32 @@ pub struct RuleGraph {
     kinds: HashMap<String, String>,
 }
 
+const QUERY_FLAGS: [&str; 9] = [
+    "query",
+    "--keep_going",
+    "--output=streamed_jsonproto",
+    "--proto:output_rule_attrs=tags",
+    "--noproto:default_values",
+    "--noproto:locations",
+    "--noproto:instantiation_stack",
+    "--",
+    EXPRESSION,
+];
+
 #[allow(clippy::disallowed_methods)] // query takes no build settings
 fn query_argv(startup_options: &[String]) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup_options);
-    for flag in [
-        "query",
-        "--keep_going",
-        "--output=streamed_jsonproto",
-        "--proto:output_rule_attrs=tags",
-        "--noproto:default_values",
-        "--noproto:locations",
-        "--noproto:instantiation_stack",
-        "--",
-        EXPRESSION,
-    ] {
-        argv.push(flag.to_owned());
-    }
+    argv.extend(QUERY_FLAGS.iter().map(|flag| (*flag).to_owned()));
     argv
+}
+
+/// Whether `argv` is the workspace rule-graph query built by `RuleGraph::load`.
+pub(crate) fn is_graph_query(argv: &[String]) -> bool {
+    argv.len() >= QUERY_FLAGS.len()
+        && argv[argv.len() - QUERY_FLAGS.len()..]
+            .iter()
+            .zip(QUERY_FLAGS)
+            .all(|(have, want)| have == want)
 }
 
 fn has_manual_tag(rule: &Value) -> bool {

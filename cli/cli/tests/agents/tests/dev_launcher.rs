@@ -1092,6 +1092,35 @@ mod sh {
         assert_eq!(repo.builds(), 2, "the repo runs its dx in place");
     }
 
+    /// #3171: `worktree release --force` from a slot, with the inputs query
+    /// failing, must still reach the slot dx and pass its exit status through.
+    #[test]
+    fn a_slot_release_runs_the_slot_dx_when_the_inputs_query_fails() {
+        let repo = source_repo("dx-launcher-slot-release-");
+        let slot = repo.base.join("slot");
+        checkout(&slot);
+        std::fs::write(
+            slot.join("payload"),
+            "#!/bin/sh\necho slot \"$@\"\nexit 3\n",
+        )
+        .expect("slot payload");
+        std::fs::write(repo.base.join("query-fails"), "").expect("flag");
+        let (code, out, err) = repo.run_in(&slot, &["worktree", "release", "--force"]);
+        assert_eq!(
+            (code, out.as_str()),
+            (Some(3), "slot worktree release --force\n"),
+            "{err}"
+        );
+        assert!(err.contains("running the fresh dx anyway"), "{err}");
+        assert!(!err.contains("bazel build //:dx failed"), "{err}");
+        assert_eq!(repo.builds(), 1, "only the slot dx is built");
+        assert!(!repo.root().join(".dx/launcher").exists());
+        assert!(
+            !slot.join(".dx/launcher/built").exists(),
+            "the slot stays stale"
+        );
+    }
+
     /// Builds `<base>/<name>/execroot/_main` the way Bazel lays it out: symlinks
     /// into `workspace`, a real `bazel-out/.../bin/cli`, `workspace/bazel-bin`
     /// pointing at that bin directory, and the `DO_NOT_BUILD_HERE` marker.
@@ -1663,6 +1692,27 @@ mod cmd {
             repo.state_files(),
             vec!["CACHEDIR.TAG", "built", "dx.exe", "inputs"]
         );
+    }
+
+    /// #3171: `worktree release --force` from a slot, with the inputs query
+    /// failing, must still reach the slot dx and pass its exit status through.
+    #[test]
+    fn cmd_a_slot_release_runs_the_slot_dx_when_the_inputs_query_fails() {
+        let repo = source_repo("dx-launcher-cmd-slot-release-");
+        let slot = repo.base.join("slot");
+        checkout(&slot);
+        std::fs::write(repo.base.join("query-fails"), "").expect("flag");
+        let args = ["worktree", "release", "--force"];
+        let direct = Command::new(system_exe("hostname.exe"))
+            .args(args)
+            .output()
+            .expect("hostname runs");
+        assert_ne!(direct.status.code(), Some(0), "hostname rejects arguments");
+        let (code, out) = repo.run_in(&slot, &args);
+        assert_eq!(code, direct.status.code(), "{out}");
+        assert!(out.contains("running the fresh dx anyway"), "{out}");
+        assert_eq!(repo.builds(), 1, "only the slot dx is built");
+        assert!(!repo.root().join(".dx/launcher").exists());
     }
 
     #[test]

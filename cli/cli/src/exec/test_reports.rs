@@ -1085,14 +1085,8 @@ fn coverage_threshold(
     Ok(threshold_ok)
 }
 
-<<<<<<< HEAD
 /// Accounts every owned source of the run against the merged coverage.
 fn account_sources(
-=======
-/// Accounts the run's owned sources against its coverage, prints the counts and every gap; true when none.
-/// With `enforce` (`--min-coverage`) each gap is a JSON `error` event instead of a warning notice.
-fn coverage_sources(
->>>>>>> eb373572b (dx coverage: fail --min-coverage on unaccounted coverage sources (#1375 slice 1b))
     sources: &Sources,
     lcov_documents: &[String],
     workspace: &Path,
@@ -1132,6 +1126,7 @@ fn sources_report(sources: &Sources, account: &dx_lcov::CellAccount) -> String {
 }
 
 /// Prints the account's counts and every gap; true when none.
+/// With `enforce` (`--min-coverage`) each gap is a JSON `error` event instead of a warning notice.
 fn coverage_sources(
     sources: &Sources,
     account: &dx_lcov::CellAccount,

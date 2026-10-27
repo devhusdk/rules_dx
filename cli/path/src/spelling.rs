@@ -35,6 +35,11 @@ pub fn posix(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
+/// Returns one string path with forward slashes.
+pub fn posix_str(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
 /// Returns one path as a runfiles manifest key.
 pub fn manifest(path: &Path) -> String {
     let text = posix(path);

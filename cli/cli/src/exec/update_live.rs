@@ -94,7 +94,7 @@ impl ScriptRunner {
             .contains(&"@pnpm//:pnpm".to_owned())
             .then(|| argv.iter().skip_while(|arg| *arg != "--dir").nth(1))
             .flatten()
-            .filter(|dir| dir.replace('\\', "/").contains("/consumer-npm/"))
+            .filter(|dir| dx_path::posix_str(dir).contains("/consumer-npm/"))
         {
             let name = Path::new(dir)
                 .file_name()

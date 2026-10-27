@@ -395,8 +395,11 @@ event that runs it.
   not marked; a later `create` frees them.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr
   when the command runs `git worktree add`, `remove`, or `prune`. When
-  `agent_id` is set and the command runs `dx worktree`, it prints an
+  `agent_id` is set and the command runs any `dx` command, it prints an
   `updatedInput` that exports `DX_WORKTREE_HOLDER=<agent_id>` before the
+  command. Both checks see through `timeout`, `nice`, `stdbuf`, `setsid`,
+  `ionice`, `env`, `sudo`, `xargs`, and `sh -c`, `bash -c` and the like. The
+  output has no `permissionDecision`, so permission rules match the rewritten
   command. When stdin is empty or not valid JSON, it prints a note on stderr
   and exits `0`. It exits `0` otherwise.
 
@@ -441,7 +444,10 @@ different holders, and `list` shows each one. A slot from `hook create` goes
 to the first agent of the same session that runs `dx worktree add` or
 `release` inside it. A holder is gone when its process
 exits or `hook stop` marks it. Any other `dx` command run inside a slot leased
-to a different session exits `2` and names the holder. `dx status`
+to a different session exits `2` and names the holder. It also exits `2` when
+another agent of the same session holds the slot. A caller with no agent, a
+slot from `hook create` that no agent has claimed, and a holder that is gone
+keep the session rule. `dx status`
 inside a slot shows the lease. Every other `dx` command marks the slot busy
 while it runs, so no `add`, `release`, or `hook create` resets or frees it.
 While `add` switches a slot, such a command waits, and exits `2` with `slot N is

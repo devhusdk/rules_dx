@@ -100,7 +100,7 @@ fn lease_refusal_for(
         return None;
     }
     let (path, record) = crate::worktree::lease_for_workspace(workspace)?;
-    if !record.held || record.session.is_none() || record.same_session(who) {
+    if !record.refuses(who) {
         return None;
     }
     Some(format!(
@@ -416,6 +416,16 @@ mod tests {
     }
 
     fn leased_slot(session: Option<&str>, held: bool) -> tempfile::TempDir {
+        leased_slot_of(session, held, None, false, false)
+    }
+
+    fn leased_slot_of(
+        session: Option<&str>,
+        held: bool,
+        agent: Option<&str>,
+        unclaimed: bool,
+        gone: bool,
+    ) -> tempfile::TempDir {
         let scratch = dx_test_scratch::scratch("dx-exec-lease-");
         let slot = scratch.path().join("pool").join("1");
         std::fs::create_dir_all(&slot).expect("slot");
@@ -426,10 +436,10 @@ mod tests {
             branch: Some("feature/a".to_owned()),
             last_branch: None,
             session: session.map(str::to_owned),
-            agent: None,
+            agent: agent.map(str::to_owned),
             pid: Some(7),
-            gone: false,
-            unclaimed: false,
+            gone,
+            unclaimed,
             broken: false,
             leased_at: 0,
             last_used: 0,
@@ -461,6 +471,46 @@ mod tests {
         assert!(refusal.contains("session s1"), "{refusal}");
         assert!(refusal.contains("dx worktree add"), "{refusal}");
         assert!(lease_refusal_for(Command::Status, &inside, &who(Some("s2"))).is_some());
+    }
+
+    fn agent_who(session: &str, agent: &str) -> crate::worktree::Who {
+        crate::worktree::Who {
+            session: Some(session.to_owned()),
+            agent: Some(agent.to_owned()),
+            pid: 99,
+        }
+    }
+
+    #[test]
+    fn another_agent_of_the_same_session_is_refused() {
+        let scratch = leased_slot_of(Some("s1"), true, Some("a1"), false, false);
+        let slot = scratch.path().join("pool").join("1");
+        let refusal =
+            lease_refusal_for(Command::Build, &slot, &agent_who("s1", "a2")).expect("refused");
+        assert!(refusal.contains("agent a1"), "{refusal}");
+        assert!(refusal.contains("dx worktree add"), "{refusal}");
+        assert!(lease_refusal_for(Command::Status, &slot, &agent_who("s1", "a2")).is_some());
+    }
+
+    #[test]
+    fn the_same_agent_and_agentless_callers_are_not_refused() {
+        let scratch = leased_slot_of(Some("s1"), true, Some("a1"), false, false);
+        let slot = scratch.path().join("pool").join("1");
+        assert!(lease_refusal_for(Command::Build, &slot, &agent_who("s1", "a1")).is_none());
+        assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s1"))).is_none());
+    }
+
+    #[test]
+    fn unclaimed_and_gone_slots_keep_the_session_rule() {
+        for (unclaimed, gone) in [(true, false), (false, true)] {
+            let scratch = leased_slot_of(Some("s1"), true, Some("a1"), unclaimed, gone);
+            let slot = scratch.path().join("pool").join("1");
+            assert!(
+                lease_refusal_for(Command::Build, &slot, &agent_who("s1", "a2")).is_none(),
+                "unclaimed={unclaimed} gone={gone}"
+            );
+            assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s2"))).is_some());
+        }
     }
 
     #[test]

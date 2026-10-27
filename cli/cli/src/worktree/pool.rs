@@ -240,6 +240,21 @@ impl Record {
         }
     }
 
+    /// Whether `who` must stay out of this slot: another session holds it, or another agent
+    /// of the same session does. Agent-less callers, unclaimed hook slots and agents that
+    /// stopped keep the session rule.
+    pub(crate) fn refuses(&self, who: &Who) -> bool {
+        if !self.held || self.session.is_none() {
+            return false;
+        }
+        if !self.same_session(who) {
+            return true;
+        }
+        !self.unclaimed
+            && !self.gone
+            && matches!((&self.agent, &who.agent), (Some(mine), Some(theirs)) if mine != theirs)
+    }
+
     /// Whether `who` is the very agent that holds this lease.
     pub(crate) fn held_by(&self, who: &Who) -> bool {
         self.same_session(who) && self.agent == who.agent
@@ -801,6 +816,24 @@ mod tests {
             record.holder(true).as_deref(),
             Some("session s1 agent a2 pid 7")
         );
+    }
+
+    #[test]
+    fn refuses_other_sessions_and_other_agents_only() {
+        let mut record = record();
+        record.agent = Some("a1".to_owned());
+        assert!(record.refuses(&who(Some("s2"), None, 9)));
+        assert!(record.refuses(&who(Some("s1"), Some("a2"), 9)));
+        assert!(!record.refuses(&who(Some("s1"), Some("a1"), 9)));
+        assert!(!record.refuses(&who(Some("s1"), None, 9)));
+        record.unclaimed = true;
+        assert!(!record.refuses(&who(Some("s1"), Some("a2"), 9)));
+        record.unclaimed = false;
+        record.gone = true;
+        assert!(!record.refuses(&who(Some("s1"), Some("a2"), 9)));
+        assert!(record.refuses(&who(Some("s2"), Some("a2"), 9)));
+        record.held = false;
+        assert!(!record.refuses(&who(Some("s2"), None, 9)));
     }
 
     #[test]

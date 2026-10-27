@@ -2209,7 +2209,7 @@ mod hooks {
     }
 
     #[test]
-    fn guard_names_the_subagent_for_dx_worktree_commands_only() {
+    fn guard_names_the_subagent_for_every_dx_command() {
         let hook::Guard::Rewrite(output) = guard_for_agent("cd /r && tools/dx worktree add x")
         else {
             panic!("dx worktree is rewritten");
@@ -2225,8 +2225,41 @@ mod hooks {
             guard_for_agent("bazel run @rules_dx//:dx -- worktree release"),
             hook::Guard::Rewrite(_)
         ));
-        assert_eq!(guard_for_agent("tools/dx test //a:b"), hook::Guard::Allow);
-        assert_eq!(guard_for_agent("echo dx worktree"), hook::Guard::Allow);
+        for command in [
+            "tools/dx test //a:b",
+            "cd /r && timeout -s KILL -k 5 600 tools/dx check",
+            "nice -n 5 dx build",
+            "stdbuf -oL -e 0 tools/dx test",
+            "setsid tools/dx test",
+            "ionice -c 3 tools/dx test",
+            "bash -lc 'cd x && tools/dx check'",
+            "sh -c \"timeout 5 tools/dx test\"",
+            "bazel run //:dx -- test",
+        ] {
+            let hook::Guard::Rewrite(output) = guard_for_agent(command) else {
+                panic!("{command} is rewritten");
+            };
+            assert!(
+                output["hookSpecificOutput"]
+                    .get("permissionDecision")
+                    .is_none(),
+                "{command}"
+            );
+            let rewritten = output["hookSpecificOutput"]["updatedInput"]["command"]
+                .as_str()
+                .expect("command");
+            assert!(rewritten.ends_with(command), "{rewritten}");
+        }
+        for command in [
+            "echo dx test",
+            "cat tools/dx",
+            "timeout 5 sleep 1",
+            "bash -c 'echo dx'",
+            "echo dx worktree",
+            "bash -c 'echo \"unterminated",
+        ] {
+            assert_eq!(guard_for_agent(command), hook::Guard::Allow, "{command}");
+        }
         assert!(matches!(
             guard_for_agent("git worktree add x"),
             hook::Guard::Block(_)
@@ -2235,6 +2268,25 @@ mod hooks {
             hook::guard(&serde_json::json!({"tool_input": {"command": "dx worktree list"}})),
             hook::Guard::Allow
         );
+    }
+
+    #[test]
+    fn guard_blocks_git_worktree_through_wrappers() {
+        for command in [
+            "timeout 30 git worktree add x",
+            "bash -c 'git worktree remove x'",
+            "nice -n 5 git worktree prune",
+        ] {
+            assert!(
+                matches!(guard_for_agent(command), hook::Guard::Block(_)),
+                "{command}"
+            );
+        }
+        let mut deep = "git worktree add x".to_owned();
+        for _ in 0..6 {
+            deep = format!("bash -c '{}'", deep.replace('\'', "'\\''"));
+        }
+        let _ = guard_for_agent(&deep);
     }
 
     #[test]

@@ -262,6 +262,21 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         named.stdout
     );
 
+    let test = run_with(
+        "sh",
+        &["-c", &guard],
+        &root,
+        &env,
+        "{\"agent_id\":\"a1\",\"tool_input\":{\"command\":\"tools/dx test //x\"}}",
+    );
+    assert_eq!(test.code, 0, "{}{}", test.stdout, test.stderr);
+    assert!(
+        test.stdout
+            .contains("export DX_WORKTREE_HOLDER='a1'\\ntools/dx test //x"),
+        "{}",
+        test.stdout
+    );
+
     let added = run_with(
         launcher,
         &[

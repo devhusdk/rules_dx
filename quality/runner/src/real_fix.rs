@@ -442,7 +442,11 @@ impl super::RealBackend {
                 }
                 "fantomas" => Ok(commands::fantomas_fix(&tool.binary, refs)),
                 "buf" => Ok(commands::buf_format_fix(&tool.binary, refs, scratch.root())),
-                "gofumpt" => Ok(commands::gofumpt_fix(&tool.binary, refs)),
+                "gofumpt" => Ok(commands::gofumpt_fix(
+                    &tool.binary,
+                    refs,
+                    Self::gofumpt_lang(tool)?,
+                )),
                 "cue" => Ok(commands::cue_fix(&tool.binary, refs)),
                 "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
                 "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),

@@ -1,0 +1,1 @@
+pipeline failed: invalid tool output for gofumpt: gofumpt output is outside the pinned grammar: exit 2 with no diff markers

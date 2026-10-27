@@ -626,12 +626,22 @@ pub fn clang_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -
     )
 }
 
-pub fn gofumpt_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, GOFUMPT_CHECK_ARGS, files, "")
+pub fn gofumpt_check(binary: &Path, files: &[&Path], lang: &str) -> Invocation {
+    gofumpt(binary, GOFUMPT_CHECK_ARGS, files, lang)
 }
 
-pub fn gofumpt_fix(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, GOFUMPT_FIX_ARGS, files, "")
+pub fn gofumpt_fix(binary: &Path, files: &[&Path], lang: &str) -> Invocation {
+    gofumpt(binary, GOFUMPT_FIX_ARGS, files, lang)
+}
+
+/// Pins `-lang` so the sandboxed check and the in-place fix never fall back to go.mod discovery.
+fn gofumpt(binary: &Path, args: &[&str], files: &[&Path], lang: &str) -> Invocation {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from(format!("-lang={lang}")),
+    ];
+    head.extend(args.iter().map(OsString::from));
+    assemble(binary, head, files, "")
 }
 
 pub fn clang_tidy_check(

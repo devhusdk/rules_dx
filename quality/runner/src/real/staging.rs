@@ -246,6 +246,16 @@ impl RealBackend {
         })
     }
 
+    pub(super) fn gofumpt_lang(tool: &RealTool) -> Result<&str, RunnerError> {
+        const TOOL_ID: &str = "gofumpt";
+        tool.edition.as_deref().ok_or_else(|| {
+            execution(
+                TOOL_ID,
+                "missing tool edition: the quality aspect must pass the Go language version via --tool-edition".to_owned(),
+            )
+        })
+    }
+
     pub(super) fn biome_config_dir(
         tool: &RealTool,
         scratch: &Scratch,

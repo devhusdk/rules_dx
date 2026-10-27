@@ -493,6 +493,8 @@ pub enum DiffExit {
     NonZero,
     /// `--check --diff` tools exit 1, but 0 is also pinned.
     ZeroOrOne,
+    /// gofmt-style `-d` exits exactly 1 once a diff exists; 2 is a parse error.
+    One,
 }
 
 impl DiffExit {
@@ -502,6 +504,7 @@ impl DiffExit {
             Self::Zero => code == Some(0),
             Self::NonZero => code != Some(0),
             Self::ZeroOrOne => code == Some(0) || code == Some(1),
+            Self::One => code == Some(1),
         }
     }
 }
@@ -1238,6 +1241,9 @@ mod tests {
             (super::DiffExit::ZeroOrOne, Some(0), true),
             (super::DiffExit::ZeroOrOne, Some(1), true),
             (super::DiffExit::ZeroOrOne, Some(3), false),
+            (super::DiffExit::One, Some(1), true),
+            (super::DiffExit::One, Some(0), false),
+            (super::DiffExit::One, Some(2), false),
         ] {
             let name = format!("{exit:?}");
             let got = super::diff_format("t", diff, code, &["x.go"], exit).is_ok();
@@ -1248,6 +1254,7 @@ mod tests {
             super::DiffExit::Zero,
             super::DiffExit::NonZero,
             super::DiffExit::ZeroOrOne,
+            super::DiffExit::One,
         ] {
             assert!(super::diff_format("t", b"", Some(0), &["x.go"], exit)
                 .expect("clean")

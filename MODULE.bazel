@@ -33,7 +33,7 @@ bazel_dep(name = "rules_apple", version = "5.2.0")
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
-use_repo(gazelle_go_deps, "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_pmezard_go_difflib", "org_golang_x_mod")
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_pmezard_go_difflib", "org_golang_x_mod")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(

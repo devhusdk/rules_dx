@@ -4,7 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "real_allowed_tools_error", "real_quality_resource_set", "rustc_diagnostics_group")
+load(":real_aspects.bzl", "go_lang_version", "real_allowed_tools_error", "real_quality_resource_set", "rustc_diagnostics_group")
 
 _LINT_SELECTIONS = {
     "javascript": ["biome"],
@@ -511,6 +511,11 @@ def real_pipeline_unit_tests(name):
                     {"cpu": 1, "memory": 1024},
                     {"cpu": 1, "memory": 512},
                 ],
+            ),
+            expect_equal(
+                "gofumpt -lang keeps only the Go SDK major and minor version",
+                [go_lang_version("1.26.6"), go_lang_version("go1.26.6"), go_lang_version("1.27rc1"), go_lang_version("1.26")],
+                ["go1.26", "go1.26", "go1.27", "go1.26"],
             ),
             expect_equal(
                 "family_section_error accepts a selected capability",

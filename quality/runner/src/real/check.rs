@@ -474,7 +474,8 @@ impl RealBackend {
                 )
             }
             "gofumpt" => {
-                let invocation = commands::gofumpt_check(&tool.binary, &refs);
+                let lang = Self::gofumpt_lang(tool)?;
+                let invocation = commands::gofumpt_check(&tool.binary, &refs, lang);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,

@@ -769,11 +769,17 @@ fn clang_format_check_and_fix_share_style() {
 #[test]
 fn gofumpt_check_is_diff_and_fix_is_write() {
     let file = Path::new("/scratch/Sample.go");
-    let check = gofumpt_check(Path::new(BIN), &[file]);
-    assert_eq!(argv_strings(&check), vec![BIN, "-d", "/scratch/Sample.go"]);
+    let check = gofumpt_check(Path::new(BIN), &[file], "go1.26");
+    assert_eq!(
+        argv_strings(&check),
+        vec![BIN, "-lang=go1.26", "-d", "/scratch/Sample.go"]
+    );
     assert_eq!(check.cwd_rel, "");
-    let fix = gofumpt_fix(Path::new(BIN), &[file]);
-    assert_eq!(argv_strings(&fix), vec![BIN, "-w", "/scratch/Sample.go"]);
+    let fix = gofumpt_fix(Path::new(BIN), &[file], "go1.26");
+    assert_eq!(
+        argv_strings(&fix),
+        vec![BIN, "-lang=go1.26", "-w", "/scratch/Sample.go"]
+    );
 }
 
 #[test]
@@ -1359,7 +1365,6 @@ fn hadolint_never_overrides_the_user_policy() {
 fn fixed_args_match_recorded_invocations() {
     let file = Path::new(FILE);
     let cases: &[(&[&str], Invocation)] = &[
-        (GOFUMPT_CHECK_ARGS, gofumpt_check(Path::new(BIN), &[file])),
         (
             GOOGLE_JAVA_FORMAT_CHECK_ARGS,
             google_java_format_check(Path::new(BIN), &[file]),

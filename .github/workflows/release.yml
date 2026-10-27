@@ -83,6 +83,12 @@ jobs:
           mkdir -p out
           cp "$bin" "out/$ASSET"
           chmod +x "out/$ASSET"
+          want="dx $(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
+          got="$("out/$ASSET" --version)"
+          if [ "$got" != "$want" ]; then
+            echo "out/$ASSET --version printed '$got', want '$want' from cli/prebuilt/pins.bzl" >&2
+            exit 1
+          fi
           if command -v sha256sum >/dev/null 2>&1; then
             hash="$(sha256sum "out/$ASSET" | cut -d' ' -f1)"
           else

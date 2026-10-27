@@ -35,15 +35,24 @@ def _basename(label):
     """Returns the file basename for one label string."""
     return str(label).rsplit(":", 1)[-1].rsplit("/", 1)[-1]
 
+def _stem_key(basename):
+    """Returns the target stem fragment for one basename."""
+    return basename.replace(".", "_")
+
 def offline_basenames_error(srcs):
-    """Rejects bundle files that share a basename."""
+    """Rejects bundle files that share a basename or target stem."""
     seen = {}
     for src in srcs:
         base = _basename(src)
-        if base in seen:
-            return ("offline_bundle: duplicate bundle basename '" + base + "': " +
-                    seen[base] + " and " + str(src))
-        seen[base] = str(src)
+        key = _stem_key(base)
+        if key in seen:
+            (prev_base, prev_src) = seen[key]
+            if prev_base == base:
+                return ("offline_bundle: duplicate bundle basename '" + base + "': " +
+                        prev_src + " and " + str(src))
+            return ("offline_bundle: bundle basenames '" + prev_base + "' and '" + base +
+                    "' both make target stem '" + key + "': " + prev_src + " and " + str(src))
+        seen[key] = (base, str(src))
     return ""
 
 def offline_meta_error(advisory, advisory_meta):
@@ -107,7 +116,7 @@ def offline_bundle(name, advisory, launchers, advisory_meta):
     tree = []
     sidecars = {}
     for (dir, dest, src) in offline_bundle_layout(name, advisory, launchers, advisory_meta):
-        stem = name + "_" + dir + "_" + dest.replace(".", "_")
+        stem = name + "_" + dir + "_" + _stem_key(dest)
         out = name + "/" + dir + "/" + dest
         copy_file(name = stem + "_copy", src = src, out = out)
         sidecar = stem + ".sha256"

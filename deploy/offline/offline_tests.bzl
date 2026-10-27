@@ -100,6 +100,21 @@ def offline_unit_tests(name):
                 "offline_bundle: duplicate bundle basename 'LICENSE': //p:LICENSE and @r//q:LICENSE",
             ),
             expect_equal(
+                "offline_basenames_error rejects names that sanitize to one stem",
+                offline_basenames_error(["//x:a.b", "//y:a_b"]),
+                "offline_bundle: bundle basenames 'a.b' and 'a_b' both make target stem 'a_b': //x:a.b and //y:a_b",
+            ),
+            expect_equal(
+                "offline_basenames_error rejects sanitized clash in reverse order",
+                offline_basenames_error([":a_b", ":d/a.b"]),
+                "offline_bundle: bundle basenames 'a_b' and 'a.b' both make target stem 'a_b': :a_b and :d/a.b",
+            ),
+            expect_equal(
+                "offline_basenames_error accepts names whose stems differ",
+                offline_basenames_error(["a.b", "a-b"]),
+                "",
+            ),
+            expect_equal(
                 "offline_basenames_error accepts bare names",
                 offline_basenames_error(["LICENSE", "NOTICE"]),
                 "",

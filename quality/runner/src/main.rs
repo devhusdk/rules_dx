@@ -16,19 +16,13 @@ use quality_result::encode_validated;
 use quality_runner::{
     real::{RealBackend, RealTool},
     request::RequestTool,
-    run_pipeline, FileInput, StageSpec,
+    FileInput,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum RunnerError {
     #[error("{message}")]
     Args { message: String },
-    #[error("malformed --stage {spec:?}, want TOOL;classes;paths")]
-    BadStage { spec: String },
-    #[error("--{flag} is required")]
-    MissingRequired { flag: &'static str },
-    #[error("malformed --source {mapping:?}, want WS_PATH=EXEC")]
-    BadSource { mapping: String },
     #[error("cannot read {workspace:?}: {detail}")]
     UnreadableSource { workspace: String, detail: String },
     #[error("cannot read sibling {workspace:?}: {detail}")]
@@ -47,8 +41,6 @@ pub enum RunnerError {
         tool: String,
         detail: String,
     },
-    #[error("--request cannot be combined with --{flag}")]
-    RequestConflict { flag: String },
     #[error("cannot read request {path:?}: {detail}")]
     UnreadableRequest { path: String, detail: String },
     #[error("invalid request: {detail}")]
@@ -62,63 +54,8 @@ fn parse_args(args: &[String]) -> Result<Cli, RunnerError> {
         })
 }
 
-fn parse_stage(spec: &str) -> Result<StageSpec, RunnerError> {
-    let (tool_id, rest) = spec.split_once(';').ok_or_else(|| RunnerError::BadStage {
-        spec: spec.to_owned(),
-    })?;
-    let (classes, paths) = rest.split_once(';').ok_or_else(|| RunnerError::BadStage {
-        spec: spec.to_owned(),
-    })?;
-    Ok(StageSpec {
-        tool_id: tool_id.to_owned(),
-        class_ids: classes.split(',').map(str::to_owned).collect(),
-        source_paths: paths.split(',').map(str::to_owned).collect(),
-    })
-}
-
-fn parse_pair(
-    spec: &str,
-    malformed: fn(String) -> RunnerError,
-) -> Result<(String, String), RunnerError> {
-    let (left, right) = spec
-        .split_once('=')
-        .ok_or_else(|| malformed(spec.to_owned()))?;
-    if left.is_empty() || right.is_empty() {
-        return Err(malformed(spec.to_owned()));
-    }
-    Ok((left.to_owned(), right.to_owned()))
-}
-
-fn bad_source(mapping: String) -> RunnerError {
-    RunnerError::BadSource { mapping }
-}
-
 fn unreadable_source(workspace: String, detail: String) -> RunnerError {
     RunnerError::UnreadableSource { workspace, detail }
-}
-
-fn reject_request_conflicts(cli: &Cli) -> Result<(), RunnerError> {
-    if cli.producer.is_some() {
-        return Err(RunnerError::RequestConflict {
-            flag: "producer".to_owned(),
-        });
-    }
-    if cli.capability.is_some() {
-        return Err(RunnerError::RequestConflict {
-            flag: "capability".to_owned(),
-        });
-    }
-    if !cli.stage.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "stage".to_owned(),
-        });
-    }
-    if !cli.source.is_empty() {
-        return Err(RunnerError::RequestConflict {
-            flag: "source".to_owned(),
-        });
-    }
-    Ok(())
 }
 
 /// Builds the backend tool for one validated request entry.
@@ -215,16 +152,6 @@ fn unreadable_resolve(workspace: String, detail: String) -> RunnerError {
     RunnerError::UnreadableResolve { workspace, detail }
 }
 
-fn parse_pairs(
-    specs: &[String],
-    malformed: fn(String) -> RunnerError,
-) -> Result<Vec<(String, String)>, RunnerError> {
-    specs
-        .iter()
-        .map(|spec| parse_pair(spec, malformed))
-        .collect()
-}
-
 fn read_inputs(
     mappings: &[(String, String)],
     unreadable: fn(String, String) -> RunnerError,
@@ -272,18 +199,10 @@ fn site_packages(dir: PathBuf) -> PathBuf {
 #[derive(Parser)]
 #[command(disable_help_flag = true)]
 struct Cli {
-    #[arg(long, allow_hyphen_values = true, overrides_with = "producer")]
-    producer: Option<String>,
-    #[arg(long, allow_hyphen_values = true, overrides_with = "capability")]
-    capability: Option<String>,
-    #[arg(long, allow_hyphen_values = true, overrides_with = "output")]
-    output: Option<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    stage: Vec<String>,
-    #[arg(long, allow_hyphen_values = true)]
-    source: Vec<String>,
     #[arg(long, allow_hyphen_values = true, overrides_with = "request")]
-    request: Option<String>,
+    request: String,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "output")]
+    output: String,
 }
 
 fn main() {
@@ -299,44 +218,7 @@ fn main() {
 fn run() -> Result<(), RunnerError> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cli = parse_args(&args)?;
-    if let Some(request_path) = cli.request.clone() {
-        reject_request_conflicts(&cli)?;
-        let output = cli
-            .output
-            .clone()
-            .ok_or(RunnerError::MissingRequired { flag: "output" })?;
-        return run_request(&request_path, &output);
-    }
-    let producer = cli
-        .producer
-        .ok_or(RunnerError::MissingRequired { flag: "producer" })?;
-    let capability = cli
-        .capability
-        .ok_or(RunnerError::MissingRequired { flag: "capability" })?;
-    let output = cli
-        .output
-        .ok_or(RunnerError::MissingRequired { flag: "output" })?;
-    let mut stages: Vec<StageSpec> = Vec::with_capacity(cli.stage.len());
-    for spec in &cli.stage {
-        stages.push(parse_stage(spec)?);
-    }
-    let sources = parse_pairs(&cli.source, bad_source)?;
-    let files = read_inputs(&sources, unreadable_source)?;
-    let result = run_pipeline(&producer, &capability, &stages, &files).map_err(|e| {
-        RunnerError::PipelineFailed {
-            detail: e.to_string(),
-        }
-    })?;
-    let bytes = encode_validated(&result).map_err(|e| RunnerError::InvalidResult {
-        detail: e.to_string(),
-    })?;
-    dx_atomic_fs::write_atomic(std::path::Path::new(&output), &bytes).map_err(|e| {
-        RunnerError::UnwritableOutput {
-            output: output.clone(),
-            detail: e.to_string(),
-        }
-    })?;
-    Ok(())
+    run_request(&cli.request, &cli.output)
 }
 // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 
@@ -348,63 +230,21 @@ mod tests {
         items.iter().map(|item| (*item).to_owned()).collect()
     }
 
-    fn mapping_error(mapping: &str, malformed: fn(String) -> RunnerError) -> RunnerError {
-        parse_pair(mapping, malformed).expect_err("mapping must be rejected")
-    }
-
     #[test]
-    fn stage_specs_split_tool_classes_and_paths() {
-        let stage = parse_stage("ruff;fmt,lint;a.py,b.py").expect("stage");
-        assert_eq!(stage.tool_id, "ruff");
-        assert_eq!(stage.class_ids, ["fmt", "lint"]);
-        assert_eq!(stage.source_paths, ["a.py", "b.py"]);
-        assert_eq!(
-            parse_stage("ruff").expect_err("no classes"),
-            RunnerError::BadStage {
-                spec: "ruff".to_owned()
-            }
-        );
-        assert_eq!(
-            parse_stage("ruff;fmt").expect_err("no paths"),
-            RunnerError::BadStage {
-                spec: "ruff;fmt".to_owned()
-            }
-        );
-    }
-
-    #[test]
-    fn source_mappings_reject_empty_halves() {
-        for mapping in ["ws", "=exec", "ws="] {
-            assert_eq!(
-                mapping_error(mapping, bad_source),
-                RunnerError::BadSource {
-                    mapping: mapping.to_owned()
-                }
-            );
-        }
-        assert_eq!(
-            parse_pairs(&owned(&["ws=exec"]), bad_source).expect("source"),
-            [("ws".to_owned(), "exec".to_owned())]
-        );
-        assert_eq!(parse_pairs(&[], bad_source).expect("none"), []);
-    }
-
-    #[test]
-    fn argv_errors_carry_a_message_and_valid_flags_parse() {
-        let cli = parse_args(&owned(&[
-            "--producer",
-            "//pkg:one",
-            "--stage",
-            "ruff;fmt;a.py",
-        ]))
-        .expect("valid flags");
-        assert_eq!(cli.producer.as_deref(), Some("//pkg:one"));
-        assert_eq!(cli.stage, ["ruff;fmt;a.py"]);
+    fn cli_takes_only_request_and_output() {
+        let cli =
+            parse_args(&owned(&["--request", "r.json", "--output", "o.pb"])).expect("valid flags");
+        assert_eq!(cli.request, "r.json");
+        assert_eq!(cli.output, "o.pb");
         for argv in [
-            vec!["--nope"],
+            vec!["--producer", "x"],
+            vec!["--capability", "lint"],
+            vec!["--stage", "a;b;c"],
+            vec!["--source", "a=b"],
             vec!["--real"],
-            vec!["--tool-binary", "ruff=bin/ruff"],
-            vec!["--sibling", "a.py=exec/a.py"],
+            vec!["--nope"],
+            vec!["--request", "r.json"],
+            vec!["--output", "o.pb"],
         ] {
             let error = match parse_args(&owned(&argv)) {
                 Ok(_) => panic!("{argv:?} must fail"),
@@ -415,28 +255,6 @@ mod tests {
                 other => panic!("unexpected error: {other:?}"),
             }
         }
-    }
-
-    #[test]
-    fn request_mode_rejects_combined_flags() {
-        for extra in [
-            vec!["--producer", "//pkg:one"],
-            vec!["--capability", "lint"],
-            vec!["--stage", "ruff;fmt;a.py"],
-            vec!["--source", "a.py=exec/a.py"],
-        ] {
-            let mut argv = vec!["--request", "req.json"];
-            argv.extend(extra.clone());
-            let cli = parse_args(&owned(&argv)).expect("flags parse");
-            match reject_request_conflicts(&cli) {
-                Err(RunnerError::RequestConflict { .. }) => {}
-                other => panic!("unexpected result for {extra:?}: {other:?}"),
-            }
-        }
-        let cli = parse_args(&owned(&["--request", "req.json", "--output", "out.pb"]))
-            .expect("request only");
-        reject_request_conflicts(&cli).expect("request plus output is clean");
-        assert_eq!(cli.request.as_deref(), Some("req.json"));
     }
 
     #[test]

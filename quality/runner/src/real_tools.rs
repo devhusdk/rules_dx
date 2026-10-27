@@ -1,7 +1,7 @@
 use super::real_core::*;
 use super::real_fixtures::*;
 use super::*;
-use crate::{full_selection, per_path, run_convergence};
+use crate::{full_selection, run_convergence, synthetic::per_path};
 use quality_adapter::parsers;
 use quality_result::encode_validated;
 use quality_result::proto::Convergence;

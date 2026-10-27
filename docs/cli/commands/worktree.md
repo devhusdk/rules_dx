@@ -63,13 +63,13 @@ free nested-Bazel slots, then free slots' output bases, each oldest first, and p
 the slot line. `add` and `hook create` keep the output base of the slot they
 lease, so it stays warm for the build that follows.
 
-- `dx worktree: low disk: <free> free; removed <what>; <free> free now`
-- `dx worktree: low disk: <free> free; nothing to reclaim`
+- `dx worktree: low disk at <path>: <free> free; removed <what>; <free> free now`
+- `dx worktree: low disk at <path>: <free> free; nothing to reclaim`
 - `dx worktree: low disk, cannot reclaim output bases: <error>`
 
 The first two end with `; run dx worktree prune --apply` while disk stays low,
 so a pool with nothing to reclaim prints
-`low disk: <free> free; nothing to reclaim; run dx worktree prune --apply`.
+`low disk at <path>: <free> free; nothing to reclaim; run dx worktree prune --apply`.
 All three use the `disk_low` notice code. JSON emits a `notice` event with
 level `warning` and code `disk_low` before the `slot` event.
 Reclaim stops the idle Bazel server of a free slot before it deletes that

@@ -334,6 +334,7 @@ impl Harness {
             start_byte: Some(0),
             end_byte: Some(1),
             fixable,
+            unfixable_reason: String::new(),
             related: Vec::new(),
         }
     }

@@ -112,6 +112,7 @@ fn diagnostic_only_tool_reports_without_edits() {
     assert_eq!(diagnostic.start_byte, Some(3));
     assert_eq!(diagnostic.end_byte, Some(7));
     assert!(!diagnostic.fixable);
+    assert_eq!(diagnostic.unfixable_reason, "no_change");
     assert_eq!(result.terminal_diagnostics.len(), 1);
     assert!(result.replacements.is_empty());
     assert!(encode_validated(&result).is_ok());
@@ -475,6 +476,7 @@ fn diagnostics_sort_deterministically_under_shuffled_arrival() {
             start_byte: Some(start),
             end_byte: Some(start + 1),
             fixable: false,
+            unfixable_reason: String::new(),
             related: Vec::new(),
             ..Default::default()
         }
@@ -521,6 +523,7 @@ fn diagnostics_tiebreak_deterministically_across_tool_and_message() {
             start_byte: Some(3),
             end_byte: Some(4),
             fixable: false,
+            unfixable_reason: String::new(),
             related: Vec::new(),
             ..Default::default()
         }
@@ -686,6 +689,7 @@ fn diagnostics_sort_includes_severity_and_rule() {
             start_byte: Some(3),
             end_byte: Some(4),
             fixable: false,
+            unfixable_reason: String::new(),
             related: Vec::new(),
             ..Default::default()
         }

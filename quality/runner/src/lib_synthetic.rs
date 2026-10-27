@@ -43,6 +43,7 @@ pub(crate) fn collect_diagnostics(tool_id: &str, path: &str, text: &str) -> Vec<
             start_byte: Some(offset as u64),
             end_byte: Some((offset + needle.len()) as u64),
             fixable: false,
+            unfixable_reason: String::new(),
             related: Vec::new(),
             ..Default::default()
         });

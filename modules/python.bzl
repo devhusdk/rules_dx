@@ -6,7 +6,7 @@ RULES_PYTHON_VERSION = _RULES_PYTHON_VERSION
 ASPECT_RULES_PY_VERSION = _ASPECT_RULES_PY_VERSION
 PYTHON_VERSION = _PYTHON_VERSION
 
-UV_HUB = "pypi"
+UV_HUB = "dx_pypi"
 UV_PROJECTS = [
     "//examples/python-service:pyproject.toml",
     "//python/tests/fixtures/hello:pyproject.toml",

@@ -527,28 +527,28 @@ python.toolchain(python_version = "3.12")
 use_repo(python, "python_3_12")
 
 uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
-uv.declare_hub(hub_name = "pypi")
+uv.declare_hub(hub_name = "dx_pypi")
 uv.project(
-    hub_name = "pypi",
+    hub_name = "dx_pypi",
     lock = "//examples/python-service:uv.lock",
     pyproject = "//examples/python-service:pyproject.toml",
 )
 uv.project(
-    hub_name = "pypi",
+    hub_name = "dx_pypi",
     lock = "//python/tests/fixtures/hello:uv.lock",
     pyproject = "//python/tests/fixtures/hello:pyproject.toml",
 )
 uv.project(
-    hub_name = "pypi",
+    hub_name = "dx_pypi",
     lock = "//quality/tools/python:uv.lock",
     pyproject = "//quality/tools/python:pyproject.toml",
 )
 uv.project(
-    hub_name = "pypi",
+    hub_name = "dx_pypi",
     lock = "//tools/ci/tooling:uv.lock",
     pyproject = "//tools/ci/tooling:pyproject.toml",
 )
-use_repo(uv, "pypi")
+use_repo(uv, pypi = "dx_pypi")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
@@ -646,7 +646,7 @@ crate.annotation(
     gen_build_script = "off",
 )
 crate.from_cargo(
-    name = "crates",
+    name = "dx_crates",
     cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",
     lockfile = "//:cargo-bazel-lock.json",
     manifests = [
@@ -728,7 +728,7 @@ crate.from_cargo(
         "x86_64-unknown-nixos-gnu",
     ],
 )
-use_repo(crate, "crates")
+use_repo(crate, crates = "dx_crates")
 
 _consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl", "consumer_hub_repo")
 

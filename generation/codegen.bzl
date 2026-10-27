@@ -5,6 +5,7 @@ load(
     "//libs/starlark:plan_shard.bzl",
     "plan_shard_aspect_inputs",
     "plan_shard_conflict_error",
+    "plan_shard_emit",
     "plan_shard_exec_matches",
     "plan_shard_fingerprint",
     "plan_shard_merge_records",
@@ -194,45 +195,13 @@ def _parse_entry_spec(spec, label_text):
         ": want LOGICAL_PATH|IMPORT_ROOT|NAMESPACE[|EXEC_PATH[|REPLACES]]",
     )
 
-def _emit_shard(ctx, producer, language, entry_structs):
-    """Validates one record and emits its binary shard via the writer."""
+def _checked_record(producer, language, entry_structs):
+    """Builds one record and fails on its schema error."""
     record = codegen_record(producer, language, entry_structs)
     record_error = codegen_record_error(record)
     if record_error != "":
         fail("dx_codegen_shard " + producer + ": " + record_error)
-    out = ctx.actions.declare_file(ctx.label.name + DX_CODEGEN_SHARD_SUFFIX)
-    args = ctx.actions.args()
-    args.add("--producer", producer)
-    args.add("--language", language)
-    for entry in entry_structs:
-        if entry.exec_path == "":
-            args.add(
-                "--entry",
-                entry.logical_path + "|" + entry.import_root + "|" + entry.namespace,
-            )
-        elif entry.replaces == "":
-            args.add(
-                "--entry",
-                entry.logical_path + "|" + entry.import_root + "|" + entry.namespace + "|" + entry.exec_path,
-            )
-        else:
-            args.add(
-                "--entry",
-                entry.logical_path + "|" + entry.import_root + "|" + entry.namespace + "|" + entry.exec_path + "|" + entry.replaces,
-            )
-    args.add("--output", out.path)
-    ctx.actions.run(
-        executable = ctx.executable._writer,
-        arguments = [args],
-        outputs = [out],
-        mnemonic = "DxCodegenShard",
-        progress_message = "Dx codegen shard %{label}",
-    )
-    return out, record
-
-def _exec_matches(file_path, exec_path):
-    """Reports whether a Bazel file path satisfies an exec-path suffix."""
-    return plan_shard_exec_matches(file_path, exec_path)
+    return record
 
 def _dx_codegen_shard_impl(ctx):
     producer = display_label(ctx.label)
@@ -240,7 +209,8 @@ def _dx_codegen_shard_impl(ctx):
     if pair_error != "":
         fail("dx_codegen_shard " + producer + ": " + pair_error)
     entries = [_parse_entry_spec(spec, producer) for spec in ctx.attr.entries]
-    out, record = _emit_shard(ctx, producer, ctx.attr.language, entries)
+    record = _checked_record(producer, ctx.attr.language, entries)
+    out = plan_shard_emit(ctx, "codegen", producer, "--language", ctx.attr.language, ctx.attr.entries, DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
     return [
         DefaultInfo(files = depset([out])),
         DxCodegenPlanInfo(direct = [record], transitive = depset([record])),
@@ -332,7 +302,7 @@ def _prost_codegen_shard_impl(ctx):
                 entry.logical_path + "' needs an EXEC_PATH suffix binding it to one rust_generated_srcs artifact (logical-only entries carry no backing artifact)",
             )
     for entry in entries:
-        matches = [f for f in generated if _exec_matches(f.path, entry.exec_path)]
+        matches = [f for f in generated if plan_shard_exec_matches(f.path, entry.exec_path)]
         if len(matches) == 0:
             fail(
                 "prost_codegen_shard " + producer + ": entry '" +
@@ -348,7 +318,7 @@ def _prost_codegen_shard_impl(ctx):
                 " rust_generated_srcs artifacts, want exactly one",
             )
     for f in generated:
-        claimants = [entry for entry in entries if _exec_matches(f.path, entry.exec_path)]
+        claimants = [entry for entry in entries if plan_shard_exec_matches(f.path, entry.exec_path)]
         if len(claimants) == 0:
             fail(
                 "prost_codegen_shard " + producer + ": unreported rust_generated_srcs artifact '" +
@@ -360,7 +330,8 @@ def _prost_codegen_shard_impl(ctx):
                 "prost_codegen_shard " + producer + ": duplicate claim on rust_generated_srcs artifact '" +
                 f.path + "': claimed by " + str(len(claimants)) + " entries, want exactly one",
             )
-    out, record = _emit_shard(ctx, producer, ctx.attr.language, entries)
+    record = _checked_record(producer, ctx.attr.language, entries)
+    out = plan_shard_emit(ctx, "codegen", producer, "--language", ctx.attr.language, ctx.attr.entries, DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
     return [
         DefaultInfo(files = depset([out])),
         DxCodegenPlanInfo(direct = [record], transitive = depset([record])),

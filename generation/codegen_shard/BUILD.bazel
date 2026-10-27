@@ -45,8 +45,7 @@ rust_binary(
         normal = True,
     ) + [
         ":codegen_shard",
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/output:dx_output",
+        "//cli/shard_writer:dx_shard_writer",
     ],
 )
 
@@ -99,17 +98,11 @@ rust_test(
     ),
     crate = ":codegen_shard_writer",
     deps = crate_deps(
-        [
-            "clap",
-            "tempfile",
-            "thiserror",
-            "tracing",
-        ],
+        ["tempfile"],
         package_name = "generation/codegen_shard",
     ) + [
         ":codegen_shard",
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/output:dx_output",
+        "//cli/shard_writer:dx_shard_writer",
         "//generation:codegen_proto_rs",
     ],
 )

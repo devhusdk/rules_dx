@@ -688,10 +688,8 @@ dependencies = [
 name = "codegen_shard"
 version = "0.0.0"
 dependencies = [
- "clap",
  "tempfile",
  "thiserror 2.0.20",
- "tracing",
 ]
 
 [[package]]
@@ -1758,6 +1756,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_shard_writer"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
 name = "dx_shim"
 version = "0.0.0"
 dependencies = [
@@ -1944,10 +1952,8 @@ dependencies = [
 name = "env_shard"
 version = "0.0.0"
 dependencies = [
- "clap",
  "tempfile",
  "thiserror 2.0.20",
- "tracing",
 ]
 
 [[package]]

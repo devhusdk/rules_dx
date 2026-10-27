@@ -5,7 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "environment_config", "environment_metadata", "environment_tool", "environment_tree")
 load(":defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
 load(":plan.bzl", "dx_env_shard", "env_plan_subject", "rust_env_shard")
-load(":plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests")
+load(":plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests", "env_shard_argv_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -164,6 +164,36 @@ env_plan_subject(
 )
 
 env_plan_analysis_tests(name = "env_plan_analysis")
+
+env_shard_argv_test(
+    name = "env_shard_alpha_argv_test",
+    expected = [
+        "--producer",
+        "//env:env_shard_alpha",
+        "--integration",
+        "rust",
+        "--entry",
+        "runtime|stable-x86_64",
+        "--output",
+    ],
+    output = "env/env_shard_alpha.dxenv.pb",
+    target_under_test = ":env_shard_alpha",
+)
+
+env_shard_argv_test(
+    name = "env_rust_fixture_argv_test",
+    expected = [
+        "--producer",
+        "//env:env_rust_fixture",
+        "--integration",
+        "rust",
+        "--entry",
+        "runtime|stable-x86_64|env/env_shard/src/lib.rs",
+        "--output",
+    ],
+    output = "env/env_rust_fixture.dxenv.pb",
+    target_under_test = ":env_rust_fixture",
+)
 
 alias(
     name = "doctor",

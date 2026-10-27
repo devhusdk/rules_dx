@@ -45,8 +45,7 @@ rust_binary(
         normal = True,
     ) + [
         ":env_shard",
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/output:dx_output",
+        "//cli/shard_writer:dx_shard_writer",
     ],
 )
 
@@ -99,17 +98,11 @@ rust_test(
     ),
     crate = ":env_shard_writer",
     deps = crate_deps(
-        [
-            "clap",
-            "tempfile",
-            "thiserror",
-            "tracing",
-        ],
+        ["tempfile"],
         package_name = "env/env_shard",
     ) + [
         ":env_shard",
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/output:dx_output",
+        "//cli/shard_writer:dx_shard_writer",
         "//env:plan_proto_rs",
     ],
 )

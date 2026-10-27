@@ -9,7 +9,7 @@
 )]
 
 pub use plan_proto::rules_dx::env as proto;
-use proto::DxEnvShard;
+use proto::{DxEnvEntry, DxEnvShard};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
@@ -159,11 +159,37 @@ pub fn decode_validated(bytes: &[u8]) -> Result<DxEnvShard, Error> {
     dx_proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
+pub const ENTRY_SHAPE: &str = "KEY|VALUE[|EXEC_PATH]";
+
+pub fn parse_entry(raw: &str) -> Option<DxEnvEntry> {
+    let parts: Vec<&str> = raw.split('|').collect();
+    match parts.as_slice() {
+        [key, value] => Some(DxEnvEntry {
+            key: (*key).into(),
+            value: (*value).into(),
+            exec_path: String::new(),
+        }),
+        [key, value, exec_path] => Some(DxEnvEntry {
+            key: (*key).into(),
+            value: (*value).into(),
+            exec_path: (*exec_path).into(),
+        }),
+        _ => None,
+    }
+}
+
+pub fn shard(producer: String, integration: String, entries: Vec<DxEnvEntry>) -> DxEnvShard {
+    DxEnvShard {
+        producer,
+        integration,
+        entries,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use prost::Message;
-    use proto::DxEnvEntry;
 
     fn entry(key: &str, value: &str) -> DxEnvEntry {
         DxEnvEntry {
@@ -340,5 +366,29 @@ mod tests {
     #[test]
     fn display_names_the_error() {
         assert!(Error::EmptyProducer.to_string().contains("empty producer"));
+    }
+
+    #[test]
+    fn parse_entry_binds_both_arities() {
+        assert_eq!(parse_entry("K|v"), Some(entry("K", "v")));
+        assert_eq!(
+            parse_entry("K|v|out/k.txt"),
+            Some(entry_with_exec("K", "v", "out/k.txt"))
+        );
+        assert_eq!(parse_entry("K|v|"), Some(entry("K", "v")));
+    }
+
+    #[test]
+    fn parse_entry_rejects_other_arities() {
+        assert_eq!(parse_entry("K"), None);
+        assert_eq!(parse_entry("K|v|out|extra"), None);
+    }
+
+    #[test]
+    fn shard_carries_its_fields() {
+        let built = shard("//env:alpha".into(), "rust".into(), vec![entry("K", "v")]);
+        assert_eq!(built.producer, "//env:alpha");
+        assert_eq!(built.integration, "rust");
+        assert_eq!(built.entries, vec![entry("K", "v")]);
     }
 }

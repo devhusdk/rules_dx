@@ -6,6 +6,7 @@ load(
     "//libs/starlark:plan_shard.bzl",
     "plan_shard_aspect_inputs",
     "plan_shard_conflict_error",
+    "plan_shard_emit",
     "plan_shard_exec_matches",
     "plan_shard_fingerprint",
     "plan_shard_merge_records",
@@ -180,40 +181,13 @@ def _parse_entry_spec(spec, label_text):
         ": want KEY|VALUE[|EXEC_PATH]",
     )
 
-def _emit_shard(ctx, producer, integration, entry_structs):
-    """Validates one record and emits its binary shard via the writer."""
+def _checked_record(producer, integration, entry_structs):
+    """Builds one record and fails on its schema error."""
     record = env_plan_record(producer, integration, entry_structs)
     record_error = env_plan_record_error(record)
     if record_error != "":
         fail("dx_env_shard " + producer + ": " + record_error)
-    out = ctx.actions.declare_file(ctx.label.name + DX_ENV_SHARD_SUFFIX)
-    args = ctx.actions.args()
-    args.add("--producer", producer)
-    args.add("--integration", integration)
-    for entry in entry_structs:
-        if entry.exec_path == "":
-            args.add(
-                "--entry",
-                entry.key + "|" + entry.value,
-            )
-        else:
-            args.add(
-                "--entry",
-                entry.key + "|" + entry.value + "|" + entry.exec_path,
-            )
-    args.add("--output", out.path)
-    ctx.actions.run(
-        executable = ctx.executable._writer,
-        arguments = [args],
-        outputs = [out],
-        mnemonic = "DxEnvShard",
-        progress_message = "Dx env shard %{label}",
-    )
-    return out, record
-
-def _exec_matches(file_path, exec_path):
-    """Reports whether a Bazel file path satisfies an exec-path suffix."""
-    return plan_shard_exec_matches(file_path, exec_path)
+    return record
 
 def _dx_env_shard_impl(ctx):
     producer = display_label(ctx.label)
@@ -221,7 +195,8 @@ def _dx_env_shard_impl(ctx):
     if integration_error != "":
         fail("dx_env_shard " + producer + ": " + integration_error)
     entries = [_parse_entry_spec(spec, producer) for spec in ctx.attr.entries]
-    out, record = _emit_shard(ctx, producer, ctx.attr.integration, entries)
+    record = _checked_record(producer, ctx.attr.integration, entries)
+    out = plan_shard_emit(ctx, "env", producer, "--integration", ctx.attr.integration, ctx.attr.entries, DX_ENV_SHARD_SUFFIX, "DxEnvShard")
     return [
         DefaultInfo(files = depset([out])),
         DxEnvPlanInfo(direct = [record], transitive = depset([record])),
@@ -301,7 +276,7 @@ def _rust_env_shard_impl(ctx):
     for entry in entries:
         if entry.exec_path == "":
             continue
-        matches = [f for f in candidates if _exec_matches(f.path, entry.exec_path)]
+        matches = [f for f in candidates if plan_shard_exec_matches(f.path, entry.exec_path)]
         if len(matches) == 0:
             fail(
                 "rust_env_shard " + producer + ": entry '" +
@@ -322,10 +297,11 @@ def _rust_env_shard_impl(ctx):
         if entry.exec_path == "":
             continue
         for f in candidates:
-            if _exec_matches(f.path, entry.exec_path):
+            if plan_shard_exec_matches(f.path, entry.exec_path):
                 bound.append(f)
                 break
-    out, record = _emit_shard(ctx, producer, ctx.attr.integration, entries)
+    record = _checked_record(producer, ctx.attr.integration, entries)
+    out = plan_shard_emit(ctx, "env", producer, "--integration", ctx.attr.integration, ctx.attr.entries, DX_ENV_SHARD_SUFFIX, "DxEnvShard")
     return [
         DefaultInfo(files = depset([out])),
         DxEnvPlanInfo(direct = [record], transitive = depset([record])),

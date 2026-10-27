@@ -22,6 +22,7 @@ RUST_CRATE_MANIFESTS = [
     "//cli/schema:Cargo.toml",
     "//cli/sbom:Cargo.toml",
     "//cli/sbom/schema:Cargo.toml",
+    "//cli/shard_writer:Cargo.toml",
     "//cli/bep:Cargo.toml",
     "//cli/cli:Cargo.toml",
     "//cli/diff:Cargo.toml",

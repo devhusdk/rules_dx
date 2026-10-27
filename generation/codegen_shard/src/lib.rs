@@ -9,7 +9,7 @@
 )]
 
 pub use codegen_proto::rules_dx::codegen as proto;
-use proto::DxCodegenShard;
+use proto::{DxCodegenEntry, DxCodegenShard};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
@@ -184,11 +184,46 @@ pub fn decode_validated(bytes: &[u8]) -> Result<DxCodegenShard, Error> {
     dx_proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
+pub const ENTRY_SHAPE: &str = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE[|EXEC_PATH[|REPLACES]]";
+
+pub fn parse_entry(raw: &str) -> Option<DxCodegenEntry> {
+    let parts: Vec<&str> = raw.split('|').collect();
+    let (logical_path, import_root, namespace, exec_path, replaces) = match parts.as_slice() {
+        [logical_path, import_root, namespace] => (*logical_path, *import_root, *namespace, "", ""),
+        [logical_path, import_root, namespace, exec_path] => {
+            (*logical_path, *import_root, *namespace, *exec_path, "")
+        }
+        [logical_path, import_root, namespace, exec_path, replaces] => (
+            *logical_path,
+            *import_root,
+            *namespace,
+            *exec_path,
+            *replaces,
+        ),
+        _ => return None,
+    };
+    Some(DxCodegenEntry {
+        logical_path: logical_path.into(),
+        import_root: import_root.into(),
+        namespace: namespace.into(),
+        read_only: true,
+        exec_path: exec_path.into(),
+        replaces: replaces.into(),
+    })
+}
+
+pub fn shard(producer: String, language: String, entries: Vec<DxCodegenEntry>) -> DxCodegenShard {
+    DxCodegenShard {
+        producer,
+        language,
+        entries,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use prost::Message;
-    use proto::DxCodegenEntry;
 
     fn entry(logical_path: &str, import_root: &str, namespace: &str) -> DxCodegenEntry {
         DxCodegenEntry {
@@ -467,5 +502,36 @@ mod tests {
     #[test]
     fn display_names_the_error() {
         assert!(Error::EmptyProducer.to_string().contains("empty producer"));
+    }
+
+    #[test]
+    fn parse_entry_binds_every_arity() {
+        for (raw, exec_path, replaces) in [
+            ("src/a.rs|src|a", "", ""),
+            ("src/a.rs|src|a|out/a.rs", "out/a.rs", ""),
+            ("src/a.rs|src|a|out/a.rs|src/a.rs", "out/a.rs", "src/a.rs"),
+        ] {
+            let parsed = parse_entry(raw).unwrap_or_else(|| panic!("{raw:?} parses"));
+            assert_eq!(parsed.logical_path, "src/a.rs");
+            assert_eq!(parsed.import_root, "src");
+            assert_eq!(parsed.namespace, "a");
+            assert!(parsed.read_only);
+            assert_eq!(parsed.exec_path, exec_path);
+            assert_eq!(parsed.replaces, replaces);
+        }
+    }
+
+    #[test]
+    fn parse_entry_rejects_other_arities() {
+        assert_eq!(parse_entry("src/a.rs|src"), None);
+        assert_eq!(parse_entry("a|b|c|d|e|f"), None);
+    }
+
+    #[test]
+    fn shard_carries_its_fields() {
+        let built = shard("//gen:alpha".into(), "rust".into(), Vec::new());
+        assert_eq!(built.producer, "//gen:alpha");
+        assert_eq!(built.language, "rust");
+        assert!(built.entries.is_empty());
     }
 }

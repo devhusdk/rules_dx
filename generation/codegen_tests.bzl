@@ -1,5 +1,6 @@
 """Unit and analysis tests for the normalized codegen plans."""
 
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":codegen.bzl",
@@ -350,3 +351,21 @@ def codegen_plan_analysis_tests(name):
         ],
         expected_observations = EXPECTED_CODEGEN_PLAN_OBSERVATIONS,
     )
+
+def _shard_argv_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "DxCodegenShard"]
+    asserts.equals(env, 1, len(actions))
+    argv = actions[0].argv
+    asserts.true(env, argv[0].endswith("/codegen_shard_writer"), "action runs " + argv[0])
+    asserts.equals(env, ctx.attr.expected, argv[1:-1])
+    asserts.true(env, argv[-1].endswith("/" + ctx.attr.output), "output " + argv[-1])
+    return analysistest.end(env)
+
+codegen_shard_argv_test = analysistest.make(
+    _shard_argv_impl,
+    attrs = {
+        "expected": attr.string_list(mandatory = True),
+        "output": attr.string(mandatory = True),
+    },
+)

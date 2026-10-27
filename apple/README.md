@@ -72,34 +72,72 @@ inline tokens fail. Automatic Xcode acquisition fails.
 
 ## iOS libraries
 
-Declare one Rust library selection per device or simulator cell. Loading
-these rules builds and launches nothing.
+Build one Rust static library for one device or simulator cell.
 
 ```python
 load("@rules_dx//apple/ios:defs.bzl", "apple_ios_lib")
 
 apple_ios_lib(
     name = "share",
+    srcs = ["share.rs"],
+    hdrs = ["share_api.h"],
     environment = "simulator",
     arch = "arm64",
     deployment = "17.0",
-    xcode_version = "16.2",
+    xcode_version = "16.4",
     frameworks = ["Foundation"],
     crate_features = ["share"],
     rustc_flags = ["--cfg", "dx_ios"],
 )
 ```
 
-The device cell is `arm64` with triple `aarch64-apple-ios` against
-`iphoneos`. The simulator cell is `arm64` or `x86_64` with the matching
-`-sim` triple against `iphonesimulator`. Device triples, SDKs, and
-architectures fail on the simulator cell and vice versa instead of
-falling back. Deployment targets stay between the SDK floor (17.0) and
-the Xcode 16 ceiling (18.0); Xcode stays on lineage 16. Features, flags,
-and frameworks pass through unchanged for the consuming build.
+`srcs`, `deps`, `proc_macro_deps`, `crate_root`, `crate_name`, and
+`edition` pass to `rust_static_library`. Building `:share` on a macOS
+host with Xcode writes the static archive and `<name>_cell.txt`, which
+records the cell, SDK, deployment, Xcode, and the archive's Mach-O
+platform and minimum OS. Consumers get the archive, `hdrs`, and one
+`-Wl,-framework,<name>` link flag per framework through `CcInfo`.
 
-To run Rust code on a simulator, link it into an app with
-`apple_ios_app`.
+| Cell | Triple | SDK |
+| --- | --- | --- |
+| `device/arm64` | `aarch64-apple-ios` | `iphoneos` |
+| `simulator/arm64` | `aarch64-apple-ios-sim` | `iphonesimulator` |
+| `simulator/x86_64` | `x86_64-apple-ios` | `iphonesimulator` |
+
+Add the triples and the Xcode C++ toolchain to `MODULE.bazel`:
+
+```python
+apple_cc_configure = use_extension("@xcode_support//crosstool:setup.bzl", "apple_cc_configure_extension")
+use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
+
+register_toolchains("@local_config_apple_cc_toolchains//:all")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = [
+        "aarch64-apple-ios",
+        "aarch64-apple-ios-sim",
+        "x86_64-apple-ios",
+    ],
+)
+```
+
+Outside an iOS build the library builds for its own cell at `deployment`
+(default 17.0, the SDK floor). Inside an app or framework it builds in
+that cell. Linux hosts skip it. The build fails when:
+
+- a device triple, SDK, or arch is set on a simulator cell, or the reverse;
+- `deployment` is below 17.0 or above the Xcode 16 ceiling (18.0), or
+  above the iOS version of the build;
+- Xcode is outside lineage 16, or another Xcode resolved;
+- the library links no static archive;
+- the archive carries another arch or platform, or needs a newer iOS
+  than the deployment;
+- the app or framework builds another cell than the library declares.
+
+One `apple_ios_lib` serves one cell, so pass a single-slice
+`apple_ios_framework` or an app in that cell.
 
 ## Simulator apps
 

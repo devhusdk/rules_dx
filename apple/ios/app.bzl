@@ -26,7 +26,17 @@ load(
 load("//apple/provisioning:defs.bzl", "version_below")
 load("//libs/starlark:resources.bzl", "dx_apple_compile_resources")
 load(
+    ":cell.bzl",
+    "APPLE_HOSTS",
+    "CELL_ATTRS",
+    "MACH_O_PLATFORMS",
+    "MULTI_CPUS",
+    "ios_platform",
+    "target_cell",
+)
+load(
     ":defs.bzl",
+    "AppleIosLibInfo",
     "arch_errors",
     "arches",
     "deployment_errors",
@@ -35,23 +45,6 @@ load(
     "sdk_for",
     "xcode_errors",
 )
-
-_MULTI_CPUS = {
-    "device/arm64": "arm64",
-    "simulator/arm64": "sim_arm64",
-    "simulator/x86_64": "x86_64",
-}
-
-_MACH_O_PLATFORMS = {
-    "device": "2",
-    "simulator": "7",
-}
-
-_APPLE_HOSTS = select({
-    Label("@platforms//os:ios"): [],
-    Label("@platforms//os:macos"): [],
-    "//conditions:default": [Label("@platforms//:incompatible")],
-})
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -224,35 +217,26 @@ _app_selection = rule(
     },
 )
 
-def _has(ctx, constraint):
-    return ctx.target_platform_has_constraint(constraint[platform_common.ConstraintValueInfo])
-
-def _target_cell(ctx):
-    if not _has(ctx, ctx.attr._ios):
-        return ""
-    environment = "simulator" if _has(ctx, ctx.attr._simulator) else "device"
-    if _has(ctx, ctx.attr._arm64):
-        return environment + "/arm64"
-    if _has(ctx, ctx.attr._x86_64):
-        return environment + "/x86_64"
-    return environment + "/unknown"
-
-def _ios_platform(environment):
-    return apple_common.platform.ios_simulator if environment == "simulator" else apple_common.platform.ios_device
-
 def _library_cell_impl(ctx):
     errors = environment_errors(ctx.attr.environment) + arch_errors(ctx.attr.environment, ctx.attr.arch)
     if len(errors) > 0:
         fail("; ".join(errors))
     want = ctx.attr.environment + "/" + ctx.attr.arch
-    got = _target_cell(ctx)
+    got = target_cell(ctx)
     if got == "":
         fail("apple_ios_app: library cell {} builds for no iOS platform here; build the app target so rules_apple selects the cell".format(want))
     if got != want:
         fail("apple_ios_app: app declares {} but this build targets {}; pass --ios_multi_cpus={}".format(
             want,
             got,
-            _MULTI_CPUS[want],
+            MULTI_CPUS[want],
+        ))
+    library = ctx.attr.library
+    if library != None and AppleIosLibInfo in library and library[AppleIosLibInfo].cell != want:
+        fail("apple_ios_app: library {} declares {} but the app builds {}".format(
+            display(library.label),
+            library[AppleIosLibInfo].cell,
+            want,
         ))
     xcode_config, xcode = resolved_xcode(ctx, "apple_ios_app", "app")
     inputs = []
@@ -274,8 +258,8 @@ def _library_cell_impl(ctx):
         "apple_ios_app",
         want,
         sdk_for(ctx.attr.environment),
-        _MACH_O_PLATFORMS[ctx.attr.environment],
-        _ios_platform(ctx.attr.environment),
+        MACH_O_PLATFORMS[ctx.attr.environment],
+        ios_platform(ctx.attr.environment),
         apple_common.platform_type.ios,
         "AppleIosLibraryCell",
         xcode_config,
@@ -293,30 +277,10 @@ def _library_cell_impl(ctx):
         DefaultInfo(files = depset([report])),
     ]
 
-_CELL_ATTRS = {
-    "xcode_version": attr.string(default = ""),
-    "_arm64": attr.label(default = "@platforms//cpu:arm64"),
-    "_check": attr.label(
-        default = Label("//apple/bundle:library_check.sh"),
-        allow_single_file = True,
-        cfg = "exec",
-        executable = True,
-    ),
-    "_ios": attr.label(default = "@platforms//os:ios"),
-    "_simulator": attr.label(default = "@apple_support//constraints:simulator"),
-    "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
-    "_xcode_config": attr.label(
-        default = configuration_field(
-            name = "xcode_config_label",
-            fragment = "apple",
-        ),
-    ),
-}
-
 _library_cell = rule(
     implementation = _library_cell_impl,
     doc = "Checks and forwards the app library for one iOS environment and arch.",
-    attrs = dict(_CELL_ATTRS, **{
+    attrs = dict(CELL_ATTRS, **{
         "arch": attr.string(mandatory = True),
         "environment": attr.string(mandatory = True),
         "frameworks": attr.label_list(providers = [CcInfo]),
@@ -350,11 +314,18 @@ def _forced(ctx, cc_info):
     )
 
 def _framework_cell_impl(ctx):
-    got = _target_cell(ctx)
+    got = target_cell(ctx)
     if got == "":
         fail("apple_ios_framework: framework slices build for no iOS platform here; build the framework target so rules_apple selects each slice")
     if got not in ctx.attr.slices:
         fail("apple_ios_framework: this build targets {}, outside the framework slices {}".format(got, ", ".join(ctx.attr.slices)))
+    library = ctx.attr.library
+    if AppleIosLibInfo in library and library[AppleIosLibInfo].cell != got:
+        fail("apple_ios_framework: library {} declares {} but this slice builds {}".format(
+            display(library.label),
+            library[AppleIosLibInfo].cell,
+            got,
+        ))
     xcode_config, xcode = resolved_xcode(ctx, "apple_ios_framework", "framework")
     cc_info = ctx.attr.library[CcInfo]
     found = archives(cc_info)
@@ -366,8 +337,8 @@ def _framework_cell_impl(ctx):
         "apple_ios_framework",
         got,
         sdk_for(environment),
-        _MACH_O_PLATFORMS[environment],
-        _ios_platform(environment),
+        MACH_O_PLATFORMS[environment],
+        ios_platform(environment),
         apple_common.platform_type.ios,
         "AppleIosLibraryCell",
         xcode_config,
@@ -388,7 +359,7 @@ def _framework_cell_impl(ctx):
 _framework_cell = rule(
     implementation = _framework_cell_impl,
     doc = "Checks and forwards the framework library for one iOS slice.",
-    attrs = dict(_CELL_ATTRS, **{
+    attrs = dict(CELL_ATTRS, **{
         "library": attr.label(mandatory = True, providers = [CcInfo]),
         "slices": attr.string_list(mandatory = True),
     }),
@@ -508,7 +479,7 @@ def apple_ios_app(
         ] + frameworks + deps,
         tags = ["manual"],
         testonly = testonly,
-        target_compatible_with = _APPLE_HOSTS,
+        target_compatible_with = APPLE_HOSTS,
         visibility = ["//visibility:private"],
     )
     apple_bundle_version(
@@ -545,7 +516,7 @@ def apple_ios_app(
             deps = [":" + name + "_entry"],
             tags = ["manual"],
             testonly = testonly,
-            target_compatible_with = _APPLE_HOSTS,
+            target_compatible_with = APPLE_HOSTS,
             visibility = ["//visibility:private"],
         )
         _device_app(
@@ -554,7 +525,7 @@ def apple_ios_app(
             profile = provisioning_profile,
             tags = tags,
             testonly = testonly,
-            target_compatible_with = _APPLE_HOSTS,
+            target_compatible_with = APPLE_HOSTS,
             visibility = visibility,
         )
         return
@@ -571,7 +542,7 @@ def apple_ios_app(
         deps = [":" + name + "_entry"],
         tags = tags,
         testonly = testonly,
-        target_compatible_with = _APPLE_HOSTS,
+        target_compatible_with = APPLE_HOSTS,
         visibility = visibility,
     )
 
@@ -618,7 +589,7 @@ def apple_ios_app_test(
         deps = [":" + name + "_selection"] + deps,
         tags = ["manual"],
         testonly = True,
-        target_compatible_with = _APPLE_HOSTS,
+        target_compatible_with = APPLE_HOSTS,
         visibility = ["//visibility:private"],
     )
     ios_xctestrun_runner(
@@ -639,7 +610,7 @@ def apple_ios_app_test(
         test_host = app,
         deps = [":" + name + "_lib"],
         tags = sorted(set(tags + ["no-sandbox"])),
-        target_compatible_with = _APPLE_HOSTS,
+        target_compatible_with = APPLE_HOSTS,
         visibility = visibility,
         **kwargs
     )
@@ -923,7 +894,7 @@ def apple_ios_framework(
         deps = [":" + name + "_library"] + deps,
         tags = ["manual"],
         testonly = testonly,
-        target_compatible_with = _APPLE_HOSTS,
+        target_compatible_with = APPLE_HOSTS,
         visibility = ["//visibility:private"],
     )
     _xcframework_check(
@@ -940,6 +911,6 @@ def apple_ios_framework(
         xcode_version = xcode_version,
         tags = tags,
         testonly = testonly,
-        target_compatible_with = _APPLE_HOSTS,
+        target_compatible_with = APPLE_HOSTS,
         visibility = visibility,
     )

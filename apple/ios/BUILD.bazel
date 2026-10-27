@@ -5,8 +5,9 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_framework")
 load(":app_tests.bzl", "apple_ios_app_tests")
-load(":defs.bzl", "apple_ios_lib")
+load(":defs.bzl", "apple_ios_lib", "ios_lib", "ios_lib_cell")
 load(":device.bzl", "apple_ios_export")
+load(":lib_tests.bzl", "ios_lib_test", "stub_archive", "stub_ios_lib")
 load(":metadata_tests.bzl", "apple_ios_tests")
 load(":simulator.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
 
@@ -15,11 +16,13 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "app.bzl",
     "app_tests.bzl",
+    "cell.bzl",
     "create_test_simulator.sh",
     "defs.bzl",
     "delete_test_simulator.sh",
     "device.bzl",
     "export_ops.sh",
+    "lib_tests.bzl",
     "metadata_tests.bzl",
     "simctl_ops.sh",
     "simulator.bzl",
@@ -43,6 +46,7 @@ apple_ios_app_tests(name = "app_metadata")
 apple_ios_lib(
     name = "no_environment",
     arch = "arm64",
+    tags = ["manual"],
 )
 
 failure_test(
@@ -55,6 +59,7 @@ apple_ios_lib(
     name = "bad_environment",
     arch = "arm64",
     environment = "watch",
+    tags = ["manual"],
 )
 
 failure_test(
@@ -66,6 +71,7 @@ failure_test(
 apple_ios_lib(
     name = "no_arch",
     environment = "simulator",
+    tags = ["manual"],
 )
 
 failure_test(
@@ -78,6 +84,7 @@ apple_ios_lib(
     name = "device_x86",
     arch = "x86_64",
     environment = "device",
+    tags = ["manual"],
 )
 
 failure_test(
@@ -90,6 +97,7 @@ apple_ios_lib(
     name = "device_triple_on_simulator",
     arch = "arm64",
     environment = "simulator",
+    tags = ["manual"],
     triple = "aarch64-apple-ios",
 )
 
@@ -104,6 +112,7 @@ apple_ios_lib(
     arch = "arm64",
     environment = "device",
     sdk = "iphonesimulator",
+    tags = ["manual"],
 )
 
 failure_test(
@@ -117,6 +126,7 @@ apple_ios_lib(
     arch = "arm64",
     deployment = "16.0",
     environment = "device",
+    tags = ["manual"],
 )
 
 failure_test(
@@ -130,6 +140,7 @@ apple_ios_lib(
     arch = "arm64",
     deployment = "19.0",
     environment = "simulator",
+    tags = ["manual"],
 )
 
 failure_test(
@@ -142,6 +153,7 @@ apple_ios_lib(
     name = "old_xcode",
     arch = "arm64",
     environment = "simulator",
+    tags = ["manual"],
     xcode_version = "15.4",
 )
 
@@ -159,6 +171,7 @@ apple_ios_lib(
         "Foundation",
         "",
     ],
+    tags = ["manual"],
 )
 
 failure_test(
@@ -174,8 +187,10 @@ real_source_target(
         "BUILD.bazel",
         "app.bzl",
         "app_tests.bzl",
+        "cell.bzl",
         "defs.bzl",
         "device.bzl",
+        "lib_tests.bzl",
         "metadata_tests.bzl",
         "simulator.bzl",
     ],
@@ -784,4 +799,118 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+stub_archive(
+    name = "share_archive",
+    tags = ["manual"],
+)
+
+stub_ios_lib(
+    name = "device_share",
+    tags = ["manual"],
+)
+
+ios_lib_cell(
+    name = "share_lib_cell",
+    arch = "arm64",
+    environment = "simulator",
+    frameworks = ["Foundation"],
+    library = ":share_archive",
+    tags = ["manual"],
+)
+
+ios_lib(
+    name = "share_lib",
+    arch = "arm64",
+    cell = ":share_lib_cell",
+    environment = "simulator",
+    tags = ["manual"],
+)
+
+ios_lib_test(
+    name = "share_lib_test",
+    report = "share_lib_cell.txt",
+    target_under_test = ":share_lib",
+)
+
+apple_ios_app(
+    name = "device_lib_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    environment = "simulator",
+    library = ":device_share",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "device_lib_app_test",
+    config = "simulator",
+    expected_failure_substring = "library //apple/ios:device_share declares device/arm64 but the app builds simulator/arm64",
+    target = ":device_lib_app_library",
+)
+
+apple_ios_framework(
+    name = "device_lib_framework",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":device_share",
+    slices = ["simulator/arm64"],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "device_lib_framework_test",
+    config = "simulator",
+    expected_failure_substring = "library //apple/ios:device_share declares device/arm64 but this slice builds simulator/arm64",
+    target = ":device_lib_framework_library",
+)
+
+ios_lib_cell(
+    name = "device_lib_cell",
+    arch = "arm64",
+    environment = "device",
+    library = ":share_archive",
+    tags = ["manual"],
+)
+
+cell_failure_test(
+    name = "device_lib_cell_on_simulator_test",
+    config = "simulator",
+    expected_failure_substring = "declares device/arm64 but this build targets simulator/arm64",
+    target = ":device_lib_cell",
+)
+
+ios_lib_cell(
+    name = "newer_lib_cell",
+    arch = "arm64",
+    deployment = "18.0",
+    environment = "simulator",
+    library = ":share_archive",
+    tags = ["manual"],
+)
+
+cell_failure_test(
+    name = "newer_lib_cell_test",
+    config = "simulator",
+    expected_failure_substring = "deploys to 18.0 but this build targets iOS 17.0",
+    target = ":newer_lib_cell",
+)
+
+ios_lib_cell(
+    name = "empty_lib_cell",
+    arch = "arm64",
+    environment = "simulator",
+    library = ":share_stub",
+    tags = ["manual"],
+)
+
+cell_failure_test(
+    name = "empty_lib_cell_test",
+    config = "simulator",
+    expected_failure_substring = "library //apple/ios:share_stub links no static archive",
+    target = ":empty_lib_cell",
 )

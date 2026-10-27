@@ -778,3 +778,39 @@ fn a_failed_sweep_still_creates() {
         fake.log()
     );
 }
+
+#[test]
+fn a_library_cell_records_its_cell_for_apple_ios_lib() {
+    let fake = Fake::new("apple-cell-lib");
+    let loads = SIM_LOADS.replace("platform 7", "platform 2");
+    let cell = ["device/arm64", "iphoneos", "2", "arm64"];
+    let (ran, report) = check_kind(
+        &fake,
+        ["apple_ios_lib", "17.0"],
+        cell,
+        "arm64",
+        &loads,
+        &["/out/libshare.a"],
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert_eq!(
+        std::fs::read_to_string(&report).unwrap_or_default(),
+        "cell=device/arm64\nsdk=iphoneos\nsdk_version=18.5\ndeployment=17.0\nxcode=16.4.0.16F6\narchive=libshare.a arch=arm64 platform=iphoneos minos=17.0\n"
+    );
+
+    std::fs::remove_file(&report).unwrap_or_else(|error| panic!("rm: {error}"));
+    let (ran, report) = check_kind(
+        &fake,
+        ["apple_ios_lib", "17.0"],
+        cell,
+        "arm64",
+        &loads.replace("minos 17.0", "minos 18.0"),
+        &["/out/libshare.a"],
+    );
+    fails(
+        &ran,
+        1,
+        "apple_ios_lib: library archive libshare.a needs iOS 18.0, above the lib deployment 17.0",
+    );
+    assert!(!report.exists(), "a rejected cell leaves no report");
+}

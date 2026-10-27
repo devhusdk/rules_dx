@@ -59,6 +59,13 @@ wrote <name>/<path>
 dx: <name>/<path> (absent-only, left untouched)
 ```
 
+After the files it prints the next step. `--quiet` drops it:
+
+```text
+next: cd <name> && dx test
+the first dx test fetches toolchains and dependencies and can take several minutes
+```
+
 When a hooks file such as `<name>/.claude/settings.json` already exists without
 the `dx worktree` hooks, it is left as is and stderr lists the hooks to add:
 

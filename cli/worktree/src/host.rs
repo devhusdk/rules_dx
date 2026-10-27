@@ -158,6 +158,13 @@ pub(crate) fn scan_output_bases(roots: &[PathBuf]) -> Vec<OutputBase> {
     bases
 }
 
+/// Whether any output base under `roots` was made for `workspace`.
+pub fn has_output_base(roots: &[PathBuf], workspace: &Path) -> bool {
+    scan_output_bases(roots)
+        .iter()
+        .any(|base| same_path(&base.workspace, workspace))
+}
+
 /// One entry of Bazel's repository cache download store.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Download {

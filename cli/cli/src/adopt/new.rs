@@ -77,7 +77,7 @@ pub(crate) fn execute_new(
         ) => return invalid_name_code(invocation, out, err, &error),
         Err(error) => Err(error.to_string()),
     };
-    super::wiring::report(
+    let code = super::wiring::report(
         invocation,
         &applied,
         &notes,
@@ -85,7 +85,34 @@ pub(crate) fn execute_new(
         CODE_NEW_FAILED,
         out,
         err,
-    )
+    );
+    if code != 0 || !invocation.chatty() {
+        return code;
+    }
+    match check_stdout_write(write!(
+        out,
+        "next: cd {} && dx test\n{FIRST_TEST_NOTE}\n",
+        shell_word(&dest)
+    )) {
+        Ok(()) => code,
+        Err(exit) => exit,
+    }
+}
+
+const FIRST_TEST_NOTE: &str =
+    "the first dx test fetches toolchains and dependencies and can take several minutes";
+
+/// `word` quoted for a POSIX shell when it holds anything beyond plain path characters.
+fn shell_word(word: &str) -> String {
+    let plain = !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '_' | '-' | '+'));
+    if plain {
+        word.to_owned()
+    } else {
+        format!("'{}'", word.replace('\'', "'\\''"))
+    }
 }
 
 fn check_new(
@@ -136,6 +163,35 @@ mod tests {
     use crate::adopt::test_support::{invocation, run};
     use dx_process::pre_exec_code;
     use std::path::PathBuf;
+
+    #[test]
+    fn new_apply_prints_the_next_step_unless_quiet() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-next-");
+        let root = scratch.path().to_path_buf();
+        let (code, out, _err) = run(&invocation(&["new", "--apply", "go", "demo"]), &root);
+        assert_eq!(code, 0);
+        assert!(
+            out.ends_with(&format!(
+                "next: cd demo && dx test\n{}\n",
+                super::FIRST_TEST_NOTE
+            )),
+            "{out}"
+        );
+        let (code, out, err) = run(
+            &invocation(&["new", "--apply", "go", "q", "--quiet"]),
+            &root,
+        );
+        assert_eq!(code, 0);
+        assert!(!out.contains("next:"), "{out}");
+        assert!(!err.contains("next:"), "{err}");
+    }
+
+    #[test]
+    fn new_next_step_quotes_names_a_shell_would_split() {
+        assert_eq!(super::shell_word("teams/demo"), "teams/demo");
+        assert_eq!(super::shell_word("teams/My App"), "'teams/My App'");
+        assert_eq!(super::shell_word("it's"), "'it'\\''s'");
+    }
 
     #[test]
     fn new_applies_absent_only() {

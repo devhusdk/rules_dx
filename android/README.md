@@ -331,3 +331,8 @@ above). Selection, negative, and adapter coverage runs everywhere:
 ```sh
 bazel test //android/...
 ```
+
+## Example
+
+See [`examples/adopt-android`](../examples/adopt-android/README.md) for a
+consumer that adopts these rules end to end.

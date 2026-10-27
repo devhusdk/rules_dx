@@ -5,7 +5,7 @@ use serde_json::Value;
 use super::git;
 use super::host::Host;
 use super::ops::{self, AddRequest, Added};
-use super::pool::{Pool, Who, HOLDER_ENV};
+use super::pool::{Pool, Who, HOLDER_ENV, SESSION_ENV};
 use super::WorktreeError;
 
 fn field(input: &Value, name: &str) -> Option<String> {
@@ -16,7 +16,60 @@ fn field(input: &Value, name: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// One Claude Code hook that `dx worktree hook` serves.
+/// The agent whose hook payload a hook reads.
+///
+/// Codex sends the Claude Code shape. Cursor runs the hooks in
+/// `.claude/settings.json` and sends its own fields. Gemini CLI names the
+/// event `BeforeTool`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Dialect {
+    Claude,
+    Cursor,
+    Gemini,
+}
+
+impl Dialect {
+    /// The dialect of a hook payload.
+    pub(crate) fn of(input: &Value) -> Dialect {
+        if input.get("hook_event_name").and_then(Value::as_str) == Some("BeforeTool") {
+            Dialect::Gemini
+        } else if input.get("cursor_version").is_some() || input.get("conversation_id").is_some() {
+            Dialect::Cursor
+        } else {
+            Dialect::Claude
+        }
+    }
+
+    /// The session a payload names, when the agent's shells carry no session variable.
+    fn session(self, input: &Value) -> Option<String> {
+        match self {
+            Dialect::Claude => None,
+            Dialect::Cursor | Dialect::Gemini => {
+                field(input, "session_id").or_else(|| field(input, "conversation_id"))
+            }
+        }
+    }
+
+    /// The hook output that replaces the tool input.
+    fn rewrite(self, updated: Value) -> Value {
+        match self {
+            Dialect::Claude | Dialect::Cursor => serde_json::json!({
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "updatedInput": updated,
+                }
+            }),
+            Dialect::Gemini => serde_json::json!({
+                "hookSpecificOutput": {
+                    "hookEventName": "BeforeTool",
+                    "tool_input": updated,
+                }
+            }),
+        }
+    }
+}
+
+/// One agent hook that `dx worktree hook` serves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HookKind {
     Create,
@@ -49,7 +102,7 @@ impl HookKind {
         }
     }
 
-    /// The Claude Code event that runs this hook.
+    /// The Claude Code event that runs this hook, for error text.
     pub(crate) fn event(self) -> &'static str {
         match self {
             HookKind::Create => "WorktreeCreate",
@@ -81,7 +134,7 @@ pub(crate) fn parse(stdin: &str) -> Result<Value, WorktreeError> {
     serde_json::from_str(stdin).map_err(|error| {
         WorktreeError::usage(
             "bad_hook_input",
-            &format!("hook input: {error}; pass the Claude Code hook JSON on stdin"),
+            &format!("hook input: {error}; pass the agent's hook JSON on stdin"),
         )
     })
 }
@@ -206,8 +259,20 @@ pub(crate) fn remove(
     Ok(Some(released.path))
 }
 
+/// Whether a hook has nothing to do for this payload.
+///
+/// Cursor runs `SubagentStop` without an `agent_id`; its subagents hold no slots.
+pub(crate) fn ignored(kind: HookKind, input: &Value) -> bool {
+    kind == HookKind::Stop
+        && field(input, "agent_id").is_none()
+        && Dialect::of(input) != Dialect::Claude
+}
+
 /// Marks the slots of a finished subagent as held by a gone holder.
 pub(crate) fn stop(pool: &Pool, who: &Who, input: &Value) -> Result<Vec<u32>, WorktreeError> {
+    if ignored(HookKind::Stop, input) {
+        return Ok(Vec::new());
+    }
     let agent = field(input, "agent_id").ok_or_else(|| missing(HookKind::Stop, "agent_id"))?;
     let session = who.session.clone().or_else(|| field(input, "session_id"));
     let _lock = pool.lock()?;
@@ -272,7 +337,7 @@ fn wrapper_values(word: &str) -> Option<Wrapper> {
         "stdbuf" => plain(&["-i", "-o", "-e", "--input", "--output", "--error"]),
         "setsid" => plain(&[]),
         "ionice" => plain(&["-c", "-n", "-p", "-P", "-u", "--class", "--classdata"]),
-        other => legacy_values(other).and_then(|values| plain(values)),
+        other => legacy_values(other).and_then(plain),
     }
 }
 
@@ -619,7 +684,8 @@ pub(crate) enum Guard {
     Rewrite(Value),
 }
 
-/// Blocks `git worktree add|remove|prune`, and names the subagent for every dx command.
+/// Blocks `git worktree add|remove|prune`, names the subagent for every dx command,
+/// and names the session for dx when the agent's shells do not.
 pub(crate) fn guard(input: &Value) -> Guard {
     if let Some(line) = blocked(input) {
         return Guard::Block(line);
@@ -627,29 +693,30 @@ pub(crate) fn guard(input: &Value) -> Guard {
     let Some(tool) = input.get("tool_input").and_then(Value::as_object) else {
         return Guard::Allow;
     };
-    let (Some(agent), Some(command)) = (
-        field(input, "agent_id"),
-        tool.get("command").and_then(Value::as_str),
-    ) else {
+    let Some(command) = tool.get("command").and_then(Value::as_str) else {
         return Guard::Allow;
     };
-    if !runs_dx(command) {
+    let dialect = Dialect::of(input);
+    let mut exports = Vec::new();
+    if let Some(session) = dialect.session(input) {
+        if runs_dx(command) {
+            exports.push(format!("export {SESSION_ENV}={}", shell_quote(&session)));
+        }
+    }
+    if let Some(agent) = field(input, "agent_id") {
+        if runs_dx(command) {
+            exports.push(format!("export {HOLDER_ENV}={}", shell_quote(&agent)));
+        }
+    }
+    if exports.is_empty() {
         return Guard::Allow;
     }
     let mut updated = tool.clone();
     updated.insert(
         "command".to_owned(),
-        Value::String(format!(
-            "export {HOLDER_ENV}={}\n{command}",
-            shell_quote(&agent)
-        )),
+        Value::String(format!("{}\n{command}", exports.join("\n"))),
     );
-    Guard::Rewrite(serde_json::json!({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "updatedInput": updated,
-        }
-    }))
+    Guard::Rewrite(dialect.rewrite(Value::Object(updated)))
 }
 
 /// The line that blocks a `git worktree add|remove|prune` command, if the command is one.

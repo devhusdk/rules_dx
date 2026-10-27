@@ -138,14 +138,9 @@ fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
         Ok(State::Missing) => ("warn", format!("{FILE} has no dx block")),
         Err(error) => ("warn", format!("{FILE} is unreadable: {error}")),
     };
-    let missing = crate::worktree::setup::workspace_missing(workspace);
-    if !missing.is_empty() {
+    for (path, missing) in crate::worktree::setup::workspace_missing(workspace) {
         status = "warn";
-        detail = format!(
-            "{detail}; {} lacks hooks: {}",
-            crate::worktree::setup::SETTINGS,
-            missing.join("; ")
-        );
+        detail = format!("{detail}; {path} lacks hooks: {}", missing.join("; "));
     }
     use super::claude_md::{state, State as Import};
     if matches!(state(workspace), Ok(Import::Missing | Import::Absent)) {
@@ -335,7 +330,7 @@ mod tests {
         std::fs::create_dir_all(root.join(".claude")).expect("dir");
         std::fs::write(
             root.join(".claude/settings.json"),
-            crate::worktree::setup::settings_text(),
+            crate::worktree::setup::settings_text(&crate::worktree::setup::CLAUDE),
         )
         .expect("settings");
         let check = agents_check(root);
@@ -353,6 +348,24 @@ mod tests {
             std::os::unix::fs::symlink("AGENTS.md", root.join("CLAUDE.md")).expect("link");
             assert_eq!(agents_check(root).status, "ok");
         }
+        std::fs::create_dir_all(root.join(".codex")).expect("dir");
+        std::fs::write(root.join(".codex/hooks.json"), "{}\n").expect("codex");
+        let check = agents_check(root);
+        assert_eq!(check.status, "warn");
+        assert!(
+            check
+                .detail
+                .contains(".codex/hooks.json lacks hooks: PreToolUse (Bash)"),
+            "{}",
+            check.detail
+        );
+        assert!(!check.detail.contains(".claude"), "{}", check.detail);
+        std::fs::write(
+            root.join(".codex/hooks.json"),
+            crate::worktree::setup::settings_text(&crate::worktree::setup::CODEX),
+        )
+        .expect("codex");
+        assert_eq!(agents_check(root).status, "ok");
     }
 
     #[test]

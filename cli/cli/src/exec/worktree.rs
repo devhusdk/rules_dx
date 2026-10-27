@@ -703,7 +703,7 @@ pub fn hook_kind<S: AsRef<OsStr>>(args: &[S]) -> Option<HookKind> {
     }
 }
 
-/// Runs one Claude Code hook without loading dx defaults.
+/// Runs one agent hook without loading dx defaults.
 pub fn run_worktree_hook(
     kind: HookKind,
     workspace: &Path,
@@ -744,13 +744,13 @@ fn run_hook(
 ) -> i32 {
     match kind {
         HookKind::Guard => guard_hook(stdin, out, err),
-        HookKind::Create => pool_hook(stdin, workspace, err, |pool, input, err| {
+        HookKind::Create => pool_hook(kind, stdin, workspace, err, |pool, input, err| {
             hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
-        HookKind::Stop => pool_hook(stdin, workspace, err, |pool, input, _| {
+        HookKind::Stop => pool_hook(kind, stdin, workspace, err, |pool, input, _| {
             hook::stop(pool, who, input).map(|_| 0)
         }),
-        HookKind::Remove => pool_hook(stdin, workspace, err, |pool, input, _| {
+        HookKind::Remove => pool_hook(kind, stdin, workspace, err, |pool, input, _| {
             hook::remove(pool, host, who, input).map(|_| 0)
         }),
     }
@@ -778,12 +778,16 @@ fn guard_hook(stdin: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
 }
 
 fn pool_hook(
+    kind: HookKind,
     stdin: &str,
     workspace: &Path,
     err: &mut dyn Write,
     op: impl FnOnce(&Pool, &serde_json::Value, &mut dyn Write) -> Result<i32, WorktreeError>,
 ) -> i32 {
     let result = hook::parse(stdin).and_then(|input| {
+        if hook::ignored(kind, &input) {
+            return Ok(0);
+        }
         let dir = hook::cwd(&input).unwrap_or_else(|| workspace.to_path_buf());
         open_pool(&dir).and_then(|pool| op(&pool, &input, &mut *err))
     });
@@ -1629,6 +1633,18 @@ mod tests {
             r#"{"tool_input":{"command":"ls"}}"#,
             dir.path(),
         );
+        assert_eq!((code, out.as_str(), err.as_str()), (0, "", ""));
+    }
+
+    #[test]
+    fn gemini_and_cursor_hooks_exit_with_the_codes_they_read() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let gemini = r#"{"session_id":"m1","hook_event_name":"BeforeTool","tool_name":"run_shell_command","tool_input":{"command":"git worktree add ../x"}}"#;
+        let (code, out, err) = hook(HookKind::Guard, gemini, dir.path());
+        assert_eq!((code, out.as_str()), (2, ""), "{err}");
+        assert!(err.contains("dx worktree add"), "{err}");
+        let cursor = r#"{"conversation_id":"k1","cursor_version":"2.0","hook_event_name":"subagentStop","subagent_type":"explore","status":"completed"}"#;
+        let (code, out, err) = hook(HookKind::Stop, cursor, dir.path());
         assert_eq!((code, out.as_str(), err.as_str()), (0, "", ""));
     }
 

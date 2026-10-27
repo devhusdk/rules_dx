@@ -203,6 +203,8 @@ mod tests {
         assert!(root.join(".dx/version").exists());
         assert!(root.join(".devcontainer/devcontainer.json").exists());
         assert!(root.join(".claude/settings.json").exists());
+        assert!(root.join(".codex/hooks.json").exists());
+        assert!(root.join(".gemini/settings.json").exists());
         let agents = std::fs::read_to_string(root.join("AGENTS.md")).expect("agents");
         assert!(
             agents.contains("tools/dx fix --apply --affected"),

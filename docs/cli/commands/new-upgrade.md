@@ -32,7 +32,8 @@ Every starter also writes `.dx/version`, `.devcontainer/devcontainer.json`,
 them when they are missing.
 
 Like `dx init --apply`, `--apply` also writes the launcher (`tools/dx` and
-`tools/dx.cmd`), `.claude/settings.json` with the `dx worktree` hooks, and the
+`tools/dx.cmd`), the `dx worktree` hooks files (`.claude/settings.json`,
+`.codex/hooks.json`, `.gemini/settings.json`), and the
 marked block in `AGENTS.md` and the `@AGENTS.md` import in `CLAUDE.md` in the new project. Check mode also requires
 `tools/dx` and `tools/dx.cmd`.
 
@@ -56,11 +57,11 @@ wrote <name>/<path>
 dx: <name>/<path> (absent-only, left untouched)
 ```
 
-When `<name>/.claude/settings.json` already exists without the `dx worktree`
-hooks, it is left as is and stderr lists the hooks to add:
+When a hooks file such as `<name>/.claude/settings.json` already exists without
+the `dx worktree` hooks, it is left as is and stderr lists the hooks to add:
 
 ```text
-dx: <name>/.claude/settings.json exists; add these hooks: <hooks>
+dx: <name>/<hooks file> exists; add these hooks: <hooks>
 ```
 
 Output: text only.

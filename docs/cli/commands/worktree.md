@@ -364,7 +364,7 @@ bazel run @rules_dx//:dx -- build //... -- --experimental_disk_cache_gc_max_size
 ## Hooks
 
 `hook create`, `hook remove`, `hook stop`, and `hook guard` read one JSON
-object from stdin for Claude Code hooks.
+object from stdin: the hook input of Claude Code, Codex, Cursor, or Gemini CLI.
 
 Run as exactly `dx worktree hook <kind>`, hooks ignore `dx.toml` and `DX_*`
 variables and always print text. `create`, `remove`, and `stop` exit `1` on
@@ -392,16 +392,22 @@ event that runs it.
   pool are ignored.
 - `stop` reads `agent_id` for the `SubagentStop` event. It marks the slots
   that agent holds as held by a gone holder. Slots no agent has claimed are
-  not marked; a later `create` frees them.
+  not marked; a later `create` frees them. Cursor's `subagentStop` input has
+  no `agent_id`; `stop` does nothing for it and exits `0`.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr
-  when the command runs `git worktree add`, `remove`, or `prune`. When
-  `agent_id` is set and the command runs any `dx` command, it prints an
-  `updatedInput` that exports `DX_WORKTREE_HOLDER=<agent_id>` before the
-  command. Both checks see through `timeout`, `nice`, `stdbuf`, `setsid`,
-  `ionice`, `env`, `sudo`, `xargs`, and `sh -c`, `bash -c` and the like. The
-  output has no `permissionDecision`, so permission rules match the rewritten
-  command. When stdin is empty or not valid JSON, it prints a note on stderr
-  and exits `0`. It exits `0` otherwise.
+  when the command runs `git worktree add`, `remove`, or `prune`. It tells
+  the agent from the input: `hook_event_name` `BeforeTool` is Gemini CLI,
+  `cursor_version` or `conversation_id` is Cursor, and anything else has the
+  Claude Code shape that Codex also sends. For Cursor and Gemini CLI, whose
+  shells carry no session id, a command that runs `dx` gets
+  `export DX_WORKTREE_SESSION=<id>` before it, where the id is `session_id`
+  or else `conversation_id`. When `agent_id` is set and the command runs
+  any `dx` command, it also exports `DX_WORKTREE_HOLDER=<agent_id>`. The
+  rewritten command goes in `hookSpecificOutput.updatedInput`, or
+  `hookSpecificOutput.tool_input` for Gemini CLI, and keeps the other
+  `tool_input` fields. The guard never approves a command for the agent.
+  When stdin is empty or not valid JSON, it prints a note on stderr and exits
+  `0`. It exits `0` otherwise.
 
 Commit `.claude/settings.json`. The hooks run the repo launcher, so `dx` does
 not need to be on `PATH`:
@@ -427,20 +433,39 @@ not need to be on `PATH`:
 }
 ```
 
-`dx init --apply` writes this file when it is absent and never overwrites it. If
-`.claude/settings.json` exists, it prints the missing hook and `permissions.allow` entries. It also writes
+Cursor runs these hooks too while its Third-Party Imports setting is on, which
+is the default. Codex and Gemini CLI get only the guard, in files of the same
+shape: `.codex/hooks.json` with event `PreToolUse` and matcher `Bash`, and
+`.gemini/settings.json` with event `BeforeTool` and matcher
+`run_shell_command`. Codex runs project hooks only after you trust them with
+`/hooks`; Gemini CLI runs them only in a trusted folder.
+
+| Agent | Hooks file | Session |
+| --- | --- | --- |
+| Claude Code | `.claude/settings.json` | `CLAUDE_CODE_SESSION_ID` |
+| Codex | `.codex/hooks.json` | `CODEX_THREAD_ID` |
+| Cursor | `.claude/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
+| Gemini CLI | `.gemini/settings.json` | `DX_WORKTREE_SESSION`, set by `hook guard` |
+
+`dx init --apply` writes each file when it is absent and never overwrites it. If
+one exists, it prints the hook entries that file lacks, and the missing
+`permissions.allow` entries of `.claude/settings.json`. It also writes
 the launcher and the agent commands block in `AGENTS.md`; see
 [`dx init`](init.md). `dx status` reports the `agents` check as `warn` when a
-hook is missing or `CLAUDE.md` does not import `AGENTS.md`.
+hook is missing from `.claude/settings.json`, or from `.codex/hooks.json` or
+`.gemini/settings.json` when they exist, or `CLAUDE.md` does not import
+`AGENTS.md`.
 
 ## Leases
 
-The holder is the agent session (`CLAUDE_CODE_SESSION_ID` or
-`CODEX_THREAD_ID`), the agent (`DX_WORKTREE_HOLDER`, set by `hook guard`), and
+The holder is the agent session (`CLAUDE_CODE_SESSION_ID`, `CODEX_THREAD_ID`,
+or `DX_WORKTREE_SESSION`, in that order; see the table above), the agent (`DX_WORKTREE_HOLDER`, set by `hook guard`), and
 a process: `CLAUDE_PID` when it is an ancestor of `dx`, else the nearest
 ancestor that is not a shell or a wrapper such as `timeout`, `env`, `nice`,
 `nohup`, `setsid`, `stdbuf`, `time`, or `xargs`. Two agents in one session are
-different holders, and `list` shows each one. A slot from `hook create` goes
+different holders, and `list` shows each one. Under Cursor and Gemini CLI, only commands that
+`hook guard` sees run with the session, so `dx` started from a script or `make`
+has none and is refused in a slot that a session holds. A slot from `hook create` goes
 to the first agent of the same session that runs `dx worktree add` or
 `release` inside it. A holder is gone when its process
 exits or `hook stop` marks it. Any other `dx` command run inside a slot leased

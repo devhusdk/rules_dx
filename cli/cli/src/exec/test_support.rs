@@ -88,6 +88,8 @@ pub(crate) struct Harness {
     pub(crate) probe_code: Option<i32>,
     /// Every shard probe argv the fake runner saw.
     pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
+    /// The buildMetrics line the fake shard probe ends its event file with.
+    pub(crate) probe_metrics: Option<String>,
     /// Every other argv the fake runner saw.
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
 }
@@ -226,6 +228,7 @@ impl Harness {
             probe_shards: None,
             probe_code: None,
             probe_argv: Rc::new(RefCell::new(Vec::new())),
+            probe_metrics: None,
             build_argv: Rc::new(RefCell::new(Vec::new())),
         }
     }
@@ -402,6 +405,7 @@ impl Harness {
                 probe_shards: self.probe_shards.clone(),
                 probe_code: self.probe_code,
                 probe_argv: Rc::clone(&self.probe_argv),
+                probe_metrics: self.probe_metrics.clone(),
                 build_argv: Rc::clone(&self.build_argv),
             };
         }
@@ -462,6 +466,7 @@ impl Harness {
             probe_shards: self.probe_shards.clone(),
             probe_code: self.probe_code,
             probe_argv: Rc::clone(&self.probe_argv),
+            probe_metrics: self.probe_metrics.clone(),
             build_argv: Rc::clone(&self.build_argv),
         }
     }
@@ -689,6 +694,8 @@ pub(crate) struct FakeRunner {
     pub(crate) probe_shards: Option<Vec<String>>,
     pub(crate) probe_code: Option<i32>,
     pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
+    /// The buildMetrics line the fake shard probe ends its event file with.
+    pub(crate) probe_metrics: Option<String>,
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
 }
 
@@ -729,7 +736,9 @@ impl FakeRunner {
                 "completed": {"success": true, "outputGroup": [{"name": "dx_shards", "fileSets": [{"id": "0"}]}]},
             })
             .to_string(),
-            LAST_EVENT.to_owned(),
+            self.probe_metrics
+                .clone()
+                .unwrap_or_else(|| LAST_EVENT.to_owned()),
         ];
         std::fs::write(bep, lines.join("\n")).expect("probe BEP file");
         Ok(ChildStatus {

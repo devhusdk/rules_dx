@@ -11,7 +11,8 @@ use super::quality_reports::{
 use super::results::collect_results;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
-    command_finished, command_started, meets_threshold, FinishedCounts, OutputMode, Severity,
+    command_finished, command_started, meets_threshold, ActionCounts, FinishedCounts, OutputMode,
+    Severity,
 };
 use dx_plan::args::{Command, Invocation, QualityRequest};
 use dx_plan::plan::{bep_path, plan_build_with, plan_probe, SHARD_OUTPUT_GROUP};
@@ -206,6 +207,10 @@ enum ProbeStop {
 /// incomplete event file, a malformed shard file) falls back to every shard, so the probe can
 /// only make a run cheaper, never change its result. It writes nothing to stdout; Bazel's own
 /// progress goes to stderr. A stop signal or interrupted Bazel ends the run instead.
+///
+/// The probe is a real build, so its action counts go into `actions` and into `probe_counts`
+/// before its event file is removed (#2394).
+#[allow(clippy::too_many_arguments)]
 fn probe_shards(
     request: &QualityRequest,
     resolved: &dx_plan::resolve::ResolvedScope,
@@ -214,6 +219,8 @@ fn probe_shards(
     temp_dir: &Path,
     pid: u32,
     nonce: u64,
+    actions: &ActionTally,
+    probe_counts: &mut Option<ActionCounts>,
 ) -> Result<Option<BTreeSet<String>>, ProbeStop> {
     let bep = temp_dir.join(format!("dx-bep-{pid}-{nonce}-probe.json"));
     let Some(bep_text) = bep.to_str() else {
@@ -230,6 +237,7 @@ fn probe_shards(
         Ok(None) | Err(_) => return Ok(None),
     };
     let status = runner.run(&plan.argv, workspace, &[]);
+    *probe_counts = read_actions(&bep, actions);
     let shards = match &status {
         Ok(status) if status.code.is_none() => Err(ProbeStop::Signalled),
         _ if dx_process::interrupted().is_some() => Err(ProbeStop::Interrupted),
@@ -344,7 +352,18 @@ fn run_quality_request(
         }
     }
     // The probe runs after the start event, so a run whose stdout already failed starts no Bazel.
-    match probe_shards(request, &resolved, workspace, runner, temp_dir, pid, nonce) {
+    let mut probe_counts = None;
+    match probe_shards(
+        request,
+        &resolved,
+        workspace,
+        runner,
+        temp_dir,
+        pid,
+        nonce,
+        actions,
+        &mut probe_counts,
+    ) {
         Ok(Some(shards)) => {
             if let Ok(narrowed) = plan_build_with(
                 request.command,
@@ -395,7 +414,10 @@ fn run_quality_request(
             return exit;
         }
     };
-    let action_counts = read_actions(&bep, actions);
+    let action_counts = match (probe_counts, read_actions(&bep, actions)) {
+        (Some(probe), Some(build)) => Some(probe + build),
+        (probe, build) => probe.or(build),
+    };
     let compile_only = if bazel_code == 0 {
         false
     } else {

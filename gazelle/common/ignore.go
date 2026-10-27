@@ -94,10 +94,27 @@ func MatchingIgnore(c *config.Config, languageName, name string) *IgnoreEntry {
 	return nil
 }
 
-func StaleIgnores(languageName string, declared []*IgnoreEntry) []string {
+// GeneratedRels records the packages a run called GenerateRules for; the zero value is empty.
+type GeneratedRels struct{ m map[string]bool }
+
+// Add records rel as generated.
+func (g *GeneratedRels) Add(rel string) {
+	if g.m == nil {
+		g.m = map[string]bool{}
+	}
+	g.m[rel] = true
+}
+
+// Has reports whether rel was generated.
+func (g GeneratedRels) Has(rel string) bool {
+	return g.m[rel]
+}
+
+// StaleIgnores reports unused entries declared in generated packages, so a scoped run only checks its own directives.
+func StaleIgnores(languageName string, declared []*IgnoreEntry, generated GeneratedRels) []string {
 	var errs []string
 	for _, ignore := range declared {
-		if ignore == nil || ignore.Used {
+		if ignore == nil || ignore.Used || !generated.Has(ignore.Path) {
 			continue
 		}
 		errs = append(errs, fmt.Sprintf("%s: //%s: stale # gazelle:dx_ignore_import %s %s matches no literal reference",

@@ -94,6 +94,7 @@ type rustLang struct {
 	language.BaseLang
 	errors         []string
 	ignores        []*common.IgnoreEntry
+	generated      common.GeneratedRels
 	manifest       *common.ManifestRecorder
 	workspaceRoots map[string]*cargoManifest
 }
@@ -119,6 +120,7 @@ var exitProcess = os.Exit
 func (l *rustLang) Before(context.Context) {
 	l.errors = nil
 	l.ignores = nil
+	l.generated = common.GeneratedRels{}
 	l.manifest = nil
 	l.workspaceRoots = nil
 	if rec, err := common.LoadManifestRecorder("rust"); err != nil {
@@ -195,7 +197,7 @@ func (l *rustLang) fail(format string, args ...interface{}) {
 }
 
 func (l *rustLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 && l.manifest != nil {
@@ -266,6 +268,7 @@ func (*rustLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve
 func (*rustLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	l.generated.Add(args.Rel)
 	res := l.generateRules(args)
 	if l.manifest != nil {
 		l.manifest.Record(args, res)

@@ -103,11 +103,26 @@ func TestStaleIgnoresReportsUnusedEntriesOnly(t *testing.T) {
 		{Value: "Used", Path: "pkg", Used: true},
 		nil,
 		{Value: "Stale", Path: "pkg"},
-	})
+		{Value: "Elsewhere", Path: "other"},
+	}, generatedRels("pkg"))
 	want := []string{"lang: //pkg: stale # gazelle:dx_ignore_import lang Stale matches no literal reference"}
 	if len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("stale = %+v, want %+v", got, want)
 	}
+}
+
+func TestStaleIgnoresZeroGeneratedReportsNothing(t *testing.T) {
+	if got := StaleIgnores("lang", []*IgnoreEntry{{Value: "Stale", Path: "pkg"}}, GeneratedRels{}); got != nil {
+		t.Fatalf("stale = %+v, want none", got)
+	}
+}
+
+func generatedRels(rels ...string) GeneratedRels {
+	var g GeneratedRels
+	for _, rel := range rels {
+		g.Add(rel)
+	}
+	return g
 }
 
 func TestUsedIgnoresDedupsByPathAndValue(t *testing.T) {

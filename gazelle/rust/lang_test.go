@@ -296,6 +296,7 @@ func TestStaleIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
+	l.generated.Add("pkg")
 	code := stubExitProcess(t)
 	l.AfterResolvingDeps(context.Background())
 	if *code != 1 {

@@ -60,7 +60,8 @@ An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this
 directory and below. `dx generate` fails when no literal reference matches it,
-when the language is unknown, or when the value is malformed.
+when the language is unknown, or when the value is malformed. A scoped run
+checks only directives in packages inside the scope.
 
 Accepted languages: `astro`, `cc`, `csharp`, `fsharp`, `gleam`, `go`, `java`,
 `javascript`, `kotlin`, `mdx`, `powershell`, `python`, `ruby`, `rust`, `scala`,

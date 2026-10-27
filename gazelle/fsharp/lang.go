@@ -25,8 +25,9 @@ var fsharpKinds = map[string]rule.KindInfo{
 
 type fsharpLang struct {
 	language.BaseLang
-	errors  []string
-	ignores []*common.IgnoreEntry
+	errors    []string
+	ignores   []*common.IgnoreEntry
+	generated common.GeneratedRels
 }
 
 type targetImports struct {
@@ -35,7 +36,11 @@ type targetImports struct {
 
 func NewLanguage() language.Language { return &fsharpLang{} }
 
-func (l *fsharpLang) Before(context.Context) { l.errors = nil; l.ignores = nil }
+func (l *fsharpLang) Before(context.Context) {
+	l.errors = nil
+	l.ignores = nil
+	l.generated = common.GeneratedRels{}
+}
 
 func (l *fsharpLang) DoneGeneratingRules() {}
 
@@ -59,7 +64,7 @@ func (l *fsharpLang) fail(format string, args ...interface{}) {
 }
 
 func (l *fsharpLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
@@ -108,6 +113,7 @@ func (*fsharpLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resol
 func (*fsharpLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *fsharpLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	l.generated.Add(args.Rel)
 	return l.generateRules(args)
 }
 

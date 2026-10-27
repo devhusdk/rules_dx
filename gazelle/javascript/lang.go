@@ -73,8 +73,9 @@ func binaryKindInfo() rule.KindInfo {
 
 type javascriptLang struct {
 	language.BaseLang
-	errors  []string
-	ignores []*common.IgnoreEntry
+	errors    []string
+	ignores   []*common.IgnoreEntry
+	generated common.GeneratedRels
 }
 
 type targetImports struct {
@@ -85,7 +86,11 @@ type targetImports struct {
 
 func NewLanguage() language.Language { return &javascriptLang{} }
 
-func (l *javascriptLang) Before(context.Context) { l.errors = nil; l.ignores = nil }
+func (l *javascriptLang) Before(context.Context) {
+	l.errors = nil
+	l.ignores = nil
+	l.generated = common.GeneratedRels{}
+}
 
 func (l *javascriptLang) DoneGeneratingRules() {}
 
@@ -109,7 +114,7 @@ func (l *javascriptLang) fail(format string, args ...interface{}) {
 }
 
 func (l *javascriptLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
@@ -162,6 +167,7 @@ func (*javascriptLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []r
 func (*javascriptLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *javascriptLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	l.generated.Add(args.Rel)
 	return l.generateRules(args)
 }
 

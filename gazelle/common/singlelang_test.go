@@ -196,6 +196,7 @@ func TestAfterResolvingDepsReportsStaleIgnore(t *testing.T) {
 	l.Before(context.Background())
 	cfg := config.New()
 	l.Configure(cfg, "pkg", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Unused"}}})
+	l.generated.Add("pkg")
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -206,6 +207,18 @@ func TestAfterResolvingDepsReportsStaleIgnore(t *testing.T) {
 		}
 	}()
 	l.AfterResolvingDeps(context.Background())
+}
+
+func TestAfterResolvingDepsSkipsIgnoresOutsideGeneratedPackages(t *testing.T) {
+	l := newDotLang()
+	l.Before(context.Background())
+	cfg := config.New()
+	l.Configure(cfg, "c", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Unused"}}})
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Rel: "a"})
+	l.AfterResolvingDeps(context.Background())
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v, want the out-of-scope directive skipped", l.errors)
+	}
 }
 
 func TestBeforeClearsErrorsAndIgnores(t *testing.T) {
@@ -710,6 +723,7 @@ func TestResolveBareNameIgnoreNoLongerMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
+	l.generated.Add("app")
 	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"x.y.Dropped"}), label.New("", "app", "app"))
 	defer func() {
 		msg := fmt.Sprint(recover())

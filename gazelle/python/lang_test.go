@@ -608,6 +608,7 @@ func TestStaleIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
+	l.generated.Add("pkg")
 	defer func() {
 		if got := recover(); got == nil || !strings.Contains(got.(string), "stale") {
 			t.Errorf("stale ignore result = %v", got)

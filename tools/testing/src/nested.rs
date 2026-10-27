@@ -315,7 +315,7 @@ pub fn reset(root: &Path) -> Result<(), String> {
 }
 
 /// Renders the `bazel` wrapper that pins every nested startup option.
-pub fn wrapper_script(config: &Config, user_root: &Path, rc: &Path) -> String {
+pub fn wrapper_script(config: &Config, user_root: &Path, rc: &Path, calls: &Path) -> String {
     let argv = [
         config.bazel.to_string_lossy().into_owned(),
         format!("--output_user_root={}", user_root.display()),
@@ -324,7 +324,11 @@ pub fn wrapper_script(config: &Config, user_root: &Path, rc: &Path) -> String {
         format!("--bazelrc={}", rc.display()),
     ];
     let quoted: Vec<String> = argv.iter().map(|arg| shell_quote(arg)).collect();
-    format!("#!/bin/sh\nexec {} \"$@\"\n", quoted.join(" "))
+    format!(
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> {}\nexec {} \"$@\"\n",
+        shell_quote(&calls.to_string_lossy()),
+        quoted.join(" ")
+    )
 }
 
 /// Renders the bazelrc every nested command reads last.
@@ -587,8 +591,14 @@ impl Server {
         let wrapper = server.wrapper();
         write(
             &wrapper,
-            &wrapper_script(&server.config, &server.user_root(), &rc),
+            &wrapper_script(
+                &server.config,
+                &server.user_root(),
+                &rc,
+                &server.calls_log(),
+            ),
         )?;
+        write(&server.calls_log(), "")?;
         make_executable(&wrapper)?;
         Ok(server)
     }
@@ -599,6 +609,19 @@ impl Server {
 
     pub fn user_root(&self) -> PathBuf {
         self.home.join(nested_bazel::USER_ROOT)
+    }
+
+    /// Names the append-only log of every argument line the wrapper receives.
+    pub fn calls_log(&self) -> PathBuf {
+        self.home.join("calls.log")
+    }
+
+    /// Returns the argument lines the wrapper logged since the last call, then empties the log.
+    pub fn take_calls(&self) -> Vec<String> {
+        let log = self.calls_log();
+        let text = std::fs::read_to_string(&log).unwrap_or_default();
+        let _ = write(&log, "");
+        text.lines().map(str::to_owned).collect()
     }
 
     pub fn wrapper(&self) -> PathBuf {
@@ -613,6 +636,7 @@ impl Server {
             self.workspace = Some(root.clone());
         }
         reset(&root)?;
+        write(&self.calls_log(), "")?;
         Ok(root)
     }
 
@@ -963,6 +987,25 @@ impl Case {
 
     pub fn servers(&self) -> Vec<u32> {
         self.server().servers()
+    }
+
+    /// Returns the argument lines the wrapper logged since the last call, then empties the log.
+    pub fn take_calls(&self) -> Vec<String> {
+        self.server().take_calls()
+    }
+
+    /// Stops the server and asserts that none survives.
+    pub fn shutdown_server(&self) {
+        let mut guard = self.lease.borrow_mut();
+        let server = guard
+            .as_mut()
+            .unwrap_or_else(|| panic!("nested bazel: the server was released"));
+        let left = server.shutdown();
+        assert!(left.is_empty(), "nested bazel: servers survived: {left:?}");
+        assert!(
+            server.servers().is_empty(),
+            "nested bazel: servers survived the shutdown"
+        );
     }
 
     /// Builds a command for `bin` that reaches Bazel only through the shared server.
@@ -1399,10 +1442,15 @@ common --repository_cache=/rc/repos
     #[test]
     fn the_wrapper_pins_the_startup_options_and_the_rc_names_the_caches() {
         let config = config(Path::new("/b"), Path::new("/usr/bin/bazel"));
-        let script = wrapper_script(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
+        let script = wrapper_script(
+            &config,
+            Path::new("/b/0/u"),
+            Path::new("/b/0/bazelrc"),
+            Path::new("/b/0/calls.log"),
+        );
         assert_eq!(
             script,
-            "#!/bin/sh\nexec '/usr/bin/bazel' '--output_user_root=/b/0/u' '--max_idle_secs=5' '--host_jvm_args=-Xmx1536m' '--bazelrc=/b/0/bazelrc' \"$@\"\n"
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '/b/0/calls.log'\nexec '/usr/bin/bazel' '--output_user_root=/b/0/u' '--max_idle_secs=5' '--host_jvm_args=-Xmx1536m' '--bazelrc=/b/0/bazelrc' \"$@\"\n"
         );
         assert_eq!(
             bazelrc(&config, Path::new("/b/0/downloader.cfg")),
@@ -1707,8 +1755,14 @@ common --repository_cache=/rc/repos
                 first.home().join("bazelrc").display()
             )
         );
+        assert_eq!(
+            first.take_calls(),
+            vec!["--nohome_rc --nosystem_rc info release".to_owned()]
+        );
+        assert!(first.take_calls().is_empty());
         let again = first.enter("ws").expect("enter again");
         assert_eq!(again, root);
+        assert!(first.take_calls().is_empty());
         assert_eq!(std::fs::read_dir(&root).expect("list").count(), 0);
     }
 

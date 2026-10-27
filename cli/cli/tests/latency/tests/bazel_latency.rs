@@ -6,6 +6,7 @@ use dx_testing::latency::{record, Class, Stats};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 struct Cell {
+    workload: &'static str,
     op: &'static str,
     class: Class,
     state: &'static str,
@@ -20,6 +21,7 @@ const fn ms(millis: u64) -> Duration {
 }
 
 const LINT_FIRST: Cell = Cell {
+    workload: "lint",
     op: "lint-one-file",
     class: Class::BuildsAndExecutes,
     state: "first",
@@ -30,6 +32,7 @@ const LINT_FIRST: Cell = Cell {
 };
 
 const LINT_COLD_SERVER: Cell = Cell {
+    workload: "lint",
     op: "lint-one-file",
     class: Class::BuildsAndExecutes,
     state: "cold_server",
@@ -40,6 +43,7 @@ const LINT_COLD_SERVER: Cell = Cell {
 };
 
 const LINT_WARM_SERVER: Cell = Cell {
+    workload: "lint",
     op: "lint-one-file",
     class: Class::BuildsAndExecutes,
     state: "warm_server",
@@ -50,6 +54,7 @@ const LINT_WARM_SERVER: Cell = Cell {
 };
 
 const LIST_EXPUNGED: Cell = Cell {
+    workload: "tiny",
     op: "list-tests",
     class: Class::Metadata,
     state: "expunged",
@@ -60,6 +65,7 @@ const LIST_EXPUNGED: Cell = Cell {
 };
 
 const COMPLETE_EXPUNGED: Cell = Cell {
+    workload: "tiny",
     op: "complete-test-label",
     class: Class::Metadata,
     state: "expunged",
@@ -70,6 +76,7 @@ const COMPLETE_EXPUNGED: Cell = Cell {
 };
 
 const COMPLETE_BUSY: Cell = Cell {
+    workload: "tiny",
     op: "complete-test-label",
     class: Class::Metadata,
     state: "busy_server",
@@ -80,6 +87,7 @@ const COMPLETE_BUSY: Cell = Cell {
 };
 
 const COMPLETE_HUNG: Cell = Cell {
+    workload: "tiny",
     op: "complete-test-label",
     class: Class::Metadata,
     state: "hung_server",
@@ -88,6 +96,142 @@ const COMPLETE_HUNG: Cell = Cell {
     p95: None,
     max: Some(ms(2_000)),
 };
+
+const fn cell(
+    workload: &'static str,
+    op: &'static str,
+    state: &'static str,
+    samples: usize,
+    median: Option<Duration>,
+    p95: Option<Duration>,
+    max: Option<Duration>,
+) -> Cell {
+    Cell {
+        workload,
+        op,
+        class: Class::Metadata,
+        state,
+        samples,
+        median,
+        p95,
+        max,
+    }
+}
+
+const LIST_SMALL_FIRST: Cell = cell(
+    "small",
+    "list-tests",
+    "first",
+    1,
+    None,
+    None,
+    Some(ms(CEIL_LIST_SMALL_FIRST)),
+);
+const LIST_SMALL_COLD: Cell = cell(
+    "small",
+    "list-tests",
+    "cold_server",
+    5,
+    None,
+    None,
+    Some(ms(CEIL_LIST_SMALL_COLD)),
+);
+const LIST_SMALL_WARM: Cell = cell(
+    "small",
+    "list-tests",
+    "warm_server",
+    20,
+    Some(ms(CEIL_LIST_SMALL_WARM_MEDIAN)),
+    Some(ms(CEIL_LIST_SMALL_WARM_P95)),
+    None,
+);
+const LIST_LARGE_FIRST: Cell = cell(
+    "large",
+    "list-tests",
+    "first",
+    1,
+    None,
+    None,
+    Some(ms(CEIL_LIST_LARGE_FIRST)),
+);
+const LIST_LARGE_COLD: Cell = cell(
+    "large",
+    "list-tests",
+    "cold_server",
+    5,
+    None,
+    None,
+    Some(ms(CEIL_LIST_LARGE_COLD)),
+);
+const LIST_LARGE_WARM: Cell = cell(
+    "large",
+    "list-tests",
+    "warm_server",
+    20,
+    Some(ms(CEIL_LIST_LARGE_WARM_MEDIAN)),
+    Some(ms(CEIL_LIST_LARGE_WARM_P95)),
+    None,
+);
+const SCOPE_WARM: Cell = cell(
+    "small",
+    "list-tests-file",
+    "warm_server",
+    20,
+    Some(ms(CEIL_SCOPE_WARM_MEDIAN)),
+    Some(ms(CEIL_SCOPE_WARM_P95)),
+    None,
+);
+const SCOPE_COLD: Cell = cell(
+    "small",
+    "list-tests-file",
+    "cold_server",
+    5,
+    None,
+    None,
+    Some(ms(CEIL_SCOPE_COLD)),
+);
+const COMPLETE_WARM: Cell = cell(
+    "small",
+    "complete-test-label",
+    "warm_server",
+    20,
+    Some(ms(CEIL_COMPLETE_WARM_MEDIAN)),
+    Some(ms(CEIL_COMPLETE_WARM_P95)),
+    None,
+);
+const COMPLETE_COLD: Cell = cell(
+    "small",
+    "complete-test-label",
+    "cold_server",
+    5,
+    None,
+    None,
+    Some(ms(2_000)),
+);
+const LIST_EDIT: Cell = cell(
+    "small",
+    "list-tests",
+    "build_edit",
+    5,
+    None,
+    None,
+    Some(ms(CEIL_EDIT)),
+);
+
+const CEIL_LIST_SMALL_FIRST: u64 = 12_000;
+const CEIL_LIST_SMALL_COLD: u64 = 3_000;
+const CEIL_LIST_SMALL_WARM_MEDIAN: u64 = 250;
+const CEIL_LIST_SMALL_WARM_P95: u64 = 400;
+const CEIL_LIST_LARGE_FIRST: u64 = 12_000;
+const CEIL_LIST_LARGE_COLD: u64 = 3_000;
+const CEIL_LIST_LARGE_WARM_MEDIAN: u64 = 250;
+const CEIL_LIST_LARGE_WARM_P95: u64 = 400;
+const CEIL_SCOPE_WARM_MEDIAN: u64 = 300;
+const CEIL_SCOPE_WARM_P95: u64 = 450;
+const CEIL_SCOPE_COLD: u64 = 13_000;
+const CEIL_COMPLETE_WARM_MEDIAN: u64 = 100;
+const CEIL_COMPLETE_WARM_P95: u64 = 150;
+const CEIL_EDIT: u64 = 500;
 
 const WAIT: Duration = Duration::from_secs(60);
 
@@ -187,7 +331,14 @@ fn settle(cell: &Cell, times: Vec<Duration>, failures: &mut Vec<String>) {
     }
     println!(
         "{}",
-        record(cell.op, cell.class, "tiny", cell.state, &stats, &ceilings)
+        record(
+            cell.op,
+            cell.class,
+            cell.workload,
+            cell.state,
+            &stats,
+            &ceilings
+        )
     );
     let p95 = stats.p95.unwrap_or(stats.max);
     let over = cell.median.is_some_and(|c| stats.median > c)
@@ -547,5 +698,243 @@ fn completion_falls_back_quietly_when_the_server_hangs() {
     resume.signal("-CONT");
     let answer = case.bazel(&["query", "//pkg:all"]);
     assert_eq!(answer.status.code(), Some(0), "{}", answer.combined());
+    assert!(failures.is_empty(), "over ceiling: {failures:?}");
+}
+
+const PLAIN_DEFS: &str = r##"def _impl(ctx):
+    out = ctx.actions.declare_file(ctx.label.name)
+    ctx.actions.write(out, "#!/bin/sh\nexit 0\n", is_executable = True)
+    return [DefaultInfo(executable = out)]
+
+custom_test = rule(
+    implementation = _impl,
+    test = True,
+    attrs = {
+        "deps": attr.label_list(),
+        "data": attr.label_list(allow_files = True),
+    },
+)
+"##;
+
+fn plain_build(index: usize, per_pkg: usize) -> String {
+    let mut text = String::from("load(\"//:defs.bzl\", \"custom_test\")\n\n");
+    if index == 0 {
+        text.push_str(
+            "filegroup(\n    name = \"files\",\n    srcs = [\"src.txt\"],\n    visibility = [\"//visibility:public\"],\n)\n\n",
+        );
+    }
+    for test in 0..per_pkg {
+        let deps = if test == 0 {
+            String::new()
+        } else {
+            format!(", deps = [\":t{}_test\"]", test - 1)
+        };
+        text.push_str(&format!("custom_test(name = \"t{test}_test\"{deps})\n\n"));
+    }
+    if index == 1 {
+        text.push_str("custom_test(name = \"owner_test\", data = [\"//p0:files\"])\n");
+    }
+    text
+}
+
+fn write_plain_workspace(root: &Path, packages: usize, per_pkg: usize) -> Vec<String> {
+    write(&root.join("MODULE.bazel"), "module(name = \"plain\")\n");
+    write(&root.join("BUILD.bazel"), "");
+    write(&root.join("defs.bzl"), PLAIN_DEFS);
+    write(&root.join("p0/src.txt"), "source\n");
+    let mut labels = Vec::new();
+    for index in 0..packages {
+        write(
+            &root.join(format!("p{index}/BUILD.bazel")),
+            &plain_build(index, per_pkg),
+        );
+        labels.extend((0..per_pkg).map(|test| format!("//p{index}:t{test}_test")));
+    }
+    labels.push("//p1:owner_test".to_owned());
+    labels
+}
+
+fn only_queries(calls: &[String]) {
+    assert!(!calls.is_empty(), "no bazel call was logged");
+    for call in calls {
+        let verb = call
+            .split_whitespace()
+            .find(|word| !word.starts_with("--"))
+            .unwrap_or_default();
+        assert_eq!(verb, "query", "unexpected bazel call: {call}");
+    }
+}
+
+fn list_sample(case: &Case, args: &[&str], expected: &[String]) -> (Duration, Vec<String>) {
+    case.take_calls();
+    let (elapsed, run) = timed(|| dx_at(case, args));
+    assert_eq!(run.status.code(), Some(0), "{}", run.combined());
+    let calls = case.take_calls();
+    for label in expected {
+        assert!(
+            run.stdout.contains(label.as_str()),
+            "{label} missing: {}",
+            run.stdout
+        );
+    }
+    (elapsed, calls)
+}
+
+fn list_cells(name: &str, packages: usize, per_pkg: usize, cells: [&Cell; 3]) {
+    let case = nested::case(name);
+    let labels = write_plain_workspace(case.root(), packages, per_pkg);
+    let _stop = Shutdown(&case);
+    let mut failures = Vec::new();
+    let args = ["list-tests"];
+
+    let (first, calls) = list_sample(&case, &args, &labels);
+    only_queries(&calls);
+    settle(cells[0], vec![first], &mut failures);
+
+    let mut cold = Vec::new();
+    for _ in 0..cells[1].samples {
+        case.shutdown_server();
+        let (elapsed, calls) = list_sample(&case, &args, &labels);
+        only_queries(&calls);
+        cold.push(elapsed);
+    }
+    settle(cells[1], cold, &mut failures);
+
+    for _ in 0..2 {
+        list_sample(&case, &args, &labels);
+    }
+    let pids = case.servers();
+    assert_eq!(pids.len(), 1, "one server expected: {pids:?}");
+    let mut warm = Vec::new();
+    for _ in 0..cells[2].samples {
+        let (elapsed, calls) = list_sample(&case, &args, &labels);
+        only_queries(&calls);
+        warm.push(elapsed);
+    }
+    assert_eq!(case.servers(), pids, "the warm server was replaced");
+    settle(cells[2], warm, &mut failures);
+    assert!(failures.is_empty(), "over ceiling: {failures:?}");
+}
+
+#[test]
+fn list_tests_small_stays_inside_its_ceilings() {
+    list_cells(
+        "list-small",
+        3,
+        2,
+        [&LIST_SMALL_FIRST, &LIST_SMALL_COLD, &LIST_SMALL_WARM],
+    );
+}
+
+#[test]
+fn list_tests_large_stays_inside_its_ceilings() {
+    list_cells(
+        "list-large",
+        200,
+        5,
+        [&LIST_LARGE_FIRST, &LIST_LARGE_COLD, &LIST_LARGE_WARM],
+    );
+}
+
+const SCOPE_GRAPH_QUERIES: usize = 1;
+
+fn scope_checks(calls: &[String]) {
+    only_queries(calls);
+    let graph = calls
+        .iter()
+        .filter(|call| call.contains("kind('rule', //...)"))
+        .count();
+    assert_eq!(graph, SCOPE_GRAPH_QUERIES, "{calls:#?}");
+}
+
+#[test]
+fn file_scope_keeps_the_cross_package_owner() {
+    let case = nested::case("scope");
+    write_plain_workspace(case.root(), 3, 2);
+    let _stop = Shutdown(&case);
+    let owner = vec!["//p1:owner_test".to_owned()];
+    let args = ["list-tests", "p0/src.txt"];
+    let mut failures = Vec::new();
+
+    let mut cold = Vec::new();
+    for _ in 0..SCOPE_COLD.samples {
+        case.shutdown_server();
+        let (elapsed, calls) = list_sample(&case, &args, &owner);
+        scope_checks(&calls);
+        cold.push(elapsed);
+    }
+    settle(&SCOPE_COLD, cold, &mut failures);
+
+    list_sample(&case, &args, &owner);
+    let mut warm = Vec::new();
+    for _ in 0..SCOPE_WARM.samples {
+        let (elapsed, calls) = list_sample(&case, &args, &owner);
+        scope_checks(&calls);
+        warm.push(elapsed);
+    }
+    settle(&SCOPE_WARM, warm, &mut failures);
+    assert!(failures.is_empty(), "over ceiling: {failures:?}");
+}
+
+#[test]
+fn completion_answers_warm_and_falls_back_cold() {
+    let case = nested::case("complete");
+    write_tiny_workspace(case.root());
+    let _stop = Shutdown(&case);
+    let expected = expected(&case);
+    let mut failures = Vec::new();
+
+    let mut warm = Vec::new();
+    for _ in 0..COMPLETE_WARM.samples {
+        case.take_calls();
+        let (elapsed, run) = complete(&case);
+        assert_eq!(classify(&run, &expected), Reply::Answered, "{}", run.stdout);
+        assert!(run.stderr.is_empty(), "{}", run.stderr);
+        let calls = case.take_calls();
+        let queries: Vec<&String> = calls
+            .iter()
+            .filter(|call| call.contains("--noblock_for_lock") && call.contains("//pkg:*"))
+            .collect();
+        assert_eq!(queries.len(), 1, "{calls:#?}");
+        warm.push(elapsed);
+    }
+    settle(&COMPLETE_WARM, warm, &mut failures);
+
+    let mut cold = Vec::new();
+    for _ in 0..COMPLETE_COLD.samples {
+        case.shutdown_server();
+        case.take_calls();
+        let (elapsed, run) = complete(&case);
+        let reply = classify(&run, &expected);
+        let calls = case.take_calls();
+        let queries = calls.iter().filter(|call| call.contains("query")).count();
+        assert_eq!(queries, 1, "{calls:#?}");
+        println!("complete cold reply={reply:?}");
+        cold.push(elapsed);
+    }
+    settle(&COMPLETE_COLD, cold, &mut failures);
+    assert!(failures.is_empty(), "over ceiling: {failures:?}");
+}
+
+#[test]
+fn build_edit_is_seen_on_the_next_run() {
+    let case = nested::case("edit");
+    let mut labels = write_plain_workspace(case.root(), 3, 2);
+    let _stop = Shutdown(&case);
+    list_sample(&case, &["list-tests"], &labels);
+    let mut failures = Vec::new();
+    let mut edit = Vec::new();
+    for tag in 0..LIST_EDIT.samples {
+        let build = case.root().join("p2/BUILD.bazel");
+        let name = format!("new{tag}_test");
+        write(
+            &build,
+            &format!("{}custom_test(name = \"{name}\")\n", read(&build)),
+        );
+        labels.push(format!("//p2:{name}"));
+        let (elapsed, _) = list_sample(&case, &["list-tests"], &labels);
+        edit.push(elapsed);
+    }
+    settle(&LIST_EDIT, edit, &mut failures);
     assert!(failures.is_empty(), "over ceiling: {failures:?}");
 }

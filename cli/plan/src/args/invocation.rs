@@ -263,6 +263,8 @@ pub struct Invocation {
     pub bases: bool,
     /// The optional `dx init` parts `--with` or `--full` selected.
     pub init_parts: dx_adopt::InitParts,
+    /// Extra Rust target triples `--rust-target-triple` adds to the init snippet.
+    pub init_rust_target_triples: Vec<String>,
     /// `build`/`test --explain`: save the execution log for `dx explain`.
     pub explain: bool,
     /// `dx explain --old`.
@@ -628,6 +630,7 @@ mod tests {
             disk: false,
             bases: false,
             init_parts: dx_adopt::InitParts::NONE,
+            init_rust_target_triples: Vec::new(),
             explain: false,
             old_log: None,
             new_log: None,

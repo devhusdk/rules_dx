@@ -45,6 +45,11 @@ bazel run @rules_dx//:dx -- init --apply --full
 An unknown part name is a usage error that lists the five names. `--with` and
 `--full` cannot be combined.
 
+`--rust-target-triple=<triples>` (comma-separated, repeatable) adds
+`extra_target_triples` to the Rust toolchain in `MODULE.bazel.snippet`, for
+example `--rust-target-triple=wasm32-unknown-unknown,wasm32-wasip1`. It only
+shapes the snippet; it is not recorded in `.dx/init.toml`.
+
 `--apply` records the parts it was given in `.dx/init.toml`. Commit it:
 
 ```toml

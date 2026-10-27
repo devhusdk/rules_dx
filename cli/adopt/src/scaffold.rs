@@ -70,9 +70,39 @@ pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck
 /// Content `dx init` writes to a new `.bazelignore`.
 pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
 
+/// Checks `--rust-target-triple` values: non-empty, lowercase triple characters only.
+pub fn validate_rust_target_triples(triples: &[String]) -> Result<Vec<String>, String> {
+    let mut out: Vec<String> = Vec::new();
+    for triple in triples {
+        let ok = !triple.is_empty()
+            && triple.contains('-')
+            && triple.chars().all(|c| {
+                c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '-' | '_' | '.')
+            });
+        if !ok {
+            return Err(format!("invalid Rust target triple: {triple:?}"));
+        }
+        if !out.contains(triple) {
+            out.push(triple.clone());
+        }
+    }
+    Ok(out)
+}
+
 pub fn render_consumer_module_setup() -> String {
+    render_consumer_module_setup_with(&[])
+}
+
+/// The consumer setup with `extra_target_triples` on the Rust toolchain when non-empty.
+pub fn render_consumer_module_setup_with(triples: &[String]) -> String {
+    let extra = if triples.is_empty() {
+        String::new()
+    } else {
+        let list: Vec<String> = triples.iter().map(|t| format!("\"{t}\"")).collect();
+        format!("    extra_target_triples = [{}],\n", list.join(", "))
+    };
     format!(
-        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
+        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n{extra})\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
         dx = DX_VERSION,
         cc = CONSUMER_RULES_CC_VERSION,
         llvm = CONSUMER_LLVM_VERSION,
@@ -80,6 +110,7 @@ pub fn render_consumer_module_setup() -> String {
         edition = CONSUMER_RUST_EDITION,
         rustfmt = CONSUMER_RUSTFMT_VERSION,
         rust = CONSUMER_RUST_VERSION,
+        extra = extra,
     )
 }
 
@@ -225,6 +256,15 @@ pub fn plan_init_files_for_host(
     plan_init_files_with(module_name, windows, false, parts)
 }
 
+/// Like `plan_init_files`, with extra Rust target triples in the module snippet.
+pub fn plan_init_files_triples(
+    module_name: &str,
+    parts: InitParts,
+    triples: &[String],
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_full(module_name, cfg!(windows), false, parts, triples)
+}
+
 /// Plans the essential init files plus the files of each selected part.
 ///
 /// `cuda` appends the pinned CUDA stanza to `MODULE.bazel.snippet`.
@@ -233,6 +273,16 @@ pub fn plan_init_files_with(
     windows: bool,
     cuda: bool,
     parts: InitParts,
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_full(module_name, windows, cuda, parts, &[])
+}
+
+fn plan_init_files_full(
+    module_name: &str,
+    windows: bool,
+    cuda: bool,
+    parts: InitParts,
+    triples: &[String],
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
     let files = vec![
@@ -274,9 +324,9 @@ pub fn plan_init_files_with(
             content: format!(
                 "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
                 setup = with_overrides_include(&if cuda {
-                    with_cuda_stanza(&render_consumer_module_setup())
+                    with_cuda_stanza(&render_consumer_module_setup_with(triples))
                 } else {
-                    render_consumer_module_setup()
+                    render_consumer_module_setup_with(triples)
                 }),
             ),
         },
@@ -404,10 +454,21 @@ pub fn apply_init(
     parts: InitParts,
     applied: &mut Applied,
 ) -> Result<(), AdoptError> {
+    apply_init_triples(root, module_name, parts, &[], applied)
+}
+
+/// Like `apply_init`, with extra Rust target triples in the module snippet.
+pub fn apply_init_triples(
+    root: &Path,
+    module_name: &str,
+    parts: InitParts,
+    triples: &[String],
+    applied: &mut Applied,
+) -> Result<(), AdoptError> {
     let cuda = crate::load_graph::workspace_has_cuda_sources(root)?;
     apply_scaffold(
         root,
-        &plan_init_files_with(module_name, cfg!(windows), cuda, parts)?,
+        &plan_init_files_full(module_name, cfg!(windows), cuda, parts, triples)?,
         applied,
     )
 }
@@ -968,6 +1029,24 @@ mod tests {
             "snippet must register the rust toolchains: {setup:?}"
         );
         scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn rust_target_triples_extend_the_toolchain_and_default_is_unchanged() {
+        let triples = vec![
+            "wasm32-unknown-unknown".to_owned(),
+            "wasm32-wasip1".to_owned(),
+        ];
+        assert_eq!(
+            super::render_consumer_module_setup_with(&[]),
+            super::render_consumer_module_setup()
+        );
+        let text = super::render_consumer_module_setup_with(&triples);
+        assert!(text.contains(
+            "    extra_target_triples = [\"wasm32-unknown-unknown\", \"wasm32-wasip1\"],\n)"
+        ));
+        assert!(super::validate_rust_target_triples(&["Bad Triple".to_owned()]).is_err());
+        assert!(super::validate_rust_target_triples(&[String::new()]).is_err());
     }
 
     #[test]

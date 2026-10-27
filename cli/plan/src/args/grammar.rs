@@ -85,6 +85,7 @@ pub(crate) struct Flags {
     pub(crate) bases: bool,
     pub(crate) with: Vec<String>,
     pub(crate) full: bool,
+    pub(crate) rust_target_triple: Vec<String>,
     pub(crate) explain: bool,
     pub(crate) old_log: Option<String>,
     pub(crate) new_log: Option<String>,
@@ -417,11 +418,20 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Add extra Rust target triples to the MODULE.bazel.snippet toolchain.
+    InitRustTargetTripleFlag, {
+        #[arg(long, value_name = "TRIPLES", require_equals = true, value_delimiter = ',')]
+        rust_target_triple: Vec<String>,
+    }
+}
+
 composite_group! {
     /// The flags that pick the optional init parts.
     InitPartsArgs, {
         with: InitWithFlag,
         full: InitFullFlag,
+        rust_target_triple: InitRustTargetTripleFlag,
     }
 }
 

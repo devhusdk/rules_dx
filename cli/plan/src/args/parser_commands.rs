@@ -66,9 +66,14 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 12] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 13] = [
     ("--with", &["--with=vscode"], &["init"]),
     ("--full", &["--full"], &["init"]),
+    (
+        "--rust-target-triple",
+        &["--rust-target-triple=wasm32-unknown-unknown"],
+        &["init"],
+    ),
     (
         "--include-edits",
         &["--include-edits", "--output=json"],

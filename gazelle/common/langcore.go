@@ -140,6 +140,9 @@ type SingleFileSpec struct {
 	LanguageName string
 	LibraryKind  string
 	IsSource     func(name string) bool
+	// OwnsByName limits stale removal to rules named like the generated
+	// library or naming no existing source, so handwritten rules survive.
+	OwnsByName bool
 	TargetName   func(name string) (string, error)
 	ParseImports func(content []byte, dir string) []ImportRef
 	IsStdLib     func(name string) bool
@@ -249,6 +252,9 @@ func ReadSource(path string) ([]byte, error) {
 }
 
 type SingleDirSpec struct {
+	// OwnsByName limits stale removal to rules named like the generated
+	// library or naming no existing source, so handwritten rules survive.
+	OwnsByName bool
 	LanguageName string
 	LibraryKind  string
 	IsSource     func(name string) bool
@@ -381,7 +387,23 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			r.SetAttr("testonly", true)
 		}
 	}
-	return MergeStale(args.File, result, kinds)
+	var owns func(*rule.Rule) bool
+	if spec.OwnsByName {
+		owns = func(r *rule.Rule) bool {
+			if r.Name() == name {
+				return true
+			}
+			for _, attr := range []string{"srcs", "hdrs"} {
+				for _, src := range r.AttrStrings(attr) {
+					if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
+						return false
+					}
+				}
+			}
+			return true
+		}
+	}
+	return MergeStaleOwned(args.File, result, kinds, owns)
 }
 
 type ResolveSpec struct {

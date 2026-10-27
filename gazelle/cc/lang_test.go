@@ -437,3 +437,25 @@ func TestCcKindsLeaveAndroidAttrsUnmergeable(t *testing.T) {
 		}
 	}
 }
+
+func TestHandwrittenLibraryKeptWhenNamedDifferently(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/demo.cc", "int x;\n")
+	writeFixture(t, root, "pkg/demo/facts.cc", "int y;\n")
+	f, err := rule.LoadData(filepath.Join(root, "pkg/demo/BUILD.bazel"), "pkg/demo",
+		[]byte("cc_library(name = \"facts\", srcs = [\"facts.cc\"], copts = [\"-O2\"])\n"+
+			"cc_library(name = \"old\", srcs = [\"gone.cc\"])\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		File:         f,
+		RegularFiles: []string{"demo.cc"},
+	})
+	if len(result.Empty) != 1 || result.Empty[0].Name() != "old" {
+		t.Errorf("emptied %d rules, want only the stale old", len(result.Empty))
+	}
+}

@@ -2,7 +2,9 @@
 
 load("@rules_gleam//gleam:defs.bzl", _gleam_binary = "gleam_binary", _gleam_erl_library = "gleam_erl_library", _gleam_library = "gleam_library", _gleam_test = "gleam_test")
 load("@rules_gleam//gleam:provider.bzl", _GleamErlPackageInfo = "GleamErlPackageInfo")
-load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH")
+load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
+load("//erlang/toolchain:pins.bzl", "CELLS")
+load("//gleam/toolchain:pins.bzl", "GLEAM_CELLS")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":javascript.bzl", _GleamJsInfo = "GleamJsInfo", _gleam_js_binary = "gleam_js_binary", _gleam_js_library = "gleam_js_library", _gleam_js_test = "gleam_js_test", _package_name = "package_name")
@@ -11,7 +13,9 @@ GleamErlPackageInfo = _GleamErlPackageInfo
 
 GleamJsInfo = _GleamJsInfo
 
-GLEAM_COMPATIBLE_WITH = ERLANG_COMPATIBLE_WITH
+GLEAM_OTP_CELLS = [cell for cell in sorted(GLEAM_CELLS.keys()) if cell in CELLS]
+
+GLEAM_COMPATIBLE_WITH = otp_compatible_with(GLEAM_OTP_CELLS)
 
 GLEAM_SOURCE_GLOBS = ["src/**/*.gleam"]
 

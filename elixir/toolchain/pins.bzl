@@ -8,6 +8,8 @@ ELIXIR_SHA256 = "7863c546cda13fecc949e562e326042451dacf8fd8698a36783cb71eeb223b4
 
 ELIXIR_URL = "https://builds.hex.pm/builds/elixir/v" + ELIXIR_VERSION + "-otp-" + ELIXIR_OTP_MAJOR + ".zip"
 
+ELIXIR_CELLS = ["linux_amd64"]
+
 ELIXIR_APPLICATIONS = ["eex", "elixir", "ex_unit", "iex", "logger", "mix"]
 
 RULES_ELIXIR_COMMIT = "8e13ada66e2abcea001256346acaeb06f97f1eb5"

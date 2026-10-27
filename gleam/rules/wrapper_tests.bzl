@@ -3,7 +3,7 @@
 load("//gleam/tools:gleam_tool.bzl", "gleam_tool_script")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true")
-load(":defs.bzl", "GLEAM_COMPATIBLE_WITH", "GLEAM_JS_SOURCE_GLOBS", "GLEAM_JS_TEST_GLOBS", "GLEAM_SOURCE_GLOBS", "GLEAM_TEST_GLOBS", "GLEAM_TEST_HELPER_GLOBS", "GLEEUNIT", "GLEEUNIT_JS", "owned_sources", "source_root", "test_helpers", "upstream_kwargs", "with_gleeunit")
+load(":defs.bzl", "GLEAM_JS_SOURCE_GLOBS", "GLEAM_JS_TEST_GLOBS", "GLEAM_OTP_CELLS", "GLEAM_SOURCE_GLOBS", "GLEAM_TEST_GLOBS", "GLEAM_TEST_HELPER_GLOBS", "GLEEUNIT", "GLEEUNIT_JS", "owned_sources", "source_root", "test_helpers", "upstream_kwargs", "with_gleeunit")
 load(":hex.bzl", "ffi_sources", "generated_erlang_module", "hex_metadata_entries", "hex_tarball_url", "js_label", "package_build")
 load(":javascript.bzl", "gleam_toml", "module_path", "package_name", "source_path", "unique_trees")
 
@@ -41,7 +41,7 @@ def gleam_wrapper_contract_tests(name):
             expect_equal("tests get gleeunit once", [str(dep) for dep in with_gleeunit([":a"])], [":a", str(GLEEUNIT)]),
             expect_equal("a listed gleeunit is kept", [str(dep) for dep in with_gleeunit([str(GLEEUNIT)])], [str(GLEEUNIT)]),
             expect_equal("JavaScript tests get the JavaScript gleeunit", [str(dep) for dep in with_gleeunit(None, GLEEUNIT_JS)], [str(GLEEUNIT_JS)]),
-            expect_equal("packages compile on the OTP cell", [str(constraint) for constraint in GLEAM_COMPATIBLE_WITH], [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))]),
+            expect_equal("packages compile on the Gleam cells", GLEAM_OTP_CELLS, ["linux_amd64"]),
             expect_equal("package names come from the label", package_name("", "apps/stock-cli", "cli"), "apps_stock_cli_cli"),
             expect_equal("package names start with a letter", package_name("", "", "1st"), "p_1st"),
             expect_equal("package names fold case", package_name("My.Repo", "", "Lib"), "my_repo_lib"),

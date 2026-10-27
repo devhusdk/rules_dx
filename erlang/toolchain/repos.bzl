@@ -145,10 +145,13 @@ def erl_script(source, closure):
         fail("erl.src no longer exports PROGNAME")
     if launch not in source:
         fail("erl.src no longer execs erlexec")
+    relocated = source.replace("%FINAL_ROOTDIR%", "/nonexistent")
+    if not closure:
+        return relocated
     loader = RESTORE_VARIABLE + '="${LD_LIBRARY_PATH-}"\nexport ' + RESTORE_VARIABLE + "\n"
     loader += 'LD_LIBRARY_PATH="$ROOTDIR/' + closure + '/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\nexport LD_LIBRARY_PATH\n'
     restored = 'exec "$BINDIR/erlexec" -eval \'' + RESTORE_EVAL + '\' ${1+"$@"}'
-    return source.replace("%FINAL_ROOTDIR%", "/nonexistent").replace(marker, marker + loader).replace(launch, restored)
+    return relocated.replace(marker, marker + loader).replace(launch, restored)
 
 def dropped_application(directory):
     """Returns whether one lib directory is an application the runtime drops."""
@@ -181,18 +184,22 @@ _rules_erlang = repository_rule(
     },
 )
 
-def _install(rctx):
+def _link(rctx, target, link):
+    rctx.delete(link)
+    rctx.symlink(target, link)
+
+def _install(rctx, closure):
     erts_bin = "erts-" + ERTS_VERSION + "/bin/"
-    erl = erl_script(rctx.read(erts_bin + "erl.src"), CLOSURE_DIR)
+    erl = erl_script(rctx.read(erts_bin + "erl.src"), closure)
     rctx.file(erts_bin + "erl", erl, executable = True)
     rctx.file("bin/erl", erl, executable = True)
     for tool in BIN_TOOLS:
-        rctx.symlink(erts_bin + tool, "bin/" + tool)
+        _link(rctx, erts_bin + tool, "bin/" + tool)
     release = "releases/" + OTP_RELEASE + "/"
     for boot in BOOT_FILES:
-        rctx.symlink(release + boot, "bin/" + boot)
-    rctx.symlink(release + "start_clean.boot", "bin/start.boot")
-    rctx.symlink(release + "start_clean.script", "bin/start.script")
+        _link(rctx, release + boot, "bin/" + boot)
+    _link(rctx, release + "start_clean.boot", "bin/start.boot")
+    _link(rctx, release + "start_clean.script", "bin/start.script")
     rctx.file("releases/start_erl.data", ERTS_VERSION + " " + OTP_RELEASE + "\n")
     rctx.file("releases/RELEASES", rctx.read("releases/RELEASES.src").replace("%ERL_ROOT%/", ""))
 
@@ -236,13 +243,14 @@ def _otp_repo_impl(rctx):
     rctx.download_and_extract(
         url = cell.otp_url,
         sha256 = cell.otp_sha256,
-        stripPrefix = "OTP-" + OTP_VERSION,
+        stripPrefix = cell.strip_prefix,
     )
     if rctx.read("releases/" + OTP_RELEASE + "/OTP_VERSION").strip() != OTP_VERSION:
         fail("OTP archive is not release " + OTP_VERSION)
     _prune(rctx)
-    _install(rctx)
-    _closure(rctx, cell.runtime)
+    _install(rctx, CLOSURE_DIR if cell.runtime else None)
+    if cell.runtime:
+        _closure(rctx, cell.runtime)
     rctx.file(VERSION_FILE, OTP_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _OTP_BUILD.format(

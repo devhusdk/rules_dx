@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "DEFAULT_ELIXIRC_OPTS", "ELIXIR_COMPATIBLE_WITH", "ELIXIR_SOURCE_GLOBS", "app_kwargs", "app_mod_entry", "app_sources", "escript_headers", "helper_first")
+load(":defs.bzl", "DEFAULT_ELIXIRC_OPTS", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_kwargs", "app_mod_entry", "app_sources", "escript_headers", "helper_first")
 load(":hex.bzl", "hex_metadata_entry", "hex_tarball_url")
 
 def _glob(patterns, exclude = [], **_kwargs):
@@ -29,7 +29,7 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("test helpers are required first", helper_first(["test/a_test.exs", "test/test_helper.exs", "test/z_test.exs"]), ["test/test_helper.exs", "test/a_test.exs", "test/z_test.exs"]),
             expect_equal("a helper label is required first", helper_first(["//t:a_test.exs", "//t:test_helper.exs"]), ["//t:test_helper.exs", "//t:a_test.exs"]),
             expect_equal("srcs without a helper keep their order", helper_first(["b.exs", "a.exs"]), ["b.exs", "a.exs"]),
-            expect_equal("apps compile on the toolchain cell", [str(constraint) for constraint in ELIXIR_COMPATIBLE_WITH], [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))]),
+            expect_equal("apps compile on the Elixir cells", ELIXIR_CELLS, ["linux_amd64"]),
             expect_equal("hex tarballs come from repo.hex.pm", hex_tarball_url("jason", "1.4.4"), "https://repo.hex.pm/tarballs/jason-1.4.4.tar"),
             expect_equal("hex metadata names the release", hex_metadata_entry("version", "1.4.4"), '{<<"version">>,<<"1.4.4">>}.'),
         ],

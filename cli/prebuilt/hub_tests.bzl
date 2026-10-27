@@ -14,13 +14,16 @@ _PINNED = {
     "dx-windows-x86_64": _HASH,
 }
 
+_ALL_PINNED = {name: _HASH for name in _PINNED}
+
 def _override(url, os = "", cpu = ""):
     return struct(cpu = cpu, os = os, sha256 = _HASH, url = url)
 
 def _checks():
-    unpinned = plan_assets("1.2.3", SHA256, URL_TEMPLATE, {})
+    unpinned = plan_assets("1.2.3", {name: "" for name in _PINNED}, URL_TEMPLATE, {})
     pinned = plan_assets("1.2.3", _PINNED, URL_TEMPLATE, {})
-    pinned_build = consumer_build("1.2.3", pinned)
+    pinned_build = consumer_build(pinned)
+    all_pinned_build = consumer_build(plan_assets("1.2.3", _ALL_PINNED, URL_TEMPLATE, {}))
     linux = [a for a in pinned if a.asset == "dx-linux-x86_64"][0]
     windows = [a for a in pinned if a.asset == "dx-windows-x86_64"][0]
     mirrored = plan_assets("1.2.3", SHA256, URL_TEMPLATE, {
@@ -29,7 +32,7 @@ def _checks():
     })
     mirror = [a for a in mirrored if a.asset == "dx-macos-arm64"][0]
     riscv = [a for a in mirrored if a.asset == "dx-linux-riscv64"][0]
-    unpinned_build = consumer_build("1.2.3", unpinned)
+    unpinned_build = consumer_build(unpinned)
     return [
         expect_equal("pins name every release asset", sorted(SHA256.keys()), sorted(ASSET_PLATFORMS.keys())),
         expect_equal("pins are empty or a sha256", [k for k, v in SHA256.items() if v and not valid_sha256(v)], []),
@@ -53,10 +56,11 @@ def _checks():
         expect_contains("other platforms fail", pinned_build, '"//conditions:default": ":unsupported",'),
         expect_contains("the failure names the remedies", pinned_build, "dx_prebuilt.from_source(), which requires Rust and C toolchains"),
         expect_contains("the failure lists supported platforms", pinned_build, "linux x86_64, macos aarch64"),
-        expect_contains("an unpinned asset fails", unpinned_build, "rules_dx 1.2.3 has no pinned sha256 for dx-linux-x86_64"),
-        expect_false("an unpinned hub downloads nothing", "native_binary(\n" in unpinned_build),
-        expect_false("the consumer hub never names the source dx", SOURCE_LABEL in pinned_build),
-        expect_false("the consumer hub loads nothing from rules_rust", "rules_rust" in pinned_build),
+        expect_equal("a release with no pins builds dx from source", unpinned_build, alias_build(SOURCE_LABEL)),
+        expect_contains("an unpinned asset builds dx from source", pinned_build, '":linux_aarch64": "@rules_dx//cli/cli:dx",'),
+        expect_false("an unpinned asset downloads nothing", "dx_prebuilt_linux_arm64" in pinned_build),
+        expect_false("a fully pinned hub never names the source dx", SOURCE_LABEL in all_pinned_build),
+        expect_false("the consumer hub loads nothing from rules_rust", "rules_rust" in all_pinned_build),
         expect_contains("the root hub aliases the source dx", alias_build(SOURCE_LABEL), 'actual = "@rules_dx//cli/cli:dx",'),
     ]
 

@@ -119,13 +119,28 @@ fn an_unsupported_platform_fails_with_the_remedies() {
 }
 
 #[test]
-fn an_unpinned_release_is_never_downloaded() {
+fn a_release_with_no_pins_builds_dx_from_source() {
     let case = Case::consumer("unpinned", "");
-    case.build_fails_with(
-        "@rules_dx//:dx",
-        &[&format!(
-            "has no pinned sha256 for {HOST_ASSET} in cli/prebuilt/pins.bzl"
-        )],
+    case.write("BUILD.bazel", "");
+    let deps = ok(&bazel(&case, &["query", "deps(@rules_dx//:dx, 2)"]));
+    assert!(
+        deps.lines().any(|label| label == "@rules_dx//cli/cli:dx"),
+        "{deps}"
+    );
+}
+
+#[test]
+fn an_unpinned_host_asset_builds_from_source_and_downloads_nothing() {
+    let tag = format!(
+        "dx_prebuilt.asset(\n    name = \"dx-macos-arm64\",\n    sha256 = \"{}\",\n    url = \"file:///nonexistent/dx\",\n)\n",
+        "0".repeat(64)
+    );
+    let case = Case::consumer("partly_pinned", &format!("{EXTENSION}{tag}"));
+    case.write("BUILD.bazel", "");
+    let deps = ok(&bazel(&case, &["cquery", "deps(@rules_dx//:dx, 2)"]));
+    assert!(
+        deps.lines().any(|label| label.contains("//cli/cli:dx ")),
+        "{HOST_ASSET} is unpinned, so dx should come from source:\n{deps}"
     );
 }
 

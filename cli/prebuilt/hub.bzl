@@ -28,7 +28,7 @@ def _supported(assets):
     return ", ".join(["{} {}".format(a.os, a.cpu) for a in assets])
 
 def plan_assets(version, pins, url_template, overrides):
-    """Returns one struct per asset: its platform and either a verified download or an unpinned reason.
+    """Returns one struct per asset: its platform and, when pinned, a verified download.
 
     Args:
       version: The dx version the pins belong to.
@@ -92,14 +92,6 @@ def unsupported_message(assets):
         " or dx_prebuilt.from_source(), which requires Rust and C toolchains."
     )
 
-def unpinned_message(version, asset):
-    """Returns the failure text for an asset with no pinned sha256."""
-    return (
-        "dx: rules_dx {} has no pinned sha256 for {} in cli/prebuilt/pins.bzl, so it will not download it.".format(version, asset) +
-        " In your root MODULE.bazel, add dx_prebuilt.asset(name = \"{}\", url, sha256),".format(asset) +
-        " or dx_prebuilt.from_source(), which requires Rust and C toolchains."
-    )
-
 def _select(entries, default):
     lines = ["select({"]
     for condition, value in entries:
@@ -108,16 +100,23 @@ def _select(entries, default):
     lines.append("    })")
     return "\n".join(lines)
 
-def consumer_build(version, assets):
+def consumer_build(assets):
     """Returns the hub BUILD text that selects a prebuilt dx by os and cpu.
 
+    A platform whose asset has no pinned sha256 builds dx from source, as
+    before prebuilt dx existed: nothing unverified is ever downloaded, and a
+    release with no pins (every version until #1388) keeps working. With no
+    pinned asset at all, every platform builds from source, exactly as
+    before; unsupported platforms fail only once some asset is pinned.
+
     Args:
-      version: The pinned dx version.
       assets: The structs plan_assets returns.
 
     Returns:
       The BUILD file content.
     """
+    if not [a for a in assets if a.repo]:
+        return alias_build(SOURCE_LABEL)
     lines = [
         'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")',
         'load("@rules_dx//cli/prebuilt:fail.bzl", "dx_unavailable")',
@@ -126,7 +125,7 @@ def consumer_build(version, assets):
         "",
         "alias(",
         '    name = "dx",',
-        "    actual = " + _select([(":" + a.key, ":dx_" + a.key) for a in assets], ":unsupported") + ",",
+        "    actual = " + _select([(":" + a.key, ":dx_" + a.key if a.repo else SOURCE_LABEL) for a in assets], ":unsupported") + ",",
         ")",
     ]
     for a in assets:
@@ -139,23 +138,14 @@ def consumer_build(version, assets):
             '        "@platforms//cpu:{}",'.format(a.cpu),
             "    ],",
             ")",
-            "",
         ]
         if a.repo:
             lines += [
+                "",
                 "native_binary(",
                 '    name = "dx_{}",'.format(a.key),
                 '    src = "@{}//file:{}",'.format(a.repo, a.exe),
                 '    out = "{}/{}",'.format(a.key, a.exe),
-                ")",
-            ]
-        else:
-            lines += [
-                "dx_unavailable(",
-                '    name = "dx_{}",'.format(a.key),
-                '    cpu = "{}",'.format(a.cpu),
-                "    message = {},".format(json.encode(unpinned_message(version, a.asset))),
-                '    os = "{}",'.format(a.os),
                 ")",
             ]
     lines += [

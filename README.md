@@ -25,9 +25,12 @@ bazel run @rules_dx//:dx -- test //...
 In your module, `@rules_dx//:dx` runs the released `dx` binary for the
 target platform, checked against the sha256 in `cli/prebuilt/pins.bzl`.
 Release binaries exist for linux x86_64, linux aarch64, macos aarch64,
-windows x86_64 and windows aarch64. Other platforms, and versions with no
-pinned release, fail the build. To pick a binary yourself, add this to your
-root `MODULE.bazel`:
+windows x86_64 and windows aarch64. A platform whose binary has no pinned
+sha256 builds `dx` from source instead, so a rules_dx version with no pins
+at all (any version taken from git) builds `dx` from source everywhere, with
+the Rust and C toolchains `dx init` sets up. Once some binary is pinned,
+platforms with no release binary fail the build. To pick a binary yourself,
+add this to your root `MODULE.bazel`:
 
 ```starlark
 dx_prebuilt = use_extension("@rules_dx//cli/prebuilt:extension.bzl", "dx_prebuilt")

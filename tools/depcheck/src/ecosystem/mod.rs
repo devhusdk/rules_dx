@@ -27,3 +27,10 @@ pub(crate) fn put(deps: &mut BTreeMap<String, DepInfo>, key: String, info: DepIn
         }
     }
 }
+
+pub(crate) fn push_version(pkgs: &mut crate::LockVersions, name: String, ver: String) {
+    let versions = pkgs.entry(name).or_default();
+    if !versions.contains(&ver) {
+        versions.push(ver);
+    }
+}

@@ -151,10 +151,10 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
     Ok(deps)
 }
 
-pub fn parse_python_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
+pub fn parse_python_lock(path: &Path) -> Result<crate::LockVersions, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::LockToml)?;
-    let mut pkgs = BTreeMap::new();
+    let mut pkgs = crate::LockVersions::new();
     if let Some(list) = data.get("package").and_then(|v| v.as_array()) {
         for item in list {
             let name = item
@@ -166,7 +166,7 @@ pub fn parse_python_lock(path: &Path) -> Result<BTreeMap<String, String>, Depche
                 .and_then(crate::toml_util::toml_string)
                 .unwrap_or_default();
             if !name.is_empty() {
-                pkgs.insert(normalize_py(&name), ver);
+                super::push_version(&mut pkgs, normalize_py(&name), ver);
             }
         }
     }
@@ -174,7 +174,7 @@ pub fn parse_python_lock(path: &Path) -> Result<BTreeMap<String, String>, Depche
         let re = regex::Regex::new(r#"name\s*=\s*"([^"]+)"\s*\n\s*version\s*=\s*"([^"]+)""#)
             .map_err(DepcheckError::LockRegex)?;
         for caps in re.captures_iter(&text) {
-            pkgs.insert(normalize_py(&caps[1]), caps[2].to_owned());
+            super::push_version(&mut pkgs, normalize_py(&caps[1]), caps[2].to_owned());
         }
     }
     Ok(pkgs)

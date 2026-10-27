@@ -29,7 +29,9 @@ pub use ecosystem::python::{normalize_py, parse_python_lock, parse_python_manife
 pub use ecosystem::ruby::{normalize_ruby, parse_ruby_lock, parse_ruby_manifest};
 pub use ecosystem::rust::{normalize_rs, parse_rust_lock, parse_rust_manifest};
 pub use exceptions::parse_exceptions;
-pub use types::{DepInfo, DepcheckError, Ecosystem, Exception, Usage, WorkspaceLocks};
+pub use types::{
+    DepInfo, DepcheckError, Ecosystem, Exception, LockVersions, Usage, WorkspaceLocks,
+};
 pub use usage::{cmd_usage, find_usages, is_test_file};
 pub use version::satisfies_for;
 

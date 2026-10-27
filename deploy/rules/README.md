@@ -337,7 +337,7 @@ github_deploy(
 
 Default run stages `<name>-release/` with the assets and a `would-run.txt`
 holding their sha256 and the `gh release create` command. Nothing is
-published. `GH_RELEASE_DRY_RUN=1` only changes the first output line.
+published.
 
 Create the draft with `gh` on `PATH` and logged in:
 
@@ -405,8 +405,7 @@ oci_deploy(
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<repository>-oci-layout/` with an `index.json`. No
-credentials needed. `OCI_PUBLISH_DRY_RUN=1` also prints the push it would
-run.
+credentials needed.
 
 Push:
 

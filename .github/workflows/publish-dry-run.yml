@@ -76,7 +76,7 @@ jobs:
           notice_manifest="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_inventory.txt)"
           notice_a="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_a.txt)"
           notice_b="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_b.txt)"
-          GH_RELEASE_DRY_RUN=1 bazel run //cli/cli:github_draft > "$stage/draft-dry-run.log" 2>&1
+          bazel run //cli/cli:github_draft > "$stage/draft-dry-run.log" 2>&1
           bazel test //deploy/release:all --noshow_progress > "$stage/release-tests.log" 2>&1
           RELEASE_SIGN_DRY_RUN=1 bazel run //deploy/release:signing_demo > "$stage/signing-dry-run.log" 2>&1
           BCR_DRY_RUN=1 bazel run //deploy/release:bcr_demo > "$stage/bcr-dry-run.log" 2>&1
@@ -116,7 +116,7 @@ jobs:
             echo "- approved: \`$APPROVE\`; published: **no** (dry run never publishes)"
             echo "- seed binary: \`dx-linux-x86_64\` \`$(cut -d' ' -f1 "$stage/dx-linux-x86_64.sha256")\`"
             echo "- standalone: \`dx-standalone.tar.gz\` \`$(cut -d' ' -f1 "$stage/dx-standalone.tar.gz.sha256")\`"
-            echo "- draft dry-run: \`//cli/cli:github_draft\` \`GH_RELEASE_DRY_RUN=1\` ok (placeholder \`v0.0.0-dryrun\`, draft-only flags, publishes nothing)"
+            echo "- draft dry-run: \`//cli/cli:github_draft\` ok (placeholder \`v0.0.0-dryrun\`, draft-only flags, staged locally, publishes nothing)"
             echo "- packaging: \`//deploy/release:release_artifacts\` ok (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)"
             echo "- SBOM: \`//deploy/release:sbom_demo\` SPDX-2.3 + SLSA v1 ok, subject digest equals artifact sha256, publishes nothing"
             echo "- NOTICE: \`//deploy/release:notice_demo\` ok (hermetic bundle, signed alongside SBOM pair, publishes nothing)"

@@ -76,14 +76,13 @@ fn github_case() {
     let want_tag = std::env::var("DX_GITHUB_TAG").expect("DX_GITHUB_TAG must name the tag");
     let assets = std::env::var("DX_GITHUB_ASSETS").expect("DX_GITHUB_ASSETS must list assets");
 
-    let run = run_deploy(
-        &prog,
-        "DX_GITHUB_CONFIG",
-        &[],
-        &[("GH_RELEASE_DRY_RUN", "1")],
-    )
-    .expect("dry run must execute");
+    let run = run_deploy(&prog, "DX_GITHUB_CONFIG", &[], &[]).expect("github launcher must execute");
     let out = run.combined();
+    assert!(
+        out.lines()
+            .any(|line| line.trim() == "github_deploy: staged draft release, publishing nothing:"),
+        "github staged header not found\n{out}"
+    );
     assert!(
         out.lines()
             .any(|line| line.trim() == format!("tag: {want_tag}")),
@@ -105,7 +104,7 @@ fn github_case() {
         "github would-run command missing draft-only flags '--draft --verify-tag'\n{out}"
     );
 
-    let bare = dx_testing::run(&prog, &[], &[("GH_RELEASE_DRY_RUN", "1")])
+    let bare = dx_testing::run(&prog, &[], &[])
         .expect("unconfigured run must execute");
     assert_eq!(bare.status.code(), Some(2), "{}", bare.combined());
     assert!(

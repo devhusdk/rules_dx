@@ -1114,14 +1114,6 @@ pub fn oci_main(
             secrets.get("OCI_REGISTRY_TOKEN"),
         );
     }
-    if std::env::var("OCI_PUBLISH_DRY_RUN").unwrap_or_default() == "1" {
-        println!(
-            "oci_deploy: dry run (OCI_PUBLISH_DRY_RUN=1); would push {registry}/{repository}:{tag}"
-        );
-        println!(
-            "oci_deploy: signing-first: verify SBOM/provenance plus signing_demo before any live push, then cosign sign <digest>"
-        );
-    }
     match oci_build_layout(&image, outdir, registry, repository, tag, platform) {
         Ok(layout) => {
             let profile = deploy_profile();

@@ -154,7 +154,7 @@ fn a_renamed_rules_dx_deploys_inputs_from_a_renamed_repository() {
     let applied = dx(
         &root,
         &["--apply", "//:bundle", "--", target.as_str()],
-        &[("GH_RELEASE_DRY_RUN", "1")],
+        &[],
     );
     assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
     assert!(

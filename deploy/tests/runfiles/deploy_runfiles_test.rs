@@ -252,7 +252,6 @@ fn a_github_launcher_stages_an_external_input_without_publishing() {
         &[out.to_string_lossy().as_ref()],
         &[
             ("DX_DEPLOY_CONFIG", config.to_string_lossy().as_ref()),
-            ("GH_RELEASE_DRY_RUN", "1"),
             ("PATH", path.to_string_lossy().as_ref()),
         ],
     )

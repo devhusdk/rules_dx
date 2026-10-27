@@ -103,6 +103,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
     let draft_log = read_text(&inputs.draft_log, "draft dry-run log")?;
     require_contains(&draft_log, "v0.0.0-dryrun", "draft dry-run log")?;
     require_contains(&draft_log, "--draft --verify-tag", "draft dry-run log")?;
+    require_contains(&draft_log, "publishing nothing", "draft dry-run log")?;
     let signing_log = read_text(&inputs.signing_log, "signing dry-run log")?;
     require_contains(&signing_log, "cosign sign-blob", "signing dry-run log")?;
     require_contains(&signing_log, SIGNING_TRUST_ROOT, "signing dry-run log")?;
@@ -161,7 +162,6 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         },
         "draft_dry_run": {
             "flags": "--draft --verify-tag",
-            "mode": "GH_RELEASE_DRY_RUN=1",
             "ok": true,
             "placeholder": "v0.0.0-dryrun",
             "published": false,
@@ -173,7 +173,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             "seed releasable unit //deploy/release:release_artifacts (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)",
             "SBOM/provenance generation //deploy/release:sbom_demo (SPDX-2.3 + SLSA v1, subject digest equal to artifact sha256, owner-gated, publishes nothing)",
             "aggregated NOTICE //deploy/release:notice_demo (hermetic notice_bundle, byte-identical, missing-notice-text fails, publishes nothing)",
-            "draft-only publisher //cli/cli:github_draft in GH_RELEASE_DRY_RUN=1 mode (placeholder v0.0.0-dryrun, draft-only flags, publishes nothing)",
+            "draft-only publisher //cli/cli:github_draft staged locally (placeholder v0.0.0-dryrun, draft-only flags, publishes nothing)",
             "owner-gated signing //deploy/release:signing_demo in RELEASE_SIGN_DRY_RUN=1 mode (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)",
             "Bazel Central Registry shape via //deploy/release:bcr_demo in BCR_DRY_RUN=1 mode (rules_dx at 0.0.0, checked not submitted)",
             "human-run driver //deploy/release:release_driver dry run (owner approval + tag ceiling, publishes nothing)",
@@ -313,7 +313,7 @@ mod tests {
         let draft_log = write_text(
             dir,
             "draft-dry-run.log",
-            "v0.0.0-dryrun\n--draft --verify-tag\n",
+            "v0.0.0-dryrun\n--draft --verify-tag\npublishing nothing\n",
         );
         let signing_log = write_text(
             dir,
@@ -523,6 +523,20 @@ mod tests {
         inputs.draft_log = write_text(dir.path(), "draft.log", "--draft --verify-tag\n");
         let error = publish_dry_run_check(&inputs).expect_err("draft without placeholder fails");
         assert!(error.contains("draft dry-run log"), "got {error}");
+    }
+
+    #[test]
+    fn draft_log_without_publishing_nothing_fails() {
+        let dir = scratch();
+        let mut inputs = valid_inputs(dir.path());
+        inputs.draft_log = write_text(
+            dir.path(),
+            "draft.log",
+            "v0.0.0-dryrun\n--draft --verify-tag\n",
+        );
+        let error =
+            publish_dry_run_check(&inputs).expect_err("draft without publishing nothing fails");
+        assert!(error.contains("publishing nothing"), "got {error}");
     }
 
     #[test]

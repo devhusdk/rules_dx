@@ -693,7 +693,7 @@ func TestResolveBranches(t *testing.T) {
 }
 
 func TestResolveExternalGoMod(t *testing.T) {
-	l := &goLang{}
+	l := newLang()
 	cfg := resolverConfig(t, nil)
 	cfg.RepoRoot = t.TempDir()
 	writeFixture(t, cfg.RepoRoot, "go.mod", "module example.test\n\ngo 1.22\n\nrequire (\n\tgithub.com/google/go-cmp v0.6.0\n\tgithub.com/ind/only v1.0.0 // indirect\n\tgithub.com/ignored/mod v1.0.0\n)\n")
@@ -707,19 +707,20 @@ func TestResolveExternalGoMod(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"github.com/google/go-cmp/cmp", "github.com/ignored/mod/pkg"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"github.com/google/go-cmp/cmp", "github.com/ignored/mod/pkg"}), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "@com_github_google_go_cmp//cmp" {
 		t.Errorf("go.mod deps = %q", got)
 	}
-	if len(l.errors) != 0 {
-		t.Fatalf("errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v", l.Errors())
 	}
 	if entry := common.MatchingIgnore(cfg, languageName, "github.com/ignored/mod/pkg"); entry == nil || !entry.Used() {
 		t.Errorf("ignore beat go.mod but was not marked used: %+v", entry)
 	}
-	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(LibraryKind, "app"), targetImports{imports: []string{"github.com/ind/only/x", "github.com/unrequired/y"}}, label.New("", "app", "app"))
-	if len(l.errors) != 2 || !strings.Contains(l.errors[0], "only an indirect require") || !strings.Contains(l.errors[1], `unresolved import "github.com/unrequired/y"; add a go_library with that importpath, require its module directly in go.mod`) {
-		t.Errorf("errors = %v", l.errors)
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(LibraryKind, "app"), common.WrapImportSet([]string{"github.com/ind/only/x", "github.com/unrequired/y"}), label.New("", "app", "app"))
+	errs := l.Errors()
+	if len(errs) != 2 || !strings.Contains(errs[0], "only an indirect require") || !strings.Contains(errs[1], `unresolved import "github.com/unrequired/y"; add a go_library with that importpath, require its module directly in go.mod`) {
+		t.Errorf("errors = %v", errs)
 	}
 }
 

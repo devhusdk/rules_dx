@@ -76,7 +76,8 @@ fn github_case() {
     let want_tag = std::env::var("DX_GITHUB_TAG").expect("DX_GITHUB_TAG must name the tag");
     let assets = std::env::var("DX_GITHUB_ASSETS").expect("DX_GITHUB_ASSETS must list assets");
 
-    let run = run_deploy(&prog, "DX_GITHUB_CONFIG", &[], &[]).expect("github launcher must execute");
+    let run =
+        run_deploy(&prog, "DX_GITHUB_CONFIG", &[], &[]).expect("github launcher must execute");
     let out = run.combined();
     assert!(
         out.lines()
@@ -104,8 +105,7 @@ fn github_case() {
         "github would-run command missing draft-only flags '--draft --verify-tag'\n{out}"
     );
 
-    let bare = dx_testing::run(&prog, &[], &[])
-        .expect("unconfigured run must execute");
+    let bare = dx_testing::run(&prog, &[], &[]).expect("unconfigured run must execute");
     assert_eq!(bare.status.code(), Some(2), "{}", bare.combined());
     assert!(
         bare.stderr
@@ -319,18 +319,20 @@ fn resources_case() {
     );
 }
 
-fn oci_case() {
-    let prog = data("DX_OCI_PROG");
-    let outdir = dx_testing::mkscratch("oci-demo").expect("scratch");
-    let run = dx_testing::run(&prog, &[outdir.to_string_lossy().as_ref()], &[])
+fn oci_stage(prog: &Path, name: &str) -> PathBuf {
+    let outdir = dx_testing::mkscratch(name).expect("scratch");
+    let run = dx_testing::run(prog, &[outdir.to_string_lossy().as_ref()], &[])
         .expect("oci deploy must execute");
     let out = run.combined();
     assert!(run.status.success(), "oci deploy failed\n{out}");
-    let layout = out
-        .lines()
+    out.lines()
         .find_map(|line| line.strip_prefix("  layout: "))
         .map(PathBuf::from)
-        .unwrap_or_else(|| panic!("no layout line\n{out}"));
+        .unwrap_or_else(|| panic!("no layout line\n{out}"))
+}
+
+fn oci_case() {
+    let layout = oci_stage(&data("DX_OCI_PROG"), "oci-demo");
     let blobs = layout.join("blobs").join("sha256");
     for entry in std::fs::read_dir(&blobs).expect("read blobs") {
         let path = entry.expect("blob entry").path();
@@ -349,9 +351,21 @@ fn oci_case() {
     let index = dx_testing::read_json(&layout.join("index.json")).expect("index");
     assert_eq!(
         index["manifests"][0]["annotations"]["org.opencontainers.image.ref.name"],
-        "ghcr.io/oci_demo:latest"
+        std::env::var("DX_OCI_REF").unwrap_or_else(|_| "ghcr.io/oci_demo:latest".to_owned())
     );
     let manifest = blob(&index["manifests"][0]["digest"]);
+    if std::env::var_os("DX_OCI_BASE_PROG").is_some() {
+        let base = oci_stage(&data("DX_OCI_BASE_PROG"), "oci-demo-base");
+        let base_index = dx_testing::read_json(&base.join("index.json")).expect("base index");
+        let base_blobs = base.join("blobs").join("sha256");
+        let digest = base_index["manifests"][0]["digest"]
+            .as_str()
+            .expect("base digest");
+        let base_manifest =
+            dx_testing::read_json(&base_blobs.join(&digest[7..])).expect("base manifest");
+        assert_eq!(manifest["config"], base_manifest["config"]);
+        assert_eq!(manifest["layers"], base_manifest["layers"]);
+    }
     let layers = manifest["layers"].as_array().expect("layers");
     assert_eq!(layers.len(), 2, "{manifest}");
     for layer in layers {

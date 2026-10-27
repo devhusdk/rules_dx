@@ -396,7 +396,8 @@ oci_deploy(
 ```
 
 - `image_tar`: required. A `docker save` or OCI layout archive, `.tar` or
-  `.tar.gz`, holding one image.
+  `.tar.gz`, or an OCI layout directory such as a rules_oci `oci_image`,
+  holding one image.
 - `platform`: required. `linux/amd64` or `linux/arm64`.
 - `tag`: defaults to `latest`. At most 128 chars, not starting with `.` or `-`.
 - `registry`: defaults to `ghcr.io`.

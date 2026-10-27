@@ -1,7 +1,7 @@
 """Unit and analysis tests for the OCI publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error", "oci_tar_error")
+load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_image_error", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error")
 
 def oci_unit_tests(name):
     starlark_test(
@@ -170,9 +170,33 @@ def oci_unit_tests(name):
                 "oci_deploy: invalid repository 'a/.b': want each path segment to start and end with [a-z0-9]",
             ),
             expect_equal(
-                "oci_tar_error accepts a pinned tar filename",
-                oci_tar_error("oci_demo.tar"),
+                "oci_image_error accepts a pinned tar filename",
+                oci_image_error("oci_demo.tar"),
                 "",
+            ),
+            expect_equal(
+                "oci_image_error accepts a layout directory",
+                oci_image_error("oci_demo_layout", is_directory = True),
+                "",
+            ),
+            expect_equal(
+                "oci_image_error rejects a layout directory with a space",
+                oci_image_error("oci demo", is_directory = True),
+                "oci_deploy: invalid image_tar 'oci demo': want no quotes, " +
+                "backslashes, spaces, or newlines so the filename embeds " +
+                "safely in the deploy launcher",
+            ),
+            expect_equal(
+                "oci_image_error rejects a suffix-less file",
+                oci_image_error("oci_demo_layout"),
+                "oci_deploy: invalid image_tar 'oci_demo_layout': want a " +
+                "filename ending in .tar or .tar.gz",
+            ),
+            expect_equal(
+                "oci_image_error rejects an empty name",
+                oci_image_error("", is_directory = True),
+                "oci_deploy: invalid image_tar '': want a non-empty .tar " +
+                "filename or OCI layout directory",
             ),
             expect_equal(
                 "oci_platform_error accepts linux/amd64",
@@ -197,10 +221,48 @@ def oci_unit_tests(name):
                 "linux/amd64, linux/arm64",
             ),
             expect_equal(
-                "oci_tar_error rejects a non-tar filename",
-                oci_tar_error("oci_demo.zip"),
+                "oci_image_error rejects a non-tar filename",
+                oci_image_error("oci_demo.zip"),
                 "oci_deploy: invalid image_tar 'oci_demo.zip': want a " +
                 "filename ending in .tar or .tar.gz",
             ),
         ],
     )
+
+def _oci_layout_fixture_impl(ctx):
+    """Writes one OCI layout directory from an image archive."""
+    out = ctx.actions.declare_directory(ctx.label.name)
+    ctx.actions.run(
+        executable = ctx.executable._archiver,
+        arguments = ["--oci-layout", out.path, ctx.attr.platform, ctx.attr.reference, ctx.file.image.path],
+        inputs = [ctx.file.image],
+        outputs = [out],
+        mnemonic = "OciLayoutFixture",
+    )
+    return [DefaultInfo(files = depset([out]))]
+
+oci_layout_fixture = rule(
+    implementation = _oci_layout_fixture_impl,
+    doc = "Builds an OCI layout directory test fixture from an image archive.",
+    attrs = {
+        "image": attr.label(
+            doc = "Image archive to convert.",
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "platform": attr.string(
+            doc = "Image platform.",
+            default = "linux/amd64",
+        ),
+        "reference": attr.string(
+            doc = "Reference written to the index.",
+            mandatory = True,
+        ),
+        "_archiver": attr.label(
+            doc = "Archiver tool.",
+            default = Label("//deploy/rules:archiver"),
+            executable = True,
+            cfg = "exec",
+        ),
+    },
+)

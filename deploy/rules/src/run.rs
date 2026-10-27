@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::{deploy_outdir, resolve_runfile};
+use crate::{deploy_outdir, resolve_runfile, resolve_runfile_anchored};
 
 /// Owner approval gate for one live-publish launcher.
 pub(crate) struct OwnerGate {
@@ -218,6 +218,17 @@ impl DeployRun {
     /// Resolves one runfile; prints `{tool}: {error}` and returns None on failure.
     pub fn resolve(&self, rloc: &str) -> Option<PathBuf> {
         match resolve_runfile(rloc) {
+            Ok(path) => Some(path),
+            Err(error) => {
+                eprintln!("{}: {error}", self.tool);
+                None
+            }
+        }
+    }
+
+    /// Like `resolve`, but finds a directory through one file inside it.
+    pub fn resolve_anchored(&self, rloc: &str, anchor: &str) -> Option<PathBuf> {
+        match resolve_runfile_anchored(rloc, anchor) {
             Ok(path) => Some(path),
             Err(error) => {
                 eprintln!("{}: {error}", self.tool);

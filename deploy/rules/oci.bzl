@@ -109,12 +109,12 @@ def oci_platform_error(platform):
                 "': want one of " + ", ".join(OCI_PLATFORMS))
     return ""
 
-def oci_tar_error(filename):
-    """Validates one image-tar filename value."""
+def oci_image_error(filename, is_directory = False):
+    """Validates one image archive filename or layout directory name."""
     if type(filename) != "string" or filename == "":
         return ("oci_deploy: invalid image_tar '" + str(filename) +
-                "': want a non-empty .tar filename")
-    if not (filename.endswith(".tar") or filename.endswith(".tar.gz")):
+                "': want a non-empty .tar filename or OCI layout directory")
+    if not is_directory and not (filename.endswith(".tar") or filename.endswith(".tar.gz")):
         return ("oci_deploy: invalid image_tar '" + filename +
                 "': want a filename ending in .tar or .tar.gz")
     if has_any(filename, EMBED_UNSAFE):
@@ -129,9 +129,9 @@ def _oci_launcher_impl(ctx):
     if len(tar_files) != 1:
         fail("oci_deploy " + str(ctx.label) + ": image_tar " +
              str(ctx.attr.image_tar.label) + " provides " +
-             str(len(tar_files)) + " files, want exactly one .tar")
+             str(len(tar_files)) + " files, want exactly one .tar/.tar.gz archive or OCI layout directory")
     tar_file = tar_files[0]
-    tar_error = oci_tar_error(tar_file.basename)
+    tar_error = oci_image_error(tar_file.basename, tar_file.is_directory)
     if tar_error != "":
         fail(tar_error + " (in " + str(ctx.label) + ")")
     tar_rloc = rlocation_path(ctx, tar_file)
@@ -153,7 +153,7 @@ _oci_launcher = rule(
     doc = "Writes the launcher Rust source for one OCI deployment.",
     attrs = {
         "image_tar": attr.label(
-            doc = "docker save or OCI layout archive (.tar or .tar.gz) holding one image with uncompressed or gzip layers.",
+            doc = "docker save or OCI layout archive (.tar or .tar.gz), or OCI layout directory, holding one image with uncompressed or gzip layers.",
             allow_single_file = True,
             mandatory = True,
         ),
@@ -177,7 +177,7 @@ _oci_launcher = rule(
 )
 
 def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT_REGISTRY, repository = "", profile = "release"):
-    """Publishes one docker save or OCI layout archive (.tar or .tar.gz) holding one image as a local-first OCI deployment."""
+    """Publishes one docker save or OCI layout archive or OCI layout directory holding one image as a local-first OCI deployment."""
     effective_repo = repository if repository != "" else name
     platform_error = oci_platform_error(platform)
     if platform_error != "":

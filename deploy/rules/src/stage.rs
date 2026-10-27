@@ -53,6 +53,24 @@ pub fn resolve_runfile(rloc: &str) -> io::Result<std::path::PathBuf> {
     }
 }
 
+/// Resolves a runfiles directory, falling back to the parent of `<rloc>/<anchor>` when the
+/// manifest lists only the files inside it.
+pub fn resolve_runfile_anchored(rloc: &str, anchor: &str) -> io::Result<std::path::PathBuf> {
+    let error = match resolve_runfile(rloc) {
+        Ok(path) => return Ok(path),
+        Err(error) if rloc.is_empty() => return Err(error),
+        Err(error) => error,
+    };
+    let anchored = format!("{}/{anchor}", rloc.trim_end_matches('/'));
+    match resolve_runfile(&anchored) {
+        Ok(path) => match path.parent() {
+            Some(parent) if parent.is_dir() => Ok(parent.to_path_buf()),
+            _ => Err(error),
+        },
+        Err(_) => Err(error),
+    }
+}
+
 /// Returns the deploy output directory.
 pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
     if argv.len() >= 2 {
@@ -382,6 +400,64 @@ mod tests {
             let cwd = std::env::current_dir().expect("cwd");
             assert_eq!(deploy_outdir(&relative), cwd.join("dist"));
         });
+    }
+
+    #[test]
+    fn resolve_runfile_anchored_finds_a_directory_listed_by_its_files() {
+        if env_test_in_child(
+            "stage::tests::resolve_runfile_anchored_finds_a_directory_listed_by_its_files",
+        ) {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        let layout = runfiles.join("demo/layout");
+        std::fs::create_dir_all(&layout).expect("layout");
+        std::fs::write(layout.join("index.json"), b"{}").expect("index");
+        let manifest = scratch.path().join("manifest.txt");
+        std::fs::write(
+            &manifest,
+            format!(
+                "demo/layout/index.json {}\n",
+                layout.join("index.json").display()
+            ),
+        )
+        .expect("write manifest");
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+            ],
+            || {
+                assert_eq!(
+                    resolve_runfile_anchored("demo/layout", "index.json").expect("from dir"),
+                    layout
+                );
+            },
+        );
+        with_env(
+            &[
+                (
+                    "RUNFILES_DIR",
+                    Some(scratch.path().to_string_lossy().as_ref()),
+                ),
+                (
+                    "RUNFILES_MANIFEST_FILE",
+                    Some(manifest.to_string_lossy().as_ref()),
+                ),
+            ],
+            || {
+                assert!(resolve_runfile("demo/layout").is_err());
+                assert_eq!(
+                    resolve_runfile_anchored("demo/layout", "index.json").expect("from manifest"),
+                    layout
+                );
+                let error =
+                    resolve_runfile_anchored("demo/missing", "index.json").expect_err("missing");
+                assert_eq!(error.kind(), io::ErrorKind::NotFound);
+                assert_eq!(error.to_string(), "runfile not found for 'demo/missing'");
+            },
+        );
     }
 
     #[test]

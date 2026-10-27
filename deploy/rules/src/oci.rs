@@ -19,10 +19,12 @@ fn oci_check_source(image: &Path, platform: &str) -> io::Result<(&'static str, &
         }
     };
     let src_str = image.to_string_lossy();
-    if !(src_str.ends_with(".tar") || src_str.ends_with(".tar.gz")) {
+    if !(src_str.ends_with(".tar") || src_str.ends_with(".tar.gz") || image.is_dir()) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("oci image: want exactly one .tar source, got '{src_str}'"),
+            format!(
+                "oci image: want a .tar or .tar.gz archive or an OCI layout directory, got '{src_str}'"
+            ),
         ));
     }
     Ok((os, architecture))
@@ -76,6 +78,17 @@ pub fn oci_build_layout(
         return Err(error);
     }
     Ok(layout)
+}
+
+/// Writes the OCI layout for one image archive into `dst`, tagged with `reference`.
+pub fn archive_oci_layout(
+    image: &Path,
+    platform: &str,
+    reference: &str,
+    dst: &Path,
+) -> io::Result<()> {
+    let (os, architecture) = oci_check_source(image, platform)?;
+    oci_stage_layout(image, dst, reference, os, architecture)
 }
 
 /// Checks that the image config matches the declared os and architecture.
@@ -226,6 +239,101 @@ fn oci_open_archive(image: &Path) -> io::Result<tar::Archive<Box<dyn Read>>> {
         OciCompression::None => Box::new(file),
     };
     Ok(tar::Archive::new(reader))
+}
+
+/// One image input: a tar archive or an OCI layout directory.
+#[derive(Clone, Copy)]
+enum OciSource<'a> {
+    Archive(&'a Path),
+    Dir(&'a Path),
+}
+
+impl<'a> OciSource<'a> {
+    fn new(image: &'a Path) -> Self {
+        if image.is_dir() {
+            OciSource::Dir(image)
+        } else {
+            OciSource::Archive(image)
+        }
+    }
+}
+
+/// Maps a member name to a path under a layout directory, or None if it is not a plain relative path.
+fn oci_dir_member(root: &Path, name: &str) -> Option<std::path::PathBuf> {
+    let mut path = root.to_path_buf();
+    for segment in name.split('/') {
+        if segment.contains('\\') || segment.contains(':') {
+            return None;
+        }
+        let mut components = Path::new(segment).components();
+        match (components.next(), components.next()) {
+            (Some(std::path::Component::Normal(part)), None) => path.push(part),
+            _ => return None,
+        }
+    }
+    Some(path)
+}
+
+/// Opens one regular-file member of a layout directory, or None when it is absent.
+fn oci_dir_open(root: &Path, name: &str) -> io::Result<Option<std::fs::File>> {
+    let Some(path) = oci_dir_member(root, name) else {
+        return Ok(None);
+    };
+    match std::fs::metadata(&path) {
+        Ok(meta) if meta.is_file() => {}
+        Ok(_) => return Ok(None),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(io::Error::new(
+                error.kind(),
+                format!("{}: {error}", path.display()),
+            ))
+        }
+    }
+    std::fs::File::open(&path)
+        .map(Some)
+        .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))
+}
+
+/// Visits the regular-file members named in `names`, streaming each one.
+fn oci_each_member(
+    source: OciSource<'_>,
+    names: &[&str],
+    mut visit: impl FnMut(&str, &mut dyn Read) -> io::Result<()>,
+) -> io::Result<()> {
+    match source {
+        OciSource::Archive(image) => {
+            for entry in oci_open_archive(image)?.entries().map_err(oci_malformed)? {
+                let mut entry = entry.map_err(oci_malformed)?;
+                if !entry.header().entry_type().is_file() {
+                    continue;
+                }
+                let raw = entry
+                    .path()
+                    .map_err(oci_malformed)?
+                    .to_string_lossy()
+                    .into_owned();
+                let Some(name) = oci_member_path("", &raw) else {
+                    continue;
+                };
+                if names.contains(&name.as_str()) {
+                    visit(&name, &mut entry)?;
+                }
+            }
+        }
+        OciSource::Dir(root) => {
+            let mut seen = std::collections::HashSet::new();
+            for name in names {
+                if !seen.insert(*name) {
+                    continue;
+                }
+                if let Some(file) = oci_dir_open(root, name)? {
+                    visit(name, &mut io::BufReader::new(file))?;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Joins a member path onto a base dir inside the archive, or None if it escapes.
@@ -382,11 +490,27 @@ struct OciPlan {
 }
 
 /// Collects links plus the manifest.json and index.json bodies in one pass.
-fn oci_scan(image: &Path) -> io::Result<OciScan> {
+fn oci_scan(source: OciSource<'_>) -> io::Result<OciScan> {
     let mut scan = OciScan {
         links: OciLinks::new(),
         manifest_json: None,
         index_json: None,
+    };
+    let image = match source {
+        OciSource::Archive(image) => image,
+        OciSource::Dir(_) => {
+            oci_each_member(source, &["manifest.json", "index.json"], |name, reader| {
+                let mut body = Vec::new();
+                reader.read_to_end(&mut body).map_err(oci_malformed)?;
+                if name == "manifest.json" {
+                    scan.manifest_json = Some(body);
+                } else {
+                    scan.index_json = Some(body);
+                }
+                Ok(())
+            })?;
+            return Ok(scan);
+        }
     };
     for entry in oci_open_archive(image)?.entries().map_err(oci_malformed)? {
         let mut entry = entry.map_err(oci_malformed)?;
@@ -426,7 +550,7 @@ fn oci_scan(image: &Path) -> io::Result<OciScan> {
 
 /// Reads the named regular-file members in one pass, keyed by the requested name.
 fn oci_read_members(
-    image: &Path,
+    source: OciSource<'_>,
     links: &OciLinks,
     names: &[String],
 ) -> io::Result<std::collections::HashMap<String, Vec<u8>>> {
@@ -437,27 +561,20 @@ fn oci_read_members(
             .or_default()
             .push(name);
     }
+    let members: Vec<String> = wanted.keys().cloned().collect();
+    let members: Vec<&str> = members.iter().map(String::as_str).collect();
     let mut found = std::collections::HashMap::new();
-    for entry in oci_open_archive(image)?.entries().map_err(oci_malformed)? {
-        let mut entry = entry.map_err(oci_malformed)?;
-        if !entry.header().entry_type().is_file() {
-            continue;
-        }
-        let raw = entry
-            .path()
-            .map_err(oci_malformed)?
-            .to_string_lossy()
-            .into_owned();
-        let Some(requested) = oci_member_path("", &raw).and_then(|name| wanted.remove(&name))
-        else {
-            continue;
+    oci_each_member(source, &members, |name, reader| {
+        let Some(requested) = wanted.remove(name) else {
+            return Ok(());
         };
         let mut body = Vec::new();
-        entry.read_to_end(&mut body).map_err(oci_malformed)?;
+        reader.read_to_end(&mut body).map_err(oci_malformed)?;
         for name in requested {
             found.insert(name.to_owned(), body.clone());
         }
-    }
+        Ok(())
+    })?;
     Ok(found)
 }
 
@@ -529,7 +646,7 @@ fn oci_blob_member(digest: &str) -> io::Result<String> {
 
 /// Reads the blobs behind a set of descriptors and checks each against its digest.
 fn oci_read_descriptors(
-    image: &Path,
+    source: OciSource<'_>,
     links: &OciLinks,
     descriptors: &[serde_json::Value],
 ) -> io::Result<Vec<Vec<u8>>> {
@@ -541,7 +658,7 @@ fn oci_read_descriptors(
         .iter()
         .map(|digest| oci_blob_member(digest))
         .collect::<io::Result<Vec<String>>>()?;
-    let mut bodies = oci_read_members(image, links, &names)?;
+    let mut bodies = oci_read_members(source, links, &names)?;
     let mut read = Vec::with_capacity(names.len());
     for (position, (name, digest)) in names.iter().zip(&digests).enumerate() {
         // A digest listed twice shares one body: clone until its last use.
@@ -572,7 +689,7 @@ fn oci_dedupe_by_digest(descriptors: &mut Vec<serde_json::Value>) {
 }
 
 /// Builds the read plan from an OCI layout index.json.
-fn oci_index_plan(image: &Path, index: &[u8], links: &OciLinks) -> io::Result<OciPlan> {
+fn oci_index_plan(source: OciSource<'_>, index: &[u8], links: &OciLinks) -> io::Result<OciPlan> {
     let parsed: serde_json::Value = serde_json::from_slice(index)
         .map_err(|error| oci_invalid(format!("malformed index.json: {error}")))?;
     let mut level = parsed["manifests"]
@@ -609,7 +726,7 @@ fn oci_index_plan(image: &Path, index: &[u8], links: &OciLinks) -> io::Result<Oc
         }
         oci_dedupe_by_digest(&mut nested);
         level = Vec::new();
-        for body in oci_read_descriptors(image, links, &nested)? {
+        for body in oci_read_descriptors(source, links, &nested)? {
             let parsed: serde_json::Value = serde_json::from_slice(&body)
                 .map_err(|error| oci_invalid(format!("malformed image index: {error}")))?;
             level.extend(
@@ -627,7 +744,7 @@ fn oci_index_plan(image: &Path, index: &[u8], links: &OciLinks) -> io::Result<Oc
             images.len()
         )));
     }
-    let body = oci_read_descriptors(image, links, &images)?.remove(0);
+    let body = oci_read_descriptors(source, links, &images)?.remove(0);
     let manifest: serde_json::Value = serde_json::from_slice(&body)
         .map_err(|error| oci_invalid(format!("malformed image manifest: {error}")))?;
     let config_digest = manifest["config"]["digest"]
@@ -667,43 +784,47 @@ fn oci_index_plan(image: &Path, index: &[u8], links: &OciLinks) -> io::Result<Oc
 
 /// Reads the single image in an image archive, copying layers into `blobs` when set.
 pub fn oci_read_archive(image: &Path, blobs: Option<&Path>) -> io::Result<OciArchive> {
-    let scan = oci_scan(image)?;
-    let plan = if let Some(manifest) = &scan.manifest_json {
-        oci_docker_plan(manifest, &scan.links)?
+    let source = OciSource::new(image);
+    let plan = oci_plan(source)?;
+    oci_read_plan(source, &plan, blobs)
+}
+
+/// Finds the single image in an image archive or layout directory.
+fn oci_plan(source: OciSource<'_>) -> io::Result<OciPlan> {
+    let scan = oci_scan(source)?;
+    if let Some(manifest) = &scan.manifest_json {
+        oci_docker_plan(manifest, &scan.links)
     } else if let Some(index) = &scan.index_json {
-        oci_index_plan(image, index, &scan.links)?
+        oci_index_plan(source, index, &scan.links)
+    } else if let OciSource::Dir(_) = source {
+        Err(oci_invalid(
+            "image directory has no index.json or manifest.json; want an OCI image layout directory",
+        ))
     } else {
-        return Err(oci_invalid(
+        Err(oci_invalid(
             "image archive has no manifest.json or index.json; want a docker save or OCI layout archive, not a rootfs layer",
-        ));
-    };
-    oci_read_plan(image, &plan, blobs)
+        ))
+    }
 }
 
 /// Streams the config and layers named by a plan in one pass and checks their digests.
-fn oci_read_plan(image: &Path, plan: &OciPlan, blobs: Option<&Path>) -> io::Result<OciArchive> {
+fn oci_read_plan(
+    source: OciSource<'_>,
+    plan: &OciPlan,
+    blobs: Option<&Path>,
+) -> io::Result<OciArchive> {
     let mut wanted: std::collections::HashMap<&str, Vec<usize>> = std::collections::HashMap::new();
     for (index, layer) in plan.layers.iter().enumerate() {
         wanted.entry(layer.as_str()).or_default().push(index);
     }
     let mut config: Option<Vec<u8>> = None;
     let mut layers: Vec<Option<OciLayer>> = vec![None; plan.layers.len()];
-    for entry in oci_open_archive(image)?.entries().map_err(oci_malformed)? {
-        let mut entry = entry.map_err(oci_malformed)?;
-        if !entry.header().entry_type().is_file() {
-            continue;
-        }
-        let raw = entry
-            .path()
-            .map_err(oci_malformed)?
-            .to_string_lossy()
-            .into_owned();
-        let Some(name) = oci_member_path("", &raw) else {
-            continue;
-        };
+    let mut members: Vec<&str> = vec![plan.config.as_str()];
+    members.extend(plan.layers.iter().map(String::as_str));
+    oci_each_member(source, &members, |name, entry| {
         let is_config = name == plan.config && config.is_none();
         let pending: Vec<usize> = wanted
-            .get(name.as_str())
+            .get(name)
             .map(|indexes| {
                 indexes
                     .iter()
@@ -713,7 +834,7 @@ fn oci_read_plan(image: &Path, plan: &OciPlan, blobs: Option<&Path>) -> io::Resu
             })
             .unwrap_or_default();
         if !is_config && pending.is_empty() {
-            continue;
+            return Ok(());
         }
         let read = if is_config {
             let mut body = Vec::new();
@@ -721,19 +842,20 @@ fn oci_read_plan(image: &Path, plan: &OciPlan, blobs: Option<&Path>) -> io::Resu
             let read = if pending.is_empty() {
                 None
             } else {
-                Some(oci_copy_layer(io::Cursor::new(body.clone()), &name, blobs)?)
+                Some(oci_copy_layer(io::Cursor::new(body.clone()), name, blobs)?)
             };
             config = Some(body);
             read
         } else {
-            Some(oci_copy_layer(&mut entry, &name, blobs)?)
+            Some(oci_copy_layer(entry, name, blobs)?)
         };
         if let Some(layer) = read {
             for index in pending {
                 layers[index] = Some(layer.clone());
             }
         }
-    }
+        Ok(())
+    })?;
     let config = config.ok_or_else(|| {
         oci_invalid(format!(
             "image archive is missing its config blob '{}'",
@@ -921,7 +1043,7 @@ pub fn oci_main(
         return 1;
     };
     let outdir = run.outdir();
-    let Some(image) = run.resolve(image_rloc) else {
+    let Some(image) = run.resolve_anchored(image_rloc, "index.json") else {
         return 1;
     };
     if OCI_GATE.requested(env_or_empty) {
@@ -1310,15 +1432,11 @@ mod tests {
         }
     }
 
-    fn oci_index_tar(
-        path: &Path,
-        layers: &[Vec<u8>],
-        architecture: &str,
-        nest: bool,
+    fn oci_index_members(
+        fixture: &OciIndexFixture,
         extra: &[(&str, &[u8])],
         links: &[(&str, &str)],
-    ) -> OciIndexFixture {
-        let fixture = oci_index_fixture(layers, architecture, nest);
+    ) -> Vec<(String, Vec<u8>)> {
         let mut members: Vec<(String, Vec<u8>)> = fixture
             .members
             .iter()
@@ -1333,6 +1451,19 @@ mod tests {
                 .iter()
                 .map(|(name, body)| ((*name).to_owned(), body.to_vec())),
         );
+        members
+    }
+
+    fn oci_index_tar(
+        path: &Path,
+        layers: &[Vec<u8>],
+        architecture: &str,
+        nest: bool,
+        extra: &[(&str, &[u8])],
+        links: &[(&str, &str)],
+    ) -> OciIndexFixture {
+        let fixture = oci_index_fixture(layers, architecture, nest);
+        let members = oci_index_members(&fixture, extra, links);
         let files: Vec<(&str, &[u8])> = members
             .iter()
             .map(|(name, body)| (name.as_str(), body.as_slice()))
@@ -1343,6 +1474,247 @@ mod tests {
             std::fs::write(path, gzip_compress(&tar).expect("gzip")).expect("write gz");
         }
         fixture
+    }
+
+    fn oci_write_dir(dir: &Path, members: &[(String, Vec<u8>)], links: &[(&str, &str)]) {
+        if dir.exists() {
+            std::fs::remove_dir_all(dir).expect("clear dir");
+        }
+        std::fs::create_dir_all(dir).expect("dir");
+        for (name, body) in members {
+            let path = dir.join(name);
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("parents");
+            std::fs::write(path, body).expect("write member");
+        }
+        for (name, target) in links {
+            let path = dir.join(name);
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("parents");
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(target, path).expect("symlink");
+            #[cfg(not(unix))]
+            std::fs::copy(
+                dir.join(name).parent().expect("parent").join(target),
+                dir.join(name),
+            )
+            .expect("copy link target");
+        }
+    }
+
+    fn oci_index_dir(
+        dir: &Path,
+        layers: &[Vec<u8>],
+        architecture: &str,
+        nest: bool,
+        extra: &[(&str, &[u8])],
+        links: &[(&str, &str)],
+    ) -> OciIndexFixture {
+        let fixture = oci_index_fixture(layers, architecture, nest);
+        oci_write_dir(dir, &oci_index_members(&fixture, extra, links), links);
+        fixture
+    }
+
+    #[test]
+    fn oci_archive_image_id_reads_oci_layout_directories() {
+        let scratch = scratch_dir();
+        let layers = [oci_test_layer(false), oci_test_layer(true)];
+        for (name, nest) in [("flat", false), ("nested", true)] {
+            let dir = scratch.path().join(name);
+            let fixture = oci_index_dir(&dir, &layers, "amd64", nest, &[], &[]);
+            let tar = scratch.path().join(format!("{name}.tar"));
+            oci_index_tar(&tar, &layers, "amd64", nest, &[], &[]);
+            assert_eq!(
+                oci_declared_image_id(&dir, "linux/amd64").expect(name),
+                oci_digest(&fixture.config),
+                "{name}"
+            );
+            assert_eq!(
+                oci_read_archive(&dir, None).expect(name),
+                oci_read_archive(&tar, None).expect(name),
+                "{name}"
+            );
+        }
+        let dir = scratch.path().join("linked");
+        let fixture = oci_index_fixture(&layers, "amd64", true);
+        let manifest_blob = oci_blob(&fixture.manifest);
+        let config_blob = oci_blob(&fixture.config);
+        let layer_blob = oci_blob(&layers[1]);
+        oci_index_dir(
+            &dir,
+            &layers,
+            "amd64",
+            true,
+            &[
+                ("store/manifest.json", &fixture.manifest),
+                ("store/config.json", &fixture.config),
+                ("store/layer.tar.gz", &layers[1]),
+            ],
+            &[
+                (&manifest_blob, "../../store/manifest.json"),
+                (&config_blob, "../../store/config.json"),
+                (&layer_blob, "../../store/layer.tar.gz"),
+            ],
+        );
+        assert_eq!(
+            oci_declared_image_id(&dir, "linux/amd64").expect("linked"),
+            oci_digest(&fixture.config)
+        );
+        let docker_manifest = serde_json::to_vec(&serde_json::json!([{
+            "Config": oci_blob(&fixture.config),
+            "Layers": layers.iter().map(|layer| oci_blob(layer)).collect::<Vec<_>>(),
+        }]))
+        .expect("docker manifest");
+        let dir = scratch.path().join("docker25");
+        oci_index_dir(
+            &dir,
+            &layers,
+            "amd64",
+            true,
+            &[
+                ("manifest.json", &docker_manifest),
+                ("index.json", b"{not json"),
+            ],
+            &[],
+        );
+        assert_eq!(
+            oci_declared_image_id(&dir, "linux/amd64").expect("docker25"),
+            oci_digest(&fixture.config)
+        );
+    }
+
+    #[test]
+    fn oci_archive_image_id_rejects_unsupported_oci_layout_directories() {
+        let scratch = scratch_dir();
+        let dir = scratch.path().join("layout");
+        let layers = [oci_test_layer(false)];
+        let fixture = oci_index_fixture(&layers, "amd64", false);
+        let image = oci_descriptor(
+            "application/vnd.oci.image.manifest.v1+json",
+            &fixture.manifest,
+        );
+        let other = oci_descriptor("application/vnd.oci.image.manifest.v1+json", b"other");
+        let two = oci_index_body(&[image.clone(), other]);
+        let gone = oci_index_body(&[oci_descriptor(
+            "application/vnd.oci.image.manifest.v1+json",
+            b"gone",
+        )]);
+        let mut deep: Vec<(String, Vec<u8>)> = Vec::new();
+        let mut top = image.clone();
+        for _ in 0..=OCI_INDEX_DEPTH {
+            let body = oci_index_body(&[top]);
+            top = oci_descriptor("application/vnd.oci.image.index.v1+json", &body);
+            deep.push((oci_blob(&body), body));
+        }
+        deep.push(("index.json".to_owned(), oci_index_body(&[top])));
+        let deep: Vec<(&str, &[u8])> = deep
+            .iter()
+            .map(|(name, body)| (name.as_str(), body.as_slice()))
+            .collect();
+        let manifest_blob = oci_blob(&fixture.manifest);
+        let layer_blob = oci_blob(&layers[0]);
+        let docker = |config: &str| {
+            serde_json::to_vec(&serde_json::json!([{
+                "Config": config,
+                "Layers": [layer_blob.clone()],
+            }]))
+            .expect("docker manifest")
+        };
+        let (dotdot, drive, backslash) = (docker("../x"), docker("C:/x"), docker("a\\b"));
+        let cases: Vec<(&str, Vec<(&str, &[u8])>, &str)> = vec![
+            (
+                "two images",
+                vec![("index.json", two.as_slice())],
+                "2 images",
+            ),
+            (
+                "missing manifest",
+                vec![("index.json", gone.as_slice())],
+                "is missing its blob 'sha256:",
+            ),
+            (
+                "manifest mismatch",
+                vec![(manifest_blob.as_str(), &b"{}"[..])],
+                "does not match its digest",
+            ),
+            ("too deep", deep, "deeper than 8 levels"),
+            (
+                "dotdot",
+                vec![("manifest.json", dotdot.as_slice())],
+                "path '../x' escapes the archive",
+            ),
+            (
+                "drive",
+                vec![("manifest.json", drive.as_slice())],
+                "missing its config blob 'C:/x'",
+            ),
+            (
+                "backslash",
+                vec![("manifest.json", backslash.as_slice())],
+                "missing its config blob 'a\\b'",
+            ),
+        ];
+        for (case, extra, want) in cases {
+            oci_index_dir(&dir, &layers, "amd64", false, &extra, &[]);
+            let error = oci_declared_image_id(&dir, "linux/amd64").expect_err(case);
+            assert!(error.contains(want), "{case}: {error}");
+        }
+        std::fs::remove_dir_all(&dir).expect("clear");
+        std::fs::create_dir_all(&dir).expect("empty dir");
+        assert_eq!(
+            oci_declared_image_id(&dir, "linux/amd64").expect_err("empty"),
+            "image directory has no index.json or manifest.json; want an OCI image layout directory"
+        );
+        let bare = scratch.path().join("layout.bin");
+        std::fs::write(&bare, b"image").expect("bare");
+        assert_eq!(
+            oci_declared_image_id(&bare, "linux/amd64").expect_err("suffix"),
+            format!(
+                "oci image: want a .tar or .tar.gz archive or an OCI layout directory, got '{}'",
+                bare.display()
+            )
+        );
+    }
+
+    #[test]
+    fn oci_layout_reads_oci_layout_directories() {
+        let scratch = scratch_dir();
+        let layers = [oci_test_layer(false), oci_test_layer(true)];
+        let tar = scratch.path().join("index.tar");
+        oci_index_tar(&tar, &layers, "amd64", true, &[], &[]);
+        let dir = scratch.path().join("index");
+        oci_index_dir(&dir, &layers, "amd64", true, &[], &[]);
+        let mut built = Vec::new();
+        for (name, image) in [("tar", &tar), ("dir", &dir)] {
+            let outdir = scratch.path().join(format!("out-{name}"));
+            std::fs::create_dir_all(&outdir).expect("outdir");
+            let layout = oci_build_layout(
+                image,
+                &outdir,
+                "registry.invalid",
+                "demo/app",
+                "1.0.0",
+                "linux/amd64",
+            )
+            .expect(name);
+            built.push(oci_layout_json(&layout));
+        }
+        assert_eq!(built[0], built[1]);
+        let arm = scratch.path().join("arm");
+        oci_index_dir(&arm, &layers, "arm64", false, &[], &[]);
+        let outdir = scratch.path().join("out-arm");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let error = oci_build_layout(
+            &arm,
+            &outdir,
+            "registry.invalid",
+            "demo/app",
+            "1.0.0",
+            "linux/amd64",
+        )
+        .expect_err("arm64 config");
+        assert!(
+            error.to_string().contains("image config is 'linux/arm64'"),
+            "{error}"
+        );
     }
 
     #[test]

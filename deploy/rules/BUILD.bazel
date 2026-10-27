@@ -23,7 +23,7 @@ load(":npm_tests.bzl", "npm_unit_tests")
 load(":nuget.bzl", "nuget_deploy")
 load(":nuget_tests.bzl", "nuget_unit_tests")
 load(":oci.bzl", "oci_deploy")
-load(":oci_tests.bzl", "oci_unit_tests")
+load(":oci_tests.bzl", "oci_layout_fixture", "oci_unit_tests")
 load(":octopus.bzl", "octopus_deploy")
 load(":octopus_tests.bzl", "octopus_unit_tests")
 load(":promotion.bzl", "promotion_deploy")
@@ -617,6 +617,25 @@ rust_test(
 
 # keep
 rust_test(
+    name = "oci_demo_layout_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":oci_demo_layout_program",
+        ":oci_demo_program",
+    ],
+    env = {
+        "DX_OCI_BASE_PROG": "$(rootpath :oci_demo_program)",
+        "DX_OCI_PROG": "$(rootpath :oci_demo_layout_program)",
+        "DX_OCI_REF": "ghcr.io/oci_demo_layout:latest",
+        "DX_VERIFY_MODE": "oci",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "release_demo_verify",
     srcs = ["verify_test.rs"],
     data = [
@@ -688,7 +707,9 @@ test_suite(
         ":nuget_analysis",
         ":nuget_unit",
         ":oci_analysis",
+        ":oci_demo_layout_verify",
         ":oci_demo_verify",
+        ":oci_layout_analysis",
         ":oci_unit",
         ":octopus_analysis",
         ":octopus_unit",
@@ -1129,6 +1150,23 @@ oci_unit_tests(name = "oci_unit")
 deploy_analysis_test(
     name = "oci_analysis",
     subject = "oci_demo",
+)
+
+oci_layout_fixture(
+    name = "oci_demo_layout_dir",
+    image = ":oci_demo_tar",
+    reference = "oci_demo:latest",
+)
+
+oci_deploy(
+    name = "oci_demo_layout",
+    image_tar = ":oci_demo_layout_dir",
+    platform = "linux/amd64",
+)
+
+deploy_analysis_test(
+    name = "oci_layout_analysis",
+    subject = "oci_demo_layout",
 )
 
 octopus_deploy(

@@ -19,6 +19,7 @@ pub mod lifecycle;
 pub mod procs;
 pub mod rc;
 mod runner;
+pub mod slot_pool;
 
 pub use rc::{
     build_verb_options, clear_share, configure, configure_real, current, default_disk_cache,

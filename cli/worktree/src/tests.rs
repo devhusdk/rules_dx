@@ -2832,20 +2832,76 @@ mod hooks {
         std::fs::write(two.join("work.txt"), "dirty").expect("dirty");
         let third = serde_json::json!({"name": "three", "cwd": fixture.main});
         let three = hook::create(&pool, &host, &me, &third).expect("three").path;
-        assert_ne!(
-            three, one,
-            "the slot freed by this create is not handed back"
-        );
-        assert_ne!(three, two, "a dirty agent slot is kept");
-        let freed = pool.slot_of(&one).and_then(|slot| pool.record(slot));
-        assert!(
-            freed.is_some_and(|record| !record.held),
-            "the clean old agent slot is freed"
-        );
+        assert_ne!(three, one);
+        assert_ne!(three, two);
+        for path in [&one, &two] {
+            let record = pool.slot_of(path).and_then(|slot| pool.record(slot));
+            assert!(
+                record.is_some_and(|record| record.held),
+                "a live holder keeps its slot however old"
+            );
+        }
+        let a1 = agent("s1", "a1", 10);
+        let slot = pool.slot_of(&one).expect("slot");
+        assert_eq!(ops::claim(&pool, &a1, &one).expect("claim"), Some(slot));
+        let stop = serde_json::json!({"agent_id": "a1"});
+        assert_eq!(hook::stop(&pool, &a1, &stop).expect("stop"), vec![slot]);
         let fourth = serde_json::json!({"name": "four", "cwd": fixture.main});
         let four = hook::create(&pool, &host, &me, &fourth).expect("four").path;
-        assert_eq!(four, one, "a later create reuses the freed slot");
-        assert_eq!(pool.records().len(), 3);
+        assert_ne!(
+            four, one,
+            "the slot freed by this create is not handed back"
+        );
+        assert!(!pool.record(slot).expect("record").held);
+        let fifth = serde_json::json!({"name": "five", "cwd": fixture.main});
+        let five = hook::create(&pool, &host, &me, &fifth).expect("five").path;
+        assert_eq!(five, one, "a later create reuses the freed slot");
+    }
+
+    #[test]
+    fn a_clean_old_slot_with_a_live_holder_is_kept_by_create() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        let me = who("s1", 10);
+        let first = serde_json::json!({"name": "one", "cwd": fixture.main});
+        let one = hook::create(&pool, &host, &me, &first).expect("one").path;
+        let slot = pool.slot_of(&one).expect("slot");
+        let a1 = agent("s1", "a1", 10);
+        assert_eq!(ops::claim(&pool, &a1, &one).expect("claim"), Some(slot));
+        host.advance(86400);
+        let second = serde_json::json!({"name": "two", "cwd": fixture.main});
+        let two = hook::create(&pool, &host, &me, &second).expect("two").path;
+        assert_ne!(two, one);
+        assert!(pool.record(slot).expect("record").held);
+        let stop = serde_json::json!({"agent_id": "a1"});
+        hook::stop(&pool, &a1, &stop).expect("stop");
+        let third = serde_json::json!({"name": "three", "cwd": fixture.main});
+        let three = hook::create(&pool, &host, &me, &third).expect("three").path;
+        assert_ne!(three, one);
+        assert!(!pool.record(slot).expect("record").held);
+        let fourth = serde_json::json!({"name": "four", "cwd": fixture.main});
+        let four = hook::create(&pool, &host, &me, &fourth).expect("four").path;
+        assert_eq!(four, one);
+    }
+
+    #[test]
+    fn a_main_session_slot_is_never_recycled_by_create() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        let me = who("s1", 10);
+        let first = serde_json::json!({"name": "main", "cwd": fixture.main});
+        let one = hook::create(&pool, &host, &me, &first).expect("one").path;
+        let slot = pool.slot_of(&one).expect("slot");
+        assert_eq!(ops::claim(&pool, &me, &one).expect("claim"), Some(slot));
+        host.advance(86400);
+        let second = serde_json::json!({"name": "two", "cwd": fixture.main});
+        let two = hook::create(&pool, &host, &me, &second).expect("two").path;
+        assert_ne!(two, one);
+        assert!(pool.record(slot).expect("record").held);
     }
 
     #[test]

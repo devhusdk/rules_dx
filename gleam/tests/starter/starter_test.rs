@@ -9,12 +9,7 @@ fn read(path: &Path) -> String {
 }
 
 fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("gleam/tests/starter/starter_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
+    dx_testing::rules_dx_source()
 }
 
 fn dx(workspace: &Path, args: &[&str]) -> (Option<i32>, String) {

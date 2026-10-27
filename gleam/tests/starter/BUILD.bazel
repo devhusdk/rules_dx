@@ -9,6 +9,7 @@ nested_bazel_test(
     data = [
         "starter_test.rs",
         "//cli/cli:dx",
+        "//gleam:module_srcs",
     ],
     env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
     env_inherit = [

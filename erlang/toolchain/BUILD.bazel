@@ -34,3 +34,9 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

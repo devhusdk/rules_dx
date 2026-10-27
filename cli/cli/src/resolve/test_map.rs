@@ -50,20 +50,7 @@ fn run_labels(
     Ok(labels)
 }
 
-pub fn map_owners_to_tests(
-    owners: &[String],
-    workspace: &Path,
-    runner: &dyn QueryRunner,
-    startup_options: &[String],
-) -> Result<Vec<String>, ResolveError> {
-    map_owners_to_tests_with_selection(
-        owners,
-        workspace,
-        runner,
-        &SelectionContext::unconfigured(startup_options),
-    )
-}
-
+#[cfg(test)]
 pub fn map_owners_to_tests_with_selection(
     owners: &[String],
     workspace: &Path,
@@ -237,8 +224,13 @@ mod tests {
             lib_graph(),
             FakeQuery::ok("//pkg:unit\n//pkg:e2e\n//pkg:unit\n"),
         ]);
-        let got =
-            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
+        let got = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("map");
         assert_eq!(got, strings(&["//pkg:e2e", "//pkg:unit"]));
         assert_eq!(query.expressions(), [GRAPH, LIB_TESTS]);
         let calls = query.calls.borrow();
@@ -262,8 +254,13 @@ mod tests {
             ]),
             FakeQuery::ok("//t:t\n"),
         ]);
-        map_owners_to_tests(&strings(&["//z:lib", "//a:lib"]), &workspace, &query, &[])
-            .expect("map");
+        map_owners_to_tests_with_selection(
+            &strings(&["//z:lib", "//a:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("map");
         assert_eq!(
             query.expressions()[1],
             "tests(set(\"//a:lib\" \"//z:lib\"))"
@@ -275,8 +272,13 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-empty-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![lib_graph(), FakeQuery::ok("\n")]);
-        let err = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[])
-            .expect_err("empty mapping");
+        let err = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect_err("empty mapping");
         assert_eq!(
             err,
             ResolveError::NoTests {
@@ -297,8 +299,13 @@ mod tests {
             lib_graph(),
             FakeQuery::failed("\n  query failed: blah  \nmore\n"),
         ]);
-        let err = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[])
-            .expect_err("failed");
+        let err = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect_err("failed");
         assert_eq!(
             err,
             ResolveError::QueryFailed {
@@ -314,8 +321,13 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![lib_graph(), FakeQuery::ok("//pkg:unit\n")]);
         let startup = vec!["--output_base=/tmp/a".to_owned()];
-        let got = map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &startup)
-            .expect("map");
+        let got = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&startup),
+        )
+        .expect("map");
         assert_eq!(got, strings(&["//pkg:unit"]));
         let calls = query.calls.borrow();
         assert_eq!(calls.len(), 2);
@@ -338,7 +350,13 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-map-no-query-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        let got = map_owners_to_tests(&[], &workspace, &query, &[]).expect("map");
+        let got = map_owners_to_tests_with_selection(
+            &[],
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("map");
         assert!(got.is_empty());
     }
 
@@ -364,8 +382,13 @@ mod tests {
             ]),
             FakeQuery::ok("//pkg:custom_check\n//pkg:plain_test\n"),
         ]);
-        let got =
-            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
+        let got = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("map");
         assert_eq!(got, strings(&["//pkg:custom_check", "//pkg:plain_test"]));
         assert_eq!(
             query.expressions()[1],
@@ -381,8 +404,13 @@ mod tests {
             lib_graph(),
             FakeQuery::ok("//pkg:custom_check\n//pkg:custom_check\n"),
         ]);
-        let got =
-            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
+        let got = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("map");
         assert_eq!(got, strings(&["//pkg:custom_check"]));
     }
 
@@ -398,8 +426,13 @@ mod tests {
             ]),
             FakeQuery::ok("//pkg:t\n"),
         ]);
-        let got =
-            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
+        let got = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("map");
         assert_eq!(got, strings(&["//pkg:t"]));
         assert_eq!(
             query.expressions()[1],
@@ -419,8 +452,13 @@ mod tests {
             ]),
             FakeQuery::ok("//pkg:unit\n"),
         ]);
-        let got =
-            map_owners_to_tests(&strings(&["//pkg:lib"]), &workspace, &query, &[]).expect("map");
+        let got = map_owners_to_tests_with_selection(
+            &strings(&["//pkg:lib"]),
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("map");
         assert_eq!(got, strings(&["//pkg:unit"]));
         assert_eq!(
             query.expressions()[1],
@@ -445,7 +483,13 @@ mod tests {
             manual_test_graph(),
             FakeQuery::ok("//pkg:manual_test\n"),
         ]);
-        let got = map_owners_to_tests(&owners, &workspace, &query, &[]).expect("map");
+        let got = map_owners_to_tests_with_selection(
+            &owners,
+            &workspace,
+            &query,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("map");
         assert_eq!(got, owners);
         assert_eq!(
             query.expressions(),

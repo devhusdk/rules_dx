@@ -9,8 +9,6 @@ use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
 use dx_worktree::HookKind;
 
-pub use super::grammar::cli_command;
-
 fn decode_scope(value: &OsStr) -> Result<String, ArgsError> {
     match value.to_str() {
         Some(text) => Ok(text.to_owned()),
@@ -47,12 +45,9 @@ fn bad_default(error: dx_adopt::AdoptError) -> ArgsError {
     }
 }
 
+#[cfg(test)]
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None, &super::FileDefaults::default())
-}
-
-pub fn config_sources(start: &std::path::Path) -> dx_adopt::defaults::ConfigSources {
-    dx_adopt::defaults::find_config_sources(start)
 }
 
 /// The startup defaults and a file-directed workspace hop for one more load.
@@ -62,8 +57,6 @@ pub struct StartupDefaults {
     pub defaults: super::FileDefaults,
     /// The config-directed workspace when no flag or environment value set one.
     pub file_workspace: Option<String>,
-    /// The committed or local file that supplied the defaults, when one did.
-    pub config_source: Option<std::path::PathBuf>,
 }
 
 /// Reads the workspace the canonical grammar selects, last flag winning.
@@ -236,20 +229,6 @@ pub fn is_discovery_exempt(command: Command) -> bool {
 /// Loads defaults from the selected workspace: the flag, the environment, else
 /// the start directory. A config-directed workspace is reported for one more
 /// load instead of being followed here, so a redirect cycle cannot loop.
-pub fn select_startup_defaults(
-    start: &std::path::Path,
-    flag_workspace: Option<String>,
-    env_workspace: Option<String>,
-) -> Result<StartupDefaults, String> {
-    select_startup_defaults_with_ci(
-        start,
-        start,
-        flag_workspace,
-        env_workspace,
-        dx_process::is_ci(),
-    )
-}
-
 pub fn select_startup_defaults_with_ci(
     start: &std::path::Path,
     base: &std::path::Path,
@@ -265,7 +244,7 @@ pub fn select_startup_defaults_with_ci(
         None => start.to_path_buf(),
     };
     match dx_adopt::defaults::load_defaults_with_mode(&dir, is_ci) {
-        Ok((defaults, source)) => {
+        Ok((defaults, _)) => {
             let file_workspace = match preliminary {
                 Some(_) => None,
                 None => defaults.workspace.clone(),
@@ -273,7 +252,6 @@ pub fn select_startup_defaults_with_ci(
             Ok(StartupDefaults {
                 defaults,
                 file_workspace,
-                config_source: source,
             })
         }
         Err(error) => Err(error.to_string()),
@@ -405,6 +383,7 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
     }))
 }
 
+#[cfg(test)]
 pub fn parse_with<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -1312,13 +1291,18 @@ mod startup_tests {
         let a = scratch_with_config("startup-select-a-", Some("[dx]\noutput = \"json\"\n"));
         let b = scratch_with_config("startup-select-b-", Some("[dx]\noutput = \"text\"\n"));
         let a_root = a.path().to_path_buf();
-        let selected =
-            select_startup_defaults(&a_root, None, None).expect("loads the start directory");
+        let selected = select_startup_defaults_with_ci(&a_root, &a_root, None, None, false)
+            .expect("loads the start directory");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
         assert_eq!(selected.file_workspace, None);
-        let selected =
-            select_startup_defaults(&a_root, Some(b.path().to_string_lossy().into_owned()), None)
-                .expect("loads the flag workspace");
+        let selected = select_startup_defaults_with_ci(
+            &a_root,
+            &a_root,
+            Some(b.path().to_string_lossy().into_owned()),
+            None,
+            false,
+        )
+        .expect("loads the flag workspace");
         assert_eq!(
             selected.defaults.output,
             Some("text".to_owned()),
@@ -1344,7 +1328,8 @@ mod startup_tests {
         .expect("ci ignores the environment workspace");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
         let missing = a_root.join("no-such-dir");
-        let selected = select_startup_defaults(&missing, None, None).expect("walks up");
+        let selected = select_startup_defaults_with_ci(&missing, &missing, None, None, false)
+            .expect("walks up");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
     }
 
@@ -1359,15 +1344,16 @@ mod startup_tests {
             b.path().display()
         );
         let a = scratch_with_config("startup-redirect-a-", Some(&config));
-        let selected =
-            select_startup_defaults(a.path(), None, None).expect("loads the start directory");
+        let selected = select_startup_defaults_with_ci(a.path(), a.path(), None, None, false)
+            .expect("loads the start directory");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
         let target = selected
             .file_workspace
             .expect("the file directs a workspace");
         assert_eq!(target, b.path().to_string_lossy());
         let reloaded =
-            select_startup_defaults(b.path(), Some(target.clone()), None).expect("follows once");
+            select_startup_defaults_with_ci(b.path(), b.path(), Some(target.clone()), None, false)
+                .expect("follows once");
         assert_eq!(
             reloaded.file_workspace, None,
             "the second load follows nothing"
@@ -1490,7 +1476,8 @@ mod startup_tests {
     fn startup_malformed_config_fails_with_the_file_and_key() {
         let scratch = scratch_with_config("startup-malformed-", Some("not toml = ["));
         let error =
-            select_startup_defaults(scratch.path(), None, None).expect_err("malformed fails");
+            select_startup_defaults_with_ci(scratch.path(), scratch.path(), None, None, false)
+                .expect_err("malformed fails");
         assert!(error.contains("dx.toml"), "{error}");
     }
 
@@ -1509,14 +1496,9 @@ mod startup_tests {
             select_startup_defaults_with_ci(scratch.path(), scratch.path(), None, None, false)
                 .expect("local wins");
         assert_eq!(selected.defaults.output, Some("text".to_owned()));
-        assert_eq!(
-            selected.config_source,
-            Some(scratch.path().join("dx.local.toml"))
-        );
         let selected =
             select_startup_defaults_with_ci(scratch.path(), scratch.path(), None, None, true)
                 .expect("ci skips local");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
-        assert_eq!(selected.config_source, Some(scratch.path().join("dx.toml")));
     }
 }

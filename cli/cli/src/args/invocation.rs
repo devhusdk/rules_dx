@@ -407,7 +407,7 @@ impl Invocation {
     }
 
     /// Reports whether the targets came from an affected plan.
-    pub fn from_affected(&self) -> bool {
+    pub fn is_affected_plan(&self) -> bool {
         self.test_targets.is_some()
     }
 
@@ -418,7 +418,7 @@ impl Invocation {
                 self.command.name()
             ));
         }
-        let affected = self.from_affected();
+        let affected = self.is_affected_plan();
         let test = match (&self.test_targets, self.command) {
             (Some(tests), Command::Check) if !tests.is_empty() => {
                 let mut test = self.clone();

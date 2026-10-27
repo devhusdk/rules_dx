@@ -41,21 +41,6 @@ pub fn resolve(
     })
 }
 
-pub fn resolve_for_test(
-    scopes: &[String],
-    workspace: &Path,
-    runner: &dyn QueryRunner,
-    startup_options: &[String],
-) -> Result<ResolvedScope, ResolveError> {
-    resolve_for_test_with_selection(
-        scopes,
-        workspace,
-        runner,
-        startup_options,
-        &SelectionContext::unconfigured(startup_options),
-    )
-}
-
 pub fn resolve_for_test_with_selection(
     scopes: &[String],
     workspace: &Path,
@@ -162,11 +147,12 @@ mod tests {
             ])),
             FakeQuery::ok("//pkg:unit\n"),
         ]);
-        let got = resolve_for_test(
+        let got = resolve_for_test_with_selection(
             &strings(&["pkg/a.py", "//other/..."]),
             &workspace,
             &query,
             &[],
+            &SelectionContext::unconfigured(&[]),
         )
         .expect("resolve");
         assert_eq!(
@@ -189,11 +175,12 @@ mod tests {
             &["//pkg:a.py"],
             &[],
         )]))]);
-        let err = resolve_for_test(
+        let err = resolve_for_test_with_selection(
             &strings(&["pkg/a.py", "pkg/orphan.py"]),
             &workspace,
             &query,
             &[],
+            &SelectionContext::unconfigured(&[]),
         )
         .expect_err("partial ownership must fail");
         assert_eq!(
@@ -332,8 +319,14 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
-        let got = resolve_for_test(&strings(&["//a:one", "//b/..."]), &workspace, &query, &[])
-            .expect("resolve");
+        let got = resolve_for_test_with_selection(
+            &strings(&["//a:one", "//b/..."]),
+            &workspace,
+            &query,
+            &[],
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("resolve");
         assert_eq!(got.targets, strings(&["//a:one", "//b/..."]));
         assert_eq!(got.scope, Scope::Labels(strings(&["//a:one", "//b/..."])));
     }
@@ -344,7 +337,14 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         std::fs::create_dir_all(workspace.join("app")).expect("dir");
         let query = NeverQuery;
-        let got = resolve_for_test(&strings(&["app"]), &workspace, &query, &[]).expect("dir");
+        let got = resolve_for_test_with_selection(
+            &strings(&["app"]),
+            &workspace,
+            &query,
+            &[],
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("dir");
         assert_eq!(got.targets, strings(&["//app/..."]));
     }
 }

@@ -1,6 +1,8 @@
 load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
+# gazelle:dx_ignore_import powershell Pester
+
 package(default_visibility = ["//:__subpackages__"])
 
 pwsh_library(

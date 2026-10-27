@@ -24,6 +24,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/javascript"
 	"github.com/devhusdk/rules_dx/gazelle/kotlin"
 	"github.com/devhusdk/rules_dx/gazelle/mdx"
+	"github.com/devhusdk/rules_dx/gazelle/powershell"
 	"github.com/devhusdk/rules_dx/gazelle/python"
 	"github.com/devhusdk/rules_dx/gazelle/ruby"
 	"github.com/devhusdk/rules_dx/gazelle/rust"
@@ -48,6 +49,7 @@ func composedLanguages() []language.Language {
 		javascript.NewLanguage(),
 		kotlin.NewLanguage(),
 		mdx.NewLanguage(),
+		powershell.NewLanguage(),
 		python.NewLanguage(),
 		ruby.NewLanguage(),
 		rust.NewLanguage(),

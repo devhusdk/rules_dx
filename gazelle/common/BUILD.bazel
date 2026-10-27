@@ -51,6 +51,7 @@ go_library(
         "//gazelle/javascript:__pkg__",
         "//gazelle/kotlin:__pkg__",
         "//gazelle/mdx:__pkg__",
+        "//gazelle/powershell:__pkg__",
         "//gazelle/python:__pkg__",
         "//gazelle/ruby:__pkg__",
         "//gazelle/rust:__pkg__",

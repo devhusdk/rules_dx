@@ -629,7 +629,7 @@ fn probe_expectation(name: &str) -> (&'static str, &'static str) {
     }
 }
 
-const NATIVE_LANGUAGES: [&str; 3] = ["cpp", "rust", "zig"];
+const NATIVE_LANGUAGES: [&str; 4] = ["appimage", "cpp", "rust", "zig"];
 
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts

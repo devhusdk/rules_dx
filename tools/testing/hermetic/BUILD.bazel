@@ -493,11 +493,32 @@ hermetic_qualification(
     rust_target_triples = ["wasm32-wasip1"],
 )
 
+hermetic_qualification(
+    name = "appimage",
+    files = {
+        "consumers/appimage/consumer.bazelrc": ".bazelrc",
+        "//examples/appimage-app/app:BUILD.bazel": "examples/appimage-app/app/BUILD.bazel",
+        "//examples/appimage-app/app:NOTICE.txt": "examples/appimage-app/app/NOTICE.txt",
+        "//examples/appimage-app/app:dxappimage.desktop": "examples/appimage-app/app/dxappimage.desktop",
+        "//examples/appimage-app/app:dxappimage.png": "examples/appimage-app/app/dxappimage.png",
+        "//examples/appimage-app/app:greeting.txt": "examples/appimage-app/app/greeting.txt",
+        "//examples/appimage-app/app:main.c": "examples/appimage-app/app/main.c",
+        "//examples/appimage-app/app:run_test.sh": "examples/appimage-app/app/run_test.sh",
+        "//examples/appimage-app/greet:BUILD.bazel": "examples/appimage-app/greet/BUILD.bazel",
+        "//examples/appimage-app/greet:greet.c": "examples/appimage-app/greet/greet.c",
+        "//examples/appimage-app/greet:greet.h": "examples/appimage-app/greet/greet.h",
+    },
+    languages = ["appimage"],
+    module_fragment = "consumers/appimage/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
     target_compatible_with = LINUX,
     targets = [
+        ":appimage",
         ":cpp_rust",
         ":elixir",
         ":erlang",
@@ -520,6 +541,7 @@ rust_clippy_test(
     size = "small",
     target_compatible_with = LINUX,
     targets = [
+        ":appimage",
         ":cpp_rust",
         ":elixir",
         ":erlang",

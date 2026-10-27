@@ -552,6 +552,43 @@ fn verify_accepts_tool_only_msix_evidence() {
     .unwrap();
 }
 
+fn appimage_evidence() -> Value {
+    let mut ev = good_evidence();
+    ev["qualification"] = json!("//tools/testing/hermetic:appimage");
+    ev["languages"] = json!(["appimage"]);
+    ev["artifacts"] = json!([
+        {"path": "bazel-out/k8-fastbuild/bin/app/dxappimage.AppImage", "sha256": sha256_hex(b"img"), "machine": null},
+    ]);
+    ev["target"]["machines"] = json!([]);
+    ev
+}
+
+#[test]
+fn verify_requires_a_native_machine_for_appimage() {
+    let err = verify_evidence(
+        &appimage_evidence(),
+        "abc123",
+        "//tools/testing/hermetic:appimage",
+        &["appimage".to_owned()],
+    )
+    .unwrap_err();
+    assert!(err.contains("no native artifact machine"), "{err}");
+}
+
+#[test]
+fn verify_accepts_appimage_evidence_with_an_elf_machine() {
+    let mut ev = appimage_evidence();
+    ev["artifacts"][0]["machine"] = json!("x86_64");
+    ev["target"]["machines"] = json!(["x86_64"]);
+    verify_evidence(
+        &ev,
+        "abc123",
+        "//tools/testing/hermetic:appimage",
+        &["appimage".to_owned()],
+    )
+    .unwrap();
+}
+
 fn runfiles_manifest() -> Manifest {
     let rel =
         std::env::var("DX_HERMETIC_MANIFEST").expect("DX_HERMETIC_MANIFEST names the manifest");

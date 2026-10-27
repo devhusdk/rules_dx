@@ -32,7 +32,7 @@ Commands:
   init        adopt dx into an existing tree (absent-only; check by default; --apply scaffolds)
   new         start a new project for one language (absent-only; check by default; --apply scaffolds)
   upgrade     one-shot pin+migrate+env+codegen composition with recovery pointer (check by default; --apply upgrades)
-  status      report workspace status; --verbose adds command capabilities
+  status      report workspace status; --verbose adds command capabilities; without .dx/version it exits 1 with status_pin_mismatch
   version     report version and pin drift
   watch       watch for changes and rebuild (local only)
   completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell)

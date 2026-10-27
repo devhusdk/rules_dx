@@ -1,6 +1,7 @@
 """Project-owned Starlark testing facade."""
 
 load("//libs/starlark:canonical.bzl", "strip_canonical")
+load("//libs/starlark:launcher.bzl", "windows_launcher_body", "windows_sh_path_error")
 
 DxSubjectInfo = provider(
     doc = "Analysis observations a subject rule exposes to starlark_test.",
@@ -343,21 +344,25 @@ def _target_is_windows(ctx):
         ctx.attr._windows_os[platform_common.ConstraintValueInfo],
     )
 
+_SH_TOOLCHAIN = Label("@rules_shell//shell:toolchain_type")
+_SH_TOOLCHAINS = [config_common.toolchain_type(_SH_TOOLCHAIN, mandatory = False)]
+
+def _sh_path(ctx):
+    """Returns the rules_shell toolchain's sh path, or "" when it has none."""
+    toolchain = ctx.toolchains[_SH_TOOLCHAIN]
+    path = getattr(toolchain, "path", None) if toolchain else None
+    if not path:
+        return ""
+    error = windows_sh_path_error(path)
+    if error:
+        fail(error)
+    return path
+
 def _write_windows_launcher(ctx, runner):
-    """Writes the .bat launcher that runs the runner under Git's sh."""
+    """Writes the .bat launcher that runs the runner under the toolchain's sh."""
     launcher = ctx.actions.declare_file(ctx.label.name + ".bat")
     key = ctx.workspace_name + "/" + runner.short_path
-    body = "@echo off\r\n" + "setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION\r\n" + \
-           "set \"RUNNER=" + key.replace("\\", "/") + "\"\r\n" + \
-           "if exist \"%TEST_SRCDIR%\\MANIFEST\" set \"M=%TEST_SRCDIR%\\MANIFEST\"\r\n" + \
-           "if not defined M if exist \"%~f0.runfiles\\MANIFEST\" set \"M=%~f0.runfiles\\MANIFEST\"\r\n" + \
-           "if not defined M set \"M=%~f0.runfiles_manifest\"\r\n" + \
-           "for /F \"tokens=2* usebackq\" %%i in (`%SYSTEMROOT%\\system32\\findstr.exe /b /l /c:\"!RUNNER! \" \"%M%\"`) do set \"SCRIPT=%%i\"\r\n" + \
-           "if not defined SCRIPT echo>&2 ERROR: !RUNNER! not found in the runfiles manifest & exit /b 1\r\n" + \
-           "set \"PATH=C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\bin;%PATH%\"\r\n" + \
-           "sh \"%SCRIPT:\\=/%\" %*\r\n" + \
-           "exit /b %ERRORLEVEL%\r\n"
-    ctx.actions.write(launcher, body, is_executable = True)
+    ctx.actions.write(launcher, windows_launcher_body(key, _sh_path(ctx)), is_executable = True)
     return launcher
 
 def _write_runner(ctx, body_lines, runfiles_files):
@@ -646,24 +651,28 @@ _starlark_load_test = rule(
     implementation = _load_test_impl,
     test = True,
     attrs = _common_attrs,
+    toolchains = _SH_TOOLCHAINS,
 )
 
 _starlark_unit_test = rule(
     implementation = _unit_test_impl,
     test = True,
     attrs = _common_attrs,
+    toolchains = _SH_TOOLCHAINS,
 )
 
 _starlark_analysis_test = rule(
     implementation = _analysis_test_impl,
     test = True,
     attrs = _common_attrs,
+    toolchains = _SH_TOOLCHAINS,
 )
 
 _starlark_execution_test = rule(
     implementation = _execution_test_impl,
     test = True,
     attrs = _common_attrs,
+    toolchains = _SH_TOOLCHAINS,
 )
 
 _starlark_harness_execution_test = rule(

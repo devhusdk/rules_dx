@@ -833,21 +833,19 @@ pub(super) fn roundtrip_prettier(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    let has_config = argv.iter().any(|arg| arg == "--config");
-    let has_no_config = argv.iter().any(|arg| arg == "--no-config");
-    assert!(has_config != has_no_config, "exactly one config mode");
-    let ignore_at = argv
-        .iter()
-        .position(|arg| arg == "--ignore-path")
-        .expect("ignore path is always passed");
-    let ignore = Path::new(&argv[ignore_at + 1]);
-    assert_eq!(
-        std::fs::metadata(ignore)
-            .expect("ignore file is staged")
-            .len(),
-        0,
-        "ignore file is empty"
-    );
+    for arg in argv {
+        let arg = arg.to_string_lossy();
+        assert!(
+            !arg.starts_with("--dx-config"),
+            "an unbound run passes no config"
+        );
+        for reserved in ["--config", "--no-config", "--ignore-path"] {
+            assert!(
+                arg != reserved && !arg.starts_with(&format!("{reserved}=")),
+                "{reserved} is owned by the prettier shim"
+            );
+        }
+    }
     assert!(
         argv.iter().any(|arg| arg == "--no-editorconfig"),
         "prettier never observes editorconfig"

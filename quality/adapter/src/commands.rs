@@ -432,18 +432,18 @@ pub fn eslint_fix(
     launch.resolve(&args, files)
 }
 
-fn prettier_args(config: Option<&Path>, ignore: &Path, tail: &[&str]) -> Vec<OsString> {
-    let mut args = Vec::with_capacity(tail.len() + 5);
-    match config {
-        Some(cfg) => {
-            args.push(OsString::from("--config"));
-            args.push(cfg.as_os_str().to_owned());
-        }
-        None => args.push(OsString::from("--no-config")),
+/// dx-private flag the Prettier shim strips: a bound config replaces dx's default options.
+/// The shim owns `--config`, `--no-config` and `--ignore-path`, so dx never sends those.
+pub const PRETTIER_DX_CONFIG: &str = "--dx-config=";
+
+fn prettier_args(config: Option<&Path>, tail: &[&str]) -> Vec<OsString> {
+    let mut args = Vec::with_capacity(tail.len() + 2);
+    if let Some(cfg) = config {
+        let mut flag = OsString::from(PRETTIER_DX_CONFIG);
+        flag.push(cfg.as_os_str());
+        args.push(flag);
     }
     args.push(OsString::from(PRETTIER_NO_EDITORCONFIG));
-    args.push(OsString::from("--ignore-path"));
-    args.push(ignore.as_os_str().to_owned());
     args.extend(tail.iter().map(OsString::from));
     args
 }
@@ -452,18 +452,16 @@ pub fn prettier_check(
     launch: &ResolvedTool,
     files: &[&Path],
     config: Option<&Path>,
-    ignore: &Path,
 ) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(config, ignore, PRETTIER_CHECK_TAIL), files)
+    launch.resolve(&prettier_args(config, PRETTIER_CHECK_TAIL), files)
 }
 
 pub fn prettier_fix(
     launch: &ResolvedTool,
     files: &[&Path],
     config: Option<&Path>,
-    ignore: &Path,
 ) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(config, ignore, PRETTIER_FIX_TAIL), files)
+    launch.resolve(&prettier_args(config, PRETTIER_FIX_TAIL), files)
 }
 
 fn remark_args(tail: &[&str], settings: Option<&Path>) -> Vec<OsString> {

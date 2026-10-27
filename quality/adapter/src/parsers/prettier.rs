@@ -260,8 +260,11 @@ fn place_svelte_error(
         String::new(),
         last.finding.message.clone(),
         ToolSeverity::Error,
-        row as u64 + 1,
-        column as u64 + 1,
+        TextPosition {
+            line: row as u64 + 1,
+            column: column as u64 + 1,
+        },
+        ColumnEncoding::Scalars,
     );
 }
 

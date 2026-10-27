@@ -1004,12 +1004,24 @@ fn prettier_config_argv(
     _cwd: &Path,
     _env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    let at = argv
+    let args: Vec<String> = argv
         .iter()
-        .position(|arg| arg == "--config")
-        .expect("hinted config passes --config");
-    assert!(!argv.iter().any(|arg| arg == "--no-config"));
-    let cfg = Path::new(&argv[at + 1]);
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let bound: Vec<&str> = args
+        .iter()
+        .filter_map(|arg| arg.strip_prefix("--dx-config="))
+        .collect();
+    assert_eq!(bound.len(), 1, "hinted config passes one --dx-config");
+    for reserved in ["--config", "--no-config", "--ignore-path"] {
+        assert!(
+            !args
+                .iter()
+                .any(|arg| arg == reserved || arg.starts_with(&format!("{reserved}="))),
+            "{reserved} is owned by the prettier shim"
+        );
+    }
+    let cfg = Path::new(bound[0]);
     assert!(cfg.is_absolute());
     assert!(cfg.ends_with("cfg/.prettierrc.json"));
     assert!(cfg.exists());

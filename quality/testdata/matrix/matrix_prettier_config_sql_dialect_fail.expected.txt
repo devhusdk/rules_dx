@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_prettier_config_sql_dialect_fail
+capability FORMAT
+stages 1
+stage prettier classes=sql sources=matrix/prettier_cfg_dialect.postgresql.sql
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR prettier - matrix/prettier_cfg_dialect.postgresql.sql 9 9 fixable=false "Error: Parse error: Unexpected \"$$a  b$$ A\" at line 2 column 3."
+terminal 1
+terminal ERROR prettier - matrix/prettier_cfg_dialect.postgresql.sql 9 9 fixable=false "Error: Parse error: Unexpected \"$$a  b$$ A\" at line 2 column 3."
+replacements 0

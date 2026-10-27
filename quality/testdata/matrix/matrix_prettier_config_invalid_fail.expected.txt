@@ -1,0 +1,1 @@
+pipeline failed: invalid tool output for prettier: prettier output is outside the pinned grammar: run error: "Invalid configuration for file \"$SCRATCH/matrix/prettier_cfg_invalid.graphql\":"

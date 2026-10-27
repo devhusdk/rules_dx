@@ -102,7 +102,6 @@ rules:
   operation-parameters-unique: error
 telemetry: off
 ";
-const PRETTIER_IGNORE_REL: &str = "dx-prettier/ignore";
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
 const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
   "rules": {

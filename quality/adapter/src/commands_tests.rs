@@ -437,37 +437,54 @@ fn eslint_without_a_program_fails_before_any_spawn() {
 fn prettier_check_and_fix_are_hermetic() {
     let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
-    let ignore = Path::new("/scratch/dx-prettier/ignore");
-    let cfg = Path::new("/scratch/cfg/.prettierrc.json");
-    let check = prettier_check(&launch, &[file], None, ignore).expect("resolves");
+    let check = prettier_check(&launch, &[file], None).expect("resolves");
     assert_eq!(
         argv_strings(&check),
-        vec![
-            BIN,
-            "--no-config",
-            "--no-editorconfig",
-            "--ignore-path",
-            "/scratch/dx-prettier/ignore",
-            "--check",
-            "/scratch/src/a.js"
-        ]
+        vec![BIN, "--no-editorconfig", "--check", "/scratch/src/a.js"]
     );
     assert_eq!(check.cwd_rel, "");
-    let fix = prettier_fix(&launch, &[file], Some(cfg), ignore).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], None).expect("resolves");
     assert_eq!(
         argv_strings(&fix),
-        vec![
-            BIN,
-            "--config",
-            "/scratch/cfg/.prettierrc.json",
-            "--no-editorconfig",
-            "--ignore-path",
-            "/scratch/dx-prettier/ignore",
-            "--write",
-            "/scratch/src/a.js"
-        ]
+        vec![BIN, "--no-editorconfig", "--write", "/scratch/src/a.js"]
     );
     assert_eq!(fix.cwd_rel, "");
+}
+
+#[test]
+fn prettier_bound_config_is_one_dx_private_flag() {
+    let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
+    let file = Path::new("/scratch/src/a.js");
+    let cfg = Path::new("/scratch/cfg/.prettierrc.json");
+    let check = prettier_check(&launch, &[file], Some(cfg)).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], Some(cfg)).expect("resolves");
+    for (invocation, mode) in [(&check, "--check"), (&fix, "--write")] {
+        let argv = argv_strings(invocation);
+        assert_eq!(
+            argv,
+            vec![
+                BIN,
+                "--dx-config=/scratch/cfg/.prettierrc.json",
+                "--no-editorconfig",
+                mode,
+                "/scratch/src/a.js"
+            ]
+        );
+        assert_eq!(
+            argv.iter()
+                .filter(|arg| arg.starts_with("--dx-config="))
+                .count(),
+            1
+        );
+        for reserved in ["--config", "--no-config", "--ignore-path"] {
+            assert!(
+                !argv
+                    .iter()
+                    .any(|arg| arg == reserved || arg.starts_with(&format!("{reserved}="))),
+                "{reserved} is owned by the shim"
+            );
+        }
+    }
 }
 
 #[test]

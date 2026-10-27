@@ -244,6 +244,117 @@ fn a_tampered_phar_pin_fails_the_fetch() {
     );
 }
 
+fn lock_entry(name: &str, kind: &str, url: &str, requires: &str) -> String {
+    format!(
+        r#"{{"name": "{name}", "version": "1.0.0", "type": "{kind}", "dist": {{"type": "tar", "url": "{url}", "reference": "r1"}}, "require": {{{requires}}}, "autoload": {{"psr-4": {{"V\\": "src/"}}}}}}"#
+    )
+}
+
+/// A consumer whose composer.lock names one `file://` tar written by the test, so no network is needed.
+fn composer_case(kind: &str, requires: &str, digests: &dyn Fn(&str) -> String) -> Case {
+    let case = consumer();
+    let root = case.root().to_path_buf();
+    let src = root.join("tarball/pkg/src");
+    write(
+        &src.join("A.php"),
+        "<?php\n\nnamespace V;\n\nfinal class A\n{\n}\n",
+    );
+    let tar = root.join("tarball/pkg.tar");
+    let made = std::process::Command::new("tar")
+        .arg("-cf")
+        .arg(&tar)
+        .arg("-C")
+        .arg(root.join("tarball"))
+        .arg("pkg")
+        .status()
+        .unwrap_or_else(|error| panic!("tar: {error}"));
+    assert!(made.success());
+    let url = format!("file://{}", tar.display());
+    let lock = format!(
+        r#"{{"packages": [{}], "packages-dev": []}}"#,
+        lock_entry("v/a", kind, &url, requires)
+    );
+    write(&root.join("vendor/composer.lock"), &lock);
+    write(&root.join("vendor/composer.digests.json"), &digests(&url));
+    write(
+        &root.join("vendor/BUILD.bazel"),
+        "exports_files([\"composer.lock\", \"composer.digests.json\"])\n",
+    );
+    let module = read(&root.join("MODULE.bazel"));
+    write(
+        &root.join("MODULE.bazel"),
+        &format!(
+            "{module}\ncomposer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor_hub\", lock = \"//vendor:composer.lock\", digests = \"//vendor:composer.digests.json\")\nuse_repo(composer, \"vendor_hub\")\n"
+        ),
+    );
+    case
+}
+
+fn pins(sha256: &str, reference: &str) -> impl Fn(&str) -> String {
+    let sha256 = sha256.to_string();
+    let reference = reference.to_string();
+    move |_| {
+        format!(
+            r#"{{"version": 1, "packages": {{"v/a": {{"reference": "{reference}", "sha256": "{sha256}"}}}}}}"#
+        )
+    }
+}
+
+fn composer_build_fails_with(case: &Case, expected: &[&str]) {
+    let built = bazel(case, "build", "@vendor_hub//v/a", &[]);
+    assert_ne!(built.code, Some(0), "{}", built.text);
+    for line in expected {
+        assert!(built.text.contains(line), "{line}\n{}", built.text);
+    }
+}
+
+#[test]
+fn a_tampered_package_digest_fails_the_fetch() {
+    let zeros = "0".repeat(64);
+    let case = composer_case("library", "", &pins(&zeros, "r1"));
+    composer_build_fails_with(&case, &["Checksum was", &format!("but wanted {zeros}")]);
+}
+
+#[test]
+fn a_missing_package_digest_fails_and_prints_the_entry_to_commit() {
+    let case = composer_case("library", "", &|_| {
+        r#"{"version": 1, "packages": {}}"#.to_string()
+    });
+    composer_build_fails_with(
+        &case,
+        &[
+            "has no entry in composer.digests.json",
+            "Review it and commit to composer.digests.json",
+            "\"v/a\": {",
+        ],
+    );
+}
+
+#[test]
+fn a_stale_package_reference_says_re_pin() {
+    let case = composer_case("library", "", &pins(&"a".repeat(64), "old"));
+    composer_build_fails_with(&case, &["re-pin"]);
+}
+
+#[test]
+fn a_composer_plugin_is_rejected() {
+    let case = composer_case("composer-plugin", "", &pins(&"a".repeat(64), "r1"));
+    composer_build_fails_with(&case, &["v/a is a composer-plugin"]);
+}
+
+#[test]
+fn a_requirement_absent_from_the_lock_fails() {
+    let case = composer_case(
+        "library",
+        r#""x/missing": "*""#,
+        &pins(&"a".repeat(64), "r1"),
+    );
+    composer_build_fails_with(
+        &case,
+        &["v/a requires x/missing, which is not in composer.lock"],
+    );
+}
+
 #[test]
 fn a_platform_without_a_pinned_php_is_incompatible() {
     let case = consumer();

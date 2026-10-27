@@ -587,6 +587,15 @@ use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpunit")
 
 register_toolchains("@dx_php_toolchains//:all")
 
+composer = use_extension("//php/composer:extensions.bzl", "composer", dev_dependency = True)
+composer.lock(
+    name = "php_composer_fixture",
+    dev = True,
+    digests = "//php/tests/fixtures/composer:composer.digests.json",
+    lock = "//php/tests/fixtures/composer:composer.lock",
+)
+use_repo(composer, php_fixture_vendor = "php_composer_fixture")
+
 haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
 use_repo(haskell, "dx_haskell_toolchains", "rules_haskell")
 

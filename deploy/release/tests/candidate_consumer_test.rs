@@ -73,6 +73,8 @@ fn git(dir: &Path, args: &[&str]) -> String {
         .args(args)
         .current_dir(dir)
         .env("GIT_CONFIG_NOSYSTEM", "1")
+        // Keep `git status` from refreshing and rewriting the checkout's index.
+        .env("GIT_OPTIONAL_LOCKS", "0")
         .output()
         .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
     assert!(
@@ -100,8 +102,9 @@ fn repo_state(root: &Path) -> RepoState {
     let meta = std::fs::metadata(&index).ok();
     RepoState {
         head: git(root, &["rev-parse", "HEAD"]),
-        branch: git(root, &["symbolic-ref", "-q", "--short", "HEAD"]),
-        status: git(root, &["status", "--porcelain=v1"]),
+        // Prints `HEAD` on a detached checkout instead of failing.
+        branch: git(root, &["rev-parse", "--abbrev-ref", "HEAD"]),
+        status: git(root, &["--no-optional-locks", "status", "--porcelain=v1"]),
         index: (
             meta.as_ref().map_or(0, |meta| meta.len()),
             meta.and_then(|meta| meta.modified().ok()),

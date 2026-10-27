@@ -237,6 +237,12 @@ fn usage_text() -> String {
     }
 }
 
+/// Writes the cancellation line for a stop signal and returns its exit code.
+pub fn cancelled(err: &mut dyn Write, signo: i32) -> i32 {
+    let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
+    interrupted_code(signo)
+}
+
 /// Writes one failure to stderr and, in JSON mode, to stdout; a stop signal turns it into a cancellation.
 pub fn report_failure(
     output: OutputMode,
@@ -245,8 +251,7 @@ pub fn report_failure(
     failure: &Failure,
 ) -> i32 {
     if let Some(signo) = interrupted() {
-        let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
-        return interrupted_code(signo);
+        return cancelled(err, signo);
     }
     if failure.shows_usage() || failure.code == CODE_INVALID_ARGUMENTS {
         let _ = writeln!(err, "dx: {}", failure.message);
@@ -276,6 +281,17 @@ pub fn report_failure(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn cancelled_names_the_signal_and_maps_its_code() {
+        let mut err = Vec::new();
+        let code = super::cancelled(&mut err, 15);
+        assert_eq!(
+            String::from_utf8(err).unwrap(),
+            "dx: cancelled: stopped by signal 15\n"
+        );
+        assert_eq!(code, 128 + 15);
+    }
+
     use super::*;
     use dx_process::{broken_pipe_code, operational_code};
     use std::io;

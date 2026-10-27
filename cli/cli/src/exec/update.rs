@@ -57,19 +57,16 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
     }
     let mut gate = SlotGate {
-        command: invocation.command,
         err: &mut *err,
         events: &mut *out,
-        asked: false,
-        slot: None,
+        phase: dx_plan::slots::Phase::new(invocation.command),
     };
     let outcomes = run_backends(&resolved, runner, workspace, invocation, mode, &mut gate);
     drop(gate);
     let (attempted, details) = match outcomes {
         Ok(outcomes) => outcomes,
         Err(signo) => {
-            let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
-            return dx_process::interrupted_code(signo);
+            return super::failure::cancelled(err, signo);
         }
     };
     let selected: Vec<String> = resolved.keys().map(|set| set.name().to_owned()).collect();
@@ -282,20 +279,20 @@ fn runner_status(
 }
 
 struct SlotGate<'a> {
-    command: Command,
     err: &'a mut dyn std::io::Write,
     events: &'a mut dyn std::io::Write,
-    asked: bool,
-    slot: Option<dx_plan::slots::Slot>,
+    phase: dx_plan::slots::Phase,
 }
 
 impl SlotGate<'_> {
     fn before(&mut self, argv: &[String]) -> Result<(), i32> {
-        if !self.asked && dx_update::backend::runs_bazel(argv) {
-            self.asked = true;
-            self.slot = dx_plan::slots::take(self.command, &mut *self.err, &mut *self.events)?;
-        }
-        Ok(())
+        self.phase
+            .need(
+                dx_update::backend::runs_bazel(argv),
+                &mut *self.err,
+                &mut *self.events,
+            )
+            .map(|_| ())
     }
 }
 
@@ -366,7 +363,7 @@ fn run_backends(
             }
             Ok(dx_update::backend::CheckPlan::Run { argv, env: extra }) => {
                 gate.before(&argv)?;
-                let held = gate.slot.as_ref().map(|slot| slot.runner(runner));
+                let held = gate.phase.slot().map(|slot| slot.runner(runner));
                 run_update_backend(BackendRun {
                     attempted: &mut attempted,
                     details: &mut details,

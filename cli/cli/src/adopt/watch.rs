@@ -157,15 +157,15 @@ fn watch(
             }
         };
         let mut notices = Vec::new();
-        let slot = if dx_plan::slots::needs_slot(iteration.command) {
-            match dx_plan::slots::take(iteration.command, &mut *err, &mut notices) {
-                Ok(slot) => slot,
-                Err(signo) => return stopped(progress, out, err, signo),
-            }
-        } else {
-            None
-        };
-        let held = slot.as_ref().map(|slot| slot.runner(runner));
+        let mut phase = dx_plan::slots::Phase::new(iteration.command);
+        if let Err(signo) = phase.need(
+            dx_plan::slots::needs_slot(iteration.command),
+            &mut *err,
+            &mut notices,
+        ) {
+            return stopped(progress, out, err, signo);
+        }
+        let held = phase.slot().map(|slot| slot.runner(runner));
         let mut iteration_out = dx_plan::slots::AfterFirstLine::new(&mut *out, notices);
         let tally = ActionTally::default();
         let code = crate::exec::execute_until(
@@ -187,7 +187,7 @@ fn watch(
             },
             &withdraw,
         );
-        drop(slot);
+        drop(phase);
         print_actions(iteration.output, &tally, &mut *err);
         if max_iterations == Some(round) {
             return code;

@@ -4,7 +4,9 @@
 import gzip
 import hashlib
 import os
+import pathlib
 import re
+import stat
 import subprocess
 import sys
 import tarfile
@@ -1003,6 +1005,113 @@ def _sha256(path):
     return digest.hexdigest()
 
 
+def _check_member_name(asset, name):
+    """Stops on any archive member name that could escape the work directory."""
+    reason = None
+    if not name:
+        reason = "empty name"
+    elif name.startswith("/") or re.match(r"^[A-Za-z]:", name):
+        reason = "absolute path"
+    elif "\\" in name:
+        reason = "backslash in name"
+    elif ".." in pathlib.PurePosixPath(name).parts:
+        reason = "parent directory component"
+    if reason:
+        sys.exit("update: %s member %r: %s" % (asset, name, reason))
+
+
+def _check_duplicate(asset, name, seen):
+    key = os.path.normpath(name)
+    if key in seen:
+        sys.exit("update: %s member %r: duplicate name" % (asset, name))
+    seen.add(key)
+
+
+def _stream_executable(asset, workdir, executable, source):
+    """Copies the executable's bytes to workdir and returns (path, sha256)."""
+    exe_path = os.path.join(workdir, executable)
+    os.makedirs(os.path.dirname(exe_path), exist_ok=True)
+    digest = hashlib.sha256()
+    with open(exe_path, "wb") as out:
+        for chunk in iter(lambda: source.read(65536), b""):
+            digest.update(chunk)
+            out.write(chunk)
+    return exe_path, digest.hexdigest()
+
+
+def _tar_members(asset, asset_path, workdir, executable):
+    members = []
+    seen = set()
+    exe_member = None
+    with tarfile.open(asset_path, "r:gz") as archive_file:
+        infos = archive_file.getmembers()
+        for member in infos:
+            _check_member_name(asset, member.name)
+            if member.issym() or member.islnk():
+                sys.exit("update: %s member %r: link" % (asset, member.name))
+            if member.isdev() or member.isfifo():
+                sys.exit("update: %s member %r: device or fifo" % (asset, member.name))
+            if not member.isdir():
+                _check_duplicate(asset, member.name, seen)
+            members.append(
+                {
+                    "name": member.name,
+                    "size": member.size,
+                    "mode": oct(member.mode),
+                    "is_executable": bool(member.mode & 0o111) and member.isfile(),
+                }
+            )
+            if os.path.normpath(member.name) == os.path.normpath(executable):
+                exe_member = member
+        if exe_member is None or not exe_member.isfile():
+            sys.exit(
+                "update: %s member %r: missing or not a regular file"
+                % (asset, executable)
+            )
+        source = archive_file.extractfile(exe_member)
+        exe_path, exe_digest = _stream_executable(asset, workdir, executable, source)
+    return members, exe_path, exe_digest
+
+
+def _zip_members(asset, asset_path, workdir, executable):
+    members = []
+    seen = set()
+    exe_info = None
+    with zipfile.ZipFile(asset_path) as archive_file:
+        for info in archive_file.infolist():
+            _check_member_name(asset, info.filename)
+            unix_mode = (info.external_attr >> 16) & 0o177777
+            if info.create_system == 3 and stat.S_ISLNK(unix_mode):
+                sys.exit("update: %s member %r: symlink" % (asset, info.filename))
+            if not info.is_dir():
+                _check_duplicate(asset, info.filename, seen)
+            mode = (info.external_attr >> 16) & 0o777
+            is_dir = info.is_dir()
+            is_exe = (not is_dir) and (
+                info.filename.endswith(".exe") or bool(mode & 0o111)
+            )
+            members.append(
+                {
+                    "name": info.filename,
+                    "size": info.file_size,
+                    "mode": oct(mode),
+                    "is_executable": is_exe,
+                }
+            )
+            if os.path.normpath(info.filename) == os.path.normpath(executable):
+                exe_info = info
+        if exe_info is None or exe_info.is_dir():
+            sys.exit(
+                "update: %s member %r: missing or not a regular file"
+                % (asset, executable)
+            )
+        with archive_file.open(exe_info) as source:
+            exe_path, exe_digest = _stream_executable(
+                asset, workdir, executable, source
+            )
+    return members, exe_path, exe_digest
+
+
 def _elf_linkage(path):
     readelf = _require_tool("readelf")
     headers = _run([readelf, "-h", "-l", "-d", path])
@@ -1131,41 +1240,14 @@ def _collect(tool, platform_key, spec, workdir):
             "member_size": len(inner),
         }
     elif kind == "tar.gz":
-        members = []
-        with tarfile.open(asset_path, "r:gz") as archive_file:
-            archive_file.extractall(workdir)
-            for member in archive_file.getmembers():
-                members.append(
-                    {
-                        "name": member.name,
-                        "size": member.size,
-                        "mode": oct(member.mode),
-                        "is_executable": bool(member.mode & 0o111) and member.isfile(),
-                    }
-                )
-        exe_path = os.path.join(workdir, spec["executable"])
-        exe_digest = _sha256(exe_path)
+        members, exe_path, exe_digest = _tar_members(
+            spec["asset"], asset_path, workdir, spec["executable"]
+        )
         archive = {"format": "tar.gz", "members": members}
     elif kind == "zip":
-        members = []
-        with zipfile.ZipFile(asset_path) as archive_file:
-            archive_file.extractall(workdir)
-            for info in archive_file.infolist():
-                mode = (info.external_attr >> 16) & 0o777
-                is_dir = info.is_dir()
-                is_exe = (not is_dir) and (
-                    info.filename.endswith(".exe") or bool(mode & 0o111)
-                )
-                members.append(
-                    {
-                        "name": info.filename,
-                        "size": info.file_size,
-                        "mode": oct(mode),
-                        "is_executable": is_exe,
-                    }
-                )
-        exe_path = os.path.join(workdir, spec["executable"])
-        exe_digest = _sha256(exe_path)
+        members, exe_path, exe_digest = _zip_members(
+            spec["asset"], asset_path, workdir, spec["executable"]
+        )
         archive = {"format": "zip", "members": members}
     else:
         sys.exit("update: unknown asset kind %r" % kind)

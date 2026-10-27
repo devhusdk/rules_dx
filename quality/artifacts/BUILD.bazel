@@ -59,6 +59,7 @@ test_suite(
         "//quality/artifacts/acquire_test",
         "//quality/artifacts/hub_test:hub_selection_analysis",
         "//quality/artifacts/hub_test:hub_selection_unit",
+        "//quality/artifacts/update_test",
     ],
 )
 

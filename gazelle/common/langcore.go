@@ -146,6 +146,14 @@ func CheckClaimsMulti(file *rule.File, other []*rule.Rule, claimants []Claimant,
 }
 
 func MergeStale(file *rule.File, result language.GenerateResult, kinds map[string]rule.KindInfo) language.GenerateResult {
+	return MergeStaleOwned(file, result, kinds, nil)
+}
+
+// MergeStaleOwned is MergeStale for generators that share their kinds with
+// handwritten rules: an existing rule of an owned kind is removed only when
+// owns reports that generation could have produced it. A nil owns claims every
+// rule of an owned kind, as MergeStale does.
+func MergeStaleOwned(file *rule.File, result language.GenerateResult, kinds map[string]rule.KindInfo, owns func(*rule.Rule) bool) language.GenerateResult {
 	desired := make(map[string]bool, len(result.Gen))
 	for _, r := range result.Gen {
 		desired[r.Kind()+"\x00"+r.Name()] = true
@@ -155,6 +163,9 @@ func MergeStale(file *rule.File, result language.GenerateResult, kinds map[strin
 	}
 	for _, existing := range file.Rules {
 		if _, owned := kinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
+			continue
+		}
+		if owns != nil && !owns(existing) {
 			continue
 		}
 		result.Empty = append(result.Empty, rule.NewRule(existing.Kind(), existing.Name()))

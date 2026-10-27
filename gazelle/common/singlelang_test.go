@@ -1032,3 +1032,37 @@ func TestResolveSingleLetsAMappingBeatStdLib(t *testing.T) {
 		}
 	}
 }
+
+func TestMergeStaleOwned(t *testing.T) {
+	file, err := rule.LoadData("pkg/BUILD.bazel", "pkg", []byte(`dot_library(name = "kept")
+
+dot_library(name = "stale")
+
+dot_library(name = "handwritten", srcs = ["tool.dot"])
+
+filegroup(name = "other")
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := map[string]rule.KindInfo{dotKind: LibraryKindInfo()}
+	gen := language.GenerateResult{Gen: []*rule.Rule{rule.NewRule(dotKind, "kept")}}
+	empties := func(result language.GenerateResult) string {
+		var names []string
+		for _, r := range result.Empty {
+			names = append(names, r.Kind()+":"+r.Name())
+		}
+		return strings.Join(names, ",")
+	}
+	owns := func(r *rule.Rule) bool { return len(r.AttrStrings("srcs")) == 0 }
+	if got := empties(MergeStaleOwned(file, gen, kinds, owns)); got != "dot_library:stale" {
+		t.Errorf("MergeStaleOwned empties = %q, want only the owned stale rule", got)
+	}
+	want := "dot_library:stale,dot_library:handwritten"
+	if got := empties(MergeStaleOwned(file, gen, kinds, nil)); got != want {
+		t.Errorf("MergeStaleOwned(nil) empties = %q, want %q", got, want)
+	}
+	if got := empties(MergeStale(file, gen, kinds)); got != want {
+		t.Errorf("MergeStale empties = %q, want %q", got, want)
+	}
+}

@@ -1,0 +1,7 @@
+load("@rules_dx//powershell/rules:defs.bzl", "pwsh_library")
+
+pwsh_library(
+    name = "app",
+    srcs = ["App.psm1"],
+    deps = ["//pkg/greet"],
+)

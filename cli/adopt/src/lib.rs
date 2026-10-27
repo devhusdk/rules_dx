@@ -34,8 +34,9 @@ pub use git_changes::{
     DEFAULT_BRANCH_CANDIDATES,
 };
 pub use launcher::{
-    launcher_version, plan_launcher_files, refresh_launcher_files, render_launcher_sh,
-    stale_launchers, write_launcher_files, LAUNCHER_CMD_REL, LAUNCHER_SH_REL,
+    launcher_version, plan_launcher_files, refresh_launcher_files, release_pins,
+    render_launcher_cmd, render_launcher_sh, stale_launchers, write_launcher_files, LauncherPins,
+    LAUNCHER_CMD_REL, LAUNCHER_SH_REL, RELEASE_ASSETS,
 };
 pub use load_graph::{bzl_impact, module_inputs, BzlImpact};
 pub use migrate::plan_migrate;

@@ -7,9 +7,97 @@ pub const LAUNCHER_SH_REL: &str = "tools/dx";
 
 pub const LAUNCHER_CMD_REL: &str = "tools/dx.cmd";
 
+/// Release assets the launchers can download, one sha256 pin each.
+pub const RELEASE_ASSETS: [&str; 5] = [
+    "dx-linux-x86_64",
+    "dx-linux-arm64",
+    "dx-macos-arm64",
+    "dx-windows-x86_64",
+    "dx-windows-arm64",
+];
+
+/// The sha256 of each release asset, baked into the rendered launchers.
+/// An empty pin means "no verified hash": the launcher refuses to download.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LauncherPins {
+    sha256: [String; 5],
+}
+
+impl LauncherPins {
+    /// All-empty pins, for a version that has no release yet.
+    pub fn unreleased() -> Self {
+        Self::default()
+    }
+
+    /// The pin for `asset`, or `None` when `asset` is not a release asset.
+    pub fn get(&self, asset: &str) -> Option<&str> {
+        RELEASE_ASSETS
+            .iter()
+            .position(|known| *known == asset)
+            .map(|i| self.sha256[i].as_str())
+    }
+
+    /// Parses a `dx-sha256sums.txt` manifest: exactly one `<hash>  <asset>`
+    /// line per release asset, hash as 64 lowercase hex, nothing else.
+    pub fn from_sha256sums(text: &str) -> Result<Self, AdoptError> {
+        let mut pins = Self::default();
+        for line in text.lines() {
+            let Some((hash, asset)) = line.split_once("  ") else {
+                return Err(pins_error(format!("bad manifest line {line:?}")));
+            };
+            let Some(i) = RELEASE_ASSETS.iter().position(|known| *known == asset) else {
+                return Err(pins_error(format!("unknown asset {asset:?}")));
+            };
+            if hash.is_empty() || !valid_pin(hash) {
+                return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
+            }
+            if !pins.sha256[i].is_empty() {
+                return Err(pins_error(format!("{asset} is listed twice")));
+            }
+            pins.sha256[i] = hash.to_owned();
+        }
+        if let Some(i) = pins.sha256.iter().position(String::is_empty) {
+            return Err(pins_error(format!("{} is missing", RELEASE_ASSETS[i])));
+        }
+        Ok(pins)
+    }
+}
+
+/// The sha256 pins for dx `version`'s release assets.
+///
+/// Always unreleased (empty) for now: no dx release exists yet. Delivering
+/// real pins through the release source archive is the follow-up to #2294.
+pub fn release_pins(_version: &str) -> Result<LauncherPins, AdoptError> {
+    Ok(LauncherPins::unreleased())
+}
+
+fn valid_pin(pin: &str) -> bool {
+    pin.is_empty()
+        || (pin.len() == 64 && pin.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
+}
+
+fn pin_var(asset: &str) -> String {
+    format!(
+        "SHA256_{}",
+        asset
+            .trim_start_matches("dx-")
+            .replace('-', "_")
+            .to_uppercase()
+    )
+}
+
+fn pins_error(detail: String) -> AdoptError {
+    AdoptError::LauncherPins { detail }
+}
+
 const LAUNCHER_SH: &str = r##"#!/bin/sh
 set -eu
 VERSION="@VERSION@"
+SHA256_LINUX_X86_64="@SHA256_LINUX_X86_64@"
+SHA256_LINUX_ARM64="@SHA256_LINUX_ARM64@"
+SHA256_MACOS_ARM64="@SHA256_MACOS_ARM64@"
+SHA256_WINDOWS_X86_64="@SHA256_WINDOWS_X86_64@"
+SHA256_WINDOWS_ARM64="@SHA256_WINDOWS_ARM64@"
 args="$*"
 fail() {
   echo "dx: $1" >&2
@@ -49,7 +137,11 @@ if [ "$os-$arch" = macos-x86_64 ]; then
   done
 fi
 case "$os-$arch" in
-  linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
+  linux-x86_64) want=$SHA256_LINUX_X86_64 ;;
+  linux-arm64) want=$SHA256_LINUX_ARM64 ;;
+  macos-arm64) want=$SHA256_MACOS_ARM64 ;;
+  windows-x86_64) want=$SHA256_WINDOWS_X86_64 ;;
+  windows-arm64) want=$SHA256_WINDOWS_ARM64 ;;
   *) fail "no dx binary for $os $arch" ;;
 esac
 if [ -n "${DX_CACHE_DIR:-}" ]; then
@@ -71,10 +163,11 @@ bin="$dir/dx-$os-$arch$exe"
 if [ -x "$bin" ]; then
   exec "$bin" "$@"
 fi
+[ -n "$want" ] || fail "tools/dx has no pinned sha256 for dx-$os-$arch; rerun dx init --apply"
 url="https://github.com/devhusdk/rules_dx/releases/download/v$VERSION/dx-$os-$arch"
 mkdir -p "$dir"
 tmp="$dir/.dx-$os-$arch.$$"
-trap 'rm -f "$tmp" "$tmp.sha256"' EXIT
+trap 'rm -f "$tmp"' EXIT
 fetch() {
   if command -v curl > /dev/null 2>&1; then
     curl -fsSL -o "$2" "$1" || fail "download failed: $1"
@@ -85,9 +178,6 @@ fetch() {
   fi
 }
 fetch "$url" "$tmp"
-fetch "$url.sha256" "$tmp.sha256"
-want=
-IFS=' ' read -r want _ < "$tmp.sha256" || true
 if command -v sha256sum > /dev/null 2>&1; then
   got=$(sha256sum "$tmp" | cut -d' ' -f1)
 elif command -v shasum > /dev/null 2>&1; then
@@ -95,18 +185,21 @@ elif command -v shasum > /dev/null 2>&1; then
 else
   fail "needs sha256sum or shasum"
 fi
-[ -n "$want" ] && [ "$got" = "$want" ] || fail "sha256 mismatch for $url: want '$want', got $got; refusing to run it"
+[ "$got" = "$want" ] || fail "sha256 mismatch for $url: want '$want', got $got; refusing to run it"
 chmod +x "$tmp"
 mv "$tmp" "$bin"
-rm -f "$tmp.sha256"
 exec "$bin" "$@"
 "##;
 
 const LAUNCHER_CMD: &str = r##"@echo off
 setlocal
 set "VERSION=@VERSION@"
+set "SHA256_WINDOWS_X86_64=@SHA256_WINDOWS_X86_64@"
+set "SHA256_WINDOWS_ARM64=@SHA256_WINDOWS_ARM64@"
 set "ARCH=x86_64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
+set "WANT="
+if "%ARCH%"=="arm64" (set "WANT=%SHA256_WINDOWS_ARM64%") else set "WANT=%SHA256_WINDOWS_X86_64%"
 set "PIN="
 if not exist "%~dp0..\.dx\version" (
   echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
@@ -123,6 +216,10 @@ if defined DX_CACHE_DIR set "DX_CACHE=%DX_CACHE_DIR%"
 set "DIR=%DX_CACHE%\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
+if not defined WANT (
+  echo dx: tools\dx.cmd has no pinned sha256 for dx-windows-%ARCH%; rerun dx init --apply 1>&2
+  goto bazel
+)
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
 mkdir "%DIR%" 2>nul
 set "DX_TAG="
@@ -132,19 +229,15 @@ if not defined DX_TAG (
   goto bazel
 )
 set "DX_PART=%DIR%\.dx-%ARCH%.%DX_TAG%.part"
-call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -Uri $env:DX_URL -OutFile $env:DX_PART; Invoke-WebRequest -UseBasicParsing -Uri ($env:DX_URL + '.sha256') -OutFile ($env:DX_PART + '.sha')"
+call powershell -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -UseBasicParsing -Uri $env:DX_URL -OutFile $env:DX_PART"
 if errorlevel 1 (
   call :clean
   echo dx: download failed: %DX_URL% 1>&2
   goto bazel
 )
-set "WANT="
-set /p WANT=<"%DX_PART%.sha"
-for /f "tokens=1" %%W in ("%WANT%") do set "WANT=%%W"
 set "GOT="
 for /f "skip=1 tokens=*" %%H in ('certutil -hashfile "%DX_PART%" SHA256') do if not defined GOT set "GOT=%%H"
 set "GOT=%GOT: =%"
-if "%WANT%"=="" goto mismatch
 if /i not "%GOT%"=="%WANT%" goto mismatch
 move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
@@ -159,21 +252,49 @@ call :clean
 echo dx: sha256 mismatch for %DX_URL%: want '%WANT%', got '%GOT%'; refusing to run it 1>&2
 goto bazel
 :clean
-del /q "%DX_PART%" "%DX_PART%.sha" 2>nul
+del /q "%DX_PART%" 2>nul
 exit /b 0
 :bazel
 echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- %* 1>&2
 exit /b 1
 "##;
 
-pub fn render_launcher_sh(version: &str) -> String {
-    LAUNCHER_SH.replace("@VERSION@", version)
+pub fn render_launcher_sh(version: &str, pins: &LauncherPins) -> Result<String, AdoptError> {
+    render(LAUNCHER_SH, version, pins, &RELEASE_ASSETS)
 }
 
-pub fn render_launcher_cmd(version: &str) -> String {
-    LAUNCHER_CMD
-        .replace("@VERSION@", version)
-        .replace('\n', "\r\n")
+pub fn render_launcher_cmd(version: &str, pins: &LauncherPins) -> Result<String, AdoptError> {
+    Ok(render(
+        LAUNCHER_CMD,
+        version,
+        pins,
+        &["dx-windows-x86_64", "dx-windows-arm64"],
+    )?
+    .replace('\n', "\r\n"))
+}
+
+fn render(
+    template: &str,
+    version: &str,
+    pins: &LauncherPins,
+    assets: &[&str],
+) -> Result<String, AdoptError> {
+    let mut text = template.replace("@VERSION@", version);
+    for asset in assets {
+        let pin = pins.get(asset).unwrap_or_default();
+        if !valid_pin(pin) {
+            return Err(pins_error(format!(
+                "{asset} pin is not 64 lowercase hex: {pin:?}"
+            )));
+        }
+        text = text.replace(&format!("@{}@", pin_var(asset)), pin);
+    }
+    if text.contains("@SHA256_") {
+        return Err(pins_error(
+            "launcher template has an unfilled sha256 pin".to_owned(),
+        ));
+    }
+    Ok(text)
 }
 
 fn write_launcher(
@@ -279,6 +400,11 @@ fn sync(
             version: version.to_owned(),
         });
     }
+    let pins = if apply && plan.iter().any(|(_, write)| *write) {
+        release_pins(version)?
+    } else {
+        LauncherPins::unreleased()
+    };
     for (rel, write) in plan {
         if !write {
             applied.refused.push(rel.to_owned());
@@ -286,9 +412,9 @@ fn sync(
         }
         if apply {
             let (content, executable) = if rel == LAUNCHER_SH_REL {
-                (render_launcher_sh(version), true)
+                (render_launcher_sh(version, &pins)?, true)
             } else {
-                (render_launcher_cmd(version), false)
+                (render_launcher_cmd(version, &pins)?, false)
             };
             write_launcher(root, rel, &content, executable)?;
         }
@@ -301,10 +427,32 @@ fn sync(
 mod tests {
     use super::*;
 
+    fn pinned(sha: &str) -> LauncherPins {
+        LauncherPins {
+            sha256: std::array::from_fn(|_| sha.to_owned()),
+        }
+    }
+
+    fn sh(version: &str) -> String {
+        render_launcher_sh(version, &LauncherPins::unreleased()).expect("render sh")
+    }
+
+    fn cmd(version: &str) -> String {
+        render_launcher_cmd(version, &LauncherPins::unreleased()).expect("render cmd")
+    }
+
+    const MANIFEST: &str =
+        "1111111111111111111111111111111111111111111111111111111111111111  dx-linux-x86_64
+2222222222222222222222222222222222222222222222222222222222222222  dx-linux-arm64
+3333333333333333333333333333333333333333333333333333333333333333  dx-macos-arm64
+4444444444444444444444444444444444444444444444444444444444444444  dx-windows-x86_64
+5555555555555555555555555555555555555555555555555555555555555555  dx-windows-arm64
+";
+
     #[test]
     fn consumer_launchers_carry_no_self_build() {
-        let sh = render_launcher_sh("1.2.3");
-        let cmd = render_launcher_cmd("1.2.3");
+        let sh = sh("1.2.3");
+        let cmd = cmd("1.2.3");
         for script in [&sh, &cmd] {
             for gone in [
                 "bazel-bin",
@@ -331,17 +479,120 @@ mod tests {
         assert!(os < msys && msys < pin);
     }
     #[test]
-    fn launcher_pins_the_version_and_reads_the_sidecar() {
-        let sh = render_launcher_sh("1.2.3");
+    fn launcher_pins_version_and_hashes() {
+        let pins = LauncherPins::from_sha256sums(MANIFEST).expect("manifest");
+        let sh = render_launcher_sh("1.2.3", &pins).expect("sh");
         assert!(sh.starts_with("#!/bin/sh\n"));
         assert!(sh.contains("VERSION=\"1.2.3\""));
-        assert!(sh.contains("fetch \"$url.sha256\""));
         assert!(!sh.contains("@VERSION@"));
-        let cmd = render_launcher_cmd("1.2.3");
+        for (n, asset) in RELEASE_ASSETS.iter().enumerate() {
+            let line = format!(
+                "{}=\"{}\"\n",
+                pin_var(asset),
+                (n + 1).to_string().repeat(64)
+            );
+            assert_eq!(sh.matches(&line).count(), 1, "{line}");
+        }
+        assert_eq!(sh.lines().filter(|l| l.starts_with("SHA256_")).count(), 5);
+        let cmd = render_launcher_cmd("1.2.3", &pins).expect("cmd");
         assert!(cmd.contains("set \"VERSION=1.2.3\"\r\n"));
-        assert!(cmd.contains("DX_URL + '.sha256'"));
+        assert!(cmd.contains(&format!(
+            "set \"SHA256_WINDOWS_X86_64={}\"\r\n",
+            "4".repeat(64)
+        )));
+        assert!(cmd.contains(&format!(
+            "set \"SHA256_WINDOWS_ARM64={}\"\r\n",
+            "5".repeat(64)
+        )));
+        assert_eq!(
+            cmd.lines()
+                .filter(|l| l.starts_with("set \"SHA256_"))
+                .count(),
+            2
+        );
         assert!(!cmd.contains("@VERSION@"));
         assert!(!cmd.replace("\r\n", "").contains('\n'));
+        for script in [&sh, &cmd] {
+            for gone in ["@SHA256_", ".sha256\"", "'.sha256'", ".sha\""] {
+                assert!(!script.contains(gone), "{gone}");
+            }
+        }
+    }
+
+    #[test]
+    fn launcher_version_still_reads_line_three() {
+        let dir = dx_test_scratch::scratch("dx-launcher-line3-");
+        let pins = pinned(&"a".repeat(64));
+        std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
+        let sh = render_launcher_sh("1.2.3", &pins).expect("sh");
+        let cmd = render_launcher_cmd("1.2.3", &pins).expect("cmd");
+        assert_eq!(sh.lines().nth(2), Some("VERSION=\"1.2.3\""));
+        assert_eq!(cmd.lines().nth(2), Some("set \"VERSION=1.2.3\""));
+        std::fs::write(dir.path().join(LAUNCHER_SH_REL), sh).expect("sh");
+        std::fs::write(dir.path().join(LAUNCHER_CMD_REL), cmd).expect("cmd");
+        for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
+            assert_eq!(launcher_version(dir.path(), rel).as_deref(), Some("1.2.3"));
+        }
+    }
+
+    #[test]
+    fn from_sha256sums_rejects_missing_duplicate_extra_uppercase() {
+        let pins = LauncherPins::from_sha256sums(MANIFEST).expect("manifest");
+        assert_eq!(pins.get("dx-macos-arm64"), Some("3".repeat(64).as_str()));
+        assert_eq!(pins.get("dx-macos-x86_64"), None);
+        let lines: Vec<&str> = MANIFEST.lines().collect();
+        let a = "a".repeat(64);
+        let bad = [
+            lines[..4].join("\n"),
+            format!("{MANIFEST}{}\n", lines[0]),
+            format!("{MANIFEST}{a}  dx-macos-x86_64\n"),
+            MANIFEST.replace(&"1".repeat(64), &"A".repeat(64)),
+            MANIFEST.replace(&"1".repeat(64), &"1".repeat(63)),
+            MANIFEST.replace(&"1".repeat(64), ""),
+            MANIFEST.replacen("  ", " ", 1),
+            format!("{MANIFEST}\n"),
+            format!("\n{MANIFEST}"),
+            String::new(),
+        ];
+        for text in bad {
+            assert!(
+                matches!(
+                    LauncherPins::from_sha256sums(&text),
+                    Err(AdoptError::LauncherPins { .. })
+                ),
+                "{text:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn render_refuses_an_invalid_pin() {
+        for pin in [
+            "A".repeat(64),
+            "a".repeat(63),
+            "\"; rm -rf /; \"".to_owned(),
+        ] {
+            let pins = pinned(&pin);
+            assert!(matches!(
+                render_launcher_sh("1.2.3", &pins),
+                Err(AdoptError::LauncherPins { .. })
+            ));
+            assert!(matches!(
+                render_launcher_cmd("1.2.3", &pins),
+                Err(AdoptError::LauncherPins { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn release_pins_of_unreleased_is_empty() {
+        let pins = release_pins(crate::DX_VERSION).expect("pins");
+        assert_eq!(pins, LauncherPins::unreleased());
+        for asset in RELEASE_ASSETS {
+            assert_eq!(pins.get(asset), Some(""));
+        }
+        let sh = sh("1.2.3");
+        assert!(sh.contains("SHA256_LINUX_X86_64=\"\"\n"));
     }
 
     #[test]
@@ -408,11 +659,7 @@ mod tests {
             .is_empty());
         assert!(!dir.path().join(LAUNCHER_SH_REL).exists());
         std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
-        std::fs::write(
-            dir.path().join(LAUNCHER_SH_REL),
-            render_launcher_sh("1.2.3"),
-        )
-        .expect("seed");
+        std::fs::write(dir.path().join(LAUNCHER_SH_REL), sh("1.2.3")).expect("seed");
         assert!(refresh_launcher_files(dir.path(), "1.2.3")
             .expect("current")
             .is_empty());
@@ -439,16 +686,8 @@ mod tests {
     fn launcher_version_reads_both_templates() {
         let dir = dx_test_scratch::scratch("dx-launcher-version-");
         std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
-        std::fs::write(
-            dir.path().join(LAUNCHER_SH_REL),
-            render_launcher_sh("1.2.3"),
-        )
-        .expect("sh");
-        std::fs::write(
-            dir.path().join(LAUNCHER_CMD_REL),
-            render_launcher_cmd("2.0.0-rc.1"),
-        )
-        .expect("cmd");
+        std::fs::write(dir.path().join(LAUNCHER_SH_REL), sh("1.2.3")).expect("sh");
+        std::fs::write(dir.path().join(LAUNCHER_CMD_REL), cmd("2.0.0-rc.1")).expect("cmd");
         assert_eq!(
             launcher_version(dir.path(), LAUNCHER_SH_REL).as_deref(),
             Some("1.2.3")
@@ -588,8 +827,9 @@ mod tests {
                 assert!(hashers.len() < 2, "host has no sha256sum or shasum");
                 let payload = dir.path().join("payload");
                 std::fs::write(&payload, PAYLOAD).expect("payload");
-                let sha = pinned_sha.map_or_else(|| sha_of(&payload), str::to_owned);
+                let sha = sha_of(&payload);
                 std::fs::write(dir.path().join("sidecar"), format!("{sha}  dx\n")).expect("sha");
+                let pin = pinned_sha.map_or(sha, str::to_owned);
                 let curl = dir.path().join("stub/curl");
                 let body = if curl_ok {
                     "#!/bin/sh\necho call >> \"$STUB_LOG\"\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\ncase \"$url\" in\n  *.sha256) cp \"$STUB_SIDECAR\" \"$out\" ;;\n  *) cp \"$STUB_PAYLOAD\" \"$out\" ;;\nesac\n"
@@ -600,6 +840,14 @@ mod tests {
                 std::fs::set_permissions(&curl, std::fs::Permissions::from_mode(0o755))
                     .expect("chmod");
                 write_launcher_files(&root, "1.2.3", &mut Applied::default()).expect("launcher");
+                let launcher = root.join(LAUNCHER_SH_REL);
+                std::fs::write(
+                    &launcher,
+                    render_launcher_sh("1.2.3", &pinned(&pin)).expect("render"),
+                )
+                .expect("pinned launcher");
+                std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755))
+                    .expect("chmod");
                 let fx = Self {
                     base: dir.path().to_path_buf(),
                     _guard: Box::new(dir),
@@ -679,11 +927,58 @@ mod tests {
                 (Some(0), "ran version --check\n"),
                 "{err}"
             );
-            assert_eq!(fx.downloads(), 2);
+            assert_eq!(fx.downloads(), 1, "the sidecar is never fetched");
             assert_eq!(fx.cached(), vec!["dx-linux-x86_64"]);
             let (code, out, err) = fx.run(&["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
-            assert_eq!(fx.downloads(), 2, "cached run must not download");
+            assert_eq!(fx.downloads(), 1, "cached run must not download");
+        }
+
+        #[test]
+        fn a_swapped_binary_with_a_matching_sidecar_is_refused() {
+            let fx = Fixture::new("dx-launcher-swap-", true, None);
+            let original = fx.base.join("original");
+            std::fs::write(&original, "#!/bin/sh\necho original\n").expect("original");
+            let pin = sha_of(&original);
+            fx.rewrite_launcher(&sha_of(&fx.base.join("payload")), &pin);
+            let (code, out, err) = fx.run(&["version"]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(out.is_empty(), "{out}");
+            assert!(err.contains("sha256 mismatch"), "{err}");
+            assert!(err.contains(&pin), "{err}");
+            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+            assert_eq!(fx.downloads(), 1);
+        }
+
+        #[test]
+        fn an_empty_sha256_pin_refuses_before_download() {
+            let fx = Fixture::new("dx-launcher-nosha-", true, Some(""));
+            let (code, out, err) = fx.run(&["check", "//..."]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(out.is_empty(), "{out}");
+            assert!(
+                err.contains("no pinned sha256 for dx-linux-x86_64"),
+                "{err}"
+            );
+            assert!(
+                err.contains("bazel run @rules_dx//:dx -- check //..."),
+                "{err}"
+            );
+            assert_eq!(fx.downloads(), 0);
+            assert!(fx.cached().is_empty(), "{:?}", fx.cached());
+        }
+
+        #[test]
+        fn an_empty_sha256_pin_still_runs_a_cached_binary() {
+            let fx = Fixture::new("dx-launcher-nosha-cached-", true, Some(""));
+            let dir = fx.base.join("home/.cache/dx/bin/1.2.3");
+            std::fs::create_dir_all(&dir).expect("cache dir");
+            let bin = dir.join("dx-linux-x86_64");
+            std::fs::write(&bin, PAYLOAD).expect("cached");
+            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+            let (code, out, err) = fx.run(&["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(fx.downloads(), 0);
         }
 
         #[test]
@@ -819,7 +1114,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 (Some(0), "ran a&b c|d ^e %PATH%\n"),
                 "{err}"
             );
-            assert_eq!(fx.downloads(), 2);
+            assert_eq!(fx.downloads(), 1);
             assert_eq!(fx.cached(), vec!["dx-windows-x86_64.exe"]);
         }
 
@@ -928,8 +1223,9 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
                 let payload = base.join("payload");
                 std::fs::copy(format!("{system}\\System32\\cmd.exe"), &payload).expect("payload");
-                let want = sha.map_or_else(|| sha_of(&payload), str::to_owned);
-                std::fs::write(base.join("sidecar"), format!("{want}  dx\r\n")).expect("sha");
+                let real = sha_of(&payload);
+                std::fs::write(base.join("sidecar"), format!("{real}  dx\r\n")).expect("sha");
+                let want = sha.map_or(real, str::to_owned);
                 let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\n";
                 let download = if ps_ok {
                     "copy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\ncopy /y \"%STUB_SIDECAR%\" \"%DX_PART%.sha\" >nul\r\nexit /b 0\r\n"
@@ -942,6 +1238,12 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 )
                 .expect("stub");
                 write_launcher_files(&root, "1.2.3", &mut Applied::default()).expect("launcher");
+                std::fs::write(
+                    root.join(LAUNCHER_CMD_REL),
+                    render_launcher_cmd("1.2.3", &pinned(&want.to_ascii_lowercase()))
+                        .expect("render"),
+                )
+                .expect("pinned launcher");
                 Self {
                     base,
                     _guard: Box::new(dir),
@@ -1031,6 +1333,45 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             assert!(err.contains("sha256 mismatch"), "{err}");
             assert!(err.contains("refusing to run"), "{err}");
             assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+        }
+
+        #[test]
+        fn a_swapped_binary_with_a_matching_sidecar_is_refused() {
+            let fx = Fixture::new("dx-launcher-cmd-swap-", true, Some(&"b".repeat(64)));
+            let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(!out.contains("ran"), "{out}");
+            assert!(err.contains("sha256 mismatch"), "{err}");
+            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+            assert_eq!(fx.downloads(), 1);
+        }
+
+        #[test]
+        fn an_empty_sha256_pin_refuses_before_download() {
+            let fx = Fixture::new("dx-launcher-cmd-nosha-", true, Some(""));
+            let (code, out, err) = fx.run(&["check"]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(err.contains("no pinned sha256"), "{err}");
+            assert!(!err.contains("sha256 mismatch"), "{err}");
+            assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+            assert!(fx.cache_files().is_empty(), "{:?}", fx.cache_files());
+        }
+
+        #[test]
+        fn an_empty_sha256_pin_still_runs_a_cached_binary() {
+            let fx = Fixture::new("dx-launcher-cmd-nosha-cached-", true, Some(""));
+            let dir = fx.base.join("home/.cache/dx/bin/1.2.3");
+            std::fs::create_dir_all(&dir).expect("cache dir");
+            std::fs::copy(
+                fx.base.join("payload"),
+                dir.join(format!("dx-windows-{}.exe", arch())),
+            )
+            .expect("cached");
+            let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
+            assert_eq!(code, Some(0), "{out}{err}");
+            assert!(out.contains("ran"), "{out}");
+            assert_eq!(fx.downloads(), 0);
         }
 
         #[test]

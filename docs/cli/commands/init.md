@@ -126,9 +126,11 @@ when they exist.
 ## Launcher
 
 `tools/dx` (sh) and `tools/dx.cmd` run dx without Bazel. They read `.dx/version`,
-download the matching standalone binary and its `.sha256` file from the GitHub
-release into `<cache>/bin/<version>/`, check the binary against that sha256,
-and run it. A cached binary is only run. No Bazel server starts.
+download the matching standalone binary from the GitHub release into
+`<cache>/bin/<version>/`, check it against the sha256 pinned in the launcher for
+that platform, and run it. The launcher never downloads a hash file, so a
+swapped release asset and its `.sha256` cannot pass. A cached binary is only
+run. No Bazel server starts.
 
 `<cache>` is `DX_CACHE_DIR`, else `$XDG_CACHE_HOME/dx`, else `~/.cache/dx`
 (`%USERPROFILE%\.cache\dx` on Windows). The [global shim](README.md#global-shim)
@@ -142,7 +144,13 @@ tools/dx check //...
 Binaries exist for Linux x86_64 and arm64, macOS arm64, and Windows x86_64 and
 arm64. The download launcher exits `1` and prints the `bazel run @rules_dx//:dx -- ...`
 command to use instead when the download fails or the platform has no binary.
-A binary that does not match its sha256 is deleted and never run.
+A binary that does not match its pinned sha256 is deleted and never run.
+
+Each launcher carries one `SHA256_<OS>_<ARCH>` line per binary it can fetch
+(five in `tools/dx`, the two Windows ones in `tools/dx.cmd`). Until dx ships
+release pins, `dx init` writes them empty. With an empty pin the launcher does
+not download: it exits `1` with the `bazel run @rules_dx//:dx -- ...` command.
+A binary already in the cache still runs.
 
 When `.dx/version` differs from the launcher's version, the launcher exits `1`
 and prints:

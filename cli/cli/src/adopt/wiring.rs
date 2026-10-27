@@ -228,8 +228,12 @@ mod tests {
         assert_eq!(code, 0);
         assert!(out.is_empty(), "{out}");
         assert!(err.contains("tools/dx (absent-only, left untouched)"));
-        std::fs::write(root.join("tools/dx"), dx_adopt::render_launcher_sh("1.2.3"))
-            .expect("stale");
+        std::fs::write(
+            root.join("tools/dx"),
+            dx_adopt::render_launcher_sh("1.2.3", &dx_adopt::LauncherPins::unreleased())
+                .expect("render"),
+        )
+        .expect("stale");
         std::fs::write(root.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");

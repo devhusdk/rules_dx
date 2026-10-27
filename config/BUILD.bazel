@@ -31,6 +31,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_jsonschema",
+    build_setting_default = "@dx_tools//:jsonschema",
+)
+
+label_flag(
     name = "tool_gofumpt",
     build_setting_default = "@cc_mvdan_gofumpt//:gofumpt",
 )

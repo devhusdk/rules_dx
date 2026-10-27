@@ -505,6 +505,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "jsonschema": {
+        "upstream_version": "17.3.1",
+        "release_page": "https://github.com/sourcemeta/jsonschema/releases/tag/v17.3.1",
+        "licenses": [
+            {
+                "name": "AGPL-3.0",
+                "source": "https://github.com/sourcemeta/jsonschema/blob/v17.3.1/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "jsonschema-17.3.1-linux-x86_64.zip",
+                "url": "https://github.com/sourcemeta/jsonschema/releases/download/v17.3.1/jsonschema-17.3.1-linux-x86_64.zip",
+                "kind": "zip",
+                "executable": "jsonschema-17.3.1-linux-x86_64/bin/jsonschema",
+                "checksums_url": "https://github.com/sourcemeta/jsonschema/releases/download/v17.3.1/CHECKSUMS.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "jsonschema-17.3.1-linux-arm64.zip",
+                "url": "https://github.com/sourcemeta/jsonschema/releases/download/v17.3.1/jsonschema-17.3.1-linux-arm64.zip",
+                "kind": "zip",
+                "executable": "jsonschema-17.3.1-linux-arm64/bin/jsonschema",
+                "checksums_url": "https://github.com/sourcemeta/jsonschema/releases/download/v17.3.1/CHECKSUMS.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "jsonschema-17.3.1-darwin-arm64.zip",
+                "url": "https://github.com/sourcemeta/jsonschema/releases/download/v17.3.1/jsonschema-17.3.1-darwin-arm64.zip",
+                "kind": "zip",
+                "executable": "jsonschema-17.3.1-darwin-arm64/bin/jsonschema",
+                "checksums_url": "https://github.com/sourcemeta/jsonschema/releases/download/v17.3.1/CHECKSUMS.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "jsonschema-17.3.1-windows-x86_64.zip",
+                "url": "https://github.com/sourcemeta/jsonschema/releases/download/v17.3.1/jsonschema-17.3.1-windows-x86_64.zip",
+                "kind": "zip",
+                "executable": "jsonschema-17.3.1-windows-x86_64/bin/jsonschema.exe",
+                "checksums_url": "https://github.com/sourcemeta/jsonschema/releases/download/v17.3.1/CHECKSUMS.txt",
+            },
+        },
+    },
     "ty": {
         "upstream_version": "0.0.80",
         "release_page": "https://github.com/astral-sh/ty/releases/tag/0.0.80",
@@ -1364,7 +1412,10 @@ def _collect(tool, platform_key, spec, workdir):
         with open(checksums_path, encoding="utf-8") as handle:
             for line in handle.read().splitlines():
                 parts = line.split()
-                if len(parts) == 2:
+                if len(parts) == 4 and parts[1].startswith("(") and parts[2] == "=":
+                    # BSD style: SHA256 (name) = digest
+                    published[parts[1].strip("()")] = parts[3]
+                elif len(parts) == 2:
                     published[parts[1].lstrip("*")] = parts[0]
         expected = published.get(spec["asset"])
         if expected != digest:

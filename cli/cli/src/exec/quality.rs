@@ -445,7 +445,14 @@ fn run_quality_request(
     };
     let _ = std::fs::remove_file(&bep);
     if bazel_code != 0 {
-        let (code, failed, fix) = if compile_only {
+        let crashed = bazel_code == crate::bazel_restart::RESTART_EXIT;
+        let (code, failed, fix) = if crashed {
+            (
+                CODE_SERVER_CRASHED,
+                "run",
+                "run the command again after the Bazel server crash",
+            )
+        } else if compile_only {
             (CODE_BAZEL_FAILED, "build", "fix the compile errors above")
         } else {
             (
@@ -698,7 +705,9 @@ fn run_quality_request(
         }
     }
     *kind = if !collected.complete {
-        if compile_only {
+        if bazel_code == crate::bazel_restart::RESTART_EXIT {
+            PhaseKind::Host
+        } else if compile_only {
             PhaseKind::Compile
         } else if bazel_code != 0 {
             PhaseKind::Tool

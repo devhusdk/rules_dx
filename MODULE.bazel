@@ -646,7 +646,7 @@ crate.annotation(
     gen_build_script = "off",
 )
 crate.from_cargo(
-    name = "crates",
+    name = "dx_crates",
     cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",
     lockfile = "//:cargo-bazel-lock.json",
     manifests = [
@@ -728,7 +728,7 @@ crate.from_cargo(
         "x86_64-unknown-nixos-gnu",
     ],
 )
-use_repo(crate, "crates")
+use_repo(crate, crates = "dx_crates")
 
 _consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl", "consumer_hub_repo")
 

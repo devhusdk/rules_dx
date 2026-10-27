@@ -616,8 +616,20 @@ pub(crate) fn report_failed(
     output: OutputMode,
     detail: &str,
 ) -> Result<(), i32> {
+    report_failed_with_next(out, err, output, detail, None)
+}
+
+/// Like `report_failed`, with a next step that fits the cause instead of the default.
+pub(crate) fn report_failed_with_next(
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    output: OutputMode,
+    detail: &str,
+    next: Option<&str>,
+) -> Result<(), i32> {
     let _ = writeln!(err, "dx: {CODE_REPORT_FAILED}: {detail}");
-    if let Some(next) = super::guidance::next_action(CODE_REPORT_FAILED) {
+    let default = super::guidance::next_action(CODE_REPORT_FAILED);
+    if let Some(next) = next.or(default) {
         let _ = writeln!(err, "{next}");
     }
     if output != OutputMode::Json {
@@ -1713,6 +1725,24 @@ mod tests {
         let event: serde_json::Value = serde_json::from_slice(&out).unwrap();
         assert_eq!(event["code"], CODE_REPORT_FAILED);
         assert_eq!(event["message"], "boom");
+    }
+
+    #[test]
+    fn report_failed_with_next_replaces_the_default_next_step() {
+        let mut err = Vec::new();
+        assert_eq!(
+            report_failed_with_next(
+                &mut Vec::new(),
+                &mut err,
+                OutputMode::Text { quiet: false },
+                "boom",
+                Some(super::super::guidance::EVIDENCE_GAP_NEXT),
+            ),
+            Ok(())
+        );
+        let text = String::from_utf8(err).unwrap();
+        assert!(text.contains("fix the test or coverage problem"), "{text}");
+        assert!(!text.contains("writable"), "{text}");
     }
 
     #[test]

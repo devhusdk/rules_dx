@@ -6,19 +6,25 @@ package(default_visibility = ["//:__subpackages__"])
 
 filegroup(
     name = "workflows",
-    srcs = glob([
-        "workflows/*.yml",
-        "workflows/*.yaml",
-    ]),
+    srcs = glob(
+        [
+            "workflows/*.yml",
+            "workflows/*.yaml",
+        ],
+        allow_empty = True,
+    ),
 )
 
 exports_files([
     "actionlint.yaml",
     "workflows/README.md",
-] + glob([
-    "workflows/*.yml",
-    "workflows/*.yaml",
-]))
+] + glob(
+    [
+        "workflows/*.yml",
+        "workflows/*.yaml",
+    ],
+    allow_empty = True,
+))
 
 real_source_target(
     name = "corpus_markdown",

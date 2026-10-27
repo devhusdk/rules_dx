@@ -34,7 +34,7 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, workspace, module, out, err);
     }
-    if let Err(error) = dx_adopt::plan_launcher_files(workspace, &launcher_pin(workspace), true) {
+    if let Err(error) = super::wiring::preflight(workspace) {
         return operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string());
     }
     match dx_adopt::apply_init(workspace, module) {
@@ -60,78 +60,12 @@ pub(crate) fn execute_init(
                     }
                 }
             }
-            match write_launcher(invocation, workspace, out, err) {
-                Ok(()) => {}
-                Err(code) => return code,
-            }
-            match crate::worktree::setup::apply(workspace) {
-                Ok(outcome) => {
-                    for note in &outcome.notes {
-                        let _ = writeln!(err, "{note}");
-                    }
-                    if !summaries_suppressed(invocation) {
-                        for entry in &outcome.wrote {
-                            if let Err(exit) = check_stdout_write(writeln!(out, "wrote {entry}")) {
-                                return exit;
-                            }
-                        }
-                    }
-                }
-                Err(error) => {
-                    return operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string());
-                }
-            }
-            match super::agents::write(workspace, true) {
-                Ok(changed) => {
-                    if changed && !summaries_suppressed(invocation) {
-                        if let Err(exit) =
-                            check_stdout_write(writeln!(out, "wrote {}", super::agents::FILE))
-                        {
-                            return exit;
-                        }
-                    }
-                    0
-                }
-                Err(error) => {
-                    operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string())
-                }
+            match super::wiring::apply(invocation, workspace, "", CODE_INIT_FAILED, out, err) {
+                Ok(()) => 0,
+                Err(code) => code,
             }
         }
         Err(error) => invalid_module_code(invocation, out, err, &error),
-    }
-}
-
-fn launcher_pin(workspace: &std::path::Path) -> String {
-    match dx_adopt::read_version_pin(workspace) {
-        Ok(pin) if !pin.is_empty() => pin,
-        _ => dx_adopt::DX_VERSION.to_owned(),
-    }
-}
-
-fn write_launcher(
-    invocation: &Invocation,
-    workspace: &std::path::Path,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-) -> Result<(), i32> {
-    match dx_adopt::write_launcher_files(workspace, &launcher_pin(workspace)) {
-        Ok(entries) => {
-            for entry in entries {
-                if let Some(path) = entry.strip_prefix("refused:") {
-                    let _ = writeln!(err, "dx: {path} (absent-only, left untouched)");
-                } else if !summaries_suppressed(invocation) {
-                    check_stdout_write(writeln!(out, "wrote {entry}"))?;
-                }
-            }
-            Ok(())
-        }
-        Err(error) => Err(operational(
-            invocation,
-            out,
-            err,
-            CODE_INIT_FAILED,
-            &error.to_string(),
-        )),
     }
 }
 
@@ -154,10 +88,11 @@ fn check_init(
         .filter(|path| !workspace.join(path).exists())
         .map(str::to_owned)
         .collect();
-    let stale: Vec<String> = dx_adopt::stale_launchers(workspace, &launcher_pin(workspace))
-        .into_iter()
-        .map(|(rel, _)| rel)
-        .collect();
+    let stale: Vec<String> =
+        dx_adopt::stale_launchers(workspace, &super::wiring::launcher_pin(workspace))
+            .into_iter()
+            .map(|(rel, _)| rel)
+            .collect();
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()
         .filter(|pin| !dx_adopt::pin_is_valid(pin));
@@ -197,60 +132,6 @@ fn check_init(
 mod tests {
     use crate::adopt::test_support::{invocation, run};
     use dx_process::pre_exec_code;
-
-    #[test]
-    fn launcher_is_written_when_absent_or_stale() {
-        let inv = invocation(&["init", "--apply"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-");
-        let root = scratch.path();
-        let (mut out, mut err) = (Vec::new(), Vec::new());
-        super::write_launcher(&inv, root, &mut out, &mut err).expect("writes");
-        assert_eq!(
-            String::from_utf8_lossy(&out),
-            "wrote tools/dx\nwrote tools/dx.cmd\n"
-        );
-        assert_eq!(
-            dx_adopt::launcher_version(root, "tools/dx").as_deref(),
-            Some(dx_adopt::DX_VERSION)
-        );
-        let (mut out, mut err) = (Vec::new(), Vec::new());
-        super::write_launcher(&inv, root, &mut out, &mut err).expect("keeps");
-        assert!(out.is_empty());
-        assert!(String::from_utf8_lossy(&err).contains("tools/dx (absent-only, left untouched)"));
-        std::fs::write(root.join("tools/dx"), dx_adopt::render_launcher_sh("1.2.3"))
-            .expect("stale");
-        std::fs::write(root.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
-        std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");
-        let (mut out, mut err) = (Vec::new(), Vec::new());
-        super::write_launcher(&inv, root, &mut out, &mut err).expect("syncs");
-        assert_eq!(String::from_utf8_lossy(&out), "wrote tools/dx\n");
-        assert!(
-            String::from_utf8_lossy(&err).contains("tools/dx.cmd (absent-only, left untouched)")
-        );
-        assert_eq!(
-            dx_adopt::launcher_version(root, "tools/dx").as_deref(),
-            Some("4.5.6")
-        );
-        assert_eq!(
-            std::fs::read_to_string(root.join("tools/dx.cmd")).expect("cmd"),
-            "@echo off\r\nmine\r\n"
-        );
-    }
-
-    #[test]
-    fn a_non_semver_pin_is_an_init_failure() {
-        let inv = invocation(&["init", "--apply"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-semver-");
-        let root = scratch.path();
-        std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "1\"; x\n").expect("pin");
-        let (mut out, mut err) = (Vec::new(), Vec::new());
-        let code = super::write_launcher(&inv, root, &mut out, &mut err);
-        assert_eq!(code, Err(1));
-        assert!(String::from_utf8_lossy(&err).contains("init_failed"));
-        assert!(!root.join("tools").exists());
-    }
 
     #[test]
     fn a_non_semver_pin_fails_init_before_any_write() {
@@ -310,17 +191,6 @@ mod tests {
             assert_eq!(code, 0, "{out}");
             assert!(out.contains("init current"), "{out}");
         }
-    }
-
-    #[test]
-    fn launcher_write_failure_is_an_init_failure() {
-        let inv = invocation(&["init", "--apply"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-fail-");
-        std::fs::write(scratch.path().join("tools"), "file").expect("blocker");
-        let (mut out, mut err) = (Vec::new(), Vec::new());
-        let code = super::write_launcher(&inv, scratch.path(), &mut out, &mut err);
-        assert_eq!(code, Err(1));
-        assert!(String::from_utf8_lossy(&err).contains("init_failed"));
     }
 
     #[test]

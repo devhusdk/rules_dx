@@ -68,7 +68,8 @@ apply failed.
 ## Agent commands block
 
 `dx init --apply` writes this block between `<!-- dx:begin -->` and
-`<!-- dx:end -->` markers in `AGENTS.md`:
+`<!-- dx:end -->` markers in `AGENTS.md`. `dx new --apply` writes the same
+block in the new project:
 
 ```text
 <!-- dx:begin -->
@@ -118,7 +119,7 @@ first three lines (`#!/bin/sh`, `set -eu`, `VERSION="<v>"`, or `@echo off`,
 touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
 When a launcher would change and `.dx/version` is not semver, init fails with
 `init_failed` before writing any file. `dx rollback --apply` refreshes existing launchers the
-same way.
+same way. `dx new --apply` writes the same launcher in the new project.
 
 ## Git hooks
 

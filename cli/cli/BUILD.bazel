@@ -23,6 +23,7 @@ rust_library(
         "src/adopt/version.rs",
         "src/adopt/watch.rs",
         "src/adopt/watch_probe_tests.rs",
+        "src/adopt/wiring.rs",
         "src/args.rs",
         "src/args/affected_tests.rs",
         "src/args/command.rs",

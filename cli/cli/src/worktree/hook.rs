@@ -337,7 +337,7 @@ fn wrapper_values(word: &str) -> Option<Wrapper> {
         "stdbuf" => plain(&["-i", "-o", "-e", "--input", "--output", "--error"]),
         "setsid" => plain(&[]),
         "ionice" => plain(&["-c", "-n", "-p", "-P", "-u", "--class", "--classdata"]),
-        other => legacy_values(other).and_then(|values| plain(values)),
+        other => legacy_values(other).and_then(plain),
     }
 }
 

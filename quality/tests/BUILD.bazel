@@ -94,6 +94,7 @@ rust_test(
     size = "enormous",
     srcs = ["qml_format_consumer_test.rs"],
     data = [
+        "//:MODULE.bazel",
         "//cli/cli:dx",
         "//quality/tests/fixtures/qmlformat:Sample.qml",
     ] + NESTED_BAZEL_DATA,
@@ -130,6 +131,7 @@ rust_test(
     size = "enormous",
     srcs = ["erlfmt_consumer_test.rs"],
     data = [
+        "//:MODULE.bazel",
         "//cli/cli:dx",
         "//erlang/tests/runtime:src/dx_runtime_probe.erl",
     ] + NESTED_BAZEL_DATA,
@@ -166,6 +168,7 @@ rust_test(
     size = "enormous",
     srcs = ["mix_format_consumer_test.rs"],
     data = [
+        "//:MODULE.bazel",
         "//cli/cli:dx",
         "//elixir/tests/runtime:lib/dx_runtime_probe.ex",
     ] + NESTED_BAZEL_DATA,
@@ -201,6 +204,7 @@ rust_test(
     size = "enormous",
     srcs = ["gleam_format_consumer_test.rs"],
     data = [
+        "//:MODULE.bazel",
         "//cli/cli:dx",
         "//gleam/tests/runtime:src/dx_runtime_probe.gleam",
     ] + NESTED_BAZEL_DATA,
@@ -236,6 +240,7 @@ rust_test(
     size = "enormous",
     srcs = ["zig_fmt_consumer_test.rs"],
     data = [
+        "//:MODULE.bazel",
         "//cli/cli:dx",
         "//zig/tests/fixtures/hello:greet.zig",
     ] + NESTED_BAZEL_DATA,
@@ -272,6 +277,7 @@ rust_test(
     size = "enormous",
     srcs = ["qml_lint_consumer_test.rs"],
     data = [
+        "//:MODULE.bazel",
         "//cli/cli:dx",
         "//quality/tests/fixtures/qmllint:Sample.qml",
     ] + NESTED_BAZEL_DATA,
@@ -308,7 +314,7 @@ rust_test(
     size = "enormous",
     srcs = ["buf_consumer_test.rs"],
     data = [
-        "buf_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -343,7 +349,7 @@ rust_test(
     size = "enormous",
     srcs = ["cue_consumer_test.rs"],
     data = [
-        "cue_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -378,7 +384,7 @@ rust_test(
     size = "enormous",
     srcs = ["terraform_consumer_test.rs"],
     data = [
-        "terraform_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -413,7 +419,7 @@ rust_test(
     size = "enormous",
     srcs = ["go_consumer_test.rs"],
     data = [
-        "go_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -448,7 +454,7 @@ rust_test(
     size = "enormous",
     srcs = ["jsonnet_consumer_test.rs"],
     data = [
-        "jsonnet_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -483,7 +489,7 @@ rust_test(
     size = "enormous",
     srcs = ["pkl_consumer_test.rs"],
     data = [
-        "pkl_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -518,7 +524,7 @@ rust_test(
     size = "enormous",
     srcs = ["html_template_consumer_test.rs"],
     data = [
-        "html_template_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -553,7 +559,7 @@ rust_test(
     size = "enormous",
     srcs = ["yaml_consumer_test.rs"],
     data = [
-        "yaml_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -588,7 +594,7 @@ rust_test(
     size = "enormous",
     srcs = ["ruff_consumer_test.rs"],
     data = [
-        "ruff_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -626,7 +632,7 @@ rust_clippy_test(
             "check_continuation_%s_consumer_test.rs" % case,
         ],
         data = [
-            "check_continuation_common.rs",
+            "//:MODULE.bazel",
             "//cli/cli:dx",
         ] + NESTED_BAZEL_DATA,
         env = {
@@ -663,7 +669,7 @@ rust_test(
     size = "enormous",
     srcs = ["prettier_consumer_test.rs"],
     data = [
-        "prettier_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -698,7 +704,7 @@ rust_test(
     size = "enormous",
     srcs = ["vue_consumer_test.rs"],
     data = [
-        "vue_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -733,7 +739,7 @@ rust_test(
     size = "enormous",
     srcs = ["mdx_consumer_test.rs"],
     data = [
-        "mdx_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -768,7 +774,7 @@ rust_test(
     size = "enormous",
     srcs = ["prettier_plugins_consumer_test.rs"],
     data = [
-        "prettier_plugins_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -803,7 +809,7 @@ rust_test(
     size = "enormous",
     srcs = ["stylelint_consumer_test.rs"],
     data = [
-        "stylelint_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -838,7 +844,7 @@ rust_test(
     size = "enormous",
     srcs = ["api_spec_consumer_test.rs"],
     data = [
-        "api_spec_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -873,7 +879,7 @@ rust_test(
     size = "enormous",
     srcs = ["graphql_eslint_consumer_test.rs"],
     data = [
-        "graphql_eslint_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -908,7 +914,7 @@ rust_test(
     size = "enormous",
     srcs = ["csharp_consumer_test.rs"],
     data = [
-        "csharp_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -944,7 +950,7 @@ rust_test(
     size = "enormous",
     srcs = ["fsharp_consumer_test.rs"],
     data = [
-        "fsharp_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -979,7 +985,7 @@ rust_test(
     size = "enormous",
     srcs = ["ruby_consumer_test.rs"],
     data = [
-        "ruby_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -1014,7 +1020,7 @@ rust_test(
     size = "enormous",
     srcs = ["scalafix_consumer_test.rs"],
     data = [
-        "scalafix_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -1057,7 +1063,7 @@ rust_test(
     size = "enormous",
     srcs = ["powershell_consumer_test.rs"],
     data = [
-        "powershell_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {
@@ -1082,7 +1088,7 @@ rust_test(
     size = "enormous",
     srcs = ["powershell_docs_consumer_test.rs"],
     data = [
-        "powershell_docs_consumer_test.rs",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {

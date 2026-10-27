@@ -102,6 +102,19 @@ pub fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), String> 
         .map_err(|err| format!("cannot write {}: {err}", path.display()))
 }
 
+/// Writes `text` to `path`, creating its parents and panicking with the path on failure.
+pub fn write(path: &Path, text: &str) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
+    }
+    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
+}
+
+/// Reads `path` as UTF-8 text, panicking with the path on failure.
+pub fn read(path: &Path) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
+}
+
 fn read_lines(path: &Path) -> std::io::Result<Vec<String>> {
     let bytes = std::fs::read(path)?;
     let text = String::from_utf8_lossy(&bytes).into_owned();
@@ -538,6 +551,39 @@ mod tests {
     }
 
     #[test]
+    fn write_creates_parents_and_read_returns_text() {
+        let dir = scratch("dx-testing-write-");
+        let path = dir.path().join("a/b/c.txt");
+        crate::write(&path, "hello\n");
+        assert_eq!(read(&path), "hello\n");
+    }
+
+    #[test]
+    fn read_panics_naming_the_missing_path() {
+        let dir = scratch("dx-testing-read-");
+        let path = dir.path().join("missing.txt");
+        let payload = std::panic::catch_unwind(|| read(&path)).expect_err("panics");
+        let text = payload
+            .downcast_ref::<String>()
+            .cloned()
+            .expect("panic message");
+        assert!(text.contains("missing.txt"), "{text}");
+    }
+
+    #[test]
+    fn write_panics_when_the_parent_is_a_file() {
+        let dir = scratch("dx-testing-write-file-");
+        let blocker = write(dir.path(), "blocker", "file\n");
+        let path = blocker.join("child.txt");
+        let payload = std::panic::catch_unwind(|| crate::write(&path, "text")).expect_err("panics");
+        let text = payload
+            .downcast_ref::<String>()
+            .cloned()
+            .expect("panic message");
+        assert!(text.starts_with("mkdir "), "{text}");
+    }
+
+    #[test]
     fn runfiles_resolution_prefers_an_existing_file() {
         let dir = scratch("dx-testing-runfiles-");
         let direct = write(dir.path(), "pkg/tool", "#!/bin/sh\n");
@@ -572,10 +618,6 @@ mod tests {
             String::from_utf8_lossy(&output.stderr)
         );
         assert!(stdout.contains("1 passed"), "{name} did not run: {stdout}");
-    }
-
-    fn read(path: &Path) -> String {
-        std::fs::read_to_string(path).expect("read resolved runfile")
     }
 
     fn panic_text(rel: &str) -> String {

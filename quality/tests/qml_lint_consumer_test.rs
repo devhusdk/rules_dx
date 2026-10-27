@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{resolve_runfiles, Run};
+use dx_testing::{resolve_runfiles, rules_dx_source, write, Run};
 
 const MAIN: &str = "import QtQuick\nimport Foo\nimport Vendor\n\nItem {\n    Bar {\n        id: bar\n    }\n    Thing {\n        id: thing\n    }\n    property int total: bar.value + thing.value\n}\n";
 
@@ -44,22 +44,6 @@ qml_module = rule(
 )
 "#;
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn rules_dx_root() -> PathBuf {
-    let sample = resolve_runfiles("quality/tests/fixtures/qmllint/Sample.qml");
-    let real = std::fs::canonicalize(&sample).unwrap_or_else(|error| panic!("{sample:?}: {error}"));
-    real.ancestors()
-        .nth(5)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn module(root: &Path, dir: &str, name: &str, uri: &str, type_name: &str, body: &str) {
     write(
         &root.join(dir).join("qmldir"),
@@ -83,7 +67,7 @@ fn app_build(deps: &str, hints: &str) -> String {
 const DEPS: &str = "\"//mods/Foo:foo\", \"//third_party/Vendor:vendor\"";
 
 fn consumer() -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case("consumer");
     let version = std::fs::read_to_string(rules.join(".bazelversion"))
         .unwrap_or_else(|error| panic!("bazelversion: {error}"));

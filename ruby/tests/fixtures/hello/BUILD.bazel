@@ -1,5 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//ruby/rules:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
+load("//ruby/rules:wrapper_tests.bzl", "ruby_coverage_env_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -22,7 +23,23 @@ ruby_binary(
 ruby_test(
     name = "hello_test",
     srcs = ["hello_test.rb"],
+    main = "hello_test.rb",
     deps = [":hello_lib"],
+)
+
+# The cross-host SF check for Ruby coverage (#3954): a child run of
+# hello_test.rb must write LCOV naming hello.rb with hits.
+ruby_test(
+    name = "coverage_probe_test",
+    srcs = ["coverage_probe_test.rb"],
+    data = ["hello_test.rb"],
+    main = "coverage_probe_test.rb",
+    deps = [":hello_lib"],
+)
+
+ruby_coverage_env_test(
+    name = "hello_test_coverage_env_test",
+    target = ":hello_test",
 )
 
 dx_hello_output_test(

@@ -1,0 +1,40 @@
+diff -ruN a/ruby/private/binary/binary.cmd.tpl b/ruby/private/binary/binary.cmd.tpl
+--- a/ruby/private/binary/binary.cmd.tpl
++++ b/ruby/private/binary/binary.cmd.tpl
+@@ -45,8 +45,11 @@
+ )
+ 
+ if "%COVERAGE%" == "1" (
+-  echo>&2 ERROR: Code coverage is currently not supported on Windows.
+-  exit 1
++  call :rlocation {coverage_helper} _coverage_helper_path
++  set "RUBYOPT=-r!_coverage_helper_path:\=/! !RUBYOPT!"
++  if "{is_jruby}" neq "" (
++    set "JRUBY_OPTS=--debug !JRUBY_OPTS!"
++  )
+ )
+ 
+ {bundler_command} {ruby_binary_name} {binary} {args} %*
+diff -ruN a/ruby/private/coverage.rb b/ruby/private/coverage.rb
+--- a/ruby/private/coverage.rb
++++ b/ruby/private/coverage.rb
+@@ -1,8 +1,18 @@
+ # frozen_string_literal: true
+ 
+ if ENV['COVERAGE'] == '1'
++  # Only set up Bundler when the target has a bundle. Without one, Bundler
++  # looks for a Gemfile above the working directory and raises
++  # GemfileNotFound or GemNotFound, which `rescue LoadError` misses.
++  if ENV['BUNDLE_GEMFILE']
++    begin
++      require 'bundler/setup'
++    rescue StandardError, LoadError => e
++      warn "Coverage enabled but Bundler setup failed: #{e.message}"
++    end
++  end
++
+   begin
+-    require 'bundler/setup'
+     require 'simplecov'
+     require 'simplecov-lcov'
+ 

@@ -105,4 +105,14 @@ files and `require` lines. The command reference covers `dx generate`. The `exam
 
 ## Coverage
 
-Ruby tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.
+Ruby tests write LCOV under `bazel coverage` and `dx coverage` through
+SimpleCov. rules_dx brings pinned SimpleCov 0.22.0 and simplecov-lcov 0.9.0
+and puts them on the load path only under coverage, so your `Gemfile` needs
+neither and `bazel test` never fetches them. A bundle that has its own
+`simplecov` wins: its SimpleCov then runs with the pinned simplecov-lcov.
+Records name each file as `SF:./<path>`.
+
+A test without a bundle and Windows hosts need the rules_ruby overrides dx
+ships (`patches/rules_ruby/coverage.patch`); run `dx init --apply` to include
+them. Without them, Windows still exits 1 under coverage. Tag a test
+`no-coverage` to skip it under coverage.

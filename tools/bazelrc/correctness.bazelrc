@@ -26,12 +26,6 @@ coverage --test_tag_filters=-no-coverage
 # Coverage collectors read their inputs from a runfiles tree.
 coverage --enable_runfiles
 
-# Use the system gcov for gcc coverage on Linux.
-coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov
-
-# Use the system gcov for gcc coverage on macOS.
-coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov
-
 # Instrument only targets in the main repository.
 coverage --instrumentation_filter=^//
 

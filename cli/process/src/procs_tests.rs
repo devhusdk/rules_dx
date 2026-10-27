@@ -23,7 +23,10 @@ fn a_pid_that_does_not_exist_is_not_alive() {
 #[cfg(windows)]
 #[test]
 fn an_exited_child_with_an_open_handle_is_not_alive() {
-    let mut child = Command::new("cmd").args(["/C", "exit 0"]).spawn().expect("spawn");
+    let mut child = Command::new("cmd")
+        .args(["/C", "exit 0"])
+        .spawn()
+        .expect("spawn");
     let pid = child.id();
     while child.try_wait().expect("poll").is_none() {
         std::thread::sleep(std::time::Duration::from_millis(10));
@@ -34,7 +37,10 @@ fn an_exited_child_with_an_open_handle_is_not_alive() {
 #[cfg(windows)]
 #[test]
 fn a_child_that_exited_with_259_is_not_alive() {
-    let mut child = Command::new("cmd").args(["/C", "exit 259"]).spawn().expect("spawn");
+    let mut child = Command::new("cmd")
+        .args(["/C", "exit 259"])
+        .spawn()
+        .expect("spawn");
     let pid = child.id();
     child.wait().expect("wait");
     assert!(!pid_alive(pid));
@@ -45,7 +51,10 @@ fn a_child_that_exited_with_259_is_not_alive() {
 fn the_live_table_has_this_process_and_its_parent() {
     let own = std::process::id();
     let table = process_table();
-    let (_, parent, _) = table.iter().find(|(pid, _, _)| *pid == own).expect("own pid");
+    let (_, parent, _) = table
+        .iter()
+        .find(|(pid, _, _)| *pid == own)
+        .expect("own pid");
     assert!(table.iter().any(|(pid, _, _)| pid == parent));
 }
 

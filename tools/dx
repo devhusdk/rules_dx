@@ -52,6 +52,22 @@ keep_copy() {
   { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
   tag_state
 }
+# Bazel exits 33 (out of memory) or 37 (internal error) when its server crashes. A build or an inputs lookup is safe
+# to run again, so try once more after a short wait. Keep the codes and wait in sync with RESTART_EXIT and
+# backoff in cli/cli/src/bazel_restart.rs, and with tools/dx.cmd.
+retry_crash() {
+  "$@" && return 0 || ec=$?
+  case $ec in 33 | 37) ;; *) return "$ec" ;; esac
+  echo "dx: the Bazel server crashed (exit $ec); trying //:dx again" >&2
+  sleep 2
+  "$@" && return 0 || return $?
+}
+build_dx() {
+  (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2)
+}
+query_inputs() {
+  (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))')
+}
 if stale; then
   command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
   mkdir -p "$state"
@@ -120,7 +136,7 @@ if stale; then
     [ "${found:-}" = gc ] || gc="--experimental_disk_cache_gc_max_size=20G --experimental_disk_cache_gc_max_age=14d"
   fi
   echo "dx: building //:dx" >&2
-  if ! (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
+  if ! retry_crash build_dx; then
     if [ -x "$state/dx$exe" ]; then
       rm -f "$state/built.$$"
       echo "dx: //:dx does not build; running the previous dx" >&2
@@ -129,7 +145,7 @@ if stale; then
     die "bazel build //:dx failed"
   fi
   keep_copy
-  if q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))'); then
+  if q=$(retry_crash query_inputs); then
     printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
     mv "$state/inputs.$$" "$state/inputs"
     mv "$state/built.$$" "$state/built"

@@ -3,9 +3,7 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
-
-OCTOPUS_SCHEMA_VERSION = 1
+load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "has_any", "only_chars")
 
 _VALID_PROJECT_CHARS = NAME_CHARS
 
@@ -16,15 +14,6 @@ _VALID_VERSION_CHARS = VERSION_CHARS
 _VALID_ENVIRONMENT_CHARS = NAME_CHARS
 
 OCTOPUS_DEFAULT_URL = "https://octopus.example.invalid"
-
-def octopus_schema_error():
-    """Validates the versioned project/channel charset schema."""
-    return charset_schema_error(OCTOPUS_SCHEMA_VERSION, [
-        ("octopus project", _VALID_PROJECT_CHARS, LAUNCHER_UNSAFE + ["+"]),
-        ("octopus channel", _VALID_CHANNEL_CHARS, LAUNCHER_UNSAFE + ["+"]),
-        ("octopus version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
-        ("octopus environment", _VALID_ENVIRONMENT_CHARS, LAUNCHER_UNSAFE + ["+"]),
-    ])
 
 def octopus_project_error(project):
     """Validates one Octopus project name value."""

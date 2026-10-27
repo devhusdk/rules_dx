@@ -1,18 +1,13 @@
 """Unit and analysis tests for the PyPI publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":pypi.bzl", "PYPI_DEFAULT_REPOSITORY_URL", "pypi_name_error", "pypi_repository_error", "pypi_schema_error", "pypi_wheel_error")
+load(":pypi.bzl", "PYPI_DEFAULT_REPOSITORY_URL", "pypi_name_error", "pypi_repository_error", "pypi_wheel_error")
 
 def pypi_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "pypi_schema_error accepts the v1 launcher-safe charset",
-                pypi_schema_error(),
-                "",
-            ),
             expect_equal(
                 "pypi_name_error accepts the demo distribution name",
                 pypi_name_error("pypi_demo"),

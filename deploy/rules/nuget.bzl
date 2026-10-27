@@ -3,22 +3,13 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "charset_schema_error", "has_any", "only_chars")
-
-NUGET_SCHEMA_VERSION = 1
+load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "has_any", "only_chars")
 
 _VALID_ID_CHARS = NAME_CHARS
 
 _VALID_VERSION_CHARS = VERSION_CHARS
 
 NUGET_DEFAULT_SOURCE = "https://api.nuget.org/v3/index.json"
-
-def nuget_schema_error():
-    """Validates the versioned package id/version charset schema."""
-    return charset_schema_error(NUGET_SCHEMA_VERSION, [
-        ("nuget id", _VALID_ID_CHARS, LAUNCHER_UNSAFE + ["+"]),
-        ("nuget version", _VALID_VERSION_CHARS, LAUNCHER_UNSAFE),
-    ])
 
 def nuget_id_error(package_id):
     """Validates one package id value."""

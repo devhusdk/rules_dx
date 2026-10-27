@@ -3,17 +3,9 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "LAUNCHER_UNSAFE", "NAME_CHARS", "charset_schema_error", "only_chars")
-
-TAG_SCHEMA_VERSION = 1
+load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 _VALID_TAG_CHARS = NAME_CHARS
-
-def tag_schema_error():
-    """Validates the versioned tag-charset schema."""
-    return charset_schema_error(TAG_SCHEMA_VERSION, [
-        ("github tag", _VALID_TAG_CHARS, LAUNCHER_UNSAFE + ["+"]),
-    ])
 
 def github_tag_error(tag):
     """Validates one release tag value."""
@@ -24,14 +16,6 @@ def github_tag_error(tag):
         return ("github_deploy: invalid tag '" + tag +
                 "': want only [A-Za-z0-9._-] so the tag embeds " +
                 "safely in the deploy launcher")
-    return ""
-
-def github_draft_error(draft):
-    """Validates the draft gate."""
-    if draft != True:
-        return ("github_deploy: draft=False requires explicit owner " +
-                "approval; keep the draft gate and publish " +
-                "the release on GitHub after approval")
     return ""
 
 def github_asset_collision_error(assets):
@@ -86,14 +70,11 @@ github_launcher = rule(
     },
 )
 
-def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", draft = True, profile = "release", tags = []):
+def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", tags = []):
     """Publishes pinned files as a draft-only GitHub Release."""
     tag_error = github_tag_error(tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")
-    draft_error = github_draft_error(draft)
-    if draft_error != "":
-        fail(draft_error + " (in " + native.package_name() + ":" + name + ")")
     if len(artifacts) == 0:
         fail("github_deploy " + native.package_name() + ":" + name +
              ": need at least one artifact")

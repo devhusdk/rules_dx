@@ -1364,7 +1364,6 @@ pub fn crates_main(
     crate_rlocs: &str,
     crate_name: &str,
     version: &str,
-    allow_dirty: bool,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -1383,7 +1382,7 @@ pub fn crates_main(
         files.push(path);
     }
     if CRATES_GATE.requested(env_or_empty) {
-        if std::env::var("CRATES_ALLOW_DIRTY").unwrap_or_default() == "1" || allow_dirty {
+        if std::env::var("CRATES_ALLOW_DIRTY").unwrap_or_default() == "1" {
             eprintln!(
                 "crates_deploy: --allow-dirty rejected by default; publish from a clean tree instead"
             );
@@ -6247,7 +6246,7 @@ mod tests {
             nuget_main("a", "b", "", "", "https://nuget.invalid", &argv),
             1
         );
-        assert_eq!(crates_main("a", "b", "1.0.0", false, &argv), 1);
+        assert_eq!(crates_main("a", "b", "1.0.0", &argv), 1);
         assert_eq!(github_main("a", "b", "v1.0.0", &argv), 1);
         assert_eq!(
             maven_main(
@@ -6303,7 +6302,7 @@ mod tests {
                     nuget_main(missing, "demo", "", "", "https://nuget.invalid", &argv),
                     1
                 );
-                assert_eq!(crates_main(missing, "demo", "1.0.0", false, &argv), 1);
+                assert_eq!(crates_main(missing, "demo", "1.0.0", &argv), 1);
                 assert_eq!(github_main(missing, "demo", "v1.0.0", &argv), 1);
                 assert_eq!(
                     maven_main(
@@ -7564,7 +7563,29 @@ mod tests {
                 ("CRATES_PUBLISH_APPROVED", Some("1")),
             ],
             || {
-                assert_eq!(crates_main(missing, "demo", "0.0.0", false, &argv), 1);
+                assert_eq!(crates_main(missing, "demo", "0.0.0", &argv), 1);
+            },
+        );
+        let crates_runfiles = outdir.join("crates_runfiles");
+        stage_runfiles_inputs(&crates_runfiles);
+        with_env(
+            &[
+                (
+                    "RUNFILES_DIR",
+                    Some(crates_runfiles.to_string_lossy().as_ref()),
+                ),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("CRATES_PUBLISH_LIVE", Some("1")),
+                ("CRATES_ALLOW_DIRTY", Some("1")),
+                ("CRATES_PUBLISH_APPROVED", None),
+                ("CARGO_REGISTRY_TOKEN", None),
+            ],
+            || {
+                assert_eq!(
+                    crates_main("Cargo.toml;lib.rs", "crates_demo", "1.0.0", &argv),
+                    1,
+                    "CRATES_ALLOW_DIRTY=1 must refuse a live publish"
+                );
             },
         );
         with_env(
@@ -7807,7 +7828,7 @@ mod tests {
                     0
                 );
                 assert_eq!(
-                    crates_main("Cargo.toml;lib.rs", "crates_demo", "1.0.0", false, &argv),
+                    crates_main("Cargo.toml;lib.rs", "crates_demo", "1.0.0", &argv),
                     0
                 );
                 assert_eq!(

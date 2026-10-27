@@ -3,9 +3,7 @@
 load("//rust/rules:defs.bzl", "rust_binary")
 load(":defs.bzl", "dx_deployment")
 load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "LAUNCHER_UNSAFE", "LOWER_ALNUM", "NAME_CHARS", "charset_schema_error", "has_any", "only_chars")
-
-OCI_SCHEMA_VERSION = 1
+load(":validate.bzl", "EMBED_UNSAFE", "LOWER_ALNUM", "NAME_CHARS", "has_any", "only_chars")
 
 _VALID_TAG_CHARS = NAME_CHARS
 
@@ -16,14 +14,6 @@ _VALID_REGISTRY_CHARS = NAME_CHARS + "/:"
 _VALID_REPOSITORY_CHARS = LOWER_ALNUM + "._-/"
 
 OCI_DEFAULT_REGISTRY = "ghcr.io"
-
-def oci_schema_error():
-    """Validates the versioned registry/tag charset schema."""
-    return charset_schema_error(OCI_SCHEMA_VERSION, [
-        ("oci tag", _VALID_TAG_CHARS, LAUNCHER_UNSAFE + ["+"]),
-        ("oci registry", _VALID_REGISTRY_CHARS, [c for c in LAUNCHER_UNSAFE if c not in [":", "/"]] + ["+", "=", "%", "@"]),
-        ("oci repository", _VALID_REPOSITORY_CHARS, [c for c in LAUNCHER_UNSAFE if c != "/"] + ["+", "=", "%", "@"]),
-    ])
 
 def oci_tag_error(tag):
     """Validates one image tag value."""

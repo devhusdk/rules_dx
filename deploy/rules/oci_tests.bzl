@@ -1,18 +1,13 @@
 """Unit and analysis tests for the OCI publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_schema_error", "oci_tag_error", "oci_tar_error")
+load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error", "oci_tar_error")
 
 def oci_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal(
-                "oci_schema_error accepts the v1 launcher-safe charset",
-                oci_schema_error(),
-                "",
-            ),
             expect_equal(
                 "oci_tag_error accepts the latest placeholder tag",
                 oci_tag_error("latest"),

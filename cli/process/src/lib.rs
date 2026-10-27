@@ -654,10 +654,6 @@ pub trait Runner {
         self.run(argv, cwd, env).map(Some)
     }
 
-    fn gitleaks_tool(&self) -> Option<PathBuf> {
-        None
-    }
-
     /// Names the absolute path one pinned-tool variable points at.
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
         let _ = var;
@@ -711,14 +707,7 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
 
 #[cfg(unix)]
 fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
-    let output = Command::new("df")
-        .args(["-Pk"])
-        .arg(dir)
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    space_from_df(&String::from_utf8_lossy(&output.stdout))
+    space_from_df(&probe("df", [OsStr::new("-Pk"), dir.as_os_str()])?)
 }
 
 #[cfg(not(unix))]
@@ -763,6 +752,62 @@ pub fn version_line(path: &Path) -> Option<String> {
     }
     let text = String::from_utf8_lossy(&output.stdout);
     text.lines().next().map(|line| line.trim().to_owned())
+}
+
+/// Gives the owner full access to `path` and everything under it, never following a symlink.
+pub fn make_writable(path: &Path) {
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
+        return;
+    };
+    if metadata.file_type().is_symlink() {
+        return;
+    }
+    let mut permissions = metadata.permissions();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        permissions.set_mode(permissions.mode() | 0o700);
+    }
+    #[cfg(not(unix))]
+    {
+        #[allow(clippy::permissions_set_readonly_false)]
+        permissions.set_readonly(false);
+    }
+    let _ = std::fs::set_permissions(path, permissions);
+    if metadata.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                make_writable(&entry.path());
+            }
+        }
+    }
+}
+
+/// Removes a directory tree, including read-only entries, and reports whether it is gone.
+pub fn remove_tree(path: &Path) -> bool {
+    if std::fs::remove_dir_all(path).is_err() {
+        make_writable(path);
+        let _ = std::fs::remove_dir_all(path);
+    }
+    !path.exists()
+}
+
+/// Runs one host query with the inherited environment and returns its stdout only when it succeeds.
+pub fn probe<I, S>(program: &str, args: I) -> Option<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let output = Command::new(program)
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 pub fn spawn_output(
@@ -832,12 +877,6 @@ impl Runner for SystemRunner {
                 Ok(BoundedOutcome::OutputTooLarge { limit })
             }
         }
-    }
-
-    fn gitleaks_tool(&self) -> Option<PathBuf> {
-        std::env::var_os("DX_GITLEAKS_BIN")
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute())
     }
 
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {

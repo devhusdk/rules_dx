@@ -286,29 +286,6 @@ fn write(path: &Path, text: &str) -> Result<(), String> {
     std::fs::write(path, text).map_err(|error| format!("cannot write {}: {error}", path.display()))
 }
 
-#[cfg(unix)]
-fn make_writable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-    let Ok(meta) = std::fs::symlink_metadata(path) else {
-        return;
-    };
-    if !meta.is_dir() {
-        return;
-    }
-    let mode = meta.permissions().mode();
-    if mode & 0o700 != 0o700 {
-        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode | 0o700));
-    }
-    if let Ok(entries) = std::fs::read_dir(path) {
-        for entry in entries.filter_map(Result::ok) {
-            make_writable(&entry.path());
-        }
-    }
-}
-
-#[cfg(not(unix))]
-fn make_writable(_path: &Path) {}
-
 /// Empties `root`, keeping the directory itself.
 pub fn reset(root: &Path) -> Result<(), String> {
     std::fs::create_dir_all(root)
@@ -321,7 +298,7 @@ pub fn reset(root: &Path) -> Result<(), String> {
             .map(|meta| meta.is_dir())
             .unwrap_or(false);
         let removed = if is_dir {
-            make_writable(&path);
+            dx_process::make_writable(&path);
             std::fs::remove_dir_all(&path)
         } else {
             // On Windows a directory symlink or junction is removed with remove_dir, never followed.
@@ -634,12 +611,7 @@ fn command_line(pid: u32) -> Option<String> {
     if Path::new("/proc/self").exists() {
         return None;
     }
-    let output = Command::new("ps")
-        .args(["-ww", "-o", "command=", "-p", &pid.to_string()])
-        .output()
-        .ok()
-        .filter(|output| output.status.success())?;
-    Some(String::from_utf8_lossy(&output.stdout).into_owned())
+    dx_process::probe("ps", ["-ww", "-o", "command=", "-p", &pid.to_string()])
 }
 
 #[cfg(unix)]
@@ -650,16 +622,10 @@ fn all_pids() -> Vec<u32> {
             .filter_map(|entry| entry.file_name().to_string_lossy().parse::<u32>().ok())
             .collect();
     }
-    let Some(output) = Command::new("ps")
-        .args(["-A", "-o", "pid="])
-        .output()
-        .ok()
-        .filter(|output| output.status.success())
-    else {
+    let Some(text) = dx_process::probe("ps", ["-A", "-o", "pid="]) else {
         return Vec::new();
     };
-    String::from_utf8_lossy(&output.stdout)
-        .split_whitespace()
+    text.split_whitespace()
         .filter_map(|pid| pid.parse().ok())
         .collect()
 }
@@ -694,19 +660,16 @@ impl Processes {
 
     #[cfg(windows)]
     fn snapshot() -> Processes {
-        let output = Command::new("powershell")
-            .args([
+        let text = dx_process::probe(
+            "powershell",
+            [
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
                 WINDOWS_PROCESSES,
-            ])
-            .stdin(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .output();
-        let text = output
-            .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
-            .unwrap_or_default();
+            ],
+        )
+        .unwrap_or_default();
         Processes {
             table: parse_process_lines(&text),
         }

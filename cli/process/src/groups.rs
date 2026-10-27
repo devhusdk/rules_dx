@@ -115,11 +115,7 @@ mod sys {
 
     #[cfg(not(target_os = "linux"))]
     pub fn start_time(pid: i32) -> Option<String> {
-        let output = std::process::Command::new("ps")
-            .args(["-o", "lstart=", "-p", &pid.to_string()])
-            .output()
-            .ok()?;
-        let text = String::from_utf8_lossy(&output.stdout);
+        let text = crate::probe("ps", ["-o", "lstart=", "-p", &pid.to_string()])?;
         let text = text.split_whitespace().collect::<Vec<_>>().join("_");
         (!text.is_empty()).then_some(text)
     }

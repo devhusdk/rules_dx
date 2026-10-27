@@ -314,17 +314,6 @@ fn dir_size(path: &Path) -> u64 {
     }
 }
 
-fn remove_tree(path: &Path) {
-    if fs::remove_dir_all(path).is_ok() || !path.exists() {
-        return;
-    }
-    let _ = Command::new("chmod")
-        .args(["-R", "u+rwX"])
-        .arg(path)
-        .status();
-    let _ = fs::remove_dir_all(path);
-}
-
 fn alive(pid: u32) -> bool {
     fs::read_to_string(format!("/proc/{pid}/stat"))
         .ok()
@@ -408,10 +397,12 @@ struct Trees {
 impl Trees {
     fn remove(&self, tree: &Tree) {
         stop_server(&tree.output_base);
-        remove_tree(&tree.output_base);
+        dx_process::remove_tree(&tree.output_base);
         match &tree.branch {
             Some(branch) => release_branch(&self.workspace, &self.binary, branch),
-            None => remove_tree(&tree.dir),
+            None => {
+                dx_process::remove_tree(&tree.dir);
+            }
         }
     }
 }
@@ -460,7 +451,7 @@ fn sweep_stale(workspace: &Path, binary: &Path, bases: &Path) {
     for name in names {
         let base = bases.join(name);
         stop_server(&base);
-        remove_tree(&base);
+        dx_process::remove_tree(&base);
     }
 }
 

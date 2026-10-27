@@ -925,19 +925,31 @@ fn bases_of<'a>(bases: &'a [OutputBase], path: &Path) -> Vec<&'a OutputBase> {
         .collect()
 }
 
-/// Removes an external worktree and its output bases, and reports whether all of it is gone.
-fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) -> bool {
-    let owned = bases_of(bases, path);
+/// Stops, unregisters and deletes one checkout, then tries every owned output base; returns whether the tree is gone and the bases still on disk.
+fn teardown(
+    pool: &Pool,
+    host: &dyn Host,
+    path: &Path,
+    owned: Vec<&OutputBase>,
+) -> (bool, Vec<OutputBase>) {
     stop_server(host, path);
     let arg = path_text(path);
     let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
     let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
-    let mut gone = host.remove_tree(path);
+    let gone = host.remove_tree(path);
     let _ = git::run(&pool.main, &["worktree", "prune"]);
-    for base in owned {
-        gone &= host.remove_tree(&base.dir);
-    }
-    gone
+    let stuck = owned
+        .into_iter()
+        .filter(|base| !host.remove_tree(&base.dir))
+        .cloned()
+        .collect();
+    (gone, stuck)
+}
+
+/// Removes an external worktree and its output bases, and reports whether all of it is gone.
+fn remove_external(pool: &Pool, host: &dyn Host, path: &Path, bases: &[OutputBase]) -> bool {
+    let (gone, stuck) = teardown(pool, host, path, bases_of(bases, path));
+    gone && stuck.is_empty()
 }
 
 fn release_external(
@@ -1974,18 +1986,7 @@ fn delete_slot(pool: &Pool, host: &dyn Host, slot: u32, bases: &[OutputBase]) ->
         };
     };
     let path = pool.slot_path(slot);
-    let owned = bases_of(bases, &path);
-    stop_server(host, &path);
-    let arg = path_text(&path);
-    let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
-    let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
-    let gone = host.remove_tree(&path);
-    let _ = git::run(&pool.main, &["worktree", "prune"]);
-    let stuck: Vec<OutputBase> = owned
-        .into_iter()
-        .filter(|base| !host.remove_tree(&base.dir))
-        .cloned()
-        .collect();
+    let (gone, stuck) = teardown(pool, host, &path, bases_of(bases, &path));
     if gone {
         pool.remove(slot);
         return Leftover {

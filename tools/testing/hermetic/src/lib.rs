@@ -1197,27 +1197,9 @@ fn host() -> Value {
     })
 }
 
-fn make_writable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-    let Ok(meta) = std::fs::symlink_metadata(path) else {
-        return;
-    };
-    if meta.file_type().is_symlink() {
-        return;
-    }
-    let mode = meta.permissions().mode() | 0o700;
-    let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode));
-    if meta.is_dir() {
-        for entry in std::fs::read_dir(path).into_iter().flatten().flatten() {
-            make_writable(&entry.path());
-        }
-    }
-}
-
 /// Removes a qualification root, including Bazel's read-only trees.
 pub fn remove_root(root: &Path) {
-    make_writable(root);
-    let _ = std::fs::remove_dir_all(root);
+    dx_process::remove_tree(root);
 }
 
 // LCOV_EXCL_START - reason: runs only inside the isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md

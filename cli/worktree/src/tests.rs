@@ -186,7 +186,7 @@ impl Host for FakeHost {
             std::fs::create_dir_all(path).expect("stuck path");
             return false;
         }
-        super::host::remove_tree(path)
+        dx_process::remove_tree(path)
     }
 
     fn nested_root(&self) -> Option<PathBuf> {
@@ -3588,6 +3588,25 @@ fn prune_apply_keeps_a_stuck_external_worktree_as_busy() {
 }
 
 #[test]
+fn prune_apply_still_removes_other_bases_of_an_external_worktree_with_a_stuck_base() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let roots = fixture.cache.join("bazel-root");
+    host.roots.lock().expect("roots").push(roots.clone());
+    let hand = upstream_deleted_checkout(&fixture);
+    let stuck = output_base(&roots, "aaa", &hand);
+    let freed = output_base(&roots, "bbb", &hand);
+    host.stick(&stuck);
+    let pruned = ops::prune(&pool, &host, true, false).expect("prune");
+    assert_eq!(pruned.kept.len(), 1);
+    assert_eq!(pruned.kept[0].reason, "busy");
+    assert!(!hand.exists());
+    assert!(stuck.exists());
+    assert!(!freed.exists(), "the other base is still removed");
+}
+
+#[test]
 fn prune_apply_skips_a_slot_taken_after_the_plan_as_held() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
@@ -4403,6 +4422,6 @@ fn prune_apply_removes_a_free_base_with_read_only_entries() {
     std::fs::set_permissions(dir.join("f"), std::fs::Permissions::from_mode(0o444)).expect("f");
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).expect("d");
     ops::release(&pool, &host, &me, &first.path, true).expect("release");
-    assert!(super::host::remove_tree(&base));
+    assert!(dx_process::remove_tree(&base));
     assert!(!base.exists());
 }

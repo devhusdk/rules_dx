@@ -65,7 +65,7 @@ pub(crate) fn resolved(path: &Path) -> PathBuf {
 }
 
 fn normalize(path: &Path) -> String {
-    let text = path.to_string_lossy().replace('\\', "/");
+    let text = dx_path::posix(path);
     let text = if let Some(rest) = text.strip_prefix("//?/UNC/") {
         format!("//{rest}")
     } else {
@@ -281,35 +281,26 @@ fn pid_alive(pid: u32) -> bool {
 
 #[cfg(not(unix))]
 fn pid_alive(pid: u32) -> bool {
-    Command::new("tasklist")
-        .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
-        .stdin(Stdio::null())
-        .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).contains(&format!("\"{pid}\"")))
-        .unwrap_or(false)
+    dx_process::probe(
+        "tasklist",
+        ["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"],
+    )
+    .is_some_and(|text| text.contains(&format!("\"{pid}\"")))
 }
 
 #[cfg(unix)]
 fn list_servers() -> String {
-    Command::new("ps")
-        .args(["-eo", "pid=,rss=,args="])
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
-        .unwrap_or_default()
+    dx_process::probe("ps", ["-eo", "pid=,rss=,args="]).unwrap_or_default()
 }
 
 #[cfg(not(unix))]
 fn list_servers() -> String {
     let script = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*A-server.jar*' } | ForEach-Object { \"$($_.ProcessId) $([int]($_.WorkingSetSize/1024)) $($_.CommandLine)\" }";
-    Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
-        .unwrap_or_default()
+    dx_process::probe(
+        "powershell",
+        ["-NoProfile", "-NonInteractive", "-Command", script],
+    )
+    .unwrap_or_default()
 }
 
 fn home(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
@@ -353,46 +344,9 @@ fn find_bazel() -> Option<PathBuf> {
     None
 }
 
-fn make_writable(path: &Path) {
-    let Ok(metadata) = std::fs::symlink_metadata(path) else {
-        return;
-    };
-    if metadata.file_type().is_symlink() {
-        return;
-    }
-    let mut permissions = metadata.permissions();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        permissions.set_mode(permissions.mode() | 0o700);
-    }
-    #[cfg(not(unix))]
-    {
-        #[allow(clippy::permissions_set_readonly_false)]
-        permissions.set_readonly(false);
-    }
-    let _ = std::fs::set_permissions(path, permissions);
-    if metadata.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(path) {
-            for entry in entries.flatten() {
-                make_writable(&entry.path());
-            }
-        }
-    }
-}
-
-/// Removes a directory tree, including read-only entries, and reports whether it is gone.
-pub(crate) fn remove_tree(path: &Path) -> bool {
-    if std::fs::remove_dir_all(path).is_err() {
-        make_writable(path);
-        let _ = std::fs::remove_dir_all(path);
-    }
-    !path.exists()
-}
-
 impl Host for SystemHost {
     fn remove_tree(&self, path: &Path) -> bool {
-        remove_tree(path)
+        dx_process::remove_tree(path)
     }
 
     fn now(&self) -> u64 {
@@ -485,34 +439,6 @@ fn current_uid() -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[cfg(unix)]
-    #[test]
-    fn remove_tree_deletes_read_only_trees() {
-        use std::os::unix::fs::PermissionsExt as _;
-        let scratch = tempfile::tempdir().expect("tempdir");
-        let build = |name: &str| {
-            let dir = scratch.path().join(name).join("ro");
-            std::fs::create_dir_all(&dir).expect("dir");
-            let file = dir.join("f");
-            std::fs::write(&file, "x").expect("file");
-            std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o444)).expect("file");
-            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).expect("dir");
-            scratch.path().join(name)
-        };
-        let plain = build("plain");
-        let tree = build("tree");
-        let blocked = std::fs::remove_dir_all(&plain).is_err();
-        if !blocked {
-            // Running as root: permission bits are ignored, so only the result is checked.
-            assert!(remove_tree(&tree));
-            assert!(!tree.exists());
-            return;
-        }
-        assert!(remove_tree(&tree));
-        assert!(!tree.exists());
-        make_writable(&plain);
-    }
 
     #[test]
     fn default_output_roots_follow_the_user_cache_dir() {

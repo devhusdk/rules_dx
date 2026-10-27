@@ -637,10 +637,6 @@ impl Runner for LaunchWatch<'_> {
         }
     }
 
-    fn gitleaks_tool(&self) -> Option<PathBuf> {
-        self.inner.gitleaks_tool()
-    }
-
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
         self.inner.pinned_tool(var)
     }

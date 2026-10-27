@@ -73,8 +73,9 @@ impl Runner for AuditRunner {
         self.run(argv, cwd, env)
     }
 
-    fn gitleaks_tool(&self) -> Option<std::path::PathBuf> {
-        Some(std::path::PathBuf::from(hermetic_gitleaks()))
+    fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
+        (var == dx_audit::secrets::TOOL_ENV_VAR)
+            .then(|| std::path::PathBuf::from(hermetic_gitleaks()))
     }
 }
 
@@ -381,7 +382,9 @@ fn run_unpinned(
 ) -> (i32, String, String, Vec<Vec<String>>, Vec<Vec<String>>) {
     use dx_plan::args::parse;
     use dx_testing::cli::strings;
-    assert!(runner.gitleaks_tool().is_none());
+    assert!(runner
+        .pinned_tool(dx_audit::secrets::TOOL_ENV_VAR)
+        .is_none());
     let invocation = parse(&strings(&["security"])).expect("parse");
     let harness = Harness::new(name);
     write_all_lock_families_with_advisories(&harness);
@@ -1187,8 +1190,8 @@ impl Runner for RealGitleaks {
         self.run(argv, cwd, env)
     }
 
-    fn gitleaks_tool(&self) -> Option<std::path::PathBuf> {
-        Some(self.tool.clone())
+    fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
+        (var == dx_audit::secrets::TOOL_ENV_VAR).then(|| self.tool.clone())
     }
 }
 

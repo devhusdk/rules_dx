@@ -13,6 +13,9 @@ on:
         default: "//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_framework_consumer_test //apple/tests:macos_shared_rust_consumer_test"
       runner:
         description: "macos-15 (arm64)."
+        type: choice
+        options:
+          - macos-15
         required: false
         default: "macos-15"
 
@@ -53,11 +56,15 @@ jobs:
             macos-15) ;;
             *) echo "apple input rejected: runner must be macos-15, got $DX_RUNNER" && exit 1 ;;
           esac
-          for target in $DX_TARGETS; do
-            case "$target" in
-              //*) ;;
-              *) echo "apple input rejected: target must start with //, got $target" && exit 1 ;;
-            esac
+          read -r -a targets <<<"$DX_TARGETS"
+          if [ "${#targets[@]}" -eq 0 ]; then
+            echo "apple input rejected: targets must name at least one target pattern" && exit 1
+          fi
+          pattern='^//[A-Za-z0-9_.+@=,~/-]*(:([*]|[A-Za-z0-9_.+@=,~/-]+))?$'
+          for target in "${targets[@]}"; do
+            if ! [[ "$target" =~ $pattern ]]; then
+              echo "apple input rejected: invalid target pattern, got $target" && exit 1
+            fi
           done
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -100,8 +107,8 @@ jobs:
           set -o pipefail
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          # shellcheck disable=SC2086
-          bazel "$DX_COMMAND" --noshow_progress --test_timeout=3600 --test_output=errors "$@" $DX_TARGETS 2>&1 | tee evidence/bazel.log
+          read -r -a targets <<<"$DX_TARGETS"
+          bazel "$DX_COMMAND" --noshow_progress --test_timeout=3600 --test_output=errors "$@" -- "${targets[@]}" 2>&1 | tee evidence/bazel.log
       - name: Collect test logs
         if: always()
         run: |

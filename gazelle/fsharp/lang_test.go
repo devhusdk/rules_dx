@@ -19,6 +19,17 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
+func newLang() *common.SingleLang {
+	l := NewLanguage().(*common.SingleLang)
+	l.Before(context.Background())
+	return l
+}
+
+func takeErrors(l *common.SingleLang) []string {
+	l.AfterResolvingDeps(context.Background())
+	return common.Messages(common.Errors.Take())
+}
+
 func writeFixture(t *testing.T, root, name, content string) {
 	t.Helper()
 	file := filepath.Join(root, filepath.FromSlash(name))
@@ -32,7 +43,7 @@ func writeFixture(t *testing.T, root, name, content string) {
 
 func TestConfigureRoutesIgnoreDirectivesToTheSharedConfig(t *testing.T) {
 	cfg := config.New()
-	lang := &fsharpLang{}
+	lang := newLang()
 	lang.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{
 		{Key: "other"},
 		{Key: "dx_ignore_import", Value: "fsharp fsharp Widget"},
@@ -45,8 +56,8 @@ func TestConfigureRoutesIgnoreDirectivesToTheSharedConfig(t *testing.T) {
 	if entry == nil || entry.Path != "parent" {
 		t.Fatalf("declared ignore = %+v", entry)
 	}
-	if len(lang.errors) != 1 {
-		t.Fatalf("malformed directive accepted: %v", lang.errors)
+	if errs := takeErrors(lang); len(errs) != 1 {
+		t.Fatalf("malformed directive accepted: %v", errs)
 	}
 }
 
@@ -123,9 +134,9 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "Demo.fs,Helper.fs" {
 		t.Errorf("library srcs = %q, want Demo.fs,Helper.fs", got)
 	}
-	got := result.Imports[0].(targetImports)
-	if strings.Join(got.imports, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.imports)
+	got, _ := common.UnwrapImportSet(result.Imports[0])
+	if strings.Join(got, ",") != "Widget" {
+		t.Errorf("library imports = %+v, want [Widget]", got)
 	}
 }
 
@@ -330,8 +341,8 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Demo.fs" {
 		t.Errorf("library srcs = %q, want Demo.fs", got)
 	}
-	if got := result.Imports[0].(targetImports); len(got.imports) != 0 {
-		t.Errorf("library imports = %+v, want empty", got.imports)
+	if got, _ := common.UnwrapImportSet(result.Imports[0]); len(got) != 0 {
+		t.Errorf("library imports = %+v, want empty", got)
 	}
 }
 
@@ -419,9 +430,8 @@ func TestImportsIndexNonTestSources(t *testing.T) {
 }
 
 func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	l := &fsharpLang{}
-	l.Before(context.Background())
-	l.fail("fsharp: boom")
+	l := newLang()
+	l.Fail("fsharp: boom")
 	l.AfterResolvingDeps(context.Background())
 	got := common.Errors.Take()
 	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "fsharp: boom" {
@@ -430,16 +440,15 @@ func TestAfterResolvingDepsReportsFailures(t *testing.T) {
 }
 
 func TestAfterResolvingDepsClean(t *testing.T) {
-	l := &fsharpLang{}
-	l.Before(context.Background())
+	l := newLang()
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("errors = %v", l.errors)
+	if l.Failed() {
+		t.Errorf("errors = %v", common.Messages(common.Errors.Take()))
 	}
 }
 
 func TestLanguageMetadata(t *testing.T) {
-	l := &fsharpLang{}
+	l := newLang()
 	if l.Name() != "fsharp" || len(l.Kinds()) != 1 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
 		t.Fatal("invalid language metadata")
 	}
@@ -482,12 +491,12 @@ func resolverConfig(t *testing.T, directives []rule.Directive) *config.Config {
 	return cfg
 }
 
-func resolverIndex(lang *fsharpLang, entries ...struct {
+func resolverIndex(lang *common.SingleLang, entries ...struct {
 	pkg  string
 	name string
 }) *resolve.RuleIndex {
 	index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
-		if _, ok := fsharpKinds[r.Kind()]; ok {
+		if _, ok := lang.Kinds()[r.Kind()]; ok {
 			return lang
 		}
 		return nil
@@ -502,57 +511,56 @@ func resolverIndex(lang *fsharpLang, entries ...struct {
 }
 
 func TestResolveBranches(t *testing.T) {
-	l := &fsharpLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		struct{ pkg, name string }{"lib/b", "B"},
 		struct{ pkg, name string }{"lib/a", "A"},
 	)
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"B", "A"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"B", "A"}), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/a:A,//lib/b:B" {
 		t.Errorf("resolved deps = %q", got)
 	}
 
 	otherKind := rule.NewRule("filegroup", "other")
-	l.Resolve(cfg, index, nil, otherKind, targetImports{imports: []string{"A"}}, label.New("", "app", "other"))
+	l.Resolve(cfg, index, nil, otherKind, common.WrapImportSet([]string{"A"}), label.New("", "app", "other"))
 	if otherKind.Attr("deps") != nil {
 		t.Errorf("non-library resolution emitted deps = %v", otherKind.AttrStrings("deps"))
 	}
 
 	std := rule.NewRule(LibraryKind, "uses_std")
-	l.Resolve(cfg, index, nil, std, targetImports{imports: []string{"System.Collections.Generic"}}, label.New("", "app", "uses_std"))
-	if std.Attr("deps") != nil || len(l.errors) != 0 {
-		t.Errorf("stdlib resolution = %v, errors = %v", std.AttrStrings("deps"), l.errors)
+	l.Resolve(cfg, index, nil, std, common.WrapImportSet([]string{"System.Collections.Generic"}), label.New("", "app", "uses_std"))
+	if std.Attr("deps") != nil || l.Failed() {
+		t.Errorf("stdlib resolution = %v, failed = %v", std.AttrStrings("deps"), l.Failed())
 	}
 
 	hand := rule.NewRule(LibraryKind, "hand")
 	hand.SetAttr("deps", []string{":kept"})
-	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"A"}}, label.New("", "app", "hand"))
+	l.Resolve(cfg, index, nil, hand, common.WrapImportSet([]string{"A"}), label.New("", "app", "hand"))
 	if got := strings.Join(hand.AttrStrings("deps"), ","); got != "//lib/a:A,:kept" {
 		t.Errorf("merged deps = %q", got)
 	}
 
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "unknown"), targetImports{imports: []string{"Unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
-		t.Errorf("unresolved errors = %v", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "unknown"), common.WrapImportSet([]string{"Unknown"}), label.New("", "app", "unknown"))
+	if errs := takeErrors(l); len(errs) != 1 || !strings.Contains(errs[0], "unresolved import") {
+		t.Errorf("unresolved errors = %v", errs)
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
 }
 
 func TestResolveOverride(t *testing.T) {
-	l := &fsharpLang{}
+	l := newLang()
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "fsharp fsharp Mapped //mapped:dep"}})
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"Mapped"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"Mapped"}), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" {
 		t.Errorf("override deps = %q", got)
 	}
 }
 
 func TestResolveIgnore(t *testing.T) {
-	l := &fsharpLang{}
-	l.Before(context.Background())
+	l := newLang()
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import fsharp Dropped\n"))
 	if err != nil {
@@ -560,26 +568,25 @@ func TestResolveIgnore(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"Dropped"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"Dropped"}), label.New("", "app", "app"))
 	if r.Attr("deps") != nil {
 		t.Errorf("ignored import emitted deps = %v", r.AttrStrings("deps"))
 	}
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("ignore errors = %v", l.errors)
+	if l.Failed() {
+		t.Errorf("ignore errors = %v", takeErrors(l))
 	}
 }
 
 func TestResolveStaleIgnoreFails(t *testing.T) {
-	l := &fsharpLang{}
-	l.Before(context.Background())
+	l := newLang()
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import fsharp Unused\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
-	l.generated.Add("app")
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Rel: "app"})
 	l.AfterResolvingDeps(context.Background())
 	if msg := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(msg, "stale # gazelle:dx_ignore_import") {
 		t.Fatalf("errors = %q, want stale ignore failure", msg)
@@ -587,8 +594,7 @@ func TestResolveStaleIgnoreFails(t *testing.T) {
 }
 
 func TestResolveMappingIgnoreConflict(t *testing.T) {
-	l := &fsharpLang{}
-	l.Before(context.Background())
+	l := newLang()
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "fsharp fsharp Mapped //mapped:dep"}})
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import fsharp Mapped\n"))
 	if err != nil {
@@ -596,9 +602,9 @@ func TestResolveMappingIgnoreConflict(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"Mapped"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "both an exact resolve mapping and ignore") {
-		t.Errorf("conflict errors = %v", l.errors)
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet([]string{"Mapped"}), label.New("", "app", "app"))
+	if errs := takeErrors(l); len(errs) != 1 || !strings.Contains(errs[0], "both an exact resolve mapping and ignore") {
+		t.Errorf("conflict errors = %v", errs)
 	}
 }
 
@@ -610,15 +616,15 @@ func TestOrderSourcesByDependencyMissingContent(t *testing.T) {
 }
 
 func TestResolveAmbiguousFails(t *testing.T) {
-	l := &fsharpLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		struct{ pkg, name string }{"lib/one", "Dup"},
 		struct{ pkg, name string }{"lib/two", "Dup"},
 	)
 	cfg := resolverConfig(t, nil)
-	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), targetImports{imports: []string{"Dup"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous import") {
-		t.Errorf("ambiguous errors = %v", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), common.WrapImportSet([]string{"Dup"}), label.New("", "app", "app"))
+	if errs := takeErrors(l); len(errs) != 1 || !strings.Contains(errs[0], "ambiguous import") {
+		t.Errorf("ambiguous errors = %v", errs)
 	}
 }
 
@@ -711,18 +717,18 @@ func TestResolveNuGetNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 	}
 	from := label.New("", "app", "app")
 
-	l := &fsharpLang{}
+	l := newLang()
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "fsharp fsharp " + parsed[0] + " //mapped:dep"}})
 	r := rule.NewRule(LibraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: parsed}, from)
-	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" || len(l.errors) != 0 {
-		t.Fatalf("deps = %q errors = %v", got, l.errors)
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapImportSet(parsed), from)
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" || l.Failed() {
+		t.Fatalf("deps = %q errors = %v", got, takeErrors(l))
 	}
 
-	l = &fsharpLang{}
+	l = newLang()
 	cfg = resolverConfig(t, nil)
-	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(LibraryKind, "app"), targetImports{imports: parsed}, from)
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
-		t.Fatalf("errors = %v, want unresolved import", l.errors)
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(LibraryKind, "app"), common.WrapImportSet(parsed), from)
+	if errs := takeErrors(l); len(errs) != 1 || !strings.Contains(errs[0], "unresolved import") {
+		t.Fatalf("errors = %v, want unresolved import", errs)
 	}
 }

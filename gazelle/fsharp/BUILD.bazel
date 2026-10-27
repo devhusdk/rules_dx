@@ -18,12 +18,8 @@ go_library(
     deps = [
         "//gazelle/common",
         "@com_github_bazelbuild_buildtools//build",
-        "@gazelle//config",
         "@gazelle//language",
-        "@gazelle//repo",
-        "@gazelle//resolve",
         "@gazelle//rule",
-        "@gazelle//v2/label",
         "@gazelle//v2/rule",
     ],
 )
@@ -52,6 +48,9 @@ go_test(
     pure = "on",
     deps = [
         "@com_github_bazelbuild_buildtools//build",
+        "@gazelle//config",
+        "@gazelle//resolve",
+        "@gazelle//v2/label",
         "@gazelle//v2/merger",
     ],
 )

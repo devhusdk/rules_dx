@@ -157,3 +157,94 @@ fn a_used_write_scope_passes_and_an_unknown_one_fails() {
         vec!["fixture job upload grants discussions: write, which has no usage marker".to_owned()]
     );
 }
+
+/// Callers whose jobs call a reusable workflow and must grant what it requests.
+const CALLERS: [&str; 3] = [
+    "examples/consumer-ci/caller.yml",
+    "examples/docs-ci/caller.yml",
+    ".github/workflows/ci.yml",
+];
+
+/// Ranks a permission level so a grant can be compared with a request.
+fn permission_rank(level: &str) -> u8 {
+    match level {
+        "write" => 2,
+        "read" => 1,
+        _ => 0,
+    }
+}
+
+/// Adds each (scope, level) of one `permissions` map, which must be a map when present.
+fn add_scopes(scopes: &mut Vec<(String, String)>, permissions: &Value, what: &str) {
+    if permissions.is_null() {
+        return;
+    }
+    let Some(map) = permissions.as_object() else {
+        panic!("{what} must list its permissions as a map, got {permissions}");
+    };
+    for (scope, level) in map {
+        let Some(level) = level.as_str() else {
+            panic!("{what} grants {scope} a non-string level: {level}");
+        };
+        let grant = (scope.clone(), level.to_owned());
+        if !scopes.contains(&grant) {
+            scopes.push(grant);
+        }
+    }
+}
+
+/// Returns every scope a reusable workflow requests: its top level and every job's.
+fn requested_scopes(path: &str) -> Vec<(String, String)> {
+    let workflow = document(path);
+    let mut scopes = Vec::new();
+    add_scopes(&mut scopes, &workflow["permissions"], path);
+    for (id, job) in ci_workflow::jobs(path) {
+        add_scopes(
+            &mut scopes,
+            &job["permissions"],
+            &format!("{path} job {id}"),
+        );
+    }
+    scopes
+}
+
+#[test]
+fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
+    let mut calls = 0;
+    for caller in CALLERS {
+        for (id, name, job) in ci_workflow::reusable_calls(caller) {
+            calls += 1;
+            let requested = requested_scopes(&format!(".github/workflows/{name}"));
+            assert!(
+                !requested.is_empty(),
+                "{name} requests no permissions, so {caller} job {id} grants none"
+            );
+            let mut granted = Vec::new();
+            add_scopes(
+                &mut granted,
+                &job["permissions"],
+                &format!("{caller} job {id}"),
+            );
+            for (scope, level) in &granted {
+                let ceiling = requested
+                    .iter()
+                    .filter(|(name, _)| name == scope)
+                    .map(|(_, level)| permission_rank(level))
+                    .max();
+                assert!(
+                    ceiling.is_some_and(|ceiling| permission_rank(level) <= ceiling),
+                    "{caller} job {id} grants {scope}: {level}, but {name} requests it at most at {ceiling:?}; grant exactly what the called jobs request"
+                );
+            }
+            for (scope, level) in &requested {
+                let held = granted.iter().find(|(name, _)| name == scope);
+                assert!(
+                    held.is_some_and(|(_, held)| permission_rank(held) >= permission_rank(level)),
+                    "{caller} job {id} calls {name} but grants {scope} at {:?}, needs {level}",
+                    held.map(|(_, held)| held.as_str())
+                );
+            }
+        }
+    }
+    assert!(calls > 0, "no caller calls a reusable workflow");
+}

@@ -503,6 +503,48 @@ def test_evidence_runners_match_the_validator_platforms(tmp_path):
     )
 
 
+DOCS = "docs/github-ci.md"
+PLATFORM_CALLERS = ("examples/consumer-ci/caller.yml", CI_WORKFLOW)
+
+
+def test_docs_name_every_platform_and_gated_check():
+    """docs/github-ci.md names each platform label and each gated check id the validator maps."""
+    module = validator_module()
+    assert len(module.PLATFORMS) == 5, f"consumer workflow maps five platforms: {module.PLATFORMS}"
+    assert len(module.CHECKS) == 9, f"consumer workflow gates nine checks: {module.CHECKS}"
+    page = (ROOT / DOCS).read_text(encoding="utf-8")
+    missing = [
+        name for name in (*module.PLATFORMS, *module.CHECKS) if f"`{name}`" not in page
+    ]
+    assert not missing, f"{DOCS} never names {missing}"
+
+
+def requested_platforms(caller):
+    """Returns the JSON platform list a caller passes in its platforms: input."""
+    text = (ROOT / caller).read_text(encoding="utf-8")
+    values = [
+        line.strip().removeprefix("platforms:").strip()
+        for line in text.splitlines()
+        if line.strip().startswith("platforms:")
+    ]
+    assert len(values) == 1, f"{caller} sets platforms {len(values)} times: {values}"
+    value = values[0]
+    assert value.startswith("'[") and value.endswith("]'"), (
+        f"{caller} platforms must be a quoted JSON array, got {value}"
+    )
+    return json.loads(value[1:-1])
+
+
+def test_callers_request_only_mapped_platforms():
+    """Every caller requests at least one platform, and only platforms the validator maps."""
+    labels = validator_platforms()
+    for caller in PLATFORM_CALLERS:
+        requested = requested_platforms(caller)
+        assert requested, f"{caller} requests no platforms"
+        unknown = [label for label in requested if label not in labels]
+        assert not unknown, f"{caller} platforms {unknown} are not in the {VALIDATOR} table"
+
+
 def run_blocks(text):
     """Yields (line number, line) for every line inside a run: block of a workflow."""
     lines = text.splitlines()

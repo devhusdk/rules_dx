@@ -22,6 +22,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_hadolint",
+    build_setting_default = "@dx_tools//:hadolint",
+)
+
+label_flag(
     name = "tool_terraform",
     build_setting_default = "@dx_tools//:terraform",
 )

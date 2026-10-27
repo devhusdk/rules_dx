@@ -168,6 +168,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "gofumpt",
             "google_java_format",
             "govet",
+            "hadolint",
             "jsonnetfmt",
             "keep_sorted",
             "ktfmt",

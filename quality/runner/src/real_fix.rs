@@ -221,9 +221,8 @@ impl super::RealBackend {
             "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
             | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "pmd" | "spotbugs"
             | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "errcheck"
-            | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck" => {
-                Ok(text.to_owned())
-            }
+            | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck"
+            | "hadolint" => Ok(text.to_owned()),
             "buf" | "djlint" | "biome" | "prettier" => {
                 if capability == "format" {
                     self.run_spec_fix(tool_id, tool, path, text, true)

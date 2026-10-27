@@ -1,0 +1,38 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//dockerfile/rules:defs.bzl", "dockerfile_library")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load(":library_tests.bzl", "owns_dockerfile_class_test")
+
+dockerfile_library(
+    name = "app",
+    srcs = ["fixtures/app.Dockerfile"],
+)
+
+owns_dockerfile_class_test(
+    name = "owns_dockerfile_class_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+dockerfile_library(
+    name = "bad_name",
+    srcs = ["fixtures/Dockerfile-dev"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_name_fails",
+    expected_failure_substring = "'Dockerfile-dev' is not a Dockerfile name; accepted names: Dockerfile, Containerfile, Dockerfile.*, Containerfile.*, *.Dockerfile, *.dockerfile, *.Containerfile, *.containerfile",
+    target = ":bad_name",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

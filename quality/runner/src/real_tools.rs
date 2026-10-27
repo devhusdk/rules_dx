@@ -1599,3 +1599,123 @@ fn buf_lint_names_a_broken_import() {
     assert!(text.contains("item/v1/item.proto:5:19"), "{text}");
     assert!(!text.contains("unchecked file"), "{text}");
 }
+
+fn hadolint_config_arg(argv: &[OsString]) -> PathBuf {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("hadolint always gets --config");
+    PathBuf::from(&argv[at + 1])
+}
+
+fn hadolint_report(argv: &[OsString], env: &[(OsString, OsString)]) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    for key in ["XDG_CONFIG_HOME", "HADOLINT_IGNORE"] {
+        assert!(
+            env.iter()
+                .all(|(known, _)| !known.to_string_lossy().eq_ignore_ascii_case(key)),
+            "{key} never reaches hadolint"
+        );
+    }
+    let file = last_file(argv);
+    assert_eq!(argv[argv.len() - 2], OsString::from("--"));
+    let dirty = std::fs::read_to_string(&file)
+        .expect("read staged Dockerfile")
+        .contains("| tar");
+    let stdout = if dirty {
+        serde_json::json!([{
+            "code": "DL4006",
+            "column": 1,
+            "file": file,
+            "level": "warning",
+            "line": 2,
+            "message": "Set the SHELL option -o pipefail before RUN with a pipe in it.",
+        }])
+        .to_string()
+    } else {
+        "[]".to_owned()
+    };
+    Ok(ChildOutput {
+        code: Some(i32::from(dirty)),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn hadolint_defaults(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let config = hadolint_config_arg(argv);
+    assert!(
+        config.ends_with("dx-hadolint-default/.hadolint.yaml"),
+        "unbound hadolint uses the scratch default, got {config:?}"
+    );
+    let staged = std::fs::read(&config).expect("default hadolint config is staged");
+    assert_eq!(staged, b"ignored: []\n");
+    hadolint_report(argv, env)
+}
+
+fn hadolint_bound(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let config = hadolint_config_arg(argv);
+    assert!(config.ends_with("cfg/.hadolint.yaml"), "{config:?}");
+    let staged = std::fs::read(&config).expect("bound hadolint config is staged");
+    assert_eq!(staged, b"ignored:\n  - DL3008\n");
+    hadolint_report(argv, env)
+}
+
+const HADOLINT_DIRTY: &str =
+    "FROM ubuntu:24.04\nRUN curl -sSL https://example.com/a.tgz | tar xz\n";
+
+#[test]
+fn hadolint_unbound_config_uses_the_scratch_default_and_is_check_only() {
+    let backend = backend_for("hadolint", plain_tool(), hadolint_defaults);
+    let findings = backend
+        .diagnose(
+            "hadolint",
+            "lint",
+            &single("img/Dockerfile", HADOLINT_DIRTY),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "hadolint");
+    assert_eq!(findings[0].rule_id, "DL4006");
+    assert_eq!(findings[0].path, "img/Dockerfile");
+    assert!(backend
+        .diagnose(
+            "hadolint",
+            "lint",
+            &single("img/Dockerfile", "FROM ubuntu:24.04\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+    assert_eq!(
+        backend
+            .apply_fix("hadolint", "img/Dockerfile", HADOLINT_DIRTY, "lint")
+            .expect("check-only"),
+        HADOLINT_DIRTY
+    );
+}
+
+#[test]
+fn hadolint_bound_config_reaches_the_tool() {
+    let tool = RealTool {
+        config_rel: Some("cfg/.hadolint.yaml".to_owned()),
+        tool_files: vec![(
+            "cfg/.hadolint.yaml".to_owned(),
+            b"ignored:\n  - DL3008\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let backend = backend_for("hadolint", tool, hadolint_bound);
+    let findings = backend
+        .diagnose("hadolint", "lint", &single("Dockerfile", HADOLINT_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "DL4006");
+}

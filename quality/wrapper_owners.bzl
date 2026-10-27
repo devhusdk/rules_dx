@@ -12,6 +12,7 @@ WRAPPER_OWNERS = {
     "css": "//javascript/rules:defs.bzl",
     "cuda": "//cuda/rules:defs.bzl",
     "cue": "//cue/rules:defs.bzl",
+    "dockerfile": "//dockerfile/rules:defs.bzl",
     "elixir": "//elixir/rules:defs.bzl",
     "erlang": "//erlang/rules:defs.bzl",
     "fsharp": "//fsharp/rules:defs.bzl",

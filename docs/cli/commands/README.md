@@ -423,6 +423,7 @@ Language rules:
 - `@rules_dx//csharp/rules:defs.bzl`: C#.
 - `@rules_dx//cuda/rules:defs.bzl`: CUDA.
 - `@rules_dx//cue/rules:defs.bzl`: CUE.
+- `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
 - `@rules_dx//elixir/rules:defs.bzl`: Elixir.
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.
 - `@rules_dx//fsharp/rules:defs.bzl`: F#.

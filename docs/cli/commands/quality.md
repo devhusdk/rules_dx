@@ -184,6 +184,7 @@ workspace_policy(
 | Family | Format | Lint | Typecheck |
 | --- | --- | --- | --- |
 | `cc` | `clang_format` | disabled | disabled |
+| `dockerfile` | disabled | `hadolint` | disabled |
 | `graphql` | `prettier` | disabled | disabled |
 | `html` | `prettier` | disabled | disabled |
 | `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | disabled |
@@ -229,6 +230,7 @@ to.
 | `gofumpt` | format | go |
 | `google_java_format` | format | java |
 | `govet` | lint | go |
+| `hadolint` | lint | dockerfile |
 | `jsonnetfmt` | format | jsonnet |
 | `keep_sorted` | lint | text |
 | `ktfmt` | format | kotlin |
@@ -277,9 +279,10 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `terraform`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt`,
-  `mix_format` and `gleam_format` have override flags.
-- The `ruff` and `terraform` alternates must be a single executable file.
+- `ruff`, `terraform`, `hadolint`, `qmlformat`, `qmllint`, `zig_fmt`,
+  `erlfmt`, `mix_format` and `gleam_format` have override flags.
+- The `ruff`, `terraform` and `hadolint` alternates must be a single
+  executable file.
   Anything else fails the analysis with the tool named.
 - The `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt`, `mix_format` and
   `gleam_format` alternates must be executable targets, such as
@@ -1167,6 +1170,71 @@ html_template_library(
     srcs = ["templates/page.html"],
 )
 ```
+
+### Dockerfiles
+
+`hadolint` lints Dockerfiles. It runs from a managed pin on Linux x86_64, Linux
+arm64, macOS arm64 and Windows x86_64. The default policy selects it in the
+`dockerfile` family. There is no formatter.
+
+```python
+quality_family(
+    name = "dockerfile_family",
+    family_id = "dockerfile",
+    lint = ["hadolint"],
+)
+```
+
+Own Dockerfiles with `dockerfile_library` from
+`@rules_dx//dockerfile/rules:defs.bzl`. List the files of the package in
+`srcs`. Accepted names are `Dockerfile`, `Containerfile`, `Dockerfile.*`,
+`Containerfile.*`, `*.Dockerfile`, `*.dockerfile`, `*.Containerfile` and
+`*.containerfile`. Any other name fails the analysis with the accepted names
+listed. `.dockerignore` is not a Dockerfile.
+
+```python
+load("@rules_dx//dockerfile/rules:defs.bzl", "dockerfile_library")
+
+dockerfile_library(
+    name = "image",
+    srcs = ["Dockerfile"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //images/...
+```
+
+`hadolint` is check-only: `lint --apply` never rewrites a Dockerfile. Findings
+keep the rule code, line and column. `DL` codes are hadolint rules. `SC` codes
+come from the ShellCheck that hadolint links for `RUN` lines. A Dockerfile that
+does not parse is a `DL1000` error and never counts as clean.
+
+`hadolint` never reads a `.hadolint.yaml` from the workspace, the home
+directory or the XDG config directory, and `HADOLINT_*` variables from the host
+do not reach it. To change the rules, bind a `hadolint_config` to the target
+with `aspect_hints`. Use `ignored`, `override`, `trustedRegistries`, `label-schema`
+or `strict-labels`. Do not set `format`, `output` or `no-color`: the run reads
+JSON, so another format fails with the tool named. A config that hadolint cannot
+parse is an error, not a fallback to the defaults. `failure-threshold` and
+`no-fail` change only the exit code. Every finding is still reported.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "hadolint_config")
+
+hadolint_config(
+    name = "hadolint",
+    src = "hadolint.yaml",
+)
+
+dockerfile_library(
+    name = "image",
+    aspect_hints = [":hadolint"],
+    srcs = ["Dockerfile"],
+)
+```
+
+Inline `# hadolint ignore=DL3008` comments are honoured.
 
 ### Shell
 

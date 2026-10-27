@@ -747,6 +747,53 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_shell_lint_rcfile.expected.txt",
     },
     {
+        "name": "matrix_dockerfile_lint_pass",
+        "generated": {
+            "matrix/hadolint_clean.Dockerfile": "FROM scratch\nCOPY hello /hello\nENTRYPOINT [\"/hello\"]\n",
+        },
+        "capability": "lint",
+        "stages": ["hadolint;dockerfile;matrix/hadolint_clean.Dockerfile"],
+        "tool_names": ["hadolint"],
+        "tool_binaries": ["@dx_tools//:hadolint"],
+        "expected_file": ":matrix/matrix_dockerfile_lint_pass.expected.txt",
+    },
+    {
+        # DL rules and the linked ShellCheck SC rules both surface.
+        "name": "matrix_dockerfile_lint_fail",
+        "generated": {
+            "matrix/hadolint_dirty.Dockerfile": "FROM busybox:1.36\nRUN echo $HOME | wc -c\n",
+        },
+        "capability": "lint",
+        "stages": ["hadolint;dockerfile;matrix/hadolint_dirty.Dockerfile"],
+        "tool_names": ["hadolint"],
+        "tool_binaries": ["@dx_tools//:hadolint"],
+        "expected_file": ":matrix/matrix_dockerfile_lint_fail.expected.txt",
+    },
+    {
+        # A parse failure is a DL1000 error finding, never a clean run.
+        "name": "matrix_dockerfile_lint_syntax_error",
+        "generated": {
+            "matrix/hadolint_broken.Dockerfile": "FROM scratch\nRUNN echo hi\n",
+        },
+        "capability": "lint",
+        "stages": ["hadolint;dockerfile;matrix/hadolint_broken.Dockerfile"],
+        "tool_names": ["hadolint"],
+        "tool_binaries": ["@dx_tools//:hadolint"],
+        "expected_file": ":matrix/matrix_dockerfile_lint_syntax_error.expected.txt",
+    },
+    {
+        # The user's inline ignore pragma is honoured, not overridden.
+        "name": "matrix_dockerfile_lint_inline_ignore",
+        "generated": {
+            "matrix/hadolint_ignored.Dockerfile": "FROM busybox:1.36\n# hadolint ignore=DL4006,SC2086\nRUN echo $HOME | wc -c\n",
+        },
+        "capability": "lint",
+        "stages": ["hadolint;dockerfile;matrix/hadolint_ignored.Dockerfile"],
+        "tool_names": ["hadolint"],
+        "tool_binaries": ["@dx_tools//:hadolint"],
+        "expected_file": ":matrix/matrix_dockerfile_lint_inline_ignore.expected.txt",
+    },
+    {
         "name": "matrix_text_lint_pass",
         "generated": {
             "matrix/keep_sorted_clean.txt": "a\nb\nc\n",

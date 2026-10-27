@@ -130,6 +130,7 @@ const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
+const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
@@ -1073,6 +1074,19 @@ pub fn shellcheck_check(binary: &Path, files: &[&Path], config: Option<&Path>) -
         "--rcfile=",
         config,
         suffix,
+        files,
+        "",
+    )
+}
+
+/// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.
+pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        EMPTY_ARGS,
+        "--config",
+        Some(config),
+        HADOLINT_TAIL,
         files,
         "",
     )

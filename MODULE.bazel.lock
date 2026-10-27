@@ -545,7 +545,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "BIIf1JLOEOGGxluyRfTbKpf1by7c806jEFXvmTZcZLo=",
+        "bzlTransitiveDigest": "cOJwUXd7cYg8Tfln/tcAk/sjgMXHSwBi3vVUFqa6MBE=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -813,6 +813,50 @@
               "archive_format": "zip",
               "executable": "gitleaks.exe",
               "executable_sha256": "17157e2ee8b76fc8b1d8bee607a250e34b8a8023c8bc81822d4b5ee4d78fcb7c"
+            }
+          },
+          "dx_hadolint_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64",
+              "sha256": "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507",
+              "asset": "hadolint-linux-x86_64",
+              "archive_format": "none",
+              "executable": "hadolint-linux-x86_64",
+              "executable_sha256": "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
+            }
+          },
+          "dx_hadolint_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-arm64",
+              "sha256": "f6198ef8090f404dbb771abfee086eb8c48ac177f30da7fd3510aca35b344b5d",
+              "asset": "hadolint-linux-arm64",
+              "archive_format": "none",
+              "executable": "hadolint-linux-arm64",
+              "executable_sha256": "f6198ef8090f404dbb771abfee086eb8c48ac177f30da7fd3510aca35b344b5d"
+            }
+          },
+          "dx_hadolint_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-macos-arm64",
+              "sha256": "5c09f3213f8e40406abe048233d985eebef336d4a6a20021be47fadb6cf480a2",
+              "asset": "hadolint-macos-arm64",
+              "archive_format": "none",
+              "executable": "hadolint-macos-arm64",
+              "executable_sha256": "5c09f3213f8e40406abe048233d985eebef336d4a6a20021be47fadb6cf480a2"
+            }
+          },
+          "dx_hadolint_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-windows-x86_64.exe",
+              "sha256": "01d927294962b5387f9ead4f18679158452be4f17c765ad0bdffe5264b9c7b0a",
+              "asset": "hadolint-windows-x86_64.exe",
+              "archive_format": "none",
+              "executable": "hadolint-windows-x86_64.exe",
+              "executable_sha256": "01d927294962b5387f9ead4f18679158452be4f17c765ad0bdffe5264b9c7b0a"
             }
           },
           "dx_jsonnetfmt_linux_x86_64": {
@@ -1390,7 +1434,7 @@
           "dx_tools": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_hub_repo",
             "attributes": {
-              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buf\":{\"linux_arm64\":\"dx_buf_linux_arm64\",\"linux_x86_64\":\"dx_buf_linux_x86_64\",\"macos_arm64\":\"dx_buf_macos_arm64\",\"windows_x86_64\":\"dx_buf_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"cue\":{\"linux_arm64\":\"dx_cue_linux_arm64\",\"linux_x86_64\":\"dx_cue_linux_x86_64\",\"macos_arm64\":\"dx_cue_macos_arm64\",\"windows_x86_64\":\"dx_cue_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"jsonnetfmt\":{\"linux_arm64\":\"dx_jsonnetfmt_linux_arm64\",\"linux_x86_64\":\"dx_jsonnetfmt_linux_x86_64\",\"macos_arm64\":\"dx_jsonnetfmt_macos_arm64\",\"windows_x86_64\":\"dx_jsonnetfmt_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"pkl\":{\"linux_arm64\":\"dx_pkl_linux_arm64\",\"linux_x86_64\":\"dx_pkl_linux_x86_64\",\"macos_arm64\":\"dx_pkl_macos_arm64\",\"windows_x86_64\":\"dx_pkl_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"scalafmt\":{\"linux_arm64\":\"dx_scalafmt_linux_arm64\",\"linux_x86_64\":\"dx_scalafmt_linux_x86_64\",\"macos_arm64\":\"dx_scalafmt_macos_arm64\",\"windows_x86_64\":\"dx_scalafmt_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"uv\":{\"linux_arm64\":\"dx_uv_linux_arm64\",\"linux_x86_64\":\"dx_uv_linux_x86_64\",\"macos_arm64\":\"dx_uv_macos_arm64\",\"windows_x86_64\":\"dx_uv_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"},\"yamlfmt\":{\"linux_arm64\":\"dx_yamlfmt_linux_arm64\",\"linux_x86_64\":\"dx_yamlfmt_linux_x86_64\",\"macos_arm64\":\"dx_yamlfmt_macos_arm64\",\"windows_x86_64\":\"dx_yamlfmt_windows_x86_64\"}}",
+              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buf\":{\"linux_arm64\":\"dx_buf_linux_arm64\",\"linux_x86_64\":\"dx_buf_linux_x86_64\",\"macos_arm64\":\"dx_buf_macos_arm64\",\"windows_x86_64\":\"dx_buf_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"cue\":{\"linux_arm64\":\"dx_cue_linux_arm64\",\"linux_x86_64\":\"dx_cue_linux_x86_64\",\"macos_arm64\":\"dx_cue_macos_arm64\",\"windows_x86_64\":\"dx_cue_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"hadolint\":{\"linux_arm64\":\"dx_hadolint_linux_arm64\",\"linux_x86_64\":\"dx_hadolint_linux_x86_64\",\"macos_arm64\":\"dx_hadolint_macos_arm64\",\"windows_x86_64\":\"dx_hadolint_windows_x86_64\"},\"jsonnetfmt\":{\"linux_arm64\":\"dx_jsonnetfmt_linux_arm64\",\"linux_x86_64\":\"dx_jsonnetfmt_linux_x86_64\",\"macos_arm64\":\"dx_jsonnetfmt_macos_arm64\",\"windows_x86_64\":\"dx_jsonnetfmt_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"pkl\":{\"linux_arm64\":\"dx_pkl_linux_arm64\",\"linux_x86_64\":\"dx_pkl_linux_x86_64\",\"macos_arm64\":\"dx_pkl_macos_arm64\",\"windows_x86_64\":\"dx_pkl_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"scalafmt\":{\"linux_arm64\":\"dx_scalafmt_linux_arm64\",\"linux_x86_64\":\"dx_scalafmt_linux_x86_64\",\"macos_arm64\":\"dx_scalafmt_macos_arm64\",\"windows_x86_64\":\"dx_scalafmt_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"uv\":{\"linux_arm64\":\"dx_uv_linux_arm64\",\"linux_x86_64\":\"dx_uv_linux_x86_64\",\"macos_arm64\":\"dx_uv_macos_arm64\",\"windows_x86_64\":\"dx_uv_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"},\"yamlfmt\":{\"linux_arm64\":\"dx_yamlfmt_linux_arm64\",\"linux_x86_64\":\"dx_yamlfmt_linux_x86_64\",\"macos_arm64\":\"dx_yamlfmt_macos_arm64\",\"windows_x86_64\":\"dx_yamlfmt_windows_x86_64\"}}",
               "os_linux": "'@@platforms//os:linux'",
               "os_macos": "'@@platforms//os:macos'",
               "os_windows": "'@@platforms//os:windows'",

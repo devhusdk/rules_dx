@@ -274,6 +274,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "resources/plugins/platforms/libqxcb.so",
         "resources/plugins/platforms/libqwayland.so",
         "resources/plugins/wayland-decoration-client/libbradient.so",
+        "resources/plugins/wayland-graphics-integration-client/libqt-plugin-wayland-egl.so",
         "resources/plugins/wayland-shell-integration/libxdg-shell.so",
         "resources/plugins/xcbglintegrations/libqxcb-egl-integration.so",
         "resources/plugins/xcbglintegrations/libqxcb-glx-integration.so",
@@ -289,6 +290,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "resources/lib/libX11-xcb.so.1",
         "resources/lib/libwayland-client.so.0",
         "resources/lib/libwayland-cursor.so.0",
+        "resources/lib/libwayland-egl.so.1",
         "resources/lib/libffi.so.8",
         "resources/qml/QtQuick/qmldir",
         "resources/qml/QtQuick/libqtquick2plugin.so",
@@ -302,6 +304,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "platforms/libqoffscreen.so",
         "platforms/libqxcb.so",
         "platforms/libqwayland.so",
+        "wayland-graphics-integration-client/libqt-plugin-wayland-egl.so",
         "wayland-shell-integration/libxdg-shell.so",
         "xcbglintegrations/libqxcb-egl-integration.so",
         "xcbglintegrations/libqxcb-glx-integration.so",
@@ -316,6 +319,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         "libQt6XcbQpa.so.6",
         "libxcb-cursor.so.0",
         "libwayland-client.so.0",
+        "libwayland-egl.so.1",
     ] {
         assert_eq!(
             machine(&resources.join("lib").join(library)).as_deref(),
@@ -323,7 +327,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
             "{library}"
         );
     }
-    for unwanted in ["libQt6EglFS", "libQt6WlShellIntegration", "libwayland-egl"] {
+    for unwanted in ["libQt6EglFS", "libQt6WlShellIntegration"] {
         assert!(
             !std::fs::read_dir(resources.join("lib"))
                 .expect("resources/lib")

@@ -4,8 +4,7 @@ use serde_json::json;
 
 use ci_workflow::{
     called_workflow, job, jobs, reusable_calls, run_scripts, scripts, steps, strings, text_at,
-    triggers,
-    workflow_call,
+    triggers, workflow_call,
 };
 
 const CI: &str = ".github/workflows/ci.yml";
@@ -114,7 +113,8 @@ fn reusable_calls_name_each_calling_job_and_its_workflow() {
 fn strings_read_values_and_skip_comments() {
     let all = strings(CI);
     assert!(
-        all.iter().any(|text| text == "./.github/workflows/reusable-consumer.yml"),
+        all.iter()
+            .any(|text| text == "./.github/workflows/reusable-consumer.yml"),
         "{CI} strings must include the dogfood uses value"
     );
     assert!(

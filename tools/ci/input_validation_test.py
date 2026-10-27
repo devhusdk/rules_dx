@@ -510,8 +510,12 @@ PLATFORM_CALLERS = ("examples/consumer-ci/caller.yml", CI_WORKFLOW)
 def test_docs_name_every_platform_and_gated_check():
     """docs/github-ci.md names each platform label and each gated check id the validator maps."""
     module = validator_module()
-    assert len(module.PLATFORMS) == 5, f"consumer workflow maps five platforms: {module.PLATFORMS}"
-    assert len(module.CHECKS) == 9, f"consumer workflow gates nine checks: {module.CHECKS}"
+    assert len(module.PLATFORMS) == 5, (
+        f"consumer workflow maps five platforms: {module.PLATFORMS}"
+    )
+    assert len(module.CHECKS) == 9, (
+        f"consumer workflow gates nine checks: {module.CHECKS}"
+    )
     page = (ROOT / DOCS).read_text(encoding="utf-8")
     missing = [
         name for name in (*module.PLATFORMS, *module.CHECKS) if f"`{name}`" not in page
@@ -542,7 +546,9 @@ def test_callers_request_only_mapped_platforms():
         requested = requested_platforms(caller)
         assert requested, f"{caller} requests no platforms"
         unknown = [label for label in requested if label not in labels]
-        assert not unknown, f"{caller} platforms {unknown} are not in the {VALIDATOR} table"
+        assert not unknown, (
+            f"{caller} platforms {unknown} are not in the {VALIDATOR} table"
+        )
 
 
 def run_blocks(text):

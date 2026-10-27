@@ -171,8 +171,10 @@ fn every_aggregate_job_needs_every_other_job() {
     for workflow in [CI_WORKFLOW, CONSUMER_WORKFLOW] {
         let all = jobs(workflow);
         assert!(all.len() > 1, "{workflow} declares no aggregate job");
-        let aggregates: Vec<&(String, Value)> =
-            all.iter().filter(|(_, job)| aggregates_needs(job)).collect();
+        let aggregates: Vec<&(String, Value)> = all
+            .iter()
+            .filter(|(_, job)| aggregates_needs(job))
+            .collect();
         assert_eq!(
             aggregates.len(),
             1,

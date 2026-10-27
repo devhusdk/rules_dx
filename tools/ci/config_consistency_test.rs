@@ -681,7 +681,9 @@ fn publish_dry_run_enforces_the_required_coverage_floor() {
         .find(|(name, _)| name.ends_with("workflows/publish-dry-run.yml"))
         .expect("publish-dry-run.yml ships as config_consistency_test data");
     assert!(
-        coverage_floors(&text).iter().any(|floor| floor == &expected),
+        coverage_floors(&text)
+            .iter()
+            .any(|floor| floor == &expected),
         "publish-dry-run.yml must qualify the release with dx coverage at {expected}"
     );
 }

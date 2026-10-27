@@ -31,12 +31,15 @@ enum FixConfig {
     Buildifier,
 }
 
+/// Finds the stderr line that shows a tool crashed.
+type CrashFinder = fn(&[u8]) -> Option<String>;
+
 struct FixSpec {
     tool: &'static str,
     config: FixConfig,
     keep_exit_one: bool,
     /// Names a tool crash in stderr that must fail the fix even when the exit code is kept.
-    crash_stderr: Option<fn(&[u8]) -> Option<String>>,
+    crash_stderr: Option<CrashFinder>,
 }
 
 const RUFF_LINT_SPEC: FixSpec = FixSpec {

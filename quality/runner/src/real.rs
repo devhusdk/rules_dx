@@ -454,7 +454,10 @@ mod tests {
             assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
             let text = err.to_string();
             assert!(!text.contains("invalid tool output"), "{text}");
-            assert!(text.contains("analysis was incomplete: import failed"), "{text}");
+            assert!(
+                text.contains("analysis was incomplete: import failed"),
+                "{text}"
+            );
         }
     }
 

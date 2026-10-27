@@ -578,6 +578,7 @@ fn module_change(
     let (base_lock, head_lock) =
         module_text(ROOT_LOCK, changed(ROOT_LOCK), workspace, runner, base)?;
     let lock = module_inputs::lock_changes(&base_lock, &head_lock)?;
+    module_inputs::lock_pins(&head_lock, &bumped)?;
     let read_include = |label: &str| {
         dx_module_bazel::label_path(label)
             .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))
@@ -595,7 +596,7 @@ fn module_change(
         startup_options,
     );
     let read = |hash: &str| module_inputs::cached(&caches, hash);
-    let mut changed_modules = bumped;
+    let mut changed_modules: BTreeSet<String> = bumped.into_keys().collect();
     changed_modules.extend(lock.modules);
     let graph = module_inputs::module_graph(&module_inputs::registry_files(&head_lock)?, &read)?;
     let old: Vec<_> = module_inputs::registry_files(&base_lock)?
@@ -1956,6 +1957,33 @@ mod tests {
         assert_eq!(
             widened_reason(&fixture, &query),
             "workspace input MODULE.bazel"
+        );
+        assert_eq!(query.calls().len(), 1);
+    }
+
+    #[test]
+    fn module_bump_without_lock_update_widens() {
+        let fixture = bump_workspace("dx-changed-bump-stale-", BUMP);
+        write(
+            fixture.scratch.path(),
+            "MODULE.bazel.lock",
+            &fixture.base_lock,
+        );
+        let query = FakeQuery::new(vec![FakeQuery::ok(&fixture.base_module)]);
+        let selection = resolve_affected(
+            &[change("MODULE.bazel", dx_adopt::ChangeKind::Modified)],
+            fixture.scratch.path(),
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("bump resolves");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened.len(), 1, "{:?}", selection.widened);
+        assert_eq!(
+            selection.widened[0].reason,
+            "workspace input MODULE.bazel.lock"
         );
         assert_eq!(query.calls().len(), 1);
     }

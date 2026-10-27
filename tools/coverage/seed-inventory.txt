@@ -32,22 +32,18 @@ eligible gazelle/cc/naming.go
 eligible gazelle/cc/parser.go
 # package documentation only; ships no executable lines.
 support gazelle/cc/doc.go
+# shared vue, svelte, astro and mdx naming and script parsing.
+eligible gazelle/common/webcomponent.go
 eligible gazelle/astro/lang.go
-eligible gazelle/astro/naming.go
 eligible gazelle/astro/parser.go
 eligible gazelle/csharp/lang.go
 eligible gazelle/csharp/naming.go
 eligible gazelle/csharp/parser.go
 eligible gazelle/csharp/stdlib.go
 eligible gazelle/mdx/lang.go
-eligible gazelle/mdx/naming.go
 eligible gazelle/mdx/parser.go
 eligible gazelle/svelte/lang.go
-eligible gazelle/svelte/naming.go
-eligible gazelle/svelte/parser.go
 eligible gazelle/vue/lang.go
-eligible gazelle/vue/naming.go
-eligible gazelle/vue/parser.go
 # package documentation only; ships no executable lines.
 support gazelle/astro/doc.go
 # package documentation only; ships no executable lines.

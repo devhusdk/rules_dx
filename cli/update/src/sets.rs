@@ -57,10 +57,6 @@ impl SetId {
         Self::ALL.iter().map(|set| set.name()).collect()
     }
 
-    pub fn name_list() -> String {
-        Self::names().join(", ")
-    }
-
     pub fn pipe_list() -> String {
         Self::names().join("|")
     }
@@ -215,21 +211,12 @@ mod tests {
     }
 
     #[test]
-    fn rendered_name_lists_name_every_set_once() {
+    fn rendered_pipe_list_names_every_set_once() {
         assert_eq!(SetId::names().len(), SetId::ALL.len());
-        assert_eq!(SetId::name_list(), SetId::names().join(", "));
         assert_eq!(SetId::pipe_list(), SetId::names().join("|"));
-        let names = SetId::name_list();
         let pipe = SetId::pipe_list();
-        let listed: Vec<&str> = names.split(", ").collect();
         let piped: Vec<&str> = pipe.split('|').collect();
         for set in SetId::ALL {
-            assert_eq!(
-                listed.iter().filter(|name| **name == set.name()).count(),
-                1,
-                "name_list names {} more than once",
-                set.name()
-            );
             assert_eq!(
                 piped.iter().filter(|name| **name == set.name()).count(),
                 1,

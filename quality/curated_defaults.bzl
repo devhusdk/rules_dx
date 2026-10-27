@@ -105,6 +105,12 @@ CURATED_DEFAULTS = {
         "lint": ["buildifier"],
         "typecheck": [],
     },
+    "svelte": {
+        "audit": [],
+        "format": ["prettier"],
+        "lint": [],
+        "typecheck": [],
+    },
     "text": {
         "audit": [],
         "format": [],
@@ -149,6 +155,7 @@ FORMAT_FROZEN = {
     "scala": ["scalafmt"],
     "shell": ["shfmt"],
     "starlark": ["buildifier"],
+    "svelte": ["prettier"],
     "text": [],
     "toml": ["taplo"],
     "typescript": ["biome"],

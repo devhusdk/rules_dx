@@ -115,6 +115,11 @@ def js_responsibilities_unit_tests(name):
                 [["remark"], ["eslint"], []],
             ),
             expect_equal(
+                "svelte is formatted by prettier and linted by eslint only",
+                [_claimants("format", "svelte"), _claimants("lint", "svelte")],
+                [["prettier"], ["eslint"]],
+            ),
+            expect_equal(
                 "vue is formatted by prettier and linted by eslint only",
                 [_claimants("format", "vue"), _claimants("lint", "vue")],
                 [["prettier"], ["eslint"]],

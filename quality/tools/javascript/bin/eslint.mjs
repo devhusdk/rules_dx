@@ -7,7 +7,9 @@ const MANAGED = [
   "astro-eslint-parser",
   "eslint-plugin-astro",
   "eslint-plugin-mdx",
+  "eslint-plugin-svelte",
   "eslint-plugin-vue",
+  "svelte-eslint-parser",
   "vue-eslint-parser",
 ];
 const NOT_FOUND = ["ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND"];

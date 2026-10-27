@@ -16,12 +16,18 @@ pub fn parse_prettier_check(
     let text =
         std::str::from_utf8(stderr).map_err(|err| ParseError::shape(TOOL, err.to_string()))?;
     let mut findings = Vec::new();
+    let mut frame = None;
     for line in text.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed == "The system cannot find the path specified." {
             continue;
         }
         if let Some(error) = trimmed.strip_prefix("[error]") {
+            let raw = error.strip_prefix(' ').unwrap_or(error);
+            if svelte_frame(raw, &mut frame, &mut findings) {
+                continue;
+            }
+            frame = None;
             syntax_error(error.trim_start(), files, &mut findings)?;
             continue;
         }
@@ -115,6 +121,48 @@ fn syntax_error(
         ColumnEncoding::Scalars,
     ));
     Ok(())
+}
+
+fn svelte_frame(raw: &str, frame: &mut Option<(u64, usize)>, findings: &mut [FileFinding]) -> bool {
+    let Some(last) = findings.last_mut() else {
+        return false;
+    };
+    if last.finding.severity != ToolSeverity::Error {
+        return false;
+    }
+    let text = raw.trim();
+    if text.starts_with("https://svelte.dev/e/") {
+        return true;
+    }
+    if text == "^" {
+        let Some((line, start)) = frame.take() else {
+            return false;
+        };
+        let caret = raw.len() - raw.trim_start().len();
+        let Some(offset) = caret.checked_sub(start) else {
+            return false;
+        };
+        if last.finding.start.line == 1 && last.finding.start.column == 1 {
+            *last = finding(
+                TOOL,
+                &last.file,
+                String::new(),
+                last.finding.message.clone(),
+                ToolSeverity::Error,
+                line,
+                offset as u64 + 1,
+            );
+        }
+        return true;
+    }
+    let Some((number, _)) = raw.trim_start().split_once(": ") else {
+        return false;
+    };
+    let Ok(line) = number.parse::<u64>() else {
+        return false;
+    };
+    *frame = Some((line, raw.len() - raw.trim_start().len() + number.len() + 2));
+    true
 }
 
 fn is_run_error(text: &str) -> bool {
@@ -278,6 +326,47 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
         assert_eq!(findings[0].finding.start.line, 1);
         assert_eq!(findings[0].finding.start.column, 1);
+    }
+
+    #[test]
+    fn prettier_check_locates_a_svelte_syntax_error_beside_a_dirty_svelte_file() {
+        let stderr = "[error] app/Broken.svelte: element_invalid_closing_tag: `</p>` attempted to close an element that was not open\n[error] https://svelte.dev/e/element_invalid_closing_tag\n[error] 1: <div>\n[error] 2:   <span>hi\n[error] 3: </p>\n[error]    ^\n[warn] app/Dirty.svelte\n";
+        let findings = parse_prettier_check(
+            stderr.as_bytes(),
+            Some(2),
+            &["app/Broken.svelte", "app/Dirty.svelte"],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[0].file, "app/Broken.svelte");
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.start.line, 3);
+        assert_eq!(findings[0].finding.start.column, 1);
+        assert!(findings[0]
+            .finding
+            .message
+            .contains("`</p>` attempted to close an element that was not open"));
+        assert_eq!(findings[1].file, "app/Dirty.svelte");
+        assert_eq!(findings[1].finding.message, "file is not formatted");
+        let padded = "[error] app/Broken.svelte: element_unclosed: `<script>` was left open\n[error] https://svelte.dev/e/element_unclosed\n[error]  9: <script>\n[error] 10: let x =\n[error]            ^\n";
+        let findings = parse_prettier_check(padded.as_bytes(), Some(2), &["app/Broken.svelte"])
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.start.line, 10);
+        assert_eq!(findings[0].finding.start.column, 8);
+        let unlocated = "[error] app/Broken.svelte: element_unclosed: `<script>` was left open\n";
+        let findings = parse_prettier_check(unlocated.as_bytes(), Some(2), &["app/Broken.svelte"])
+            .expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(findings[0].finding.start.line, 1);
+        assert_eq!(findings[0].finding.start.column, 1);
+        assert!(parse_prettier_check(
+            b"[error] https://svelte.dev/e/element_unclosed\n",
+            Some(2),
+            &["app/Broken.svelte"],
+        )
+        .is_err());
     }
 
     #[test]

@@ -75,7 +75,9 @@ and that has no path from the table under it, owns no set.
 set reads `third_party/ruby/Gemfile.lock` and
 `examples/adopt-ruby/Gemfile.lock`. The `powershell` set reads
 `third_party/powershell/PSGallery.lock.json`. Each finding names the lockfile it
-was read from.
+was read from. `pnpm-lock.yaml` is read at `lockfileVersion` 5.x, 6.0, and 9.0; a
+package key that cannot be resolved fails the command with a lock parse error
+naming the key.
 
 `dx security` reads `security.toml` from the workspace root. Without the file
 no finding is exempted. Each `[[exception]]` needs `advisory`, `package`, `set`,

@@ -166,7 +166,8 @@ mod win {
                 return None;
             }
             // SAFETY: the name is NUL-terminated.
-            let found = unsafe { GetProcAddress(module, c"NtQueryInformationProcess".as_ptr().cast()) };
+            let found =
+                unsafe { GetProcAddress(module, c"NtQueryInformationProcess".as_ptr().cast()) };
             (!found.is_null()).then_some(found as usize)
         }))?;
         // SAFETY: the address came from GetProcAddress for this exact signature.
@@ -205,7 +206,9 @@ mod win {
             let (length, pointer) = unsafe {
                 (
                     usize::from(base.cast::<u16>().read()),
-                    base.add(std::mem::size_of::<usize>()).cast::<*const u16>().read(),
+                    base.add(std::mem::size_of::<usize>())
+                        .cast::<*const u16>()
+                        .read(),
                 )
             };
             if pointer.is_null() || length == 0 {

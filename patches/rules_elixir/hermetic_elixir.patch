@@ -1,15 +1,23 @@
 diff --git a/elixir_app.bzl b/elixir_app.bzl
 --- a/elixir_app.bzl
 +++ b/elixir_app.bzl
-@@ -5,6 +5,7 @@
+@@ -4,7 +4,15 @@ load("//private:elixir_bytecode.bzl", "elixir_bytecode")
+ load("//private:elixir_ebin_dir.bzl", "elixir_ebin_dir")
  load("//private:erlang_app_filter_module_conflicts.bzl", "erlang_app_filter_module_conflicts")
  
++def _prefixed(name, suffix, sep):
++    # The default name keeps the internal names and output dirs that
++    # elixir_app has always used, so existing users see no change.
++    if name == "erlang_app":
++        return suffix
++    return name + sep + suffix
++
  def elixir_app(
 +        name = "erlang_app",
          app_name = None,
          extra_apps = [],
          srcs = None,
-@@ -12,6 +13,9 @@
+@@ -12,10 +20,18 @@ def elixir_app(
          elixirc_opts = [],
          ez_deps = [],
          deps = [],
@@ -19,37 +27,63 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
          **kwargs):
      """compiles elixir sources in a manner compatible with @rules_erlang
  
-@@ -35,44 +39,60 @@
+     Args:
++      name: Name of the final ErlangAppInfo target. With the default
++          "erlang_app", the internal targets are named beam_files,
++          app_file, ebin and elixir_without_app_overlap. With any other
++          name they are prefixed with "<name>_", and their output dirs
++          with "<name>/", so several apps can share a package.
+       app_name: Name of the application
+       extra_apps: additional apps (elixir is always included) injected into
+           the .app file
+@@ -23,6 +39,9 @@ def elixir_app(
+       elixirc_opts: elixirc options
+       ez_deps: Dependencies that are .ez files
+       deps: ErlangAppInfo labels
++      target_compatible_with: Passed to every generated target
++      testonly: Passed to every generated target
++      tags: Passed to every generated target
+       **kwargs: Additional args passed to the underlying app_file rule, such
+           as app_description
+ 
+@@ -34,45 +53,59 @@ def elixir_app(
+             "lib/**/*.ex",
          ])
  
-     elixir_bytecode(
--        name = "beam_files",
-+        name = name + "_beam_files",
++    beam_files = _prefixed(name, "beam_files", "_")
++    app_file_name = _prefixed(name, "app_file", "_")
++    ebin = _prefixed(name, "ebin", "_")
++    without_overlap = _prefixed(name, "elixir_without_app_overlap", "_")
++    common = dict(
 +        target_compatible_with = target_compatible_with,
 +        testonly = testonly,
 +        tags = tags,
++    )
++
+     elixir_bytecode(
+-        name = "beam_files",
++        name = beam_files,
          srcs = srcs,
          data = data,
 -        dest = "beam_files",
-+        dest = name + "/beam_files",
++        dest = _prefixed(name, "beam_files", "/"),
          elixirc_opts = elixirc_opts,
          ez_deps = ez_deps,
          deps = deps,
++        **common
      )
  
      app_file(
 -        name = "app_file",
-+        name = name + "_app_file",
-+        target_compatible_with = target_compatible_with,
-+        testonly = testonly,
-+        tags = tags,
++        name = app_file_name,
          out = "%s.app" % app_name,
          app_name = app_name,
          extra_apps = ["elixir"] + extra_apps,
 -        modules = [":beam_files"],
-+        modules = [":" + name + "_beam_files"],
+-        **kwargs
++        modules = [":" + beam_files],
 +        deps = deps,
-         **kwargs
++        **(common | kwargs)
      )
  
      elixir_ebin_dir(
@@ -57,79 +91,120 @@ diff --git a/elixir_app.bzl b/elixir_app.bzl
 -        beam_files_dir = ":beam_files",
 -        app_file = ":app_file",
 -        dest = "ebin",
-+        name = name + "_ebin",
-+        target_compatible_with = target_compatible_with,
-+        testonly = testonly,
-+        tags = tags,
-+        beam_files_dir = ":" + name + "_beam_files",
-+        app_file = ":" + name + "_app_file",
-+        dest = name + "/ebin",
++        name = ebin,
++        beam_files_dir = ":" + beam_files,
++        app_file = ":" + app_file_name,
++        dest = _prefixed(name, "ebin", "/"),
++        **common
      )
  
      erlang_app_filter_module_conflicts(
 -        name = "elixir_without_app_overlap",
 -        dest = "unconsolidated",
-+        name = name + "_elixir_without_app_overlap",
-+        target_compatible_with = target_compatible_with,
-+        testonly = testonly,
-+        tags = tags,
-+        dest = name + "/unconsolidated",
++        name = without_overlap,
++        dest = _prefixed(name, "unconsolidated", "/"),
          src = Label("@rules_elixir//elixir:elixir"),
 -        without = [":ebin"],
-+        without = [":" + name + "_ebin"],
++        without = [":" + ebin],
++        **common
      )
  
      erlang_app_info(
 -        name = "erlang_app",
 +        name = name,
-+        target_compatible_with = target_compatible_with,
-+        testonly = testonly,
-+        tags = tags,
          srcs = srcs,
          hdrs = [],
          app_name = app_name,
 -        beam = [":ebin"],
-+        beam = [":" + name + "_ebin"],
++        beam = [":" + ebin],
          extra_apps = extra_apps,
          # allow_empty: plenty of Hex packages ship no LICENSE file (ash among them), and
          # with --incompatible_disallow_empty_glob on -- the default since Bazel 7 -- an
-@@ -81,6 +101,6 @@
+@@ -81,6 +114,7 @@ def elixir_app(
          priv = [],
          visibility = ["//visibility:public"],
          deps = [
 -            ":elixir_without_app_overlap",
-+            ":" + name + "_elixir_without_app_overlap",
++            ":" + without_overlap,
          ] + deps,
++        **common
      )
 diff --git a/private/elixir_build.bzl b/private/elixir_build.bzl
 --- a/private/elixir_build.bzl
 +++ b/private/elixir_build.bzl
-@@ -19,6 +19,7 @@
-         "release_dir",
-         "elixir_home",
-         "version_file",
-+        "tree",
-     ],
+@@ -15,11 +15,19 @@ load(
+ 
+ ElixirInfo = provider(
+     doc = "A Home directory of a built Elixir",
+-    fields = [
+-        "release_dir",
+-        "elixir_home",
+-        "version_file",
+-    ],
++    fields = {
++        "release_dir": "A directory holding the Elixir installation, or None",
++        "elixir_home": "An absolute path to an external Elixir, or None",
++        "version_file": """A file containing the version of this
++elixir, used to correctly invalidate the cache when an
++external elixir is used""",
++        "tree": """Optional. A depset of every file of a relocatable
++elixir installation whose root directory holds version_file. When set,
++rules put these files in their inputs and runfiles and find the
++installation next to version_file, so release_dir and elixir_home are
++not used by the rules. Providers that do not set this field keep the
++current behaviour.""",
++    },
  )
+ 
+ def _impl(ctx):
+@@ -144,6 +152,7 @@ export PATH="{erlang_home}"/bin:${{PATH}}
+             release_dir = release_dir,
+             elixir_home = None,
+             version_file = version_file,
++            tree = None,
+         ),
+     ]
+ 
+@@ -292,6 +301,7 @@ export PATH="{erlang_home}"/bin:${{PATH}}
+             release_dir = release_dir,
+             elixir_home = None,
+             version_file = version_file,
++            tree = None,
+         ),
+     ]
+ 
+@@ -344,6 +354,7 @@ export PATH="{erlang_home}"/bin:${{PATH}}
+             release_dir = None,
+             elixir_home = elixir_home,
+             version_file = version_file,
++            tree = None,
+         ),
+     ]
  
 diff --git a/private/elixir_bytecode.bzl b/private/elixir_bytecode.bzl
 --- a/private/elixir_bytecode.bzl
 +++ b/private/elixir_bytecode.bzl
-@@ -58,11 +58,19 @@
+@@ -58,11 +58,26 @@ fi
  {env}
  
  {setup}
 -set -x
--${{ABS_ELIXIR_HOME}}/bin/elixirc \\
 +diagnostics=$(mktemp)
 +status=0
-+${{ABS_ELIXIR_HOME}}/bin/elixir +elixirc \\
+ ${{ABS_ELIXIR_HOME}}/bin/elixirc \\
      -o {out_dir} \\
      {elixirc_opts} \\
 -    {srcs}
 +    {srcs} 2>"$diagnostics" || status=$?
 +cat "$diagnostics" >&2
-+if [ "$status" = 0 ] && [ -n "{warnings_as_errors}" ] && grep -q "warning:" "$diagnostics"; then
++# Released Elixir ignores --warnings-as-errors in elixirc and exits 0 on
++# warnings. Fail here instead. Once elixirc fails by itself, status is
++# not 0 and this check does nothing. The launcher's warning about a
++# latin1 file name encoding is not a compiler warning, so it is skipped.
++if [ "$status" = 0 ] && [ -n "{warnings_as_errors}" ] && awk '
++    /^[[:space:]]*warning:/ && !/native name encoding of latin1/ {{ found = 1 }}
++    END {{ exit !found }}
++' "$diagnostics"; then
 +    echo "Compilation failed due to warnings while using the --warnings-as-errors option" >&2
 +    status=1
 +fi
@@ -138,7 +213,7 @@ diff --git a/private/elixir_bytecode.bzl b/private/elixir_bytecode.bzl
  """.format(
          maybe_install_erlang = maybe_install_erlang(ctx),
          erlang_home = erlang_home,
-@@ -73,6 +81,7 @@
+@@ -73,6 +88,7 @@ ${{ABS_ELIXIR_HOME}}/bin/elixirc \\
          out_dir = ebin.path,
          elixirc_opts = " ".join([shell.quote(opt) for opt in ctx.attr.elixirc_opts]),
          srcs = " ".join([f.path for f in ctx.files.srcs]),
@@ -149,7 +224,18 @@ diff --git a/private/elixir_bytecode.bzl b/private/elixir_bytecode.bzl
 diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
 --- a/private/elixir_toolchain.bzl
 +++ b/private/elixir_toolchain.bzl
-@@ -28,9 +28,14 @@
+@@ -2,6 +2,10 @@ load(
+     "@rules_erlang//private:erlang_build.bzl",
+     "OtpInfo",
+ )
++load(
++    "@rules_erlang//tools:erlang_toolchain.bzl",
++    "TREE_ERLANG_HOME",
++)
+ load(
+     ":elixir_build.bzl",
+     "ElixirInfo",
+@@ -28,8 +32,17 @@ elixir_toolchain = rule(
  def _build_info(ctx):
      return ctx.toolchains["//:toolchain_type"].otpinfo
  
@@ -158,30 +244,36 @@ diff --git a/private/elixir_toolchain.bzl b/private/elixir_toolchain.bzl
 +
  def erlang_dirs(ctx):
      info = _build_info(ctx)
--    if info.release_dir_tar != None:
-+    if _tree(info) != None:
-+        runfiles = ctx.runfiles(transitive_files = info.tree)
-+    elif info.release_dir_tar != None:
++    tree = _tree(info)
++    if tree != None:
++        runfiles = ctx.runfiles(
++            transitive_files = depset([info.version_file], transitive = [tree]),
++        )
++        return (TREE_ERLANG_HOME, None, runfiles)
+     if info.release_dir_tar != None:
          runfiles = ctx.runfiles([
              info.release_dir_tar,
-             info.version_file,
-@@ -43,6 +48,9 @@
+@@ -43,6 +56,13 @@ def erlang_dirs(ctx):
  
  def elixir_dirs(ctx, short_path = False):
      info = ctx.toolchains["//:toolchain_type"].elixirinfo
-+    if _tree(info) != None:
-+        root = info.version_file.short_path if short_path else info.version_file.path
-+        return (root.rpartition("/")[0], ctx.runfiles(transitive_files = info.tree))
++    tree = _tree(info)
++    if tree != None:
++        version_file = info.version_file.short_path if short_path else info.version_file.path
++        runfiles = ctx.runfiles(
++            transitive_files = depset([info.version_file], transitive = [tree]),
++        )
++        return (version_file.rpartition("/")[0], runfiles)
      if info.elixir_home != None:
          return (info.elixir_home, ctx.runfiles([info.version_file]))
      else:
-@@ -51,6 +59,9 @@
+@@ -51,6 +71,9 @@ def elixir_dirs(ctx, short_path = False):
  
  def maybe_install_erlang(ctx, short_path = False):
      info = _build_info(ctx)
 +    if _tree(info) != None:
-+        root = info.version_file.short_path if short_path else info.version_file.path
-+        return 'RULES_ERLANG_HOME="$(cd "$(dirname "{}")" && pwd)"'.format(root)
++        version_file = info.version_file.short_path if short_path else info.version_file.path
++        return 'RULES_ERLANG_HOME="$(cd "$(dirname "{}")" && pwd)"'.format(version_file)
      release_dir_tar = info.release_dir_tar
      if release_dir_tar == None:
          return ""

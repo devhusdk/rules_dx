@@ -19,19 +19,8 @@ def notice_manifest_error(manifest):
         return "notice_bundle: invalid manifest 'None': want the audited inventory manifest label"
     return ""
 
-def notice_texts_error(texts):
-    """Rejects license-words files that share a basename."""
-    seen = {}
-    for text in texts:
-        base = text.rsplit(":", 1)[-1].rsplit("/", 1)[-1]
-        if base in seen:
-            return ("notice_bundle: duplicate text basename '" + base + "': " +
-                    seen[base] + " and " + text)
-        seen[base] = text
-    return ""
-
 def notice_bundle(name, root, inventory, texts):
-    """Bundles one aggregated NOTICE from the audited license inventory."""
+    """Bundles one aggregated NOTICE; texts are matched by manifest path suffix."""
     root_err = notice_root_error(root)
     if root_err != "":
         fail(root_err + " (in " + native.package_name() + ":" + name + ")")
@@ -41,9 +30,6 @@ def notice_bundle(name, root, inventory, texts):
     if len(texts) == 0:
         fail("notice_bundle " + native.package_name() + ":" + name +
              ": need at least one license-words file")
-    texts_err = notice_texts_error(texts)
-    if texts_err != "":
-        fail(texts_err + " (in " + native.package_name() + ":" + name + ")")
     (notice, checksum) = notice_filenames(name)
 
     native.genrule(

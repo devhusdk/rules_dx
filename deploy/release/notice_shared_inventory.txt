@@ -1,0 +1,3 @@
+# Invented root for `notice_shared_demo`: one package name in two sets.
+shared|cargo|1.0.0|MIT|cargo/shared/LICENSE|65b423b092ddbd7dd3a176603f3574009f1f9692572c6dca592498a447397927
+shared|npm|1.0.0|MIT|npm/shared/LICENSE|c22e2928bc7cf1f28d9d51281e5b6f9ab0c6fb8cf5f7d6b9181a8c31851c7a91

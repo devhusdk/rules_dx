@@ -24,6 +24,9 @@ exports_files([
     "notice_demo_a.txt",
     "notice_demo_b.txt",
     "notice_demo_inventory.txt",
+    "notice_shared/cargo/shared/LICENSE",
+    "notice_shared/npm/shared/LICENSE",
+    "notice_shared_inventory.txt",
     "notice_tests.bzl",
     "repos.bzl",
     "sbom.bzl",
@@ -343,6 +346,16 @@ notice_bundle(
     ],
 )
 
+notice_bundle(
+    name = "notice_shared_demo",
+    inventory = ":notice_shared_inventory.txt",
+    root = "//deploy/release:notice_shared_demo",
+    texts = [
+        ":notice_shared/cargo/shared/LICENSE",
+        ":notice_shared/npm/shared/LICENSE",
+    ],
+)
+
 [
     config_setting(
         name = "cosign_" + key,
@@ -415,6 +428,12 @@ notice_file_tests(
     notice = ":notice_demo_notice",
 )
 
+notice_file_tests(
+    name = "notice_shared_demo_contains_words",
+    notice = ":notice_shared_demo_notice",
+    want = "=== shared 1.0.0 (MIT) [cargo] ===\nFixture license words for shared (cargo).\n=== shared 1.0.0 (MIT) [npm] ===\nFixture license words for shared (npm).",
+)
+
 test_suite(
     name = "all",
     tests = [
@@ -423,6 +442,7 @@ test_suite(
         ":dx_release_tools_test",
         ":matrix_unit",
         ":notice_demo_contains_words",
+        ":notice_shared_demo_contains_words",
         ":notice_unit",
         ":release_artifacts_verify",
         ":sbom_quoting_demo_contains_supplier",

@@ -251,6 +251,9 @@ func (l *dispatchLang) GenerateRules(args language.GenerateArgs) language.Genera
 	if args.Config != nil {
 		l.configs = append(l.configs, args.Config)
 	}
+	for _, msg := range checkAndroid(args) {
+		l.fail("%s", msg)
+	}
 	if l.manifest != nil {
 		l.manifest.Record(args, language.GenerateResult{})
 	}

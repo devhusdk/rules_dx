@@ -1,0 +1,7 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+
+cc_library(
+    name = "jni",
+    srcs = ["jni_bridge.cc"],
+    alwayslink = True,
+)

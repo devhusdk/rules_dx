@@ -236,3 +236,62 @@ func TestLexSourceSharedWalk(t *testing.T) {
 		t.Errorf("lexSource code = %q, want %q", code, want)
 	}
 }
+
+func TestParseSystemIncludesGuards(t *testing.T) {
+	in := `#ifndef DEMO_H
+#define DEMO_H
+#include <stdio.h>
+#include "local.h"
+// #include <android/fake.h>
+const char* s = R"(
+#include <android/raw.h>
+)";
+#ifdef __ANDROID__
+#include <android/log.h>
+#else
+#include <android/else.h>
+#endif
+#if defined(FOO)
+#include <foo.h>
+#elif defined(__ANDROID_API__)
+#include <android/elif.h>
+#endif
+#include <android/native_activity.h>
+#endif
+`
+	got := ParseSystemIncludes([]byte(in))
+	want := []SystemInclude{
+		{Path: "stdio.h"},
+		{Path: "android/log.h", Guarded: true},
+		{Path: "android/else.h", Guarded: true},
+		{Path: "foo.h"},
+		{Path: "android/elif.h", Guarded: true},
+		{Path: "android/native_activity.h"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseSystemIncludes = %+v, want %+v", got, want)
+	}
+	if q := ParseQuotedIncludes([]byte(in)); !reflect.DeepEqual(q, []string{"local.h"}) {
+		t.Errorf("ParseQuotedIncludes = %v, want [local.h]", q)
+	}
+}
+
+func TestDefinesAndroidEntry(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		want bool
+	}{
+		{"void ANativeActivity_onCreate(ANativeActivity* a, void* s, size_t n) {\n}\n", true},
+		{"JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* r)\n{\n  return 0;\n}\n", true},
+		{"extern \"C\" jstring Java_org_example_Bridge_greet(JNIEnv* env, jobject) { return 0; }\n", true},
+		{"void ANativeActivity_onCreate(ANativeActivity* a, void* s, size_t n);\n", false},
+		{"jint JNI_OnLoad(JavaVM* vm, void* r);\n", false},
+		{"// void JNI_OnLoad(JavaVM* vm) {}\n", false},
+		{"const char* s = \"Java_x() {}\";\n", false},
+		{"void MyJava_x() {}\n", false},
+	} {
+		if got := DefinesAndroidEntry([]byte(c.in)); got != c.want {
+			t.Errorf("DefinesAndroidEntry(%q) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}

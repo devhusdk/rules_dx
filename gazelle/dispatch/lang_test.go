@@ -765,3 +765,125 @@ func TestOnlyDispatchWritesTheManifest(t *testing.T) {
 		t.Fatalf("dispatch did not write the manifest: %v", err)
 	}
 }
+
+const androidTestManifest = `<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.example.adoptandroid">
+    <uses-sdk android:minSdkVersion="33" android:targetSdkVersion="33" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+</manifest>
+`
+
+func androidCheck(t *testing.T, build string, files map[string]string) (*dispatchLang, *rule.File) {
+	t.Helper()
+	dir := t.TempDir()
+	for name, content := range files {
+		p := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f := mustLoad(t, filepath.Join(dir, "BUILD.bazel"), "app", build)
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	res := l.GenerateRules(language.GenerateArgs{Config: testConfig(), Dir: dir, Rel: "app", File: f})
+	if len(res.Gen) != 0 || len(res.Empty) != 0 || len(res.Imports) != 0 {
+		t.Fatalf("android check must generate nothing, got %+v", res)
+	}
+	return l, f
+}
+
+func apkBuild(attrs string) string {
+	return "rust_android_apk(\n    name = \"adopt_apk\",\n" + attrs + "    deps = [\":native\"],\n)\n"
+}
+
+func wantAndroidErrors(t *testing.T, l *dispatchLang, want ...string) {
+	t.Helper()
+	if len(l.errors) != len(want) {
+		t.Fatalf("errors = %q, want %d", l.errors, len(want))
+	}
+	for i, w := range want {
+		if !strings.Contains(l.errors[i], w) {
+			t.Errorf("error %d = %q, want containing %q", i, l.errors[i], w)
+		}
+	}
+}
+
+func TestAndroidCustomManifestMatches(t *testing.T) {
+	l, _ := androidCheck(t, apkBuild("    api_level = 33,\n    app_id = \"org.example.adoptandroid\",\n    manifest = \"src/main/AndroidManifest.xml\",\n"),
+		map[string]string{"src/main/AndroidManifest.xml": androidTestManifest})
+	wantAndroidErrors(t, l)
+}
+
+func TestAndroidManifestPackageMismatchFails(t *testing.T) {
+	l, _ := androidCheck(t, apkBuild("    app_id = \"org.example.other\",\n    manifest = \"AndroidManifest.xml\",\n"),
+		map[string]string{"AndroidManifest.xml": androidTestManifest})
+	wantAndroidErrors(t, l, `android: //app:adopt_apk: manifest AndroidManifest.xml declares package "org.example.adoptandroid", want "org.example.other"`)
+}
+
+func TestAndroidCustomPackageWins(t *testing.T) {
+	l, _ := androidCheck(t, apkBuild("    app_id = \"org.example.other\",\n    custom_package = \"org.example.adoptandroid\",\n    manifest = \":AndroidManifest.xml\",\n"),
+		map[string]string{"AndroidManifest.xml": androidTestManifest})
+	wantAndroidErrors(t, l)
+}
+
+func TestAndroidApiLevelMismatchFails(t *testing.T) {
+	l, _ := androidCheck(t, apkBuild("    api_level = 31,\n    app_id = \"org.example.adoptandroid\",\n    manifest = \"AndroidManifest.xml\",\n"),
+		map[string]string{"AndroidManifest.xml": androidTestManifest})
+	wantAndroidErrors(t, l, "declares minSdkVersion 33, but api_level is 31")
+}
+
+func TestAndroidMalformedManifestFails(t *testing.T) {
+	l, _ := androidCheck(t, apkBuild("    app_id = \"org.example.adoptandroid\",\n    manifest = \"AndroidManifest.xml\",\n"),
+		map[string]string{"AndroidManifest.xml": "<manifest><uses-sdk></manifest>"})
+	wantAndroidErrors(t, l, "android: //app:adopt_apk: manifest AndroidManifest.xml: malformed manifest")
+}
+
+func TestAndroidGeneratedManifestSkipped(t *testing.T) {
+	build := "filegroup(\n    name = \"x_manifest\",\n    srcs = [\"x_manifest\"],\n)\n\n" + apkBuild("    app_id = \"org.example.other\",\n    manifest = \":x_manifest\",\n")
+	l, _ := androidCheck(t, build, map[string]string{"x_manifest": androidTestManifest})
+	wantAndroidErrors(t, l)
+	l, _ = androidCheck(t, apkBuild("    app_id = \"org.example.other\",\n    manifest = \"//other:AndroidManifest.xml\",\n"), nil)
+	wantAndroidErrors(t, l)
+}
+
+func TestAndroidSelectSkipped(t *testing.T) {
+	l, _ := androidCheck(t, apkBuild("    app_id = select({\"//conditions:default\": \"org.example.other\"}),\n    api_level = select({\"//conditions:default\": 31}),\n    manifest = \"AndroidManifest.xml\",\n"),
+		map[string]string{"AndroidManifest.xml": androidTestManifest})
+	wantAndroidErrors(t, l)
+	l, _ = androidCheck(t, apkBuild("    app_id = \"org.example.other\",\n    manifest = select({\"//conditions:default\": \"AndroidManifest.xml\"}),\n"),
+		map[string]string{"AndroidManifest.xml": androidTestManifest})
+	wantAndroidErrors(t, l)
+}
+
+func TestAndroidAbisNeverChecked(t *testing.T) {
+	build := apkBuild("    abis = [\"mips\"],\n    app_id = \"org.example.adoptandroid\",\n    manifest = \"AndroidManifest.xml\",\n")
+	l, f := androidCheck(t, build, map[string]string{"AndroidManifest.xml": androidTestManifest})
+	wantAndroidErrors(t, l)
+	if got := strings.Join(f.Rules[0].AttrStrings("abis"), ","); got != "mips" {
+		t.Errorf("abis = %q, want mips unchanged", got)
+	}
+}
+
+func TestAndroidCheckWritesNothing(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateMode, "default")
+	build := apkBuild("    app_id = \"org.example.other\",\n    manifest = \"AndroidManifest.xml\",\n")
+	l, f := androidCheck(t, build, map[string]string{"AndroidManifest.xml": androidTestManifest})
+	if len(l.manifest.Visited) != 1 || len(l.manifest.Visited[0].Gen) != 0 {
+		t.Fatalf("visited = %+v, want one visit with no rules", l.manifest.Visited)
+	}
+	if want := mustLoad(t, "BUILD.bazel", "app", build).Format(); !bytes.Equal(f.Format(), want) {
+		t.Errorf("file changed:\n%s", f.Format())
+	}
+	wantAndroidErrors(t, l, "declares package")
+}
+
+func TestAndroidNilFile(t *testing.T) {
+	if errs := checkAndroid(language.GenerateArgs{Rel: "app"}); errs != nil {
+		t.Errorf("errors = %q, want none", errs)
+	}
+}

@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:private"])
 go_library(
     name = "dispatch",
     srcs = [
+        "android.go",
         "doc.go",
         "lang.go",
     ],
@@ -34,6 +35,7 @@ go_library(
         "//gazelle/typescript",
         "//gazelle/vue",
         "//gazelle/zig",
+        "@com_github_bazelbuild_buildtools//build",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//rule",

@@ -26,7 +26,7 @@ pub use run_deploy::{
 };
 pub use run_temp::{
     bep_path, clean_for_stop, create_run_temp_dir, intended_path, patch_path, remove_on_stop,
-    results_path, run_id, run_nonce,
+    remove_stale_run_dirs, results_path, run_id, run_nonce, RunTempDir,
 };
 pub use workflow::{plan_workflow, workflow_options, workflow_protected, WorkflowVerb};
 

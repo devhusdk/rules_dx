@@ -532,8 +532,8 @@ ignored. Flags still win. CI never implies `--apply`.
 The command line wins over the environment, and the environment wins over
 the file. Defaults load from the selected workspace: `--workspace` or
 `DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
-file redirects once to that workspace. A relative `workspace` key starts
-from the workspace start. `-h`, `--help`, `help`, `-V`, and
+file redirects once to that workspace. A relative `workspace` key resolves
+from the directory of the file that sets it. `-h`, `--help`, `help`, `-V`, and
 `--version` print without reading a broken config. `dx new` and
 `dx completion` run outside a workspace. Deleting `.dx` keeps committed
 behavior. Read-only commands never rewrite config.

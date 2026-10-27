@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_api_spec_swagger_fail
+capability LINT
+stages 1
+stage redocly classes=api_spec sources=matrix/api_spec_swagger.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR redocly dx/api-spec-root matrix/api_spec_swagger.yaml 0 0 fixable=false "Swagger 2.0 is not supported: convert the document to OpenAPI 3.0, 3.1 or 3.2"
+terminal 1
+terminal ERROR redocly dx/api-spec-root matrix/api_spec_swagger.yaml 0 0 fixable=false "Swagger 2.0 is not supported: convert the document to OpenAPI 3.0, 3.1 or 3.2"
+replacements 0

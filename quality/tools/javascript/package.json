@@ -9,6 +9,7 @@
   "dependencies": {
     "@graphql-eslint/eslint-plugin": "4.4.2",
     "@prettier/plugin-xml": "3.4.2",
+    "@redocly/cli": "2.71.1",
     "@typescript-eslint/parser": "8.72.1",
     "astro-eslint-parser": "3.2.0",
     "eslint": "10.10.0",

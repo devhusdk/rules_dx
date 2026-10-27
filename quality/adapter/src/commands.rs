@@ -1036,6 +1036,26 @@ pub fn graphql_eslint_check(
     launch.resolve(&args, files)
 }
 
+/// The problem cap passed to Redocly, far above any real report so totals stay comparable.
+pub const REDOCLY_MAX_PROBLEMS: &str = "1000000";
+
+/// One `redocly lint` over a single API root, with a JSON report on stdout.
+pub fn redocly_check(
+    launch: &ResolvedTool,
+    root: &Path,
+    config: &Path,
+) -> Result<Invocation, LaunchError> {
+    let args = vec![
+        OsString::from("lint"),
+        OsString::from("--format=json"),
+        OsString::from(format!("--max-problems={REDOCLY_MAX_PROBLEMS}")),
+        OsString::from("--lint-config=error"),
+        OsString::from("--config"),
+        config.as_os_str().to_owned(),
+    ];
+    launch.resolve(&args, &[root])
+}
+
 pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,

@@ -1307,3 +1307,71 @@ pub(super) fn vale_hinted(
         stderr: Vec::new(),
     })
 }
+
+pub(super) fn roundtrip_redocly(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let has = |key: &str, value: &str| env.iter().any(|(k, v)| k == key && v == value);
+    assert!(has("REDOCLY_TELEMETRY", "off"), "telemetry is off");
+    assert!(
+        has("REDOCLY_SUPPRESS_UPDATE_NOTICE", "true"),
+        "update notices are off"
+    );
+    let args: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        args[1..5],
+        [
+            "lint",
+            "--format=json",
+            "--max-problems=1000000",
+            "--lint-config=error"
+        ]
+    );
+    let config = args
+        .windows(2)
+        .find(|pair| pair[0] == "--config")
+        .map(|pair| PathBuf::from(&pair[1]))
+        .expect("redocly takes --config");
+    assert!(config.is_file(), "config is materialized");
+    let root = last_file(argv);
+    assert!(
+        Path::new(&root).is_relative(),
+        "the root is named from the cwd"
+    );
+    let text = std::fs::read_to_string(cwd.join(&root)).expect("root is materialized");
+    if text.contains("BROKEN") {
+        return Ok(ChildOutput {
+            code: Some(2),
+            stdout: Vec::new(),
+            stderr: b"Unknown rule: not-a-rule\n".to_vec(),
+        });
+    }
+    let mut problems = Vec::new();
+    if text.contains("dupe") {
+        problems.push(format!(
+            r##"{{"ruleId":"operation-operationId-unique","severity":"error","message":"Every operation must have a unique `operationId`.","location":[{{"source":{{"ref":"{root}"}},"pointer":"#/paths","reportOnKey":true,"start":{{"line":5,"col":7}},"end":{{"line":5,"col":18}}}}],"suggest":[]}}"##
+        ));
+    }
+    if text.contains("fragbad") {
+        problems.push(
+            r##"{"ruleId":"struct","severity":"error","message":"Expected type `Schema` (object) but got `string`","location":[{"source":{"ref":"api/schemas/pet.yaml"},"pointer":"#/Pet","reportOnKey":false,"start":{"line":2,"col":3},"end":{"line":2,"col":9}}],"suggest":[]}"##
+                .to_owned(),
+        );
+    }
+    let count = problems.len();
+    Ok(ChildOutput {
+        code: Some(i32::from(count > 0)),
+        stdout: format!(
+            r#"{{"totals":{{"errors":{count},"warnings":0,"ignored":0}},"version":"2.71.1","problems":[{}]}}"#,
+            problems.join(",")
+        )
+        .into_bytes(),
+        stderr: Vec::new(),
+    })
+}

@@ -1,5 +1,5 @@
 {
-  "checksum": "d74c2e36e63de9691a257a0e9ef39a6996ea3d6e78cf65c4365f62a25e96c639",
+  "checksum": "12bfea659398cc82b1816e008647ff3fd030cea1807db7e1f3d790ab693c8ec6",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -15306,6 +15306,10 @@
           {
             "id": "quick-xml 0.41.0",
             "target": "quick_xml"
+          },
+          {
+            "id": "saphyr-parser 0.2.2",
+            "target": "saphyr_parser"
           },
           {
             "id": "serde 1.0.229",

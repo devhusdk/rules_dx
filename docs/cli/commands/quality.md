@@ -249,6 +249,7 @@ to.
 | `pylint` | lint | python |
 | `qmlformat` | format | qml |
 | `qmllint` | lint | qml |
+| `redocly` | lint | api_spec |
 | `roslyn` | lint | csharp |
 | `rubocop` | lint | ruby |
 | `ruff` | audit, format, lint | python |
@@ -1037,6 +1038,90 @@ the start of each checked file. A missing config, an invalid config, a path
 that names no file, or a tool that fails to run fails the run with the cause
 named. It never counts as clean. The tool never reads `graphql.config.*`
 files and never fetches a schema over the network.
+
+### OpenAPI and AsyncAPI lint
+
+`redocly` lints OpenAPI 3.0, 3.1 and 3.2 and AsyncAPI 2.6 and 3.0 documents
+with Redocly CLI 2.71.1. It runs on Linux x86_64. Linux arm64, macOS arm64 and
+Windows x86_64 are not supported yet. It is opt-in: select it in the
+`api_spec` family.
+
+```python
+quality_family(
+    name = "api_spec_family",
+    family_id = "api_spec",
+    lint = ["redocly"],
+)
+```
+
+Declare specs with `api_spec_library`. `srcs` are the roots that get linted.
+`refs` are files the roots reach through `$ref`. `deps` are other
+`api_spec_library` targets whose files a root may refer to. Each accepts
+`.yaml`, `.yml` and `.json`.
+
+```python
+load("@rules_dx//api_spec/rules:defs.bzl", "api_spec_library")
+
+api_spec_library(
+    name = "pets",
+    srcs = ["openapi.yaml"],
+    refs = ["schemas/pet.yaml"],
+    deps = ["//shared"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //pets/...
+```
+
+Each root is linted on its own with every file its `$ref` graph reaches. A
+finding in the root has its line, column, rule ID such as
+`operation-operationId-unique`, and message. A finding in a ref lands on line
+1 of the root, and its message starts with the ref's own `file:line:col:`.
+
+Before Redocly runs, dx checks each root and every file it reaches. Each
+problem is an error finding on the root:
+
+- `dx/api-spec-syntax`: the file is not valid YAML or JSON, or holds more than
+  one YAML document.
+- `dx/api-spec-root`: the root has no `openapi` or `asyncapi` key, names an
+  unsupported version, or is Swagger 2.0.
+- `dx/api-spec-remote-ref`: a `$ref` names a URL. Lint runs offline. Vendor
+  the file and list it in `refs`.
+- `dx/api-spec-unresolved-ref`: a `$ref` names a file that is not in `srcs`,
+  `refs` or `deps`, an absolute path, or a path that leaves the workspace.
+
+The default config extends Redocly's `spec` ruleset and sets
+`no-unresolved-refs`, `operation-operationId-unique`,
+`path-parameters-defined`, `no-identical-paths` and
+`operation-parameters-unique` to `error`. To use your own rules, bind a
+`redocly_config` to the library with `aspect_hints`. The file ends in `.yaml`
+or `.yml`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "redocly_config")
+
+redocly_config(
+    name = "redocly",
+    src = "redocly.yaml",
+)
+```
+
+```yaml
+extends:
+  - recommended
+rules:
+  info-license: off
+```
+
+`extends` may only name the built-in rulesets `all`, `minimal`,
+`recommended`, `recommended-strict` and `spec`. A config with `plugins` or
+`resolve` at any depth fails the run. An unknown key or rule fails the run.
+
+Lint is check-only: `lint --apply` never rewrites a file. A config dx rejects,
+a config Redocly rejects, output dx cannot read, or a tool that fails to run
+fails the run with the cause named. It never counts as clean. Telemetry and
+update notices are off.
 
 ### Astro
 

@@ -284,6 +284,20 @@ GRAPHQL_ESLINT_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+API_SPEC_REDOCLY_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["api_spec"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "api_spec",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "redocly",
+    "transport": "single",
+}
+
 SQL_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -433,6 +447,7 @@ SUPPORT_RECORDS = [
     PROTOBUF_BUF_LINT_SUPPORT,
     CSS_STYLELINT_LINT_SUPPORT,
     GRAPHQL_ESLINT_LINT_SUPPORT,
+    API_SPEC_REDOCLY_LINT_SUPPORT,
     SQL_PRETTIER_FORMAT_SUPPORT,
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
@@ -573,6 +588,10 @@ def support_graphql_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the GraphQL lint family."""
     return _wiring_error(GRAPHQL_ESLINT_LINT_SUPPORT, wired_tools, "real_js_lint_aspect")
 
+def support_api_spec_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the OpenAPI and AsyncAPI lint family."""
+    return _wiring_error(API_SPEC_REDOCLY_LINT_SUPPORT, wired_tools, "real_js_lint_aspect")
+
 def support_prettier_plugins_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Prettier plugin families."""
     for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
@@ -692,6 +711,10 @@ def support_graphql_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the GraphQL lint family."""
     return _cli_error(GRAPHQL_ESLINT_LINT_SUPPORT, cli_aspects, "real_js_lint_aspect")
 
+def support_api_spec_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the OpenAPI and AsyncAPI lint family."""
+    return _cli_error(API_SPEC_REDOCLY_LINT_SUPPORT, cli_aspects, "real_js_lint_aspect")
+
 def support_prettier_plugins_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Prettier plugin families."""
     for record in [SQL_PRETTIER_FORMAT_SUPPORT, XML_PRETTIER_FORMAT_SUPPORT, GHERKIN_PRETTIER_FORMAT_SUPPORT]:
@@ -777,6 +800,10 @@ def support_css_artifact_error():
 def support_graphql_artifact_error():
     """Reports the actionable artifact gap for the GraphQL lint family."""
     return _artifact_error(GRAPHQL_ESLINT_LINT_SUPPORT)
+
+def support_api_spec_artifact_error():
+    """Reports the actionable artifact gap for the OpenAPI and AsyncAPI lint family."""
+    return _artifact_error(API_SPEC_REDOCLY_LINT_SUPPORT)
 
 def support_prettier_plugins_artifact_error():
     """Reports the actionable artifact gap for the Prettier plugin families."""

@@ -141,6 +141,7 @@ USER_BOOK = [
         "//examples/mixed/hello:README.md",
     ),
     mdbook_page("AppImage Rules", "appimage/README.md", "//appimage:README.md"),
+    mdbook_page("API Spec", "examples/api-spec/README.md", "//examples/api-spec:README.md"),
     mdbook_page("AppImage App", "examples/appimage-app/README.md", "//examples/appimage-app:README.md"),
     mdbook_page("C App", "examples/c-app/README.md", "//examples/c-app:README.md"),
     mdbook_page("C++ App", "examples/cpp-app/README.md", "//examples/cpp-app:README.md"),

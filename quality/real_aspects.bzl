@@ -62,6 +62,7 @@ _REAL_TOOL_TABLE = {
     "pylint": {"capabilities": ["lint"], "shard": "py", "resources": "medium"},
     "qmlformat": {"capabilities": ["format"], "shard": "core", "resources": "light"},
     "qmllint": {"capabilities": ["lint"], "shard": "core", "resources": "medium"},
+    "redocly": {"capabilities": ["lint"], "shard": "js", "resources": "medium"},
     "rubocop": {"capabilities": ["lint"], "shard": "ruby", "resources": "medium"},
     "roslyn": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
     "ruff": {"capabilities": ["format", "lint"], "shard": "core", "resources": "light"},
@@ -572,6 +573,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "graphql_eslint" in stage_tools:
         tool_binaries["graphql_eslint"] = ctx.executable._graphql_eslint
         tool_extra["graphql_eslint"] = ctx.attr._graphql_eslint[DefaultInfo].files.to_list()
+    if "redocly" in stage_tools:
+        tool_binaries["redocly"] = ctx.executable._redocly
+        tool_extra["redocly"] = ctx.attr._redocly[DefaultInfo].files.to_list()
     if "ty" in stage_tools:
         tool_binaries["ty"] = ctx.file._ty
     if "vale" in stage_tools:
@@ -690,6 +694,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    if "redocly" in stage_tools:
+        for f in target[DefaultInfo].files.to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or f.extension not in ["yaml", "yml", "json"]:
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     if "buf" in stage_tools and ProtoInfo in target:
         proto_roots = sorted([r for r in target[ProtoInfo].transitive_proto_path.to_list() if r != "."], key = lambda r: -len(r))
         for f in target[ProtoInfo].transitive_sources.to_list():
@@ -745,6 +757,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "graphql_eslint" in stage_tools:
         run_tools.append(ctx.attr._graphql_eslint[DefaultInfo].files_to_run)
         tool_env_entries["graphql_eslint"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
+    if "redocly" in stage_tools:
+        run_tools.append(ctx.attr._redocly[DefaultInfo].files_to_run)
+        tool_env_entries["redocly"] = [real_request_tool_env("JS_BINARY__NO_CD_BINDIR", "1")]
     if "pydoclint" in stage_tools:
         run_tools.append(ctx.attr._pydoclint[DefaultInfo].files_to_run)
         tool_env_entries["pydoclint"] = [real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles")]
@@ -1049,6 +1064,11 @@ _REAL_TOOL_ATTR_DEFS = {
         cfg = "exec",
         executable = True,
     ),
+    "redocly": attr.label(
+        default = "//quality/tools/javascript/bin:redocly",
+        cfg = "exec",
+        executable = True,
+    ),
     "pydoclint": attr.label(
         default = "//quality/tools/python:pydoclint",
         cfg = "exec",
@@ -1273,7 +1293,7 @@ _REAL_SHARDS = {
     "real_yaml_lint": {"attrs": _REAL_YAML_LINT_ATTRS, "capability": "lint", "doc": "Additive YAML lint family aspect (yamllint).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_LINT_TOOLS},
     "real_format": {"attrs": _REAL_CORE_ATTRS, "capability": "format", "doc": "Registers the exact-input real format pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_FORMAT_TOOLS},
     "real_js_format": {"attrs": _REAL_JS_FORMAT_ATTRS, "capability": "format", "doc": "Additive JavaScript/JSON format family aspect (Prettier).", "has_rust": False, "suffix": "-js", "tools": _JS_FORMAT_TOOLS},
-    "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
+    "real_js_lint": {"attrs": _REAL_JS_LINT_ATTRS, "capability": "lint", "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint/Redocly opt-in).", "has_rust": False, "suffix": "-js", "tools": _JS_LINT_TOOLS},
     "real_jvm_format": {"attrs": _REAL_JVM_FORMAT_ATTRS, "capability": "format", "doc": "Additive JVM format family aspect (google-java-format/ktfmt).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_FORMAT_TOOLS},
     "real_jvm_lint": {"attrs": _REAL_JVM_LINT_ATTRS, "capability": "lint", "doc": "Additive JVM lint family aspect (Checkstyle/Pmd/SpotBugs/ktlint; SpotBugs target-coupled via JavaInfo).", "has_rust": False, "suffix": "-jvm", "tools": _JVM_LINT_TOOLS},
     "real_lint": {"attrs": _REAL_CORE_ATTRS, "capability": "lint", "doc": "Registers the exact-input real lint pipeline action in dx_results.", "has_rust": False, "suffix": "", "tools": _CORE_LINT_TOOLS},

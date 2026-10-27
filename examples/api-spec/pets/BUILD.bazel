@@ -1,0 +1,18 @@
+load("//api_spec/rules:defs.bzl", "api_spec_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+api_spec_library(
+    name = "pets",
+    srcs = ["openapi.yaml"],
+    refs = ["schemas/pet.yaml"],
+    deps = ["//examples/api-spec/shared"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

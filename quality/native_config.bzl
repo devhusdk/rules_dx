@@ -39,6 +39,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "psscriptanalyzer": [".psd1"],
     "qmlformat": [".qmlformat.ini"],
     "qmllint": [".qmllint.ini"],
+    "redocly": [".yaml", ".yml"],
     "rubocop": [".yml", ".yaml"],
     "ruff": [".toml"],
     "rustfmt": [".toml"],
@@ -194,6 +195,8 @@ qmllint_config = _make_native_config_rule("qmllint")
 stylelint_config = _make_native_config_rule("stylelint")
 
 graphql_eslint_config = _make_native_config_rule("graphql_eslint")
+
+redocly_config = _make_native_config_rule("redocly")
 
 psscriptanalyzer_config = _make_native_config_rule("psscriptanalyzer")
 

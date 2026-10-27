@@ -61,6 +61,7 @@ REAL_ADAPTERS = {
     "pmd": {"lint": ["java"]},
     "prettier": {"format": ["astro", "css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "tsx", "typescript", "vue", "xml"]},
     "psscriptanalyzer": {"lint": ["powershell"]},
+    "redocly": {"lint": ["api_spec"]},
     "rubocop": {"lint": ["ruby"]},
     "pydoclint": {"lint": ["python", "python_stub"]},
     "pylint": {"lint": ["python", "python_stub"]},
@@ -88,6 +89,7 @@ REAL_ADAPTERS = {
 }
 
 REAL_CLASS_TO_FAMILY = {
+    "api_spec": "api_spec",
     "astro": "astro",
     "c": "cc",
     "cpp": "cc",

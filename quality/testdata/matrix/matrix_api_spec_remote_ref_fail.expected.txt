@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_api_spec_remote_ref_fail
+capability LINT
+stages 1
+stage redocly classes=api_spec sources=matrix/api_spec_remote_ref.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR redocly dx/api-spec-remote-ref matrix/api_spec_remote_ref.yaml 106 106 fixable=false "$ref https://example.com/pet.yaml names a remote document; dx lints API specs offline, so vendor it and list it in refs"
+terminal 1
+terminal ERROR redocly dx/api-spec-remote-ref matrix/api_spec_remote_ref.yaml 106 106 fixable=false "$ref https://example.com/pet.yaml names a remote document; dx lints API specs offline, so vendor it and list it in refs"
+replacements 0

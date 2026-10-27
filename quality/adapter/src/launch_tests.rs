@@ -24,6 +24,7 @@ fn a_javascript_launch_names_its_own_runfiles() {
     assert_eq!(policy_for("prettier"), RunfilesPolicy::OwnManifest);
     assert_eq!(policy_for("stylelint"), RunfilesPolicy::OwnManifest);
     assert_eq!(policy_for("graphql_eslint"), RunfilesPolicy::OwnManifest);
+    assert_eq!(policy_for("redocly"), RunfilesPolicy::OwnManifest);
 }
 
 #[test]

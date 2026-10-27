@@ -3404,6 +3404,7 @@ dependencies = [
  "line-index",
  "normpath",
  "quick-xml",
+ "saphyr-parser",
  "serde",
  "serde-sarif",
  "serde_json",

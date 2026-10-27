@@ -4,6 +4,16 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//rust/rules:defs.bzl", "rust_test")
 
+def _red_manifest(name):
+    """Exposes one red runner's harness manifest so a demo can stage it."""
+    native.filegroup(
+        name = name + "_manifest",
+        srcs = [":" + name],
+        output_group = "starlark_manifest",
+        testonly = True,
+        tags = ["manual"],
+    )
+
 def red_failing_checks(name):
     """Red unit runner with two wrong expects and one passing control."""
     starlark_test(
@@ -16,6 +26,7 @@ def red_failing_checks(name):
         ],
         tags = ["manual"],
     )
+    _red_manifest(name)
 
 _RED_OBSERVATIONS = """subject //libs/starlark/tests/negative:negative_subject
 file negative_subject.txt
@@ -37,6 +48,7 @@ def red_missing_observation(name):
         expected_observations = _RED_OBSERVATIONS,
         tags = ["manual"],
     )
+    _red_manifest(name)
 
 def red_missing_fragment(name):
     """Red execution runner wanting one absent substring."""
@@ -48,15 +60,20 @@ def red_missing_fragment(name):
         },
         tags = ["manual"],
     )
+    _red_manifest(name)
 
 def failing_check_demo(name):
     rust_test(
         name = name,
         srcs = ["negative_proof_test.rs"],
-        data = [":red_failing_checks"],
+        data = [
+            ":red_failing_checks",
+            ":red_failing_checks_manifest",
+        ],
         env = {
             "DX_NEGATIVE_CASE": "failing_check",
             "DX_RUNNER_BIN": "$(rootpath :red_failing_checks)",
+            "STARLARK_HARNESS_MANIFEST": "$(rlocationpath :red_failing_checks_manifest)",
         },
         tags = ["no-coverage"],
         target_compatible_with = ["@platforms//os:linux"],
@@ -67,10 +84,14 @@ def missing_observation_demo(name):
     rust_test(
         name = name,
         srcs = ["negative_proof_test.rs"],
-        data = [":red_missing_observation"],
+        data = [
+            ":red_missing_observation",
+            ":red_missing_observation_manifest",
+        ],
         env = {
             "DX_NEGATIVE_CASE": "missing_observation",
             "DX_RUNNER_BIN": "$(rootpath :red_missing_observation)",
+            "STARLARK_HARNESS_MANIFEST": "$(rlocationpath :red_missing_observation_manifest)",
         },
         tags = ["no-coverage"],
         target_compatible_with = ["@platforms//os:linux"],
@@ -81,10 +102,14 @@ def missing_fragment_demo(name):
     rust_test(
         name = name,
         srcs = ["negative_proof_test.rs"],
-        data = [":red_missing_fragment"],
+        data = [
+            ":red_missing_fragment",
+            ":red_missing_fragment_manifest",
+        ],
         env = {
             "DX_NEGATIVE_CASE": "missing_fragment",
             "DX_RUNNER_BIN": "$(rootpath :red_missing_fragment)",
+            "STARLARK_HARNESS_MANIFEST": "$(rlocationpath :red_missing_fragment_manifest)",
         },
         tags = ["no-coverage"],
         target_compatible_with = ["@platforms//os:linux"],

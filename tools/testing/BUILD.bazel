@@ -261,6 +261,7 @@ rust_binary(
     crate_name = "starlark_harness",
     crate_root = "starlark_harness.rs",
     edition = "2021",
+    visibility = ["//visibility:public"],
     deps = crate_deps(
         ["serde_json"],
         package_name = "tools/dx_testing",

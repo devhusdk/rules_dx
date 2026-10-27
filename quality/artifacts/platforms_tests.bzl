@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":extension.bzl", "TOOL_ARTIFACTS")
-load(":hub.bzl", "TOOL_PLATFORMS")
+load(":hub.bzl", "ARTIFACT_PLATFORMS", "TOOL_PLATFORMS")
 load(
     ":platforms.bzl",
     "artifact_platform_key",
@@ -48,10 +48,16 @@ def platforms_tests(name):
             artifact_platform_key(artifact),
             artifact["os"] + "_" + artifact["cpu"],
         ))
+        key = artifact_platform_key(artifact)
         checks.append(expect_true(
-            artifact["tool"] + " " + artifact["os"] + "_" + artifact["cpu"] + " is a supported execution key",
-            is_supported_key(artifact_platform_key(artifact)),
+            artifact["tool"] + " " + key + " is a selectable artifact platform",
+            key in ARTIFACT_PLATFORMS,
         ))
+        if key in TOOL_PLATFORMS:
+            checks.append(expect_true(
+                artifact["tool"] + " " + key + " is a supported execution key",
+                is_supported_key(key),
+            ))
     checks.append(expect_false("unexpected platform keys stay outside the supported set", is_supported_key("solaris_sparc")))
     starlark_test(
         name = name,

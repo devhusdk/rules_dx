@@ -1103,6 +1103,12 @@ _hub_fixture_repo(
     tool = "taplo",
 )
 
+_hub_fixture_repo(
+    name = "dx_hub_fixture_taplo_macos_x86_64",
+    platform = "macos_x86_64",
+    tool = "taplo",
+)
+
 appimage_tools = use_extension("//appimage:repos.bzl", "appimage_tools")
 use_repo(appimage_tools, "dx_appimage_tools")
 

@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::verdict::{alias_errors, line_comment_syntax, normalize_path, LineComment};
-use crate::{find_ignores, is_covered_language, is_ignored, merge_lcov_reports, LcovError};
+use crate::{
+    find_ignores, is_covered_language, is_ignored, merge_lcov_reports, FileHits, Ignores, LcovError,
+};
 
 /// The rules_dx-relative aspect that writes one source manifest per top-level target.
 pub const SOURCES_ASPECT: &str = "quality:coverage_sources.bzl%dx_coverage_sources_aspect";
@@ -42,6 +44,7 @@ pub struct CellAccount {
     pub raw_lines: u64,
     pub excluded_lines: u64,
     pub eligible_lines: u64,
+    pub covered_lines: u64,
     pub eligible_files: u64,
     pub support_files: u64,
     pub excluded_files: u64,
@@ -56,17 +59,54 @@ impl CellAccount {
     /// The one-line counts summary for this cell.
     pub fn summary(&self) -> String {
         format!(
-            "coverage sources {}: {} raw, {} excluded, {} eligible lines; {} eligible, {} support, {} excluded, {} unsupported files",
+            "coverage sources {}: {} raw, {} excluded, {} eligible, {} covered lines; {} eligible, {} support, {} excluded, {} unsupported files",
             self.cell,
             self.raw_lines,
             self.excluded_lines,
             self.eligible_lines,
+            self.covered_lines,
             self.eligible_files,
             self.support_files,
             self.excluded_files,
             self.unsupported_files,
         )
     }
+
+    /// True when the cell has no accounting errors, at least one eligible line, and meets `minimum` percent.
+    pub fn meets(&self, minimum: u32) -> bool {
+        self.errors.is_empty()
+            && self.eligible_lines > 0
+            && self.covered_lines * 100 >= u64::from(minimum) * self.eligible_lines
+    }
+}
+
+/// The line counts of one reported file under its validated exclusions.
+#[derive(Debug, Default)]
+pub(crate) struct LineCount {
+    pub(crate) covered: u64,
+    pub(crate) eligible: u64,
+    pub(crate) ignored: u64,
+    pub(crate) uncovered: Vec<u32>,
+}
+
+/// Counts one file's reported lines: ignored, eligible, and covered (eligible with hits).
+pub(crate) fn count_lines(hits: &FileHits, ignores: &Ignores) -> LineCount {
+    let mut count = LineCount::default();
+    let mut numbered: Vec<u32> = hits.lines.keys().copied().collect();
+    numbered.sort();
+    for line in numbered {
+        if is_ignored(ignores, line) {
+            count.ignored += 1;
+            continue;
+        }
+        count.eligible += 1;
+        if hits.lines[&line] > 0 {
+            count.covered += 1;
+        } else {
+            count.uncovered.push(line);
+        }
+    }
+    count
 }
 
 /// The path key a manifest row and an LCOV SF record share.
@@ -237,15 +277,21 @@ pub fn account(
             if hits.lines.is_empty() {
                 Disposition::Support
             } else {
-                let ignores = find_ignores(path, &source()).unwrap_or_default();
-                for line in hits.lines.keys() {
-                    result.raw_lines += 1;
-                    if is_ignored(&ignores, *line) {
-                        result.excluded_lines += 1;
-                    } else {
-                        result.eligible_lines += 1;
-                    }
-                }
+                let ignores = match load_source(path) {
+                    Ok(text) => match find_ignores(path, &text) {
+                        Ok(valid) => valid,
+                        Err(error) => {
+                            result.errors.push(error.to_string());
+                            Ignores::default()
+                        }
+                    },
+                    Err(_) => Ignores::default(),
+                };
+                let count = count_lines(hits, &ignores);
+                result.raw_lines += count.eligible + count.ignored;
+                result.excluded_lines += count.ignored;
+                result.eligible_lines += count.eligible;
+                result.covered_lines += count.covered;
                 Disposition::Eligible
             }
         } else if whole_file_excluded(path, &source()) {

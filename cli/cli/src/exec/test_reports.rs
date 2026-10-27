@@ -5,7 +5,7 @@ use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
     TestResultRecord,
 };
-use dx_lcov::{parse_source_manifest, SourceManifest, SOURCES_OUTPUT_GROUP};
+use dx_lcov::{parse_source_manifest, CellAccount, SourceManifest, SOURCES_OUTPUT_GROUP};
 use dx_output::{
     command_finished, notice_event, report_event, test_outcome_event, test_result_record,
     FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
@@ -13,8 +13,8 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_plan::plan::WorkflowVerb;
 use dx_plan::reports::{
-    coverage_line_rate, junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov,
-    Destination, JunitCase, JunitMessage, PlannedReport, ReportError, StandardFormat,
+    junit_infrastructure_case, parse_test_xml, render_junit, validate_lcov, Destination, JunitCase,
+    JunitMessage, PlannedReport, ReportError, StandardFormat,
 };
 use dx_plan::resolve::QueryRunner;
 use std::collections::BTreeMap;
@@ -1036,12 +1036,11 @@ fn announce_incomplete(
     Ok(())
 }
 
-/// Checks the collected line coverage against `--min_coverage`; true when there is no minimum.
+/// Checks the cell's owned-source line coverage against `--min-coverage`; true when there is no minimum.
 fn coverage_threshold(
     minimum: Option<u32>,
-    detail: &str,
-    lcov_documents: &[String],
-    workspace: &Path,
+    account: Option<&CellAccount>,
+    sources: &Sources,
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -1049,28 +1048,31 @@ fn coverage_threshold(
     let Some(minimum) = minimum else {
         return Ok(true);
     };
-    if !detail.is_empty() {
+    let Some(account) = account else {
         return Ok(false);
-    }
-    let mut threshold_ok = false;
-    let summary = match coverage_line_rate(lcov_documents, &|path| {
-        std::fs::read_to_string(workspace.join(path)).ok()
-    }) {
-        Ok((covered, eligible)) if eligible > 0 => {
-            let percent = 100.0 * covered as f64 / eligible as f64;
-            threshold_ok = covered * 100 >= u64::from(minimum) * eligible;
-            if threshold_ok {
-                format!(
-                    "coverage {percent:.2}% ({covered}/{eligible} lines) meets minimum {minimum}%"
-                )
-            } else {
-                format!(
-                    "coverage_below_minimum: coverage {percent:.2}% ({covered}/{eligible} lines) below minimum {minimum}%"
-                )
-            }
-        }
-        Ok(_) => "coverage_below_minimum: no executable lines in the collected LCOV".to_owned(),
-        Err(error) => format!("coverage_below_minimum: {error}"),
+    };
+    let covered = account.covered_lines;
+    let eligible = account.eligible_lines;
+    let errors = sources.invalid.len() + account.errors.len();
+    let threshold_ok = errors == 0 && account.meets(minimum);
+    let lines = if eligible > 0 {
+        let percent = 100.0 * covered as f64 / eligible as f64;
+        format!("coverage {percent:.2}% ({covered}/{eligible} lines)")
+    } else {
+        format!("coverage ({covered}/{eligible} lines)")
+    };
+    let cell = &account.cell;
+    let summary = if errors > 0 {
+        let noun = if errors == 1 { "gap" } else { "gaps" };
+        format!(
+            "coverage_below_minimum: {lines} in cell {cell} has {errors} coverage source {noun} (see {CODE_COVERAGE_SOURCES_INCOMPLETE}); minimum {minimum}%"
+        )
+    } else if eligible == 0 {
+        format!("coverage_below_minimum: no executable lines in the owned sources of cell {cell}")
+    } else if threshold_ok {
+        format!("{lines} meets minimum {minimum}% in cell {cell}")
+    } else {
+        format!("coverage_below_minimum: {lines} below minimum {minimum}% in cell {cell}")
     };
     if output == OutputMode::Json {
         if !threshold_ok {
@@ -1172,6 +1174,36 @@ fn coverage_sources(
         }
     }
     Ok(errors.is_empty())
+}
+
+/// Emits the cell's `coverage` event in JSON mode.
+fn coverage_event(
+    sources: &Sources,
+    account: &CellAccount,
+    minimum: Option<u32>,
+    output: OutputMode,
+    out: &mut dyn Write,
+) -> Result<(), i32> {
+    if output != OutputMode::Json {
+        return Ok(());
+    }
+    let errors = (sources.invalid.len() + account.errors.len()) as u64;
+    let event = dx_output::CoverageEvent {
+        cell: account.cell.clone(),
+        covered_lines: account.covered_lines,
+        eligible_lines: account.eligible_lines,
+        raw_lines: account.raw_lines,
+        excluded_lines: account.excluded_lines,
+        eligible_files: account.eligible_files,
+        support_files: account.support_files,
+        excluded_files: account.excluded_files,
+        unsupported_files: account.unsupported_files,
+        minimum,
+        passed: errors == 0 && account.meets(minimum.unwrap_or(0)),
+        errors,
+        dx_version: dx_adopt::DX_VERSION.to_owned(),
+    };
+    emit_built(out, dx_output::coverage_event(&event))
 }
 
 /// Reads the run's test events; a stream Bazel cut short is a problem only when Bazel failed too.
@@ -1354,9 +1386,8 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let threshold_ok = if verb == WorkflowVerb::Coverage {
         match coverage_threshold(
             invocation.min_coverage,
-            &detail,
-            &lcov_documents,
-            workspace,
+            account.as_ref(),
+            &sources,
             invocation.output,
             out,
             err,
@@ -1377,6 +1408,17 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         }
         None => true,
     };
+    if let Some(account) = &account {
+        if let Err(exit) = coverage_event(
+            &sources,
+            account,
+            invocation.min_coverage,
+            invocation.output,
+            out,
+        ) {
+            return kept_child(err, bazel_code, exit);
+        }
+    }
     let code = if bazel_code != 0 {
         bazel_code
     } else if complete && reports_ok && threshold_ok && collector_ok && sources_ok {
@@ -1690,6 +1732,7 @@ mod tests {
     #[test]
     fn coverage_min_coverage_fails_below_threshold() {
         let harness = coverage_harness("cov-threshold-low", HALF_LCOV.as_bytes());
+        let harness = with_sources(harness, PY_SOURCES);
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=80"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("coverage_below_minimum"), "{err}");
@@ -1699,6 +1742,7 @@ mod tests {
     #[test]
     fn coverage_min_coverage_failure_reports_json_event() {
         let harness = coverage_harness("cov-threshold-json", HALF_LCOV.as_bytes());
+        let harness = with_sources(harness, PY_SOURCES);
         let (code, out, _) = harness.run(&["coverage", "--output=json", "--min-coverage=80"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("coverage_below_minimum"), "{out}");
@@ -1707,6 +1751,7 @@ mod tests {
     #[test]
     fn coverage_min_coverage_fails_without_executable_lines() {
         let harness = coverage_harness("cov-threshold-empty", b"SF:src/a.py\nend_of_record\n");
+        let harness = with_sources(harness, PY_SOURCES);
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=80"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("no executable lines"), "{err}");
@@ -1730,12 +1775,29 @@ mod tests {
             )]),
             ..harness
         };
+        let harness = with_sources(harness, "v1 cell linux_x86_64\nprod source src/lib.rs\n");
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=80"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("coverage_below_minimum"), "{err}");
     }
 
     const SOURCES_ASPECT: &str = "//quality:coverage_sources.bzl%dx_coverage_sources_aspect";
+
+    const PY_SOURCES: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";
+
+    /// Adds one `//a:lib` source manifest to a harness's build events.
+    fn with_sources(harness: Harness, manifest: &str) -> Harness {
+        let uri = write_bep_artifact(&harness, "sources.txt", manifest.as_bytes());
+        let mut lines = vec![
+            sources_set("s1", &uri),
+            sources_completed("//a:lib", true, "s1"),
+        ];
+        lines.extend(harness.raw_bep.clone().unwrap_or_default());
+        Harness {
+            raw_bep: Some(lines),
+            ..harness
+        }
+    }
 
     fn sources_completed(label: &str, success: bool, set: &str) -> String {
         let mut completed = serde_json::json!({"success": success});
@@ -1825,7 +1887,83 @@ mod tests {
         assert_eq!(document["record_version"], serde_json::json!(1));
         assert_eq!(document["absent"], serde_json::json!(["src/b.py"]));
         assert_eq!(document["owned"]["src/a.py"], serde_json::json!("eligible"));
-        assert_eq!(document["owned"]["src/a_test.py"], serde_json::json!("support"));
+        assert_eq!(
+            document["owned"]["src/a_test.py"],
+            serde_json::json!("support")
+        );
+    }
+
+    #[test]
+    fn coverage_zero_hit_line_fails_min_coverage() {
+        let harness = sources_harness("cov-sources-zero-hit", PY_SOURCES, HALF_LCOV);
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "dx: coverage_below_minimum: coverage 50.00% (1/2 lines) below minimum 100% in cell linux_x86_64"
+            ),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_report_without_manifests_fails_min_coverage() {
+        let harness = coverage_harness("cov-sources-none", MINIMAL_LCOV.as_bytes());
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("coverage_below_minimum"), "{err}");
+        assert!(
+            err.contains("no coverage source manifests were reported"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_event_reports_the_cell_account() {
+        let harness = sources_harness(
+            "cov-sources-event",
+            "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+            MINIMAL_LCOV,
+        );
+        let (code, out, _) = harness.run(&["coverage", "--output=json", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{out}");
+        let events: Vec<serde_json::Value> = out
+            .lines()
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect();
+        let coverage: Vec<&serde_json::Value> = events
+            .iter()
+            .filter(|event| event["event"] == "coverage")
+            .collect();
+        assert_eq!(coverage.len(), 1, "{out}");
+        let event = coverage[0];
+        assert_eq!(event["cell"], "linux_x86_64", "{event}");
+        assert_eq!(event["covered_lines"], 1, "{event}");
+        assert_eq!(event["eligible_lines"], 1, "{event}");
+        assert_eq!(event["minimum"], 100, "{event}");
+        assert_eq!(event["passed"], false, "{event}");
+        assert_eq!(event["errors"], 1, "{event}");
+        assert_eq!(event["dx_version"], dx_adopt::DX_VERSION, "{event}");
+        assert!(
+            events
+                .iter()
+                .any(|event| event["code"] == "coverage_below_minimum"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn coverage_event_passes_a_clean_cell_without_minimum() {
+        let harness = sources_harness("cov-sources-event-clean", PY_SOURCES, MINIMAL_LCOV);
+        let (code, out, _) = harness.run(&["coverage", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        let event = out
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find(|event| event["event"] == "coverage")
+            .unwrap_or_else(|| panic!("no coverage event: {out}"));
+        assert_eq!(event["passed"], true, "{event}");
+        assert!(event.get("minimum").is_none(), "{event}");
     }
 
     #[test]
@@ -1839,7 +1977,7 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         assert!(
             err.contains(
-                "dx: coverage sources linux_x86_64: 1 raw, 0 excluded, 1 eligible lines; 1 eligible, 1 support, 0 excluded, 0 unsupported files"
+                "dx: coverage sources linux_x86_64: 1 raw, 0 excluded, 1 eligible, 1 covered lines; 1 eligible, 1 support, 0 excluded, 0 unsupported files"
             ),
             "{err}"
         );
@@ -1901,7 +2039,13 @@ mod tests {
         );
         let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
         assert_eq!(code, 1, "{err}");
-        assert!(err.contains("meets minimum 100%"), "{err}");
+        assert!(!err.contains("meets minimum"), "{err}");
+        assert!(
+            err.contains(
+                "dx: coverage_below_minimum: coverage 100.00% (1/1 lines) in cell linux_x86_64 has 1 coverage source gap"
+            ),
+            "{err}"
+        );
         assert!(
             err.contains(
                 "dx: coverage_sources_incomplete: production source absent from coverage report: src/b.py"
@@ -3625,14 +3769,14 @@ mod tests {
     fn coverage_threshold_passes_without_minimum_and_fails_on_incomplete_evidence() {
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let workspace = Path::new(".");
+        let sources = super::Sources::default();
         let text = dx_output::OutputMode::Text { quiet: false };
         assert_eq!(
-            super::coverage_threshold(None, "gap", &[], workspace, text, &mut out, &mut err),
+            super::coverage_threshold(None, None, &sources, text, &mut out, &mut err),
             Ok(true)
         );
         assert_eq!(
-            super::coverage_threshold(Some(80), "gap", &[], workspace, text, &mut out, &mut err),
+            super::coverage_threshold(Some(80), None, &sources, text, &mut out, &mut err),
             Ok(false)
         );
         assert!(out.is_empty() && err.is_empty());
@@ -5172,14 +5316,13 @@ mod tests {
 
     #[test]
     fn coverage_threshold_returns_the_stdout_code_when_stdout_breaks() {
-        let workspace = tempfile::tempdir().expect("tempdir");
         let mut err = Vec::new();
+        let account = dx_lcov::CellAccount::default();
         assert_eq!(
             super::coverage_threshold(
                 Some(80),
-                "",
-                &[],
-                workspace.path(),
+                Some(&account),
+                &super::Sources::default(),
                 dx_output::OutputMode::Json,
                 &mut BrokenPipe,
                 &mut err,

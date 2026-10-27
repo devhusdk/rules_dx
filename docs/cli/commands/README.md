@@ -249,7 +249,7 @@ error prints the command list and a `see dx <command> --help` hint.
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The schema is `3.0`.
+`event` name and a `schema` with `major` and `minor`. The schema is `3.1`.
 Readers accept any `3.x` and reject other majors. The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
@@ -298,6 +298,10 @@ configurations appear once, with a `count`.
   plus optional `slot`, `branch`, `holder`, `reason`, `base`, and
   `disk_bytes`. `reason` says why a slot or worktree was kept, or that a held slot's
   holder is gone.
+- `coverage`: one cell's owned-source line account from `dx coverage`, with
+  `cell`, `covered_lines`, `eligible_lines`, `raw_lines`, `excluded_lines`,
+  `eligible_files`, `support_files`, `excluded_files`, `unsupported_files`,
+  `passed`, `errors`, and `dx_version`, plus optional `minimum`.
 - `summary`: the pool totals from `dx worktree list`, with `slots`, `servers`,
   and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,

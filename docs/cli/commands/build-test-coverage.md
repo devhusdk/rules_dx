@@ -333,13 +333,23 @@ dx coverage [--here] [--affected] [--min-coverage <percent>] [--report lcov=<pat
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` takes a whole number
-from 0 to 100 and fails below that percent. The gate compares one line rate
-(covered over executable lines, across all files) against it. Without the flag,
-coverage collects without enforcing. A passing gate prints
-`coverage <percent>% (<covered>/<eligible> lines) meets minimum <n>%`. A failing one
-prints `coverage_below_minimum: coverage <percent>% (<covered>/<eligible> lines) below minimum <n>%`
+from 0 to 100 and fails below that percent. The gate counts the cell's owned
+sources (see [Coverage sources](#coverage-sources)): the denominator is every
+eligible line of every eligible production source, after valid exclusions, and
+the numerator is the eligible lines with hits. `100` means covered equals
+eligible. Lines in unsupported languages are not counted. Every coverage
+source gap also fails the gate: a production source absent from the LCOV, an
+LCOV path no target owns, an invalid source manifest, or invalid exclusion
+markers. To clear an absent source, test it or exclude the whole file with an
+`LCOV_EXCL_START` / `LCOV_EXCL_STOP` range. Without the flag, coverage collects
+without enforcing. A passing gate prints
+`coverage <percent>% (<covered>/<eligible> lines) meets minimum <n>% in cell <cell>`.
+A failing one prints `coverage_below_minimum: coverage <percent>% (<covered>/<eligible> lines) below minimum <n>% in cell <cell>`,
+or `coverage_below_minimum: coverage <percent>% (<covered>/<eligible> lines) in cell <cell> has <n> coverage source gaps (see coverage_sources_incomplete); minimum <n>%`
 on stderr, or emits an `error` event with code `coverage_below_minimum` with
-`--output=json`. A collected LCOV with zero executable lines also fails.
+`--output=json`. A cell with zero eligible lines also fails. A
+`--instrumentation_filter` narrower than the preset shrinks the source list
+without a warning.
 C and C++ tests report line coverage through LLVM, with no setup needed.
 
 Not every language has a coverage collector yet:
@@ -398,7 +408,7 @@ same text is the message of a `notice` event with code `coverage_sources` and
 level `info`:
 
 ```text
-dx: coverage sources <cell>: <raw> raw, <excluded> excluded, <eligible> eligible lines; <n> eligible, <n> support, <n> excluded, <n> unsupported files
+dx: coverage sources <cell>: <raw> raw, <excluded> excluded, <eligible> eligible, <covered> covered lines; <n> eligible, <n> support, <n> excluded, <n> unsupported files
 ```
 
 `<cell>` is `<os>_<cpu>`, such as `linux_x86_64`. A production source missing
@@ -408,10 +418,18 @@ source manifest, manifests from more than one cell, or no manifests at all.
 Without `--min-coverage` these are notices: with `--output=json` each is a
 `notice` event with code `coverage_sources_incomplete` and level `warning`, and
 the exit code does not change. With `--min-coverage` each one fails the run,
-even when the line rate meets the minimum, and `--output=json` emits an `error`
+even when the line rate meets the minimum, and the verdict line names the gap count, and `--output=json` emits an `error`
 event with the same code. A repository that runs `--min-coverage` with an
 untested library therefore fails until that library has tests or a whole-file
 exclusion.
+
+With `--output=json`, dx also emits one `coverage` event per run with `cell`,
+`covered_lines`, `eligible_lines`, `raw_lines`, `excluded_lines`,
+`eligible_files`, `support_files`, `excluded_files`, `unsupported_files`,
+`passed`, `errors` (the number of coverage source gaps), `dx_version`, and
+`minimum` when `--min-coverage` is set. `passed` is true when the cell has no
+gaps, has eligible lines, and meets the minimum when one is set. The event is
+left out when coverage is incomplete.
 `--build_tests_only` is refused, because it hides library targets from the
 source list. `dx coverage` also passes `--build_tests_only=false` after your
 options, so a `.bazelrc` entry or `--config` that turns it on has no effect.

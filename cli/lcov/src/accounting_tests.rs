@@ -126,6 +126,9 @@ fn unexecuted_module_is_reported_even_when_every_reported_line_is_hit() {
     assert_eq!(result.eligible_files, 1);
     assert_eq!(result.files["lib/lib.rs"], Disposition::Eligible);
     assert!(!result.files.contains_key("lib/split.rs"));
+    assert_eq!((result.covered_lines, result.eligible_lines), (1, 1));
+    assert!(!result.meets(100));
+    assert!(!result.meets(0));
 }
 
 #[test]
@@ -392,6 +395,7 @@ fn summary_names_every_count() {
         raw_lines: 10,
         excluded_lines: 2,
         eligible_lines: 8,
+        covered_lines: 7,
         eligible_files: 3,
         support_files: 4,
         excluded_files: 1,
@@ -400,7 +404,7 @@ fn summary_names_every_count() {
     };
     assert_eq!(
         result.summary(),
-        "coverage sources linux_x86_64: 10 raw, 2 excluded, 8 eligible lines; 3 eligible, 4 support, 1 excluded, 5 unsupported files"
+        "coverage sources linux_x86_64: 10 raw, 2 excluded, 8 eligible, 7 covered lines; 3 eligible, 4 support, 1 excluded, 5 unsupported files"
     );
 }
 
@@ -419,4 +423,102 @@ fn whole_file_excluded_source_is_not_absent() {
     let source = format!("\n{}", excluded_source());
     let result = account(&manifests, &[], &sources(&[("a.rs", source.as_str())]));
     assert!(result.absent.is_empty());
+}
+
+#[test]
+fn zero_hit_eligible_line_fails_only_a_nonzero_minimum() {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let load = sources(&[("a.rs", "fn a() {\n}\n")]);
+    let result = account(&manifests, &[lcov("a.rs", &[(1, 1), (2, 0)])], &load);
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!((result.covered_lines, result.eligible_lines), (1, 2));
+    assert!(!result.meets(100));
+    assert!(result.meets(50));
+    assert!(result.meets(0));
+}
+
+#[test]
+fn fully_covered_cell_meets_one_hundred() {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let load = sources(&[("a.rs", "fn a() {\n}\n")]);
+    let result = account(&manifests, &[lcov("a.rs", &[(1, 1), (2, 4)])], &load);
+    assert_eq!((result.covered_lines, result.eligible_lines), (2, 2));
+    assert!(result.meets(100));
+}
+
+#[test]
+fn empty_denominator_never_meets() {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source tool.sh\n")];
+    let result = account(&manifests, &[], &sources(&[]));
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.eligible_lines, 0);
+    assert!(!result.meets(0));
+}
+
+#[test]
+fn invalid_marker_in_a_reported_source_is_an_error() {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let source = format!("// {}\nfn a() {{}}\n", marker("_LINE"));
+    let load = sources(&[("a.rs", source.as_str())]);
+    let result = account(&manifests, &[lcov("a.rs", &[(1, 1), (2, 1)])], &load);
+    assert_eq!(result.errors.len(), 1, "{:?}", result.errors);
+    assert!(result.errors[0].contains("a.rs"), "{:?}", result.errors);
+    assert_eq!((result.covered_lines, result.eligible_lines), (2, 2));
+    assert!(!result.meets(100));
+}
+
+#[test]
+fn unloadable_source_counts_raw_with_hits() {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let result = account(
+        &manifests,
+        &[lcov("a.rs", &[(1, 1), (2, 0)])],
+        &sources(&[]),
+    );
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(
+        (
+            result.raw_lines,
+            result.eligible_lines,
+            result.covered_lines
+        ),
+        (2, 2, 1)
+    );
+}
+
+#[test]
+fn reported_unsupported_language_stays_out_of_the_denominator() {
+    let manifests = [manifest(
+        "v1 cell linux_x86_64\nprod source a.rs\nprod source tool.sh\n",
+    )];
+    let documents = [lcov("a.rs", &[(1, 1)]), lcov("tool.sh", &[(1, 0), (2, 0)])];
+    let result = account(&manifests, &documents, &sources(&[("a.rs", "fn a() {}\n")]));
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!((result.covered_lines, result.eligible_lines), (1, 1));
+    assert_eq!(result.files["tool.sh"], Disposition::Unsupported);
+    assert!(result.meets(100));
+}
+
+#[test]
+fn excluded_lines_leave_the_covered_count() {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let source = format!(
+        "fn a() {{}}\nfn b() {{}} // {} - reason: defensive, issue: 1.\n",
+        marker("_LINE")
+    );
+    let load = sources(&[("a.rs", source.as_str())]);
+    let result = account(&manifests, &[lcov("a.rs", &[(1, 1), (2, 3)])], &load);
+    assert_eq!((result.covered_lines, result.eligible_lines), (1, 1));
+}
+
+#[test]
+fn duplicate_records_union_with_max_hits() {
+    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let documents = [
+        lcov("a.rs", &[(1, 0), (2, 1)]),
+        lcov("a.rs", &[(1, 3), (3, 0)]),
+    ];
+    let load = sources(&[("a.rs", "fn a() {}\nfn b() {}\nfn c() {}\n")]);
+    let result = account(&manifests, &documents, &load);
+    assert_eq!((result.covered_lines, result.eligible_lines), (2, 3));
 }

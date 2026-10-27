@@ -1,0 +1,10 @@
+load("@rules_dx//quality:native_config.bzl", "ruff_config")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+ruff_config(
+    name = "ruff_config",
+    src = "ruff.toml",
+)

@@ -88,3 +88,14 @@ real_source_target(
     tags = ["corpus"],
     visibility = ["//examples:__pkg__"],
 )
+
+exports_files([
+    "BUILD.bazel",
+    "__init__.py",
+    "build_info_test.py",
+    "catalog.py",
+    "catalog_test.py",
+    "config.py",
+    "gen_build_info.py",
+    "items.json",
+])

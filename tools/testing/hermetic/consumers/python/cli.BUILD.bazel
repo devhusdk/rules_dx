@@ -1,0 +1,81 @@
+load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test", "python_test")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+python_library(
+    name = "cli",
+    srcs = [
+        "__init__.py",
+        "main.py",
+    ],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["../.."],
+    deps = [
+        "//ledger/core",
+        "//ledger/service",
+        "@shop_pypi//click",
+    ],
+)
+
+python_binary(
+    name = "ledger",
+    srcs = ["main.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    main = "main.py",
+    visibility = ["//visibility:public"],
+    deps = [":cli"],
+)
+
+python_binary(
+    name = "broken",
+    testonly = True,
+    srcs = ["broken_main.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    main = "broken_main.py",
+)
+
+python_test(
+    name = "cli_test",
+    srcs = ["cli_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [":ledger"],
+    dep_group = "ledger",
+    env = {"LEDGER_BIN": "$(rootpath :ledger)"},
+    imports = ["../.."],
+    deps = [
+        ":cli",
+        "//ledger/core",
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)
+
+python_py_test(
+    name = "cli_unittest_test",
+    srcs = ["cli_unittest_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [":ledger"],
+    dep_group = "ledger",
+    env = {"LEDGER_BIN": "$(rootpath :ledger)"},
+    imports = ["../.."],
+)
+
+python_test(
+    name = "broken_test",
+    srcs = ["broken_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [":broken"],
+    dep_group = "ledger",
+    env = {"BROKEN_BIN": "$(rootpath :broken)"},
+    imports = ["../.."],
+    deps = [
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)

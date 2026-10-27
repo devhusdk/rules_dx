@@ -1,0 +1,30 @@
+load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+python_library(
+    name = "service",
+    srcs = [
+        "__init__.py",
+        "server.py",
+    ],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["../.."],
+    deps = ["//ledger/core"],
+)
+
+python_test(
+    name = "server_test",
+    srcs = ["server_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    deps = [
+        ":service",
+        "//ledger/core",
+        "@shop_pypi//coverage",
+        "@shop_pypi//pytest",
+    ],
+)

@@ -4,7 +4,7 @@ load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_libra
 load("@rules_cc//cc:objc_library.bzl", _objc_library = "objc_library")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_test_coverage", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_test_coverage", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
 _DX_CC_LIBRARY_PROVIDES = [
@@ -117,7 +117,7 @@ def objc_library(name, srcs = None, hdrs = None, non_arc_srcs = None, visibility
 
 def cc_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_binary."""
-    dx_wrap(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, executable = True, **kwargs)
+    dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, **kwargs)
 
 def cc_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_test."""

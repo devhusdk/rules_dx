@@ -18,7 +18,6 @@ load(
 load("//qt/sdk:needs.bzl", "QtNeedsInfo")
 load("//qt/sdk:pins.bzl", "CELLS", "RUNTIME_PLUGINS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
-load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 QtInfo = provider(
@@ -747,7 +746,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         srcs = srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
         copts = copts + _include_copts(name),
         deps = effective_deps + [":" + name + "_qt_frameworks"],
-        tags = upstream_tags(tags),
+        tags = dx_upstream_tags(tags),
         visibility = ["//visibility:private"],
         **upstream_kwargs
     )

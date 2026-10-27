@@ -163,9 +163,11 @@ fn run_configured_target(
             }),
             python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
         },
-        Ecosystem::Npm | Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => {
-            dx_update::backend::UvClosure::default()
-        }
+        Ecosystem::Npm
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Cargo => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {
@@ -238,6 +240,7 @@ fn run_configured_target(
         env_refs.push((key, value.as_str()));
     }
     gate.before(&argv)?;
+    let guarded = (mode == RunMode::Check && bazel).then(|| CheckGuard::take(workspace, set));
     let launched = if bazel {
         match gate.slot.as_ref() {
             Some(slot) => {
@@ -256,8 +259,68 @@ fn run_configured_target(
         RunMode::Check => (dx_update::outcome::SetStatus::Current, current_line(set)),
     };
     let (status, message) = runner_status(launched, verb, &set.name, ok);
+    if let Some(wrote) = guarded.and_then(|guard| guard.restore(workspace)) {
+        let hint = match set.ecosystem {
+            Ecosystem::Cargo => {
+                "; declare `lockfile` in crate.from_cargo and list it in the set's locks"
+            }
+            _ => "",
+        };
+        record_named(
+            attempted,
+            details,
+            &set.name,
+            dx_update::outcome::SetStatus::Failed,
+            format!(
+                "failed to {verb} {}: check_wrote: {} (restored){hint}",
+                set.name,
+                wrote.join(", ")
+            ),
+        );
+        if let Some(detail) = details.get_mut(&set.name) {
+            detail.failure_code = Some("check_wrote");
+        }
+        return Ok(());
+    }
     record_named(attempted, details, &set.name, status, message);
     Ok(())
+}
+
+/// The bytes of a set's manifests and locks before a Bazel-run check, so a check that writes
+/// is caught, undone and failed instead of reported current.
+struct CheckGuard {
+    files: Vec<(String, Option<Vec<u8>>)>,
+}
+
+impl CheckGuard {
+    fn take(workspace: &std::path::Path, set: &ResolvedSet) -> CheckGuard {
+        let mut paths: Vec<&String> = set.manifests.iter().chain(set.locks.iter()).collect();
+        paths.sort();
+        paths.dedup();
+        CheckGuard {
+            files: paths
+                .into_iter()
+                .map(|rel| (rel.clone(), std::fs::read(workspace.join(rel)).ok()))
+                .collect(),
+        }
+    }
+
+    /// Restores every changed file and names them; `None` when the check wrote nothing.
+    fn restore(self, workspace: &std::path::Path) -> Option<Vec<String>> {
+        let mut wrote = Vec::new();
+        for (rel, before) in self.files {
+            let path = workspace.join(&rel);
+            if std::fs::read(&path).ok() == before {
+                continue;
+            }
+            let _ = match &before {
+                Some(bytes) => std::fs::write(&path, bytes),
+                None => std::fs::remove_file(&path),
+            };
+            wrote.push(rel);
+        }
+        (!wrote.is_empty()).then_some(wrote)
+    }
 }
 
 fn pinned(runner: &dyn dx_process::Runner, var: &str) -> Option<String> {
@@ -1250,5 +1313,307 @@ scopes = ["tools/ps"]
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("must be named package.json"), "{err}");
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    const CARGO_TOML_SETS: &str = r#"
+[[dependency_set]]
+name = "crates"
+ecosystem = "cargo"
+manifests = ["consumer-rs/crates/Cargo.toml"]
+locks = ["consumer-rs/crates/Cargo.lock", "consumer-rs/crates/cargo-bazel-lock.json"]
+scopes = ["consumer-rs/crates"]
+repository = "crates"
+
+[[dependency_set]]
+name = "tools"
+ecosystem = "cargo"
+manifests = ["consumer-rs/tools/Cargo.toml"]
+locks = ["consumer-rs/tools/Cargo.lock", "consumer-rs/tools/cargo-bazel-lock.json"]
+scopes = ["consumer-rs/tools"]
+repository = "tool_crates"
+"#;
+
+    const CARGO_MANIFEST: &str =
+        "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n";
+
+    const CARGO_LOCK: &str = "version = 4\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.200\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n";
+
+    const CARGO_FILES: [&str; 6] = [
+        "consumer-rs/crates/Cargo.toml",
+        "consumer-rs/crates/Cargo.lock",
+        "consumer-rs/crates/cargo-bazel-lock.json",
+        "consumer-rs/tools/Cargo.toml",
+        "consumer-rs/tools/Cargo.lock",
+        "consumer-rs/tools/cargo-bazel-lock.json",
+    ];
+
+    fn cargo_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, &format!("{MIXED_TOML}{CARGO_TOML_SETS}"), true);
+        for dir in ["consumer-npm/jobs", "consumer-npm/web"] {
+            harness.write_source(&format!("{dir}/package.json"), PACKAGE_JSON);
+            harness.write_source(&format!("{dir}/pnpm-lock.yaml"), PNPM_LOCK);
+        }
+        for dir in ["consumer-rs/crates", "consumer-rs/tools"] {
+            harness.write_source(&format!("{dir}/Cargo.toml"), CARGO_MANIFEST);
+            harness.write_source(&format!("{dir}/Cargo.lock"), CARGO_LOCK);
+            harness.write_source(&format!("{dir}/cargo-bazel-lock.json"), "{}\n");
+        }
+        harness
+    }
+
+    fn cargo_call(startup: &[String], offline: bool, repository: &str) -> Vec<String> {
+        let mut argv = dx_process::startup_argv(startup);
+        argv.push("fetch".to_owned());
+        argv.extend(dx_process::build_verb_options(
+            "fetch",
+            &["--config=dx_dev".to_owned()],
+        ));
+        argv.push("--config=dx_dev".to_owned());
+        if offline {
+            argv.push("--repository_disable_download".to_owned());
+        }
+        argv.push(format!("--repo=@{repository}"));
+        argv
+    }
+
+    fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
+        dx_update::backend::cargo_env(repin, repository)
+    }
+
+    fn cargo_bytes(harness: &Harness) -> Vec<Vec<u8>> {
+        CARGO_FILES
+            .iter()
+            .map(|rel| read_bytes(harness, rel))
+            .collect()
+    }
+
+    #[test]
+    fn consumer_cargo_env_forces_both_repin_triggers() {
+        assert_eq!(
+            cargo_env("false", "crates"),
+            vec![
+                ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
+                ("CARGO_BAZEL_REPIN".to_owned(), "false".to_owned()),
+                ("CARGO_BAZEL_REPIN_ONLY".to_owned(), "crates".to_owned()),
+                ("REPIN".to_owned(), "false".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn consumer_mixed_check_runs_uv_npm_and_cargo_each_their_own_way() {
+        let harness = cargo_harness("cargo-check");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("crates lockfile current (consumer-rs/crates/Cargo.lock, consumer-rs/crates/cargo-bazel-lock.json)"),
+            "{out}"
+        );
+        assert!(
+            out.contains("web lockfile current (consumer-npm/web/pnpm-lock.yaml)"),
+            "{out}"
+        );
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 5, "{launches:?}");
+        assert_eq!(launches[1].argv, uv_call(true, "apps/frontend"));
+        assert!(launches[1].hermetic);
+        assert_eq!(
+            launches[0],
+            Launch {
+                argv: cargo_call(&[], false, "crates"),
+                cwd: harness.workspace.clone(),
+                env: cargo_env("false", "crates"),
+                hermetic: false,
+            }
+        );
+        assert_eq!(launches[2].argv, npm_check(&harness, "consumer-npm/jobs"));
+        assert_eq!(launches[2].env, npm_env());
+        assert_eq!(
+            launches[3],
+            Launch {
+                argv: cargo_call(&[], false, "tool_crates"),
+                cwd: harness.workspace.clone(),
+                env: cargo_env("false", "tool_crates"),
+                hermetic: false,
+            }
+        );
+        assert_eq!(launches[4].argv, npm_check(&harness, "consumer-npm/web"));
+    }
+
+    #[test]
+    fn consumer_cargo_apply_repins_one_set_and_leaves_the_others() {
+        let harness = cargo_harness("cargo-apply");
+        let others = [
+            "consumer-rs/tools/Cargo.lock",
+            "consumer-rs/tools/cargo-bazel-lock.json",
+            "consumer-npm/web/pnpm-lock.yaml",
+            "apps/frontend/uv.lock",
+        ];
+        let before: Vec<Vec<u8>> = others.iter().map(|rel| read_bytes(&harness, rel)).collect();
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--apply", "crates"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("updated crates (consumer-rs/crates/Cargo.lock, consumer-rs/crates/cargo-bazel-lock.json)"),
+            "{out}"
+        );
+        assert_eq!(
+            *runner.launches.borrow(),
+            vec![Launch {
+                argv: cargo_call(&[], false, "crates"),
+                cwd: harness.workspace.clone(),
+                env: cargo_env("workspace", "crates"),
+                hermetic: false,
+            }]
+        );
+        let after: Vec<Vec<u8>> = others.iter().map(|rel| read_bytes(&harness, rel)).collect();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn consumer_cargo_failure_stays_with_its_own_set() {
+        let harness = cargo_harness("cargo-fail");
+        let runner = ScriptRunner::new(&[("consumer-cargo:tool_crates", Some(1))]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("failed to check tools: updater exited 1"),
+            "{err}"
+        );
+        assert!(!out.contains("tools lockfile current"), "{out}");
+        assert!(out.contains("crates lockfile current"), "{out}");
+        assert!(out.contains("web lockfile current"), "{out}");
+        assert_eq!(runner.calls.borrow().len(), 5);
+    }
+
+    #[test]
+    fn consumer_cargo_refusals_never_launch_bazel() {
+        let harness = cargo_harness("cargo-refuse");
+        let before = cargo_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--frozen", "crates"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("frozen_locked"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--offline", "crates"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("offline_required"), "{err}");
+        for mode in ["--apply", "--check"] {
+            let (code, out, err) = run_with(&["update", mode, "crates:serde"], &runner, &harness);
+            assert_eq!(code, 1, "{mode}: {out}{err}");
+            assert!(err.contains("update_set_unsupported"), "{err}");
+            assert!(err.contains("select the set without a package"), "{err}");
+        }
+        assert!(runner.calls.borrow().is_empty());
+        assert_eq!(cargo_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_cargo_offline_check_disables_downloads() {
+        let harness = cargo_harness("cargo-offline");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &[
+                "update",
+                "--check",
+                "--offline",
+                "--bazel-startup-option=--output_base=/tmp/cargo-ob",
+                "crates",
+            ],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            *runner.calls.borrow(),
+            vec![cargo_call(
+                &["--output_base=/tmp/cargo-ob".to_owned()],
+                true,
+                "crates"
+            )]
+        );
+    }
+
+    #[test]
+    fn consumer_cargo_without_cargo_lock_declared_is_unsupported() {
+        let harness = consumer_harness(
+            "cargo-lock",
+            "schema_version = 1\n[[dependency_set]]\nname = \"crates\"\necosystem = \"cargo\"\nmanifests = [\"rs/Cargo.toml\"]\nlocks = [\"rs/cargo-bazel-lock.json\"]\nscopes = [\"rs\"]\nrepository = \"crates\"\n",
+            true,
+        );
+        harness.write_source("rs/Cargo.toml", CARGO_MANIFEST);
+        harness.write_source("rs/cargo-bazel-lock.json", "{}\n");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("rs/Cargo.lock"), "{err}");
+        assert!(runner.launches.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_bazel_check_that_writes_fails_and_is_restored() {
+        let harness = cargo_harness("cargo-guard");
+        let before = cargo_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        runner.writes.borrow_mut().push((
+            harness.workspace.join("consumer-rs/crates/Cargo.lock"),
+            b"rewritten\n".to_vec(),
+        ));
+        let (code, out, err) = run_with(&["update", "--check", "crates"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("failed to check crates: check_wrote: consumer-rs/crates/Cargo.lock (restored); declare `lockfile` in crate.from_cargo"),
+            "{err}"
+        );
+        assert!(!out.contains("crates lockfile current"), "{out}");
+        assert_eq!(cargo_bytes(&harness), before);
+        let runner = ScriptRunner::new(&[]);
+        runner.writes.borrow_mut().push((
+            harness.workspace.join("consumer-npm/web/pnpm-lock.yaml"),
+            b"rewritten\n".to_vec(),
+        ));
+        let (code, out, err) = run_with(&["update", "--check", "web"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains(
+                "failed to check web: check_wrote: consumer-npm/web/pnpm-lock.yaml (restored)"
+            ),
+            "{err}"
+        );
+        assert!(!err.contains("crate.from_cargo"), "{err}");
+        assert_eq!(
+            read_bytes(&harness, "consumer-npm/web/pnpm-lock.yaml"),
+            PNPM_LOCK.as_bytes()
+        );
+    }
+
+    #[test]
+    fn consumer_cargo_wrong_manifest_name_or_missing_repository_exits_two() {
+        for (record, want) in [
+            (
+                "manifests = [\"rs/cargo.toml\"]\nrepository = \"crates\"\n",
+                "must be named Cargo.toml",
+            ),
+            ("manifests = [\"rs/Cargo.toml\"]\n", "is missing repository"),
+        ] {
+            let harness = consumer_harness(
+                "cargo-manifest",
+                &format!("schema_version = 1\n[[dependency_set]]\nname = \"crates\"\necosystem = \"cargo\"\nlocks = [\"rs/Cargo.lock\"]\nscopes = [\"rs\"]\n{record}"),
+                true,
+            );
+            let runner = ScriptRunner::new(&[]);
+            let (code, _, err) = run_with(&["update", "--check"], &runner, &harness);
+            assert_eq!(code, 2, "{err}");
+            assert!(err.contains(want), "{err}");
+            assert!(runner.calls.borrow().is_empty());
+        }
     }
 }

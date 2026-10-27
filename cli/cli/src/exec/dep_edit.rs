@@ -87,7 +87,8 @@ pub(crate) fn configured_bazel_set(
         dx_adopt::dependency_sets::Ecosystem::Uv
         | dx_adopt::dependency_sets::Ecosystem::Npm
         | dx_adopt::dependency_sets::Ecosystem::Ruby
-        | dx_adopt::dependency_sets::Ecosystem::PowerShell => Err(operational(
+        | dx_adopt::dependency_sets::Ecosystem::PowerShell
+        | dx_adopt::dependency_sets::Ecosystem::Cargo => Err(operational(
             invocation,
             out,
             err,

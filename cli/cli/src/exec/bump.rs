@@ -486,6 +486,42 @@ scopes = ["tools/ps"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
+    #[test]
+    fn consumer_cargo_set_refuses_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer-cargo");
+        harness.write_source(
+            "dx.toml",
+            "schema_version = 1\n[[dependency_set]]\nname = \"crates\"\necosystem = \"cargo\"\nmanifests = [\"rs/Cargo.toml\"]\nlocks = [\"rs/Cargo.lock\"]\nscopes = [\"rs\"]\nrepository = \"crates\"\n",
+        );
+        let files = [
+            (
+                "rs/Cargo.toml",
+                "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n",
+            ),
+            ("rs/Cargo.lock", "version = 4\n"),
+        ];
+        for (rel, text) in files {
+            harness.write_source(rel, text);
+        }
+        let (code, _, err) = harness.run(&["bump", "crates:serde", "2.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "bump is not supported for ecosystem cargo set crates \
+(supported operations: check, update, audit)"
+            ),
+            "{err}"
+        );
+        for (rel, text) in files {
+            assert_eq!(
+                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
+                text.as_bytes(),
+                "{rel}"
+            );
+        }
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
     const BAZEL_SET_DX_TOML: &str = r#"
 schema_version = 1
 

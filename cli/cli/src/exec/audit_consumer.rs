@@ -673,4 +673,97 @@ scopes = ["tools/ps"]
         assert_eq!(code, 0, "{out}{err}");
         assert!(!out.contains("UNKNOWN"), "{out}");
     }
+
+    const CARGO_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "crates"
+ecosystem = "cargo"
+manifests = ["apps/rs/Cargo.toml"]
+locks = ["apps/rs/Cargo.lock", "apps/rs/cargo-bazel-lock.json"]
+scopes = ["apps/rs"]
+repository = "crates"
+"#;
+
+    const SMALLVEC_LOCK: &str = "version = 4\n\n[[package]]\nname = \"app\"\nversion = \"0.1.0\"\ndependencies = [\"smallvec\"]\n\n[[package]]\nname = \"smallvec\"\nversion = \"1.6.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e\"\n";
+
+    const SMALLVEC_ADVISORY: &str = r#"[{
+        "id": "RUSTSEC-2021-0003",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "crates.io", "name": "smallvec"},
+            "ranges": [{"type": "SEMVER", "events": [{"introduced": "1.6.0"}, {"fixed": "1.6.1"}]}]
+        }]
+    }]"#;
+
+    fn cargo_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, CARGO_TOML, false);
+        harness.write_source(
+            "apps/rs/Cargo.toml",
+            "[package]\nname = \"app\"\nversion = \"0.1.0\"\n",
+        );
+        harness.write_source("apps/rs/Cargo.lock", SMALLVEC_LOCK);
+        harness.write_source(
+            "apps/rs/cargo-bazel-lock.json",
+            "{\"crates\": {\"smallvec 1.6.0\": {\"name\": \"smallvec\", \"version\": \"1.6.0\", \"license\": \"MIT OR Apache-2.0\"}}}\n",
+        );
+        harness
+    }
+
+    #[test]
+    fn consumer_cargo_set_reads_only_its_cargo_lock_and_the_cargo_snapshot() {
+        let harness = cargo_harness("cargo-vuln");
+        harness.write_source("Cargo.lock", "not a lock\n");
+        write_advisory(&harness, "cargo", SMALLVEC_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "crates"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/RUSTSEC-2021-0003"), "{out}");
+        assert!(out.contains("apps/rs/Cargo.lock"), "{out}");
+        assert!(!out.contains("pypi"), "{out}");
+        harness.write_source(
+            "security.toml",
+            "schema_version = 1\n[[exception]]\nadvisory = \"RUSTSEC-2021-0003\"\n\
+             package = \"smallvec\"\nset = \"crates\"\nversions = \">=1.6.0\"\n\
+             reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+        );
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "crates"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/RUSTSEC"), "{out}");
+    }
+
+    #[test]
+    fn consumer_cargo_missing_snapshot_fails_and_is_never_clean() {
+        for extra in [None, Some("--offline")] {
+            let harness = cargo_harness("cargo-missing");
+            write_advisory(&harness, "pypi", NO_ADVISORIES);
+            let runner = clean_runner();
+            let mut argv = vec!["security", "--output=json"];
+            argv.extend(extra);
+            argv.push("crates");
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_ne!(code, 0, "{extra:?} {out}{err}");
+            assert!(out.contains("failed to assess crates"), "{out}{err}");
+            assert!(out.contains(".dx/advisory/cargo.json"), "{out}{err}");
+            assert!(!out.contains("no advisory coverage"), "{out}");
+            assert!(!out.contains("audit_security_clean"), "{out}");
+            if extra.is_some() {
+                assert!(out.contains("offline_required"), "{out}{err}");
+            }
+        }
+    }
+
+    #[test]
+    fn consumer_cargo_license_comes_from_the_declared_cargo_bazel_lock() {
+        let harness = cargo_harness("cargo-license");
+        let runner = clean_runner();
+        let (_, out, err) = run_with(&["license", "--output=json", "crates"], &runner, &harness);
+        assert!(out.contains("smallvec"), "{out}{err}");
+        assert!(out.contains("MIT OR Apache-2.0"), "{out}{err}");
+        assert!(!out.contains("UNKNOWN"), "{out}");
+        assert!(!out.contains("failed to assess"), "{out}");
+    }
 }

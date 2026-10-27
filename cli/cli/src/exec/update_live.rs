@@ -14,6 +14,8 @@ pub(super) struct ScriptRunner {
     pub(super) pinned: bool,
     pub(super) version: Option<String>,
     pub(super) launches: RefCell<Vec<Launch>>,
+    /// Files the next launch writes, as a backend that changes the tree would.
+    pub(super) writes: RefCell<Vec<(std::path::PathBuf, Vec<u8>)>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -47,6 +49,7 @@ impl ScriptRunner {
             pinned: true,
             version: Some(dx_update::backend::UV_VERSION_LINE.to_owned()),
             launches: RefCell::new(Vec::new()),
+            writes: RefCell::new(Vec::new()),
         }
     }
 
@@ -70,6 +73,9 @@ impl ScriptRunner {
             hermetic,
         });
         self.calls.borrow_mut().push(argv.to_vec());
+        for (path, bytes) in self.writes.borrow_mut().drain(..) {
+            std::fs::write(&path, bytes)?;
+        }
         let key = Self::key_for(argv);
         let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));
         Ok(ChildStatus { code, signal: None })
@@ -95,6 +101,12 @@ impl ScriptRunner {
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
             format!("consumer-npm:{name}")
+        } else if let Some(repository) = argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix("--repo=@"))
+            .filter(|_| argv.contains(&"fetch".to_owned()))
+        {
+            format!("consumer-cargo:{repository}")
         } else if argv.contains(&"//rust/tests/fixtures/hello:hello".to_owned()) {
             "cargo".to_owned()
         } else if argv.contains(&"@pnpm//:pnpm".to_owned())

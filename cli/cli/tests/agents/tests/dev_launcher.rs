@@ -458,18 +458,53 @@ mod sh {
         }
     }
 
+    fn touch_later(path: &Path) {
+        if !path.exists() {
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+            std::fs::write(path, "\n").expect("create");
+        }
+        let file = std::fs::File::options()
+            .write(true)
+            .open(path)
+            .expect("open");
+        file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
+            .expect("touch");
+    }
+
+    fn backdate(path: &Path, ago: std::time::Duration) {
+        let file = std::fs::File::options()
+            .write(true)
+            .open(path)
+            .expect("open");
+        let when = std::time::SystemTime::now()
+            .checked_sub(ago)
+            .expect("clock past epoch");
+        file.set_modified(when).expect("backdate");
+    }
+
+    fn backdate_tree(dir: &Path, ago: std::time::Duration) {
+        for entry in std::fs::read_dir(dir).expect("read_dir") {
+            let path = entry.expect("entry").path();
+            let kind = std::fs::symlink_metadata(&path)
+                .expect("metadata")
+                .file_type();
+            if kind.is_dir() {
+                backdate_tree(&path, ago);
+            } else if kind.is_file() {
+                backdate(&path, ago);
+            }
+        }
+    }
+
     struct SourceRepo {
         base: std::path::PathBuf,
+        root: std::path::PathBuf,
     }
 
     fn checkout(root: &Path) {
         std::fs::create_dir_all(root.join("cli/cli")).expect("cli dir");
         std::fs::create_dir_all(root.join("tools/bazelrc")).expect("bazelrc dir");
-        std::fs::write(
-            root.join("MODULE.bazel"),
-            "module(\n    name = \"rules_dx\",\n)\n",
-        )
-        .expect("module");
+        std::fs::copy(launcher_path("DX_MODULE"), root.join("MODULE.bazel")).expect("module");
         std::fs::write(root.join("cli/cli/BUILD.bazel"), "").expect("build file");
         std::fs::write(root.join("BUILD.bazel"), "").expect("root build file");
         std::fs::write(root.join("tools/bazelrc/resources.bazelrc"), "").expect("preset");
@@ -479,8 +514,12 @@ mod sh {
     }
 
     fn source_repo(name: &str) -> SourceRepo {
+        source_repo_in(name, "repo")
+    }
+
+    fn source_repo_in(name: &str, dir: &str) -> SourceRepo {
         let base = mkscratch(name).expect("scratch");
-        let root = base.join("repo");
+        let root = base.join(dir);
         checkout(&root);
         std::fs::create_dir_all(base.join("stub")).expect("stub dir");
         std::fs::create_dir_all(base.join("home")).expect("home");
@@ -488,16 +527,23 @@ mod sh {
         let stub = base.join("stub/bazel");
         std::fs::write(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//:dx)'*) echo //:BUILD.bazel;; esac\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//:dx)'*) echo //:BUILD.bazel;; esac\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         )
         .expect("bazel stub");
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-        SourceRepo { base }
+        SourceRepo { base, root }
     }
 
     impl SourceRepo {
         fn root(&self) -> std::path::PathBuf {
-            self.base.join("repo")
+            self.root.clone()
+        }
+
+        /// Writes an executable script into the stub dir, first on the launcher PATH.
+        fn fake(&self, name: &str, body: &str) {
+            let path = self.base.join("stub").join(name);
+            std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("fake");
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
         }
 
         fn command(&self) -> Command {
@@ -506,7 +552,7 @@ mod sh {
 
         fn command_in(&self, cwd: &Path, args: &[&str]) -> Command {
             let base = &self.base;
-            let mut cmd = Command::new(base.join("repo/tools/dx"));
+            let mut cmd = Command::new(self.root.join("tools/dx"));
             cmd.args(args)
                 .current_dir(cwd)
                 .env_clear()
@@ -517,7 +563,8 @@ mod sh {
                 .env("HOME", base.join("home"))
                 .env("STUB_LOG", base.join("calls"))
                 .env("STUB_PAYLOAD", base.join("payload"))
-                .env("STUB_QUERY_FAIL", base.join("query-fails"));
+                .env("STUB_QUERY_FAIL", base.join("query-fails"))
+                .env("STUB_KEEP", base.join("keep-dx"));
             cmd
         }
 
@@ -569,21 +616,11 @@ mod sh {
         }
 
         fn touch_build_file(&self) {
-            let file = std::fs::File::options()
-                .write(true)
-                .open(self.root().join("cli/cli/BUILD.bazel"))
-                .expect("open build file");
-            file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
-                .expect("touch build file");
+            touch_later(&self.root().join("cli/cli/BUILD.bazel"));
         }
 
         fn touch_root_build_file(&self) {
-            let file = std::fs::File::options()
-                .write(true)
-                .open(self.root().join("BUILD.bazel"))
-                .expect("open root build file");
-            file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(3600))
-                .expect("touch root build file");
+            touch_later(&self.root().join("BUILD.bazel"));
         }
 
         fn break_build(&self) {
@@ -867,11 +904,13 @@ mod sh {
         repo.run_ok();
         repo.touch_build_file();
         let files = repo.state_files();
-        for sub in ["add", "release"] {
-            let (code, out, err) = repo.run_in(&repo.root(), &["worktree", sub, "x"]);
+        for sub in [&["add", "x"][..], &["release", "x"], &["hook", "guard"]] {
+            let mut args = vec!["worktree"];
+            args.extend_from_slice(sub);
+            let (code, out, err) = repo.run_in(&repo.root(), &args);
             assert_eq!(
                 (code, out.as_str()),
-                (Some(0), format!("ran worktree {sub} x\n").as_str()),
+                (Some(0), format!("ran {}\n", args.join(" ")).as_str()),
                 "{err}"
             );
             assert!(!err.contains("dx: building"), "{err}");
@@ -1102,6 +1141,9 @@ mod sh {
         assert_eq!(repo.inputs(), "//:BUILD.bazel\n//cli/cli:BUILD.bazel\n");
         repo.run_ok();
         assert_eq!(repo.builds(), 1, "an unchanged tree runs dx without Bazel");
+        touch_later(&repo.root().join("cli/cli/tests/new_test.rs"));
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1, "files dx does not build from are ignored");
         repo.touch_build_file();
         repo.run_ok();
         assert_eq!(repo.builds(), 2, "a newer input rebuilds dx");
@@ -1409,6 +1451,114 @@ mod sh {
         assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
         repo.run_ok();
         assert_eq!(repo.builds(), 5, "the stamp did not move, so it is stale");
+    }
+
+    #[test]
+    fn source_launcher_rebuilds_after_a_preset_layer_edit() {
+        let repo = source_repo("dx-launcher-preset-");
+        repo.run_ok();
+        touch_later(&repo.root().join("tools/bazelrc/resources.bazelrc"));
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2);
+    }
+
+    #[test]
+    fn source_launcher_detects_a_newer_input_with_a_posix_only_find() {
+        let repo = source_repo("dx-launcher-posix-find-");
+        repo.run_ok();
+        repo.fake(
+            "find",
+            r#"for arg in "$@"; do
+  case "$arg" in
+    -quit|-maxdepth|-mindepth|-print0|-printf|-newer?*) echo "find: unsupported $arg" >&2; exit 1 ;;
+  esac
+done
+if [ -x /usr/bin/find ]; then exec /usr/bin/find "$@"; fi
+exec /bin/find "$@""#,
+        );
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1);
+        repo.touch_build_file();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2);
+    }
+
+    #[test]
+    fn source_launcher_does_not_rebuild_when_bazel_leaves_dx_untouched() {
+        let hour = std::time::Duration::from_secs(3600);
+        let repo = source_repo("dx-launcher-untouched-");
+        std::fs::write(repo.base.join("keep-dx"), "").expect("flag");
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1);
+        backdate_tree(&repo.root(), hour * 2);
+        repo.run_ok();
+        assert_eq!(
+            repo.builds(),
+            1,
+            "a backdated, unedited tree is not rebuilt"
+        );
+        let build_file = repo.root().join("cli/cli/BUILD.bazel");
+        std::fs::write(&build_file, "# edited\n").expect("edit");
+        backdate(&build_file, hour);
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2);
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2, "an unchanged dx is not rebuilt again");
+    }
+
+    #[test]
+    fn source_launcher_reports_a_missing_bazel() {
+        if ["/usr/bin/bazel", "/bin/bazel"]
+            .iter()
+            .any(|p| Path::new(p).exists())
+        {
+            return;
+        }
+        let repo = source_repo("dx-launcher-no-bazel-");
+        std::fs::remove_file(repo.base.join("stub/bazel")).expect("remove stub");
+        let (code, _, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!(code, Some(1), "{err}");
+        assert!(err.contains("bazel is not on PATH"), "{err}");
+        assert!(!err.contains("bazel run @rules_dx"), "{err}");
+    }
+
+    #[test]
+    fn source_launcher_runs_dx_exe_natively_under_msys() {
+        let repo = source_repo("dx-launcher-msys-");
+        let log = repo.base.join("calls.log");
+        // A user disk cache keeps the launcher from asking cygpath for its own.
+        std::fs::write(repo.root().join(".bazelrc"), "common --disk_cache=/x\n").expect("rc");
+        repo.fake("uname", "echo MINGW64_NT-10.0");
+        repo.fake(
+            "cygpath",
+            &format!("echo cygpath >> '{}'\necho \"$2\"", log.display()),
+        );
+        repo.fake("cmd.exe", &format!("echo cmd.exe >> '{}'", log.display()));
+        std::fs::write(
+            repo.base.join("payload"),
+            "#!/bin/sh\nprintf '%s\\n' \"$MSYS2_ARG_CONV_EXCL\" \"$@\"\n",
+        )
+        .expect("payload");
+        let (code, out, err) = repo.run_in(&repo.root(), &["a&b", "c|d", "^e", "%PATH%"]);
+        assert_eq!(code, Some(0), "{out}{err}");
+        assert_eq!(out, "*\na&b\nc|d\n^e\n%PATH%\n");
+        assert!(repo.root().join("bazel-bin/cli/cli/dx.exe").exists());
+        assert!(
+            !log.exists(),
+            "{}",
+            std::fs::read_to_string(&log).unwrap_or_default()
+        );
+    }
+
+    #[test]
+    fn source_launcher_runs_from_a_path_with_a_space() {
+        let repo = source_repo_in("dx-launcher-space-", "rules dx");
+        repo.run_ok();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1);
+        repo.touch_build_file();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2);
     }
 }
 

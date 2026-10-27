@@ -244,6 +244,12 @@ dx_native_coverage_tests(
     name = "native_coverage_test",
     objects_list = "cc/tests/fixtures/hello/hello_upstreamruntime_objects_list.txt",
     target = ":native_data_test",
+    # The windows llvm toolchain lacks coverage features, so forcing
+    # collect_code_coverage fails analysis there (#3460).
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 dx_hello_output_test(

@@ -50,8 +50,8 @@ def notice_bundle(name, root, inventory, texts):
         name = name + "_notice",
         srcs = [inventory] + texts,
         outs = [notice],
-        tools = ["//deploy/release:notice_gen"],
-        cmd = "$(location //deploy/release:notice_gen) $(location " + inventory + ") $(OUTS) " + genrule_arg(root) + " " +
+        tools = ["//deploy/release:release_tool"],
+        cmd = "$(location //deploy/release:release_tool) notice $(location " + inventory + ") $(OUTS) " + genrule_arg(root) + " " +
               " ".join(["$(location " + text + ")" for text in texts]),
     )
 

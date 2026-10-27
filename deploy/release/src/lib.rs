@@ -15,6 +15,7 @@ pub mod candidate;
 mod provenance;
 mod publish;
 mod spdx;
+mod tool;
 
 macro_rules! release_repository {
     () => {
@@ -28,6 +29,8 @@ pub const RELEASE_REMOTE: &str = concat!(release_repository!(), ".git");
 pub use publish::{
     publish_dry_run_check, sha256sum_line, PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA,
 };
+
+pub use tool::release_tool_run;
 
 use spdx::SpdxDocument;
 
@@ -1887,10 +1890,13 @@ mod tests {
 
     #[test]
     fn bin_shims_share_failure_rendering() {
-        assert_eq!(bin_usage("sbom_spdx_gen", "<artifact> <spdx> <prov>"), 1);
+        assert_eq!(
+            bin_usage("release_tool spdx", "<artifact> <spdx> <prov>"),
+            1
+        );
         assert_eq!(
             bin_cannot_write(
-                "notice_gen",
+                "release_tool notice",
                 Path::new("/nope/notice.NOTICE"),
                 "read-only filesystem"
             ),

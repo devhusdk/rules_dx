@@ -113,8 +113,8 @@ def bcr_check(name, module_name = "rules_dx", version = "0.0.0", inputs = [], pr
     native.genrule(
         name = name + "_source",
         outs = [name + ".source.json"],
-        tools = ["//deploy/release:bcr_source_gen"],
-        cmd = "$(location //deploy/release:bcr_source_gen) $(OUTS) " + genrule_arg(module_name) + " " + genrule_arg(version),
+        tools = ["//deploy/release:release_tool"],
+        cmd = "$(location //deploy/release:release_tool) bcr-source $(OUTS) " + genrule_arg(module_name) + " " + genrule_arg(version),
     )
 
     program_target = name + "_program"

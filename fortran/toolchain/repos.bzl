@@ -100,6 +100,8 @@ def _rules_fortran_impl(rctx):
         sha256 = rctx.attr.sha256,
         stripPrefix = "rules_fortran-" + rctx.attr.commit,
     )
+    for patch in rctx.attr.patches:
+        rctx.patch(patch, strip = 1)
     for path in DROPPED_PATHS:
         rctx.delete(path)
     rctx.file("REPO.bazel", "")
@@ -107,9 +109,10 @@ def _rules_fortran_impl(rctx):
 
 _rules_fortran = repository_rule(
     implementation = _rules_fortran_impl,
-    doc = "Fetches the pinned rules_fortran sources.",
+    doc = "Fetches the pinned rules_fortran sources with the rules_dx patches.",
     attrs = {
         "commit": attr.string(mandatory = True, doc = "Pinned rules_fortran commit."),
+        "patches": attr.label_list(doc = "Patches applied after extraction."),
         "sha256": attr.string(mandatory = True, doc = "Archive digest."),
         "url": attr.string(mandatory = True, doc = "Archive URL."),
     },
@@ -175,6 +178,7 @@ def _fortran_impl(mctx):
         commit = RULES_FORTRAN_COMMIT,
         sha256 = RULES_FORTRAN_SHA256,
         url = RULES_FORTRAN_URL,
+        patches = [Label("//patches/rules_fortran:module_map_key.patch")],
     )
     for cell in sorted(FORTRAN_CELLS.keys()):
         _flang(name = FLANG_PREFIX + cell, cell = cell)

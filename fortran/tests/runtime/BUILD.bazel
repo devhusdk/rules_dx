@@ -72,3 +72,13 @@ fortran_test(
     copts = select({"//conditions:default": ["-DDX_FORTRAN_SELECT=7"]}),
     env = {"DX_FORTRAN_PROBE": "env"},
 )
+
+fortran_test(
+    name = "same_basename_test",
+    size = "small",
+    srcs = ["same_basename_test.f90"],
+    deps = [
+        "//fortran/tests/runtime/kinds_a",
+        "//fortran/tests/runtime/kinds_b",
+    ],
+)

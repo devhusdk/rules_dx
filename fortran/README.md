@@ -72,6 +72,7 @@ takes the same attributes.
 A source can `use` modules from the targets in its `deps`. It cannot `use` a
 module from another source of the same target. Put each module that other
 code uses in its own `fortran_library` and share it through `deps`.
+Sources in different packages may share a file name, such as `kinds.f90`.
 
 The intrinsic modules (`iso_fortran_env`, `iso_c_binding`, `ieee_*`) work
 without any dependency.

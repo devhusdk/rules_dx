@@ -90,7 +90,8 @@ pub(super) fn run_license(
                                 Some(format!("failed to assess {}: {error}", target.name()));
                         }
                     }
-                    Ok((inputs, lock_rel)) => {
+                    Ok((inventory, lock_rel)) => {
+                        let inputs = inventory.inputs;
                         let locked: Vec<dx_audit::vuln::LockedPackage> = inputs
                             .iter()
                             .map(dx_audit::locks::BazelInput::locked)

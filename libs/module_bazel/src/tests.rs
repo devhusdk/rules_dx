@@ -878,3 +878,13 @@ fn module_versions_follow_bazel_order() {
         assert_eq!(compare_module_versions(b, a), order.reverse(), "{b} vs {a}");
     }
 }
+
+#[test]
+fn extensions_lists_literal_use_extension_calls() {
+    let source = "a = use_extension(\"@a//:e.bzl\", \"ext\")\nb = use_extension(extension_bzl_file = \"//:l.bzl\", extension_name = \"l\")\nc = use_extension(F, \"c\")\n";
+    let module = ModuleFile::parse(source).expect("parses");
+    assert_eq!(
+        module.extensions(),
+        vec![("@a//:e.bzl", "ext"), ("//:l.bzl", "l")]
+    );
+}

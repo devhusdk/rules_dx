@@ -592,7 +592,9 @@ Repos that module extensions record under `moduleExtensions` in
 `module_extension` inputs under their repo name. Each is named by `sha256`,
 integrity, or commit, and `unpinned` when none is set. Generated repos with
 no URL are skipped. Extensions marked reproducible are not in the lock, so
-their downloads are not listed.
+their downloads are not listed. The coverage diagnostic names each root
+`use_extension` with no `moduleExtensions` key in the lock, so reproducible
+or stale entries are visible.
 
 No advisory source maps Bazel modules. A run with only `bazel` sets exits
 `0` with `clean; no advisory coverage for <name>` and an info diagnostic with

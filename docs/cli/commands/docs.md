@@ -16,7 +16,7 @@ or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts
 dx spells them with the name your MODULE.bazel gives rules_dx, for example
 `--@my_dx//config:clippy_output_diagnostics=true` when `repo_name = "my_dx"`.
 
-Scopes: Bazel labels or patterns (`//...`, `//pkg:target`, `@repo//...`), or
+Scopes: Bazel labels or patterns (`//...`, `//pkg:target`), or
 workspace-relative files or dirs resolved through Bazel query. `--here` builds
 the current directory tree (`//path/...`, or `//...` at the root) and cannot be
 combined with explicit scopes (exit `2`).

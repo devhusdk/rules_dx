@@ -43,7 +43,7 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## Scope Shapes
 
-- Labels and patterns: `//...`, `//pkg:target`, `@repo//...`.
+- Labels and patterns: `//...`, `//pkg:target`. `@repo//...` is accepted only by `dx run`; other commands reject external repos.
 - Files and dirs: workspace-relative paths, also under `bazel run`. A file
   resolves through one `bazel query` of the workspace rules to the rules
   that use it directly. Owners in other packages are included. External

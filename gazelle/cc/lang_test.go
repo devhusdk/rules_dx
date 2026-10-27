@@ -333,13 +333,13 @@ func TestCudaStaleOwnedTargetIsEmptied(t *testing.T) {
 	}
 }
 
-func TestImportsIndexCudaHeadersOnly(t *testing.T) {
+func TestImportsIndexCudaLibraryHeaders(t *testing.T) {
 	lang := NewLanguage()
 	r := rule.NewRule(CudaKind, "demo_cuda")
-	r.SetAttr("hdrs", []string{"k.cuh", "shared.h"})
+	r.SetAttr("hdrs", []string{"k.cuh", "shared.h", "impl.cu"})
 	got := lang.Imports(&config.Config{}, r, nil)
-	if len(got) != 1 || got[0].Imp != "k.cuh" {
-		t.Fatalf("imports = %+v, want only k.cuh", got)
+	if len(got) != 2 || got[0].Imp != "k.cuh" || got[1].Imp != "shared.h" {
+		t.Fatalf("imports = %+v, want k.cuh and shared.h", got)
 	}
 }
 

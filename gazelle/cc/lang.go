@@ -69,13 +69,17 @@ func NewLanguage() language.Language {
 		PathIdentity:   true,
 		QualifiedIDs:   HeaderBasename,
 		Lookups:        IncludeKeys,
-		IsImportSource: func(name string) bool { return IsHeader(name) || IsCudaHeader(name) },
-		IsIndexSource:  IsCudaHeader,
+		IsImportSource: isCudaLibraryHeader,
+		IsIndexSource:  isCudaLibraryHeader,
 		IsTestSource:   IsTestSource,
 		UnresolvedHint: "includes with a directory resolve by workspace or package-relative path; otherwise add a local one-header library or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})
 }
+
+// isCudaLibraryHeader reports whether a cuda_library hdrs entry is indexed for
+// includes: plain C/C++ headers and .cuh headers both count.
+func isCudaLibraryHeader(name string) bool { return IsHeader(name) || IsCudaHeader(name) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	// Gazelle owns only <dir>_cuda, so MergeStale must never see cuda_library.

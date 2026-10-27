@@ -20,7 +20,6 @@ dx_rust_crate(
         "src/ops.rs",
         "src/pool.rs",
         "src/setup.rs",
-        "src/tests.rs",
     ],
     dev_deps = ["tempfile"],
     extra_deps = [
@@ -29,6 +28,7 @@ dx_rust_crate(
         "//cli/process:dx_process",
     ],
     extra_test_deps = ["//cli/test_scratch:dx_test_scratch"],
+    test_srcs = ["src/tests.rs"],
     deps = [
         "libc",
         "serde",

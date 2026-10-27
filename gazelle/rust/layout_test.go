@@ -339,6 +339,57 @@ func TestLoadCrateTestScopeAndRootPath(t *testing.T) {
 	}
 }
 
+func TestLoadCrateTestOnly(t *testing.T) {
+	files := map[string]string{
+		"a/src/lib.rs": "#![doc = \"x\"]\n#[cfg(test)] mod tests;\nmod prod;\n#[cfg(test)] mod t { mod inner; }\n" +
+			"#[cfg(test)]\n#[path = \"fixtures/p.rs\"]\nmod pathed;\nmod inner_only;\n",
+		"a/src/tests.rs":               "mod nested;\n",
+		"a/src/tests/nested.rs":        "mod deeper;\n",
+		"a/src/tests/nested/deeper.rs": "",
+		"a/src/prod.rs":                "#[cfg(test)] mod prod_tests;\nmod helper;\n",
+		"a/src/prod/prod_tests.rs":     "",
+		"a/src/prod/helper.rs":         "",
+		"a/src/t/inner.rs":             "",
+		"a/src/fixtures/p.rs":          "",
+		"a/src/inner_only.rs":          "#![cfg(test)]\nmod child;\n",
+		"a/src/inner_only/child.rs":    "",
+	}
+	read, exists := memFS(files)
+	owned, err := LoadCrate("a/src/lib.rs", read, exists)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{
+		"a/src/lib.rs":                 false,
+		"a/src/tests.rs":               true,
+		"a/src/tests/nested.rs":        true,
+		"a/src/tests/nested/deeper.rs": true,
+		"a/src/prod.rs":                false,
+		"a/src/prod/prod_tests.rs":     true,
+		"a/src/prod/helper.rs":         false,
+		"a/src/t/inner.rs":             true,
+		"a/src/fixtures/p.rs":          true,
+		"a/src/inner_only.rs":          false,
+		"a/src/inner_only/child.rs":    false,
+	}
+	if len(owned) != len(want) {
+		t.Fatalf("owned = %v, want %d files", keys(owned), len(want))
+	}
+	for file, testOnly := range want {
+		facts := owned[file]
+		if facts == nil {
+			t.Errorf("%s not owned", file)
+			continue
+		}
+		if facts.TestOnly != testOnly {
+			t.Errorf("%s TestOnly = %v, want %v", file, facts.TestOnly, testOnly)
+		}
+	}
+	if !owned["a/src/inner_only/child.rs"].HasCfgTest && !owned["a/src/inner_only.rs"].Modules[0].CfgTest {
+		t.Errorf("inner cfg(test) no longer marks its modules as test scope")
+	}
+}
+
 func keys(m map[string]*FileFacts) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

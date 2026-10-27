@@ -45,7 +45,6 @@ rust_library(
     srcs = [
         "src/candidate.rs",
         "src/cell.rs",
-        "src/cell_tests.rs",
         "src/lib.rs",
         "src/provenance.rs",
         "src/publish.rs",
@@ -90,17 +89,36 @@ rust_binary(
 rust_test(
     name = "dx_release_tools_test",
     size = "small",
+    srcs = [
+        "src/candidate.rs",
+        "src/cell.rs",
+        "src/cell_tests.rs",
+        "src/lib.rs",
+        "src/provenance.rs",
+        "src/publish.rs",
+        "src/spdx.rs",
+        "src/tool.rs",
+    ],
     aliases = aliases(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_release_tools",
+    crate_name = "dx_release_tools",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/sbom/schema:dx_sbom_schema"],
+    ) + [
+        "//cli/binfmt:dx_binfmt",
+        "//cli/digest:dx_digest",
+        "//cli/fingerprint:dx_fingerprint",
+        "//cli/sbom:dx_sbom",
+        "//cli/sbom/schema:dx_sbom_schema",
+        "//deploy/rules:dx_deploy_tools",
+    ],
 )
 
 # keep
@@ -166,6 +184,7 @@ rustfmt_test(
     name = "dx_release_tools_fmt_test",
     size = "small",
     targets = [
+        ":dx_release_tools_test",
         ":candidate_identity_test",
         ":dx_release_tools",
     ] + [":" + b for b in _RELEASE_BINS] + [":" + b + "_bin_test" for b in _TESTED_RELEASE_BINS],

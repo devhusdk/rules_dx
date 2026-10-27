@@ -58,15 +58,17 @@ func TestGenerateSourceOnlyCrate(t *testing.T) {
 	if lib.Kind() != libraryKind || lib.Name() != "demo" {
 		t.Fatalf("library = %s(%s)", lib.Kind(), lib.Name())
 	}
-	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "src/lib.rs,src/model.rs,src/tests.rs" {
-		t.Errorf("library srcs = %q", got)
+	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "src/lib.rs,src/model.rs" {
+		t.Errorf("library srcs = %q, want the test-only module left out", got)
 	}
 	if lib.AttrString("crate_root") != "src/lib.rs" || lib.AttrString("crate_name") != "demo" {
 		t.Errorf("library attributes: root=%q crate=%q", lib.AttrString("crate_root"), lib.AttrString("crate_name"))
 	}
 	unit := result.Gen[1]
-	if unit.Kind() != testKind || unit.Name() != "demo_test" || unit.AttrString("crate") != ":demo" || len(unit.AttrStrings("srcs")) != 0 {
-		t.Errorf("unit test = %s(%s), crate=%q srcs=%v", unit.Kind(), unit.Name(), unit.AttrString("crate"), unit.AttrStrings("srcs"))
+	if unit.Kind() != testKind || unit.Name() != "demo_test" || unit.Attr("crate") != nil ||
+		strings.Join(unit.AttrStrings("srcs"), ",") != "src/lib.rs,src/model.rs,src/tests.rs" ||
+		unit.AttrString("crate_root") != "src/lib.rs" || unit.AttrString("crate_name") != "demo" || unitTestOf(unit) != "demo" {
+		t.Errorf("unit test = %s(%s), crate=%q srcs=%v root=%q", unit.Kind(), unit.Name(), unit.AttrString("crate"), unit.AttrStrings("srcs"), unit.AttrString("crate_root"))
 	}
 	integration := result.Gen[2]
 	if integration.Kind() != testKind || integration.Name() != "common_test" {
@@ -77,7 +79,7 @@ func TestGenerateSourceOnlyCrate(t *testing.T) {
 		t.Errorf("library imports = %+v", libImports)
 	}
 	unitImports := result.Imports[1].(targetImports)
-	if len(unitImports.production) != 0 || strings.Join(unitImports.test, ",") != "test_dep" {
+	if strings.Join(unitImports.production, ",") != "local_dep" || strings.Join(unitImports.test, ",") != "test_dep" {
 		t.Errorf("unit imports = %+v", unitImports)
 	}
 }
@@ -190,6 +192,185 @@ func TestGenerateAdoptsHandwrittenNames(t *testing.T) {
 	for _, empty := range result.Empty {
 		if empty.Name() == "tool" || empty.Name() == "tool_unit" {
 			t.Errorf("handwritten %s(%s) marked stale", empty.Kind(), empty.Name())
+		}
+	}
+}
+
+func TestGenerateMigratesUnitTestShape(t *testing.T) {
+	generate := func(t *testing.T, lib string, existing ...*rule.Rule) language.GenerateResult {
+		t.Helper()
+		root := t.TempDir()
+		writeFixture(t, root, "crates/demo/src/lib.rs", lib)
+		writeFixture(t, root, "crates/demo/src/tests.rs", "#[test]\nfn works() {}\n")
+		f := rule.EmptyFile("BUILD.bazel", "crates/demo")
+		f.Rules = append(f.Rules, existing...)
+		l := &rustLang{}
+		result := l.GenerateRules(language.GenerateArgs{
+			Config: &config.Config{RepoRoot: root},
+			Dir:    filepath.Join(root, "crates", "demo"),
+			Rel:    "crates/demo",
+			File:   f,
+		})
+		if len(l.errors) != 0 {
+			t.Fatalf("errors = %v", l.errors)
+		}
+		return result
+	}
+	t.Run("crate wrapper to self-contained", func(t *testing.T) {
+		lib := rule.NewRule(libraryKind, "demo_lib")
+		lib.SetAttr("crate_root", "src/lib.rs")
+		unit := rule.NewRule(testKind, "demo_unit")
+		unit.SetAttr("crate", ":demo_lib")
+		result := generate(t, "#[cfg(test)] mod tests;\n", lib, unit)
+		if len(result.Gen) != 2 || result.Gen[0].Name() != "demo_lib" {
+			t.Fatalf("generated = %+v", result.Gen)
+		}
+		test := result.Gen[1]
+		if test.Name() != "demo_unit" || test.Attr("crate") != nil || test.AttrString("crate_root") != "src/lib.rs" || unitTestOf(test) != "demo_lib" {
+			t.Errorf("unit test = %s crate=%q root=%q of=%q, want demo_unit self-contained", test.Name(), test.AttrString("crate"), test.AttrString("crate_root"), unitTestOf(test))
+		}
+		for _, empty := range result.Empty {
+			t.Errorf("%s(%s) marked stale", empty.Kind(), empty.Name())
+		}
+	})
+	t.Run("self-contained to crate wrapper", func(t *testing.T) {
+		lib := rule.NewRule(libraryKind, "demo_lib")
+		lib.SetAttr("crate_root", "src/lib.rs")
+		lib.SetAttr("crate_name", "demo")
+		unit := rule.NewRule(testKind, "demo_unit")
+		unit.SetAttr("crate_root", "src/lib.rs")
+		unit.SetAttr("crate_name", "demo")
+		unit.SetAttr("srcs", []string{"src/lib.rs"})
+		result := generate(t, "#[cfg(test)]\nmod tests {\n    #[test]\n    fn works() {}\n}\n", lib, unit)
+		if len(result.Gen) != 2 {
+			t.Fatalf("generated = %+v", result.Gen)
+		}
+		test := result.Gen[1]
+		if test.Name() != "demo_unit" || test.AttrString("crate") != ":demo_lib" {
+			t.Errorf("unit test = %s crate=%q, want demo_unit crate=:demo_lib", test.Name(), test.AttrString("crate"))
+		}
+		for _, empty := range result.Empty {
+			t.Errorf("%s(%s) marked stale", empty.Kind(), empty.Name())
+		}
+	})
+}
+
+func TestSelfContainedUnitTestInheritsCrateAttrs(t *testing.T) {
+	setup := func(testData string) (*rule.File, []*rule.Rule) {
+		f := rule.EmptyFile("BUILD.bazel", "pkg")
+		lib := rule.NewRule(libraryKind, "demo")
+		lib.SetAttr("compile_data", []string{"data.txt"})
+		lib.SetAttr("rustc_env", map[string]string{"K": "v"})
+		lib.SetAttr("deps", []string{"//hand:dep"})
+		f.Rules = append(f.Rules, lib)
+		if testData != "" {
+			old := rule.NewRule(testKind, "demo_test")
+			old.SetAttr("compile_data", []string{testData})
+			f.Rules = append(f.Rules, old)
+		}
+		gen := unitTestRule("demo_test", "demo", "demo", "pkg/src/lib.rs", map[string]*FileFacts{"pkg/src/lib.rs": {}}, "pkg", true)
+		wrapper := unitTestRule("demo_test", "demo", "demo", "pkg/src/lib.rs", nil, "pkg", false)
+		return f, []*rule.Rule{gen, wrapper}
+	}
+	f, gen := setup("")
+	deps, err := inheritCrateAttrs(f, gen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(deps[gen[0]], ","); got != "//hand:dep" || len(deps[gen[1]]) != 0 {
+		t.Errorf("inherited deps = %v, want //hand:dep for the self-contained test only", deps)
+	}
+	if got := strings.Join(gen[0].AttrStrings("compile_data"), ","); got != "data.txt" || gen[0].Attr("rustc_env") == nil {
+		t.Errorf("self-contained compile_data = %q rustc_env = %v, want copied from the crate", got, gen[0].Attr("rustc_env"))
+	}
+	if gen[1].Attr("compile_data") != nil {
+		t.Errorf("crate= wrapper got compile_data copied")
+	}
+	f, gen = setup("data.txt")
+	if _, err := inheritCrateAttrs(f, gen); err != nil {
+		t.Errorf("equal value rejected: %v", err)
+	}
+	f, gen = setup("other.txt")
+	if _, err := inheritCrateAttrs(f, gen); err == nil || !strings.Contains(err.Error(), "compile_data") {
+		t.Errorf("mismatch error = %v, want a compile_data error", err)
+	}
+}
+
+func TestGenerateCargoSplitsTestOnlyModules(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\nedition = \"2021\"\n[dependencies]\nlocal = { path = \"../local\" }\n[dev-dependencies]\ndevlocal = { path = \"../devlocal\" }\n")
+	writeFixture(t, root, "src/lib.rs", "use local::X;\n#[cfg(test)] mod tests;\n")
+	writeFixture(t, root, "src/tests.rs", "use devlocal::Y;\n#[test]\nfn t() {}\n")
+	writeFixture(t, root, "src/main.rs", "#[cfg(test)] mod main_tests;\nfn main() {}\n")
+	writeFixture(t, root, "src/main_tests.rs", "#[test]\nfn t() {}\n")
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	if len(l.errors) != 0 {
+		t.Fatalf("generation errors = %v", l.errors)
+	}
+	byName := make(map[string]int)
+	for i, r := range result.Gen {
+		byName[r.Kind()+":"+r.Name()] = i
+	}
+	lib, ok := byName[libraryKind+":app_lib"]
+	if !ok {
+		t.Fatalf("no library: %v", byName)
+	}
+	if got := strings.Join(result.Gen[lib].AttrStrings("srcs"), ","); got != "src/lib.rs" {
+		t.Errorf("library srcs = %q, want src/lib.rs", got)
+	}
+	libTest := result.Gen[byName[testKind+":app_test"]]
+	if libTest.Attr("crate") != nil || strings.Join(libTest.AttrStrings("srcs"), ",") != "src/lib.rs,src/tests.rs" ||
+		libTest.AttrString("crate_name") != "app" || libTest.AttrString("edition") != "2021" {
+		t.Errorf("library unit test = crate=%q srcs=%v name=%q edition=%q", libTest.AttrString("crate"), libTest.AttrStrings("srcs"), libTest.AttrString("crate_name"), libTest.AttrString("edition"))
+	}
+	imports := result.Imports[byName[testKind+":app_test"]].(targetImports)
+	if strings.Join(imports.production, ",") != "local" || strings.Join(imports.test, ",") != "devlocal" || strings.Join(imports.mirrorPaths, ",") != "devlocal,local" {
+		t.Errorf("library unit test imports = %+v", imports)
+	}
+	var binName string
+	for key, i := range byName {
+		if strings.HasPrefix(key, binaryKind+":") {
+			binName = result.Gen[i].Name()
+		}
+	}
+	bin := result.Gen[byName[binaryKind+":"+binName]]
+	if got := strings.Join(bin.AttrStrings("srcs"), ","); got != "src/main.rs" {
+		t.Errorf("binary srcs = %q, want src/main.rs", got)
+	}
+	binTestIndex, ok := byName[testKind+":"+common.UnitTestName(common.BinaryName(binName))]
+	if !ok {
+		t.Fatalf("no binary unit test: %v", byName)
+	}
+	binTest := result.Gen[binTestIndex]
+	if binTest.Attr("crate") != nil || strings.Join(binTest.AttrStrings("srcs"), ",") != "src/main.rs,src/main_tests.rs" {
+		t.Errorf("binary unit test = crate=%q srcs=%v", binTest.AttrString("crate"), binTest.AttrStrings("srcs"))
+	}
+	if got := result.Imports[binTestIndex].(targetImports).siblingLib; got != "app_lib" {
+		t.Errorf("binary unit test sibling = %q, want app_lib", got)
+	}
+}
+
+func TestGenerateCargoProcMacroKeepsCrateWrapper(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"mac\"\n[lib]\nproc-macro = true\n")
+	writeFixture(t, root, "src/lib.rs", "#[cfg(test)] mod tests;\n")
+	writeFixture(t, root, "src/tests.rs", "#[test]\nfn t() {}\n")
+	l := &rustLang{}
+	result := l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
+	if len(l.errors) != 0 {
+		t.Fatalf("generation errors = %v", l.errors)
+	}
+	for _, r := range result.Gen {
+		switch r.Kind() {
+		case procMacroKind:
+			if got := strings.Join(r.AttrStrings("srcs"), ","); got != "src/lib.rs,src/tests.rs" {
+				t.Errorf("proc-macro srcs = %q, want test module kept", got)
+			}
+		case testKind:
+			if r.AttrString("crate") != ":mac" || r.Attr("srcs") != nil {
+				t.Errorf("proc-macro unit test crate=%q srcs=%v, want crate wrapper", r.AttrString("crate"), r.AttrStrings("srcs"))
+			}
 		}
 	}
 }

@@ -353,6 +353,13 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 			noteAlias(name, matches[0])
 		}
 	}
+	for _, dep := range imports.inheritedDeps {
+		if pkg, target, ok := splitDepLabel(dep, from); ok && pkg == from.Pkg {
+			addLocalDep(deps, from, target)
+			continue
+		}
+		deps[dep] = true
+	}
 	if imports.siblingLib != "" && imports.siblingLib != from.Name {
 		addLocalDep(deps, from, imports.siblingLib)
 	}

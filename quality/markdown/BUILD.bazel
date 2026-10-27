@@ -11,7 +11,6 @@ rust_library(
         "src/check.rs",
         "src/frontmatter.rs",
         "src/lib.rs",
-        "src/lib_tests.rs",
         "src/links.rs",
     ],
     aliases = aliases(
@@ -53,6 +52,7 @@ rustfmt_test(
     name = "quality_markdown_fmt_test",
     size = "small",
     targets = [
+        ":quality_markdown_test",
         ":quality_markdown",
         ":quality_markdown_lib",
     ],
@@ -75,17 +75,29 @@ exports_files([
 
 rust_test(
     name = "quality_markdown_test",
+    srcs = [
+        "src/check.rs",
+        "src/frontmatter.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/links.rs",
+    ],
     aliases = aliases(
         package_name = "quality/quality_markdown",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":quality_markdown_lib",
+    crate_name = "quality_markdown",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "quality/quality_markdown",
         normal = True,
         normal_dev = True,
-    ),
+    ) + [
+        "//cli/fingerprint:dx_fingerprint",
+        "//cli/output:dx_output",
+    ],
 )
 
 real_source_target(

@@ -8,10 +8,7 @@ exports_files(["Cargo.toml"])
 
 rust_library(
     name = "dx_tool_resolve",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "cli/dx_tool_resolve",
         normal = True,
@@ -28,12 +25,18 @@ rust_library(
 rust_test(
     name = "dx_tool_resolve_test",
     size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_tool_resolve",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_tool_resolve",
+    crate_name = "dx_tool_resolve",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_tool_resolve",
         normal = True,
@@ -43,10 +46,7 @@ rust_test(
 
 rust_binary(
     name = "tool_resolve",
-    srcs = [
-        "src/main.rs",
-        "src/main_tests.rs",
-    ],
+    srcs = ["src/main.rs"],
     aliases = aliases(
         package_name = "cli/dx_tool_resolve",
         normal = True,
@@ -63,23 +63,30 @@ rust_binary(
 rust_test(
     name = "tool_resolve_bin_test",
     size = "small",
+    srcs = [
+        "src/main.rs",
+        "src/main_tests.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_tool_resolve",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":tool_resolve",
+    crate_name = "tool_resolve",
+    crate_root = "src/main.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "cli/dx_tool_resolve",
         normal = True,
         normal_dev = True,
-    ),
+    ) + [":dx_tool_resolve"],
 )
 
 rustfmt_test(
     name = "tool_resolve_fmt_test",
     size = "small",
     targets = [
+        ":dx_tool_resolve_test",
         ":tool_resolve",
         ":tool_resolve_bin_test",
         ":dx_tool_resolve",

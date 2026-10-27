@@ -26,10 +26,7 @@ exports_files([
 
 rust_library(
     name = "dx_site_browser",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "tools/docs/site/site_browser",
         normal = True,
@@ -46,12 +43,18 @@ rust_library(
 rust_test(
     name = "dx_site_browser_test",
     size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/site/site_browser",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_site_browser",
+    crate_name = "dx_site_browser",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_browser",
         normal = True,

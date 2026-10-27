@@ -17,10 +17,7 @@ real_source_target(
 
 rust_library(
     name = "cc_context",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "cc/cc_context",
         normal = True,
@@ -37,12 +34,18 @@ rust_library(
 rust_test(
     name = "cc_context_test",
     size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
     aliases = aliases(
         package_name = "cc/cc_context",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":cc_context",
+    crate_name = "cc_context",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "cc/cc_context",
         normal = True,

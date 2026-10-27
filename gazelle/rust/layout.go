@@ -119,8 +119,8 @@ func ShapeCrate(roots CrateRoots, libUnitTest, binUnitTest bool) (*CrateShape, e
 
 func LoadCrate(root string, read func(string) ([]byte, error), exists func(string) bool) (map[string]*FileFacts, error) {
 	owned := make(map[string]*FileFacts)
-	var visit func(file, moduleDir string, inheritedTest bool, stack []string) error
-	visit = func(file, moduleDir string, inheritedTest bool, stack []string) error {
+	var visit func(file, moduleDir string, inheritedTest, outerTest bool, stack []string) error
+	visit = func(file, moduleDir string, inheritedTest, outerTest bool, stack []string) error {
 		for _, s := range stack {
 			if s == file {
 				return fmt.Errorf("rust: %s: module cycle through %s", root, strings.Join(append(stack, file), " -> "))
@@ -137,6 +137,7 @@ func LoadCrate(root string, read func(string) ([]byte, error), exists func(strin
 		if err != nil {
 			return err
 		}
+		facts.TestOnly = outerTest
 		if inheritedTest || facts.InnerCfgTest {
 			facts.HasCfgTest = true
 			for i := range facts.Modules {
@@ -189,7 +190,7 @@ func LoadCrate(root string, read func(string) ([]byte, error), exists func(strin
 				if path.Base(found[0]) != "mod.rs" {
 					childDir = strings.TrimSuffix(found[0], ".rs")
 				}
-				if err := visit(found[0], childDir, inheritedTest || m.CfgTest, append(stack, file)); err != nil {
+				if err := visit(found[0], childDir, inheritedTest || m.CfgTest, outerTest || m.DeclCfgTest, append(stack, file)); err != nil {
 					return err
 				}
 			default:
@@ -199,7 +200,7 @@ func LoadCrate(root string, read func(string) ([]byte, error), exists func(strin
 		}
 		return nil
 	}
-	if err := visit(root, path.Dir(root), false, nil); err != nil {
+	if err := visit(root, path.Dir(root), false, false, nil); err != nil {
 		return nil, err
 	}
 	return owned, nil

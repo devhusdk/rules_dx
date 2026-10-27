@@ -19,7 +19,6 @@ rust_library(
     srcs = [
         "src/convert.rs",
         "src/lib.rs",
-        "src/lib_tests.rs",
         "src/types.rs",
     ],
     aliases = aliases(
@@ -54,12 +53,20 @@ rust_binary(
 rust_test(
     name = "dx_docs_typescript_extract_test",
     size = "small",
+    srcs = [
+        "src/convert.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/types.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/typescript/typescript_extract",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_docs_typescript_extract",
+    crate_name = "dx_docs_typescript_extract",
+    crate_root = "src/lib.rs",
+    edition = "2021",
     deps = all_crate_deps(
         package_name = "tools/docs/typescript/typescript_extract",
         normal = True,

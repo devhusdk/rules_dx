@@ -232,7 +232,8 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			l.fail("%v", err)
 			continue
 		}
-		r := crateRule(dxKindFor(target), target.name, target.crate(), root, tree, args.Rel)
+		splitTests := excludesTestOnly(target) && hasTestOnly(tree)
+		r := crateRule(dxKindFor(target), target.name, target.crate(), root, tree, args.Rel, splitTests)
 		r.SetAttr("edition", manifest.edition)
 		if isLibraryKind(r.Kind()) && publicLibs {
 			r.SetAttr("visibility", []string{"//visibility:public"})
@@ -272,13 +273,19 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			default:
 				testName = common.UnitTestName(target.crate())
 			}
-			t := rule.NewRule(testKind, testName)
-			t.SetAttr("crate", ":"+target.name)
+			t := unitTestRule(testName, target.name, target.crate(), root, tree, args.Rel, splitTests)
 			setCargoAttrs(t, args.Rel, manifest, true)
+			var testImports targetImports
+			if splitTests {
+				t.SetAttr("edition", manifest.edition)
+				testImports = localCargoImports(args.Config, manifest, imports, true)
+				testImports.siblingLib = resultImports.siblingLib
+			} else {
+				testImports = localCargoImports(args.Config, manifest, targetImports{test: imports.test}, true)
+				testImports.mirrorPaths = nil
+			}
 			result.Gen = append(result.Gen, t)
-			wrapperImports := localCargoImports(args.Config, manifest, targetImports{test: imports.test}, true)
-			wrapperImports.mirrorPaths = nil
-			result.Imports = append(result.Imports, wrapperImports)
+			result.Imports = append(result.Imports, testImports)
 		}
 	}
 	if manifest.build != nil && !manifest.build.disabled {
@@ -576,10 +583,41 @@ func hasUnitTests(tree map[string]*FileFacts) bool {
 	return false
 }
 
-func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, pkg string) *rule.Rule {
+// unitTestOfAttr is the private attribute naming the crate target a generated
+// unit test belongs to, whichever shape the test has.
+const unitTestOfAttr = "dx_unit_test_of"
+
+// excludesTestOnly reports whether a Cargo target's production rule leaves
+// out TestOnly files. Proc-macro, cdylib, staticlib and example targets keep
+// their test modules in srcs and a crate= unit test.
+func excludesTestOnly(target cargoTarget) bool {
+	switch target.kind {
+	case libraryKind:
+		return target.flavor == ""
+	case binaryKind:
+		return true
+	}
+	return false
+}
+
+func hasTestOnly(tree map[string]*FileFacts) bool {
+	for _, facts := range tree {
+		if facts.TestOnly {
+			return true
+		}
+	}
+	return false
+}
+
+// crateRule builds a crate rule over tree. With excludeTestOnly, files that
+// rustc reads only under cfg(test) are left out of srcs.
+func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, pkg string, excludeTestOnly bool) *rule.Rule {
 	r := rule.NewRule(kind, name)
 	srcs := make([]string, 0, len(tree))
-	for source := range tree {
+	for source, facts := range tree {
+		if excludeTestOnly && facts.TestOnly {
+			continue
+		}
 		srcs = append(srcs, strings.TrimPrefix(source, strings.TrimSuffix(pkg, "/")+"/"))
 	}
 	sort.Strings(srcs)
@@ -587,6 +625,29 @@ func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, p
 	r.SetAttr("crate_root", strings.TrimPrefix(root, strings.TrimSuffix(pkg, "/")+"/"))
 	r.SetAttr("crate_name", crateName)
 	return r
+}
+
+// unitTestRule builds the unit test of the crate target of. A self-contained
+// test compiles every file of tree itself (the crate target left the TestOnly
+// files out); otherwise the test wraps the crate target through crate=.
+func unitTestRule(name, of, crateName, root string, tree map[string]*FileFacts, pkg string, selfContained bool) *rule.Rule {
+	var t *rule.Rule
+	if selfContained {
+		t = crateRule(testKind, name, crateName, root, tree, pkg, false)
+	} else {
+		t = rule.NewRule(testKind, name)
+		t.SetAttr("crate", ":"+of)
+	}
+	t.SetPrivateAttr(unitTestOfAttr, of)
+	return t
+}
+
+func unitTestOf(r *rule.Rule) string {
+	if r.Kind() != testKind {
+		return ""
+	}
+	of, _ := r.PrivateAttr(unitTestOfAttr).(string)
+	return of
 }
 
 func importsFor(tree map[string]*FileFacts) targetImports {

@@ -1,0 +1,20 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "unit_shape",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    compile_data = ["asset.txt"],
+    crate_name = "unit_shape",
+    crate_root = "src/lib.rs",
+    visibility = ["//visibility:public"],
+    deps = ["//hand/maintained:dep"],  # keep
+)
+
+rust_test(
+    name = "unit_shape_test",
+    size = "small",
+    crate = ":unit_shape",
+)

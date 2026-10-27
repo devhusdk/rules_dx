@@ -257,6 +257,23 @@ pub fn is_discovery_exempt(command: Command) -> bool {
     )
 }
 
+/// The config-directed workspace. A relative key resolves from the directory of
+/// the file that set it, so the redirect does not depend on where dx started.
+fn file_directed_workspace(
+    defaults: &super::FileDefaults,
+    source: Option<&std::path::Path>,
+    start: &std::path::Path,
+) -> Option<String> {
+    let raw = defaults.workspace.as_deref()?;
+    let base = source.and_then(std::path::Path::parent).unwrap_or(start);
+    let resolved = dx_process::resolve_override_display(std::path::Path::new(raw), base);
+    Some(
+        resolved
+            .to_str()
+            .map_or_else(|| raw.to_owned(), str::to_owned),
+    )
+}
+
 /// Loads defaults from the selected workspace: the flag, the environment, else
 /// the start directory. A config-directed workspace is reported for one more
 /// load instead of being followed here, so a redirect cycle cannot loop.
@@ -274,11 +291,11 @@ pub fn select_startup_defaults_with_ci(
         Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), base),
         None => start.to_path_buf(),
     };
-    match dx_adopt::defaults::load_defaults_with_mode(&dir, is_ci) {
-        Ok((defaults, _)) => {
+    match dx_adopt::defaults::load_defaults_with_source(&dir, is_ci) {
+        Ok((defaults, _, workspace_source)) => {
             let file_workspace = match preliminary {
                 Some(_) => None,
-                None => defaults.workspace.clone(),
+                None => file_directed_workspace(&defaults, workspace_source.as_deref(), &dir),
             };
             Ok(StartupDefaults {
                 defaults,
@@ -1456,6 +1473,28 @@ mod startup_tests {
         let selected = select_startup_defaults_with_ci(&missing, &missing, None, None, false)
             .expect("walks up");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
+    }
+
+    #[test]
+    fn startup_resolves_a_relative_file_key_from_the_config_directory() {
+        let root = scratch_with_config(
+            "startup-relative-key-",
+            Some("[dx]\noutput = \"json\"\nworkspace = \"sub\"\n"),
+        );
+        let sub = root.path().join("sub");
+        std::fs::create_dir_all(sub.join(".dx")).expect("sub dx");
+        std::fs::write(sub.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("sub config");
+        let child = root.path().join("child");
+        std::fs::create_dir_all(&child).expect("child dir");
+        let selected = select_startup_defaults_with_ci(&child, &child, None, None, false)
+            .expect("walks up to the root config");
+        let target = selected
+            .file_workspace
+            .expect("the root config directs a workspace");
+        assert_eq!(target, sub.to_string_lossy());
+        let defaults = load_startup_defaults(&child, &child, None, None, false)
+            .expect("follows the redirect once");
+        assert_eq!(defaults.output, Some("text".to_owned()));
     }
 
     #[test]

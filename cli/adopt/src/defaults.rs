@@ -413,6 +413,16 @@ pub fn load_defaults_with_mode(
     start: &Path,
     ignore_local: bool,
 ) -> Result<(FileDefaults, Option<PathBuf>), super::AdoptError> {
+    let (defaults, primary, _) = load_defaults_with_source(start, ignore_local)?;
+    Ok((defaults, primary))
+}
+
+/// Like `load_defaults_with_mode`, and also names the file that supplied the
+/// `workspace` key, so a relative key can resolve from that file's directory.
+pub fn load_defaults_with_source(
+    start: &Path,
+    ignore_local: bool,
+) -> Result<(FileDefaults, Option<PathBuf>, Option<PathBuf>), super::AdoptError> {
     let sources = find_config_sources(start);
     let committed = sources.committed.clone();
     let local = if ignore_local {
@@ -422,16 +432,25 @@ pub fn load_defaults_with_mode(
     };
     if committed.is_some() || local.is_some() {
         let mut merged = FileDefaults::default();
+        let mut workspace_source = None;
         if let Some(path) = &committed {
-            merged = merge_defaults(merged, read_defaults_file(path)?);
+            let file = read_defaults_file(path)?;
+            if file.workspace.is_some() {
+                workspace_source = Some(path.clone());
+            }
+            merged = merge_defaults(merged, file);
         }
         if let Some(path) = &local {
-            merged = merge_defaults(merged, read_defaults_file(path)?);
+            let file = read_defaults_file(path)?;
+            if file.workspace.is_some() {
+                workspace_source = Some(path.clone());
+            }
+            merged = merge_defaults(merged, file);
         }
         let primary = local.or(committed);
-        return Ok((merged, primary));
+        return Ok((merged, primary, workspace_source));
     }
-    Ok((FileDefaults::default(), None))
+    Ok((FileDefaults::default(), None, None))
 }
 
 /// The `[dx] output` the config files name, read even when the rest of a file is invalid.
@@ -938,6 +957,25 @@ mod tests {
         let (defaults, _) = load_defaults_with_mode(&root, true).expect("ci skips local");
         assert_eq!(defaults.output, Some("json".to_owned()));
         assert_eq!(defaults.quiet, Some(true));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn workspace_source_names_the_file_that_sets_the_key() {
+        let scratch = dx_test_scratch::scratch("dx-defaults-source-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("dx.toml"), "[dx]\nworkspace = \"committed\"\n")
+            .expect("committed");
+        std::fs::write(root.join("dx.local.toml"), "[dx]\noutput = \"text\"\n").expect("local");
+        let (defaults, _, source) = load_defaults_with_source(&root, false).expect("loads");
+        assert_eq!(defaults.workspace, Some("committed".to_owned()));
+        assert_eq!(source, Some(root.join("dx.toml")));
+        std::fs::write(root.join("dx.local.toml"), "[dx]\nworkspace = \"local\"\n").expect("local");
+        let (defaults, _, source) = load_defaults_with_source(&root, false).expect("loads");
+        assert_eq!(defaults.workspace, Some("local".to_owned()));
+        assert_eq!(source, Some(root.join("dx.local.toml")));
+        let (_, _, source) = load_defaults_with_source(&root, true).expect("ci skips local");
+        assert_eq!(source, Some(root.join("dx.toml")));
         scratch.close().expect("cleanup");
     }
 

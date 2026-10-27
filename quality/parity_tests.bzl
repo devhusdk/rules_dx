@@ -7,6 +7,7 @@ PARITY_SCHEMA_VERSION = 1
 
 PARITY_DEFERRED = {
     "fortran": ["ADR", "no Fortran formatter or linter is pinned"],
+    "haskell": ["ADR", "formatter adapter pending; no pinned hermetic ormolu or hlint yet"],
     "lua": ["ADR", "stylua adapter pending in a later #1794 slice"],
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "perl": ["ADR", "perltidy adapter pending in a later #1788 slice"],

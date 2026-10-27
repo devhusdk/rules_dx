@@ -1,0 +1,724 @@
+diff --git a/haskell/BUILD.bazel b/haskell/BUILD.bazel
+index a5fab3d..b2a113a 100644
+--- a/haskell/BUILD.bazel
++++ b/haskell/BUILD.bazel
+@@ -1,8 +1,4 @@
+ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+-load(
+-    "@rules_haskell//haskell:cabal_wrapper.bzl",
+-    "cabal_wrapper",
+-)
+ load(
+     "@rules_haskell//haskell:private/cc_wrapper.bzl",
+     "cc_wrapper",
+@@ -15,8 +11,6 @@ load(
+     "@rules_haskell//haskell:toolchain.bzl",
+     "get_cc_toolchain",
+     "get_haskell_toolchain",
+-    "get_nodejs_toolchain",
+-    "get_posix_toolchain",
+ )
+ load(
+     "@rules_haskell//haskell:toolchain_info.bzl",
+@@ -28,8 +22,6 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+ exports_files(
+     glob(["*.bzl"]) + [
+         "assets/ghci_script",
+-        "private/cabal_wrapper.sh.tpl",
+-        "private/cabal_wrapper.py",
+         "private/coverage_wrapper.sh.tpl",
+         "private/ghci_repl_wrapper.sh",
+         "private/hie_bios_wrapper.sh",
+@@ -67,7 +59,6 @@ bzl_library(
+     visibility = ["//visibility:public"],
+     deps = [
+         ":bazel_tools",
+-        "//haskell/asterius:asterius_bzl",
+         "//haskell/experimental:defs.bzl",
+         "//haskell/experimental:providers.bzl",
+         "//haskell/experimental/private:module.bzl",
+@@ -79,7 +70,6 @@ bzl_library(
+         "@bazel_skylib//lib:versions",
+         "@bazel_skylib//rules:expand_template",
+         "@rules_cc//cc:bzl_srcs",
+-        "@rules_sh//sh:posix",
+     ],
+ )
+ 
+@@ -88,11 +78,6 @@ cc_wrapper(
+     visibility = ["//visibility:public"],
+ )
+ 
+-cabal_wrapper(
+-    name = "cabal_wrapper",
+-    visibility = ["//visibility:public"],
+-)
+-
+ py_binary(
+     name = "pkgdb_to_bzl",
+     srcs = ["private/pkgdb_to_bzl.py"],
+@@ -123,14 +108,6 @@ py_binary(
+     visibility = ["//visibility:public"],
+ )
+ 
+-# generate the GHC bindist JSON file
+-py_binary(
+-    name = "gen-ghc-bindist",
+-    srcs = [":gen_ghc_bindist.py"],
+-    main = ":gen_ghc_bindist.py",
+-    visibility = ["//visibility:public"],
+-)
+-
+ # toolchains must have a valid toolchain_type from bazel 0.21
+ toolchain_type(
+     name = "toolchain",
+@@ -158,16 +135,6 @@ haskell_toolchain_info(
+     name = "toolchain_info",
+ )
+ 
+-get_nodejs_toolchain(
+-    name = "current_nodejs_toolchain",
+-    visibility = ["//visibility:public"],
+-)
+-
+-get_posix_toolchain(
+-    name = "current_posix_toolchain",
+-    visibility = ["//visibility:public"],
+-)
+-
+ get_haskell_toolchain(
+     name = "current_haskell_toolchain",
+     visibility = ["//visibility:public"],
+@@ -182,8 +149,6 @@ filegroup(
+     name = "all_files",
+     testonly = True,
+     srcs = glob(["**"]) + [
+-        "//haskell/asterius:all_files",
+-        "//haskell/c2hs:all_files",
+         "//haskell/experimental:all_files",
+         "//haskell/platforms:all_files",
+     ],
+diff --git a/haskell/cc.bzl b/haskell/cc.bzl
+index 9469d11..2b82a5d 100644
+--- a/haskell/cc.bzl
++++ b/haskell/cc.bzl
+@@ -175,6 +175,7 @@ def cc_interop_info(ctx, override_cc_toolchain = None):
+     return CcInteropInfo(
+         tools = struct(**tools),
+         env = env,
++        files = cc_toolchain.all_files,
+         hdrs = hdrs.to_list(),
+         cpp_flags = cpp_flags,
+         include_args = include_args,
+diff --git a/haskell/defs.bzl b/haskell/defs.bzl
+index 6487b36..fc237ba 100644
+--- a/haskell/defs.bzl
++++ b/haskell/defs.bzl
+@@ -6,11 +6,6 @@ load(
+     "//haskell/experimental:providers.bzl",
+     "HaskellModuleInfo",
+ )
+-load(
+-    ":haddock.bzl",
+-    _haskell_doc = "haskell_doc",
+-    _haskell_doc_aspect = "haskell_doc_aspect",
+-)
+ load(
+     ":plugins.bzl",
+     _ghc_plugin = "ghc_plugin",
+@@ -37,7 +32,6 @@ load(
+ # For re-exports:
+ load(
+     ":toolchain.bzl",
+-    _haskell_register_toolchains = "rules_haskell_toolchains",
+     _haskell_toolchain = "haskell_toolchain",
+ )
+ 
+@@ -165,7 +159,7 @@ def _mk_binary_rule(**kwargs):
+                 default = Label("@rules_haskell//haskell:private/coverage_wrapper.sh.tpl"),
+             ),
+             "_bash_runfiles": attr.label(
+-                allow_single_file = True,
++                allow_files = True,
+                 default = Label("@bazel_tools//tools/bash/runfiles:runfiles"),
+             ),
+         })
+@@ -180,7 +174,6 @@ def _mk_binary_rule(**kwargs):
+         },
+         toolchains = use_cc_toolchain() + [
+             "@rules_haskell//haskell:toolchain",
+-            "@rules_sh//sh/posix:toolchain_type",
+         ],
+         fragments = ["cpp"],
+         **kwargs
+@@ -214,18 +207,12 @@ _haskell_library = rule(
+     },
+     toolchains = use_cc_toolchain() + [
+         "@rules_haskell//haskell:toolchain",
+-        "@rules_sh//sh/posix:toolchain_type",
+     ],
+     fragments = ["cpp"],
+ )
+ 
+ def _haskell_worker_wrapper(rule_type, **kwargs):
+-    defaults = dict(
+-        worker = select({
+-            "@rules_haskell//haskell:use_worker": Label("@rules_haskell//tools/worker:bin"),
+-            "//conditions:default": None,
+-        }),
+-    )
++    defaults = dict()
+     defaults.update(kwargs)
+ 
+     if rule_type == "binary":
+@@ -704,18 +691,6 @@ of the compiler toolchain) available as targets.
+ """,
+ )
+ 
+-haskell_doc = _haskell_doc
+-
+-haskell_doc_aspect = _haskell_doc_aspect
+-
+-def haskell_register_toolchains(**kwargs):
+-    """Register GHC binary distributions for all platforms as toolchains.
+-
+-    Deprecated:
+-        Use [rules_haskell_toolchains](toolchain.html#rules_haskell_toolchains) instead.
+-    """
+-    _haskell_register_toolchains(**kwargs)
+-
+ haskell_repl = _haskell_repl
+ 
+ haskell_repl_aspect = _haskell_repl_aspect
+diff --git a/haskell/experimental/defs.bzl b/haskell/experimental/defs.bzl
+index 7eb5aee..701a4b5 100644
+--- a/haskell/experimental/defs.bzl
++++ b/haskell/experimental/defs.bzl
+@@ -48,7 +48,6 @@ _haskell_module = rule(
+     },
+     toolchains = use_cc_toolchain() + [
+         "@rules_haskell//haskell:toolchain",
+-        "@rules_sh//sh/posix:toolchain_type",
+     ],
+     fragments = ["cpp"],
+ )
+diff --git a/haskell/private/actions/info.bzl b/haskell/private/actions/info.bzl
+index 66d079f..19ad674 100644
+--- a/haskell/private/actions/info.bzl
++++ b/haskell/private/actions/info.bzl
+@@ -1,7 +1,6 @@
+ """Defines output groups that are consumed by tools such as 'hrepl'."""
+ 
+ load("@bazel_skylib//lib:paths.bzl", "paths")
+-load("@com_google_protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+ load(":private/cc_libraries.bzl", "get_ghci_library_files")
+ 
+ def write_proto_file(hs, output_name, proto_type, content):
+@@ -25,27 +24,8 @@ def write_proto_file(hs, output_name, proto_type, content):
+       A File containing the encoded proto message, named {file_name}.pb.
+     """
+     proto_txt = hs.actions.declare_file(output_name + ".txt")
+-    proto_pb = hs.actions.declare_file(output_name + ".pb")
+     hs.actions.write(output = proto_txt, content = proto.encode_text(content))
+-
+-    protoc = hs.toolchain.protoc
+-    rule_info_protos = hs.toolchain.rule_info_proto[ProtoInfo].direct_sources
+-
+-    hs.actions.run_shell(
+-        outputs = [proto_pb],
+-        inputs = depset([proto_txt] + rule_info_protos),
+-        tools = [protoc],
+-        command =
+-            "{protoc} {rule_info_proto} --encode {proto_type} < {proto_txt} > {proto_pb}"
+-                .format(
+-                protoc = protoc.executable.path,
+-                proto_type = proto_type,
+-                proto_txt = proto_txt.path,
+-                proto_pb = proto_pb.path,
+-                rule_info_proto = " ".join([p.path for p in rule_info_protos]),
+-            ),
+-    )
+-    return proto_pb
++    return proto_txt
+ 
+ def _filter_package_env(flags):
+     # Strips out -package-env from the command-line flags.  Consumers of these output
+diff --git a/haskell/private/actions/link.bzl b/haskell/private/actions/link.bzl
+index 0fa4fd9..b2c62f5 100644
+--- a/haskell/private/actions/link.bzl
++++ b/haskell/private/actions/link.bzl
+@@ -356,7 +356,7 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
+         )
+     else:
+         hs.actions.run(
+-            inputs = inputs,
++            inputs = depset(transitive = [inputs, cc.files]),
+             outputs = [static_library],
+             mnemonic = "HaskellLinkStaticLibrary",
+             executable = cc.tools.ar,
+diff --git a/haskell/private/cc_libraries.bzl b/haskell/private/cc_libraries.bzl
+index f98b9e5..49db94d 100644
+--- a/haskell/private/cc_libraries.bzl
++++ b/haskell/private/cc_libraries.bzl
+@@ -366,7 +366,7 @@ def extend_HaskellCcLibrariesInfo(
+     Returns:
+       HaskellCcLibrariesInfo
+     """
+-    posix = ctx.toolchains["@rules_sh//sh/posix:toolchain_type"]
++    posix = struct(paths = [], commands = {})
+     libraries = dict(cc_libraries_info.libraries)
+ 
+     linker_inputs = cc_info.linking_context.linker_inputs.to_list() if cc_info else []
+@@ -423,6 +423,11 @@ def _haskell_cc_libraries_aspect_impl(target, ctx):
+         for attr in ["deps", "exports", "plugins"]
+         for dep in getattr(ctx.rule.attr, attr, [])
+         if HaskellCcLibrariesInfo in dep
++    ] + [
++        # dx wrappers forward one private upstream target.
++        dep[HaskellCcLibrariesInfo]
++        for dep in [getattr(ctx.rule.attr, "upstream", None)]
++        if type(dep) == "Target" and HaskellCcLibrariesInfo in dep
+     ])
+ 
+     cc_info = target[CcInfo] if CcInfo in target else None
+@@ -440,12 +445,11 @@ def _haskell_cc_libraries_aspect_impl(target, ctx):
+ 
+ haskell_cc_libraries_aspect = aspect(
+     implementation = _haskell_cc_libraries_aspect_impl,
+-    attr_aspects = ["deps", "narrowed_deps", "exports", "plugins"],
++    attr_aspects = ["deps", "narrowed_deps", "exports", "plugins", "upstream"],
+     provides = [HaskellCcLibrariesInfo],
+     required_aspect_providers = [HaskellProtobufInfo],
+     toolchains = [
+         "@rules_haskell//haskell:toolchain",
+-        "@rules_sh//sh/posix:toolchain_type",
+     ],
+     doc = """Extend LibraryToLink of C dependencies for GHC compatibility
+ 
+diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
+index be9fceb..5b6841a 100644
+--- a/haskell/private/cc_wrapper.py.tpl
++++ b/haskell/private/cc_wrapper.py.tpl
+@@ -1033,7 +1033,10 @@ def find_cc():
+                 r = bazel_runfiles.CreateManifestBased(manifest_path)
+             elif exe_path is not None and os.path.isfile(exe_path):
+                 r = bazel_runfiles.CreateDirectoryBased(exe_path + ".runfiles")
+-        cc = r.Rlocation("/".join([WORKSPACE, CC]))
++        if CC.startswith("external/"):
++            cc = r.Rlocation(CC[len("external/"):])
++        else:
++            cc = r.Rlocation("/".join([WORKSPACE, CC]))
+         if cc is None and is_windows():
+             # We must use "/" instead of os.path.join on Windows, because the
+             # Bazel runfiles_manifest file uses "/" separators.
+diff --git a/haskell/private/haskell_impl.bzl b/haskell/private/haskell_impl.bzl
+index 4028bde..007f9ca 100644
+--- a/haskell/private/haskell_impl.bzl
++++ b/haskell/private/haskell_impl.bzl
+@@ -190,7 +190,7 @@ def _haskell_binary_common_impl(ctx, is_test):
+     java = java_interop_info(deps)
+ 
+     # Make shell tools available.
+-    posix = ctx.toolchains["@rules_sh//sh/posix:toolchain_type"]
++    posix = struct(paths = [], commands = {})
+ 
+     # Determine file directories.
+     interfaces_dir = paths.join("_iface", hs.name)
+@@ -367,7 +367,6 @@ def _haskell_binary_common_impl(ctx, is_test):
+         mix_runfiles = [datum.mix_file for datum in coverage_data]
+         srcs_runfiles = [_condition_coverage_src(hs, datum.src_file) for datum in coverage_data]
+         extra_runfiles = [
+-            ctx.file._bash_runfiles,
+             hs.toolchain.tools.hpc,
+             binary,
+         ] + mix_runfiles + srcs_runfiles + java.inputs.to_list()
+@@ -381,7 +380,7 @@ def _haskell_binary_common_impl(ctx, is_test):
+             runfiles = ctx.runfiles(
+                 files = extra_runfiles + solibs,
+                 collect_data = True,
+-            ),
++            ).merge_all([ctx.attr._bash_runfiles[DefaultInfo].default_runfiles] if hasattr(ctx.attr, "_bash_runfiles") else []),
+         ),
+         # Advertise sources and transitive deps for HPC coverage. Without an
+         # InstrumentedFilesInfo provider, Bazel does not deterministically
+@@ -433,7 +432,7 @@ def haskell_library_impl(ctx):
+     java = java_interop_info(ctx.attr.deps + ctx.attr.narrowed_deps)
+ 
+     # Make shell tools available.
+-    posix = ctx.toolchains["@rules_sh//sh/posix:toolchain_type"]
++    posix = struct(paths = [], commands = {})
+ 
+     with_profiling = is_profiling_enabled(hs)
+     srcs_files, import_dir_map = _prepare_srcs(ctx.attr.srcs)
+diff --git a/haskell/private/packages.bzl b/haskell/private/packages.bzl
+index b479db7..b285856 100644
+--- a/haskell/private/packages.bzl
++++ b/haskell/private/packages.bzl
+@@ -186,9 +186,6 @@ def ghc_pkg_recache(hs, posix, conf_file):
+             "-v0",
+             "--no-expand-pkgroot",
+         ],
+-        env = {
+-            "PATH": (";" if hs.toolchain.is_windows else ":").join(posix.paths),
+-        },
+     )
+ 
+     return cache_file
+diff --git a/haskell/private/path_utils.bzl b/haskell/private/path_utils.bzl
+index 99828f8..b7b4192 100644
+--- a/haskell/private/path_utils.bzl
++++ b/haskell/private/path_utils.bzl
+@@ -530,7 +530,7 @@ def rel_to_pkgroot(target, pkgdb):
+         truly_relativize(target, paths.dirname(pkgdb)),
+     )
+ 
+-def ln(hs, posix, target, link, extra_inputs = depset()):
++def ln(hs, posix, target, link, extra_inputs = depset()):  # @unused
+     """Create a symlink to target.
+ 
+     Args:
+@@ -540,24 +540,7 @@ def ln(hs, posix, target, link, extra_inputs = depset()):
+     Returns:
+       None
+     """
+-    relative_target = truly_relativize(target.path, link.dirname)
+-    hs.actions.run_shell(
+-        inputs = depset([target], transitive = [extra_inputs]),
+-        outputs = [link],
+-        mnemonic = "Symlink",
+-        command = '"{ln}" -s {target} {link}'.format(
+-            ln = posix.commands["ln"],
+-            target = relative_target,
+-            link = link.path,
+-        ),
+-        # Don't sandbox symlinking to reduce overhead.
+-        # See https://github.com/tweag/rules_haskell/issues/958.
+-        execution_requirements = {
+-            "no-sandbox": "",
+-            "no-cache": "",
+-            "no-remote": "",
+-        },
+-    )
++    hs.actions.symlink(output = link, target_file = target)
+ 
+ def parse_pattern(ctx, pattern_str):
+     """Parses a string label pattern.
+diff --git a/haskell/repl.bzl b/haskell/repl.bzl
+index 3933b73..be805ad 100644
+--- a/haskell/repl.bzl
++++ b/haskell/repl.bzl
+@@ -1079,7 +1079,6 @@ _haskell_repl = rule(
+     },
+     toolchains = use_cc_toolchain() + [
+         "@rules_haskell//haskell:toolchain",
+-        "@rules_sh//sh/posix:toolchain_type",
+     ],
+     fragments = ["cpp"],
+     doc = """ Build a REPL for multiple targets. """,
+@@ -1100,7 +1099,6 @@ _hie_bios = rule(
+         ),
+     toolchains = use_cc_toolchain() + [
+         "@rules_haskell//haskell:toolchain",
+-        "@rules_sh//sh/posix:toolchain_type",
+     ],
+     fragments = ["cpp"],
+     doc = "Build an executable script that outputs flags for ide integration",
+diff --git a/haskell/toolchain.bzl b/haskell/toolchain.bzl
+index 2e10f82..84707ce 100644
+--- a/haskell/toolchain.bzl
++++ b/haskell/toolchain.bzl
+@@ -3,13 +3,7 @@
+ load("@bazel_skylib//lib:paths.bzl", "paths")
+ load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
+ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
+-load(
+-    "//haskell/asterius:asterius_config.bzl",
+-    "ASTERIUS_BINARIES",
+-    "asterius_tools_config",
+-)
+ load(":cc.bzl", "ghc_cc_program_args")
+-load(":ghc_bindist.bzl", "haskell_register_ghc_bindists")
+ load(
+     ":private/actions/compile.bzl",
+     "compile_binary",
+@@ -141,7 +135,7 @@ def _run_ghc(
+         flagsfile = merge_parameter_files(hs, extra_args_file, params_file)
+         extra_inputs.append(flagsfile)
+ 
+-    inputs = depset(extra_inputs, transitive = [inputs])
++    inputs = depset(extra_inputs, transitive = [inputs] + ([cc.files] if getattr(cc, "files", None) != None else []))
+ 
+     tools.extend(hs.tools_config.tools_for_ghc)
+     append_to_path(env, hs.toolchain.is_windows, hs.tools_config.path_for_run_ghc)
+@@ -331,41 +325,28 @@ def _haskell_toolchain_impl(ctx):
+     if numeric_version == [8, 10, 1] or numeric_version == [8, 10, 2]:
+         fail("GHC 8.10.1 and 8.10.2 not supported. Upgrade to 8.10.3 or later.")
+ 
+-    if ctx.attr.asterius_binaries:
+-        # we recover binaries that are not provided by asterius via the regular toolchain.
+-        exec_tools_struct = ctx.attr._exec_haskell_toolchain[platform_common.ToolchainInfo].tools
+-
+-        tools_struct_args = {
+-            k: getattr(exec_tools_struct, k)
+-            for name in _GHC_BINARIES
+-            for k in [name.replace("-", "_")]
+-        }
+-        ahc_binaries = _lookup_binaries(ASTERIUS_BINARIES.keys(), ctx.files.asterius_binaries)
+-        for tool, asterius_binary in ahc_binaries.items():
+-            tools_struct_args[ASTERIUS_BINARIES[tool]] = asterius_binary
+-    else:
+-        ghc_tools = _GHC_BINARIES
+-
+-        # GHC > 9.10 does not install ghci with relocatable = true, add the tool if it is available
+-        found = False
+-        for file in ctx.files.tools:
+-            if file.basename.startswith("ghci"):
+-                ghc_tools = ghc_tools + ["ghci"]
+-                found = True
+-                break
+-        if not found:
+-            # buildifier: disable=print
+-            print(
+-                "WARN: ghci binary is not available for {}, `tools.ghci` will not exist on its haskell toolchain".format(
+-                    ctx.label.repo_name,
+-                ),
+-            )
+-
+-        ghc_binaries = _lookup_binaries(ghc_tools, ctx.files.tools, ctx.attr.version)
+-        tools_struct_args = {
+-            name.replace("-", "_"): file
+-            for name, file in ghc_binaries.items()
+-        }
++    ghc_tools = _GHC_BINARIES
++
++    # GHC > 9.10 does not install ghci with relocatable = true, add the tool if it is available
++    found = False
++    for file in ctx.files.tools:
++        if file.basename.startswith("ghci"):
++            ghc_tools = ghc_tools + ["ghci"]
++            found = True
++            break
++    if not found:
++        # buildifier: disable=print
++        print(
++            "WARN: ghci binary is not available for {}, `tools.ghci` will not exist on its haskell toolchain".format(
++                ctx.label.repo_name,
++            ),
++        )
++
++    ghc_binaries = _lookup_binaries(ghc_tools, ctx.files.tools, ctx.attr.version)
++    tools_struct_args = {
++        name.replace("-", "_"): file
++        for name, file in ghc_binaries.items()
++    }
+ 
+     # Get the libdir and docdir paths
+     libdir = ctx.files.libdir
+@@ -409,7 +390,6 @@ def _haskell_toolchain_impl(ctx):
+     ctx.actions.run_shell(
+         inputs = [ghc_pkg],
+         outputs = [pkgdb_file],
+-        tools = ctx.files.tools if ctx.attr.asterius_binaries else [],
+         mnemonic = "HaskellPackageDatabaseDump",
+         command = "{ghc_pkg} dump --global > {output}".format(
+             ghc_pkg = ghc_pkg.path,
+@@ -430,22 +410,18 @@ def _haskell_toolchain_impl(ctx):
+     cc_wrapper_info = ctx.attr._cc_wrapper[DefaultInfo]
+     cc_wrapper_files_to_run = cc_wrapper_info.files_to_run
+ 
+-    if ctx.attr.asterius_binaries:
+-        tools_config = asterius_tools_config(
+-            exec_cc_toolchain = ctx.attr._exec_cc_toolchain[cc_common.CcToolchainInfo],
+-            posix_toolchain = ctx.attr._exec_posix_toolchain[platform_common.ToolchainInfo],
+-            node_toolchain = ctx.attr._exec_nodejs_toolchain[platform_common.ToolchainInfo],
+-            tools_for_ghc_pkg = ctx.files.tools,
+-        )
+-    else:
+-        tools_config = struct(
+-            path_for_run_ghc = default_tools_config.path_for_run_ghc + ctx.attr._exec_posix_toolchain[platform_common.ToolchainInfo].paths,
+-            tools_for_ghc = default_tools_config.tools_for_ghc,
+-            path_for_cabal = default_tools_config.path_for_cabal,
+-            tools_for_ghc_pkg = default_tools_config.tools_for_ghc_pkg,
+-            maybe_exec_cc_toolchain = default_tools_config.maybe_exec_cc_toolchain,
+-            supports_haddock = default_tools_config.supports_haddock,
+-        )
++    tools_config = struct(
++        path_for_run_ghc = default_tools_config.path_for_run_ghc,
++        tools_for_ghc = default_tools_config.tools_for_ghc,
++        path_for_cabal = default_tools_config.path_for_cabal,
++        tools_for_ghc_pkg = [
++            f
++            for f in libdir
++            if f.extension == "so" or ".so." in f.basename or f.dirname.endswith("/package.conf.d") or f.basename == "settings"
++        ],
++        maybe_exec_cc_toolchain = default_tools_config.maybe_exec_cc_toolchain,
++        supports_haddock = default_tools_config.supports_haddock,
++    )
+ 
+     return [
+         platform_common.ToolchainInfo(
+@@ -486,8 +462,6 @@ def _haskell_toolchain_impl(ctx):
+             version = ctx.attr.version,
+             numeric_version = numeric_version,
+             global_pkg_db = pkgdb_file,
+-            protoc = ctx.attr._protoc[DefaultInfo].files_to_run,
+-            rule_info_proto = ctx.attr._rule_info_proto,
+             tools_config = tools_config,
+         ),
+     ]
+@@ -535,54 +509,13 @@ common_attrs = {
+     "locale_archive": attr.label(
+         allow_single_file = True,
+     ),
+-    "asterius_binaries": attr.label(),
+     "_cc_wrapper": attr.label(
+         cfg = "exec",
+         default = Label("@rules_haskell//haskell:cc_wrapper"),
+         executable = True,
+     ),
+-    "_protoc": attr.label(
+-        executable = True,
+-        cfg = "exec",
+-        # N.B. can be overridden by `--proto_compiler` flag
+-        default = configuration_field("proto", "proto_compiler"),
+-    ),
+-    "_rule_info_proto": attr.label(
+-        allow_single_file = True,
+-        default = Label("@rules_haskell//rule_info:rule_info_proto"),
+-    ),
+-    "_exec_posix_toolchain": attr.label(
+-        default = Label("@rules_haskell//haskell:current_posix_toolchain"),
+-        cfg = "exec",
+-    ),
+ }
+ 
+-_ahc_haskell_toolchain = rule(
+-    _haskell_toolchain_impl,
+-    attrs = dict(
+-        common_attrs,
+-        _cc_toolchain = attr.label(
+-            default = Label(
+-                "@rules_cc//cc:current_cc_toolchain",
+-            ),
+-        ),
+-        _exec_nodejs_toolchain = attr.label(
+-            default = Label("@rules_haskell//haskell:current_nodejs_toolchain"),
+-            cfg = "exec",
+-        ),
+-        _exec_haskell_toolchain = attr.label(
+-            default = Label("@rules_haskell//haskell:current_haskell_toolchain"),
+-            cfg = "exec",
+-        ),
+-        _exec_cc_toolchain = attr.label(
+-            default = Label("@rules_haskell//haskell:current_cc_toolchain"),
+-            cfg = "exec",
+-        ),
+-    ),
+-    toolchains = use_cc_toolchain(mandatory = True),
+-    fragments = ["cpp"],
+-)
+-
+ _haskell_toolchain = rule(
+     _haskell_toolchain_impl,
+     attrs = dict(
+@@ -604,7 +537,6 @@ def haskell_toolchain(
+         fully_static_link,
+         tools,
+         libraries,
+-        asterius_binaries = None,
+         ghcopts = [],
+         repl_ghci_args = [],
+         haddock_flags = [],
+@@ -652,8 +584,6 @@ def haskell_toolchain(
+       fully_static_link: Whether GHC should build fully-statically-linked binaries.
+       tools: GHC and executables that come with it. First item takes precedence.
+       libraries: The set of libraries that come with GHC. Requires haskell_import targets.
+-      asterius_binaries: An optional filegroup containing asterius binaries.
+-        If present the toolchain will target WebAssembly and only use binaries from `tools` if needed to complete the toolchain.
+       ghcopts: A collection of flags that will be passed to GHC on every invocation.
+       repl_ghci_args: A collection of flags that will be passed to GHCI on repl invocation. It extends the `ghcopts` collection.\\
+         Flags set here have precedance over `ghcopts`.
+@@ -673,8 +603,7 @@ def haskell_toolchain(
+ 
+     corrected_ghci_args = repl_ghci_args + ["-no-user-package-db"]
+ 
+-    toolchain_rule = _ahc_haskell_toolchain if asterius_binaries else _haskell_toolchain
+-    toolchain_rule(
++    _haskell_toolchain(
+         name = name,
+         version = version,
+         static_runtime = static_runtime,
+@@ -700,46 +629,6 @@ def haskell_toolchain(
+             "@rules_haskell//haskell/platforms:linux": locale_archive,
+             "//conditions:default": None,
+         }),
+-        asterius_binaries = asterius_binaries,
+-        **kwargs
+-    )
+-
+-def rules_haskell_toolchains(
+-        version = None,
+-        compiler_flags = None,  # TODO remove
+-        ghcopts = None,
+-        haddock_flags = None,
+-        repl_ghci_args = None,
+-        cabalopts = None,
+-        locale = None,
+-        **kwargs):
+-    """Register GHC binary distributions for all platforms as toolchains.
+-
+-    Toolchains can be used to compile Haskell code. This function
+-    registers one toolchain for each known binary distribution on all
+-    platforms of the given GHC version. During the build, one
+-    toolchain will be selected based on the host and target platforms
+-    (See [toolchain resolution][toolchain-resolution]).
+-
+-    [toolchain-resolution]: https://docs.bazel.build/versions/master/toolchains.html#toolchain-resolution
+-
+-    Args:
+-      version: The desired GHC version
+-      locale: Locale that will be set during compiler
+-        invocations. Default: C.UTF-8 (en_US.UTF-8 on MacOS)
+-      ghcopts: A collection of flags that will be passed to GHC on every invocation.
+-
+-    """
+-    if compiler_flags:
+-        fail("`compiler_flags` argument was removed, use `ghcopts` instead")
+-
+-    haskell_register_ghc_bindists(
+-        version = version,
+-        ghcopts = ghcopts,
+-        haddock_flags = haddock_flags,
+-        repl_ghci_args = repl_ghci_args,
+-        cabalopts = cabalopts,
+-        locale = locale,
+         **kwargs
+     )
+ 
+@@ -747,26 +636,6 @@ def rules_haskell_toolchains(
+ # These rules are used in order to depend on toolchains through the attrs attribute,
+ # and control their configurations using the `cfg` field.
+ 
+-def get_nodejs_toolchain_impl(ctx):
+-    return ctx.toolchains["@rules_nodejs//nodejs:toolchain_type"]
+-
+-get_nodejs_toolchain = rule(
+-    get_nodejs_toolchain_impl,
+-    toolchains = [
+-        "@rules_nodejs//nodejs:toolchain_type",
+-    ],
+-)
+-
+-def get_posix_toolchain_impl(ctx):
+-    return ctx.toolchains["@rules_sh//sh/posix:toolchain_type"]
+-
+-get_posix_toolchain = rule(
+-    get_posix_toolchain_impl,
+-    toolchains = [
+-        "@rules_sh//sh/posix:toolchain_type",
+-    ],
+-)
+-
+ def get_haskell_toolchain_impl(ctx):
+     return ctx.toolchains["@rules_haskell//haskell:toolchain"]
+ 

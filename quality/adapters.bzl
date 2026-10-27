@@ -108,6 +108,7 @@ REAL_CLASS_TO_FAMILY = {
     "go": "go",
     "go_module": "go_module",
     "graphql": "graphql",
+    "haskell": "haskell",
     "html": "html",
     "html_template": "html_template",
     "java": "java",

@@ -82,6 +82,10 @@ options are left out. Failures print a `next:` line with the fix and a check
 command to run again. Inside `dx check` and `dx fix`, these lines name
 `dx fix --apply` or the umbrella command with your scope instead.
 
+A target that only reads a file never conflicts with a target that fixes it
+when both saw the same original bytes. The reading target's findings on that
+file are reported against the original bytes (snapshot `initial`).
+
 JSON prints one compact `change` per file with `path`, `kind`, `edit_count`,
 and `effect` (`proposed`, `applied`, or `refused` with a `reason`). The
 `reason` is `stale_source`, `unreadable_source`, `invalid_edits`,

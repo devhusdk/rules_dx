@@ -223,7 +223,6 @@ pub(crate) fn collect_results_in(
     let mut ran = BTreeSet::new();
     let mut analyzed = BTreeSet::new();
     let mut initial = Vec::new();
-    let mut terminal = Vec::new();
     let mut producers = Vec::new();
     let mut originals: BTreeMap<String, Option<[u8; 32]>> = BTreeMap::new();
     let mut unstable = Vec::new();
@@ -298,12 +297,13 @@ pub(crate) fn collect_results_in(
                 .or_insert(Some(*digest));
         }
         initial.extend(staged.initial);
-        terminal.extend(staged.terminal);
         producers.push(Producer {
             label: target.label.clone(),
             tools: staged.tools,
             changes: staged.changes,
             digests: staged.digests,
+            originals: staged.originals.clone(),
+            terminal: staged.terminal,
         });
     }
     unstable.sort_by(|a: &Unstable, b: &Unstable| a.label.cmp(&b.label));
@@ -314,7 +314,7 @@ pub(crate) fn collect_results_in(
         ran,
         analyzed,
         initial,
-        terminal,
+        terminal: reconciled.terminal,
         changes: reconciled.changes,
         terminal_digests: reconciled.digests,
         original_digests: originals

@@ -90,7 +90,7 @@ single_version_override(
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
-use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_pmezard_go_difflib", "com_github_yuin_goldmark", "org_golang_x_mod", "org_golang_x_net")
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_yuin_goldmark", "org_golang_x_mod", "org_golang_x_net")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(

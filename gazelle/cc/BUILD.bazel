@@ -7,6 +7,7 @@ package(default_visibility = ["//visibility:private"])
 go_library(
     name = "cc",
     srcs = [
+        "android.go",
         "cuda.go",
         "doc.go",
         "lang.go",
@@ -58,12 +59,17 @@ go_test(
         "QUALITY_SOURCES_BZL": "$(rlocationpath //quality:sources.bzl)",
     },
     pure = "on",
+    deps = ["@com_github_bazelbuild_buildtools//build"],
 )
 
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
+        "testdata/android_guarded/README.md",
+        "testdata/android_jni/README.md",
+        "testdata/android_keep/README.md",
+        "testdata/android_native/README.md",
         "testdata/cuda_generate/README.md",
         "testdata/cuda_keep/README.md",
         "testdata/entries/README.md",

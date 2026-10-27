@@ -116,6 +116,7 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 			}
 			return r
 		},
-		Wrap: common.WrapImportSet,
+		Extend: androidAttrs,
+		Wrap:   common.WrapImportSet,
 	}, rep)
 }

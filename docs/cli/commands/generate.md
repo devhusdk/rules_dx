@@ -56,6 +56,36 @@ run still emits its `change` events and `changes` with `applied` and `refused`.
 An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 `change` events and no `changes`.
 
+## Android inputs
+
+The `cc` language reads `<android/*.h>` includes and native entry points in a
+generated `cc_library`:
+
+- An `<android/*.h>` include outside any `__ANDROID__` conditional sets
+  `target_compatible_with = ["@platforms//os:android"]` and plain `linkopts`.
+  `<android/log.h>` adds `-llog`. Native activity, looper, input, asset,
+  configuration, sensor and window headers add `-landroid`.
+- When every such include sits under an `__ANDROID__` conditional, `linkopts`
+  becomes a `select` on `@platforms//os:android` and the target stays
+  host-compatible.
+- A definition of `ANativeActivity_onCreate`, `JNI_OnLoad` or a `Java_*`
+  function sets `alwayslink = True`. `<jni.h>` alone sets nothing else.
+
+Gazelle sets these attributes only when the rule doesn't have them. Set one
+yourself to keep your value. Gazelle never removes them when the include goes
+away, so delete a stale value by hand. After an upgrade, `--check` can report
+an existing NDK or JNI `cc_library` as stale.
+
+Generation never writes `app_id`, permissions, `api_level`, `abis`, signing or
+app topology. The packaging rules validate ABIs.
+
+For a `rust_android_apk` with a custom `manifest` file in the same package,
+`dx generate` checks the manifest against the rule's literal attributes. It
+exits 1 and names the rule when the manifest is malformed, when its `package`
+differs from `custom_package` (or `app_id` when `custom_package` is unset), or
+when its `minSdkVersion` differs from a non-zero `api_level`. Generated
+manifests, labels from other packages and `select` values are skipped.
+
 ## Directives
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this

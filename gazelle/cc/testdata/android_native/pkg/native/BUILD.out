@@ -1,0 +1,12 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+
+cc_library(
+    name = "native",
+    srcs = ["activity.c"],
+    linkopts = [
+        "-landroid",
+        "-llog",
+    ],
+    target_compatible_with = ["@platforms//os:android"],
+    alwayslink = True,
+)

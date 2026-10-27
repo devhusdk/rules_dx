@@ -19,6 +19,7 @@ exports_files(
 go_library(
     name = "common",
     srcs = [
+        "android.go",
         "classlang.go",
         "doc.go",
         "dotnetplatform.go",
@@ -83,6 +84,7 @@ go_library(
 go_test(
     name = "common_test",
     srcs = [
+        "android_test.go",
         "classlang_test.go",
         "common_test.go",
         "errors_test.go",

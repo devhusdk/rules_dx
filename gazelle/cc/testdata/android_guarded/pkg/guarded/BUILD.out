@@ -1,0 +1,13 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+
+cc_library(
+    name = "guarded",
+    srcs = ["activity.c"],
+    linkopts = select({
+        "@platforms//os:android": [
+            "-landroid",
+            "-llog",
+        ],
+        "//conditions:default": [],
+    }),
+)

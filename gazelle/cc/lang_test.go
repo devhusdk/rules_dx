@@ -15,6 +15,7 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
+	bzl "github.com/bazelbuild/buildtools/build"
 )
 
 func writeFixture(t *testing.T, root, name, content string) {
@@ -427,5 +428,100 @@ func TestImportsIndexCudaHeadersOnly(t *testing.T) {
 	got := lang.Imports(&config.Config{}, r, nil)
 	if len(got) != 1 || got[0].Imp != "k.cuh" {
 		t.Fatalf("imports = %+v, want only k.cuh", got)
+	}
+}
+
+func androidLib(t *testing.T, files map[string]string) *rule.Rule {
+	t.Helper()
+	full := make(map[string]string, len(files))
+	regular := make([]string, 0, len(files))
+	for name, content := range files {
+		full["pkg/demo/"+name] = content
+		regular = append(regular, name)
+	}
+	result := generateFixture(t, full, regular)
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
+	}
+	return result.Gen[0]
+}
+
+func TestGenerateAndroidUnguarded(t *testing.T) {
+	lib := androidLib(t, map[string]string{
+		"activity.c": "#include <android/native_activity.h>\n#include <android/log.h>\n",
+		"looper.c":   "#include <android/looper.h>\n#include <android/log.h>\n",
+	})
+	if got := strings.Join(lib.AttrStrings("target_compatible_with"), ","); got != "@platforms//os:android" {
+		t.Errorf("target_compatible_with = %q", got)
+	}
+	if got := strings.Join(lib.AttrStrings("linkopts"), ","); got != "-landroid,-llog" {
+		t.Errorf("linkopts = %q, want -landroid,-llog", got)
+	}
+	if lib.Attr("alwayslink") != nil {
+		t.Errorf("alwayslink set without an entry point")
+	}
+}
+
+func TestGenerateAndroidGuardedSelectsLinkopts(t *testing.T) {
+	lib := androidLib(t, map[string]string{
+		"activity.c": "#include <stddef.h>\n#ifdef __ANDROID__\n#include <android/log.h>\n#include <android/native_activity.h>\n#else\ntypedef struct ANativeActivity ANativeActivity;\n#endif\n",
+	})
+	if lib.Attr("target_compatible_with") != nil {
+		t.Errorf("target_compatible_with set for guarded includes")
+	}
+	got := bzl.FormatString(lib.Attr("linkopts"))
+	want := "select({\n    \"@platforms//os:android\": [\n        \"-landroid\",\n        \"-llog\",\n    ],\n    \"//conditions:default\": [],\n})"
+	if got != want {
+		t.Errorf("linkopts = %s, want %s", got, want)
+	}
+}
+
+func TestGenerateJNIOnlyAlwayslink(t *testing.T) {
+	lib := androidLib(t, map[string]string{
+		"jni_bridge.cc": "#include <jni.h>\n\nextern \"C\" JNIEXPORT jstring JNICALL\nJava_org_example_adoptandroid_NativeBridge_greeting(JNIEnv* env, jclass) {\n  return env->NewStringUTF(\"hi\");\n}\n",
+	})
+	if lib.Attr("target_compatible_with") != nil || lib.Attr("linkopts") != nil {
+		t.Errorf("jni.h alone must stay host-neutral")
+	}
+	if v, ok := lib.Attr("alwayslink").(*bzl.Ident); !ok || v.Name != "True" {
+		t.Errorf("alwayslink = %v, want True", lib.Attr("alwayslink"))
+	}
+}
+
+func TestGenerateUnknownAndroidHeaderAddsNoLib(t *testing.T) {
+	lib := androidLib(t, map[string]string{"api.c": "#include <android/api-level.h>\n"})
+	if got := strings.Join(lib.AttrStrings("target_compatible_with"), ","); got != "@platforms//os:android" {
+		t.Errorf("target_compatible_with = %q", got)
+	}
+	if lib.Attr("linkopts") != nil {
+		t.Errorf("linkopts set for a header with no library")
+	}
+}
+
+func TestGenerateHostSourceUnchanged(t *testing.T) {
+	lib := androidLib(t, map[string]string{"host.cc": "#include <string>\n#include <vector>\nint Count() { return 1; }\n"})
+	for _, attr := range []string{"target_compatible_with", "linkopts", "alwayslink"} {
+		if lib.Attr(attr) != nil {
+			t.Errorf("%s set on a host source", attr)
+		}
+	}
+}
+
+func TestGenerateAndroidIncludeInComment(t *testing.T) {
+	lib := androidLib(t, map[string]string{"host.cc": "// #include <android/log.h>\n/* #include <android/looper.h> */\nint Count() { return 1; }\n"})
+	for _, attr := range []string{"target_compatible_with", "linkopts"} {
+		if lib.Attr(attr) != nil {
+			t.Errorf("%s set from a commented include", attr)
+		}
+	}
+}
+
+func TestCcKindsLeaveAndroidAttrsUnmergeable(t *testing.T) {
+	for kind, info := range ccKinds {
+		for _, attr := range []string{"target_compatible_with", "linkopts", "alwayslink"} {
+			if info.MergeableAttrs[attr] {
+				t.Errorf("%s: %s must stay unmergeable", kind, attr)
+			}
+		}
 	}
 }

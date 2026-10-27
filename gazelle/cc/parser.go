@@ -9,8 +9,25 @@ import (
 
 var mainRe = regexp.MustCompile(`(^|[^A-Za-z0-9_])main\s*\(`)
 
+// SystemInclude is one angle-bracket include and whether it sits under an __ANDROID conditional.
+type SystemInclude struct {
+	Path    string
+	Guarded bool
+}
+
+type lexed struct {
+	code    []byte
+	quoted  []string
+	systems []SystemInclude
+}
+
 // lexSource masks comments, literals and #include directives and returns the quoted include basenames.
 func lexSource(content []byte) ([]byte, []string) {
+	l := lex(content)
+	return l.code, l.quoted
+}
+
+func lex(content []byte) lexed {
 	s := strings.ReplaceAll(string(content), "\\\r\n", " ")
 	s = strings.ReplaceAll(s, "\\\n", " ")
 	b := []byte(s)
@@ -23,6 +40,16 @@ func lexSource(content []byte) ([]byte, []string) {
 		}
 	}
 	set := make(map[string]struct{})
+	var systems []SystemInclude
+	var frames []bool
+	guarded := func() bool {
+		for _, f := range frames {
+			if f {
+				return true
+			}
+		}
+		return false
+	}
 	n := len(b)
 	i := 0
 	for i < n {
@@ -67,9 +94,15 @@ func lexSource(content []byte) ([]byte, []string) {
 			i = end
 			continue
 		}
+		if c == '#' && isDirectiveStart(b, i) {
+			frames = trackConditional(b, i+1, frames)
+		}
 		if c == '#' && isDirectiveStart(b, i) && hasIncludeKeyword(b, i+1) {
-			if raw, next, ok := parseIncludePath(b, i+1); ok {
-				if raw != "" {
+			if raw, next, angle, ok := parseIncludeTarget(b, i+1); ok {
+				switch {
+				case angle && raw != "":
+					systems = append(systems, SystemInclude{Path: path.Clean(raw), Guarded: guarded()})
+				case raw != "":
 					set[path.Clean(raw)] = struct{}{}
 				}
 				mask(i, next)
@@ -84,7 +117,49 @@ func lexSource(content []byte) ([]byte, []string) {
 		includes = append(includes, name)
 	}
 	sort.Strings(includes)
-	return code, includes
+	return lexed{code: code, quoted: includes, systems: systems}
+}
+
+// trackConditional updates the conditional stack for the directive after a '#'.
+func trackConditional(b []byte, pos int, frames []bool) []bool {
+	p := pos
+	for p < len(b) && (b[p] == ' ' || b[p] == '\t') {
+		p++
+	}
+	q := p
+	for q < len(b) && isIdentChar(b[q]) {
+		q++
+	}
+	end := q
+	for end < len(b) && b[end] != '\n' {
+		end++
+	}
+	android := strings.Contains(string(b[q:end]), "__ANDROID")
+	switch string(b[p:q]) {
+	case "if", "ifdef", "ifndef":
+		return append(frames, android)
+	case "elif", "elifdef", "elifndef":
+		if len(frames) > 0 && android {
+			frames[len(frames)-1] = true
+		}
+	case "endif":
+		if len(frames) > 0 {
+			return frames[:len(frames)-1]
+		}
+	}
+	return frames
+}
+
+// ParseSystemIncludes returns the angle-bracket includes in source order.
+func ParseSystemIncludes(content []byte) []SystemInclude {
+	return lex(content).systems
+}
+
+var entryRe = regexp.MustCompile(`(^|[^A-Za-z0-9_])(ANativeActivity_onCreate|JNI_OnLoad|Java_[A-Za-z0-9_]+)\s*\(([^()]*)\)\s*\{`)
+
+// DefinesAndroidEntry reports whether content defines a native activity or JNI entry point.
+func DefinesAndroidEntry(content []byte) bool {
+	return entryRe.Match(lex(content).code)
 }
 
 func isIdentChar(c byte) bool {
@@ -136,19 +211,27 @@ func hasIncludeKeyword(b []byte, pos int) bool {
 }
 
 func parseIncludePath(b []byte, hashPos int) (string, int, bool) {
+	raw, next, angle, ok := parseIncludeTarget(b, hashPos)
+	if angle {
+		raw = ""
+	}
+	return raw, next, ok
+}
+
+func parseIncludeTarget(b []byte, hashPos int) (string, int, bool, bool) {
 	p := hashPos
 	for p < len(b) && (b[p] == ' ' || b[p] == '\t' || b[p] == '\r') {
 		p++
 	}
 	if p+7 > len(b) || string(b[p:p+7]) != "include" {
-		return "", p, false
+		return "", p, false, false
 	}
 	p += 7
 	for p < len(b) && (b[p] == ' ' || b[p] == '\t' || b[p] == '\r') {
 		p++
 	}
 	if p >= len(b) {
-		return "", p, false
+		return "", p, false, false
 	}
 	if b[p] == '"' {
 		j := p + 1
@@ -160,10 +243,10 @@ func parseIncludePath(b []byte, hashPos int) (string, int, bool) {
 			j++
 		}
 		if j >= len(b) || b[j] != '"' {
-			return "", j, false
+			return "", j, false, false
 		}
 		raw := strings.TrimSpace(string(b[p+1 : j]))
-		return raw, j + 1, true
+		return raw, j + 1, false, true
 	}
 	if b[p] == '<' {
 		j := p + 1
@@ -171,11 +254,11 @@ func parseIncludePath(b []byte, hashPos int) (string, int, bool) {
 			j++
 		}
 		if j < len(b) && b[j] == '>' {
-			return "", j + 1, true
+			return strings.TrimSpace(string(b[p+1 : j])), j + 1, true, true
 		}
-		return "", j, false
+		return "", j, false, false
 	}
-	return "", p, false
+	return "", p, false, false
 }
 
 func skipQuoted(b []byte, pos int) int {

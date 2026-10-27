@@ -24,6 +24,11 @@ The JSON header has `worktrees`, `target`, `user_rc` (rc files read), `shared_di
 Per phase it records:
 memory pressure peaks (`some` and `full`, avg10), Bazel server count, peak server RSS (total and largest),
 JVM heap after the last GC of each phase (`jvm_heap_after_gc_bytes`, from `bazel info used-heap-size-after-gc`; worktrees whose server already exited are skipped), wall time, output base size, OOM kills, and how many worktrees waited for a slot (`slot_waits`, not compared).
+It also counts actions per phase from Bazel's `INFO: N processes: ...` summary in each worktree's log: `executed_actions` and `cached_actions` (totals) plus `executed_actions_per_worktree` and `cached_actions_per_worktree` (in worktree order, like `exit_codes`).
+Cached is action cache hits plus disk cache hits plus remote cache hits; executed is every other runner except `internal`. Several summaries in one log are summed.
+`null` in the JSON and `-` in the table mean unknown: a worktree's log had no summary line (an rc `--ui_event_filters` can hide it), and the total is unknown if any worktree is. Unknown is never 0.
+The harness passes `--disk_cache=` today, so cached is mostly action cache hits.
+`--compare` compares the two totals only when both files have them, so older result files still compare. Warm counts are small, so 0 to 3 shows as 100% and exits 1; that usually means non-hermetic actions or a server restart. The per-worktree arrays are never compared.
 
 When it ends, including on failure, it removes its worktrees, branches and Bazel servers. Linux only.
 

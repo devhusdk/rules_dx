@@ -1,5 +1,6 @@
 use super::{
-    check_output_size, code_name, finding, known_native, row_col, unformatted_at, FileFinding, ParseError,
+    check_output_size, code_name, finding, known_native, row_col, unformatted_at, FileFinding,
+    ParseError,
 };
 use crate::ToolSeverity;
 

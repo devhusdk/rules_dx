@@ -133,7 +133,9 @@ exit `2`).
   file whose sha256 matches the lock. CI that restores the repository cache
   keeps the narrow selection. It widens to `//...` with one of these reasons:
   `workspace input MODULE.bazel` (another edit, no base commit, or a file
-  added or missing), `workspace input MODULE.bazel.lock`,
+  added or missing), `workspace input MODULE.bazel.lock` (the lock is
+  missing or does not list the bumped version, for example when it was not
+  updated),
   `cannot read MODULE.bazel.lock: <detail>`,
   `MODULE.bazel.lock changed <key>` (a lock entry outside the changed
   modules), `MODULE.bazel has <override> for <module>` (`git_override`,

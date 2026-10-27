@@ -59,8 +59,8 @@ fn module_input_error() -> String {
     "workspace input MODULE.bazel".to_owned()
 }
 
-/// The `bazel_dep` names whose version changed, when nothing else in MODULE.bazel did.
-pub(crate) fn bumped_deps(base: &str, head: &str) -> Result<BTreeSet<String>, String> {
+/// The `bazel_dep` names whose version changed, with their new versions, when nothing else in MODULE.bazel did.
+pub(crate) fn bumped_deps(base: &str, head: &str) -> Result<BTreeMap<String, String>, String> {
     let base_file = ModuleFile::parse(base).map_err(|_| module_input_error())?;
     let head_file = ModuleFile::parse(head).map_err(|_| module_input_error())?;
     let base_versions = dep_versions(&base_file)?;
@@ -71,13 +71,40 @@ pub(crate) fn bumped_deps(base: &str, head: &str) -> Result<BTreeSet<String>, St
     if masked(base, &base_versions) != masked(head, &head_versions) {
         return Err(module_input_error());
     }
-    Ok(base_versions
-        .iter()
+    Ok(head_versions
+        .into_iter()
         .filter(|(name, version)| {
-            head_versions.get(*name).map(|other| other.0.as_str()) != Some(version.0.as_str())
+            base_versions.get(name).map(|other| other.0.as_str()) != Some(version.0.as_str())
         })
-        .map(|(name, _)| name.clone())
+        .map(|(name, version)| (name, version.0))
         .collect())
+}
+
+/// Fails unless the lock pins a registry `MODULE.bazel` for every bumped module at its new version.
+pub(crate) fn lock_pins(lock: &str, bumped: &BTreeMap<String, String>) -> Result<(), String> {
+    if bumped.is_empty() {
+        return Ok(());
+    }
+    let unpinned = || "workspace input MODULE.bazel.lock".to_owned();
+    let lock = parse_lock(lock)?;
+    let Some(Json::Object(hashes)) = lock.get("registryFileHashes") else {
+        return Err(unpinned());
+    };
+    let pinned: BTreeSet<(&str, &str)> = hashes
+        .iter()
+        .filter(|(_, hash)| hash.as_str().is_some_and(|hash| hash != "not found"))
+        .filter_map(|(url, _)| registry_url_parts(url))
+        .filter(|(_, _, _, file)| *file == "MODULE.bazel")
+        .map(|(_, name, version, _)| (name, version))
+        .collect();
+    if bumped
+        .iter()
+        .all(|(name, version)| pinned.contains(&(name.as_str(), version.as_str())))
+    {
+        Ok(())
+    } else {
+        Err(unpinned())
+    }
 }
 
 type DepVersions = BTreeMap<String, (String, Option<std::ops::Range<usize>>)>;
@@ -476,8 +503,38 @@ mod tests {
     fn bumped_deps_returns_names_whose_version_changed() {
         let base = "module(name = \"r\")\nbazel_dep(name = \"leaf\", version = \"1.0\")\nbazel_dep(name = \"other\", version = \"2.0\")\n";
         let head = "module(name = \"r\")\nbazel_dep(name = \"leaf\", version = \"1.10\")\nbazel_dep(name = \"other\", version = \"2.0\")\n";
-        assert_eq!(bumped_deps(base, head), Ok(set(&["leaf"])));
-        assert_eq!(bumped_deps(base, base), Ok(set(&[])));
+        assert_eq!(
+            bumped_deps(base, head),
+            Ok(BTreeMap::from([("leaf".to_owned(), "1.10".to_owned())]))
+        );
+        assert_eq!(bumped_deps(base, base), Ok(BTreeMap::new()));
+    }
+
+    #[test]
+    fn lock_pins_requires_the_new_version_module_file() {
+        let bumped = BTreeMap::from([("leaf".to_owned(), "1.1".to_owned())]);
+        let stale = lock(
+            &format!(
+                "\"{R}/modules/leaf/1.0/MODULE.bazel\": \"a\", \"{R}/modules/leaf/1.0/source.json\": \"b\""
+            ),
+            "",
+        );
+        let missing = lock(
+            &format!("\"{R}/modules/leaf/1.1/MODULE.bazel\": \"not found\""),
+            "",
+        );
+        let fresh = lock(
+            &format!(
+                "\"{R}/modules/leaf/1.1/MODULE.bazel\": \"a\", \"{R}/modules/leaf/1.2/source.json\": \"b\""
+            ),
+            "",
+        );
+        let error = Err("workspace input MODULE.bazel.lock".to_owned());
+        assert_eq!(lock_pins(&stale, &bumped), error);
+        assert_eq!(lock_pins(&missing, &bumped), error);
+        assert_eq!(lock_pins("{}", &bumped), error);
+        assert_eq!(lock_pins(&fresh, &bumped), Ok(()));
+        assert_eq!(lock_pins(&stale, &BTreeMap::new()), Ok(()));
     }
 
     #[test]
@@ -512,7 +569,9 @@ mod tests {
             ", \"moduleExtensions\": {\"@@leaf+//:e.bzl%e\": {\"x\": 1}}",
         );
         let head = lock(
-            &format!("\"{R}/bazel_registry.json\": \"a\", \"{R}/modules/leaf/1.1/source.json\": \"c\", \"{R}/modules/dep/2.0/MODULE.bazel\": \"d\""),
+            &format!(
+                "\"{R}/bazel_registry.json\": \"a\", \"{R}/modules/leaf/1.1/source.json\": \"c\", \"{R}/modules/dep/2.0/MODULE.bazel\": \"d\""
+            ),
             ", \"moduleExtensions\": {\"@@leaf+//:e.bzl%e\": {\"x\": 2}}, \"selectedYankedVersions\": {\"old@1.0\": \"why\"}, \"facts\": {\"@@tool~//:f.bzl%f\": 1}",
         );
         let changes = lock_changes(&base, &head).expect("narrows");

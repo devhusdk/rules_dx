@@ -536,8 +536,8 @@ This writes `rollback.txt` in the promotion directory.
 
 # pypi_deploy
 
-Stages one wheel and an optional sdist as a local index and uploads them to
-PyPI.
+Stages one wheel and an optional sdist as a local PEP 503 index. A live run
+uploads them to PyPI with `twine`.
 
 ```starlark
 load("@rules_dx//deploy/rules:pypi.bzl", "pypi_deploy")
@@ -549,21 +549,73 @@ pypi_deploy(
 )
 ```
 
-- `name`: the distribution name.
-- `wheel`: required. One `.whl` file.
-- `sdist`: optional. Must match the wheel's project and version.
-- `repository_url`: defaults to `https://upload.pypi.org/legacy/`.
+Attributes:
+
+- `name`: the distribution name. Letters, digits, `.`, `_` and `-` only. It
+  must start and end with a letter or digit. It names the wheelhouse
+  directory.
+- `wheel`: required. One `.whl` file named
+  `name-version-python-abi-platform.whl`. An optional build tag adds a sixth
+  field.
+- `sdist`: optional. One `.tar.gz` file named `name-version.tar.gz`. Its
+  project and version must match the wheel's.
+- `repository_url`: must start with `https://`. Defaults to
+  `https://upload.pypi.org/legacy/`.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Default run stages `<name>-wheelhouse/` with a `simple-index/`. No
-credentials needed.
+Project names are PEP 503 normalized: lowercased, with each run of `.`, `_`
+or `-` replaced by one `-`.
 
-Upload with `twine` on `PATH`:
+A default run writes into the output directory (see Common behavior):
+
+```
+<name>-wheelhouse/
+  <wheel file>
+  <sdist file>          only when sdist is set
+  simple-index/
+    <project>/
+      index.html
+```
+
+`index.html` has one link per file, sorted by file name. Each link points to
+`../../<file>#sha256=<digest>`. The run prints:
+
+```
+pypi_deploy: staged <name> (profile: <profile>)
+  wheelhouse: <path>/<name>-wheelhouse
+  index: <path>/<name>-wheelhouse/simple-index/<project>/index.html
+```
+
+A run without the live variable needs no credentials.
+
+Set `PYPI_PUBLISH_LIVE=1`. Only the value `1` counts. A live run also needs:
+
+- `PYPI_PUBLISH_APPROVED=1`
+- `PYPI_API_TOKEN`: sent to `twine` as the password, with username `__token__`.
+  It never goes on the command line.
+
+`twine` must be on `PATH`. The run calls `twine upload --non-interactive
+--repository-url <repository_url>` with the wheel and sdist files. It does
+not write `<name>-wheelhouse/` and does not check file names. On success it
+prints:
+
+```
+pypi_deploy: uploaded <wheel file> to <repository_url>
+```
+
+`twine` runs with a cleared environment. Only `REQUESTS_CA_BUNDLE` and the
+keep-list in Common behavior pass through.
 
 ```
 PYPI_PUBLISH_LIVE=1 PYPI_PUBLISH_APPROVED=1 PYPI_API_TOKEN=... \
 dx deploy --apply //pkg:pypi_demo
 ```
+
+Exit codes:
+
+- `0`: the wheelhouse is staged, or the upload succeeds.
+- `1`: invalid file names or mismatched sdist, a refused live run, or a
+  failed `twine` upload.
 
 # Common behavior
 

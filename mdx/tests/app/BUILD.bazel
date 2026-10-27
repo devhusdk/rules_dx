@@ -1,0 +1,102 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//javascript/rules:defs.bzl", "javascript_test")
+load("//javascript/rules:web.bzl", "javascript_web_server")
+load("//mdx/rules:defs.bzl", "mdx_build", "mdx_check", "mdx_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_DEPS = [
+    "//:node_modules/clsx",
+    "//:node_modules/preact",
+    "//:node_modules/preact-render-to-string",
+]
+
+mdx_library(
+    name = "pages",
+    srcs = glob(["src/**/*.mdx"]),
+)
+
+mdx_build(
+    name = "site",
+    srcs = glob(["src/**"]) + ["index.html"],
+    config = "vite.config.mjs",
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    ssr_entry = "src/entry-server.jsx",
+    deps = _DEPS,
+)
+
+mdx_check(
+    name = "check",
+    srcs = glob(["src/**/*.mdx"]),
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+)
+
+javascript_web_server(
+    name = "serve",
+    app = ":site",
+    aspect_hints = ["//:ruff_config"],
+)
+
+javascript_test(
+    name = "site_static_test",
+    srcs = ["site_static.test.js"],
+    aspect_hints = ["//:biome_config"],
+    data = [
+        ":site",
+        "//:node_modules/jest-environment-jsdom",
+    ],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+javascript_test(
+    name = "site_ssr_test",
+    srcs = ["site_ssr.test.js"],
+    aspect_hints = ["//:biome_config"],
+    data = [
+        ":site",
+        ":site_ssr",
+        "//:node_modules/jest-environment-jsdom",
+    ] + _DEPS,
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+javascript_test(
+    name = "site_client_test",
+    srcs = ["site_client.test.js"],
+    aspect_hints = ["//:biome_config"],
+    data = [
+        ":site",
+        "//:node_modules/jest-environment-jsdom",
+    ],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+build_test(
+    name = "app_build_test",
+    targets = [
+        ":pages",
+        ":serve",
+        ":site",
+        ":site_ssr",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

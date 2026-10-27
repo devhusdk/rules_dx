@@ -220,7 +220,7 @@ pub fn create(
 ) -> Result<Added, WorktreeError> {
     let name = field(input, "name").ok_or_else(|| missing(HookKind::Create, "name"))?;
     let freed = recycle_gone(pool, host, who);
-    let warnings = ops::refresh(pool);
+    let warnings = ops::refresh(pool, host)?;
     let branch = free_branch(&pool.main, &name);
     ops::check_branch(pool, &branch)?;
     let owner = Who {

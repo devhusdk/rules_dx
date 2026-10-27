@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 use std::time::Duration;
 
 use dx_process::lifecycle::{
@@ -267,6 +266,22 @@ fn walk_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> u64 {
     total
 }
 
+/// The blocking `bazel shutdown` of a workspace's server. The server must
+/// outlive a killed client, so descendants stay detachable.
+fn shutdown_spec(bazel: &Path, opts: &[&str], workspace: &Path) -> SpawnSpec {
+    let mut argv: Vec<std::ffi::OsString> = vec![bazel.as_os_str().to_owned()];
+    argv.extend(opts.iter().map(std::ffi::OsString::from));
+    argv.push("shutdown".into());
+    SpawnSpec {
+        argv,
+        cwd: workspace.to_path_buf(),
+        env: EnvPolicy::Inherited { extra: Vec::new() },
+        capture: CapturePolicy { max_bytes: 1 << 16 },
+        timeout: Duration::from_secs(3600),
+        descendants: Descendants::Detachable,
+    }
+}
+
 fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
     let spec = SpawnSpec {
         argv: vec!["du".into(), "-sk".into(), path.as_os_str().to_owned()],
@@ -483,14 +498,8 @@ impl Host for SystemHost {
         let Some(bazel) = find_bazel() else {
             return;
         };
-        let _ = Command::new(bazel)
-            .args(dx_process::current().startup_opts())
-            .arg("shutdown")
-            .current_dir(workspace)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        let spec = shutdown_spec(&bazel, dx_process::current().startup_opts(), workspace);
+        let _ = run_within_until(&spec, CleanupBudget::STANDARD, &dx_process::interrupted);
     }
 
     fn server_idle(&self, server: &Server) -> Option<bool> {
@@ -583,6 +592,7 @@ fn current_uid() -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
 
     #[test]
     fn default_output_roots_follow_the_user_cache_dir() {
@@ -834,6 +844,14 @@ mod tests {
         assert_eq!(parse_vm_swap(status), Some(512 * 1024));
         assert_eq!(parse_vm_swap("VmSwap:\t0 kB\n"), Some(0));
         assert_eq!(parse_vm_swap("Name:\tjava\n"), None);
+    }
+
+    #[test]
+    fn the_blocking_shutdown_keeps_the_server_detachable() {
+        let spec = shutdown_spec(Path::new("/bin/bazel"), &["--nohome_rc"], Path::new("/w"));
+        assert_eq!(spec.argv, ["/bin/bazel", "--nohome_rc", "shutdown"]);
+        assert_eq!(spec.cwd, Path::new("/w"));
+        assert!(matches!(spec.descendants, Descendants::Detachable));
     }
 
     #[test]

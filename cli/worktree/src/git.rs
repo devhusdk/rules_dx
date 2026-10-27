@@ -1,5 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::Duration;
+
+use dx_process::lifecycle::{
+    run_command_until, CapturePolicy, ChildOutcome, CleanupBudget, Descendants, Exit,
+};
 
 use super::WorktreeError;
 
@@ -9,6 +14,9 @@ const GIT_ENV: [&str; 4] = [
     "GIT_INDEX_FILE",
     "GIT_COMMON_DIR",
 ];
+
+/// Bound for the per-slot status reads. A timeout keeps the slot.
+const READ_TIMEOUT: Duration = Duration::from_secs(120);
 
 fn command(cwd: &Path) -> Command {
     let mut command = Command::new("git");
@@ -39,6 +47,47 @@ pub(super) fn run(cwd: &Path, args: &[&str]) -> Result<String, WorktreeError> {
         args,
         String::from_utf8_lossy(&output.stderr).trim(),
     ))
+}
+
+/// Like `run`, for reads only: stops the child once `stop` returns a signal
+/// and bounds it by `timeout`. A stop is `WorktreeError::stopped`; a timeout
+/// is a git failure, never a result.
+pub(super) fn run_until(
+    cwd: &Path,
+    args: &[&str],
+    timeout: Duration,
+    stop: &dyn Fn() -> Option<i32>,
+) -> Result<String, WorktreeError> {
+    let mut cmd = command(cwd);
+    cmd.args(args);
+    let capture = CapturePolicy {
+        max_bytes: 64 << 20,
+    };
+    let outcome = run_command_until(
+        &mut cmd,
+        &capture,
+        timeout,
+        Descendants::Owned,
+        CleanupBudget::STANDARD,
+        stop,
+    )
+    .map_err(|error| WorktreeError::git(args, &format!("cannot start git: {error}")))?;
+    match outcome {
+        ChildOutcome::Finished {
+            exit: Exit::Code(0),
+            stdout,
+            ..
+        } => Ok(String::from_utf8_lossy(&stdout).into_owned()),
+        ChildOutcome::Finished { stderr, .. } => Err(WorktreeError::git(
+            args,
+            String::from_utf8_lossy(&stderr).trim(),
+        )),
+        ChildOutcome::TimedOut => Err(match stop() {
+            Some(signo) => WorktreeError::stopped(signo),
+            None => WorktreeError::git(args, "timed out"),
+        }),
+        ChildOutcome::OutputTooLarge { .. } => Err(WorktreeError::git(args, "output too large")),
+    }
 }
 
 /// Runs git and returns trimmed stdout.
@@ -154,21 +203,31 @@ pub(super) fn common_worktree(common: &Path) -> Option<PathBuf> {
 }
 
 /// Whether the checkout has changes git would commit or untracked files.
-pub(super) fn dirty(checkout: &Path) -> Result<bool, WorktreeError> {
-    let status = run(
+pub(super) fn dirty(
+    checkout: &Path,
+    stop: &dyn Fn() -> Option<i32>,
+) -> Result<bool, WorktreeError> {
+    let status = run_until(
         checkout,
         &["status", "--porcelain", "--untracked-files=normal"],
+        READ_TIMEOUT,
+        stop,
     )?;
     Ok(status.lines().any(|line| !line.starts_with("?? bazel-")))
 }
 
 /// How many commits on HEAD are on no remote.
-pub(super) fn unpushed(checkout: &Path) -> Result<u64, WorktreeError> {
-    let text = line(
+pub(super) fn unpushed(
+    checkout: &Path,
+    stop: &dyn Fn() -> Option<i32>,
+) -> Result<u64, WorktreeError> {
+    let text = run_until(
         checkout,
         &["rev-list", "--count", "HEAD", "--not", "--remotes"],
+        READ_TIMEOUT,
+        stop,
     )?;
-    Ok(text.parse().unwrap_or(0))
+    Ok(text.trim().parse().unwrap_or(0))
 }
 
 /// The branch the checkout has switched to, if any.

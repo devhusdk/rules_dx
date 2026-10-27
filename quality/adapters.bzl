@@ -126,6 +126,7 @@ REAL_CLASS_TO_FAMILY = {
     "dockerfile": "dockerfile",
     "make": "make",
     "d": "d",
+    "dart": "dart",
     "elixir": "elixir",
     "erlang": "erlang",
     "flatbuffers": "flatbuffers",

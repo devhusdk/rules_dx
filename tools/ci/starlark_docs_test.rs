@@ -15,7 +15,7 @@ const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 92] = [
+const PACKAGES: [&str; 93] = [
     "android/packaging",
     "android/platforms",
     "android/rules",
@@ -60,6 +60,7 @@ const PACKAGES: [&str; 92] = [
     "libs/starlark",
     "libs/testing",
     "lua/private",
+    "dart/rules",
     "lua/rules",
     "lua/toolchain",
     "mdx/rules",

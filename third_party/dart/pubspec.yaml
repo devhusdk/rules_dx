@@ -1,0 +1,9 @@
+name: dx_dart_deps
+publish_to: none
+environment:
+  sdk: ^3.13.0
+dependencies:
+  args: ^2.7.0
+  collection: ^1.19.0
+dev_dependencies:
+  test: ^1.26.0

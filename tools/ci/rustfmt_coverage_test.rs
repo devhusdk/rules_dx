@@ -177,6 +177,7 @@ const PACKAGES: [&str; 131] = [
     "gazelle/scala",
     "generation/codegen_shard",
     "generation/result",
+    "dart/tests/negative",
     "haskell/tests/negative",
     "javascript/tests/fixtures/web_app",
     "julia/tests/starter",

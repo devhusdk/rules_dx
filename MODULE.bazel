@@ -465,6 +465,27 @@ zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.16.0")
 
 # floor: equals tested; not yet searched (#3747)
+bazel_dep(name = "rules_dart", version = "0.8.0")
+single_version_override(
+    module_name = "rules_dart",
+    version = "0.8.0",
+)
+
+dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
+dart.toolchain(dart_version = "3.13.5")
+
+pub = use_extension(
+    "@rules_dart//dart/pub:extensions.bzl",
+    "pub",
+    dev_dependency = True,
+)
+pub.from_lock(
+    name = "dx_dart_deps",
+    lock = "//third_party/dart:pubspec.lock",
+)
+use_repo(pub, "dx_dart_deps")
+
+# floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_julia", version = "0.8.0")
 single_version_override(
     module_name = "rules_julia",

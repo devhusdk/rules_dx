@@ -4,9 +4,9 @@ use dx_module_bazel::ModuleFile;
 
 use crate::AdoptError;
 
+use super::{pin_fix_hint, read_module_dependency, version_pin_matches_module, MODULE_VERSION};
 use crate::scaffold::{CONSUMER_RULES_RUST_VERSION, CONSUMER_RUST_VERSION};
 use crate::version::version_move_hint;
-use super::{pin_fix_hint, read_module_dependency, version_pin_matches_module, MODULE_VERSION};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StatusCheck {

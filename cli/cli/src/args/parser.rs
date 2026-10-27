@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use dx_output::{OutputMode, Threshold};
 
 use super::command::Command;
-use super::grammar::Flags;
+use super::grammar::{self, Flags};
 use super::scope_error;
 use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
@@ -38,14 +38,6 @@ fn unsupported(command: Command, option: impl Into<String>) -> ArgsError {
 /// Names the one positional the command does not take.
 fn extra_positional(command: Command, token: &str) -> ArgsError {
     unsupported(command, token)
-}
-
-/// Rejects Bazel options passed after `--`.
-fn reject_passthrough(command: Command, bazel_options: &[String]) -> Result<(), ArgsError> {
-    if !bazel_options.is_empty() {
-        return Err(unsupported(command, "--"));
-    }
-    Ok(())
 }
 
 /// Names an environment default dx will not read.
@@ -611,7 +603,9 @@ fn parse_inner<S: AsRef<OsStr>>(
         if let Some(scope) = targets.first() {
             return Err(unsupported(command, scope.clone()));
         }
-        reject_passthrough(command, &bazel_options)?;
+    }
+    if !bazel_options.is_empty() && !grammar::advertises_passthrough(command) {
+        return Err(unsupported(command, "--"));
     }
     if command.is_managed() {
         if let Err(error) = dx_setup::resolve_scope(&targets) {
@@ -627,15 +621,6 @@ fn parse_inner<S: AsRef<OsStr>>(
                 | dx_setup::ScopeError::NotTargetLabel { value } => scope_error(&value),
             });
         }
-    }
-    if (command == Command::Security || command == Command::License) && !bazel_options.is_empty() {
-        return Err(unsupported(command, "--"));
-    }
-    if matches!(
-        command,
-        Command::Update | Command::Bump | Command::Add | Command::Migrate | Command::Upgrade
-    ) {
-        reject_passthrough(command, &bazel_options)?;
     }
     if matches!(command, Command::Bump | Command::Add) {
         if targets.len() > 2 {
@@ -682,7 +667,6 @@ fn parse_inner<S: AsRef<OsStr>>(
     };
     let mut path_only = false;
     if command == Command::Worktree {
-        reject_passthrough(command, &bazel_options)?;
         validate_worktree(&targets)?;
         if output_name == "path" {
             if output_from_flag || targets.first().is_some_and(|verb| verb == "add") {
@@ -697,9 +681,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         value: output_name.clone(),
     })?;
     if command.is_adoption() {
-        if command != Command::Watch {
-            reject_passthrough(command, &bazel_options)?;
-        }
         match command {
             Command::Status => {
                 if !targets.is_empty() {

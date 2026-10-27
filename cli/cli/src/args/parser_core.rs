@@ -765,6 +765,29 @@ fn audit_update_parse_and_reject_unsupported_options() {
 }
 
 #[test]
+fn every_command_without_a_passthrough_refuses_it_the_same_way() {
+    use clap::ValueEnum;
+    let refusing: Vec<Command> = Command::value_variants()
+        .iter()
+        .copied()
+        .filter(|command| !super::super::grammar::advertises_passthrough(*command))
+        .collect();
+    assert!(refusing.contains(&Command::Clean));
+    assert!(refusing.contains(&Command::Worktree));
+    for command in refusing {
+        assert_eq!(
+            parse(&strings(&[command.name(), "--", "--jobs=4"])),
+            Err(ArgsError::UnsupportedOption {
+                command: command.name(),
+                option: "--".to_owned(),
+            }),
+            "{}",
+            command.name()
+        );
+    }
+}
+
+#[test]
 fn startup_options_parse_repeatably_and_stay_ordered() {
     let got = parse(&strings(&[
         "build",

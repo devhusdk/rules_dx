@@ -118,7 +118,6 @@ fn required_words(command: Command) -> Vec<String> {
         "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
-        "bazel" => &["info"],
         _ => &[],
     };
     strings(required)
@@ -184,7 +183,7 @@ fn help_lists_exactly_the_flags_the_parser_accepts() {
             }
             let refused = probe_rejects(command, flag, *payload);
             let advertised = if *flag == "-- <bazel-options>" {
-                super::advertises_passthrough(command)
+                super::super::grammar::advertises_passthrough(command)
             } else {
                 listed
                     .iter()

@@ -1088,6 +1088,20 @@ fn run_dx_in(pool: &Pool, slot: u32) -> dx_atomic_fs::lease::SharedLease {
 }
 
 #[test]
+fn a_slot_with_a_running_dx_command_lists_as_busy() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(20);
+    ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let idle = ops::list(&pool, &host, false).expect("list");
+    assert!(!slot_one(&idle).busy);
+    let _running = run_dx_in(&pool, 1);
+    let listing = ops::list(&pool, &host, false).expect("list");
+    assert!(slot_one(&listing).busy);
+}
+
+#[test]
 fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
@@ -1101,6 +1115,7 @@ fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
     let running = run_dx_in(&pool, 1);
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
+    assert!(slot_one(&listing).busy);
     let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("busy");
     assert_eq!(refused.code, "branch_held");
     let mut forced = existing("feature/a");

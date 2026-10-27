@@ -90,6 +90,8 @@ its slot.
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`, `prune_cache`, `prune_downloads`), `path`, `state`, `server`, and optional
 `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, and `entries`.
+`busy` is also set on `list` rows: `true` when a dx command is running in
+the slot, even if the slot is free.
 `base` is set on `add` when it starts a new branch. `disk_bytes` is set for
 `prune`, `prune_base`, `prune_cache`, and `prune_downloads` events other than `kept` and
 `skipped`, and for `list` with `--disk`. `entries` is set for
@@ -225,7 +227,8 @@ $ dx worktree list --disk
 above would allow taking it), or `external` (a worktree outside the pool). A
 held slot whose holder is gone but which has uncommitted changes or unpushed
 commits shows why after `held`, such as `held (holder gone, commits are not
-pushed)`.
+pushed)`. A slot where a dx command is running has ` busy` appended to its
+state, such as `free busy`, and `busy: true` in the JSON event.
 
 `path <branch>` prints the path of the checkout that holds `<branch>`, and
 fails with exit `1` when none does.

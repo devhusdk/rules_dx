@@ -99,6 +99,8 @@ pub struct Row {
     pub state: State,
     pub reason: Option<&'static str>,
     pub server: bool,
+    /// A dx command is running in the slot, whether or not it is held.
+    pub busy: bool,
     pub disk_bytes: Option<u64>,
 }
 
@@ -1226,7 +1228,8 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
     let mut slot_disk = 0;
     for record in pool.records() {
         let path = pool.slot_path(record.slot);
-        let held = hold(pool, host, &record);
+        let busy = pool.busy(record.slot);
+        let held = hold_known(pool, host, &record, record.held && busy);
         stop_check(host)?;
         let state = match held {
             Hold::Free => State::Free,
@@ -1256,6 +1259,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
                 _ => None,
             },
             server: server_in(&servers, &path),
+            busy,
             disk_bytes,
             path,
         });
@@ -1276,6 +1280,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
             state: State::External,
             reason: None,
             server: server_in(&servers, &checkout.path),
+            busy: false,
             disk_bytes,
             path: checkout.path,
         });

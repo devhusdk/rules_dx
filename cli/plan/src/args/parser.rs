@@ -329,6 +329,7 @@ pub fn load_startup_defaults(
 /// The workspace a run selects: the flag, the environment, then the defaults.
 pub fn startup_workspace(
     start: &std::path::Path,
+    base: &std::path::Path,
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
     is_ci: bool,
@@ -338,7 +339,7 @@ pub fn startup_workspace(
         .filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
     let file_workspace = load_startup_defaults(
         start,
-        start,
+        base,
         flag_workspace.clone(),
         env_workspace.clone(),
         is_ci,
@@ -1490,20 +1491,21 @@ mod startup_tests {
         let a = scratch_with_config("startup-ws-a-", Some(&config));
         let target = b.path().to_string_lossy().into_owned();
         assert_eq!(
-            startup_workspace(a.path(), None, None, false),
+            startup_workspace(a.path(), a.path(), None, None, false),
             Some(target.clone())
         );
         assert_eq!(
-            startup_workspace(a.path(), None, Some("/env".to_owned()), false),
+            startup_workspace(a.path(), a.path(), None, Some("/env".to_owned()), false),
             Some("/env".to_owned())
         );
         assert_eq!(
-            startup_workspace(a.path(), None, Some("/env".to_owned()), true),
+            startup_workspace(a.path(), a.path(), None, Some("/env".to_owned()), true),
             Some(target.clone()),
             "CI ignores the environment workspace"
         );
         assert_eq!(
             startup_workspace(
+                a.path(),
                 a.path(),
                 Some("/flag".to_owned()),
                 Some("/env".to_owned()),
@@ -1512,13 +1514,22 @@ mod startup_tests {
             Some("/flag".to_owned())
         );
         assert_eq!(
-            startup_workspace(a.path(), None, Some(String::new()), false),
+            startup_workspace(a.path(), a.path(), None, Some(String::new()), false),
             Some(target)
         );
         let broken = scratch_with_config("startup-ws-broken-", Some("not toml = ["));
-        assert_eq!(startup_workspace(broken.path(), None, None, false), None);
         assert_eq!(
-            startup_workspace(broken.path(), None, Some("/env".to_owned()), false),
+            startup_workspace(broken.path(), broken.path(), None, None, false),
+            None
+        );
+        assert_eq!(
+            startup_workspace(
+                broken.path(),
+                broken.path(),
+                None,
+                Some("/env".to_owned()),
+                false
+            ),
             Some("/env".to_owned())
         );
     }

@@ -254,29 +254,6 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
-    name = "gleam",
-    files = {
-        "//examples/gleam-app/catalog:BUILD.bazel": "examples/gleam-app/catalog/BUILD.bazel",
-        "//examples/gleam-app/catalog:src/catalog.gleam": "examples/gleam-app/catalog/src/catalog.gleam",
-        "//examples/gleam-app/catalog:test/catalog_test.gleam": "examples/gleam-app/catalog/test/catalog_test.gleam",
-        "//examples/gleam-app/catalog:units.txt": "examples/gleam-app/catalog/units.txt",
-        "//examples/gleam-app/cli:BUILD.bazel": "examples/gleam-app/cli/BUILD.bazel",
-        "//examples/gleam-app/cli:launchers_test.sh": "examples/gleam-app/cli/launchers_test.sh",
-        "//examples/gleam-app/cli:src/stockctl.gleam": "examples/gleam-app/cli/src/stockctl.gleam",
-        "//examples/gleam-app/cli:src/stockctl/commands.gleam": "examples/gleam-app/cli/src/stockctl/commands.gleam",
-        "//examples/gleam-app/cli:src/stockctl_ffi.erl": "examples/gleam-app/cli/src/stockctl_ffi.erl",
-        "//examples/gleam-app/cli:src/stockctl_ffi.mjs": "examples/gleam-app/cli/src/stockctl_ffi.mjs",
-        "//examples/gleam-app/cli:test/stockctl_test.gleam": "examples/gleam-app/cli/test/stockctl_test.gleam",
-        "//examples/gleam-app/stock:BUILD.bazel": "examples/gleam-app/stock/BUILD.bazel",
-        "//examples/gleam-app/stock:lib/stock/ledger.gleam": "examples/gleam-app/stock/lib/stock/ledger.gleam",
-        "//examples/gleam-app/stock:test/ledger_test.gleam": "examples/gleam-app/stock/test/ledger_test.gleam",
-    },
-    languages = ["gleam"],
-    module_fragment = "consumers/gleam/module_fragment.bazel",
-    patterns = ["//..."],
-)
-
-hermetic_qualification(
     name = "perl",
     files = {
         "//examples/perl-app/cli:BUILD.bazel": "examples/perl-app/cli/BUILD.bazel",
@@ -621,7 +598,6 @@ rustfmt_test(
         ":cuda",
         ":elixir",
         ":erlang",
-        ":gleam",
         ":hermetic",
         ":msix",
         ":perl",
@@ -646,7 +622,6 @@ rust_clippy_test(
         ":cuda",
         ":elixir",
         ":erlang",
-        ":gleam",
         ":hermetic",
         ":msix",
         ":perl",

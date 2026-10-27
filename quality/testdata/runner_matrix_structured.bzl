@@ -140,39 +140,6 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_format_syntax.expected.txt",
     },
     {
-        "name": "matrix_gleam_format_pass",
-        "generated": {
-            "matrix/gleam_format_clean.gleam": "pub fn add(a: Int, b: Int) -> Int {\n  a + b\n}\n",
-        },
-        "capability": "format",
-        "stages": ["gleam_format;gleam;matrix/gleam_format_clean.gleam"],
-        "tool_names": ["gleam_format"],
-        "tool_binaries": ["//gleam/tools:gleam_format"],
-        "expected_file": ":matrix/matrix_gleam_format_pass.expected.txt",
-    },
-    {
-        "name": "matrix_gleam_format_fail",
-        "generated": {
-            "matrix/gleam_format_dirty.gleam": "pub fn add( a: Int,b: Int ) -> Int {\n  a+b\n}\n",
-        },
-        "capability": "format",
-        "stages": ["gleam_format;gleam;matrix/gleam_format_dirty.gleam"],
-        "tool_names": ["gleam_format"],
-        "tool_binaries": ["//gleam/tools:gleam_format"],
-        "expected_file": ":matrix/matrix_gleam_format_fail.expected.txt",
-    },
-    {
-        "name": "matrix_gleam_format_syntax",
-        "generated": {
-            "matrix/gleam_format_broken.gleam": "pub fn add(a: Int, b: Int) -> Int {\n  a + * b\n}\n",
-        },
-        "capability": "format",
-        "stages": ["gleam_format;gleam;matrix/gleam_format_broken.gleam"],
-        "tool_names": ["gleam_format"],
-        "tool_binaries": ["//gleam/tools:gleam_format"],
-        "expected_file": ":matrix/matrix_gleam_format_syntax.expected.txt",
-    },
-    {
         "name": "matrix_zig_format_pass",
         "generated": {
             "matrix/zig_clean.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",

@@ -151,7 +151,6 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "djlint",
         "erlfmt",
         "fantomas",
-        "gleam_format",
         "gofumpt",
         "jsonnetfmt",
         "ktlint",
@@ -326,91 +325,6 @@ pub(super) fn mix_format_fix_keeps_a_file_it_could_not_parse() {
     let broken = "x = 1\ny *\n";
     let kept = backend
         .apply_fix("mix_format", "a.ex", broken, "format")
-        .expect("fix round");
-    assert_eq!(kept, broken);
-}
-
-fn gleam_format_behavior(
-    argv: &[OsString],
-    cwd: &Path,
-    env: &[(OsString, OsString)],
-) -> io::Result<ChildOutput> {
-    assert_hermetic(env);
-    let file = last_file(argv);
-    let text = std::fs::read_to_string(&file).expect("read staged file");
-    let relative = Path::new(&file)
-        .strip_prefix(cwd)
-        .expect("staged under cwd")
-        .to_string_lossy()
-        .into_owned();
-    let check = argv[1] == OsString::from("--check");
-    if text.contains('*') {
-        return Ok(ChildOutput {
-            code: Some(1),
-            stdout: Vec::new(),
-            stderr: format!(
-                "error: Syntax error\n  \u{250c}\u{2500} {relative}:2:3\n  \u{2502}\n2 \u{2502} y *\n  \u{2502}   ^ This operator has no value on its right side\n\nHint: Remove it or put a value after it.\n"
-            )
-            .into_bytes(),
-        });
-    }
-    if check {
-        return Ok(ChildOutput {
-            code: Some(1),
-            stdout: Vec::new(),
-            stderr: format!("error: These files have not been formatted\n\n  - {file}\n\n\n")
-                .into_bytes(),
-        });
-    }
-    assert_eq!(argv.len(), 2);
-    std::fs::write(&file, "pub const x = 1\n").expect("fix writes back");
-    Ok(ChildOutput {
-        code: Some(0),
-        stdout: Vec::new(),
-        stderr: Vec::new(),
-    })
-}
-
-#[test]
-pub(super) fn gleam_format_reports_files_and_syntax_errors() {
-    let backend = backend_for("gleam_format", plain_tool(), gleam_format_behavior);
-    let findings = backend
-        .diagnose(
-            "gleam_format",
-            "format",
-            &single("src/a.gleam", "pub const x=1\n"),
-        )
-        .expect("unformatted");
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].path, "src/a.gleam");
-    assert_eq!(findings[0].message, "file is not formatted");
-    let findings = backend
-        .diagnose(
-            "gleam_format",
-            "format",
-            &single("src/a.gleam", "x = 1\ny *\n"),
-        )
-        .expect("syntax error");
-    assert_eq!(findings.len(), 1);
-    assert_eq!(findings[0].path, "src/a.gleam");
-    assert_eq!(findings[0].rule_id, "syntax");
-    assert_eq!(
-        findings[0].message,
-        "This operator has no value on its right side"
-    );
-    assert_eq!(findings[0].start_byte, Some(8));
-}
-
-#[test]
-pub(super) fn gleam_format_fix_keeps_a_file_it_could_not_parse() {
-    let backend = backend_for("gleam_format", plain_tool(), gleam_format_behavior);
-    let fixed = backend
-        .apply_fix("gleam_format", "a.gleam", "pub const x=1\n", "format")
-        .expect("fix round");
-    assert_eq!(fixed, "pub const x = 1\n");
-    let broken = "x = 1\ny *\n";
-    let kept = backend
-        .apply_fix("gleam_format", "a.gleam", broken, "format")
         .expect("fix round");
     assert_eq!(kept, broken);
 }

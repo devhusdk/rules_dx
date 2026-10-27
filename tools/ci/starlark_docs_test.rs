@@ -13,7 +13,7 @@ const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 92] = [
+const PACKAGES: [&str; 89] = [
     "android/packaging",
     "android/platforms",
     "android/rules",
@@ -48,9 +48,6 @@ const PACKAGES: [&str; 92] = [
     "fsharp/rules",
     "generation",
     "gherkin/rules",
-    "gleam/rules",
-    "gleam/toolchain",
-    "gleam/tools",
     "go/rules",
     "html_template/rules",
     "java/rules",

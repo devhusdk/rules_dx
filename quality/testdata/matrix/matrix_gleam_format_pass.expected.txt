@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_gleam_format_pass
-capability FORMAT
-stages 1
-stage gleam_format classes=gleam sources=matrix/gleam_format_clean.gleam
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

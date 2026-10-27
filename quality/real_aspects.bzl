@@ -147,14 +147,6 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "dotnet",
     },
-    "gleam_format": {
-        "attr": attr.label(default = "//config:tool_gleam_format", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "fallback": "=@rules_dx//gleam/tools:gleam_format",
-        "kind": "setting",
-        "resources": "light",
-        "shard": "core",
-    },
     "gofumpt": {
         "attr": attr.label(default = "//config:tool_gofumpt", allow_files = True, cfg = "exec", executable = True),
         "capabilities": ["format"],

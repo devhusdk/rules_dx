@@ -192,7 +192,6 @@ rust_test(
         "//apple:module_srcs",
         "//deploy:module_srcs",
         "//erlang:module_srcs",
-        "//gleam:module_srcs",
         "//qt:module_srcs",
     ],
     deps = [":dx_testing"],

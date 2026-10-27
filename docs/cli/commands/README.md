@@ -502,7 +502,6 @@ Language rules:
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.
 - `@rules_dx//fsharp/rules:defs.bzl`: F#.
 - `@rules_dx//gherkin/rules:defs.bzl`: Gherkin.
-- `@rules_dx//gleam/rules:defs.bzl`: Gleam.
 - `@rules_dx//go/rules:defs.bzl`: Go.
 - `@rules_dx//haskell/rules:defs.bzl`: Haskell.
 - `@rules_dx//html_template/rules:defs.bzl`: HTML templates.
@@ -559,7 +558,6 @@ SDK and toolchain extensions:
 - `@rules_dx//apple/ios:simulator.bzl`: iOS simulator.
 - `@rules_dx//cuda/toolchain:repos.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
-- `@rules_dx//gleam/rules:hex.bzl`: Hex packages for Gleam.
 - `@rules_dx//powershell/rules:gallery.bzl`: PowerShell Gallery modules.
 - `@rules_dx//msix:repos.bzl`: MSIX tools.
 - `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.

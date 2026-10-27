@@ -16,7 +16,7 @@ load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_shard_probe_te
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
-load(":tool_override_tests.bzl", "elixir_subject", "erlang_subject", "erlfmt_flag_tests", "gleam_format_flag_tests", "gleam_subject", "mix_format_flag_tests", "qml_lint_subject", "qml_sources", "qml_subject", "qmlformat_flag_tests", "qmllint_flag_tests", "tool_override_subject", "tool_override_tests", "zig_fmt_flag_tests", "zig_subject")
+load(":tool_override_tests.bzl", "elixir_subject", "erlang_subject", "erlfmt_flag_tests", "mix_format_flag_tests", "qml_lint_subject", "qml_sources", "qml_subject", "qmlformat_flag_tests", "qmllint_flag_tests", "tool_override_subject", "tool_override_tests", "zig_fmt_flag_tests", "zig_subject")
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
 
 package(default_visibility = VIS_QUALITY)
@@ -1240,33 +1240,6 @@ elixir_subject(
 mix_format_flag_tests(
     name = "mix_format_flag",
     subject = ":elixir_subject",
-)
-
-quality_family(
-    name = "gleam_family",
-    disabled = [
-        "audit",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "gleam",
-    format = ["gleam_format"],
-)
-
-workspace_policy(
-    name = "gleam_policy",
-    families = [":gleam_family"],
-)
-
-gleam_subject(
-    name = "gleam_subject",
-    testonly = True,
-    target = "//gleam/tests/runtime:dx_runtime_probe",
-)
-
-gleam_format_flag_tests(
-    name = "gleam_format_flag",
-    subject = ":gleam_subject",
 )
 
 quality_family(

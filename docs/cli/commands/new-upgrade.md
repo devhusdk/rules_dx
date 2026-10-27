@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `gleam`, `erlang`, or `cuda`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, or `cuda`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -110,7 +110,6 @@ language rule:
 - `mdx` takes Bazel module names.
 - `zig` takes Bazel module names.
 - `elixir` takes Bazel module names.
-- `gleam` takes Bazel module names.
 - `erlang` takes Bazel module names.
 - `cuda` takes Bazel module names.
 
@@ -125,26 +124,22 @@ names fail before any file is written.
 `Cargo.toml`, `src/lib.rs`, `src/main.rs`, `BUILD.bazel`, `MODULE.bazel`,
 `.bazelversion`, and `README.md`.
 
-## `dx new ruby`, `dx new powershell`, `dx new zig`, `dx new elixir`, `dx new gleam` And `dx new erlang`
+## `dx new ruby`, `dx new powershell`, `dx new zig`, `dx new elixir` And `dx new erlang`
 
 ```text
 dx new [--apply] ruby [name]
 dx new [--apply] powershell [name]
 dx new [--apply] zig [name]
 dx new [--apply] elixir [name]
-dx new [--apply] gleam [name]
 dx new [--apply] erlang [name]
 ```
 
 Scaffolds a standalone consumer with a library, a binary and a test:
 `MODULE.bazel`, `.bazelversion`, `.bazelrc`, `BUILD.bazel`, sources, and
-`README.md`. PowerShell, Zig, Elixir, Gleam and Erlang come from the rules_dx toolchains, so nothing needs to be
-installed. The Ruby starter declares a portable `rules_ruby` toolchain in `MODULE.bazel`. The PowerShell targets are Linux only. The Elixir and Gleam targets need Linux x86_64. The Erlang targets need Linux x86_64, Linux arm64 or macOS arm64. The Zig library imports as `hello`.
+`README.md`. PowerShell, Zig, Elixir and Erlang come from the rules_dx toolchains, so nothing needs to be
+installed. The Ruby starter declares a portable `rules_ruby` toolchain in `MODULE.bazel`. The PowerShell targets are Linux only. The Elixir targets need Linux x86_64. The Erlang targets need Linux x86_64, Linux arm64 or macOS arm64. The Zig library imports as `hello`.
 The Elixir starter is the OTP application `hello` with sources in `lib/`, an
 escript, and an ExUnit test in `test/`.
-The Gleam starter has the module `hello` in `src/`, a gleeunit test in `test/`,
-and a binary, library and test for both Erlang and JavaScript. The JavaScript
-targets end in `_js` and run on Node.js.
 The Erlang starter is the OTP application `hello` in `src/`, with an escript
 and an EUnit test in `test/`.
 

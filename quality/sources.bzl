@@ -61,7 +61,6 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "erlang",
     "fortran",
     "gherkin",
-    "gleam",
     "go",
     "haskell",
     "jsonnet",

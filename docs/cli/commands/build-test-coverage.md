@@ -391,7 +391,7 @@ Not every language has a coverage collector yet:
 | Languages | Under `dx coverage` |
 | --- | --- |
 | Languages with a collector, such as C, C++, Rust, Ruby, C# and F# | Write LCOV |
-| Gleam, Elixir, Zig and PowerShell | Fail with `no_coverage_collector` |
+| Elixir, Zig and PowerShell | Fail with `no_coverage_collector` |
 
 The test macros of the second row tag the public test
 `dx-no-coverage-collector`. For each such test that ran, `dx coverage`

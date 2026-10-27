@@ -397,15 +397,6 @@ mod tests {
             ],
         ),
         (
-            "gleam",
-            "demo-app",
-            &[
-                "src/hello.gleam",
-                "src/hello_cli.gleam",
-                "test/hello_test.gleam",
-            ],
-        ),
-        (
             "erlang",
             "demo-app",
             &["src/hello.erl", "src/hello_cli.erl", "test/hello_tests.erl"],
@@ -457,7 +448,7 @@ mod tests {
                 build.contains("\"demo-app_bin\""),
                 matches!(
                     *language,
-                    "ruby" | "powershell" | "zig" | "elixir" | "gleam" | "erlang" | "cuda"
+                    "ruby" | "powershell" | "zig" | "elixir" | "erlang" | "cuda"
                 ),
                 "{language}: {build}"
             );
@@ -546,7 +537,6 @@ mod tests {
             vec!["new", "--apply", "mdx", "demo", "--dry-run"],
             vec!["new", "--apply", "zig", "demo", "--force"],
             vec!["new", "--apply", "elixir", "demo", "--force"],
-            vec!["new", "--apply", "gleam", "demo", "--force"],
             vec!["new", "--apply", "erlang", "demo", "--force"],
         ] {
             let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&words));

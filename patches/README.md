@@ -41,6 +41,6 @@ graph. If another dependency of yours needs a newer version of one of these
 modules, Bazel still resolves the version above. Move the `rules_dx` pin
 instead, or drop the `include()` and own the override yourself.
 
-## rules_d, rules_elixir, rules_erlang, rules_fortran, rules_gleam, rules_haskell, rules_ocaml
+## rules_d, rules_elixir, rules_erlang, rules_fortran, rules_haskell, rules_ocaml
 
 No action. `rules_dx` applies these patches in its own repository rules.

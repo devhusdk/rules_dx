@@ -35,12 +35,49 @@ fn write_file(path: &Path, text: &str) {
 #[test]
 fn normalizes_match_python() {
     assert_eq!(normalize_py("Foo-Bar.Baz"), "foo_bar_baz");
-    assert_eq!(normalize_js("Foo-Bar"), "foo-bar");
-    assert_eq!(normalize_rs("Foo-Bar"), "foo_bar");
-    assert_eq!(normalize_go("Example.COM/Foo"), "example.com/foo");
-    assert_eq!(normalize_jvm("Group:Artifact"), "group:artifact");
-    assert_eq!(normalize_dotnet("Newtonsoft.Json"), "newtonsoft.json");
-    assert_eq!(normalize_cc("Foo-Bar"), "foo_bar");
+    assert_eq!(normalize_lower("Foo-Bar"), "foo-bar");
+    assert_eq!(normalize_snake("Foo-Bar"), "foo_bar");
+    assert_eq!(normalize_lower("Example.COM/Foo"), "example.com/foo");
+    assert_eq!(normalize_lower("Group:Artifact"), "group:artifact");
+    assert_eq!(normalize_lower("Newtonsoft.Json"), "newtonsoft.json");
+    assert_eq!(normalize_snake("Foo-Bar"), "foo_bar");
+}
+
+#[test]
+fn exception_keys_per_ecosystem() {
+    use crate::exceptions::normalize_exception_key;
+    for (eco, want) in [
+        (Ecosystem::Python, "foo_bar_baz"),
+        (Ecosystem::Rust, "foo-bar.baz"),
+        (Ecosystem::Js, "foo-bar.baz"),
+        (Ecosystem::Ts, "foo-bar.baz"),
+        (Ecosystem::Go, "foo-bar.baz"),
+        (Ecosystem::Java, "foo-bar.baz"),
+        (Ecosystem::Kotlin, "foo-bar.baz"),
+        (Ecosystem::Scala, "foo-bar.baz"),
+        (Ecosystem::Csharp, "foo-bar.baz"),
+        (Ecosystem::Fsharp, "foo-bar.baz"),
+        (Ecosystem::Cc, "foo_bar.baz"),
+        (Ecosystem::Ruby, "foo-bar.baz"),
+    ] {
+        assert_eq!(normalize_exception_key(eco, "Foo-Bar.Baz"), want, "{eco:?}");
+    }
+}
+
+#[test]
+fn paren_lock_skips_non_package_lines() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let lock = dir.path().join("x.lock");
+    std::fs::write(
+        &lock,
+        "NUGET\n  remote: https://example.invalid\n    Foo.Bar (1.2.3 )\n      Dep.Only (>= 1.0)\n",
+    )
+    .expect("write");
+    let pkgs = parse_paren_lock(&lock).expect("parse");
+    assert_eq!(
+        pkgs,
+        std::collections::BTreeMap::from([("foo.bar".to_owned(), "1.2.3".to_owned())])
+    );
 }
 
 #[test]
@@ -383,7 +420,7 @@ fn dotnet_manifest_and_lock() {
     assert_eq!(deps["bar"].category, "dev");
     let lock = dir.path().join("paket.lock");
     write_file(&lock, "NUGET\n  remote: x\n    Foo (1.0.0)\n");
-    let pkgs = parse_dotnet_lock(&lock).expect("parse");
+    let pkgs = parse_paren_lock(&lock).expect("parse");
     assert_eq!(pkgs["foo"], "1.0.0");
 }
 
@@ -1149,7 +1186,7 @@ fn ruby_lock_parses_specs() {
         &dir.path().join("Gemfile.lock"),
         "GEM\n  remote: https://rubygems.org/\n  specs:\n    diff-lcs (1.5.0)\n    rspec (3.13.0)\n",
     );
-    let pkgs = parse_ruby_lock(&dir.path().join("Gemfile.lock")).expect("parse");
+    let pkgs = parse_paren_lock(&dir.path().join("Gemfile.lock")).expect("parse");
     assert_eq!(pkgs["rspec"], "3.13.0");
     assert_eq!(pkgs["diff-lcs"], "1.5.0");
 }

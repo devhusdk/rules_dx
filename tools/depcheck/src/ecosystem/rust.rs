@@ -4,11 +4,7 @@ use std::path::Path;
 use crate::toml_util::{parse_toml_file, toml_bool, toml_string};
 use crate::{DepInfo, DepcheckError, LockVersions};
 
-use super::put;
-
-pub fn normalize_rs(name: &str) -> String {
-    name.to_lowercase().replace('-', "_")
-}
+use super::{normalize_lower, put};
 
 fn package_name(t: &toml::map::Map<String, toml::Value>) -> String {
     t.get("package")
@@ -41,7 +37,7 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                 };
                 put(
                     &mut deps,
-                    name.to_lowercase(),
+                    normalize_lower(name),
                     DepInfo {
                         spec,
                         category: cat.to_owned(),
@@ -85,7 +81,7 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                     };
                     put(
                         &mut deps,
-                        name.to_lowercase(),
+                        normalize_lower(name),
                         DepInfo {
                             spec,
                             category: cat.to_owned(),
@@ -110,11 +106,7 @@ pub fn parse_rust_lock(path: &Path) -> Result<LockVersions, DepcheckError> {
     let mut pkgs = LockVersions::new();
     if let Some(list) = data.get("package").and_then(|v| v.as_array()) {
         for item in list {
-            let name = item
-                .get("name")
-                .and_then(toml_string)
-                .unwrap_or_default()
-                .to_lowercase();
+            let name = normalize_lower(&item.get("name").and_then(toml_string).unwrap_or_default());
             let ver = item
                 .get("version")
                 .and_then(toml_string)

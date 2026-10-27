@@ -3,9 +3,7 @@ use std::path::Path;
 
 use crate::{DepInfo, DepcheckError};
 
-pub fn normalize_ruby(name: &str) -> String {
-    name.to_lowercase()
-}
+use super::normalize_lower;
 
 pub fn parse_ruby_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
@@ -39,7 +37,7 @@ pub fn parse_ruby_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
             ver.trim().to_owned()
         };
         deps.insert(
-            normalize_ruby(&name),
+            normalize_lower(&name),
             DepInfo {
                 spec,
                 category: "prod".to_owned(),
@@ -53,17 +51,4 @@ pub fn parse_ruby_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
         );
     }
     Ok(deps)
-}
-
-pub fn parse_ruby_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
-    let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
-    let re = regex::Regex::new(r"^    ([A-Za-z0-9_.\-]+) \(([^)]+)\)")
-        .map_err(DepcheckError::LockRegex)?;
-    let mut pkgs = BTreeMap::new();
-    for line in text.lines() {
-        if let Some(caps) = re.captures(line) {
-            pkgs.insert(normalize_ruby(&caps[1]), caps[2].trim().to_owned());
-        }
-    }
-    Ok(pkgs)
 }

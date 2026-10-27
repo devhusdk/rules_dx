@@ -18,16 +18,15 @@ mod usage;
 mod version;
 
 pub use consistency::{cmd_consistency, cmd_locks};
-pub use ecosystem::cc::{normalize_cc, parse_cc_lock, parse_cc_lock_sha, parse_cc_manifest};
-pub use ecosystem::dotnet::{normalize_dotnet, parse_dotnet_lock, parse_dotnet_manifest};
-pub use ecosystem::go::{normalize_go, parse_go_lock, parse_go_manifest};
-pub use ecosystem::js::{normalize_js, parse_js_manifest, parse_pnpm_lock};
-pub use ecosystem::jvm::{
-    normalize_jvm, parse_jvm_lock, parse_jvm_manifest, parse_maven_artifacts_list,
-};
+pub use ecosystem::cc::{parse_cc_lock, parse_cc_lock_sha, parse_cc_manifest};
+pub use ecosystem::dotnet::parse_dotnet_manifest;
+pub use ecosystem::go::{parse_go_lock, parse_go_manifest};
+pub use ecosystem::js::{parse_js_manifest, parse_pnpm_lock};
+pub use ecosystem::jvm::{parse_jvm_lock, parse_jvm_manifest, parse_maven_artifacts_list};
 pub use ecosystem::python::{normalize_py, parse_python_lock, parse_python_manifest, satisfies_py};
-pub use ecosystem::ruby::{normalize_ruby, parse_ruby_lock, parse_ruby_manifest};
-pub use ecosystem::rust::{normalize_rs, parse_rust_lock, parse_rust_manifest};
+pub use ecosystem::ruby::parse_ruby_manifest;
+pub use ecosystem::rust::{parse_rust_lock, parse_rust_manifest};
+pub use ecosystem::{normalize_lower, normalize_snake, parse_paren_lock};
 pub use exceptions::parse_exceptions;
 pub use types::{
     DepInfo, DepcheckError, Ecosystem, Exception, LockVersions, Usage, WorkspaceLocks,

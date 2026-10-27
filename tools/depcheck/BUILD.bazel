@@ -250,65 +250,27 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-filegroup(
-    name = "rust_testdata",
-    srcs = glob(["testdata/rust/**"]),
-)
-
-filegroup(
-    name = "python_testdata",
-    srcs = glob(["testdata/python/**"]),
-)
-
-filegroup(
-    name = "js_testdata",
-    srcs = glob(["testdata/js/**"]),
-)
-
-filegroup(
-    name = "ts_testdata",
-    srcs = glob(["testdata/ts/**"]),
-)
-
-filegroup(
-    name = "go_testdata",
-    srcs = glob(["testdata/go/**"]),
-)
-
-filegroup(
-    name = "java_testdata",
-    srcs = glob(["testdata/java/**"]),
-)
-
-filegroup(
-    name = "kotlin_testdata",
-    srcs = glob(["testdata/kotlin/**"]),
-)
-
-filegroup(
-    name = "scala_testdata",
-    srcs = glob(["testdata/scala/**"]),
-)
-
-filegroup(
-    name = "csharp_testdata",
-    srcs = glob(["testdata/csharp/**"]),
-)
-
-filegroup(
-    name = "fsharp_testdata",
-    srcs = glob(["testdata/fsharp/**"]),
-)
-
-filegroup(
-    name = "cc_testdata",
-    srcs = glob(["testdata/cc/**"]),
-)
-
-filegroup(
-    name = "ruby_testdata",
-    srcs = glob(["testdata/ruby/**"]),
-)
+# keep
+[
+    filegroup(
+        name = eco + "_testdata",
+        srcs = glob(["testdata/" + eco + "/**"]),
+    )
+    for eco in [
+        "rust",
+        "python",
+        "js",
+        "ts",
+        "go",
+        "java",
+        "kotlin",
+        "scala",
+        "csharp",
+        "fsharp",
+        "cc",
+        "ruby",
+    ]
+]
 
 real_source_target(
     name = "corpus_starlark",

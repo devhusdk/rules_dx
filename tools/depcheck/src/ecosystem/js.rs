@@ -4,9 +4,7 @@ use std::path::Path;
 use crate::version::satisfies_for;
 use crate::{DepInfo, DepcheckError, Ecosystem};
 
-pub fn normalize_js(name: &str) -> String {
-    name.to_lowercase()
-}
+use super::normalize_lower;
 
 const CONCRETE_FIELDS: [(&str, &str, bool); 3] = [
     ("dependencies", "prod", false),
@@ -48,7 +46,7 @@ pub fn parse_js_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
         };
         for (name, spec) in map {
             let spec = manifest_spec(field, name, spec)?;
-            let key = normalize_js(name);
+            let key = normalize_lower(name);
             if let Some(prev) = deps.get(&key) {
                 if prev.spec != spec {
                     return Err(DepcheckError::ManifestParse(format!(
@@ -76,16 +74,17 @@ pub fn parse_js_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
     if let Some(map) = manifest_section(&data, "peerDependencies")? {
         for (name, spec) in map {
             let spec = manifest_spec("peerDependencies", name, spec)?;
-            deps.entry(normalize_js(name)).or_insert_with(|| DepInfo {
-                spec,
-                category: "prod".to_owned(),
-                optional: false,
-                platform: false,
-                raw: name.clone(),
-                peer: true,
-                sha256: String::new(),
-                package: String::new(),
-            });
+            deps.entry(normalize_lower(name))
+                .or_insert_with(|| DepInfo {
+                    spec,
+                    category: "prod".to_owned(),
+                    optional: false,
+                    platform: false,
+                    raw: name.clone(),
+                    peer: true,
+                    sha256: String::new(),
+                    package: String::new(),
+                });
         }
     }
     Ok(deps)
@@ -116,7 +115,7 @@ impl PnpmLock {
 
     pub fn has_package(&self, name: &str, version: &str) -> bool {
         self.packages
-            .contains(&(normalize_js(name), version.to_owned()))
+            .contains(&(normalize_lower(name), version.to_owned()))
     }
 }
 
@@ -212,7 +211,7 @@ fn parse_importer(
                 specifier: string_field(entry, "specifier", &context)?,
                 version: string_field(entry, "version", &context)?,
             };
-            match entries.get(&normalize_js(name)) {
+            match entries.get(&normalize_lower(name)) {
                 Some(prev) if *prev != parsed => {
                     return Err(lock_error(format!(
                         "importer '{key}' resolves '{name}' more than once"
@@ -220,7 +219,7 @@ fn parse_importer(
                 }
                 Some(_) => {}
                 None => {
-                    entries.insert(normalize_js(name), parsed);
+                    entries.insert(normalize_lower(name), parsed);
                 }
             }
         }
@@ -233,7 +232,7 @@ fn package_identity(key: &str) -> Result<(String, String), DepcheckError> {
     let bare = trimmed.split('(').next().unwrap_or("");
     match bare.rfind('@') {
         Some(at) if at > 0 && at + 1 < bare.len() => {
-            Ok((normalize_js(&bare[..at]), bare[at + 1..].to_owned()))
+            Ok((normalize_lower(&bare[..at]), bare[at + 1..].to_owned()))
         }
         _ => Err(lock_error(format!("malformed package key '{key}'"))),
     }
@@ -375,7 +374,7 @@ pub fn pnpm_failures(
                 failures.push(stale(version));
                 continue;
             };
-            if normalize_js(want) != normalize_js(got) {
+            if normalize_lower(want) != normalize_lower(got) {
                 failures.push(stale(version));
                 continue;
             }

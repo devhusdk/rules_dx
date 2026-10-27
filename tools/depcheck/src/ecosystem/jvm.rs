@@ -4,9 +4,7 @@ use std::path::Path;
 use crate::toml_util::{toml_bool, toml_string};
 use crate::{DepInfo, DepcheckError};
 
-pub fn normalize_jvm(name: &str) -> String {
-    name.to_lowercase()
-}
+use super::normalize_lower;
 
 pub fn parse_jvm_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
@@ -50,7 +48,7 @@ pub fn parse_jvm_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
         } else {
             "prod"
         };
-        let key = normalize_jvm(&format!("{grp}:{art}"));
+        let key = normalize_lower(&format!("{grp}:{art}"));
         deps.insert(
             key,
             DepInfo {
@@ -79,7 +77,7 @@ pub fn parse_jvm_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckE
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_owned();
-            pkgs.insert(normalize_jvm(coord), ver);
+            pkgs.insert(normalize_lower(coord), ver);
         }
     }
     Ok(pkgs)
@@ -102,7 +100,7 @@ pub fn parse_maven_artifacts_list(path: &Path) -> Result<BTreeMap<String, DepInf
             continue;
         }
         deps.insert(
-            normalize_jvm(&format!("{group}:{artifact}")),
+            normalize_lower(&format!("{group}:{artifact}")),
             DepInfo {
                 spec: version.to_owned(),
                 category: "prod".to_owned(),

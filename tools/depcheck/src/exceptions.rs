@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::ecosystem::{cc, dotnet, go, js, jvm, python, ruby};
+use crate::ecosystem::{normalize_lower, normalize_snake, python};
 use crate::{DepcheckError, Ecosystem, Exception};
 
 pub fn parse_exceptions(path: Option<&Path>) -> Result<BTreeMap<String, Exception>, DepcheckError> {
@@ -35,10 +35,7 @@ pub fn parse_exceptions(path: Option<&Path>) -> Result<BTreeMap<String, Exceptio
         if name.is_empty() {
             return Err(DepcheckError::ExceptionEntry);
         }
-        out.insert(
-            name.to_lowercase().replace('-', "_"),
-            Exception { raw: name, reason },
-        );
+        out.insert(normalize_snake(&name), Exception { raw: name, reason });
     }
     Ok(out)
 }
@@ -46,12 +43,12 @@ pub fn parse_exceptions(path: Option<&Path>) -> Result<BTreeMap<String, Exceptio
 pub(crate) fn normalize_exception_key(eco: Ecosystem, raw: &str) -> String {
     match eco {
         Ecosystem::Python => python::normalize_py(raw),
-        Ecosystem::Rust => raw.to_lowercase(),
-        Ecosystem::Go => go::normalize_go(raw),
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => jvm::normalize_jvm(raw),
-        Ecosystem::Csharp | Ecosystem::Fsharp => dotnet::normalize_dotnet(raw),
-        Ecosystem::Cc => cc::normalize_cc(raw),
-        Ecosystem::Js | Ecosystem::Ts => js::normalize_js(raw),
-        Ecosystem::Ruby => ruby::normalize_ruby(raw),
+        Ecosystem::Rust => normalize_lower(raw),
+        Ecosystem::Go => normalize_lower(raw),
+        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => normalize_lower(raw),
+        Ecosystem::Csharp | Ecosystem::Fsharp => normalize_lower(raw),
+        Ecosystem::Cc => normalize_snake(raw),
+        Ecosystem::Js | Ecosystem::Ts => normalize_lower(raw),
+        Ecosystem::Ruby => normalize_lower(raw),
     }
 }

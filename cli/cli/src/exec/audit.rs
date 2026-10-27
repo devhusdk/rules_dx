@@ -1380,7 +1380,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     let request = dx_audit::AuditRequest {
         families: vec![family],
-        scope: if invocation.targets.is_empty() && !invocation.from_affected() {
+        scope: if invocation.targets.is_empty() && !invocation.is_affected_plan() {
             dx_audit::AuditScope::Default
         } else {
             dx_audit::AuditScope::Only(invocation.targets.clone())

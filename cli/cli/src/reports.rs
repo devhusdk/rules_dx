@@ -13,7 +13,7 @@ pub use lcov::{coverage_line_rate, validate_lcov};
 pub use planning::{
     format_names, plan_reports, resolve_destination, Destination, PlannedReport, StandardFormat,
 };
-pub use sarif::{byte_to_line, render_sarif, render_sarif_with_baseline, BaselineReport};
+pub use sarif::{render_sarif, render_sarif_with_baseline, BaselineReport};
 
 fn unsupported_format_message(command: &str, format: &str, supported: &[&str]) -> String {
     if supported.is_empty() {

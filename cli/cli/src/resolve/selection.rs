@@ -79,14 +79,6 @@ impl SelectionContext {
         }
     }
 
-    pub fn query_verb(&self) -> &'static str {
-        if self.configured {
-            "cquery"
-        } else {
-            "query"
-        }
-    }
-
     pub fn provenance(&self) -> &'static str {
         if self.configured {
             "configured"
@@ -99,6 +91,7 @@ impl SelectionContext {
         crate::args::filter_profile_configs(&self.options, self.profile)
     }
 
+    #[cfg(test)]
     pub(crate) fn startup(&self) -> &[String] {
         &self.startup
     }
@@ -156,7 +149,6 @@ mod tests {
     fn unconfigured_selection_uses_query_without_options() {
         let selection = SelectionContext::unconfigured(&[]);
         assert!(!selection.configured());
-        assert_eq!(selection.query_verb(), "query");
         assert_eq!(selection.provenance(), "unconfigured");
         let argv = selection
             .selection_argv("query", &[], "kind('rule', //...)")
@@ -225,7 +217,6 @@ mod tests {
             &strings(&["--output_base=/tmp/a"]),
         );
         assert!(selection.configured());
-        assert_eq!(selection.query_verb(), "cquery");
         let argv = selection
             .selection_argv(
                 "cquery",

@@ -11,11 +11,8 @@ use crate::args::Command;
 use crate::resolve::ResolvedScope;
 use std::collections::BTreeSet;
 
-pub fn required_options(
-    entry: &CommandSpec,
-    bazel_options: &[String],
-    bep_path: &str,
-) -> Vec<String> {
+#[cfg(test)]
+fn required_options(entry: &CommandSpec, bazel_options: &[String], bep_path: &str) -> Vec<String> {
     shaped_options(
         &entry.aspects.join(","),
         OUTPUT_GROUP,

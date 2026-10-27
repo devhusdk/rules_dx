@@ -19,26 +19,6 @@ pub struct AffectedSelection {
     pub(crate) graph: Option<RuleGraph>,
 }
 
-impl AffectedSelection {
-    pub fn complete(&self) -> bool {
-        self.widened.is_empty()
-    }
-
-    pub fn explain_suffix(&self) -> String {
-        if self.widened.is_empty() {
-            return String::new();
-        }
-        let mut scopes: Vec<String> = self
-            .widened
-            .iter()
-            .map(|widened| format!("{} ({})", widened.scope, widened.reason))
-            .collect();
-        scopes.sort();
-        scopes.dedup();
-        format!("; widened {} (conservative)", scopes.join(", "))
-    }
-}
-
 fn git_failure(what: &str, detail: String) -> String {
     format!("git {what} failed: {detail}")
 }
@@ -997,10 +977,7 @@ mod tests {
         assert_eq!(selection.widened.len(), 1);
         assert_eq!(selection.widened[0].scope, "//pkg:all");
         assert_eq!(selection.widened[0].reason, "deleted pkg/gone.py");
-        assert!(!selection.complete());
-        let suffix = selection.explain_suffix();
-        assert!(suffix.contains("//pkg:all"), "{suffix}");
-        assert!(suffix.contains("deleted pkg/gone.py"), "{suffix}");
+        assert!(!selection.widened.is_empty());
         assert!(selection.graph.is_some());
         assert_eq!(query.calls().len(), 1);
     }
@@ -1021,7 +998,7 @@ mod tests {
         )
         .expect("deleted resolves");
         assert_eq!(selection.targets, strings(&["//pkg:lib"]));
-        assert!(selection.complete());
+        assert!(selection.widened.is_empty());
     }
 
     #[test]
@@ -1103,9 +1080,6 @@ mod tests {
         assert_eq!(selection.widened.len(), 1);
         assert_eq!(selection.widened[0].reason, "renamed from pkg/was.py");
         assert_eq!(query.calls().len(), 1, "one batched ownership query");
-        assert!(selection
-            .explain_suffix()
-            .contains("renamed from pkg/was.py"));
     }
 
     #[test]
@@ -1139,7 +1113,7 @@ mod tests {
                 repos: Vec::new(),
             }]
         );
-        assert!(!selection.complete());
+        assert!(!selection.widened.is_empty());
         assert_eq!(query.calls().len(), 1, "one graph query");
         assert!(selection.graph.is_some());
     }
@@ -1832,7 +1806,7 @@ mod tests {
                 None,
             )
             .expect("affected");
-            assert!(affected.complete());
+            assert!(affected.widened.is_empty());
             assert_eq!(affected_query.calls().len(), 1);
             assert!(affected.graph.is_some());
             affected_targets.push(affected.targets);
@@ -2085,7 +2059,7 @@ mod tests {
             &[],
         );
         assert!(selection.targets.is_empty(), "{:?}", selection.targets);
-        assert!(selection.complete());
+        assert!(selection.widened.is_empty());
     }
 
     #[test]
@@ -2104,7 +2078,7 @@ mod tests {
             &[],
         );
         assert_eq!(selection.targets, strings(&["//tools:defs"]));
-        assert!(selection.complete());
+        assert!(selection.widened.is_empty());
     }
 
     #[test]
@@ -2264,7 +2238,7 @@ mod tests {
             &[],
         );
         assert!(selection.targets.is_empty(), "{:?}", selection.targets);
-        assert!(selection.complete());
+        assert!(selection.widened.is_empty());
         assert!(query.calls().is_empty());
     }
 

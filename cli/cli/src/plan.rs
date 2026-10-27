@@ -12,23 +12,22 @@ use std::sync::OnceLock;
 use dx_process::{ForwardError, ProtectedFlag};
 
 pub use generate::{
-    generate_package_scope, generate_scope_elements, generate_scope_json, generate_traversal_dirs,
-    plan_generate, GenerateScopeElement, GENERATE_CHECK_TARGET, GENERATE_ENV_INTENDED,
-    GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, GENERATE_TARGET,
+    generate_package_scope, generate_scope_json, plan_generate, GENERATE_ENV_INTENDED,
+    GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
 pub(crate) use quality::workflow_scope_labels;
-pub use quality::{plan_build, plan_build_with, plan_probe, protected_flags, required_options};
-pub use registry::{spec, CommandSpec};
+pub use quality::{plan_build, plan_build_with, plan_probe};
+pub use registry::spec;
 pub use run_deploy::{
     plan_deploy_build, plan_deploy_run, plan_run, plan_run_build, plan_run_targets, shell_join,
     shell_quote,
 };
 pub use run_temp::{
     bep_path, clean_for_stop, create_run_temp_dir, intended_path, patch_path, remove_on_stop,
-    remove_stale_run_dirs, results_path, run_id, run_nonce, RunTempDir,
+    remove_stale_run_dirs, results_path, run_id,
 };
-pub use workflow::{plan_workflow, workflow_options, workflow_protected, WorkflowVerb};
+pub use workflow::{plan_workflow, workflow_protected, WorkflowVerb};
 
 pub const CLIPPY_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:clippy_output_diagnostics=true";
 

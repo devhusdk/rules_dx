@@ -117,20 +117,6 @@ pub fn manifest_is_check(manifest: &GenerationManifest) -> bool {
     manifest.mode == Mode::Check as i32
 }
 
-pub fn ensure_mode(manifest: &GenerationManifest, check: bool) -> Result<(), Error> {
-    let want = if check {
-        Mode::Check as i32
-    } else {
-        Mode::Default as i32
-    };
-    if manifest.mode != want {
-        return Err(Error::InvalidMode {
-            found: manifest.mode,
-        });
-    }
-    Ok(())
-}
-
 fn map_outcome(
     path: &str,
     outcome: i32,
@@ -387,16 +373,6 @@ mod tests {
         let default = default_manifest();
         assert!(manifest_is_check(&check));
         assert!(!manifest_is_check(&default));
-        assert!(ensure_mode(&check, true).is_ok());
-        assert!(ensure_mode(&default, false).is_ok());
-        assert!(matches!(
-            ensure_mode(&check, false),
-            Err(Error::InvalidMode { .. })
-        ));
-        assert!(matches!(
-            ensure_mode(&default, true),
-            Err(Error::InvalidMode { .. })
-        ));
     }
 
     #[test]

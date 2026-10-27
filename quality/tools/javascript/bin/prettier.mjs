@@ -48,5 +48,15 @@ const plugins = Object.entries(PLUGINS)
   .map(([name]) => `--plugin=${fileURLToPath(import.meta.resolve(name))}`);
 const options = `--config=${dxConfig ?? fileURLToPath(new URL("./prettier_options.json", import.meta.url))}`;
 const ignore = `--ignore-path=${fileURLToPath(new URL("./prettier_ignore", import.meta.url))}`;
-process.argv.splice(2, args.length, ...plugins, options, ignore, ...args);
+const forwarded = [...plugins, options, ignore, ...args];
+// Each dx-owned flag appears exactly once; a duplicate means the argv rewrite went wrong.
+const owned = forwarded.filter((arg) => arg.startsWith("--config=") || arg.startsWith("--ignore-path="));
+if (owned.length !== 2 || forwarded.some((arg) => arg.startsWith(`${DX_CONFIG}=`))) {
+  fail(`internal error: bad forwarded argv ${JSON.stringify(forwarded)}`);
+}
+// Replace the whole original tail: args is shorter than it when --dx-config was stripped.
+process.argv.splice(2, process.argv.length - 2, ...forwarded);
+if (process.argv.length !== forwarded.length + 2 || process.argv.slice(2).some((arg, i) => arg !== forwarded[i])) {
+  fail(`internal error: forwarded argv ${JSON.stringify(process.argv.slice(2))} != ${JSON.stringify(forwarded)}`);
+}
 createRequire(import.meta.url)("prettier/bin/prettier.cjs");

@@ -11,16 +11,6 @@ use super::{
     TestOutputIdentity,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TestOutputFile {
-    pub label: String,
-    pub name: String,
-    pub exec_path: PathBuf,
-    pub run: u32,
-    pub shard: u32,
-    pub attempt: u32,
-}
-
 /// One named artifact of one test result, resolved to its local path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestResultFile {
@@ -224,38 +214,6 @@ fn opt_configuration(id: &serde_json::Map<String, Value>) -> Option<String> {
         .map(str::to_owned)
 }
 
-pub fn collect_test_outputs(
-    reader: impl BufRead,
-    locations: impl FnOnce() -> Option<OutputLocations>,
-) -> Result<Vec<TestOutputFile>, BepError> {
-    let (events, tail) = read_test_events(reader, locations)?;
-    if let Some((line, reason)) = tail {
-        return Err(BepError::MalformedEvent { line, reason });
-    }
-    let mut outputs = Vec::new();
-    for result in &events.results {
-        for file in &result.files {
-            outputs.push(TestOutputFile {
-                label: result.label.clone(),
-                name: file.name.clone(),
-                exec_path: file.exec_path.clone(),
-                run: result.run,
-                shard: result.shard,
-                attempt: result.attempt,
-            });
-        }
-    }
-    outputs.sort_by(|a, b| {
-        a.label
-            .as_bytes()
-            .cmp(b.label.as_bytes())
-            .then(a.name.as_bytes().cmp(b.name.as_bytes()))
-            .then(a.run.cmp(&b.run))
-            .then(a.shard.cmp(&b.shard))
-            .then(a.attempt.cmp(&b.attempt))
-    });
-    Ok(outputs)
-}
 /// Reads the test events of a stream, keeping what came before a cut-off last line.
 pub fn collect_test_events(
     reader: impl BufRead,
@@ -694,6 +652,38 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
+    #[derive(Debug, PartialEq, Eq)]
+    struct Output {
+        label: String,
+        name: String,
+        exec_path: PathBuf,
+        run: u32,
+        shard: u32,
+        attempt: u32,
+    }
+
+    fn outputs(
+        reader: impl BufRead,
+        locations: impl FnOnce() -> Option<OutputLocations>,
+    ) -> Result<Vec<Output>, BepError> {
+        let events = collect_test_events(reader, locations)?;
+        assert_eq!(events.problem, None);
+        Ok(events
+            .results
+            .iter()
+            .flat_map(|result| {
+                result.files.iter().map(|file| Output {
+                    label: result.label.clone(),
+                    name: file.name.clone(),
+                    exec_path: file.exec_path.clone(),
+                    run: result.run,
+                    shard: result.shard,
+                    attempt: result.attempt,
+                })
+            })
+            .collect())
+    }
+
     fn test_result(label: &str, outputs: &[(&str, &str)]) -> String {
         let entries = outputs
             .iter()
@@ -730,7 +720,7 @@ mod tests {
     }
 
     #[test]
-    fn test_outputs_collect_sorted_records() {
+    fn test_outputs_sort_results_and_keep_file_order() {
         let stream = [
             test_result(
                 "//z:t",
@@ -744,11 +734,11 @@ mod tests {
             test_result("//a:t", &[("test.xml", out_uri("a/test.xml").as_str())]),
         ]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || None).expect("collect");
+        let got = outputs(Cursor::new(stream), || None).expect("collect");
         assert_eq!(
             got,
             vec![
-                TestOutputFile {
+                Output {
                     label: "//a:t".to_owned(),
                     name: "test.xml".to_owned(),
                     exec_path: out_path("a/test.xml"),
@@ -756,18 +746,18 @@ mod tests {
                     shard: 1,
                     attempt: 1,
                 },
-                TestOutputFile {
+                Output {
                     label: "//z:t".to_owned(),
-                    name: "test.log".to_owned(),
-                    exec_path: out_path("z/test.log"),
+                    name: "test.xml".to_owned(),
+                    exec_path: out_path("z/test.xml"),
                     run: 1,
                     shard: 1,
                     attempt: 1,
                 },
-                TestOutputFile {
+                Output {
                     label: "//z:t".to_owned(),
-                    name: "test.xml".to_owned(),
-                    exec_path: out_path("z/test.xml"),
+                    name: "test.log".to_owned(),
+                    exec_path: out_path("z/test.log"),
                     run: 1,
                     shard: 1,
                     attempt: 1,
@@ -801,7 +791,7 @@ mod tests {
             test_result_with_identity("//a:t", 1, 1, 1, &[("test.xml", out_uri("c.xml").as_str())]),
         ]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || None).expect("collect");
+        let got = outputs(Cursor::new(stream), || None).expect("collect");
         assert_eq!(
             got.iter()
                 .map(|output| (output.run, output.shard, output.attempt))
@@ -819,7 +809,7 @@ mod tests {
             r#"{{"id":{{"testResult":{{"label":"//a:t"}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"{}"}}]}}}}"#,
             out_uri("a.xml")
         );
-        let got = collect_test_outputs(Cursor::new(stream), || None).expect("collect");
+        let got = outputs(Cursor::new(stream), || None).expect("collect");
         assert_eq!(got.len(), 1);
         assert_eq!((got[0].run, got[0].shard, got[0].attempt), (1, 1, 1));
     }
@@ -832,7 +822,7 @@ mod tests {
                 out_uri("a.xml")
             );
             assert!(
-                collect_test_outputs(Cursor::new(stream), || None).is_err(),
+                outputs(Cursor::new(stream), || None).is_err(),
                 "{field}=0 must fail"
             );
             let stream = format!(
@@ -840,7 +830,7 @@ mod tests {
                 out_uri("a.xml")
             );
             assert!(
-                collect_test_outputs(Cursor::new(stream), || None).is_err(),
+                outputs(Cursor::new(stream), || None).is_err(),
                 "{field} string must fail"
             );
         }
@@ -853,14 +843,18 @@ mod tests {
             test_result("//a:t", &[]),
         ]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || None).expect("collect");
+        let got = outputs(Cursor::new(stream), || None).expect("collect");
         assert!(got.is_empty());
     }
 
     #[test]
     fn test_output_shape_failures_fail_collection() {
+        let events = collect_test_events(Cursor::new("not json"), || None).expect("cut-off tail");
+        assert!(events.results.is_empty());
+        assert!(events
+            .problem
+            .is_some_and(|problem| problem.starts_with("line 1:")));
         for stream in [
-            "not json".to_owned(),
             r#"{"no-id":true}"#.to_owned(),
             r#"{"id":{"testResult":{}},"testResult":{"testActionOutput":[]}}"#.to_owned(),
             test_result("//a:t", &[("test.xml", "bytestream://remote/1")]),
@@ -878,7 +872,7 @@ mod tests {
                 .to_owned(),
         ] {
             assert!(
-                collect_test_outputs(Cursor::new(stream), || None).is_err(),
+                outputs(Cursor::new(stream), || None).is_err(),
                 "must fail closed"
             );
         }
@@ -932,8 +926,7 @@ mod tests {
             ),
         ];
         for (stream, path, wording) in cases {
-            let err =
-                collect_test_outputs(Cursor::new(stream), || None).expect_err("must fail closed");
+            let err = outputs(Cursor::new(stream), || None).expect_err("must fail closed");
             let BepError::MalformedEvent { line, reason } = err else {
                 panic!("want MalformedEvent, got {err:?}");
             };
@@ -957,7 +950,7 @@ mod tests {
                 Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "boom"))
             }
         }
-        assert!(collect_test_outputs(std::io::BufReader::new(FailRead), || None).is_err());
+        assert!(outputs(std::io::BufReader::new(FailRead), || None).is_err());
     }
 
     fn test_summary(label: &str, shard_count: Option<u32>) -> String {
@@ -985,19 +978,18 @@ mod tests {
         )]
         .join("\n");
         let locations = OutputLocations::new(ws);
-        let got = collect_test_outputs(Cursor::new(stream), || Some(locations.clone()))
-            .expect("workspace root");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("workspace root");
         assert_eq!(got.len(), 2);
         assert_eq!(
-            got[0].exec_path,
+            got[1].exec_path,
             want_path(
                 "/ws",
                 &["bazel-testlogs", "cli/bep", "dx_bep_test", "coverage.dat"]
             )
         );
-        assert_eq!(got[0].name, "test.lcov");
+        assert_eq!(got[1].name, "test.lcov");
         assert_eq!(
-            got[1].exec_path,
+            got[0].exec_path,
             want_path(
                 "/ws",
                 &["bazel-testlogs", "cli/bep", "dx_bep_test", "test.xml"]
@@ -1037,8 +1029,7 @@ mod tests {
             ),
         ]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || Some(locations.clone()))
-            .expect("reported roots");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("reported roots");
         assert_eq!(got.len(), 3);
         assert_eq!(
             got[0].exec_path,
@@ -1083,8 +1074,7 @@ mod tests {
             r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":1}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs"]}}]}}}}"#
         )]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || Some(locations.clone()))
-            .expect("path prefix");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("path prefix");
         assert_eq!(
             got[0].exec_path,
             want_path(
@@ -1106,8 +1096,8 @@ mod tests {
             r#"{{"id":{{"testResult":{{"label":"//a:t","run":1,"shard":1,"attempt":1}}}},"testResult":{{"status":"PASSED","testActionOutput":[{{"name":"test.xml","uri":"bytestream://remote.buildbuddy.io/blobs/abc/10","pathPrefix":["bazel-out","k8-fastbuild","testlogs","a","t"]}}]}}}}"#
         )]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || Some(workspace_only.clone()))
-            .expect("no execroot");
+        let got =
+            outputs(Cursor::new(stream), || Some(workspace_only.clone())).expect("no execroot");
         assert_eq!(
             got[0].exec_path,
             want_path("/out/k8-fastbuild/testlogs", &["a", "t", "test.xml"]),
@@ -1165,8 +1155,7 @@ mod tests {
             configuration_event("cfgTop", "k8-fastbuild"),
         ]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || Some(locations.clone()))
-            .expect("configuration");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("configuration");
         let paths: Vec<_> = got.iter().map(|file| file.exec_path.clone()).collect();
         assert_eq!(
             paths,
@@ -1199,8 +1188,8 @@ mod tests {
         for run in 1..=5 {
             stream.push(configured_result("//a:t", "cfgST", run, bytestream_xml()));
         }
-        let got = collect_test_outputs(Cursor::new(stream.join("\n")), || Some(locations.clone()))
-            .expect("runs");
+        let got =
+            outputs(Cursor::new(stream.join("\n")), || Some(locations.clone())).expect("runs");
         assert_eq!(got.len(), 5);
         for (index, file) in got.iter().enumerate() {
             let run_dir = format!("run_{}_of_5", index + 1);
@@ -1234,8 +1223,7 @@ mod tests {
             configured_result("//a:t", "cfgST", 1, output),
         ]
         .join("\n");
-        let got =
-            collect_test_outputs(Cursor::new(stream), || Some(locations.clone())).expect("prefix");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("prefix");
         assert_eq!(
             got[0].exec_path,
             want_path(
@@ -1269,8 +1257,7 @@ mod tests {
             configured_result("//a:t", "cfgST", 1, prefixed_xml(&prefix)),
         ]
         .join("\n");
-        let got =
-            collect_test_outputs(Cursor::new(stream), || Some(locations.clone())).expect("shards");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("shards");
         assert_eq!(
             got[0].exec_path,
             want_path(
@@ -1293,8 +1280,7 @@ mod tests {
         let locations = configuration_locations();
         let prefix = ["bazel-out", "k8-fastbuild", "testlogs"];
         let stream = configured_result("@@repo//p:t", "cfgTop", 1, prefixed_xml(&prefix));
-        let got = collect_test_outputs(Cursor::new(stream), || Some(locations.clone()))
-            .expect("external");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("external");
         assert_eq!(
             got[0].exec_path,
             want_path(
@@ -1322,8 +1308,7 @@ mod tests {
             configured_result("//a:t", "cfgST", 1, prefixed_xml(&prefix)),
         ]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || Some(locations.clone()))
-            .expect("fallback");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("fallback");
         assert_eq!(
             got[0].exec_path,
             want_path(
@@ -1341,7 +1326,7 @@ mod tests {
             &[("test.xml", out_uri("testlogs/a/t/test.xml").as_str())],
         )]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || {
+        let got = outputs(Cursor::new(stream), || {
             calls.set(calls.get() + 1);
             None
         })
@@ -1360,7 +1345,7 @@ mod tests {
             test_result_with_identity("//a:t", 1, 2, 1, &[("test.xml", uri)]),
         ]
         .join("\n");
-        let got = collect_test_outputs(Cursor::new(stream), || {
+        let got = outputs(Cursor::new(stream), || {
             calls.set(calls.get() + 1);
             Some(OutputLocations::new(Path::new("/ws")))
         })
@@ -1379,8 +1364,7 @@ mod tests {
             &[("test.xml", "bytestream://remote.buildbuddy.io/blobs/abc/10")],
         )]
         .join("\n");
-        let err =
-            collect_test_outputs(Cursor::new(stream), || None).expect_err("no roots must fail");
+        let err = outputs(Cursor::new(stream), || None).expect_err("no roots must fail");
         let message = err.to_string();
         assert!(message.contains("//a:t"), "{message}");
         assert!(message.contains("run 2"), "{message}");
@@ -1405,8 +1389,7 @@ mod tests {
             ),
         ]
         .join("\n");
-        let got =
-            collect_test_outputs(Cursor::new(stream), || Some(locations.clone())).expect("summary");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("summary");
         assert_eq!(
             got[0].exec_path,
             want_path("/out/testlogs", &["a", "t", "shard_2_of_3", "test.xml"]),
@@ -1429,8 +1412,7 @@ mod tests {
             ),
         ]
         .join("\n");
-        let got =
-            collect_test_outputs(Cursor::new(stream), || Some(locations.clone())).expect("runs");
+        let got = outputs(Cursor::new(stream), || Some(locations.clone())).expect("runs");
         assert_eq!(
             got[1].exec_path,
             want_path("/out/testlogs", &["a", "t", "run_3_of_3", "test.xml"]),
@@ -1511,20 +1493,6 @@ mod tests {
     }
 
     #[test]
-    fn test_outputs_reject_a_cut_off_last_line() {
-        let stream = format!(
-            "{}\n{}",
-            test_result("//a:t", &[("test.xml", &out_uri("a.xml"))]),
-            r#"{"id":{"testRes"#
-        );
-        let err = collect_test_outputs(Cursor::new(stream), || None).expect_err("must fail");
-        assert!(
-            matches!(err, BepError::MalformedEvent { line: 2, .. }),
-            "{err:?}"
-        );
-    }
-
-    #[test]
     fn test_events_capture_executed_result_without_cache_facts() {
         let stream = format!(
             r#"{{"id":{{"testResult":{{"label":"//a:t"}}}},"testResult":{{"status":"PASSED","testAttemptDurationMillis":23,"executionInfo":{{"strategy":"linux-sandbox"}},"testActionOutput":[{{"name":"test.xml","uri":"{}"}}]}}}}"#,
@@ -1572,46 +1540,6 @@ mod tests {
         assert_eq!(result.cached_locally, None);
         assert_eq!(result.duration_millis, None);
         assert_eq!(result.strategy, None);
-    }
-
-    #[test]
-    fn test_outputs_stay_a_projection_of_events() {
-        let stream = [
-            test_result(
-                "//z:t",
-                &[
-                    ("test.xml", out_uri("z/test.xml").as_str()),
-                    ("test.log", out_uri("z/test.log").as_str()),
-                ],
-            ),
-            test_result("//a:t", &[("test.xml", out_uri("a/test.xml").as_str())]),
-        ]
-        .join("\n");
-        let events = collect_test_events(Cursor::new(stream.clone()), || None).expect("events");
-        let outputs = collect_test_outputs(Cursor::new(stream), || None).expect("outputs");
-        let mut flattened = Vec::new();
-        for result in &events.results {
-            for file in &result.files {
-                flattened.push(TestOutputFile {
-                    label: result.label.clone(),
-                    name: file.name.clone(),
-                    exec_path: file.exec_path.clone(),
-                    run: result.run,
-                    shard: result.shard,
-                    attempt: result.attempt,
-                });
-            }
-        }
-        flattened.sort_by(|a, b| {
-            a.label
-                .as_bytes()
-                .cmp(b.label.as_bytes())
-                .then(a.name.as_bytes().cmp(b.name.as_bytes()))
-                .then(a.run.cmp(&b.run))
-                .then(a.shard.cmp(&b.shard))
-                .then(a.attempt.cmp(&b.attempt))
-        });
-        assert_eq!(outputs, flattened);
     }
 
     fn configured_test(label: &str) -> String {

@@ -19,10 +19,10 @@ pub use failures::{
 };
 pub use ledger::{EventGap, EventLedger};
 pub use metrics::{collect_action_summary, ActionSummary};
-pub use outputs::{collect, collect_account, collect_with_workspace, OutputAccount};
+pub use outputs::{collect_account, OutputAccount};
 pub use test_outputs::{
-    collect_test_events, collect_test_outputs, TestEvents, TestOutputFile, TestResultFile,
-    TestResultRecord, TestSummaryRecord, UnbuiltTest,
+    collect_test_events, TestEvents, TestResultFile, TestResultRecord, TestSummaryRecord,
+    UnbuiltTest,
 };
 
 use std::io::BufRead;

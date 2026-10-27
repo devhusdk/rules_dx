@@ -636,6 +636,8 @@ struct Collected {
     sources: Sources,
     reported: Vec<TestOutcome>,
     gap: Option<String>,
+    /// Sorted, deduplicated labels that ran under coverage without a collector.
+    no_collector: Vec<String>,
 }
 
 /// Reads every result's test.xml into suites and outcomes for `dx test`.
@@ -823,8 +825,11 @@ fn collect_lcov(
     for problem in &sources.missing {
         evidence.record(problem.clone());
     }
+    let no_collector = no_collector_labels(events);
+    // A run of only collector-less tests has no LCOV by design; the
+    // no_coverage_collector verdict names the cause instead of a missing-artifact gap.
     let gap = evidence_gap(
-        lcov_documents.is_empty(),
+        lcov_documents.is_empty() && no_collector.is_empty(),
         &evidence,
         "no coverage.dat artifacts were reported",
     );
@@ -833,8 +838,43 @@ fn collect_lcov(
         sources,
         reported,
         gap,
+        no_collector,
         ..Collected::default()
     }
+}
+
+/// Labels tagged as having no coverage collector that produced a test result, once each.
+fn no_collector_labels(events: &TestEvents) -> Vec<String> {
+    let mut labels: Vec<String> = events
+        .results
+        .iter()
+        .filter(|result| events.no_coverage_collector.contains(&result.label))
+        .map(|result| result.label.clone())
+        .collect();
+    labels.sort();
+    labels.dedup();
+    labels
+}
+
+/// Reports each test that ran under coverage with no collector; true when there were none.
+fn announce_no_collector(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    labels: &[String],
+) -> Result<bool, i32> {
+    for label in labels {
+        let message = format!("no coverage collector for {label}");
+        if output == OutputMode::Json {
+            emit_built(
+                out,
+                dx_output::error_event(CODE_NO_COVERAGE_COLLECTOR, &message, None, None, None),
+            )?;
+        } else {
+            let _ = writeln!(err, "dx: {CODE_NO_COVERAGE_COLLECTOR}: {message}");
+        }
+    }
+    Ok(labels.is_empty())
 }
 
 /// Prints each outcome in the run's output mode and counts the ones that were not superseded.
@@ -1234,6 +1274,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         sources,
         mut reported,
         gap,
+        no_collector,
     } = if verb == WorkflowVerb::Test {
         collect_test_xml(&events, &summaries, &reader, evidence, err)
     } else {
@@ -1301,6 +1342,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     if let Err(exit) = announce_incomplete(invocation.output, out, err, &detail) {
         return kept_child(err, bazel_code, exit);
     }
+    let collector_ok = match announce_no_collector(invocation.output, out, err, &no_collector) {
+        Ok(ok) => ok,
+        Err(exit) => return kept_child(err, bazel_code, exit),
+    };
     let threshold_ok = if verb == WorkflowVerb::Coverage {
         match coverage_threshold(
             invocation.min_coverage,
@@ -1322,7 +1367,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     }
     let code = if bazel_code != 0 {
         bazel_code
-    } else if complete && reports_ok && threshold_ok {
+    } else if complete && reports_ok && threshold_ok && collector_ok {
         0
     } else {
         1
@@ -4868,6 +4913,113 @@ mod tests {
             err.contains("dx: incomplete_results: build events ended before Bazel's last event"),
             "{err}"
         );
+    }
+
+    fn no_collector_configured(label: &str) -> String {
+        serde_json::json!({
+            "id": {"targetConfigured": {"label": label}},
+            "configured": {
+                "targetKind": "_zig_forward_test rule",
+                "testSize": "SMALL",
+                "tag": ["manual", "dx-no-coverage-collector"],
+            },
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn coverage_fails_when_only_collectorless_tests_ran() {
+        let harness = Harness::new("cov-no-collector-only");
+        let empty = write_bep_artifact(&harness, "zig.dat", b"");
+        let harness = Harness {
+            raw_bep: Some(vec![
+                no_collector_configured("//z:t"),
+                test_result_line("//z:t", &[(String::from("coverage.dat"), empty)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains("dx: no_coverage_collector: no coverage collector for //z:t"),
+            "{err}"
+        );
+        assert!(!err.contains("incomplete_results"), "{err}");
+    }
+
+    #[test]
+    fn coverage_fails_when_collectorless_tests_mix_with_lcov() {
+        let harness = Harness::new("cov-no-collector-mixed");
+        let empty = write_bep_artifact(&harness, "zig2.dat", b"");
+        let ok = write_bep_artifact(&harness, "rust.dat", MINIMAL_LCOV.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                no_collector_configured("//z:t"),
+                test_result_line("//z:t", &[(String::from("coverage.dat"), empty.clone())]),
+                test_result_line("//z:t", &[(String::from("coverage.dat"), empty)]),
+                test_result_line("//r:t", &[(String::from("coverage.dat"), ok)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--report=lcov=out.lcov"]);
+        assert_eq!(code, 1, "{err}");
+        assert_eq!(err.matches("no_coverage_collector").count(), 1, "{err}");
+        let document = std::fs::read(harness.workspace.join("out.lcov")).expect("lcov");
+        assert_eq!(document, MINIMAL_LCOV.as_bytes());
+    }
+
+    #[test]
+    fn coverage_ignores_collectorless_tests_without_results() {
+        let mut harness = coverage_harness("cov-no-collector-filtered", MINIMAL_LCOV.as_bytes());
+        let mut lines = vec![no_collector_configured("//z:skipped")];
+        lines.extend(harness.raw_bep.take().expect("bep"));
+        harness.raw_bep = Some(lines);
+        let (code, _, err) = harness.run(&["coverage", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("no_coverage_collector"), "{err}");
+    }
+
+    #[test]
+    fn coverage_no_collector_is_a_json_error_event() {
+        let harness = Harness::new("cov-no-collector-json");
+        let empty = write_bep_artifact(&harness, "zig3.dat", b"");
+        let harness = Harness {
+            raw_bep: Some(vec![
+                no_collector_configured("//z:t"),
+                test_result_line("//z:t", &[(String::from("coverage.dat"), empty)]),
+            ]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["coverage", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        assert!(
+            events_of_kind(&events, "error")
+                .iter()
+                .any(|event| event["code"] == serde_json::json!("no_coverage_collector")),
+            "{out}"
+        );
+        assert_eq!(
+            event(&events, "command_finished")["results_complete"],
+            serde_json::json!(true),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn test_ignores_the_no_collector_tag() {
+        let harness = Harness::new("test-no-collector");
+        let uri = write_bep_artifact(&harness, "zig.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![
+                no_collector_configured("//z:t"),
+                test_result_line("//z:t", &[(String::from("test.xml"), uri)]),
+            ]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["test", "--output=text"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("no_coverage_collector"), "{err}");
     }
 
     struct BrokenPipe;

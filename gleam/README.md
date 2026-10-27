@@ -151,3 +151,7 @@ The compiler is the type and warning check. No Gleam linter runs yet.
 | `windows_x86_64` | Not qualified |
 
 On other platforms Gleam targets fail toolchain resolution.
+
+## Coverage
+
+Gleam tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.

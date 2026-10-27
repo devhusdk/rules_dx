@@ -1,5 +1,5 @@
 use std::cell::LazyCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io::BufRead;
 use std::path::PathBuf;
 
@@ -74,7 +74,15 @@ pub struct TestEvents {
     pub filtered: Vec<UnbuiltTest>,
     /// The cut-off last line that ended the stream early.
     pub problem: Option<String>,
+    /// Test labels whose configured target carries
+    /// [`NO_COVERAGE_COLLECTOR_TAG`]: their language writes empty LCOV.
+    pub no_coverage_collector: BTreeSet<String>,
 }
+
+/// The tag dx test macros put on a test whose language has no coverage
+/// collector; it mirrors `DX_NO_COVERAGE_COLLECTOR_TAG` in
+/// `libs/starlark/wrapper.bzl`.
+pub const NO_COVERAGE_COLLECTOR_TAG: &str = "dx-no-coverage-collector";
 
 struct TestResultId<'a> {
     label: &'a str,
@@ -269,6 +277,7 @@ fn read_test_events(
     let mut shard_counts: HashMap<String, u32> = HashMap::new();
     let mut ledger = EventLedger::default();
     let mut test_labels: HashSet<String> = HashSet::new();
+    let mut no_coverage_collector: BTreeSet<String> = BTreeSet::new();
     let mut failed_completions: Vec<UnbuiltTest> = Vec::new();
     let mut passed_completions: Vec<UnbuiltTest> = Vec::new();
     let mut mnemonics: HashMap<String, String> = HashMap::new();
@@ -294,6 +303,9 @@ fn read_test_events(
         }
         if let Some(label) = test_label(id, object) {
             test_labels.insert(label.to_owned());
+            if has_tag(object, NO_COVERAGE_COLLECTOR_TAG) {
+                no_coverage_collector.insert(label.to_owned());
+            }
         }
         if let Some((target, success)) = target_completion(id, object) {
             if success {
@@ -475,6 +487,7 @@ fn read_test_events(
         unbuilt,
         filtered,
         problem: None,
+        no_coverage_collector,
     };
     Ok((events, lines.tail))
 }
@@ -514,6 +527,15 @@ fn test_label<'a>(
         .and_then(Value::as_object)
         .filter(|body| body.contains_key("testSize"))?;
     configured.get("label").and_then(Value::as_str)
+}
+
+/// Whether a `targetConfigured` body lists `tag` in its `tag` array.
+fn has_tag(object: &serde_json::Map<String, Value>, tag: &str) -> bool {
+    object
+        .get("configured")
+        .and_then(|body| body.get("tag"))
+        .and_then(Value::as_array)
+        .is_some_and(|tags| tags.iter().any(|value| value.as_str() == Some(tag)))
 }
 
 /// One `testSummary` body beside its id, with unknown fields left unknown.
@@ -1596,6 +1618,30 @@ mod tests {
         format!(
             r#"{{"id":{{"targetConfigured":{{"label":"{label}"}}}},"configured":{{"testSize":"SMALL"}}}}"#
         )
+    }
+
+    fn configured_tagged_test(label: &str, tags: &str) -> String {
+        format!(
+            r#"{{"id":{{"targetConfigured":{{"label":"{label}"}}}},"configured":{{"testSize":"SMALL","tag":[{tags}]}}}}"#
+        )
+    }
+
+    #[test]
+    fn a_tagged_configured_test_has_no_coverage_collector() {
+        let stream = [
+            configured_tagged_test("//a:zig", r#""manual","dx-no-coverage-collector""#),
+            configured_tagged_test("//a:rust", r#""manual""#),
+            configured_test("//a:plain"),
+            r#"{"id":{"targetConfigured":{"label":"//a:aspect","aspect":"//x:a.bzl%a"}},"configured":{"testSize":"SMALL","tag":["dx-no-coverage-collector"]}}"#.to_owned(),
+        ]
+        .join("\n");
+        let events = collect_test_events(Cursor::new(stream), || None).expect("events");
+        let labels: Vec<&str> = events
+            .no_coverage_collector
+            .iter()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(labels, ["//a:zig"]);
     }
 
     fn completed(label: &str, success: bool) -> String {

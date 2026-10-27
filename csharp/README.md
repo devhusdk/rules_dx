@@ -101,3 +101,7 @@ The command reference covers `dx generate`. The `examples/adopt-csharp` tree sho
 | --- | --- |
 | `linux_x86_64` | Supported |
 | Other cells | Not supported |
+
+## Coverage
+
+C# tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.

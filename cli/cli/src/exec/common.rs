@@ -200,6 +200,7 @@ pub(crate) const CODE_COLLECTION_FAILED: &str = "collection_failed";
 pub(crate) const CODE_VERIFICATION_FAILED: &str = "verification_failed";
 pub(crate) const CODE_NOT_CONVERGED: &str = "not_converged";
 pub(crate) const CODE_COVERAGE_BELOW_MINIMUM: &str = "coverage_below_minimum";
+pub(crate) const CODE_NO_COVERAGE_COLLECTOR: &str = "no_coverage_collector";
 pub(crate) const CODE_COVERAGE_SOURCES_INCOMPLETE: &str = "coverage_sources_incomplete";
 pub(crate) const CODE_COVERAGE_SOURCES: &str = "coverage_sources";
 pub(crate) const CODE_CLEAN_FAILED: &str = "clean_failed";

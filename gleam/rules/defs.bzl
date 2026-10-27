@@ -9,6 +9,10 @@ load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merge
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":javascript.bzl", _GleamJsInfo = "GleamJsInfo", _gleam_js_binary = "gleam_js_binary", _gleam_js_library = "gleam_js_library", _gleam_js_test = "gleam_js_test", _package_name = "package_name")
 
+# False while gleam tests write empty LCOV under `bazel coverage`; the public
+# test then carries dx-no-coverage-collector and `dx coverage` fails loud (#2308).
+GLEAM_COVERAGE_COLLECTOR = False
+
 GleamErlPackageInfo = _GleamErlPackageInfo
 
 GleamJsInfo = _GleamJsInfo
@@ -198,7 +202,7 @@ def gleam_test(name, srcs = None, visibility = None, **kwargs):
     upstream = upstream_kwargs(kwargs, srcs, "test")
     upstream["deps"] = with_gleeunit(upstream.get("deps"))
     upstream.pop("srcs")
-    dx_wrap_test(name, _gleam_test, _gleam_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
+    dx_wrap_test(name, _gleam_test, _gleam_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, coverage_collector = GLEAM_COVERAGE_COLLECTOR, **kwargs)
 
 def gleam_js_library(name, srcs = None, visibility = None, testonly = False, **kwargs):
     """Compiles one Gleam package and its .mjs FFI files to JavaScript."""
@@ -218,4 +222,4 @@ def gleam_js_test(name, srcs = None, visibility = None, **kwargs):
     upstream = js_kwargs(kwargs, srcs, "test", name)
     upstream["deps"] = with_gleeunit(upstream.get("deps"), GLEEUNIT_JS)
     upstream.pop("srcs")
-    dx_wrap_test(name, _gleam_js_test, _gleam_js_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
+    dx_wrap_test(name, _gleam_js_test, _gleam_js_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, coverage_collector = GLEAM_COVERAGE_COLLECTOR, **kwargs)

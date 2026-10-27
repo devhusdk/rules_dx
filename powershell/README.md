@@ -103,3 +103,7 @@ bazel run @rules_dx//:dx -- lint //scripts/...
 | --- | --- |
 | `linux_x86_64` | Supported |
 | Other cells | Not supported |
+
+## Coverage
+
+PowerShell tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.

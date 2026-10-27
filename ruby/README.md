@@ -102,3 +102,7 @@ files and `require` lines. The command reference covers `dx generate`. The `exam
 | --- | --- |
 | `linux_x86_64` | Supported |
 | Other cells | Not supported |
+
+## Coverage
+
+Ruby tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.

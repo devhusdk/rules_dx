@@ -888,6 +888,41 @@ impl RealBackend {
                     parsed(tool_id, report)
                 }
             }
+            "statix" => {
+                if !tool.upstream_diagnostics.is_empty() {
+                    return self.check_file_family_delegated(tool_id, tool, pairs);
+                }
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "statix needs a config path".to_owned()));
+                };
+                let mut findings = Vec::new();
+                for name in &strs {
+                    let invocation = commands::statix_check(&tool.binary, Path::new(name), config);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let report =
+                        parsers::parse_statix(&out.stdout, &out.stderr, out.code, &[*name]);
+                    findings.extend(parsed(tool_id, report)?);
+                }
+                Ok(findings)
+            }
+            "deadnix" => {
+                if !tool.upstream_diagnostics.is_empty() {
+                    return self.check_file_family_delegated(tool_id, tool, pairs);
+                }
+                self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| Ok(commands::deadnix_check(&tool.binary, files)),
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_deadnix(&out.stdout, &out.stderr, out.code, names),
+                        )
+                    },
+                )
+            }
             "keep_sorted" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)

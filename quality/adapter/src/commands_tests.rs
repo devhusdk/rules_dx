@@ -1483,6 +1483,45 @@ fn file_family_lint_checks_are_check_only() {
 }
 
 #[test]
+fn nix_tools_pin_their_flags() {
+    let nix = Path::new("/scratch/-a.nix");
+    let config = Path::new("/scratch/statix.toml");
+    assert_eq!(
+        argv_strings(&statix_check(Path::new(BIN), nix, config)),
+        vec![
+            BIN,
+            "check",
+            "-o",
+            "json",
+            "--config",
+            "/scratch/statix.toml",
+            "--",
+            "/scratch/-a.nix"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&statix_fix(Path::new(BIN), nix, config)),
+        vec![
+            BIN,
+            "fix",
+            "--config",
+            "/scratch/statix.toml",
+            "--",
+            "/scratch/-a.nix"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&deadnix_check(Path::new(BIN), &[nix])),
+        vec![BIN, "--fail", "-o", "json", "--", "/scratch/-a.nix"]
+    );
+    assert_eq!(
+        argv_strings(&deadnix_fix(Path::new(BIN), &[nix])),
+        vec![BIN, "--edit", "--", "/scratch/-a.nix"]
+    );
+    assert_eq!(statix_check(Path::new(BIN), nix, config).cwd_rel, "");
+}
+
+#[test]
 fn hadolint_never_overrides_the_user_policy() {
     let invocation = hadolint_check(
         Path::new(BIN),
@@ -1670,7 +1709,14 @@ fn plan_batches_honours_launcher_budget() {
 
 #[test]
 fn file_independent_tools_batch() {
-    for tool in ["keep_sorted", "ruff", "flake8", "pydoclint", "buildifier"] {
+    for tool in [
+        "keep_sorted",
+        "ruff",
+        "flake8",
+        "pydoclint",
+        "buildifier",
+        "deadnix",
+    ] {
         assert_eq!(transport_for(tool), ArgTransport::Batched, "{tool}");
     }
     for tool in [
@@ -1684,6 +1730,7 @@ fn file_independent_tools_batch() {
         "staticcheck",
         "biome",
         "eslint",
+        "statix",
     ] {
         assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
     }

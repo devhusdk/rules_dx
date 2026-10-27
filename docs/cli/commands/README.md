@@ -568,6 +568,7 @@ Language rules:
 - `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
 - `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
 - `@rules_dx//lua/rules:defs.bzl`: Lua.
+- `@rules_dx//nix/rules:defs.bzl`: Nix.
 - `@rules_dx//perl/rules:defs.bzl`: Perl.
 - `@rules_dx//pkl/rules:defs.bzl`: Pkl.
 - `@rules_dx//php/rules:defs.bzl`: PHP.

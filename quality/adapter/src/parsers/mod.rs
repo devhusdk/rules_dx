@@ -7,6 +7,7 @@ pub mod clang_tidy;
 pub mod cppcheck;
 pub mod csharpier;
 pub mod cue;
+pub mod deadnix;
 pub mod djlint;
 pub mod erlfmt;
 pub mod errcheck;
@@ -48,6 +49,7 @@ pub mod shfmt;
 pub mod spotbugs;
 pub mod standardrb;
 pub mod staticcheck;
+pub mod statix;
 pub mod stylelint;
 pub mod stylua;
 pub mod taplo;
@@ -67,6 +69,7 @@ pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
 pub use csharpier::parse_csharpier;
 pub use cue::parse_cue;
+pub use deadnix::parse_deadnix;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
@@ -107,6 +110,7 @@ pub use shfmt::parse_shfmt;
 pub use spotbugs::parse_spotbugs;
 pub use standardrb::parse_standardrb;
 pub use staticcheck::parse_staticcheck;
+pub use statix::parse_statix;
 pub use stylelint::parse_stylelint;
 pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
@@ -1840,6 +1844,22 @@ mod tests {
         super::roslyn::parse_roslyn(input, code, files)
     }
 
+    fn fuzz_deadnix(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::deadnix::parse_deadnix(input, input, code, files)
+    }
+
+    fn fuzz_statix(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::statix::parse_statix(input, input, code, files)
+    }
+
     fn fuzz_hadolint(
         input: &[u8],
         code: Option<i32>,
@@ -2059,6 +2079,7 @@ mod tests {
         ("cppcheck", fuzz_cppcheck),
         ("csharpier", fuzz_csharpier),
         ("cue", fuzz_cue),
+        ("deadnix", fuzz_deadnix),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
         ("erlfmt", fuzz_erlfmt),
@@ -2107,6 +2128,7 @@ mod tests {
         ("spotbugs", fuzz_spotbugs),
         ("standardrb", fuzz_standardrb),
         ("staticcheck", fuzz_staticcheck),
+        ("statix", fuzz_statix),
         ("stylelint", fuzz_stylelint),
         ("stylua", fuzz_stylua),
         ("taplo_lint", fuzz_taplo_lint),
@@ -2129,6 +2151,7 @@ mod tests {
         ("cppcheck", include_str!("cppcheck.rs")),
         ("csharpier", include_str!("csharpier.rs")),
         ("cue", include_str!("cue.rs")),
+        ("deadnix", include_str!("deadnix.rs")),
         ("djlint", include_str!("djlint.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),
@@ -2170,6 +2193,7 @@ mod tests {
         ("spotbugs", include_str!("spotbugs.rs")),
         ("standardrb", include_str!("standardrb.rs")),
         ("staticcheck", include_str!("staticcheck.rs")),
+        ("statix", include_str!("statix.rs")),
         ("stylelint", include_str!("stylelint.rs")),
         ("stylua", include_str!("stylua.rs")),
         ("taplo", include_str!("taplo.rs")),
@@ -2201,7 +2225,7 @@ mod tests {
     fn every_declared_parser_is_in_the_fuzz_table() {
         let declared = declared_parser_names();
         assert!(
-            declared.len() >= 57,
+            declared.len() >= 59,
             "expected the full parser set, got {declared:?}"
         );
         let bare: Vec<String> = declared

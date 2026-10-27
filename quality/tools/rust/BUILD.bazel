@@ -1,0 +1,20 @@
+# Quality tools built from Rust source through the dx_quality_crates hub.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Cargo.lock",
+    "Cargo.toml",
+    "cargo-bazel-lock.json",
+    "statix.BUILD.bazel",
+])
+
+alias(
+    name = "deadnix",
+    actual = "@dx_quality_crates//:deadnix__deadnix",
+)
+
+alias(
+    name = "statix",
+    actual = "@dx_statix_src//:statix",
+)

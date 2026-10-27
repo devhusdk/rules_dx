@@ -57,6 +57,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(REDOCLY_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "statix" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(STATIX_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(STATIX_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "stylelint" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(STYLELINT_DEFAULTS_REL),
@@ -156,6 +162,13 @@ impl RealBackend {
         }
         if tool_id == "redocly" {
             let rel = tool.config_rel.as_deref().unwrap_or(REDOCLY_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "statix" {
+            let rel = tool.config_rel.as_deref().unwrap_or(STATIX_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

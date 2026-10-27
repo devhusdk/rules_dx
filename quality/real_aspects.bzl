@@ -108,6 +108,13 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "core",
     },
+    "deadnix": {
+        "attr": attr.label(default = "//quality/tools/rust:deadnix", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "light",
+        "shard": "nix",
+    },
     "djlint": {
         "attr": attr.label(default = "//quality/tools/python:djlint", cfg = "exec", executable = True),
         "capabilities": ["format", "lint"],
@@ -370,6 +377,13 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
+    },
+    "statix": {
+        "attr": attr.label(default = "//quality/tools/rust:statix", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "light",
+        "shard": "nix",
     },
     "stylelint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:stylelint", cfg = "exec", executable = True),
@@ -1419,6 +1433,12 @@ _REAL_SHARD_SPECS = {
         "shard": "dockerfile",
         "suffix": "-dockerfile",
     },
+    "real_nix_lint": {
+        "capability": "lint",
+        "doc": "Additive Nix lint family aspect (statix, deadnix).",
+        "shard": "nix",
+        "suffix": "-nix",
+    },
     "real_cue_format": {
         "capability": "format",
         "doc": "Additive CUE format family aspect (cue fmt).",
@@ -1604,6 +1624,8 @@ real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
 real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
+
+real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
 
 real_powershell_format_aspect = _make_real_aspect("real_powershell_format")
 

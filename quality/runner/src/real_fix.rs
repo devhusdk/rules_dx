@@ -238,6 +238,18 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "statix",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "deadnix",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "keep_sorted",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -464,9 +476,14 @@ impl<'a> FixSession<'a> {
             })
             .collect();
         let refs: Vec<&Path> = absolute.iter().map(PathBuf::as_path).collect();
-        let batches = commands::plan_invocation_batches(&refs, |batch| {
-            backend.fix_invocation(route, tool_id, tool, batch, &session.scratch)
-        })?;
+        // statix fixes exactly one target per run.
+        let batches = if tool_id == "statix" {
+            refs.iter().map(|file| vec![*file]).collect()
+        } else {
+            commands::plan_invocation_batches(&refs, |batch| {
+                backend.fix_invocation(route, tool_id, tool, batch, &session.scratch)
+            })?
+        };
         let mut fixed = BTreeMap::new();
         let mut offset = 0;
         for batch in batches {
@@ -786,6 +803,15 @@ impl super::RealBackend {
                             .map_err(|err| execution(tool_id, err.to_string()))?)
                     }
                     "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs, config.as_deref())),
+                    "statix" => match (refs, config.as_deref()) {
+                        ([file], Some(config)) => {
+                            Ok(commands::statix_fix(&tool.binary, file, config))
+                        }
+                        _ => Err(execution(
+                            tool_id,
+                            "statix fixes one file with a config".to_owned(),
+                        )),
+                    },
                     "clang_format" => Ok(commands::clang_format_fix(
                         &tool.binary,
                         refs,
@@ -815,6 +841,7 @@ impl super::RealBackend {
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
                 "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
                 "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),
+                "deadnix" => Ok(commands::deadnix_fix(&tool.binary, refs)),
                 _ => Err(execution(
                     tool_id,
                     format!("unsupported real tool: {tool_id}"),

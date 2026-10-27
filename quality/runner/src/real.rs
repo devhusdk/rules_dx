@@ -21,6 +21,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "cppcheck",
     "csharpier",
     "cue",
+    "deadnix",
     "djlint",
     "erlfmt",
     "errcheck",
@@ -62,6 +63,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "spotbugs",
     "standardrb",
     "staticcheck",
+    "statix",
     "stylelint",
     "stylua",
     "taplo",
@@ -88,6 +90,9 @@ ktlint_standard_trailing-comma-on-declaration-site = disabled
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
+const STATIX_DEFAULTS_REL: &str = "dx-statix-default/statix.toml";
+/// An empty `statix.toml` keeps every lint on and stops statix searching upward for one.
+const STATIX_DEFAULTS_BYTES: &[u8] = b"";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const REDOCLY_DEFAULTS_REL: &str = "dx-redocly-default/redocly.yaml";

@@ -309,7 +309,15 @@ impl RealBackend {
                     .iter()
                     .map(|(workspace, _)| workspace.as_str())
                     .collect();
-                let report = parsers::parse_prettier_check(&out.stderr, out.code, &workspaces);
+                let report = parsers::parse_prettier_check_with_sources(
+                    &out.stderr,
+                    out.code,
+                    &workspaces,
+                    |workspace| {
+                        let (_, absolute) = pairs.iter().find(|(known, _)| known == workspace)?;
+                        std::fs::read_to_string(absolute).ok()
+                    },
+                );
                 let mut findings = parsed(tool_id, report)?;
                 for found in &mut findings {
                     let absolute = reanchor(tool_id, pairs, &found.file)?;

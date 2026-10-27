@@ -88,7 +88,7 @@ pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
-pub use prettier::parse_prettier_check;
+pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
 pub use psscriptanalyzer::parse_psscriptanalyzer;
 pub use pydoclint::parse_pydoclint;
 pub use pylint::parse_pylint;

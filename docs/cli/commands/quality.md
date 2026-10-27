@@ -1226,10 +1226,12 @@ bazel run @rules_dx//:dx -- format --apply //web/...
 
 A check never writes. `--apply` rewrites only the files the selected targets
 own. The script, markup and style blocks are all formatted. An unformatted file
-is reported at the start of the file. A syntax error fails the run with the
-file, line and column. It never counts as clean. `.prettierrc`, `.editorconfig`
-and other user config files are ignored. `svelte-check` and the Svelte compiler
-are not run.
+is reported at the start of the file. A syntax error fails the run and never
+counts as clean. dx places it at the line and column in the original file by
+matching the compiler's code frame against the file. When the frame matches no
+single place, the error is reported at line 1, column 1. `.prettierrc`,
+`.editorconfig` and other user config files are ignored. `svelte-check` and the
+Svelte compiler are not run.
 
 `eslint` lint is opt-in. Select it in the `svelte` family and bind an
 `eslint_config` to the library with `aspect_hints`.

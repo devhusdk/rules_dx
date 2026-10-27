@@ -39,7 +39,8 @@ const BROKEN_FEATURE: &str = "Scenario: no feature line\n  Given a user\n";
 
 const BROKEN_ASTRO: &str = "<div>\n  <span>hi\n</p>\n";
 
-const BROKEN_SVELTE: &str = "<div>\n  <span>hi\n</p>\n";
+const BROKEN_SVELTE: &str =
+    "<script>\n  let name = \"x\";\n\n  let n = 1;\n</script>\n\n<div>\n  <span>{name}\n</p>\n\n<b>{n}</b>\n";
 
 const CLOSURE_REPOS: [&str; 29] = [
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier__3.9.6",
@@ -365,7 +366,7 @@ fn a_syntax_error_is_located_and_never_clean_in_every_class() {
         (
             "web/Greeting.svelte",
             BROKEN_SVELTE,
-            "web/Greeting.svelte:3:1: error",
+            "web/Greeting.svelte:9:1: error",
         ),
     ] {
         let root = consumer();

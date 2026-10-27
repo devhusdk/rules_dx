@@ -47,9 +47,18 @@ bridge=jni
 
 Copy `rules_android/rules_android.patch` from the rules_dx patches to
 `third_party/rules_dx/rules_android.rules_android.patch`, then add this to
-`MODULE.bazel`:
+`MODULE.bazel`. The Rust core is built for the APK's ABIs, so add the
+Android target triples to the `rust.toolchain` call that `dx init` wrote:
 
 ```python
+rust.toolchain(
+    # Keep the edition, rustfmt_version and versions that dx init wrote.
+    extra_target_triples = [
+        "aarch64-linux-android",
+        "x86_64-linux-android",
+    ],
+)
+
 single_version_override(
     module_name = "rules_android",
     patch_strip = 1,

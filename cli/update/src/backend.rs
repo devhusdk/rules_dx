@@ -376,7 +376,8 @@ fn npm_env() -> Vec<(String, String)> {
         .collect()
 }
 
-/// The env crate_universe reads to decide whether to repin; both triggers are forced so a host
+/// The env crate_universe reads to decide whether to repin; `repin` may also be one crate name,
+/// which crate_universe turns into `cargo update --package <name>`. Both triggers are forced so a host
 /// `REPIN` or `CARGO_BAZEL_REPIN` cannot turn a check into a write.
 pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
     vec![
@@ -411,8 +412,31 @@ fn cargo_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
         })
 }
 
-const CARGO_SELECTIVE: &str =
-    "crate_universe repins the whole Cargo.lock; select the set without a package";
+const CARGO_CHECK_SELECTIVE: &str =
+    "crate_universe checks the whole Cargo.lock; select the set without a package";
+const CARGO_ONE_PACKAGE: &str = "crate_universe repins one crate per run; select one package per cargo set, or the set without a package";
+const CARGO_RESERVED: &str =
+    "crate_universe reads this crate name as a repin mode; select the set without a package";
+
+/// Values crate_universe reads as a repin mode (or as "skip the repin") instead of a crate name.
+fn cargo_reserved_repin(name: &str) -> bool {
+    const WORDS: [&str; 13] = [
+        "eager",
+        "full",
+        "all",
+        "1",
+        "yes",
+        "true",
+        "on",
+        "workspace",
+        "minimal",
+        "false",
+        "no",
+        "0",
+        "off",
+    ];
+    WORDS.iter().any(|word| word.eq_ignore_ascii_case(name))
+}
 
 fn configured_pnpm_argv(
     workspace: &Path,
@@ -558,10 +582,35 @@ pub fn plan_configured(
                 env: cargo_env("workspace", repository),
             })
         }
-        (Ecosystem::Cargo, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: CARGO_SELECTIVE,
-        }),
+        (Ecosystem::Cargo, Selection::Packages(packages)) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let repository = cargo_repository(set)?;
+            let [package] = packages.as_slice() else {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: CARGO_ONE_PACKAGE,
+                });
+            };
+            if cargo_reserved_repin(package) {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: CARGO_RESERVED,
+                });
+            }
+            Ok(BackendPlan::Run {
+                argv: configured_cargo_argv(head, repository, false),
+                env: cargo_env(package, repository),
+            })
+        }
     }
 }
 
@@ -628,7 +677,7 @@ pub fn check_configured(
         }
         (Ecosystem::Cargo, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: CARGO_SELECTIVE,
+            reason: CARGO_CHECK_SELECTIVE,
         }),
     }
 }
@@ -2493,22 +2542,35 @@ mod tests {
             );
         }
         let packages = Selection::Packages(vec!["serde".to_owned()]);
-        let want = BackendError::Unsupported {
-            set: "crates".to_owned(),
-            reason: CARGO_SELECTIVE,
-        };
-        assert_eq!(
-            plan_configured(
-                ws(),
-                &set,
-                &packages,
+        for (offline, frozen, want) in [
+            (
+                true,
                 false,
-                false,
-                &no_head(),
-                &UvClosure::default()
+                BackendError::OfflineRequired {
+                    set: "crates".to_owned(),
+                },
             ),
-            Err(want.clone())
-        );
+            (
+                false,
+                true,
+                BackendError::FrozenLocked {
+                    set: "crates".to_owned(),
+                },
+            ),
+        ] {
+            assert_eq!(
+                plan_configured(
+                    ws(),
+                    &set,
+                    &packages,
+                    offline,
+                    frozen,
+                    &no_head(),
+                    &UvClosure::default()
+                ),
+                Err(want)
+            );
+        }
         assert_eq!(
             check_configured(
                 ws(),
@@ -2519,7 +2581,64 @@ mod tests {
                 &no_head(),
                 &UvClosure::default()
             ),
-            Err(want)
+            Err(BackendError::Unsupported {
+                set: "crates".to_owned(),
+                reason: CARGO_CHECK_SELECTIVE,
+            })
+        );
+    }
+
+    #[test]
+    fn configured_cargo_package_update_repins_one_crate() {
+        let set = cargo_set("crates", "apps/rs", "crates");
+        assert_eq!(
+            plan_configured(
+                ws(),
+                &set,
+                &Selection::Packages(vec!["serde".to_owned()]),
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            )
+            .expect("cargo package plan"),
+            BackendPlan::Run {
+                argv: cargo_fetch(&no_head(), &["--repo=@crates"]),
+                env: cargo_env_expected("serde", "crates"),
+            }
+        );
+    }
+
+    #[test]
+    fn configured_cargo_package_update_refuses_modes_and_many_crates() {
+        let set = cargo_set("crates", "apps/rs", "crates");
+        let plan = |names: &[&str]| {
+            plan_configured(
+                ws(),
+                &set,
+                &Selection::Packages(names.iter().map(|n| (*n).to_owned()).collect()),
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        for name in ["all", "Workspace", "OFF", "0", "1", "minimal"] {
+            assert_eq!(
+                plan(&[name]),
+                Err(BackendError::Unsupported {
+                    set: "crates".to_owned(),
+                    reason: CARGO_RESERVED,
+                }),
+                "{name}"
+            );
+        }
+        assert_eq!(
+            plan(&["serde", "tokio"]),
+            Err(BackendError::Unsupported {
+                set: "crates".to_owned(),
+                reason: CARGO_ONE_PACKAGE,
+            })
         );
     }
 }

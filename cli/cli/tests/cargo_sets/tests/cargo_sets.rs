@@ -204,3 +204,48 @@ fn cargo_sets_check_and_repin_one_crate_universe_hub_at_a_time() {
     let run = dx_in(&root, &["update", "--check"], &[]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
 }
+
+fn locked_version(lock: &Path, name: &str) -> String {
+    let text = String::from_utf8(read(lock)).expect("utf-8 lock");
+    let needle = format!("name = \"{name}\"\nversion = \"");
+    let start = text.find(&needle).unwrap_or_else(|| panic!("{name} in {text}")) + needle.len();
+    text[start..].split('"').next().expect("version").to_owned()
+}
+
+#[test]
+fn cargo_set_package_repin_moves_one_crate() {
+    let root = consumer();
+    let app_lock = root.join("apps/rs/Cargo.lock");
+    let app_json = root.join("apps/rs/cargo-bazel-lock.json");
+    let tool_lock = root.join("tools/rs/Cargo.lock");
+
+    write(
+        &root.join("apps/rs/Cargo.toml"),
+        &cargo_toml("app", &[("itoa", "1.0.10"), ("ryu", "1.0.17")]),
+    );
+    let run = dx_in(&root, &["update", "--apply", "crates"], &[]);
+    assert_eq!(run.status.code(), Some(0), "{}", report(&run));
+    assert_eq!(locked_version(&app_lock, "itoa"), "1.0.10");
+    assert_eq!(locked_version(&app_lock, "ryu"), "1.0.17");
+
+    let relaxed = cargo_toml("app", &[("itoa", "1.0.10"), ("ryu", "1.0.17")]).replace("\"=", "\"");
+    write(&root.join("apps/rs/Cargo.toml"), &relaxed);
+    let json_before = read(&app_json);
+    let tool_before = read(&tool_lock);
+
+    let run = dx_in(&root, &["update", "--apply", "crates:itoa"], &[]);
+    assert_eq!(run.status.code(), Some(0), "{}", report(&run));
+    assert_ne!(locked_version(&app_lock, "itoa"), "1.0.10");
+    assert_eq!(locked_version(&app_lock, "ryu"), "1.0.17");
+    assert_ne!(read(&app_json), json_before, "cargo-bazel lock not repinned");
+    assert_eq!(read(&tool_lock), tool_before, "tools Cargo.lock changed");
+    let run = dx_in(&root, &["update", "--check", "crates"], &[]);
+    assert_eq!(run.status.code(), Some(0), "{}", report(&run));
+
+    let lock_before = read(&app_lock);
+    let json_before = read(&app_json);
+    let run = dx_in(&root, &["update", "--apply", "crates:nonexistent_crate"], &[]);
+    assert_eq!(run.status.code(), Some(1), "{}", report(&run));
+    assert_eq!(read(&app_lock), lock_before, "failed repin wrote Cargo.lock");
+    assert_eq!(read(&app_json), json_before, "failed repin wrote cargo-bazel lock");
+}

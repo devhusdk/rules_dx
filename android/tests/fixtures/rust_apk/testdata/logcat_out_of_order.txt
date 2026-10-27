@@ -1,0 +1,9 @@
+I/DxRustApk( 2101): lifecycle=create state=0 status=0
+I/DxRustApk( 2101): asset=ok name=message.txt bytes=30
+I/DxRustApk( 2101): lifecycle=start state=1
+I/DxRustApk( 2101): lifecycle=pause state=3
+I/DxRustApk( 2101): lifecycle=resume state=2
+I/DxRustApk( 2101): input=touch total=1
+I/DxRustApk( 2101): input=key total=1
+I/DxRustApk( 2101): lifecycle=stop state=4
+I/DxRustApk( 2101): lifecycle=start state=1

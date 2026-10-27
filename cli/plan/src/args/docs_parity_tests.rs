@@ -1606,6 +1606,7 @@ fn github_ci_page_names_no_workflow_internals() {
         "diff-cover",
         "tool_resolve",
         "evidence.yml",
+        "android.yml",
         "apple.yml",
         "bump.yml",
     ] {

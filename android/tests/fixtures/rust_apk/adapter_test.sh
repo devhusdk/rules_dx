@@ -4,6 +4,7 @@ op="$1"
 launcher="$2"
 fake_adb="$3"
 serial="emulator-5554"
+app="com.example.dxrustapk"
 export ADB="$fake_adb"
 export ADB_CAPTURE="$(mktemp)"
 export DX_ADB_SERIAL="$serial"
@@ -11,7 +12,8 @@ export DX_ADB_OP="$op"
 if [ "$op" = "install" ]; then
     export DX_ADB_APK="$4"
 elif [ "$op" = "start" ]; then
-    export DX_ADB_APP="com.example.dxrustapk"
+    app="${4:-com.example.dxrustapk}"
+    export DX_ADB_APP="$app"
     export DX_ADB_ACTIVITY="android.app.NativeActivity"
 fi
 if [ "$op" = "missing" ]; then
@@ -59,7 +61,7 @@ case "$op" in
         esac
         ;;
     start)
-        want="-s $serial shell am start -n com.example.dxrustapk/android.app.NativeActivity"
+        want="-s $serial shell am start -n $app/android.app.NativeActivity"
         [ "$captured" = "$want" ] || { echo "start argv '$captured' differs from '$want'" >&2; exit 1; }
         ;;
     log)

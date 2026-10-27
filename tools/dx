@@ -20,6 +20,10 @@ esac
 source_checkout() {
   [ -f "$1/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$1/MODULE.bazel" 2> /dev/null
 }
+execroot_marker() {
+  _p=${1%/*}
+  [ "${_p##*/}" = execroot ] && [ -f "$_p/DO_NOT_BUILD_HERE" ]
+}
 bin="$root/bazel-bin/cli/cli/dx$exe"
 state="$root/.dx/launcher"
 if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
@@ -27,7 +31,20 @@ if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
   [ -x "$bin" ] && exec "$bin" "$@"
 fi
 here=$(pwd -P) || here=/
-until [ "$here" = / ] || source_checkout "$here"; do
+while [ "$here" != / ]; do
+  if source_checkout "$here"; then
+    execroot_marker "$here" || break
+    # Inside a Bazel execroot (reached through bazel-bin): follow Bazel's own
+    # marker back to the real checkout, once.
+    v=
+    IFS= read -r v < "${here%/*}/DO_NOT_BUILD_HERE" || true
+    v=${v%"$(printf '\r')"}
+    if [ -n "$v" ]; then v=$(CDPATH= cd -P -- "$v" 2> /dev/null && pwd -P) || v=; fi
+    if [ -n "$v" ] && source_checkout "$v" && ! execroot_marker "$v"; then
+      here=$v
+      break
+    fi
+  fi
   here=${here%/*}
   here=${here:-/}
 done

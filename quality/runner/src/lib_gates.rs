@@ -215,10 +215,22 @@ fn permutation_ranking_prefers_stable_fewer_rounds() {
             Ok(text.to_owned())
         }
     };
-    let (fast_terminal, fast_rounds, fast_conv) =
-        run_convergence(&initial, &stages, MAX_COMPLETED_ROUNDS, direct).unwrap();
-    let (slow_terminal, slow_rounds, slow_conv) =
-        run_convergence(&initial, &stages, MAX_COMPLETED_ROUNDS, gradual).unwrap();
+    let (fast_terminal, fast_rounds, fast_conv) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(direct),
+    )
+    .unwrap();
+    let (slow_terminal, slow_rounds, slow_conv) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(gradual),
+    )
+    .unwrap();
     assert_eq!(fast_conv, Convergence::Stable);
     assert_eq!(slow_conv, Convergence::Stable);
     assert_eq!(fast_terminal["src/lib.rs"], "GOOD");
@@ -235,11 +247,24 @@ fn permutation_ranking_prefers_stable_fewer_rounds() {
     };
     let mut flip_initial = BTreeMap::new();
     flip_initial.insert("src/lib.rs".to_owned(), "a".to_owned());
-    let (_, _, flip_conv) =
-        run_convergence(&flip_initial, &stages, MAX_COMPLETED_ROUNDS, flip).unwrap();
+    let (_, _, flip_conv) = run_convergence(
+        &flip_initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(flip),
+    )
+    .unwrap();
     assert_eq!(flip_conv, Convergence::Oscillation);
     let grow = |_: &str, _: &str, text: &str| Ok(format!("{text}x"));
-    let (_, _, grow_conv) = run_convergence(&flip_initial, &stages, 3, grow).unwrap();
+    let (_, _, grow_conv) = run_convergence(
+        &flip_initial,
+        &stages,
+        3,
+        &full_selection(&stages),
+        per_path(grow),
+    )
+    .unwrap();
     assert_eq!(grow_conv, Convergence::IterationLimit);
     let stable_rank = (0, fast_rounds);
     let oscillation_rank = (1, 2);
@@ -396,15 +421,27 @@ fn permutation_ranking_uses_process_starts_then_wall_time_tiebreak() {
         *single_calls.borrow_mut() += 1;
         Ok(apply_synthetic(tool, text))
     };
-    let (single_terminal, single_rounds, single_conv) =
-        run_convergence(&initial, &single, MAX_COMPLETED_ROUNDS, single_counting).unwrap();
+    let (single_terminal, single_rounds, single_conv) = run_convergence(
+        &initial,
+        &single,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&single),
+        per_path(single_counting),
+    )
+    .unwrap();
     let doubled_calls = std::cell::RefCell::new(0u32);
     let doubled_counting = |tool: &str, _: &str, text: &str| {
         *doubled_calls.borrow_mut() += 1;
         Ok(apply_synthetic(tool, text))
     };
-    let (doubled_terminal, doubled_rounds, doubled_conv) =
-        run_convergence(&initial, &doubled, MAX_COMPLETED_ROUNDS, doubled_counting).unwrap();
+    let (doubled_terminal, doubled_rounds, doubled_conv) = run_convergence(
+        &initial,
+        &doubled,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&doubled),
+        per_path(doubled_counting),
+    )
+    .unwrap();
     assert_eq!(single_conv, Convergence::Stable);
     assert_eq!(doubled_conv, Convergence::Stable);
     assert_eq!(single_terminal["src/lib.rs"], "GOOD\n");
@@ -456,8 +493,14 @@ fn each_stage_runs_once_per_round_without_hidden_passes() {
             .or_insert(0u32) += 1;
         Ok(apply_synthetic(tool, text))
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, MAX_COMPLETED_ROUNDS, counting).unwrap();
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(counting),
+    )
+    .unwrap();
     assert_eq!(convergence, Convergence::Stable);
     assert_eq!(completed, 2);
     assert_eq!(terminal["src/a.rs"], "GOOD\n");
@@ -527,4 +570,160 @@ fn unchanged_terminal_reuses_initial_diagnostics() {
     assert_eq!(result.initial_diagnostics.len(), 1);
     assert!(result.replacements.is_empty());
     assert!(encode_validated(&result).is_ok());
+}
+
+#[test]
+fn each_stage_spawns_once_per_round_on_changed_files() {
+    let stages = vec![
+        stage("lint-a", &["rust"], &["src/a.rs", "src/b.rs", "src/c.rs"]),
+        stage("fmt-a", &["rust"], &["src/a.rs", "src/c.rs"]),
+        stage("lint-b", &["rust"], &["src/b.rs"]),
+    ];
+    let mut initial = BTreeMap::new();
+    initial.insert("src/a.rs".to_owned(), "BAD  \n".to_owned());
+    initial.insert("src/b.rs".to_owned(), "fine\n".to_owned());
+    initial.insert("src/c.rs".to_owned(), "fine\n".to_owned());
+    let mut round = 0u32;
+    let mut calls: Vec<(u32, usize, Vec<String>)> = Vec::new();
+    let mut lifted = per_path(|tool, _, text| Ok(apply_synthetic(tool, text)));
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        |index, spec, current, targets| {
+            if index == 0 {
+                round += 1;
+            }
+            calls.push((round, index, targets.to_vec()));
+            lifted(index, spec, current, targets)
+        },
+    )
+    .unwrap();
+    assert_eq!(convergence, Convergence::Stable);
+    assert_eq!(completed, 2);
+    assert_eq!(terminal["src/a.rs"], "GOOD\n");
+    let names = |paths: &[&str]| paths.iter().map(ToString::to_string).collect::<Vec<_>>();
+    assert_eq!(
+        calls,
+        vec![
+            (1, 0, names(&["src/a.rs", "src/b.rs", "src/c.rs"])),
+            (1, 1, names(&["src/a.rs", "src/c.rs"])),
+            (1, 2, names(&["src/b.rs"])),
+            (2, 0, names(&["src/a.rs"])),
+            (2, 1, names(&["src/a.rs"])),
+        ]
+    );
+}
+
+#[test]
+fn dirty_tracking_matches_full_rerun() {
+    type Fixer = fn(&str, &str, &str) -> Result<String, RunnerError>;
+    fn naive(
+        initial: &BTreeMap<String, String>,
+        stages: &[StageSpec],
+        max_rounds: u32,
+        apply: Fixer,
+    ) -> (BTreeMap<String, String>, u32, Convergence) {
+        let mut current = initial.clone();
+        let mut seen = std::collections::HashSet::new();
+        let mut prev_id = state_digest(initial);
+        seen.insert(prev_id);
+        for round in 1..=max_rounds {
+            let mut changed = false;
+            for stage in stages {
+                for path in &stage.source_paths {
+                    let body = current[path].clone();
+                    let next = apply(&stage.tool_id, path, &body).unwrap();
+                    changed |= next != body;
+                    current.insert(path.clone(), next);
+                }
+            }
+            if !changed {
+                return (current, round, Convergence::Stable);
+            }
+            let id = state_digest(&current);
+            if id == prev_id || !seen.insert(id) {
+                return (current, round, Convergence::Oscillation);
+            }
+            prev_id = id;
+        }
+        (current, max_rounds, Convergence::IterationLimit)
+    }
+    let flip: Fixer = |_, _, text| Ok(if text == "a" { "b" } else { "a" }.to_owned());
+    let cycle: Fixer = |_, _, text| {
+        Ok(match text {
+            "a" => "b",
+            "b" => "c",
+            _ => "a",
+        }
+        .to_owned())
+    };
+    let mixed: Fixer = |_, path, text| {
+        Ok(if path == "src/a.rs" {
+            text.replace("BAD", "GOOD")
+        } else {
+            format!("{text}x")
+        })
+    };
+    let synthetic: Fixer = |tool, _, text| Ok(apply_synthetic(tool, text));
+    let one = vec![stage("lint-a", &["rust"], &["src/a.rs"])];
+    let two = vec![
+        stage("lint-a", &["rust"], &["src/a.rs", "src/b.rs"]),
+        stage("fmt-a", &["rust"], &["src/b.rs"]),
+    ];
+    let mut flat = BTreeMap::new();
+    flat.insert("src/a.rs".to_owned(), "a".to_owned());
+    flat.insert("src/b.rs".to_owned(), "a".to_owned());
+    let mut dirty = BTreeMap::new();
+    dirty.insert("src/a.rs".to_owned(), "BAD\n".to_owned());
+    dirty.insert("src/b.rs".to_owned(), "BAD  \nok\n".to_owned());
+    let cases: [(&[StageSpec], &BTreeMap<String, String>, Fixer); 5] = [
+        (&one, &flat, flip),
+        (&one, &flat, cycle),
+        (&two, &dirty, mixed),
+        (&two, &dirty, synthetic),
+        (&two, &flat, flip),
+    ];
+    for (stages, initial, fixer) in cases {
+        let want = naive(initial, stages, MAX_COMPLETED_ROUNDS, fixer);
+        let got = run_convergence(
+            initial,
+            stages,
+            MAX_COMPLETED_ROUNDS,
+            &full_selection(stages),
+            per_path(fixer),
+        )
+        .unwrap();
+        assert_eq!(got, want);
+    }
+}
+
+#[test]
+fn batch_fixers_must_return_exactly_their_targets() {
+    let stages = vec![stage("lint-a", &["rust"], &["src/a.rs"])];
+    let mut initial = BTreeMap::new();
+    initial.insert("src/a.rs".to_owned(), "a".to_owned());
+    initial.insert("src/b.rs".to_owned(), "b".to_owned());
+    let short = run_convergence(
+        &initial,
+        &stages,
+        3,
+        &full_selection(&stages),
+        |_, _, _, _| Ok(BTreeMap::new()),
+    );
+    assert_eq!(
+        short,
+        Err(RunnerError::MissingFile {
+            path: "src/a.rs".to_owned()
+        })
+    );
+    let extra = run_convergence(
+        &initial,
+        &stages,
+        3,
+        &full_selection(&stages),
+        |_, _, current, _| Ok(current.clone()),
+    );
+    assert!(matches!(extra, Err(RunnerError::ToolOutput { .. })));
 }

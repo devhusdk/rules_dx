@@ -285,8 +285,14 @@ fn oscillation_is_detected() {
             Ok("a".to_owned())
         }
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, 10, flip).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        10,
+        &full_selection(&stages),
+        per_path(flip),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::Oscillation);
     assert_eq!(completed, 2);
     assert_eq!(terminal["src/lib.rs"], "a");
@@ -298,8 +304,14 @@ fn iteration_limit_is_detected() {
     let mut initial = BTreeMap::new();
     initial.insert("src/lib.rs".to_owned(), "a".to_owned());
     let grow = |_: &str, _: &str, text: &str| Ok(format!("{text}x"));
-    let (_, completed, convergence) =
-        run_convergence(&initial, &stages, 3, grow).expect("converged");
+    let (_, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        3,
+        &full_selection(&stages),
+        per_path(grow),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::IterationLimit);
     assert_eq!(completed, 3);
 }
@@ -329,8 +341,14 @@ fn convergence_scales_linearly_in_rounds_and_files() {
             Ok(text.to_owned())
         }
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, ROUNDS, bump_last).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        ROUNDS,
+        &full_selection(&stages),
+        per_path(bump_last),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::IterationLimit);
     assert_eq!(completed, ROUNDS);
     assert_eq!(counter.get(), ROUNDS);
@@ -349,8 +367,14 @@ fn unchanged_core_state_is_stable() {
     let mut initial = BTreeMap::new();
     initial.insert("src/lib.rs".to_owned(), "a".to_owned());
     let same = |_: &str, _: &str, text: &str| Ok(text.to_owned());
-    let (_, completed, convergence) =
-        run_convergence(&initial, &stages, 10, same).expect("converged");
+    let (_, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        10,
+        &full_selection(&stages),
+        per_path(same),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::Stable);
     assert_eq!(completed, 1);
 }
@@ -362,7 +386,13 @@ fn apply_failure_aborts_convergence() {
     initial.insert("src/lib.rs".to_owned(), "a".to_owned());
     let fail = |_: &str, _: &str, _: &str| Err(RunnerError::EmptyProducer);
     assert_eq!(
-        run_convergence(&initial, &stages, 10, fail),
+        run_convergence(
+            &initial,
+            &stages,
+            10,
+            &full_selection(&stages),
+            per_path(fail)
+        ),
         Err(RunnerError::EmptyProducer)
     );
 }
@@ -395,7 +425,13 @@ fn convergence_reports_missing_stage_path_without_panicking() {
     let initial = BTreeMap::new();
     let same = |_: &str, _: &str, text: &str| Ok(text.to_owned());
     assert_eq!(
-        run_convergence(&initial, &stages, 10, same),
+        run_convergence(
+            &initial,
+            &stages,
+            10,
+            &full_selection(&stages),
+            per_path(same)
+        ),
         Err(RunnerError::MissingFile {
             path: "src/missing.rs".to_owned(),
         })
@@ -559,8 +595,14 @@ fn changing_tenth_round_fails_without_eleventh_invocation() {
         invocations.set(invocations.get() + 1);
         Ok(format!("{text}x"))
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, MAX_COMPLETED_ROUNDS, grow).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(grow),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::IterationLimit);
     assert_eq!(completed, MAX_COMPLETED_ROUNDS);
     assert_eq!(invocations.get(), MAX_COMPLETED_ROUNDS);
@@ -593,8 +635,14 @@ fn full_round_revert_reports_oscillation_not_stability() {
         ("lint-b", "b") => Ok("a".to_owned()),
         _ => Ok(text.to_owned()),
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, 10, undo).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        10,
+        &full_selection(&stages),
+        per_path(undo),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::Oscillation);
     assert_eq!(completed, 1);
     assert_eq!(terminal["src/lib.rs"], "a");

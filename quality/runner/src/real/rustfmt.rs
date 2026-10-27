@@ -1,10 +1,9 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 use quality_adapter::commands;
 use quality_adapter::exec::ChildOutput;
 use quality_adapter::parsers::{self, FileFinding};
 use quality_adapter::ToolSeverity;
 
+use super::real_fix::Outcome;
 use super::*;
 
 const TOOL_ID: &str = "rustfmt";
@@ -16,8 +15,8 @@ fn absolute_names(pairs: &[StagedPair]) -> Vec<String> {
         .collect()
 }
 
-fn failure(staged: &StagedScratch, out: &ChildOutput, detail: Option<String>) -> RunnerError {
-    let root = staged.scratch.root().to_string_lossy().into_owned();
+fn failure(root: &Path, out: &ChildOutput, detail: Option<String>) -> RunnerError {
+    let root = root.to_string_lossy().into_owned();
     let stderr = String::from_utf8_lossy(&out.stderr).trim().to_owned();
     let message = detail
         .into_iter()
@@ -32,15 +31,19 @@ fn failure(staged: &StagedScratch, out: &ChildOutput, detail: Option<String>) ->
     execution(TOOL_ID, format!("rustfmt failed with {status}: {message}"))
 }
 
-fn parse_staged(
-    staged: &StagedScratch,
-    out: &ChildOutput,
-) -> Result<Vec<FileFinding>, RunnerError> {
-    let names: Vec<String> = absolute_names(&staged.pairs)
+fn staged_names(staged: &StagedScratch) -> Vec<String> {
+    absolute_names(&staged.pairs)
         .into_iter()
         .chain(absolute_names(&staged.sibling_pairs))
         .chain(absolute_names(&staged.resolve_pairs))
-        .collect();
+        .collect()
+}
+
+fn parse_staged(
+    root: &Path,
+    names: &[String],
+    out: &ChildOutput,
+) -> Result<Vec<FileFinding>, RunnerError> {
     let known: Vec<&str> = names.iter().map(String::as_str).collect();
     match parsers::parse_rustfmt(&out.stdout, &out.stderr, out.code, &known) {
         Ok(found) => Ok(found),
@@ -48,7 +51,7 @@ fn parse_staged(
             let detail = (matches!(err, ParseError::UnknownFile { .. })
                 || !out.stdout.trim_ascii().is_empty())
             .then(|| err.to_string());
-            Err(failure(staged, out, detail))
+            Err(failure(root, out, detail))
         }
         Err(err) => parsed(TOOL_ID, Err(err)),
     }
@@ -78,7 +81,7 @@ impl RealBackend {
         let out = self.run(TOOL_ID, tool, &invocation, &staged.scratch)?;
         let owned = absolute_names(&staged.pairs);
         let mut kept = Vec::new();
-        for found in parse_staged(staged, &out)? {
+        for found in parse_staged(staged.scratch.root(), &staged_names(staged), &out)? {
             if owned.contains(&found.file) {
                 if !kept.contains(&found) {
                     kept.push(found);
@@ -102,50 +105,40 @@ impl RealBackend {
         Ok(kept)
     }
 
-    pub(super) fn fix_rustfmt(
+    pub(super) fn rustfmt_fix_invocation(
         &self,
         tool: &RealTool,
-        path: &str,
-        text: &str,
-        known: &BTreeSet<String>,
-    ) -> Result<String, RunnerError> {
-        let file = BTreeMap::from([(path.to_owned(), text.to_owned())]);
-        let supporting = super::real_fix::placeholders(path, known, &["rs"]);
-        let staged = self.stage_scratch(TOOL_ID, tool, &file, &supporting, &BTreeMap::new())?;
-        let Some(cfg) = self.config_abs(TOOL_ID, tool, &staged.scratch)? else {
+        refs: &[&Path],
+        scratch: &Scratch,
+    ) -> Result<Invocation, RunnerError> {
+        let Some(cfg) = self.config_abs(TOOL_ID, tool, scratch)? else {
             return Err(execution(TOOL_ID, "rustfmt requires a config".to_owned()));
         };
-        let Some((_, absolute)) = staged.pairs.first().cloned() else {
-            return cleaned(
-                TOOL_ID,
-                staged.scratch,
-                Err(execution(TOOL_ID, format!("rustfmt did not stage {path}"))),
-            )?;
-        };
-        let invocation = commands::rustfmt(
+        Ok(commands::rustfmt(
             &tool.binary,
-            &[absolute.as_path()],
+            refs,
             &cfg,
             Self::rustfmt_edition(tool)?,
             false,
-        );
-        let out = self.run(TOOL_ID, tool, &invocation, &staged.scratch)?;
-        let result = if out.code == Some(0) {
-            Self::reread_fixed(TOOL_ID, &absolute)
-        } else {
-            match parse_staged(&staged, &out) {
-                Ok(found)
-                    if !found.is_empty()
-                        && found
-                            .iter()
-                            .all(|found| found.finding.severity == ToolSeverity::Error) =>
-                {
-                    Ok(text.to_owned())
-                }
-                Ok(_) => Err(failure(&staged, &out, None)),
-                Err(err) => Err(err),
-            }
-        };
-        cleaned(TOOL_ID, staged.scratch, result)?
+        ))
+    }
+}
+
+/// Judges one rustfmt fix spawn: error-only parse findings keep the input.
+pub(super) fn fix_outcome(root: &Path, names: &[String], out: &ChildOutput) -> Outcome {
+    if out.code == Some(0) {
+        return Outcome::Fixed;
+    }
+    match parse_staged(root, names, out) {
+        Ok(found)
+            if !found.is_empty()
+                && found
+                    .iter()
+                    .all(|found| found.finding.severity == ToolSeverity::Error) =>
+        {
+            Outcome::Kept
+        }
+        Ok(_) => Outcome::Failed(failure(root, out, None)),
+        Err(err) => Outcome::Failed(err),
     }
 }

@@ -1326,6 +1326,55 @@ pub fn plan_batches_with_budget<'a>(
     batches
 }
 
+/// Splits input files into spawns whose built invocations each fit the program's budget.
+///
+/// Each file costs what it adds to the built argv, so per-file flags count against the
+/// budget. Batches keep input order, an oversized file runs alone, and an empty selection
+/// keeps one empty batch.
+pub fn plan_invocation_batches<'a, E>(
+    files: &[&'a Path],
+    build: impl Fn(&[&Path]) -> Result<Invocation, E>,
+) -> Result<Vec<Vec<&'a Path>>, E> {
+    let head = build(&[])?;
+    let budget = head
+        .argv
+        .first()
+        .map_or(ARGV_BATCH_BUDGET, |program| argv_budget(program));
+    plan_invocation_batches_with_budget(files, build, budget)
+}
+
+/// Splits input files against an explicit budget for tests.
+pub fn plan_invocation_batches_with_budget<'a, E>(
+    files: &[&'a Path],
+    build: impl Fn(&[&Path]) -> Result<Invocation, E>,
+    budget: usize,
+) -> Result<Vec<Vec<&'a Path>>, E> {
+    let (head_bytes, head_units) = argv_cost(&build(&[])?.argv);
+    let mut batches: Vec<Vec<&Path>> = Vec::new();
+    let mut current: Vec<&Path> = Vec::new();
+    let mut current_bytes = head_bytes;
+    let mut current_units = head_units;
+    for file in files.iter().copied() {
+        let (one_bytes, one_units) = argv_cost(&build(&[file])?.argv);
+        let file_bytes = one_bytes.saturating_sub(head_bytes);
+        let file_units = one_units.saturating_sub(head_units);
+        let fits = current.is_empty()
+            || (current_bytes + file_bytes <= budget && current_units + file_units <= budget);
+        if !fits {
+            batches.push(std::mem::take(&mut current));
+            current_bytes = head_bytes;
+            current_units = head_units;
+        }
+        current.push(file);
+        current_bytes += file_bytes;
+        current_units += file_units;
+    }
+    if !current.is_empty() || batches.is_empty() {
+        batches.push(current);
+    }
+    Ok(batches)
+}
+
 #[path = "commands_tests.rs"]
 #[cfg(test)]
 mod commands_tests;

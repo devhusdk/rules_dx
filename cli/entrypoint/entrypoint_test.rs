@@ -247,7 +247,7 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         .collect();
     assert_eq!(
         wrote.len(),
-        35,
+        37,
         "new --apply writes init wiring, launcher, overrides, hooks, agents block and a standalone C++ consumer: {apply}"
     );
     for path in [
@@ -396,7 +396,7 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
         .collect();
     assert_eq!(
         wrote.len(),
-        26,
+        28,
         "init --apply writes the wiring and override files: {apply}"
     );
     for file in [

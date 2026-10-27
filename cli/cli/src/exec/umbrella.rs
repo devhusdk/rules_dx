@@ -3,7 +3,7 @@ use super::failure::CODE_INVALID_SCOPE;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;
-use super::quality::{execute_quality_phase, guard_build_output};
+use super::quality::{execute_quality_phase, guard_build_output, guard_overrides};
 use dx_output::{
     command_finished, command_started, error_event, nest_phase_event, notice_event, read_event,
     report_event, with_correlation, write_event, FinishedCounts, NoticeEvent, OutputMode,
@@ -978,6 +978,11 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
         return exit;
     }
+    if request.command == Command::Check {
+        if let Some(exit) = guard_overrides(workspace, request.common.output, out, err) {
+            return exit;
+        }
+    }
     if request.common.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(command, mode)) {
             return exit;
@@ -1764,6 +1769,53 @@ mod tests {
             assert_eq!(events[last]["exit_code"], 1);
             assert_eq!(harness.seen_env.borrow().len(), 0);
         }
+    }
+
+    fn overrides_consumer(name: &str) -> Harness {
+        let harness = umbrella_clean(name);
+        harness.write_source(
+            "MODULE.bazel",
+            &format!(
+                "module(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\n",
+                dx_adopt::DX_VERSION
+            ),
+        );
+        harness
+    }
+
+    #[test]
+    fn check_fails_on_stale_overrides_without_launching_bazel() {
+        let harness = overrides_consumer("umbrella-check-overrides-stale");
+        dx_adopt::apply_overrides(&harness.workspace).expect("applies");
+        harness.write_source(
+            "third_party/rules_dx/rules_rust.lld_link.patch",
+            "corrupt\n",
+        );
+        let (code, out, err) = harness.run(&["check", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            json_events(&out)
+                .iter()
+                .any(|event| event["code"] == "overrides_stale"),
+            "{out}"
+        );
+        assert_eq!(harness.seen_env.borrow().len(), 0);
+    }
+
+    #[test]
+    fn check_notes_unadopted_overrides_and_continues() {
+        let harness = overrides_consumer("umbrella-check-overrides-warn");
+        let (_, out, err) = harness.run(&["check", "--output=text"]);
+        assert!(err.contains("dx: overrides: "), "{out}{err}");
+        assert!(!out.contains("overrides_stale"), "{out}{err}");
+        assert!(!err.contains("overrides_stale"), "{out}{err}");
+    }
+
+    #[test]
+    fn check_is_silent_about_overrides_without_a_rules_dx_dep() {
+        let harness = umbrella_clean("umbrella-check-overrides-na");
+        let (_, out, err) = harness.run(&["check", "--output=text"]);
+        assert!(!err.contains("overrides"), "{out}{err}");
     }
 
     #[test]

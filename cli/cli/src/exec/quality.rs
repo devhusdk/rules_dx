@@ -158,6 +158,37 @@ pub(super) fn guard_build_output(
     }
 }
 
+/// Fails `dx check` when the generated `third_party/rules_dx/` overrides are stale (#3736).
+///
+/// Only an error fails: a workspace that has not adopted the include (warn) gets a note on
+/// stderr and continues, and rules_dx itself or a workspace without a rules_dx dep is silent.
+pub(super) fn guard_overrides(
+    workspace: &Path,
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Option<i32> {
+    match dx_adopt::check_overrides(workspace) {
+        dx_adopt::OverridesState::Error(detail) => Some(report_failure(
+            output,
+            out,
+            err,
+            &Failure::new(
+                "overrides_stale",
+                &format!("rules_dx overrides: {detail}"),
+                1,
+            ),
+        )),
+        dx_adopt::OverridesState::Warn(detail) => {
+            if output != OutputMode::Json {
+                let _ = writeln!(err, "dx: overrides: {detail}");
+            }
+            None
+        }
+        dx_adopt::OverridesState::Ok | dx_adopt::OverridesState::NotApplicable(_) => None,
+    }
+}
+
 /// Why a shard probe ended the phase instead of falling back to every shard.
 #[derive(Debug, PartialEq, Eq)]
 enum ProbeStop {

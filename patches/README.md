@@ -28,12 +28,19 @@ files but leaves the `include()` out and says so on stderr. Without a
 
 | Module | Version | Patches | Why |
 | --- | --- | --- | --- |
-| `rules_rust` | 0.74.0 | `lld_link.patch` | Rust on Windows |
+| `rules_rust` | 0.74.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch` | Rust on Windows (lld-link, MSVC stdlib link flags) |
 | `rules_rust_wasm_bindgen` | 0.74.0 | `no_wasm_coverage.patch` | wasm targets under coverage |
 | `rules_android` | 0.6.6 | `rules_android.patch` | Android resources and App Bundles |
 | `rules_dotnet` | 0.22.1 | `reproducible.patch`, `fsharp_signature.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs` |
 | `rules_ruby` | 0.28.0 | `reproducible.patch` | Ruby toolchain from the repository cache |
-| `aspect_rules_py` | 2.0.0-alpha.6 | `site_packages.patch`, `venv_interpreter.patch` | Python on Windows |
+| `aspect_rules_py` | 2.0.0-alpha.6 | `windows_venv.patch` | Python venvs on Windows |
+| `aspect_rules_ts` | 3.10.0 | `typecheck_root_dir.patch` | TypeScript typecheck root dir |
+| `aspect_rules_jest` | 0.26.0 | `windows_v8_coverage.patch` | Jest coverage on Windows (v8 provider) |
+
+The trade-off: a `single_version_override` pins the module for the whole
+graph. If another dependency of yours needs a newer version of one of these
+modules, Bazel still resolves the version above. Move the `rules_dx` pin
+instead, or drop the `include()` and own the override yourself.
 
 ## rules_d, rules_elixir, rules_erlang, rules_fortran, rules_gleam, rules_haskell, rules_ocaml
 

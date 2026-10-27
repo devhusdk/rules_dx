@@ -31,6 +31,13 @@ output: a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
 - Outside a Git checkout the check is skipped.
 - If Git fails, the command exits `2` with code `build_output_git_failed`.
 
+`dx check` also compares the dx-generated `third_party/rules_dx/` overrides
+with this `dx` before any phase runs. A missing or changed generated file
+fails with code `overrides_stale` and exit `1`; run `tools/dx init --apply` to
+regenerate. A workspace that has not added the include gets a note on stderr
+and continues. rules_dx itself, and workspaces without a `rules_dx`
+`bazel_dep`, are skipped.
+
 Runs `generate`, then `format`, then `lint`, then `typecheck` in order.
 `--affected` limits `format`, `lint`, and `typecheck` to targets your git changes reach (see
 [Scope Defaults](scope-defaults.md)), runs `generate` on the packages of those

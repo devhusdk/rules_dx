@@ -461,6 +461,7 @@ single_version_override(
     patches = [
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
     ],
+    version = "3.10.0",
 )
 
 bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
@@ -470,6 +471,7 @@ single_version_override(
     patches = [
         "//patches/aspect_rules_jest:windows_v8_coverage.patch",
     ],
+    version = "0.26.0",
 )
 
 bazel_dep(name = "rules_nodejs", version = "6.7.7")

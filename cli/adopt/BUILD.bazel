@@ -30,13 +30,15 @@ dx_rust_crate(
     ],
     # Patches dx copies into consumers through `include_str!` in src/overrides.rs.
     compile_data = [
-        "//patches/aspect_rules_py:site_packages.patch",
-        "//patches/aspect_rules_py:venv_interpreter.patch",
+        "//patches/aspect_rules_jest:windows_v8_coverage.patch",
+        "//patches/aspect_rules_py:windows_venv.patch",
+        "//patches/aspect_rules_ts:typecheck_root_dir.patch",
         "//patches/rules_android:rules_android.patch",
         "//patches/rules_dotnet:reproducible.patch",
         "//patches/rules_dotnet:fsharp_signature.patch",
         "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_rust:lld_link.patch",
+        "//patches/rules_rust:msvc_stdlib_linkflags.patch",
         "//patches/rules_rust_wasm_bindgen:no_wasm_coverage.patch",
     ],
     dev_deps = [

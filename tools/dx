@@ -75,9 +75,28 @@ stale() {
   } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print' "$state/built" 2> /dev/null) || true
   [ -n "$newer" ]
 }
-keep_copy() {
-  { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
-  tag_state
+# Keep in sync with DX_SYNC in tools/dx.cmd: a copy is current when size and mtime match bin's, and cp -p keeps the
+# mtime, so a copy made by either launcher counts for the other. The copy is never written in place; on Windows the
+# running copy is renamed aside first because a running exe cannot be replaced.
+copy_current() {
+  [ -f "$state/dx$exe" ] && [ -f "$bin" ] && [ "$(wc -c < "$state/dx$exe")" = "$(wc -c < "$bin")" ] &&
+    ! [ "$state/dx$exe" -nt "$bin" ] && ! [ "$state/dx$exe" -ot "$bin" ]
+}
+sync_copy() {
+  rm -f "$state/dx$exe".old.* 2> /dev/null || true
+  if ! copy_current; then
+    [ -f "$bin" ] || return 1
+    if cp -p "$bin" "$state/dx$exe.$$" 2> /dev/null && ! copy_current; then
+      if [ "$os" = windows ] && [ -e "$state/dx$exe" ]; then
+        mv "$state/dx$exe" "$state/dx$exe.old.$$" 2> /dev/null || true
+      fi
+      mv -f "$state/dx$exe.$$" "$state/dx$exe" 2> /dev/null || true
+    fi
+    rm -f "$state/dx$exe.$$" 2> /dev/null || true
+    rm -f "$state/dx$exe".old.* 2> /dev/null || true
+    tag_state
+  fi
+  copy_current
 }
 # Bazel exits 33 (out of memory) or 37 (internal error) when its server crashes. A build or an inputs lookup is safe
 # to run again, so try once more after a short wait. Keep the codes and wait in sync with RESTART_EXIT and
@@ -217,7 +236,7 @@ if stale; then
     fi
     die "bazel build //:dx failed"
   fi
-  keep_copy
+  sync_copy || true
   if q=$(retry_crash query_inputs); then
     printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
     mv "$state/inputs.$$" "$state/inputs"
@@ -227,8 +246,10 @@ if stale; then
     echo "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway" >&2
     rm -f "$state/built.$$" "$state/inputs.$$"
   fi
-elif [ ! -x "$state/dx$exe" ] && [ -x "$bin" ]; then
+fi
+if [ -x "$bin" ]; then
   guard_temps
-  keep_copy
+  # Run the copy so a running dx never locks bazel-bin. Any failure falls back to bin.
+  if sync_copy && [ -x "$state/dx$exe" ]; then bin="$state/dx$exe"; fi
 fi
 exec "$bin" "$@"

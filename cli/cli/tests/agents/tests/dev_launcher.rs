@@ -135,10 +135,10 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(!cmd.contains("if exist \"%~dp0..\\bazel-bin"));
     assert!(sh.contains("exec \"$state/dx$exe\" \"$@\""));
     assert!(cmd.contains("set \"BIN=%DX_STATE%\\dx.exe\""));
-    assert!(sh.contains(
-        "\nelif [ ! -x \"$state/dx$exe\" ] && [ -x \"$bin\" ]; then\n  guard_temps\n  keep_copy\nfi\n"
-    ));
-    assert_eq!(sh.matches("\n  keep_copy\n").count(), 2);
+    assert!(sh.contains("sync_copy && [ -x \"$state/dx$exe\" ]; then bin=\"$state/dx$exe\"; fi\n"));
+    assert!(sh.contains("Keep in sync with DX_SYNC in tools/dx.cmd"));
+    assert!(sh.contains("cp -p \"$bin\""));
+    assert!(sh.contains("[ \"$os\" = windows ] && [ -e \"$state/dx$exe\" ]"));
     for sig in ["INT", "TERM", "HUP"] {
         assert!(sh.contains(&format!("trap 'on_signal {sig}' {sig}\n")));
     }
@@ -896,6 +896,36 @@ mod sh {
         );
         assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "inputs"]);
         assert_eq!(repo.builds(), 1);
+    }
+
+    #[test]
+    fn the_copy_follows_a_dx_rebuilt_outside_the_launcher() {
+        use std::os::unix::fs::PermissionsExt;
+        let repo = source_repo("dx-launcher-follow-");
+        repo.run_ok();
+        let bin = repo.root().join("bazel-bin/cli/cli/dx");
+        std::fs::remove_file(&bin).expect("remove bin");
+        std::fs::write(&bin, "#!/bin/sh\necho outside \"$@\"\n# longer payload\n").expect("bin");
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let (code, out, err) = repo.run();
+        assert_eq!((code, out.as_str()), (Some(0), "outside status\n"), "{err}");
+        assert_eq!(repo.builds(), 1);
+        assert_eq!(
+            repo.state_files(),
+            vec!["CACHEDIR.TAG", "built", "dx", "inputs"]
+        );
+    }
+
+    #[test]
+    fn the_copy_keeps_the_bazel_bin_mtime() {
+        let repo = source_repo("dx-launcher-mtime-");
+        repo.run_ok();
+        let mtime = |p: &str| {
+            std::fs::metadata(repo.root().join(p))
+                .and_then(|m| m.modified())
+                .expect("mtime")
+        };
+        assert_eq!(mtime("bazel-bin/cli/cli/dx"), mtime(".dx/launcher/dx"));
     }
 
     #[test]

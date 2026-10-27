@@ -228,10 +228,17 @@ func TestConfigureTSPathsOnce(t *testing.T) {
 	}
 }
 
-func TestStripJSONC(t *testing.T) {
+func TestUnmarshalJSONC(t *testing.T) {
 	in := "{\"a\": \"// not a comment\", /* c */ \"b\": [1, 2,], // tail\n \"c\": \"x,]\",}"
-	want := "{\"a\": \"// not a comment\",   \"b\": [1, 2], \n \"c\": \"x,]\"}"
-	if got := string(stripJSONC([]byte(in))); got != want {
-		t.Errorf("stripJSONC = %q, want %q", got, want)
+	var got struct {
+		A string `json:"a"`
+		B []int  `json:"b"`
+		C string `json:"c"`
+	}
+	if err := unmarshalJSONC([]byte(in), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.A != "// not a comment" || len(got.B) != 2 || got.C != "x,]" {
+		t.Errorf("unmarshalJSONC = %+v", got)
 	}
 }

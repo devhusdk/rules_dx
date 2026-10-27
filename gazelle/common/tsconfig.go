@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/tailscale/hujson"
 )
 
 // tsPathsKey is the c.Exts key that holds the nearest tsconfig/jsconfig state.
@@ -137,7 +138,7 @@ func loadTSConfig(repoRoot, file string, stack map[string]bool) (tsRawOptions, e
 			Paths   map[string][]string `json:"paths"`
 		} `json:"compilerOptions"`
 	}
-	if err := json.Unmarshal(stripJSONC(data), &doc); err != nil {
+	if err := unmarshalJSONC(data, &doc); err != nil {
 		return tsRawOptions{}, fmt.Errorf("%s: %v", relDisplay(repoRoot, file), err)
 	}
 	var extends []string
@@ -345,73 +346,12 @@ func (t *TSPaths) Candidates(spec string) []string {
 	return out
 }
 
-// stripJSONC removes // and /* */ comments outside strings and trailing commas
-// before } or ], so tsconfig files parse as JSON.
-func stripJSONC(data []byte) []byte {
-	out := make([]byte, 0, len(data))
-	inString := false
-	for i := 0; i < len(data); i++ {
-		ch := data[i]
-		if inString {
-			out = append(out, ch)
-			if ch == '\\' && i+1 < len(data) {
-				i++
-				out = append(out, data[i])
-			} else if ch == '"' {
-				inString = false
-			}
-			continue
-		}
-		switch {
-		case ch == '"':
-			inString = true
-			out = append(out, ch)
-		case ch == '/' && i+1 < len(data) && data[i+1] == '/':
-			for i < len(data) && data[i] != '\n' {
-				i++
-			}
-			if i < len(data) {
-				out = append(out, '\n')
-			}
-		case ch == '/' && i+1 < len(data) && data[i+1] == '*':
-			i += 2
-			for i+1 < len(data) && !(data[i] == '*' && data[i+1] == '/') {
-				i++
-			}
-			i++
-			out = append(out, ' ')
-		default:
-			out = append(out, ch)
-		}
+// unmarshalJSONC decodes JSON with comments and trailing commas (as used by
+// tsconfig files) into v.
+func unmarshalJSONC(data []byte, v any) error {
+	std, err := hujson.Standardize(data)
+	if err != nil {
+		return err
 	}
-	// Drop trailing commas: a comma followed only by whitespace and } or ].
-	final := make([]byte, 0, len(out))
-	inString = false
-	for i := 0; i < len(out); i++ {
-		ch := out[i]
-		if inString {
-			final = append(final, ch)
-			if ch == '\\' && i+1 < len(out) {
-				i++
-				final = append(final, out[i])
-			} else if ch == '"' {
-				inString = false
-			}
-			continue
-		}
-		if ch == '"' {
-			inString = true
-		}
-		if ch == ',' {
-			j := i + 1
-			for j < len(out) && (out[j] == ' ' || out[j] == '\t' || out[j] == '\n' || out[j] == '\r') {
-				j++
-			}
-			if j < len(out) && (out[j] == '}' || out[j] == ']') {
-				continue
-			}
-		}
-		final = append(final, ch)
-	}
-	return final
+	return json.Unmarshal(std, v)
 }

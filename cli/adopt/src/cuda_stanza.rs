@@ -167,7 +167,7 @@ mod tests {
     fn versions_match_the_toolchain_metadata() {
         let versions = workspace_text("modules/versions.bzl");
         for (key, value) in [
-            ("RULES_CUDA_VERSION", RULES_CUDA_VERSION),
+            ("FLOOR_RULES_CUDA", RULES_CUDA_VERSION),
             ("TOOLCHAINS_LLVM_VERSION", TOOLCHAINS_LLVM_VERSION),
             ("CUDA_HOST_LLVM_VERSION", CUDA_HOST_LLVM_VERSION),
             ("CUDA_VERSION", CUDA_VERSION),

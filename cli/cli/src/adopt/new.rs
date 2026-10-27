@@ -796,7 +796,7 @@ mod tests {
             .expect("modules/versions.bzl ships as test data");
         assert_eq!(versions_pin(&versions, "RUST_EDITION"), "2021");
         assert_eq!(versions_pin(&versions, "BAZEL_VERSION"), "9.2.0");
-        assert_eq!(versions_pin(&versions, "PLATFORMS_VERSION"), "1.1.0");
+        assert_eq!(versions_pin(&versions, "FLOOR_PLATFORMS"), "1.1.0");
         let module = module_bazel();
         let cargo = template_file("rust-web", "demo", "Cargo.toml");
         let marker = "\"rrwbd__wasm-bindgen-";

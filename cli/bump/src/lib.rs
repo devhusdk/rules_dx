@@ -15,6 +15,8 @@ pub mod sets;
 pub mod version;
 
 pub use add::{AddError, AddRequest};
-pub use request::{cargo_manifests, BumpError, BumpPlanOutcome, BumpRequest, DepTarget};
+pub use request::{
+    cargo_manifests, BumpError, BumpPlanOutcome, BumpRequest, DepTarget, DepVersion,
+};
 pub use sets::BumpSet;
 pub use version::{compare, generic_major_bump_hint, is_stable, VersionError, WidenVersion};

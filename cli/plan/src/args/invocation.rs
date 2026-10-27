@@ -252,6 +252,10 @@ pub struct Invocation {
     pub offline: bool,
     /// The resolution policy: no manifest or lock resolution changes when set.
     pub frozen: bool,
+    /// `dx bump --floor`: edit the bazel_dep floor instead of the tested override.
+    pub floor: bool,
+    /// `dx bump --reason`: why the floor is the oldest supported version.
+    pub reason: Option<String>,
     pub cases: bool,
     pub create: Option<String>,
     pub force: bool,
@@ -616,6 +620,8 @@ mod tests {
             open: false,
             offline: false,
             frozen: false,
+            floor: false,
+            reason: None,
             cases: false,
             create: None,
             force: false,

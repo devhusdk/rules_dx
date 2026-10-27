@@ -1,15 +1,49 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load(":consumer_deps.bzl", "consumer_deps_json")
 load(":versions_tests.bzl", "versions_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 versions_contract_tests(name = "versions_contract")
 
+consumer_deps_json(name = "consumer_deps_json")
+
+# keep
+rust_test(
+    name = "consumer_deps_test",
+    size = "small",
+    srcs = ["consumer_deps_test.rs"],
+    data = [
+        ":consumer_deps_json",
+        "//:MODULE.bazel",
+    ],
+    deps = [
+        "//libs/module_bazel:dx_module_bazel",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+rustfmt_test(
+    name = "consumer_deps_fmt_test",
+    size = "small",
+    targets = [":consumer_deps_test"],
+)
+
+rust_clippy_test(
+    name = "consumer_deps_clippy_test",
+    size = "small",
+    targets = [":consumer_deps_test"],
+)
+
 test_suite(
     name = "all",
-    tests = [":versions_contract"],
+    tests = [
+        ":consumer_deps_test",
+        ":versions_contract",
+    ],
 )
 
 # keep
@@ -51,6 +85,7 @@ rust_clippy_test(
 )
 
 exports_files([
+    "consumer_deps.bzl",
     "cuda.bzl",
     "rust.bzl",
     "python.bzl",
@@ -67,6 +102,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "consumer_deps.bzl",
         "cuda.bzl",
         "dotnet.bzl",
         "java-scala-kotlin.bzl",

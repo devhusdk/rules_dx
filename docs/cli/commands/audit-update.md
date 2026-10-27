@@ -394,7 +394,7 @@ bazel run @rules_dx//:dx -- update --apply npm-adopt npm-adopt-polyglot uv-adopt
 ## `dx bump`
 
 ```text
-dx bump [--apply] [--offline] [--frozen] <set:package> <version>
+dx bump [--apply] [--offline] [--frozen] [--floor] [--reason=<text>] <set:package> <version>
 ```
 
 Widens one declared requirement to a new version. Checks by default;
@@ -403,11 +403,27 @@ declares the version and exits `1` with `bump drift` when a widen is pending.
 Takes exactly one
 `set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
 `go`, `maven`, `npm`, `nuget`. The package must already be declared in the
-manifest, or the run fails without writing. A `bazel` bump rewrites the one
-literal `version` of the matching top-level `bazel_dep` in `MODULE.bazel`
-and keeps every other byte. Duplicate declarations, a missing or computed
-version or name, and a `MODULE.bazel` that does not parse fail without
-writing. A `cargo` bump rewrites the crate in every manifest of the
+manifest, or the run fails without writing.
+
+A `bazel` module has two versions. The floor, in its `bazel_dep`, is the oldest
+version consumers may resolve. The tested version, in a root-only
+`single_version_override` next to it, is what the root builds with. By default
+a `bazel` bump edits the tested version. It rewrites the literal `version` of
+the module's `single_version_override` and keeps its patches. When there is no
+override, or the override has no `version`, it rewrites the `bazel_dep`
+instead. `--floor --reason <text>` edits the floor: it rewrites the
+`bazel_dep` version and replaces the `# floor: <text>` comment lines directly
+above it. Every other byte is kept. These are refused with exit `2`, and nothing
+is written:
+
+- `--floor` without `--reason`, or `--reason` without `--floor`.
+- `--floor` on any set other than a `bazel_dep` (including `.bazelversion`).
+- A floor above the tested version.
+- A tested version below the floor.
+
+Duplicate declarations, a missing or computed version or name, and a
+`MODULE.bazel` that does not parse fail without writing. `maven` bumps and
+`dx update` never touch a `bazel_dep` floor or an override. A `cargo` bump rewrites the crate in every manifest of the
 `crate.from_cargo` hub in `MODULE.bazel` whose `cargo_lockfile` is
 `rust/tests/fixtures/hello/Cargo.lock`, if that manifest declares the crate.
 It fails without writing if no manifest declares it, or if any manifest

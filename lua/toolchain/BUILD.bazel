@@ -1,4 +1,4 @@
-load("//modules:versions.bzl", "LUA_VERSION")
+load("//modules:versions.bzl", "TESTED_LUA")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":toolchain.bzl", "lua_toolchain")
 
@@ -12,7 +12,7 @@ lua_toolchain(
     name = "lua",
     launcher = "//lua/runtime:launcher",
     luac = "@lua//:bin/luac",
-    version = LUA_VERSION,
+    version = TESTED_LUA,
 )
 
 toolchain(

@@ -395,7 +395,7 @@ pub static COMMANDS: [CommandMeta; 32] = [
         name: "bump",
         scope_policy: "require-selector+version",
         describe: "widen one declared requirement to a new version (check by default; --apply widens)",
-        usage: "Usage: dx bump [--apply] [--offline] [--frozen] <set:package> <version>",
+        usage: "Usage: dx bump [--apply] [--offline] [--frozen] [--floor] [--reason=<text>] <set:package> <version>",
         scopes: "Scopes: exactly one `set:package` plus one new version (bazel|cargo|github-actions|go|maven|npm|nuget); never batch.",
         is_managed: false,
         is_adoption: false,

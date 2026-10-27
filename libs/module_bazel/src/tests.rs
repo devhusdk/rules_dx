@@ -703,3 +703,178 @@ fn label_path_maps_main_repository_labels_only() {
         assert!(label_path(label).is_err(), "{label}");
     }
 }
+
+const PATCHED: &str = "bazel_dep(name = \"demo\", version = \"1.0.0\")\nsingle_version_override(\n    module_name = \"demo\",\n    patch_strip = 1,\n    patches = [\"//patches/demo:fix.patch\"],\n    version = \"1.0.0\",\n)\n";
+
+#[test]
+fn single_version_override_is_found_missing_ambiguous_or_computed() {
+    let module = parse(PATCHED);
+    assert_eq!(
+        module.single_version_override("demo").expect("found").line,
+        2
+    );
+    assert_eq!(
+        module.override_version("demo").expect("literal").value,
+        "1.0.0"
+    );
+    assert_eq!(
+        module.single_version_override("other"),
+        Err(ModuleError::OverrideNotFound {
+            name: "other".to_owned()
+        })
+    );
+    let twice = parse("single_version_override(module_name = \"demo\", version = \"1\")\nsingle_version_override(module_name = \"demo\", version = \"2\")\n");
+    assert_eq!(
+        twice.single_version_override("demo"),
+        Err(ModuleError::OverrideAmbiguous {
+            name: "demo".to_owned(),
+            count: 2
+        })
+    );
+    let computed =
+        parse("N = \"demo\"\nsingle_version_override(module_name = N, version = \"1\")\n");
+    assert_eq!(
+        computed.single_version_override("demo"),
+        Err(ModuleError::OverrideComputedName { line: 2 })
+    );
+    let patch_only = parse("single_version_override(module_name = \"demo\", patches = [])\n");
+    assert_eq!(
+        patch_only.override_version("demo"),
+        Err(ModuleError::OverrideMissingVersion {
+            name: "demo".to_owned(),
+            line: 1
+        })
+    );
+    let computed_version =
+        parse("V = \"1\"\nsingle_version_override(module_name = \"demo\", version = V)\n");
+    assert_eq!(
+        computed_version.override_version("demo"),
+        Err(ModuleError::OverrideComputedVersion {
+            name: "demo".to_owned(),
+            line: 2
+        })
+    );
+}
+
+#[test]
+fn set_override_version_keeps_the_patches_and_the_bazel_dep() {
+    let out = parse(PATCHED)
+        .set_override_version("demo", "1.2.0")
+        .expect("edits");
+    assert_eq!(
+        out,
+        PATCHED.replace("    version = \"1.0.0\",", "    version = \"1.2.0\",")
+    );
+    let reparsed = parse(&out);
+    assert_eq!(
+        reparsed.bazel_dep_version("demo").expect("dep").value,
+        "1.0.0"
+    );
+    assert_eq!(
+        reparsed
+            .single_version_override("demo")
+            .expect("override")
+            .str_list("patches"),
+        vec!["//patches/demo:fix.patch"]
+    );
+}
+
+#[test]
+fn floor_comment_inserts_replaces_and_keeps_other_comments() {
+    let source = "# unrelated\nbazel_dep(name = \"demo\", version = \"1.0.0\")\n";
+    let module = parse(source);
+    assert_eq!(module.floor_comment("demo"), Ok(None));
+    let inserted = module
+        .set_floor_comment("demo", "oldest passing")
+        .expect("insert");
+    assert_eq!(
+        inserted,
+        "# unrelated\n# floor: oldest passing\nbazel_dep(name = \"demo\", version = \"1.0.0\")\n"
+    );
+    let replaced = parse(&inserted)
+        .set_floor_comment("demo", "new reason")
+        .expect("replace");
+    assert_eq!(
+        replaced,
+        "# unrelated\n# floor: new reason\nbazel_dep(name = \"demo\", version = \"1.0.0\")\n"
+    );
+    let multi = "# keep\n# floor: a\n# floor: b\nbazel_dep(name = \"demo\", version = \"1.0.0\")\n";
+    assert_eq!(
+        parse(multi).floor_comment("demo"),
+        Ok(Some("a b".to_owned()))
+    );
+    assert_eq!(
+        parse(multi)
+            .set_floor_comment("demo", "c")
+            .expect("collapse"),
+        "# keep\n# floor: c\nbazel_dep(name = \"demo\", version = \"1.0.0\")\n"
+    );
+    assert_eq!(
+        parse(&replaced).set_floor_comment("demo", "new reason"),
+        Ok(replaced.clone())
+    );
+    let gap = "# floor: stale\n\nbazel_dep(name = \"demo\", version = \"1.0.0\")\n";
+    assert_eq!(parse(gap).floor_comment("demo"), Ok(None));
+}
+
+#[test]
+fn floor_comment_keeps_crlf_and_indentation() {
+    let source = "x = 1\r\n# floor: old\r\nbazel_dep(name = \"demo\", version = \"1.0.0\")\r\n";
+    assert_eq!(
+        parse(source)
+            .set_floor_comment("demo", "new")
+            .expect("crlf"),
+        "x = 1\r\n# floor: new\r\nbazel_dep(name = \"demo\", version = \"1.0.0\")\r\n"
+    );
+    let first = "bazel_dep(name = \"demo\", version = \"1.0.0\")";
+    assert_eq!(
+        parse(first)
+            .set_floor_comment("demo", "r")
+            .expect("first line"),
+        "# floor: r\nbazel_dep(name = \"demo\", version = \"1.0.0\")"
+    );
+}
+
+#[test]
+fn floor_comment_rejects_unsafe_reasons_and_shared_lines() {
+    let module = parse("bazel_dep(name = \"demo\", version = \"1.0.0\")\n");
+    for reason in ["", "  ", "two\nlines", "cr\rhere", "tab\tbell\u{7}"] {
+        assert!(
+            matches!(
+                module.set_floor_comment("demo", reason),
+                Err(ModuleError::UnsafeComment { .. })
+            ),
+            "{reason:?}"
+        );
+    }
+    let shared = parse("x = 1; bazel_dep(name = \"demo\", version = \"1.0.0\")\n");
+    assert!(matches!(
+        shared.set_floor_comment("demo", "r"),
+        Err(ModuleError::NoInsertPoint { .. })
+    ));
+    assert!(matches!(
+        module.set_floor_comment("missing", "r"),
+        Err(ModuleError::NotFound { .. })
+    ));
+}
+
+#[test]
+fn module_versions_follow_bazel_order() {
+    use std::cmp::Ordering::{Equal, Greater, Less};
+    for (a, b, order) in [
+        ("34.0.bcr.1", "34.0.bcr.2", Less),
+        ("34.0", "34.0.bcr.1", Less),
+        ("2.0.0-alpha.6", "2.0.0", Less),
+        ("2.0.0-alpha.6", "2.0.0-alpha.10", Less),
+        ("2.0.0-alpha.6", "2.0.0-beta.1", Less),
+        ("0.2.9", "0.2.10", Less),
+        ("7.1", "7.1.0", Less),
+        ("1.0.0+build", "1.0.0", Equal),
+        ("1.0.0", "", Less),
+        ("5.4.6.bcr.1", "5.4.6", Greater),
+        ("1.0.0", "1.0.0", Equal),
+    ] {
+        assert_eq!(compare_module_versions(a, b), order, "{a} vs {b}");
+        assert_eq!(compare_module_versions(b, a), order.reverse(), "{b} vs {a}");
+    }
+}

@@ -10,6 +10,44 @@ pub struct BumpRequest {
     pub selector: String,
     pub raw_version: String,
     manifest: Option<String>,
+    /// Which of a MODULE.bazel dep's two versions a bazel bump edits.
+    pub dep_version: DepVersion,
+}
+
+/// The version of a MODULE.bazel dependency a bazel bump edits.
+///
+/// Each consumer-facing dep carries a floor in its `bazel_dep` (the oldest version
+/// consumers may resolve) and a tested-latest in a root-only `single_version_override`.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub enum DepVersion {
+    /// The tested-latest version: the `single_version_override` version when one has a
+    /// literal version, else the `bazel_dep` version.
+    #[default]
+    Tested,
+    /// The floor in the `bazel_dep`, with the `# floor: <reason>` comment above it.
+    Floor { reason: String },
+}
+
+impl DepVersion {
+    /// The target `--floor` and `--reason` select; both or neither must be given.
+    pub fn from_flags(floor: bool, reason: Option<&str>) -> Result<DepVersion, BumpError> {
+        match (floor, reason) {
+            (false, None) => Ok(DepVersion::Tested),
+            (true, None) => Err(BumpError::FloorNeedsReason),
+            (false, Some(_)) => Err(BumpError::ReasonNeedsFloor),
+            (true, Some(reason)) => {
+                let reason = reason.trim();
+                if reason.is_empty() || reason.chars().any(char::is_control) {
+                    return Err(BumpError::UnsafeReason {
+                        reason: reason.to_owned(),
+                    });
+                }
+                Ok(DepVersion::Floor {
+                    reason: reason.to_owned(),
+                })
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -48,6 +86,41 @@ pub enum BumpError {
     NeedsSha { package: String, tag: String },
     #[error(transparent)]
     Version(#[from] VersionError),
+    #[error("--floor needs --reason <text> naming why this is the oldest supported version")]
+    FloorNeedsReason,
+    #[error("--reason only applies with --floor")]
+    ReasonNeedsFloor,
+    #[error("--floor applies only to a MODULE.bazel bazel_dep, not {selector:?}")]
+    FloorNotBazelDep { selector: String },
+    #[error("floor reason {reason:?} must be one non-empty line")]
+    UnsafeReason { reason: String },
+    #[error("floor {floor} of {package:?} would be above its tested version {tested} in the single_version_override; bump the tested version first (nothing changed)")]
+    FloorAboveTested {
+        package: String,
+        floor: String,
+        tested: String,
+    },
+    #[error("tested version {tested} of {package:?} would be below its floor {floor} in the bazel_dep; lower the floor first with --floor --reason (nothing changed)")]
+    TestedBelowFloor {
+        package: String,
+        tested: String,
+        floor: String,
+    },
+}
+
+impl BumpError {
+    /// Whether this is an argument error rather than a manifest or network failure.
+    pub fn is_usage(&self) -> bool {
+        matches!(
+            self,
+            BumpError::FloorNeedsReason
+                | BumpError::ReasonNeedsFloor
+                | BumpError::FloorNotBazelDep { .. }
+                | BumpError::UnsafeReason { .. }
+                | BumpError::FloorAboveTested { .. }
+                | BumpError::TestedBelowFloor { .. }
+        )
+    }
 }
 
 /// One declared dependency a manifest edit targets: its set, package and manifest.
@@ -115,6 +188,7 @@ impl BumpRequest {
             selector: selector.to_owned(),
             raw_version: version.to_owned(),
             manifest: None,
+            dep_version: DepVersion::Tested,
         })
     }
 
@@ -136,6 +210,7 @@ impl BumpRequest {
             selector: selector.to_owned(),
             raw_version: version.to_owned(),
             manifest: Some(manifest.to_owned()),
+            dep_version: DepVersion::Tested,
         })
     }
 
@@ -174,7 +249,21 @@ impl BumpRequest {
             selector: selector.to_owned(),
             raw_version: raw_version.to_owned(),
             manifest: target.manifest.clone(),
+            dep_version: DepVersion::Tested,
         }
+    }
+
+    /// This request aimed at `dep_version`; a floor applies only to a MODULE.bazel bazel_dep.
+    pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<BumpRequest, BumpError> {
+        if dep_version != DepVersion::Tested
+            && (self.set != BumpSet::Bazel || self.package == ".bazelversion")
+        {
+            return Err(BumpError::FloorNotBazelDep {
+                selector: self.selector,
+            });
+        }
+        self.dep_version = dep_version;
+        Ok(self)
     }
 
     pub fn summary(&self) -> String {
@@ -191,8 +280,15 @@ impl BumpRequest {
         } else {
             self.target_manifest()
         };
+        let what = match (&self.dep_version, self.set, self.package.as_str()) {
+            (DepVersion::Floor { .. }, _, _) => " floor",
+            (DepVersion::Tested, BumpSet::Bazel, package) if package != ".bazelversion" => {
+                " tested override"
+            }
+            _ => "",
+        };
         let base = format!(
-            "Widen {} to {} in {place} ({through})",
+            "Widen {}{what} to {} in {place} ({through})",
             self.selector,
             self.version.display(),
         );
@@ -214,7 +310,7 @@ impl BumpRequest {
                 if self.package == ".bazelversion" {
                     plan_bazelversion(content, &self.version)
                 } else {
-                    plan_module_bazel(content, &self.package, &self.version)
+                    plan_module_bazel(content, &self.package, &self.version, &self.dep_version)
                 }
             }
             BumpSet::Cargo => plan_cargo_toml(manifest, content, &self.package, &self.version),

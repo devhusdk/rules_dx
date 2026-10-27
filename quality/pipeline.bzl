@@ -155,10 +155,6 @@ def pipeline_inputs_for_paths(ordered_paths, path_to_file):
     """Maps ordered workspace paths to action input files."""
     return [path_to_file[path] for path in ordered_paths if path in path_to_file]
 
-def stage_flag(stage):
-    """Renders one resolved stage as a --stage flag value."""
-    return stage["tool"] + ";" + ",".join(stage["classes"]) + ";" + ",".join(stage["sources"])
-
 def real_request_stage(tool, classes, sources):
     """Builds one stage entry of the versioned runner request document."""
     return {"classes": classes, "sources": sources, "tool": tool}

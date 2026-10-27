@@ -1,4 +1,5 @@
 use super::*;
+use crate::synthetic::{self, per_path};
 use quality_result::{assert_all_equal, encode_validated, validate};
 
 fn stage(tool: &str, classes: &[&str], sources: &[&str]) -> StageSpec {
@@ -72,8 +73,8 @@ fn source_declaration_reorder_yields_identical_manifests() {
     let files = vec![file("src/a.rs", "BAD a\n"), file("src/b.rs", "BAD b\n")];
     let forward = vec![stage("lint-a", &["rust"], &["src/a.rs", "src/b.rs"])];
     let reversed = vec![stage("lint-a", &["rust"], &["src/b.rs", "src/a.rs"])];
-    let first = run_pipeline("//quality:test", "lint", &forward, &files).unwrap();
-    let second = run_pipeline("//quality:test", "lint", &reversed, &files).unwrap();
+    let first = synthetic::run_pipeline("//quality:test", "lint", &forward, &files).unwrap();
+    let second = synthetic::run_pipeline("//quality:test", "lint", &reversed, &files).unwrap();
     assert_eq!(first.convergence, Convergence::Stable as i32);
     assert_eq!(second.convergence, Convergence::Stable as i32);
     assert_eq!(first.completed_rounds, second.completed_rounds);
@@ -130,7 +131,7 @@ fn mutation_outcome_depends_on_bytes_not_git_status() {
     for status in statuses {
         let _ = status;
         let files = vec![file("src/lib.rs", "BAD\n")];
-        let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+        let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
         assert_eq!(result.convergence, Convergence::Stable as i32, "{status}");
         assert_eq!(result.replacements.len(), 1, "{status}");
         assert_eq!(
@@ -143,7 +144,7 @@ fn mutation_outcome_depends_on_bytes_not_git_status() {
     }
     assert_all_equal(&manifests);
     let clean = vec![file("src/lib.rs", "GOOD\n")];
-    let clean_result = run_pipeline("//quality:test", "lint", &stages, &clean).unwrap();
+    let clean_result = synthetic::run_pipeline("//quality:test", "lint", &stages, &clean).unwrap();
     assert!(clean_result.replacements.is_empty());
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
@@ -152,8 +153,8 @@ fn mutation_outcome_depends_on_bytes_not_git_status() {
 fn identical_final_bytes_across_producer_identities() {
     let stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
     let files = vec![file("src/lib.rs", "BAD\n")];
-    let first = run_pipeline("//quality:owner-a", "lint", &stages, &files).unwrap();
-    let second = run_pipeline("//quality:owner-b", "lint", &stages, &files).unwrap();
+    let first = synthetic::run_pipeline("//quality:owner-a", "lint", &stages, &files).unwrap();
+    let second = synthetic::run_pipeline("//quality:owner-b", "lint", &stages, &files).unwrap();
     assert_eq!(first.producer, "//quality:owner-a");
     assert_eq!(second.producer, "//quality:owner-b");
     assert_eq!(first.terminal_snapshot, second.terminal_snapshot);
@@ -174,7 +175,7 @@ fn identical_final_bytes_across_producer_identities() {
 fn check_mode_must_fail_on_replacements_without_diagnostics() {
     let stages = vec![stage("fmt-a", &["python"], &["src/main.py"])];
     let files = vec![file("src/main.py", "x  \n")];
-    let result = run_pipeline("//quality:test", "format", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "format", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert!(result.initial_diagnostics.is_empty());
     assert!(result.terminal_diagnostics.is_empty());
@@ -191,8 +192,8 @@ fn file_arrival_reorder_yields_identical_manifests() {
     let stages = vec![stage("lint-a", &["rust"], &["src/a.rs", "src/b.rs"])];
     let forward = vec![file("src/a.rs", "BAD a\n"), file("src/b.rs", "BAD b\n")];
     let reversed = vec![file("src/b.rs", "BAD b\n"), file("src/a.rs", "BAD a\n")];
-    let first = run_pipeline("//quality:test", "lint", &stages, &forward).unwrap();
-    let second = run_pipeline("//quality:test", "lint", &stages, &reversed).unwrap();
+    let first = synthetic::run_pipeline("//quality:test", "lint", &stages, &forward).unwrap();
+    let second = synthetic::run_pipeline("//quality:test", "lint", &stages, &reversed).unwrap();
     assert_eq!(first.convergence, Convergence::Stable as i32);
     assert_eq!(second.convergence, Convergence::Stable as i32);
     assert_eq!(first.completed_rounds, second.completed_rounds);
@@ -222,7 +223,7 @@ fn env_permutations_do_not_alter_pipeline_outputs() {
     for (locale, tz, home, path) in envs {
         let _ = (locale, tz, home, path);
         let files = vec![file("src/lib.rs", "BAD\n")];
-        let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+        let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
         assert_eq!(result.convergence, Convergence::Stable as i32);
         assert_eq!(result.replacements.len(), 1);
         assert_eq!(
@@ -234,7 +235,7 @@ fn env_permutations_do_not_alter_pipeline_outputs() {
     }
     assert_all_equal(&manifests);
     let clean = vec![file("src/lib.rs", "GOOD\n")];
-    let clean_result = run_pipeline("//quality:test", "lint", &stages, &clean).unwrap();
+    let clean_result = synthetic::run_pipeline("//quality:test", "lint", &stages, &clean).unwrap();
     assert!(clean_result.replacements.is_empty());
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
@@ -249,7 +250,7 @@ fn checkout_paths_do_not_alter_pipeline_outputs() {
         assert!(format!("{prefix}/{relative}").ends_with(relative));
         let _ = prefix;
         let files = vec![file(relative, "BAD\n")];
-        let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+        let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
         assert_eq!(result.convergence, Convergence::Stable as i32);
         assert_eq!(result.replacements.len(), 1);
         assert_eq!(
@@ -261,7 +262,7 @@ fn checkout_paths_do_not_alter_pipeline_outputs() {
     }
     assert_all_equal(&manifests);
     let clean = vec![file("src/lib.rs", "GOOD\n")];
-    let clean_result = run_pipeline("//quality:test", "lint", &stages, &clean).unwrap();
+    let clean_result = synthetic::run_pipeline("//quality:test", "lint", &stages, &clean).unwrap();
     assert!(clean_result.replacements.is_empty());
     assert_ne!(manifests[0], encode_validated(&clean_result).unwrap());
 }
@@ -277,7 +278,7 @@ fn mixed_changed_and_unchanged_files_apply_independently() {
         file("src/changed.rs", "BAD\n"),
         file("src/clean.rs", "GOOD\n"),
     ];
-    let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.replacements.len(), 1);
     let edits = &result.replacements[0];
@@ -320,7 +321,7 @@ fn incomplete_terminal_collection_rejects_before_any_replacement() {
 fn adjacent_edits_coalesce_to_single_whole_file_candidate() {
     let stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
     let files = vec![file("src/lib.rs", "BADBAD\n")];
-    let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.initial_diagnostics.len(), 2);
     assert_eq!(result.initial_diagnostics[0].start_byte, Some(0));
@@ -383,8 +384,8 @@ fn tool_selection_reorder_yields_identical_manifests() {
         stage("lint-b", &["rust"], &["src/a.rs", "src/b.rs"]),
         stage("lint-a", &["rust"], &["src/a.rs", "src/b.rs"]),
     ];
-    let first = run_pipeline("//quality:test", "lint", &forward, &files).unwrap();
-    let second = run_pipeline("//quality:test", "lint", &reversed, &files).unwrap();
+    let first = synthetic::run_pipeline("//quality:test", "lint", &forward, &files).unwrap();
+    let second = synthetic::run_pipeline("//quality:test", "lint", &reversed, &files).unwrap();
     assert_eq!(first.convergence, Convergence::Stable as i32);
     assert_eq!(second.convergence, Convergence::Stable as i32);
     assert_eq!(first.completed_rounds, second.completed_rounds);
@@ -431,7 +432,7 @@ fn shared_source_across_owners_converges_without_duplication() {
         stage("lint-a", &["rust"], &["src/a.rs", "src/b.rs"]),
         stage("lint-b", &["rust"], &["src/a.rs"]),
     ];
-    let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 2);
     assert_eq!(result.initial_diagnostics.len(), 2);
@@ -506,7 +507,7 @@ fn chained_mutating_stages_see_virtual_snapshot() {
         stage("fmt-a", &["rust"], &["src/lib.rs"]),
     ];
     let files = vec![file("src/lib.rs", "BAD   \n")];
-    let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 2);
     assert_eq!(result.initial_diagnostics.len(), 1);
@@ -530,7 +531,7 @@ fn chained_mutating_stages_see_virtual_snapshot() {
         stage("fmt-a", &["rust"], &["src/lib.rs"]),
         stage("lint-a", &["rust"], &["src/lib.rs"]),
     ];
-    let other = run_pipeline("//quality:test", "lint", &reversed, &files).unwrap();
+    let other = synthetic::run_pipeline("//quality:test", "lint", &reversed, &files).unwrap();
     assert_eq!(other.convergence, Convergence::Stable as i32);
     assert_eq!(other.terminal_snapshot, result.terminal_snapshot);
     assert_eq!(other.replacements, result.replacements);
@@ -541,7 +542,7 @@ fn chained_mutating_stages_see_virtual_snapshot() {
 fn per_stage_malformed_edits_rejected_by_validate_gate() {
     let stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
     let files = vec![file("src/lib.rs", "BAD\n")];
-    let valid = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let valid = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(valid.replacements.len(), 1);
     assert!(validate(&valid).is_ok());
     let edits = &valid.replacements[0];

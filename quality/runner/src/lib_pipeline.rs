@@ -1,5 +1,6 @@
 use super::*;
-use quality_result::{decode_validated, encode_validated, validate};
+use crate::synthetic::{self, apply_synthetic, collect_diagnostics, per_path};
+use quality_result::{decode_validated, encode_validated, proto::Severity, validate};
 
 fn stage(tool: &str, classes: &[&str], sources: &[&str]) -> StageSpec {
     StageSpec {
@@ -26,7 +27,7 @@ fn lint_fix() -> (Vec<StageSpec>, Vec<FileInput>) {
 #[test]
 fn stable_fix_is_valid_and_deterministic() {
     let (stages, files) = lint_fix();
-    let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 2);
     assert_eq!(result.terminal_snapshot.len(), 1);
@@ -46,7 +47,7 @@ fn stable_fix_is_valid_and_deterministic() {
     assert_eq!(edits.edits[0].replacement, b"GOOD GOO");
     assert!(validate(&result).is_ok());
     let first = encode_validated(&result).unwrap();
-    let rerun = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let rerun = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(encode_validated(&rerun).unwrap(), first);
     assert_eq!(decode_validated(&first).unwrap(), result);
 }
@@ -55,7 +56,7 @@ fn stable_fix_is_valid_and_deterministic() {
 fn clean_inputs_converge_in_one_round_without_replacements() {
     let stages = vec![stage("lint-a", &["rust"], &["src/lib.rs"])];
     let files = vec![file("src/lib.rs", "GOOD\n")];
-    let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 1);
     assert!(result.initial_diagnostics.is_empty());
@@ -72,7 +73,7 @@ fn clean_inputs_converge_in_one_round_without_replacements() {
 fn format_trims_trailing_whitespace_idempotently() {
     let stages = vec![stage("fmt-a", &["python"], &["src/main.py"])];
     let files = vec![file("src/main.py", "x  \ny\t\nz\n")];
-    let result = run_pipeline("//quality:test", "format", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "format", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 2);
     assert!(result.initial_diagnostics.is_empty());
@@ -87,7 +88,7 @@ fn format_trims_trailing_whitespace_idempotently() {
 fn format_trims_final_line_without_trailing_newline() {
     let stages = vec![stage("fmt-a", &["python"], &["src/main.py"])];
     let files = vec![file("src/main.py", "x  \ny  ")];
-    let result = run_pipeline("//quality:test", "format", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "format", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 2);
     assert_eq!(result.replacements.len(), 1);
@@ -101,7 +102,7 @@ fn format_trims_final_line_without_trailing_newline() {
 fn diagnostic_only_tool_reports_without_edits() {
     let stages = vec![stage("lint-b", &["rust"], &["src/lib.rs"])];
     let files = vec![file("src/lib.rs", "ok FAIL end\n")];
-    let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 1);
     assert_eq!(result.initial_diagnostics.len(), 1);
@@ -123,7 +124,7 @@ fn mixed_pipeline_marks_only_resolved_findings_fixable() {
         stage("lint-b", &["rust"], &["src/b.rs"]),
     ];
     let files = vec![file("src/a.rs", "BAD\n"), file("src/b.rs", "FAIL\n")];
-    let result = run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.initial_diagnostics.len(), 2);
     assert_eq!(result.initial_diagnostics[0].path, "src/a.rs");
@@ -146,7 +147,8 @@ fn all_capabilities_run() {
         ("format", Capability::Format as i32),
         ("audit", Capability::Audit as i32),
     ] {
-        let result = run_pipeline("//quality:test", capability, &stages, &files).unwrap();
+        let result =
+            synthetic::run_pipeline("//quality:test", capability, &stages, &files).unwrap();
         assert_eq!(result.capability, expected);
         assert!(encode_validated(&result).is_ok());
     }
@@ -156,7 +158,7 @@ fn all_capabilities_run() {
 fn empty_file_has_no_findings() {
     let stages = vec![stage("fmt-a", &["rust"], &["src/lib.rs"])];
     let files = vec![file("src/lib.rs", "")];
-    let result = run_pipeline("//quality:test", "format", &stages, &files).unwrap();
+    let result = synthetic::run_pipeline("//quality:test", "format", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert!(result.initial_diagnostics.is_empty());
     assert!(result.replacements.is_empty());
@@ -167,7 +169,7 @@ fn empty_file_has_no_findings() {
 fn empty_producer_fails() {
     let (stages, files) = lint_fix();
     assert_eq!(
-        run_pipeline("", "lint", &stages, &files),
+        synthetic::run_pipeline("", "lint", &stages, &files),
         Err(RunnerError::EmptyProducer)
     );
 }
@@ -176,7 +178,7 @@ fn empty_producer_fails() {
 fn unknown_capability_fails() {
     let (stages, files) = lint_fix();
     assert_eq!(
-        run_pipeline("//quality:test", "smell", &stages, &files),
+        synthetic::run_pipeline("//quality:test", "smell", &stages, &files),
         Err(RunnerError::UnknownCapability {
             capability: "smell".to_owned(),
         })
@@ -187,7 +189,7 @@ fn unknown_capability_fails() {
 fn empty_stages_fails() {
     let (_, files) = lint_fix();
     assert_eq!(
-        run_pipeline("//quality:test", "lint", &[], &files),
+        synthetic::run_pipeline("//quality:test", "lint", &[], &files),
         Err(RunnerError::EmptyStages)
     );
 }
@@ -197,7 +199,7 @@ fn empty_tool_id_fails() {
     let (_, files) = lint_fix();
     let stages = vec![stage("", &["rust"], &["src/lib.rs"])];
     assert_eq!(
-        run_pipeline("//quality:test", "lint", &stages, &files),
+        synthetic::run_pipeline("//quality:test", "lint", &stages, &files),
         Err(RunnerError::EmptyToolId { stage: 0 })
     );
 }
@@ -207,9 +209,21 @@ fn unknown_tool_fails() {
     let (_, files) = lint_fix();
     let stages = vec![stage("nope", &["rust"], &["src/lib.rs"])];
     assert_eq!(
-        run_pipeline("//quality:test", "lint", &stages, &files),
+        synthetic::run_pipeline("//quality:test", "lint", &stages, &files),
         Err(RunnerError::UnknownTool {
             tool_id: "nope".to_owned(),
+        })
+    );
+}
+
+#[test]
+fn synthetic_gate_rejects_real_tool_ids() {
+    let (_, files) = lint_fix();
+    let stages = vec![stage("clippy", &["rust"], &["src/lib.rs"])];
+    assert_eq!(
+        synthetic::run_pipeline("//quality:test", "lint", &stages, &files),
+        Err(RunnerError::UnknownTool {
+            tool_id: "clippy".to_owned(),
         })
     );
 }
@@ -219,7 +233,7 @@ fn empty_class_ids_fails() {
     let (_, files) = lint_fix();
     let stages = vec![stage("lint-a", &[], &["src/lib.rs"])];
     assert_eq!(
-        run_pipeline("//quality:test", "lint", &stages, &files),
+        synthetic::run_pipeline("//quality:test", "lint", &stages, &files),
         Err(RunnerError::EmptyClassIds { stage: 0 })
     );
 }
@@ -229,7 +243,7 @@ fn empty_stage_sources_fails() {
     let (_, files) = lint_fix();
     let stages = vec![stage("lint-a", &["rust"], &[])];
     assert_eq!(
-        run_pipeline("//quality:test", "lint", &stages, &files),
+        synthetic::run_pipeline("//quality:test", "lint", &stages, &files),
         Err(RunnerError::EmptyStageSources { stage: 0 })
     );
 }
@@ -239,7 +253,7 @@ fn duplicate_file_fails() {
     let (stages, _) = lint_fix();
     let files = vec![file("src/lib.rs", "BAD\n"), file("src/lib.rs", "BAD\n")];
     assert_eq!(
-        run_pipeline("//quality:test", "lint", &stages, &files),
+        synthetic::run_pipeline("//quality:test", "lint", &stages, &files),
         Err(RunnerError::DuplicateFile {
             path: "src/lib.rs".to_owned(),
         })
@@ -254,7 +268,7 @@ fn invalid_utf8_fails() {
         bytes: vec![0xFF],
     }];
     assert_eq!(
-        run_pipeline("//quality:test", "lint", &stages, &files),
+        synthetic::run_pipeline("//quality:test", "lint", &stages, &files),
         Err(RunnerError::InvalidUtf8 {
             path: "src/lib.rs".to_owned(),
         })
@@ -266,7 +280,7 @@ fn missing_file_fails() {
     let stages = vec![stage("lint-a", &["rust"], &["src/missing.rs"])];
     let (_, files) = lint_fix();
     assert_eq!(
-        run_pipeline("//quality:test", "lint", &stages, &files),
+        synthetic::run_pipeline("//quality:test", "lint", &stages, &files),
         Err(RunnerError::MissingFile {
             path: "src/missing.rs".to_owned(),
         })

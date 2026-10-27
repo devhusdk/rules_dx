@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 load(":adapters.bzl", "SYNTHETIC_ADAPTERS", "SYNTHETIC_CLASS_TO_FAMILY", "adapter_supported_classes")
-load(":pipeline.bzl", "aspect_capability_blocked", "authorize_classes", "depset_subject_paths", "drop_pipeline_tool", "file_subject_paths", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "resolve_pipeline", "runfiles_subject_paths", "stage_flag", "stage_sources", "target_subject_classes", "upstream_tags")
+load(":pipeline.bzl", "aspect_capability_blocked", "authorize_classes", "depset_subject_paths", "drop_pipeline_tool", "file_subject_paths", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "resolve_pipeline", "runfiles_subject_paths", "stage_sources", "target_subject_classes", "upstream_tags")
 
 _LINT_SELECTIONS = {
     "python": ["lint-a"],
@@ -252,11 +252,6 @@ def pipeline_unit_tests(name):
                     {"classes": ["python", "rust"], "sources": ["src/lib.rs", "src/main.py"], "tool": "lint-a"},
                 ]),
                 ["src/lib.rs", "src/main.py", "src/main.rs"],
-            ),
-            expect_equal(
-                "stage_flag renders the deterministic --stage value",
-                stage_flag({"classes": ["python", "rust"], "sources": ["src/lib.rs", "src/main.py"], "tool": "lint-a"}),
-                "lint-a;python,rust;src/lib.rs,src/main.py",
             ),
             expect_equal(
                 "prune_tool_generated_sources drops generated paths and emptied stages",

@@ -120,6 +120,7 @@ rust_test(
         "src/lib_determinism.rs",
         "src/lib_gates.rs",
         "src/lib_pipeline.rs",
+        "src/lib_synthetic.rs",
         "src/real.rs",
         "src/real/check.rs",
         "src/real/delegated.rs",

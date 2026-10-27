@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
-load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline", "stage_flag")
+load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":policy.bzl", "family_section_error")
 load(":real_aspects.bzl", "go_lang_version", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "rustc_diagnostics_group")
 
@@ -677,11 +677,6 @@ def real_pipeline_unit_tests(name):
                     {"classes": ["starlark"], "sources": ["BUILD.bazel", "src/lib.rs"], "tool": "buildifier"},
                 ]),
                 ["BUILD.bazel", "src/lib.rs", "src/main.rs"],
-            ),
-            expect_equal(
-                "stage_flag renders real stages deterministically",
-                stage_flag({"classes": ["rust"], "sources": ["src/lib.rs"], "tool": "clippy"}),
-                "clippy;rust;src/lib.rs",
             ),
             expect_equal(
                 "prune_tool_generated_sources keeps non-target tools untouched",

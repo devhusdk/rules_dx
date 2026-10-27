@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::exec::test_inventory::{parse_label_kind, SUPPORTED_CASE_KINDS};
 use dx_codegen::quote_label;
-use dx_plan::resolve::{QueryRunner, ResolveError};
+use dx_plan::resolve::{QueryFailure, QueryRunner, ResolveError, SelectionContext};
 
 const ARG_TOLERANT_KINDS: [&str; 2] = ["rust_clippy_test", "rustfmt_test"];
 
@@ -47,7 +47,7 @@ pub(crate) fn rust_filter_args(
     targets: &[String],
     workspace: &Path,
     runner: &dyn QueryRunner,
-    startup_options: &[String],
+    selection: &SelectionContext,
 ) -> Result<Vec<String>, ResolveError> {
     let Some(filter) = last_test_filter(options) else {
         return Ok(Vec::new());
@@ -55,11 +55,10 @@ pub(crate) fn rust_filter_args(
     let Some(expr) = tests_expression(targets) else {
         return Ok(Vec::new());
     };
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.push("query".to_owned());
-    argv.push("--output=label_kind".to_owned());
-    argv.push("--".to_owned());
-    argv.push(expr.clone());
+    let argv = selection
+        .unconfigured_view()
+        .selection_argv("query", &["--output=label_kind".to_owned()], &expr)
+        .map_err(|error| ResolveError::query(&expr, QueryFailure::Prepare { detail: error.to_string() }))?;
     let label = format!("bazel query {expr}");
     let result = ResolveError::run(runner, &argv, workspace, &label)?;
     let kinds = parse_label_kind(&result.stdout).unwrap_or_default();

@@ -35,7 +35,7 @@ func NewWebComponentLang(name, displayName string, exts []string, parseImports f
 
 func ParseScriptImports(content []byte, dir string) []string {
 	set := SpecSet{Dir: dir}
-	for _, script := range ExtractScripts(content) {
+	for _, script := range ExtractScripts(content, TopLevel) {
 		ScanEmbedded(script, set.Add)
 	}
 	return set.Roots()

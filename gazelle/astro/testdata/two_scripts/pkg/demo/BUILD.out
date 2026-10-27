@@ -1,0 +1,26 @@
+load("@rules_dx//astro/rules:defs.bzl", "astro_library")
+
+astro_library(
+    name = "Card",
+    srcs = ["Card.astro"],
+)
+
+astro_library(
+    name = "nested",
+    srcs = ["nested.astro"],
+)
+
+astro_library(
+    name = "page",
+    srcs = ["page.astro"],
+    deps = [
+        ":Card",
+        ":nested",
+        ":tail",
+    ],
+)
+
+astro_library(
+    name = "tail",
+    srcs = ["tail.astro"],
+)

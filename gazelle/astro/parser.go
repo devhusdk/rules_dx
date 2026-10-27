@@ -15,7 +15,7 @@ func ParseImports(content []byte, dir string) []string {
 		regions = append(regions, front)
 		body = rest
 	}
-	scripts := common.ExtractScripts(body)
+	scripts := common.ExtractScripts(body, common.Anywhere)
 	regions = append(regions, scripts...)
 	set := common.SpecSet{Dir: dir}
 	for _, region := range regions {
@@ -24,6 +24,7 @@ func ParseImports(content []byte, dir string) []string {
 	return set.Roots()
 }
 
+// splitFence only frames the frontmatter; ScanEmbedded reads its imports.
 func splitFence(src []byte) (fenced bool, front, rest []byte, ok bool) {
 	var first, after []byte
 	if nl := bytes.IndexByte(src, '\n'); nl < 0 {

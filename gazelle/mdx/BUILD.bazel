@@ -8,6 +8,7 @@ go_library(
     name = "mdx",
     srcs = [
         "doc.go",
+        "esm.go",
         "lang.go",
         "parser.go",
     ],
@@ -15,6 +16,10 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
+        "@com_github_yuin_goldmark//ast",
+        "@com_github_yuin_goldmark//parser",
+        "@com_github_yuin_goldmark//text",
+        "@com_github_yuin_goldmark//util",
         "@gazelle//language",
         "@gazelle//repo",
         "@gazelle//resolve",
@@ -53,6 +58,7 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
         "testdata/entries/README.md",
+        "testdata/fences/README.md",
         "testdata/merge/README.md",
         "testdata/source_only/README.md",
     ],

@@ -22,6 +22,7 @@ go_library(
         "doc.go",
         "dotnetplatform.go",
         "embeddedscan.go",
+        "htmlscripts.go",
         "ignore.go",
         "jsresolve.go",
         "jsscan.go",
@@ -71,6 +72,7 @@ go_library(
         "@gazelle//rule",
         "@gazelle//v2/label",
         "@gazelle//v2/rule",
+        "@org_golang_x_net//html",
     ],
 )
 

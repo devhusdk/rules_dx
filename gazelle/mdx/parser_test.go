@@ -53,8 +53,8 @@ func TestParseImports(t *testing.T) {
 		{"exportStarAs", "export * as ns from '../lib.mdx';\n", []string{"../lib"}},
 		{"exportLocal", "export const x = 1;\n", nil},
 		{"dynamicConstInert", "const m = await import(\"./lazy.mdx\");\n", nil},
-		{"dynamicSingle", "import('./other.mjs');\n", []string{"other"}},
-		{"dynamicBare", "import(\"react\");\n", []string{"react"}},
+		{"dynamicSingleProse", "import('./other.mjs');\n", nil},
+		{"dynamicBareProse", "import(\"react\");\n", nil},
 		{"requireConstInert", "const x = require(\"./data.cjs\");\n", nil},
 		{"requireBareLineInert", "require('fs');\n", nil},
 		{"requireComputed", "require(name);\n", nil},
@@ -94,7 +94,7 @@ func TestParseImports(t *testing.T) {
 		{"fromNonQuote", "import foo from bar;\n", nil},
 		{"exportStrayString", "export \"x\";\n", nil},
 		{"exportTemplate", "export `tmpl`;\n", nil},
-		{"exportNewlineFromNarrow", "export {a}\nfrom './helper.mdx';\n", nil},
+		{"exportNewlineFrom", "export {a}\nfrom './helper.mdx';\n", []string{"helper"}},
 		{"exportNewlineNoFrom", "export const x = 1\n", nil},
 		{"exportFromUnterminated", "export {a} from \"abc\n", nil},
 		{"exportFromNonQuote", "export {a} from bar;\n", nil},
@@ -104,7 +104,7 @@ func TestParseImports(t *testing.T) {
 		{"requireEOF", "require", nil},
 		{"requireMissingParen", "require(\"a\";\n", nil},
 		{"requireUnterminated", "require(\"abc\n", nil},
-		{"triviaLineCommentNarrow", "import //c\n\"./a.mdx\";\n", nil},
+		{"triviaLineComment", "import //c\n\"./a.mdx\";\n", []string{"a"}},
 		{"triviaBlockComment", "import /*c*/ \"./a.mdx\";\n", []string{"a"}},
 		{"triviaUnterminatedBlock", "import /* unterminated", nil},
 		{"importBraceComment", "import {a /*c*/} from './real.mdx';\n", []string{"real"}},
@@ -191,6 +191,25 @@ func TestExtractESMRegions(t *testing.T) {
 		{"multilineBraces", "import {\n a\n} from \"./a.mdx\";\n", []string{"import {\n a\n} from \"./a.mdx\";\n"}},
 		{"headingInsideOpenBrace", "import {\n# Title\n", []string{"import {\n# Title\n"}},
 		{"commentWholeDocInert", "import a from \"./a.mdx\";\n<!-- oops\nimport b from \"./b.mdx\";\n", nil},
+		{"tildeFence", "~~~\nimport a from \"./a.mdx\";\n~~~\nimport b from \"./b.mdx\";\n", []string{"import b from \"./b.mdx\";\n"}},
+		{"longerCloser", "```\nimport a from \"./a.mdx\";\n`````\nimport b from \"./b.mdx\";\n", []string{"import b from \"./b.mdx\";\n"}},
+		{"tildeCloserForBacktickInert", "```\nimport a from \"./a.mdx\";\n~~~\nimport b from \"./b.mdx\";\n", nil},
+		{"fenceToEOF", "import a from \"./a.mdx\";\n\n```\nimport b from \"./b.mdx\";\n", []string{"import a from \"./a.mdx\";\n"}},
+		{"fenceInList", "- item\n\n  ```\n  import a from \"./a.mdx\";\n  ```\n\nimport b from \"./b.mdx\";\n", []string{"import b from \"./b.mdx\";\n"}},
+		{"fenceInBlockquote", "> ```\n> import a from \"./a.mdx\";\n> ```\n\nimport b from \"./b.mdx\";\n", []string{"import b from \"./b.mdx\";\n"}},
+		{"blockquoteInert", "> import a from \"./a.mdx\";\n", nil},
+		{"listItemInert", "- import a from \"./a.mdx\";\n", nil},
+		{"listContinuationInert", "- item\n\n  import a from \"./a.mdx\";\n", nil},
+		{"indentedImportInert", "    import a from \"./a.mdx\";\n", nil},
+		{"spacedImportInert", " import a from \"./a.mdx\";\n", nil},
+		{"tabAfterKeywordInert", "import\ta from \"./a.mdx\";\n", nil},
+		{"braceAfterKeywordInert", "import{a} from \"./a.mdx\";\n", nil},
+		{"threeBlocks", "import a from \"./a.mdx\";\n\nProse.\n\nexport {b} from \"./b.mdx\";\n\n# Title\n\nimport c from \"./c.mdx\";\n", []string{"import a from \"./a.mdx\";\n", "export {b} from \"./b.mdx\";\n", "import c from \"./c.mdx\";\n"}},
+		{"blankInsideTemplate", "export const s = `a\n\nb`;\nimport a from \"./a.mdx\";\n\nText\n", []string{"export const s = `a\n\nb`;\nimport a from \"./a.mdx\";\n"}},
+		{"blankEndsComplete", "import a from \"./a.mdx\";\n\nimport(\"./b.mdx\");\n", []string{"import a from \"./a.mdx\";\n"}},
+		{"setextAfterImport", "import a from \"./a.mdx\";\n===\n", []string{"import a from \"./a.mdx\";\n===\n"}},
+		{"thematicAfterImport", "import a from \"./a.mdx\";\n---\n", []string{"import a from \"./a.mdx\";\n---\n"}},
+		{"crlf", "import a from \"./a.mdx\";\r\n\r\nText\r\n", []string{"import a from \"./a.mdx\";\r\n"}},
 	}
 	for _, tc := range cases {
 		got := extractESMRegions([]byte(tc.source))
@@ -212,52 +231,20 @@ func TestExtractESMRegions(t *testing.T) {
 	}
 }
 
-func TestIsSetextUnderline(t *testing.T) {
-	if isSetextUnderline("") {
-		t.Error("isSetextUnderline(\"\") = true, want false")
-	}
-	if !isSetextUnderline("===") {
-		t.Error("isSetextUnderline(\"===\") = false, want true")
-	}
-	if !isSetextUnderline("  ===  ") {
-		t.Error("isSetextUnderline spaced = false, want true")
-	}
-	if isSetextUnderline("abc") {
-		t.Error("isSetextUnderline(\"abc\") = true, want false")
-	}
-	if isSetextUnderline("---") {
-		t.Error("isSetextUnderline(\"---\") = true, want false")
-	}
-}
-
-func TestIsFenceClose(t *testing.T) {
-	if !isFenceClose("```", '`', 3) {
-		t.Error("isFenceClose basic = false, want true")
-	}
-	if !isFenceClose(" ```", '`', 3) {
-		t.Error("isFenceClose spaced = false, want true")
-	}
-	if !isFenceClose("```\t ", '`', 3) {
-		t.Error("isFenceClose trailing = false, want true")
-	}
-	if isFenceClose("    ```", '`', 3) {
-		t.Error("isFenceClose indented = true, want false")
-	}
-	if isFenceClose("```", '`', 4) {
-		t.Error("isFenceClose short = true, want false")
-	}
-	if isFenceClose("``` extra", '`', 3) {
-		t.Error("isFenceClose trailing text = true, want false")
-	}
-	if isFenceClose("~~~", '`', 3) {
-		t.Error("isFenceClose wrong char = true, want false")
-	}
-}
-
 func TestParseImportsKeepsDirectories(t *testing.T) {
 	content := []byte(mdxWrap("import a from '../a/util.mdx';\nimport b from '../b/util.mdx';\nimport c from './util.mdx';\nimport r from 'react';\n"))
 	want := []string{"app/a/util", "app/b/util", "app/web/util", "react"}
 	if got := ParseImports(content, "app/web"); !reflect.DeepEqual(got, want) {
 		t.Fatalf("ParseImports = %q, want %q", got, want)
+	}
+}
+
+func TestExtractESMRegionsNoPanic(t *testing.T) {
+	seeds := []string{
+		"import \xff\xfe from 'a';\n", "\xed\xa0\x80import a from 'a';\n", "import a from '\xed\xa0\x80';\n",
+		"import ", "export ", "import {", "```", "> ", "- ", "<!--", "import `${", "\x00import a\n",
+	}
+	for _, s := range seeds {
+		_ = extractESMRegions([]byte(s))
 	}
 }

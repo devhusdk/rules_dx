@@ -1,0 +1,26 @@
+load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+
+mdx_library(
+    name = "first",
+    srcs = ["first.mdx"],
+)
+
+mdx_library(
+    name = "guide",
+    srcs = ["guide.mdx"],
+    deps = [
+        ":first",
+        ":second",
+        ":third",
+    ],
+)
+
+mdx_library(
+    name = "second",
+    srcs = ["second.mdx"],
+)
+
+mdx_library(
+    name = "third",
+    srcs = ["third.mdx"],
+)

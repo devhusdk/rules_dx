@@ -1174,11 +1174,7 @@ struct RealGitleaks {
 
 impl Runner for RealGitleaks {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        let output = dx_process::spawn_output(argv, cwd, env, true)?;
-        Ok(match output.status.code() {
-            Some(code) => ChildStatus::exited(code),
-            None => ChildStatus::signalled(None),
-        })
+        self.run_hermetic(argv, cwd, env)
     }
 
     fn run_hermetic(
@@ -1187,7 +1183,7 @@ impl Runner for RealGitleaks {
         cwd: &Path,
         env: &[(&str, &str)],
     ) -> io::Result<ChildStatus> {
-        self.run(argv, cwd, env)
+        dx_process::BinaryRunner::new(false, |_| {}).run_hermetic(argv, cwd, env)
     }
 
     fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {

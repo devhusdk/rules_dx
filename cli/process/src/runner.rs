@@ -109,7 +109,13 @@ impl Runner for BinaryRunner {
     }
 
     fn tool_version(&self, path: &Path) -> Option<String> {
-        crate::version_line(path)
+        let version = crate::version_line(path, &self.stop);
+        if version.is_none() {
+            if let Some(signal) = (self.stop)() {
+                (self.on_stop)(signal);
+            }
+        }
+        version
     }
 
     fn free_disk_bytes(&self, path: &Path) -> Option<u64> {

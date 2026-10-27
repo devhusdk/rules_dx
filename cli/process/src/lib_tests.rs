@@ -884,16 +884,6 @@ fn default_withdrawable_run_checks_withdraw_only_before_launch() {
 }
 
 #[test]
-fn spawn_output_preserves_exit_codes() {
-    let cwd = std::env::temp_dir();
-    for code in [0, 1] {
-        let flag = format!("--exit-code={code}");
-        let out = spawn_output(&probe_argv(&[&flag]), &cwd, &[], false).expect("probe");
-        assert_eq!(out.status.code(), Some(code));
-    }
-}
-
-#[test]
 fn child_status_from_exit_keeps_the_code_or_the_known_signal() {
     assert_eq!(
         ChildStatus::from(lifecycle::Exit::Code(3)),
@@ -918,110 +908,11 @@ fn child_status_from_exit_keeps_the_code_or_the_known_signal() {
     );
 }
 
-#[cfg(unix)]
-#[test]
-fn spawn_output_reports_the_signal_that_ended_the_child() {
-    let argv: Vec<String> = ["/bin/sh", "-c", "kill -SEGV $$"]
-        .iter()
-        .map(|arg| (*arg).to_owned())
-        .collect();
-    let output = spawn_output(&argv, &std::env::temp_dir(), &[], false).expect("sh runs");
-    assert_eq!(
-        ChildStatus::from(lifecycle::exit_of(&output.status)),
-        ChildStatus {
-            code: None,
-            signal: Some(11)
-        }
-    );
-}
-
 /// A probe argv that runs the Bazel-built probe with the given flags.
 pub(crate) fn probe_argv(flags: &[&str]) -> Vec<String> {
     let mut argv = vec![dx_testing::process_probe().to_string_lossy().into_owned()];
     argv.extend(flags.iter().map(|flag| (*flag).to_owned()));
     argv
-}
-
-#[test]
-fn spawn_output_forwards_extra_environment() {
-    let cwd = std::env::temp_dir();
-    let argv = probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]);
-    let probed =
-        spawn_output(&argv, &cwd, &[("DX_RUNNER_PROBE", "forwarded")], false).expect("probe");
-    assert_eq!(probed.status.code(), Some(0));
-    let rejected =
-        spawn_output(&argv, &cwd, &[("DX_RUNNER_PROBE", "other")], false).expect("probe");
-    assert_eq!(
-        rejected.status.code(),
-        Some(70),
-        "a wrong value must not pass"
-    );
-}
-
-#[test]
-fn spawn_output_rejects_bad_invocations() {
-    assert!(spawn_output(&[], Path::new("."), &[], false).is_err());
-    assert!(spawn_output(
-        &["/nonexistent-dx-tool".to_owned()],
-        Path::new("."),
-        &[],
-        false
-    )
-    .is_err());
-}
-
-#[test]
-fn spawn_output_clears_the_parent_environment() {
-    let cwd = std::env::temp_dir();
-    let inherited = std::env::var("TEST_SRCDIR").expect("Bazel sets TEST_SRCDIR for every test");
-    let argv = probe_argv(&[
-        "--forbid-env=TEST_SRCDIR",
-        "--print-env=TEST_SRCDIR",
-        "--print-env=DX_HERMETIC_PROBE",
-    ]);
-    let kept = spawn_output(&argv, &cwd, &[("DX_HERMETIC_PROBE", "kept")], false)
-        .expect("probe inherits the parent environment");
-    assert_eq!(
-        kept.status.code(),
-        Some(71),
-        "an uncleared child still sees TEST_SRCDIR"
-    );
-    let cleared = spawn_output(&argv, &cwd, &[("DX_HERMETIC_PROBE", "kept")], true)
-        .expect("probe runs with a cleared environment");
-    assert_eq!(cleared.status.code(), Some(0));
-    assert_eq!(
-        String::from_utf8_lossy(&cleared.stdout),
-        "<unset>\nkept\n",
-        "inherited={inherited}"
-    );
-}
-
-#[test]
-fn cleared_spawn_output_forwards_extra_environment() {
-    let cwd = std::env::temp_dir();
-    let argv = probe_argv(&["--require-env=DX_HERMETIC_PROBE=kept"]);
-    let kept = spawn_output(&argv, &cwd, &[("DX_HERMETIC_PROBE", "kept")], true).expect("probe");
-    assert_eq!(kept.status.code(), Some(0));
-    let missing = spawn_output(&argv, &cwd, &[], true).expect("probe");
-    assert_eq!(
-        missing.status.code(),
-        Some(70),
-        "an unset variable must not pass"
-    );
-}
-
-#[test]
-fn cleared_spawn_output_sets_no_path() {
-    let cwd = std::env::temp_dir();
-    let argv = probe_argv(&["--forbid-env=PATH"]);
-    let no_path = spawn_output(&argv, &cwd, &[], true).expect("probe");
-    assert_eq!(no_path.status.code(), Some(0));
-    let inherited = spawn_output(&argv, &cwd, &[], false).expect("probe");
-    assert_eq!(
-        inherited.status.code(),
-        Some(71),
-        "only a cleared environment drops PATH"
-    );
 }
 
 #[test]
@@ -1381,4 +1272,45 @@ fn remove_tree_never_chmods_a_symlink_target() {
         .mode();
     assert_eq!(mode & 0o777, 0o555);
     std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o755)).expect("restore");
+}
+
+fn os_argv(argv: Vec<String>) -> Vec<std::ffi::OsString> {
+    argv.into_iter().map(Into::into).collect()
+}
+
+#[test]
+fn first_line_within_reads_the_first_stdout_line() {
+    let argv = os_argv(probe_argv(&["--stdout-text=tool 1.2.3"]));
+    assert_eq!(
+        first_line_within(argv, &|| None),
+        Some("tool 1.2.3".to_owned())
+    );
+}
+
+#[test]
+fn first_line_within_rejects_a_failing_tool() {
+    let argv = os_argv(probe_argv(&["--exit-code=3"]));
+    assert_eq!(first_line_within(argv, &|| None), None);
+}
+
+#[test]
+fn first_line_within_runs_with_no_path() {
+    let argv = os_argv(probe_argv(&["--forbid-env=PATH", "--stdout-text=x"]));
+    assert_eq!(first_line_within(argv, &|| None), Some("x".to_owned()));
+}
+
+#[test]
+fn version_line_of_a_missing_tool_is_none() {
+    assert_eq!(
+        version_line(Path::new("/nonexistent-dx-tool"), &|| None),
+        None
+    );
+}
+
+#[test]
+fn first_line_within_ends_early_when_stopped() {
+    let argv = os_argv(probe_argv(&["--sleep-ms=60000"]));
+    let started = std::time::Instant::now();
+    assert_eq!(first_line_within(argv, &|| Some(15)), None);
+    assert!(started.elapsed() < VERSION_TIMEOUT);
 }

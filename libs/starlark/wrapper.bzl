@@ -477,6 +477,39 @@ def dx_wrap_forward_kwargs(kwargs):
             out[key] = kwargs[key]
     return out
 
+def dx_strip_none(kwargs):
+    """Returns kwargs without the keys `macro(inherit_attrs = ...)` left at None."""
+    return {key: value for key, value in kwargs.items() if value != None}
+
+def dx_wrapper_macro_attrs(nonconfigurable_lists = [], nonconfigurable_labels = [], allow_files = True, mandatory = []):
+    """Returns macro() attr overrides that make inspected attributes non-configurable.
+
+    The wrapper hooks call list(), `in` and string operations on these
+    attributes, which a select() would break; a non-configurable attribute
+    fails at load time with a clear error instead.
+
+    Args:
+        nonconfigurable_lists: Names of label_list attributes.
+        nonconfigurable_labels: Names of single label attributes.
+        allow_files: The allow_files value the upstream rule uses.
+        mandatory: Names, among the two lists above, that are mandatory.
+    """
+    out = {}
+    for key in nonconfigurable_lists:
+        out[key] = attr.label_list(allow_files = allow_files, configurable = False, mandatory = key in mandatory)
+    for key in nonconfigurable_labels:
+        out[key] = attr.label(allow_single_file = allow_files, configurable = False, mandatory = key in mandatory)
+    return out
+
+def dx_macro_upstream_visibility():
+    """Returns the visibility of a `<name>_upstream` target declared in a macro.
+
+    Private visibility inside a macro means the package of the .bzl file that
+    defines the macro, not the caller; the caller's package is needed so
+    `:<name>_upstream` stays referenceable there.
+    """
+    return [native.package_relative_label(":__pkg__")]
+
 def dx_binary_run_kwargs(kwargs):
     """Returns args, plus data only when args is set, for a binary forwarder."""
     out = {}
@@ -500,7 +533,11 @@ def dx_upstream_tags(tags):
     return out
 
 def dx_src_path(package, src):
-    """Returns the repo-relative path of a string src, or None."""
+    """Returns the repo-relative path of a string or same-repo Label src, or None."""
+    if type(src) == "Label":
+        if src.repo_name:
+            return None
+        return src.package + "/" + src.name if src.package else src.name
     if type(src) != "string" or src.startswith("@"):
         return None
     if src.startswith("//"):
@@ -512,16 +549,16 @@ def dx_src_path(package, src):
         src = src[1:]
     return package + "/" + src if package else src
 
-def dx_test_upstream_kwargs(kwargs, srcs = None):
+def dx_test_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
     """Returns the private upstream kwargs for one test shape."""
     out = dict(kwargs)
     out["tags"] = dx_upstream_tags(out.get("tags", None))
-    out["visibility"] = ["//visibility:private"]
+    out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     if srcs != None:
         out["srcs"] = srcs
     return out
 
-def dx_binary_upstream_kwargs(kwargs, srcs):
+def dx_binary_upstream_kwargs(kwargs, srcs, upstream_visibility = None):
     """Returns the private upstream kwargs for one binary shape."""
     out = dict(kwargs)
     if srcs:
@@ -529,16 +566,16 @@ def dx_binary_upstream_kwargs(kwargs, srcs):
     elif "srcs" in out:
         out.pop("srcs")
     out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
-    out["visibility"] = ["//visibility:private"]
+    out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     return out
 
-def dx_wrap_upstream_kwargs(kwargs, srcs = None):
+def dx_wrap_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
     """Returns the private upstream kwargs for one library shape."""
     out = {key: value for key, value in kwargs.items() if key not in ("tags", "srcs")}
     if srcs != None:
         out["srcs"] = srcs
     out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
-    out["visibility"] = ["//visibility:private"]
+    out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     return out
 
 def dx_test_forward_kwargs(kwargs):
@@ -553,9 +590,9 @@ def dx_test_forward_kwargs(kwargs):
         out["target_compatible_with"] = kwargs["target_compatible_with"]
     return out
 
-def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
+def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, **kwargs):
     """Instantiates one private upstream binary plus its public forwarder."""
-    effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
+    effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs, upstream_visibility)
     upstream_rule(
         name = name + "_upstream",
         **effective
@@ -584,10 +621,10 @@ def dx_with_tag(tags, tag):
         out.append(tag)
     return out
 
-def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, **kwargs):
+def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, upstream_visibility = None, **kwargs):
     """Instantiates one private upstream test plus its public forwarder."""
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
-    effective = dx_test_upstream_kwargs(base, srcs = srcs)
+    effective = dx_test_upstream_kwargs(base, srcs = srcs, upstream_visibility = upstream_visibility)
     forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
     forward_kwargs = dx_test_forward_kwargs(kwargs)
     if extra_forward_kwargs:
@@ -607,13 +644,13 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         **forward_kwargs
     )
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
+def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, **kwargs):
     """Instantiates one private upstream library target plus its public forwarder."""
     if "executable" in kwargs:
         fail("dx_wrap: executable is gone; use dx_wrap_binary for " + name)
     upstream_rule(
         name = name + "_upstream",
-        **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
+        **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs, upstream_visibility)
     )
     forward_kwargs = dx_wrap_forward_kwargs(kwargs)
     if extra_forward_kwargs:

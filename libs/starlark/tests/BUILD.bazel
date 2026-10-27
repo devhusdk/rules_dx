@@ -19,6 +19,7 @@ load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":toolchain_tests.bzl", "toolchain_unit_tests")
+load(":wrapper_forward_fixture.bzl", "wrapper_forward_fixtures", "wrapper_forward_tests")
 load(":wrapper_tests.bzl", "wrapper_kwarg_hooks_tests", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
 
 example_subject(
@@ -127,6 +128,21 @@ failure_test(
     target = ":thin_demo_missing_executable",
 )
 
+filegroup(
+    name = "wrapper_forward_hint",
+    srcs = [],
+)
+
+wrapper_forward_fixtures(
+    name = "wrapper_forward",
+    hint = ":wrapper_forward_hint",
+)
+
+wrapper_forward_tests(
+    name = "wrapper_forward_contract",
+    fixture = "wrapper_forward",
+)
+
 test_suite(
     name = "all",
     tests = [
@@ -146,6 +162,10 @@ test_suite(
         ":thin_demo_missing_executable_test",
         ":thin_demo_missing_provider_test",
         ":toolchain_unit",
+        ":wrapper_forward_contract",
+        ":wrapper_forward_contract_forward",
+        ":wrapper_forward_contract_golden_pin",
+        ":wrapper_forward_contract_lossy",
         ":wrapper_kwarg_hooks",
         ":wrapper_optional_forward",
         ":wrapper_resource_tags",
@@ -176,6 +196,7 @@ real_source_target(
         "subject.bzl",
         "thin_compare.bzl",
         "toolchain_tests.bzl",
+        "wrapper_forward_fixture.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

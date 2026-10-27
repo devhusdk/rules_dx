@@ -12,6 +12,11 @@ def dx_wrapper_registry_tests(name):
     dx_wrapper_contract_tests(
         name,
         include_forwarder_checks = True,
+        wrappers = {
+            "binary": "//rust/tests/fixtures/hello:hello",
+            "library": "//rust/tests/fixtures/hello:hello_lib",
+            "test": "//rust/tests/fixtures/hello:default-name-test",
+        },
         extra_checks = [
             expect_equal("RUST class id", RUST, "rust"),
             expect_equal("rust is a known class", RUST in KNOWN_SEMANTIC_FILE_CLASSES, True),

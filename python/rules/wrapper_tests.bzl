@@ -9,6 +9,11 @@ def python_wrapper_contract_tests(name):
     dx_wrapper_contract_tests(
         name,
         include_forwarder_checks = False,
+        wrappers = {
+            "binary": "//python/tests/fixtures/hello:hello",
+            "library": "//python/tests/fixtures/hello:hello_lib",
+            "test": "//python/tests/fixtures/hello:hello_test",
+        },
         extra_checks = [
             expect_equal(
                 "generic main is rejected",

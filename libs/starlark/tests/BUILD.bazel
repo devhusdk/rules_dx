@@ -1,4 +1,6 @@
-load("//libs/starlark:defs.bzl", "starlark_harness_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//cc/rules:defs.bzl", "cc_test")
+load("//libs/starlark:defs.bzl", "starlark_harness_test", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//libs/starlark/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
 load("//libs/starlark/tests/fixtures/starlark_futures:config_subjects.bzl", "config_group", "config_leaf")
@@ -133,6 +135,7 @@ test_suite(
         ":arithmetic_unit",
         ":aspect_subject_analysis",
         ":config_subject_analysis",
+        ":exec_group_forwarder_analysis",
         ":fixture_execution",
         ":launcher_unit",
         ":matcher_unit",
@@ -187,4 +190,44 @@ starlark_harness_test(
         "//javascript/rules:web.bzl": "resource_set = dx_bundler_resources",
         "//quality:real_aspects.bzl": "resource_set = real_quality_resource_set(",
     },
+)
+
+constraint_setting(
+    name = "exec_group_universal_setting",
+    default_constraint_value = ":exec_group_universal",
+)
+
+constraint_value(
+    name = "exec_group_universal",
+    constraint_setting = ":exec_group_universal_setting",
+)
+
+write_file(
+    name = "exec_group_forwarder_src",
+    out = "exec_group_forwarder_src.cc",
+    content = [
+        "int main() { return 0; }",
+        "",
+    ],
+)
+
+cc_test(
+    name = "exec_group_forwarder",
+    srcs = [":exec_group_forwarder_src"],
+    exec_group_compatible_with = {
+        "test": [":exec_group_universal"],
+        "cpp_link": [":exec_group_universal"],
+    },
+    exec_properties = {
+        "Pool": "a",
+        "test.Pool": "b",
+        "cpp_link.Pool": "c",
+    },
+    tags = ["manual"],
+)
+
+starlark_test(
+    name = "exec_group_forwarder_analysis",
+    mode = "analysis",
+    subjects = [":exec_group_forwarder"],
 )

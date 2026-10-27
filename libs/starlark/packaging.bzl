@@ -24,3 +24,17 @@ def claim_dest(seen, dest, value, fold_case = False):
         return seen[key]
     seen[key] = value
     return None
+
+def only_chars(value, allowed):
+    """Returns True when every char of value is in allowed."""
+    for c in value.elems():
+        if c not in allowed:
+            return False
+    return True
+
+def has_any(value, chars):
+    """Returns True when value contains any of chars."""
+    for c in value.elems():
+        if c in chars:
+            return True
+    return False

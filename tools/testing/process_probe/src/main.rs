@@ -46,6 +46,7 @@ Usage: process_probe [options]
   --marker=PATH                 file this probe creates when it finishes
   --alive-lock=PATH             hold a lock on PATH until this probe exits
   --descendant-alive-lock=PATH  lock the descendant holds; wait until it is held
+  --descendant-gate=PATH        end the descendant's sleep early once PATH exists
   --raise-signal=N              die by signal N (unix only)
   --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
   --require-foreground          exit 3 unless this probe's group holds the terminal (unix only)
@@ -100,6 +101,7 @@ struct Plan {
     marker: Option<String>,
     alive_lock: Option<String>,
     descendant_alive_lock: Option<String>,
+    descendant_gate: Option<String>,
     raise_signal: Option<i32>,
     count_sigint: Option<String>,
     require_foreground: bool,
@@ -130,6 +132,7 @@ const VALUE_FLAGS: &[&str] = &[
     "--marker",
     "--alive-lock",
     "--descendant-alive-lock",
+    "--descendant-gate",
     "--raise-signal",
     "--count-sigint",
 ];
@@ -248,6 +251,12 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 }
                 plan.descendant_alive_lock = Some(value.to_owned());
             }
+            "--descendant-gate" => {
+                if value.is_empty() {
+                    return Err(format!("{flag} needs a path"));
+                }
+                plan.descendant_gate = Some(value.to_owned());
+            }
             "--raise-signal" => plan.raise_signal = Some(count(value, flag)?),
             "--count-sigint" => {
                 if value.is_empty() {
@@ -323,6 +332,9 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
     }
     if let Some(lock) = &plan.descendant_alive_lock {
         args.push(format!("--alive-lock={lock}"));
+    }
+    if let Some(gate) = &plan.descendant_gate {
+        args.push(format!("--gate={gate}"));
     }
     let mut command = Command::new(exe);
     command.args(&args).stdin(Stdio::null());

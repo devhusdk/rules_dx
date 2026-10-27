@@ -19,3 +19,16 @@ func TestDerivedNames(t *testing.T) {
 		t.Errorf("BuildScriptName = %q, %v", got, err)
 	}
 }
+
+func TestCrateName(t *testing.T) {
+	for in, want := range map[string]string{"my-pkg": "my_pkg", "a--b": "a__b", "_x": "_x", "demo": "demo"} {
+		if got, err := CrateName(in); err != nil || got != want {
+			t.Errorf("CrateName(%q) = %q, %v, want %q", in, got, err, want)
+		}
+	}
+	for _, in := range []string{"", "a.b", "café"} {
+		if got, err := CrateName(in); err == nil {
+			t.Errorf("CrateName(%q) = %q, want error", in, got)
+		}
+	}
+}

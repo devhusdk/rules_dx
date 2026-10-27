@@ -49,7 +49,14 @@ func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string
 		}
 		_, normal := manifest.normalDeps[name]
 		_, dev := manifest.devDeps[name]
-		if !normal && !(kind == testKind && dev) && name != strings.ReplaceAll(manifest.packageName, "-", "_") {
+		if !normal && !(kind == testKind && dev) {
+			self, err := CrateName(manifest.packageName)
+			if err != nil {
+				return err
+			}
+			if name == self {
+				continue
+			}
 			return fmt.Errorf("unresolved production import %q; declare it in [dependencies] or add an exact mapping", name)
 		}
 	}
@@ -81,7 +88,14 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		}
 		_, normal := manifest.normalDeps[name]
 		_, dev := manifest.devDeps[name]
-		if !normal && !dev && name != strings.ReplaceAll(manifest.packageName, "-", "_") {
+		if !normal && !dev {
+			self, err := CrateName(manifest.packageName)
+			if err != nil {
+				return err
+			}
+			if name == self {
+				continue
+			}
 			return fmt.Errorf("unresolved production import %q; declare it in [dependencies] or [dev-dependencies] or add an exact mapping", name)
 		}
 	}

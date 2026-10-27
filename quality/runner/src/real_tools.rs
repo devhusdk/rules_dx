@@ -111,6 +111,30 @@ fn non_utf8_fix_fails_the_action() {
     assert!(matches!(err, RunnerError::ToolOutput { .. }));
 }
 
+fn standardrb_crash(
+    _argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: Vec::new(),
+        stderr: b"1 error occurred:\nAn error occurred while Style/Foo cop was inspecting a.rb.\n"
+            .to_vec(),
+    })
+}
+
+#[test]
+fn standardrb_fix_fails_on_a_cop_crash_despite_exit_one() {
+    let backend = backend_for("standardrb", plain_tool(), standardrb_crash);
+    let err = backend
+        .apply_fix("standardrb", "a.rb", "x = 1\n", "lint")
+        .expect_err("crash fails the fix");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
+    assert!(err.to_string().contains("cop crashed"), "{err}");
+}
+
 #[test]
 fn error_display_reports_variants() {
     let rendered = format!(
@@ -1684,8 +1708,9 @@ fn buf_lint_names_a_broken_import() {
             &resolve,
         )
         .expect_err("broken import fails");
-    assert!(matches!(err, RunnerError::ToolOutput { .. }), "{err}");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
     let text = err.to_string();
+    assert!(!text.contains("invalid tool output"), "{text}");
     assert!(text.contains("item/v1/item.proto:5:19"), "{text}");
     assert!(!text.contains("unchecked file"), "{text}");
 }

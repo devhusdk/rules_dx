@@ -31,22 +31,29 @@ enum FixConfig {
     Buildifier,
 }
 
+/// Finds the stderr line that shows a tool crashed.
+type CrashFinder = fn(&[u8]) -> Option<String>;
+
 struct FixSpec {
     tool: &'static str,
     config: FixConfig,
     keep_exit_one: bool,
+    /// Names a tool crash in stderr that must fail the fix even when the exit code is kept.
+    crash_stderr: Option<CrashFinder>,
 }
 
 const RUFF_LINT_SPEC: FixSpec = FixSpec {
     tool: "ruff",
     config: FixConfig::Optional,
     keep_exit_one: true,
+    crash_stderr: None,
 };
 
 const RUFF_FORMAT_SPEC: FixSpec = FixSpec {
     tool: "ruff",
     config: FixConfig::Optional,
     keep_exit_one: false,
+    crash_stderr: None,
 };
 
 const FIX_SPECS: &[FixSpec] = &[
@@ -54,131 +61,157 @@ const FIX_SPECS: &[FixSpec] = &[
         tool: "buildifier",
         config: FixConfig::Buildifier,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "taplo",
         config: FixConfig::Optional,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "google_java_format",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "ktfmt",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "biome",
         config: FixConfig::BiomeDir,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "prettier",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "eslint",
         config: FixConfig::Required,
         keep_exit_one: true,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "scalafmt",
         config: FixConfig::Optional,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "csharpier",
         config: FixConfig::Optional,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "fantomas",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "ktlint",
         config: FixConfig::Optional,
         keep_exit_one: true,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "buf",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "clang_format",
         config: FixConfig::Optional,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "gofumpt",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "qmlformat",
         config: FixConfig::Optional,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "cue",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "jsonnetfmt",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "zig_fmt",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "pkl",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "modfmt",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "terraform",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "yamlfmt",
         config: FixConfig::Optional,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "shfmt",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "standardrb",
         config: FixConfig::Optional,
         keep_exit_one: true,
+        crash_stderr: Some(quality_adapter::parsers::rubocop_crash),
     },
     FixSpec {
         tool: "djlint",
         config: FixConfig::Optional,
         keep_exit_one: true,
+        crash_stderr: None,
     },
     FixSpec {
         tool: "keep_sorted",
         config: FixConfig::None,
         keep_exit_one: false,
+        crash_stderr: None,
     },
 ];
 
@@ -502,6 +535,9 @@ impl super::RealBackend {
         let refs = [absolute.as_path()];
         let invocation = self.build_fix_invocation(spec, tool_id, tool, &refs, &scratch, format)?;
         let out = self.run(tool_id, tool, &invocation, &scratch)?;
+        if let Some(crash) = spec.crash_stderr.and_then(|find| find(&out.stderr)) {
+            return Err(execution(tool_id, format!("cop crashed: {crash}")));
+        }
         let keep_input = out.code != Some(0) && !(spec.keep_exit_one && out.code == Some(1));
         if keep_input {
             return cleaned(tool_id, scratch, text.to_owned());

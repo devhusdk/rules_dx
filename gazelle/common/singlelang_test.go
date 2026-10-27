@@ -271,6 +271,30 @@ func TestImportsIndexesTheImportAttr(t *testing.T) {
 	}
 }
 
+func TestImportsWithoutIdentityIndexesQualifiedIDsOnly(t *testing.T) {
+	spec := dotSpec()
+	spec.Identity = nil
+	var paths []string
+	spec.QualifiedIDs = func(path string) []string {
+		paths = append(paths, path)
+		return []string{"Acme.Demo"}
+	}
+	l := NewSingleLang(spec)
+	tmp := t.TempDir()
+	lib := rule.NewRule(dotKind, "demo")
+	lib.SetAttr("srcs", []string{"Demo.dot", "Helper.dot", "Demo_test.dot"})
+	imports := l.Imports(&config.Config{}, lib, &rule.File{Path: filepath.Join(tmp, "BUILD.bazel")})
+	if len(imports) != 1 || imports[0].Lang != dotLanguage || imports[0].Imp != "Acme.Demo" {
+		t.Errorf("imports = %+v, want only Acme.Demo", imports)
+	}
+	if want := []string{filepath.Join(tmp, "Demo.dot"), filepath.Join(tmp, "Helper.dot")}; !slices.Equal(paths, want) {
+		t.Errorf("qualified paths = %v, want %v", paths, want)
+	}
+	if got := l.Imports(&config.Config{}, lib, nil); got != nil {
+		t.Errorf("nil file imports = %+v, want nil", got)
+	}
+}
+
 func TestImportsPathIdentityQualifiesWithPackage(t *testing.T) {
 	spec := dotSpec()
 	spec.PathIdentity = true

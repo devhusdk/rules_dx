@@ -39,6 +39,8 @@ type SingleLangSpec struct {
 	Kinds          map[string]rule.KindInfo
 	DefsPackage    string
 	ImportAttr     string
+	// Identity maps a source file name to the import it is indexed under.
+	// Nil indexes no per-file identity, so only QualifiedIDs index the rule.
 	Identity       func(name string) string
 	PathIdentity   bool
 	IsImportSource func(name string) bool
@@ -173,11 +175,13 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 		if l.spec.IsTestSource != nil && l.spec.IsTestSource(src) {
 			continue
 		}
-		imp := l.spec.Identity(src)
-		if l.spec.PathIdentity && f != nil {
-			imp = ModuleIdentity(f.Pkg, imp)
+		if l.spec.Identity != nil {
+			imp := l.spec.Identity(src)
+			if l.spec.PathIdentity && f != nil {
+				imp = ModuleIdentity(f.Pkg, imp)
+			}
+			add(imp)
 		}
-		add(imp)
 		if l.spec.QualifiedIDs != nil && f != nil {
 			for _, id := range l.spec.QualifiedIDs(filepath.Join(filepath.Dir(f.Path), src)) {
 				add(id)

@@ -2,20 +2,21 @@ use dx_plan::args::{Command, HintScope, QualityRequest};
 
 pub(crate) use dx_plan::plan::shell_quote as quote;
 
-fn secret_bearing(option: &str) -> bool {
-    let lower = option.to_ascii_lowercase();
-    [
-        "header",
-        "token",
-        "password",
-        "passwd",
-        "secret",
-        "credential",
-        "auth",
-        "key",
-    ]
-    .iter()
-    .any(|word| lower.contains(word))
+/// Returns the words safe to echo (safe options, then redacted stand-ins) and whether any changed.
+fn echoed(options: &[String]) -> (Vec<String>, bool) {
+    let (safe, withheld) = crate::plan::quality::partition_provenance_options(options);
+    let changed = !withheld.is_empty() || safe != options;
+    let mut words = safe;
+    for entry in withheld {
+        match entry.split_once(' ') {
+            Some((flag, value)) => {
+                words.push(flag.to_owned());
+                words.push(value.to_owned());
+            }
+            None => words.push(entry),
+        }
+    }
+    (words, changed)
 }
 
 pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
@@ -32,10 +33,8 @@ pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
         words.push("--workspace".to_owned());
         words.push(quote(workspace));
     }
-    for option in &request.bazel_startup_options {
-        if !secret_bearing(option) {
-            words.push(quote(&format!("--bazel-startup-option={option}")));
-        }
+    for option in echoed(&request.bazel_startup_options).0 {
+        words.push(quote(&format!("--bazel-startup-option={option}")));
     }
     let targets = match request.origin.as_ref().map(|origin| &origin.scope) {
         Some(HintScope::Affected) => {
@@ -46,10 +45,9 @@ pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
         None => &request.targets[..],
     };
     words.extend(targets.iter().map(|target| quote(target)));
-    let options: Vec<String> = request
-        .bazel_options
+    let options: Vec<String> = echoed(&request.bazel_options)
+        .0
         .iter()
-        .filter(|option| !secret_bearing(option))
         .map(|option| quote(option))
         .collect();
     if !options.is_empty() {
@@ -60,11 +58,7 @@ pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
 }
 
 pub(crate) fn omitted_options(request: &QualityRequest) -> bool {
-    request
-        .bazel_options
-        .iter()
-        .chain(&request.bazel_startup_options)
-        .any(|option| secret_bearing(option))
+    echoed(&request.bazel_options).1 || echoed(&request.bazel_startup_options).1
 }
 
 pub(crate) fn apply_hint(request: &QualityRequest, files: usize) -> String {
@@ -184,7 +178,7 @@ mod tests {
         secret.bazel_options = vec!["--remote_header=x-token=abc".to_owned()];
         assert_eq!(
             apply_hint(&secret, 1),
-            "1 file(s) need changes. Apply them with: dx fix --apply --affected (add your credential options again)"
+            "1 file(s) need changes. Apply them with: dx fix --apply --affected -- --remote_header (add your credential options again)"
         );
     }
 
@@ -197,8 +191,62 @@ mod tests {
         ];
         let line = command_line(&secret, true);
         assert!(!line.contains("abc") && !line.contains("Bearer"), "{line}");
-        assert!(line.ends_with("-- --config=ci"), "{line}");
+        assert!(line.ends_with("-- --config=ci --remote_header"), "{line}");
         assert!(apply_hint(&secret, 1).ends_with("(add your credential options again)"));
+    }
+
+    #[test]
+    fn hints_redact_url_credentials_and_env_values() {
+        let mut secret = request();
+        secret.bazel_options = crate::test_support::strings(&[
+            "--remote_cache=https://u:p@h",
+            "--bes_backend=grpcs://u:p@h",
+            "--action_env=GH_PAT=x",
+            "--action_env",
+            "GH_PAT=x",
+            "--bes_header",
+            "x=hunter2",
+            "--config=ci",
+        ]);
+        for line in [apply_hint(&secret, 1), rerun_hint(&secret, "fix")] {
+            for leaked in ["u:p", "GH_PAT=x", "hunter2"] {
+                assert!(!line.contains(leaked), "{line}");
+            }
+            assert!(
+                line.contains("--config=ci") && line.contains("GH_PAT=(value)"),
+                "{line}"
+            );
+            assert!(
+                line.ends_with("(add your credential options again)"),
+                "{line}"
+            );
+        }
+    }
+
+    #[test]
+    fn startup_option_secrets_are_withheld() {
+        let mut secret = request();
+        secret.bazel_startup_options =
+            crate::test_support::strings(&["--host_jvm_args=-Dauth.token=hunter2"]);
+        let line = apply_hint(&secret, 1);
+        assert!(!line.contains("hunter2"), "{line}");
+        assert!(
+            line.ends_with("(add your credential options again)"),
+            "{line}"
+        );
+    }
+
+    #[test]
+    fn safe_only_options_add_no_note() {
+        let mut safe = request();
+        safe.bazel_options =
+            crate::test_support::strings(&["--config=ci", "--remote_cache=grpcs://cache.example"]);
+        let line = apply_hint(&safe, 1);
+        assert!(
+            line.ends_with("-- --config=ci --remote_cache=grpcs://cache.example"),
+            "{line}"
+        );
+        assert!(!line.contains("credential"), "{line}");
     }
 
     #[test]

@@ -45,6 +45,7 @@ docs_site(
         "//tools/docs/go/fixture:money_docs",
         "//tools/docs/ruby/fixture:geometry_docs",
         "//tools/docs/ruby/fixture:geometry_ext_docs",
+        "//tools/docs/powershell/fixture:ledger_docs",
         "//tools/docs/rust/fixture:docs_fixture_docs",
         "//tools/docs/typescript/fixture:geometry_docs",
     ],

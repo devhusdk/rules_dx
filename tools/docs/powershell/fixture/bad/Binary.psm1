@@ -1,0 +1,1 @@
+function Get-Thing { 'thing' }

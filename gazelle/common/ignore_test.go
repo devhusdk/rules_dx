@@ -146,18 +146,6 @@ func TestUsedIgnoresDedupsByPathAndValue(t *testing.T) {
 	}
 }
 
-func TestUsedImportsKeepsOnlyUsedEntries(t *testing.T) {
-	got := UsedImports("lang", []*IgnoreEntry{
-		{Value: "a", Path: "pkg", UsedBy: []string{"pkg/b", "pkg/a"}},
-		{Value: "b", Path: "pkg"},
-		nil,
-	})
-	want := []IgnoredImport{{Path: "pkg", Language: "lang", Value: "a", UsedBy: []string{"pkg/a", "pkg/b"}}}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("used imports = %+v, want %+v", got, want)
-	}
-}
-
 func TestMarkUsedKeepsUsersSortedAndUnique(t *testing.T) {
 	entry := &IgnoreEntry{Value: "a", Path: "pkg"}
 	if entry.Used() {

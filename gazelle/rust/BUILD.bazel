@@ -104,7 +104,6 @@ go_test(
         "lang_scopes_test.go",
         "lang_test.go",
         "layout_test.go",
-        "manifest_test.go",
         "naming_test.go",
         "native_config_test.go",
         "parser_test.go",

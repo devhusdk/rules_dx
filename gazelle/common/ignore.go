@@ -148,11 +148,6 @@ func UsedIgnores(c *config.Config, languageName string) []IgnoredImport {
 	return usedImports(languageName, InheritedIgnores(c, languageName))
 }
 
-// UsedImports returns the used declared entries, one per (Path, Value).
-func UsedImports(languageName string, declared []*IgnoreEntry) []IgnoredImport {
-	return usedImports(languageName, declared)
-}
-
 func usedImports(languageName string, entries []*IgnoreEntry) []IgnoredImport {
 	index := map[[2]string]int{}
 	var out []IgnoredImport

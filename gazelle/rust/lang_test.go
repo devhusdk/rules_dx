@@ -222,33 +222,20 @@ func TestErrorsReportToSinkWithoutExiting(t *testing.T) {
 	}
 }
 
-func TestBeforeRecordsRecorderError(t *testing.T) {
+func TestLifecycleWritesNoManifest(t *testing.T) {
+	common.Errors.Reset()
 	out := filepath.Join(t.TempDir(), "intended.json")
 	t.Setenv(common.EnvIntendedManifest, out)
-	t.Setenv(common.EnvGenerateMode, "print")
+	t.Setenv(common.EnvGenerateMode, "default")
 	l := &rustLang{}
 	l.Before(context.Background())
-	if l.manifest != nil {
-		t.Fatal("Before with bad mode sets recorder")
-	}
-	if got := strings.Join(l.errors, "\n"); !strings.Contains(got, `must be "check" or "default"`) {
-		t.Fatalf("errors = %q, want mode error", got)
-	}
-}
-
-func TestAfterResolvingDepsReportsManifestError(t *testing.T) {
-	common.Errors.Reset()
-	l := &rustLang{}
-	l.manifest = &common.ManifestRecorder{
-		Prefix:        "rust",
-		OutPath:       filepath.Join(t.TempDir(), "missing", "intended.json"),
-		Mode:          "default",
-		Scopes:        []common.ScopeElement{{Element: "//...", Dirs: []string{""}}},
-		ApparentLoads: l.ApparentLoads,
-	}
+	l.GenerateRules(language.GenerateArgs{Config: config.New(), Dir: t.TempDir(), Rel: ""})
 	l.AfterResolvingDeps(context.Background())
-	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(got, "cannot write intended manifest") {
-		t.Errorf("errors = %q, want write error", got)
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("rust wrote the intended manifest (stat err = %v)", err)
+	}
+	if got := common.Errors.Take(); len(got) != 0 {
+		t.Fatalf("unexpected errors: %v", got)
 	}
 }
 

@@ -1,29 +1,81 @@
 package fsharp
 
 import (
-	"github.com/devhusdk/rules_dx/gazelle/common"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/devhusdk/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common/treesitter"
+	ts "github.com/odvcencio/gotreesitter"
+	"github.com/odvcencio/gotreesitter/grammars/fsharp"
 )
+
+var grammar = sync.OnceValue(func() *ts.Language { return fsharp.Language() })
+
+// openPaths returns the dotted target of every open declaration in source order.
+func openPaths(content []byte) []string {
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	var out []string
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if tree.Type(n) != "import_decl" {
+			return true
+		}
+		for _, c := range n.Children() {
+			if tree.Type(c) == "long_identifier" {
+				out = append(out, tree.Dotted(c))
+				break
+			}
+		}
+		return false
+	})
+	return out
+}
+
+// topDeclTree reads the file-level namespace or module declaration.
+func topDeclTree(content []byte) (topDecl, bool) {
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	if tree.Root == nil {
+		return topDecl{}, false
+	}
+	for _, d := range tree.Root.Children() {
+		k := tree.Type(d)
+		if k != "namespace" && k != "named_module" {
+			continue
+		}
+		for _, c := range d.Children() {
+			switch tree.Type(c) {
+			case "long_identifier":
+				// "module rec A.B" parses rec as the first identifier.
+				if tree.Text(c) == "rec" {
+					continue
+				}
+				return topDecl{namespace: k == "namespace", name: tree.Dotted(c)}, true
+			case "dot_expression":
+				return topDecl{namespace: k == "namespace", name: tree.Dotted(c)}, true
+			}
+		}
+		return topDecl{}, false
+	}
+	return topDecl{}, false
+}
 
 const GlobalPackage = "global"
 
 var (
-	openRe       = regexp.MustCompile(`(?m)^\s*open\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\s*$`)
 	attrPrefixRe = regexp.MustCompile(`^\[<.*?>\]\s*`)
 	namespaceRe  = regexp.MustCompile(`^namespace\s+(?:rec\s+)?([A-Za-z_]\w*(?:\.\w+)*)\s*$`)
 	topModuleRe  = regexp.MustCompile(`^module\s+(?:(?:public|internal|private)\s+)?(?:rec\s+)?([A-Za-z_]\w*(?:\.\w+)*)\s*$`)
 	declRe       = regexp.MustCompile(`^(type|and|exception|module|let|open|namespace)\b\s*(?:\[<.*?>\]\s*)?(?:(?:public|internal|private)\s+)?(?:rec\s+)?(?:\[<.*?>\]\s*)?([A-Za-z_]\w*)?(.*)$`)
 	headerSkipRe = regexp.MustCompile(`(?m)^\s*(?:open|namespace)\b.*$|^module\s+(?:(?:public|internal|private)\s+)?(?:rec\s+)?[A-Za-z_]\w*(?:\.\w+)*\s*$`)
-	mainRe       = regexp.MustCompile(`\[<\s*EntryPoint\s*>\]`)
 )
 
 func ParseImports(content []byte) []string {
-	stripped := common.MaskFSharpStyle(content)
 	set := make(map[string]struct{})
-	for _, m := range openRe.FindAllSubmatch(stripped, -1) {
-		dotted := string(m[1])
+	for _, dotted := range openPaths(content) {
 		if id := normalizeImport(dotted); id != "" {
 			set[id] = struct{}{}
 		}
@@ -34,8 +86,8 @@ func ParseImports(content []byte) []string {
 // ParseOpenPaths returns the dotted paths of non-stdlib open declarations.
 func ParseOpenPaths(content []byte) []string {
 	set := make(map[string]struct{})
-	for _, m := range openRe.FindAllSubmatch(common.MaskFSharpStyle(content), -1) {
-		if dotted := string(m[1]); !IsStdLib(dotted) {
+	for _, dotted := range openPaths(content) {
+		if !IsStdLib(dotted) {
 			set[dotted] = struct{}{}
 		}
 	}
@@ -44,7 +96,7 @@ func ParseOpenPaths(content []byte) []string {
 
 // TopModuleName returns the fully qualified name of a file-level module, or "".
 func TopModuleName(content []byte) string {
-	if decl, ok := parseTopDecl(maskedLines(content)); ok && !decl.namespace {
+	if decl, ok := topDeclTree(content); ok && !decl.namespace {
 		return decl.name
 	}
 	return ""
@@ -102,7 +154,7 @@ func parseTopDecl(lines []string) (topDecl, bool) {
 }
 
 func ParsePackage(content []byte) (string, error) {
-	decl, ok := parseTopDecl(maskedLines(content))
+	decl, ok := topDeclTree(content)
 	if !ok {
 		return GlobalPackage, nil
 	}
@@ -239,7 +291,20 @@ func sortedKeys(set map[string]struct{}) []string {
 }
 
 func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskFSharpStyle(content))
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	found := false
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if found {
+			return false
+		}
+		if tree.Type(n) == "attribute" {
+			found = strings.TrimSpace(tree.Dotted(n)) == "EntryPoint"
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 func normalizeImport(dotted string) string {

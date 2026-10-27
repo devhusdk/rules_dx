@@ -19,6 +19,7 @@ exports_files(
 go_library(
     name = "common",
     srcs = [
+        "classlang.go",
         "doc.go",
         "dotnetplatform.go",
         "embeddedscan.go",
@@ -82,6 +83,7 @@ go_library(
 go_test(
     name = "common_test",
     srcs = [
+        "classlang_test.go",
         "common_test.go",
         "errors_test.go",
         "ignore_test.go",

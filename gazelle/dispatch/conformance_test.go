@@ -78,7 +78,7 @@ var conformanceRows = map[string]conformanceRow{
 	"java": {
 		files: map[string]string{"Demo.java": "package demo;\n\npublic class Demo {}\n"},
 		kind:  "java_library", target: "demo", defs: "java/rules:defs.bzl",
-		symbols:    []string{"java_library"},
+		symbols:    []string{"java_library", "java_test"},
 		extraLoads: map[string][]string{"@rules_dx//android/rules:defs.bzl": {"java_android_library"}},
 	},
 	"javascript": {

@@ -94,6 +94,31 @@ func UnitTestName(target string) string {
 	return target + "_test"
 }
 
+// SnakeName names a per-source target after the file stem in snake case:
+// GreetTest.java gives greet_test and HTTPClientTest.java http_client_test.
+func SnakeName(name string, exts []string) (string, error) {
+	stem := Stem(name, exts)
+	var b strings.Builder
+	b.Grow(len(stem) + 4)
+	isUpper := func(c byte) bool { return c >= 'A' && c <= 'Z' }
+	isLowerOrDigit := func(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') }
+	for i := 0; i < len(stem); i++ {
+		c := stem[i]
+		if isUpper(c) && i > 0 {
+			prev := stem[i-1]
+			nextLower := i+1 < len(stem) && stem[i+1] >= 'a' && stem[i+1] <= 'z'
+			if isLowerOrDigit(prev) || (isUpper(prev) && nextLower) {
+				b.WriteByte('_')
+			}
+		}
+		if isUpper(c) {
+			c += 'a' - 'A'
+		}
+		b.WriteByte(c)
+	}
+	return Normalize(b.String())
+}
+
 func ClassIdentity(name string, exts []string) string {
 	short := Stem(name, exts)
 	if i := strings.LastIndex(short, "."); i >= 0 {

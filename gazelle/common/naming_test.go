@@ -69,6 +69,27 @@ func TestUnitTestName(t *testing.T) {
 	}
 }
 
+func TestSnakeName(t *testing.T) {
+	exts := []string{".java"}
+	for _, tc := range []struct{ in, want string }{
+		{"GreetTest.java", "greet_test"},
+		{"HTTPClientTest.java", "http_client_test"},
+		{"Foo2Test.java", "foo2_test"},
+		{"greet_spec", "greet_spec"},
+		{"pkg/InvoiceReaderTest.java", "invoice_reader_test"},
+		{"ABTest.java", "ab_test"},
+		{"Foo_BarTest.java", "foo_bar_test"},
+	} {
+		got, err := SnakeName(tc.in, exts)
+		if err != nil || got != tc.want {
+			t.Errorf("SnakeName(%q) = %q, %v; want %q", tc.in, got, err, tc.want)
+		}
+	}
+	if got, err := SnakeName("---.java", exts); err == nil {
+		t.Errorf("SnakeName(---.java) = %q, want an error", got)
+	}
+}
+
 func TestClassIdentity(t *testing.T) {
 	cases := []struct {
 		exts []string

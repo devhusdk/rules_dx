@@ -145,6 +145,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
 # gazelle:exclude java/tests/fixtures/hello
+# gazelle:exclude java/tests/fixtures/junit
 # gazelle:exclude kotlin/tests/fixtures/hello
 # gazelle:exclude scala/tests/fixtures/hello
 # gazelle:exclude python/tests/fixtures/hello

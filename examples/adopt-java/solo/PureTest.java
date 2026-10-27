@@ -1,4 +1,3 @@
-// Foreign Java test: handwritten owner of the test-owned source.
 package solo;
 
 import static org.junit.Assert.assertEquals;

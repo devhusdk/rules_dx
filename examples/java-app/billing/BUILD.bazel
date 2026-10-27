@@ -51,11 +51,7 @@ java_test(
     srcs = ["InvoiceReaderTest.java"],
     aspect_hints = ["//quality:corpus_checkstyle_config"],
     test_class = "billing.InvoiceReaderTest",
-    deps = [
-        ":billing",
-        "@maven//:com_google_guava_guava",
-        "@maven//:junit_junit",
-    ],
+    deps = [":billing"],
 )
 
 java_test(
@@ -66,7 +62,6 @@ java_test(
     deps = [
         ":billing",
         "@maven//:com_google_guava_guava",
-        "@maven//:junit_junit",
     ],
 )
 
@@ -79,7 +74,6 @@ java_test(
         ":billing",
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_guava_guava",
-        "@maven//:junit_junit",
     ],
 )
 

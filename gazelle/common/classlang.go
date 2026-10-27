@@ -29,6 +29,11 @@ type ClassLangSpec struct {
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
 	// External is the dx_external ecosystem third-party imports resolve through.
 	External string
+	// Tests, when set, generates one test rule per test source; its IsSource
+	// defaults to the TestSuffixes match. TestMergeable names attributes of
+	// the test kind refreshed on merge beyond srcs and deps.
+	Tests         *TestSpec
+	TestMergeable []string
 }
 
 // Spec returns the SingleLangSpec the class language runs on.
@@ -36,6 +41,14 @@ func (s ClassLangSpec) Spec() SingleLangSpec {
 	isSource := func(name string) bool { return HasExt(name, s.Exts) }
 	isTest := func(name string) bool { return IsTestSource(name, s.Exts, s.TestSuffixes) }
 	identity := func(name string) string { return ClassIdentity(name, s.Exts) }
+	var tests *TestSpec
+	if s.Tests != nil {
+		t := *s.Tests
+		if t.IsSource == nil {
+			t.IsSource = func(name string) bool { return isSource(name) && isTest(name) }
+		}
+		tests = &t
+	}
 	spec := SingleLangSpec{
 		LanguageName:   s.LanguageName,
 		LibraryKind:    s.LibraryKind,
@@ -66,6 +79,7 @@ func (s ClassLangSpec) Spec() SingleLangSpec {
 				MakeRule:     s.MakeRule,
 				Variant:      s.Variant,
 				Wrap:         WrapImportSet,
+				Tests:        tests,
 			}, rep)
 		},
 	}
@@ -74,6 +88,10 @@ func (s ClassLangSpec) Spec() SingleLangSpec {
 		spec.ExtraKinds = []string{v.Kind}
 		spec.IndexKinds = []string{v.Kind}
 		spec.KindDefs = map[string]string{v.Kind: v.DefsPackage}
+	}
+	if tests != nil {
+		spec.Kinds[tests.Kind] = TestKindInfo(s.TestMergeable...)
+		spec.ExtraKinds = append(spec.ExtraKinds, tests.Kind)
 	}
 	if s.ClassIDs {
 		spec.Identity = identity

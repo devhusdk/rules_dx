@@ -138,14 +138,6 @@ func foldTypeTarget(dotted string) string {
 	return dotted
 }
 
-// namespaceIDs indexes a source under its declared namespace and under the
-// namespace-qualified file stem, so a using of the namespace or of the type
-// named after the file resolves to its library. A source that cannot be read,
-// declares no namespace, or declares several gets no IDs.
-func namespaceIDs(path string) []string {
-	return common.JVMQualifiedIDs(path, ParsePackage, ClassIdentity)
-}
-
 // namespaceCandidates returns the parent namespace of an unmatched using
 // target, so a static or alias using of a local type reaches the library
 // that declares the type's namespace. It climbs one level only.

@@ -62,7 +62,3 @@ func normalizeImport(dotted string, onDemand bool) string {
 	}
 	return dotted + ".*"
 }
-
-func qualifiedIDs(path string) []string {
-	return common.JVMQualifiedIDs(path, ParsePackage, ClassIdentity)
-}

@@ -9,7 +9,6 @@ go_library(
     srcs = [
         "doc.go",
         "lang.go",
-        "naming.go",
         "parser.go",
         "stdlib.go",
     ],
@@ -18,11 +17,6 @@ go_library(
     deps = [
         "//gazelle/common",
         "@gazelle//language",
-        "@gazelle//repo",
-        "@gazelle//resolve",
-        "@gazelle//rule",
-        "@gazelle//v2/label",
-        "@gazelle//v2/rule",
     ],
 )
 
@@ -43,14 +37,16 @@ go_test(
     name = "csharp_test",
     srcs = [
         "lang_test.go",
-        "naming_test.go",
         "parser_test.go",
     ],
     embed = [":csharp"],
     pure = "on",
     deps = [
         "@gazelle//config",
+        "@gazelle//resolve",
+        "@gazelle//v2/label",
         "@gazelle//v2/merger",
+        "@gazelle//v2/rule",
     ],
 )
 

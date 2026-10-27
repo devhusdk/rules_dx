@@ -511,6 +511,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"astro":  oneSourceRelative,
 		"cc":     "add a local one-header library or an exact # gazelle:resolve mapping",
 		"csharp": csharp,
+		"fsharp": oneSource,
 		"java":   jvm,
 		"kotlin": jvm,
 		"mdx":    oneSourceRelative,

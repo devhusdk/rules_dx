@@ -1,11 +1,5 @@
+use crate::vuln::VersionScope;
 use std::cmp::Ordering;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RubyScope {
-    Affected,
-    Unaffected,
-    Incomplete,
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Segment {
@@ -204,39 +198,39 @@ fn satisfies(op: Op, bound: &GemVersion, version: &GemVersion) -> Option<bool> {
     })
 }
 
-pub fn ruby_assess(scope: &str, version: &str, platform: Option<&str>) -> RubyScope {
+pub fn ruby_assess(scope: &str, version: &str, platform: Option<&str>) -> VersionScope {
     let scope = scope.trim();
     let version = version.trim();
     if scope.is_empty() || version.is_empty() {
-        return RubyScope::Unaffected;
+        return VersionScope::Unaffected;
     }
     let display = match platform {
         Some(platform) => format!("{version}-{platform}"),
         None => version.to_owned(),
     };
     if scope == version || scope == display {
-        return RubyScope::Affected;
+        return VersionScope::Affected;
     }
     if scope == "*" {
-        return RubyScope::Affected;
+        return VersionScope::Affected;
     }
     let Some(requirement) = parse_requirement(scope) else {
-        return RubyScope::Incomplete;
+        return VersionScope::Incomplete;
     };
     let Some(locked) = parse_gem_version(version) else {
-        return RubyScope::Incomplete;
+        return VersionScope::Incomplete;
     };
     for (op, bound) in &requirement {
         match satisfies(*op, bound, &locked) {
             Some(true) => {}
-            Some(false) => return RubyScope::Unaffected,
-            None => return RubyScope::Incomplete,
+            Some(false) => return VersionScope::Unaffected,
+            None => return VersionScope::Incomplete,
         }
     }
-    RubyScope::Affected
+    VersionScope::Affected
 }
 
 pub fn ruby_in_scope(scope: &str, version: &str) -> bool {
     let (bare, platform) = split_gem_lock_version(version.trim());
-    ruby_assess(scope, bare, platform) == RubyScope::Affected
+    ruby_assess(scope, bare, platform) == VersionScope::Affected
 }

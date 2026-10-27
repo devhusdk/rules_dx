@@ -1,5 +1,5 @@
 use super::*;
-use crate::exception::{version_in_scope, ExceptionProblem, RiskException};
+use crate::exception::{cargo_assess, version_in_scope, ExceptionProblem, RiskException};
 
 #[test]
 fn osv_range_boundaries_project_to_native_ecosystem_scopes() {
@@ -762,6 +762,7 @@ fn nuget_range_advisories_report_findings() {
 fn unassessed_reasons_are_pinned() {
     assert_eq!(REASON_GIT, "unsupported git revision");
     assert_eq!(REASON_PRIVATE, "unidentified private package");
+    assert_eq!(REASON_VERSION_SYNTAX, "unsupported version syntax");
 }
 
 #[test]
@@ -1243,6 +1244,135 @@ fn ruby_unsupported_syntax_is_incomplete_not_clean() {
 }
 
 #[test]
+fn unparseable_scopes_and_versions_are_incomplete_per_ecosystem() {
+    use VersionScope::Incomplete;
+    for (scope, version) in [(">=1.0, <banana", "1.0.0"), ("<2", "banana")] {
+        assert_eq!(
+            cargo_assess(scope, version),
+            Incomplete,
+            "{scope} {version}"
+        );
+    }
+    for (scope, version) in [("not a range", "1.0.0"), ("<2", "banana")] {
+        assert_eq!(go_assess(scope, version), Incomplete, "{scope} {version}");
+    }
+    for (scope, version) in [
+        ("[1.0,2.0", "1.5"),
+        ("[1.0,2.0,3.0]", "1.5"),
+        (">=1.0", "1.5"),
+    ] {
+        assert_eq!(
+            maven_assess(scope, version),
+            Incomplete,
+            "{scope} {version}"
+        );
+    }
+    for (scope, version) in [("1.*", "1.0"), ("[1.0,2.0)", "1.0-a..b"), ("[1.0]x", "1.0")] {
+        assert_eq!(
+            nuget_assess(scope, version),
+            Incomplete,
+            "{scope} {version}"
+        );
+    }
+    for set in ["cargo", "npm", "go", "maven", "nuget", "ruby", "uv"] {
+        assert_eq!(
+            version_assess(set, "", "1.0.0"),
+            VersionScope::Unaffected,
+            "{set}"
+        );
+    }
+}
+
+#[test]
+fn maven_interval_lists_use_three_valued_or() {
+    let scope = "[1.0,2.0],[3.0,4.0,5.0]";
+    assert_eq!(maven_assess(scope, "1.5"), VersionScope::Affected);
+    assert_eq!(maven_assess(scope, "2.5"), VersionScope::Incomplete);
+    assert_eq!(
+        maven_assess("[1.0,2.0],[3.0,4.0]", "2.5"),
+        VersionScope::Unaffected
+    );
+}
+
+#[test]
+fn malformed_advisories_mark_packages_unassessed_not_clean() {
+    let packages = vec![
+        LockedPackage::new("cargo", "serde", "1.0.0"),
+        LockedPackage::new("go", "golang.org/x/net", "v1.0.0"),
+        LockedPackage::new("maven", "org.example:lib", "1.5"),
+        LockedPackage::new("nuget", "Newtonsoft.Json", "1.0"),
+    ];
+    let advisories = vec![
+        advisory("cargo", "GHSA-cargo-bad", "serde", ">=1.0, <banana"),
+        advisory("go", "GHSA-go-bad", "golang.org/x/net", "not a range"),
+        advisory("maven", "GHSA-maven-bad", "org.example:lib", "[1.0,2.0"),
+        advisory("nuget", "GHSA-nuget-bad", "Newtonsoft.Json", "1.*"),
+    ];
+    let (findings, unassessed) = match_packages(&packages, &advisories);
+    assert!(findings.is_empty());
+    assert_eq!(unassessed.len(), 4);
+    assert!(unassessed
+        .iter()
+        .all(|entry| entry.reason == REASON_VERSION_SYNTAX));
+
+    let mixed = vec![LockedPackage::new("npm", "lodash", "1.0.0")];
+    let advisories = vec![
+        advisory("npm", "GHSA-npm-good", "lodash", "<2.0.0"),
+        advisory("npm", "GHSA-npm-bad", "lodash", "1.x.3"),
+    ];
+    let (findings, unassessed) = match_packages(&mixed, &advisories);
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].advisory, "GHSA-npm-good");
+    assert_eq!(unassessed.len(), 1);
+    assert_eq!(unassessed[0].reason, REASON_VERSION_SYNTAX);
+}
+
+#[test]
+fn exceptions_with_malformed_scopes_do_not_exempt() {
+    let packages = vec![LockedPackage::new("cargo", "serde", "1.0.100")];
+    let advisories = vec![advisory("cargo", "GHSA-cargo-x", "serde", "<2.0.0")];
+    let (findings, _) = match_packages(&packages, &advisories);
+    assert_eq!(findings.len(), 1);
+    let bad = exception("cargo", "GHSA-cargo-x", "serde", ">=1.0, <banana");
+    let (unexempted, _) = apply_exceptions(&findings, &[bad], "2026-09-18");
+    assert_eq!(unexempted.len(), 1);
+}
+
+#[test]
+fn osv_shaped_scopes_are_never_incomplete() {
+    let bound = |value: &str| Some(value.to_owned());
+    let intervals = [
+        (bound("0"), bound("1.2.3"), false),
+        (None, bound("1.2.3"), false),
+        (bound("1.0.0"), bound("1.2.3"), true),
+        (bound("1.0.0"), None, false),
+        (None, bound("1.2.3"), true),
+        (None, None, false),
+    ];
+    for set in ["cargo", "npm", "go", "maven", "nuget", "ruby", "uv"] {
+        let mut scopes: Vec<String> = intervals
+            .iter()
+            .map(|(lower, upper, inclusive)| {
+                interval_to_scope(set, lower, upper, *inclusive).expect("scope")
+            })
+            .collect();
+        scopes.push(match set {
+            "cargo" | "go" | "uv" => "=1.2.3".to_owned(),
+            _ => "1.2.3".to_owned(),
+        });
+        for scope in &scopes {
+            for version in ["0.5.0", "1.0.0", "1.2.3", "2.0.0"] {
+                assert_ne!(
+                    version_assess(set, scope, version),
+                    VersionScope::Incomplete,
+                    "{set} {scope} {version}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn ruby_requirement_operators() {
     assert!(ruby_in_scope("~> 2.2.8", "2.2.9"));
     assert!(!ruby_in_scope("~> 2.2.8", "2.3.0"));
@@ -1359,10 +1489,10 @@ fn pypi_ranges_use_pep_440_ordering() {
 
 #[test]
 fn pypi_exact_versions_and_wildcard_scopes() {
-    assert_eq!(pypi_assess("=1.0", "1.0.0"), PypiScope::Affected);
-    assert_eq!(pypi_assess("=1.0", "1.1"), PypiScope::Unaffected);
-    assert_eq!(pypi_assess("*", "9.9"), PypiScope::Affected);
-    assert_eq!(pypi_assess("", "1.0"), PypiScope::Unaffected);
+    assert_eq!(pypi_assess("=1.0", "1.0.0"), VersionScope::Affected);
+    assert_eq!(pypi_assess("=1.0", "1.1"), VersionScope::Unaffected);
+    assert_eq!(pypi_assess("*", "9.9"), VersionScope::Affected);
+    assert_eq!(pypi_assess("", "1.0"), VersionScope::Unaffected);
     assert!(pypi_in_scope(">=1.0, <2.0", "1.5"));
     assert!(!pypi_in_scope(">=1.0, <2.0", "2.0"));
 }
@@ -1372,8 +1502,8 @@ fn pypi_unparseable_versions_are_unassessed_never_clean() {
     let events = r#"[{"introduced":"0"},{"fixed":"3.2.5"}]"#;
     assert_eq!(pypi_hits(events, "django", "not-a-version"), (0, 1));
     assert_eq!(pypi_hits(events, "django", ""), (0, 1));
-    assert_eq!(pypi_assess(">=banana", "1.0"), PypiScope::Incomplete);
-    assert_eq!(pypi_assess("~=1.0", "1.0"), PypiScope::Incomplete);
+    assert_eq!(pypi_assess(">=banana", "1.0"), VersionScope::Incomplete);
+    assert_eq!(pypi_assess("~=1.0", "1.0"), VersionScope::Incomplete);
 }
 
 #[test]

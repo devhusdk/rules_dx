@@ -24,6 +24,8 @@ advisory snapshot. A run that selects it fails with `failed to assess powershell
 when `PSGallery.lock.json` lists modules, unless `security.toml` accepts it with
 an `[[uncovered]]` entry, and lists it under `no advisory coverage` otherwise.
 Sets without a snapshot are listed as `no advisory coverage for <sets>`.
+An advisory range or locked version that dx cannot parse marks the package
+unassessed with `unsupported version syntax`, and the run exits `1`.
 
 Create or refresh the snapshots from the workspace root:
 

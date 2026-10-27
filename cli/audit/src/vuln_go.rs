@@ -1,3 +1,5 @@
+use super::VersionScope;
+
 pub(crate) fn strip_go_v(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len());
@@ -21,20 +23,47 @@ pub(crate) fn strip_go_v(text: &str) -> String {
 }
 
 pub fn go_in_scope(scope: &str, version: &str) -> bool {
+    go_assess(scope, version) == VersionScope::Affected
+}
+
+pub fn go_assess(scope: &str, version: &str) -> VersionScope {
+    if scope.trim().is_empty() {
+        return VersionScope::Unaffected;
+    }
     let scope_norm = strip_go_v(scope);
     let version_norm = strip_go_v(version);
-    let requirements = match semver::VersionReq::parse(&scope_norm) {
-        Ok(requirements) => requirements,
-        Err(_) => return false,
+    let Ok(requirements) = semver::VersionReq::parse(&scope_norm) else {
+        return VersionScope::Incomplete;
     };
-    let version = match semver::Version::parse(&version_norm) {
-        Ok(version) => version,
-        Err(_) => return false,
+    let Ok(version) = semver::Version::parse(&version_norm) else {
+        return VersionScope::Incomplete;
     };
-    requirements
+    if !requirements.comparators.iter().all(go_op_is_known) {
+        return VersionScope::Incomplete;
+    }
+    if requirements
         .comparators
         .iter()
         .all(|comparator| go_matches_impl(comparator, &version))
+    {
+        VersionScope::Affected
+    } else {
+        VersionScope::Unaffected
+    }
+}
+
+fn go_op_is_known(comparator: &semver::Comparator) -> bool {
+    matches!(
+        comparator.op,
+        semver::Op::Exact
+            | semver::Op::Wildcard
+            | semver::Op::Greater
+            | semver::Op::GreaterEq
+            | semver::Op::Less
+            | semver::Op::LessEq
+            | semver::Op::Tilde
+            | semver::Op::Caret
+    )
 }
 
 fn go_matches_impl(comparator: &semver::Comparator, version: &semver::Version) -> bool {

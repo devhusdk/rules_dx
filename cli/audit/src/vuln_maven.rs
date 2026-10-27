@@ -1,3 +1,4 @@
+use super::{any_scope, VersionScope};
 use mvn_version::ComparableVersion;
 use std::cmp::Ordering;
 
@@ -102,9 +103,11 @@ fn maven_bound(bound: &str) -> Option<String> {
     }
 }
 
-fn maven_intervals(scope: &str) -> Option<Vec<MavenInterval>> {
+/// Outer `None` means the scope as a whole is malformed; an inner `None`
+/// is one malformed interval inside an otherwise well-formed list.
+fn maven_intervals(scope: &str) -> Option<Vec<Option<MavenInterval>>> {
     let chars: Vec<char> = scope.chars().collect();
-    let mut intervals: Vec<MavenInterval> = Vec::new();
+    let mut intervals: Vec<Option<MavenInterval>> = Vec::new();
     let mut index: usize = 0;
     while index < chars.len() {
         let current = chars[index];
@@ -120,11 +123,11 @@ fn maven_intervals(scope: &str) -> Option<Vec<MavenInterval>> {
                 return None;
             }
             let content: String = chars[index + 1..close_index].iter().collect();
-            if let Some(interval) =
-                maven_interval(&content, current == '[', chars[close_index] == ']')
-            {
-                intervals.push(interval);
-            }
+            intervals.push(maven_interval(
+                &content,
+                current == '[',
+                chars[close_index] == ']',
+            ));
             index = close_index + 1;
         } else if current == ',' || current.is_whitespace() {
             index += 1;
@@ -157,22 +160,37 @@ fn interval_matches(interval: &MavenInterval, version: &ComparableVersion) -> bo
 }
 
 pub fn maven_in_scope(scope: &str, version: &str) -> bool {
+    maven_assess(scope, version) == VersionScope::Affected
+}
+
+pub fn maven_assess(scope: &str, version: &str) -> VersionScope {
     let scope_trimmed = scope.trim();
     let version_trimmed = version.trim();
-    if scope_trimmed.is_empty() || version_trimmed.is_empty() {
-        return false;
+    if scope_trimmed.is_empty() {
+        return VersionScope::Unaffected;
+    }
+    if version_trimmed.is_empty() {
+        return VersionScope::Incomplete;
     }
     if scope_trimmed.len() > MAX_SCOPE_LEN || version_trimmed.len() > MAX_VERSION_LEN {
-        return false;
+        return VersionScope::Incomplete;
     }
     if !scope_trimmed.contains(['[', '(', ']', ')']) {
-        return maven_version_eq(scope_trimmed, version_trimmed);
+        if maven_version_eq(scope_trimmed, version_trimmed) {
+            return VersionScope::Affected;
+        }
+        if scope_trimmed.contains(['<', '>', '=', ',', '*']) {
+            return VersionScope::Incomplete;
+        }
+        return VersionScope::Unaffected;
     }
     let Some(intervals) = maven_intervals(scope_trimmed) else {
-        return false;
+        return VersionScope::Incomplete;
     };
     let version = comparable_maven(version_trimmed);
-    intervals
-        .iter()
-        .any(|interval| interval_matches(interval, &version))
+    any_scope(intervals.iter().map(|interval| match interval {
+        None => VersionScope::Incomplete,
+        Some(interval) if interval_matches(interval, &version) => VersionScope::Affected,
+        Some(_) => VersionScope::Unaffected,
+    }))
 }

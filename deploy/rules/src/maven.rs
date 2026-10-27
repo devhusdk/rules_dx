@@ -529,6 +529,12 @@ pub fn maven_live_gate(
             "maven_deploy: live staging refuses version 0.0.0; set a real version".to_owned(),
         );
     }
+    if version.contains("-SNAPSHOT") {
+        return Err(
+            "maven_deploy: live staging refuses -SNAPSHOT versions; set a release version"
+                .to_owned(),
+        );
+    }
     let secrets = MAVEN_GATE.authorize(env)?;
     if let Some(error) = maven_repository_url_error(repository_url) {
         return Err(error);
@@ -942,6 +948,21 @@ pub(crate) mod tests {
             gate_error(&vars, "0.0.0", MAVEN_DEFAULT_REPOSITORY_URL),
             Some("maven_deploy: live staging refuses version 0.0.0; set a real version".to_owned())
         );
+    }
+
+    #[test]
+    fn maven_gate_rejects_snapshot_version() {
+        let mut vars = APPROVED.to_vec();
+        vars.push(("MAVEN_GPG_PASSPHRASE", "pw"));
+        for version in ["1.0.0-SNAPSHOT", "1.0-SNAPSHOT+b5"] {
+            assert_eq!(
+                gate_error(&vars, version, MAVEN_DEFAULT_REPOSITORY_URL),
+                Some(
+                    "maven_deploy: live staging refuses -SNAPSHOT versions; set a release version"
+                        .to_owned()
+                )
+            );
+        }
     }
 
     #[test]

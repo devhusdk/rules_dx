@@ -475,11 +475,8 @@ mod tests {
     #[test]
     fn cquery_verb_keeps_every_option_and_the_profile() {
         let options = query_test_options();
-        let selection = SelectionContext::for_test_execution(
-            Profile::Dev,
-            &options[..options.len() - 1],
-            &[],
-        );
+        let selection =
+            SelectionContext::for_test_execution(Profile::Dev, &options[..options.len() - 1], &[]);
         let argv = selection
             .selection_argv("cquery", &[], "tests(//...)")
             .expect("argv");

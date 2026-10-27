@@ -470,6 +470,10 @@ fn announce_collection_failure(
 struct Verification {
     failed_phase: Option<&'static str>,
     skipped: Vec<&'static str>,
+    /// Phases that failed during apply and so were not re-checked.
+    apply_failed: Vec<&'static str>,
+    /// Phases that were re-checked.
+    verified: Vec<&'static str>,
     out: Vec<u8>,
     err: Vec<u8>,
     readable: bool,
@@ -620,10 +624,13 @@ fn verify_fix(
     request: &UmbrellaRequest,
     context: &VerifyContext<'_>,
     through: usize,
+    failed_during_apply: &[(usize, &'static str)],
 ) -> Verification {
     let mut outcome = Verification {
         failed_phase: None,
         skipped: Vec::new(),
+        apply_failed: failed_during_apply.iter().map(|(_, name)| *name).collect(),
+        verified: Vec::new(),
         out: Vec::new(),
         err: Vec::new(),
         readable: true,
@@ -631,10 +638,17 @@ fn verify_fix(
     };
     let command = request.command.name();
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate().take(through + 1) {
+        if failed_during_apply
+            .iter()
+            .any(|(failed, _)| *failed == index)
+        {
+            continue;
+        }
         if outcome.failed_phase.is_some() {
             outcome.skipped.push(phase.name());
             continue;
         }
+        outcome.verified.push(phase.name());
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
         let code = {
@@ -710,7 +724,8 @@ fn deliver_verification(
     command: &str,
     verification: &Verification,
 ) -> Result<(), i32> {
-    if verification.failed_phase.is_none() && verification.readable {
+    let partial = !verification.apply_failed.is_empty() && !verification.verified.is_empty();
+    if verification.failed_phase.is_none() && verification.readable && !partial {
         return Ok(());
     }
     check_stdout_write(out.write_all(&verification.out))?;
@@ -720,6 +735,13 @@ fn deliver_verification(
     }
     if let Some(failed) = verification.failed_phase {
         announce_verification_failure(out, err, output, command, failed, &verification.skipped)?;
+    } else if partial {
+        let _ = writeln!(
+            err,
+            "dx: verification passed after apply for {}; not re-checked, failed during apply: {}",
+            verification.verified.join(", "),
+            verification.apply_failed.join(", ")
+        );
     }
     Ok(())
 }
@@ -885,6 +907,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     let mut stdout_exit: Option<i32> = None;
     let mut reports_ok = true;
     let mut last_touched: Option<usize> = None;
+    let mut failed_phases: Vec<(usize, &'static str)> = Vec::new();
     for (index, phase) in phases.iter().enumerate() {
         let phase_nonce = nonce.wrapping_add(index as u64);
         let mut phase_reports = Vec::new();
@@ -989,6 +1012,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         if code != 0 {
             if kind.continues(request.command) {
                 failed_code.get_or_insert(code);
+                failed_phases.push((index, phase.name()));
                 continue;
             }
             stop_code = Some(code);
@@ -1061,12 +1085,11 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     }
     let mut verify_forward_exit: Option<i32> = None;
     let mut verification_failed = false;
-    let verify_through =
-        if fix_apply && stdout_exit.is_none() && stop_code.is_none() && failed_code.is_none() {
-            last_touched
-        } else {
-            None
-        };
+    let verify_through = if fix_apply && stdout_exit.is_none() && stop_code.is_none() {
+        last_touched
+    } else {
+        None
+    };
     if let Some(through) = verify_through {
         let context = VerifyContext {
             workspace,
@@ -1078,7 +1101,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             ci,
             audit_today,
         };
-        let verification = verify_fix(request, &context, through);
+        let verification = verify_fix(request, &context, through, &failed_phases);
         reports_ok &= verification.readable;
         verification_failed = verification.failed_phase.is_some();
         if let Err(exit) =
@@ -2083,6 +2106,8 @@ mod tests {
         let mut verification = Verification {
             failed_phase: None,
             skipped: vec![],
+            apply_failed: vec![],
+            verified: vec![],
             out: vec![],
             err: vec![],
             readable: true,
@@ -2124,6 +2149,8 @@ mod tests {
         let verification = Verification {
             failed_phase: None,
             skipped: vec![],
+            apply_failed: vec![],
+            verified: vec![],
             out: b"buffered out\n".to_vec(),
             err: b"buffered err\n".to_vec(),
             readable: true,
@@ -2254,8 +2281,8 @@ mod tests {
         );
         assert_eq!(
             harness.seen_env.borrow().len(),
-            4,
-            "every phase launches once and no verification runs"
+            5,
+            "every phase launches once, then format is re-checked; stale lint is not"
         );
         assert!(
             harness
@@ -2368,8 +2395,116 @@ mod tests {
         assert_eq!(finished["results_complete"], serde_json::json!(false));
     }
 
+    /// Runs `fix --apply --output=<output>` where lint (launch 1) exits 7 and
+    /// the verification launches see `verify_result`; only format edits.
+    fn fix_apply_lint_fails(
+        harness: &Harness,
+        verify_result: Vec<u8>,
+        output: &str,
+    ) -> (i32, String, String) {
+        let mut staged = staged_runner(
+            harness,
+            harness
+                .staged_artifacts()
+                .iter()
+                .map(|(path, _)| (path.clone(), verify_result.clone()))
+                .collect(),
+            Some(intended_witness("check", true, "", "")),
+            4,
+        );
+        let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+        staged.clean_files = staged
+            .apply_files
+            .iter()
+            .map(|(path, _)| (path.clone(), clean.clone()))
+            .collect();
+        staged.clean_from = 1;
+        let runner = FailFrom {
+            inner: staged,
+            from: 1,
+            to: Some(2),
+            code: 7,
+            launches: Cell::new(0),
+        };
+        let output_flag = format!("--output={output}");
+        let inv = umbrella_invocation(harness, &["fix", "--apply", output_flag.as_str()]);
+        harness.execute_with(&inv, &runner)
+    }
+
+    fn partial_failure_harness(name: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        harness
+    }
+
     #[test]
-    fn fix_apply_skips_verification_after_a_failed_phase() {
+    fn fix_apply_partial_failure_rechecks_passing_phases() {
+        let harness = partial_failure_harness("umbrella-fix-partial-recheck");
+        let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+        let (code, out, err) = fix_apply_lint_fails(&harness, clean, "json");
+        let events = json_events(&out);
+        let lint_code = events
+            .iter()
+            .find(|event| event["event"] == "phase_finished" && event["phase"] == "lint")
+            .expect("lint finished")["exit_code"]
+            .as_i64()
+            .expect("lint code");
+        assert_ne!(lint_code, 0, "{out}");
+        assert_eq!(i64::from(code), lint_code, "{out}{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"y = 1\n",
+            "format applied before lint failed"
+        );
+        let verify: Vec<&str> = events
+            .iter()
+            .filter_map(|event| event["correlation"].as_str())
+            .filter(|correlation| correlation.starts_with("fix/verify/"))
+            .collect();
+        assert!(verify.contains(&"fix/verify/format"), "{out}{err}");
+        assert!(!verify.contains(&"fix/verify/lint"), "{out}");
+        assert!(
+            err.contains("verification passed after apply for format")
+                && err.contains("failed during apply: lint"),
+            "{err}"
+        );
+        assert_eq!(
+            events_of_kind(&events, "command_finished").len(),
+            1,
+            "{out}"
+        );
+        assert_eq!(
+            events.last().expect("last")["exit_code"],
+            serde_json::json!(lint_code)
+        );
+    }
+
+    #[test]
+    fn fix_apply_partial_failure_reports_a_failing_recheck() {
+        let harness = partial_failure_harness("umbrella-fix-partial-recheck-fails");
+        let unstable =
+            quality_result::decode_validated(&harness.result_full(vec![], vec![], vec![], vec![]))
+                .map(|mut result| {
+                    result.convergence = quality_result::proto::Convergence::Oscillation as i32;
+                    result.completed_rounds = 2;
+                    quality_result::encode_validated(&result).expect("encode")
+                })
+                .expect("valid result");
+        let (code, out, err) = fix_apply_lint_fails(&harness, unstable, "text");
+        assert_eq!(code, 1, "the failed phase's code stays: {out}{err}");
+        assert!(
+            err.contains("dx: verification_failed: format failed verification after apply"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn fix_apply_does_not_recheck_the_failed_phase() {
         let mut harness = Harness::new("umbrella-fix-failed-no-verify");
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
@@ -2392,12 +2527,16 @@ mod tests {
             b"y = 1\n",
             "format applied before typecheck failed"
         );
-        assert_eq!(runner.launches.get(), 4, "only the four phase launches");
+        assert_eq!(
+            runner.launches.get(),
+            5,
+            "four phase launches plus the format recheck, never the failed typecheck"
+        );
         let events = json_events(&out);
         assert!(
             events.iter().all(|event| !event["correlation"]
                 .as_str()
-                .is_some_and(|correlation| correlation.starts_with("verify/"))),
+                .is_some_and(|correlation| correlation == "verify/typecheck")),
             "{out}"
         );
         assert_eq!(

@@ -133,6 +133,41 @@ fn output_supported(command: Command, name: &str) -> bool {
     }
 }
 
+/// Whether a default output value applies to the command and worktree verb.
+///
+/// The path value is a default only for `worktree add`; the flag path keeps
+/// accepting it on every worktree verb.
+fn default_output_applies(command: Command, name: &str, worktree_verb: Option<&str>) -> bool {
+    match name {
+        "path" => command == Command::Worktree && worktree_verb == Some("add"),
+        _ => output_supported(command, name),
+    }
+}
+
+/// The first positional after the command word, skipping value options.
+fn verb_after_command<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
+    let mut positionals = 0;
+    let mut index = 0;
+    while index < args.len() {
+        let word = args[index].as_ref().to_str()?;
+        if word == "--" {
+            return None;
+        }
+        if word.starts_with('-') {
+            if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+                index += 1;
+            }
+        } else {
+            positionals += 1;
+            if positionals == 2 {
+                return Some(word.to_owned());
+            }
+        }
+        index += 1;
+    }
+    None
+}
+
 /// Whether a startup failure may report structured JSON events on stdout.
 pub fn json_output_intent<S: AsRef<OsStr>>(
     args: &[S],
@@ -150,7 +185,8 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
         dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
     };
     if let Some(value) = env.as_deref().or(file.output.as_deref()) {
-        if command.is_none_or(|command| output_supported(command, value)) {
+        let verb = verb_after_command(args);
+        if command.is_none_or(|command| default_output_applies(command, value, verb.as_deref())) {
             return value == "json";
         }
     }
@@ -660,7 +696,9 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, "--open"));
         }
     }
-    let mut output_name = if output_from_flag || output_supported(command, &output_name) {
+    let mut output_name = if output_from_flag
+        || default_output_applies(command, &output_name, targets.first().map(String::as_str))
+    {
         output_name
     } else {
         default_output.to_owned()
@@ -973,6 +1011,28 @@ mod startup_tests {
             early_output_flag(&strings(&["lint", "-qojson", "-o", "text"])),
             Some("text".to_owned())
         );
+    }
+
+    #[test]
+    fn json_intent_ignores_path_default_for_non_add_worktree_verbs() {
+        let file = crate::args::FileDefaults::default();
+        let env = |name: &str| match name {
+            "DX_OUTPUT" => Some("path".to_owned()),
+            "CLAUDECODE" => Some("1".to_owned()),
+            _ => None,
+        };
+        assert!(json_output_intent(
+            &strings(&["worktree", "list"]),
+            &env,
+            &file,
+            false
+        ));
+        assert!(!json_output_intent(
+            &strings(&["worktree", "add", "x"]),
+            &env,
+            &file,
+            false
+        ));
     }
 
     #[test]

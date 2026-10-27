@@ -996,6 +996,58 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "wasmtime": {
+        "upstream_version": "49.0.2",
+        "release_page": "https://github.com/bytecodealliance/wasmtime/releases/tag/v49.0.2",
+        "licenses": [
+            {
+                "name": "Apache-2.0 WITH LLVM-exception",
+                "source": "https://github.com/bytecodealliance/wasmtime/blob/v49.0.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "wasmtime-v49.0.2-x86_64-linux.tar.xz",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-linux.tar.xz",
+                "kind": "tar.xz",
+                "executable": "wasmtime-v49.0.2-x86_64-linux/wasmtime",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "wasmtime-v49.0.2-aarch64-linux.tar.xz",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-linux.tar.xz",
+                "kind": "tar.xz",
+                "executable": "wasmtime-v49.0.2-aarch64-linux/wasmtime",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "wasmtime-v49.0.2-aarch64-macos.tar.xz",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-macos.tar.xz",
+                "kind": "tar.xz",
+                "executable": "wasmtime-v49.0.2-aarch64-macos/wasmtime",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "wasmtime-v49.0.2-x86_64-windows.zip",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-windows.zip",
+                "kind": "zip",
+                "executable": "wasmtime-v49.0.2-x86_64-windows/wasmtime.exe",
+            },
+            "macos_x86_64": {
+                "os": "macos",
+                "cpu": "x86_64",
+                "asset": "wasmtime-v49.0.2-x86_64-macos.tar.xz",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-macos.tar.xz",
+                "kind": "tar.xz",
+                "executable": "wasmtime-v49.0.2-x86_64-macos/wasmtime",
+            },
+        },
+    },
 }
 
 

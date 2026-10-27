@@ -1029,6 +1029,11 @@ use_repo(
     "dx_vale_linux_x86_64",
     "dx_vale_macos_arm64",
     "dx_vale_windows_x86_64",
+    "dx_wasmtime_linux_arm64",
+    "dx_wasmtime_linux_x86_64",
+    "dx_wasmtime_macos_arm64",
+    "dx_wasmtime_macos_x86_64",
+    "dx_wasmtime_windows_x86_64",
     "dx_yamlfmt_linux_arm64",
     "dx_yamlfmt_linux_x86_64",
     "dx_yamlfmt_macos_arm64",
@@ -1044,17 +1049,6 @@ use_repo(
     "dx_firefox",
     "dx_firefox_linux_arm64",
     "dx_firefox_linux_x86_64",
-)
-
-wasmtime = use_extension("//wasi/runtime:repos.bzl", "wasmtime")
-use_repo(
-    wasmtime,
-    "dx_wasmtime",
-    "dx_wasmtime_linux_arm64",
-    "dx_wasmtime_linux_x86_64",
-    "dx_wasmtime_macos_arm64",
-    "dx_wasmtime_macos_x86_64",
-    "dx_wasmtime_windows_x86_64",
 )
 
 cc_tools = use_extension("//quality/tools/cc:extension.bzl", "cc_tools")

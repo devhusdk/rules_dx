@@ -36,8 +36,11 @@ Outside a terminal, if dx is killed with `SIGKILL`, Linux stops the process dx
 started. Anything else in that process group keeps running until the next dx
 run in that worktree stops it, prints `dx: stopped leftover process group <id>
 from dx run <pid>, which is gone`, and with `--output=json` emits a `notice`
-event with code `orphan_process_group_stopped`, after `command_started`. On
-macOS the next run stops the whole tree. In a terminal, a `SIGKILL` to dx alone
+event with code `orphan_process_group_stopped`, after `command_started`. dx
+stops a leftover group only when it can confirm it is the group it recorded;
+otherwise it leaves the group running. Each stop is logged to
+`.dx/leases/process-groups/reaped.log`. On macOS the next run stops the whole
+tree the same way. In a terminal, a `SIGKILL` to dx alone
 leaves its children running. Outside a terminal, when the process dx started
 exits, dx stops anything still running in its process group. A dx that exits
 on its own never leaves anything for the next run to stop.

@@ -140,21 +140,16 @@ jobs:
           persist-credentials: false
           fetch-depth: ${{ env.DX_SCOPE == '--affected' && '2' || '1' }}
       - name: Pin the pull request base for --affected
-        if: ${{ env.DX_SCOPE == '--affected' || (github.event_name == 'pull_request' && needs.validate.outputs.min_changed_line_coverage != '') }}
+        if: ${{ env.DX_SCOPE == '--affected' }}
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
-          DX_PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          base='HEAD^1'
           if ! git rev-parse --verify -q 'HEAD^2' >/dev/null; then
-            if [ "$DX_SCOPE" = "--affected" ]; then
-              echo "::warning::checkout is not a merge commit; falling back to //..."
-              echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
-              exit 0
-            fi
-            base="$DX_PR_BASE"
+            echo "::warning::checkout is not a merge commit; falling back to //..."
+            echo "DX_SCOPE=//..." >> "$GITHUB_ENV"
+            exit 0
           fi
-          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" "$base"
+          git update-ref "refs/remotes/origin/$GITHUB_BASE_REF" 'HEAD^1'
           git symbolic-ref refs/remotes/origin/HEAD "refs/remotes/origin/$GITHUB_BASE_REF"
           echo '/bazel-*' >> "$(git rev-parse --git-path info/exclude)"
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0

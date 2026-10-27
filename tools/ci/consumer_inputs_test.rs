@@ -430,6 +430,11 @@ fn scoped_jobs_pin_the_base_and_run_dx_on_the_scope() {
             scope_text(&steps[pin]["if"]).contains("--affected"),
             "{name} pin guard"
         );
+        assert_eq!(
+            name == MATRIX_JOB,
+            !scope_text(&steps[pin]["if"]).contains("min_changed_line_coverage"),
+            "{name} pin guard: only coverage pins for the changed-line gate"
+        );
         assert!(
             scope_text(&steps[pin]["env"]["GITHUB_BASE_REF"]).contains("github.base_ref"),
             "{name} pin must read the base ref through env"

@@ -22,7 +22,7 @@ pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
             }
         }
     }
-    let defined: Vec<Public<'_>> = api
+    let all: Vec<Public<'_>> = api
         .files
         .iter()
         .flat_map(|file| {
@@ -31,7 +31,12 @@ pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
                 .map(move |function| Public { file, function })
         })
         .collect();
-    let mut chosen = exported_by_module(api, &defined)?;
+    let defined: Vec<Public<'_>> = all
+        .iter()
+        .filter(|public| in_module_scope(public.function))
+        .copied()
+        .collect();
+    let mut chosen = exported_by_module(api, &all, &defined)?;
     if let Some(manifest) = &api.manifest {
         match &manifest.functions_to_export {
             None => {}
@@ -43,7 +48,7 @@ pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
                 ))
             }
             Some(Names::List(patterns)) => {
-                require_defined(&manifest.rel, patterns, &defined)?;
+                require_defined(&manifest.rel, patterns, &all)?;
                 chosen.retain(|public| {
                     patterns
                         .iter()
@@ -59,7 +64,11 @@ pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
     Ok(chosen)
 }
 
-fn exported_by_module<'a>(api: &'a Api, defined: &[Public<'a>]) -> Result<Vec<Public<'a>>, String> {
+fn exported_by_module<'a>(
+    api: &'a Api,
+    all: &[Public<'a>],
+    defined: &[Public<'a>],
+) -> Result<Vec<Public<'a>>, String> {
     let mut patterns: Vec<&str> = Vec::new();
     let mut literal = false;
     for file in &api.files {
@@ -73,7 +82,7 @@ fn exported_by_module<'a>(api: &'a Api, defined: &[Public<'a>]) -> Result<Vec<Pu
             }
             ExportKind::Literal => {
                 literal = true;
-                require_defined(&file.rel, &file.exports.functions, defined)?;
+                require_defined(&file.rel, &file.exports.functions, all)?;
                 patterns.extend(file.exports.functions.iter().map(String::as_str));
             }
         }
@@ -90,6 +99,10 @@ fn exported_by_module<'a>(api: &'a Api, defined: &[Public<'a>]) -> Result<Vec<Pu
         })
         .copied()
         .collect())
+}
+
+fn in_module_scope(function: &Function) -> bool {
+    !matches!(function.scope.as_deref(), Some("global" | "private"))
 }
 
 fn require_defined(rel: &str, patterns: &[String], defined: &[Public<'_>]) -> Result<(), String> {

@@ -91,10 +91,7 @@ def _powershell_doc_shard_impl(ctx):
     ]
 
 powershell_doc_shard = rule(
-    doc = """Parses one PowerShell script module into a DocIr shard.
-
-The sources are parsed by the pwsh runtime's own parser; they are never imported,
-dot-sourced or run.""",
+    doc = "Parses one PowerShell script module into a DocIr shard.",
     implementation = _powershell_doc_shard_impl,
     attrs = {
         "config": attr.string(doc = "Extra configuration identity recorded on every symbol."),

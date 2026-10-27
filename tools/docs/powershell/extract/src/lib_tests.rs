@@ -171,6 +171,26 @@ fn exports_literal_export_module_member_only() {
 }
 
 #[test]
+fn exports_script_scope_function_under_its_bare_name() {
+    let mut helper = function("Get-Helper", 5);
+    helper["scope"] = json!("script");
+    let mut hidden = function("Get-Hidden", 9);
+    hidden["scope"] = json!("private");
+    let symbol = only(&api(vec![file("m.psm1", vec![helper, hidden])]));
+    assert_eq!(symbol.id, "powershell:Demo:Get-Helper");
+}
+
+#[test]
+fn exports_skip_global_definition_named_by_export_module_member() {
+    let mut global = function("Get-Foo", 1);
+    global["scope"] = json!("global");
+    let mut f = file("m.psm1", vec![global, function("Get-Bar", 5)]);
+    f["exports"] = json!({"kind": "literal", "functions": ["Get-Foo", "Get-Bar"]});
+    let symbol = only(&api(vec![f]));
+    assert_eq!(symbol.id, "powershell:Demo:Get-Bar");
+}
+
+#[test]
 fn exports_manifest_wildcards_ignore_case() {
     let mut value = api(vec![file(
         "m.psm1",

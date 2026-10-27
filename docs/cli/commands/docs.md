@@ -275,6 +275,8 @@ Supported shapes:
 - `FunctionsToExport` and `AliasesToExport` lists, with `*` and `?` wildcards,
   matched without regard to case.
 - `Export-ModuleMember -Function` with literal names.
+- `function script:Name` and `function local:Name`, documented as `Name`.
+  Functions defined as `global:` or `private:` are never exported.
 - `[CmdletBinding()]`, parameter sets, `[Parameter()]`, `[Alias()]` and `[OutputType()]`.
 - Comment-based help: `.SYNOPSIS`, `.DESCRIPTION`, `.PARAMETER`, `.EXAMPLE` and
   `.OUTPUTS`, before, inside or at the end of the function.

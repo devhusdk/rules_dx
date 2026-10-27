@@ -60,6 +60,14 @@ Describe "extract.ps1" {
         $one[0] | Should -Be ([byte][char]'{')
     }
 
+    It "strips the scope qualifier from function names" {
+        $run = Invoke-Extract @("Scoped/Scoped.psm1") "" "scoped"
+        $run.ExitCode | Should -Be 0
+        $functions = (Get-Content -Raw -Path $run.Out | ConvertFrom-Json).files[0].functions
+        @($functions.name) | Should -Be @("Get-ScopedValue", "Get-ScopedSecret", "Set-ScopedGlobal")
+        @($functions.scope) | Should -Be @("script", "private", "global")
+    }
+
     It "reports a parse error and writes nothing" {
         $run = Invoke-Extract @("bad/ParseError.psm1") "" "parse"
         $run.ExitCode | Should -Be 1

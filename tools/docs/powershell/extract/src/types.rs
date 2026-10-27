@@ -73,6 +73,8 @@ pub enum ExportKind {
 #[serde(deny_unknown_fields)]
 pub struct Function {
     pub name: String,
+    #[serde(default)]
+    pub scope: Option<String>,
     pub line: u64,
     #[serde(default)]
     pub help: Option<Help>,

@@ -19,12 +19,15 @@ rust_test(
         "//tools/docs/powershell/extract:powershell_extract",
         "//tools/docs/powershell/fixture:ledger_docs",
         "//tools/docs/powershell/fixture:ledger_srcs",
+        "//tools/docs/powershell/fixture:scoped_docs",
+        "//tools/docs/powershell/fixture:scoped_srcs",
         "//tools/docs/powershell/fixture:tally_docs",
         "//tools/docs/powershell/fixture:tally_srcs",
     ],
     env = {
         "DX_LEDGER_SHARD": "$(rootpath //tools/docs/powershell/fixture:ledger_docs)",
         "DX_POWERSHELL_EXTRACT": "$(rootpath //tools/docs/powershell/extract:powershell_extract)",
+        "DX_SCOPED_SHARD": "$(rootpath //tools/docs/powershell/fixture:scoped_docs)",
         "DX_TALLY_SHARD": "$(rootpath //tools/docs/powershell/fixture:tally_docs)",
     },
     tags = ["no-coverage"],
@@ -49,6 +52,7 @@ pwsh_test(
         "extract_script.Describe.ps1",
         "//tools/docs/powershell/fixture:bad_srcs",
         "//tools/docs/powershell/fixture:ledger_srcs",
+        "//tools/docs/powershell/fixture:scoped_srcs",
     ],
     deps = ["//powershell/gallery:pester"],
 )

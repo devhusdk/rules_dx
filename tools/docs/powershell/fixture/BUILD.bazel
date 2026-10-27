@@ -14,6 +14,11 @@ filegroup(
 )
 
 filegroup(
+    name = "scoped_srcs",
+    srcs = ["Scoped/Scoped.psm1"],
+)
+
+filegroup(
     name = "bad_srcs",
     srcs = glob(["bad/*"]),
 )
@@ -27,6 +32,12 @@ powershell_doc_shard(
     name = "tally_docs",
     srcs = [":tally_srcs"],
     package = "Tally",
+)
+
+powershell_doc_shard(
+    name = "scoped_docs",
+    srcs = [":scoped_srcs"],
+    package = "Scoped",
 )
 
 real_source_target(

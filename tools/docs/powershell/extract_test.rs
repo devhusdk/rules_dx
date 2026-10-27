@@ -184,7 +184,7 @@ fn a_crlf_source_maps_to_lf_text() {
 
 #[test]
 fn every_source_line_points_at_its_function_keyword() {
-    for var in ["DX_LEDGER_SHARD", "DX_TALLY_SHARD"] {
+    for var in ["DX_LEDGER_SHARD", "DX_SCOPED_SHARD", "DX_TALLY_SHARD"] {
         let (_, shard) = read_shard(var);
         for symbol in &shard.symbols {
             let source = symbol.source.as_ref().expect("a source");
@@ -201,8 +201,10 @@ fn every_source_line_points_at_its_function_keyword() {
                 .lines()
                 .nth(usize::try_from(source.line).expect("line fits") - 1)
                 .expect("the line exists");
+            let line = line.trim_end_matches('\r');
+            let line = line.replacen("function script:", "function ", 1);
             assert_eq!(
-                line.trim_end_matches('\r'),
+                line,
                 format!("function {name} {{"),
                 "{}:{}",
                 source.file,
@@ -237,8 +239,19 @@ fn the_tally_shard_uses_literal_exports_and_its_own_config() {
 }
 
 #[test]
+fn scope_qualified_functions_use_bare_names_and_skip_global_and_private() {
+    let (_, scoped) = read_shard("DX_SCOPED_SHARD");
+    let ids: Vec<&str> = scoped.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(ids, ["powershell:Scoped:Get-ScopedValue"]);
+    assert_eq!(
+        scoped.symbols[0].signature_text,
+        "Get-ScopedValue [[-Name] <string>]"
+    );
+}
+
+#[test]
 fn re_encoding_a_shard_is_byte_identical() {
-    for var in ["DX_LEDGER_SHARD", "DX_TALLY_SHARD"] {
+    for var in ["DX_LEDGER_SHARD", "DX_SCOPED_SHARD", "DX_TALLY_SHARD"] {
         let (bytes, shard) = read_shard(var);
         assert_eq!(encode_shard(&shard).expect("encodes"), bytes, "{var}");
     }

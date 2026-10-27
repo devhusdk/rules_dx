@@ -24,5 +24,9 @@ function Update-TallyStore {
     $script:store[$Name] += $Delta
 }
 
+function global:Clear-Tally {
+    $script:store.Clear()
+}
+
 $script:store = @{}
-Export-ModuleMember -Function Add-Tally
+Export-ModuleMember -Function Add-Tally, Clear-Tally

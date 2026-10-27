@@ -1,5 +1,3 @@
-# Emits the raw API facts of PowerShell sources as dx.powershell.api/1 JSON.
-# It only parses: no source is imported, dot-sourced or invoked.
 param(
     [Parameter(Mandatory)][string]$Sources,
     [string]$Manifest = '',
@@ -12,7 +10,6 @@ $ErrorActionPreference = 'Stop'
 $PSModuleAutoLoadingPreference = 'None'
 
 $Schema = 'dx.powershell.api/1'
-# A using module statement whose module is not on this machine is not a source error.
 $Tolerated = @('ModuleNotFoundDuringParse')
 
 function Stop-Extract([string]$Rel, [int]$Line, [string]$Message) {
@@ -45,7 +42,6 @@ function Test-Attribute($Attribute, [string[]]$Names) {
 }
 
 function Get-ConstantValues($Expression) {
-    # Returns the literal strings of one expression, or $null when it is not literal.
     if ($null -eq $Expression) { return , @() }
     if ($Expression -is [System.Management.Automation.Language.StringConstantExpressionAst]) {
         return , @($Expression.Value)
@@ -208,8 +204,15 @@ function Get-FunctionFact($Function) {
             $params += , (Get-ParamFact $parameter)
         }
     }
+    $name = $Function.Name
+    $scope = $null
+    if ($name -match '^(global|script|local|private):(.+)$') {
+        $scope = $Matches[1].ToLowerInvariant()
+        $name = $Matches[2]
+    }
     [ordered]@{
-        name           = $Function.Name
+        name           = $name
+        scope          = $scope
         line           = $Function.Extent.StartLineNumber
         help           = Get-HelpFact $Function
         cmdlet_binding = $binding
@@ -267,7 +270,6 @@ function Get-ExportFact($Ast) {
 }
 
 function ConvertTo-Fact($Value) {
-    # Writes compact JSON without the Utility module, which is not loaded with autoloading off.
     if ($null -eq $Value) { return 'null' }
     if ($Value -is [bool]) { return $(if ($Value) { 'true' } else { 'false' }) }
     if ($Value -is [int] -or $Value -is [long]) { return [string]$Value }

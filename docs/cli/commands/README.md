@@ -54,7 +54,8 @@ at least one and never more than 16.
 `--build-slots auto|<n>|off` sets the count for one run. `DX_BUILD_SLOTS` and
 `build-slots` in `dx.toml` or `dx.local.toml` set a default, and the flag wins.
 The default is `auto`, the count above. In CI the env var and
-`dx.local.toml` are ignored, like every other default.
+`dx.local.toml` are ignored, like every other default. CI runs still take a
+slot and pass its `--local_resources` share to Bazel.
 
 - `auto`: the memory-based count above, with the remote extras below.
 - `<n>`: exactly `n` slots, from 1 to 1024. There is no 16 cap and no remote

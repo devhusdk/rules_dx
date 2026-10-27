@@ -439,17 +439,20 @@ fn no_share_adds_no_local_resources() {
 }
 
 #[test]
-fn hermetic_adds_no_local_resources() {
+fn hermetic_caps_local_resources_only_with_a_share() {
     let hermetic = RcPolicy::hermetic();
+    assert!(hermetic.verb_options("build", None, &[]).is_empty());
     assert_eq!(
         hermetic.verb_options("build", Some(&SHARE_4), &[]),
-        Vec::<String>::new()
+        vec![
+            "--local_resources=cpu=4".to_owned(),
+            "--local_resources=memory=8192".to_owned()
+        ]
     );
-    assert!(!hermetic.local_cpu && !hermetic.local_memory);
     assert!(!hermetic.disk_cache_gc);
     assert_eq!(hermetic.gc_idle_delay_secs, None);
     let ci = Machine::local().env("CI", "true").policy();
-    assert!(!ci.local_cpu && !ci.local_memory);
+    assert!(ci.local_cpu && ci.local_memory);
 }
 
 fn resources(policy: &RcPolicy) -> (bool, bool) {

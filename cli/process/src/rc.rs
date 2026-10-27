@@ -43,8 +43,9 @@ static HERMETIC: RcPolicy = RcPolicy {
     read_user_rc: false,
     disk_cache: None,
     bazel_disk_cache: None,
-    local_cpu: false,
-    local_memory: false,
+    // CI and nested tests skip user rc files but still honor the slot share.
+    local_cpu: true,
+    local_memory: true,
     disk_cache_gc: false,
     gc_idle_delay_secs: None,
 };

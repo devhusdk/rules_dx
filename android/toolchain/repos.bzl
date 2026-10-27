@@ -166,9 +166,12 @@ def _android_ndk_toolchain_repo_impl(ctx):
     sysroot = "sysroot"
     clang = str(sdk) + "/ndk/" + revision + "/" + prebuilt + "/bin/clang"
     clang_version = _clang_version(ctx, clang)
-    resource_dir = str(sdk) + "/ndk/" + revision + "/" + prebuilt + "/lib/clang/" + clang_version + "/include"
-    cxx_include_dir = str(sdk) + "/ndk/" + revision + "/" + prebuilt + "/" + sysroot + "/usr/include/c++/v1"
-    ndk_sysroot = str(sdk) + "/ndk/" + revision + "/" + prebuilt + "/" + sysroot
+
+    # Execroot-relative so remote execution never sees a host-absolute path.
+    root = "external/" + ctx.name + "/sdk/ndk/" + revision + "/" + prebuilt
+    resource_dir = root + "/lib/clang/" + clang_version + "/include"
+    cxx_include_dir = root + "/" + sysroot + "/usr/include/c++/v1"
+    ndk_sysroot = root + "/" + sysroot
     api_level = ctx.attr.api_level if ctx.attr.api_level != 0 else api_floor()
     chunks = [
         'load("' + str(Label("@rules_cc//cc:defs.bzl")) + '", "cc_toolchain")',

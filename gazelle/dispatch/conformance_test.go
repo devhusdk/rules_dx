@@ -69,6 +69,11 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",
 		symbols: []string{"go_library", "go_test"},
 	},
+	"haskell": {
+		files: map[string]string{"Demo.hs": "module Demo where\n\nimport Data.List (sort)\n"},
+		kind:  "haskell_library", target: "demo", defs: "haskell/rules:defs.bzl",
+		symbols: []string{"haskell_library"},
+	},
 	"java": {
 		files: map[string]string{"Demo.java": "package demo;\n\npublic class Demo {}\n"},
 		kind:  "java_library", target: "demo", defs: "java/rules:defs.bzl",

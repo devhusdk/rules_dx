@@ -1,0 +1,34 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "haskell",
+    srcs = [
+        "doc.go",
+        "lang.go",
+        "naming.go",
+        "parser.go",
+    ],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/haskell",
+    visibility = ["//gazelle/dispatch:__pkg__"],
+    deps = [
+        "//gazelle/common",
+        "@gazelle//language",
+        "@gazelle//v2/rule",
+    ],
+)
+
+go_test(
+    name = "haskell_test",
+    srcs = [
+        "lang_test.go",
+        "parser_test.go",
+    ],
+    embed = [":haskell"],
+    pure = "on",
+    deps = [
+        "@gazelle//config",
+        "@gazelle//language",
+    ],
+)

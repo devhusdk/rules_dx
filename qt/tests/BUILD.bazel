@@ -326,8 +326,8 @@ rust_test(
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = _LINUX_X86_64,
     deps = [
+        ":qt_board_support",
         "//tools/testing:dx_testing",
-        "//tools/testing/hermetic",
     ],
 )
 

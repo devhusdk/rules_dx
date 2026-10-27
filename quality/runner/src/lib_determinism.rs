@@ -356,8 +356,14 @@ fn longer_cycle_repeated_state_reports_oscillation() {
         "b" => Ok("c".to_owned()),
         _ => Ok("a".to_owned()),
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, 10, cycle).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        10,
+        &full_selection(&stages),
+        per_path(cycle),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::Oscillation);
     assert_eq!(completed, 3);
     assert_eq!(terminal["src/lib.rs"], "a");
@@ -467,8 +473,14 @@ fn iteration_limit_with_mixed_stable_and_growing_files_emits_none() {
             Ok(format!("{text}x"))
         }
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, MAX_COMPLETED_ROUNDS, mixed).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(mixed),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::IterationLimit);
     assert_eq!(completed, MAX_COMPLETED_ROUNDS);
     assert_eq!(terminal["src/stable.rs"], "GOOD\n");

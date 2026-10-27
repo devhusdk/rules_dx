@@ -1716,3 +1716,73 @@ fn spotbugs_check_rejects_aux_jar_that_cannot_be_joined() {
     let colon_target = Path::new("/scratch/src/He:llo.java");
     assert!(spotbugs_check(Path::new(BIN), &[colon_target], &[]).is_ok());
 }
+
+fn infallible(invocation: Invocation) -> Result<Invocation, std::convert::Infallible> {
+    Ok(invocation)
+}
+
+#[test]
+fn invocation_batches_count_per_file_flags() {
+    let root = PathBuf::from("/scratch/root");
+    let owned: Vec<PathBuf> = (0..400)
+        .map(|index| {
+            PathBuf::from(format!(
+                "/scratch/root/p/{index:04}-{}.proto",
+                "q".repeat(60)
+            ))
+        })
+        .collect();
+    let refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
+    let build = |files: &[&Path]| infallible(buf_format_fix(Path::new(BIN), files, &root));
+    let batches = plan_invocation_batches(&refs, build).expect("planned");
+    assert!(batches.len() > 1, "per-file flags force more batches");
+    let roundtrip: Vec<&Path> = batches.iter().flatten().copied().collect();
+    assert_eq!(roundtrip, refs);
+    for batch in &batches {
+        let (bytes, units) = argv_cost(&buf_format_fix(Path::new(BIN), batch, &root).argv);
+        assert!(bytes <= ARGV_BATCH_BUDGET, "bytes {bytes} fit");
+        assert!(units <= ARGV_BATCH_BUDGET, "units {units} fit");
+    }
+}
+
+#[test]
+fn invocation_batches_keep_order_and_isolate_oversized() {
+    let huge = PathBuf::from(format!("/s/{}", "h".repeat(500)));
+    let small: Vec<PathBuf> = (0..6)
+        .map(|index| PathBuf::from(format!("/s/{index}.txt")))
+        .collect();
+    let refs: Vec<&Path> = vec![
+        small[0].as_path(),
+        small[1].as_path(),
+        huge.as_path(),
+        small[2].as_path(),
+        small[3].as_path(),
+        small[4].as_path(),
+        small[5].as_path(),
+    ];
+    let build = |files: &[&Path]| infallible(keep_sorted_fix(Path::new(BIN), files));
+    let batches = plan_invocation_batches_with_budget(&refs, build, 200).expect("planned");
+    let roundtrip: Vec<&Path> = batches.iter().flatten().copied().collect();
+    assert_eq!(roundtrip, refs);
+    assert!(batches.contains(&vec![huge.as_path()]), "{batches:?}");
+    let empty = plan_invocation_batches(&[], build).expect("planned");
+    assert_eq!(empty, vec![Vec::<&Path>::new()]);
+    let failing = plan_invocation_batches(&refs, |_: &[&Path]| Err::<Invocation, _>("no build"));
+    assert_eq!(failing, Err("no build"));
+}
+
+#[test]
+fn invocation_batches_respect_launcher_budget() {
+    let owned: Vec<PathBuf> = (0..200)
+        .map(|index| PathBuf::from(format!("/s/{index:04}-{}.txt", "p".repeat(60))))
+        .collect();
+    let refs: Vec<&Path> = owned.iter().map(PathBuf::as_path).collect();
+    let build = |files: &[&Path]| infallible(keep_sorted_fix(Path::new("/bin/tool.cmd"), files));
+    let batches = plan_invocation_batches(&refs, build).expect("planned");
+    assert!(batches.len() > 2, "launcher budget forces batches");
+    for batch in &batches {
+        let (bytes, units) = argv_cost(&keep_sorted_fix(Path::new("/bin/tool.cmd"), batch).argv);
+        assert!(bytes <= LAUNCHER_BATCH_BUDGET, "bytes {bytes} fit");
+        assert!(units <= LAUNCHER_BATCH_BUDGET, "units {units} fit");
+    }
+}

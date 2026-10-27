@@ -1,7 +1,7 @@
 use super::real_core::*;
 use super::real_fixtures::*;
 use super::*;
-use crate::run_convergence;
+use crate::{full_selection, per_path, run_convergence};
 use quality_adapter::parsers;
 use quality_result::encode_validated;
 use quality_result::proto::Convergence;
@@ -1055,8 +1055,14 @@ fn biome_prettier_identical_output_converges_stable() {
     let mut initial = BTreeMap::new();
     initial.insert("config/data.json".to_owned(), "{\"a\":1}\n".to_owned());
     let agree = |_: &str, _: &str, _: &str| Ok("{\n  \"a\": 1\n}\n".to_owned());
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, MAX_COMPLETED_ROUNDS, agree).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(agree),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::Stable);
     assert_eq!(completed, 2);
     assert_eq!(terminal["config/data.json"], "{\n  \"a\": 1\n}\n");
@@ -1083,8 +1089,14 @@ fn biome_prettier_conflicting_output_reports_oscillation() {
             Ok("spaces\n".to_owned())
         }
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, MAX_COMPLETED_ROUNDS, normalize).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(normalize),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::Oscillation);
     assert_eq!(completed, 2);
     assert_eq!(terminal["src/app.js"], "spaces\n");
@@ -1119,8 +1131,14 @@ fn biome_prettier_reverse_order_reports_oscillation() {
             Ok("spaces\n".to_owned())
         }
     };
-    let (terminal, completed, convergence) =
-        run_convergence(&initial, &stages, MAX_COMPLETED_ROUNDS, normalize).expect("converged");
+    let (terminal, completed, convergence) = run_convergence(
+        &initial,
+        &stages,
+        MAX_COMPLETED_ROUNDS,
+        &full_selection(&stages),
+        per_path(normalize),
+    )
+    .expect("converged");
     assert_eq!(convergence, Convergence::Oscillation);
     assert_eq!(completed, 2);
     assert_eq!(terminal["src/app.js"], "tabs\n");
@@ -2008,4 +2026,245 @@ fn redocly_defaults_are_builtin_and_offline() {
     );
     assert!(text.contains("telemetry: off"));
     assert!(text.contains("no-unresolved-refs: error"));
+}
+
+type SpawnLog = std::sync::Mutex<Vec<(bool, PathBuf, usize)>>;
+
+fn file_args(argv: &[OsString], extension: &str) -> Vec<PathBuf> {
+    argv.iter()
+        .skip(1)
+        .map(PathBuf::from)
+        .filter(|path| path.extension().is_some_and(|ext| ext == extension) && path.is_file())
+        .collect()
+}
+
+fn trimmed(bytes: &[u8]) -> Vec<u8> {
+    let mut fixed = Vec::with_capacity(bytes.len());
+    for line in bytes.split_inclusive(|byte| *byte == b'\n') {
+        let trailing = line.ends_with(b"\n");
+        let body = if trailing {
+            &line[..line.len() - 1]
+        } else {
+            line
+        };
+        fixed.extend_from_slice(trim_end(body));
+        if trailing {
+            fixed.push(b'\n');
+        }
+    }
+    fixed
+}
+
+fn ok_output(code: i32, stdout: String) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn multi_rustfmt(log: &SpawnLog, argv: &[OsString], cwd: &Path) -> io::Result<ChildOutput> {
+    let files = file_args(argv, "rs");
+    let check = argv.iter().any(|arg| arg == "--check");
+    log.lock()
+        .expect("log")
+        .push((check, cwd.to_path_buf(), files.len()));
+    let mut stdout = String::new();
+    for file in &files {
+        let bytes = std::fs::read(file).expect("file is materialized");
+        let fixed = trimmed(&bytes);
+        if fixed != bytes {
+            if check {
+                stdout.push_str(&format!("Diff in {}:1:\n-x  \n+x\n", file.display()));
+            } else {
+                std::fs::write(file, fixed).expect("fix writes back");
+            }
+        }
+    }
+    ok_output(i32::from(!stdout.is_empty()), stdout)
+}
+
+static RUSTFMT_SESSION_LOG: SpawnLog = std::sync::Mutex::new(Vec::new());
+
+fn session_rustfmt(
+    argv: &[OsString],
+    cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    multi_rustfmt(&RUSTFMT_SESSION_LOG, argv, cwd)
+}
+
+#[test]
+fn rustfmt_fix_spawns_once_per_stage_per_round_in_one_scratch() {
+    let names: Vec<String> = (0..20).map(|index| format!("src/m{index:02}.rs")).collect();
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    let stages = vec![stage("rustfmt", &["rust"], &refs)];
+    let files: Vec<crate::FileInput> = names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| file(name, if index == 7 { "x  \n" } else { "x\n" }))
+        .collect();
+    let backend = backend_for("rustfmt", rustfmt_tool(), session_rustfmt);
+    let result = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
+        .expect("pipeline runs");
+    assert_eq!(result.convergence, Convergence::Stable as i32);
+    assert_eq!(result.replacements.len(), 1);
+    let log = RUSTFMT_SESSION_LOG.lock().expect("log").clone();
+    let shape: Vec<(bool, usize)> = log
+        .iter()
+        .map(|(check, _, count)| (*check, *count))
+        .collect();
+    assert_eq!(shape, vec![(true, 20), (false, 20), (false, 1), (true, 20)]);
+    assert_eq!(log[1].1, log[2].1, "fix spawns share one scratch");
+    assert_ne!(log[0].1, log[1].1, "diagnose keeps its own scratch");
+}
+
+static SHFMT_FALLBACK_SPAWNS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+fn partial_shfmt(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    SHFMT_FALLBACK_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let files = file_args(argv, "sh");
+    let broken = files.iter().any(|file| {
+        std::fs::read_to_string(file)
+            .expect("file is materialized")
+            .contains("BROKEN")
+    });
+    for file in &files {
+        let bytes = std::fs::read(file).expect("file is materialized");
+        let written = if broken {
+            b"PARTIAL\n".to_vec()
+        } else {
+            trimmed(&bytes)
+        };
+        std::fs::write(file, written).expect("fix writes back");
+    }
+    ok_output(i32::from(broken), String::new())
+}
+
+fn sh_stage(count: usize, pad: usize) -> (crate::StageSpec, BTreeMap<String, String>) {
+    let mut current = BTreeMap::new();
+    for index in 0..count {
+        current.insert(
+            format!("bin/s{index:04}{}.sh", "s".repeat(pad)),
+            "echo  \n".to_owned(),
+        );
+    }
+    let refs: Vec<&str> = current.keys().map(String::as_str).collect();
+    (stage("shfmt", &["shell"], &refs), current)
+}
+
+#[test]
+fn batch_fix_failure_falls_back_to_single_files() {
+    SHFMT_FALLBACK_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let (spec, mut current) = sh_stage(4, 0);
+    let broken = spec.source_paths[2].clone();
+    current.insert(broken.clone(), "BROKEN  \n".to_owned());
+    let backend = backend_for("shfmt", plain_tool(), partial_shfmt);
+    let known = BTreeSet::new();
+    let mut session = super::real_fix::FixSession::new(&backend, "format", &known);
+    let fixed = session
+        .fix(0, &spec, &current, &spec.source_paths)
+        .expect("fallback fixes");
+    session.close().expect("session closes");
+    assert_eq!(
+        SHFMT_FALLBACK_SPAWNS.load(std::sync::atomic::Ordering::SeqCst),
+        5
+    );
+    for (path, text) in &fixed {
+        let want = if *path == broken {
+            "BROKEN  \n"
+        } else {
+            "echo\n"
+        };
+        assert_eq!(text, want, "{path}");
+    }
+    assert_eq!(fixed.len(), 4);
+}
+
+static SHFMT_BUDGET_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn budget_shfmt(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    SHFMT_BUDGET_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_within_budget(argv);
+    partial_shfmt(argv, cwd, env)
+}
+
+#[test]
+fn large_fix_selection_splits_within_argv_budget() {
+    SHFMT_BUDGET_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let (spec, current) = sh_stage(300, 120);
+    let backend = backend_for("shfmt", plain_tool(), budget_shfmt);
+    let known = BTreeSet::new();
+    let mut session = super::real_fix::FixSession::new(&backend, "format", &known);
+    let fixed = session
+        .fix(0, &spec, &current, &spec.source_paths)
+        .expect("batches fix");
+    session.close().expect("session closes");
+    let spawns = SHFMT_BUDGET_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    assert!(spawns > 1 && spawns < 300, "{spawns} spawns");
+    assert_eq!(fixed.len(), 300);
+    assert!(fixed.values().all(|text| text == "echo\n"));
+}
+
+fn never_spawns(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    panic!("unexpected spawn: {argv:?}");
+}
+
+fn assert_keeps_without_scratch(tool_id: &str, tool: RealTool, capability: &str) {
+    let parent = tempfile::tempdir().expect("scratch parent");
+    let backend = RealBackend {
+        tools: BTreeMap::from([(tool_id.to_owned(), tool)]),
+        scratch_parent: parent.path().to_path_buf(),
+        spawn: never_spawns,
+        argv_limit: quality_adapter::commands::windows_argv_limit,
+    };
+    let spec = stage(tool_id, &["any"], &["a.txt", "b.txt"]);
+    let current = BTreeMap::from([
+        ("a.txt".to_owned(), "a  \n".to_owned()),
+        ("b.txt".to_owned(), "b  \n".to_owned()),
+    ]);
+    let known = BTreeSet::new();
+    let mut session = super::real_fix::FixSession::new(&backend, capability, &known);
+    let fixed = session
+        .fix(0, &spec, &current, &spec.source_paths)
+        .expect("kept");
+    session.close().expect("session closes");
+    assert_eq!(fixed, current, "{tool_id} keeps its input");
+    let left = std::fs::read_dir(parent.path())
+        .expect("list parent")
+        .count();
+    assert_eq!(left, 0, "{tool_id} made no scratch");
+}
+
+#[test]
+fn diagnose_only_stage_makes_no_fix_spawn() {
+    assert_keeps_without_scratch("vale", plain_tool(), "lint");
+    assert_keeps_without_scratch("shfmt", plain_tool(), "typecheck");
+}
+
+#[test]
+fn format_only_tool_outside_format_makes_no_scratch() {
+    assert_keeps_without_scratch("prettier", plain_tool(), "lint");
+    let backend = backend_for("graphql_eslint", plain_tool(), never_spawns);
+    let known = BTreeSet::new();
+    let mut session = super::real_fix::FixSession::new(&backend, "lint", &known);
+    let spec = stage("graphql_eslint", &["graphql"], &["a.graphql"]);
+    let current = single("a.graphql", "type A\n");
+    let err = session
+        .fix(0, &spec, &current, &spec.source_paths)
+        .expect_err("config is required");
+    assert!(err.to_string().contains("requires a config"), "{err}");
 }

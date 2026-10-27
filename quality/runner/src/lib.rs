@@ -8,7 +8,7 @@
     )
 )]
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use dx_digest::{blake3 as digest, DIGEST_LEN};
 use quality_result::{
@@ -142,33 +142,97 @@ fn state_digest(files: &BTreeMap<String, String>) -> [u8; 32] {
     digest(&canonical)
 }
 
+/// File texts keyed by workspace path.
+pub(crate) type Texts = BTreeMap<String, String>;
+
+/// Lifts a per-file fixer into a stage batch fixer that runs it once per target.
+pub(crate) fn per_path(
+    mut apply: impl FnMut(&str, &str, &str) -> Result<String, RunnerError>,
+) -> impl FnMut(usize, &StageSpec, &Texts, &[String]) -> Result<Texts, RunnerError> {
+    move |_, stage, current, targets| {
+        let mut out = BTreeMap::new();
+        for path in targets {
+            let body = current
+                .get(path)
+                .ok_or(RunnerError::MissingFile { path: path.clone() })?;
+            out.insert(path.clone(), apply(&stage.tool_id, path, body)?);
+        }
+        Ok(out)
+    }
+}
+
+/// Selects every stage source for the first convergence round.
+pub(crate) fn full_selection(stages: &[StageSpec]) -> Vec<BTreeSet<String>> {
+    stages
+        .iter()
+        .map(|stage| stage.source_paths.iter().cloned().collect())
+        .collect()
+}
+
+fn round_targets(
+    stage: &StageSpec,
+    selected: Option<&BTreeSet<String>>,
+    touched: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut targets: Vec<String> = Vec::new();
+    for path in &stage.source_paths {
+        let wanted = selected.is_some_and(|set| set.contains(path)) || touched.contains(path);
+        if wanted && !targets.contains(path) {
+            targets.push(path.clone());
+        }
+    }
+    targets
+}
+
 fn run_convergence(
     initial: &BTreeMap<String, String>,
     stages: &[StageSpec],
     max_rounds: u32,
-    apply: impl Fn(&str, &str, &str) -> Result<String, RunnerError>,
+    round1: &[BTreeSet<String>],
+    mut apply: impl FnMut(usize, &StageSpec, &Texts, &[String]) -> Result<Texts, RunnerError>,
 ) -> Result<(BTreeMap<String, String>, u32, Convergence), RunnerError> {
     let mut current = initial.clone();
     let mut seen = HashSet::with_capacity(max_rounds.min(1024) as usize + 1);
     let mut prev_id = state_digest(initial);
     seen.insert(prev_id);
     let mut completed_rounds = 0;
+    let mut dirty: BTreeSet<String> = BTreeSet::new();
     for round in 1..=max_rounds {
         completed_rounds = round;
-        let mut changed = false;
-        for stage in stages {
-            for path in &stage.source_paths {
-                let body = current
-                    .get(path)
+        let mut touched: BTreeSet<String> = BTreeSet::new();
+        for (index, stage) in stages.iter().enumerate() {
+            let selected = if round == 1 {
+                round1.get(index)
+            } else {
+                Some(&dirty)
+            };
+            let targets = round_targets(stage, selected, &touched);
+            if targets.is_empty() {
+                continue;
+            }
+            for path in &targets {
+                if !current.contains_key(path) {
+                    return Err(RunnerError::MissingFile { path: path.clone() });
+                }
+            }
+            let mut fixed = apply(index, stage, &current, &targets)?;
+            if let Some(extra) = fixed.keys().find(|path| !targets.contains(path)) {
+                return Err(RunnerError::ToolOutput {
+                    tool_id: stage.tool_id.clone(),
+                    detail: format!("fixer returned unrequested file {extra:?}"),
+                });
+            }
+            for path in &targets {
+                let next = fixed
+                    .remove(path)
                     .ok_or(RunnerError::MissingFile { path: path.clone() })?;
-                let next = apply(&stage.tool_id, path, body)?;
-                if next != *body {
-                    changed = true;
+                if current.get(path) != Some(&next) {
+                    touched.insert(path.clone());
                 }
                 current.insert(path.clone(), next);
             }
         }
-        if !changed {
+        if touched.is_empty() {
             return Ok((current, completed_rounds, Convergence::Stable));
         }
         let id = state_digest(&current);
@@ -179,6 +243,7 @@ fn run_convergence(
             return Ok((current, completed_rounds, Convergence::Oscillation));
         }
         prev_id = id;
+        dirty = touched;
     }
     Ok((current, completed_rounds, Convergence::IterationLimit))
 }
@@ -397,7 +462,8 @@ pub fn run_pipeline(
         &initial,
         stages,
         max_rounds_for_capability(capability),
-        |tool, _path, text| Ok(apply_synthetic(tool, text)),
+        &full_selection(stages),
+        per_path(|tool, _path, text| Ok(apply_synthetic(tool, text))),
     )?;
     let mut terminal_diagnostics = Vec::new();
     if terminal == initial {

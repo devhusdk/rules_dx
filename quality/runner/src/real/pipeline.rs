@@ -5,10 +5,11 @@ use quality_adapter::place_finding_with;
 use quality_result::proto::Diagnostic;
 
 use crate::{
-    assemble, max_rounds_for_capability, run_convergence, stage_subset, validate_request,
-    FileInput, QualityResult, RunnerError, StageSpec,
+    assemble, full_selection, max_rounds_for_capability, run_convergence, stage_subset,
+    validate_request, FileInput, QualityResult, RunnerError, StageSpec,
 };
 
+use super::real_fix::FixSession;
 use super::*;
 
 impl RealBackend {
@@ -156,12 +157,15 @@ pub fn run_real_pipeline_with_resolve(
         .chain(initial.keys())
         .cloned()
         .collect();
+    let mut session = FixSession::new(backend, capability, &known);
     let (terminal, completed_rounds, convergence) = run_convergence(
         &initial,
         stages,
         max_rounds_for_capability(capability),
-        |tool, path, text| backend.apply_fix_in_context(tool, path, text, capability, &known),
+        &full_selection(stages),
+        |index, stage, current, targets| session.fix(index, stage, current, targets),
     )?;
+    session.close()?;
     let mut terminal_diagnostics = Vec::new();
     if terminal == initial {
         terminal_diagnostics = initial_diagnostics.clone();

@@ -52,6 +52,59 @@ pub fn resolve_profile(flag: Option<Profile>, attr: Option<Profile>, default: Pr
     flag.or(attr).unwrap_or(default)
 }
 
+fn is_dx_profile_config(value: &str) -> bool {
+    [Profile::Debug, Profile::Dev, Profile::Release]
+        .iter()
+        .any(|profile| profile.config() == value)
+}
+
+pub(crate) fn filter_profile_configs(
+    options: &[String],
+    profile: Option<Profile>,
+) -> Result<Vec<String>, dx_process::ForwardError> {
+    let Some(profile) = profile else {
+        return Ok(options.to_vec());
+    };
+    let required = profile.config_flag();
+    let mut kept = Vec::with_capacity(options.len());
+    let mut index = 0;
+    while index < options.len() {
+        let arg = &options[index];
+        if arg == &required {
+            index += 1;
+            continue;
+        }
+        let (value, consumed) = if let Some(value) = arg.strip_prefix("--config=") {
+            (Some(value.to_owned()), 1)
+        } else if arg == "--config" {
+            match options.get(index + 1) {
+                Some(value) => (Some(value.clone()), 2),
+                None => (None, 1),
+            }
+        } else {
+            kept.push(arg.clone());
+            index += 1;
+            continue;
+        };
+        if consumed == 2 && Some(profile.config()) == value.as_deref() {
+            index += consumed;
+            continue;
+        }
+        if let Some(value) = value {
+            if is_dx_profile_config(&value) {
+                return Err(dx_process::ForwardError::ConflictingOption {
+                    flag: "config".to_owned(),
+                });
+            }
+        }
+        for offset in 0..consumed {
+            kept.push(options[index + offset].clone());
+        }
+        index += consumed;
+    }
+    Ok(kept)
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::{assert_usage, parse, ArgsError};
@@ -161,5 +214,17 @@ mod tests {
                 "words: {words:?}"
             );
         }
+    }
+
+    #[test]
+    fn filter_profile_configs_drops_the_selected_profile_and_rejects_others() {
+        let options = strings(&["--config=dx_dev", "--config", "dx_dev", "--keep"]);
+        let kept = filter_profile_configs(&options, Some(Profile::Dev)).expect("kept");
+        assert_eq!(kept, strings(&["--keep"]));
+        assert!(filter_profile_configs(&options, Some(Profile::Release)).is_err());
+        assert_eq!(
+            filter_profile_configs(&options, None).expect("all"),
+            options
+        );
     }
 }

@@ -12,59 +12,6 @@ pub struct SelectionContext {
     startup: Vec<String>,
 }
 
-fn is_dx_profile_config(value: &str) -> bool {
-    [Profile::Debug, Profile::Dev, Profile::Release]
-        .iter()
-        .any(|profile| profile.config() == value)
-}
-
-fn filter_configs(
-    options: &[String],
-    profile: Option<Profile>,
-) -> Result<Vec<String>, ForwardError> {
-    let Some(profile) = profile else {
-        return Ok(options.to_vec());
-    };
-    let required = profile.config_flag();
-    let mut kept = Vec::with_capacity(options.len());
-    let mut index = 0;
-    while index < options.len() {
-        let arg = &options[index];
-        if arg == &required {
-            index += 1;
-            continue;
-        }
-        let (value, consumed) = if let Some(value) = arg.strip_prefix("--config=") {
-            (Some(value.to_owned()), 1)
-        } else if arg == "--config" {
-            match options.get(index + 1) {
-                Some(value) => (Some(value.clone()), 2),
-                None => (None, 1),
-            }
-        } else {
-            kept.push(arg.clone());
-            index += 1;
-            continue;
-        };
-        if consumed == 2 && Some(profile.config()) == value.as_deref() {
-            index += consumed;
-            continue;
-        }
-        if let Some(value) = value {
-            if is_dx_profile_config(&value) {
-                return Err(ForwardError::ConflictingOption {
-                    flag: "config".to_owned(),
-                });
-            }
-        }
-        for offset in 0..consumed {
-            kept.push(options[index + offset].clone());
-        }
-        index += consumed;
-    }
-    Ok(kept)
-}
-
 fn selection_options(options: &[String]) -> Vec<String> {
     let mut kept = Vec::with_capacity(options.len());
     let mut index = 0;
@@ -149,7 +96,7 @@ impl SelectionContext {
     }
 
     pub fn filtered_options(&self) -> Result<Vec<String>, ForwardError> {
-        filter_configs(&self.options, self.profile)
+        crate::args::filter_profile_configs(&self.options, self.profile)
     }
 
     pub(crate) fn startup(&self) -> &[String] {

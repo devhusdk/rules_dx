@@ -80,9 +80,28 @@ pub(crate) fn full_message(code: i32, path: &Path, free: u64) -> String {
     )
 }
 
+/// The `disk_low` warning for `free` bytes left at `path`, shown before a Bazel run.
+pub(crate) fn low_message(path: &Path, free: u64) -> String {
+    format!(
+        "{} free at {}; free disk space with `dx worktree prune --apply`",
+        crate::worktree::ops::size(free),
+        path.display()
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn low_message_names_the_free_space_and_the_path() {
+        let message = low_message(Path::new("/out"), 512 << 20);
+        assert!(message.contains("free at /out;"), "{message}");
+        assert!(
+            message.ends_with("`dx worktree prune --apply`"),
+            "{message}"
+        );
+    }
 
     #[test]
     fn low_needs_both_limits_and_full_needs_only_one() {

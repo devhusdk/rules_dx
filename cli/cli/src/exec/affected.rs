@@ -31,6 +31,8 @@ pub(crate) struct AffectedPlan {
     pub(crate) tests: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
+    /// External-repo test labels dropped because the test phase rejects them.
+    pub(crate) skipped_external: Vec<String>,
 }
 
 /// How many widened scopes the stderr summary names before "and N more".
@@ -61,6 +63,9 @@ impl AffectedPlan {
         });
         if command == Command::Check {
             value["tests"] = json!(self.tests);
+        }
+        if !self.skipped_external.is_empty() {
+            value["skipped_external"] = json!(self.skipped_external);
         }
         value
     }
@@ -94,11 +99,19 @@ impl AffectedPlan {
                 more => format!("; widened to {shown} and {more} more"),
             }
         };
-        format!(
+        let mut line = format!(
             "dx: affected: {} targets from {} changed files since {base}{suffix}",
             self.targets.len(),
             self.changed_files.len()
-        )
+        );
+        if !self.skipped_external.is_empty() {
+            line.push_str(&format!(
+                "\ndx: affected: skipping {} external-repo tests: {}",
+                self.skipped_external.len(),
+                self.skipped_external.join(", ")
+            ));
+        }
+        line
     }
 }
 
@@ -231,6 +244,7 @@ pub(crate) fn plan(
         tests: Vec::new(),
         widened: Vec::new(),
         unscoped: false,
+        skipped_external: Vec::new(),
     };
     if changes.is_empty() && overrides.is_empty() {
         return Ok(plan);
@@ -280,7 +294,10 @@ pub(crate) fn plan(
         .map_or_else(|| RuleGraph::load(workspace, runner, startup_options), Ok)?;
     let rules = graph.affected(&selection.targets);
     let tests = if tests_only(command) || command == Command::Check {
-        tests_of(&rules, workspace, runner, startup_options)?
+        let (tests, external) =
+            split_external(tests_of(&rules, workspace, runner, startup_options)?);
+        plan.skipped_external = external;
+        tests
     } else {
         Vec::new()
     };
@@ -297,6 +314,14 @@ pub(crate) fn plan(
         plan.unscoped = secrets_scan && plan.targets.is_empty();
     }
     Ok(plan)
+}
+
+/// Splits off external-repo labels, which the test phase rejects as `invalid_scope`.
+/// Main-repo spellings (`@//`, `@@//`) stay.
+fn split_external(tests: Vec<String>) -> (Vec<String>, Vec<String>) {
+    tests.into_iter().partition(|label| {
+        !label.starts_with('@') || label.starts_with("@//") || label.starts_with("@@//")
+    })
 }
 
 /// Adds the `affected` object to the first `command_started` line and passes the rest through.
@@ -496,6 +521,7 @@ mod tests {
                 })
                 .collect(),
             unscoped: false,
+            skipped_external: Vec::new(),
         }
     }
 
@@ -915,6 +941,26 @@ mod tests {
     }
 
     #[test]
+    fn external_repo_tests_are_skipped_and_reported() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let graph = graph();
+        let answer = "//a:t\n@shared_consumer//:x_test\n@@//a:u\n";
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph, answer]);
+        assert_eq!(plan.tests, ["//a:t", "@@//a:u"]);
+        assert_eq!(plan.skipped_external, ["@shared_consumer//:x_test"]);
+        assert_eq!(
+            plan.json(Command::Check)["skipped_external"],
+            json!(["@shared_consumer//:x_test"])
+        );
+        assert!(plan
+            .summary()
+            .contains("skipping 1 external-repo tests: @shared_consumer//:x_test"));
+        let (plan, _) = run(dir.path(), Command::Test, &[&graph, answer]);
+        assert_eq!(plan.targets, ["//a:t", "@@//a:u"]);
+    }
+
+    #[test]
     fn resolving_line_uses_the_summary_base() {
         let base = "0123456789abcdef0123456789abcdef01234567";
         let line = resolving_line(base);
@@ -926,6 +972,7 @@ mod tests {
             tests: Vec::new(),
             widened: Vec::new(),
             unscoped: false,
+            skipped_external: Vec::new(),
         };
         assert!(plan
             .summary()

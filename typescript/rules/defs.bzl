@@ -7,6 +7,7 @@ load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_projec
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript/rules:node_test.bzl", "node_test_forward_rule", "node_test_plain_rejection", "node_test_reporter_rejection", "node_wrap_test")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
+load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_TS_PROJECT_PROVIDES = [
@@ -297,6 +298,8 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
         ts_kwargs["tsconfig"] = tsconfig
     ts_kwargs["transpiler"] = typescript_transpiler(transpiler)
     ts_kwargs.update(typescript_inner_kwargs(None, kwargs))
+    if ts_kwargs.get("tags") != None:
+        ts_kwargs["tags"] = upstream_tags(ts_kwargs["tags"])
     if declaration != None:
         ts_kwargs["declaration"] = declaration
     upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)

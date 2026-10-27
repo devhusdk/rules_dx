@@ -5,7 +5,7 @@ load("//tools/testing:bazel_pins.bzl", "NESTED_BAZEL_SHA256", "NESTED_BAZEL_VERS
 load(":cuda.bzl", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_HOST_SYSROOT = "CUDA_HOST_SYSROOT", _MOD_CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _MOD_TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
 load(":dotnet.bzl", _MOD_DOTNET_VERSION = "DOTNET_VERSION", _MOD_RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION")
 load(":java-scala-kotlin.bzl", _JAVA_RUNTIME_VERSION = "JAVA_RUNTIME_VERSION", _JVM_TOOL_VERSIONS = "JVM_TOOL_VERSIONS", _MOD_SCALA_VERSION = "SCALA_VERSION")
-load(":js.bzl", _MOD_TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION", _NPM_HUBS = "NPM_HUBS", _NPM_LOCKS = "NPM_LOCKS")
+load(":js.bzl", _MOD_TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION", _NPM_DEV_HUBS = "NPM_DEV_HUBS", _NPM_HUBS = "NPM_HUBS", _NPM_LOCKS = "NPM_LOCKS")
 load(":powershell.bzl", _MOD_PWSH_VERSION = "PWSH_VERSION")
 load(":python.bzl", _MOD_PYTHON_VERSION = "PYTHON_VERSION")
 load(":ruby.bzl", _GEM_CHECKSUMS = "GEM_CHECKSUMS", _MOD_RUBY_VERSION = "RUBY_VERSION", _MOD_RULES_RUBY_VERSION = "RULES_RUBY_VERSION")
@@ -40,7 +40,7 @@ def versions_contract_tests(name):
     )
     manifests_block = "    manifests = [\n" + "".join(["        \"" + m + "\",\n" for m in _RUST_CRATE_MANIFESTS]) + "    ],\n"
     npm_pins = "\n".join(
-        ["use_repo(npm, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_HUBS]) + ")"] +
+        ["use_repo(npm, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_HUBS]) + ")", "use_repo(npm_dev, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_DEV_HUBS]) + ")"] +
         ["pnpm_lock = \"" + lock + "\"," for lock in _NPM_LOCKS],
     )
     cuda_stanza = "\n".join([

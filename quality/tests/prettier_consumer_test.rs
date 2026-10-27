@@ -37,7 +37,7 @@ const BROKEN_GRAPHQL: &str = "type Query {\n  greeting: String\n";
 const BROKEN_HTML: &str = "<div>\n  <p>hello</span>\n</div>\n";
 
 const CLOSURE_REPOS: [&str; 2] = [
-    "--repo=@@aspect_rules_js++npm+npm_tools__prettier__3.9.6",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier__3.9.6",
     "--repo=@@rules_nodejs++node+nodejs_linux_amd64",
 ];
 

@@ -1,4 +1,4 @@
-load("@npm_tools//:defs.bzl", "npm_link_all_packages")
+load("@dx_npm_tools//:defs.bzl", "npm_link_all_packages")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])

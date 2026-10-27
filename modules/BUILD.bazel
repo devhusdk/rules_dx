@@ -1,4 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 load(":versions_tests.bzl", "versions_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -8,6 +10,44 @@ versions_contract_tests(name = "versions_contract")
 test_suite(
     name = "all",
     tests = [":versions_contract"],
+)
+
+# keep
+rust_test(
+    name = "consumer_names_test",
+    size = "enormous",
+    srcs = ["consumer_names_test.rs"],
+    data = [
+        "consumer_names_test.rs",
+        "//third_party/ruby:Gemfile",
+        "//third_party/ruby:Gemfile.lock",
+    ] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "consumer_names_fmt_test",
+    size = "small",
+    targets = [":consumer_names_test"],
+)
+
+rust_clippy_test(
+    name = "consumer_names_clippy_test",
+    size = "small",
+    targets = [":consumer_names_test"],
 )
 
 exports_files([

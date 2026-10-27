@@ -39,11 +39,11 @@ const OVERRIDE_JSON: &str = r#"{
 const UNKNOWN_RULE_JSON: &str = "{\n  \"rules\": {\n    \"no-such-rule-anywhere\": true\n  }\n}\n";
 
 const CLOSURE_REPOS: [&str; 6] = [
-    "--repo=@@aspect_rules_js++npm+npm_tools__stylelint__17.14.1",
-    "--repo=@@aspect_rules_js++npm+npm_tools__postcss-scss__4.0.9_postcss_8.5.31",
-    "--repo=@@aspect_rules_js++npm+npm_tools__postcss-less__6.0.0_postcss_8.5.31",
-    "--repo=@@aspect_rules_js++npm+npm_tools__postcss__8.5.31",
-    "--repo=@@aspect_rules_js++npm+npm_tools__postcss-value-parser__4.2.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__stylelint__17.14.1",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__postcss-scss__4.0.9_postcss_8.5.31",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__postcss-less__6.0.0_postcss_8.5.31",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__postcss__8.5.31",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__postcss-value-parser__4.2.0",
     "--repo=@@rules_nodejs++node+nodejs_linux_amd64",
 ];
 

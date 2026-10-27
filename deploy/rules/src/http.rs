@@ -9,6 +9,29 @@ pub fn publish_agent() -> ureq::Agent {
 
 /// Builds the HTTPS agent for publish uploads with an explicit proxy.
 pub fn publish_agent_with_proxy(proxy: Option<ureq::Proxy>) -> ureq::Agent {
+    agent_config(proxy)
+        .timeout_global(Some(Duration::from_secs(600)))
+        .build()
+        .into()
+}
+
+/// Builds the HTTPS agent for large blob uploads with the proxy from the environment.
+pub fn upload_agent() -> ureq::Agent {
+    upload_agent_with_proxy(ureq::Proxy::try_from_env())
+}
+
+/// Builds the HTTPS agent for large blob uploads: no global deadline, only stall timeouts.
+pub fn upload_agent_with_proxy(proxy: Option<ureq::Proxy>) -> ureq::Agent {
+    agent_config(proxy)
+        .timeout_per_read(Some(Duration::from_secs(300)))
+        .timeout_per_write(Some(Duration::from_secs(300)))
+        .build()
+        .into()
+}
+
+fn agent_config(
+    proxy: Option<ureq::Proxy>,
+) -> ureq::config::ConfigBuilder<ureq::typestate::AgentScope> {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let tls = ureq::tls::TlsConfig::builder()
         .provider(ureq::tls::TlsProvider::Rustls)
@@ -19,10 +42,7 @@ pub fn publish_agent_with_proxy(proxy: Option<ureq::Proxy>) -> ureq::Agent {
         .max_redirects(0)
         .http_status_as_error(false)
         .timeout_connect(Some(Duration::from_secs(30)))
-        .timeout_global(Some(Duration::from_secs(600)))
         .proxy(proxy)
-        .build()
-        .into()
 }
 
 /// Encodes one file as a single-part multipart/form-data body and returns its content type.
@@ -51,6 +71,12 @@ pub fn multipart_single_file(field: &str, filename: &str, bytes: &[u8]) -> (Stri
 pub fn bearer_basic(user: &str, pass: &str) -> String {
     let token = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{pass}"));
     format!("Bearer {token}")
+}
+
+/// Returns the Authorization value `Basic base64(user:pass)`.
+pub fn basic_auth(user: &str, pass: &str) -> String {
+    let token = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{pass}"));
+    format!("Basic {token}")
 }
 
 /// Percent-encodes one query value, keeping only unreserved characters.
@@ -92,6 +118,11 @@ mod tests {
     #[test]
     fn http_bearer_basic_known_vector() {
         assert_eq!(bearer_basic("user", "pass"), "Bearer dXNlcjpwYXNz");
+    }
+
+    #[test]
+    fn http_basic_auth_known_vector() {
+        assert_eq!(basic_auth("user", "pass"), "Basic dXNlcjpwYXNz");
     }
 
     #[test]

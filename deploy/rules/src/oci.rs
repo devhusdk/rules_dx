@@ -1,10 +1,8 @@
-//! OCI image publisher: layout staging, docker-save reading and the docker push.
+//! OCI image publisher: layout staging, docker-save reading and the registry push.
 
 use crate::archive::*;
-use crate::run::{
-    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
-};
-use crate::stage::*;
+use crate::registry;
+use crate::run::{deploy_profile, env_or_empty, DeployRun, OwnerGate};
 use std::io::{self, Read, Write};
 use std::path::Path;
 
@@ -820,241 +818,75 @@ pub fn oci_declared_image_id(image: &Path, platform: &str) -> Result<String, Str
     Ok(archive.config_digest)
 }
 
-/// The caller's docker daemon endpoint, carried over to the scoped config.
-#[derive(Debug, Default, PartialEq, Eq)]
-struct DockerEndpoint {
-    host: Option<String>,
-    cert_path: Option<std::path::PathBuf>,
-}
-
-fn caller_docker_config_dir() -> Option<std::path::PathBuf> {
-    std::env::var_os("DOCKER_CONFIG")
-        .filter(|value| !value.is_empty())
-        .map(std::path::PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME")
-                .filter(|value| !value.is_empty())
-                .map(|home| std::path::PathBuf::from(home).join(".docker"))
-        })
-}
-
-/// Reads the caller's docker daemon endpoint.
-fn docker_endpoint() -> Result<DockerEndpoint, String> {
-    let cert_path = std::env::var_os("DOCKER_CERT_PATH")
-        .filter(|value| !value.is_empty())
-        .map(std::path::PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("DOCKER_TLS_VERIFY")
-                .filter(|value| !value.is_empty())
-                .and_then(|_| caller_docker_config_dir())
-        });
-    if let Some(host) = std::env::var("DOCKER_HOST")
-        .ok()
-        .filter(|value| !value.is_empty())
-    {
-        return Ok(DockerEndpoint {
-            host: Some(host),
-            cert_path,
-        });
-    }
-    let output = std::process::Command::new("docker")
-        .args(["context", "inspect", "--format", "{{json .}}"])
-        .stderr(std::process::Stdio::null())
-        .output();
-    let value = output
-        .ok()
-        .filter(|output| output.status.success())
-        .and_then(|output| serde_json::from_slice::<serde_json::Value>(&output.stdout).ok());
-    let Some(value) = value else {
-        return Ok(DockerEndpoint {
-            host: None,
-            cert_path,
-        });
+/// Reads the config digest of the single manifest in a staged layout.
+fn oci_layout_config_digest(layout: &Path) -> Result<String, String> {
+    let read = |path: &Path| -> Result<serde_json::Value, String> {
+        let bytes = std::fs::read(path).map_err(|error| format!("oci layout: {error}"))?;
+        serde_json::from_slice(&bytes).map_err(|error| format!("oci layout: {error}"))
     };
-    let has_tls = value
-        .get("TLSMaterial")
-        .and_then(serde_json::Value::as_object)
-        .is_some_and(|material| {
-            material
-                .values()
-                .any(|files| files.as_array().is_some_and(|files| !files.is_empty()))
-        });
-    if has_tls {
-        return Err(
-            "the active docker context uses TLS, which a scoped docker config cannot carry; set DOCKER_HOST, DOCKER_TLS_VERIFY and DOCKER_CERT_PATH explicitly"
-                .to_owned(),
-        );
-    }
-    let host = value
-        .pointer("/Endpoints/docker/Host")
-        .and_then(serde_json::Value::as_str)
-        .filter(|host| !host.is_empty())
-        .map(str::to_owned);
-    Ok(DockerEndpoint { host, cert_path })
+    let index = read(&layout.join("index.json"))?;
+    let digest = index["manifests"][0]["digest"].as_str().unwrap_or("");
+    let manifest = read(
+        &layout
+            .join("blobs")
+            .join("sha256")
+            .join(digest.trim_start_matches("sha256:")),
+    )?;
+    manifest["config"]["digest"]
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| "oci layout: manifest has no config digest".to_owned())
 }
 
-/// Extra env names `docker` keeps beyond the publish base list.
-const DOCKER_CHILD_ENV_EXTRA: &[&str] =
-    &["DOCKER_TLS_VERIFY", "DOCKER_API_VERSION", "XDG_RUNTIME_DIR"];
-
-/// Builds one docker command bound to the scoped config and the caller's daemon.
-fn docker_command(config: &Path, endpoint: &DockerEndpoint) -> std::process::Command {
-    let mut command = scrubbed_command(
-        Path::new("docker"),
-        &[PUBLISH_CHILD_ENV_KEEP, DOCKER_CHILD_ENV_EXTRA],
-        &[],
-    );
-    command.env("DOCKER_CONFIG", config);
-    if let Some(host) = &endpoint.host {
-        command.env("DOCKER_HOST", host);
-    }
-    if let Some(cert_path) = &endpoint.cert_path {
-        command.env("DOCKER_CERT_PATH", cert_path);
-    }
-    command
+/// Target and credentials for one live push.
+struct OciPush<'a> {
+    registry: &'a str,
+    repository: &'a str,
+    tag: &'a str,
+    platform: &'a str,
+    creds: registry::Credentials<'a>,
 }
 
-fn docker_image_id(
-    docker: &dyn Fn() -> std::process::Command,
-    reference: &str,
-) -> Result<String, String> {
-    let output = docker()
-        .args(["image", "inspect", "--format", "{{.Id}}", reference])
-        .output()
-        .map_err(|error| error.to_string())?;
-    if !output.status.success() {
-        return Err(format!("docker image inspect failed for {reference}"));
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+fn oci_live_push(image: &Path, outdir: &Path, push: &OciPush<'_>) -> i32 {
+    let target = match registry::RegistryRef::parse(push.registry, push.repository) {
+        Ok(target) => target,
+        Err(error) => {
+            eprintln!("oci_deploy: {error}");
+            return 1;
+        }
+    };
+    oci_live_push_to(&crate::http::upload_agent(), &target, image, outdir, push)
 }
 
-/// Loads a docker-save archive and returns the image reference docker reports.
-fn docker_load(docker: &dyn Fn() -> std::process::Command, image: &Path) -> Result<String, String> {
-    let output = docker()
-        .args(["load", "-q", "-i"])
-        .arg(image)
-        .stderr(std::process::Stdio::inherit())
-        .output()
-        .map_err(|_| "docker load failed".to_owned())?;
-    if !output.status.success() {
-        return Err("docker load failed".to_owned());
-    }
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .find_map(|line| {
-            line.strip_prefix("Loaded image ID: ")
-                .or_else(|| line.strip_prefix("Loaded image: "))
-                .map(|rest| rest.trim().to_owned())
-        })
-        .filter(|loaded| !loaded.is_empty())
-        .ok_or_else(|| "docker load reported no loaded image".to_owned())
-}
-
-fn oci_live_push(
+/// Stages the layout and pushes exactly those bytes to the target.
+fn oci_live_push_to(
+    agent: &ureq::Agent,
+    target: &registry::RegistryRef,
     image: &Path,
-    registry: &str,
-    repository: &str,
-    tag: &str,
-    platform: &str,
-    user: &str,
-    token: &str,
+    outdir: &Path,
+    push: &OciPush<'_>,
 ) -> i32 {
-    let image_id = match oci_declared_image_id(image, platform) {
-        Ok(id) => id,
-        Err(error) => {
-            eprintln!("oci_deploy: {error}");
-            return 1;
-        }
-    };
-    if which_on_path("docker").is_none() {
-        eprintln!("oci_deploy: 'docker' CLI not found on PATH");
-        return 1;
-    }
-    let reference = format!("{registry}/{repository}:{tag}");
-    let endpoint = match docker_endpoint() {
-        Ok(endpoint) => endpoint,
-        Err(error) => {
-            eprintln!("oci_deploy: {error}");
-            return 1;
-        }
-    };
-    let config_dir = match PrivateStageDir::new("oci-docker-config-") {
-        Ok(dir) => dir,
-        Err(error) => {
-            eprintln!("oci_deploy: {error}");
-            return 1;
-        }
-    };
-    let config = serde_json::json!({ "auths": { registry: {} } });
-    if let Err(error) = render_json(&config)
-        .and_then(|text| write_secure_file(config_dir.path(), "config.json", &text))
-    {
-        eprintln!("oci_deploy: {error}");
-        return 1;
-    }
-    let docker = || docker_command(config_dir.path(), &endpoint);
-    let mut login = docker();
-    login
-        .arg("login")
-        .arg(registry)
-        .arg("-u")
-        .arg(user)
-        .arg("--password-stdin");
-    let mut child = match login.stdin(std::process::Stdio::piped()).spawn() {
-        Ok(child) => child,
-        Err(error) => {
-            eprintln!("oci_deploy: {error}");
-            return 1;
-        }
-    };
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(token.as_bytes());
-    }
-    if !child.wait().map(|s| s.success()).unwrap_or(false) {
-        eprintln!("oci_deploy: docker login failed");
-        return 1;
-    }
-    let loaded = match docker_load(&docker, image) {
-        Ok(loaded) => loaded,
-        Err(error) => {
-            eprintln!("oci_deploy: {error}; refusing to push");
-            return 1;
-        }
-    };
-    let tagged = docker().arg("tag").arg(&loaded).arg(&reference).status();
-    if !tagged.map(|s| s.success()).unwrap_or(false) {
-        eprintln!("oci_deploy: docker tag {loaded} {reference} failed");
-        return 1;
-    }
-    match (
-        docker_image_id(&docker, &loaded),
-        docker_image_id(&docker, &reference),
-    ) {
-        (Ok(source), Ok(bound)) if source == bound => {
-            println!("oci_deploy: bound {reference} to {bound} (config {image_id})");
-        }
-        (Ok(source), Ok(bound)) => {
-            eprintln!(
-                "oci_deploy: {reference} identifies {bound}, not the declared image {source}; refusing to push"
-            );
-            return 1;
-        }
-        (Err(error), _) | (_, Err(error)) => {
-            eprintln!("oci_deploy: {error}; refusing to push");
-            return 1;
-        }
-    }
-    match docker().arg("push").arg(&reference).status() {
-        Ok(status) if status.success() => {
-            println!("oci_deploy: pushed {reference}");
+    let OciPush {
+        registry,
+        repository,
+        tag,
+        platform,
+        creds,
+    } = *push;
+    let pushed = oci_build_layout(image, outdir, registry, repository, tag, platform)
+        .map_err(|error| error.to_string())
+        .and_then(|layout| {
+            let config = oci_layout_config_digest(&layout)?;
+            let digest = registry::push_layout(agent, target, tag, &layout, creds)?;
+            Ok((digest, config))
+        });
+    match pushed {
+        Ok((digest, config)) => {
+            println!("oci_deploy: pushed {registry}/{repository}:{tag}@{digest} (config {config})");
             println!(
-                "oci_deploy: signing-first: run cosign sign <digest> plus verify on the release trust root before updating scaffold refs"
+                "oci_deploy: signing-first: run cosign sign {registry}/{repository}@{digest} plus verify on the release trust root before updating scaffold refs"
             );
             0
-        }
-        Ok(status) => {
-            eprintln!("oci_deploy: docker push failed with {status}");
-            1
         }
         Err(error) => {
             eprintln!("oci_deploy: {error}");
@@ -1106,12 +938,17 @@ pub fn oci_main(
         };
         return oci_live_push(
             &image,
-            registry,
-            repository,
-            tag,
-            platform,
-            secrets.get("OCI_REGISTRY_USER"),
-            secrets.get("OCI_REGISTRY_TOKEN"),
+            outdir,
+            &OciPush {
+                registry,
+                repository,
+                tag,
+                platform,
+                creds: registry::Credentials {
+                    user: secrets.get("OCI_REGISTRY_USER"),
+                    secret: secrets.get("OCI_REGISTRY_TOKEN"),
+                },
+            },
         );
     }
     if std::env::var("OCI_PUBLISH_DRY_RUN").unwrap_or_default() == "1" {
@@ -1856,383 +1693,6 @@ mod tests {
         assert!(std::fs::read_dir(&outdir).expect("outdir").next().is_none());
     }
 
-    /// Quotes one value for a single-quoted sh word.
-    #[cfg(unix)]
-    fn sh_quote(value: &str) -> String {
-        format!("'{}'", value.replace('\'', "'\\''"))
-    }
-
-    /// Writes a fake docker with its settings baked in, since docker runs in a cleared env.
-    #[cfg(unix)]
-    fn fake_docker(dir: &Path, settings: &[(&str, &str)]) {
-        use std::os::unix::fs::PermissionsExt;
-        let script = dir.join("docker");
-        let mut text = "#!/bin/sh\n".to_owned();
-        for (key, value) in settings {
-            text.push_str(&format!("{key}={}\n", sh_quote(value)));
-        }
-        text.push_str(
-            "echo \"$*\" >> \"$FAKE_DOCKER_LOG\"\n\
-             echo \"$1|$DOCKER_CONFIG|${DOCKER_HOST-unset}|${DOCKER_CONTEXT-unset}|${DOCKER_CERT_PATH-unset}\" >> \"$FAKE_DOCKER_ENV_LOG\"\n\
-             if [ -n \"$DX_LEAK_PROBE\" ]; then echo \"$1\" >> \"$FAKE_DOCKER_LEAK_LOG\"; fi\n\
-             if [ \"$1 $2\" = \"context inspect\" ]; then\n\
-             if [ -z \"$FAKE_DOCKER_CONTEXT_JSON\" ]; then exit 1; fi\n\
-             echo \"$FAKE_DOCKER_CONTEXT_JSON\"; exit 0\n\
-             fi\n\
-             if [ \"$1\" = login ]; then cat > /dev/null; cp \"$DOCKER_CONFIG/config.json\" \"$FAKE_DOCKER_CONFIG_COPY\"; fi\n\
-             if [ \"$1\" = \"$FAKE_DOCKER_FAIL\" ]; then exit 1; fi\n\
-             if [ \"$1\" = load ] && [ -n \"$FAKE_LOADED\" ]; then echo \"$FAKE_LOADED\"; fi\n\
-             if [ \"$1 $2\" = \"image inspect\" ]; then\n\
-             case \"$5\" in sha256:*) echo \"$5\" ;; *) echo \"$FAKE_REF_ID\" ;; esac\n\
-             fi\n\
-             exit 0\n",
-        );
-        std::fs::write(&script, text).expect("script");
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-    }
-
-    #[cfg(unix)]
-    fn run_fake_live_push(
-        fail: &str,
-        ref_id: Option<&str>,
-        loaded: Option<&str>,
-        rootfs: bool,
-    ) -> (i32, Vec<String>) {
-        let scratch = scratch_dir();
-        let (archive, id) = oci_save(
-            scratch.path(),
-            "image.tar",
-            &[oci_test_layer(false)],
-            "linux/amd64",
-        );
-        if rootfs {
-            std::fs::write(&archive, oci_test_layer(false)).expect("rootfs");
-        }
-        let classic = format!("Loaded image ID: {id}");
-        run_fake_live_push_archive(
-            &archive,
-            fail,
-            ref_id.unwrap_or(&id),
-            loaded.unwrap_or(&classic),
-            "linux/amd64",
-        )
-    }
-
-    #[cfg(unix)]
-    fn run_fake_live_push_archive(
-        archive: &Path,
-        fail: &str,
-        ref_id: &str,
-        loaded: &str,
-        platform: &str,
-    ) -> (i32, Vec<String>) {
-        let run =
-            run_fake_live_push_env(archive, fail, ref_id, loaded, platform, &FakeEnv::default());
-        (run.code, run.calls)
-    }
-
-    /// Caller environment for one fake live push.
-    #[cfg(unix)]
-    #[derive(Default)]
-    struct FakeEnv<'a> {
-        docker_host: Option<&'a str>,
-        docker_context: Option<&'a str>,
-        tls_verify: Option<&'a str>,
-        cert_path: Option<&'a str>,
-        context_json: &'a str,
-    }
-
-    #[cfg(unix)]
-    struct FakeRun {
-        code: i32,
-        /// Docker calls, without the leading `context inspect`.
-        calls: Vec<String>,
-        inspected: bool,
-        /// `verb|DOCKER_CONFIG|DOCKER_HOST|DOCKER_CONTEXT|DOCKER_CERT_PATH` per call.
-        env: Vec<String>,
-        /// Verbs of the scoped docker calls that saw the caller's DX_LEAK_PROBE.
-        leaked: Vec<String>,
-        config_copy: Option<String>,
-        caller_config: std::path::PathBuf,
-    }
-
-    #[cfg(unix)]
-    fn run_fake_live_push_env(
-        archive: &Path,
-        fail: &str,
-        ref_id: &str,
-        loaded: &str,
-        platform: &str,
-        caller: &FakeEnv<'_>,
-    ) -> FakeRun {
-        let scratch = scratch_dir();
-        let bin = scratch.path().join("bin");
-        std::fs::create_dir_all(&bin).expect("bin");
-        let log = scratch.path().join("docker.log");
-        let env_log = scratch.path().join("docker.env.log");
-        let leak_log = scratch.path().join("docker.leak.log");
-        let copy = scratch.path().join("config.copy.json");
-        let caller_config = scratch.path().join("home-docker");
-        fake_docker(
-            &bin,
-            &[
-                ("FAKE_DOCKER_LOG", log.to_string_lossy().as_ref()),
-                ("FAKE_DOCKER_ENV_LOG", env_log.to_string_lossy().as_ref()),
-                ("FAKE_DOCKER_LEAK_LOG", leak_log.to_string_lossy().as_ref()),
-                ("FAKE_DOCKER_CONFIG_COPY", copy.to_string_lossy().as_ref()),
-                ("FAKE_DOCKER_FAIL", fail),
-                ("FAKE_REF_ID", ref_id),
-                ("FAKE_LOADED", loaded),
-                ("FAKE_DOCKER_CONTEXT_JSON", caller.context_json),
-            ],
-        );
-        let path = format!(
-            "{}:{}",
-            bin.display(),
-            std::env::var("PATH").unwrap_or_default()
-        );
-        let code = with_env(
-            &[
-                ("PATH", Some(path.as_str())),
-                ("DX_LEAK_PROBE", Some("1")),
-                (
-                    "DOCKER_CONFIG",
-                    Some(caller_config.to_string_lossy().as_ref()),
-                ),
-                ("DOCKER_HOST", caller.docker_host),
-                ("DOCKER_CONTEXT", caller.docker_context),
-                ("DOCKER_TLS_VERIFY", caller.tls_verify),
-                ("DOCKER_CERT_PATH", caller.cert_path),
-            ],
-            || {
-                oci_live_push(
-                    archive,
-                    "registry.invalid",
-                    "demo/app",
-                    "1.2.3",
-                    platform,
-                    "me",
-                    "s3cret",
-                )
-            },
-        );
-        let read = |path: &Path| -> Vec<String> {
-            std::fs::read_to_string(path)
-                .unwrap_or_default()
-                .lines()
-                .map(str::to_owned)
-                .collect()
-        };
-        let mut calls = read(&log);
-        let mut env = read(&env_log);
-        let leaked: Vec<String> = read(&leak_log)
-            .into_iter()
-            .filter(|verb| verb != "context")
-            .collect();
-        let inspected = calls
-            .first()
-            .is_some_and(|call| call.starts_with("context inspect"));
-        if inspected {
-            calls.remove(0);
-            env.remove(0);
-        }
-        assert!(calls
-            .iter()
-            .all(|call| !call.starts_with("context inspect")));
-        FakeRun {
-            code,
-            calls,
-            inspected,
-            env,
-            leaked,
-            config_copy: std::fs::read_to_string(&copy).ok(),
-            caller_config,
-        }
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn oci_live_push_tags_the_declared_image_before_pushing() {
-        let (code, calls) = run_fake_live_push("", None, None, false);
-        assert_eq!(code, 0);
-        let id = calls[2].split(' ').nth(1).expect("tag source").to_owned();
-        assert!(id.starts_with("sha256:"));
-        assert_eq!(calls[0], "login registry.invalid -u me --password-stdin");
-        assert!(calls[1].starts_with("load -q -i "));
-        assert_eq!(
-            calls[2],
-            format!("tag {id} registry.invalid/demo/app:1.2.3")
-        );
-        assert_eq!(calls[5], "push registry.invalid/demo/app:1.2.3");
-        assert!(calls.iter().all(|call| !call.contains("s3cret")));
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn oci_live_push_stops_before_push_on_failures() {
-        let (code, calls) = run_fake_live_push("", Some("sha256:stale"), None, false);
-        assert_eq!(code, 1);
-        assert!(calls.iter().all(|call| !call.starts_with("push")));
-        for step in ["login", "load", "tag"] {
-            let (code, calls) = run_fake_live_push(step, None, None, false);
-            assert_eq!(code, 1, "{step}");
-            assert!(calls.iter().all(|call| !call.starts_with("push")), "{step}");
-        }
-        let (code, calls) = run_fake_live_push("", None, Some(""), false);
-        assert_eq!(code, 1);
-        assert!(calls.iter().any(|call| call.starts_with("load")));
-        assert!(calls
-            .iter()
-            .all(|call| !call.starts_with("tag") && !call.starts_with("push")));
-        let manifest = format!("sha256:{}", "ab".repeat(32));
-        let containerd = format!("Loaded image ID: {manifest}");
-        let (code, calls) = run_fake_live_push("", Some("sha256:stale"), Some(&containerd), false);
-        assert_eq!(code, 1);
-        assert!(calls.contains(&format!("tag {manifest} registry.invalid/demo/app:1.2.3")));
-        assert!(calls.iter().all(|call| !call.starts_with("push")));
-        let (code, calls) = run_fake_live_push("", None, None, true);
-        assert_eq!(code, 1);
-        assert!(calls.is_empty());
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn oci_live_push_tags_what_docker_load_reported() {
-        let manifest = format!("sha256:{}", "ab".repeat(32));
-        let containerd = format!("Loaded image ID: {manifest}");
-        let (code, calls) = run_fake_live_push("", Some(&manifest), Some(&containerd), false);
-        assert_eq!(code, 0, "{calls:?}");
-        assert_eq!(
-            calls[2],
-            format!("tag {manifest} registry.invalid/demo/app:1.2.3")
-        );
-        assert_eq!(calls[5], "push registry.invalid/demo/app:1.2.3");
-        let ref_id = format!("sha256:{}", "cd".repeat(32));
-        let (code, calls) =
-            run_fake_live_push("", Some(&ref_id), Some("Loaded image: demo:1"), false);
-        assert_eq!(code, 0, "{calls:?}");
-        assert_eq!(calls[2], "tag demo:1 registry.invalid/demo/app:1.2.3");
-        assert!(calls.contains(&"push registry.invalid/demo/app:1.2.3".to_owned()));
-    }
-
-    #[cfg(unix)]
-    fn fake_push(fail: &str, caller: &FakeEnv<'_>) -> FakeRun {
-        let scratch = scratch_dir();
-        let (archive, id) = oci_save(
-            scratch.path(),
-            "image.tar",
-            &[oci_test_layer(false)],
-            "linux/amd64",
-        );
-        let loaded = format!("Loaded image ID: {id}");
-        run_fake_live_push_env(&archive, fail, &id, &loaded, "linux/amd64", caller)
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn oci_live_push_scopes_docker_config_to_a_temp_dir() {
-        for fail in ["", "login", "load", "tag", "push"] {
-            let run = fake_push(fail, &FakeEnv::default());
-            assert_eq!(run.code, i32::from(!fail.is_empty()), "{fail}");
-            assert!(!run.env.is_empty(), "{fail}");
-            assert!(run.leaked.is_empty(), "{fail}: {:?}", run.leaked);
-            let configs: std::collections::BTreeSet<&str> = run
-                .env
-                .iter()
-                .map(|line| line.split('|').nth(1).expect("config"))
-                .collect();
-            assert_eq!(configs.len(), 1, "{fail}: {configs:?}");
-            let config = Path::new(configs.iter().next().expect("one"));
-            assert!(!config.as_os_str().is_empty(), "{fail}");
-            assert_ne!(config, run.caller_config, "{fail}");
-            assert!(!config.exists(), "{fail}: temp config left behind");
-            assert!(!run.caller_config.join("config.json").exists(), "{fail}");
-            let copy = run.config_copy.expect("login saw a config");
-            let value: serde_json::Value = serde_json::from_str(&copy).expect("json");
-            assert!(value["auths"]["registry.invalid"].is_object(), "{fail}");
-            assert!(value.get("credsStore").is_none() && value.get("credHelpers").is_none());
-            assert!(!copy.contains("s3cret"), "{fail}");
-            assert!(
-                run.env.iter().all(|line| !line.contains("s3cret")),
-                "{fail}"
-            );
-            assert!(
-                run.calls.iter().all(|call| !call.contains("s3cret")),
-                "{fail}"
-            );
-        }
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn oci_live_push_forwards_the_callers_docker_endpoint() {
-        let colima = r#"{"Name":"colima","Endpoints":{"docker":{"Host":"unix:///tmp/colima.sock"}},"TLSMaterial":{}}"#;
-        let run = fake_push(
-            "",
-            &FakeEnv {
-                docker_context: Some("colima"),
-                context_json: colima,
-                ..FakeEnv::default()
-            },
-        );
-        assert_eq!(run.code, 0, "{:?}", run.calls);
-        assert!(run.inspected);
-        assert_eq!(run.env.len(), 6);
-        for line in &run.env {
-            let fields: Vec<&str> = line.split('|').collect();
-            assert_eq!(fields[2], "unix:///tmp/colima.sock", "{line}");
-            assert_eq!(fields[3], "unset", "{line}");
-        }
-
-        let run = fake_push(
-            "",
-            &FakeEnv {
-                docker_host: Some("tcp://example.invalid:2375"),
-                context_json: colima,
-                ..FakeEnv::default()
-            },
-        );
-        assert_eq!(run.code, 0);
-        assert!(!run.inspected);
-        assert!(run
-            .env
-            .iter()
-            .all(|line| line.split('|').nth(2) == Some("tcp://example.invalid:2375")));
-
-        let run = fake_push("", &FakeEnv::default());
-        assert_eq!(run.code, 0);
-        assert!(run.inspected);
-        assert!(run
-            .env
-            .iter()
-            .all(|line| line.split('|').nth(2) == Some("unset")));
-
-        let tls = r#"{"Endpoints":{"docker":{"Host":"tcp://tls.invalid:2376"}},"TLSMaterial":{"docker":["ca.pem","cert.pem","key.pem"]}}"#;
-        let run = fake_push(
-            "",
-            &FakeEnv {
-                context_json: tls,
-                ..FakeEnv::default()
-            },
-        );
-        assert_eq!(run.code, 1);
-        assert!(run.calls.is_empty() && run.env.is_empty());
-
-        let run = fake_push(
-            "",
-            &FakeEnv {
-                tls_verify: Some("1"),
-                ..FakeEnv::default()
-            },
-        );
-        assert_eq!(run.code, 0);
-        let expected = run.caller_config.to_string_lossy().into_owned();
-        assert!(run
-            .env
-            .iter()
-            .all(|line| line.split('|').nth(4) == Some(expected.as_str())));
-    }
-
     #[test]
     fn oci_layout_rejects_unusable_registry_repository_and_tag() {
         let scratch = scratch_dir();
@@ -2695,9 +2155,34 @@ mod tests {
         assert_eq!(stored.len(), 4, "{stored:?}");
     }
 
-    #[cfg(unix)]
+    const FAKE_SECRET: &str = "s3cret-token-value";
+
+    /// Runs one live push of `image` against a fake registry.
+    fn fake_live_push(fake: &FakeRegistry, image: &Path, outdir: &Path, platform: &str) -> i32 {
+        let target = registry::RegistryRef {
+            endpoint: registry::Endpoint::for_test(&fake.origin),
+            name: "demo/app".to_owned(),
+        };
+        oci_live_push_to(
+            &crate::http::upload_agent_with_proxy(None),
+            &target,
+            image,
+            outdir,
+            &OciPush {
+                registry: "registry.invalid",
+                repository: "demo/app",
+                tag: "1.2.3",
+                platform,
+                creds: registry::Credentials {
+                    user: "me",
+                    secret: FAKE_SECRET,
+                },
+            },
+        )
+    }
+
     #[test]
-    fn oci_layout_and_live_push_bind_the_same_config_digest() {
+    fn oci_live_push_pushes_the_staged_layout_digest() {
         let scratch = scratch_dir();
         let (image, id) = oci_save(
             scratch.path(),
@@ -2705,11 +2190,11 @@ mod tests {
             &[oci_test_layer(false), oci_test_layer(true)],
             "linux/amd64",
         );
-        let outdir = scratch.path().join("out");
-        std::fs::create_dir_all(&outdir).expect("outdir");
+        let dry = scratch.path().join("dry");
+        std::fs::create_dir_all(&dry).expect("outdir");
         let layout = oci_build_layout(
             &image,
-            &outdir,
+            &dry,
             "registry.invalid",
             "demo/app",
             "1.2.3",
@@ -2717,31 +2202,47 @@ mod tests {
         )
         .expect("layout");
         let (manifest, _) = oci_layout_json(&layout);
-        let config_digest = manifest["config"]["digest"].as_str().expect("digest");
-        assert_eq!(config_digest, id);
-        let loaded = format!("Loaded image ID: {id}");
-        let (code, calls) = run_fake_live_push_archive(&image, "", &id, &loaded, "linux/amd64");
-        assert_eq!(code, 0, "{calls:?}");
-        assert_eq!(
-            calls[2],
-            format!("tag {config_digest} registry.invalid/demo/app:1.2.3")
-        );
+        assert_eq!(manifest["config"]["digest"].as_str(), Some(id.as_str()));
+        let index: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(layout.join("index.json")).expect("index"))
+                .expect("index json");
+        let staged = index["manifests"][0]["digest"]
+            .as_str()
+            .expect("digest")
+            .to_owned();
+        let fake = FakeRegistry::start(FakeConfig {
+            challenge: FakeChallenge::Bearer,
+            ..FakeConfig::default()
+        });
+        let live = scratch.path().join("live");
+        std::fs::create_dir_all(&live).expect("outdir");
+        assert_eq!(fake_live_push(&fake, &image, &live, "linux/amd64"), 0);
+        let requests = fake.requests();
+        let manifest_put = requests.last().expect("manifest");
+        assert_eq!(manifest_put.path, "/v2/demo/app/manifests/1.2.3");
+        assert_eq!(manifest_put.body_digest, staged);
+        let blobs: Vec<&str> = requests
+            .iter()
+            .filter(|r| r.method == "PUT" && r.path.contains("/blobs/uploads/"))
+            .map(|r| r.body_digest.as_str())
+            .collect();
+        assert!(blobs.contains(&id.as_str()), "{blobs:?}");
     }
 
-    #[cfg(unix)]
     #[test]
     fn oci_live_push_rejects_what_the_layout_rejects() {
         let scratch = scratch_dir();
         let layers = [oci_test_layer(false)];
-        let (arm, arm_id) = oci_save(scratch.path(), "arm.tar", &layers, "linux/arm64");
-        let (tgz, tgz_id) = oci_save(scratch.path(), "image.tgz", &layers, "linux/amd64");
-        let (amd, amd_id) = oci_save(scratch.path(), "amd.tar", &layers, "linux/amd64");
+        let (arm, _) = oci_save(scratch.path(), "arm.tar", &layers, "linux/arm64");
+        let (tgz, _) = oci_save(scratch.path(), "image.tgz", &layers, "linux/amd64");
+        let (amd, _) = oci_save(scratch.path(), "amd.tar", &layers, "linux/amd64");
         let cases = [
-            ("arm64 image", &arm, &arm_id, "linux/amd64"),
-            ("tgz suffix", &tgz, &tgz_id, "linux/amd64"),
-            ("s390x platform", &amd, &amd_id, "linux/s390x"),
+            ("arm64 image", &arm, "linux/amd64"),
+            ("tgz suffix", &tgz, "linux/amd64"),
+            ("s390x platform", &amd, "linux/s390x"),
         ];
-        for (name, image, id, platform) in cases {
+        let fake = FakeRegistry::start(FakeConfig::default());
+        for (name, image, platform) in cases {
             let outdir = scratch.path().join(name.replace(' ', "_"));
             std::fs::create_dir_all(&outdir).expect("outdir");
             let layout = oci_build_layout(
@@ -2768,18 +2269,84 @@ mod tests {
                 assert!(layout.to_string().contains("linux/arm64"), "{layout}");
                 assert!(declared.contains("linux/arm64"), "{declared}");
             }
-            let loaded = format!("Loaded image ID: {id}");
-            let (code, calls) = run_fake_live_push_archive(image, "", id, &loaded, platform);
-            assert_eq!(code, 1, "{name}");
-            assert!(calls.is_empty(), "{name}: {calls:?}");
+            assert_eq!(fake_live_push(&fake, image, &outdir, platform), 1, "{name}");
+            assert!(fake.requests().is_empty(), "{name}");
         }
-        let loaded = format!("Loaded image ID: {arm_id}");
-        let (code, calls) = run_fake_live_push_archive(&arm, "", &arm_id, &loaded, "linux/arm64");
-        assert_eq!(code, 0, "{calls:?}");
-        assert_eq!(
-            calls[2],
-            format!("tag {arm_id} registry.invalid/demo/app:1.2.3")
+        let outdir = scratch.path().join("arm_ok");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        assert_eq!(fake_live_push(&fake, &arm, &outdir, "linux/arm64"), 0);
+        assert!(!fake.requests().is_empty());
+    }
+
+    #[test]
+    fn oci_live_push_stops_before_manifest_on_blob_failure() {
+        let scratch = scratch_dir();
+        let (image, _) = oci_save(
+            scratch.path(),
+            "image.tar",
+            &[oci_test_layer(false)],
+            "linux/amd64",
         );
+        let fake = FakeRegistry::start(FakeConfig {
+            fail: vec![("PUT".to_owned(), "/blobs/uploads/".to_owned(), 500)],
+            ..FakeConfig::default()
+        });
+        assert_eq!(
+            fake_live_push(&fake, &image, scratch.path(), "linux/amd64"),
+            1
+        );
+        let requests = fake.requests();
+        assert!(requests.iter().any(|r| r.path.contains("/blobs/uploads/")));
+        assert!(requests.iter().all(|r| !r.path.contains("/manifests/")));
+    }
+
+    #[test]
+    fn oci_live_push_output_has_no_credentials() {
+        const CHILD: &str = "DX_OCI_LIVE_PUSH_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            let scratch = scratch_dir();
+            let (image, _) = oci_save(
+                scratch.path(),
+                "image.tar",
+                &[oci_test_layer(false)],
+                "linux/amd64",
+            );
+            for (challenge, secret) in [
+                (FakeChallenge::Bearer, FAKE_SECRET),
+                (FakeChallenge::Bearer, "wrong"),
+                (FakeChallenge::Basic, "wrong"),
+            ] {
+                let fake = FakeRegistry::start(FakeConfig {
+                    challenge,
+                    secret: secret.to_owned(),
+                    ..FakeConfig::default()
+                });
+                let code = fake_live_push(&fake, &image, scratch.path(), "linux/amd64");
+                assert_eq!(code, i32::from(secret != FAKE_SECRET));
+            }
+            return;
+        }
+        let run = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args([
+                "oci::tests::oci_live_push_output_has_no_credentials",
+                "--exact",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .output()
+            .expect("spawn child");
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&run.stdout),
+            String::from_utf8_lossy(&run.stderr)
+        );
+        assert!(run.status.success(), "{text}");
+        assert!(text.contains("oci_deploy: pushed registry.invalid/demo/app:1.2.3@sha256:"));
+        assert!(text.contains(registry::OCI_BAD_CREDENTIALS), "{text}");
+        let basic = crate::http::basic_auth("me", FAKE_SECRET);
+        for secret in [FAKE_SECRET, FAKE_TOKEN, basic.as_str(), &basic[6..]] {
+            assert!(!text.contains(secret), "{text}");
+        }
     }
 
     #[test]

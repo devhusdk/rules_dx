@@ -209,25 +209,6 @@ pub(crate) fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf>
     ))
 }
 
-/// Owner-only temp directory that is removed when dropped, including on panic.
-pub(crate) struct PrivateStageDir(std::path::PathBuf);
-
-impl PrivateStageDir {
-    pub(crate) fn new(prefix: &str) -> io::Result<Self> {
-        tempfile_stage_dir(prefix).map(Self)
-    }
-
-    pub(crate) fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for PrivateStageDir {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
 pub(crate) fn which_on_path(tool: &str) -> Option<std::path::PathBuf> {
     let path = std::env::var("PATH").unwrap_or_default();
     #[cfg(windows)]
@@ -618,15 +599,5 @@ mod tests {
                 .mode();
             assert_eq!(mode & 0o777, 0o700, "private dir must stay owner-only");
         }
-    }
-
-    #[test]
-    fn private_stage_dir_is_removed_on_drop() {
-        let dir = PrivateStageDir::new("dx-private-stage-test-").expect("dir");
-        let path = dir.path().to_path_buf();
-        write_secure_file(&path, "secret", "x").expect("write");
-        assert!(path.join("secret").exists());
-        drop(dir);
-        assert!(!path.exists());
     }
 }

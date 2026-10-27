@@ -21,6 +21,7 @@ mod oci;
 mod octopus;
 mod promotion;
 mod pypi;
+mod registry;
 mod run;
 mod stage;
 #[cfg(test)]
@@ -136,7 +137,10 @@ mod tests {
                     1
                 );
                 assert_eq!(crates_main(missing, "demo", "1.0.0", &argv), 1);
-                assert_eq!(github_main(&[missing.to_owned()], "demo", "v1.0.0", &argv), 1);
+                assert_eq!(
+                    github_main(&[missing.to_owned()], "demo", "v1.0.0", &argv),
+                    1
+                );
                 assert_eq!(
                     maven_main(
                         missing,
@@ -314,7 +318,10 @@ mod tests {
                 ("GH_RELEASE_APPROVED", Some("1")),
             ],
             || {
-                assert_eq!(github_main(&[missing.to_owned()], "demo", "v0.0.0-dryrun", &argv), 1);
+                assert_eq!(
+                    github_main(&[missing.to_owned()], "demo", "v0.0.0-dryrun", &argv),
+                    1
+                );
             },
         );
         with_env(
@@ -567,7 +574,12 @@ mod tests {
                     0
                 );
                 assert_eq!(
-                    github_main(&["release_demo.tar.gz".to_owned()], "github_demo", "v1.0.0", &argv),
+                    github_main(
+                        &["release_demo.tar.gz".to_owned()],
+                        "github_demo",
+                        "v1.0.0",
+                        &argv
+                    ),
                     0
                 );
                 assert_eq!(

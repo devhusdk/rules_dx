@@ -152,6 +152,12 @@ release pins, `dx init` writes them empty. With an empty pin the launcher does
 not download: it exits `1` with the `bazel run @rules_dx//:dx -- ...` command.
 A binary already in the cache still runs.
 
+Run from another checkout of the same git repo (a `dx worktree` slot or a
+`git worktree`), the launcher first runs that checkout's own `tools/dx`, so that
+checkout's `.dx/version` pin applies. `worktree hook` commands never hand off.
+Separate clones, other repos, and machines without `git` are not handed off.
+Existing launchers gain this on their next version bump.
+
 When `.dx/version` differs from the launcher's version, the launcher exits `1`
 and prints:
 

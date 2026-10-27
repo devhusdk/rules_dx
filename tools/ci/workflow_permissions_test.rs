@@ -2,8 +2,6 @@ use serde_json::Value;
 
 use dx_testing::read_runfiles;
 
-const GITHUB_BUILD: &str = ".github/BUILD.bazel";
-
 /// Text that shows a step uses a write scope, one entry per scope GitHub grants.
 /// A scope missing here fails the check, so a new grant needs a reviewed marker.
 const MARKERS: &[(&str, &[&str])] = &[
@@ -26,9 +24,9 @@ const TOKENLESS: &[&str] = &["id-token"];
 
 const TOKEN_NEEDLES: &[&str] = &["github.token", "secrets.GITHUB_TOKEN"];
 
-/// Returns every workflow exported from `.github`, so new workflows join the check.
+/// Returns every workflow under `.github/workflows`, so new workflows join the check.
 fn workflows() -> Vec<String> {
-    dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD)
+    dx_testing::workflow_files()
 }
 
 fn parse(name: &str, text: &str) -> Value {
@@ -37,7 +35,7 @@ fn parse(name: &str, text: &str) -> Value {
 }
 
 fn document(name: &str) -> Value {
-    parse(name, &read_runfiles(&format!(".github/{name}")))
+    parse(name, &read_runfiles(name))
 }
 
 /// Returns the scopes a job holds: its own `permissions`, else the workflow's.
@@ -104,7 +102,7 @@ fn unused_write_scopes(name: &str, workflow: &Value) -> Vec<String> {
 #[test]
 fn every_workflow_sets_top_level_permissions() {
     let names = workflows();
-    assert!(!names.is_empty(), "{GITHUB_BUILD} exports no workflows");
+    assert!(!names.is_empty(), "DX_WORKFLOWS names no workflows");
     for name in names {
         let workflow = document(&name);
         assert!(

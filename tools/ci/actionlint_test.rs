@@ -5,8 +5,6 @@ use dx_testing::{mkscratch, read_runfiles, resolve_runfiles, runfiles_root};
 
 const CONFIG: &str = ".github/actionlint.yaml";
 
-const GITHUB_BUILD: &str = ".github/BUILD.bazel";
-
 const PROJECT_MARKER: &str = ".git";
 
 const WORKFLOWS: &str = ".github/workflows";
@@ -83,10 +81,8 @@ fn findings(run: &Output) -> Vec<String> {
 
 /// Returns the shipped workflows and consumer starters as runfiles to staged paths.
 fn shipped() -> Vec<(String, String)> {
-    let exports = dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD);
     let mut files = vec![(CONFIG.to_owned(), CONFIG.to_owned())];
-    for name in exports {
-        let workflow = format!(".github/{name}");
+    for workflow in dx_testing::workflow_files() {
         files.push((workflow.clone(), workflow));
     }
     for caller in CALLERS {
@@ -120,7 +116,7 @@ fn workflows(files: &[(String, String)]) -> Vec<String> {
 fn every_shipped_workflow_passes_actionlint() {
     let files = shipped();
     let targets = workflows(&files);
-    let exported = dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD).len();
+    let exported = dx_testing::workflow_files().len();
     assert_eq!(
         targets.len(),
         exported + CALLERS.len(),

@@ -1,8 +1,7 @@
-use dx_testing::{read_runfiles, runfiles_root};
+use dx_testing::read_runfiles;
 
 const BAZELVERSION: &str = ".bazelversion";
 const DOCKERFILE: &str = ".devcontainer/Dockerfile.prebuilt";
-const GITHUB_BUILD: &str = ".github/BUILD.bazel";
 const VERSIONS_BZL: &str = "modules/versions.bzl";
 
 fn starlark_const(text: &str, name: &str) -> String {
@@ -13,16 +12,11 @@ fn bazelisk_pin() -> String {
     starlark_const(&read_runfiles(VERSIONS_BZL), "BAZELISK_VERSION")
 }
 
-fn workflow_exports() -> Vec<String> {
-    dx_testing::workflow_exports(&read_runfiles(GITHUB_BUILD), GITHUB_BUILD)
-}
-
 fn workflows() -> Vec<(String, String)> {
-    workflow_exports()
+    dx_testing::workflow_files()
         .into_iter()
         .map(|name| {
-            let text = std::fs::read_to_string(runfiles_root().join(".github").join(&name))
-                .unwrap_or_else(|_| panic!("{name} must ship as bazelisk_pins_test data"));
+            let text = read_runfiles(&name);
             (name, text)
         })
         .collect()
@@ -98,22 +92,22 @@ fn setup_bazel_documents() -> Vec<(String, serde_json::Value)> {
 /// workflow file and job, with the guard that picks it.
 const SAVERS: &[(&str, &str, &str)] = &[
     (
-        "workflows/reusable-consumer.yml",
+        ".github/workflows/reusable-consumer.yml",
         "coverage",
         "needs.validate.outputs.cache_saver == github.job",
     ),
     (
-        "workflows/reusable-consumer.yml",
+        ".github/workflows/reusable-consumer.yml",
         "test",
         "needs.validate.outputs.cache_saver == github.job",
     ),
     (
-        "workflows/reusable-consumer.yml",
+        ".github/workflows/reusable-consumer.yml",
         "build",
         "needs.validate.outputs.cache_saver == github.job",
     ),
     (
-        "workflows/ci.yml",
+        ".github/workflows/ci.yml",
         "preflight",
         "matrix.platform == 'windows_arm64'",
     ),

@@ -276,35 +276,30 @@ pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
         .to_owned()
 }
 
-pub fn workflow_exports(text: &str, file: &str) -> Vec<String> {
-    let mut names: Vec<String> = Vec::new();
-    let mut in_exports = false;
-    for line in text.lines() {
-        if line.starts_with("exports_files(") {
-            in_exports = true;
-            continue;
-        }
-        if !in_exports {
-            continue;
-        }
-        if !line.starts_with(' ') {
-            break;
-        }
-        let trimmed = line.trim();
-        if !trimmed.starts_with('"') {
-            continue;
-        }
-        let name = trimmed
-            .trim_start_matches('"')
-            .split('"')
-            .next()
-            .unwrap_or_default();
-        if name.ends_with(".yml") {
-            names.push(name.to_owned());
-        }
+/// Returns the workflow runfiles paths that DX_WORKFLOWS lists.
+pub fn workflow_files() -> Vec<String> {
+    let list = std::env::var("DX_WORKFLOWS").unwrap_or_else(|_| {
+        panic!(
+            "DX_WORKFLOWS is unset; add `env = {{\"DX_WORKFLOWS\": \"$(rootpaths //.github:workflows)\"}}` and `//.github:workflows` to this test's data"
+        )
+    });
+    workflow_paths(&list, "DX_WORKFLOWS")
+}
+
+/// Parses a whitespace-separated workflow list into sorted, unique paths.
+pub fn workflow_paths(list: &str, source: &str) -> Vec<String> {
+    let mut paths: Vec<String> = list.split_whitespace().map(str::to_owned).collect();
+    paths.sort();
+    paths.dedup();
+    assert!(!paths.is_empty(), "{source} names no workflow");
+    for path in &paths {
+        assert!(
+            path.starts_with(".github/workflows/")
+                && (path.ends_with(".yml") || path.ends_with(".yaml")),
+            "{source} entry {path} is not a .github/workflows/*.yml or *.yaml file"
+        );
     }
-    assert!(!names.is_empty(), "{file} exports no workflow");
-    names
+    paths
 }
 
 pub fn expect_contains(path: &Path, patterns: &[&str]) -> Result<(), String> {
@@ -842,20 +837,33 @@ mod tests {
     }
 
     #[test]
-    fn workflow_exports_lists_only_the_exported_workflows() {
-        let build = "exports_files([\n    \".bazelignore\",\n    \"workflows/bump.yml\",\n    \"workflows/ci.yml\",\n])\n\nfilegroup(\n    name = \"later\",\n    srcs = [\"workflows/ghcr.yml\"],\n)\n";
+    fn workflow_paths_sorts_and_dedups_the_list() {
         assert_eq!(
-            workflow_exports(build, ".github/BUILD.bazel"),
-            ["workflows/bump.yml", "workflows/ci.yml"]
+            workflow_paths(
+                ".github/workflows/ci.yml\n.github/workflows/bump.yml .github/workflows/ci.yml",
+                "DX_WORKFLOWS"
+            ),
+            [".github/workflows/bump.yml", ".github/workflows/ci.yml"]
         );
     }
 
     #[test]
-    #[should_panic(expected = "exports no workflow")]
-    fn workflow_exports_rejects_a_build_that_exports_none() {
-        workflow_exports(
-            "exports_files([\n    \".bazelignore\",\n])\n",
-            ".github/BUILD.bazel",
+    #[should_panic(expected = "DX_WORKFLOWS names no workflow")]
+    fn workflow_paths_rejects_an_empty_list() {
+        workflow_paths("  ", "DX_WORKFLOWS");
+    }
+
+    #[test]
+    #[should_panic(expected = "is not a .github/workflows")]
+    fn workflow_paths_rejects_a_path_outside_the_workflows_dir() {
+        workflow_paths(".github/actionlint.yaml", "DX_WORKFLOWS");
+    }
+
+    #[test]
+    fn workflow_paths_accepts_yaml() {
+        assert_eq!(
+            workflow_paths(".github/workflows/x.yaml", "DX_WORKFLOWS"),
+            [".github/workflows/x.yaml"]
         );
     }
 

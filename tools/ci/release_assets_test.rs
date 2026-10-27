@@ -14,19 +14,67 @@ fn workflow() -> String {
     read_runfiles(WORKFLOW)
 }
 
+/// Assets named by the one `for asset in ...; do` line of the upload job.
+fn upload_loop_assets(text: &str) -> Vec<String> {
+    let loops: Vec<&str> = text
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("for asset in "))
+        .collect();
+    assert_eq!(
+        loops.len(),
+        1,
+        "want exactly one `for asset in` loop, found {}",
+        loops.len()
+    );
+    let (list, _) = loops[0]
+        .split_once("; do")
+        .expect("upload loop is `for asset in ...; do`");
+    list.split_whitespace().map(str::to_owned).collect()
+}
+
+/// Assets named by the build matrix `- name: dx-*` cells.
+fn matrix_assets(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|line| line.trim().strip_prefix("- name: "))
+        .filter(|name| name.starts_with("dx-"))
+        .map(str::to_owned)
+        .collect()
+}
+
+fn sorted(mut names: Vec<String>) -> Vec<String> {
+    names.sort();
+    names
+}
+
+fn expected() -> Vec<String> {
+    sorted(ASSETS.iter().map(|asset| (*asset).to_owned()).collect())
+}
+
 #[test]
 fn the_workflow_builds_every_asset_the_launchers_can_ask_for() {
     let text = workflow();
-    for asset in ASSETS {
-        assert!(
-            text.contains(&format!("- name: {asset}\n")),
-            "{WORKFLOW} has no matrix cell named {asset}"
-        );
-        assert!(
-            text.contains(asset),
-            "{WORKFLOW} upload check misses {asset}"
-        );
-    }
+    assert_eq!(
+        sorted(matrix_assets(&text)),
+        expected(),
+        "{WORKFLOW} matrix cells differ from ASSETS"
+    );
+    assert_eq!(
+        sorted(upload_loop_assets(&text)),
+        expected(),
+        "{WORKFLOW} upload loop differs from ASSETS"
+    );
+}
+
+#[test]
+fn an_upload_loop_missing_an_asset_is_caught() {
+    let text = "      run: |\n        for asset in dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64; do\n          echo \"$asset\"\n        done\n";
+    assert_ne!(sorted(upload_loop_assets(text)), expected());
+}
+
+#[test]
+#[should_panic(expected = "exactly one")]
+fn a_workflow_with_two_upload_loops_is_refused() {
+    upload_loop_assets("for asset in dx-a; do\nfor asset in dx-b; do\n");
 }
 
 #[test]
@@ -47,14 +95,6 @@ fn the_launchers_download_the_names_the_workflow_uploads() {
     assert!(launcher.contains("os=linux") && launcher.contains("os=macos"));
     assert!(launcher.contains("arch=x86_64") && launcher.contains("arch=arm64"));
     assert!(launcher.contains("set \"ARCH=x86_64\"") && launcher.contains("set \"ARCH=arm64\""));
-    for asset in ASSETS {
-        let (os, arch) = asset
-            .strip_prefix("dx-")
-            .and_then(|rest| rest.split_once('-'))
-            .expect("asset name is dx-<os>-<arch>");
-        assert!(["linux", "macos", "windows"].contains(&os), "{asset}");
-        assert!(["x86_64", "arm64"].contains(&arch), "{asset}");
-    }
 }
 
 #[test]

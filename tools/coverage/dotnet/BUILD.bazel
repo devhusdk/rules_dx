@@ -1,0 +1,77 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+load(":coverage_tests.bzl", "dx_dotnet_coverage_tests")
+
+package(default_visibility = ["//:__subpackages__"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "coverage.bzl",
+        "coverage_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+alias(
+    name = "coverlet",
+    actual = "@paket.main//coverlet.console/tools:coverlet",
+    visibility = ["//visibility:public"],
+)
+
+rust_binary(
+    name = "coverlet_launcher",
+    srcs = [
+        "src/lcov.rs",
+        "src/main.rs",
+        "src/plan.rs",
+    ],
+    crate_name = "coverlet_launcher",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "coverlet_launcher_test",
+    size = "small",
+    srcs = [
+        "src/lcov.rs",
+        "src/main.rs",
+        "src/plan.rs",
+    ],
+    crate_root = "src/main.rs",
+)
+
+rustfmt_test(
+    name = "coverlet_launcher_fmt_test",
+    size = "small",
+    targets = [
+        ":coverlet_launcher",
+        ":coverlet_launcher_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "coverlet_launcher_clippy_test",
+    size = "small",
+    targets = [
+        ":coverlet_launcher",
+        ":coverlet_launcher_test",
+    ],
+)
+
+dx_dotnet_coverage_tests(
+    name = "csharp_coverage_test",
+    library = "greeter_lib_upstream",
+    source = "csharp/tests/fixtures/xunit/Greeter.cs",
+    target = "//csharp/tests/fixtures/xunit:greeter_test",
+)
+
+dx_dotnet_coverage_tests(
+    name = "fsharp_coverage_test",
+    library = "greeter_lib_upstream",
+    source = "fsharp/tests/fixtures/xunit/Greeter.fs",
+    target = "//fsharp/tests/fixtures/xunit:greeter_test",
+)

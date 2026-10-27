@@ -157,13 +157,13 @@ def dx_upstream(ctx):
     upstream = ctx.attr.upstream
     return upstream[0] if type(upstream) == "list" else upstream
 
-def dx_symlink_default_info(ctx, what, extra_runfiles = None):
-    """Builds the executable DefaultInfo symlinking the upstream binary."""
+def dx_symlink_default_info(ctx, what, extra_runfiles = None, executable = None):
+    """Builds the executable DefaultInfo symlinking the upstream binary or a replacement executable."""
     upstream = dx_upstream(ctx)[DefaultInfo]
     exe = upstream.files_to_run.executable
     if exe == None:
         fail(what + ": upstream target has no executable: " + str(dx_upstream(ctx).label))
-    link = dx_symlink_executable(ctx, exe)
+    link = dx_symlink_executable(ctx, executable if executable != None else exe)
     runfiles = ctx.runfiles(files = [link]).merge(upstream.default_runfiles)
     for dep in getattr(ctx.attr, "data", []):
         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
@@ -308,12 +308,12 @@ def _dx_quality_files(ctx, extra_quality_attrs):
         files.extend(getattr(ctx.files, name, []))
     return files
 
-def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = None):
+def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = None, instrument_srcs = False):
     if runtime == "mandatory":
         return dx_forwarded_runtime_providers(upstream, what)
     elif runtime == "besteffort":
         out = []
-        if InstrumentedFilesInfo in upstream:
+        if InstrumentedFilesInfo in upstream and not instrument_srcs:
             out.append(upstream[InstrumentedFilesInfo])
         else:
             src_attrs = ["srcs"] + (list(extra_quality_attrs) if extra_quality_attrs else [])
@@ -330,7 +330,7 @@ def _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs = No
     else:
         fail("dx wrapper: unknown runtime '" + runtime + "': want \"mandatory\" or \"besteffort\"")
 
-def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, quality_tools = None):
+def dx_library_forward_rule(provides, required_providers, quality_specs, what, allow_files, upstream_providers, extra_attrs = None, runtime = "mandatory", extra_quality_attrs = None, quiet_providers = [], upstream_cfg = None, quality_tools = None, instrument_srcs = False):
     """Creates the public forwarding rule for one library wrapper."""
 
     def _impl(ctx):
@@ -339,7 +339,7 @@ def dx_library_forward_rule(provides, required_providers, quality_specs, what, a
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_quiet(upstream, quiet_providers) +
             [upstream[DefaultInfo]] +
-            _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs) +
+            _dx_runtime_providers(ctx, upstream, what, runtime, extra_quality_attrs, instrument_srcs) +
             [dx_quality_sources(_dx_quality_files(ctx, extra_quality_attrs), quality_specs, str(ctx.label))] +
             _dx_tools_providers(ctx, quality_tools)
         )
@@ -377,8 +377,9 @@ def dx_executable_forward_rule(kind, provides, required_providers, quality_specs
             coverage = coverage_providers(ctx, upstream)
         if coverage != None and coverage.runfiles != None:
             extra_runfiles = coverage.runfiles if extra_runfiles == None else extra_runfiles.merge(coverage.runfiles)
+        coverage_executable = getattr(coverage, "executable", None) if coverage != None else None
         return (
-            [dx_symlink_default_info(ctx, what, extra_runfiles)] +
+            [dx_symlink_default_info(ctx, what, extra_runfiles, coverage_executable)] +
             dx_preserved_providers(upstream, required_providers, what) +
             dx_forwarded_optional(upstream, optional_providers, what) +
             dx_forwarded_quiet(upstream, quiet_providers) +

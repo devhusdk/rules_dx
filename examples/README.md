@@ -4,6 +4,9 @@ Start a new consumer, adopt an existing tree, or mix frameworks. Each
 workspace below records exact commands and expected evidence in its own
 `README.md`.
 
+For the rule and aspect attributes these examples use, see the
+[Starlark rule reference](https://devhusdk.github.io/rules_dx/rules/).
+
 ## Start From CI Templates
 
 - [consumer-ci](consumer-ci/) starter caller for the reusable consumer workflow.

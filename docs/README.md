@@ -37,3 +37,4 @@ guides below.
 - [GitHub CI](github-ci.md): run `dx` in GitHub Actions.
 - [Examples](../examples/README.md): starter callers and per-language adoption workspaces.
 - [Docs site](https://devhusdk.github.io/rules_dx/): rendered reference.
+- [Starlark rule reference](https://devhusdk.github.io/rules_dx/rules/): generated rule and aspect docs.

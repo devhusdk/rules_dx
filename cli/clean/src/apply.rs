@@ -14,7 +14,7 @@ use super::CleanError;
 
 pub const CLEAN_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
-fn map_lock_error(error: LockError) -> CleanError {
+pub(crate) fn map_lock_error(error: LockError) -> CleanError {
     match error {
         LockError::Busy { path } => CleanError::Busy { path },
         LockError::LockFailed { path, reason } => CleanError::LockFailed { path, reason },

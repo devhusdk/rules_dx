@@ -430,6 +430,7 @@ fn streamed(argv: Vec<OsString>, sink: &Sink, group: StreamGroup) -> StreamSpec 
         stdout: StreamOutput::Forward(Box::new(sink.clone())),
         stderr: StreamOutput::Inherit,
         group,
+        held: Vec::new(),
     }
 }
 
@@ -1141,4 +1142,244 @@ fn streamed_null_stdin_reads_end_of_file() {
         StreamOutcome::Exited(Exit::Code(0))
     );
     assert_eq!(sink.bytes(), b"read=1\n");
+}
+
+fn held_lease(path: &std::path::Path) -> std::fs::File {
+    dx_atomic_fs::lease::acquire_shared_at(path, Duration::from_secs(10))
+        .expect("hold a shared lease")
+        .into_file()
+}
+
+fn lease_free(path: &std::path::Path) -> bool {
+    matches!(dx_atomic_fs::lease::try_lock_file(path, false), Ok(Some(_)))
+}
+
+fn wait_lease_free(path: &std::path::Path) {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !lease_free(path) {
+        assert!(
+            Instant::now() < deadline,
+            "the held lease never came free: {}",
+            path.display()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+fn wait_alive(lock: &std::path::Path) {
+    wait_armed(lock);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !dx_testing::alive_lock_held(lock) {
+        assert!(
+            Instant::now() < deadline,
+            "probe never took its alive lock: {}",
+            lock.display()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[test]
+fn streamed_held_lock_is_held_while_the_child_runs() {
+    let scratch = dx_testing::mkscratch("dx-stream-held-run").expect("scratch");
+    let lease = scratch.join("lease.lock");
+    let alive = scratch.join("child.alive");
+    let sink = Sink::default();
+    let mut spec = streamed(
+        probe_argv(&[
+            "--sleep-ms=1500",
+            &format!("--alive-lock={}", alive.display()),
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    spec.held = vec![held_lease(&lease)];
+    let run = std::thread::spawn(move || run_streamed(spec, STREAM_BUDGET, &never));
+    wait_alive(&alive);
+    assert!(
+        !lease_free(&lease),
+        "the lease must be held while the child runs"
+    );
+    assert_eq!(
+        run.join().expect("run thread").expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    wait_lease_free(&lease);
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_held_lock_outlives_parent_in_descendant() {
+    let scratch = dx_testing::mkscratch("dx-stream-held-descendant").expect("scratch");
+    let lease = scratch.join("lease.lock");
+    let alive = scratch.join("descendant.alive");
+    let sink = Sink::default();
+    let mut spec = streamed(
+        probe_argv(&[
+            "--detached-descendant",
+            "--descendant-own-group",
+            "--descendant-sleep-ms=2000",
+            &format!("--descendant-alive-lock={}", alive.display()),
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    spec.held = vec![held_lease(&lease)];
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    assert!(
+        dx_testing::alive_lock_held(&alive),
+        "the descendant outlives the run"
+    );
+    assert!(
+        !lease_free(&lease),
+        "the descendant keeps the lease after the run returns"
+    );
+    assert_released(&alive);
+    wait_lease_free(&lease);
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_sibling_spawn_does_not_inherit_held() {
+    let scratch = dx_testing::mkscratch("dx-stream-held-sibling").expect("scratch");
+    let lease = scratch.join("lease.lock");
+    let child_alive = scratch.join("child.alive");
+    let sibling_alive = scratch.join("sibling.alive");
+    let held_sink = Sink::default();
+    let mut held_spec = streamed(
+        probe_argv(&[
+            "--sleep-ms=1500",
+            &format!("--alive-lock={}", child_alive.display()),
+        ]),
+        &held_sink,
+        StreamGroup::Owned,
+    );
+    held_spec.held = vec![held_lease(&lease)];
+    let held_run = std::thread::spawn(move || run_streamed(held_spec, STREAM_BUDGET, &never));
+    wait_alive(&child_alive);
+    let sibling_sink = Sink::default();
+    let sibling = streamed(
+        probe_argv(&[
+            "--detached-descendant",
+            "--descendant-own-group",
+            "--descendant-sleep-ms=8000",
+            &format!("--descendant-alive-lock={}", sibling_alive.display()),
+        ]),
+        &sibling_sink,
+        StreamGroup::Owned,
+    );
+    assert_eq!(
+        run_streamed(sibling, STREAM_BUDGET, &never).expect("sibling runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    assert_eq!(
+        held_run.join().expect("run thread").expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    wait_lease_free(&lease);
+    assert!(
+        dx_testing::alive_lock_held(&sibling_alive),
+        "the lease came free only because the sibling's descendant died"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_without_held_is_unchanged() {
+    let scratch = dx_testing::mkscratch("dx-stream-unheld").expect("scratch");
+    let lease = scratch.join("lease.lock");
+    let alive = scratch.join("descendant.alive");
+    let parent_lock = held_lease(&lease);
+    let sink = Sink::default();
+    let spec = streamed(
+        probe_argv(&[
+            "--detached-descendant",
+            "--descendant-own-group",
+            "--descendant-sleep-ms=8000",
+            &format!("--descendant-alive-lock={}", alive.display()),
+        ]),
+        &sink,
+        StreamGroup::Owned,
+    );
+    assert_eq!(
+        run_streamed(spec, STREAM_BUDGET, &never).expect("probe runs"),
+        StreamOutcome::Exited(Exit::Code(0))
+    );
+    drop(parent_lock);
+    assert!(
+        lease_free(&lease),
+        "a descendant must not inherit a lock the caller did not hand over"
+    );
+    assert!(dx_testing::alive_lock_held(&alive));
+}
+
+const HELD_PARENT_ENV: &str = "DX_STREAM_HELD_PARENT_DIR";
+
+/// Runs as the parent process for the crash tests; a no-op otherwise.
+#[test]
+fn streamed_held_parent_main() {
+    let Some(dir) = std::env::var_os(HELD_PARENT_ENV).map(std::path::PathBuf::from) else {
+        return;
+    };
+    let alive = dir.join("alive.lock");
+    let alive_flag = if cfg!(unix) {
+        format!("--descendant-alive-lock={}", alive.display())
+    } else {
+        format!("--alive-lock={}", alive.display())
+    };
+    let flags: Vec<&str> = if cfg!(unix) {
+        vec![
+            "--sleep-ms=3000",
+            "--detached-descendant",
+            "--descendant-own-group",
+            "--descendant-sleep-ms=3000",
+            &alive_flag,
+        ]
+    } else {
+        vec!["--sleep-ms=30000", &alive_flag]
+    };
+    let sink = Sink::default();
+    let mut spec = streamed(probe_argv(&flags), &sink, StreamGroup::Owned);
+    spec.held = vec![held_lease(&dir.join("lease.lock"))];
+    let _ = run_streamed(spec, STREAM_BUDGET, &never);
+}
+
+fn crash_held_parent(prefix: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+    let scratch = dx_testing::mkscratch(prefix).expect("scratch");
+    let mut parent = std::process::Command::new(std::env::current_exe().expect("test binary"))
+        .arg("lifecycle::lifecycle_tests::streamed_held_parent_main")
+        .arg("--exact")
+        .env(HELD_PARENT_ENV, &scratch)
+        .stdin(std::process::Stdio::null())
+        .spawn()
+        .expect("spawn the held parent");
+    let alive = scratch.join("alive.lock");
+    wait_alive(&alive);
+    parent.kill().expect("crash the held parent");
+    let _ = parent.wait();
+    (scratch.join("lease.lock"), alive)
+}
+
+#[cfg(unix)]
+#[test]
+fn streamed_held_lock_survives_parent_crash() {
+    let (lease, alive) = crash_held_parent("dx-stream-held-crash");
+    assert!(
+        !lease_free(&lease),
+        "the running descendant keeps the lease after its parent dies"
+    );
+    assert!(dx_testing::alive_lock_held(&alive));
+    assert_released(&alive);
+    wait_lease_free(&lease);
+}
+
+#[cfg(windows)]
+#[test]
+fn streamed_held_tree_dies_with_parent_crash() {
+    let (lease, alive) = crash_held_parent("dx-stream-held-crash");
+    assert_released(&alive);
+    wait_lease_free(&lease);
 }

@@ -54,16 +54,16 @@ def cc_coverage_env_tests(name, target):
     _coverage_env_off_test(name = name + "_off", size = "small", tags = ["no-coverage"], target_under_test = target)
     native.test_suite(name = name, tests = [name + "_on", name + "_off"])
 
-def _objc_forward_impl(ctx):
+def _objc_library_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
-    asserts.true(env, ObjcInfo in target, "objc_library forwarder dropped ObjcInfo")
-    asserts.true(env, CcInfo in target, "objc_library forwarder dropped CcInfo")
-    asserts.equals(env, ["c", "objc", "objcpp"], sorted(target[QualitySourcesInfo].direct_sources.keys()))
+    asserts.true(env, ObjcInfo in target, "objc_library lost ObjcInfo")
+    asserts.true(env, CcInfo in target, "objc_library lost CcInfo")
+    asserts.false(env, QualitySourcesInfo in target, "objc_library must be the upstream rule, not a forwarder")
     return analysistest.end(env)
 
-_objc_forward_test = analysistest.make(_objc_forward_impl)
+_objc_library_test = analysistest.make(_objc_library_impl)
 
-def objc_forward_tests(name, target, **kwargs):
-    """Asserts an objc_library forwarder keeps ObjcInfo and CcInfo and owns srcs, non_arc_srcs and hdrs."""
-    _objc_forward_test(name = name, size = "small", target_under_test = target, **kwargs)
+def objc_library_tests(name, target, **kwargs):
+    """Asserts objc_library is the plain upstream rule: ObjcInfo and CcInfo, no forwarder provider."""
+    _objc_library_test(name = name, size = "small", target_under_test = target, **kwargs)

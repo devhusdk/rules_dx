@@ -790,7 +790,7 @@ bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_terraform=@tofu//
 
 `gofumpt` formats Go. The default policy selects it for the `go` family, so
 `dx format` checks Go files with no extra setup. It is built from source with
-the rules_go toolchain, so it runs on every platform rules_go supports.
+the rules_go toolchain. It is qualified on Linux x86_64 only for now.
 
 ```sh
 bazel run @rules_dx//:dx -- format //cmd/...
@@ -800,8 +800,12 @@ bazel run @rules_dx//:dx -- format --apply //cmd/...
 Own Go files with `go_library`, `go_binary` and `go_test` from
 `@rules_dx//go/rules:defs.bzl`. A check never writes. `--apply` rewrites only
 the files the selected targets own. An unformatted file is reported at the
-start of the file. A syntax error fails the run with the file, line and
-column. It never counts as clean.
+start of the file. A syntax error fails the run and never counts as clean.
+The error does not name the file or position yet:
+
+```text
+pipeline failed: invalid tool output for gofumpt: gofumpt output is outside the pinned grammar: exit 2 with no diff markers
+```
 
 dx passes `-lang` from the Go SDK the rules_go toolchain resolves, for example
 `-lang=go1.26` for Go 1.26.6. The check and `--apply` use the same version, so

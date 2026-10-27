@@ -41,7 +41,7 @@ Options:
           Check without changing files
 
       --apply
-          Authorize the managed mutation or effect
+          Write fixes to source files
 
       --fail-on <FAIL_ON>
           Fail on this severity

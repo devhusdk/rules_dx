@@ -278,6 +278,94 @@ flag_group! {
 }
 
 flag_group! {
+    /// Write updated BUILD declarations.
+    GenerateApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Write generated source files.
+    CodegenApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Prune unselected managed state.
+    CleanApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Write dependency updates.
+    UpdateApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Widen the declared requirement.
+    BumpApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Declare the new requirement.
+    AddApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Rewrite breaking changes.
+    MigrateApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Write the managed development environment state.
+    EnvApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Scaffold the new files.
+    ScaffoldApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Run the upgrade and record the recovery pointer.
+    UpgradeApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Restore the previous recorded pin.
+    RollbackApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
     /// Use debug build.
     DebugFlag, {
         #[arg(long, overrides_with = "debug", conflicts_with = "release")]
@@ -525,6 +613,26 @@ impl NoPassthroughTail {
     }
 }
 
+/// Stray scopes and the `--` payload a no-scope command refuses.
+///
+/// Both stay hidden from help but still parse, so the dispatch layer reports its usual errors.
+#[derive(Args)]
+pub(crate) struct NoScopeTail {
+    /// Stray scopes, collected only so they can be rejected.
+    #[arg(hide = true)]
+    pub(crate) targets: Vec<OsString>,
+    /// Args after --.
+    #[arg(hide = true, last = true)]
+    pub(crate) passthrough: Vec<String>,
+}
+
+impl NoScopeTail {
+    /// The stray scopes and the `--` payload.
+    pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
+        (self.targets, self.passthrough)
+    }
+}
+
 macro_rules! command_args {
     ($(
         $(#[$group_attr:meta])*
@@ -624,7 +732,7 @@ command_args! {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -635,7 +743,7 @@ command_args! {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -646,7 +754,7 @@ command_args! {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: FixApplyFlag,
         fail_on: FailOnFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -655,7 +763,7 @@ command_args! {
     Generate => 5, BazelTail, {
         output: DiffOutputFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: GenerateApplyFlag,
         here: HereFlag,
     };
     /// The flags `dx build` accepts.
@@ -708,37 +816,37 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoPassthroughTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoScopeTail, { output: ReadOutputFlag, check: CheckFlag, apply: CleanApplyFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: ReadOutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         check: CheckFlag,
-        apply: ApplyFlag,
+        apply: UpdateApplyFlag,
     };
     /// The flags `dx bump` accepts.
-    Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
+    Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
     /// The flags `dx add` accepts.
-    Add => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
+    Add => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: AddApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
     /// The flags `dx migrate` accepts.
-    Migrate => 17, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
+    Migrate => 17, NoPassthroughTail, { output: ReadOutputFlag, apply: MigrateApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.
-    Codegen => 18, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
+    Codegen => 18, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: CodegenApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 19, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: ApplyFlag, };
+    Env => 19, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 20, NoPassthroughTail, { apply: ApplyFlag, };
+    Init => 20, NoPassthroughTail, { apply: ScaffoldApplyFlag, };
     /// The flags `dx new` accepts.
-    New => 21, NoPassthroughTail, { apply: ApplyFlag, };
+    New => 21, NoPassthroughTail, { apply: ScaffoldApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 22, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, own: MigrationArgs, };
+    Upgrade => 22, NoScopeTail, { output: ReadOutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
     /// The flags `dx status` accepts.
-    Status => 23, NoPassthroughTail, {
+    Status => 23, NoScopeTail, {
         output: ReadOutputFlag,
     };
     /// The flags `dx version` accepts.
-    Version => 24, NoPassthroughTail, {
+    Version => 24, NoScopeTail, {
         output: ReadOutputFlag,
         check: CheckFlag,
     };
@@ -772,7 +880,7 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 29, NoPassthroughTail, { output: ReadOutputFlag, apply: ApplyFlag, };
+    Rollback => 29, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
     Worktree => 30, NoPassthroughTail, {
         output: WorktreeOutputFlag,

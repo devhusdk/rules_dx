@@ -3,6 +3,7 @@ use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::lock_inputs::{self, ChangedCrates, Hub, LockKind};
+use super::module_inputs;
 use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -530,6 +531,147 @@ fn lock_change(
         .collect())
 }
 
+const ROOT_MODULE: &str = "MODULE.bazel";
+const ROOT_LOCK: &str = "MODULE.bazel.lock";
+
+/// The modules a root MODULE.bazel bump changes, and the repositories they own.
+struct ModuleBump {
+    path: String,
+    modules: BTreeSet<String>,
+    loads: Vec<String>,
+}
+
+fn module_text(
+    path: &str,
+    changed: bool,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: (&Path, &str),
+) -> Result<(String, String), String> {
+    let workspace_input = || format!("workspace input {path}");
+    let head = std::fs::read_to_string(workspace.join(path)).map_err(|_| workspace_input())?;
+    if !changed {
+        return Ok((head.clone(), head));
+    }
+    let (git, base) = base;
+    let before = show_at_base(git, workspace, runner, base, path)
+        .map_err(|detail| format!("cannot read {path}: {detail}"))?
+        .ok_or_else(workspace_input)?;
+    Ok((before, head))
+}
+
+fn module_change(
+    paths: &[String],
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: Option<(&Path, &str)>,
+    startup_options: &[String],
+) -> Result<ModuleBump, String> {
+    let first = paths.first().map_or(ROOT_MODULE, String::as_str);
+    let Some(base) = base else {
+        return Err(format!("workspace input {first}"));
+    };
+    let changed = |path: &str| paths.iter().any(|changed| changed == path);
+    let (base_module, head_module) =
+        module_text(ROOT_MODULE, changed(ROOT_MODULE), workspace, runner, base)?;
+    let bumped = module_inputs::bumped_deps(&base_module, &head_module)?;
+    let (base_lock, head_lock) =
+        module_text(ROOT_LOCK, changed(ROOT_LOCK), workspace, runner, base)?;
+    let lock = module_inputs::lock_changes(&base_lock, &head_lock)?;
+    let read_include = |label: &str| {
+        dx_module_bazel::label_path(label)
+            .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))
+            .map_err(|_| format!("workspace input {label}"))
+    };
+    let files = dx_module_bazel::load_with_includes(&head_module, &read_include)
+        .map_err(|_| format!("workspace input {ROOT_MODULE}"))?;
+    if let Some(reason) = module_inputs::overrides_that_widen(&files) {
+        return Err(reason);
+    }
+    let caches = dx_process::repository_caches(
+        &|name| std::env::var(name).ok(),
+        workspace,
+        &|path| std::fs::read_to_string(path).ok(),
+        startup_options,
+    );
+    let read = |hash: &str| module_inputs::cached(&caches, hash);
+    let mut changed_modules = bumped;
+    changed_modules.extend(lock.modules);
+    let graph = module_inputs::module_graph(&module_inputs::registry_files(&head_lock)?, &read)?;
+    let old: Vec<_> = module_inputs::registry_files(&base_lock)?
+        .into_iter()
+        .filter(|file| changed_modules.contains(&file.name))
+        .collect();
+    let old_graph = module_inputs::module_graph(&old, &read)?;
+    let modules = module_inputs::closure(&changed_modules, &graph.deps);
+    if let Some(module) = modules
+        .iter()
+        .find(|module| graph.registers.contains(*module) || old_graph.registers.contains(*module))
+    {
+        return Err(format!("changed module {module} registers toolchains"));
+    }
+    let owners = module_inputs::repo_owners(&files);
+    let owned_by_affected = |repo: &str| {
+        owners
+            .get(repo)
+            .is_some_and(|owner| modules.contains(owner))
+    };
+    for file in &files {
+        for call in file.calls().iter().filter(|call| {
+            matches!(
+                call.name.as_str(),
+                "register_toolchains" | "register_execution_platforms"
+            )
+        }) {
+            for value in &call.positional {
+                let dx_module_bazel::Value::Str(label) = value else {
+                    continue;
+                };
+                let repo = label
+                    .value
+                    .strip_prefix('@')
+                    .map(|rest| rest.trim_start_matches('@'))
+                    .and_then(|rest| rest.split_once("//"))
+                    .map(|(repo, _)| repo);
+                if repo.is_some_and(|repo| {
+                    owned_by_affected(repo)
+                        || modules
+                            .iter()
+                            .any(|module| repo.starts_with(&format!("{module}+")))
+                }) {
+                    return Err(format!("{ROOT_MODULE} registers {}", label.value));
+                }
+            }
+        }
+    }
+    if let Some((key, _)) = lock
+        .owned
+        .iter()
+        .find(|(_, module)| !modules.contains(module))
+    {
+        return Err(format!("{ROOT_LOCK} changed {key}"));
+    }
+    let mut loads: BTreeSet<String> = owners
+        .iter()
+        .filter(|(_, owner)| modules.contains(*owner))
+        .map(|(repo, _)| repo.clone())
+        .collect();
+    for module in &modules {
+        loads.insert(format!("{module}+"));
+        loads.insert(format!("{module}~"));
+    }
+    let path = if changed(ROOT_MODULE) {
+        ROOT_MODULE
+    } else {
+        ROOT_LOCK
+    };
+    Ok(ModuleBump {
+        path: path.to_owned(),
+        modules,
+        loads: loads.into_iter().collect(),
+    })
+}
+
 const SHOWN_REPOS: usize = 5;
 
 fn rdeps_scope(repos: &[String]) -> String {
@@ -618,7 +760,16 @@ fn widen_bzl_changes(
     aspect_labels: &[String],
     widened: &mut Vec<WidenedScope>,
 ) {
-    let impact = match dx_adopt::bzl_impact(workspace, paths, aspect_labels) {
+    let impact = dx_adopt::bzl_impact(workspace, paths, aspect_labels);
+    widen_impact(impact, "", widened);
+}
+
+fn widen_impact(
+    impact: Result<BTreeMap<String, dx_adopt::BzlImpact>, String>,
+    prefix: &str,
+    widened: &mut Vec<WidenedScope>,
+) {
+    let impact = match impact {
         Ok(impact) => impact,
         Err(detail) => {
             push_widened(
@@ -629,7 +780,7 @@ fn widen_bzl_changes(
             return;
         }
     };
-    let mut loaders: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    let mut loaders: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (path, effect) in &impact {
         match effect {
             dx_adopt::BzlImpact::Global(reason) => {
@@ -637,7 +788,10 @@ fn widen_bzl_changes(
             }
             dx_adopt::BzlImpact::Packages(packages) => {
                 for package in packages {
-                    loaders.entry(package.clone()).or_default().push(path);
+                    loaders
+                        .entry(package.clone())
+                        .or_default()
+                        .push(format!("{prefix}{path}"));
                 }
             }
         }
@@ -660,6 +814,7 @@ pub fn resolve_affected(
     let mut candidates: Vec<(String, String, Fallback)> = Vec::new();
     let mut bzl_paths: Vec<String> = Vec::new();
     let mut lock_paths: Vec<String> = Vec::new();
+    let mut module_paths: Vec<String> = Vec::new();
     let mut cache = PackageCache::default();
     let (hubs, inputs) = module_inputs_of(workspace);
     let rc_files = workspace_rc_files(workspace);
@@ -672,6 +827,10 @@ pub fn resolve_affected(
             valid_change_path(&path)?;
             if is_lock_input(&path, &hubs) {
                 lock_paths.push(path);
+                continue;
+            }
+            if path == ROOT_MODULE || path == ROOT_LOCK {
+                module_paths.push(path);
                 continue;
             }
             if is_workspace_input(&path, &rc_files) || inputs.contains(&path) {
@@ -769,11 +928,51 @@ pub fn resolve_affected(
             }
         }
     }
+    module_paths.sort();
+    module_paths.dedup();
+    let mut bump = None;
+    if !module_paths.is_empty() {
+        match module_change(&module_paths, workspace, runner, base, startup_options) {
+            Err(reason) => push_widened(&mut widened, "//...".to_owned(), reason),
+            Ok(found) => {
+                let impact = dx_adopt::repo_impact(workspace, &found.loads, aspect_labels);
+                widen_impact(impact, "@", &mut widened);
+                bump = Some(found).filter(|found| !found.modules.is_empty());
+            }
+        }
+    }
     candidates.sort();
     candidates.dedup();
     let mut graph = None;
-    if !candidates.is_empty() || !narrowed.is_empty() {
+    if !candidates.is_empty() || !narrowed.is_empty() || bump.is_some() {
         let loaded = RuleGraph::load(workspace, runner, startup_options)?;
+        if let Some(bump) = &bump {
+            let seeds = module_inputs::module_seeds(loaded.external_inputs(), &bump.modules);
+            if let Some(toolchain) = loaded
+                .reached_of_kind(&seeds, |kind| kind == "toolchain")
+                .first()
+            {
+                push_widened(
+                    &mut widened,
+                    "//...".to_owned(),
+                    format!(
+                        "changed modules in {} reach toolchain {toolchain}",
+                        bump.path
+                    ),
+                );
+            }
+            targets.extend(seeds);
+            let repos: Vec<String> = bump
+                .modules
+                .iter()
+                .map(|module| format!("@{module}"))
+                .collect();
+            widened.push(WidenedScope {
+                scope: rdeps_scope(&repos),
+                reason: format!("changed modules in {}", bump.path),
+                repos,
+            });
+        }
         for (path, changed) in &narrowed {
             let mut repos: BTreeSet<String> = BTreeSet::new();
             let mut seeds: Vec<String> = Vec::new();
@@ -1516,6 +1715,330 @@ mod tests {
         let calls = query.calls();
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].0, strings(&["git", "show", "base:./Cargo.lock"]));
+    }
+
+    struct Bump {
+        leaf: &'static str,
+        leaf_extra: &'static str,
+        user_extra: &'static str,
+        root_extra: &'static str,
+        lock_extra: serde_json::Value,
+    }
+
+    const BUMP: Bump = Bump {
+        leaf: "leaf",
+        leaf_extra: "",
+        user_extra: "",
+        root_extra: "",
+        lock_extra: serde_json::Value::Null,
+    };
+
+    struct BumpWorkspace {
+        scratch: tempfile::TempDir,
+        base_module: String,
+        base_lock: String,
+    }
+
+    fn cache_put(workspace: &Path, text: &str) -> String {
+        let hash = dx_digest::sha256_hex(text.as_bytes());
+        let dir = workspace
+            .join("cache/content_addressable/sha256")
+            .join(&hash);
+        std::fs::create_dir_all(&dir).expect("cache dir");
+        std::fs::write(dir.join("file"), text).expect("cache file");
+        hash
+    }
+
+    fn bump_workspace(prefix: &str, bump: Bump) -> BumpWorkspace {
+        let scratch = dx_test_scratch::scratch(prefix);
+        let workspace = scratch.path();
+        let leaf = bump.leaf;
+        let module = |version: &str| {
+            format!(
+                "module(name = \"root\")\nbazel_dep(name = \"user\", version = \"1.0\")\nbazel_dep(name = \"{leaf}\", version = \"{version}\")\nbazel_dep(name = \"other\", version = \"1.0\")\n{}",
+                bump.root_extra
+            )
+        };
+        write(workspace, "MODULE.bazel", &module("1.1"));
+        write(
+            workspace,
+            ".bazelrc",
+            &format!("common --repository_cache={}/cache\n", workspace.display()),
+        );
+        write(
+            workspace,
+            "d/BUILD.bazel",
+            &format!("load(\"@{leaf}//:defs.bzl\", \"x\")\n"),
+        );
+        write(workspace, "e/BUILD.bazel", "");
+        let leaf_old = cache_put(
+            workspace,
+            &format!("module(name = \"{leaf}\", version = \"1.0\")\n"),
+        );
+        let leaf_new = cache_put(
+            workspace,
+            &format!(
+                "module(name = \"{leaf}\", version = \"1.1\")\n{}",
+                bump.leaf_extra
+            ),
+        );
+        let user = cache_put(
+            workspace,
+            &format!(
+                "module(name = \"user\")\nbazel_dep(name = \"{leaf}\", version = \"1.0\")\n{}",
+                bump.user_extra
+            ),
+        );
+        let other = cache_put(workspace, "module(name = \"other\")\n");
+        let url = |name: &str, version: &str, file: &str| {
+            format!("https://bcr.bazel.build/modules/{name}/{version}/{file}")
+        };
+        let mut hashes = serde_json::Map::new();
+        for (key, value) in [
+            (url(leaf, "1.0", "MODULE.bazel"), leaf_old),
+            (url("user", "1.0", "MODULE.bazel"), user),
+            (url("user", "1.0", "source.json"), "u".to_owned()),
+            (url("other", "1.0", "MODULE.bazel"), other),
+            (url("other", "1.0", "source.json"), "o".to_owned()),
+        ] {
+            hashes.insert(key, value.into());
+        }
+        let mut base_hashes = hashes.clone();
+        base_hashes.insert(url(leaf, "1.0", "source.json"), "s10".into());
+        hashes.insert(url(leaf, "1.1", "MODULE.bazel"), leaf_new.into());
+        hashes.insert(url(leaf, "1.1", "source.json"), "s11".into());
+        let lock = |hashes: serde_json::Map<String, serde_json::Value>,
+                    extra: &serde_json::Value| {
+            let mut root = serde_json::json!({"lockFileVersion": 24, "registryFileHashes": hashes});
+            if let (Some(root), serde_json::Value::Object(extra)) = (root.as_object_mut(), extra) {
+                root.extend(extra.clone());
+            }
+            root.to_string()
+        };
+        write(
+            workspace,
+            "MODULE.bazel.lock",
+            &lock(hashes, &bump.lock_extra),
+        );
+        BumpWorkspace {
+            scratch,
+            base_module: module("1.0"),
+            base_lock: lock(base_hashes, &serde_json::Value::Null),
+        }
+    }
+
+    fn bump_graph() -> QueryResult {
+        graph_with_kinds(&[
+            ("//d:lib", "cc_library", &["@@leaf+//:lib"]),
+            ("//u:lib", "cc_library", &["@@user+//:lib"]),
+            ("//e:lib", "cc_library", &["@@other+//:lib"]),
+        ])
+    }
+
+    fn resolve_bump(fixture: &BumpWorkspace, query: &FakeQuery) -> AffectedSelection {
+        resolve_affected(
+            &[
+                change("MODULE.bazel", dx_adopt::ChangeKind::Modified),
+                change("MODULE.bazel.lock", dx_adopt::ChangeKind::Modified),
+            ],
+            fixture.scratch.path(),
+            query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("bump resolves")
+    }
+
+    fn widened_reason(fixture: &BumpWorkspace, query: &FakeQuery) -> String {
+        let selection = resolve_bump(fixture, query);
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened.len(), 1, "{:?}", selection.widened);
+        selection.widened[0].reason.clone()
+    }
+
+    fn base_reads(fixture: &BumpWorkspace) -> FakeQuery {
+        FakeQuery::new(vec![
+            FakeQuery::ok(&fixture.base_module),
+            FakeQuery::ok(&fixture.base_lock),
+        ])
+    }
+
+    #[test]
+    fn version_only_bazel_dep_bump_selects_its_users() {
+        let fixture = bump_workspace("dx-changed-bump-", BUMP);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&fixture.base_module),
+            FakeQuery::ok(&fixture.base_lock),
+            bump_graph(),
+        ]);
+        let selection = resolve_bump(&fixture, &query);
+        assert_eq!(
+            selection.targets,
+            strings(&["//d:all", "@@leaf+//:lib", "@@user+//:lib"])
+        );
+        assert_eq!(
+            selection.widened,
+            [
+                WidenedScope {
+                    scope: "//d:all".to_owned(),
+                    reason: "loads @leaf".to_owned(),
+                    repos: Vec::new(),
+                },
+                WidenedScope {
+                    scope: "rdeps(//..., @leaf, @user)".to_owned(),
+                    reason: "changed modules in MODULE.bazel".to_owned(),
+                    repos: strings(&["@leaf", "@user"]),
+                },
+            ]
+        );
+        let graph = selection.graph.as_ref().expect("graph");
+        let seeds = strings(&["@@leaf+//:lib", "@@user+//:lib"]);
+        assert_eq!(graph.affected(&seeds), ["//d:lib", "//u:lib"]);
+        let calls = query.calls();
+        assert_eq!(calls.len(), 3);
+        assert_eq!(calls[0].0, strings(&["git", "show", "base:./MODULE.bazel"]));
+        assert_eq!(
+            calls[1].0,
+            strings(&["git", "show", "base:./MODULE.bazel.lock"])
+        );
+    }
+
+    #[test]
+    fn bump_of_toolchain_registering_module_widens() {
+        for (bump, module) in [
+            (
+                Bump {
+                    leaf_extra: "register_toolchains(\"//:t\")\n",
+                    ..BUMP
+                },
+                "leaf",
+            ),
+            (
+                Bump {
+                    user_extra: "register_execution_platforms(\"//:p\")\n",
+                    ..BUMP
+                },
+                "user",
+            ),
+        ] {
+            let fixture = bump_workspace("dx-changed-bump-tc-", bump);
+            let query = base_reads(&fixture);
+            assert_eq!(
+                widened_reason(&fixture, &query),
+                format!("changed module {module} registers toolchains")
+            );
+            assert_eq!(query.calls().len(), 2);
+        }
+    }
+
+    #[test]
+    fn bump_of_bazel_tools_dep_widens() {
+        let fixture = bump_workspace(
+            "dx-changed-bump-cc-",
+            Bump {
+                leaf: "rules_cc",
+                ..BUMP
+            },
+        );
+        let query = base_reads(&fixture);
+        assert_eq!(
+            widened_reason(&fixture, &query),
+            "changed module bazel_tools registers toolchains"
+        );
+    }
+
+    #[test]
+    fn non_version_module_edit_widens() {
+        let fixture = bump_workspace("dx-changed-bump-edit-", BUMP);
+        let edited = fixture.base_module.replace("\"root\"", "\"renamed\"");
+        let query = FakeQuery::new(vec![FakeQuery::ok(&edited)]);
+        assert_eq!(
+            widened_reason(&fixture, &query),
+            "workspace input MODULE.bazel"
+        );
+        assert_eq!(query.calls().len(), 1);
+    }
+
+    #[test]
+    fn missing_cached_module_file_widens() {
+        let fixture = bump_workspace("dx-changed-bump-miss-", BUMP);
+        std::fs::remove_dir_all(fixture.scratch.path().join("cache")).expect("drop cache");
+        let query = base_reads(&fixture);
+        assert!(widened_reason(&fixture, &query).starts_with("no cached MODULE.bazel for "));
+    }
+
+    #[test]
+    fn cache_file_with_wrong_hash_is_ignored() {
+        let fixture = bump_workspace("dx-changed-bump-hash-", BUMP);
+        let user = "module(name = \"user\")\nbazel_dep(name = \"leaf\", version = \"1.0\")\n";
+        let hash = dx_digest::sha256_hex(user.as_bytes());
+        let file = fixture
+            .scratch
+            .path()
+            .join("cache/content_addressable/sha256")
+            .join(hash)
+            .join("file");
+        std::fs::write(file, "module(name = \"user\")\n").expect("tamper");
+        let query = base_reads(&fixture);
+        assert_eq!(
+            widened_reason(&fixture, &query),
+            "no cached MODULE.bazel for user@1.0"
+        );
+    }
+
+    #[test]
+    fn unowned_lock_extension_change_widens() {
+        let extra = serde_json::json!({"moduleExtensions": {"@@other+//:e.bzl%e": {"x": 1}}});
+        let fixture = bump_workspace(
+            "dx-changed-bump-ext-",
+            Bump {
+                lock_extra: extra,
+                ..BUMP
+            },
+        );
+        let query = base_reads(&fixture);
+        assert_eq!(
+            widened_reason(&fixture, &query),
+            "MODULE.bazel.lock changed @@other+//:e.bzl%e"
+        );
+    }
+
+    #[test]
+    fn local_path_override_widens() {
+        let fixture = bump_workspace(
+            "dx-changed-bump-local-",
+            Bump {
+                root_extra: "local_path_override(module_name = \"other\", path = \"o\")\n",
+                ..BUMP
+            },
+        );
+        let query = base_reads(&fixture);
+        assert_eq!(
+            widened_reason(&fixture, &query),
+            "MODULE.bazel has local_path_override for other"
+        );
+    }
+
+    #[test]
+    fn nested_module_bazel_still_widens() {
+        let scratch = dx_test_scratch::scratch("dx-changed-nested-module-");
+        let workspace = scratch.path();
+        write(workspace, "sub/MODULE.bazel", "module(name = \"sub\")\n");
+        let selection = resolve_affected(
+            &[change("sub/MODULE.bazel", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &NeverQuery,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("nested module widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "workspace input sub/MODULE.bazel"
+        );
     }
 
     #[test]

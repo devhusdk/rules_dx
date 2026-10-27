@@ -493,6 +493,24 @@ fn the_gate_job_can_never_be_skipped() {
 }
 
 #[test]
+fn the_gate_fails_when_dx_check_fails() {
+    let document = document(GATE_WORKFLOW);
+    let steps = document["jobs"]["gate"]["steps"].as_array().expect("gate steps");
+    let piped: Vec<_> = steps
+        .iter()
+        .filter(|step| {
+            step["run"]
+                .as_str()
+                .is_some_and(|run| run.contains("check --affected") && run.contains('|'))
+        })
+        .collect();
+    assert!(!piped.is_empty(), "no piped dx check step in gate: {steps:?}");
+    for step in piped {
+        assert_eq!(step["shell"], json!("bash"), "piped step needs pipefail: {step}");
+    }
+}
+
+#[test]
 fn the_gate_runs_on_every_landing_event_in_its_own_group() {
     let on = triggers(GATE_WORKFLOW);
     assert_eq!(on["push"]["branches"], json!(["main"]));

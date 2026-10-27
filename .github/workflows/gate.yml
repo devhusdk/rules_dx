@@ -24,7 +24,6 @@ concurrency:
 
 jobs:
   gate:
-    # Required by .github/rulesets/main.json. No `if` and no `needs`: a skipped job counts as passing.
     name: gate
     timeout-minutes: 60
     runs-on: ubuntu-latest
@@ -107,6 +106,7 @@ jobs:
           print(f"gate: base {base} head {head}")
           DX_GATE_BASE
       - name: Check the affected targets
+        shell: bash
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS

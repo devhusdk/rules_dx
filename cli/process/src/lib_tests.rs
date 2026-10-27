@@ -1259,6 +1259,7 @@ fn bazel_head_puts_startup_before_the_verb_and_options_after_verb_options() {
     let head = BazelHead {
         startup: vec!["--output_base=/ob".to_owned()],
         options: vec!["--config=dx_dev".to_owned()],
+        settings: Vec::new(),
     };
     let argv = head.argv("run");
     let mut expected = startup_argv(&head.startup);
@@ -1274,6 +1275,34 @@ fn bazel_head_puts_startup_before_the_verb_and_options_after_verb_options() {
     assert!(argv.contains(&"--output_base=/ob".to_owned()));
     assert!(argv.iter().position(|arg| arg == "--output_base=/ob") < Some(verb));
     assert!(config > verb);
+}
+
+#[test]
+fn bazel_head_settings_follow_options_for_build_like_verbs_only() {
+    let head = BazelHead {
+        startup: Vec::new(),
+        options: vec!["--config=dx_dev".to_owned()],
+        settings: vec!["--@rules_dx//config:x=true".to_owned()],
+    };
+    for verb in SHARED_SETTINGS_VERBS {
+        let argv = head.argv(verb);
+        assert_eq!(
+            argv.last().map(String::as_str),
+            Some("--@rules_dx//config:x=true"),
+            "{verb}"
+        );
+    }
+    for verb in ["fetch", "query", "info"] {
+        assert!(
+            !head.argv(verb).iter().any(|arg| arg.contains("config:x")),
+            "{verb}"
+        );
+    }
+    let bare = BazelHead {
+        settings: Vec::new(),
+        ..head.clone()
+    };
+    assert_eq!(bare.argv("build").len() + 1, head.argv("build").len());
 }
 
 #[test]

@@ -90,13 +90,19 @@ pub fn rules_dx_label(rest: &str) -> String {
 
 /// Returns the shared settings for a Bazel command, spelled with `repo`.
 pub fn settings_for(repo: &str, bazel_command: &str) -> Vec<String> {
-    match bazel_command {
-        "build" | "test" | "coverage" | "run" | "cquery" | "aquery" => BAZEL_SETTINGS
-            .iter()
-            .map(|setting| setting.replacen("@rules_dx//", &format!("@{repo}//"), 1))
-            .collect(),
-        _ => Vec::new(),
+    if dx_process::takes_shared_settings(bazel_command) {
+        head_settings(repo)
+    } else {
+        Vec::new()
     }
+}
+
+/// The shared settings spelled with `repo`, for a `BazelHead`.
+pub fn head_settings(repo: &str) -> Vec<String> {
+    BAZEL_SETTINGS
+        .iter()
+        .map(|setting| setting.replacen("@rules_dx//", &format!("@{repo}//"), 1))
+        .collect()
 }
 
 /// Returns the settings every build-like Bazel command shares.
@@ -260,7 +266,7 @@ mod tests {
 
     #[test]
     fn default_settings_match_the_rules_dx_spelling() {
-        for verb in ["build", "test", "coverage", "run", "cquery", "aquery"] {
+        for verb in dx_process::SHARED_SETTINGS_VERBS {
             assert_eq!(settings_for("rules_dx", verb), BAZEL_SETTINGS, "{verb}");
         }
         assert!(settings_for("my_dx", "query").is_empty());

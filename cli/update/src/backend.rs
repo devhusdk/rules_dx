@@ -597,6 +597,7 @@ mod tests {
         dx_process::BazelHead::default()
     }
 
+    #[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
     fn bazel_head() -> Vec<String> {
         dx_process::startup_argv(&[])
     }
@@ -1482,6 +1483,7 @@ mod tests {
         let head = dx_process::BazelHead {
             startup: startup.clone(),
             options: vec![],
+            settings: vec![],
         };
         let expected_head = [
             vec!["bazel".to_owned()],
@@ -1881,6 +1883,7 @@ mod tests {
         let head = dx_process::BazelHead {
             startup: vec!["--output_base=/ob".to_owned()],
             options: vec![],
+            settings: vec![],
         };
         let planned = plan_configured(
             ws(),
@@ -2074,6 +2077,7 @@ mod tests {
         let head = dx_process::BazelHead {
             startup: vec!["--output_base=/ob".to_owned()],
             options: vec!["--config=dx_dev".to_owned()],
+            settings: vec![],
         };
         let config = "--config=dx_dev".to_owned();
         let packages = SetRequest::Packages(vec!["jest".to_owned()]);
@@ -2162,6 +2166,7 @@ mod tests {
         let head = dx_process::BazelHead {
             startup: vec!["--output_base=/ob".to_owned()],
             options: vec!["--config=dx_dev".to_owned()],
+            settings: vec![],
         };
         for set in [
             cargo_set("crates", "apps/rs", "crates"),

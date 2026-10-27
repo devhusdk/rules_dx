@@ -114,6 +114,7 @@ fn run_and_deploy_share_the_startup_prefix() {
 }
 
 #[test]
+#[allow(clippy::disallowed_methods)] // test asserts the launcher head
 fn query_and_shutdown_share_the_startup_prefix() {
     local();
     assert_eq!(dx_process::startup_argv(&startup()), ["bazel", OUTPUT_BASE]);

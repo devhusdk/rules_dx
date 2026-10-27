@@ -870,6 +870,7 @@ scopes = ["consumer-npm/web"]
         ]
     }
 
+    #[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
     fn npm_call(
         harness: &Harness,
         startup: &[String],
@@ -884,6 +885,7 @@ scopes = ["consumer-npm/web"]
             &["--config=dx_dev".to_owned()],
         ));
         argv.push("--config=dx_dev".to_owned());
+        argv.extend(dx_plan::plan::shared_settings("run"));
         if offline {
             argv.push("--repository_disable_download".to_owned());
         }
@@ -1361,6 +1363,7 @@ repository = "tool_crates"
         harness
     }
 
+    #[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
     fn cargo_call(startup: &[String], offline: bool, repository: &str) -> Vec<String> {
         let mut argv = dx_process::startup_argv(startup);
         argv.push("fetch".to_owned());

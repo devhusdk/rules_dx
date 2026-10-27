@@ -17,54 +17,9 @@ pub fn expand_codegen_roots(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::{QueryFailure, QueryResult};
+    use crate::resolve::{FakeQuery, QueryFailure};
     use dx_testing::cli::{graph_rule_of_kind, graph_stdout};
-    use std::cell::RefCell;
-    use std::io;
     use std::path::PathBuf;
-
-    struct FakeQuery {
-        calls: RefCell<Vec<(Vec<String>, PathBuf)>>,
-        outputs: RefCell<Vec<QueryResult>>,
-    }
-
-    impl FakeQuery {
-        fn new(outputs: Vec<QueryResult>) -> Self {
-            FakeQuery {
-                calls: RefCell::new(Vec::new()),
-                outputs: RefCell::new(outputs),
-            }
-        }
-
-        fn ok(lines: &str) -> QueryResult {
-            QueryResult {
-                code: Some(0),
-                stdout: lines.as_bytes().to_vec(),
-                stderr: Vec::new(),
-            }
-        }
-
-        fn failed(stderr: &str) -> QueryResult {
-            QueryResult {
-                code: Some(2),
-                stdout: Vec::new(),
-                stderr: stderr.as_bytes().to_vec(),
-            }
-        }
-
-        fn calls(&self) -> Vec<(Vec<String>, PathBuf)> {
-            self.calls.borrow().clone()
-        }
-    }
-
-    impl QueryRunner for FakeQuery {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
-            self.calls
-                .borrow_mut()
-                .push((argv.to_vec(), cwd.to_path_buf()));
-            Ok(self.outputs.borrow_mut().remove(0))
-        }
-    }
 
     fn assert_no_rdeps(calls: &[(Vec<String>, PathBuf)]) {
         for (argv, _) in calls {

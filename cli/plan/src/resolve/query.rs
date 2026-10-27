@@ -68,33 +68,10 @@ pub fn run_label_query_file(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::{first_line, resolve, QueryFailure, QueryResult};
+    use crate::resolve::{first_line, resolve, FakeQuery, QueryFailure, QueryResult};
+    use dx_test_scratch::write;
     use dx_testing::cli::strings;
     use std::cell::RefCell;
-
-    struct FakeQuery {
-        outputs: RefCell<Vec<QueryResult>>,
-    }
-
-    impl FakeQuery {
-        fn new(outputs: Vec<QueryResult>) -> Self {
-            FakeQuery {
-                outputs: RefCell::new(outputs),
-            }
-        }
-    }
-
-    impl QueryRunner for FakeQuery {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
-            let _ = (argv, cwd);
-            Ok(self.outputs.borrow_mut().remove(0))
-        }
-    }
-    fn write(workspace: &Path, rel: &str, text: &str) {
-        let full = workspace.join(rel);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
-        std::fs::write(full, text).expect("write file");
-    }
 
     #[test]
     fn randomized_query_order_yields_identical_argv() {

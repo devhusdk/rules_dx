@@ -503,6 +503,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
 mod tests {
     use super::*;
     use dx_plan::resolve::QueryResult;
+    use dx_test_scratch::write;
     use std::cell::RefCell;
     use std::process::Command as Process;
 
@@ -618,12 +619,6 @@ mod tests {
             .status()
             .expect("git runs");
         assert!(status.success(), "git {args:?}");
-    }
-
-    fn write(root: &Path, rel: &str, text: &str) {
-        let full = root.join(rel);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("mkdir");
-        std::fs::write(full, text).expect("write");
     }
 
     fn repo() -> tempfile::TempDir {

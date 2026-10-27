@@ -288,60 +288,10 @@ pub fn check_deployable(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::resolve::FakeQuery;
     use crate::resolve::NeverQuery;
-    use crate::resolve::QueryResult;
+    use dx_test_scratch::write;
     use dx_testing::cli::{graph_rule, graph_stdout, strings};
-    use std::cell::RefCell;
-    use std::io;
-    use std::path::PathBuf;
-
-    struct FakeQuery {
-        calls: RefCell<Vec<(Vec<String>, PathBuf)>>,
-        outputs: RefCell<Vec<QueryResult>>,
-    }
-
-    impl FakeQuery {
-        fn new(outputs: Vec<QueryResult>) -> Self {
-            FakeQuery {
-                calls: RefCell::new(Vec::new()),
-                outputs: RefCell::new(outputs),
-            }
-        }
-
-        fn ok(lines: &str) -> QueryResult {
-            QueryResult {
-                code: Some(0),
-                stdout: lines.as_bytes().to_vec(),
-                stderr: Vec::new(),
-            }
-        }
-
-        fn failed(stderr: &str) -> QueryResult {
-            QueryResult {
-                code: Some(2),
-                stdout: Vec::new(),
-                stderr: stderr.as_bytes().to_vec(),
-            }
-        }
-
-        fn calls(&self) -> Vec<(Vec<String>, PathBuf)> {
-            self.calls.borrow().clone()
-        }
-    }
-
-    impl QueryRunner for FakeQuery {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
-            self.calls
-                .borrow_mut()
-                .push((argv.to_vec(), cwd.to_path_buf()));
-            Ok(self.outputs.borrow_mut().remove(0))
-        }
-    }
-    fn write(workspace: &Path, rel: &str, text: &str) {
-        let full = workspace.join(rel);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
-        std::fs::write(full, text).expect("write file");
-    }
 
     #[test]
     fn run_labels_pass_through_without_query() {

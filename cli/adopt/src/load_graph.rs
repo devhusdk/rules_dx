@@ -665,12 +665,7 @@ pub fn bzl_impact(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn write(root: &Path, rel: &str, text: &str) {
-        let full = root.join(rel);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("mkdir");
-        std::fs::write(full, text).expect("write");
-    }
+    use dx_test_scratch::write;
 
     fn impact(root: &Path, changed: &[&str], aspects: &[&str]) -> Vec<(String, BzlImpact)> {
         let changed: Vec<String> = changed.iter().map(ToString::to_string).collect();

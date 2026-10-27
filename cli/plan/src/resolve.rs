@@ -2,6 +2,8 @@ pub mod changed;
 pub mod classify;
 pub mod codegen_expand;
 pub mod entry;
+#[cfg(test)]
+pub(crate) mod fake_query;
 pub(crate) mod lock_inputs;
 pub mod packages;
 pub mod query;
@@ -19,6 +21,8 @@ pub use classify::first_line;
 pub(crate) use classify::{classify_scopes, owners_in_graph, parse_owners};
 pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_test_with_selection};
+#[cfg(test)]
+pub(crate) use fake_query::FakeQuery;
 pub(crate) use packages::PackageCache;
 pub use query::quote_set;
 pub(crate) use query::run_label_query;
@@ -37,15 +41,10 @@ pub use types::{QueryFailure, QueryResult, QueryRunner, ResolveError, ResolvedSc
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_test_scratch::write;
     use dx_testing::cli::strings;
     use std::io;
     use std::path::Path;
-
-    fn write(workspace: &Path, rel: &str, text: &str) {
-        let full = workspace.join(rel);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
-        std::fs::write(full, text).expect("write file");
-    }
 
     #[test]
     fn resolve_errors_render_actionable_messages() {

@@ -117,91 +117,8 @@ pub(crate) fn tests_for_owners(
 mod tests {
     use super::*;
     use crate::resolve::NeverQuery;
-    use crate::resolve::QueryResult;
-    use dx_testing::cli::{graph_rule, graph_stdout, strings};
-    use std::cell::RefCell;
-    use std::io;
-    use std::path::PathBuf;
-
-    struct Call {
-        argv: Vec<String>,
-        cwd: PathBuf,
-        expression: String,
-    }
-
-    struct FakeQuery {
-        calls: RefCell<Vec<Call>>,
-        outputs: RefCell<Vec<QueryResult>>,
-    }
-
-    impl FakeQuery {
-        fn new(outputs: Vec<QueryResult>) -> Self {
-            FakeQuery {
-                calls: RefCell::new(Vec::new()),
-                outputs: RefCell::new(outputs),
-            }
-        }
-
-        fn ok(lines: &str) -> QueryResult {
-            QueryResult {
-                code: Some(0),
-                stdout: lines.as_bytes().to_vec(),
-                stderr: Vec::new(),
-            }
-        }
-
-        fn graph(lines: &[String]) -> QueryResult {
-            FakeQuery::ok(&graph_stdout(lines))
-        }
-
-        fn failed(stderr: &str) -> QueryResult {
-            QueryResult {
-                code: Some(2),
-                stdout: Vec::new(),
-                stderr: stderr.as_bytes().to_vec(),
-            }
-        }
-
-        fn expressions(&self) -> Vec<String> {
-            self.calls
-                .borrow()
-                .iter()
-                .map(|call| call.expression.clone())
-                .collect()
-        }
-
-        fn verbs(&self) -> Vec<String> {
-            self.calls
-                .borrow()
-                .iter()
-                .map(|call| {
-                    call.argv
-                        .iter()
-                        .find(|arg| *arg == "query" || *arg == "cquery")
-                        .cloned()
-                        .unwrap_or_default()
-                })
-                .collect()
-        }
-    }
-
-    impl QueryRunner for FakeQuery {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
-            let expression = match argv
-                .iter()
-                .find_map(|arg| arg.strip_prefix("--query_file="))
-            {
-                Some(path) => std::fs::read_to_string(path)?,
-                None => argv.last().cloned().unwrap_or_default(),
-            };
-            self.calls.borrow_mut().push(Call {
-                argv: argv.to_vec(),
-                cwd: cwd.to_path_buf(),
-                expression,
-            });
-            Ok(self.outputs.borrow_mut().remove(0))
-        }
-    }
+    use crate::resolve::{FakeQuery, QueryResult};
+    use dx_testing::cli::{graph_rule, strings};
 
     fn lib_graph() -> QueryResult {
         FakeQuery::graph(&[
@@ -233,14 +150,14 @@ mod tests {
         .expect("map");
         assert_eq!(got, strings(&["//pkg:e2e", "//pkg:unit"]));
         assert_eq!(query.expressions(), [GRAPH, LIB_TESTS]);
-        let calls = query.calls.borrow();
-        assert!(calls.iter().all(|call| call.cwd == workspace));
+        let calls = query.calls();
+        assert!(calls.iter().all(|(_, cwd)| *cwd == workspace));
         assert_eq!(
-            calls[1].argv[..4],
+            calls[1].0[..4],
             strings(&["bazel", "--nohome_rc", "--nosystem_rc", "query"])
         );
-        assert_eq!(calls[1].argv.len(), 5, "{:?}", calls[1].argv);
-        assert!(calls[1].argv[4].starts_with("--query_file="));
+        assert_eq!(calls[1].0.len(), 5, "{:?}", calls[1].0);
+        assert!(calls[1].0[4].starts_with("--query_file="));
     }
 
     #[test]
@@ -329,11 +246,11 @@ mod tests {
         )
         .expect("map");
         assert_eq!(got, strings(&["//pkg:unit"]));
-        let calls = query.calls.borrow();
+        let calls = query.calls();
         assert_eq!(calls.len(), 2);
-        for call in calls.iter() {
+        for (argv, _) in &calls {
             assert_eq!(
-                call.argv[..5],
+                argv[..5],
                 strings(&[
                     "bazel",
                     "--nohome_rc",
@@ -518,11 +435,11 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let unrelated =
             || FakeQuery::graph(&[graph_rule("//other:bin", &["//other:main.py"], &[])]);
-        let query = FakeQuery::new(vec![unrelated()]);
         for selection in [
             SelectionContext::unconfigured(&[]),
             SelectionContext::for_tests_configured(&[], &[]),
         ] {
+            let query = FakeQuery::new(vec![unrelated()]);
             let err = map_owners_to_tests_with_selection(
                 &strings(&["//pkg:gone"]),
                 &workspace,
@@ -536,9 +453,8 @@ mod tests {
                     owners: strings(&["//pkg:gone"]),
                 }
             );
-            query.outputs.borrow_mut().push(unrelated());
+            assert_eq!(query.expressions(), [GRAPH]);
         }
-        assert_eq!(query.expressions(), [GRAPH, GRAPH]);
     }
 
     #[test]
@@ -569,9 +485,8 @@ mod tests {
                 "rdeps(set(\"//pkg:e2e\" \"//pkg:unit\"), set(\"//pkg:lib\"))",
             ]
         );
-        let calls = query.calls.borrow();
-        assert!(calls[2].argv.contains(&"--platforms=//:x".to_owned()));
-        assert!(!calls[2].expression.contains("tests("));
+        assert!(query.calls()[2].0.contains(&"--platforms=//:x".to_owned()));
+        assert!(!query.expressions()[2].contains("tests("));
     }
 
     #[test]

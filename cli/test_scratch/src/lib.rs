@@ -54,6 +54,16 @@ pub fn scratch(prefix: &str) -> TempDir {
         .unwrap_or_else(|err| panic!("test scratch creates {prefix:?}: {err}"))
 }
 
+/// Writes `text` to `root/rel`, creating missing parent directories.
+pub fn write(root: &Path, rel: &str, text: &str) {
+    let full = root.join(rel);
+    if let Some(parent) = full.parent() {
+        std::fs::create_dir_all(parent)
+            .unwrap_or_else(|err| panic!("test scratch creates {parent:?}: {err}"));
+    }
+    std::fs::write(&full, text).unwrap_or_else(|err| panic!("test scratch writes {full:?}: {err}"));
+}
+
 /// Makes a git command hermetic: it ignores system and user config, and cannot
 /// discover a repository above `sandbox`.
 ///
@@ -181,6 +191,23 @@ mod tests {
         assert_eq!(missing, vec!["dx-no-such-tool-xyz"]);
         assert!(tools.join("sh").exists());
         assert!(!tools.join("dx-no-such-tool-xyz").exists());
+    }
+
+    #[test]
+    fn write_creates_nested_parents() {
+        let dir = scratch("dx-test-scratch-write-");
+        write(dir.path(), "a/b/c.txt", "hello");
+        let text = std::fs::read_to_string(dir.path().join("a/b/c.txt")).expect("read back");
+        assert_eq!(text, "hello");
+    }
+
+    #[test]
+    fn write_overwrites_existing_file() {
+        let dir = scratch("dx-test-scratch-write-");
+        write(dir.path(), "file.txt", "first");
+        write(dir.path(), "file.txt", "second");
+        let text = std::fs::read_to_string(dir.path().join("file.txt")).expect("read back");
+        assert_eq!(text, "second");
     }
 
     #[test]

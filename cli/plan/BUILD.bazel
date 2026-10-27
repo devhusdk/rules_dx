@@ -125,6 +125,7 @@ dx_rust_crate(
         "src/args/parser_core.rs",
         "src/args/quality_docs_parity_tests.rs",
         "src/args/strict_tests.rs",
+        "src/resolve/fake_query.rs",
     ],
     deps = [
         "base64",

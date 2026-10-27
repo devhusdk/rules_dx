@@ -196,52 +196,11 @@ mod tests {
     use crate::resolve::query::quote_label;
     use crate::resolve::{resolve, resolve_for_test_with_selection, resolve_run, SelectionContext};
     use dx_process::Scope;
-    use std::cell::RefCell;
-    use std::path::PathBuf;
+    use dx_test_scratch::write;
 
+    use crate::resolve::FakeQuery;
     use crate::resolve::NeverQuery;
-    use crate::resolve::{QueryResult, QueryRunner};
     use dx_testing::cli::{graph_rule, graph_stdout, strings};
-
-    struct FakeQuery {
-        calls: RefCell<Vec<(Vec<String>, PathBuf)>>,
-        outputs: RefCell<Vec<QueryResult>>,
-    }
-
-    impl FakeQuery {
-        fn new(outputs: Vec<QueryResult>) -> Self {
-            FakeQuery {
-                calls: RefCell::new(Vec::new()),
-                outputs: RefCell::new(outputs),
-            }
-        }
-
-        fn ok(lines: &str) -> QueryResult {
-            QueryResult {
-                code: Some(0),
-                stdout: lines.as_bytes().to_vec(),
-                stderr: Vec::new(),
-            }
-        }
-
-        fn calls(&self) -> Vec<(Vec<String>, PathBuf)> {
-            self.calls.borrow().clone()
-        }
-    }
-
-    impl QueryRunner for FakeQuery {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
-            self.calls
-                .borrow_mut()
-                .push((argv.to_vec(), cwd.to_path_buf()));
-            Ok(self.outputs.borrow_mut().remove(0))
-        }
-    }
-    fn write(workspace: &Path, rel: &str, text: &str) {
-        let full = workspace.join(rel);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
-        std::fs::write(full, text).expect("write file");
-    }
 
     fn file_label(workspace: &Path, rel: &str, scope: &str) -> Result<String, ResolveError> {
         PackageCache::default().file_label(workspace, rel, scope)

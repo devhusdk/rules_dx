@@ -70,12 +70,7 @@ impl PackageCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn write(workspace: &Path, rel: &str, text: &str) {
-        let full = workspace.join(rel);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
-        std::fs::write(full, text).expect("write file");
-    }
+    use dx_test_scratch::write;
 
     #[test]
     fn file_label_uses_nearest_enclosing_package() {

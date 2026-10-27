@@ -516,12 +516,10 @@ mod tests {
             assert!(!all.contains("hunter2"), "{input:?}: {all}");
         }
     }
-    use crate::resolve::{resolve, QueryResult, QueryRunner};
+    use crate::resolve::{resolve, FakeQuery};
     use dx_process::Scope;
     use dx_testing::cli::{graph_rule, graph_stdout, strings};
-    use std::cell::RefCell;
-    use std::io;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
     fn resolved(targets: &[&str]) -> ResolvedScope {
         ResolvedScope {
@@ -751,32 +749,6 @@ mod tests {
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert_eq!(argv[argv.len() - 2..], ["//a:a", "//b:b"]);
         assert_eq!(plan.summary, "Running lint analysis for //a:a //b:b");
-    }
-
-    struct FakeQuery {
-        outputs: RefCell<Vec<QueryResult>>,
-    }
-
-    impl FakeQuery {
-        fn new(outputs: Vec<QueryResult>) -> Self {
-            FakeQuery {
-                outputs: RefCell::new(outputs),
-            }
-        }
-
-        fn ok(lines: &str) -> QueryResult {
-            QueryResult {
-                code: Some(0),
-                stdout: lines.as_bytes().to_vec(),
-                stderr: Vec::new(),
-            }
-        }
-    }
-
-    impl QueryRunner for FakeQuery {
-        fn run_query(&self, _argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
-            Ok(self.outputs.borrow_mut().remove(0))
-        }
     }
 
     #[test]

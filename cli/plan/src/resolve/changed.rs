@@ -857,88 +857,30 @@ pub fn resolve_affected(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolve::{resolve, NeverQuery, QueryFailure, QueryResult};
+    use crate::resolve::{resolve, FakeQuery, NeverQuery, QueryFailure, QueryResult};
+    use dx_test_scratch::write;
     use dx_testing::cli::strings;
-    use std::cell::RefCell;
-    use std::path::PathBuf;
 
-    struct FakeQuery {
-        calls: RefCell<Vec<(Vec<String>, PathBuf)>>,
-        outputs: RefCell<Vec<QueryResult>>,
+    fn graph(rules: &[(&str, &[&str])]) -> QueryResult {
+        let lines: Vec<String> = rules
+            .iter()
+            .map(|(name, inputs)| {
+                serde_json::json!({"type": "RULE", "rule": {"name": name, "ruleInput": inputs}})
+                    .to_string()
+            })
+            .collect();
+        FakeQuery::ok(&lines.join("\n"))
     }
 
-    impl FakeQuery {
-        fn new(outputs: Vec<QueryResult>) -> Self {
-            FakeQuery {
-                calls: RefCell::new(Vec::new()),
-                outputs: RefCell::new(outputs),
-            }
-        }
-
-        fn ok(lines: &str) -> QueryResult {
-            QueryResult {
-                code: Some(0),
-                stdout: lines.as_bytes().to_vec(),
-                stderr: Vec::new(),
-            }
-        }
-
-        fn graph(rules: &[(&str, &[&str])]) -> QueryResult {
-            let lines: Vec<String> = rules
-                .iter()
-                .map(|(name, inputs)| {
-                    serde_json::json!({"type": "RULE", "rule": {"name": name, "ruleInput": inputs}})
-                        .to_string()
-                })
-                .collect();
-            FakeQuery::ok(&lines.join("\n"))
-        }
-
-        fn graph_with_kinds(rules: &[(&str, &str, &[&str])]) -> QueryResult {
-            let lines: Vec<String> = rules
-                .iter()
-                .map(|(name, class, inputs)| {
-                    serde_json::json!({"type": "RULE", "rule": {"name": name, "ruleClass": class, "ruleInput": inputs}})
-                        .to_string()
-                })
-                .collect();
-            FakeQuery::ok(&lines.join("\n"))
-        }
-
-        fn failed(stderr: &str) -> QueryResult {
-            QueryResult {
-                code: Some(2),
-                stdout: Vec::new(),
-                stderr: stderr.as_bytes().to_vec(),
-            }
-        }
-
-        fn raw(stdout: Vec<u8>) -> QueryResult {
-            QueryResult {
-                code: Some(0),
-                stdout,
-                stderr: Vec::new(),
-            }
-        }
-
-        fn calls(&self) -> Vec<(Vec<String>, PathBuf)> {
-            self.calls.borrow().clone()
-        }
-    }
-
-    impl QueryRunner for FakeQuery {
-        fn run_query(&self, argv: &[String], cwd: &Path) -> std::io::Result<QueryResult> {
-            self.calls
-                .borrow_mut()
-                .push((argv.to_vec(), cwd.to_path_buf()));
-            Ok(self.outputs.borrow_mut().remove(0))
-        }
-    }
-
-    fn write(workspace: &Path, rel: &str, text: &str) {
-        let full = workspace.join(rel);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
-        std::fs::write(full, text).expect("write file");
+    fn graph_with_kinds(rules: &[(&str, &str, &[&str])]) -> QueryResult {
+        let lines: Vec<String> = rules
+            .iter()
+            .map(|(name, class, inputs)| {
+                serde_json::json!({"type": "RULE", "rule": {"name": name, "ruleClass": class, "ruleInput": inputs}})
+                    .to_string()
+            })
+            .collect();
+        FakeQuery::ok(&lines.join("\n"))
     }
 
     fn change(path: &str, kind: dx_adopt::ChangeKind) -> dx_adopt::GitChange {
@@ -963,7 +905,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[("//pkg:lib", &["//pkg:a.py"])])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:a.py"])])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -987,7 +929,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-changed-deleted-named-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[("//pkg:lib", &["//pkg:gone.py"])])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:gone.py"])])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -1043,7 +985,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-changed-deleted-root-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "BUILD.bazel", "");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -1062,7 +1004,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[("//pkg:lib", &["//pkg:a.py"])])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:a.py"])])]);
         let selection = resolve_affected(
             &[renamed("pkg/was.py", "pkg/a.py")],
             &workspace,
@@ -1088,7 +1030,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/space name.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
+        let query = FakeQuery::new(vec![graph(&[(
             "//pkg:lib",
             &["//pkg:BUILD.bazel", "//pkg:space name.py"],
         )])]);
@@ -1124,7 +1066,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[
                 change("pkg/a.py", dx_adopt::ChangeKind::Modified),
@@ -1158,7 +1100,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[
+        let query = FakeQuery::new(vec![graph(&[
             ("//pkg:corpus_starlark", &["//pkg:BUILD.bazel"]),
             ("//pkg:lib", &["//pkg:a.py"]),
         ])]);
@@ -1187,7 +1129,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/new/BUILD.bazel", "");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/new/BUILD.bazel", dx_adopt::ChangeKind::Added)],
             &workspace,
@@ -1211,7 +1153,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-changed-build-root-");
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "BUILD", "");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("BUILD", dx_adopt::ChangeKind::Modified)],
             &workspace,
@@ -1232,7 +1174,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/a.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/a.py", dx_adopt::ChangeKind::Modified)],
             &workspace,
@@ -1325,7 +1267,7 @@ mod tests {
         write(&workspace, ".bazelrc", "build --x\n");
         write(&workspace, "consumers/x/BUILD.bazel", "");
         write(&workspace, "consumers/x/consumer.bazelrc", "build --y\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
+        let query = FakeQuery::new(vec![graph(&[(
             "//consumers/x:t",
             &["//consumers/x:consumer.bazelrc"],
         )])]);
@@ -1431,7 +1373,7 @@ mod tests {
             ("a/Cargo.toml", "//a:lib"),
             ("b/package-lock.json", "//b:lib"),
         ] {
-            let query = FakeQuery::new(vec![FakeQuery::graph(&[
+            let query = FakeQuery::new(vec![graph(&[
                 ("//a:lib", &["//a:Cargo.toml"]),
                 ("//b:lib", &["//b:package-lock.json"]),
             ])]);
@@ -1529,7 +1471,7 @@ mod tests {
     }
 
     fn crate_graph() -> QueryResult {
-        FakeQuery::graph(&[
+        graph(&[
             ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
             ("//a:t", &["//a:lib"]),
             (
@@ -1582,7 +1524,7 @@ mod tests {
         let workspace = scratch.path();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&cargo_lock("1.0.1")),
-            FakeQuery::graph_with_kinds(&[
+            graph_with_kinds(&[
                 (
                     "//tc:prost_impl",
                     "rust_library",
@@ -1624,7 +1566,7 @@ mod tests {
         let workspace = scratch.path();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&cargo_lock("1.0.1")),
-            FakeQuery::graph(&[("//b:lib", &["@@rules_rust++crate+crates//:itoa"])]),
+            graph(&[("//b:lib", &["@@rules_rust++crate+crates//:itoa"])]),
         ]);
         let selection = resolve_affected(
             &[change("Cargo.lock", dx_adopt::ChangeKind::Modified)],
@@ -1755,7 +1697,7 @@ mod tests {
         write(workspace, "BUILD.bazel", "");
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&cargo_lock("1.0.1")),
-            FakeQuery::graph(&[
+            graph(&[
                 ("//:vendor", &["//:Cargo.lock"]),
                 ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
                 ("//b:lib", &["//b:b.rs"]),
@@ -1793,7 +1735,7 @@ mod tests {
             write(&workspace, "pkg/BUILD.bazel", "");
             write(&workspace, "pkg/a.py", "x = 1\n");
             write(&workspace, "pkg/b.py", "x = 1\n");
-            let affected_query = FakeQuery::new(vec![FakeQuery::graph(&rules)]);
+            let affected_query = FakeQuery::new(vec![graph(&rules)]);
             let affected = resolve_affected(
                 &workspace_files
                     .iter()
@@ -1810,7 +1752,7 @@ mod tests {
             assert_eq!(affected_query.calls().len(), 1);
             assert!(affected.graph.is_some());
             affected_targets.push(affected.targets);
-            let resolved_query = FakeQuery::new(vec![FakeQuery::graph(&rules)]);
+            let resolved_query = FakeQuery::new(vec![graph(&rules)]);
             let resolved = resolve(
                 &workspace_files
                     .iter()
@@ -1840,7 +1782,7 @@ mod tests {
                 scope: "pkg/gone.py".to_owned(),
             }
         );
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -1928,7 +1870,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "outer/BUILD.bazel", "");
         write(&workspace, "outer/inner/BUILD.bazel", "");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("outer/inner/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -1988,7 +1930,7 @@ mod tests {
     fn bzl_loaded_by_one_package_selects_only_that_package() {
         let scratch = bzl_workspace("dx-changed-bzl-one-");
         let workspace = scratch.path();
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2009,7 +1951,7 @@ mod tests {
         let workspace = scratch.path();
         write(workspace, "tools/x.scl", "X = 1\n");
         write(workspace, "tools/defs.bzl", "load(\":x.scl\", \"X\")\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/x.scl", dx_adopt::ChangeKind::Modified)],
@@ -2051,7 +1993,7 @@ mod tests {
         let scratch = bzl_workspace("dx-changed-bzl-none-");
         let workspace = scratch.path();
         write(workspace, "app/BUILD.bazel", "");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2067,10 +2009,7 @@ mod tests {
         let scratch = bzl_workspace("dx-changed-bzl-owned-");
         let workspace = scratch.path();
         write(workspace, "app/BUILD.bazel", "");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
-            "//tools:defs",
-            &["//tools:defs.bzl"],
-        )])]);
+        let query = FakeQuery::new(vec![graph(&[("//tools:defs", &["//tools:defs.bzl"])])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2090,7 +2029,7 @@ mod tests {
             "MODULE.bazel",
             "module(name = \"demo\")\nx = use_extension(\"//tools:defs.bzl\", \"x\")\n",
         );
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2114,7 +2053,7 @@ mod tests {
             "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\n",
         );
         write(workspace, "tools/ext.bzl", "load(\":defs.bzl\", \"x\")\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2137,7 +2076,7 @@ mod tests {
             "quality/aspects.bzl",
             "load(\"//tools:defs.bzl\", \"x\")\n",
         );
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2165,7 +2104,7 @@ mod tests {
             "tools/tc/BUILD.bazel",
             "load(\"//tools:defs.bzl\", \"x\")\n",
         );
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2184,7 +2123,7 @@ mod tests {
         let scratch = bzl_workspace("dx-changed-bzl-bad-module-");
         let workspace = scratch.path();
         write(workspace, "MODULE.bazel", "module(name = \n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2207,7 +2146,7 @@ mod tests {
         let scratch = bzl_workspace("dx-changed-bzl-bad-build-");
         let workspace = scratch.path();
         write(workspace, "app/BUILD.bazel", "load(\"//tools:defs.bzl\"\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
@@ -2272,7 +2211,7 @@ mod tests {
             "lib/BUILD.bazel",
             "load(\"//tools:defs.bzl\", \"x\")\nload(\"//tools:more.bzl\", \"y\")\n",
         );
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[("//app:bin", &["//app:main.py"])])]);
+        let query = FakeQuery::new(vec![graph(&[("//app:bin", &["//app:main.py"])])]);
         let selection = bzl_resolve(
             workspace,
             &[
@@ -2304,7 +2243,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/notes.txt", "x\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[])]);
         let selection = resolve_affected(
             &[change("pkg/notes.txt", dx_adopt::ChangeKind::Modified)],
             &workspace,
@@ -2323,10 +2262,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/space name.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
-            "//pkg:lib",
-            &["//pkg:space name.py"],
-        )])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:space name.py"])])]);
         let selection = resolve_affected(
             &[change("pkg/space name.py", dx_adopt::ChangeKind::Added)],
             &workspace,
@@ -2372,10 +2308,7 @@ mod tests {
         write(&workspace, "pkg/BUILD.bazel", "");
         write(&workspace, "pkg/owned.py", "x = 1\n");
         write(&workspace, "pkg/orphan.py", "x = 1\n");
-        let query = FakeQuery::new(vec![FakeQuery::graph(&[(
-            "//pkg:lib",
-            &["//pkg:owned.py"],
-        )])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &["//pkg:owned.py"])])]);
         let selection = resolve_affected(
             &[
                 change("pkg/owned.py", dx_adopt::ChangeKind::Modified),

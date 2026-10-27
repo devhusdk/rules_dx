@@ -996,3 +996,42 @@ fn qualify_main_and_verify_main_run_from_flags() {
     assert_eq!(parsed.matrix, release.matrix);
     assert_eq!(parsed.expected.sha, "s");
 }
+
+#[test]
+fn verify_each_reports_every_cell_separately() {
+    let release = release();
+    release.edit(TAR, |value| value["version"] = "9.9.9".into());
+    std::fs::remove_file(release.records().join("dx-linux-x86_64-zip.json")).expect("remove");
+    std::fs::write(release.records().join("junk.json"), "{").expect("junk");
+    let verification = verify_each(
+        &release.matrix,
+        &release.records(),
+        &release.archives(),
+        &release.expected,
+    );
+    assert!(!verification.ok());
+    assert_eq!(verification.stray.len(), 1);
+    let names: Vec<&str> = verification
+        .cells
+        .iter()
+        .map(|outcome| outcome.cell.as_str())
+        .collect();
+    assert_eq!(names, ["dx-linux-x86_64-tar-gz", "dx-linux-x86_64-zip"]);
+    assert!(!verification.cells[0].qualified());
+    assert!(verification.cells[0].record.is_some());
+    assert!(verification.cells[0].reasons[0].starts_with("version is \"9.9.9\""));
+    assert_eq!(verification.cells[1].reasons, ["no record"]);
+}
+
+#[test]
+fn verify_each_accepts_a_clean_release() {
+    let release = release();
+    let verification = verify_each(
+        &release.matrix,
+        &release.records(),
+        &release.archives(),
+        &release.expected,
+    );
+    assert!(verification.ok());
+    assert!(verification.cells.iter().all(CellOutcome::qualified));
+}

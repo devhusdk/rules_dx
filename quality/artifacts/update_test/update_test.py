@@ -55,8 +55,11 @@ def add_special(tar, name, kind, linkname=""):
     tar.addfile(info)
 
 
-def make_tar(path, build):
-    with tarfile.open(path, "w:gz") as tar:
+TAR_KINDS = ["tar.gz", "tar.xz"]
+
+
+def make_tar(path, build, kind="tar.gz"):
+    with tarfile.open(path, "w:" + update.TAR_COMPRESSIONS[kind]) as tar:
         build(tar)
 
 
@@ -131,15 +134,17 @@ ZIP_REJECT_CASES = {
 }
 
 
+@pytest.mark.parametrize("kind", TAR_KINDS)
 @pytest.mark.parametrize("case", sorted(tar_reject_cases()))
-def test_tar_rejects(dirs, case):
+def test_tar_rejects(dirs, case, kind):
     work, outside = dirs
-    asset = work / "a.tar.gz"
-    make_tar(asset, tar_reject_cases()[case])
+    name = "a." + kind
+    asset = work / name
+    make_tar(asset, tar_reject_cases()[case], kind)
     with pytest.raises(SystemExit):
-        update._tar_members("a.tar.gz", str(asset), str(work), "bin/tool")
+        update._tar_members(name, str(asset), str(work), "bin/tool", kind)
     assert list(outside.iterdir()) == []
-    assert [p.name for p in work.iterdir()] == ["a.tar.gz"]
+    assert [p.name for p in work.iterdir()] == [name]
 
 
 @pytest.mark.parametrize("case", sorted(ZIP_REJECT_CASES))
@@ -153,18 +158,20 @@ def test_zip_rejects(dirs, case):
     assert [p.name for p in work.iterdir()] == ["a.zip"]
 
 
-def test_tar_accepts(dirs):
+@pytest.mark.parametrize("kind", TAR_KINDS)
+def test_tar_accepts(dirs, kind):
     work, outside = dirs
-    asset = work / "a.tar.gz"
+    name = "a." + kind
+    asset = work / name
 
     def build(tar):
         add_special(tar, "./bin/", tarfile.DIRTYPE)
         add_file(tar, "./bin/tool")
         add_file(tar, "README", b"doc", 0o644)
 
-    make_tar(asset, build)
+    make_tar(asset, build, kind)
     members, exe_path, digest = update._tar_members(
-        "a.tar.gz", str(asset), str(work), "bin/tool"
+        name, str(asset), str(work), "bin/tool", kind
     )
     assert members == [
         {"name": "./bin", "size": 0, "mode": "0o777", "is_executable": False},

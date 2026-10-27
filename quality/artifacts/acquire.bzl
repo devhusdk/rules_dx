@@ -4,6 +4,7 @@ ARCHIVE_TYPES = {
     "gzip": "gz",
     "none": "",
     "tar.gz": "tar.gz",
+    "tar.xz": "tar.xz",
     "zip": "zip",
 }
 

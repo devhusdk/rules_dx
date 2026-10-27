@@ -1039,11 +1039,14 @@ def _stream_executable(asset, workdir, executable, source):
     return exe_path, digest.hexdigest()
 
 
-def _tar_members(asset, asset_path, workdir, executable):
+TAR_COMPRESSIONS = {"tar.gz": "gz", "tar.xz": "xz"}
+
+
+def _tar_members(asset, asset_path, workdir, executable, kind="tar.gz"):
     members = []
     seen = set()
     exe_member = None
-    with tarfile.open(asset_path, "r:gz") as archive_file:
+    with tarfile.open(asset_path, "r:" + TAR_COMPRESSIONS[kind]) as archive_file:
         infos = archive_file.getmembers()
         for member in infos:
             _check_member_name(asset, member.name)
@@ -1239,11 +1242,11 @@ def _collect(tool, platform_key, spec, workdir):
             "member_sha256": exe_digest,
             "member_size": len(inner),
         }
-    elif kind == "tar.gz":
+    elif kind in TAR_COMPRESSIONS:
         members, exe_path, exe_digest = _tar_members(
-            spec["asset"], asset_path, workdir, spec["executable"]
+            spec["asset"], asset_path, workdir, spec["executable"], kind
         )
-        archive = {"format": "tar.gz", "members": members}
+        archive = {"format": kind, "members": members}
     elif kind == "zip":
         members, exe_path, exe_digest = _zip_members(
             spec["asset"], asset_path, workdir, spec["executable"]

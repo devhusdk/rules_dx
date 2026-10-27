@@ -69,23 +69,6 @@ fn extension<'a>(symbol: &'a Symbol, key: &str) -> Option<&'a str> {
 }
 
 #[test]
-fn segments_escape_every_byte_outside_the_word_set() {
-    for (raw, escaped) in [
-        ("area", "area"),
-        ("empty?", "empty~3F"),
-        ("save!", "save~21"),
-        ("label=", "label~3D"),
-        ("[]", "~5B~5D"),
-        ("<=>", "~3C~3D~3E"),
-        ("~", "~7E"),
-        ("été", "~C3~A9t~C3~A9"),
-        ("`", "~60"),
-    ] {
-        assert_eq!(escape_segment(raw), escaped, "{raw}");
-    }
-}
-
-#[test]
 fn every_kind_maps_with_its_display_name() {
     let mut objects = base();
     objects.push(with(

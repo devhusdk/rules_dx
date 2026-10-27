@@ -267,12 +267,12 @@ fn namespace_segments(path: &str) -> Vec<&str> {
 fn qualified(object: &Object, name: &str) -> String {
     let mut segments: Vec<String> = namespace_segments(&object.namespace)
         .into_iter()
-        .map(escape_segment)
+        .map(documentation_ir::escape_id_segment)
         .collect();
     if object.kind == Type::Method && object.singleton {
         segments.push("self".to_owned());
     }
-    segments.push(escape_segment(name));
+    segments.push(documentation_ir::escape_id_segment(name));
     segments.join(".")
 }
 
@@ -280,7 +280,7 @@ fn qualified(object: &Object, name: &str) -> String {
 fn namespace_qualified(path: &str) -> String {
     namespace_segments(path)
         .into_iter()
-        .map(escape_segment)
+        .map(documentation_ir::escape_id_segment)
         .collect::<Vec<_>>()
         .join(".")
 }

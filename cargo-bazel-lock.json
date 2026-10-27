@@ -1,5 +1,5 @@
 {
-  "checksum": "3a4eccb82db573f419afb8bb28d93bfc0a029256c51adc87c0a939a55081b8f4",
+  "checksum": "a3758fbf82e2e8d3a9ad9742c86a66a97755c56a32902fc6a5d392ea983c9b9f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6257,6 +6257,37 @@
         {
           "Library": {
             "crate_name": "documentation_ir",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dotnet_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "sha2 0.10.9",
+            "target": "sha2"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_dotnet_extract",
+      "name": "dotnet_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_dotnet_extract",
             "crate_root": "src/lib.rs"
           }
         }
@@ -27538,6 +27569,7 @@
     "codegen_shard 0.0.0": "generation/codegen_shard",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
     "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
+    "dotnet_extract 0.0.0": "tools/docs/dotnet/dotnet_extract",
     "dx_adopt 0.0.0": "cli/dx_adopt",
     "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
     "dx_apply 0.0.0": "cli/dx_apply",

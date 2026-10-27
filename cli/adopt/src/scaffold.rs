@@ -322,29 +322,15 @@ pub fn scaffold_dest_within_root(
 }
 
 fn ensure_physically_within(root: &Path, relative: &str) -> Result<(), AdoptError> {
-    let escapes = || AdoptError::ScaffoldEscapesRoot {
-        path: relative.to_owned(),
-    };
-    let canonical_root = match root.canonicalize() {
-        Ok(path) => path,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(_) => return Err(escapes()),
-    };
-    let mut current = root.to_path_buf();
-    for part in Path::new(relative).components() {
-        current.push(part);
-        match std::fs::symlink_metadata(&current) {
-            Ok(meta) if meta.file_type().is_symlink() => {
-                let resolved = current.canonicalize().map_err(|_| escapes())?;
-                if !resolved.starts_with(&canonical_root) {
-                    return Err(escapes());
-                }
-            }
-            Ok(_) => {}
-            Err(_) => break,
+    match dx_path::resolve_target_in_workspace(root, relative) {
+        Err(e) if e.kind() == std::io::ErrorKind::InvalidInput => {
+            Err(AdoptError::ScaffoldEscapesRoot {
+                path: relative.to_owned(),
+            })
         }
+        // A missing root, or a file where a directory belongs, is reported by the write itself.
+        _ => Ok(()),
     }
-    Ok(())
 }
 
 /// Fails when a destination escapes the root or has a parent that is not a directory.

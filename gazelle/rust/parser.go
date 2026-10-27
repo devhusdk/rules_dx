@@ -108,23 +108,26 @@ func (w *walker) checkSyntax() error {
 	return fmt.Errorf("rust: %s:%d:%d: %s", w.path, line, col, w.describe(e, anc))
 }
 
-// tolerateError lets errors inside function bodies through unless they sit on
-// a mod, use or extern declaration. Gazelle reads only item structure, and
-// older editions use keywords such as async as identifiers.
+// tolerateError lets errors inside function bodies, foreign blocks and type
+// bodies through unless they sit on or contain a mod, use or extern crate
+// declaration. Gazelle reads only module structure, and the
+// grammar lags the language (for example safe items in unsafe extern blocks).
 func tolerateError(e syntaxNode, anc []syntaxNode) bool {
 	if keywordOf(e) != "" {
 		return false
 	}
-	inBlock := false
+	tolerated := false
 	for i := len(anc) - 1; i >= 0; i-- {
 		switch anc[i].kind() {
 		case "mod_item", "use_declaration", "extern_crate_declaration":
 			return false
-		case "block":
-			inBlock = true
+		case "foreign_mod_item":
+			tolerated = tolerated || anc[i].field("body").valid()
+		case "block", "impl_item", "trait_item", "struct_item", "union_item", "enum_item":
+			tolerated = true
 		}
 	}
-	return inBlock
+	return tolerated && !e.containsDecl()
 }
 
 func keywordOf(e syntaxNode) string {
@@ -216,6 +219,16 @@ func (w *walker) items(parent syntaxNode, testScope, inFn bool, facts *FileFacts
 			}
 			continue
 		case "token_tree", "macro_definition":
+		case "macro_invocation":
+			if !inFn {
+				for _, c := range child.children() {
+					if c.kind() == "token_tree" {
+						if err := w.tokenItems(c, testScope, facts); err != nil {
+							return err
+						}
+					}
+				}
+			}
 		case "mod_item":
 			if err := w.mod(child, attrs, testScope, inFn, facts); err != nil {
 				return err
@@ -246,6 +259,40 @@ func (w *walker) items(parent syntaxNode, testScope, inFn bool, facts *FileFacts
 			}
 		}
 		attrs = attrs[:0]
+	}
+	return nil
+}
+
+// tokenItems reads item-level macro bodies such as cfg_if! as items. Bytes
+// outside the body are blanked so offsets and positions stay those of the file.
+// A body that is not a valid item list is searched for nested brace bodies.
+func (w *walker) tokenItems(tt syntaxNode, testScope bool, facts *FileFacts) error {
+	src := w.tree.src
+	lo, hi := tt.start()+1, tt.end()-1
+	if hi > lo {
+		buf := make([]byte, len(src))
+		for i, b := range src {
+			if i >= lo && i < hi || b == '\n' {
+				buf[i] = b
+			} else {
+				buf[i] = ' '
+			}
+		}
+		sub, err := parseSyntax(buf)
+		if err == nil {
+			defer sub.release()
+			if !sub.root.n.HasErrorOrMissing() {
+				sw := &walker{path: w.path, tree: sub}
+				return sw.items(sub.root, testScope, false, facts)
+			}
+		}
+	}
+	for _, c := range tt.children() {
+		if c.kind() == "token_tree" {
+			if err := w.tokenItems(c, testScope, facts); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

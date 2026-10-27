@@ -648,9 +648,23 @@ func TestPrivateScannerBranches(t *testing.T) {
 	}
 }
 
-func TestParseTopLevelMacroIsInert(t *testing.T) {
-	facts := mustParse(t, "src/lib.rs", "cfg_if! { use x; mod hidden; }\nuse real::Dep;\n")
-	if len(facts.Modules) != 0 || len(facts.Uses) != 1 || facts.Uses[0].Path != "real::Dep" {
+func TestParseTopLevelMacroItems(t *testing.T) {
+	facts := mustParse(t, "src/lib.rs", "cfg_if! { use x; mod shown; }\nuse real::Dep;\nfn f() { cfg_if! { use hidden; } }\nmacro_rules! m { () => { use hidden2; } }\n")
+	if len(facts.Modules) != 1 || len(facts.Uses) != 2 || facts.Uses[0].Path != "x" || facts.Uses[1].Path != "real::Dep" {
+		t.Errorf("facts = %+v", facts)
+	}
+}
+
+func TestParseCfgIfBranches(t *testing.T) {
+	facts := mustParse(t, "src/lib.rs", "cfg_if::cfg_if! { if #[cfg(unix)] { mod unix; pub use libc::*; } else { mod windows; } }\n")
+	if len(facts.Modules) != 2 || facts.Modules[0].Name != "unix" || facts.Modules[1].Name != "windows" || len(facts.Uses) != 1 || facts.Uses[0].Path != "libc::*" {
+		t.Errorf("facts = %+v", facts)
+	}
+}
+
+func TestParseUnsafeExternSafeItems(t *testing.T) {
+	facts := mustParse(t, "a.rs", "unsafe extern \"C\" { pub safe fn abs(x: i32) -> i32; pub safe static X: i32; }\nmod m;\nuse a::B;\n")
+	if len(facts.Modules) != 1 || len(facts.Uses) != 1 {
 		t.Errorf("facts = %+v", facts)
 	}
 }

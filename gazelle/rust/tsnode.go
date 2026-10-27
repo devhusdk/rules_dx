@@ -131,3 +131,16 @@ func (n syntaxNode) tokens() []string {
 }
 
 func (n syntaxNode) joined() string { return strings.Join(n.tokens(), "") }
+
+func (n syntaxNode) containsDecl() bool {
+	switch n.kind() {
+	case "mod_item", "use_declaration", "extern_crate_declaration":
+		return true
+	}
+	for _, c := range n.children() {
+		if c.containsDecl() {
+			return true
+		}
+	}
+	return false
+}

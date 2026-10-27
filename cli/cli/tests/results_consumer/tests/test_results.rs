@@ -355,7 +355,11 @@ mod launcher {
             let _ = pipe.read_to_string(&mut stdout);
         }
         let text = common::read(&stderr);
-        assert_eq!(status.signal(), Some(SIGINT), "{status:?}\n{stdout}\n{text}");
+        assert_eq!(
+            status.signal(),
+            Some(SIGINT),
+            "{status:?}\n{stdout}\n{text}"
+        );
         let run = dx_testing::Run {
             status,
             stdout,
@@ -367,7 +371,10 @@ mod launcher {
             .map(|event| event["event"].as_str().unwrap_or_default())
             .collect();
         assert_eq!(kinds, ["command_started"], "{}", run.stdout);
-        assert!(text.contains("dx: cancelled: stopped by signal 2"), "{text}");
+        assert!(
+            text.contains("dx: cancelled: stopped by signal 2"),
+            "{text}"
+        );
         let gone = Instant::now() + Duration::from_secs(60);
         while alive(pid) {
             assert!(Instant::now() < gone, "the test process {pid} leaked");

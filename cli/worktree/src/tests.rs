@@ -186,8 +186,7 @@ impl Host for FakeHost {
             std::fs::create_dir_all(path).expect("stuck path");
             return false;
         }
-        let _ = std::fs::remove_dir_all(path);
-        !path.exists()
+        super::host::remove_tree(path)
     }
 
     fn nested_root(&self) -> Option<PathBuf> {
@@ -200,15 +199,22 @@ impl Host for FakeHost {
     }
 }
 
+/// Makes a git command ignore the developer's global and system config (hooks, `insteadOf`, signing).
+pub(super) fn isolate(cmd: &mut std::process::Command) {
+    static HOME: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
+    let home = HOME.get_or_init(|| tempfile::tempdir().expect("git home"));
+    dx_test_scratch::isolate_git(cmd, home.path());
+}
+
 fn git(dir: &Path, args: &[&str]) -> String {
-    let output = std::process::Command::new("git")
+    let mut command = std::process::Command::new("git");
+    command
         .current_dir(dir)
         .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
-        .args(args)
-        .env_remove("GIT_DIR")
-        .env_remove("GIT_WORK_TREE")
-        .output()
-        .expect("git runs");
+        .args(["-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"])
+        .args(args);
+    isolate(&mut command);
+    let output = command.output().expect("git runs");
     assert!(
         output.status.success(),
         "git {args:?}: {}",
@@ -760,9 +766,64 @@ fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
     ops::release(&pool, &host, &me, &second.path, true).expect("release b");
     std::fs::remove_file(second.path.join(".git")).expect("break slot 2");
     let broken = ops::add(&pool, &host, &me, &create("feature/c"));
-    assert!(broken.is_err());
+    let error = broken.expect_err("switch fails");
+    assert_eq!(error.code, "git_failed");
+    assert!(!error.usage);
     assert!(!first.path.exists(), "the stale checkout is deleted");
     assert!(pool.record(first.slot).is_none());
+    let freed = pool.record(second.slot).expect("slot 2 record kept");
+    assert!(!freed.held, "slot 2 is marked free again");
+    let listing = git(&fixture.main, &["worktree", "list", "--porcelain"]);
+    let entry = listing
+        .split("\n\n")
+        .find(|block| block.contains(&second.path.to_string_lossy().into_owned()))
+        .expect("slot 2 listed");
+    assert!(entry.contains("locked"), "{entry}");
+}
+
+#[test]
+fn a_failed_add_on_a_fresh_slot_rolls_the_slot_back() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let heads = fixture.main.join(".git/refs/heads/feature");
+    std::fs::create_dir_all(&heads).expect("heads");
+    std::fs::write(heads.join("x.lock"), "").expect("lock");
+    let error = ops::add(&pool, &host, &me, &create("feature/x")).expect_err("ref locked");
+    assert_eq!(error.code, "git_failed");
+    assert!(pool.record(1).is_none());
+    assert!(!pool.slot_path(1).exists());
+    let listing = git(&fixture.main, &["worktree", "list", "--porcelain"]);
+    assert!(!listing.contains(&pool.slot_path(1).to_string_lossy().into_owned()));
+    std::fs::remove_file(heads.join("x.lock")).expect("unlock");
+    let added = ops::add(&pool, &host, &me, &create("feature/x")).expect("retry");
+    assert_eq!(added.slot, 1);
+}
+
+#[cfg(unix)]
+#[test]
+fn bazel_links_do_not_make_a_slot_dirty_and_survive_reuse() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let target = fixture.cache.join("out");
+    std::fs::create_dir_all(&target).expect("target");
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    std::os::unix::fs::symlink(&target, first.path.join("bazel-bin")).expect("link");
+    let listing = ops::list(&pool, &host, false).expect("list");
+    assert!(
+        listing.rows.iter().all(|row| row.reason != Some("dirty")),
+        "{listing:?}"
+    );
+    ops::release(&pool, &host, &me, &first.path, false).expect("release with bazel link");
+    std::os::unix::fs::symlink(&target, first.path.join("bazel-bin")).ok();
+    std::fs::write(first.path.join("junk.txt"), "x").expect("junk");
+    let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("reuse");
+    assert_eq!(second.slot, first.slot);
+    assert!(second.path.join("bazel-bin").exists(), "link kept");
+    assert!(!second.path.join("junk.txt").exists(), "junk cleaned");
 }
 
 #[test]
@@ -4291,4 +4352,57 @@ fn reclaim_drops_nested_cases_when_the_nested_root_disk_is_low() {
         reclaimed.warning.message,
         "low disk: 3.0 GiB free; removed 1 nested Bazel output base(s); 3.0 GiB free now; run dx worktree prune --apply"
     );
+}
+
+#[test]
+fn a_hostile_global_git_config_does_not_break_add_or_release() {
+    let fixture = Fixture::new();
+    let hooks = fixture.cache.parent().expect("root").join("hooks");
+    std::fs::create_dir_all(&hooks).expect("hooks");
+    let config = hooks.join("gitconfig");
+    std::fs::write(
+        &config,
+        format!(
+            "[core]\n\thooksPath = {}\n[commit]\n\tgpgsign = true\n",
+            hooks.display()
+        ),
+    )
+    .expect("config");
+    // Only this process-wide-free check: the isolated command ignores the hostile file.
+    let mut command = std::process::Command::new("git");
+    command.args(["config", "--get", "commit.gpgsign"]);
+    command.current_dir(&fixture.main);
+    command.env("GIT_CONFIG_GLOBAL", &config);
+    isolate(&mut command);
+    let output = command.output().expect("git");
+    assert!(output.stdout.is_empty(), "isolation overrides the config");
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let added = ops::add(&pool, &host, &me, &create("feature/h")).expect("add");
+    ops::release(&pool, &host, &me, &added.path, false).expect("release");
+}
+
+#[cfg(unix)]
+#[test]
+fn prune_apply_removes_a_free_base_with_read_only_entries() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    let base = fixture.cache.join("bazel-root").join("ro-base");
+    host.roots
+        .lock()
+        .expect("roots")
+        .push(base.parent().expect("root").to_path_buf());
+    let dir = base.join("ro");
+    std::fs::create_dir_all(&dir).expect("dir");
+    std::fs::write(dir.join("f"), "x").expect("file");
+    std::fs::set_permissions(dir.join("f"), std::fs::Permissions::from_mode(0o444)).expect("f");
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).expect("d");
+    ops::release(&pool, &host, &me, &first.path, true).expect("release");
+    assert!(super::host::remove_tree(&base));
+    assert!(!base.exists());
 }

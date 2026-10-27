@@ -382,7 +382,7 @@ fn make_writable(path: &Path) {
 }
 
 /// Removes a directory tree, including read-only entries, and reports whether it is gone.
-fn remove_tree(path: &Path) -> bool {
+pub(crate) fn remove_tree(path: &Path) -> bool {
     if std::fs::remove_dir_all(path).is_err() {
         make_writable(path);
         let _ = std::fs::remove_dir_all(path);
@@ -485,6 +485,34 @@ fn current_uid() -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn remove_tree_deletes_read_only_trees() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = tempfile::tempdir().expect("tempdir");
+        let build = |name: &str| {
+            let dir = scratch.path().join(name).join("ro");
+            std::fs::create_dir_all(&dir).expect("dir");
+            let file = dir.join("f");
+            std::fs::write(&file, "x").expect("file");
+            std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o444)).expect("file");
+            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).expect("dir");
+            scratch.path().join(name)
+        };
+        let plain = build("plain");
+        let tree = build("tree");
+        let blocked = std::fs::remove_dir_all(&plain).is_err();
+        if !blocked {
+            // Running as root: permission bits are ignored, so only the result is checked.
+            assert!(remove_tree(&tree));
+            assert!(!tree.exists());
+            return;
+        }
+        assert!(remove_tree(&tree));
+        assert!(!tree.exists());
+        make_writable(&plain);
+    }
 
     #[test]
     fn default_output_roots_follow_the_user_cache_dir() {

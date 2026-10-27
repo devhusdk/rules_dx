@@ -58,27 +58,6 @@ fn named_set_id(id: &serde_json::Map<String, Value>) -> Option<&str> {
     None
 }
 
-pub fn collect(
-    reader: impl BufRead,
-    config: &CollectorConfig,
-    artifacts: &dyn ArtifactReader,
-) -> Result<Vec<TargetOutput>, BepError> {
-    collect_with_workspace(reader, config, artifacts, None)
-}
-
-pub fn collect_with_workspace(
-    reader: impl BufRead,
-    config: &CollectorConfig,
-    artifacts: &dyn ArtifactReader,
-    workspace: Option<&Path>,
-) -> Result<Vec<TargetOutput>, BepError> {
-    let (account, tail) = read_account(reader, config, artifacts, workspace)?;
-    if let Some((line, reason)) = tail {
-        return Err(BepError::MalformedEvent { line, reason });
-    }
-    Ok(account.targets)
-}
-
 /// Collects the requested outputs plus the stream facts that say whether every producer reported.
 pub fn collect_account(
     reader: impl BufRead,
@@ -516,8 +495,13 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let err = collect(std::io::BufReader::new(FailRead), &config(), &artifacts)
-            .expect_err("unreadable line");
+        let err = collect_account(
+            std::io::BufReader::new(FailRead),
+            &config(),
+            &artifacts,
+            None,
+        )
+        .expect_err("unreadable line");
         assert!(matches!(err, BepError::MalformedEvent { .. }));
     }
 
@@ -594,24 +578,14 @@ mod tests {
     }
 
     #[test]
-    fn collect_rejects_a_cut_off_last_line() {
-        let stream = format!("{}\n{}", one_target_stream(), r#"{"id":{"targetCo"#);
-        let err = collect(Cursor::new(stream), &config(), &no_artifacts()).expect_err("must fail");
-        let BepError::MalformedEvent { line, reason } = err else {
-            panic!("want MalformedEvent, got {err:?}");
-        };
-        assert_eq!(line, 3);
-        assert!(reason.starts_with("invalid JSON"), "{reason}");
-    }
-
-    #[test]
     fn named_set_files_must_be_array() {
         let stream =
             r#"{"id": {"namedSetOfFiles": {"id": "1"}}, "namedSetOfFiles": {"files": {}}}"#;
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let err = collect(Cursor::new(stream), &config(), &artifacts).expect_err("object files");
+        let err = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect_err("object files");
         assert!(matches!(err, BepError::MalformedEvent { .. }));
     }
 
@@ -625,7 +599,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert!(got[0].artifacts.is_empty());
     }
@@ -648,7 +624,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![9])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].artifacts.len(), 1);
         assert_eq!(got[0].artifacts[0].bytes, vec![9]);
@@ -673,7 +651,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![1]), (out_path("b.pb"), vec![2])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].artifacts.len(), 2);
         assert_eq!(got[0].artifacts[0].exec_path, out_path("a.pb"));
@@ -691,7 +671,8 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let err = collect(Cursor::new(stream), &config(), &artifacts).expect_err("missing child");
+        let err = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect_err("missing child");
         assert_eq!(
             err,
             BepError::MissingNamedSet {
@@ -708,7 +689,8 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let err = collect(Cursor::new(stream), &config(), &artifacts).expect_err("child id");
+        let err = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect_err("child id");
         assert!(matches!(err, BepError::MalformedEvent { .. }));
     }
 
@@ -719,7 +701,8 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let err = collect(Cursor::new(stream), &config(), &artifacts).expect_err("fileSets");
+        let err = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect_err("fileSets");
         assert!(matches!(
             err,
             BepError::MalformedEvent {
@@ -743,7 +726,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![1])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].artifacts.len(), 1);
     }
@@ -759,7 +744,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![9])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
     }
 
@@ -770,12 +757,12 @@ mod tests {
         };
         let stream = r#"{"id": {"targetCompleted": {"label": "//q:a"}}, "completed": []}"#;
         assert!(matches!(
-            collect(Cursor::new(stream), &config(), &artifacts),
+            collect_account(Cursor::new(stream), &config(), &artifacts, None),
             Err(BepError::MalformedEvent { .. })
         ));
         let stream = r#"{"id": {}, "completed": {"success": true}}"#;
         assert!(matches!(
-            collect(Cursor::new(stream), &config(), &artifacts),
+            collect_account(Cursor::new(stream), &config(), &artifacts, None),
             Err(BepError::MalformedEvent { .. })
         ));
     }
@@ -791,7 +778,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 2);
         for output in &got {
             assert!(!output.success);
@@ -806,22 +795,22 @@ mod tests {
         };
         let stream = r#"{"id": {"targetCompleted": {"label": "//q:a"}}, "completed": {"success": true, "outputGroup": {}}}"#;
         assert!(matches!(
-            collect(Cursor::new(stream), &config(), &artifacts),
+            collect_account(Cursor::new(stream), &config(), &artifacts, None),
             Err(BepError::MalformedEvent { .. })
         ));
         let stream = r#"{"id": {"targetCompleted": {"label": "//q:a"}}, "completed": {"success": true, "outputGroup": ["dx_results"]}}"#;
         assert!(matches!(
-            collect(Cursor::new(stream), &config(), &artifacts),
+            collect_account(Cursor::new(stream), &config(), &artifacts, None),
             Err(BepError::MalformedEvent { .. })
         ));
         let stream = r#"{"id": {"targetCompleted": {"label": "//q:a"}}, "completed": {"success": true, "outputGroup": [{"name": "dx_results", "fileSets": {}}]}}"#;
         assert!(matches!(
-            collect(Cursor::new(stream), &config(), &artifacts),
+            collect_account(Cursor::new(stream), &config(), &artifacts, None),
             Err(BepError::MalformedEvent { .. })
         ));
         let stream = r#"{"id": {"targetCompleted": {"label": "//q:a"}}, "completed": {"success": true, "outputGroup": [{"name": "dx_results", "fileSets": [{}]}]}}"#;
         assert!(matches!(
-            collect(Cursor::new(stream), &config(), &artifacts),
+            collect_account(Cursor::new(stream), &config(), &artifacts, None),
             Err(BepError::MalformedEvent { .. })
         ));
     }
@@ -836,7 +825,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert!(got.is_empty());
     }
 
@@ -846,7 +837,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert!(!got[0].success);
         assert!(got[0].artifacts.is_empty());
@@ -858,7 +851,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert!(got[0].success);
         assert!(got[0].artifacts.is_empty());
@@ -875,7 +870,8 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let err = collect(Cursor::new(stream), &config(), &artifacts).expect_err("uri missing");
+        let err = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect_err("uri missing");
         assert!(matches!(err, BepError::MalformedEvent { .. }));
     }
 
@@ -889,7 +885,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![1]), (out_path("b.pb"), vec![2])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got[0].artifacts.len(), 2);
         assert_eq!(got[0].artifacts[0].exec_path, out_path("a.pb"));
         assert_eq!(got[0].artifacts[1].exec_path, out_path("b.pb"));
@@ -907,7 +905,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![1, 2, 3])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].label, "//q:a");
         assert!(got[0].success);
@@ -928,7 +928,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![1]), (out_path("b.pb"), vec![2])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 2);
         assert_eq!(got[0].label, "//q:a");
         assert_eq!(got[1].label, "//q:b");
@@ -940,7 +942,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert!(!got[0].success);
         assert!(got[0].artifacts.is_empty());
@@ -952,7 +956,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert!(got.is_empty());
     }
 
@@ -961,14 +967,20 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let err = collect(Cursor::new("not json\n"), &config(), &artifacts).expect_err("malformed");
-        assert!(matches!(err, BepError::MalformedEvent { line: 1, .. }));
-        let err = collect(Cursor::new("[1,2]\n"), &config(), &artifacts).expect_err("array");
+        let account = collect_account(Cursor::new("not json\n"), &config(), &artifacts, None)
+            .expect("cut-off tail");
+        assert!(account.targets.is_empty());
+        assert!(account
+            .problem
+            .is_some_and(|problem| problem.starts_with("line 1:")));
+        let err = collect_account(Cursor::new("[1,2]\n"), &config(), &artifacts, None)
+            .expect_err("array");
         assert!(matches!(err, BepError::MalformedEvent { .. }));
-        let err = collect(
+        let err = collect_account(
             Cursor::new(r#"{"completed": {"success": true}}"#),
             &config(),
             &artifacts,
+            None,
         )
         .expect_err("no id");
         assert!(matches!(err, BepError::MalformedEvent { .. }));
@@ -981,7 +993,8 @@ mod tests {
             files: HashMap::new(),
         };
         assert_eq!(
-            collect(Cursor::new(stream), &config(), &artifacts).expect_err("missing set"),
+            collect_account(Cursor::new(stream), &config(), &artifacts, None)
+                .expect_err("missing set"),
             BepError::MissingNamedSet {
                 id: "ghost".to_owned(),
                 line: 1,
@@ -1011,7 +1024,8 @@ mod tests {
         let reader = NoReadReader {
             reads: std::cell::Cell::new(0),
         };
-        let err = collect(Cursor::new(stream), &config(), &reader).expect_err("remote");
+        let err =
+            collect_account(Cursor::new(stream), &config(), &reader, None).expect_err("remote");
         assert_eq!(
             err,
             BepError::UnsupportedUri {
@@ -1054,7 +1068,9 @@ mod tests {
             completed("//q:a", true, &group_ref("dx_results", &["1"])),
         ]
         .join("\n");
-        let got = collect(Cursor::new(stream), &config(), &FsArtifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &FsArtifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].artifacts.len(), names.len());
         let mut read = got[0]
@@ -1097,8 +1113,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(local.clone(), b"cached-bytes".to_vec())]),
         };
-        let got = collect_with_workspace(Cursor::new(stream), &config(), &artifacts, Some(ws))
-            .expect("fallback");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, Some(ws))
+            .expect("fallback")
+            .targets;
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].artifacts.len(), 1);
         assert_eq!(got[0].artifacts[0].bytes, b"cached-bytes".to_vec());
@@ -1119,7 +1136,7 @@ mod tests {
             files: HashMap::new(),
         };
         let dir = tempfile::TempDir::new().expect("scratch");
-        let err = collect_with_workspace(
+        let err = collect_account(
             Cursor::new(stream.clone()),
             &config(),
             &artifacts,
@@ -1127,7 +1144,8 @@ mod tests {
         )
         .expect_err("nameless bytestream must fail");
         assert!(matches!(err, BepError::UnsupportedUri { .. }));
-        let err = collect(Cursor::new(stream), &config(), &artifacts).expect_err("no workspace");
+        let err = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect_err("no workspace");
         assert!(matches!(err, BepError::UnsupportedUri { .. }));
     }
 
@@ -1141,7 +1159,8 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let err = collect(Cursor::new(stream), &config(), &artifacts).expect_err("missing");
+        let err =
+            collect_account(Cursor::new(stream), &config(), &artifacts, None).expect_err("missing");
         assert!(matches!(err, BepError::UnreadableArtifact { .. }));
     }
 
@@ -1165,7 +1184,9 @@ mod tests {
         let reader = CountingReader {
             reads: std::cell::Cell::new(0),
         };
-        let got = collect(Cursor::new(stream), &config(), &reader).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &reader, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got[0].artifacts.len(), 1);
         assert_eq!(reader.reads.get(), 1);
     }
@@ -1182,7 +1203,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![9])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got.len(), 1);
     }
 
@@ -1196,7 +1219,9 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::from([(out_path("a.pb"), vec![5])]),
         };
-        let got = collect(Cursor::new(stream), &config(), &artifacts).expect("collect");
+        let got = collect_account(Cursor::new(stream), &config(), &artifacts, None)
+            .expect("collect")
+            .targets;
         assert_eq!(got[0].artifacts[0].bytes, vec![5]);
     }
 }

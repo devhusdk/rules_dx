@@ -141,13 +141,6 @@ pub fn change_value(
     Value::Object(map)
 }
 
-/// Validates a refused change that has no single edit set.
-pub fn refusal_event(path: &str, kind: ChangeKind, reason: &str) -> Result<Value, OutputError> {
-    check_path(path)?;
-    check_effect(path, ChangeEffect::Refused, Some(reason))?;
-    Ok(refusal_value(path, kind, reason))
-}
-
 /// Builds a refused change that has no single edit set.
 pub fn refusal_value(path: &str, kind: ChangeKind, reason: &str) -> Value {
     Value::Object(record(path, kind, 0, ChangeEffect::Refused, Some(reason)))
@@ -296,17 +289,10 @@ mod tests {
 
     #[test]
     fn refusals_without_edits() {
-        let event =
-            refusal_event("a.py", ChangeKind::Modify, "conflicting_candidates").expect("refusal");
+        let event = refusal_value("a.py", ChangeKind::Modify, "conflicting_candidates");
         assert_eq!(event["edit_count"], Value::from(0));
         assert_eq!(event["effect"], Value::from("refused"));
         assert_eq!(event["reason"], Value::from("conflicting_candidates"));
-        assert_eq!(
-            event,
-            refusal_value("a.py", ChangeKind::Modify, "conflicting_candidates")
-        );
-        assert!(refusal_event("a.py", ChangeKind::Modify, "").is_err());
-        assert!(refusal_event("/abs.py", ChangeKind::Modify, "x").is_err());
     }
 
     #[test]

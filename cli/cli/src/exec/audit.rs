@@ -1529,7 +1529,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     if invocation.output == OutputMode::Json {
         for diagnostic in &diagnostics {
-            match diagnostic_event(diagnostic, false) {
+            match diagnostic_event(diagnostic) {
                 Ok(event) => {
                     if let Err(exit) = emit_event(out, &event) {
                         return exit;

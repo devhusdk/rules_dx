@@ -18,7 +18,7 @@ pub mod severity;
 pub mod validation;
 
 pub use changes::{
-    change_event, change_value, refusal_event, refusal_value, ChangeEffect, ChangeEvent, ChangeKind,
+    change_event, change_value, refusal_value, ChangeEffect, ChangeEvent, ChangeKind,
 };
 pub use clap_errors::{first_line, missing_value_flag, parse_error, rejected_value, unknown_token};
 pub use diagnostics::{
@@ -27,9 +27,9 @@ pub use diagnostics::{
     set_color_override, truncate_line, ColorMode, Excerpt, DEFAULT_LOG_FILTER, VERBOSE_LOG_FILTER,
 };
 pub use findings::{
-    diagnostic_event, diagnostic_value, finding_value, notice_event, notice_value,
-    sort_diagnostics, DiagnosticEvent, FindingRecord, NoticeEvent, Origin, PackageRef, Position,
-    RelatedEvent, Resolution, Snapshot, Span,
+    diagnostic_event, finding_value, notice_event, notice_value, sort_diagnostics, DiagnosticEvent,
+    FindingRecord, NoticeEvent, Origin, PackageRef, Position, RelatedEvent, Resolution, Snapshot,
+    Span,
 };
 pub use lifecycle::{
     build_failure_event, capability_event, capability_value, changed_line_coverage_event,

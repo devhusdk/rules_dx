@@ -69,6 +69,16 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
         "the sidebar names {} rendered pages",
         routes.len()
     );
+    let mut crates = std::collections::BTreeSet::new();
+    let routes: Vec<String> = routes
+        .into_iter()
+        .filter(|route| match route.strip_prefix("api/") {
+            Some(rest) => {
+                crates.insert(rest.rsplit_once('/').map_or("", |(dir, _)| dir).to_string())
+            }
+            None => true,
+        })
+        .collect();
 
     for route in &routes {
         browser

@@ -683,6 +683,10 @@ _consumer_hub_repo(
     name = "consumer_hub",
 )
 
+_docs_consumer_repo = use_repo_rule("//tools/docs/rust/fixture/consumer:repos.bzl", "docs_consumer_repo")
+
+_docs_consumer_repo(name = "dx_docs_consumer")
+
 _consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_repo")
 
 _consumer_dx_repo(name = "dx_consumer_entry")

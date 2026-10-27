@@ -3115,7 +3115,36 @@ pub fn promotion_rollback_command(deploy_name: &str, rollback_to: &str) -> Strin
     )
 }
 
+/// Health result recorded for one promotion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PromotionHealth {
+    Passed,
+    NotRequired,
+    SkippedLocal,
+}
+
+impl PromotionHealth {
+    /// Returns the value written to promotion.json.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Passed => "passed",
+            Self::NotRequired => "not-required",
+            Self::SkippedLocal => "skipped-local",
+        }
+    }
+
+    /// Returns the health line written to would-run.txt.
+    pub fn manifest_line(self) -> &'static str {
+        match self {
+            Self::Passed => "health: passed (PROMOTION_HEALTH_CMD exited 0)",
+            Self::NotRequired => "health: not required; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check",
+            Self::SkippedLocal => "health: skipped locally; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check",
+        }
+    }
+}
+
 /// Builds one promotion staging dir.
+#[allow(clippy::too_many_arguments)]
 pub fn promotion_build(
     artifact_src: &Path,
     outdir: &Path,
@@ -3124,6 +3153,7 @@ pub fn promotion_build(
     to_env: &str,
     version: &str,
     secret_refs: &[String],
+    health: PromotionHealth,
 ) -> io::Result<std::path::PathBuf> {
     if !artifact_src.is_file() {
         return Err(io::Error::new(
@@ -3176,7 +3206,7 @@ pub fn promotion_build(
         "artifact_sha256": digest,
         "deploy": deploy_name,
         "from_environment": from_env,
-        "health": "skipped-local",
+        "health": health.as_str(),
         "registry_auth": "env-only",
         "secret_refs": refs,
         "to_environment": to_env,
@@ -3189,8 +3219,9 @@ pub fn promotion_build(
         format!("secret-refs: {} (names only, never values)", refs.join(","))
     };
     let manifest = format!(
-        "# would-run manifest for promotion_deploy (local default publishes nothing; live needs PROMOTION_LIVE=1 plus PROMOTION_APPROVED=1)\n{}\nhealth: skipped locally; set PROMOTION_REQUIRE_HEALTH=1 plus PROMOTION_HEALTH_CMD to gate the promotion on a health check\nrollback: set PROMOTION_ROLLBACK=1 plus PROMOTION_ROLLBACK_TO=<version> to record a rollback pointer (history lives in the promotion dir or registry)\nartifact-sha256: {digest}  {base}\n{refs_line}\nregistry-auth: env-only (PROMOTION_REGISTRY_USER/PROMOTION_REGISTRY_TOKEN), never from BUILD\n",
+        "# would-run manifest for promotion_deploy (publishes nothing; live gates need PROMOTION_LIVE=1 plus PROMOTION_APPROVED=1)\n{}\n{}\nrollback: set PROMOTION_ROLLBACK=1 plus PROMOTION_ROLLBACK_TO=<version> to record a rollback pointer (history lives in the promotion dir or registry)\nartifact-sha256: {digest}  {base}\n{refs_line}\nregistry-auth: env-only (PROMOTION_REGISTRY_USER/PROMOTION_REGISTRY_TOKEN), never from BUILD\n",
         promotion_promote_command(&base, from_env, to_env, version),
+        health.manifest_line(),
     );
     std::fs::write(promotion.join("would-run.txt"), manifest.as_bytes())?;
     Ok(promotion)
@@ -3381,6 +3412,7 @@ pub fn promotion_main(
             to_env,
             version,
             &secret_refs,
+            PromotionHealth::SkippedLocal,
         ) {
             Ok(promotion) => promotion,
             Err(error) => {
@@ -3426,6 +3458,7 @@ pub fn promotion_main(
             eprintln!("promotion_deploy: {error}");
             return 1;
         }
+        let mut health = PromotionHealth::NotRequired;
         if std::env::var("PROMOTION_REQUIRE_HEALTH").unwrap_or_default() == "1" {
             let health_cmd = std::env::var("PROMOTION_HEALTH_CMD").unwrap_or_default();
             if health_cmd.is_empty() {
@@ -3435,7 +3468,7 @@ pub fn promotion_main(
                 return 1;
             }
             match promotion_run_health_cmd(&health_cmd) {
-                Ok(0) => {}
+                Ok(0) => health = PromotionHealth::Passed,
                 Ok(code) => {
                     eprintln!(
                         "promotion_deploy: health check failed (exit {code}); refusing to promote"
@@ -3456,13 +3489,14 @@ pub fn promotion_main(
             to_env,
             version,
             &secret_refs,
+            health,
         ) {
             Ok(promotion) => {
-                println!(
-                    "promotion_deploy: promoted {from_env} -> {to_env} version {version} (secrets by reference only, registry auth env-only)"
+                eprintln!(
+                    "promotion_deploy: live promotion {from_env} -> {to_env} version {version} is not implemented; gates passed and nothing was published"
                 );
-                println!("  promotion: {}", promotion.display());
-                return 0;
+                eprintln!("  promotion: {}", promotion.display());
+                return 1;
             }
             Err(error) => {
                 eprintln!("promotion_deploy: {error}");
@@ -3485,6 +3519,7 @@ pub fn promotion_main(
         to_env,
         version,
         &secret_refs,
+        PromotionHealth::SkippedLocal,
     ) {
         Ok(promotion) => {
             let profile = std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned());
@@ -4914,6 +4949,7 @@ mod tests {
             "production",
             "1.2.3",
             &[],
+            PromotionHealth::SkippedLocal,
         )
         .expect("promotion");
         let record = std::fs::read_to_string(promotion.join("promotion.json")).expect("record");
@@ -4934,6 +4970,27 @@ mod tests {
             })
         );
         assert!(promotion.join("would-run.txt").is_file());
+        let passed_out = scratch.path().join("passed");
+        std::fs::create_dir_all(&passed_out).expect("passed outdir");
+        let passed = promotion_build(
+            &artifact,
+            &passed_out,
+            "promotion_demo",
+            "staging",
+            "production",
+            "1.2.3",
+            &[],
+            PromotionHealth::Passed,
+        )
+        .expect("passed promotion");
+        let passed_record: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(passed.join("promotion.json")).expect("passed record"),
+        )
+        .expect("passed record parses");
+        assert_eq!(passed_record["health"], "passed");
+        let manifest = std::fs::read_to_string(passed.join("would-run.txt")).expect("manifest");
+        assert!(manifest.contains("health: passed"));
+        assert!(!manifest.contains("local default"));
         let rollback =
             promotion_record_rollback(&promotion, "promotion_demo", "1.2.2", "").expect("rollback");
         assert!(rollback.is_file());
@@ -5878,6 +5935,7 @@ mod tests {
             "production",
             "1.0.2",
             &[],
+            PromotionHealth::SkippedLocal,
         )
         .expect("promotion");
         let missing_version =
@@ -7217,6 +7275,70 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn promotion_live_records_health_and_refuses() {
+        use std::os::unix::fs::PermissionsExt;
+        if env_test_in_child("tests::promotion_live_records_health_and_refuses") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        let tarball = runfiles.join("release_demo.tar.gz");
+        std::fs::write(
+            &tarball,
+            archive_bytes(b"payload", "release_demo.tar.gz", false).expect("tar"),
+        )
+        .expect("write tarball");
+        let bin = scratch.path().join("bin");
+        std::fs::create_dir_all(&bin).expect("bin");
+        let script = bin.join("dx_fake_health");
+        std::fs::write(&script, "#!/bin/sh\nexit 0\n").expect("write health");
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        for (require, expected) in [(Some("1"), "passed"), (None, "not-required")] {
+            with_env(
+                &[
+                    ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                    ("RUNFILES_MANIFEST_FILE", None),
+                    ("BUILD_WORKSPACE_DIRECTORY", None),
+                    ("PROMOTION_LIVE", Some("1")),
+                    ("PROMOTION_APPROVED", Some("1")),
+                    ("PROMOTION_REQUIRE_HEALTH", require),
+                    ("PROMOTION_HEALTH_CMD", Some("dx_fake_health")),
+                    ("PATH", Some(bin.to_string_lossy().as_ref())),
+                    ("PROMOTION_SECRET_REFS", None),
+                    ("PROMOTION_REGISTRY_REQUIRED", None),
+                    ("PROMOTION_ROLLBACK", None),
+                ],
+                || {
+                    let outdir = tempfile_stage_dir("dx-deploy-promotion-live-").expect("outdir");
+                    let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+                    assert_eq!(
+                        promotion_main(
+                            "release_demo.tar.gz",
+                            "promotion_demo",
+                            "staging",
+                            "production",
+                            "1.2.3",
+                            &argv
+                        ),
+                        1
+                    );
+                    let record: serde_json::Value = serde_json::from_str(
+                        &std::fs::read_to_string(
+                            outdir.join("promotion_demo-promotion/promotion.json"),
+                        )
+                        .expect("record"),
+                    )
+                    .expect("record parses");
+                    assert_eq!(record["health"], expected);
+                    std::fs::remove_dir_all(&outdir).expect("cleanup");
+                },
+            );
+        }
+    }
+
     fn stage_runfiles_inputs(root: &Path) {
         std::fs::create_dir_all(root).expect("runfiles");
         let maven_pom = crate::maven::tests::central_pom("com.example", "maven_demo", "1.0.0");
@@ -8225,7 +8347,16 @@ mod tests {
         let artifact = scratch.path().join("release_demo.tar.gz");
         std::fs::write(&artifact, b"promotion-bytes-v1").expect("write artifact");
         let build = |deploy, from, to, version, src: &Path| {
-            promotion_build(src, &outdir, deploy, from, to, version, &[])
+            promotion_build(
+                src,
+                &outdir,
+                deploy,
+                from,
+                to,
+                version,
+                &[],
+                PromotionHealth::SkippedLocal,
+            )
         };
         let baseline = build(
             "promotion_demo",

@@ -429,7 +429,11 @@ mod tests {
                 matches!(*language, "astro" | "svelte" | "vue" | "mdx"),
                 "{module}"
             );
-            assert_eq!(module.contains("rules_ruby"), *language == "ruby", "{module}");
+            assert_eq!(
+                module.contains("rules_ruby"),
+                *language == "ruby",
+                "{module}"
+            );
             let (code, out, _err) = run(&invocation(&["new", language, name]), &root);
             assert_eq!(code, 0, "{language}: {out}");
         }

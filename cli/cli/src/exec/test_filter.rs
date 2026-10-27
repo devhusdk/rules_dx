@@ -58,7 +58,14 @@ pub(crate) fn rust_filter_args(
     let argv = selection
         .unconfigured_view()
         .selection_argv("query", &["--output=label_kind".to_owned()], &expr)
-        .map_err(|error| ResolveError::query(&expr, QueryFailure::Prepare { detail: error.to_string() }))?;
+        .map_err(|error| {
+            ResolveError::query(
+                &expr,
+                QueryFailure::Prepare {
+                    detail: error.to_string(),
+                },
+            )
+        })?;
     let label = format!("bazel query {expr}");
     let result = ResolveError::run(runner, &argv, workspace, &label)?;
     let kinds = parse_label_kind(&result.stdout).unwrap_or_default();
@@ -92,12 +99,19 @@ pub(crate) fn without_libtest_harness(
     if labels.is_empty() {
         return Ok(Vec::new());
     }
-    let set = crate::resolve::set_expression(labels);
+    let set = dx_plan::resolve::set_expression(labels);
     let expr = format!("attr(use_libtest_harness, 0, {set} + labels(upstream, {set}))");
     let argv = selection
         .unconfigured_view()
         .selection_argv("query", &["--output=label".to_owned()], &expr)
-        .map_err(|error| prepare_failure(&expr, error.to_string()))?;
+        .map_err(|error| {
+            ResolveError::query(
+                &expr,
+                dx_plan::resolve::QueryFailure::Prepare {
+                    detail: error.to_string(),
+                },
+            )
+        })?;
     let label = format!("bazel query {expr}");
     let result = ResolveError::run(runner, &argv, workspace, &label)?;
     Ok(String::from_utf8_lossy(&result.stdout)

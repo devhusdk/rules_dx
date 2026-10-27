@@ -172,9 +172,31 @@ pub(crate) fn exit_codes(command: Command) -> &'static str {
         Command::Lint | Command::Typecheck | Command::Format
     ) {
         "Exit codes: 0 success; 2 usage/scope/owner errors; 1 findings, operational failures, and Bazel failures (Bazel's code is not kept)."
+    } else if !runs_bazel(command) {
+        "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures."
     } else {
         "Exit codes: 0 success; 2 usage/scope/owner errors; 1 operational failures; Bazel-authoritative failures preserve Bazel's code."
     }
+}
+
+/// Whether `dx <command>` can launch Bazel and so preserve its exit code.
+pub(crate) fn runs_bazel(command: Command) -> bool {
+    !matches!(
+        command,
+        Command::Security
+            | Command::License
+            | Command::Clean
+            | Command::Update
+            | Command::Bump
+            | Command::Add
+            | Command::Migrate
+            | Command::Upgrade
+            | Command::Version
+            | Command::Completion
+            | Command::Init
+            | Command::New
+            | Command::Worktree
+    )
 }
 
 pub fn usage_banner() -> String {

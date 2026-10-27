@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, or `cuda`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `haskell`, or `cuda`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -119,6 +119,7 @@ language rule:
 - `zig` takes Bazel module names.
 - `elixir` takes Bazel module names.
 - `erlang` takes Bazel module names.
+- `haskell` takes Bazel module names.
 - `cuda` takes Bazel module names.
 
 A `rust-android` name must also start with a letter and must not be a Java
@@ -171,6 +172,18 @@ scaffolding failed.
 
 Scaffolding into an existing directory adds absent files only and leaves
 custom files untouched.
+
+## `dx new haskell`
+
+```text
+dx new [--apply] haskell [name]
+```
+
+Scaffolds a standalone Haskell consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `src/Hello.hs`, `src/Main.hs`,
+`test/HelloTest.hs`, and `README.md`. The library, binary and test load
+`@rules_dx//haskell/rules:defs.bzl`. rules_dx pins GHC, so nothing needs to be
+installed. The targets need Linux x86_64.
 
 ## `dx new cuda`
 

@@ -15,7 +15,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Language | Builds and tests on | Consumer test on | `dx new` starter |
 | --- | --- | --- | --- |
 | Astro | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `astro` |
-| C and C++ | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `c`, `cpp` |
+| C and C++ | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `windows_x86_64` | `c`, `cpp` |
 | C# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `csharp` |
 | CUDA | `linux_x86_64` | `linux_x86_64` | `cuda` |
 | D | `linux_x86_64` | no | no |
@@ -24,7 +24,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Fortran | `linux_x86_64` | no | no |
 | F# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `fsharp` |
 | Go | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `go` |
-| Haskell | `linux_x86_64` | no | no |
+| Haskell | `linux_x86_64` | no | `haskell` |
 | Java | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `java` |
 | JavaScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `javascript` |
 | Julia | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |

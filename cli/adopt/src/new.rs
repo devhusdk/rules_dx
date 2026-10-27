@@ -144,6 +144,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         identity: IdentityRule::BazelModule,
     },
     NewLanguage {
+        name: "haskell",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
         name: "cuda",
         identity: IdentityRule::BazelModule,
     },
@@ -1281,6 +1285,69 @@ bazel test //...
     ]
 }
 
+fn haskell_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+
+haskell_library(
+    name = "IDENTITY",
+    srcs = ["src/Hello.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = ["@dx_haskell_toolchains//:base"],
+)
+
+haskell_binary(
+    name = "IDENTITY_bin",
+    srcs = ["src/Main.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":IDENTITY",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_test(
+    name = "IDENTITY_test",
+    srcs = ["test/HelloTest.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":IDENTITY",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+
+The targets need Linux x86_64.
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "src/Hello.hs".to_owned(),
+            "module Hello (greet) where\n\ngreet :: String -> String\ngreet name = \"hello \" ++ name\n".to_owned(),
+        ),
+        (
+            "src/Main.hs".to_owned(),
+            "module Main (main) where\n\nimport Hello (greet)\n\nmain :: IO ()\nmain = putStrLn (greet \"world\")\n".to_owned(),
+        ),
+        (
+            "test/HelloTest.hs".to_owned(),
+            "module Main (main) where\n\nimport Hello (greet)\nimport System.Exit (exitFailure)\n\nmain :: IO ()\nmain = if greet \"world\" == \"hello world\" then putStrLn \"PASS\" else exitFailure\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
 fn powershell_files(identity: &str) -> Vec<(String, String)> {
     let build =
         r#"load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
@@ -1651,6 +1718,7 @@ fn new_language_files(
         "zig" => zig_files(identity),
         "elixir" => elixir_files(identity),
         "erlang" => erlang_files(identity),
+        "haskell" => haskell_files(identity),
         "cuda" => cuda_files(identity),
         "c" => c_files(identity),
         "cpp" => cpp_files(identity),
@@ -1759,6 +1827,7 @@ mod tests {
         assert_eq!(normalize_new_language("zig"), Some("zig"));
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("erlang"), Some("erlang"));
+        assert_eq!(normalize_new_language("haskell"), Some("haskell"));
         assert_eq!(normalize_new_language("cuda"), Some("cuda"));
     }
 

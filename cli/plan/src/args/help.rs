@@ -152,7 +152,7 @@ fn render_env_help() -> String {
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
     out.push_str("  BUILD_WORKING_DIRECTORY=<dir>\n");
-    out.push_str("      Current directory under `bazel run`.\n");
+    out.push_str("      Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`.\n");
     out.push_str(&format!(
         "  {} (committed) and {} (local-only, gitignored) carry the same defaults as the DX_ variables, below the environment.\n      Local beats committed. In CI the local file and DX_ variables are ignored; flags still win.\n      An unknown key is a usage error.\n",
         dx_adopt::defaults::DX_TOML_REL,

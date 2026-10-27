@@ -1,7 +1,7 @@
 mod metrics;
 
 use dx_process::RcPolicy;
-use metrics::{Peaks, Phase, Setup};
+use metrics::{Actions, Peaks, Phase, Setup};
 use std::collections::BTreeSet;
 use std::fs;
 use std::os::unix::process::CommandExt;
@@ -244,6 +244,18 @@ fn dx_test_args(options: &Options, output_base: &Path) -> Vec<String> {
 
 fn waited_for_slot(log: &str) -> bool {
     log.lines().any(|line| line.contains(WAIT_LINE))
+}
+
+/// Reads each log once: how many waited for a slot, and each log's actions.
+fn scan_logs<'a>(logs: impl Iterator<Item = &'a Path>) -> (usize, Vec<Option<Actions>>) {
+    let mut waits = 0;
+    let mut actions = Vec::new();
+    for log in logs {
+        let text = fs::read_to_string(log).unwrap_or_default();
+        waits += usize::from(waited_for_slot(&text));
+        actions.push(metrics::parse_process_summary(&text));
+    }
+    (waits, actions)
 }
 
 fn bazel_output(
@@ -684,10 +696,16 @@ fn run_phase(
         }
         jvm_heap_after_gc_bytes = jvm_heap_after_gc_bytes.max(heap.unwrap_or(0));
     }
-    let slot_waits = children
-        .iter()
-        .filter(|(log, _)| waited_for_slot(&fs::read_to_string(log).unwrap_or_default()))
-        .count();
+    let (slot_waits, actions) = scan_logs(children.iter().map(|(log, _)| log.as_path()));
+    if actions.iter().any(Option::is_none) {
+        eprintln!(
+            "warning: no Bazel process summary in some {label} phase logs under {}; action counts are unknown (an rc --ui_event_filters may hide INFO lines)",
+            children
+                .first()
+                .and_then(|(log, _)| log.parent())
+                .map_or(String::new(), |dir| dir.display().to_string())
+        );
+    }
     Ok(Phase {
         wall_seconds,
         peaks,
@@ -695,6 +713,7 @@ fn run_phase(
         output_base_bytes: bases.iter().map(|base| dir_size(base)).sum(),
         oom_kills: oom_kills().saturating_sub(oom_before),
         slot_waits,
+        actions,
         exit_codes,
     })
 }
@@ -1209,6 +1228,32 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             "Loading\ndx: waiting for a build slot (held by /w/a)\nINFO: done"
         ));
         assert!(!waited_for_slot("INFO: Build completed successfully"));
+    }
+
+    #[test]
+    fn scans_wait_and_summary_in_one_pass() {
+        let dir = std::env::temp_dir().join(format!("pw-scan-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let (a, b) = (dir.join("a.log"), dir.join("b.log"));
+        fs::write(
+            &a,
+            "dx: waiting for a build slot (held by /w/a)\nINFO: 3 processes: 1 disk cache hit, 2 local.\n",
+        )
+        .unwrap();
+        fs::write(&b, "nothing").unwrap();
+        let (waits, actions) = scan_logs([a.as_path(), b.as_path()].into_iter());
+        assert_eq!(waits, 1);
+        assert_eq!(
+            actions,
+            vec![
+                Some(Actions {
+                    executed: 2,
+                    cached: 1
+                }),
+                None
+            ]
+        );
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

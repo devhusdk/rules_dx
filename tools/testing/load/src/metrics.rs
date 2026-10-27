@@ -84,7 +84,17 @@ pub struct Phase {
     pub output_base_bytes: u64,
     pub oom_kills: u64,
     pub slot_waits: usize,
+    /// Per tree, in tree order like `exit_codes`. `None` means unknown.
+    pub actions: Vec<Option<Actions>>,
     pub exit_codes: Vec<i32>,
+}
+
+/// Actions a Bazel invocation ran, as the metrics see them. This is the only
+/// seam between the data source (today the log summary) and the output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Actions {
+    pub executed: u64,
+    pub cached: u64,
 }
 
 /// The metrics `--compare` looks at, in `Phase::scalars` order. Other fields
@@ -101,7 +111,26 @@ const COMPARED: [&str; 9] = [
     "oom_kills",
 ];
 
+/// Compared only when both files have them, so older result files still work.
+const COMPARED_IF_PRESENT: [&str; 2] = ["executed_actions", "cached_actions"];
+
 impl Phase {
+    fn total(&self, pick: fn(&Actions) -> u64) -> Option<u64> {
+        let mut sum = 0;
+        for actions in &self.actions {
+            sum += pick((*actions).as_ref()?);
+        }
+        (!self.actions.is_empty()).then_some(sum)
+    }
+
+    pub fn executed_actions(&self) -> Option<u64> {
+        self.total(|a| a.executed)
+    }
+
+    pub fn cached_actions(&self) -> Option<u64> {
+        self.total(|a| a.cached)
+    }
+
     pub fn scalars(&self) -> Vec<(&'static str, f64)> {
         let values = [
             self.wall_seconds,
@@ -122,6 +151,18 @@ fn join<T: ToString>(items: &[T]) -> String {
     items
         .iter()
         .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn json_count(value: Option<u64>) -> String {
+    value.map_or("null".to_string(), |n| n.to_string())
+}
+
+fn json_counts(actions: &[Option<Actions>], pick: fn(&Actions) -> u64) -> String {
+    actions
+        .iter()
+        .map(|a| json_count(a.as_ref().map(pick)))
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -179,6 +220,26 @@ pub fn to_json(
             join(&phase.peaks.server_peaks_kb())
         );
         let _ = writeln!(out, "    \"slot_waits\": {},", phase.slot_waits);
+        let _ = writeln!(
+            out,
+            "    \"executed_actions\": {},",
+            json_count(phase.executed_actions())
+        );
+        let _ = writeln!(
+            out,
+            "    \"cached_actions\": {},",
+            json_count(phase.cached_actions())
+        );
+        let _ = writeln!(
+            out,
+            "    \"executed_actions_per_worktree\": [{}],",
+            json_counts(&phase.actions, |a| a.executed)
+        );
+        let _ = writeln!(
+            out,
+            "    \"cached_actions_per_worktree\": [{}],",
+            json_counts(&phase.actions, |a| a.cached)
+        );
         let _ = writeln!(out, "    \"exit_codes\": [{}]", join(&phase.exit_codes));
         let _ = writeln!(out, "  }}{}", if index == 0 { "," } else { "" });
     }
@@ -197,6 +258,46 @@ pub fn to_table(cold: &Phase, warm: &Phase) -> String {
         "{:<28}{:>16}{:>16}",
         "slot_waits", cold.slot_waits, warm.slot_waits
     );
+    let cell = |value: Option<u64>| value.map_or("-".to_string(), |n| n.to_string());
+    for (name, c, w) in [
+        (
+            "executed_actions",
+            cold.executed_actions(),
+            warm.executed_actions(),
+        ),
+        (
+            "cached_actions",
+            cold.cached_actions(),
+            warm.cached_actions(),
+        ),
+    ] {
+        let _ = writeln!(out, "{name:<28}{:>16}{:>16}", cell(c), cell(w));
+    }
+    let trees = cold.actions.len().max(warm.actions.len());
+    if trees > 0 {
+        let _ = writeln!(
+            out,
+            "\nper worktree (executed/cached) {:>8}{:>16}",
+            "cold", "warm"
+        );
+        let pair = |phase: &Phase, i: usize| {
+            phase
+                .actions
+                .get(i)
+                .copied()
+                .flatten()
+                .map_or("-".to_string(), |a| format!("{}/{}", a.executed, a.cached))
+        };
+        for i in 0..trees {
+            let _ = writeln!(
+                out,
+                "{:<28}{:>16}{:>16}",
+                format!("worktree {i}"),
+                pair(cold, i),
+                pair(warm, i)
+            );
+        }
+    }
     out
 }
 
@@ -228,7 +329,7 @@ pub fn read_scalars(json: &str) -> BTreeMap<String, Scalars> {
             continue;
         };
         let key = key.trim_start_matches('"');
-        if !COMPARED.contains(&key) {
+        if !COMPARED.contains(&key) && !COMPARED_IF_PRESENT.contains(&key) {
             continue;
         }
         if let Ok(number) = value.trim_end_matches(',').parse::<f64>() {
@@ -273,6 +374,71 @@ pub fn parse_heap_size(text: &str) -> Option<u64> {
     number.parse::<u64>().ok().map(|n| n * scale)
 }
 
+fn strip_ansi(line: &str) -> String {
+    let mut out = String::new();
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                for c in chars.by_ref() {
+                    if c.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+fn count(text: &str) -> Option<u64> {
+    let digits: String = text.chars().filter(|c| *c != ',').collect();
+    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
+}
+
+fn parse_summary_line(line: &str) -> Option<Actions> {
+    let line = strip_ansi(line);
+    let rest = line.split_once("INFO: ")?.1.trim_end();
+    let (total, rest) = rest.split_once(' ')?;
+    count(total)?;
+    let rest = rest
+        .strip_prefix("processes")
+        .or_else(|| rest.strip_prefix("process"))?;
+    let mut actions = Actions::default();
+    if rest == "." {
+        return Some(actions);
+    }
+    let entries = rest.strip_prefix(": ")?.strip_suffix('.')?;
+    for entry in entries.split(", ") {
+        let (n, name) = entry.split_once(' ')?;
+        let n = count(n)?;
+        match name {
+            "action cache hit" | "disk cache hit" | "remote cache hit" => actions.cached += n,
+            "internal" => {}
+            _ => actions.executed += n,
+        }
+    }
+    Some(actions)
+}
+
+/// Sums Bazel's `INFO: N processes: ...` summary lines. `None` when the log
+/// has none (for example when an rc hides INFO), which is unknown, not zero.
+pub fn parse_process_summary(log: &str) -> Option<Actions> {
+    let mut total: Option<Actions> = None;
+    for actions in log.lines().filter_map(parse_summary_line) {
+        let sum = total.get_or_insert_with(Actions::default);
+        sum.executed += actions.executed;
+        sum.cached += actions.cached;
+    }
+    total
+}
+
 pub fn compare(first_json: &str, second_json: &str) -> Result<Vec<Delta>, String> {
     let (first_header, second_header) = (read_header(first_json), read_header(second_json));
     if first_header[0].is_none() || first_header[1].is_none() {
@@ -289,6 +455,9 @@ pub fn compare(first_json: &str, second_json: &str) -> Result<Vec<Delta>, String
     for (phase, metrics) in &first {
         for (metric, a) in metrics {
             let Some(b) = second.get(phase).and_then(|m| m.get(metric)) else {
+                if COMPARED_IF_PRESENT.contains(&metric.as_str()) {
+                    continue;
+                }
                 return Err(format!("second file has no {phase} {metric}"));
             };
             let base = a.abs().max(b.abs());
@@ -553,5 +722,94 @@ mod tests {
         assert!(table.contains("2.50"));
         assert!(table.contains("oom_kills"));
         assert!(table.contains("slot_waits"));
+    }
+
+    #[test]
+    fn parses_process_summaries() {
+        let sum = |log: &str| parse_process_summary(log);
+        let a = |executed, cached| Some(Actions { executed, cached });
+        assert_eq!(
+            sum("INFO: 12 processes: 3 action cache hit, 2 disk cache hit, 1 remote cache hit, 2 internal, 4 linux-sandbox."),
+            a(4, 6)
+        );
+        assert_eq!(sum("INFO: 1 process: 1 internal."), a(0, 0));
+        assert_eq!(sum("INFO: 0 processes."), a(0, 0));
+        assert_eq!(
+            sum("INFO: 12,345 processes: 2,000 disk cache hit, 10,345 local."),
+            a(10345, 2000)
+        );
+        assert_eq!(
+            sum("INFO: 2 processes: 2 local.\nINFO: 3 processes: 1 worker, 2 remote cache hit."),
+            a(3, 2)
+        );
+        assert_eq!(sum("\x1b[32mINFO: \x1b[0m1 process: 1 local."), a(1, 0));
+        assert_eq!(sum("done"), None);
+        assert_eq!(sum("WARNING: 5 processes: 5 local."), None);
+        assert_eq!(sum("note: saw 5 processes: 5 local."), None);
+    }
+
+    #[test]
+    fn actions_are_reported_and_unknown_is_not_zero() {
+        let known = Actions {
+            executed: 5,
+            cached: 7,
+        };
+        let mut cold = phase(100.0, 1000);
+        cold.actions = vec![Some(known), Some(known)];
+        let mut warm = phase(10.0, 1000);
+        warm.actions = vec![Some(known), None];
+        let json = to_json(2, "//...", &local(), &cold, &warm);
+        assert!(json.contains("\"executed_actions\": 10,"));
+        assert!(json.contains("\"cached_actions_per_worktree\": [7, 7],"));
+        assert!(json.contains("\"executed_actions\": null,"));
+        assert!(json.contains("\"executed_actions_per_worktree\": [5, null],"));
+        assert!(json.contains("\"exit_codes\": [0, 3]\n"));
+        let table = to_table(&cold, &warm);
+        assert!(table.contains("executed_actions"));
+        assert!(table.contains("cached_actions"));
+        assert!(table.contains("5/7"));
+        assert!(table.contains("-"));
+    }
+
+    #[test]
+    fn compare_handles_action_counts() {
+        let counts = |executed| {
+            let mut cold = phase(100.0, 1000);
+            cold.actions = vec![Some(Actions {
+                executed,
+                cached: 1,
+            })];
+            let mut warm = phase(10.0, 1000);
+            warm.actions = vec![None];
+            to_json(4, "//...", &local(), &cold, &warm)
+        };
+        let old = to_json(
+            4,
+            "//...",
+            &local(),
+            &phase(100.0, 1000),
+            &phase(10.0, 1000),
+        )
+        .lines()
+        .filter(|l| !l.contains("_actions"))
+        .collect::<Vec<_>>()
+        .join("\n");
+        let (new, other) = (counts(100), counts(130));
+        for (a, b) in [(&old, &new), (&new, &old)] {
+            let deltas = compare(a, b).unwrap();
+            assert!(deltas.iter().any(|d| d.metric == "wall_seconds"));
+            assert!(deltas.iter().all(|d| !d.metric.ends_with("_actions")));
+        }
+        let deltas = compare(&new, &other).unwrap();
+        let executed = deltas
+            .iter()
+            .find(|d| d.phase == "cold" && d.metric == "executed_actions")
+            .unwrap();
+        assert!(executed.percent > 15.0);
+        assert!(deltas
+            .iter()
+            .all(|d| d.phase != "warm" || !d.metric.ends_with("_actions")));
+        let broken = new.replace("\"oom_kills\"", "\"x\"");
+        assert!(compare(&new, &broken).is_err());
     }
 }

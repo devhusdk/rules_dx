@@ -232,7 +232,6 @@ to.
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
 | `fsharplint` | lint | fsharp |
-| `gleam_format` | format | gleam |
 | `gofumpt` | format | go |
 | `google_java_format` | format | java |
 | `govet` | lint | go |
@@ -291,16 +290,15 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `gofumpt`, `qmlformat`, `qmllint`,
-  `zig_fmt`, `erlfmt`, `mix_format` and `gleam_format` have override flags.
+  `zig_fmt`, `erlfmt` and `mix_format` have override flags.
 - The `ruff`, `terraform` and `hadolint` alternates must be a single
   executable file.
   Anything else fails the analysis with the tool named.
-- The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt`, `mix_format` and
-  `gleam_format` alternates must be executable targets, such as
-  `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
-  `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//elixir/tools:mix_format` and
-  `@rules_dx//gleam/tools:gleam_format`. A target without an executable fails
-  the analysis.
+- The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt` and `mix_format`
+  alternates must be executable targets, such as `@dx_qt//:qmlformat`,
+  `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
+  `@rules_dx//erlang/tools:erlfmt` and `@rules_dx//elixir/tools:mix_format`.
+  A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
 
@@ -402,32 +400,6 @@ formatter options and never writes. `--apply` runs `mix format`. A file with a
 syntax error reports an error at its line and column and stays untouched. The
 formatter reads no `.formatter.exs`, Mix project or Hex home. Elixir sources
 come from the rules in `@rules_dx//elixir/rules:defs.bzl`.
-
-### Gleam formatting
-
-`gleam_format` has no default executable. Select `gleam_format` in a `gleam`
-family and point the flag at the pinned Gleam 1.19.2 formatter.
-
-```python
-quality_family(
-    name = "gleam_family",
-    family_id = "gleam",
-    disabled = ["audit", "lint", "typecheck"],
-    format = ["gleam_format"],
-)
-```
-
-```sh
-bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_gleam_format=@rules_dx//gleam/tools:gleam_format
-bazel run @rules_dx//:dx -- format --apply -- --@rules_dx//config:tool_gleam_format=@rules_dx//gleam/tools:gleam_format
-```
-
-Without the flag, a policy that selects `gleam_format` fails the analysis and
-names the flag. The check runs `gleam format --check` and never writes.
-`--apply` runs `gleam format`. A file with a syntax error reports an error at
-its line and column and stays untouched. The formatter reads no `gleam.toml`
-or Hex cache. Gleam sources come from the rules in
-`@rules_dx//gleam/rules:defs.bzl`.
 
 ### QML linting
 

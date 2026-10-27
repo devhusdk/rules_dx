@@ -89,5 +89,5 @@ The `wx` application, sources and docs are dropped on every cell.
 | `windows_x86_64` | Not qualified | The `erl` launcher is POSIX sh and rules_erlang is not ported to Windows. |
 | `windows_arm64` | Not qualified | No upstream OTP build. |
 
-Elixir and Gleam targets still run only on `linux_x86_64`. On other platforms
-Erlang, Elixir and Gleam targets are skipped.
+Elixir targets still run only on `linux_x86_64`. On other platforms
+Erlang and Elixir targets are skipped.

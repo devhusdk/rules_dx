@@ -1,6 +1,6 @@
 # Erlang/OTP
 
-Build and test Erlang with a pinned OTP 29.1.1 runtime. Nothing is installed
+Build and test Erlang with a pinned OTP 29.1.2 runtime. Nothing is installed
 on the host and nothing is fetched until a target needs it. rules_dx
 registers the toolchain, so there is no setup in `MODULE.bazel`.
 

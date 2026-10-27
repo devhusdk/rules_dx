@@ -19,7 +19,7 @@ def _checks():
     debs = [package for name in CELLS for package in CELLS[name].runtime]
     arm_paths = [path for package in arm.runtime for path in package.libraries.values()]
     return [
-        expect_equal("otp version", OTP_VERSION, "29.1.1"),
+        expect_equal("otp version", OTP_VERSION, "29.1.2"),
         expect_equal("glibc floor", GLIBC_FLOOR, "2.35"),
         expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64"]),
         expect_equal("runtime packages", packages, ["libtinfo6", "zlib1g", "gcc-12-base", "libgcc-s1", "libstdc++6", "libssl3"]),

@@ -63,6 +63,8 @@ pub enum AdoptError {
     },
     #[error("invalid module name for dx init: {module:?}: {reason}")]
     InitInvalidModule { module: String, reason: String },
+    #[error("init MODULE.bazel snippet: {detail}")]
+    InitSnippet { detail: String },
     #[error(
         "unknown dx init part: {name} (want one of {})",
         crate::init_parts::INIT_PART_NAMES.join(", ")

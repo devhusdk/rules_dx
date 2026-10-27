@@ -538,8 +538,19 @@ scopes = ["apps/web"]
         let runner = clean_runner();
         let (code, out, err) =
             run_with(&["license", "--output=json", "frontend"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("react"), "{code} {out}{err}");
         assert!(out.contains("UNKNOWN"), "{out}");
+        harness.write_source(
+            "licenses.toml",
+            "[policy.distributed]\nallow = [\"MIT\", \"Apache-2.0\"]\nreview = []\ndeny = []\n\n\
+             [[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\n\
+             versions = \"18.2.0\"\ntext_present = true\n",
+        );
+        let (code, out, err) =
+            run_with(&["license", "--output=json", "frontend"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("UNKNOWN"), "{out}");
     }
 
     const PINNED_TOML: &str = r#"

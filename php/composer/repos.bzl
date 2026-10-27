@@ -4,6 +4,23 @@ load(":lock.bzl", "analyze", "hub_package_build", "hub_root_build", "pin_entry_j
 
 _PACKAGE_BZL = str(Label("//php/rules:php.bzl"))
 
+def _remove_nested_build_files(rctx):
+    """Deletes BUILD files below the package root so no subdirectory becomes a Bazel package.
+
+    A nested package would drop its files from the spoke's glob, while the autoload action stages
+    every file it finds. Removing them keeps declared inputs and staged files the same set.
+    """
+    pending = [rctx.path(".")]
+    for _ in range(1000000):
+        if not pending:
+            break
+        directory = pending.pop()
+        for entry in directory.readdir():
+            if entry.is_dir:
+                pending.append(entry)
+            elif entry.basename in ("BUILD", "BUILD.bazel") and directory != rctx.path("."):
+                rctx.delete(entry)
+
 def _package_impl(rctx):
     attrs = rctx.attr
     kwargs = {"type": attrs.archive_type, "url": attrs.urls}
@@ -26,6 +43,7 @@ def _package_impl(rctx):
     if strip:
         kwargs["strip_prefix"] = strip
     rctx.download_and_extract(**kwargs)
+    _remove_nested_build_files(rctx)
     rctx.file("REPO.bazel", "")
     rctx.file("manifest.json", attrs.manifest + "\n")
     package = struct(name = attrs.package, version = attrs.version)

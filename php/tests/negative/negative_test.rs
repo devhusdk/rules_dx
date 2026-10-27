@@ -337,9 +337,13 @@ fn a_stale_package_reference_says_re_pin() {
 }
 
 #[test]
-fn a_composer_plugin_is_rejected() {
+fn a_composer_plugin_is_staged_as_a_library_and_not_rejected() {
+    // The plugin passes lock analysis and reaches the fetch, where the wrong digest fails it.
     let case = composer_case("composer-plugin", "", &pins(&"a".repeat(64), "r1"));
-    composer_build_fails_with(&case, &["v/a is a composer-plugin"]);
+    let built = bazel(&case, "build", "@vendor_hub//v/a", &[]);
+    assert_ne!(built.code, Some(0), "{}", built.text);
+    assert!(!built.text.contains("composer-plugin"), "{}", built.text);
+    assert!(built.text.contains("Checksum was"), "{}", built.text);
 }
 
 #[test]

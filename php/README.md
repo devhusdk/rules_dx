@@ -118,9 +118,12 @@ so mirror archives you depend on. After `composer update` a digest whose
 digest downloads the archive without a checksum, then fails and prints the
 entry to commit; review it in the diff.
 
-Refused: `composer-plugin` packages, packages without a zip or tar dist
-(source-only), and `ext-*` requirements the pinned PHP lacks. Scripts never
-run. Do not depend on `phpunit/phpunit` from the lock; `php_test` uses the
+Refused: packages without a zip or tar dist (source-only) and `ext-*`
+requirements the pinned PHP lacks. `composer-plugin` packages are staged like
+libraries; plugins and scripts never run because the autoloader is built with
+`--no-plugins --no-scripts`. Metapackages ship no files; their requirements
+are linked into whatever requires them. Nested `BUILD` files inside a package
+archive are removed on fetch. Do not depend on `phpunit/phpunit` from the lock; `php_test` uses the
 pinned PHPUnit phar.
 
 ## Quality

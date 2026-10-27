@@ -97,13 +97,14 @@ def analyze(hub, lock_text, sidecar_text):
     packages = {}
     provided_by = {}
     spokes = {}
+    metas = {}
     for entry, dev in entries:
         name = entry["name"]
         kind = entry.get("type", "library")
-        if kind == "composer-plugin":
-            errors.append("%s is a composer-plugin; plugins are not supported" % name)
-            continue
         if kind == "metapackage":
+            # Metapackages ship no files; they only forward their requirements.
+            metas[name] = entry
+            provided_by[name] = name
             continue
         dist = entry.get("dist") or {}
         if dist.get("type") not in _ARCHIVE_TYPES or not dist.get("url"):
@@ -132,21 +133,35 @@ def analyze(hub, lock_text, sidecar_text):
             manifest = manifest_entry(entry),
         )
         provided_by[name] = name
-    for name in sorted(packages.keys()):
-        for virtual in list((packages[name].entry.get("replace") or {}).keys()) + list((packages[name].entry.get("provide") or {}).keys()):
+    carriers = {name: packages[name].entry for name in packages}
+    carriers.update(metas)
+    for name in sorted(carriers.keys()):
+        for virtual in list((carriers[name].get("replace") or {}).keys()) + list((carriers[name].get("provide") or {}).keys()):
             if virtual not in provided_by:
                 provided_by[virtual] = name
     resolved = {}
-    for name in sorted(packages.keys()):
+    for name in sorted(carriers.keys()):
+        # Requirements of a metapackage are flattened into whoever requires it.
+        pending = [(name, requirement) for requirement in sorted((carriers[name].get("require") or {}).keys())]
+        seen = {name: True}
         edges = []
-        for requirement in sorted((packages[name].entry.get("require") or {}).keys()):
+        for _ in range(100000):
+            if not pending:
+                break
+            owner, requirement = pending.pop(0)
             if is_platform(requirement):
                 continue
             target = provided_by.get(requirement)
             if target == None:
-                errors.append("%s requires %s, which is not in composer.lock" % (name, requirement))
+                errors.append("%s requires %s, which is not in composer.lock" % (owner, requirement))
+            elif target in metas:
+                if target not in seen:
+                    seen[target] = True
+                    pending += [(target, r) for r in sorted((metas[target].get("require") or {}).keys())]
             elif target != name and target not in edges:
                 edges.append(target)
+        if name in metas:
+            continue
         resolved[name] = struct(
             name = name,
             version = packages[name].version,

@@ -29,7 +29,14 @@ def _checks():
         _entry("b/b"),
         _entry("c/c", replace = {"virt/impl": "self.version"}),
     ], [_entry("d/d")]), _sidecar(["a/a", "b/b", "c/c", "d/d"]))
-    plugin = analyze("hub", _lock([_entry("p/p", type = "composer-plugin")]), _sidecar([]))
+    plugin = analyze("hub", _lock([_entry("p/p", type = "composer-plugin")]), _sidecar(["p/p"]))
+    meta_user = analyze("hub", _lock([
+        _entry("l/l", require = {"m/m": "*"}),
+        _entry("x/x"),
+        _entry("y/y"),
+        _entry("m/m", type = "metapackage", require = {"x/x": "*", "n/n": "*", "php": ">=8"}),
+        _entry("n/n", type = "metapackage", require = {"y/y": "*"}),
+    ]), _sidecar(["l/l", "x/x", "y/y"]))
     source_only = analyze("hub", _lock([_entry("s/s", dist = {"type": "path", "url": "x"})]), _sidecar([]))
     meta = analyze("hub", _lock([_entry("m/m", type = "metapackage")]), _sidecar([]))
     unresolved = analyze("hub", _lock([_entry("a/a", require = {"nope/nope": "*"})]), _sidecar(["a/a"]))
@@ -44,9 +51,10 @@ def _checks():
         expect_equal("dev packages are flagged", [ok.packages[n].dev for n in sorted(ok.packages)], [False, False, False, True]),
         expect_equal("pinned packages carry the digest", ok.packages["b/b"].sha256, _SHA),
         expect_equal("manifest keeps only autoload facts", sorted(ok.packages["a/a"].manifest.keys()), ["autoload", "name", "require", "type", "version"]),
-        expect_contains("plugins are rejected", plugin.errors[0], "composer-plugin"),
+        expect_equal("plugins are staged like libraries", [plugin.errors, sorted(plugin.packages.keys())], [[], ["p/p"]]),
+        expect_equal("metapackage requirements are flattened into dependents", [meta_user.errors, meta_user.packages["l/l"].deps], [[], ["x/x", "y/y"]]),
         expect_contains("source-only packages are rejected", source_only.errors[0], "source-only"),
-        expect_equal("metapackages are skipped", [meta.errors, meta.packages], [[], {}]),
+        expect_equal("an unrequired metapackage yields no package", [meta.errors, meta.packages], [[], {}]),
         expect_contains("unresolved requirements fail", unresolved.errors[0], "nope/nope, which is not in composer.lock"),
         expect_contains("a stale reference says re-pin", stale.packages["a/a"].unpinned, "re-pin"),
         expect_equal("a stale package has no digest", stale.packages["a/a"].sha256, ""),

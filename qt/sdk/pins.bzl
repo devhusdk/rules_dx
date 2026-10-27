@@ -1,5 +1,6 @@
 """Pinned Qt SDK, runtime closure and extractor identities."""
 
+load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":linux_arm64.bzl", LINUX_ARM64 = "CELL")
 load(":linux_x86_64.bzl", LINUX_X86_64 = "CELL")
 
@@ -8,8 +9,6 @@ QT_VERSION = "6.11.3"
 QT_MIRROR = "https://download.qt.io/online/qtsdkrepository"
 
 ICU_VERSION = "73.2"
-
-ICU_LIBRARIES = ["libicudata.so.73", "libicui18n.so.73", "libicuuc.so.73"]
 
 RUNTIME_MIRROR = "https://vault.almalinux.org"
 
@@ -41,33 +40,8 @@ MODULES = {
 
 DEFAULT_MODULES = ["qtbase"]
 
-PLATFORM_PLUGINS = ["libqminimal.so", "libqoffscreen.so"]
-
-DISPLAY_PLUGINS = {
-    "wayland": [
-        "plugins/platforms/libqwayland.so",
-        "plugins/wayland-decoration-client/libbradient.so",
-        "plugins/wayland-shell-integration/libxdg-shell.so",
-    ],
-    "xcb": [
-        "plugins/platforms/libqxcb.so",
-        "plugins/xcbglintegrations/libqxcb-egl-integration.so",
-        "plugins/xcbglintegrations/libqxcb-glx-integration.so",
-    ],
-}
-
-RUNTIME_PLUGINS = {
-    "imageformats": [
-        "plugins/imageformats/libqgif.so",
-        "plugins/imageformats/libqico.so",
-        "plugins/imageformats/libqjpeg.so",
-    ],
-    "platformthemes": ["plugins/platformthemes/libqxdgdesktopportal.so"],
-    "tls": [
-        "plugins/tls/libqcertonlybackend.so",
-        "plugins/tls/libqopensslbackend.so",
-    ],
-}
+# qt_bundle validates plugin group names against these keys; the files come from each cell layout.
+RUNTIME_PLUGINS = LINUX_LAYOUT.runtime_plugins
 
 CELLS = {
     "linux_arm64": LINUX_ARM64,
@@ -77,6 +51,7 @@ CELLS = {
         blocker = "no runtime closure or probe evidence is pinned for macos_arm64",
         constraints = ["@platforms//os:macos", "@platforms//cpu:arm64"],
         directory = "",
+        layout = None,
         release = "",
         runtime = None,
     ),
@@ -85,6 +60,7 @@ CELLS = {
         blocker = "no runtime closure or probe evidence is pinned for windows_x86_64",
         constraints = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
         directory = "",
+        layout = None,
         release = "",
         runtime = None,
     ),

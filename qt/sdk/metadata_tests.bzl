@@ -1,32 +1,31 @@
 """Qt SDK pin, request and generated BUILD coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(
     ":pins.bzl",
     "CELLS",
     "DEFAULT_MODULES",
-    "DISPLAY_PLUGINS",
     "EXTRACTORS",
-    "ICU_LIBRARIES",
     "ICU_VERSION",
     "MODULES",
-    "PLATFORM_PLUGINS",
     "QT_LIBRARY_LICENSE",
     "QT_TOOL_LICENSE",
     "QT_VERSION",
     "RUNTIME_MIRROR",
-    "RUNTIME_PLUGINS",
     "RUNTIME_REPOSITORIES",
 )
 load(
     ":repos.bzl",
     "HUB_NAME",
     "canonical_id_for",
+    "cell_errors",
     "cell_build",
     "cell_repository_name",
     "closure_libraries",
     "default_request",
     "hub_build",
+    "host_key",
     "hub_targets",
     "no_match_error",
     "pin_errors",
@@ -96,6 +95,9 @@ def _pin_checks():
         ]),
         expect_false("arm64 gui closure skips krb5", "krb5-libs" in _closure_packages("linux_arm64", "gui")),
         expect_equal("blocked cells carry no runtime", [cell for cell in CELLS if CELLS[cell].blocker != "" and (CELLS[cell].runtime != None or CELLS[cell].release != "")], []),
+        expect_equal("linux cells share the linux layout", [cell for cell in qualified_cells() if CELLS[cell].layout != LINUX_LAYOUT], []),
+        expect_equal("blocked cells name no layout", [cell for cell in CELLS if CELLS[cell].blocker != "" and CELLS[cell].layout != None], []),
+        expect_equal("linux layout names libraries by soname", LINUX_LAYOUT.library("Core"), "libQt6Core.so.6"),
         expect_equal("extractor hosts", sorted(EXTRACTORS.keys()), ["linux_arm64", "linux_x86_64"]),
         expect_equal("runtime mirror is the vault root", RUNTIME_MIRROR, "https://vault.almalinux.org"),
         expect_equal("library license", QT_LIBRARY_LICENSE, "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"),
@@ -107,8 +109,8 @@ def _pin_checks():
         expect_equal("modules", sorted(MODULES.keys()), ["qtbase", "qtdeclarative", "qttools"]),
         expect_equal("qttools keeps lrelease only", MODULES["qttools"].files, ["bin/lrelease", "modules/Linguist.json", "sbom/qttools-6.11.3.spdx.json"]),
         expect_equal("default modules", DEFAULT_MODULES, ["qtbase"]),
-        expect_equal("platform plugins", PLATFORM_PLUGINS, ["libqminimal.so", "libqoffscreen.so"]),
-        expect_equal("display plugins", DISPLAY_PLUGINS, {
+        expect_equal("platform plugins", LINUX_LAYOUT.platform_plugins, ["libqminimal.so", "libqoffscreen.so"]),
+        expect_equal("display plugins", LINUX_LAYOUT.display_plugins, {
             "wayland": [
                 "plugins/platforms/libqwayland.so",
                 "plugins/wayland-decoration-client/libbradient.so",
@@ -120,7 +122,7 @@ def _pin_checks():
                 "plugins/xcbglintegrations/libqxcb-glx-integration.so",
             ],
         }),
-        expect_equal("runtime plugins", RUNTIME_PLUGINS, {
+        expect_equal("runtime plugins", LINUX_LAYOUT.runtime_plugins, {
             "imageformats": [
                 "plugins/imageformats/libqgif.so",
                 "plugins/imageformats/libqico.so",
@@ -167,7 +169,7 @@ def _pin_checks():
             "libxkbcommon-x11.so.0",
         ]),
         expect_equal("runtime repositories", RUNTIME_REPOSITORIES, ["AppStream", "BaseOS"]),
-        expect_equal("icu libraries", ICU_LIBRARIES, ["libicudata.so.73", "libicui18n.so.73", "libicuuc.so.73"]),
+        expect_equal("icu libraries", LINUX_LAYOUT.icu_libraries, ["libicudata.so.73", "libicui18n.so.73", "libicuuc.so.73"]),
         expect_equal("core runtime packages", _closure_packages("linux_x86_64", "core"), [
             "glib2",
             "keyutils-libs",
@@ -255,6 +257,48 @@ def _pin_checks():
             "libz.so.1",
             "libzstd.so.1",
         ]),
+    ]
+
+def _layout(**kwargs):
+    fields = {
+        "display_plugins": {},
+        "icu_libraries": [],
+        "launcher": "posix",
+        "library": LINUX_LAYOUT.library,
+        "os": "macos",
+        "platform_plugins": [],
+        "plugin_glob": "",
+        "runtime_glob": "",
+        "runtime_plugins": {},
+    }
+    fields.update(kwargs)
+    return struct(**fields)
+
+def _cell(layout, runtime = None):
+    archive = struct(archive = "6.11.3-0-1qt.7z", sha256 = "0" * 64)
+    return struct(
+        archives = {key: archive for key in MODULES},
+        blocker = "",
+        constraints = ["@platforms//os:macos", "@platforms//cpu:arm64"],
+        directory = "mac_x64/desktop",
+        layout = layout,
+        release = "6.11.3-0-1",
+        runtime = runtime,
+    )
+
+def _seam_checks():
+    return [
+        expect_equal("linux host", [host_key("linux", "amd64"), host_key("linux", "aarch64")], ["linux_x86_64", "linux_arm64"]),
+        expect_equal("macos host", [host_key("Mac OS X", "x86_64"), host_key("mac os x", "aarch64")], ["macos_x86_64", "macos_arm64"]),
+        expect_equal("windows host", [host_key("windows 11", "amd64"), host_key("Windows 11", "aarch64")], ["windows_x86_64", "windows_arm64"]),
+        expect_equal("windows server host", [host_key("windows server 2022", "amd64"), host_key("windows server 2022", "arm64")], ["windows_x86_64", "windows_arm64"]),
+        expect_equal("non-linux cell needs no runtime closure or icu", cell_errors("macos_arm64", _cell(_layout())), []),
+        expect_equal("linux cell needs a runtime closure and icu", cell_errors("linux_x", _cell(_layout(os = "linux", icu_libraries = ["libicuuc.so.73"]))), [
+            "cell 'linux_x' pins no runtime closure",
+            "cell 'linux_x' pins no 'icu' archive",
+        ]),
+        expect_equal("qualified cell needs a layout", cell_errors("bare", _cell(None)), ["cell 'bare' names no layout"]),
+        expect_equal("layout launcher is known", cell_errors("odd", _cell(_layout(launcher = "win32"))), ["cell 'odd' layout launcher 'win32' is not one of posix"]),
     ]
 
 def _url_checks():
@@ -411,5 +455,5 @@ def qt_metadata_tests(name):
     starlark_test(
         name = name,
         mode = "load",
-        checks = _pin_checks() + _url_checks() + _request_checks() + _build_checks(),
+        checks = _pin_checks() + _seam_checks() + _url_checks() + _request_checks() + _build_checks(),
     )

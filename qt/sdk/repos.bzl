@@ -5,16 +5,12 @@ load(
     "CELLS",
     "CLOSURES",
     "DEFAULT_MODULES",
-    "DISPLAY_PLUGINS",
     "EXTRACTORS",
-    "ICU_LIBRARIES",
     "LICENSE_TEXTS",
     "MODULES",
-    "PLATFORM_PLUGINS",
     "QT_MIRROR",
     "QT_VERSION",
     "RUNTIME_MIRROR",
-    "RUNTIME_PLUGINS",
     "RUNTIME_REPOSITORIES",
 )
 
@@ -38,24 +34,30 @@ _EXTRACT = "_extract"
 
 _HEX = "0123456789abcdef"
 
+_HOST_OSES = {"linux": "linux", "mac os x": "macos"}
+
 _HOST_ARCHES = {"aarch64": "arm64", "amd64": "x86_64", "arm64": "arm64", "x86_64": "x86_64"}
 
 _QML = [":qml", ":network", ":core"]
 
+_CLOSURE_DEPS = [":closure", ":gui_closure"]
+
+_LAUNCHERS = {"posix": "_launcher"}
+
 _LIBRARIES = {
-    "core": struct(define = "QT_CORE_LIB", deps = [":closure"], headers = ["QtCore"], library = "libQt6Core.so.6", module = "qtbase"),
-    "dbus": struct(define = "QT_DBUS_LIB", deps = [":core"], headers = ["QtDBus"], library = "libQt6DBus.so.6", module = "qtbase"),
-    "gui": struct(define = "QT_GUI_LIB", deps = [":dbus", ":core", ":gui_closure"], headers = ["QtGui"], library = "libQt6Gui.so.6", module = "qtbase"),
-    "network": struct(define = "QT_NETWORK_LIB", deps = [":core"], headers = ["QtNetwork"], library = "libQt6Network.so.6", module = "qtbase"),
-    "opengl": struct(define = "QT_OPENGL_LIB", deps = [":gui", ":core"], headers = ["QtOpenGL"], library = "libQt6OpenGL.so.6", module = "qtbase"),
-    "qml": struct(define = "QT_QML_LIB", deps = [":network", ":core"], headers = ["QtQml", "QtQmlIntegration"], library = "libQt6Qml.so.6", module = "qtdeclarative"),
-    "qml_meta": struct(define = "QT_QMLMETA_LIB", deps = [":qml_models", ":qml_worker_script"] + _QML, headers = ["QtQmlMeta"], library = "libQt6QmlMeta.so.6", module = "qtdeclarative"),
-    "qml_models": struct(define = "QT_QMLMODELS_LIB", deps = _QML, headers = ["QtQmlModels"], library = "libQt6QmlModels.so.6", module = "qtdeclarative"),
-    "qml_worker_script": struct(define = "QT_QMLWORKERSCRIPT_LIB", deps = _QML, headers = ["QtQmlWorkerScript"], library = "libQt6QmlWorkerScript.so.6", module = "qtdeclarative"),
-    "quick": struct(define = "QT_QUICK_LIB", deps = [":qml_meta", ":opengl", ":gui"] + _QML, headers = ["QtQuick"], library = "libQt6Quick.so.6", module = "qtdeclarative"),
-    "quick_test": struct(define = "QT_QUICKTEST_LIB", deps = [":quick", ":test"], headers = ["QtQuickTest"], library = "libQt6QuickTest.so.6", module = "qtdeclarative"),
-    "test": struct(define = "QT_TESTLIB_LIB", deps = [":core"], headers = ["QtTest"], library = "libQt6Test.so.6", module = "qtbase"),
-    "widgets": struct(define = "QT_WIDGETS_LIB", deps = [":gui", ":core"], headers = ["QtWidgets"], library = "libQt6Widgets.so.6", module = "qtbase"),
+    "core": struct(define = "QT_CORE_LIB", deps = [":closure"], headers = ["QtCore"], module = "qtbase", name = "Core"),
+    "dbus": struct(define = "QT_DBUS_LIB", deps = [":core"], headers = ["QtDBus"], module = "qtbase", name = "DBus"),
+    "gui": struct(define = "QT_GUI_LIB", deps = [":dbus", ":core", ":gui_closure"], headers = ["QtGui"], module = "qtbase", name = "Gui"),
+    "network": struct(define = "QT_NETWORK_LIB", deps = [":core"], headers = ["QtNetwork"], module = "qtbase", name = "Network"),
+    "opengl": struct(define = "QT_OPENGL_LIB", deps = [":gui", ":core"], headers = ["QtOpenGL"], module = "qtbase", name = "OpenGL"),
+    "qml": struct(define = "QT_QML_LIB", deps = [":network", ":core"], headers = ["QtQml", "QtQmlIntegration"], module = "qtdeclarative", name = "Qml"),
+    "qml_meta": struct(define = "QT_QMLMETA_LIB", deps = [":qml_models", ":qml_worker_script"] + _QML, headers = ["QtQmlMeta"], module = "qtdeclarative", name = "QmlMeta"),
+    "qml_models": struct(define = "QT_QMLMODELS_LIB", deps = _QML, headers = ["QtQmlModels"], module = "qtdeclarative", name = "QmlModels"),
+    "qml_worker_script": struct(define = "QT_QMLWORKERSCRIPT_LIB", deps = _QML, headers = ["QtQmlWorkerScript"], module = "qtdeclarative", name = "QmlWorkerScript"),
+    "quick": struct(define = "QT_QUICK_LIB", deps = [":qml_meta", ":opengl", ":gui"] + _QML, headers = ["QtQuick"], module = "qtdeclarative", name = "Quick"),
+    "quick_test": struct(define = "QT_QUICKTEST_LIB", deps = [":quick", ":test"], headers = ["QtQuickTest"], module = "qtdeclarative", name = "QuickTest"),
+    "test": struct(define = "QT_TESTLIB_LIB", deps = [":core"], headers = ["QtTest"], module = "qtbase", name = "Test"),
+    "widgets": struct(define = "QT_WIDGETS_LIB", deps = [":gui", ":core"], headers = ["QtWidgets"], module = "qtbase", name = "Widgets"),
 }
 
 _FONTS_CONF = """<?xml version="1.0"?>
@@ -105,8 +107,14 @@ def _archive_errors(cell, key, archive, release):
         errors.append("cell '" + cell + "' archive '" + key + "' sha256 is not 64 hex characters")
     return errors
 
-def _cell_errors(cell):
-    entry = CELLS[cell]
+def host_key(os, arch):
+    """Returns the EXTRACTORS key of one host from Bazel's os name and arch."""
+    name = os.lower()
+    name = "windows" if name.startswith("windows") else _HOST_OSES.get(name, name)
+    return name + "_" + _HOST_ARCHES.get(arch, arch)
+
+def cell_errors(cell, entry):
+    """Returns one error string per pin of one cell entry that is not ready to acquire."""
     errors = []
     if len(entry.constraints) == 0:
         errors.append("cell '" + cell + "' names no platform constraints")
@@ -118,14 +126,22 @@ def _cell_errors(cell):
         errors.append("cell '" + cell + "' names no repository directory")
     if not entry.release.startswith(QT_VERSION + "-"):
         errors.append("cell '" + cell + "' release '" + entry.release + "' is not a " + QT_VERSION + " release")
-    if entry.runtime == None:
+    if entry.layout == None:
+        errors.append("cell '" + cell + "' names no layout")
+        return errors
+    if entry.layout.launcher not in _LAUNCHERS:
+        errors.append("cell '" + cell + "' layout launcher '" + entry.layout.launcher + "' is not one of " + ", ".join(sorted(_LAUNCHERS.keys())))
+    if entry.runtime == None and entry.layout.os == "linux":
         errors.append("cell '" + cell + "' pins no runtime closure")
-    for key in ["icu"] + sorted(MODULES.keys()):
+    for key in _archive_keys(entry) + sorted(MODULES.keys()):
         if key not in entry.archives:
             errors.append("cell '" + cell + "' pins no '" + key + "' archive")
             continue
         errors.extend(_archive_errors(cell, key, entry.archives[key], entry.release))
     return errors
+
+def _archive_keys(entry):
+    return ["icu"] if len(entry.layout.icu_libraries) > 0 else []
 
 def _rpm_errors(package, arch):
     errors = []
@@ -161,7 +177,7 @@ def pin_errors():
     if len(qualified_cells()) == 0:
         errors.append("no cell is qualified")
     for cell in sorted(CELLS.keys()):
-        errors.extend(_cell_errors(cell))
+        errors.extend(cell_errors(cell, CELLS[cell]))
     for name in sorted(MODULES.keys()):
         for required in MODULES[name].requires:
             if required not in MODULES:
@@ -288,7 +304,7 @@ def hub_build(cells, rules):
 
 def closure_libraries(cell, closure):
     """Returns the sonames of one runtime closure a Qt library of one cell links against."""
-    names = list(ICU_LIBRARIES) if closure == "core" else []
+    names = list(CELLS[cell].layout.icu_libraries) if closure == "core" else []
     for package in CELLS[cell].runtime.packages:
         if package.closure == closure:
             for library in package.libraries:
@@ -307,15 +323,16 @@ def _unsupported(name, reason):
         "",
     ]
 
-def _library(name, spec):
+def _library(name, spec, layout, closures):
+    deps = [dep for dep in spec.deps if closures or dep not in _CLOSURE_DEPS]
     return [
         "cc_library(",
         '    name = "%s",' % name,
-        '    srcs = ["lib/%s"],' % spec.library,
+        '    srcs = ["lib/%s"],' % layout.library(spec.name),
         "    hdrs = glob([%s])," % ", ".join(['"include/%s/**"' % headers for headers in spec.headers]),
         "    includes = [%s]," % ", ".join(['"include"'] + ['"include/%s"' % headers for headers in spec.headers]),
         '    defines = ["%s"],' % spec.define,
-        "    deps = [%s]," % ", ".join(['"%s"' % dep for dep in spec.deps]),
+        "    deps = [%s]," % ", ".join(['"%s"' % dep for dep in deps]),
         ")",
         "",
     ]
@@ -363,6 +380,8 @@ def _filegroup(name, srcs):
 
 def cell_build(cell, modules, rules_cc, unsupported):
     """Returns the BUILD file of one acquired cell for the enabled modules."""
+    entry = CELLS[cell]
+    layout = entry.layout
     lines = [
         'load("%s", "cc_binary", "cc_library")' % rules_cc,
         'load("%s", "qt_unsupported")' % unsupported,
@@ -370,17 +389,20 @@ def cell_build(cell, modules, rules_cc, unsupported):
         'package(default_visibility = ["//visibility:public"])',
         "",
     ]
-    lines.extend(_filegroup("runtime", 'glob(["lib/*.so*"])'))
+    lines.extend(_filegroup("runtime", 'glob(["%s"])' % layout.runtime_glob))
     lines.extend(_filegroup("licenses", 'glob(["licenses/**"])'))
     lines.extend(_filegroup("sbom", 'glob(["sbom/*.spdx.json"])'))
-    lines.extend(_closure(cell, "closure", "core"))
-    lines.extend(_closure(cell, "gui_closure", "gui"))
-    lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in CELLS[cell].runtime.font.fonts])))
-    lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in PLATFORM_PLUGINS])))
-    for name in sorted(DISPLAY_PLUGINS.keys()):
-        lines.extend(_filegroup("display_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in DISPLAY_PLUGINS[name]])))
-    for name in sorted(RUNTIME_PLUGINS.keys()):
-        lines.extend(_filegroup("plugins_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in RUNTIME_PLUGINS[name]])))
+    if entry.runtime != None:
+        lines.extend(_closure(cell, "closure", "core"))
+        lines.extend(_closure(cell, "gui_closure", "gui"))
+        lines.extend(_filegroup("fonts", "[%s]" % ", ".join(['"fonts/fonts.conf"'] + ['"fonts/%s"' % font.split("/")[-1] for font in entry.runtime.font.fonts])))
+    else:
+        lines.extend(_filegroup("fonts", "[]"))
+    lines.extend(_filegroup("platforms", "[%s]" % ", ".join(['"plugins/platforms/%s"' % plugin for plugin in layout.platform_plugins])))
+    for name in sorted(layout.display_plugins.keys()):
+        lines.extend(_filegroup("display_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in layout.display_plugins[name]])))
+    for name in sorted(layout.runtime_plugins.keys()):
+        lines.extend(_filegroup("plugins_" + name, "[%s]" % ", ".join(['"%s"' % plugin for plugin in layout.runtime_plugins[name]])))
     enabled = {}
     for module in modules:
         for target in MODULES[module].targets:
@@ -392,7 +414,7 @@ def cell_build(cell, modules, rules_cc, unsupported):
             lines.extend(_unsupported(target, "enable module '" + module + "' in qt_sdk.configure(modules = ...)"))
     for name in sorted(_LIBRARIES.keys()):
         if _LIBRARIES[name].module in modules:
-            lines.extend(_library(name, _LIBRARIES[name]))
+            lines.extend(_library(name, _LIBRARIES[name], layout, entry.runtime != None))
     if "metatypes" in enabled:
         lines.extend([
             "filegroup(",
@@ -415,7 +437,7 @@ def cell_build(cell, modules, rules_cc, unsupported):
             "",
             "filegroup(",
             '    name = "plugins",',
-            '    srcs = glob(["plugins/qmllint/*.so"]),',
+            '    srcs = glob(["%s"]),' % layout.plugin_glob,
             ")",
             "",
         ])
@@ -484,18 +506,19 @@ def _qt_cell_repo_impl(ctx):
     errors = pin_errors()
     if len(errors) > 0:
         fail("qt_sdk: " + "; ".join(errors))
-    host = ctx.os.name + "_" + _HOST_ARCHES.get(ctx.os.arch, ctx.os.arch)
+    host = host_key(ctx.os.name, ctx.os.arch)
     if host not in EXTRACTORS:
-        fail("qt_sdk: the pinned extractor runs on linux x86_64 and linux arm64 hosts only, not " + ctx.os.name + " " + ctx.os.arch)
+        fail("qt_sdk: the pinned extractor runs on " + ", ".join(sorted(EXTRACTORS.keys())) + " hosts only, not " + ctx.os.name + " " + ctx.os.arch)
     extractor = EXTRACTORS[host]
     entry = CELLS[ctx.attr.cell]
+    layout = entry.layout
     ctx.download_and_extract(
         url = extractor.url,
         output = _EXTRACT + "/7zip",
         sha256 = extractor.sha256,
         canonical_id = canonical_id_for(extractor.url),
     )
-    for key in ["icu"] + ctx.attr.modules:
+    for key in _archive_keys(entry) + ctx.attr.modules:
         url = url_for(ctx.attr.cell, key, ctx.attr.mirror)
         archive = _EXTRACT + "/" + entry.archives[key].archive
         ctx.download(url = url, output = archive, sha256 = entry.archives[key].sha256, canonical_id = canonical_id_for(url))
@@ -503,9 +526,10 @@ def _qt_cell_repo_impl(ctx):
         _extract(ctx, extractor, archive, _EXTRACT + "/" + key if key == "icu" or len(kept) > 0 else ".", links = True)
         for path in kept:
             _move_real(ctx, _EXTRACT + "/" + key + "/" + path, path)
-    for library in ICU_LIBRARIES:
+    for library in layout.icu_libraries:
         _move_real(ctx, _EXTRACT + "/icu/" + library, "lib/" + library)
-    _acquire_runtime(ctx, extractor)
+    if entry.runtime != None:
+        _acquire_runtime(ctx, extractor)
     _check_module(ctx, "Core")
     for module in ctx.attr.modules:
         if not ctx.path("sbom/" + module + "-" + QT_VERSION + ".spdx.json").exists:
@@ -515,7 +539,7 @@ def _qt_cell_repo_impl(ctx):
     if "qttools" in ctx.attr.modules:
         _check_module(ctx, "Linguist")
     ctx.delete(_EXTRACT)
-    ctx.file("launcher/launcher.c", ctx.read(ctx.attr._launcher))
+    ctx.file("launcher/launcher.c", ctx.read(getattr(ctx.attr, _LAUNCHERS[layout.launcher])))
     for name in sorted(TOOLS.keys()):
         ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
     ctx.file("BUILD.bazel", cell_build(

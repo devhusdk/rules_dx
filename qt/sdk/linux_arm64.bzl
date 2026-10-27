@@ -1,5 +1,7 @@
 """Pinned Qt archives and AlmaLinux 10.1 runtime closure of the linux_arm64 cell."""
 
+load(":layout_linux.bzl", "LAYOUT")
+
 _RELEASE = "6.11.3-0-202610231039"
 
 QT_LIBRARY_NEEDS = {
@@ -717,6 +719,7 @@ CELL = struct(
     blocker = "",
     constraints = ["@platforms//os:linux", "@platforms//cpu:arm64"],
     directory = "linux_arm64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_arm64",
+    layout = LAYOUT,
     release = _RELEASE,
     runtime = struct(
         arch = "aarch64",

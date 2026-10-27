@@ -504,7 +504,7 @@
     },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "GPsFDYqZDGXhX3oYVi2hBHb04oZuKeGI9ZRBjtWY1ng=",
+        "bzlTransitiveDigest": "soaaKp6vBvTkiYsrbHEI4UvAfn/+fGEqaqQZRaehz3g=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

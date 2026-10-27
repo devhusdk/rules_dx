@@ -40,7 +40,6 @@ MODULES = {
 
 DEFAULT_MODULES = ["qtbase"]
 
-# qt_bundle validates plugin group names against these keys; the files come from each cell layout.
 RUNTIME_PLUGINS = LINUX_LAYOUT.runtime_plugins
 
 CELLS = {

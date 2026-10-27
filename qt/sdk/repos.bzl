@@ -486,9 +486,9 @@ def _acquire_runtime(ctx, extractor):
     for package in runtime.packages:
         if package.license_from == package.name:
             ctx.rename(roots[package.name] + "/" + package.license_dir, "licenses/" + package.name)
-    texts = LICENSE_TEXTS | runtime.license_texts
-    for key in sorted(texts.keys()):
-        ctx.download(url = texts[key].url, output = "licenses/" + key, sha256 = texts[key].sha256)
+    for key in sorted(runtime.license_texts.keys()):
+        text = runtime.license_texts[key]
+        ctx.download(url = text.url, output = "licenses/" + key, sha256 = text.sha256)
     for package in runtime.packages:
         if package.license_from != "" and package.license_from != package.name:
             for text in ctx.path("licenses/" + package.license_from).readdir():
@@ -528,6 +528,10 @@ def _qt_cell_repo_impl(ctx):
             _move_real(ctx, _EXTRACT + "/" + key + "/" + path, path)
     for library in layout.icu_libraries:
         _move_real(ctx, _EXTRACT + "/icu/" + library, "lib/" + library)
+    for key in sorted(LICENSE_TEXTS.keys()):
+        if key.startswith("icu/") and len(layout.icu_libraries) == 0:
+            continue
+        ctx.download(url = LICENSE_TEXTS[key].url, output = "licenses/" + key, sha256 = LICENSE_TEXTS[key].sha256)
     if entry.runtime != None:
         _acquire_runtime(ctx, extractor)
     _check_module(ctx, "Core")

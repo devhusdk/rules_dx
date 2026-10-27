@@ -101,6 +101,7 @@ REAL_CLASS_TO_FAMILY = {
     "dockerfile": "dockerfile",
     "elixir": "elixir",
     "erlang": "erlang",
+    "fortran": "fortran",
     "fsharp": "fsharp",
     "gherkin": "gherkin",
     "gleam": "gleam",

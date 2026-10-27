@@ -1,0 +1,17 @@
+--- a/fortran/private/fortran_library.bzl
++++ b/fortran/private/fortran_library.bzl
+@@ -59,10 +59,10 @@
+         if result.module:
+             modules.append(result.module)
+ 
+-            # Use source basename as key for the module directory
+-            # The directory may contain 0 or more .mod files
+-            src_key = src.basename.replace(".", "_")
+-            local_module_map[src_key] = result.module
++            # Key by the module directory's path, which is unique per
++            # package, target and source, so sources that share a basename
++            # in different packages do not overwrite each other.
++            local_module_map[result.module.short_path] = result.module
+ 
+     module_map.update(local_module_map)
+ 

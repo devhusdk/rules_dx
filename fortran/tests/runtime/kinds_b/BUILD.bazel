@@ -1,0 +1,8 @@
+load("//fortran/rules:defs.bzl", "fortran_library")
+
+fortran_library(
+    name = "kinds_b",
+    srcs = ["kinds.f90"],
+    visibility = ["//fortran/tests/runtime:__subpackages__"],
+    deps = ["//fortran/tests/runtime/kinds_a"],
+)

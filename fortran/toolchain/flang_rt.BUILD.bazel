@@ -1,0 +1,71 @@
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+exports_files(["flang-rt/LICENSE.TXT"])
+
+expand_template(
+    name = "config_h",
+    out = "config.h",
+    substitutions = {
+        "#cmakedefine HAVE_BACKTRACE ${HAVE_BACKTRACE}": "#define HAVE_BACKTRACE 1",
+        "#cmakedefine01 HAVE_DECL_STRERROR_S": "#define HAVE_DECL_STRERROR_S 0",
+        "#cmakedefine01 HAVE_STRERROR_R": "#define HAVE_STRERROR_R 1",
+        "#define BACKTRACE_HEADER <${BACKTRACE_HEADER}>": "#define BACKTRACE_HEADER <execinfo.h>",
+    },
+    template = "flang-rt/cmake/config.h.cmake.in",
+)
+
+genrule(
+    name = "iso_fortran_env_impl",
+    srcs = ["flang/module/iso_fortran_env_impl.f90"],
+    outs = [
+        "iso_fortran_env_impl.mod",
+        "iso_fortran_env_impl.o",
+    ],
+    cmd = "$(execpath {flang}) -c -J $(RULEDIR) $< -o $(RULEDIR)/iso_fortran_env_impl.o",
+    tools = [
+        "{compiler_files}",
+        "{flang}",
+    ],
+)
+
+cc_library(
+    name = "flang_rt",
+    srcs = glob([
+        "flang-rt/lib/runtime/*.c",
+        "flang-rt/lib/runtime/*.cpp",
+        "flang-rt/lib/runtime/*.h",
+    ]) + [
+        "flang/lib/Decimal/big-radix-floating-point.h",
+        "flang/lib/Decimal/binary-to-decimal.cpp",
+        "flang/lib/Decimal/decimal-to-binary.cpp",
+        "iso_fortran_env_impl.o",
+    ],
+    hdrs = glob([
+        "flang-rt/include/flang-rt/**/*.h",
+        "flang/include/flang/Common/**/*.h",
+        "flang/include/flang/Decimal/**/*.h",
+        "flang/include/flang/Runtime/**/*.h",
+    ]) + ["flang/include/flang/ISO_Fortran_binding.h"],
+    cxxopts = [
+        "-fno-exceptions",
+        "-fno-rtti",
+        "-funwind-tables",
+        "-include",
+        "cstdlib",
+        "-Wno-unused-template",
+    ],
+    includes = [
+        "flang-rt/include",
+        "flang/include",
+    ],
+    linkopts = [
+        "-lm",
+        "-lpthread",
+    ],
+    textual_hdrs = glob(["flang/include/flang/Runtime/**/*.inc"]) + ["config.h"],
+)

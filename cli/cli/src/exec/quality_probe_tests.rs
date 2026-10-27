@@ -85,9 +85,12 @@ fn probe_keeps_json_stdout_to_the_build_events() {
 fn interrupted_probe_cancels_the_phase_without_a_build() {
     let mut harness = clean_harness("probe-interrupted");
     harness.probe_code = Some(super::super::common::BAZEL_INTERRUPTED);
-    let parsed =
-        crate::args::parse(&crate::test_support::strings(&["lint", "--check", "--output=text"]))
-            .expect("parse");
+    let parsed = crate::args::parse(&crate::test_support::strings(&[
+        "lint",
+        "--check",
+        "--output=text",
+    ]))
+    .expect("parse");
     let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
     let request = inv.quality_request().expect("quality request");
     let runner = harness.runner();
@@ -96,5 +99,8 @@ fn interrupted_probe_cancels_the_phase_without_a_build() {
     assert_eq!(run.kind, super::PhaseKind::Cancelled);
     assert_ne!(run.code, 0);
     assert_eq!(harness.probe_argv.borrow().len(), 1);
-    assert!(harness.build_argv.borrow().is_empty(), "no build after an interrupted probe");
+    assert!(
+        harness.build_argv.borrow().is_empty(),
+        "no build after an interrupted probe"
+    );
 }

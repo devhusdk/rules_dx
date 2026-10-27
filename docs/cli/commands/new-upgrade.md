@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `gleam`, `erlang`, or `cuda`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `gleam`, `erlang`, or `cuda`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -101,6 +101,7 @@ language rule:
 - `c` takes Bazel module names.
 - `cpp` takes Bazel module names.
 - `rust-web` takes Cargo names.
+- `rust-android` takes Cargo names.
 - `ruby` takes Bazel module names.
 - `powershell` takes Bazel module names.
 - `astro` takes Bazel module names.
@@ -112,6 +113,9 @@ language rule:
 - `gleam` takes Bazel module names.
 - `erlang` takes Bazel module names.
 - `cuda` takes Bazel module names.
+
+A `rust-android` name must also start with a letter and must not be a Java
+keyword, so that `com.example.<name>` is a valid application ID.
 
 A Bazel module name uses lowercase letters, digits, dots, hyphens and
 underscores, starts with a letter, and ends with a letter or digit. Rejected
@@ -307,6 +311,57 @@ Bazel fetches, so nothing needs to be installed by hand. The test is
 qualified on linux x86_64, where the host needs GTK 3; other hosts skip
 it as incompatible for now. Scaffolding into an existing directory adds absent files
 only and leaves custom files untouched.
+
+## `dx new rust-android`
+
+```text
+dx new [--apply] rust-android [name]
+```
+
+Scaffolds a standalone Rust Android consumer: `Cargo.toml`, `src/lib.rs`,
+`activity.c`, `res/values/strings.xml`, `BUILD.bazel`, `MODULE.bazel`,
+`.bazelversion`, `.bazelrc`, and `README.md`. The Rust core is a static
+library with a unit test; a small NativeActivity in `activity.c` logs its
+greeting. Versions come from the rules_dx pins. Never overwrites existing files.
+
+```sh
+bazel run @rules_dx//:dx -- new --apply rust-android demo-app
+```
+
+The package policy stays in the consumer's `BUILD.bazel` as explicit
+attributes of `:<name>_apk`: `app_id = "com.example.<name>"` (hyphens become
+underscores), `abis = ["arm64-v8a", "x86_64"]`, `api_level = 31`,
+`version_code`, and `version_name`. Edit them there.
+
+The host build and tests need no Android SDK; every Android target is tagged
+manual:
+
+```text
+bazel build //...
+bazel test //...
+```
+
+The APK reads an installed SDK (platform `android-34`, build-tools `34.0.0`,
+and an NDK). Export its location, then build, install, launch, and read the
+log on `emulator-5554`:
+
+```text
+export ANDROID_HOME="$HOME/Android/Sdk" ANDROID_SDK_ROOT="$HOME/Android/Sdk" ANDROID_NDK_REVISION="27.2.12479018"
+bazel build --config=android :<name>_apk_file
+bazel test --config=android :<name>_check_test
+bazel run --config=android :<name>_install
+bazel run --config=android :<name>_start
+bazel run --config=android :<name>_log
+```
+
+The APK is debug-signed, so no keys are needed. The template adds no release
+signing, App Bundle signing, or SDK license acceptance.
+
+Output: text only.
+
+Exit codes: `0` success, `2` usage errors including an invalid
+destination or package identity, `1` missing files in check mode or
+scaffolding failed.
 
 ## `dx upgrade`
 

@@ -274,6 +274,47 @@ mod tests {
     }
 
     #[test]
+    fn new_rust_android_applies_with_overrides_and_refuses_conflicts_absent_only() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-new-android-apply-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["new", "rust-android", "demo-app"]);
+        let (code, _out, _err) = run(&inv, &root);
+        assert_eq!(code, 1);
+        assert!(!root.join("demo-app").exists(), "check must not write");
+        let inv = invocation(&["new", "--apply", "rust-android", "demo-app"]);
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 0, "{err}");
+        for file in [
+            "src/lib.rs",
+            "activity.c",
+            "res/values/strings.xml",
+            "BUILD.bazel",
+            ".bazelrc",
+            "third_party/rules_dx/rules_dx.MODULE.bazel",
+            "third_party/rules_dx/rules_android.rules_android.patch",
+        ] {
+            assert!(root.join("demo-app").join(file).is_file(), "{file}\n{err}");
+        }
+        let build = std::fs::read_to_string(root.join("demo-app/BUILD.bazel")).expect("build");
+        assert!(
+            build.contains("app_id = \"com.example.demo_app\""),
+            "{build}"
+        );
+        let (code, _out, err) = run(&inv, &root);
+        assert_eq!(code, 0);
+        assert!(
+            err.contains("demo-app/activity.c (absent-only, left untouched)"),
+            "{err}"
+        );
+        let (code, _out, err) = run(
+            &invocation(&["new", "--apply", "rust-android", "1app"]),
+            &root,
+        );
+        assert_ne!(code, 0);
+        assert!(!root.join("1app").exists(), "{err}");
+    }
+
+    #[test]
     fn new_rust_web_merges_into_existing_workspace_without_touching_user_files() {
         let scratch = dx_test_scratch::scratch("dx-adopt-new-web-merge-");
         let root = scratch.path().to_path_buf();
@@ -429,7 +470,11 @@ mod tests {
                 matches!(*language, "astro" | "svelte" | "vue" | "mdx"),
                 "{module}"
             );
-            assert_eq!(module.contains("rules_ruby"), *language == "ruby", "{module}");
+            assert_eq!(
+                module.contains("rules_ruby"),
+                *language == "ruby",
+                "{module}"
+            );
             let (code, out, _err) = run(&invocation(&["new", language, name]), &root);
             assert_eq!(code, 0, "{language}: {out}");
         }
@@ -648,8 +693,8 @@ mod tests {
         PathBuf::from(root).join(workspace)
     }
 
-    fn template_file(destination: &str, suffix: &str) -> String {
-        let files = dx_adopt::plan_new_files("rust-web", destination).expect("plans");
+    fn template_file(language: &str, destination: &str, suffix: &str) -> String {
+        let files = dx_adopt::plan_new_files(language, destination).expect("plans");
         files
             .iter()
             .find(|file| file.path == format!("{destination}/{suffix}"))
@@ -686,7 +731,7 @@ mod tests {
         let root = workspace_root();
         let fixture = root.join("rust/tests/fixtures/consumer_web");
         for suffix in ["BUILD.bazel", "src/lib.rs", "src/main.rs"] {
-            let expected = template_file("consumer_web", suffix);
+            let expected = template_file("rust-web", "consumer_web", suffix);
             let actual = std::fs::read_to_string(fixture.join(suffix)).expect("fixture file ships");
             let actual = if suffix == "BUILD.bazel" {
                 strip_fixture_only_lines(&actual)
@@ -694,6 +739,49 @@ mod tests {
                 actual
             };
             assert_eq!(actual, expected, "{suffix} drifted from the template");
+        }
+    }
+
+    #[test]
+    fn rust_android_template_matches_the_consumer_android_fixture() {
+        let fixture = workspace_root().join("android/tests/fixtures/consumer_android");
+        for suffix in [
+            "BUILD.bazel",
+            "src/lib.rs",
+            "activity.c",
+            "res/values/strings.xml",
+        ] {
+            let expected = template_file("rust-android", "consumer_android", suffix);
+            let actual = std::fs::read_to_string(fixture.join(suffix)).expect("fixture file ships");
+            let actual = if suffix == "BUILD.bazel" {
+                strip_fixture_only_lines(&actual)
+            } else {
+                actual
+            };
+            assert_eq!(actual, expected, "{suffix} drifted from the template");
+        }
+    }
+
+    #[test]
+    fn rust_android_template_api_level_is_the_sdk_floor() {
+        let sdk = std::fs::read_to_string(workspace_root().join("android/sdk/repos.bzl"))
+            .expect("android/sdk/repos.bzl ships as test data");
+        let floor = sdk
+            .lines()
+            .find_map(|line| line.strip_prefix("ANDROID_API_LEVEL = "))
+            .expect("android/sdk/repos.bzl pins ANDROID_API_LEVEL");
+        assert_eq!(floor, dx_adopt::new::RUST_ANDROID_API_LEVEL.to_string());
+        let build = template_file("rust-android", "demo", "BUILD.bazel");
+        assert!(build.contains(&format!("api_level = {floor},")), "{build}");
+        let module = template_file("rust-android", "demo", "MODULE.bazel");
+        assert!(
+            module.contains(&format!("api_level = {floor},")),
+            "{module}"
+        );
+        let root_module = module_bazel();
+        for pinned in ["\"aarch64-linux-android\",", "\"x86_64-linux-android\","] {
+            assert!(root_module.contains(pinned), "rules_dx pins {pinned}");
+            assert!(module.contains(pinned), "{module}");
         }
     }
 
@@ -720,7 +808,7 @@ mod tests {
         assert_eq!(versions_pin(&versions, "BAZEL_VERSION"), "9.2.0");
         assert_eq!(versions_pin(&versions, "PLATFORMS_VERSION"), "1.1.0");
         let module = module_bazel();
-        let cargo = template_file("demo", "Cargo.toml");
+        let cargo = template_file("rust-web", "demo", "Cargo.toml");
         let marker = "\"rrwbd__wasm-bindgen-";
         let start = module
             .find(marker)
@@ -745,7 +833,7 @@ mod tests {
             cargo.contains(&format!("wasm-bindgen-test = \"={test_crate}\"")),
             "{cargo}"
         );
-        let generated = template_file("demo", "MODULE.bazel");
+        let generated = template_file("rust-web", "demo", "MODULE.bazel");
         for wanted in ["rules_rust_wasm_bindgen", "platforms"] {
             let pinned = module
                 .lines()

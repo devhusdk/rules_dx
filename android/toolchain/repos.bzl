@@ -1,6 +1,6 @@
 """Local NDK-backed C++ toolchain repositories for Android native builds."""
 
-load("//android/platforms:defs.bzl", "api_floor", "cxx_runtime_errors", "ndk_revision_errors", "rust_triples")
+load("//android/platforms:defs.bzl", "api_floor", "constraint_list", "cxx_runtime_errors", "ndk_revision_errors", "rust_triples")
 
 _SDK_ANCHOR = "source.properties"
 
@@ -128,8 +128,8 @@ _TUPLE_TRIPLE = {
 }
 
 _TUPLE_CONSTRAINTS = {
-    "device": '["@platforms//os:android", "@platforms//cpu:arm64"]',
-    "emulator": '["@platforms//os:android", "@platforms//cpu:x86_64"]',
+    name: '["' + '", "'.join(constraint_list(name)) + '"]'
+    for name in ["device", "emulator"]
 }
 
 def _clang_version(ctx, clang):
@@ -171,8 +171,8 @@ def _android_ndk_toolchain_repo_impl(ctx):
     ndk_sysroot = str(sdk) + "/ndk/" + revision + "/" + prebuilt + "/" + sysroot
     api_level = ctx.attr.api_level if ctx.attr.api_level != 0 else api_floor()
     chunks = [
-        'load("@rules_cc//cc:defs.bzl", "cc_toolchain")',
-        'load("@rules_dx//android/toolchain:cc_toolchain_config.bzl", "ndk_cc_toolchain_config")',
+        'load("' + str(Label("@rules_cc//cc:defs.bzl")) + '", "cc_toolchain")',
+        'load("' + str(Label("//android/toolchain:cc_toolchain_config.bzl")) + '", "ndk_cc_toolchain_config")',
         "",
         'package(default_visibility = ["//visibility:public"])',
         "",

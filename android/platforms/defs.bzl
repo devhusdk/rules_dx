@@ -6,15 +6,15 @@ DEVICE_TUPLE = "device"
 
 EMULATOR_TUPLE = "emulator"
 
-_ANDROID_OS = "@platforms//os:android"
+_ANDROID_OS = str(Label("@platforms//os:android"))
 
 _TUPLES = {
     "device": struct(
-        cpu = "@platforms//cpu:arm64",
+        cpu = str(Label("@platforms//cpu:arm64")),
         rust_triple = "aarch64-linux-android",
     ),
     "emulator": struct(
-        cpu = "@platforms//cpu:x86_64",
+        cpu = str(Label("@platforms//cpu:x86_64")),
         rust_triple = "x86_64-linux-android",
     ),
 }
@@ -43,7 +43,7 @@ def constraint_list(name):
 
 def platform_label(name):
     """Returns the platform label for one tuple name."""
-    return "//android/platforms:android_" + name
+    return str(Label("//android/platforms:android_" + name))
 
 def rust_triples():
     """Returns the Rust target triples covering every tuple."""

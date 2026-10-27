@@ -292,6 +292,9 @@ sign a generated test bundle with a disposable key and verify it.
 
 ## Qualified SDK for packaging builds
 
+To start a new app, `dx new --apply rust-android <name>` scaffolds a
+consumer with these targets; see [`dx new rust-android`](../docs/cli/commands/new-upgrade.md#dx-new-rust-android).
+
 Packaging builds read the installed SDK through the upstream
 `androidsdk` repository, which stays empty without `ANDROID_HOME`.
 Build one APK for both tuples on a qualified host:

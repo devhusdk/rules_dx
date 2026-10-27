@@ -176,6 +176,56 @@ fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
         .any(|window| window == needle)
 }
 
+/// Returns the length of the longest prefix of the needle that occurs in the haystack.
+fn longest_prefix_match(haystack: &[u8], needle: &[u8]) -> usize {
+    if needle.is_empty() {
+        return 0;
+    }
+    let mut failure = vec![0usize; needle.len()];
+    let mut k = 0;
+    for i in 1..needle.len() {
+        while k > 0 && needle[i] != needle[k] {
+            k = failure[k - 1];
+        }
+        if needle[i] == needle[k] {
+            k += 1;
+        }
+        failure[i] = k;
+    }
+    let mut best = 0;
+    let mut matched = 0;
+    for &byte in haystack {
+        while matched > 0 && byte != needle[matched] {
+            matched = failure[matched - 1];
+        }
+        if byte == needle[matched] {
+            matched += 1;
+        }
+        best = best.max(matched);
+        if matched == needle.len() {
+            break;
+        }
+    }
+    best
+}
+
+/// Returns the 0-based index and text of the first needle line that breaks the match.
+///
+/// A line is missing when the needle stops matching inside it. A line that does not
+/// directly follow its predecessor in the haystack is reported as out of order.
+fn first_missing_line<'a>(haystack: &[u8], needle: &'a str) -> (usize, &'a str) {
+    let bytes = needle.as_bytes();
+    let matched = longest_prefix_match(haystack, bytes);
+    let mut index = bytes[..matched]
+        .iter()
+        .filter(|&&byte| byte == b'\n')
+        .count();
+    if matched > 0 && bytes.get(matched) == Some(&b'\n') {
+        index += 1;
+    }
+    (index, needle.split('\n').nth(index).unwrap_or(needle))
+}
+
 /// Evaluates one staged file against every required substring.
 fn evaluate_file(
     entry: &serde_json::Value,
@@ -202,10 +252,17 @@ fn evaluate_file(
                 format!("PASS: file {label} contains substring {ordinal}"),
             );
         } else {
+            let (line_index, line) = first_missing_line(&bytes, needle);
+            let total = needle.split('\n').count();
+            let detail = if total > 1 {
+                format!("\n  needle line: {} of {total}", line_index + 1)
+            } else {
+                String::new()
+            };
             fail(
                 report,
                 format!(
-                    "FAIL: file {label} is missing substring {ordinal}\n  substring: {needle}\n  file: {shown}"
+                    "FAIL: file {label} is missing substring {ordinal}\n  substring: {line}{detail}\n  file: {shown}"
                 ),
             );
         }
@@ -773,6 +830,50 @@ mod tests {
             "PASS: file //pkg:joined contains substring 1/1"
         );
         assert!(report.lines[1].contains("FAIL: file //pkg:split is missing substring 1/1"));
+    }
+
+    #[test]
+    fn a_missing_multiline_needle_reports_only_the_missing_line() {
+        let dir = scratch();
+        write(&dir, "_main/pkg/block.txt", b"a\nb\nc\n");
+        let value = manifest(
+            serde_json::json!([]),
+            serde_json::json!([
+                {"label": "//pkg:block", "key": "_main/pkg/block.txt", "needles": ["a\nb\nX\nc"]},
+            ]),
+        );
+        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let mut report = empty_report();
+        evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
+        assert_eq!(report.failed, 1);
+        assert!(report.lines[0].contains("substring: X\n"));
+        assert!(report.lines[0].contains("needle line: 3 of 4"));
+        assert!(!report.lines[0].contains("a\nb"));
+    }
+
+    #[test]
+    fn an_out_of_order_needle_line_is_reported() {
+        let dir = scratch();
+        write(&dir, "_main/pkg/split.txt", b"a\nx\nb\n");
+        let value = manifest(
+            serde_json::json!([]),
+            serde_json::json!([
+                {"label": "//pkg:split", "key": "_main/pkg/split.txt", "needles": ["a\nb"]},
+            ]),
+        );
+        let resolver = Resolver::for_tree(&dir).expect("tree resolver");
+        let mut report = empty_report();
+        evaluate_files(&value, &resolver, &mut report).expect("files evaluate");
+        assert_eq!(report.failed, 1);
+        assert!(report.lines[0].contains("substring: b\n"));
+        assert!(report.lines[0].contains("needle line: 2 of 2"));
+    }
+
+    #[test]
+    fn longest_prefix_match_handles_repeated_bytes() {
+        assert_eq!(longest_prefix_match(b"aaxaab", b"aab"), 3);
+        assert_eq!(longest_prefix_match(b"aaxa", b"aab"), 2);
+        assert_eq!(longest_prefix_match(b"", b"aab"), 0);
     }
 
     #[test]

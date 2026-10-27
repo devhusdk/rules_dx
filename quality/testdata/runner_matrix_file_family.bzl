@@ -299,6 +299,9 @@ FILE_FAMILY_CASES = [
         "tool_names": ["yamlfmt"],
         "tool_binaries": ["@dx_tools//:yamlfmt"],
         "expected_file": ":matrix/matrix_yaml_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_yaml_format_fail",
@@ -310,6 +313,9 @@ FILE_FAMILY_CASES = [
         "tool_names": ["yamlfmt"],
         "tool_binaries": ["@dx_tools//:yamlfmt"],
         "expected_file": ":matrix/matrix_yaml_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_yaml_format_syntax_error",
@@ -321,6 +327,9 @@ FILE_FAMILY_CASES = [
         "tool_names": ["yamlfmt"],
         "tool_binaries": ["@dx_tools//:yamlfmt"],
         "expected_file": ":matrix/matrix_yaml_format_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_shell_format_pass",
@@ -671,6 +680,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/python:yamllint"],
         "tool_env": ["yamllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_yaml_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_yaml_lint_fail",
@@ -683,6 +695,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/python:yamllint"],
         "tool_env": ["yamllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_yaml_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_yaml_lint_syntax_error",
@@ -695,6 +710,9 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/python:yamllint"],
         "tool_env": ["yamllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_yaml_lint_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_shell_lint_pass",

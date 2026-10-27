@@ -110,7 +110,44 @@ fn lease_refusal_for(
     ))
 }
 
+/// Runs one command with stdout latched on its first write failure.
 pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+        audit_today,
+    } = env;
+    let mut latched = common::LatchedOut::new(out);
+    let code = dispatch(
+        invocation,
+        Env {
+            workspace,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out: &mut latched,
+            err,
+            ci,
+            audit_today,
+        },
+    );
+    if code == 0 {
+        latched.exit_code(code)
+    } else {
+        code
+    }
+}
+
+fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.output != dx_output::OutputMode::Diff || invocation.command.supports_diff(),
         "{} rejects --output=diff",
@@ -190,10 +227,39 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::test_support::Harness;
+    use super::delivery_sink::{Fault, Sink};
+    use super::test_support::{invocation, Harness};
     use super::{hold_slot, lease_refusal_for};
     use crate::args::Command;
+    use std::io::ErrorKind;
     use std::time::Duration;
+
+    #[test]
+    fn execute_latches_stdout_for_every_command() {
+        for words in [&["clean", "--output=json"][..], &["clean"][..]] {
+            let harness = Harness::new("latch-every-command");
+            let inv = invocation(words);
+            let runner = harness.runner();
+            let mut sink = Sink::new(Fault::FlushFails(ErrorKind::BrokenPipe), 0);
+            let code = harness.run_streams(&inv, &runner, &mut sink, &mut Vec::new());
+            assert_eq!(code, 141, "{words:?}");
+            let mut sink = Sink::new(Fault::None, 0);
+            let code = harness.run_streams(&inv, &runner, &mut sink, &mut Vec::new());
+            assert_eq!(code, 0, "{words:?}");
+        }
+    }
+
+    #[test]
+    fn execute_passes_nonzero_codes_through_a_failed_sink() {
+        let harness = Harness::new("latch-nonzero");
+        let mut inv = invocation(&["version"]);
+        inv.here = true;
+        let runner = harness.runner();
+        let mut sink = Sink::new(Fault::FlushFails(ErrorKind::BrokenPipe), 0);
+        let code = harness.run_streams(&inv, &runner, &mut sink, &mut Vec::new());
+        assert_ne!(code, 0);
+        assert_ne!(code, 141);
+    }
 
     const QUIET_ROWS: [(Command, &[&str]); 13] = [
         (Command::Generate, &["generate"]),

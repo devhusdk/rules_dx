@@ -11,42 +11,6 @@ use dx_process::ForwardError;
 use std::path::Path;
 
 pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ci,
-        audit_today,
-    } = env;
-    let mut latched = LatchedOut::new(out);
-    let code = run_managed(
-        invocation,
-        Env {
-            workspace,
-            runner,
-            query_runner,
-            temp_dir,
-            pid,
-            nonce,
-            out: &mut latched,
-            err,
-            ci,
-            audit_today,
-        },
-    );
-    if code == 0 {
-        latched.exit_code(code)
-    } else {
-        code
-    }
-}
-
-fn run_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.command.is_managed(),
         "managed dispatch guards commands"

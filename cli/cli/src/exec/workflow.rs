@@ -30,40 +30,7 @@ fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i
     if invocation.command == Command::Deploy {
         return execute_deploy(invocation, env);
     }
-    let Env {
-        workspace,
-        runner,
-        query_runner,
-        temp_dir,
-        pid,
-        nonce,
-        out,
-        err,
-        ci,
-        audit_today,
-    } = env;
-    let mut latched = LatchedOut::new(out);
-    let code = execute_checked(
-        invocation,
-        Env {
-            workspace,
-            runner,
-            query_runner,
-            temp_dir,
-            pid,
-            nonce,
-            out: &mut latched,
-            err,
-            ci,
-            audit_today,
-        },
-        complete,
-    );
-    if code == 0 {
-        latched.exit_code(code)
-    } else {
-        code
-    }
+    execute_checked(invocation, env, complete)
 }
 
 fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {

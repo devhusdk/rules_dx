@@ -129,11 +129,11 @@ pub const CONSUMER_WORKFLOW_REPO: &str = "rules_dx";
 
 pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
 
-pub const CONSUMER_WORKFLOW_PIN: &str = "550b5b9f3c9e7be4ca00f9e7780d7bd370de2199";
+pub const CONSUMER_WORKFLOW_PIN: &str = "e97ab7b550d08e047c35edc5f50c7d242227842f";
 
 pub fn render_consumer_caller() -> String {
     format!(
-        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n    secrets: inherit\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n    secrets: inherit\n    permissions:\n      contents: read\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
@@ -699,7 +699,6 @@ mod tests {
             "secrets: inherit",
             "permissions:",
             "contents: read",
-            "checks: write",
             "pull-requests: write",
         ] {
             assert!(
@@ -707,6 +706,10 @@ mod tests {
                 "caller lacks {required}: {caller}"
             );
         }
+        assert!(
+            !caller.contains("  checks: "),
+            "caller grants checks: {caller}"
+        );
         assert!(!caller.contains("<reviewed-commit>"), "{caller}");
         for removed in ["scheduling_mode", "code_scanning_opt_in"] {
             assert!(

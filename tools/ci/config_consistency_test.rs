@@ -464,3 +464,307 @@ fn the_emitted_runfiles_block_names_no_issue_or_another_page() {
         &read_runfiles("deploy/rules/launcher.bzl"),
     );
 }
+
+/// Returns the name of the dx state directory, read from its constant in dx_env.
+fn dx_dir_name() -> String {
+    const SOURCE: &str = "cli/env/src/lib.rs";
+    const PREFIX: &str = "pub const DX_DIR_NAME: &str = \"";
+    read_runfiles(SOURCE)
+        .lines()
+        .find_map(|line| line.trim().strip_prefix(PREFIX)?.strip_suffix("\";"))
+        .unwrap_or_else(|| panic!("{SOURCE} declares no DX_DIR_NAME string constant"))
+        .to_owned()
+}
+
+/// Returns true when an ignore file lists `dir/` on a line of its own.
+fn ignored_dir(text: &str, dir: &str) -> bool {
+    text.lines()
+        .map(str::trim)
+        .any(|line| line == format!("{dir}/"))
+}
+
+/// Returns the dot directories `.bazelignore` lists, without a trailing slash.
+fn bazelignored_dirs(text: &str) -> Vec<String> {
+    let mut dirs: Vec<String> = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.starts_with('.') && !line.starts_with(".."))
+        .map(|line| line.trim_end_matches('/').to_owned())
+        .collect();
+    dirs.sort();
+    dirs.dedup();
+    dirs
+}
+
+#[test]
+fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
+    let dir = dx_dir_name();
+    let gitignore = read_runfiles(".gitignore");
+    let bazelignore = read_runfiles(".bazelignore");
+    let biome = read_runfiles("biome.json");
+    assert!(
+        ignored_dir(&gitignore, &dir),
+        ".gitignore never ignores {dir}/"
+    );
+    assert!(
+        ignored_dir(&bazelignore, &dir),
+        ".bazelignore never ignores {dir}/"
+    );
+    assert!(
+        biome.contains(&format!("\"!!**/{dir}\"")),
+        "biome.json files.includes never force-ignores {dir}"
+    );
+}
+
+#[test]
+fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
+    let bazelignore = read_runfiles(".bazelignore");
+    let gitignore = read_runfiles(".gitignore");
+    let biome = read_runfiles("biome.json");
+    let dirs = bazelignored_dirs(&bazelignore);
+    assert!(!dirs.is_empty(), ".bazelignore lists no dot dirs");
+    for dir in dirs {
+        assert!(
+            ignored_dir(&gitignore, &dir),
+            ".gitignore never ignores {dir}/ listed in .bazelignore"
+        );
+        assert!(
+            biome.contains(&format!("\"!!**/{dir}\"")),
+            "biome.json files.includes never force-ignores {dir} listed in .bazelignore"
+        );
+    }
+}
+
+/// Returns every workflow with its string values joined, so the scans skip comments.
+fn workflow_values() -> Vec<(String, String)> {
+    let found: Vec<(String, String)> = dx_testing::workflow_files()
+        .into_iter()
+        .map(|name| {
+            let text = ci_workflow::strings(&name).join("\n");
+            (name, text)
+        })
+        .collect();
+    assert!(!found.is_empty(), "DX_WORKFLOWS names no workflow");
+    found
+}
+
+fn label_chars(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '/' | ':' | '_' | '.' | '-')
+}
+
+/// Returns the target names `text` names in `//package:`, sorted and deduplicated.
+fn package_labels(text: &str, package: &str) -> Vec<String> {
+    let needle = format!("//{package}:");
+    let mut found: Vec<String> = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(&needle) {
+        let tail = &rest[start + needle.len()..];
+        let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+        if end > 0 {
+            found.push(tail[..end].to_owned());
+        }
+        rest = &tail[end..];
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// Returns the label the vendored preset names as its regeneration command.
+fn preset_regeneration_label() -> String {
+    let fragment = read_runfiles("tools/bazelrc/preset.bazelrc");
+    let line = fragment
+        .lines()
+        .find(|line| line.starts_with("# Regenerate:"))
+        .expect("the vendored preset names its regeneration command");
+    let start = line
+        .find("//")
+        .expect("the regeneration command names a target");
+    let tail = &line[start..];
+    let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+    tail[..end].to_owned()
+}
+
+#[test]
+fn workflows_run_the_preset_target_the_vendored_fragment_names() {
+    let expected = preset_regeneration_label();
+    let target = expected
+        .rsplit_once(':')
+        .map(|(_, name)| name)
+        .expect("the regeneration command names a package and a target");
+    let build = read_runfiles("tools/bazelrc/BUILD.bazel");
+    assert!(
+        build.contains(&format!("\"{target}\"")),
+        "{expected} is the label tools/bazelrc/preset.bazelrc advertises but its BUILD file never \
+         declares"
+    );
+    let mut runs = 0;
+    for (workflow, text) in workflow_values() {
+        for label in package_labels(&text, "tools/bazelrc") {
+            assert_eq!(
+                label, target,
+                "{workflow} runs //tools/bazelrc:{label}; the vendored fragment advertises {expected}"
+            );
+            runs += 1;
+        }
+    }
+    assert!(runs > 0, "no workflow runs the preset regeneration target");
+}
+
+/// Returns every `--min-coverage` value on a line that names coverage.
+fn coverage_floors(text: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for line in text.lines() {
+        if !line.contains("coverage") {
+            continue;
+        }
+        let mut rest = line;
+        while let Some(start) = rest.find("--min-coverage") {
+            let tail = rest[start + "--min-coverage".len()..].trim_start_matches([' ', '=']);
+            let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+            if end > 0 {
+                found.push(tail[..end].to_owned());
+            }
+            rest = &tail[end..];
+        }
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// Returns the coverage floor ci.yml passes to the required check.
+fn required_coverage_floor() -> String {
+    const CI: &str = ".github/workflows/ci.yml";
+    let floors: Vec<String> = ci_workflow::jobs(CI)
+        .into_iter()
+        .filter_map(|(_, job)| job["with"]["min_coverage"].as_str().map(str::to_owned))
+        .collect();
+    assert_eq!(
+        floors.len(),
+        1,
+        "{CI} passes one coverage floor to the required check: {floors:?}"
+    );
+    floors[0].clone()
+}
+
+#[test]
+fn every_workflow_coverage_floor_matches_the_required_check() {
+    let expected = required_coverage_floor();
+    let mut floors = 0;
+    for (workflow, text) in workflow_values() {
+        for floor in coverage_floors(&text) {
+            assert_eq!(
+                floor, expected,
+                "{workflow} enforces a coverage floor the required check does not"
+            );
+            floors += 1;
+        }
+    }
+    assert!(floors > 0, "no workflow runs dx coverage with a floor");
+}
+
+#[test]
+fn required_coverage_floor_is_exact_100() {
+    assert_eq!(
+        required_coverage_floor(),
+        "100",
+        "ci.yml must hold the v1 exact-coverage floor at 100"
+    );
+}
+
+#[test]
+fn publish_dry_run_enforces_the_required_coverage_floor() {
+    let expected = required_coverage_floor();
+    let (_, text) = workflow_values()
+        .into_iter()
+        .find(|(name, _)| name.ends_with("workflows/publish-dry-run.yml"))
+        .expect("publish-dry-run.yml ships as config_consistency_test data");
+    assert!(
+        coverage_floors(&text)
+            .iter()
+            .any(|floor| floor == &expected),
+        "publish-dry-run.yml must qualify the release with dx coverage at {expected}"
+    );
+}
+
+/// Returns every `--config=` name `text` passes, sorted and deduplicated.
+fn workflow_bazel_configs(text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("--config=") {
+        let tail = &rest[start + "--config=".len()..];
+        let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+        if end > 0 {
+            found.push(tail[..end].to_owned());
+        }
+        rest = &tail[end..];
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// Returns every config name a bazelrc defines with a `command:name` line.
+fn bazelrc_configs(rc: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for line in rc.lines() {
+        let trimmed = line.trim();
+        let Some((command, rest)) = trimmed.split_once(':') else {
+            continue;
+        };
+        if command.is_empty() || !command.chars().all(|ch| ch.is_ascii_lowercase()) {
+            continue;
+        }
+        let name = rest.split(' ').next().unwrap_or_default();
+        if !name.is_empty() {
+            found.push(name.to_owned());
+        }
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// Returns whether a config needs a docs stanza: preset configs do not, `.bazelrc` ones do.
+fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool, String> {
+    if bazelrc_configs(preset).iter().any(|name| name == config) {
+        return Ok(false);
+    }
+    if bazelrc_configs(rc).iter().any(|name| name == config) {
+        return Ok(true);
+    }
+    Err(format!(
+        "no .bazelrc or tools/bazelrc/preset.bazelrc line defines --config={config}"
+    ))
+}
+
+#[test]
+fn preset_configs_need_no_doc_stanza() {
+    let rc = "common:ci --announce_rc\nbuild:dx_release --host_compilation_mode=opt\n";
+    let preset = "build:dx_release --compilation_mode=opt\n";
+    assert_eq!(config_needs_doc_stanza("dx_release", rc, preset), Ok(false));
+    assert_eq!(config_needs_doc_stanza("ci", rc, preset), Ok(true));
+    assert!(config_needs_doc_stanza("missing", rc, preset).is_err());
+}
+
+#[test]
+fn every_workflow_bazel_config_is_defined_and_documented() {
+    let rc = read_runfiles(".bazelrc");
+    let preset = read_runfiles("tools/bazelrc/preset.bazelrc");
+    let page = read_runfiles("docs/github-ci.md");
+    let mut passes = 0;
+    for (workflow, text) in workflow_values() {
+        for config in workflow_bazel_configs(&text) {
+            let needs_stanza = config_needs_doc_stanza(&config, &rc, &preset)
+                .unwrap_or_else(|err| panic!("{workflow} runs --config={config}; {err}"));
+            assert!(
+                !needs_stanza || page.contains(&format!("common:{config} ")),
+                "docs/github-ci.md never shows the common:{config} stanza --config={config} \
+                 needs; only preset configs are exempt"
+            );
+            passes += 1;
+        }
+    }
+    assert!(passes > 0, "no workflow passes a Bazel config");
+}

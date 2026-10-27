@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use ci_workflow::document;
+use ci_workflow::{document, jobs, triggers};
 use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
@@ -141,6 +141,60 @@ fn the_consumer_gate_requires_every_declared_check() {
     }
 }
 
+/// Returns the job ids one job needs, whether `needs` is one name or a list.
+fn job_needs(workflow: &str, id: &str, job: &Value) -> Vec<String> {
+    match &job["needs"] {
+        Value::Null => Vec::new(),
+        Value::String(one) => vec![one.clone()],
+        Value::Array(many) => many
+            .iter()
+            .map(|name| {
+                name.as_str()
+                    .unwrap_or_else(|| panic!("{workflow} job {id} needs a non-string: {name}"))
+                    .to_owned()
+            })
+            .collect(),
+        other => panic!("{workflow} job {id} needs is neither a name nor a list: {other}"),
+    }
+}
+
+/// Returns true when a job reads `toJSON(needs)`, so it aggregates its dependencies.
+fn aggregates_needs(job: &Value) -> bool {
+    serde_json::to_string(job)
+        .expect("serialize job")
+        .to_lowercase()
+        .contains("tojson(needs)")
+}
+
+#[test]
+fn every_aggregate_job_needs_every_other_job() {
+    for workflow in [CI_WORKFLOW, CONSUMER_WORKFLOW] {
+        let all = jobs(workflow);
+        assert!(all.len() > 1, "{workflow} declares no aggregate job");
+        let aggregates: Vec<&(String, Value)> = all
+            .iter()
+            .filter(|(_, job)| aggregates_needs(job))
+            .collect();
+        assert_eq!(
+            aggregates.len(),
+            1,
+            "{workflow} must aggregate over its needs exactly once"
+        );
+        let (id, job) = aggregates[0];
+        let needs = job_needs(workflow, id, job);
+        for (other, _) in &all {
+            if other == id {
+                continue;
+            }
+            assert!(
+                needs.contains(other),
+                "{workflow}: the {id} required check must need {other}; without it a failing \
+                 {other} reports green behind the aggregate"
+            );
+        }
+    }
+}
+
 /// Keeps every native platform in the dogfood and preflight matrices at full coverage.
 #[test]
 fn the_native_matrix_keeps_all_five_platforms() {
@@ -179,15 +233,6 @@ fn the_native_matrix_keeps_all_five_platforms() {
         json!("100"),
         "{CI_WORKFLOW} job dogfood with.min_coverage must stay at 100"
     );
-}
-
-/// Returns the trigger table of a workflow, whichever way the parser keys `on`.
-fn triggers(workflow: &str) -> Value {
-    let document = document(workflow);
-    if document["on"].is_object() {
-        return document["on"].clone();
-    }
-    document["true"].clone()
 }
 
 #[test]

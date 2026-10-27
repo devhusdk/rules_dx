@@ -96,6 +96,8 @@ python_test(
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
         "//.github:workflows/reusable-consumer.yml",
+        "//docs:github-ci.md",
+        "//examples:consumer-ci/caller.yml",
     ],
     dep_group = "hello",
     deps = [
@@ -342,9 +344,12 @@ rust_test(
     srcs = ["workflow_permissions_test.rs"],
     data = [
         "//.github:workflows",
+        "//examples:consumer-ci/caller.yml",
+        "//examples:docs-ci/caller.yml",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -458,15 +463,20 @@ rust_test(
     size = "small",
     srcs = ["config_consistency_test.rs"],
     data = [
+        "//:.bazelignore",
+        "//:.bazelrc",
         "//:.buildifier.json",
         "//:.editorconfig",
+        "//:.gitignore",
         "//:.shellcheckrc",
         "//:.vale.ini",
         "//:biome.json",
         "//.github:workflows",
         "//:ruff.toml",
+        "//cli/env:src/lib.rs",
         "//deploy/offline/bootstrap:src/lib.rs",
         "//deploy/rules:launcher.bzl",
+        "//docs:github-ci.md",
         "//quality:corpus_styles/Dx/Markers.yml",
         "//quality:corpus_vale.ini",
         "//quality:native_config.bzl",
@@ -479,9 +489,14 @@ rust_test(
         "//quality/testdata:styles/Dx/Markers.yml",
         "//quality/testdata:vale_test.ini",
         "//quality/tools/dotnet/fsharplint:fsharplint.sh",
+        "//tools/bazelrc:BUILD.bazel",
+        "//tools/bazelrc:preset.bazelrc",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        ":ci_workflow",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 # keep
@@ -648,8 +663,8 @@ rust_test(
         "//:d/README.md",
         "//:elixir/README.md",
         "//:fsharp/README.md",
-        "//:lua/README.md",
         "//:haskell/README.md",
+        "//:lua/README.md",
         "//:perl/README.md",
         "//:php/README.md",
         "//:powershell/README.md",
@@ -689,6 +704,26 @@ rust_test(
     deps = [
         "//tools/testing:dx_testing",
         "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
+    name = "reusable_callers_test",
+    size = "small",
+    srcs = ["reusable_callers_test.rs"],
+    data = [
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
+        "//docs:github-ci.md",
+        "//examples:consumer-ci/caller.yml",
+        "//examples:docs-ci/caller.yml",
+    ],
+    deps = [
+        ":ci_workflow",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 

@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use ci_workflow::{document, job, scripts, steps, text_at};
+use ci_workflow::{document, job, jobs, scripts, steps, text_at};
 
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
@@ -352,4 +352,30 @@ fn the_artifact_name_and_concurrency_carry_the_validated_invocation() {
         document["on"]["workflow_call"]["inputs"]["invocation_id"].is_object(),
         "{WORKFLOW} must declare the invocation_id input"
     );
+}
+
+/// Returns true when a job names an advisory database it would download itself.
+fn names_an_advisory_database(job: &str) -> bool {
+    job.contains("all.zip") || job.contains("osv-vulnerabilities")
+}
+
+#[test]
+fn only_the_preparation_job_names_an_advisory_database() {
+    let prep = serde_json::to_string(&job(WORKFLOW, PREP)).expect("serialize job");
+    assert_eq!(
+        prep.matches(PREP_TARGET).count(),
+        1,
+        "the {PREP} job runs {PREP_TARGET} exactly once, so one run prepares one snapshot set"
+    );
+    assert!(
+        !prep.contains("@rules_dx//:dx -- security"),
+        "the {PREP} job prepares snapshots; it must not audit a scope"
+    );
+    for (other, body) in jobs(WORKFLOW) {
+        let body = serde_json::to_string(&body).expect("serialize job");
+        assert!(
+            !names_an_advisory_database(&body),
+            "{WORKFLOW} job {other} must audit the shared snapshots instead of downloading a database"
+        );
+    }
 }

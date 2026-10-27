@@ -4,9 +4,7 @@ use std::path::Path;
 use crate::toml_util::{toml_bool, toml_string};
 use crate::{DepInfo, DepcheckError};
 
-pub fn normalize_cc(name: &str) -> String {
-    name.to_lowercase().replace('-', "_")
-}
+use super::normalize_snake;
 
 pub fn parse_cc_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
@@ -51,7 +49,7 @@ pub fn parse_cc_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
             "prod"
         };
         deps.insert(
-            normalize_cc(&name),
+            normalize_snake(&name),
             DepInfo {
                 spec: if ver.is_empty() { "*".to_owned() } else { ver },
                 category: category.to_owned(),
@@ -78,7 +76,7 @@ pub fn parse_cc_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckEr
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_owned();
-            pkgs.insert(normalize_cc(name), ver);
+            pkgs.insert(normalize_snake(name), ver);
         }
     }
     Ok(pkgs)
@@ -99,7 +97,7 @@ pub fn parse_cc_lock_sha(path: &Path) -> BTreeMap<String, String> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_owned();
-            out.insert(normalize_cc(name), sha);
+            out.insert(normalize_snake(name), sha);
         }
     }
     out

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::ecosystem::{cc, dotnet, go, js, jvm, python, ruby, rust};
+use crate::ecosystem::{cc, dotnet, go, js, jvm, parse_paren_lock, python, ruby, rust};
 use crate::version::satisfies_for;
 use crate::{DepInfo, DepcheckError, Ecosystem, LockVersions, WorkspaceLocks};
 
@@ -36,9 +36,9 @@ fn load_lock(eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError>
         )),
         Ecosystem::Go => single(go::parse_go_lock(lock)),
         Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => single(jvm::parse_jvm_lock(lock)),
-        Ecosystem::Csharp | Ecosystem::Fsharp => single(dotnet::parse_dotnet_lock(lock)),
+        Ecosystem::Csharp | Ecosystem::Fsharp => single(parse_paren_lock(lock)),
         Ecosystem::Cc => single(cc::parse_cc_lock(lock)),
-        Ecosystem::Ruby => single(ruby::parse_ruby_lock(lock)),
+        Ecosystem::Ruby => single(parse_paren_lock(lock)),
     }
 }
 

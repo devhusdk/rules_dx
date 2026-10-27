@@ -3,9 +3,7 @@ use std::path::Path;
 
 use crate::{DepInfo, DepcheckError};
 
-pub fn normalize_go(name: &str) -> String {
-    name.to_lowercase()
-}
+use super::normalize_lower;
 
 pub fn parse_go_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
@@ -14,7 +12,7 @@ pub fn parse_go_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
     for requirement in file.require {
         let marker = requirement.marker.unwrap_or_default().to_lowercase();
         deps.insert(
-            normalize_go(&requirement.module),
+            normalize_lower(&requirement.module),
             DepInfo {
                 spec: requirement.version,
                 category: if is_dev(&marker) {
@@ -38,7 +36,7 @@ pub fn parse_go_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckEr
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let mut pkgs = BTreeMap::new();
     for (module, version) in dx_gomod::parse_sum(&text) {
-        pkgs.entry(normalize_go(&module)).or_insert(version);
+        pkgs.entry(normalize_lower(&module)).or_insert(version);
     }
     Ok(pkgs)
 }

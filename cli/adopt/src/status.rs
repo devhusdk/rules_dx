@@ -1,27 +1,19 @@
 use std::path::Path;
 
-use serde::Serialize;
-
 use dx_module_bazel::ModuleFile;
 
 use crate::AdoptError;
 
-use super::{
-    pin_fix_hint, read_module_dependency, version_move_hint, version_pin_matches_module,
-    CONSUMER_RULES_RUST_VERSION, CONSUMER_RUST_VERSION, MODULE_VERSION,
-};
+use super::{pin_fix_hint, read_module_dependency, version_pin_matches_module, MODULE_VERSION};
+use crate::scaffold::{CONSUMER_RULES_RUST_VERSION, CONSUMER_RUST_VERSION};
+use crate::version::version_move_hint;
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StatusCheck {
     pub name: String,
     pub status: String,
     pub detail: String,
     pub hint: String,
-}
-
-#[derive(Serialize)]
-struct StatusPayload<'a> {
-    checks: &'a [StatusCheck],
 }
 
 pub fn render_status_text(checks: &[StatusCheck]) -> String {
@@ -30,12 +22,6 @@ pub fn render_status_text(checks: &[StatusCheck]) -> String {
         .map(|c| format!("{}: {} ({}) hint: {}", c.name, c.status, c.detail, c.hint))
         .collect::<Vec<_>>()
         .join("\n")
-}
-
-pub fn render_status_json(
-    checks: &[StatusCheck],
-) -> Result<String, dx_fingerprint::FingerprintError> {
-    dx_fingerprint::to_json(&StatusPayload { checks })
 }
 
 fn pin_check(pinned: &str) -> StatusCheck {
@@ -377,7 +363,7 @@ pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> 
 #[cfg(test)]
 mod tests {
     use super::super::{render_consumer_module_setup, StatusCheck, MODULE_VERSION};
-    use super::{pin_check, render_status_json, render_status_text, toolchain_check};
+    use super::{pin_check, render_status_text, toolchain_check};
 
     fn tools_check() -> StatusCheck {
         StatusCheck {
@@ -389,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn status_renders_text_and_json() {
+    fn status_renders_text() {
         let scratch = dx_test_scratch::scratch("dx-status-render-");
         let dir = scratch.path();
         std::fs::write(dir.join("MODULE.bazel"), render_consumer_module_setup()).expect("module");
@@ -397,8 +383,6 @@ mod tests {
         let text = render_status_text(&checks);
         assert!(text.contains("pin: ok"), "{text}");
         assert!(text.contains("toolchain: ok"), "{text}");
-        let json = render_status_json(&checks).expect("status json");
-        insta::assert_snapshot!(json, @r#"{"checks":[{"name":"toolchain","status":"ok","detail":"available: rust 1.98.0 via rules_rust 0.74.0 declared in MODULE.bazel","hint":"bazel build //..."},{"name":"pin","status":"ok","detail":"dx 0.0.0 vs module 0.0.0","hint":"dx version --check"}]}"#);
     }
 
     #[test]
@@ -457,27 +441,6 @@ mod tests {
             "",
         ));
         assert_eq!(no_dep.status, "warn");
-    }
-
-    #[test]
-    fn status_json_escapes_quotes_newlines_and_controls() {
-        let checks = vec![StatusCheck {
-            name: "we\"ird".to_owned(),
-            status: "ok".to_owned(),
-            detail: "line1\nline2\u{1}".to_owned(),
-            hint: "back\\slash".to_owned(),
-        }];
-        let json = render_status_json(&checks).expect("status json");
-        assert!(json.contains("\\\""), "{json}");
-        assert!(json.contains("\\n"), "{json}");
-        assert!(json.contains("\\\\"), "{json}");
-        assert!(json.contains("\\u0001"), "{json}");
-        let parsed: serde_json::Value = serde_json::from_str(&json).expect("status JSON is valid");
-        assert_eq!(parsed["checks"][0]["name"], "we\"ird");
-        let reparsed: serde_json::Value =
-            serde_json::from_str(&serde_json::to_string(&parsed).expect("reserialize"))
-                .expect("reserialized JSON is valid");
-        assert_eq!(parsed, reparsed);
     }
 
     #[test]

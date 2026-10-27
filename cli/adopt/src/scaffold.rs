@@ -62,27 +62,6 @@ pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck
 /// Content `dx init` writes to a new `.bazelignore`.
 pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
 
-pub fn render_consumer_own_toolchain_setup() -> String {
-    format!(
-        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\ncc_configure = use_extension(\"@rules_cc//cc:extensions.bzl\", \"cc_configure_extension\")\nuse_repo(cc_configure, \"local_config_cc\", \"local_config_cc_toolchains\")\nregister_toolchains(\"@local_config_cc_toolchains//:all\")\n",
-        dx = DX_VERSION,
-        cc = CONSUMER_RULES_CC_VERSION,
-        llvm = CONSUMER_LLVM_VERSION,
-        rust_rules = CONSUMER_RULES_RUST_VERSION,
-        edition = CONSUMER_RUST_EDITION,
-        rustfmt = CONSUMER_RUSTFMT_VERSION,
-        rust = CONSUMER_RUST_VERSION,
-    )
-}
-
-pub fn render_consumer_renamed_setup(repo_name: &str) -> String {
-    render_consumer_module_setup().replacen(
-        "bazel_dep(name = \"rules_dx\", version = \"",
-        &format!("bazel_dep(name = \"rules_dx\", repo_name = \"{repo_name}\", version = \""),
-        1,
-    )
-}
-
 pub fn render_consumer_module_setup() -> String {
     format!(
         "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
@@ -110,47 +89,6 @@ fn with_cuda_stanza(setup: &str) -> String {
         Some(at) => format!("{}{}{}", &setup[..at], stanza, &setup[at..]),
         None => format!("{setup}\n{stanza}"),
     }
-}
-
-pub fn editor_disposition(language: &str) -> &'static str {
-    match language {
-        "rust" => "automatic: rules_rust discover and flycheck via bazel run, separate IDE output bases under .dx/ide",
-        "go" => "automatic: upstream GOPACKAGESDRIVER (Bazel-backed, pure-Go boundary, cgo out of scope)",
-        "cpp" | "c" => {
-            "snapshot: action-derived compile commands via aquery plus managed clangd, manual dx env and dx codegen refresh"
-        }
-        "python" => "projection: .venv interpreter plus imports via dx env and dx codegen",
-        "javascript" => "projection: node_modules via dx env and dx codegen",
-        "typescript" => "projection: node_modules plus tsdk via dx env and dx codegen",
-        "java" | "kotlin" => {
-            "manual: env projection plus checked-in native config, no automatic Bazel-backed driver yet"
-        }
-        "scala" => {
-            "manual: env projection plus semanticdb/classpath wiring via dx env and dx codegen, no automatic Bazel-backed driver yet"
-        }
-        "csharp" | "fsharp" => {
-            "manual: env projection plus Paket lock wiring via dx env and dx codegen, no automatic Bazel-backed driver yet"
-        }
-        _ => "unknown language",
-    }
-}
-
-pub fn editor_language_supported(language: &str) -> bool {
-    matches!(
-        language,
-        "rust"
-            | "python"
-            | "javascript"
-            | "typescript"
-            | "go"
-            | "java"
-            | "kotlin"
-            | "scala"
-            | "csharp"
-            | "fsharp"
-            | "c"
-            | "cpp"
-    )
 }
 
 pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
@@ -416,21 +354,15 @@ pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptEr
 
 #[cfg(test)]
 mod tests {
-    use super::super::{
-        apply_init, editor_disposition, editor_language_supported, parse_consumer_setup,
-        plan_init_files, plan_init_files_for_host, plan_init_files_with, render_consumer_caller,
-        render_consumer_own_toolchain_setup, render_consumer_renamed_setup, render_editor_settings,
-        CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
-        CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION,
-        CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
-        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
+    use super::{
+        apply_init, plan_init_files, plan_init_files_for_host, plan_init_files_with,
+        render_consumer_caller, render_editor_settings, CONSUMER_LLVM_VERSION,
+        CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
+        CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER,
+        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
+        DX_VERSION,
     };
-    use super::DEVCONTAINER_JSON as LOCAL_DEVCONTAINER;
-
-    #[test]
-    fn scaffold_reexports_match_local_definitions() {
-        assert_eq!(DEVCONTAINER_JSON, LOCAL_DEVCONTAINER);
-    }
+    use crate::version::consumer_setup::parse_consumer_setup;
 
     #[test]
     fn init_plans_nine_absent_only_files() {
@@ -504,7 +436,6 @@ mod tests {
             !post_create.contains("bazel build //..."),
             "no full build on create: {post_create}"
         );
-        assert!(super::super::devcontainer_is_admissible(true, true, false));
     }
 
     #[test]
@@ -574,43 +505,6 @@ mod tests {
         assert!(devcontainer
             .content
             .contains("llvm-vs-code-extensions.vscode-clangd"));
-    }
-
-    #[test]
-    fn editor_disposition_names_driver_or_snapshot_per_lang() {
-        assert!(editor_disposition("rust").starts_with("automatic:"));
-        assert!(editor_disposition("go").starts_with("automatic:"));
-        assert!(editor_disposition("cpp").starts_with("snapshot:"));
-        assert!(editor_disposition("c").starts_with("snapshot:"));
-        assert!(editor_disposition("python").starts_with("projection:"));
-        assert!(editor_disposition("java").starts_with("manual:"));
-        assert!(editor_disposition("kotlin").starts_with("manual:"));
-        assert!(editor_disposition("scala").starts_with("manual:"));
-        assert!(editor_disposition("csharp").starts_with("manual:"));
-        assert!(editor_disposition("fsharp").starts_with("manual:"));
-        for lang in [
-            "rust",
-            "python",
-            "javascript",
-            "typescript",
-            "go",
-            "java",
-            "kotlin",
-            "scala",
-            "csharp",
-            "fsharp",
-            "c",
-            "cpp",
-        ] {
-            assert!(editor_language_supported(lang), "{lang}");
-        }
-        for removed in ["cc", "c#", "c-sharp", "f#", "f-sharp"] {
-            assert!(!editor_language_supported(removed), "{removed}");
-            assert_eq!(editor_disposition(removed), "unknown language");
-        }
-        assert!(!editor_language_supported("ruby"));
-        assert!(!editor_language_supported("swift"));
-        assert_eq!(editor_disposition("ruby"), "unknown language");
     }
 
     #[test]
@@ -955,80 +849,6 @@ mod tests {
     }
 
     #[test]
-    fn own_toolchain_setup_keeps_deps_and_registers_local_toolchain() {
-        let setup = parse_consumer_setup(&render_consumer_own_toolchain_setup());
-        assert_eq!(
-            setup.deps,
-            vec![
-                ("rules_dx".to_owned(), DX_VERSION.to_owned()),
-                ("rules_cc".to_owned(), CONSUMER_RULES_CC_VERSION.to_owned()),
-                ("llvm".to_owned(), CONSUMER_LLVM_VERSION.to_owned()),
-                (
-                    "rules_rust".to_owned(),
-                    CONSUMER_RULES_RUST_VERSION.to_owned()
-                ),
-            ]
-        );
-        assert!(
-            !setup
-                .registered
-                .contains(&"@llvm//toolchain:all".to_owned()),
-            "own toolchains must not register hermetic LLVM: {setup:?}"
-        );
-        assert!(
-            !setup
-                .registered
-                .contains(&"@rust_toolchains//:all".to_owned()),
-            "own toolchains must not register hermetic Rust: {setup:?}"
-        );
-        assert_eq!(
-            setup.registered,
-            vec!["@local_config_cc_toolchains//:all".to_owned()]
-        );
-        assert!(
-            setup
-                .extensions
-                .iter()
-                .any(|(label, tag)| label == "@rules_cc//cc:extensions.bzl"
-                    && tag == "cc_configure_extension"),
-            "own setup must opt into the upstream cc_configure extension: {setup:?}"
-        );
-        assert!(
-            setup
-                .repos
-                .iter()
-                .any(|(var, repo)| var == "cc_configure" && repo == "local_config_cc_toolchains"),
-            "own setup must materialize the local toolchains repo: {setup:?}"
-        );
-        assert!(
-            setup
-                .extensions
-                .iter()
-                .any(|(label, tag)| label == "@rules_rust//rust:extensions.bzl" && tag == "rust"),
-            "default Rust stays available beside the local C++ toolchain: {setup:?}"
-        );
-    }
-
-    #[test]
-    fn renamed_setup_maps_loads_through_the_new_name() {
-        let setup = parse_consumer_setup(&render_consumer_renamed_setup("my_dx"));
-        assert_eq!(setup.repo_name("rules_dx"), Some("my_dx"));
-        assert_eq!(setup.repo_name("rules_cc"), None);
-        assert_eq!(setup.dep_version("rules_dx"), Some(DX_VERSION));
-        let load = format!(
-            "@{}//cc/rules:defs.bzl",
-            setup.repo_name("rules_dx").expect("rename")
-        );
-        assert_eq!(load, "@my_dx//cc/rules:defs.bzl");
-        assert!(
-            setup
-                .registered
-                .contains(&"@llvm//toolchain:all".to_owned()),
-            "renamed setup keeps the hermetic registrations: {setup:?}"
-        );
-    }
-
-    #[test]
     fn cuda_snippet_adds_the_stanza_and_registers_the_host_compiler_first() {
         let plain = plan_init_files_with("demo", false, false).expect("plans");
         let cuda = plan_init_files_with("demo", false, true).expect("plans");
@@ -1166,7 +986,7 @@ mod tests {
 
     #[cfg(unix)]
     mod symlinks {
-        use super::super::super::{apply_init, scaffold_dest_within_root};
+        use crate::scaffold::{apply_init, scaffold_dest_within_root};
         use std::os::unix::fs::symlink;
 
         fn entries(dir: &std::path::Path) -> Vec<String> {

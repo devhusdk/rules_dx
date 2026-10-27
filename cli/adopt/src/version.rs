@@ -1,12 +1,11 @@
 use std::path::Path;
 
-use dx_module_bazel::{Call, ModuleFile, Value};
+use dx_module_bazel::ModuleFile;
 
 use super::AdoptError;
 
 pub const DX_VERSION: &str = "0.0.0";
 pub const MODULE_VERSION: &str = "0.0.0";
-pub const PREVIOUS_VERSION: &str = "0.0.0";
 
 pub fn pin_is_valid(pin: &str) -> bool {
     !pin.is_empty() && semver::Version::parse(pin).is_ok()
@@ -19,7 +18,7 @@ pub fn pin_rewrite_hint(version: &str) -> String {
 pub fn version_move_hint(from: &str, to: &str) -> String {
     if version_pin_matches_module(from, to) {
         "dx version --check".to_owned()
-    } else if super::migrate_is_upgrade(from, to) {
+    } else if crate::migrate::migrate_is_upgrade(from, to) {
         format!("dx upgrade --from {from} --to {to}")
     } else {
         "dx rollback".to_owned()
@@ -47,10 +46,6 @@ pub fn version_pin_matches_module(dx_version: &str, module_version: &str) -> boo
         Err(_) => return false,
     };
     dx == module
-}
-
-pub fn rollback_re_pins_previous(current: &str, target: &str, known_previous: &str) -> bool {
-    !known_previous.is_empty() && target == known_previous && target != current
 }
 
 pub fn read_version_pin(root: &Path) -> Result<String, AdoptError> {
@@ -221,103 +216,6 @@ pub fn local_path_overrides(text: &str) -> Vec<String> {
         .collect()
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConsumerSetup {
-    pub deps: Vec<(String, String)>,
-    pub extensions: Vec<(String, String)>,
-    pub repos: Vec<(String, String)>,
-    pub registered: Vec<String>,
-    pub tags: Vec<Call>,
-    pub repo_names: Vec<(String, String)>,
-}
-
-impl ConsumerSetup {
-    pub fn dep_version(&self, name: &str) -> Option<&str> {
-        self.deps
-            .iter()
-            .find(|(dep, _)| dep == name)
-            .map(|(_, version)| version.as_str())
-    }
-
-    pub fn repo_name(&self, name: &str) -> Option<&str> {
-        self.repo_names
-            .iter()
-            .find(|(dep, _)| dep == name)
-            .map(|(_, repo)| repo.as_str())
-    }
-
-    pub fn tag_arg(&self, tag: &str, key: &str) -> Option<String> {
-        self.tag(tag)
-            .and_then(|call| call.str(key))
-            .map(str::to_owned)
-    }
-
-    pub fn tag_list_arg(&self, tag: &str, key: &str) -> Vec<String> {
-        self.tag(tag)
-            .map(|call| call.str_list(key).into_iter().map(str::to_owned).collect())
-            .unwrap_or_default()
-    }
-
-    fn tag(&self, tag: &str) -> Option<&Call> {
-        self.tags.iter().find(|call| call.name == tag)
-    }
-}
-
-fn literal(value: &Value) -> Option<String> {
-    match value {
-        Value::Str(literal) => Some(literal.value.clone()),
-        _ => None,
-    }
-}
-
-pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
-    let mut setup = ConsumerSetup {
-        deps: Vec::new(),
-        extensions: Vec::new(),
-        repos: Vec::new(),
-        registered: Vec::new(),
-        tags: Vec::new(),
-        repo_names: Vec::new(),
-    };
-    let Ok(module) = ModuleFile::parse(text) else {
-        return setup;
-    };
-    for call in module.calls() {
-        match call.name.as_str() {
-            "bazel_dep" => {
-                if let (Some(dep), Some(version)) = (call.str("name"), call.str("version")) {
-                    setup.deps.push((dep.to_owned(), version.to_owned()));
-                    if let Some(repo) = call.str("repo_name") {
-                        setup.repo_names.push((dep.to_owned(), repo.to_owned()));
-                    }
-                }
-            }
-            "use_extension" => {
-                if let [label, tag, ..] = call.positional.as_slice() {
-                    if let (Some(label), Some(tag)) = (literal(label), literal(tag)) {
-                        setup.extensions.push((label, tag));
-                    }
-                }
-            }
-            "use_repo" => {
-                if let [Value::Ident(var), repos @ ..] = call.positional.as_slice() {
-                    for repo in repos.iter().filter_map(literal) {
-                        setup.repos.push((var.clone(), repo));
-                    }
-                }
-            }
-            "register_toolchains" => {
-                setup
-                    .registered
-                    .extend(call.positional.iter().filter_map(literal));
-            }
-            name if name.contains('.') => setup.tags.push(call.clone()),
-            _ => {}
-        }
-    }
-    setup
-}
-
 pub fn read_module_dependency(root: &Path) -> Result<ModuleDependency, AdoptError> {
     let text = std::fs::read_to_string(root.join("MODULE.bazel")).map_err(|e| {
         AdoptError::ReadModuleFile {
@@ -398,7 +296,110 @@ pub(crate) fn repo_module_version() -> String {
 }
 
 #[cfg(test)]
+pub(crate) mod consumer_setup {
+    use dx_module_bazel::{Call, ModuleFile, Value};
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub struct ConsumerSetup {
+        pub deps: Vec<(String, String)>,
+        pub extensions: Vec<(String, String)>,
+        pub repos: Vec<(String, String)>,
+        pub registered: Vec<String>,
+        pub tags: Vec<Call>,
+        pub repo_names: Vec<(String, String)>,
+    }
+
+    impl ConsumerSetup {
+        pub fn dep_version(&self, name: &str) -> Option<&str> {
+            self.deps
+                .iter()
+                .find(|(dep, _)| dep == name)
+                .map(|(_, version)| version.as_str())
+        }
+
+        pub fn repo_name(&self, name: &str) -> Option<&str> {
+            self.repo_names
+                .iter()
+                .find(|(dep, _)| dep == name)
+                .map(|(_, repo)| repo.as_str())
+        }
+
+        pub fn tag_arg(&self, tag: &str, key: &str) -> Option<String> {
+            self.tag(tag)
+                .and_then(|call| call.str(key))
+                .map(str::to_owned)
+        }
+
+        pub fn tag_list_arg(&self, tag: &str, key: &str) -> Vec<String> {
+            self.tag(tag)
+                .map(|call| call.str_list(key).into_iter().map(str::to_owned).collect())
+                .unwrap_or_default()
+        }
+
+        fn tag(&self, tag: &str) -> Option<&Call> {
+            self.tags.iter().find(|call| call.name == tag)
+        }
+    }
+
+    fn literal(value: &Value) -> Option<String> {
+        match value {
+            Value::Str(literal) => Some(literal.value.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn parse_consumer_setup(text: &str) -> ConsumerSetup {
+        let mut setup = ConsumerSetup {
+            deps: Vec::new(),
+            extensions: Vec::new(),
+            repos: Vec::new(),
+            registered: Vec::new(),
+            tags: Vec::new(),
+            repo_names: Vec::new(),
+        };
+        let Ok(module) = ModuleFile::parse(text) else {
+            return setup;
+        };
+        for call in module.calls() {
+            match call.name.as_str() {
+                "bazel_dep" => {
+                    if let (Some(dep), Some(version)) = (call.str("name"), call.str("version")) {
+                        setup.deps.push((dep.to_owned(), version.to_owned()));
+                        if let Some(repo) = call.str("repo_name") {
+                            setup.repo_names.push((dep.to_owned(), repo.to_owned()));
+                        }
+                    }
+                }
+                "use_extension" => {
+                    if let [label, tag, ..] = call.positional.as_slice() {
+                        if let (Some(label), Some(tag)) = (literal(label), literal(tag)) {
+                            setup.extensions.push((label, tag));
+                        }
+                    }
+                }
+                "use_repo" => {
+                    if let [Value::Ident(var), repos @ ..] = call.positional.as_slice() {
+                        for repo in repos.iter().filter_map(literal) {
+                            setup.repos.push((var.clone(), repo));
+                        }
+                    }
+                }
+                "register_toolchains" => {
+                    setup
+                        .registered
+                        .extend(call.positional.iter().filter_map(literal));
+                }
+                name if name.contains('.') => setup.tags.push(call.clone()),
+                _ => {}
+            }
+        }
+        setup
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::consumer_setup::parse_consumer_setup;
     use super::*;
 
     #[test]
@@ -441,24 +442,11 @@ mod tests {
     }
 
     #[test]
-    fn rollback_re_pins_only_the_known_previous() {
-        assert!(rollback_re_pins_previous("1.2.4", "1.2.3", "1.2.3"));
-        assert!(!rollback_re_pins_previous("1.2.3", "1.2.3", "1.2.3"));
-        assert!(!rollback_re_pins_previous("1.2.4", "1.2.2", "1.2.3"));
-        assert!(!rollback_re_pins_previous("1.2.4", "", ""));
-    }
-
-    #[test]
     fn delivered_version_matches_module() {
         let module_version = repo_module_version();
         assert_eq!(DX_VERSION, module_version);
         assert_eq!(MODULE_VERSION, module_version);
         assert!(version_pin_matches_module(DX_VERSION, MODULE_VERSION));
-        assert!(!rollback_re_pins_previous(
-            DX_VERSION,
-            PREVIOUS_VERSION,
-            PREVIOUS_VERSION
-        ));
     }
 
     #[test]

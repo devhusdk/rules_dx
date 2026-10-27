@@ -19,7 +19,6 @@ pub mod load_graph;
 pub mod migrate;
 pub mod new;
 mod new_locks;
-pub mod policy;
 pub mod preset_fragment;
 pub mod scaffold;
 pub mod status;
@@ -27,65 +26,31 @@ pub mod upgrade;
 pub mod version;
 pub mod watch;
 
-pub use cuda_stanza::render_cuda_module_stanza;
-pub use defaults::{
-    check_quality_baseline, env_bool, env_string, find_config_sources, find_new_configs, is_truthy,
-    join_quality_baseline, load_defaults_with_mode, merge_defaults, parse_bool, parse_file_text,
-    resolve_bool, resolve_string, resolve_workspace, shares_file_with_other_tables, ConfigSources,
-    FileDefaults, BOOL_SPELLINGS, CONSUMER_SCHEMA_VERSION, DX_FAIL_ON_ENV, DX_LOCAL_TOML_REL,
-    DX_OUTPUT_ENV, DX_QUIET_ENV, DX_TOML_REL, DX_VERBOSE_ENV, DX_WORKSPACE_ENV, FALSEY,
-};
+pub use defaults::join_quality_baseline;
 pub use error::AdoptError;
 pub use git_changes::{
     dedupe_changes, nearest_package_pattern, parse_name_status_nul, ChangeKind, GitChange,
     DEFAULT_BRANCH_CANDIDATES,
 };
 pub use launcher::{
-    launcher_version, plan_launcher_files, refresh_launcher_files, render_launcher_cmd,
-    render_launcher_sh, stale_launchers, write_launcher_files, LAUNCHER_CMD_REL, LAUNCHER_SH_REL,
+    launcher_version, plan_launcher_files, refresh_launcher_files, render_launcher_sh,
+    stale_launchers, write_launcher_files, LAUNCHER_CMD_REL, LAUNCHER_SH_REL,
 };
-pub use load_graph::{
-    bzl_impact, module_inputs, workspace_has_cuda_sources, BzlImpact, ModuleInput, ModuleInputs,
-};
-pub use migrate::{
-    migrate_is_major_bump, migrate_is_upgrade, migrate_manifest_name, migrate_manifest_name_full,
-    plan_migrate, MigratePlan,
-};
+pub use load_graph::{bzl_impact, module_inputs, BzlImpact};
+pub use migrate::plan_migrate;
 pub use new::{
-    apply_new, default_new_name, derive_new_identity, new_is_known_language,
-    new_language_identity_rule, new_language_name_list, normalize_new_language, plan_new_files,
-    removed_new_language, validate_new_destination, IdentityRule, NewLanguage, NEW_LANGUAGES,
-    SUPPORTED_NEW_LANGUAGES,
-};
-pub use policy::{devcontainer_is_admissible, diagnostics_command_allowed};
-pub use preset_fragment::{
-    check_preset, owned_collisions_in_content, preset_paths, render_preset_fragment, update_preset,
-    PresetError, PRESET_BAZEL_VERSION,
+    apply_new, default_new_name, new_is_known_language, new_language_name_list, plan_new_files,
+    removed_new_language, validate_new_destination, NEW_LANGUAGES, SUPPORTED_NEW_LANGUAGES,
 };
 pub use scaffold::{
-    apply_init, apply_scaffold, bazelignore_covers_dx, editor_disposition,
-    editor_language_supported, plan_init_files, plan_init_files_for_host, plan_init_files_with,
-    render_consumer_caller, render_consumer_module_setup, render_consumer_own_toolchain_setup,
-    render_consumer_renamed_setup, render_editor_settings, scaffold_dest_within_root,
-    validate_init_module, ScaffoldFile, BAZELIGNORE_CONTENT, CONSUMER_LLVM_VERSION,
-    CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
-    CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
-    CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, ENVRC_CONTENT,
-    IDE_CHECK_OUTPUT_BASE, IDE_OUTPUT_BASE, RUST_DISCOVER_LABEL, RUST_FLYCHECK_LABEL,
+    apply_init, bazelignore_covers_dx, plan_init_files, render_consumer_module_setup,
 };
-pub use status::{observed_status_checks, render_status_json, render_status_text, StatusCheck};
-pub use upgrade::{
-    plan_upgrade, upgrade_recovery_message, upgrade_refresh_commands, upgrade_restore_command_for,
-    upgrade_retry_command, UpgradeIntent, UpgradePlan,
-};
+pub use status::{observed_status_checks, render_status_text, StatusCheck};
+pub use upgrade::{plan_upgrade, UpgradeIntent};
 pub use version::{
-    local_path_overrides, module_dependency_status, parse_consumer_setup, parse_module_dependency,
-    pin_fix_hint, pin_is_valid, pin_rewrite_hint, read_module_dependency, read_pin_record,
-    read_version_pin, record_pin_operation, render_module_dependency, rollback_re_pins_previous,
-    version_move_hint, version_pin_matches_module, write_version_pin, ConsumerSetup,
-    ModuleDependency, PinRecord, DX_VERSION, MODULE_VERSION, PREVIOUS_VERSION, VERSION_HISTORY_REL,
+    local_path_overrides, module_dependency_status, pin_fix_hint, pin_is_valid, pin_rewrite_hint,
+    read_module_dependency, read_pin_record, read_version_pin, record_pin_operation,
+    render_module_dependency, version_pin_matches_module, write_version_pin, DX_VERSION,
+    MODULE_VERSION, VERSION_HISTORY_REL,
 };
-pub use watch::{
-    coalesce_watch_paths, plan_watch, should_watch_path, watch_for_change, WATCHABLE_COMMANDS,
-    WATCH_DEBOUNCE_MS,
-};
+pub use watch::{plan_watch, WATCHABLE_COMMANDS};

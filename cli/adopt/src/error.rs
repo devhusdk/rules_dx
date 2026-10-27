@@ -78,17 +78,8 @@ pub enum AdoptError {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{plan_watch, AdoptError as FacadeError};
     use super::AdoptError;
-
-    #[test]
-    fn error_reexports_match_local_definitions() {
-        assert_eq!(FacadeError::EmptyVersion, AdoptError::EmptyVersion);
-        assert_eq!(
-            FacadeError::WatchRefusesCi.to_string(),
-            AdoptError::WatchRefusesCi.to_string()
-        );
-    }
+    use crate::watch::plan_watch;
 
     #[test]
     fn watch_errors_render_stably() {

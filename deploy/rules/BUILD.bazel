@@ -130,6 +130,7 @@ rust_library(
             "pgp",
             "quick-xml",
             "rand",
+            "ruzstd",
             "rustls",
             "serde",
             "serde_json",
@@ -230,6 +231,7 @@ rust_test(
     deps = crate_deps(
         [
             "flate2",
+            "ruzstd",
             "tar",
             "tempfile",
             "zip",

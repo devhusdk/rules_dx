@@ -20,6 +20,8 @@ RUST_CRATE_MANIFESTS = [
     "//cli/path:Cargo.toml",
     "//cli/proto_validate:Cargo.toml",
     "//cli/schema:Cargo.toml",
+    "//cli/sbom:Cargo.toml",
+    "//cli/sbom/schema:Cargo.toml",
     "//cli/bep:Cargo.toml",
     "//cli/cli:Cargo.toml",
     "//cli/diff:Cargo.toml",

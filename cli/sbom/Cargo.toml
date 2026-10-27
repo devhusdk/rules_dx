@@ -1,0 +1,15 @@
+[package]
+name = "dx_sbom"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_sbom"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+spdx = "0.13"
+
+[dev-dependencies]
+serde_json = "1"

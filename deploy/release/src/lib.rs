@@ -67,46 +67,35 @@ pub fn bin_error(diagnostic: impl std::fmt::Display) -> i32 {
 }
 
 pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> String {
-    let document = SpdxDocument {
-        version: spdx::SPDX_VERSION.to_owned(),
-        data_license: spdx::DATA_LICENSE.to_owned(),
-        id: spdx::DOCUMENT_ID.to_owned(),
-        name: format!("{package}-{base}"),
-        namespace: format!("{RELEASE_REPOSITORY}/releases/{base}-{digest}"),
-        creation_info: Some(spdx::SpdxCreationInfo {
-            created: "1970-01-01T00:00:00Z".to_owned(),
-            creators: vec!["Tool: rules_dx-sbom-1.0".to_owned()],
-        }),
-        files: vec![spdx::SpdxFile {
-            id: "SPDXRef-File".to_owned(),
-            name: base.to_owned(),
-            checksums: vec![spdx::SpdxChecksum {
-                algorithm: spdx::SHA256.to_owned(),
-                value: digest.to_owned(),
-            }],
-        }],
-        packages: vec![spdx::SpdxPackage {
-            id: "SPDXRef-Package".to_owned(),
-            name: package.to_owned(),
-            supplier: format!("Organization: {supplier}"),
-            download_location: spdx::NOASSERTION.to_owned(),
-            files_analyzed: Some(false),
-            verification_code: Some(spdx::SpdxVerificationCode {
-                value: digest.to_owned(),
-            }),
-            checksums: vec![spdx::SpdxChecksum {
-                algorithm: spdx::SHA256.to_owned(),
-                value: digest.to_owned(),
-            }],
-            external_refs: vec![spdx::SpdxExternalRef {
-                category: "PACKAGE-MANAGER".to_owned(),
-                ref_type: "purl".to_owned(),
-                locator: format!("pkg:generic/{package}@{digest}"),
-            }],
-            ..spdx::SpdxPackage::default()
-        }],
-        relationships: Vec::new(),
+    let mut document = spdx::Document::new(
+        &format!("{package}-{base}"),
+        &format!("{RELEASE_REPOSITORY}/releases/{base}-{digest}"),
+        &["Tool: rules_dx-sbom-1.0"],
+    );
+    let checksum = spdx::SpdxChecksum {
+        algorithm: spdx::SHA256.to_owned(),
+        value: digest.to_owned(),
     };
+    document.files = vec![spdx::SpdxFile {
+        id: "SPDXRef-File".to_owned(),
+        name: base.to_owned(),
+        checksums: vec![checksum.clone()],
+    }];
+    document.packages = vec![spdx::SpdxPackage {
+        id: "SPDXRef-Package".to_owned(),
+        name: package.to_owned(),
+        supplier: format!("Organization: {supplier}"),
+        download_location: spdx::NOASSERTION.to_owned(),
+        files_analyzed: Some(false),
+        checksums: vec![checksum],
+        external_refs: vec![spdx::SpdxExternalRef {
+            category: "PACKAGE-MANAGER".to_owned(),
+            ref_type: "purl".to_owned(),
+            locator: format!("pkg:generic/{package}@{digest}"),
+        }],
+        ..spdx::SpdxPackage::default()
+    }];
+    document.relationships = vec![spdx::describes("SPDXRef-Package")];
     let value = serde_json::to_value(&document).unwrap_or(serde_json::Value::Null);
     render_pretty(&value)
 }
@@ -1150,6 +1139,24 @@ mod tests {
         assert!(text.contains("\"filesAnalyzed\": false"));
         assert!(text.contains(&format!("pkg:generic/dx@{digest}")));
         assert!(text.contains("Organization: rules_dx"));
+        assert!(!text.contains("verificationCode"), "{text}");
+        assert!(!text.contains("packageVerificationCode"), "{text}");
+        assert!(!text.contains("null"), "{text}");
+        assert_eq!(
+            value["relationships"],
+            serde_json::json!([{
+                "relatedSpdxElement": "SPDXRef-Package",
+                "relationshipType": "DESCRIBES",
+                "spdxElementId": "SPDXRef-DOCUMENT",
+            }])
+        );
+    }
+
+    #[test]
+    fn release_spdx_passes_spdx_2_3_schema() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        let text = render_spdx("artifact.bin", digest, "dx", "rules_dx");
+        assert_eq!(dx_sbom_schema::spdx_errors(&text), Vec::<String>::new());
     }
 
     #[test]

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_dockerfile_lint_syntax_error
+capability LINT
+stages 1
+stage hadolint classes=dockerfile sources=matrix/hadolint_broken.Dockerfile
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR hadolint DL1000 matrix/hadolint_broken.Dockerfile 16 16 fixable=false "missing whitespace"
+terminal 1
+terminal ERROR hadolint DL1000 matrix/hadolint_broken.Dockerfile 16 16 fixable=false "missing whitespace"
+replacements 0

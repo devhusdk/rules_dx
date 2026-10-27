@@ -32,6 +32,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "gofumpt",
     "google_java_format",
     "govet",
+    "hadolint",
     "jsonnetfmt",
     "keep_sorted",
     "ktfmt",
@@ -99,6 +100,9 @@ ktlint_standard_function-signature = disabled
 ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_standard_trailing-comma-on-declaration-site = disabled
 ";
+const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
+/// hadolint rejects an empty config, so the default spells its empty ignore list.
+const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";

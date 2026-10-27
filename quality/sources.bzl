@@ -28,6 +28,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "css",
     "less",
     "scss",
+    "dockerfile",
     "javascript",
     "jsx",
     "typescript",
@@ -98,6 +99,41 @@ def upstream_source_class(extension):
         if extension in UPSTREAM_CC_CLASS_EXTENSIONS[class_id]:
             return class_id
     return ""
+
+DOCKERFILE_NAME_PATTERNS = [
+    "Dockerfile",
+    "Containerfile",
+    "Dockerfile.*",
+    "Containerfile.*",
+    "*.Dockerfile",
+    "*.dockerfile",
+    "*.Containerfile",
+    "*.containerfile",
+]
+
+_DOCKERFILE_STEMS = ["Dockerfile", "Containerfile"]
+
+_DOCKERFILE_SUFFIXES = [".Dockerfile", ".dockerfile", ".Containerfile", ".containerfile"]
+
+def is_dockerfile_name(basename):
+    """Reports whether one file basename names a Dockerfile; `*.dockerignore` never does."""
+    if basename.endswith(".dockerignore"):
+        return False
+    for stem in _DOCKERFILE_STEMS:
+        if basename == stem:
+            return True
+        if basename.startswith(stem + ".") and len(basename) > len(stem) + 1:
+            return True
+    for suffix in _DOCKERFILE_SUFFIXES:
+        if basename.endswith(suffix) and len(basename) > len(suffix):
+            return True
+    return False
+
+def dockerfile_name_error(basename):
+    """Returns the error for a basename the Dockerfile matcher rejects, or ""."""
+    if is_dockerfile_name(basename):
+        return ""
+    return "'" + basename + "' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)
 
 def is_known_semantic_class(class_id):
     """Reports whether a class ID is in the versioned registry."""

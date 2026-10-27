@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
 load(":real_aspects.bzl", "real_wired_tools")
-load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSHARP_ROSLYN_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_LINT_SUPPORT", "JSONNET_FORMAT_SUPPORT", "PKL_FORMAT_SUPPORT", "POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "RUBY_RUBOCOP_SUPPORT", "RUBY_STANDARDRB_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "YAML_YAMLFMT_SUPPORT", "YAML_YAMLLINT_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_html_template_artifact_error", "support_html_template_cli_error", "support_html_template_wiring_error", "support_jsonnet_artifact_error", "support_jsonnet_cli_error", "support_jsonnet_wiring_error", "support_pkl_artifact_error", "support_pkl_cli_error", "support_pkl_wiring_error", "support_powershell_artifact_error", "support_powershell_cli_error", "support_powershell_wiring_error", "support_prettier_plugins_artifact_error", "support_prettier_plugins_cli_error", "support_prettier_plugins_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_ruby_artifact_error", "support_ruby_wiring_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error", "support_yaml_artifact_error", "support_yaml_cli_error", "support_yaml_wiring_error")
+load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSHARP_ROSLYN_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "DOCKERFILE_HADOLINT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_LINT_SUPPORT", "JSONNET_FORMAT_SUPPORT", "PKL_FORMAT_SUPPORT", "POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "RUBY_RUBOCOP_SUPPORT", "RUBY_STANDARDRB_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "YAML_YAMLFMT_SUPPORT", "YAML_YAMLLINT_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_dockerfile_artifact_error", "support_dockerfile_cli_error", "support_dockerfile_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_html_template_artifact_error", "support_html_template_cli_error", "support_html_template_wiring_error", "support_jsonnet_artifact_error", "support_jsonnet_cli_error", "support_jsonnet_wiring_error", "support_pkl_artifact_error", "support_pkl_cli_error", "support_pkl_wiring_error", "support_powershell_artifact_error", "support_powershell_cli_error", "support_powershell_wiring_error", "support_prettier_plugins_artifact_error", "support_prettier_plugins_cli_error", "support_prettier_plugins_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_ruby_artifact_error", "support_ruby_wiring_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error", "support_yaml_artifact_error", "support_yaml_cli_error", "support_yaml_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -623,6 +623,36 @@ def support_unit_tests(name):
             expect_equal(
                 "pinned psscriptanalyzer artifact clears the artifact gap",
                 support_powershell_artifact_error(),
+                "",
+            ),
+            expect_equal(
+                "hadolint record validates as direct batched check-only lint on four platforms",
+                [support_record_error(DOCKERFILE_HADOLINT_SUPPORT), is_support_tool("hadolint"), support_state("hadolint"), DOCKERFILE_HADOLINT_SUPPORT["execution"], DOCKERFILE_HADOLINT_SUPPORT["transport"], DOCKERFILE_HADOLINT_SUPPORT["fix"], DOCKERFILE_HADOLINT_SUPPORT["platforms"]],
+                ["", True, "supported", "direct", "batched", "check_only", ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]],
+            ),
+            expect_equal(
+                "missing hadolint aspect wiring is an actionable failure",
+                support_dockerfile_wiring_error([]),
+                "support: hadolint lint is qualified but has no wired aspect (missing real_dockerfile_lint_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "wired hadolint clears the aspect gap",
+                support_dockerfile_wiring_error(["hadolint"]),
+                "",
+            ),
+            expect_equal(
+                "missing hadolint CLI aspect is an actionable failure",
+                support_dockerfile_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect"]),
+                "support: hadolint lint is qualified but has no CLI lint aspect (missing real_dockerfile_lint_aspect)",
+            ),
+            expect_equal(
+                "hadolint CLI aspect clears the CLI gap",
+                support_dockerfile_cli_error(["@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "pinned hadolint artifact clears the artifact gap",
+                support_dockerfile_artifact_error(),
                 "",
             ),
             expect_equal(

@@ -32,6 +32,20 @@ SHELL_SHELLCHECK_SUPPORT = {
     "transport": "single",
 }
 
+DOCKERFILE_HADOLINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["dockerfile"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "dockerfile",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "hadolint",
+    "transport": "batched",
+}
+
 SHELL_SHFMT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -384,6 +398,7 @@ SUPPORT_RECORDS = [
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
+    DOCKERFILE_HADOLINT_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,
@@ -528,6 +543,10 @@ def support_prettier_plugins_wiring_error(wired_tools):
             return err
     return ""
 
+def support_dockerfile_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Dockerfile family."""
+    return _wiring_error(DOCKERFILE_HADOLINT_SUPPORT, wired_tools, "real_dockerfile_lint_aspect")
+
 def support_powershell_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the PowerShell family."""
     return _wiring_error(POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT, wired_tools, "real_powershell_lint_aspect")
@@ -635,6 +654,10 @@ def support_prettier_plugins_cli_error(cli_aspects):
             return err
     return ""
 
+def support_dockerfile_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Dockerfile family."""
+    return _cli_error(DOCKERFILE_HADOLINT_SUPPORT, cli_aspects, "real_dockerfile_lint_aspect")
+
 def support_powershell_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the PowerShell family."""
     return _cli_error(POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT, cli_aspects, "real_powershell_lint_aspect")
@@ -708,6 +731,10 @@ def support_prettier_plugins_artifact_error():
         if err != "":
             return err
     return ""
+
+def support_dockerfile_artifact_error():
+    """Reports the actionable artifact gap for the Dockerfile family."""
+    return _artifact_error(DOCKERFILE_HADOLINT_SUPPORT)
 
 def support_powershell_artifact_error():
     """Reports the actionable artifact gap for the PowerShell family."""

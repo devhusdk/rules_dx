@@ -693,6 +693,8 @@ mod tests {
             pair("PYTHONHOME", "/evil-home-py"),
             pair("NODE_OPTIONS", "--evil"),
             pair("NODE_PATH", "/evil-node"),
+            pair("XDG_CONFIG_HOME", "/evil-xdg"),
+            pair("HADOLINT_IGNORE", "DL3008"),
             pair("SystemRoot", "C:\\Windows"),
         ]
     }
@@ -778,6 +780,8 @@ mod tests {
                 "PYTHONHOME",
                 "NODE_OPTIONS",
                 "NODE_PATH",
+                "XDG_CONFIG_HOME",
+                "HADOLINT_IGNORE",
             ] {
                 assert!(
                     env.iter().all(|(known, _)| fold_env_key(known, windows)

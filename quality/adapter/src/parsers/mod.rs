@@ -18,6 +18,7 @@ pub mod gleam_format;
 pub mod gofumpt;
 pub mod google_java_format;
 pub mod govet;
+pub mod hadolint;
 pub mod jsonnetfmt;
 pub mod keep_sorted;
 pub mod ktfmt;
@@ -75,6 +76,7 @@ pub use gleam_format::parse_gleam_format;
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
+pub use hadolint::parse_hadolint;
 pub use jsonnetfmt::parse_jsonnetfmt;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
@@ -1757,6 +1759,14 @@ mod tests {
         super::roslyn::parse_roslyn(input, code, files)
     }
 
+    fn fuzz_hadolint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::hadolint::parse_hadolint(input, input, code, files)
+    }
+
     fn fuzz_rubocop(
         input: &[u8],
         code: Option<i32>,
@@ -1964,6 +1974,7 @@ mod tests {
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
         ("govet", fuzz_govet),
+        ("hadolint", fuzz_hadolint),
         ("jsonnetfmt", fuzz_jsonnetfmt),
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
@@ -2028,6 +2039,7 @@ mod tests {
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),
         ("govet", include_str!("govet.rs")),
+        ("hadolint", include_str!("hadolint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),

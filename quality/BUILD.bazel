@@ -142,6 +142,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_dockerfile_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "dockerfile",
+    lint = ["hadolint"],
+)
+
+quality_family(
     name = "default_graphql_family",
     disabled = [
         "lint",
@@ -249,6 +259,7 @@ workspace_policy(
     name = "default_workspace_policy",
     families = [
         ":default_cc_family",
+        ":default_dockerfile_family",
         ":default_graphql_family",
         ":default_html_family",
         ":default_java_family",

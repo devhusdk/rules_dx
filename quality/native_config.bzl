@@ -32,6 +32,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "djlint": ["djlint.toml", ".djlintrc"],
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
+    "hadolint": [".yaml", ".yml"],
     "pmd": [".xml"],
     "psscriptanalyzer": [".psd1"],
     "qmlformat": [".qmlformat.ini"],
@@ -199,6 +200,8 @@ yamlfmt_config = _make_native_config_rule("yamlfmt")
 shellcheck_config = _make_native_config_rule("shellcheck")
 
 yamllint_config = _make_native_config_rule("yamllint")
+
+hadolint_config = _make_native_config_rule("hadolint")
 
 rubocop_config = _make_native_config_rule("rubocop")
 

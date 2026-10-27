@@ -45,6 +45,7 @@ _REAL_TOOL_TABLE = {
     "fsharplint": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
     "gleam_format": {"capabilities": ["format"], "shard": "core", "resources": "light"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm", "resources": "heavy"},
+    "hadolint": {"capabilities": ["lint"], "shard": "dockerfile", "resources": "light"},
     "jsonnetfmt": {"capabilities": ["format"], "shard": "jsonnet", "resources": "light"},
     "keep_sorted": {"capabilities": ["lint"], "shard": "text", "resources": "light"},
     "ktfmt": {"capabilities": ["format"], "shard": "jvm", "resources": "heavy"},
@@ -99,6 +100,7 @@ _SCALA_FORMAT_TOOLS = _shard_tools("scala", "format")
 _SCALA_LINT_TOOLS = _shard_tools("scala", "lint")
 _SHELL_LINT_TOOLS = _shard_tools("shell", "lint")
 _SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
+_DOCKERFILE_LINT_TOOLS = _shard_tools("dockerfile", "lint")
 _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
 _TERRAFORM_FORMAT_TOOLS = _shard_tools("terraform", "format")
 _CUE_FORMAT_TOOLS = _shard_tools("cue", "format")
@@ -120,7 +122,7 @@ _POWERSHELL_LINT_TOOLS = _shard_tools("powershell", "lint")
 
 _WIRED_TOOLS = {
     "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _YAML_FORMAT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS)),
-    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS)),
+    "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _DOCKERFILE_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
 
@@ -516,6 +518,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["shellcheck"] = ctx.file._shellcheck
     if "shfmt" in stage_tools:
         tool_binaries["shfmt"] = ctx.file._shfmt
+    if "hadolint" in stage_tools:
+        tool_binaries["hadolint"] = ctx.file._hadolint
     if "keep_sorted" in stage_tools:
         tool_binaries["keep_sorted"] = ctx.file._keep_sorted
     if "taplo" in stage_tools:
@@ -890,7 +894,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _DOCKERFILE_LINT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -1090,6 +1094,11 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "hadolint": attr.label(
+        default = "//config:tool_hadolint",
+        allow_single_file = True,
+        cfg = "exec",
+    ),
     "keep_sorted": attr.label(
         default = "@dx_tools//:keep_sorted",
         allow_single_file = True,
@@ -1188,6 +1197,7 @@ _REAL_SCALA_FORMAT_ATTRS = _real_attrs_for(_SCALA_FORMAT_TOOLS)
 _REAL_SCALA_LINT_ATTRS = _real_attrs_for(_SCALA_LINT_TOOLS)
 _REAL_SHELL_LINT_ATTRS = _real_attrs_for(_SHELL_LINT_TOOLS)
 _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
+_REAL_DOCKERFILE_LINT_ATTRS = _real_attrs_for(_DOCKERFILE_LINT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 _REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
 _REAL_CUE_FORMAT_ATTRS = _real_attrs_for(_CUE_FORMAT_TOOLS)
@@ -1225,6 +1235,7 @@ _REAL_SHARDS = {
     "real_scala_lint": {"attrs": _REAL_SCALA_LINT_ATTRS, "capability": "lint", "doc": "Additive Scala lint family aspect (Scalafix; target-coupled via SemanticdbInfo and JavaInfo).", "has_rust": False, "suffix": "-scala", "tools": _SCALA_LINT_TOOLS},
     "real_shell_lint": {"attrs": _REAL_SHELL_LINT_ATTRS, "capability": "lint", "doc": "Additive shell lint family aspect (ShellCheck).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_LINT_TOOLS},
     "real_shell_format": {"attrs": _REAL_SHELL_FORMAT_ATTRS, "capability": "format", "doc": "Additive shell format family aspect (shfmt).", "has_rust": False, "suffix": "-shell", "tools": _SHELL_FORMAT_TOOLS},
+    "real_dockerfile_lint": {"attrs": _REAL_DOCKERFILE_LINT_ATTRS, "capability": "lint", "doc": "Additive Dockerfile lint family aspect (hadolint).", "has_rust": False, "suffix": "-dockerfile", "tools": _DOCKERFILE_LINT_TOOLS},
     "real_cue_format": {"attrs": _REAL_CUE_FORMAT_ATTRS, "capability": "format", "doc": "Additive CUE format family aspect (cue fmt).", "has_rust": False, "suffix": "-cue", "tools": _CUE_FORMAT_TOOLS},
     "real_jsonnet_format": {"attrs": _REAL_JSONNET_FORMAT_ATTRS, "capability": "format", "doc": "Additive Jsonnet format family aspect (jsonnetfmt).", "has_rust": False, "suffix": "-jsonnet", "tools": _JSONNET_FORMAT_TOOLS},
     "real_pkl_format": {"attrs": _REAL_PKL_FORMAT_ATTRS, "capability": "format", "doc": "Additive Pkl format family aspect (pkl format).", "has_rust": False, "suffix": "-pkl", "tools": _PKL_FORMAT_TOOLS},
@@ -1376,6 +1387,8 @@ real_scala_lint_aspect = _make_real_aspect("real_scala_lint")
 real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
+
+real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
 
 real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
 

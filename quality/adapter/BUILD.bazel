@@ -34,6 +34,7 @@ rust_library(
         "src/parsers/gofumpt.rs",
         "src/parsers/google_java_format.rs",
         "src/parsers/govet.rs",
+        "src/parsers/hadolint.rs",
         "src/parsers/jsonnetfmt.rs",
         "src/parsers/keep_sorted.rs",
         "src/parsers/ktfmt.rs",

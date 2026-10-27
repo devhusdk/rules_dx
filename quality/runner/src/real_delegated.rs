@@ -17,6 +17,7 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "rubocop",
         "shellcheck",
         "yamllint",
+        "hadolint",
     ] {
         let scratch = tempfile::tempdir().expect("scratch");
         let tool = delegated_tool(scratch.path().join("missing"));
@@ -60,6 +61,10 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
             r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CA1822","level":"warning","message":{"text":"finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/a.scala"},"region":{"startLine":1,"startColumn":1,"endLine":1,"endColumn":2}}}]}]}]}"#,
         ),
         ("shellcheck", "src/a.scala:1:1: warning: finding [SC2086]\n"),
+        (
+            "hadolint",
+            r#"[{"code":"DL4006","column":1,"file":"src/a.scala","level":"warning","line":1,"message":"finding"}]"#,
+        ),
         (
             "yamllint",
             "src/a.scala:1:1: [warning] finding (trailing-spaces)\n",
@@ -192,6 +197,7 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         ),
         ("rubocop", r#"{"files":[{"path":"a.txt","offenses":[]}]}"#),
         ("shellcheck", ""),
+        ("hadolint", "[]"),
         ("staticcheck", ""),
         ("yamllint", ""),
     ] {

@@ -108,6 +108,19 @@ def curated_defaults_unit_tests(name):
                 ],
             ),
             expect_equal(
+                "dockerfile curated defaults stay hadolint lint only (check-only, no formatter)",
+                [CURATED_DEFAULTS["dockerfile"], FORMAT_FROZEN["dockerfile"]],
+                [
+                    {
+                        "audit": [],
+                        "format": [],
+                        "lint": ["hadolint"],
+                        "typecheck": [],
+                    },
+                    [],
+                ],
+            ),
+            expect_equal(
                 "rust curated defaults stay rustfmt + Clippy + rustc",
                 CURATED_DEFAULTS["rust"],
                 {

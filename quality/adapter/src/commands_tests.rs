@@ -1267,6 +1267,24 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/run.sh"
         ]
     );
+    let dockerfile = Path::new("/scratch/Dockerfile");
+    assert_eq!(
+        argv_strings(&hadolint_check(
+            Path::new(BIN),
+            &[dockerfile],
+            Path::new("/scratch/.hadolint.yaml")
+        )),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/.hadolint.yaml",
+            "--no-color",
+            "-f",
+            "json",
+            "--",
+            "/scratch/Dockerfile"
+        ]
+    );
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
         argv_strings(&keep_sorted_check(Path::new(BIN), &[txt])),
@@ -1276,6 +1294,28 @@ fn file_family_lint_checks_are_check_only() {
         argv_strings(&keep_sorted_fix(Path::new(BIN), &[txt])),
         vec![BIN, "--mode", "fix", "/scratch/notes.txt"]
     );
+}
+
+#[test]
+fn hadolint_never_overrides_the_user_policy() {
+    let invocation = hadolint_check(
+        Path::new(BIN),
+        &[Path::new("-t")],
+        Path::new("/scratch/.hadolint.yaml"),
+    );
+    let argv = argv_strings(&invocation);
+    let flags = &argv[..argv.len() - 1];
+    for banned in [
+        "-t",
+        "--failure-threshold",
+        "--no-fail",
+        "--ignore",
+        "--disable-ignore-pragma",
+    ] {
+        assert!(!flags.contains(&banned.to_owned()), "{banned} in {argv:?}");
+    }
+    assert_eq!(argv[argv.len() - 2], "--");
+    assert_eq!(invocation.cwd_rel, "");
 }
 
 #[test]

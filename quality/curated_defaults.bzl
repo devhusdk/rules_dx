@@ -9,6 +9,12 @@ CURATED_DEFAULTS = {
         "lint": [],
         "typecheck": [],
     },
+    "dockerfile": {
+        "audit": [],
+        "format": [],
+        "lint": ["hadolint"],
+        "typecheck": [],
+    },
     "graphql": {
         "audit": [],
         "format": ["prettier"],
@@ -109,6 +115,7 @@ CURATED_DEFAULTS = {
 
 FORMAT_FROZEN = {
     "cc": ["clang_format"],
+    "dockerfile": [],
     "graphql": ["prettier"],
     "html": ["prettier"],
     "java": ["google_java_format"],

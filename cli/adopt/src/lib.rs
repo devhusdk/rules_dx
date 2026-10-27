@@ -30,8 +30,8 @@ pub mod watch;
 pub use defaults::join_quality_baseline;
 pub use error::AdoptError;
 pub use git_changes::{
-    dedupe_changes, nearest_package_pattern, parse_name_status_nul, ChangeKind, GitChange,
-    DEFAULT_BRANCH_CANDIDATES,
+    dedupe_changes, is_dx_state, nearest_package_pattern, parse_name_status_nul, ChangeKind,
+    GitChange, DEFAULT_BRANCH_CANDIDATES,
 };
 pub use launcher::{
     launcher_version, plan_launcher_files, refresh_launcher_files, release_pins,

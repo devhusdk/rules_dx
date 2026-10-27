@@ -294,6 +294,13 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
           bazel test --noshow_progress --nocache_test_results --test_output=all --test_arg=--nocapture "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //examples/zig-app/... //zig/tests/fixtures/hello:all $QUALITY_TARGETS
+      - name: Run the PyPI probe verification
+        if: ${{ matrix.platform != 'windows_arm64' }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //deploy/rules:pypi_probe_verify
       - name: Write job summary
         if: always()
         run: |

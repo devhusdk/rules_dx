@@ -348,3 +348,41 @@ fn a_compile_error_in_a_generated_source_never_counts_as_clean() {
     assert_eq!(out.status.code(), Some(1), "{text}");
     assert!(text.contains("roslyn"), "{text}");
 }
+
+const MULTI_TFM_GREETER: &str = "namespace Core;\n\npublic class Greeter\n{\n    public string Greet(string name)\n    {\n        return \"hello \" + name;\n    }\n#if NET8_0\n    public int Legacy()\n    {\n        return 8;\n    }\n#endif\n}\n";
+
+const MULTI_TFM_CORE_BUILD: &str = r#"load("@rules_dx//csharp/rules:defs.bzl", "csharp_library")
+
+csharp_library(
+    name = "core",
+    analyzer_configs = ["//:strict.globalconfig"],
+    srcs = ["Greeter.cs"],
+    target_frameworks = ["net8.0", "net10.0"],
+    visibility = ["//visibility:public"],
+)
+"#;
+
+#[test]
+fn lint_analyzes_every_declared_target_framework() {
+    let root = lint_consumer("[\"//:quiet.globalconfig\"]");
+    let greeter = root.join("core/Greeter.cs");
+    write(&greeter, MULTI_TFM_GREETER);
+    write(&root.join("core/BUILD.bazel"), MULTI_TFM_CORE_BUILD);
+
+    let out = dx_command(&root, "lint", &[]);
+    let text = out.combined();
+    assert_eq!(out.status.code(), Some(1), "{text}");
+    let shared: Vec<&str> = text
+        .lines()
+        .filter(|line| line.contains("core/Greeter.cs:5:") && line.contains("CA1822"))
+        .collect();
+    assert_eq!(shared.len(), 1, "{text}");
+    assert!(!shared[0].contains("[net"), "{}", shared[0]);
+    let net8 = text
+        .lines()
+        .find(|line| line.contains("core/Greeter.cs:10:"))
+        .unwrap_or_else(|| panic!("the net8.0-only member went unanalyzed: {text}"));
+    assert!(net8.contains("CA1822"), "{net8}");
+    assert!(net8.contains("[net8.0]"), "{net8}");
+    assert_eq!(read(&greeter), MULTI_TFM_GREETER);
+}

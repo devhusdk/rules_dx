@@ -6,11 +6,11 @@ load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framew
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
 
 RoslynInfo = provider(
-    doc = "SARIF log from compiling one C# target with the SDK analyzers.",
+    doc = "SARIF logs from compiling one C# target with the SDK analyzers, one per target framework.",
     fields = {
-        "sarif": "File: SARIF 2.1 log.",
-        "status": "File: csc exit code.",
-        "tfm": "string: target framework of the analyzed compilation.",
+        "sarifs": "list of File: SARIF 2.1 log per target framework.",
+        "statuses": "list of File: csc exit code per target framework.",
+        "tfms": "list of string: target framework per entry, in ascending version order.",
     },
 )
 
@@ -19,6 +19,35 @@ def _is_csharp_compilation(attrs):
 
 def _first(value):
     return value[0] if type(value) == "list" else value
+
+def tfm_sort_key(tfm):
+    """Orders target frameworks by version, so net8.0 sorts before net10.0."""
+    digits = ""
+    for char in tfm.elems():
+        if char.isdigit():
+            digits += char
+        elif char == "." or digits:
+            break
+    head = tfm.partition(".")[0]
+    major = int(digits) if digits else 0
+    if tfm.startswith("netstandard"):
+        return (0, major, tfm)
+    if tfm.startswith("net") and "." in tfm and head[3:].isdigit():
+        return (2, major, tfm)
+    return (1, major, tfm)
+
+def _merged_roslyn(infos):
+    by_tfm = {}
+    for info in infos:
+        for i in range(len(info.tfms)):
+            if info.tfms[i] not in by_tfm:
+                by_tfm[info.tfms[i]] = (info.sarifs[i], info.statuses[i])
+    tfms = sorted(by_tfm.keys(), key = tfm_sort_key)
+    return RoslynInfo(
+        sarifs = [by_tfm[tfm][0] for tfm in tfms],
+        statuses = [by_tfm[tfm][1] for tfm in tfms],
+        tfms = tfms,
+    )
 
 def _analysis_level(csc, tfm):
     marker = "/sdk/"
@@ -31,11 +60,16 @@ def _analysis_level(csc, tfm):
 def _roslyn_impl(target, ctx):
     attrs = ctx.rule.attr
     if not _is_csharp_compilation(attrs):
-        if hasattr(attrs, "upstream"):
-            upstream = _first(attrs.upstream)
-            if RoslynInfo in upstream:
-                return [upstream[RoslynInfo]]
-        return []
+        if not hasattr(attrs, "upstream"):
+            return []
+        upstream = _first(attrs.upstream)
+        if RoslynInfo not in upstream:
+            return []
+        variants = getattr(attrs, "dx_tfm_variants", None) or []
+        if type(variants) != "list":
+            variants = [variants]
+        infos = [upstream[RoslynInfo]] + [variant[RoslynInfo] for variant in variants if RoslynInfo in variant]
+        return [_merged_roslyn(infos)]
     if getattr(attrs, "is_analyzer", False) or getattr(attrs, "is_language_specific_analyzer", False):
         return []
 
@@ -128,12 +162,12 @@ def _roslyn_impl(target, ctx):
             outputs = [sarif, status, out_tree],
             env = env,
         )
-    return [RoslynInfo(sarif = sarif, status = status, tfm = tfm)]
+    return [RoslynInfo(sarifs = [sarif], statuses = [status], tfms = [tfm])]
 
 roslyn_aspect = aspect(
     implementation = _roslyn_impl,
     doc = "Compiles a C# target with the SDK analyzers and records the SARIF log.",
-    attr_aspects = ["upstream"],
+    attr_aspects = ["upstream", "dx_tfm_variants"],
     attrs = {
         "_status_launcher": attr.label(
             allow_single_file = True,

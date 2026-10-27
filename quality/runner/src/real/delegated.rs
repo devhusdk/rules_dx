@@ -72,28 +72,44 @@ impl RealBackend {
                     .to_owned(),
             ));
         }
-        let mut findings = Vec::new();
+        let mut pivots = Vec::with_capacity(tool.upstream_diagnostics.len());
         for path in &tool.upstream_diagnostics {
             let bytes = std::fs::read(path)
                 .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
+            let tfm = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        format!(
+                            "roslyn SARIF log {} names no target framework",
+                            path.display()
+                        ),
+                    )
+                })?;
+            let key = format!("dx-roslyn/{tfm}/exit");
             let code = tool
                 .tool_files
                 .iter()
-                .find(|(rel, _)| rel == "dx-roslyn/exit")
+                .find(|(rel, _)| *rel == key)
                 .and_then(|(_, bytes)| std::str::from_utf8(bytes).ok())
                 .and_then(|text| text.trim().parse::<i32>().ok())
                 .ok_or_else(|| {
                     execution(
                         tool_id,
-                        "roslyn needs the csc exit status; the C# aspect did not supply it"
-                            .to_owned(),
+                        format!(
+                            "roslyn needs the csc exit status for {tfm}; the C# aspect did not supply it"
+                        ),
                     )
                 })?;
-            findings.extend(parsed(
+            let found = parsed(
                 tool_id,
                 parsers::parse_roslyn(&bytes, Some(code), &workspaces),
-            )?);
+            )?;
+            pivots.push((tfm.to_owned(), found));
         }
+        let mut findings = merge_pivot_findings(pivots);
         for found in &mut findings {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
             found.file = absolute.to_string_lossy().into_owned();
@@ -325,4 +341,45 @@ impl RealBackend {
         }
         Ok(findings)
     }
+}
+
+/// Merges the findings of one tool run once per pivot (for example one
+/// target framework each) into a union that reports each finding once.
+///
+/// Pivots arrive in their reporting order. A finding that only some pivots
+/// report gets the sorted list of those pivots appended to its message, as
+/// ` [net8.0]`. A finding every pivot reports keeps its message, so a single
+/// pivot reproduces its own findings byte for byte.
+pub(super) fn merge_pivot_findings(pivots: Vec<(String, Vec<FileFinding>)>) -> Vec<FileFinding> {
+    let total = pivots.len();
+    let mut merged: Vec<(FileFinding, Vec<String>)> = Vec::new();
+    for (pivot, findings) in pivots {
+        for found in findings {
+            // A repeat inside one pivot is the tool's own output, so it stays.
+            let existing = merged
+                .iter_mut()
+                .find(|(seen, seen_in)| !seen_in.contains(&pivot) && same_finding(seen, &found));
+            match existing {
+                Some((_, seen_in)) => seen_in.push(pivot.clone()),
+                None => merged.push((found, vec![pivot.clone()])),
+            }
+        }
+    }
+    merged
+        .into_iter()
+        .map(|(mut found, seen_in)| {
+            if seen_in.len() < total {
+                found.finding.message =
+                    format!("{} [{}]", found.finding.message, seen_in.join(", "));
+            }
+            found
+        })
+        .collect()
+}
+
+fn same_finding(left: &FileFinding, right: &FileFinding) -> bool {
+    left.file == right.file
+        && left.finding.start == right.finding.start
+        && left.finding.rule_id == right.finding.rule_id
+        && left.finding.message == right.finding.message
 }

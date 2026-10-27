@@ -82,6 +82,11 @@ bazel run @rules_dx//:dx -- format //app/...
 bazel run @rules_dx//:dx -- lint //app/...
 ```
 
+`roslyn` analyzes every framework in a `target_frameworks` list, for the
+host runtime only. A finding that only some frameworks report ends with
+those frameworks, such as `[net8.0]`. When `target_frameworks` is a
+`select()`, only the framework it resolves to is analyzed.
+
 ## Generating BUILD files
 
 `dx generate` writes `csharp_library`, `csharp_binary` and `csharp_test`

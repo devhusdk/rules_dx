@@ -421,13 +421,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "fsharplint" in [stage["tool"] for stage in resolved]:
         (fsharplint_refs, fsharplint_context) = _fsharplint_context(target, ctx, what)
 
-    roslyn_sarif = None
-    roslyn_status = None
+    roslyn = None
     if "roslyn" in [stage["tool"] for stage in resolved]:
         if RoslynInfo not in target:
             fail(what + ": roslyn needs a csharp_* target compiled with the SDK analyzers")
-        roslyn_sarif = target[RoslynInfo].sarif
-        roslyn_status = target[RoslynInfo].status
+        roslyn = target[RoslynInfo]
 
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
@@ -893,10 +891,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
         if tool == "roslyn":
-            upstream.append(roslyn_sarif.path)
-            inputs.append(roslyn_sarif)
-            tool_files.append(real_request_tool_file("dx-roslyn/exit", roslyn_status.path))
-            inputs.append(roslyn_status)
+            for i in range(len(roslyn.tfms)):
+                upstream.append(roslyn.sarifs[i].path)
+                inputs.append(roslyn.sarifs[i])
+                tool_files.append(real_request_tool_file("dx-roslyn/" + roslyn.tfms[i] + "/exit", roslyn.statuses[i].path))
+                inputs.append(roslyn.statuses[i])
         request_tools[tool] = real_request_tool(
             binary_path = binary_path,
             config_rel = config_rel,

@@ -101,6 +101,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude astro/tests/app_type_error
 # gazelle:exclude vue/tests/app
 # gazelle:exclude vue/tests/app_type_error
+# gazelle:exclude mdx/tests/app
+# gazelle:exclude mdx/tests/app_parse_error
 # gazelle:exclude examples/mixed/hello
 # gazelle:exclude examples/shared-rust
 # gazelle:exclude examples/python-service

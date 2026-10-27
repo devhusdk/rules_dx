@@ -12,9 +12,7 @@ PARITY_DEFERRED = {
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "perl": ["ADR", "perltidy adapter pending in a later #1788 slice"],
     "php": ["ADR", "php-cs-fixer and phpstan adapters pending in a later #1795 slice"],
-    "astro": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
     "d": ["ADR", "D formatter and D-Scanner adapters pending"],
-    "mdx": ["ADR", "framework adapter region; prose-is-not-dependency boundary per composition"],
     "svelte": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
 }
 

@@ -44,6 +44,15 @@ javascript_js_test(
 )
 
 javascript_js_test(
+    name = "env_forward_test",
+    srcs = ["plain_test.js"],
+    aspect_hints = ["//:biome_config"],
+    entry_point = "plain_test.js",
+    env = {"FOO": "1"},
+    tags = ["manual"],
+)
+
+javascript_js_test(
     name = "plain_large_test",
     size = "large",
     srcs = ["plain_test.js"],

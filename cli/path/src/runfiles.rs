@@ -34,15 +34,19 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    /// Reads the manifest beside one binary, then a populated tree, then the tree's MANIFEST.
+    /// Reads a populated tree beside one binary, then its sibling manifest, then the tree's MANIFEST.
     pub fn for_binary(binary: &Path) -> io::Result<Self> {
+        let tree = tree_beside(binary);
+        if let Some(tree) = tree.as_ref().filter(|tree| populated(tree)) {
+            return Resolver::new(Runfiles::builder().directory(tree), tree.clone());
+        }
         if let Some(manifest) = manifest_beside(binary) {
             let text = std::fs::read_to_string(&manifest)?;
             return Resolver::new(Runfiles::builder().manifest(text), manifest);
         }
-        if let Some(tree) = tree_beside(binary) {
+        if let Some(tree) = tree {
             let manifest = tree.join("MANIFEST");
-            if !populated(&tree) && manifest.is_file() {
+            if manifest.is_file() {
                 let text = std::fs::read_to_string(&manifest)?;
                 return Resolver::new(Runfiles::builder().manifest(text), manifest);
             }
@@ -350,25 +354,79 @@ mod tests {
     }
 
     #[test]
-    fn a_manifest_wins_over_the_tree_beside_the_binary() {
+    fn a_populated_tree_wins_over_a_stale_sibling_manifest() {
         let dir = scratch("both");
         let binary = write(&dir, "tool.exe", "binary\n");
+        let tree = dir.join("tool.exe.runfiles");
         write(
             &dir,
             "tool.exe.runfiles/_main/pkg/tool.txt",
             "from the tree\n",
         );
+        write(&dir, "tool.exe.runfiles/dep+/pkg/dep.txt", "dep\n");
+        write(&dir, "tool.exe.runfiles/_repo_mapping", ",dep,dep+\n");
+        write(
+            &dir,
+            "tool.exe.runfiles_manifest",
+            "_main/pkg/tool.txt /build-machine/tool.txt\ndep+/pkg/dep.txt /build-machine/dep.txt\n",
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), tree);
+        assert_eq!(
+            found(&resolver, "_main/pkg/tool.txt"),
+            tree.join("_main/pkg/tool.txt")
+        );
+        assert_eq!(
+            resolver.lookup_from("dep/pkg/dep.txt", "").expect("mapped"),
+            tree.join("dep+/pkg/dep.txt")
+        );
+    }
+
+    #[test]
+    fn a_sibling_manifest_wins_over_a_tree_holding_only_manifest_and_mapping() {
+        let dir = scratch("windows-layout");
+        let binary = write(&dir, "tool.exe", "binary\n");
+        write(
+            &dir,
+            "tool.exe.runfiles/MANIFEST",
+            "_main/pkg/tool.txt out/a.txt\n",
+        );
+        write(&dir, "tool.exe.runfiles/_repo_mapping", "");
         let manifest = write(
             &dir,
             "tool.exe.runfiles_manifest",
-            "_main/pkg/tool.txt out/from-the-manifest.txt\n",
+            "_main/pkg/tool.txt out/a.txt\n",
         );
         let resolver = Resolver::for_binary(&binary).expect("resolver");
         assert_eq!(resolver.source(), manifest);
-        assert_eq!(
-            found(&resolver, "_main/pkg/tool.txt"),
-            PathBuf::from("out/from-the-manifest.txt")
+    }
+
+    #[test]
+    fn a_suffixless_populated_tree_wins_over_a_suffixed_sibling_manifest() {
+        let dir = scratch("suffixless-both");
+        let binary = write(&dir, "tool.exe", "binary\n");
+        write(&dir, "tool.runfiles/_main/pkg/tool.txt", "from the tree\n");
+        write(
+            &dir,
+            "tool.exe.runfiles_manifest",
+            "_main/pkg/tool.txt /build-machine/tool.txt\n",
         );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("tool.runfiles"));
+    }
+
+    #[test]
+    fn an_empty_tree_falls_back_to_the_sibling_manifest() {
+        let dir = scratch("empty-tree");
+        let binary = write(&dir, "tool.exe", "binary\n");
+        std::fs::create_dir_all(dir.join("tool.exe.runfiles")).expect("tree");
+        let manifest = write(
+            &dir,
+            "tool.exe.runfiles_manifest",
+            "_main/pkg/tool.txt out/a.txt\n",
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(resolver.source(), manifest);
     }
 
     #[test]

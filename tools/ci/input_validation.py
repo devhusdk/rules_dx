@@ -14,8 +14,6 @@ import sys
 
 PLATFORMS_ENV = "DX_PLATFORMS"
 DISABLED_ENV = "DX_DISABLED_CHECKS"
-SCHEDULING_ENV = "DX_SCHEDULING_MODE"
-SCANNING_ENV = "DX_CODE_SCANNING_OPT_IN"
 MIN_COVERAGE_ENV = "DX_MIN_COVERAGE"
 MIN_CHANGED_ENV = "DX_MIN_CHANGED_LINE_COVERAGE"
 INVOCATION_ENV = "DX_INVOCATION_ID"
@@ -42,7 +40,6 @@ CHECKS = (
 )
 # The one job per platform that saves the shared repository cache, in order.
 CACHE_SAVERS = ("coverage", "test", "build")
-SCHEDULING = "parallel"
 WHOLE_PERCENT = re.compile(r"[0-9]+")
 INVOCATION_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
 SNAPSHOT_ARTIFACT = "advisory-snapshots"
@@ -144,31 +141,6 @@ def validate_disabled(text):
     return ids
 
 
-def validate_scheduling(text):
-    """Returns the accepted scheduling mode, or None after a diagnostic."""
-    if text != SCHEDULING:
-        fail(
-            f"{SCHEDULING_ENV}={text!r} is not implemented. Checks always run in "
-            f"parallel, so pass {SCHEDULING!r}."
-        )
-        return None
-    return text
-
-
-def validate_scanning(text):
-    """Returns the accepted code scanning opt-in, or None after a diagnostic."""
-    if text == "false":
-        return text
-    if text == "true":
-        fail(
-            f"{SCANNING_ENV}=true is not implemented. No code-scanning SARIF upload ships "
-            "in this workflow, so leave it false."
-        )
-        return None
-    fail(f"{SCANNING_ENV}={text!r} is not true or false.")
-    return None
-
-
 def validate_percent(text, name, omitted):
     """Returns the threshold to enforce, or None after a diagnostic."""
     if text == "":
@@ -228,8 +200,6 @@ def main():
     accepted_values = {
         PLATFORMS_ENV: validate_platforms(os.environ.get(PLATFORMS_ENV, "")),
         DISABLED_ENV: validate_disabled(os.environ.get(DISABLED_ENV, "")),
-        SCHEDULING_ENV: validate_scheduling(os.environ.get(SCHEDULING_ENV, SCHEDULING)),
-        SCANNING_ENV: validate_scanning(os.environ.get(SCANNING_ENV, "false")),
         MIN_COVERAGE_ENV: validate_min_coverage(os.environ.get(MIN_COVERAGE_ENV, "")),
         MIN_CHANGED_ENV: validate_min_changed(os.environ.get(MIN_CHANGED_ENV, "")),
         INVOCATION_ENV: validate_invocation(os.environ.get(INVOCATION_ENV, "")),
@@ -261,8 +231,6 @@ def main():
         return 1
     print(f"{PLATFORMS_ENV} {outputs['platforms']}")
     print(f"{DISABLED_ENV} {outputs['disabled'] or '(none)'}")
-    print(f"{SCHEDULING_ENV} {accepted_values[SCHEDULING_ENV]}")
-    print(f"{SCANNING_ENV} {accepted_values[SCANNING_ENV]}")
     print(f"{MIN_COVERAGE_ENV} {outputs['min_coverage'] or '(none)'}")
     print(f"{MIN_CHANGED_ENV} {outputs['min_changed_line_coverage'] or '(none)'}")
     print(f"{INVOCATION_ENV} {accepted_values[INVOCATION_ENV] or '(none)'}")

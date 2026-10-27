@@ -33,7 +33,7 @@ bazel run @rules_dx//cli/advisory_prep --
 
 A snapshot is fresh only on the day it was prepared. A missing or stale
 snapshot fails with `advisory_refresh_failed` and names this command. See
-[Advisory Snapshots](../../github-ci.md#advisory-snapshots) for its flags.
+[Advisory Snapshots](#advisory-snapshots) for its flags.
 
 A scope selects sets by path, and a path can select more than one. A `...` scope
 selects the set of the nearest path above it in the table plus every set nested
@@ -234,6 +234,71 @@ and lock resolution changes while still allowing already pinned fetches.
 Combine both flags for both policies. Exit codes: 0 success, 2 usage or scope
 errors, 1 findings at or above `--fail-on`, an incomplete assessment, or an
 operational failure.
+
+## Advisory Snapshots
+
+```text
+bazel run @rules_dx//cli/advisory_prep --
+```
+
+The command converts one archive per advisory family the dependency locks need,
+so a repository with only `Cargo.lock` prepares the `cargo` snapshot alone. It
+writes `<out>/<family>.json` and `<out>/<family>.meta.json`. The sidecar holds
+the set, the source URL, the `sha256` of the payload, the stamped date and the
+payload path. The payload is the same for the same advisories whatever order
+the archive lists them in.
+
+Relative paths anchor at the workspace root.
+
+- `--workspace <dir>`: dependency set locks to read. Default the workspace root.
+- `--out <dir>`: where the snapshots are written. Default `.dx/advisory` under it.
+- `--date YYYY-MM-DD`: date every sidecar carries. Default today, UTC.
+- `--max-time <seconds>`: wall clock limit for one download. Default 600.
+- `--connect-timeout <seconds>`: connect limit for one download. Default 30.
+- `--retries <count>`: attempts one download may spend. Default 3.
+- `--retry-delay <seconds>`: pause between two attempts. Default 5.
+- `--archive FAMILY=PATH`: convert a local archive instead of fetching it.
+  Repeatable.
+- `--status-file <file>`: append `status`, `ecosystems` and `families` as
+  `key=value` lines.
+
+A repository whose locks need no advisory ecosystem prepares nothing. The
+command prints `no advisory ecosystems needed`, exits `0` and reports
+`status=empty` and `ecosystems=0`. Dependency sets without a lock are not
+audited.
+
+Only `https` and `file` URLs are fetched, a redirect stays on `https`, and an
+archive entry is refused when its length or checksum disagrees with the
+archive. Exit codes: `0` success, `2` usage error, `1` preparation failure. A
+failure prints one line starting with `advisory_prepare_failed:` naming the
+family and the archive entry, path or limit it could not use, and writes no
+snapshot for that family.
+
+## Hermetic Tool Resolution
+
+```text
+bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:gitleaks --var DX_GITLEAKS_BIN --print
+```
+
+The command runs `bazel cquery --output=files` for the label, takes the last
+output line as the artifact path, joins it with `bazel info output_base`, and
+refuses a missing file.
+
+- `--label <label>`: pinned tool label to resolve. Required.
+- `--var <name>`: environment variable receiving the absolute path. Required.
+- `--bazel <path>`: Bazel binary the resolution runs through. Default `bazel`.
+- `--workspace <dir>`: directory the inner Bazel commands run in. Default
+  `BUILD_WORKSPACE_DIRECTORY`, the `bazel run` invocation root, else the
+  current directory.
+- `--env-file <path>`: environment file receiving `VAR=path`. Default
+  `GITHUB_ENV`.
+- `--print`: write `VAR=path` to standard output instead of a file.
+- Arguments after `--` reach the inner cquery unchanged.
+
+Exit codes: `0` success, `2` usage error, `1` resolution failure. A failure
+prints one line starting with `tool_resolve_failed:` naming the label and the
+cquery, output-base, missing-file or environment write it could not use, and
+exports nothing.
 
 ## `dx update`
 

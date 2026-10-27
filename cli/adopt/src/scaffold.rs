@@ -184,7 +184,7 @@ pub const CONSUMER_WORKFLOW_PIN: &str = "550b5b9f3c9e7be4ca00f9e7780d7bd370de219
 
 pub fn render_consumer_caller() -> String {
     format!(
-        "# Consumer caller template: pins the qualified reusable workflow at a reviewed commit.\n# Copy to .github/workflows/ci.yml in the consumer repo; do not copy per-check logic.\n# Reviewed pin bumps only; customizations (disabled_checks, platforms) preserved across bumps.\n# Required repository settings (see the GitHub CI docs, not configured here):\n# - approval policy: all_external_contributors for fork runs\n# - branch protection: require dx-ci aggregate + up-to-date-branch (or merge queue)\n# - default workflow permissions: read-only\nname: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n      scheduling_mode: \"parallel\"\n      code_scanning_opt_in: false\n    secrets: inherit\n    # A called workflow can only narrow this job's token.\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [main]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n      disabled_checks: \"\"\n      platforms: '[\"linux_x86_64\"]'\n    secrets: inherit\n    permissions:\n      contents: read\n      checks: write\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
@@ -739,8 +739,6 @@ mod tests {
             "merge_group:\n    types: [checks_requested]",
             "disabled_checks:",
             "platforms: '[\"linux_x86_64\"]'",
-            "scheduling_mode: \"parallel\"",
-            "code_scanning_opt_in: false",
             "secrets: inherit",
             "permissions:",
             "contents: read",
@@ -753,6 +751,9 @@ mod tests {
             );
         }
         assert!(!caller.contains("<reviewed-commit>"), "{caller}");
+        for removed in ["scheduling_mode", "code_scanning_opt_in"] {
+            assert!(!caller.contains(removed), "caller passes {removed}: {caller}");
+        }
     }
 
     #[test]

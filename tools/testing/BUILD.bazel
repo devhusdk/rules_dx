@@ -94,8 +94,14 @@ rust_test(
     name = "dx_nested_test",
     size = "small",
     crate = ":dx_nested",
-    data = [":nested_bazel_shim"],
-    env = {"DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath :nested_bazel_shim)"},
+    data = [
+        ":nested_bazel_shim",
+        "//:.bazelrc",
+    ],
+    env = {
+        "DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath :nested_bazel_shim)",
+        "DX_TEST_ROOT_BAZELRC": "$(rlocationpath //:.bazelrc)",
+    },
     deps = crate_deps(
         ["tempfile"],
         package_name = "tools/dx_testing",

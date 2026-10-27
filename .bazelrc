@@ -11,6 +11,10 @@ test --local_test_jobs=4
 common --local_resources=nested_bazel=2
 test --test_env=DX_NESTED_BAZEL_SLOTS
 test --test_env=DX_NESTED_BAZEL
+test --test_env=DX_NESTED_BAZEL_ROOT
+test --test_env=DX_NESTED_BAZEL_HEAP
+test --test_env=DX_NESTED_BAZEL_DISK_CACHE
+test --test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE
 test --test_env=BAZELISK_BASE_URL
 test --test_env=BAZELISK_HOME
 common --registry=https://bcr.bazel.build

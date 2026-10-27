@@ -3026,4 +3026,64 @@ mod portable_tests {
         child.wait().expect("wait");
         assert!(!alive(pid));
     }
+
+    /// Env names that a test target sets itself, so the root bazelrc need not forward them.
+    const TARGET_SET_ENV: &[&str] = &[
+        "DX_NESTED_BAZEL_NETWORK",
+        "DX_NESTED_BAZEL_PINNED",
+        "DX_NESTED_BAZEL_SHIM",
+    ];
+
+    /// The `DX_NESTED_BAZEL*` names read by `from_parts`, including the ones held in path-crate constants.
+    fn env_names_from_parts() -> Vec<String> {
+        let code = include_str!("nested.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or_default();
+        let mut names = vec![
+            nested_bazel::ROOT_ENV.to_owned(),
+            nested_bazel::SLOTS_ENV.to_owned(),
+        ];
+        for (at, _) in code.match_indices("\"DX_NESTED_BAZEL") {
+            let rest = &code[at + 1..];
+            if let Some(end) = rest.find('"') {
+                let name = &rest[..end];
+                if name.bytes().all(|b| b.is_ascii_uppercase() || b == b'_') {
+                    names.push(name.to_owned());
+                }
+            }
+        }
+        names.sort();
+        names.dedup();
+        names
+    }
+
+    #[test]
+    fn root_bazelrc_forwards_each_env_name_from_parts_reads() {
+        let key = std::env::var("DX_TEST_ROOT_BAZELRC").expect("DX_TEST_ROOT_BAZELRC");
+        let path = resolve_runfile("DX_TEST_ROOT_BAZELRC", &key).expect("root bazelrc");
+        let rc = dx_testing::read_text(&path);
+        let forwarded: Vec<&str> = rc
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                line.strip_prefix("test --test_env=")
+                    .or_else(|| line.strip_prefix("common --test_env="))
+            })
+            .collect();
+        let names = env_names_from_parts();
+        assert!(
+            names.iter().any(|name| name == nested_bazel::ROOT_ENV),
+            "no env names found in from_parts: {names:?}"
+        );
+        for name in names
+            .iter()
+            .filter(|name| !TARGET_SET_ENV.contains(&name.as_str()))
+        {
+            assert!(
+                forwarded.contains(&name.as_str()),
+                "{name} is read by from_parts but the root .bazelrc has no `test --test_env={name}`"
+            );
+        }
+    }
 }

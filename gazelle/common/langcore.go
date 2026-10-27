@@ -444,6 +444,7 @@ type ResolveSpec struct {
 	Fallback       []string
 	IsStdLib       func(name string) bool
 	Candidates     func(name string) []string
+	Lookups        func(pkg, name string) []string
 	MarkUsed       func(name string) bool
 	FailConflict   func(from label.Label, name string)
 	FailUnresolved func(from label.Label, name string)
@@ -477,9 +478,30 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 		// A relative import naming a JavaScript or TypeScript extension can
 		// never be a source of this language, so it skips the own index.
 		ownIndex := !ref.Relative || !slices.Contains(JSModuleExts, ref.ModuleExt)
+		keys := []string{name}
+		if spec.Lookups != nil {
+			keys = spec.Lookups(from.Pkg, name)
+		}
 		var matches []resolve.FindResult
-		if ownIndex {
-			matches = ix.FindRulesByImportWithConfig(c, imp, spec.LanguageName)
+		mappedKey := false
+		for _, key := range keys {
+			if !ownIndex {
+				break
+			}
+			kimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: key}
+			if key != name {
+				if override, found := resolve.FindRuleWithOverride(c, kimp, spec.LanguageName); found {
+					deps[override.Rel(from.Repo, from.Pkg).String()] = true
+					mappedKey = true
+					break
+				}
+			}
+			if matches = ix.FindRulesByImportWithConfig(c, kimp, spec.LanguageName); len(matches) > 0 {
+				break
+			}
+		}
+		if mappedKey {
+			continue
 		}
 		if len(matches) == 0 && ownIndex {
 			var cands []string

@@ -71,6 +71,7 @@ type SingleLangSpec struct {
 	// Fallback lists the languages a relative import also searches when the
 	// own index has no match.
 	Fallback []string
+	Lookups  func(pkg, name string) []string
 	Generate func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
 
 	// KindDefs maps a kind to the defs package that exports it. Kinds without
@@ -243,6 +244,7 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		Fallback:     l.spec.Fallback,
 		IsStdLib:     l.spec.IsStdLib,
 		Candidates:   l.spec.Candidates,
+		Lookups:      l.spec.Lookups,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
 				ignore.MarkUsed(from.Pkg)

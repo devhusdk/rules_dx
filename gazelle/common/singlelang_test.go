@@ -818,6 +818,39 @@ func TestResolveSharedBasenamesStayIndependent(t *testing.T) {
 	}
 }
 
+func TestResolveLookupsOrder(t *testing.T) {
+	spec := dotSpec()
+	spec.Lookups = func(pkg, name string) []string { return []string{pkg + "_" + name, name} }
+	l := NewSingleLang(spec)
+	l.Before(context.Background())
+	index := resolverIndex(l,
+		struct{ pkg, name string }{"lib/local", "app_Util"},
+		struct{ pkg, name string }{"lib/root", "Util"},
+		struct{ pkg, name string }{"lib/root", "Other"},
+	)
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot dot app_Mapped //mapped:dep"}})
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot Dropped\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, index, nil, r, WrapImportSet([]string{"Util", "Other", "Mapped", "Dropped"}), label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/local:app_Util,//lib/root:Other,//mapped:dep" {
+		t.Errorf("deps = %q", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
+	}
+
+	plain := newDotLang()
+	p := rule.NewRule(dotKind, "app")
+	plain.Resolve(resolverConfig(t, nil), resolverIndex(plain, struct{ pkg, name string }{"lib/local", "app_Util"}), nil, p, WrapImportSet([]string{"Util"}), label.New("", "app", "app"))
+	if p.Attr("deps") != nil || len(plain.errors) != 1 || !strings.Contains(plain.errors[0], "unresolved import") {
+		t.Errorf("nil Lookups deps = %v, errors = %v", p.AttrStrings("deps"), plain.errors)
+	}
+}
+
 func TestOptInFieldsSplitLoadsAndIndexExtraKinds(t *testing.T) {
 	spec := dotSpec()
 	spec.ExtraKinds = []string{"dot_extra", "dot_gpu"}

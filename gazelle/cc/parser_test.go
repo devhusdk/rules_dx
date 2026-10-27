@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func TestParseQuotedIncludesBasename(t *testing.T) {
-	got := ParseQuotedIncludes([]byte("#include <vector>\n#include \"cc/tests/fixtures/hello/hello.h\"\n"))
-	want := []string{"hello.h"}
+func TestParseQuotedIncludesKeepsPath(t *testing.T) {
+	got := ParseQuotedIncludes([]byte("#include <vector>\n#include \"cc/tests/fixtures/hello/hello.h\"\n#include \"./x.h\"\n"))
+	want := []string{"cc/tests/fixtures/hello/hello.h", "x.h"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseQuotedIncludes = %v, want %v", got, want)
 	}
@@ -22,7 +22,7 @@ func TestParseQuotedIncludesAngleInert(t *testing.T) {
 func TestParseQuotedIncludesCommentsAndStringsInert(t *testing.T) {
 	content := "// #include \"fake/comment.h\"\n/* #include \"fake/block.h\" */\n#include <string>\nconst char* s = \"#include \\\"fake/string.h\\\"\";\nchar c = '\"';\n#include \"real/kept.h\"\n"
 	got := ParseQuotedIncludes([]byte(content))
-	want := []string{"kept.h"}
+	want := []string{"real/kept.h"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseQuotedIncludes = %v, want %v", got, want)
 	}
@@ -31,7 +31,7 @@ func TestParseQuotedIncludesCommentsAndStringsInert(t *testing.T) {
 func TestParseQuotedIncludesDedupedSorted(t *testing.T) {
 	content := "#include \"zeta/z.h\"\n#include \"alpha/a.h\"\n#include \"zeta/z.h\"\n"
 	got := ParseQuotedIncludes([]byte(content))
-	want := []string{"a.h", "z.h"}
+	want := []string{"alpha/a.h", "zeta/z.h"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseQuotedIncludes = %v, want %v", got, want)
 	}
@@ -39,7 +39,7 @@ func TestParseQuotedIncludesDedupedSorted(t *testing.T) {
 
 func TestParseQuotedIncludesEscapedQuoteInPath(t *testing.T) {
 	got := ParseQuotedIncludes([]byte("#include \"dir/a\\\"b.h\"\n"))
-	want := []string{"a\\\"b.h"}
+	want := []string{"dir/a\\\"b.h"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseQuotedIncludes escaped quote = %v, want %v", got, want)
 	}
@@ -175,9 +175,9 @@ func TestMalformedIncludesAndLiteralBoundaries(t *testing.T) {
 			t.Errorf("inert %q: %v", inert, got)
 		}
 	}
-	for _, directive := range []string{"# include \\\n\"path/real.h\"", "#\tinclude\\\r\n \"real.h\"", " \t#\tinclude \"dir/real.h\""} {
-		if got := ParseQuotedIncludes([]byte(directive)); !reflect.DeepEqual(got, []string{"real.h"}) {
-			t.Errorf("continued %q: %v", directive, got)
+	for directive, want := range map[string]string{"# include \\\n\"path/real.h\"": "path/real.h", "#\tinclude\\\r\n \"real.h\"": "real.h", " \t#\tinclude \"dir/real.h\"": "dir/real.h"} {
+		if got := ParseQuotedIncludes([]byte(directive)); !reflect.DeepEqual(got, []string{want}) {
+			t.Errorf("continued %q: %v, want [%s]", directive, got, want)
 		}
 	}
 	if got := ParseQuotedIncludes([]byte("char c = 'a\n#include \"real.h\"")); !reflect.DeepEqual(got, []string{"real.h"}) {
@@ -221,8 +221,8 @@ func TestLexSourceSharedWalk(t *testing.T) {
 	in := "int a; // c\n#include \\\n\"x/y.h\"\r\n/* b\nc */ char s[] = \"q\";\nR\"(\n)\" 'z';\n"
 	joined := "int a; // c\n#include  \"x/y.h\"\r\n/* b\nc */ char s[] = \"q\";\nR\"(\n)\" 'z';\n"
 	code, includes := lexSource([]byte(in))
-	if !reflect.DeepEqual(includes, []string{"y.h"}) {
-		t.Errorf("lexSource includes = %v, want [y.h]", includes)
+	if !reflect.DeepEqual(includes, []string{"x/y.h"}) {
+		t.Errorf("lexSource includes = %v, want [x/y.h]", includes)
 	}
 	if len(code) != len(joined) {
 		t.Fatalf("len(code) = %d, want %d", len(code), len(joined))

@@ -1,6 +1,10 @@
 package cc
 
-import "testing"
+import (
+	"path/filepath"
+	"reflect"
+	"testing"
+)
 
 func TestIsTestSource(t *testing.T) {
 	for _, name := range []string{"demo_test.cc", "pkg/demo_test.cc", "demo_test.h", "demo_test.cpp", "demo_test.cxx", "demo_test.c", "demo_test.hpp"} {
@@ -34,8 +38,32 @@ func TestIsSourceIsHeader(t *testing.T) {
 }
 
 func TestHeaderIdentity(t *testing.T) {
-	if got := HeaderIdentity("cc/tests/fixtures/hello/hello.h"); got != "hello.h" {
-		t.Errorf("HeaderIdentity = %q, want hello.h", got)
+	if got := HeaderIdentity("sub/./hello.h"); got != "sub/hello.h" {
+		t.Errorf("HeaderIdentity = %q, want sub/hello.h", got)
+	}
+}
+
+func TestHeaderBasename(t *testing.T) {
+	if got := HeaderBasename(filepath.Join("ws", "pkg", "hello.h")); !reflect.DeepEqual(got, []string{"hello.h"}) {
+		t.Errorf("HeaderBasename = %v, want [hello.h]", got)
+	}
+}
+
+func TestIncludeKeys(t *testing.T) {
+	for _, c := range []struct {
+		pkg, name string
+		want      []string
+	}{
+		{"a", "config.h", []string{"a/config.h", "config.h"}},
+		{"a", "sub/x.h", []string{"a/sub/x.h", "sub/x.h"}},
+		{"", "config.h", []string{"config.h"}},
+		{"a", "../b/x.h", []string{"b/x.h"}},
+		{"a", "../../x.h", nil},
+		{"a", "./x.h", []string{"a/x.h", "x.h"}},
+	} {
+		if got := IncludeKeys(c.pkg, c.name); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("IncludeKeys(%q, %q) = %v, want %v", c.pkg, c.name, got, c.want)
+		}
 	}
 }
 

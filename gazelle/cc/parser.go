@@ -70,7 +70,7 @@ func lexSource(content []byte) ([]byte, []string) {
 		if c == '#' && isDirectiveStart(b, i) && hasIncludeKeyword(b, i+1) {
 			if raw, next, ok := parseIncludePath(b, i+1); ok {
 				if raw != "" {
-					set[path.Base(raw)] = struct{}{}
+					set[path.Clean(raw)] = struct{}{}
 				}
 				mask(i, next)
 				i = next

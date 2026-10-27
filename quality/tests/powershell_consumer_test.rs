@@ -145,6 +145,7 @@ pwsh_binary(
     srcs = ["crlf.ps1"],
 )
 "#;
+
 fn consumer() -> Case {
     let rules = rules_dx_source();
     let root = nested::case("consumer");

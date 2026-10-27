@@ -149,7 +149,8 @@ pub struct Manifest {
     pub coverage: Vec<String>,
     pub covered: Vec<String>,
     pub files: Vec<(PathBuf, String)>,
-    pub module_fragment: PathBuf,
+    pub module_fragment: Option<PathBuf>,
+    pub starter: Option<String>,
     pub fragment_before_toolchains: bool,
     pub dx: PathBuf,
     pub module_file: PathBuf,
@@ -292,23 +293,54 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     }
     let failures = parse_failures(&value)?;
     let (coverage, covered) = parse_coverage(&value, &files)?;
+    let starter = value["starter"]
+        .as_str()
+        .filter(|starter| !starter.is_empty())
+        .map(str::to_owned);
+    let fragment = value["module_fragment"].as_str().unwrap_or("");
+    let fragment_before_toolchains = value["fragment_before_toolchains"]
+        .as_bool()
+        .unwrap_or(false);
+    let rust_target_triples = strings(&value, "rust_target_triples")?;
+    let rust_extra_rustc_flags = strings(&value, "rust_extra_rustc_flags")?;
+    let repo_name = string(&value, "repo_name")?;
+    let module_fragment = if fragment.is_empty() {
+        None
+    } else {
+        Some(base.join(fragment))
+    };
+    if starter.is_some() {
+        if repo_name != "rules_dx" {
+            return Err("a starter manifest must name rules_dx as repo_name".to_owned());
+        }
+        if fragment_before_toolchains
+            || !rust_target_triples.is_empty()
+            || !rust_extra_rustc_flags.is_empty()
+        {
+            return Err(
+                "a starter manifest cannot edit the dx init snippet (fragment_before_toolchains, rust_target_triples, rust_extra_rustc_flags)"
+                    .to_owned(),
+            );
+        }
+    } else if module_fragment.is_none() {
+        return Err("manifest needs a module_fragment unless it names a starter".to_owned());
+    }
     Ok(Manifest {
         label: string(&value, "label")?,
         languages,
         module: string(&value, "module")?,
-        repo_name: string(&value, "repo_name")?,
-        rust_target_triples: strings(&value, "rust_target_triples")?,
-        rust_extra_rustc_flags: strings(&value, "rust_extra_rustc_flags")?,
+        repo_name,
+        rust_target_triples,
+        rust_extra_rustc_flags,
         workspace_dir: checked_dest(&string(&value, "workspace_dir")?)?,
         patterns,
         failures,
         coverage,
         covered,
         files,
-        module_fragment: base.join(string(&value, "module_fragment")?),
-        fragment_before_toolchains: value["fragment_before_toolchains"]
-            .as_bool()
-            .unwrap_or(false),
+        module_fragment,
+        starter,
+        fragment_before_toolchains,
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
         bazelversion: base.join(string(&value, "bazelversion")?),
@@ -364,6 +396,35 @@ fn insert_before_toolchains(setup: &str, fragment: &str) -> Result<String, Strin
     ))
 }
 
+fn rules_dx_override(rules_dx: &Path) -> String {
+    format!(
+        "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
+        starlark_string(&rules_dx.to_string_lossy()),
+    )
+}
+
+/// Points the MODULE.bazel `dx new` wrote at this checkout, keeping its own toolchain wiring.
+pub fn starter_module(
+    text: &str,
+    fragment: Option<&str>,
+    rules_dx: &Path,
+) -> Result<String, String> {
+    if text.matches("bazel_dep(name = \"rules_dx\", ").count() != 1 {
+        return Err(format!(
+            "dx new MODULE.bazel must declare rules_dx exactly once: {text}"
+        ));
+    }
+    if text.contains("local_path_override(") {
+        return Err("dx new MODULE.bazel already carries a local_path_override".to_owned());
+    }
+    let mut module = format!("{}\n", text.trim_end());
+    if let Some(fragment) = fragment {
+        module.push_str(&format!("{}\n", fragment.trim_end()));
+    }
+    module.push_str(&rules_dx_override(rules_dx));
+    Ok(module)
+}
+
 /// Builds the consumer MODULE.bazel from the `dx init` snippet.
 ///
 /// The fragment is appended, or with `before_toolchains` placed ahead of the snippet's first
@@ -399,10 +460,10 @@ pub fn compose_module(
         format!("{}\n{}", setup.trim_end(), fragment.trim_end())
     };
     Ok(format!(
-        "module(name = {})\n\n{}\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
+        "module(name = {})\n\n{}\n{}",
         starlark_string(module),
         body,
-        starlark_string(&rules_dx.to_string_lossy()),
+        rules_dx_override(rules_dx),
     ))
 }
 
@@ -661,6 +722,33 @@ pub struct Probe<'a> {
     pub expect: Expect,
 }
 
+/// Builds the isolated `dx new` command line that scaffolds the starter into `workspace_dir`.
+pub fn scaffold_argv(
+    dx: &Path,
+    starter: &str,
+    workspace_dir: &str,
+    root: &Path,
+    home: &Path,
+) -> Vec<String> {
+    vec![
+        "/usr/bin/env".to_owned(),
+        "-i".to_owned(),
+        format!("HOME={}", home.display()),
+        format!("PATH={ACTION_PATH}"),
+        "/bin/sh".to_owned(),
+        "-c".to_owned(),
+        "cd \"$0\" && exec \"$@\"".to_owned(),
+        root.to_string_lossy().into_owned(),
+        dx.to_string_lossy().into_owned(),
+        "new".to_owned(),
+        "--apply".to_owned(),
+        starter.to_owned(),
+        workspace_dir.to_owned(),
+        "--workspace".to_owned(),
+        root.to_string_lossy().into_owned(),
+    ]
+}
+
 pub struct Session {
     pub manifest: Manifest,
     pub root: PathBuf,
@@ -704,34 +792,74 @@ impl Session {
     /// Runs one probe, logs it and records its verdict.
     pub fn run(&mut self, probe: Probe) -> Result<Outcome, String> {
         let argv = self.bazel_argv(&probe);
+        let recorded = argv[9..].to_vec();
+        self.execute(
+            &probe.name,
+            probe.net,
+            probe.home,
+            &argv,
+            recorded,
+            &probe.expect,
+        )
+    }
+
+    /// Scaffolds the starter inside the isolation with the network denied.
+    pub fn scaffold(&mut self, starter: &str, home: &Path) -> Result<Outcome, String> {
+        let argv = scaffold_argv(
+            &self.manifest.dx,
+            starter,
+            &self.manifest.workspace_dir,
+            &self.root,
+            home,
+        );
+        let recorded = argv.clone();
+        self.execute(
+            "scaffold",
+            Net::Denied,
+            home,
+            &argv,
+            recorded,
+            &Expect::Pass,
+        )
+    }
+
+    fn execute(
+        &mut self,
+        name: &str,
+        net: Net,
+        home: &Path,
+        argv: &[String],
+        recorded: Vec<String>,
+        expect: &Expect,
+    ) -> Result<Outcome, String> {
         let started = Instant::now();
-        let outcome = capture(self.isolation.command(probe.net, &argv))?;
+        let outcome = capture(self.isolation.command(net, argv))?;
         let seconds = started.elapsed().as_secs();
         let log = format!("{}{}", outcome.stdout, outcome.stderr);
         let logs = self.out.join("logs");
         std::fs::create_dir_all(&logs).map_err(|err| format!("cannot create logs: {err}"))?;
-        let log_path = logs.join(format!("{}.log", probe.name));
+        let log_path = logs.join(format!("{name}.log"));
         std::fs::write(&log_path, &log)
             .map_err(|err| format!("cannot write {}: {err}", log_path.display()))?;
-        let checked = verdict(&probe.expect, outcome.exit, &log);
-        let (expect, marker) = match &probe.expect {
+        let checked = verdict(expect, outcome.exit, &log);
+        let (expected, marker) = match expect {
             Expect::Pass => ("pass", ""),
             Expect::Fail(marker) => ("fail", marker.as_str()),
         };
         self.probes.push(json!({
-            "name": probe.name,
-            "network": if probe.net == Net::Denied { "denied" } else { "allowed" },
-            "home": probe.home.to_string_lossy(),
-            "argv": argv[9..].to_vec(),
-            "expect": expect,
+            "name": name,
+            "network": if net == Net::Denied { "denied" } else { "allowed" },
+            "home": home.to_string_lossy(),
+            "argv": recorded,
+            "expect": expected,
             "marker": marker,
             "exit": outcome.exit,
             "seconds": seconds,
-            "log": format!("logs/{}.log", probe.name),
+            "log": format!("logs/{name}.log"),
             "verdict": if checked.is_ok() { "ok" } else { "wrong" },
             "detail": checked.as_ref().err().cloned().unwrap_or_default(),
         }));
-        checked.map_err(|err| format!("probe {} {err}; see {}", probe.name, log_path.display()))?;
+        checked.map_err(|err| format!("probe {name} {err}; see {}", log_path.display()))?;
         Ok(outcome)
     }
     // LCOV_EXCL_STOP - reason: end isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
@@ -780,7 +908,7 @@ fn probe_expectation(name: &str) -> (&'static str, &'static str) {
     }
 }
 
-const NATIVE_LANGUAGES: [&str; 5] = ["appimage", "cpp", "cuda", "rust", "zig"];
+const NATIVE_LANGUAGES: [&str; 6] = ["appimage", "c", "cpp", "cuda", "rust", "zig"];
 
 fn unique_machines(artifacts: &[Value]) -> Vec<String> {
     let mut machines: Vec<String> = artifacts
@@ -915,6 +1043,9 @@ fn required_probes(manifest: &Manifest) -> Vec<(String, &str, &str, Net)> {
     if !manifest.coverage.is_empty() {
         required.push(("fetch_coverage".to_owned(), "pass", "", Net::Allowed));
         required.push(("coverage".to_owned(), "pass", "", Net::Denied));
+    }
+    if manifest.starter.is_some() {
+        required.push(("scaffold".to_owned(), "pass", "", Net::Denied));
     }
     for (label, marker) in &manifest.failures {
         required.push((failure_probe_name(label), "fail", marker, Net::Denied));
@@ -1132,15 +1263,7 @@ fn executable(path: &Path) -> Result<(), String> {
         .map_err(|err| format!("cannot mark {} executable: {err}", path.display()))
 }
 
-/// Builds the consumer workspace with the public dx entry point and its own files.
-pub fn materialize(
-    manifest: &Manifest,
-    workspace: &Path,
-    source: &Path,
-    ambient: &str,
-) -> Result<(), String> {
-    std::fs::create_dir_all(workspace)
-        .map_err(|err| format!("cannot create {}: {err}", workspace.display()))?;
+fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Result<(), String> {
     let workspace_text = workspace.to_string_lossy().into_owned();
     let init = dx_testing::run(
         &manifest.dx,
@@ -1159,8 +1282,12 @@ pub fn materialize(
     }
     let snippet = std::fs::read_to_string(workspace.join("MODULE.bazel.snippet"))
         .map_err(|err| format!("dx init wrote no MODULE.bazel.snippet: {err}"))?;
-    let fragment = std::fs::read_to_string(&manifest.module_fragment)
-        .map_err(|err| format!("cannot read {}: {err}", manifest.module_fragment.display()))?;
+    let fragment_path = manifest
+        .module_fragment
+        .as_ref()
+        .ok_or("manifest needs a module_fragment")?;
+    let fragment = std::fs::read_to_string(fragment_path)
+        .map_err(|err| format!("cannot read {}: {err}", fragment_path.display()))?;
     let snippet = add_rust_toolchain_list(
         &snippet,
         "extra_target_triples",
@@ -1171,17 +1298,48 @@ pub fn materialize(
         "extra_rustc_flags",
         &manifest.rust_extra_rustc_flags,
     )?;
-    let (name, repo) = (&manifest.module, &manifest.repo_name);
     let module = compose_module(
         &snippet,
-        name,
-        repo,
+        &manifest.module,
+        &manifest.repo_name,
         &fragment,
         manifest.fragment_before_toolchains,
         source,
     )?;
     write(&workspace.join("MODULE.bazel"), &module)?;
-    copy(&manifest.bazelversion, &workspace.join(".bazelversion"))?;
+    copy(&manifest.bazelversion, &workspace.join(".bazelversion"))
+}
+
+/// Builds the consumer workspace with the public dx entry point and its own files.
+pub fn materialize(
+    manifest: &Manifest,
+    workspace: &Path,
+    source: &Path,
+    ambient: &str,
+) -> Result<(), String> {
+    std::fs::create_dir_all(workspace)
+        .map_err(|err| format!("cannot create {}: {err}", workspace.display()))?;
+    let repo = &manifest.repo_name;
+    if manifest.starter.is_some() {
+        let path = workspace.join("MODULE.bazel");
+        let text = std::fs::read_to_string(&path)
+            .map_err(|err| format!("dx new wrote no MODULE.bazel: {err}"))?;
+        let fragment = match &manifest.module_fragment {
+            Some(path) => Some(
+                std::fs::read_to_string(path)
+                    .map_err(|err| format!("cannot read {}: {err}", path.display()))?,
+            ),
+            None => None,
+        };
+        write(&path, &starter_module(&text, fragment.as_deref(), source)?)?;
+        for (_, dest) in &manifest.files {
+            if workspace.join(dest).exists() {
+                return Err(format!("{dest} would overwrite dx new output"));
+            }
+        }
+    } else {
+        materialize_init(manifest, workspace, source)?;
+    }
     for (src, dest) in &manifest.files {
         if dest.ends_with("BUILD.bazel") {
             let text = std::fs::read_to_string(src)
@@ -1312,16 +1470,20 @@ fn run_all(
         isolation,
         probes: Vec::new(),
     });
+    let clean_home = root.join("home");
+    let planted_home = root.join("home-planted");
+    std::fs::create_dir_all(&clean_home)
+        .map_err(|err| format!("cannot create {}: {err}", clean_home.display()))?;
+    if let Some(starter) = session.manifest.starter.clone() {
+        evidence["consumer"]["starter"] = json!(starter);
+        session.scaffold(&starter, &clean_home)?;
+    }
     materialize(
         &session.manifest,
         &session.workspace,
         &session.source,
         &ambient,
     )?;
-    let clean_home = root.join("home");
-    let planted_home = root.join("home-planted");
-    std::fs::create_dir_all(&clean_home)
-        .map_err(|err| format!("cannot create {}: {err}", clean_home.display()))?;
     write(&planted_home.join(".bazelrc"), HOME_RC)?;
     let repos = root.join("repos");
     let empty_repos = root.join("repos-empty");

@@ -52,8 +52,14 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":hermetic",
-    data = [":cpp_rust_manifest"],
-    env = {"DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)"},
+    data = [
+        ":c_starter_manifest",
+        ":cpp_rust_manifest",
+    ],
+    env = {
+        "DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)",
+        "DX_HERMETIC_STARTER_MANIFEST": "$(rootpath :c_starter_manifest)",
+    },
     tags = ["no-remote-exec"],
     target_compatible_with = LINUX,
     deps = crate_deps(
@@ -622,6 +628,34 @@ hermetic_qualification(
     patterns = ["//ledger/..."],
 )
 
+hermetic_qualification(
+    name = "c_starter",
+    failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: 'string' file not found"},
+    files = {
+        "consumers/cc_starter/c_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_starter/c_only.c": "probe/c_only.c",
+        "consumers/cc_starter/cxx_in_c.c": "probe/cxx_in_c.c",
+    },
+    languages = ["c"],
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+    starter = "c",
+)
+
+hermetic_qualification(
+    name = "cpp_starter",
+    failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
+    files = {
+        "consumers/cc_starter/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_starter/cxx_only.cc": "probe/cxx_only.cc",
+        "consumers/cc_starter/c_in_cxx.cc": "probe/c_in_cxx.cc",
+    },
+    languages = ["cpp"],
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+    starter = "cpp",
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
@@ -629,7 +663,9 @@ rustfmt_test(
     targets = [
         ":adopt_android",
         ":appimage",
+        ":c_starter",
         ":cpp_rust",
+        ":cpp_starter",
         ":cuda",
         ":elixir",
         ":erlang",
@@ -654,7 +690,9 @@ rust_clippy_test(
     targets = [
         ":adopt_android",
         ":appimage",
+        ":c_starter",
         ":cpp_rust",
+        ":cpp_starter",
         ":cuda",
         ":elixir",
         ":erlang",
@@ -678,6 +716,8 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "consumers/adopt_android/third_party.BUILD.bazel",
+        "consumers/cc_starter/c_probe.BUILD.bazel",
+        "consumers/cc_starter/cpp_probe.BUILD.bazel",
         "consumers/cpp_rust/apps/c_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/c_store.BUILD.bazel",
         "consumers/cpp_rust/apps/cpp_app.BUILD.bazel",

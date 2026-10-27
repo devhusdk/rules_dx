@@ -24,15 +24,16 @@ def _hermetic_manifest_impl(ctx):
         "languages": ctx.attr.languages,
         "module": ctx.attr.module,
         "module_file": ctx.file._module.short_path,
-        "module_fragment": ctx.file.module_fragment.short_path,
+        "module_fragment": ctx.file.module_fragment.short_path if ctx.file.module_fragment else "",
         "patterns": ctx.attr.patterns,
         "repo_name": ctx.attr.repo_name,
         "rust_extra_rustc_flags": ctx.attr.rust_extra_rustc_flags,
         "rust_target_triples": ctx.attr.rust_target_triples,
+        "starter": ctx.attr.starter,
         "workspace_dir": ctx.attr.workspace_dir,
     }, indent = "  ") + "\n")
     runfiles = ctx.runfiles(
-        files = [out, ctx.file._bazelversion, ctx.file._module, ctx.file.module_fragment] + ctx.files.files + ctx.files.srcs,
+        files = [out, ctx.file._bazelversion, ctx.file._module] + ([ctx.file.module_fragment] if ctx.file.module_fragment else []) + ctx.files.files + ctx.files.srcs,
     ).merge(ctx.attr._dx[DefaultInfo].default_runfiles)
     return [DefaultInfo(files = depset([out]), runfiles = runfiles)]
 
@@ -54,7 +55,6 @@ hermetic_manifest = rule(
         "module": attr.string(mandatory = True, doc = "Consumer module name."),
         "module_fragment": attr.label(
             allow_single_file = True,
-            mandatory = True,
             doc = "MODULE.bazel lines added to the dx init snippet; appended unless fragment_before_toolchains.",
         ),
         "patterns": attr.string_list(mandatory = True, doc = "Consumer target patterns to fetch, build and test."),
@@ -63,6 +63,7 @@ hermetic_manifest = rule(
         "rust_extra_rustc_flags": attr.string_list(doc = "rustc flags added to the dx init rust.toolchain as extra_rustc_flags."),
         "rust_target_triples": attr.string_list(doc = "Rust target triples added to the dx init rust.toolchain."),
         "srcs": attr.label_list(allow_files = True, doc = "rules_dx sources the consumer build reads."),
+        "starter": attr.string(doc = "dx new starter to scaffold inside the isolation instead of running dx init."),
         "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
         "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
         "_dx": attr.label(cfg = "target", default = "//:dx", executable = True),
@@ -85,8 +86,8 @@ def hermetic_qualification(
         name,
         languages,
         files,
-        module_fragment,
         patterns,
+        module_fragment = None,
         coverage = [],
         covered = [],
         failures = {},
@@ -96,6 +97,7 @@ def hermetic_qualification(
         rust_extra_rustc_flags = [],
         rust_target_triples = [],
         srcs = [],
+        starter = "",
         workspace_dir = "consumer ws",
         **kwargs):
     """Declares one consumer qualification test and its manifest."""
@@ -116,6 +118,7 @@ def hermetic_qualification(
         rust_extra_rustc_flags = rust_extra_rustc_flags,
         rust_target_triples = rust_target_triples,
         srcs = srcs,
+        starter = starter,
         target_compatible_with = ["@platforms//os:linux"],
         workspace_dir = workspace_dir,
     )

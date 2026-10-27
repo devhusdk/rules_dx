@@ -1,0 +1,12 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+
+cc_library(
+    name = "c_only",
+    srcs = ["c_only.c"],
+)
+
+cc_library(
+    name = "cxx_in_c",
+    srcs = ["cxx_in_c.c"],
+    tags = ["manual"],
+)

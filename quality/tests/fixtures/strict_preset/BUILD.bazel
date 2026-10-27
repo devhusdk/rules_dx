@@ -13,8 +13,6 @@ exports_files([
     "loose_pass_strict_fail.ts",
     "ruff_loose.toml",
     "ruff_strict.toml",
-    "tsconfig_loose.json",
-    "tsconfig_strict.json",
 ])
 
 real_source_target(

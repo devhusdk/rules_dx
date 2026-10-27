@@ -1,7 +1,7 @@
 """Unit tests for vendored offline bundle manifests."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":offline.bzl", "offline_basenames_error", "offline_bundle_layout", "offline_launcher_error", "offline_set_error", "offline_srcs_error")
+load(":offline.bzl", "offline_basenames_error", "offline_bundle_layout", "offline_launcher_error", "offline_meta_error", "offline_set_error", "offline_srcs_error")
 
 def offline_unit_tests(name):
     starlark_test(
@@ -10,7 +10,7 @@ def offline_unit_tests(name):
         checks = [
             expect_equal(
                 "offline_launcher_error accepts every host launcher",
-                [offline_launcher_error(l) for l in [
+                [offline_launcher_error(launcher) for launcher in [
                     "bazelisk-darwin-amd64",
                     "bazelisk-darwin-arm64",
                     "bazelisk-linux-amd64",
@@ -32,13 +32,32 @@ def offline_unit_tests(name):
                     "b",
                     {"npm": ":n.json", "cargo": "//x:c.json"},
                     [":d/bazelisk-linux-arm64", ":d/bazelisk-linux-amd64"],
+                    {"npm": ":n.meta.json", "cargo": "//x:c.meta.json"},
                 ),
                 [
                     ["advisory", "cargo.json", "//x:c.json"],
+                    ["advisory", "cargo.meta.json", "//x:c.meta.json"],
                     ["advisory", "npm.json", ":n.json"],
+                    ["advisory", "npm.meta.json", ":n.meta.json"],
                     ["bazelisk", "bazelisk-linux-amd64", ":d/bazelisk-linux-amd64"],
                     ["bazelisk", "bazelisk-linux-arm64", ":d/bazelisk-linux-arm64"],
                 ],
+            ),
+            expect_equal(
+                "offline_meta_error accepts one identity file per snapshot",
+                offline_meta_error({"cargo": ":c.json"}, {"cargo": ":c.meta.json"}),
+                "",
+            ),
+            expect_equal(
+                "offline_meta_error rejects a snapshot with no identity file",
+                offline_meta_error({"cargo": ":c.json", "npm": ":n.json"}, {"cargo": ":c.meta.json"}),
+                "offline_bundle: advisory set 'npm' has no advisory_meta identity file: " +
+                "add advisory_meta = {'npm': <npm.meta.json from advisory_prep>}",
+            ),
+            expect_equal(
+                "offline_meta_error rejects an identity file with no snapshot",
+                offline_meta_error({"cargo": ":c.json"}, {"cargo": ":c.meta.json", "npm": ":n.meta.json"}),
+                "offline_bundle: advisory_meta set 'npm' has no snapshot in advisory",
             ),
             expect_equal(
                 "offline_set_error accepts every vendored set",
@@ -93,7 +112,7 @@ def offline_file_tests(name, advisory, bazelisk):
         name = name,
         mode = "execution",
         file_checks = {
-            advisory: "cargo.json",
+            advisory: "cargo.json\ncargo.meta.json",
             bazelisk: "bazelisk-linux-amd64\nbazelisk-windows-amd64.exe",
         },
     )

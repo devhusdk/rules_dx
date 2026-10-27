@@ -1,0 +1,11 @@
+load("@rules_dx//csharp/rules:defs.bzl", "csharp_library")
+
+csharp_library(
+    name = "app",
+    srcs = ["App.cs"],
+    deps = [
+        "//a/util",
+        "//lib",
+        "//shout",
+    ],
+)

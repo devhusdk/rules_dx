@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	usingRe     = regexp.MustCompile(`(?m)^\s*using\s+(static\s+)?([A-Za-z_][\w]*\s*=\s*)?([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;\s*$`)
+	usingRe     = regexp.MustCompile(`(?m)^\s*(?:global\s+)?using\s+(static\s+)?([A-Za-z_][\w]*\s*=\s*)?([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;\s*$`)
 	namespaceRe = regexp.MustCompile(`(?m)^\s*namespace\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\b`)
 	mainRe      = regexp.MustCompile(`static\s+[\w<>\[\],\s]*\bMain\s*\(`)
 )
@@ -18,13 +18,14 @@ func ParseImports(content []byte) []string {
 	stripped := common.MaskCSharpStyle(content)
 	set := make(map[string]struct{})
 	for _, m := range usingRe.FindAllSubmatch(stripped, -1) {
-		dotted := string(m[3])
+		dotted := strings.TrimSpace(string(m[3]))
+		if dotted == "" {
+			continue
+		}
 		if len(m[1]) > 0 || len(m[2]) > 0 {
 			dotted = foldTypeTarget(dotted)
 		}
-		if id := normalizeImport(dotted); id != "" {
-			set[id] = struct{}{}
-		}
+		set[dotted] = struct{}{}
 	}
 	out := make([]string, 0, len(set))
 	for name := range set {
@@ -137,6 +138,21 @@ func foldTypeTarget(dotted string) string {
 	return dotted
 }
 
-func normalizeImport(dotted string) string {
-	return common.NormalizeDotted(dotted, IsStdLib)
+// namespaceIDs indexes a source under its declared namespace and under the
+// namespace-qualified file stem, so a using of the namespace or of the type
+// named after the file resolves to its library. A source that cannot be read,
+// declares no namespace, or declares several gets no IDs.
+func namespaceIDs(path string) []string {
+	return common.JVMQualifiedIDs(path, ParsePackage, ClassIdentity)
+}
+
+// namespaceCandidates returns the parent namespace of an unmatched using
+// target, so a static or alias using of a local type reaches the library
+// that declares the type's namespace. It climbs one level only.
+func namespaceCandidates(name string) []string {
+	i := strings.LastIndexByte(name, '.')
+	if i <= 0 {
+		return nil
+	}
+	return []string{name[:i]}
 }

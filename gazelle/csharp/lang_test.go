@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -120,8 +121,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		t.Errorf("library srcs = %q, want Demo.cs,Helper.cs", got)
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "Widget" {
-		t.Errorf("library imports = %+v, want [Widget]", got.Names)
+	if strings.Join(got.Names, ",") != "Acme.Widget" {
+		t.Errorf("library imports = %+v, want [Acme.Widget]", got.Names)
 	}
 }
 
@@ -207,12 +208,25 @@ func TestGenerateKindMismatchFails(t *testing.T) {
 }
 
 func TestImportsIndexNonTestSources(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/Demo.cs", "namespace Acme.Demo;\n\nclass Demo {}\n")
+	writeFixture(t, root, "pkg/demo/Helper.cs", "namespace Acme.Demo;\n\nclass Helper {}\n")
+	writeFixture(t, root, "pkg/demo/DemoTest.cs", "namespace Acme.Demo.Tests;\n\nclass DemoTest {}\n")
+	writeFixture(t, root, "pkg/demo/notes.txt", "namespace Acme.Notes;\n")
 	lang := NewLanguage()
 	lib := rule.NewRule(LibraryKind, "demo")
 	lib.SetAttr("srcs", []string{"Demo.cs", "Helper.cs", "DemoTest.cs", "notes.txt"})
-	imports := lang.Imports(&config.Config{}, lib, nil)
-	if len(imports) != 2 || imports[0].Lang != languageName || imports[0].Imp != "Demo" || imports[1].Imp != "Helper" {
-		t.Errorf("imports = %+v, want Demo+Helper identities", imports)
+	imports := lang.Imports(&config.Config{}, lib, &rule.File{Path: filepath.Join(root, "pkg", "demo", "BUILD.bazel"), Pkg: "pkg/demo"})
+	var got []string
+	for _, imp := range imports {
+		if imp.Lang != languageName {
+			t.Errorf("import %+v has lang %q", imp, imp.Lang)
+		}
+		got = append(got, imp.Imp)
+	}
+	sort.Strings(got)
+	if want := "Acme.Demo,Acme.Demo.Demo,Acme.Demo.Helper"; strings.Join(got, ",") != want {
+		t.Errorf("imports = %v, want %s and no bare file stems", got, want)
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule("filegroup", "demo"), nil); got != nil {
 		t.Errorf("other-kind imports = %+v, want nil", got)
@@ -275,6 +289,63 @@ func TestResolveSkipsStdlibImports(t *testing.T) {
 		t.Fatal("a stdlib import was reported")
 	}
 	lang.AfterResolvingDeps(context.Background())
+}
+
+func TestResolveNamespaceExactParentAndAmbiguous(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "lib/Greeter.cs", "namespace Acme.Lib;\n\nclass Greeter {}\n")
+	writeFixture(t, root, "split/a/A.cs", "namespace Acme.Split;\n\nclass A {}\n")
+	writeFixture(t, root, "split/b/B.cs", "namespace Acme.Split;\n\nclass B {}\n")
+	setup := func() (*common.SingleLang, *config.Config, *resolve.RuleIndex) {
+		lang := NewLanguage().(*common.SingleLang)
+		lang.Before(context.Background())
+		cfg := config.New()
+		resolver := &resolve.Configurer{}
+		resolver.RegisterFlags(nil, "update", cfg)
+		if err := resolver.CheckFlags(nil, cfg); err != nil {
+			t.Fatal(err)
+		}
+		resolver.Configure(cfg, "app", &rule.File{})
+		index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
+			if r.Kind() == LibraryKind {
+				return lang
+			}
+			return nil
+		})
+		for _, lib := range []struct{ pkg, src string }{{"lib", "Greeter.cs"}, {"split/a", "A.cs"}, {"split/b", "B.cs"}} {
+			r := rule.NewRule(LibraryKind, filepath.Base(lib.pkg))
+			r.SetAttr("srcs", []string{lib.src})
+			index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join(root, filepath.FromSlash(lib.pkg), "BUILD.bazel"), lib.pkg))
+		}
+		index.Finish()
+		return lang, cfg, index
+	}
+	from := label.New("", "app", "app")
+	for _, imp := range []string{"Acme.Lib", "Acme.Lib.Greeter", "Acme.Lib.Other"} {
+		lang, cfg, index := setup()
+		r := rule.NewRule(LibraryKind, "app")
+		lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{imp}), from)
+		if lang.Failed() {
+			t.Fatalf("%s: unexpected failure", imp)
+		}
+		if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib" {
+			t.Errorf("%s: deps = %q, want //lib", imp, got)
+		}
+	}
+	lang, cfg, index := setup()
+	lang.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), common.WrapImportSet([]string{"Acme.Split"}), from)
+	got := refusal(t, lang)
+	wantRefusal(t, got, `ambiguous import "Acme.Split"`)
+	wantRefusal(t, got, "//split/a")
+	wantRefusal(t, got, "//split/b")
+
+	lang, cfg, index = setup()
+	r := rule.NewRule(LibraryKind, "app")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"Greeter"}), from)
+	if r.Attr("deps") != nil {
+		t.Errorf("bare type name bound deps = %v", r.AttrStrings("deps"))
+	}
+	wantRefusal(t, refusal(t, lang), `unresolved import "Greeter"; `+unresolvedHint)
 }
 
 func TestLanguageMetadata(t *testing.T) {
@@ -424,7 +495,7 @@ func TestGenerateBOMKeepsUsing(t *testing.T) {
 		t.Fatalf("generated %d import sets, want 1", len(result.Imports))
 	}
 	got := result.Imports[0].(common.ImportSet)
-	if strings.Join(got.Names, ",") != "Shared" {
-		t.Errorf("imports = %+v, want [Shared]", got.Names)
+	if strings.Join(got.Names, ",") != "Acme.Shared" {
+		t.Errorf("imports = %+v, want [Acme.Shared]", got.Names)
 	}
 }

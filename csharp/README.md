@@ -85,8 +85,9 @@ bazel run @rules_dx//:dx -- lint //app/...
 ## Generating BUILD files
 
 `dx generate` writes `csharp_library`, `csharp_binary` and `csharp_test`
-targets from your `.cs` files and `using` directives. Map a namespace that it
-cannot resolve with a directive:
+targets from your `.cs` files and `using` directives. A `using` of a namespace
+that a local library declares resolves to that library. Map any other
+namespace by its full name with a directive:
 
 ```python
 # gazelle:resolve csharp Newtonsoft.Json @paket.main//newtonsoft.json

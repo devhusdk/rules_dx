@@ -98,3 +98,12 @@ matches, so a stale bare-name entry fails the run.
 # gazelle:resolve kotlin kotlinx.coroutines @maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core
 # gazelle:resolve kotlin com.google.common.collect.ImmutableList @maven//:com_google_guava_guava
 ```
+
+For `csharp`, a `using` resolves by the full namespace that a local
+`csharp_library` declares, or by that namespace plus a source's file name.
+A `using static` or alias directive may name a type, so when its target
+matches no library it also tries the parent namespace. A `resolve` mapping
+or a `dx_ignore_import` names the full namespace, such as `Newtonsoft.Json`.
+A bare last segment such as `Json` no longer matches, so a stale bare-name
+entry fails the run. A namespace that more than one local library declares
+fails as ambiguous.

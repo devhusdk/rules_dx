@@ -564,8 +564,17 @@ def _jvm_jar_key(jar):
             break
     return "jar:" + jar.short_path.rpartition("/")[0] + "/" + name
 
+def _jacoco_runtime_jars(ctx):
+    """Returns the jacoco agent runtime jars (a separate target, not a tool classpath)."""
+    return ctx.attr._jacoco_runtime[JavaInfo].transitive_runtime_jars.to_list()
+
 def _jvm_aux_jars(java_info, owned):
-    """Returns the runtime classpath jars plus compile-only jars not in owned."""
+    """Returns the runtime classpath jars plus compile-only jars not in owned.
+
+    This is the only place JVM tools may read JavaInfo classpaths, so neverlink
+    (compile-only) jars are never dropped (#3167). It is enforced by
+    //quality:jvm_classpath_policy_test.
+    """
     runtime = [java_info.transitive_runtime_jars]
     compile = [java_info.transitive_compile_time_jars]
     if java_info.compilation_info != None:
@@ -781,7 +790,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                     owned[output.class_jar.path] = output.class_jar
             auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
             if ctx.configuration.coverage_enabled and hasattr(ctx.attr, "_jacoco_runtime"):
-                for jar in ctx.attr._jacoco_runtime[JavaInfo].transitive_runtime_jars.to_list():
+                for jar in _jacoco_runtime_jars(ctx):
                     if jar.path not in owned:
                         auxiliary[jar.path] = jar
             if len(owned) == 0:

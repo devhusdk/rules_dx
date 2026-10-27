@@ -201,6 +201,21 @@ def wrapper_shape_kwargs_tests(name):
                 {"srcs": [], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
+                "library upstream leaves srcs out when srcs is none",
+                "srcs" in dx_wrap_upstream_kwargs({}, None),
+                False,
+            ),
+            expect_equal(
+                "library upstream drops a stray srcs kwarg when srcs is none",
+                "srcs" in dx_wrap_upstream_kwargs({"srcs": ["stray.cc"]}, None),
+                False,
+            ),
+            expect_equal(
+                "library upstream passes empty srcs through",
+                dx_wrap_upstream_kwargs({}, [])["srcs"],
+                [],
+            ),
+            expect_equal(
                 "library upstream keeps manual",
                 dx_wrap_upstream_kwargs({"tags": ["manual"]}, ["lib.cc"])["tags"],
                 ["manual"],

@@ -112,10 +112,10 @@ def objc_library(name, srcs = None, hdrs = None, non_arc_srcs = None, visibility
     effective_non_arc_srcs = non_arc_srcs if non_arc_srcs != None else []
     dx_wrap(name, _objc_library, _objc_library_forward, effective_srcs, visibility = visibility, hdrs = effective_hdrs, non_arc_srcs = effective_non_arc_srcs, extra_forward_kwargs = {"hdrs": effective_hdrs, "non_arc_srcs": effective_non_arc_srcs}, **kwargs)
 
-def cc_binary(name, srcs, visibility = None, **kwargs):
+def cc_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_binary."""
     dx_wrap(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, executable = True, **kwargs)
 
-def cc_test(name, srcs, visibility = None, **kwargs):
+def cc_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_test."""
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, **kwargs)

@@ -128,7 +128,7 @@ def kotlin_test_entry_kwargs(name, srcs, package, kwargs):
         return kwargs
     return dict(kwargs, test_class = test_class)
 
-def kotlin_library(name, srcs, visibility = None, **kwargs):
+def kotlin_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over kt_jvm_library."""
     _kotlin_declare_werror_opts(name, kwargs)
     dx_wrap(name, _kt_jvm_library, _kotlin_library_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_werror(name, kwargs), **kwargs)
@@ -138,7 +138,7 @@ def kotlin_binary(name, srcs = None, visibility = None, **kwargs):
     _kotlin_declare_werror_opts(name, kwargs)
     dx_wrap_binary(name, _kt_jvm_binary, _kotlin_binary_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_werror(name, kwargs), **kwargs)
 
-def kotlin_test(name, srcs, visibility = None, **kwargs):
+def kotlin_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over kt_jvm_test."""
     _kotlin_declare_werror_opts(name, kwargs)
     package = native.package_name()

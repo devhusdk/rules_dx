@@ -1,0 +1,53 @@
+load("//kotlin/rules:defs.bzl", "kotlin_library", "kotlin_test")
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+kotlin_library(
+    name = "impl",
+    srcs = ["Impl.kt"],
+)
+
+kotlin_library(
+    name = "api",
+    exports = [":impl"],
+)
+
+dx_direct_sources_test(
+    name = "api_sources_test",
+    expected = {},
+    target_under_test = ":api",
+)
+
+kotlin_library(
+    name = "tests",
+    srcs = ["AllTests.kt"],
+    deps = [
+        ":impl",
+        "@maven//:junit_junit",
+    ],
+)
+
+kotlin_test(
+    name = "AllTests",
+    test_class = "nosrcs.AllTests",
+    runtime_deps = [":tests"],
+)
+
+dx_direct_sources_test(
+    name = "all_tests_sources_test",
+    expected = {},
+    target_under_test = ":AllTests",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -1,0 +1,33 @@
+load("//go/rules:defs.bzl", "go_library", "go_test")
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+go_library(
+    name = "lib",
+    srcs = ["lib.go"],
+    importpath = "rules_dx/go/tests/fixtures/no_srcs",
+)
+
+go_test(
+    name = "lib_test",
+    embed = [":lib"],
+)
+
+dx_direct_sources_test(
+    name = "lib_test_sources_test",
+    expected = {},
+    target_under_test = ":lib_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

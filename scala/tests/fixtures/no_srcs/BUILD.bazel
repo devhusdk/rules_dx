@@ -1,0 +1,33 @@
+load("//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//scala/rules:defs.bzl", "scala_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+scala_library(
+    name = "impl",
+    srcs = ["Impl.scala"],
+    aspect_hints = ["//:scalafmt_config"],
+)
+
+scala_library(
+    name = "api",
+    exports = [":impl"],
+)
+
+dx_direct_sources_test(
+    name = "api_sources_test",
+    expected = {},
+    target_under_test = ":api",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

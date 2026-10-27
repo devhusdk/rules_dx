@@ -55,6 +55,6 @@ def go_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_binary."""
     dx_wrap_binary(name, _go_binary, _go_binary_forward, srcs, visibility = visibility, **kwargs)
 
-def go_test(name, srcs, visibility = None, **kwargs):
+def go_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_test."""
     dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, **kwargs)

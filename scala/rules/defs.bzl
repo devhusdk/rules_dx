@@ -55,7 +55,7 @@ def scala_scalacopts_with_werror(kwargs):
     """Returns kwargs with -Xfatal-warnings enforced on scalacopts."""
     return dx_append_flags(kwargs, "scalacopts", ["-Xfatal-warnings"])
 
-def scala_library(name, srcs, visibility = None, **kwargs):
+def scala_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_library."""
     dx_wrap(name, _scala_library, _scala_library_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **kwargs)
 
@@ -63,6 +63,6 @@ def scala_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_binary."""
     dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **kwargs)
 
-def scala_test(name, srcs, visibility = None, **kwargs):
+def scala_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_test."""
     dx_wrap_test(name, _scala_test, _scala_forward_test, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_werror(kwargs), **kwargs)

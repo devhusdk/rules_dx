@@ -510,10 +510,15 @@ def dx_binary_upstream_kwargs(kwargs, srcs):
     out["visibility"] = ["//visibility:private"]
     return out
 
-def dx_wrap_upstream_kwargs(kwargs, srcs):
-    """Returns the private upstream kwargs for one library shape."""
-    out = {key: value for key, value in kwargs.items() if key != "tags"}
-    out["srcs"] = srcs
+def dx_wrap_upstream_kwargs(kwargs, srcs = None):
+    """Returns the private upstream kwargs for one library shape.
+
+    `srcs = None` leaves srcs out so the upstream default applies; any list,
+    including `[]`, passes through unchanged.
+    """
+    out = {key: value for key, value in kwargs.items() if key not in ("tags", "srcs")}
+    if srcs != None:
+        out["srcs"] = srcs
     out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
     out["visibility"] = ["//visibility:private"]
     return out
@@ -569,7 +574,7 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         **forward_kwargs
     )
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, executable = False, **kwargs):
+def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, executable = False, **kwargs):
     """Instantiates one private upstream target plus its public forwarder."""
     upstream_rule(
         name = name + "_upstream",
@@ -583,7 +588,7 @@ def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, upstream
     forward_rule(
         name = name,
         upstream = name + "_upstream",
-        srcs = quality_srcs if quality_srcs != None else srcs,
+        srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else []),
         visibility = visibility,
         **forward_kwargs
     )

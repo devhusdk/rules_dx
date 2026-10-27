@@ -188,19 +188,24 @@ fn central_entries(archive: &[u8]) -> Result<Vec<CentralEntry>, ArchiveError> {
             detail: format!("{count} entries cannot fit in a {size}-byte directory"),
         });
     }
+    let listing = archive
+        .get(..end)
+        .ok_or_else(|| ArchiveError::BadCentralDirectory {
+            detail: format!("directory ends at {end}, past the archive"),
+        })?;
     let mut out = Vec::with_capacity(count);
     let mut at = offset;
     for index in 0..count {
-        if !signature_at(archive, at, CENTRAL_SIGNATURE) {
+        if !signature_at(listing, at, CENTRAL_SIGNATURE) {
             return Err(ArchiveError::BadCentralDirectory {
                 detail: format!("entry {index} at {at} has no central header"),
             });
         }
-        let name_len = usize::from(u16_at(archive, at + 28)?);
-        let extra_len = usize::from(u16_at(archive, at + 30)?);
-        let comment_len = usize::from(u16_at(archive, at + 32)?);
+        let name_len = usize::from(u16_at(listing, at + 28)?);
+        let extra_len = usize::from(u16_at(listing, at + 30)?);
+        let comment_len = usize::from(u16_at(listing, at + 32)?);
         let name_at = at + CENTRAL_FIXED;
-        let name = archive.get(name_at..name_at + name_len).ok_or_else(|| {
+        let name = listing.get(name_at..name_at + name_len).ok_or_else(|| {
             ArchiveError::BadCentralDirectory {
                 detail: format!("entry {index} name runs past the directory"),
             }
@@ -210,16 +215,21 @@ fn central_entries(archive: &[u8]) -> Result<Vec<CentralEntry>, ArchiveError> {
                 name: format!("<entry {index}>"),
                 detail: format!("name is not valid UTF-8: {error}"),
             })?,
-            method: u16_at(archive, at + 10)?,
-            crc: u32_at(archive, at + 16)?,
-            compressed: u64::from(no_zip64(u32_at(archive, at + 20)?, "a compressed size")?),
-            uncompressed: u64::from(no_zip64(u32_at(archive, at + 24)?, "an uncompressed size")?),
+            method: u16_at(listing, at + 10)?,
+            crc: u32_at(listing, at + 16)?,
+            compressed: u64::from(no_zip64(u32_at(listing, at + 20)?, "a compressed size")?),
+            uncompressed: u64::from(no_zip64(u32_at(listing, at + 24)?, "an uncompressed size")?),
             local_offset: u64::from(no_zip64(
-                u32_at(archive, at + 42)?,
+                u32_at(listing, at + 42)?,
                 "a local header offset",
             )?),
         });
         at = name_at + name_len + extra_len + comment_len;
+    }
+    if at != end {
+        return Err(ArchiveError::BadCentralDirectory {
+            detail: format!("entries end at {at}, want the directory end at {end}"),
+        });
     }
     Ok(out)
 }

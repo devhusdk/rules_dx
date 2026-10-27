@@ -2,9 +2,9 @@
 useDefault = true
 
 [[allowlists]]
-description = "docs SBOM prose is not a secret; dx audit offline OSV snapshots under .dx/ are data, not source"
+description = "docs SBOM prose is not a secret"
 regexes = ["SBOM/provenance"]
-paths = ["docs/.*\\.md$", "\\.dx/.*"]
+paths = ["docs/.*\\.md$"]
 regexTarget = "match"
 
 [[allowlists]]

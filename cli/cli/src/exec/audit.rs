@@ -843,9 +843,52 @@ fn gitleaks_path(
     })
 }
 
+/// Writes a gitleaks config that skips the paths git ignores, because
+/// `gitleaks dir` reads every file under the workspace. Returns `None` when git
+/// lists nothing (or is unavailable) or the user config is invalid, so the scan
+/// keeps its plain config and gitleaks reports the invalid file itself.
+fn scoped_secrets_config(
+    workspace: &Path,
+    query_runner: &dyn QueryRunner,
+    temp_dir: &Path,
+    pid: u32,
+    nonce: u64,
+) -> Result<Option<String>, String> {
+    use dx_audit::secrets::{ignored_path_patterns, parse_ignored, scoped_config, IGNORED_QUERY};
+    let mut argv = vec!["git".to_owned()];
+    argv.extend(IGNORED_QUERY.iter().map(ToString::to_string));
+    let ignored = match query_runner.run_query(&argv, workspace) {
+        Ok(result) if result.code == Some(0) => parse_ignored(&result.stdout),
+        _ => return Ok(None),
+    };
+    let patterns = ignored_path_patterns(&ignored);
+    if patterns.is_empty() {
+        return Ok(None);
+    }
+    let user_path = workspace.join(CONFIG_FILE_NAME);
+    let user = if user_path.is_file() {
+        match std::fs::read_to_string(&user_path) {
+            Ok(text) => Some(text),
+            Err(_) => return Ok(None),
+        }
+    } else {
+        None
+    };
+    let Ok(text) = scoped_config(user.as_deref(), &patterns) else {
+        return Ok(None);
+    };
+    let path = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.toml"));
+    std::fs::write(&path, text)
+        .map_err(|error| format!("failed to write secrets scan config: {error}"))?;
+    let path = std::path::absolute(&path).unwrap_or(path);
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+#[allow(clippy::too_many_arguments)]
 fn run_secrets(
     workspace: &Path,
     runner: &dyn dx_process::Runner,
+    query_runner: &dyn QueryRunner,
     bazel: &dyn dx_tool_resolve::Bazel,
     temp_dir: &Path,
     pid: u32,
@@ -879,6 +922,11 @@ fn run_secrets(
         Ok(path) => path.to_string_lossy().into_owned(),
         Err(error) => return (Vec::new(), Some(error), Vec::new()),
     };
+    let scoped = match scoped_secrets_config(workspace, query_runner, temp_dir, pid, nonce) {
+        Ok(scoped) => scoped,
+        Err(error) => return (Vec::new(), Some(error), Vec::new()),
+    };
+    let config = scoped.as_deref().or(config);
     let temp_arg = temp_dir.to_string_lossy().into_owned();
     let plan = match dx_audit::backend::plan_secrets(
         &tool_path,
@@ -1111,8 +1159,16 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         workspace,
         startup,
     };
-    let (secret_findings, secrets_incomplete, mut diagnostics) =
-        run_secrets(workspace, runner, &bazel, temp_dir, pid, nonce, offline);
+    let (secret_findings, secrets_incomplete, mut diagnostics) = run_secrets(
+        workspace,
+        runner,
+        query_runner,
+        &bazel,
+        temp_dir,
+        pid,
+        nonce,
+        offline,
+    );
     let mut vuln_findings_all: Vec<dx_audit::vuln::VulnFinding> = Vec::new();
     let mut unassessed_all: Vec<dx_audit::vuln::Unassessed> = Vec::new();
     let mut incomplete: Option<String> = secrets_incomplete;

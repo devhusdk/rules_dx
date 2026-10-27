@@ -555,6 +555,7 @@ func TestStaleIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
+	l.generated.Add("pkg")
 	defer func() {
 		if got := recover(); got == nil || !strings.Contains(got.(string), "stale") {
 			t.Errorf("stale ignore result = %v", got)
@@ -578,7 +579,7 @@ func TestConfigureInheritanceAndOtherDirectives(t *testing.T) {
 	if ignore == nil || ignore.Path != "" {
 		t.Fatalf("inherited ignore = %+v", ignore)
 	}
-	ignore.Used = true
+	ignore.MarkUsed("pkg")
 	if got := common.MatchingIgnore(child, languageName, "absent"); got != nil {
 		t.Errorf("ignore miss = %+v, want nil", got)
 	}
@@ -601,7 +602,7 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 	if ignore == nil || ignore.Value != "mydep" {
 		t.Fatalf("three-field ignore = %+v, want mydep", ignore)
 	}
-	ignore.Used = true
+	ignore.MarkUsed("pkg")
 	l.AfterResolvingDeps(context.Background())
 
 	malformed := &typescriptLang{}

@@ -272,7 +272,7 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				l.fail("rust: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
@@ -287,7 +287,7 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 			}
 		case 0:
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				continue
 			}
 			l.fail("rust: %s: unresolved import %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", from, name)
@@ -297,7 +297,7 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	}
 	for _, name := range imports.mirrorPaths {
 		if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-			ignore.Used = true
+			ignore.MarkUsed(from.Pkg)
 			continue
 		}
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}

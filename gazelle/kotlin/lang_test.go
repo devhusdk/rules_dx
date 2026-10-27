@@ -343,6 +343,7 @@ func resolveImports(t *testing.T, directives string, srcs map[string]string, imp
 	}
 	resolver.Configure(cfg, "consumer", f)
 	lang.Configure(cfg, "consumer", f)
+	lang.GenerateRules(language.GenerateArgs{Config: cfg, Dir: filepath.Join(root, "consumer"), Rel: "consumer"})
 	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
 	for file, content := range srcs {
 		writeFixture(t, root, file, content)

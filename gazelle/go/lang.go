@@ -47,8 +47,9 @@ var goKinds = map[string]rule.KindInfo{
 
 type goLang struct {
 	language.BaseLang
-	errors  []string
-	ignores []*common.IgnoreEntry
+	errors    []string
+	ignores   []*common.IgnoreEntry
+	generated common.GeneratedRels
 }
 
 type targetImports struct {
@@ -61,7 +62,11 @@ type testTargetImports struct {
 
 func NewLanguage() language.Language { return &goLang{} }
 
-func (l *goLang) Before(context.Context) { l.errors = nil; l.ignores = nil }
+func (l *goLang) Before(context.Context) {
+	l.errors = nil
+	l.ignores = nil
+	l.generated = common.GeneratedRels{}
+}
 
 func (l *goLang) DoneGeneratingRules() {}
 
@@ -85,7 +90,7 @@ func (l *goLang) fail(format string, args ...interface{}) {
 }
 
 func (l *goLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
@@ -131,6 +136,7 @@ func (*goLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.I
 func (*goLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *goLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	l.generated.Add(args.Rel)
 	return l.generateRules(args)
 }
 
@@ -393,7 +399,7 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				l.fail("go: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
@@ -412,7 +418,7 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 			deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
 		case 0:
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				continue
 			}
 			if leaf := path.Base(name); leaf != name {

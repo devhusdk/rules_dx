@@ -39,8 +39,8 @@ func TestResolveMirrorPaths(t *testing.T) {
 	cfg.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignored}}}
 	skipped := rule.NewRule(binaryKind, "skipped")
 	l.Resolve(cfg, index, nil, skipped, targetImports{mirrorPaths: []string{"b"}}, label.New("", "app", "skipped"))
-	if skipped.Attr("deps") != nil || !ignored.Used {
-		t.Errorf("ignored mirror = deps:%v used:%v", skipped.Attr("deps"), ignored.Used)
+	if skipped.Attr("deps") != nil || !ignored.Used() {
+		t.Errorf("ignored mirror = deps:%v used:%v", skipped.Attr("deps"), ignored.Used())
 	}
 	if len(l.errors) != 0 {
 		t.Errorf("mirror errors = %v", l.errors)
@@ -696,7 +696,7 @@ func TestResolveBranches(t *testing.T) {
 	ignored := &common.IgnoreEntry{Value: "missing"}
 	cfg.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignored}}}
 	l.Resolve(cfg, index, nil, rule.NewRule(binaryKind, "ignored"), targetImports{production: []string{"missing"}}, label.New("", "app", "ignored"))
-	if !ignored.Used {
+	if !ignored.Used() {
 		t.Error("exact ignore was not consumed")
 	}
 

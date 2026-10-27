@@ -74,8 +74,9 @@ func binaryKindInfo() rule.KindInfo {
 
 type typescriptLang struct {
 	language.BaseLang
-	errors  []string
-	ignores []*common.IgnoreEntry
+	errors    []string
+	ignores   []*common.IgnoreEntry
+	generated common.GeneratedRels
 }
 
 type targetImports struct {
@@ -86,7 +87,11 @@ type targetImports struct {
 
 func NewLanguage() language.Language { return &typescriptLang{} }
 
-func (l *typescriptLang) Before(context.Context) { l.errors = nil; l.ignores = nil }
+func (l *typescriptLang) Before(context.Context) {
+	l.errors = nil
+	l.ignores = nil
+	l.generated = common.GeneratedRels{}
+}
 
 func (l *typescriptLang) DoneGeneratingRules() {}
 
@@ -110,7 +115,7 @@ func (l *typescriptLang) fail(format string, args ...interface{}) {
 }
 
 func (l *typescriptLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
@@ -235,6 +240,7 @@ func carryDeclarationSrcs(file *rule.File, gen *rule.Rule) {
 func (*typescriptLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *typescriptLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	l.generated.Add(args.Rel)
 	return l.generateRules(args)
 }
 
@@ -475,7 +481,7 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 		found := common.FindJSImport(c, ix, languageName, name, imports.local[name])
 		if found.HasOverride {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				l.fail("typescript: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
@@ -490,7 +496,7 @@ func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 			}
 		case 0:
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				continue
 			}
 			if imports.asset[name] {

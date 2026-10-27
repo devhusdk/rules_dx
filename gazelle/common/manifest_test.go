@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -539,12 +540,12 @@ func TestEmitWritesOneManifest(t *testing.T) {
 			)
 			rec.Record(language.GenerateArgs{Rel: "empty", Dir: "/repo/empty", Config: cfg}, language.GenerateResult{})
 			ignores := []IgnoredImport{
-				{Path: "b", Language: prefix, Value: "zebra"},
-				{Path: "b", Language: prefix, Value: "apple"},
-				{Path: "a", Language: prefix, Value: "mango"},
-				{Path: "a", Language: prefix, Value: "apple"},
-				{Path: "a", Language: prefix, Value: "apple"},
-				{Path: "a", Language: "zeta", Value: "apple"},
+				{Path: "b", Language: prefix, Value: "zebra", UsedBy: []string{"b"}},
+				{Path: "b", Language: prefix, Value: "apple", UsedBy: []string{"b"}},
+				{Path: "a", Language: prefix, Value: "mango", UsedBy: []string{"a"}},
+				{Path: "a", Language: prefix, Value: "apple", UsedBy: []string{"a"}},
+				{Path: "a", Language: prefix, Value: "apple", UsedBy: []string{"a"}},
+				{Path: "a", Language: "zeta", Value: "apple", UsedBy: []string{"a"}},
 			}
 			if err := rec.Emit(ignores); err != nil {
 				t.Fatalf("Emit: %v", err)
@@ -635,9 +636,9 @@ func TestEmitMatchesFinalizeGolden(t *testing.T) {
 		language.GenerateResult{Gen: []*rule.Rule{rule.NewRule(dotKind, "fresh")}},
 	)
 	ignores := []IgnoredImport{
-		{Path: "fresh", Language: "rust", Value: "serde"},
-		{Path: "a/pkg", Language: "rust", Value: "anyhow"},
-		{Path: "a/pkg", Language: "rust", Value: "anyhow"},
+		{Path: "fresh", Language: "rust", Value: "serde", UsedBy: []string{"fresh"}},
+		{Path: "a/pkg", Language: "rust", Value: "anyhow", UsedBy: []string{"a/pkg"}},
+		{Path: "a/pkg", Language: "rust", Value: "anyhow", UsedBy: []string{"a/pkg"}},
 	}
 	if err := rec.Emit(ignores); err != nil {
 		t.Fatalf("Emit: %v", err)
@@ -674,6 +675,43 @@ func TestEmitMatchesFinalizeGolden(t *testing.T) {
 	t.Fatalf("Emit output differs from testdata/intended_manifest.json; new output in %s", regenerated)
 }
 
+func TestEmitScopesIgnoredImportByUsingPackage(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	rec := manifestRecorder(t, "rust")
+	rec.OutPath = out
+	rec.Scopes = []ScopeElement{{Element: "//a/b/...", Dirs: []string{"a/b"}}}
+	if err := rec.Emit([]IgnoredImport{{Path: "a", Language: "rust", Value: "x", UsedBy: []string{"a/b"}}}); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	got := readIntended(t, out).IgnoredImports
+	want := []IntendedIgnoredImport{{Path: "a", Language: "rust", Import: "x", ScopeIndex: 0}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ignored imports = %+v, want %+v", got, want)
+	}
+}
+
+func TestEmitKeepsLowestScopeAcrossUsers(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	rec := manifestRecorder(t, "rust")
+	rec.OutPath = out
+	rec.Scopes = []ScopeElement{
+		{Element: "//a/c/...", Dirs: []string{"a/c"}},
+		{Element: "//a/b/...", Dirs: []string{"a/b"}},
+	}
+	ignores := []IgnoredImport{
+		{Path: "a", Language: "rust", Value: "x", UsedBy: []string{"a/b"}},
+		{Path: "a", Language: "rust", Value: "x", UsedBy: []string{"a/b", "a/c"}},
+	}
+	if err := rec.Emit(ignores); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	got := readIntended(t, out).IgnoredImports
+	want := []IntendedIgnoredImport{{Path: "a", Language: "rust", Import: "x", ScopeIndex: 0}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ignored imports = %+v, want %+v", got, want)
+	}
+}
+
 func TestEmitFailsClosed(t *testing.T) {
 	for _, prefix := range recorderPrefixes {
 		t.Run(prefix, func(t *testing.T) {
@@ -691,11 +729,17 @@ func TestEmitFailsClosed(t *testing.T) {
 			}
 			assertNoManifest(t, outside.OutPath)
 			matched := narrow()
-			err = matched.Emit([]IgnoredImport{{Path: "b", Language: prefix, Value: "x"}})
+			err = matched.Emit([]IgnoredImport{{Path: "a", Language: prefix, Value: "x", UsedBy: []string{"a", "b"}}})
 			if err == nil || err.Error() != prefix+`: ignored import "x" matches no `+EnvGenerateScope+" scope element" {
 				t.Errorf("ignore scope error = %v", err)
 			}
 			assertNoManifest(t, matched.OutPath)
+			unused := narrow()
+			err = unused.Emit([]IgnoredImport{{Path: "a", Language: prefix, Value: "x"}})
+			if err == nil || err.Error() != prefix+`: ignored import "x" matches no `+EnvGenerateScope+" scope element" {
+				t.Errorf("unused ignore scope error = %v", err)
+			}
+			assertNoManifest(t, unused.OutPath)
 			missing := manifestRecorder(t, prefix)
 			missing.OutPath = filepath.Join(t.TempDir(), "missing", "intended.json")
 			err = missing.Emit(nil)

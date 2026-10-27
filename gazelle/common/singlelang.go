@@ -32,13 +32,13 @@ func UnwrapImportSet(raw any) ([]string, bool) {
 }
 
 type SingleLangSpec struct {
-	LanguageName   string
-	DisplayName    string
-	LibraryKind    string
-	ExtraKinds     []string
-	Kinds          map[string]rule.KindInfo
-	DefsPackage    string
-	ImportAttr     string
+	LanguageName string
+	DisplayName  string
+	LibraryKind  string
+	ExtraKinds   []string
+	Kinds        map[string]rule.KindInfo
+	DefsPackage  string
+	ImportAttr   string
 	// Identity maps a source file name to the import it is indexed under.
 	// Nil indexes no per-file identity, so only QualifiedIDs index the rule.
 	Identity       func(name string) string
@@ -66,14 +66,19 @@ type SingleLangSpec struct {
 
 type SingleLang struct {
 	language.BaseLang
-	spec    SingleLangSpec
-	errors  []string
-	ignores []*IgnoreEntry
+	spec      SingleLangSpec
+	errors    []string
+	ignores   []*IgnoreEntry
+	generated GeneratedRels
 }
 
 func NewSingleLang(spec SingleLangSpec) *SingleLang { return &SingleLang{spec: spec} }
 
-func (l *SingleLang) Before(context.Context) { l.errors = nil; l.ignores = nil }
+func (l *SingleLang) Before(context.Context) {
+	l.errors = nil
+	l.ignores = nil
+	l.generated = GeneratedRels{}
+}
 
 func (l *SingleLang) DoneGeneratingRules() {}
 
@@ -102,7 +107,7 @@ func (l *SingleLang) fail(format string, args ...interface{}) {
 }
 
 func (l *SingleLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range StaleIgnores(l.spec.LanguageName, l.ignores) {
+	for _, msg := range StaleIgnores(l.spec.LanguageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
@@ -194,6 +199,7 @@ func (l *SingleLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 func (*SingleLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *SingleLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	l.generated.Add(args.Rel)
 	return l.spec.Generate(args, l.spec.Kinds, l)
 }
 
@@ -215,7 +221,7 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		Candidates:   l.spec.Candidates,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				return true
 			}
 			return false

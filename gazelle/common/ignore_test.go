@@ -1,6 +1,7 @@
 package common
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -100,46 +101,72 @@ func TestMatchingIgnoreSkipsNilEntries(t *testing.T) {
 
 func TestStaleIgnoresReportsUnusedEntriesOnly(t *testing.T) {
 	got := StaleIgnores("lang", []*IgnoreEntry{
-		{Value: "Used", Path: "pkg", Used: true},
+		{Value: "Used", Path: "pkg", UsedBy: []string{"pkg"}},
 		nil,
 		{Value: "Stale", Path: "pkg"},
-	})
+		{Value: "Elsewhere", Path: "other"},
+	}, generatedRels("pkg"))
 	want := []string{"lang: //pkg: stale # gazelle:dx_ignore_import lang Stale matches no literal reference"}
 	if len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("stale = %+v, want %+v", got, want)
 	}
 }
 
+func TestStaleIgnoresZeroGeneratedReportsNothing(t *testing.T) {
+	if got := StaleIgnores("lang", []*IgnoreEntry{{Value: "Stale", Path: "pkg"}}, GeneratedRels{}); got != nil {
+		t.Fatalf("stale = %+v, want none", got)
+	}
+}
+
+func generatedRels(rels ...string) GeneratedRels {
+	var g GeneratedRels
+	for _, rel := range rels {
+		g.Add(rel)
+	}
+	return g
+}
+
 func TestUsedIgnoresDedupsByPathAndValue(t *testing.T) {
 	c := config.New()
 	c.Exts["lang"] = &IgnoreConfig{Ignores: []*IgnoreEntry{
-		{Value: "a", Path: "pkg", Used: true},
-		{Value: "b", Path: "pkg", Used: true},
-		{Value: "a", Path: "pkg", Used: true},
-		{Value: "a", Path: "other", Used: true},
+		{Value: "a", Path: "pkg", UsedBy: []string{"pkg/y"}},
+		{Value: "b", Path: "pkg", UsedBy: []string{"pkg"}},
+		{Value: "a", Path: "pkg", UsedBy: []string{"pkg/x", "pkg/y"}},
+		{Value: "a", Path: "other", UsedBy: []string{"other"}},
 		{Value: "c", Path: "pkg"},
 		nil,
 	}}
-	want := [][2]string{{"pkg", "a"}, {"pkg", "b"}, {"other", "a"}}
-	got := UsedIgnores(c, "lang")
-	if len(got) != len(want) {
-		t.Fatalf("used ignores = %+v, want %+v", got, want)
+	want := []IgnoredImport{
+		{Path: "pkg", Language: "lang", Value: "a", UsedBy: []string{"pkg/x", "pkg/y"}},
+		{Path: "pkg", Language: "lang", Value: "b", UsedBy: []string{"pkg"}},
+		{Path: "other", Language: "lang", Value: "a", UsedBy: []string{"other"}},
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("ignore %d = %v, want %v", i, got[i], want[i])
-		}
+	if got := UsedIgnores(c, "lang"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("used ignores = %+v, want %+v", got, want)
 	}
 }
 
 func TestUsedImportsKeepsOnlyUsedEntries(t *testing.T) {
 	got := UsedImports("lang", []*IgnoreEntry{
-		{Value: "a", Path: "pkg", Used: true},
+		{Value: "a", Path: "pkg", UsedBy: []string{"pkg/b", "pkg/a"}},
 		{Value: "b", Path: "pkg"},
 		nil,
 	})
-	want := []IgnoredImport{{Path: "pkg", Language: "lang", Value: "a"}}
-	if len(got) != len(want) || got[0] != want[0] {
+	want := []IgnoredImport{{Path: "pkg", Language: "lang", Value: "a", UsedBy: []string{"pkg/a", "pkg/b"}}}
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("used imports = %+v, want %+v", got, want)
+	}
+}
+
+func TestMarkUsedKeepsUsersSortedAndUnique(t *testing.T) {
+	entry := &IgnoreEntry{Value: "a", Path: "pkg"}
+	if entry.Used() {
+		t.Fatal("fresh entry reports used")
+	}
+	for _, rel := range []string{"pkg/b", "pkg", "pkg/b", "pkg/a"} {
+		entry.MarkUsed(rel)
+	}
+	if want := []string{"pkg", "pkg/a", "pkg/b"}; !entry.Used() || !reflect.DeepEqual(entry.UsedBy, want) {
+		t.Fatalf("used by = %v, want %v", entry.UsedBy, want)
 	}
 }

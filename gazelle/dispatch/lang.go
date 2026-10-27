@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -172,15 +173,21 @@ func (l *dispatchLang) fail(format string, args ...interface{}) {
 
 func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 	var out []common.IgnoredImport
-	seen := map[common.IgnoredImport]bool{}
-	emit := func(language string, pairs [][2]string) {
-		for _, pair := range pairs {
-			entry := common.IgnoredImport{Path: pair[0], Language: language, Value: pair[1]}
-			if seen[entry] {
+	seen := map[[3]string]int{}
+	emit := func(items []common.IgnoredImport) {
+		for _, item := range items {
+			key := [3]string{item.Path, item.Language, item.Value}
+			if at, ok := seen[key]; ok {
+				for _, rel := range item.UsedBy {
+					if !slices.Contains(out[at].UsedBy, rel) {
+						out[at].UsedBy = append(out[at].UsedBy, rel)
+					}
+				}
+				sort.Strings(out[at].UsedBy)
 				continue
 			}
-			seen[entry] = true
-			out = append(out, entry)
+			seen[key] = len(out)
+			out = append(out, item)
 		}
 	}
 	for _, cfg := range l.configs {
@@ -188,7 +195,7 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 			continue
 		}
 		for _, name := range ignoreLanguages() {
-			emit(name, common.UsedIgnores(cfg, name))
+			emit(common.UsedIgnores(cfg, name))
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -198,7 +205,10 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 		if out[i].Language != out[j].Language {
 			return out[i].Language < out[j].Language
 		}
-		return out[i].Value < out[j].Value
+		if out[i].Value != out[j].Value {
+			return out[i].Value < out[j].Value
+		}
+		return strings.Join(out[i].UsedBy, "\x00") < strings.Join(out[j].UsedBy, "\x00")
 	})
 	return out
 }

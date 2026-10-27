@@ -49,6 +49,7 @@ type IgnoredImport struct {
 	Path     string
 	Language string
 	Value    string
+	UsedBy   []string
 }
 
 type IntendedIgnoredImport struct {
@@ -226,23 +227,36 @@ func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 	if len(manifest.Files) > 0 {
 		manifest.Result = IntendedResultDiffFound
 	}
-	seenIgnore := map[IntendedIgnoredImport]bool{}
+	seenIgnore := map[[3]string]int{}
 	for _, ignore := range ignores {
-		index := r.ScopeIndex(ignore.Path)
+		index := -1
+		for _, rel := range ignore.UsedBy {
+			i := r.ScopeIndex(rel)
+			if i < 0 {
+				index = -1
+				break
+			}
+			if index < 0 || i < index {
+				index = i
+			}
+		}
 		if index < 0 {
 			return r.Errorf("ignored import %q matches no %s scope element", ignore.Value, EnvGenerateScope)
 		}
-		entry := IntendedIgnoredImport{
+		key := [3]string{ignore.Path, ignore.Language, ignore.Value}
+		if at, ok := seenIgnore[key]; ok {
+			if index < manifest.IgnoredImports[at].ScopeIndex {
+				manifest.IgnoredImports[at].ScopeIndex = index
+			}
+			continue
+		}
+		seenIgnore[key] = len(manifest.IgnoredImports)
+		manifest.IgnoredImports = append(manifest.IgnoredImports, IntendedIgnoredImport{
 			Path:       ignore.Path,
 			Language:   ignore.Language,
 			Import:     ignore.Value,
 			ScopeIndex: index,
-		}
-		if seenIgnore[entry] {
-			continue
-		}
-		seenIgnore[entry] = true
-		manifest.IgnoredImports = append(manifest.IgnoredImports, entry)
+		})
 	}
 	sort.SliceStable(manifest.IgnoredImports, func(i, j int) bool {
 		a, b := manifest.IgnoredImports[i], manifest.IgnoredImports[j]

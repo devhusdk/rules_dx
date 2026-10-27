@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -85,11 +86,11 @@ func TestConfigureCollectsIgnoreWitness(t *testing.T) {
 	if entry == nil || entry.Path != "parent" {
 		t.Fatalf("inherited ignore: %+v", entry)
 	}
-	entry.Used = true
+	entry.MarkUsed("parent/child")
 	conf := cfg.Exts[dotLanguage].(*IgnoreConfig)
 	conf.Ignores = append(conf.Ignores, nil, entry, &IgnoreEntry{Value: "Unused", Path: "parent"})
 	got := UsedIgnores(cfg, dotLanguage)
-	if len(got) != 1 || got[0] != [2]string{"parent", "Widget"} {
+	if len(got) != 1 || got[0].Path != "parent" || got[0].Value != "Widget" || !reflect.DeepEqual(got[0].UsedBy, []string{"parent/child"}) {
 		t.Fatalf("used ignores: %v", got)
 	}
 	l.Configure(cfg, "parent", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot"}}})
@@ -196,6 +197,7 @@ func TestAfterResolvingDepsReportsStaleIgnore(t *testing.T) {
 	l.Before(context.Background())
 	cfg := config.New()
 	l.Configure(cfg, "pkg", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Unused"}}})
+	l.generated.Add("pkg")
 	defer func() {
 		r := recover()
 		if r == nil {
@@ -206,6 +208,18 @@ func TestAfterResolvingDepsReportsStaleIgnore(t *testing.T) {
 		}
 	}()
 	l.AfterResolvingDeps(context.Background())
+}
+
+func TestAfterResolvingDepsSkipsIgnoresOutsideGeneratedPackages(t *testing.T) {
+	l := newDotLang()
+	l.Before(context.Background())
+	cfg := config.New()
+	l.Configure(cfg, "c", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Unused"}}})
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Rel: "a"})
+	l.AfterResolvingDeps(context.Background())
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v, want the out-of-scope directive skipped", l.errors)
+	}
 }
 
 func TestBeforeClearsErrorsAndIgnores(t *testing.T) {
@@ -710,6 +724,7 @@ func TestResolveBareNameIgnoreNoLongerMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
+	l.generated.Add("app")
 	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"x.y.Dropped"}), label.New("", "app", "app"))
 	defer func() {
 		msg := fmt.Sprint(recover())

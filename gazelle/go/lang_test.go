@@ -867,6 +867,22 @@ func TestResolveIgnore(t *testing.T) {
 	}
 }
 
+func TestAfterResolvingDepsSkipsIgnoresOutsideGeneratedPackages(t *testing.T) {
+	l := &goLang{}
+	l.Before(context.Background())
+	cfg := resolverConfig(t, nil)
+	file, err := rule.LoadData("BUILD.bazel", "c", []byte("# gazelle:dx_ignore_import go unused\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "c", file)
+	l.generated.Add("a")
+	l.AfterResolvingDeps(context.Background())
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v, want the out-of-scope directive skipped", l.errors)
+	}
+}
+
 func TestResolveStaleIgnoreFails(t *testing.T) {
 	l := &goLang{}
 	l.Before(context.Background())
@@ -876,6 +892,7 @@ func TestResolveStaleIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
+	l.generated.Add("app")
 	defer func() {
 		r := recover()
 		if r == nil {

@@ -24,8 +24,8 @@ func TestResolveOverrideAndConflict(t *testing.T) {
 	ignore := &common.IgnoreEntry{Value: "mapped"}
 	cfg.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignore}}}
 	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(binaryKind, "conflict"), targetImports{production: []string{"mapped"}}, label.New("", "app", "conflict"))
-	if !ignore.Used || len(l.errors) != 1 || !strings.Contains(l.errors[0], "both") {
-		t.Errorf("mapping-ignore conflict = used:%v errors:%v", ignore.Used, l.errors)
+	if !ignore.Used() || len(l.errors) != 1 || !strings.Contains(l.errors[0], "both") {
+		t.Errorf("mapping-ignore conflict = used:%v errors:%v", ignore.Used(), l.errors)
 	}
 }
 

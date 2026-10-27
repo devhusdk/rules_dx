@@ -485,6 +485,7 @@ func TestResolveStaleIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "app", file)
+	l.generated.Add("app")
 	defer func() {
 		r := recover()
 		if r == nil {

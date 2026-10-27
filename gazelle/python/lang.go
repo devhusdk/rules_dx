@@ -58,8 +58,9 @@ func binaryKindInfo() rule.KindInfo {
 
 type pythonLang struct {
 	language.BaseLang
-	errors  []string
-	ignores []*common.IgnoreEntry
+	errors    []string
+	ignores   []*common.IgnoreEntry
+	generated common.GeneratedRels
 }
 
 type targetImports struct {
@@ -68,7 +69,11 @@ type targetImports struct {
 
 func NewLanguage() language.Language { return &pythonLang{} }
 
-func (l *pythonLang) Before(context.Context) { l.errors = nil; l.ignores = nil }
+func (l *pythonLang) Before(context.Context) {
+	l.errors = nil
+	l.ignores = nil
+	l.generated = common.GeneratedRels{}
+}
 
 func (l *pythonLang) DoneGeneratingRules() {}
 
@@ -92,7 +97,7 @@ func (l *pythonLang) fail(format string, args ...interface{}) {
 }
 
 func (l *pythonLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores) {
+	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
 		l.fail("%s", msg)
 	}
 	if len(l.errors) == 0 {
@@ -141,6 +146,7 @@ func (*pythonLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resol
 func (*pythonLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
 
 func (l *pythonLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
+	l.generated.Add(args.Rel)
 	return l.generateRules(args)
 }
 
@@ -329,7 +335,7 @@ func (l *pythonLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				l.fail("python: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
@@ -344,7 +350,7 @@ func (l *pythonLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 			}
 		case 0:
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.Used = true
+				ignore.MarkUsed(from.Pkg)
 				continue
 			}
 			l.fail("python: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping", from, name)

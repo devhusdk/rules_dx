@@ -3,8 +3,8 @@ use std::process::Command;
 use std::sync::OnceLock;
 
 use dx_release_tools::candidate::{
-    build_source_archive, candidate_module_file, read_git_state, source_archive_error,
-    stage_local_registry, write_release_source, Candidate,
+    build_source_archive, candidate_module_file, ls_remote_output, read_git_state,
+    source_archive_error, stage_local_registry, write_release_source, Candidate,
 };
 use dx_release_tools::{
     bcr_candidate_error, bcr_integrity_of_digest, release_remote_error, release_run, RELEASE_REMOTE,
@@ -166,23 +166,11 @@ impl Fixture {
     }
 
     fn ls_remote(&self, remote: &Path) -> Result<String, String> {
-        let [reference, peeled] = self.candidate().ls_remote_patterns();
-        let out = Command::new("git")
-            .args([
-                "ls-remote",
-                "--tags",
-                remote.to_str().expect("utf8"),
-                &reference,
-                &peeled,
-            ])
-            .current_dir(&self.repo)
-            .output()
-            .expect("spawn git");
-        if out.status.success() {
-            Ok(String::from_utf8(out.stdout).expect("utf8"))
-        } else {
-            Err(String::from_utf8_lossy(&out.stderr).trim().to_owned())
-        }
+        ls_remote_output(
+            Some(&self.repo),
+            remote.to_str().expect("utf8"),
+            &self.candidate(),
+        )
     }
 
     fn push_tag(&self, remote: &Path) {

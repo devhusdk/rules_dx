@@ -9,7 +9,7 @@
 )]
 
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use dx_release_tools::candidate::{self, Candidate};
 use dx_release_tools::GitState;
@@ -69,20 +69,6 @@ fn remote_with(candidate: &Candidate, ls_remote: Result<String, String>) -> i32 
 }
 
 // LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-fn ls_remote_output(dir: Option<&Path>, candidate: &Candidate) -> Result<String, String> {
-    let [reference, peeled] = candidate.ls_remote_patterns();
-    candidate::git_in(
-        dir,
-        &[
-            "ls-remote",
-            "--tags",
-            candidate.remote(),
-            &reference,
-            &peeled,
-        ],
-    )
-}
-
 fn run(argv: &[String]) -> i32 {
     let tag = resolve_tag(argv).to_owned();
     let commit = resolve_commit(argv).map(str::to_owned);
@@ -96,7 +82,11 @@ fn run(argv: &[String]) -> i32 {
         return code;
     }
     match dx_release_tools::release_candidate(&tag, commit.as_deref()) {
-        Ok(candidate) => remote_with(&candidate, ls_remote_output(dir.as_deref(), &candidate)),
+        Ok(candidate) => {
+            let output =
+                candidate::ls_remote_output(dir.as_deref(), candidate.remote(), &candidate);
+            remote_with(&candidate, output)
+        }
         Err(diagnostic) => dx_release_tools::bin_error(diagnostic),
     }
 }

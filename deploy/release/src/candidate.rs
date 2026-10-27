@@ -113,6 +113,15 @@ pub fn git_in(dir: Option<&Path>, args: &[&str]) -> Result<String, String> {
     git_output_of(args, cmd.output())
 }
 
+pub fn ls_remote_output(
+    dir: Option<&Path>,
+    remote: &str,
+    candidate: &Candidate,
+) -> Result<String, String> {
+    let [reference, peeled] = candidate.ls_remote_patterns();
+    git_in(dir, &["ls-remote", "--tags", remote, &reference, &peeled])
+}
+
 const READ_CONFIG: [&str; 4] = ["-c", "core.autocrlf=false", "-c", "core.eol=lf"];
 
 fn git_read(repo: &Path, args: &[&str]) -> Result<String, String> {

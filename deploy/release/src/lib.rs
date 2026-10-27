@@ -516,6 +516,14 @@ fn signing_bundle_for(asset: &str, outdir: &Path) -> String {
         .into_owned()
 }
 
+/// Runs `argv` with the inherited environment and working directory.
+fn run_output(argv: &[String]) -> io::Result<std::process::Output> {
+    let (binary, args) = argv
+        .split_first()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
+    std::process::Command::new(binary).args(args).output()
+}
+
 fn signing_live(
     identity: &str,
     issuer: &str,
@@ -532,9 +540,8 @@ fn signing_live(
         ));
     }
     let version_argv = vec![pin.path.to_owned(), "version".to_owned()];
-    let version_out =
-        dx_process::spawn_output(&version_argv, std::path::Path::new("."), &[], false)
-            .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
+    let version_out = run_output(&version_argv)
+        .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
     let version_text = String::from_utf8_lossy(&version_out.stdout).into_owned()
         + &String::from_utf8_lossy(&version_out.stderr);
     if !version_out.status.success() || !signing_version_ok(&version_text, pin.version) {
@@ -554,7 +561,7 @@ fn signing_live(
     for asset in assets {
         let bundle = signing_bundle_for(asset, outdir);
         let sign_argv = signing_sign_argv(pin.path, asset, &bundle);
-        let sign_out = dx_process::spawn_output(&sign_argv, std::path::Path::new("."), &[], false)
+        let sign_out = run_output(&sign_argv)
             .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
         if !sign_out.status.success() {
             return Err(format!(
@@ -563,10 +570,8 @@ fn signing_live(
             ));
         }
         let verify_argv = signing_verify_argv(pin.path, asset, &bundle, identity, issuer);
-        let verify_out =
-            dx_process::spawn_output(&verify_argv, std::path::Path::new("."), &[], false).map_err(
-                |error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")),
-            )?;
+        let verify_out = run_output(&verify_argv)
+            .map_err(|error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")))?;
         if !verify_out.status.success() {
             return Err(format!(
                 "signing: '{}' failed for {asset}; bundle rejected, publishing nothing",

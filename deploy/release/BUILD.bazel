@@ -61,7 +61,6 @@ rust_library(
     ) + [
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
-        "//cli/process:dx_process",
         "//deploy/rules:dx_deploy_tools",
     ],
 )

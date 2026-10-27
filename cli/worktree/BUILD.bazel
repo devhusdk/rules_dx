@@ -19,6 +19,7 @@ dx_rust_crate(
         "src/lib.rs",
         "src/ops.rs",
         "src/pool.rs",
+        "src/reap.rs",
         "src/setup.rs",
     ],
     dev_deps = ["tempfile"],

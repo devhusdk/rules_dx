@@ -34,6 +34,14 @@ pub trait Host {
     fn output_roots(&self) -> Vec<PathBuf>;
     /// Runs `bazel shutdown` in workspace; callers decide whether a server runs there.
     fn bazel_shutdown(&self, workspace: &Path);
+    /// Whether no Bazel client holds the server's output-base lock; `None` when unknown.
+    fn server_idle(&self, server: &Server) -> Option<bool>;
+    /// When the server last ran a command, in epoch seconds; `None` when unknown.
+    fn server_last_used(&self, server: &Server) -> Option<u64>;
+    /// Resident plus swapped bytes the server holds.
+    fn server_footprint(&self, server: &Server) -> u64;
+    /// Stops this one server without waiting for a busy output base; true once its pid is gone.
+    fn shutdown_server(&self, server: &Server) -> bool;
     fn disk_bytes(&self, path: &Path) -> u64;
     fn disk_cache(&self) -> Option<PathBuf>;
     /// Where nested-Bazel tests keep their slots, if this host has such a root.
@@ -273,6 +281,102 @@ fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
         .map(|kib| kib * 1024)
 }
 
+/// Swapped-out bytes from a `/proc/<pid>/status` text.
+pub(crate) fn parse_vm_swap(status: &str) -> Option<u64> {
+    let line = status
+        .lines()
+        .find_map(|line| line.strip_prefix("VmSwap:"))?;
+    let kib = line.split_whitespace().next()?.parse::<u64>().ok()?;
+    Some(kib * 1024)
+}
+
+/// The command line that stops exactly `server`, failing at once if a client holds its lock.
+pub(crate) fn shutdown_argv(
+    bazel: &Path,
+    startup_opts: &[&str],
+    server: &Server,
+) -> Option<Vec<std::ffi::OsString>> {
+    let base = server.output_base.as_deref()?;
+    let root = server.output_user_root.as_deref()?;
+    let mut argv: Vec<std::ffi::OsString> = vec![bazel.as_os_str().to_owned()];
+    argv.extend(startup_opts.iter().map(std::ffi::OsString::from));
+    let mut flag = |name: &str, value: &Path| {
+        let mut arg = std::ffi::OsString::from(format!("--{name}="));
+        arg.push(value.as_os_str());
+        argv.push(arg);
+    };
+    flag("output_user_root", root);
+    flag("output_base", base);
+    argv.push("--noblock_for_lock".into());
+    argv.push("shutdown".into());
+    Some(argv)
+}
+
+/// Whether another process holds a write-conflicting fcntl lock on `file`; tests without taking it.
+///
+/// Bazel locks the output base with fcntl (OFD, else POSIX), which `flock` probes do not see on Linux.
+#[cfg(unix)]
+pub(crate) fn lock_busy(file: &std::fs::File) -> Option<bool> {
+    use std::os::fd::AsRawFd;
+    // SAFETY: a zeroed `flock` is a valid value; every field the call reads is set below.
+    let mut lock: libc::flock = unsafe { std::mem::zeroed() };
+    lock.l_type = libc::F_WRLCK as libc::c_short;
+    lock.l_whence = libc::SEEK_SET as libc::c_short;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    // SAFETY: the fd is open for the call and `lock` is a valid, exclusively borrowed `flock`.
+    let status = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETLK, &mut lock) };
+    if status != 0 {
+        return None;
+    }
+    Some(libc::c_int::from(lock.l_type) != libc::F_UNLCK)
+}
+
+/// Whether the output base's lock file is free; `None` when it is missing or owned by another user.
+#[cfg(unix)]
+fn output_base_idle(base: &Path) -> Option<bool> {
+    use std::os::unix::fs::MetadataExt;
+    let file = std::fs::File::open(base.join("lock")).ok()?;
+    let meta = file.metadata().ok()?;
+    if !meta.is_file() || Some(meta.uid()) != current_uid() {
+        return None;
+    }
+    lock_busy(&file).map(|busy| !busy)
+}
+
+#[cfg(not(unix))]
+fn output_base_idle(_base: &Path) -> Option<bool> {
+    None
+}
+
+/// The newer modified time of the output base's `lock` and `command.log`.
+fn output_base_used(base: &Path) -> Option<u64> {
+    ["lock", "command.log"]
+        .iter()
+        .filter_map(|name| std::fs::metadata(base.join(name)).ok())
+        .map(|meta| seconds(&meta))
+        .max()
+}
+
+#[cfg(target_os = "linux")]
+fn swap_bytes(pid: u32) -> u64 {
+    std::fs::read_to_string(format!("/proc/{pid}/status"))
+        .ok()
+        .and_then(|text| parse_vm_swap(&text))
+        .unwrap_or(0)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn swap_bytes(_pid: u32) -> u64 {
+    0
+}
+
+/// How long one targeted `bazel shutdown` may run.
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// How long a stopped server may take to exit after its client returns.
+const EXIT_WAIT: Duration = Duration::from_secs(5);
+
 /// The machine this process runs on.
 pub struct SystemHost;
 
@@ -380,6 +484,51 @@ impl Host for SystemHost {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
+    }
+
+    fn server_idle(&self, server: &Server) -> Option<bool> {
+        output_base_idle(server.output_base.as_deref()?)
+    }
+
+    fn server_last_used(&self, server: &Server) -> Option<u64> {
+        output_base_used(server.output_base.as_deref()?)
+    }
+
+    fn server_footprint(&self, server: &Server) -> u64 {
+        server.rss_bytes.saturating_add(swap_bytes(server.pid))
+    }
+
+    fn shutdown_server(&self, server: &Server) -> bool {
+        let Some(bazel) = find_bazel() else {
+            return false;
+        };
+        let Some(argv) = shutdown_argv(&bazel, dx_process::current().startup_opts(), server) else {
+            return false;
+        };
+        let cwd = server
+            .workspace
+            .clone()
+            .filter(|dir| dir.is_dir())
+            .or_else(|| server.output_user_root.clone())
+            .unwrap_or_else(|| PathBuf::from("/"));
+        let spec = SpawnSpec {
+            argv,
+            cwd,
+            env: EnvPolicy::Inherited { extra: Vec::new() },
+            capture: CapturePolicy { max_bytes: 1 << 16 },
+            timeout: SHUTDOWN_TIMEOUT,
+            descendants: Descendants::Detachable,
+        };
+        let stop: &dyn Fn() -> Option<i32> = &dx_process::interrupted;
+        let _ = run_within_until(&spec, CleanupBudget::STANDARD, stop);
+        let deadline = std::time::Instant::now() + EXIT_WAIT;
+        while self.process_alive(server.pid) {
+            if std::time::Instant::now() >= deadline || stop().is_some() {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        true
     }
 
     fn disk_bytes(&self, path: &Path) -> u64 {
@@ -670,6 +819,108 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-wt-du-");
         std::fs::write(scratch.path().join("f"), vec![1u8; 64 * 1024]).expect("file");
         assert!(du_bytes(scratch.path(), &|| None).is_some_and(|bytes| bytes > 0));
+    }
+
+    #[test]
+    fn vm_swap_is_read_in_bytes() {
+        let status = "Name:\tjava\nVmRSS:\t  2048 kB\nVmSwap:\t   512 kB\nThreads:\t9\n";
+        assert_eq!(parse_vm_swap(status), Some(512 * 1024));
+        assert_eq!(parse_vm_swap("VmSwap:\t0 kB\n"), Some(0));
+        assert_eq!(parse_vm_swap("Name:\tjava\n"), None);
+    }
+
+    #[test]
+    fn shutdown_targets_the_servers_own_base_and_never_waits_for_its_lock() {
+        let server = Server {
+            pid: 7,
+            rss_bytes: 0,
+            workspace: Some(PathBuf::from("/w")),
+            output_base: Some(PathBuf::from("/r/abc")),
+            output_user_root: Some(PathBuf::from("/r")),
+        };
+        let argv = shutdown_argv(Path::new("/bin/bazel"), &["--nohome_rc"], &server).expect("argv");
+        let argv: Vec<String> = argv
+            .iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            argv,
+            [
+                "/bin/bazel",
+                "--nohome_rc",
+                "--output_user_root=/r",
+                "--output_base=/r/abc",
+                "--noblock_for_lock",
+                "shutdown",
+            ]
+        );
+        let no_base = Server {
+            output_base: None,
+            ..server.clone()
+        };
+        assert!(shutdown_argv(Path::new("/bin/bazel"), &[], &no_base).is_none());
+        let no_root = Server {
+            output_user_root: None,
+            ..server
+        };
+        assert!(shutdown_argv(Path::new("/bin/bazel"), &[], &no_root).is_none());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_idle_probe_sees_fcntl_locks_and_ignores_flock() {
+        use std::os::fd::AsRawFd;
+        let scratch = dx_test_scratch::scratch("dx-wt-idle-");
+        let base = scratch.path().join("base");
+        std::fs::create_dir_all(&base).expect("base");
+        let lock = base.join("lock");
+        std::fs::write(&lock, "").expect("lock");
+        assert_eq!(output_base_idle(&base), Some(true));
+
+        let flocked = std::fs::File::open(&lock).expect("open");
+        flocked.try_lock().expect("flock");
+        assert_eq!(output_base_idle(&base), Some(true));
+        drop(flocked);
+
+        let held = std::fs::File::options()
+            .read(true)
+            .write(true)
+            .open(&lock)
+            .expect("open");
+        // SAFETY: a zeroed `flock` is valid; the fields the call reads are set below.
+        let mut request: libc::flock = unsafe { std::mem::zeroed() };
+        request.l_type = libc::F_WRLCK as libc::c_short;
+        request.l_whence = libc::SEEK_SET as libc::c_short;
+        // SAFETY: the fd is open and `request` is a valid `flock`.
+        let status = unsafe { libc::fcntl(held.as_raw_fd(), libc::F_OFD_SETLK, &mut request) };
+        assert_eq!(status, 0, "{}", std::io::Error::last_os_error());
+        assert_eq!(output_base_idle(&base), Some(false));
+        drop(held);
+        assert_eq!(output_base_idle(&base), Some(true));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_missing_lock_file_is_unknown_and_use_follows_the_newest_file() {
+        let scratch = dx_test_scratch::scratch("dx-wt-used-");
+        let base = scratch.path().join("base");
+        std::fs::create_dir_all(&base).expect("base");
+        assert_eq!(output_base_idle(&base), None);
+        assert_eq!(output_base_used(&base), None);
+        std::fs::write(base.join("lock"), "").expect("lock");
+        std::fs::write(base.join("command.log"), "").expect("log");
+        aged(&base.join("lock"), 100);
+        aged(&base.join("command.log"), 300);
+        assert_eq!(output_base_used(&base), Some(300));
+        let server = Server {
+            pid: 1,
+            rss_bytes: 0,
+            workspace: None,
+            output_base: None,
+            output_user_root: None,
+        };
+        assert_eq!(SystemHost.server_idle(&server), None);
+        assert_eq!(SystemHost.server_last_used(&server), None);
     }
 
     #[test]

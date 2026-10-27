@@ -53,6 +53,9 @@ const POLL: Duration = Duration::from_millis(200);
 
 const STALE: Duration = Duration::from_secs(30);
 
+/// How long a Bazel server must sit unused before a waiter may stop it; above the longest keep-warm ping interval.
+const REAP_MIN_IDLE: Duration = Duration::from_secs(120);
+
 /// A held build slot; dropping it, or exiting, frees it.
 #[derive(Debug)]
 pub struct Slot {
@@ -327,6 +330,30 @@ fn holder(dir: &Path, indices: impl Iterator<Item = usize>, ahead: usize) -> Str
     format!("{first}{others}{line}")
 }
 
+/// Workspaces whose servers a waiter must not stop: slot holders, live waiters, and its own.
+fn kept_workspaces(dir: &Path, indices: impl Iterator<Item = usize>, own: &str) -> Vec<PathBuf> {
+    let read = |path: &Path| std::fs::read_to_string(path).ok();
+    let holders = indices
+        .map(|index| holder_path(dir, index))
+        .filter(|path| path.exists())
+        .filter_map(|path| read(&path));
+    let waiters = tickets(dir)
+        .into_iter()
+        .filter(|(_, path)| waiting(path))
+        .filter_map(|(_, path)| read(&path));
+    let mut kept: Vec<PathBuf> = Vec::new();
+    for label in std::iter::once(own.to_owned())
+        .chain(holders)
+        .chain(waiters)
+    {
+        let label = label.trim();
+        if !label.is_empty() && !kept.iter().any(|seen| seen == Path::new(label)) {
+            kept.push(PathBuf::from(label));
+        }
+    }
+    kept
+}
+
 fn queue_dir(dir: &Path) -> PathBuf {
     dir.join("queue")
 }
@@ -383,7 +410,7 @@ fn waiting(path: &Path) -> bool {
 }
 
 /// Takes the next ticket, sweeping tickets whose waiter is gone.
-fn enqueue(dir: &Path) -> io::Result<Ticket> {
+fn enqueue(dir: &Path, label: &str) -> io::Result<Ticket> {
     let _lock = dx_atomic_fs::lease::acquire_exclusive_at(
         &queue_dir(dir).join("lock"),
         Duration::from_secs(5),
@@ -403,6 +430,7 @@ fn enqueue(dir: &Path) -> io::Result<Ticket> {
         .write(true)
         .create_new(true)
         .open(&path)?;
+    let _ = (&file).write_all(label.as_bytes());
     let locked = dx_atomic_fs::lock_exclusive(&file, Duration::from_secs(1));
     let ticket = Ticket {
         number: next,
@@ -544,7 +572,7 @@ fn acquire_reserving(
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
-    let ticket = enqueue(dir).ok();
+    let ticket = enqueue(dir, label).ok();
     let mut pending: Vec<usize> = layout.reserve.clone().collect();
     let mut held: Vec<File> = Vec::new();
     let mut announced = false;
@@ -762,6 +790,18 @@ pub struct Gate {
     skipped: Arc<Mutex<BTreeSet<PathBuf>>>,
     resources: Option<Resources>,
     reclaimer: Option<Reclaimer>,
+    reaper: Option<Reaper>,
+}
+
+/// Stops idle Bazel servers outside the kept workspaces until about `target` bytes are freed; returns how many stopped.
+#[derive(Clone)]
+#[allow(clippy::type_complexity)]
+struct Reaper(Arc<dyn Fn(&[PathBuf], u64) -> usize + Send + Sync>);
+
+impl std::fmt::Debug for Reaper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Reaper")
+    }
 }
 
 /// Frees disk before a build; returns a message only when it acted or failed.
@@ -798,7 +838,33 @@ impl Gate {
             skipped: Arc::default(),
             resources: None,
             reclaimer: None,
+            reaper: None,
         }
+    }
+
+    /// Runs `reap` once per wait, before the wait notice, with the workspaces to keep and the bytes to free.
+    pub fn reaping(self, reap: impl Fn(&[PathBuf], u64) -> usize + Send + Sync + 'static) -> Self {
+        Gate {
+            reaper: Some(Reaper(Arc::new(reap))),
+            ..self
+        }
+    }
+
+    /// Runs the reaper unless another waiter is reaping; `None` when the gate has no reaper.
+    fn reap(&self, layout: &Layout) -> Option<usize> {
+        let reaper = self.reaper.as_ref()?;
+        let _ = std::fs::create_dir_all(&self.dir);
+        let Ok(Some(_lock)) = dx_atomic_fs::lease::try_lock_file(&self.dir.join("reap.lock"), true)
+        else {
+            return Some(0);
+        };
+        let keep = kept_workspaces(&self.dir, layout.named(), &self.label);
+        let target = if self.remote {
+            BYTES_PER_REMOTE_SLOT
+        } else {
+            BYTES_PER_SLOT
+        };
+        Some((reaper.0)(&keep, target))
     }
 
     /// Runs `reclaim` each time a slot is taken, reporting any message it returns as a disk_low warning.
@@ -890,6 +956,12 @@ impl Gate {
             workspace: workspace.to_path_buf(),
             startup_options,
         });
+        let mut roots = host::default_output_roots(env_get);
+        if let Some(root) = warm.as_ref().and_then(|warm| {
+            startup_value(&warm.startup_options, "--output_user_root").map(PathBuf::from)
+        }) {
+            roots.push(root);
+        }
         let reclaim_in = workspace.to_path_buf();
         Some(Gate {
             warm,
@@ -898,6 +970,19 @@ impl Gate {
                 .extra(extras, remote)
                 .sharing(cpus, memory, reserved)
                 .reclaiming(move || dx_worktree::reclaim_for_build(&reclaim_in))
+                .reaping(move |workspaces, target| {
+                    let keep = dx_worktree::reap::Keep {
+                        workspaces: workspaces.to_vec(),
+                        roots: roots.clone(),
+                    };
+                    dx_worktree::reap::reap_idle(
+                        &SystemHost,
+                        &keep,
+                        target,
+                        REAP_MIN_IDLE.as_secs(),
+                    )
+                    .servers
+                })
         })
     }
 
@@ -932,15 +1017,19 @@ impl Gate {
             pressure,
             &self.label,
             &mut |holder: &str| {
+                let reaped = self.reap(&layout);
                 let (err, events) = &mut *out.borrow_mut();
-                let message = wait_message(holder);
+                let message = wait_message(holder) + &reaped_suffix(reaped.unwrap_or(0));
                 let _ = writeln!(err, "dx: {message}");
                 if json {
-                    notice(
-                        &mut **events,
+                    let mut event = notice_event(
                         command,
                         dx_output::NoticeEvent::info("waiting_for_build_slot", message),
                     );
+                    if let (Some(reaped), Some(map)) = (reaped, event.as_object_mut()) {
+                        map.insert("reaped_servers".to_owned(), reaped.into());
+                    }
+                    write_notice(&mut **events, &event);
                 }
             },
             &mut || {
@@ -1239,12 +1328,28 @@ impl<W: Warm> Drop for KeepWarm<W> {
 }
 
 fn notice(events: &mut dyn Write, command: Command, notice: dx_output::NoticeEvent) {
-    let event = dx_output::notice_value(&dx_output::NoticeEvent {
+    write_notice(events, &notice_event(command, notice));
+}
+
+fn notice_event(command: Command, notice: dx_output::NoticeEvent) -> serde_json::Value {
+    dx_output::notice_value(&dx_output::NoticeEvent {
         related_command: Some(command.name().to_owned()),
         ..notice
-    });
-    let _ = dx_output::lifecycle::write_event(&mut *events, &event);
+    })
+}
+
+fn write_notice(events: &mut dyn Write, event: &serde_json::Value) {
+    let _ = dx_output::lifecycle::write_event(&mut *events, event);
     let _ = events.flush();
+}
+
+/// The wait-line tail naming stopped servers; empty when none stopped.
+fn reaped_suffix(reaped: usize) -> String {
+    match reaped {
+        0 => String::new(),
+        1 => "; stopped 1 idle Bazel server".to_owned(),
+        n => format!("; stopped {n} idle Bazel servers"),
+    }
 }
 
 thread_local! {
@@ -1528,7 +1633,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-remote-line-");
         let dir = scratch.path().join("slots");
         let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
-        let queued = enqueue(&dir).expect("queued");
+        let queued = enqueue(&dir, "").expect("queued");
         let gate = remote_gate(&dir, true, Some(false));
         let (waiter, rx) = spawn_take(gate);
         announced(&rx);
@@ -2289,7 +2394,7 @@ mod tests {
     fn a_newcomer_queues_behind_a_waiter() {
         let scratch = dx_test_scratch::scratch("dx-slots-newcomer-");
         let dir = scratch.path().join("slots");
-        let queued = enqueue(&dir).expect("queued");
+        let queued = enqueue(&dir, "").expect("queued");
         let (sender, receiver) = std::sync::mpsc::channel();
         let newcomer_dir = dir.clone();
         let newcomer = std::thread::spawn(move || {
@@ -2327,7 +2432,7 @@ mod tests {
     fn a_stale_ticket_does_not_block() {
         let scratch = dx_test_scratch::scratch("dx-slots-stale-");
         let dir = scratch.path().join("slots");
-        let stale = enqueue(&dir).expect("stale");
+        let stale = enqueue(&dir, "").expect("stale");
         let earlier = SystemTime::now() - Duration::from_secs(60);
         stale
             .file
@@ -2346,7 +2451,7 @@ mod tests {
         let dir = scratch.path().join("slots");
         std::fs::create_dir_all(&dir).expect("slots");
         std::fs::write(queue_dir(&dir), b"").expect("blocker");
-        assert!(enqueue(&dir).is_err());
+        assert!(enqueue(&dir, "").is_err());
         let held = acquire(&dir, 1, "a", &mut |_| panic!("must not wait")).expect("held");
         let (sender, receiver) = std::sync::mpsc::channel();
         let waiter_dir = dir.clone();
@@ -3019,6 +3124,145 @@ mod tests {
         std::thread::sleep(Duration::from_millis(500));
         assert_eq!(polls.load(std::sync::atomic::Ordering::SeqCst), after);
         drop(slot);
+    }
+
+    type Reaps = Arc<Mutex<Vec<(Vec<PathBuf>, u64)>>>;
+
+    fn recording(gate: Gate, stopped: usize) -> (Gate, Reaps) {
+        let calls: Reaps = Arc::default();
+        let seen = Arc::clone(&calls);
+        let gate = gate.reaping(move |keep, target| {
+            seen.lock().expect("reaps").push((keep.to_vec(), target));
+            stopped
+        });
+        (gate, calls)
+    }
+
+    /// Makes `gate` wait behind a holder, then frees the slot; returns the wait text and JSON.
+    fn wait_behind_holder(dir: &Path, gate: Gate) -> (String, String) {
+        let holder = take_gate(&Gate::new(
+            dir.to_path_buf(),
+            1,
+            "/w/holder".to_owned(),
+            false,
+        ))
+        .0;
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        drop(holder);
+        let (_slot, err, events) = waiter.join().expect("join");
+        (err, events)
+    }
+
+    fn wait_notice(events: &str) -> serde_json::Value {
+        let notices: Vec<serde_json::Value> = events
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .collect();
+        assert_eq!(notices.len(), 1, "{events}");
+        assert_eq!(notices[0]["code"], "waiting_for_build_slot");
+        notices[0].clone()
+    }
+
+    #[test]
+    fn a_wait_reaps_once_keeping_holders_waiters_and_itself() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reap-");
+        let dir = scratch.path().join("slots");
+        let holder = take_gate(&Gate::new(dir.clone(), 1, "/w/holder".to_owned(), false)).0;
+        let queued = enqueue(&dir, "/w/waiter").expect("queued");
+        let (gate, calls) = recording(Gate::new(dir.clone(), 1, "/w/me".to_owned(), true), 2);
+        let (waiter, rx) = spawn_take(gate);
+        announced(&rx);
+        drop(queued);
+        drop(holder);
+        let (_slot, err, events) = waiter.join().expect("join");
+        let calls = calls.lock().expect("reaps").clone();
+        assert_eq!(calls.len(), 1);
+        let (keep, target) = &calls[0];
+        for workspace in ["/w/me", "/w/holder", "/w/waiter"] {
+            assert!(keep.contains(&PathBuf::from(workspace)), "{keep:?}");
+        }
+        assert_eq!(*target, BYTES_PER_SLOT);
+        assert_eq!(
+            err.trim(),
+            format!(
+                "dx: {}; stopped 2 idle Bazel servers",
+                wait_message("/w/holder, 1 ahead in line")
+            )
+        );
+        let notice = wait_notice(&events);
+        assert_eq!(notice["reaped_servers"], 2);
+        assert!(notice["message"]
+            .as_str()
+            .is_some_and(|text| text.ends_with("; stopped 2 idle Bazel servers")));
+    }
+
+    #[test]
+    fn a_wait_that_stops_nothing_keeps_the_plain_line_and_reports_zero() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reap-none-");
+        let dir = scratch.path().join("slots");
+        let (gate, calls) = recording(Gate::new(dir.clone(), 1, "/w/me".to_owned(), true), 0);
+        let (err, events) = wait_behind_holder(&dir, gate);
+        assert_eq!(calls.lock().expect("reaps").len(), 1);
+        assert_eq!(err.trim(), format!("dx: {}", wait_message("/w/holder")));
+        assert_eq!(wait_notice(&events)["reaped_servers"], 0);
+    }
+
+    #[test]
+    fn a_gate_without_a_reaper_reports_no_reaped_servers() {
+        let scratch = dx_test_scratch::scratch("dx-slots-no-reaper-");
+        let dir = scratch.path().join("slots");
+        let gate = Gate::new(dir.clone(), 1, "/w/me".to_owned(), true);
+        let (err, events) = wait_behind_holder(&dir, gate);
+        assert_eq!(err.trim(), format!("dx: {}", wait_message("/w/holder")));
+        assert!(wait_notice(&events).get("reaped_servers").is_none());
+    }
+
+    #[test]
+    fn another_reaping_waiter_skips_the_reap() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reap-busy-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let busy = dx_atomic_fs::lease::try_lock_file(&dir.join("reap.lock"), true)
+            .expect("lock")
+            .expect("free");
+        let (gate, calls) = recording(Gate::new(dir.clone(), 1, "/w/me".to_owned(), true), 3);
+        let (err, events) = wait_behind_holder(&dir, gate);
+        drop(busy);
+        assert!(calls.lock().expect("reaps").is_empty());
+        assert_eq!(err.trim(), format!("dx: {}", wait_message("/w/holder")));
+        assert_eq!(wait_notice(&events)["reaped_servers"], 0);
+    }
+
+    #[test]
+    fn a_free_slot_never_reaps() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reap-free-");
+        let (gate, calls) = recording(
+            Gate::new(scratch.path().join("slots"), 1, "/w/me".to_owned(), true),
+            1,
+        );
+        let (_slot, err, events) = take_gate(&gate);
+        assert!(calls.lock().expect("reaps").is_empty());
+        assert!(err.is_empty() && events.is_empty());
+    }
+
+    #[test]
+    fn a_remote_gate_reaps_one_remote_slot() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reap-remote-");
+        let dir = scratch.path().join("slots");
+        let (gate, calls) = recording(
+            Gate::new(dir.clone(), 1, "/w/me".to_owned(), false).extra(0, true),
+            0,
+        );
+        wait_behind_holder(&dir, gate);
+        assert_eq!(calls.lock().expect("reaps")[0].1, BYTES_PER_REMOTE_SLOT);
+    }
+
+    #[test]
+    fn reaped_suffix_counts_servers() {
+        assert_eq!(reaped_suffix(0), "");
+        assert_eq!(reaped_suffix(1), "; stopped 1 idle Bazel server");
+        assert_eq!(reaped_suffix(3), "; stopped 3 idle Bazel servers");
     }
 
     #[test]

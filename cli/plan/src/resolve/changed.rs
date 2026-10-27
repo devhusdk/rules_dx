@@ -2,7 +2,7 @@ use std::path::Path;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::lock_inputs::{self, ChangedCrates, Hub, LockChange, LockKind};
+use super::lock_inputs::{self, Hub, LockChange, LockKind};
 use super::module_inputs;
 use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
 

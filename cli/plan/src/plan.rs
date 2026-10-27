@@ -146,7 +146,6 @@ pub(crate) fn profile_options(
 }
 
 /// Builds a Bazel argv with the shared settings and their guards.
-#[allow(clippy::disallowed_methods)]
 pub fn bazel_argv(
     bazel_command: &str,
     user_options: &[String],
@@ -155,7 +154,29 @@ pub fn bazel_argv(
     labels: &[String],
     startup_options: &[String],
 ) -> Result<Vec<String>, ForwardError> {
-    let settings = shared_settings(bazel_command);
+    bazel_argv_in(
+        rules_dx_repo(),
+        bazel_command,
+        user_options,
+        required_options,
+        protected,
+        labels,
+        startup_options,
+    )
+}
+
+/// Builds a Bazel argv whose shared settings are spelled with `repo`, and guards them.
+#[allow(clippy::disallowed_methods)]
+fn bazel_argv_in(
+    repo: &str,
+    bazel_command: &str,
+    user_options: &[String],
+    required_options: &[String],
+    protected: &[ProtectedFlag],
+    labels: &[String],
+    startup_options: &[String],
+) -> Result<Vec<String>, ForwardError> {
+    let settings = settings_for(repo, bazel_command);
     let mut required = settings.clone();
     required.extend(required_options.iter().cloned());
     let mut guards = protected.to_vec();
@@ -301,8 +322,10 @@ pub struct BuildPlan {
 #[cfg(test)]
 mod tests {
     use super::{
-        rules_dx_label, rules_dx_repo_of, rules_dx_repo_with, settings_for, BAZEL_SETTINGS,
+        bazel_argv_in, rules_dx_label, rules_dx_repo_of, rules_dx_repo_with, settings_for,
+        BAZEL_SETTINGS,
     };
+    use dx_process::ForwardError;
 
     const DX_DEP: &str =
         "bazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"my_dx\")\n";
@@ -413,6 +436,27 @@ mod tests {
             rules_dx_repo_of("module(name = \"fixture\", repo_name = \"rules_dx\")\n"),
             "rules_dx"
         );
+    }
+
+    #[test]
+    fn renamed_repo_settings_are_spelled_and_guarded_with_that_repo() {
+        let plan = |user: &[String]| bazel_argv_in("my_dx", "build", user, &[], &[], &[], &[]);
+        let argv = plan(&[]).expect("plan");
+        for setting in BAZEL_SETTINGS {
+            let renamed = setting.replacen("@rules_dx//", "@my_dx//", 1);
+            assert!(argv.contains(&renamed), "{renamed} missing from {argv:?}");
+            assert!(!argv.contains(&setting.to_owned()), "{setting} in {argv:?}");
+        }
+        for conflicting in [
+            "--@my_dx//config:clippy_output_diagnostics=false",
+            "--@my_dx//config:rustc_output_diagnostics=false",
+        ] {
+            let err = plan(&[conflicting.to_owned()]).expect_err("conflicting setting must fail");
+            assert!(
+                matches!(err, ForwardError::ConflictingOption { .. }),
+                "{conflicting} produced {err:?}"
+            );
+        }
     }
 
     #[test]

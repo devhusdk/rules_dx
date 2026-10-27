@@ -93,7 +93,7 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
             if consumed_next {
                 index += 1;
             }
-        } else if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+        } else if !word.contains('=') && super::grammar::value_options().contains(word) {
             index += 1;
         }
         index += 1;

@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 
 use clap::{Args, Parser};
@@ -1078,25 +1079,41 @@ pub fn man_page() -> std::io::Result<Vec<u8>> {
     Ok(buffer)
 }
 
-pub(crate) const VALUE_OPTIONS: &[&str] = &[
-    "--workspace",
-    "--output",
-    "-o",
-    "--report",
-    "--fail-on",
-    "--min-coverage",
-    "--min-changed-line-coverage",
-    "--from",
-    "--to",
-    "--port",
-    "--host",
-    "--color",
-    "--build-slots",
-    "--bazel-startup-option",
-    "--bazel-option",
-    "--old",
-    "--new",
-];
+/// Every long and short option in the clap command tree that takes a value, e.g. `--output` and `-o`.
+pub(crate) fn value_options() -> &'static BTreeSet<String> {
+    static OPTIONS: std::sync::OnceLock<BTreeSet<String>> = std::sync::OnceLock::new();
+    OPTIONS.get_or_init(|| {
+        let mut command = <Cli as clap::CommandFactory>::command();
+        command.build();
+        let mut options = BTreeSet::new();
+        collect_value_options(&command, &mut options);
+        options
+    })
+}
+
+/// Adds the value-taking options of one command and its subcommands.
+fn collect_value_options(command: &clap::Command, options: &mut BTreeSet<String>) {
+    for arg in command.get_arguments().filter(|arg| takes_next_word(arg)) {
+        if let Some(short) = arg.get_short() {
+            options.insert(format!("-{short}"));
+        }
+        if let Some(long) = arg.get_long() {
+            options.insert(format!("--{long}"));
+        }
+    }
+    for sub in command.get_subcommands() {
+        collect_value_options(sub, options);
+    }
+}
+
+/// Whether an argument takes its value from the next word, not only after `=`.
+fn takes_next_word(arg: &clap::Arg) -> bool {
+    !arg.is_require_equals_set()
+        && arg.get_action().takes_values()
+        && arg
+            .get_num_args()
+            .is_some_and(|range| range.min_values() >= 1)
+}
 
 /// Every short letter in the clap command tree.
 pub(crate) fn short_flags() -> &'static [char] {
@@ -1120,13 +1137,9 @@ fn collect_shorts(command: &clap::Command, letters: &mut Vec<char>) {
     }
 }
 
-/// Whether a short letter is listed in VALUE_OPTIONS.
+/// Whether a short letter is a value option.
 fn short_takes_value(letter: char) -> bool {
-    letter != '-'
-        && VALUE_OPTIONS.iter().any(|option| {
-            let mut chars = option.chars();
-            chars.next() == Some('-') && chars.next() == Some(letter) && chars.next().is_none()
-        })
+    letter != '-' && value_options().contains(&format!("-{letter}"))
 }
 
 /// Splits a short cluster into its value letter, value, and whether it used the next word.
@@ -1167,7 +1180,7 @@ pub(crate) fn consumes_next(word: &str, next: Option<&str>) -> bool {
         return false;
     }
     if word.starts_with("--") {
-        return VALUE_OPTIONS.contains(&word);
+        return value_options().contains(word);
     }
     short_cluster(word, next).is_some_and(|(_, _, used_next)| used_next)
 }
@@ -1406,35 +1419,45 @@ mod tests {
     }
 
     #[test]
-    fn value_options_list_every_value_taking_short_flag() {
+    fn value_options_list_every_value_taking_flag() {
         let mut command = <Cli as clap::CommandFactory>::command();
         command.build();
         let mut stack = vec![&command];
         let mut seen = 0;
         while let Some(command) = stack.pop() {
             for arg in command.get_arguments() {
-                let Some(letter) = arg.get_short() else {
-                    continue;
-                };
-                seen += 1;
-                assert!(
-                    short_flags().contains(&letter),
-                    "-{letter} is in short_flags"
-                );
-                let takes_value = arg.get_action().takes_values()
-                    && arg
-                        .get_num_args()
-                        .is_some_and(|range| range.min_values() >= 1);
-                assert_eq!(
-                    VALUE_OPTIONS.contains(&format!("-{letter}").as_str()),
-                    takes_value,
-                    "-{letter} in {} must match VALUE_OPTIONS",
-                    command.get_name()
-                );
+                let expected = takes_next_word(arg);
+                if let Some(letter) = arg.get_short() {
+                    seen += 1;
+                    assert!(
+                        short_flags().contains(&letter),
+                        "-{letter} is in short_flags"
+                    );
+                    assert_eq!(
+                        value_options().contains(format!("-{letter}").as_str()),
+                        expected,
+                        "-{letter} in {} must match value_options",
+                        command.get_name()
+                    );
+                }
+                if let Some(long) = arg.get_long() {
+                    assert_eq!(
+                        value_options().contains(format!("--{long}").as_str()),
+                        expected,
+                        "--{long} in {} must match value_options",
+                        command.get_name()
+                    );
+                }
             }
             stack.extend(command.get_subcommands());
         }
         assert!(seen > 0);
+        for option in ["--output", "-o", "--workspace", "--bazel-option"] {
+            assert!(value_options().contains(option), "{option} takes a value");
+        }
+        for flag in ["-q", "-v", "--verbose"] {
+            assert!(!value_options().contains(flag), "{flag} takes no value");
+        }
     }
 
     #[test]

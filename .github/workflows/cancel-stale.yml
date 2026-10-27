@@ -43,8 +43,6 @@ jobs:
 
           def records(path):
               file = pathlib.Path(path)
-              if not file.exists():
-                  return []
               lines = file.read_text(encoding="utf-8").splitlines()
               return [json.loads(line) for line in lines if line.strip()]
 

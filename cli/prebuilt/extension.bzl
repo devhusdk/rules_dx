@@ -1,4 +1,7 @@
-"""Creates @dx_prebuilt: the source dx when rules_dx is root, a pinned release binary otherwise."""
+"""Creates @dx_prebuilt: the source dx when rules_dx is root, a pinned release binary otherwise.
+
+A consumer platform whose release asset has no pinned sha256 falls back to the source dx.
+"""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "valid_sha256")
@@ -59,7 +62,7 @@ def _dx_prebuilt_impl(module_ctx):
                     sha256 = asset.sha256,
                     urls = [asset.url],
                 )
-        _hub(name = "dx_prebuilt", build = consumer_build(DX_VERSION, assets))
+        _hub(name = "dx_prebuilt", build = consumer_build(assets))
     return module_ctx.extension_metadata(
         reproducible = True,
         root_module_direct_deps = ["dx_prebuilt"] if rules_dx_is_root else [],

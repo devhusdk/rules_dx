@@ -41,9 +41,6 @@ ruby.bundle_fetch(
 use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
 
 register_toolchains("@ruby_toolchains//:all")
-
-dx_prebuilt = use_extension("@rules_dx//cli/prebuilt:extension.bzl", "dx_prebuilt")
-dx_prebuilt.from_source()
 "#;
 
 const PNPM_LOCK: &str = "lockfileVersion: '9.0'\n\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\nimporters:\n\n  .: {}\n";

@@ -30,6 +30,7 @@ mod tests {
             license: "MIT".to_owned(),
             versions: "18.2.0".to_owned(),
             text_present: true,
+            text: None,
         };
         crate::license_policy::validate_license_inventory(&entry).expect("valid");
         assert!(entry.text_present);

@@ -940,6 +940,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
             license: "MIT".to_owned(),
             versions: "18.2.0".to_owned(),
             text_present: true,
+            text: None,
         },
         LicenseInventory {
             package: "junit:junit".to_owned(),
@@ -947,6 +948,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
             license: "EPL-1.0".to_owned(),
             versions: "[4.0,5.0)".to_owned(),
             text_present: false,
+            text: None,
         },
         LicenseInventory {
             package: "FSharp.Core".to_owned(),
@@ -954,6 +956,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
             license: "MIT".to_owned(),
             versions: "10.1.201".to_owned(),
             text_present: true,
+            text: None,
         },
         LicenseInventory {
             package: "github.com/google/go-cmp".to_owned(),
@@ -961,6 +964,7 @@ fn inventory_licenses_resolve_per_ecosystem_with_version_scope() {
             license: "BSD-3-Clause".to_owned(),
             versions: "v0.6.0".to_owned(),
             text_present: false,
+            text: None,
         },
     ];
     let npm_pkgs = vec![LockedPackage {

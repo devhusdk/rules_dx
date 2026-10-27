@@ -35,6 +35,7 @@ dx_rust_crate(
         "src/locks_powershell.rs",
         "src/locks_ruby.rs",
         "src/locks_uv.rs",
+        "src/notice_manifest.rs",
         "src/outcome.rs",
         "src/secrets.rs",
         "src/spdx.rs",

@@ -277,15 +277,42 @@ _ios_lib_selection = rule(
     implementation = _ios_lib_selection_impl,
     doc = "Fails analysis when an iOS library selection is invalid.",
     attrs = {
-        "arch": attr.string(mandatory = True),
-        "deployment": attr.string(mandatory = True),
-        "environment": attr.string(mandatory = True),
-        "crate_features": attr.string_list(mandatory = True),
-        "frameworks": attr.string_list(mandatory = True),
-        "rustc_flags": attr.string_list(mandatory = True),
-        "sdk": attr.string(mandatory = True),
-        "triple": attr.string(mandatory = True),
-        "xcode_version": attr.string(mandatory = True),
+        "arch": attr.string(
+            doc = "Target architecture of the iOS library cell, such as arm64.",
+            mandatory = True,
+        ),
+        "deployment": attr.string(
+            doc = "Minimum iOS deployment version, or empty for the SDK floor.",
+            mandatory = True,
+        ),
+        "environment": attr.string(
+            doc = "iOS library environment, either device or simulator.",
+            mandatory = True,
+        ),
+        "crate_features": attr.string_list(
+            doc = "Cargo features enabled for the Rust iOS library.",
+            mandatory = True,
+        ),
+        "frameworks": attr.string_list(
+            doc = "Apple frameworks the Rust iOS library links against.",
+            mandatory = True,
+        ),
+        "rustc_flags": attr.string_list(
+            doc = "Extra flags passed to rustc for the library build.",
+            mandatory = True,
+        ),
+        "sdk": attr.string(
+            doc = "Apple SDK identity the library is checked against, such as iphoneos.",
+            mandatory = True,
+        ),
+        "triple": attr.string(
+            doc = "Rust target triple the library is expected to be built for.",
+            mandatory = True,
+        ),
+        "xcode_version": attr.string(
+            doc = "Xcode version the library is checked with, or empty when unset.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -301,14 +328,29 @@ AppleIosLibInfo = provider(
 )
 
 _SELECTION_ATTRS = {
-    "arch": attr.string(mandatory = True),
-    "crate_features": attr.string_list(),
-    "deployment": attr.string(default = ""),
-    "environment": attr.string(mandatory = True),
-    "frameworks": attr.string_list(),
-    "rustc_flags": attr.string_list(),
-    "sdk": attr.string(default = ""),
-    "triple": attr.string(default = ""),
+    "arch": attr.string(
+        doc = "Target architecture within the library environment, such as arm64.",
+        mandatory = True,
+    ),
+    "crate_features": attr.string_list(doc = "Cargo features enabled for the Rust library."),
+    "deployment": attr.string(
+        doc = "Minimum deployment version, or empty for the platform floor.",
+        default = "",
+    ),
+    "environment": attr.string(
+        doc = "Library environment, either device or simulator.",
+        mandatory = True,
+    ),
+    "frameworks": attr.string_list(doc = "Apple frameworks the Rust library links against."),
+    "rustc_flags": attr.string_list(doc = "Extra flags passed to rustc for the library."),
+    "sdk": attr.string(
+        doc = "Apple SDK identity such as iphoneos, or empty when unset.",
+        default = "",
+    ),
+    "triple": attr.string(
+        doc = "Rust target triple for the library, or empty when unset.",
+        default = "",
+    ),
 }
 
 def _config(ctx):
@@ -384,8 +426,15 @@ ios_lib_cell = rule(
     implementation = _ios_lib_cell_impl,
     doc = "Checks one Rust iOS static library in the configuration of its cell.",
     attrs = dict(CELL_ATTRS, **dict(_SELECTION_ATTRS, **{
-        "hdrs": attr.label_list(allow_files = [".h"]),
-        "library": attr.label(mandatory = True, providers = [CcInfo]),
+        "hdrs": attr.label_list(
+            doc = "Public header files exported alongside the static library.",
+            allow_files = [".h"],
+        ),
+        "library": attr.label(
+            doc = "Rust static library target whose archive is checked.",
+            mandatory = True,
+            providers = [CcInfo],
+        ),
     })),
     fragments = ["apple"],
 )
@@ -411,16 +460,28 @@ ios_lib = rule(
     implementation = _ios_lib_impl,
     doc = "Builds one Rust iOS static library cell, moving to the cell platform off iOS.",
     attrs = {
-        "arch": attr.string(mandatory = True),
+        "arch": attr.string(
+            doc = "Target architecture of the library cell, such as arm64.",
+            mandatory = True,
+        ),
         "cell": attr.label(
             doc = "The ios_lib_cell that checks the archive.",
             cfg = _cell_transition,
             mandatory = True,
             providers = [CcInfo, AppleIosLibInfo],
         ),
-        "deployment": attr.string(default = ""),
-        "environment": attr.string(mandatory = True),
-        "xcode_version": attr.string(default = ""),
+        "deployment": attr.string(
+            doc = "Minimum iOS deployment version, or empty for the floor.",
+            default = "",
+        ),
+        "environment": attr.string(
+            doc = "iOS library environment, either device or simulator.",
+            mandatory = True,
+        ),
+        "xcode_version": attr.string(
+            doc = "Xcode version selected for the cell build, or empty when unset.",
+            default = "",
+        ),
     },
 )
 

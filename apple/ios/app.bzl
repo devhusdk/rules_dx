@@ -202,18 +202,48 @@ _app_selection = rule(
     implementation = _app_selection_impl,
     doc = "Fails analysis when an iOS app declaration is invalid.",
     attrs = {
-        "arch": attr.string(mandatory = True),
-        "bundle_id": attr.string(mandatory = True),
-        "deployment": attr.string(mandatory = True),
-        "entitlements": attr.string(mandatory = True),
-        "environment": attr.string(mandatory = True),
-        "framework_imports": attr.string_list(mandatory = True),
-        "library": attr.string(mandatory = True),
-        "provisioning_profile": attr.string(mandatory = True),
-        "resources": attr.string_list(mandatory = True),
-        "srcs": attr.string_list(mandatory = True),
-        "version": attr.string(mandatory = True),
-        "xcode_version": attr.string(mandatory = True),
+        "arch": attr.string(
+            doc = "Target CPU architecture built for the selected environment.",
+            mandatory = True,
+        ),
+        "bundle_id": attr.string(
+            doc = "Reverse DNS bundle identifier of the app.",
+            mandatory = True,
+        ),
+        "deployment": attr.string(doc = "Minimum iOS version the app supports.", mandatory = True),
+        "entitlements": attr.string(
+            doc = "Path of the entitlements file, or empty for none.",
+            mandatory = True,
+        ),
+        "environment": attr.string(
+            doc = "Target environment, such as device or simulator.",
+            mandatory = True,
+        ),
+        "framework_imports": attr.string_list(
+            doc = "Label texts of XCFramework imports linked into the app.",
+            mandatory = True,
+        ),
+        "library": attr.string(
+            doc = "Label text of the Rust library cell the app links.",
+            mandatory = True,
+        ),
+        "provisioning_profile": attr.string(
+            doc = "Path of the provisioning profile used for device builds.",
+            mandatory = True,
+        ),
+        "resources": attr.string_list(
+            doc = "Label texts of resource files bundled into the app.",
+            mandatory = True,
+        ),
+        "srcs": attr.string_list(
+            doc = "Label texts of native sources, including the UIApplicationMain entry point.",
+            mandatory = True,
+        ),
+        "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),
+        "xcode_version": attr.string(
+            doc = "Xcode version the app build is pinned to.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -281,10 +311,22 @@ _library_cell = rule(
     implementation = _library_cell_impl,
     doc = "Checks and forwards the app library for one iOS environment and arch.",
     attrs = dict(CELL_ATTRS, **{
-        "arch": attr.string(mandatory = True),
-        "environment": attr.string(mandatory = True),
-        "frameworks": attr.label_list(providers = [CcInfo]),
-        "library": attr.label(providers = [CcInfo]),
+        "arch": attr.string(
+            doc = "Target CPU architecture the library cell is built for.",
+            mandatory = True,
+        ),
+        "environment": attr.string(
+            doc = "Target environment the library cell is built for.",
+            mandatory = True,
+        ),
+        "frameworks": attr.label_list(
+            doc = "XCFramework import targets whose binaries are linked into the app.",
+            providers = [CcInfo],
+        ),
+        "library": attr.label(
+            doc = "Rust static library target linked into the app.",
+            providers = [CcInfo],
+        ),
     }),
     fragments = ["apple"],
 )
@@ -360,8 +402,15 @@ _framework_cell = rule(
     implementation = _framework_cell_impl,
     doc = "Checks and forwards the framework library for one iOS slice.",
     attrs = dict(CELL_ATTRS, **{
-        "library": attr.label(mandatory = True, providers = [CcInfo]),
-        "slices": attr.string_list(mandatory = True),
+        "library": attr.label(
+            doc = "Rust static library target checked and forwarded for each slice.",
+            mandatory = True,
+            providers = [CcInfo],
+        ),
+        "slices": attr.string_list(
+            doc = "Environment and arch slices to check, such as device/arm64.",
+            mandatory = True,
+        ),
     }),
     fragments = ["apple"],
 )
@@ -556,9 +605,18 @@ _test_selection = rule(
     implementation = _test_selection_impl,
     doc = "Fails analysis when an iOS app test declaration is invalid.",
     attrs = {
-        "deployment": attr.string(mandatory = True),
-        "device_type": attr.string(mandatory = True),
-        "os_version": attr.string(mandatory = True),
+        "deployment": attr.string(
+            doc = "Minimum iOS version of the host app under test.",
+            mandatory = True,
+        ),
+        "device_type": attr.string(
+            doc = "Simulator device type to run tests on, such as iPhone 16.",
+            mandatory = True,
+        ),
+        "os_version": attr.string(
+            doc = "Simulator runtime version to run tests on, such as 18.5.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -726,15 +784,39 @@ _framework_selection = rule(
     implementation = _framework_selection_impl,
     doc = "Fails analysis when an iOS framework declaration is invalid.",
     attrs = {
-        "bundle_id": attr.string(mandatory = True),
-        "bundle_name": attr.string(mandatory = True),
-        "deployment": attr.string(mandatory = True),
-        "hdrs": attr.string_list(mandatory = True),
-        "library": attr.string(mandatory = True),
-        "resources": attr.string_list(mandatory = True),
-        "slices": attr.string_list(mandatory = True),
-        "version": attr.string(mandatory = True),
-        "xcode_version": attr.string(mandatory = True),
+        "bundle_id": attr.string(
+            doc = "Reverse DNS bundle identifier of the framework.",
+            mandatory = True,
+        ),
+        "bundle_name": attr.string(
+            doc = "Module name of the framework, defaulting to the target name.",
+            mandatory = True,
+        ),
+        "deployment": attr.string(
+            doc = "Minimum iOS version the framework supports.",
+            mandatory = True,
+        ),
+        "hdrs": attr.string_list(
+            doc = "Public header file names listed in the framework module map.",
+            mandatory = True,
+        ),
+        "library": attr.string(
+            doc = "Label text of the Rust static library the framework wraps.",
+            mandatory = True,
+        ),
+        "resources": attr.string_list(
+            doc = "Label texts of resource files bundled into the framework.",
+            mandatory = True,
+        ),
+        "slices": attr.string_list(
+            doc = "Environment and arch slices the framework is built for.",
+            mandatory = True,
+        ),
+        "version": attr.string(doc = "Bundle version string of the framework.", mandatory = True),
+        "xcode_version": attr.string(
+            doc = "Xcode version the framework build is pinned to.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -785,16 +867,46 @@ _xcframework_check = rule(
     implementation = _xcframework_check_impl,
     doc = "Checks the slices of one XCFramework and repacks it.",
     attrs = {
-        "bundle_id": attr.string(mandatory = True),
-        "bundle_name": attr.string(mandatory = True),
-        "deployment": attr.string(mandatory = True),
-        "hdrs": attr.label_list(allow_files = [".h"]),
-        "resources": attr.label_list(allow_files = True),
-        "selection": attr.label(mandatory = True),
-        "slices": attr.string_list(mandatory = True),
-        "version": attr.string(mandatory = True),
-        "xcframework": attr.label(mandatory = True),
-        "xcode_version": attr.string(default = ""),
+        "bundle_id": attr.string(
+            doc = "Reverse DNS bundle identifier of the XCFramework.",
+            mandatory = True,
+        ),
+        "bundle_name": attr.string(
+            doc = "Module name of the framework, defaulting to the target name.",
+            mandatory = True,
+        ),
+        "deployment": attr.string(
+            doc = "Minimum iOS version the XCFramework supports.",
+            mandatory = True,
+        ),
+        "hdrs": attr.label_list(
+            doc = "Public header files checked against the framework module map.",
+            allow_files = [".h"],
+        ),
+        "resources": attr.label_list(
+            doc = "Resource files bundled into the XCFramework.",
+            allow_files = True,
+        ),
+        "selection": attr.label(
+            doc = "Selection target whose validation runs before the slice check.",
+            mandatory = True,
+        ),
+        "slices": attr.string_list(
+            doc = "Environment and arch slices the XCFramework must contain.",
+            mandatory = True,
+        ),
+        "version": attr.string(
+            doc = "Bundle version string of the XCFramework.",
+            mandatory = True,
+        ),
+        "xcframework": attr.label(
+            doc = "Packaged XCFramework target whose slices are checked and repacked.",
+            mandatory = True,
+        ),
+        "xcode_version": attr.string(
+            doc = "Xcode version the XCFramework build is pinned to.",
+            default = "",
+        ),
         "_check": attr.label(
             default = ":xcframework_check.sh",
             allow_single_file = True,

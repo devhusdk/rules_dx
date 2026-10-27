@@ -222,17 +222,44 @@ _provisioning_selection = rule(
     doc = "Fails analysis when an Xcode provisioning selection is invalid.",
     provides = [AppleToolingInfo],
     attrs = {
-        "accept_licenses": attr.string_list(mandatory = True),
-        "allow_download": attr.bool(mandatory = True),
-        "api_token": attr.string(mandatory = True),
-        "credential_file": attr.string(mandatory = True),
-        "deployment": attr.string(mandatory = True),
-        "endpoint": attr.string(mandatory = True),
-        "host": attr.string(mandatory = True),
-        "macos_version": attr.string(mandatory = True),
-        "route": attr.string(mandatory = True),
-        "sdk": attr.string(mandatory = True),
-        "xcode_version": attr.string(mandatory = True),
+        "accept_licenses": attr.string_list(
+            doc = "License identifiers the selection accepts, including the Xcode license.",
+            mandatory = True,
+        ),
+        "allow_download": attr.bool(
+            doc = "Must stay false, since Xcode has no unattended download.",
+            mandatory = True,
+        ),
+        "api_token": attr.string(
+            doc = "API token field, which must stay empty.",
+            mandatory = True,
+        ),
+        "credential_file": attr.string(
+            doc = "Credential file path for the managed route, never inline.",
+            mandatory = True,
+        ),
+        "deployment": attr.string(
+            doc = "Minimum deployment target version for the selected SDK.",
+            mandatory = True,
+        ),
+        "endpoint": attr.string(
+            doc = "Endpoint naming the managed macOS executor.",
+            mandatory = True,
+        ),
+        "host": attr.string(doc = "Execution host the selection runs on.", mandatory = True),
+        "macos_version": attr.string(
+            doc = "macOS version of the executor, defaulting to the minimum.",
+            mandatory = True,
+        ),
+        "route": attr.string(
+            doc = "Provisioning route, either local or managed.",
+            mandatory = True,
+        ),
+        "sdk": attr.string(doc = "Apple SDK name the selection builds against.", mandatory = True),
+        "xcode_version": attr.string(
+            doc = "Installed Xcode version the selection requires.",
+            mandatory = True,
+        ),
     },
 )
 

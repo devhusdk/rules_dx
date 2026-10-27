@@ -37,7 +37,10 @@ def ios_platform(environment):
     return apple_common.platform.ios_simulator if environment == "simulator" else apple_common.platform.ios_device
 
 CELL_ATTRS = {
-    "xcode_version": attr.string(default = ""),
+    "xcode_version": attr.string(
+        doc = "Xcode version the build must belong to, or empty to skip the check.",
+        default = "",
+    ),
     "_arm64": attr.label(default = "@platforms//cpu:arm64"),
     "_check": attr.label(
         default = Label("//apple/bundle:library_check.sh"),

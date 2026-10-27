@@ -700,9 +700,6 @@ fn record_errors(
         errors.push(format!("result is {:?}", record.result));
     }
     errors
-        .into_iter()
-        .map(|error| format!("cell {}: {error}", cell.name))
-        .collect()
 }
 
 fn read_record(path: &Path) -> Result<CellRecord, String> {
@@ -720,65 +717,123 @@ fn read_record(path: &Path) -> Result<CellRecord, String> {
     Ok(record)
 }
 
-/// Checks every `*.json` record in `records` against the matrix, the archives and the release identity.
-pub fn verify(
+/// What verification found for one matrix cell.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CellOutcome {
+    pub cell: String,
+    pub record: Option<CellRecord>,
+    pub reasons: Vec<String>,
+}
+
+impl CellOutcome {
+    pub fn qualified(&self) -> bool {
+        self.reasons.is_empty()
+    }
+}
+
+/// Per-cell outcomes in matrix order, plus problems no cell owns.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Verification {
+    pub cells: Vec<CellOutcome>,
+    pub stray: Vec<String>,
+}
+
+impl Verification {
+    pub fn ok(&self) -> bool {
+        self.stray.is_empty() && self.cells.iter().all(CellOutcome::qualified)
+    }
+}
+
+/// Checks every `*.json` record in `records` against the matrix, the archives and the release identity,
+/// and reports each cell on its own instead of stopping at the first rejection.
+pub fn verify_each(
     matrix: &[Cell],
     records: &Path,
     archives: &Path,
     expected: &Expected,
-) -> Result<Vec<CellRecord>, Vec<String>> {
-    let mut errors = Vec::new();
+) -> Verification {
+    let mut cells: Vec<CellOutcome> = matrix
+        .iter()
+        .map(|cell| CellOutcome {
+            cell: cell.name.clone(),
+            record: None,
+            reasons: Vec::new(),
+        })
+        .collect();
+    let mut stray = Vec::new();
     let mut paths: Vec<PathBuf> = match std::fs::read_dir(records) {
         Ok(entries) => entries
             .filter_map(|entry| entry.ok().map(|entry| entry.path()))
             .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
             .collect(),
         Err(error) => {
-            return Err(vec![format!(
+            stray.push(format!(
                 "cannot read records {}: {error}",
                 records.display()
-            )])
+            ));
+            Vec::new()
         }
     };
     paths.sort();
-    let mut found: BTreeMap<String, CellRecord> = BTreeMap::new();
     for path in paths {
         let record = match read_record(&path) {
             Ok(record) => record,
             Err(error) => {
-                errors.push(error);
+                stray.push(error);
                 continue;
             }
         };
-        let Some(cell) = matrix.iter().find(|cell| cell.name == record.cell) else {
-            errors.push(format!(
+        let Some(index) = matrix.iter().position(|cell| cell.name == record.cell) else {
+            stray.push(format!(
                 "record {}: unknown cell {:?}",
                 path.display(),
                 record.cell
             ));
             continue;
         };
-        if found.contains_key(&cell.name) {
-            errors.push(format!(
-                "cell {}: duplicate record {}",
-                cell.name,
-                path.display()
-            ));
+        let outcome = &mut cells[index];
+        if outcome.record.is_some() {
+            outcome
+                .reasons
+                .push(format!("duplicate record {}", path.display()));
             continue;
         }
-        errors.extend(record_errors(cell, &record, archives, expected));
-        found.insert(cell.name.clone(), record);
+        outcome
+            .reasons
+            .extend(record_errors(&matrix[index], &record, archives, expected));
+        outcome.record = Some(record);
     }
-    for cell in matrix.iter().filter(|cell| !found.contains_key(&cell.name)) {
-        errors.push(format!("cell {}: no record", cell.name));
+    for outcome in cells.iter_mut().filter(|outcome| outcome.record.is_none()) {
+        outcome.reasons.push("no record".to_string());
     }
-    if !errors.is_empty() {
-        return Err(errors);
+    Verification { cells, stray }
+}
+
+/// Checks every record like `verify_each` and fails on the first problem found anywhere.
+pub fn verify(
+    matrix: &[Cell],
+    records: &Path,
+    archives: &Path,
+    expected: &Expected,
+) -> Result<Vec<CellRecord>, Vec<String>> {
+    let verification = verify_each(matrix, records, archives, expected);
+    if verification.ok() {
+        return Ok(verification
+            .cells
+            .into_iter()
+            .filter_map(|outcome| outcome.record)
+            .collect());
     }
-    Ok(matrix
-        .iter()
-        .filter_map(|cell| found.remove(&cell.name))
-        .collect())
+    let mut errors = verification.stray;
+    for outcome in &verification.cells {
+        errors.extend(
+            outcome
+                .reasons
+                .iter()
+                .map(|reason| format!("cell {}: {reason}", outcome.cell)),
+        );
+    }
+    Err(errors)
 }
 
 fn parse_flags<'a>(

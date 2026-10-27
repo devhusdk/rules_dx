@@ -6,6 +6,8 @@ load("//quality:sources.bzl", "QualitySourcesInfo")
 
 PerlInfo = _PerlInfo
 
+PERL_COVERAGE_COLLECTOR = False
+
 PERL_SOURCE_SPECS = [("perl", ["pl", "pm", "t"])]
 
 PERL_SOURCE_EXTS = [".pl", ".pm", ".t"]
@@ -89,4 +91,4 @@ def perl_test(name, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over perl_test."""
     kwargs = _perl_kwargs(kwargs)
     upstream = dict(kwargs, main = main) if main != None else kwargs
-    dx_wrap_test(name, _perl_test, _perl_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = perl_quality_srcs(main, srcs), **kwargs)
+    dx_wrap_test(name, _perl_test, _perl_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = perl_quality_srcs(main, srcs), coverage_collector = PERL_COVERAGE_COLLECTOR, **kwargs)

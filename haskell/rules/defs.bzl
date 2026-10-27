@@ -11,6 +11,8 @@ HaskellInfo = _HaskellInfo
 
 HaskellLibraryInfo = _HaskellLibraryInfo
 
+HASKELL_COVERAGE_COLLECTOR = False
+
 HASKELL_COMPATIBLE_WITH = [Label(constraint) for constraint in CELLS["linux_amd64"].exec_compatible_with]
 
 DEFAULT_GHCOPTS = ["-Wall", "-Werror"]
@@ -96,4 +98,4 @@ def haskell_test(name, srcs = [], visibility = None, **kwargs):
     """Thin wrapper over the rules_haskell haskell_test macro."""
     upstream = upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))
-    dx_wrap_test(name, _haskell_test, _haskell_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
+    dx_wrap_test(name, _haskell_test, _haskell_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, coverage_collector = HASKELL_COVERAGE_COLLECTOR, **kwargs)

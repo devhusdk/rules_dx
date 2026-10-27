@@ -1,6 +1,6 @@
 """Lua rules for dx: the core Lua rules plus dx quality source ownership."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_quality_sources", "dx_with_tag")
 load(
     "//lua/private:lua.bzl",
     "LUA_EXECUTABLE_ATTRS",
@@ -85,4 +85,4 @@ def lua_binary(name, **kwargs):
 
 def lua_test(name, **kwargs):
     """A Lua test; it passes when main returns or calls os.exit(0)."""
-    _lua_test(name = name, tags = lua_deferred_tags(kwargs.pop("tags", None)), **kwargs)
+    _lua_test(name = name, tags = dx_with_tag(lua_deferred_tags(kwargs.pop("tags", None)), DX_NO_COVERAGE_COLLECTOR_TAG), **kwargs)

@@ -20,7 +20,8 @@ CJSON_ARCHIVE
 FMT_ARCHIVE
 "#;
 
-const ROOT_BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "clang_format_config", "clang_tidy_config")
+const ROOT_BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "clang_format_config", "clang_tidy_config", "cppcheck_config")
+load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 
 clang_format_config(
     name = "clang_format_config",
@@ -33,7 +34,32 @@ clang_tidy_config(
     src = ".clang-tidy",
     visibility = ["//:__subpackages__"],
 )
+
+cppcheck_config(
+    name = "cppcheck_config",
+    src = "cppcheck-suppressions.txt",
+    visibility = ["//:__subpackages__"],
+)
 "#;
+
+const CPPCHECK_POLICY: &str = r#"
+quality_family(
+    name = "cppcheck_cc_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cc",
+    lint = ["cppcheck"],
+)
+
+workspace_policy(
+    name = "cppcheck_policy",
+    families = [":cppcheck_cc_family"],
+)
+"#;
+
+const CPPCHECK_SUPPRESSIONS: &str = "unusedFunction\n";
 
 const CLANG_TIDY: &str =
     "Checks: '-*,readability-braces-around-statements'\nWarningsAsErrors: '*'\n";
@@ -80,6 +106,20 @@ cc_library(
     copts = ["-std=c11"],
 )
 
+cc_library(
+    name = "cppcheck_probe",
+    srcs = ["cppcheck_probe.c"],
+    aspect_hints = ["//:cppcheck_config"],
+    copts = ["-std=c11"],
+)
+
+cc_library(
+    name = "cppcheck_probe_cc",
+    srcs = ["cppcheck_probe.cc"],
+    aspect_hints = ["//:cppcheck_config"],
+    copts = ["-std=c++17"],
+)
+
 cc_test(
     name = "failing_test",
     srcs = ["failing_test.c"],
@@ -104,6 +144,10 @@ const UNDECLARED: &str =
     "#include \"cJSON.h\"\n\nint parse(void) { return cJSON_Parse(\"1\") != 0; }\n";
 
 const LINT_ERROR: &str = "int sign(int a) {\n  if (a < 0) return -1;\n  return 1;\n}\n";
+
+const CPPCHECK_PROBE_C: &str = "int deref(void) {\n  int *slot = 0;\n  return *slot;\n}\n";
+
+const CPPCHECK_PROBE_CC: &str = "int deref() {\n  int *slot = nullptr;\n  return *slot;\n}\n";
 
 const FAILING_TEST: &str = "#include <stdio.h>\n\nint main(void) {\n  fprintf(stderr, \"stock mismatch\\n\");\n  return 1;\n}\n";
 
@@ -242,7 +286,10 @@ fn write_consumer(root: &Path) {
         &root.join(".bazelrc"),
         &read(&rules.join("tools/bazelrc/preset.bazelrc")),
     );
-    write(&root.join("BUILD.bazel"), ROOT_BUILD);
+    write(
+        &root.join("BUILD.bazel"),
+        &format!("{ROOT_BUILD}{CPPCHECK_POLICY}"),
+    );
     write(&root.join(".clang-format"), "BasedOnStyle: LLVM\n");
     write(&root.join(".clang-tidy"), CLANG_TIDY);
     write(
@@ -266,6 +313,12 @@ fn write_consumer(root: &Path) {
     write(&root.join("negative/type_error.cc"), TYPE_ERROR);
     write(&root.join("negative/undeclared.c"), UNDECLARED);
     write(&root.join("negative/lint_error.c"), LINT_ERROR);
+    write(&root.join("negative/cppcheck_probe.c"), CPPCHECK_PROBE_C);
+    write(&root.join("negative/cppcheck_probe.cc"), CPPCHECK_PROBE_CC);
+    write(
+        &root.join("cppcheck-suppressions.txt"),
+        CPPCHECK_SUPPRESSIONS,
+    );
     write(&root.join("negative/failing_test.c"), FAILING_TEST);
     write(&root.join("negative/crashing_test.cc"), CRASHING_TEST);
 }
@@ -770,6 +823,35 @@ fn lint_passes_the_applications_and_reports_a_clang_tidy_error() {
         "{}",
         dirty.combined()
     );
+}
+
+#[test]
+fn lint_reports_cppcheck_findings_in_c_and_cpp() {
+    let case = consumer();
+    for (target, file) in [
+        ("//negative:cppcheck_probe", "negative/cppcheck_probe.c:3:"),
+        (
+            "//negative:cppcheck_probe_cc",
+            "negative/cppcheck_probe.cc:3:",
+        ),
+    ] {
+        let dirty = dx(
+            &case,
+            &[
+                "lint",
+                target,
+                "--",
+                "--@rules_dx//config:workspace=//:cppcheck_policy",
+            ],
+        );
+        assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
+        assert!(dirty.combined().contains(file), "{}", dirty.combined());
+        assert!(
+            dirty.combined().contains("nullPointer"),
+            "{}",
+            dirty.combined()
+        );
+    }
 }
 
 fn files_under(dir: &Path) -> Vec<(PathBuf, String)> {

@@ -282,9 +282,15 @@ the spec fails the build with
 A missing bundle or spec exits 2. An `aab` without one `.aab` or a
 `device_spec` without one `.json` fails at analysis.
 
+`android_adb_install(name, apk_set = ":set")` installs the set with
+`adb install-multiple`. Give it exactly one of `apk` or `apk_set`; an
+`apk_set` that is not an `android_apk_set` fails at analysis. The set is
+a development install only because it uses the public debug keystore.
+Get a spec from a device with `bundletool get-device-spec`.
+
 On a qualified host with `emulator-5554` running,
-`bazel test //android/tests/fixtures/rust_apk:aab_emulator_test` installs
-the fixture set, starts the app and finds its lifecycle line in logcat.
+`tools/dx run $pkg:install_set $pkg:start` installs the fixture set and
+starts it; `device_run.sh` checks its logcat.
 
 ### Upload signing
 

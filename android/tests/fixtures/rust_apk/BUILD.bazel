@@ -351,7 +351,7 @@ sh_test(
         "@dx_android_sdk//:zipalign",
         "@rules_java//toolchains:current_java_runtime",
     ],
-        toolchains = ["@rules_java//toolchains:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(
@@ -676,20 +676,6 @@ sh_test(
         "//android/packaging:bundletool",
         "@rules_android//tools/android:debug_keystore",
     ],
-)
-
-sh_test(
-    name = "aab_emulator_test",
-    srcs = ["aab_emulator.sh"],
-    args = [
-        "$(rootpath //android/packaging:adb_ops.sh)",
-        "$(rootpath :app_apk_set)",
-    ],
-    data = [
-        ":app_apk_set",
-        "//android/packaging:adb_ops.sh",
-    ],
-    tags = ["manual"],
 )
 
 real_source_target(

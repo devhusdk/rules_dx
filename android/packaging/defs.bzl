@@ -314,6 +314,29 @@ _rust_android_apk = rule(
     },
 )
 
+DxApkSetInfo = provider(
+    doc = "A built APK set: the extracted split APK directory, the .apks archive, and the device spec.",
+    fields = {
+        "apks": "The .apks archive File.",
+        "apks_dir": "Tree artifact of extracted split APKs.",
+        "device_spec": "The device spec JSON File.",
+    },
+)
+
+def _apk_set_dir_impl(ctx):
+    src = ctx.attr.src
+    if DxApkSetInfo not in src:
+        fail("android_adb_install: '" + str(src.label) + "' is not an android_apk_set")
+    return [DefaultInfo(files = depset([src[DxApkSetInfo].apks_dir]))]
+
+_apk_set_dir = rule(
+    implementation = _apk_set_dir_impl,
+    doc = "Exposes the extracted split APK directory of an android_apk_set.",
+    attrs = {
+        "src": attr.label(doc = "An android_apk_set target.", allow_files = True, mandatory = True),
+    },
+)
+
 def _apk_file_impl(ctx):
     src = ctx.attr.src
     kind = "unsigned" if ctx.attr.unsigned else "signed"
@@ -423,8 +446,14 @@ def android_adb_install(name, apk = None, serial = "", apk_set = None, visibilit
     data = [":" + name + "_selection"]
     env = {"DX_ADB_SERIAL": serial}
     if apk_set != None:
-        data.append(apk_set)
-        env["DX_ADB_APKS"] = "$(rootpath " + apk_set + ")"
+        _apk_set_dir(
+            name = name + "_apk_set",
+            src = apk_set,
+            tags = ["manual"],
+            visibility = ["//visibility:private"],
+        )
+        data.insert(0, ":" + name + "_apk_set")
+        env["DX_ADB_APKS"] = "$(rootpath :" + name + "_apk_set)"
         env["DX_ADB_OP"] = "install-multiple"
     if apk != None:
         _apk_file(
@@ -751,6 +780,7 @@ def _apk_set_impl(ctx):
     )
     return [
         DefaultInfo(files = depset([out_dir])),
+        DxApkSetInfo(apks_dir = out_dir, apks = apks, device_spec = specs[0]),
         OutputGroupInfo(apks = depset([apks])),
     ]
 
@@ -762,11 +792,12 @@ android_apk_set = rule(
         "device_spec": attr.label(allow_files = True, mandatory = True, doc = "bundletool device spec JSON."),
         "_build_apk_set": attr.label(
             default = Label("//android/packaging:build_apk_set.sh"),
+            doc = "Script that runs bundletool build-apks and extract-apks.",
             allow_single_file = True,
             executable = True,
             cfg = "exec",
         ),
-        "_bundletool": attr.label(default = _BUNDLETOOL, executable = True, cfg = "exec"),
-        "_keystore": attr.label(default = _DEBUG_KEYSTORE, allow_single_file = True),
+        "_bundletool": attr.label(default = _BUNDLETOOL, executable = True, cfg = "exec", doc = "Pinned bundletool."),
+        "_keystore": attr.label(default = _DEBUG_KEYSTORE, allow_single_file = True, doc = "Public rules_android debug keystore; debug installs only."),
     },
 )

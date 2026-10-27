@@ -288,6 +288,18 @@ failure_test(
     target = ":install_none_selection",
 )
 
+android_adb_install(
+    name = "install_not_set",
+    apk_set = "//android/tests/fixtures/rust_apk:dummy.apk",
+    serial = "emulator-5554",
+)
+
+failure_test(
+    name = "install_not_set_test",
+    expected_failure_substring = "is not an android_apk_set",
+    target = ":install_not_set_apk_set",
+)
+
 android_apk_set(
     name = "apk_set_bad_spec",
     aab = "//android/tests/fixtures/rust_apk:dummy.apk",

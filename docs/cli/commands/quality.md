@@ -944,8 +944,8 @@ graphql_eslint_config(
 
 ```json
 {
-  "schema": "api/schema.graphql",
-  "documents": ["api/fragments.graphql"],
+  "schema": "graph/schema.graphql",
+  "documents": ["graph/fragments.graphql"],
   "rules": {
     "operations": {
       "@graphql-eslint/fields-on-correct-type": "error",
@@ -990,8 +990,8 @@ target that only defines shared fragments would report them as unused. Style
 rules are off unless you add them.
 
 ```sh
-bazel run @rules_dx//:dx -- lint //api/...
-bazel run @rules_dx//:dx -- format --apply //api/...
+bazel run @rules_dx//:dx -- lint //graph/...
+bazel run @rules_dx//:dx -- format --apply //graph/...
 ```
 
 Lint is check-only: `lint --apply` never rewrites a file. Each finding has the

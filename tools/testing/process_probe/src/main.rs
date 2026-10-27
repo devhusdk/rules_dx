@@ -48,6 +48,7 @@ Usage: process_probe [options]
   --descendant-alive-lock=PATH  lock the descendant holds; wait until it is held
   --raise-signal=N              die by signal N (unix only)
   --count-sigint=PATH           append one byte to PATH per SIGINT instead of dying (unix only)
+  --require-foreground          exit 3 unless this probe's group holds the terminal (unix only)
   --help                        write this text and exit 0
 
 With PROCESS_PROBE_SHIM_LOG set, the probe ignores its arguments, writes the
@@ -70,6 +71,8 @@ const EXIT_OUTPUT: i32 = 74;
 const EXIT_ENV_MISSING: i32 = 70;
 /// A forbidden environment variable was set.
 const EXIT_ENV_SET: i32 = 71;
+/// The probe's group did not hold the terminal.
+const EXIT_BACKGROUND: i32 = 3;
 
 #[derive(Debug, Default)]
 struct Plan {
@@ -99,6 +102,7 @@ struct Plan {
     descendant_alive_lock: Option<String>,
     raise_signal: Option<i32>,
     count_sigint: Option<String>,
+    require_foreground: bool,
 }
 
 fn count<T: std::str::FromStr>(value: &str, flag: &str) -> Result<T, String> {
@@ -139,6 +143,7 @@ const SWITCH_FLAGS: &[&str] = &[
     "--spawn-descendant",
     "--detached-descendant",
     "--descendant-own-group",
+    "--require-foreground",
 ];
 
 fn parse(args: &[String]) -> Result<Plan, String> {
@@ -154,6 +159,7 @@ fn parse(args: &[String]) -> Result<Plan, String> {
                 "--print-argv" => plan.print_argv = true,
                 "--print-cwd" => plan.print_cwd = true,
                 "--print-exe" => plan.print_exe = true,
+                "--require-foreground" => plan.require_foreground = true,
                 "--detached-descendant" => {
                     plan.detached_descendant = true;
                     plan.spawn_descendant = true;
@@ -443,6 +449,20 @@ fn start_counting_sigint(path: &str) -> io::Result<()> {
     std::fs::rename(&staging, path)
 }
 
+#[cfg(unix)]
+fn holds_terminal() -> bool {
+    use std::os::fd::AsRawFd;
+    unsafe extern "C" {
+        fn tcgetpgrp(fd: i32) -> i32;
+        fn getpgrp() -> i32;
+    }
+    let Ok(tty) = std::fs::File::open("/dev/tty") else {
+        return false;
+    };
+    let foreground = unsafe { tcgetpgrp(tty.as_raw_fd()) };
+    foreground > 0 && foreground == unsafe { getpgrp() }
+}
+
 fn sleep_until_gate(plan: &Plan) {
     let Some(gate) = &plan.gate else {
         std::thread::sleep(plan.sleep);
@@ -547,6 +567,17 @@ fn main() {
         Some(Err(error)) => fail(EXIT_OUTPUT, &format!("cannot hold the alive lock: {error}")),
         held => held,
     };
+    #[cfg(unix)]
+    if plan.require_foreground && !holds_terminal() {
+        fail(
+            EXIT_BACKGROUND,
+            "this probe's group does not hold the terminal",
+        );
+    }
+    #[cfg(not(unix))]
+    if plan.require_foreground {
+        fail(EXIT_USAGE, "--require-foreground needs unix");
+    }
     #[cfg(unix)]
     if let Some(path) = &plan.count_sigint {
         if let Err(error) = start_counting_sigint(path) {

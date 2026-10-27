@@ -20,10 +20,9 @@ dx spells them with the name your MODULE.bazel gives rules_dx, for example
 `--@my_dx//config:clippy_output_diagnostics=true` when `repo_name = "my_dx"`.
 
 Ctrl-C, `SIGTERM` or `SIGHUP` stops a run. A `SIGHUP` that was ignored when
-dx started, as under `nohup`, stays ignored. Ctrl-C, and a signal sent to dx itself,
-even from outside a container, reach Bazel or the app once.
-On macOS in a terminal, a `SIGINT` or `SIGHUP` sent to dx alone is not passed on,
-and dx stops once Bazel or the app ends; send `SIGTERM` to stop it right away.
+dx started, as under `nohup`, stays ignored. Ctrl-C, a signal sent to dx, and a signal
+sent to dx's process group each reach Bazel or the app once, even from outside a container.
+In a terminal, Bazel or the app runs in its own foreground process group; Ctrl-Z stops it and dx, and `fg` resumes both.
 Outside a terminal, every process dx started gets it too, and any still running after
 10 seconds is killed. A stopped run prints `dx: cancelled: stopped by signal N`, exits `128` plus the signal number, and emits no
 `command_finished` event. The shared Bazel server keeps running. If Bazel

@@ -463,6 +463,8 @@ fn wait_for_file(run: &mut Run, path: &Path) {
 enum Sender {
     Tty,
     Kill,
+    GroupKill,
+    BuildGroup,
     #[cfg(target_os = "linux")]
     Unattributed,
 }
@@ -471,16 +473,11 @@ fn senders() -> Vec<Sender> {
     vec![
         Sender::Tty,
         Sender::Kill,
+        Sender::GroupKill,
+        Sender::BuildGroup,
         #[cfg(target_os = "linux")]
         Sender::Unattributed,
     ]
-}
-
-fn expected_sigints(sender: Sender) -> &'static [u8] {
-    match sender {
-        Sender::Kill if cfg!(not(target_os = "linux")) => b"",
-        _ => b"I",
-    }
 }
 
 #[cfg(target_os = "linux")]
@@ -511,32 +508,35 @@ fn a_terminal_child_gets_each_sigint_once() {
         let build = run.build_pid();
         let log = run.dir().join("sigint");
         wait_for_file(&mut run, &log);
-        assert_eq!(
-            unsafe { libc::getpgid(build) },
-            run.child.id() as i32,
-            "the build must share the terminal group\n{}",
-            run.context()
-        );
+        let build_pgid = assert_foreground_build(&run, &pty, build);
         match sender {
             Sender::Tty => (&pty.master).write_all(b"\x03").expect("ctrl-c"),
             Sender::Kill => {
                 run.signal(libc::SIGINT);
             }
+            Sender::GroupKill => unsafe {
+                libc::kill(-(run.child.id() as i32), libc::SIGINT);
+            },
+            Sender::BuildGroup => unsafe {
+                libc::kill(-build_pgid, libc::SIGINT);
+            },
             #[cfg(target_os = "linux")]
             Sender::Unattributed => queue_unattributed(run.child.id() as i32, libc::SIGINT),
         }
-        let expected = expected_sigints(sender);
+        let expected = b"I";
         let deadline = Instant::now() + Duration::from_secs(5);
         while fs::read(&log).map_or(0, |bytes| bytes.len()) < expected.len()
             && Instant::now() < deadline
         {
             std::thread::sleep(Duration::from_millis(10));
         }
-        if expected.is_empty() {
-            std::thread::sleep(Duration::from_millis(100));
-        }
+        std::thread::sleep(Duration::from_millis(100));
         fs::write(run.dir().join("gate"), b"").expect("open the gate");
         let status = run.exit();
+        assert!(
+            wait_until_gone(build_pgid, Duration::from_secs(5)),
+            "{sender:?}: the terminal group outlived dx"
+        );
         assert_eq!(
             status.signal(),
             Some(libc::SIGINT),
@@ -551,6 +551,76 @@ fn a_terminal_child_gets_each_sigint_once() {
         );
         assert_eq!(run_dirs(&run), Vec::<PathBuf>::new(), "{sender:?}");
     }
+}
+
+fn assert_foreground_build(run: &Run, pty: &Pty, build: i32) -> i32 {
+    let build_pgid = unsafe { libc::getpgid(build) };
+    assert_ne!(
+        build_pgid,
+        run.child.id() as i32,
+        "the build must leave dx's group\n{}",
+        run.context()
+    );
+    assert_eq!(
+        build_pgid,
+        unsafe { libc::tcgetpgrp(pty.master.as_raw_fd()) },
+        "the build's group must hold the terminal\n{}",
+        run.context()
+    );
+    build_pgid
+}
+
+#[test]
+fn a_terminal_build_resumes_after_ctrl_z() {
+    let pty = open_pty();
+    let mut run = Run::launch(
+        "dx-stream-tty-stop-",
+        &["build", "//..."],
+        &|dir| {
+            format!(
+                "--count-sigint={} --gate={} --sleep-ms=30000",
+                dir.join("sigint").display(),
+                dir.join("gate").display()
+            )
+        },
+        Some(&pty),
+    );
+    let build = run.build_pid();
+    let log = run.dir().join("sigint");
+    wait_for_file(&mut run, &log);
+    let build_pgid = assert_foreground_build(&run, &pty, build);
+    (&pty.master).write_all(b"\x1a").expect("ctrl-z");
+    std::thread::sleep(Duration::from_millis(300));
+    fs::write(run.dir().join("gate"), b"").expect("open the gate");
+    let status = run.exit();
+    assert_eq!(status.code(), Some(0), "{status:?}\n{}", run.context());
+    assert!(wait_until_gone(build_pgid, Duration::from_secs(5)));
+}
+
+#[test]
+fn the_terminal_returns_to_dx_after_a_build() {
+    let pty = open_pty();
+    let scratch = dx_test_scratch::scratch("dx-stream-tty-return-");
+    let base = scratch.path().to_path_buf();
+    let session = dx_session(&base, &["build", "//..."], "", "");
+    let script = format!(
+        "{} build //... && exec {} --require-foreground",
+        dx_binary().display(),
+        dx_testing::process_probe().display()
+    );
+    let mut command = Command::new("/bin/sh");
+    command.arg("-c").arg(script).stdin(Stdio::null());
+    command.current_dir(session.get_current_dir().expect("workspace"));
+    command.env_clear();
+    for (key, value) in session.get_envs() {
+        if let Some(value) = value {
+            command.env(key, value);
+        }
+    }
+    in_terminal(&mut command, pty.slave.clone());
+    let mut run = Run::spawn(scratch, command);
+    let status = run.exit();
+    assert_eq!(status.code(), Some(0), "{status:?}\n{}", run.context());
 }
 
 fn wait_until_gone(pgid: i32, within: Duration) -> bool {

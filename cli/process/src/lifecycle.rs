@@ -321,7 +321,7 @@ pub enum StreamStdin {
 /// Who owns a streamed child's process tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StreamGroup {
-    /// The child shares the parent's terminal process group.
+    /// The child runs in its own foreground group on the parent's terminal.
     Terminal,
     /// The child leads its own group, which the parent signals and cleans up.
     Owned,
@@ -375,48 +375,16 @@ const WITHDRAW_SIGNAL: i32 = 15;
 
 static FORWARD_TARGET: AtomicI32 = AtomicI32::new(0);
 
-/// Who raised a stop signal.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StopOrigin {
-    /// The kernel raised it for the controlling terminal.
-    Terminal,
-    /// A process sent it.
-    Process,
-}
+/// The stop signals dx forwards to a streamed child: SIGINT, SIGTERM and SIGHUP.
+pub const STOP_SIGNALS: [i32; 3] = [2, 15, 1];
 
-/// Classifies a stop signal from its siginfo code; safe inside a signal handler.
-#[cfg(any(target_os = "linux", target_os = "android"))]
-pub fn stop_origin(_signo: i32, si_code: i32) -> StopOrigin {
-    if si_code > 0 {
-        StopOrigin::Terminal
-    } else {
-        StopOrigin::Process
-    }
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
-const TERMINAL_SIGNALS: [i32; 2] = [2, 1];
-
-/// Classifies a stop signal from its number; SIGINT and SIGHUP count as terminal-raised; safe inside a signal handler.
-#[cfg(not(any(target_os = "linux", target_os = "android")))]
-pub fn stop_origin(signo: i32, _si_code: i32) -> StopOrigin {
-    if TERMINAL_SIGNALS.contains(&signo) {
-        StopOrigin::Terminal
-    } else {
-        StopOrigin::Process
-    }
-}
-
-/// Records a stop signal and forwards it unless the terminal already delivered it; safe inside a signal handler.
-pub fn forward_stop(signo: i32, origin: StopOrigin) {
+/// Records a stop signal and forwards it once to the running child's group; safe inside a signal handler.
+pub fn forward_stop(signo: i32) {
     crate::record_interrupt(signo);
-    forward(FORWARD_TARGET.load(Ordering::SeqCst), signo, origin);
+    forward(FORWARD_TARGET.load(Ordering::SeqCst), signo);
 }
 
-fn forward(target: i32, signo: i32, origin: StopOrigin) {
-    if target > 0 && origin == StopOrigin::Terminal {
-        return;
-    }
+fn forward(target: i32, signo: i32) {
     backend::send(target, signo);
 }
 
@@ -505,12 +473,25 @@ pub(crate) fn run_streamed_in(
         .filter(|_| owned)
         .and_then(crate::groups::GroupLease::acquire_in);
     let held = spec.held;
-    let (mut child, tree) = backend::spawn_streamed(&mut command, owned, &held)?;
+    let mut job = if owned {
+        None
+    } else {
+        backend::TerminalJob::start()
+    };
+    let group = match (&job, owned) {
+        (_, true) => backend::Group::Owned,
+        (Some(job), false) => backend::Group::Join(job.pgid()),
+        (None, false) => backend::Group::Own,
+    };
+    let (mut child, tree) = backend::spawn_streamed(&mut command, group, &held)?;
     if let Some(lease) = lease.as_mut() {
         lease.record(child.id() as i32);
     }
-    let target = backend::stream_target(&child, owned);
+    let target = backend::stream_target(&child, group);
     let mut forwarding = Forwarding::register(target);
+    if let Some(job) = job.as_ref() {
+        record_reported(job);
+    }
     let mut stopped = stop();
     if let Some(signal) = stopped {
         backend::send(target, signal);
@@ -533,8 +514,13 @@ pub(crate) fn run_streamed_in(
             Ok(None) => {}
             Err(err) => {
                 backend::force_stream(&mut child, target);
+                drop(job);
                 return Err(err);
             }
+        }
+        if let Some(job) = job.as_ref() {
+            record_reported(job);
+            job.tend(child.id() as i32);
         }
         if stopped.is_none() {
             stopped = stop();
@@ -560,6 +546,9 @@ pub(crate) fn run_streamed_in(
     };
     if !owned {
         forwarding.clear();
+        if let Some(job) = job.take() {
+            record_reported(&job);
+        }
     }
     let deadline = Instant::now() + cleanup.drain;
     while !drained.is_empty() {
@@ -602,6 +591,13 @@ pub(crate) fn run_streamed_in(
         (None, Some(status)) if !withdrawn => StreamOutcome::Exited(exit_of(&status)),
         (None, _) => StreamOutcome::Withdrawn,
     })
+}
+
+/// Records the stop signals the terminal delivered straight to the child's group; they are not forwarded again.
+fn record_reported(job: &backend::TerminalJob) {
+    while let Some(signo) = job.take_reported() {
+        crate::record_interrupt(signo);
+    }
 }
 
 fn settle_owned_tree(target: i32, cleanup: CleanupBudget) {
@@ -650,6 +646,7 @@ fn copy_out<R: io::Read + Send + 'static>(
 ) -> mpsc::Receiver<()> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
+        backend::allow_background_tty_writes();
         let _ = io::copy(&mut pipe, &mut sink);
         let _ = sink.flush();
         drop(pipe);
@@ -658,10 +655,27 @@ fn copy_out<R: io::Read + Send + 'static>(
     rx
 }
 
+#[cfg(unix)]
+#[path = "terminal.rs"]
+mod terminal;
+
 mod backend {
+    /// Which process group a streamed child joins.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[cfg_attr(not(unix), allow(dead_code))]
+    pub enum Group {
+        /// It leads its own group, which the parent owns and cleans up.
+        Owned,
+        /// It joins this terminal job's foreground group.
+        Join(i32),
+        /// It leads its own group and nobody cleans up after it.
+        Own,
+    }
+
     #[cfg(unix)]
     mod unix {
         use super::super::{Command, Descendants, ExitStatus};
+        use super::Group;
         use std::io;
         use std::process::{Child, ChildStderr, ChildStdout};
 
@@ -784,24 +798,31 @@ mod backend {
 
         pub fn spawn_streamed(
             command: &mut Command,
-            owned: bool,
+            group: Group,
             held: &[std::fs::File],
         ) -> io::Result<(Child, StreamTree)> {
             use std::os::unix::process::CommandExt;
-            if owned {
-                command.process_group(0);
-                stop_with_parent(command);
+            match group {
+                Group::Owned => {
+                    command.process_group(0);
+                    stop_with_parent(command);
+                }
+                Group::Join(pgid) => {
+                    command.process_group(pgid);
+                }
+                Group::Own => {
+                    command.process_group(0);
+                }
             }
             inherit_held(command, held);
             Ok((command.spawn()?, StreamTree))
         }
 
-        pub fn stream_target(child: &Child, owned: bool) -> i32 {
-            let pid = child.id() as i32;
-            if owned {
-                -pid
-            } else {
-                pid
+        /// The negative group id every forwarded signal goes to.
+        pub fn stream_target(child: &Child, group: Group) -> i32 {
+            match group {
+                Group::Join(pgid) => -pgid,
+                Group::Owned | Group::Own => -(child.id() as i32),
             }
         }
 
@@ -1187,7 +1208,7 @@ mod backend {
         /// kill-on-close job so the tree never outlives the handles' locks.
         pub fn spawn_streamed(
             command: &mut Command,
-            _owned: bool,
+            _group: super::Group,
             held: &[std::fs::File],
         ) -> io::Result<(std::process::Child, StreamTree)> {
             use std::os::windows::process::CommandExt;
@@ -1221,6 +1242,9 @@ mod backend {
     }
 
     #[cfg(unix)]
+    pub use super::terminal::{allow_background_tty_writes, TerminalJob};
+
+    #[cfg(unix)]
     pub use unix::{
         force_stream, send, send_kill, spawn_owned, spawn_streamed, stream_target,
         terminal_foreground, terminate_forced, terminate_graceful, termination_signal, tree_alive,
@@ -1242,13 +1266,13 @@ mod backend {
         #[cfg(not(windows))]
         pub fn spawn_streamed(
             command: &mut Command,
-            _owned: bool,
+            _group: super::Group,
             _held: &[std::fs::File],
         ) -> io::Result<(Child, StreamTree)> {
             Ok((command.spawn()?, StreamTree))
         }
 
-        pub fn stream_target(_child: &Child, _owned: bool) -> i32 {
+        pub fn stream_target(_child: &Child, _group: super::Group) -> i32 {
             0
         }
 
@@ -1267,13 +1291,35 @@ mod backend {
         pub fn terminal_foreground() -> bool {
             true
         }
+
+        pub fn allow_background_tty_writes() {}
+
+        /// No portable terminal job; streamed children share the console.
+        pub struct TerminalJob;
+
+        impl TerminalJob {
+            pub fn start() -> Option<TerminalJob> {
+                None
+            }
+
+            pub fn pgid(&self) -> i32 {
+                0
+            }
+
+            pub fn take_reported(&self) -> Option<i32> {
+                None
+            }
+
+            pub fn tend(&self, _child: i32) {}
+        }
     }
 
     #[cfg(not(any(unix, windows)))]
     pub use plain_stream::spawn_streamed;
     #[cfg(not(unix))]
     pub use plain_stream::{
-        force_stream, send, send_kill, stream_target, terminal_foreground, tree_alive,
+        allow_background_tty_writes, force_stream, send, send_kill, stream_target,
+        terminal_foreground, tree_alive, TerminalJob,
     };
     #[cfg(windows)]
     pub use windows::{

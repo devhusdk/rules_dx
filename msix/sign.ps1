@@ -39,6 +39,109 @@ function Invoke-Signtool([string]$Signtool, [string[]]$Arguments) {
     return [pscustomobject]@{ Exit = $LASTEXITCODE; Output = $output.Trim() }
 }
 
+$tempName = "dx_msix_sign temporary"
+
+function Enter-SignLock([string]$Thumbprint) {
+    $mutex = [System.Threading.Mutex]::new($false, "Global\dx_msix_sign_$Thumbprint")
+    try {
+        if (-not $mutex.WaitOne([TimeSpan]::FromMinutes(10))) {
+            $mutex.Dispose()
+            throw "timed out waiting for another signing run with certificate $Thumbprint"
+        }
+    } catch [System.Threading.AbandonedMutexException] {
+    }
+    return $mutex
+}
+
+function Import-SigningCertificate([string]$Path, [string]$Thumbprint) {
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+    $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+    try {
+        $existing = $store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $false)
+        $stale = $existing.Count -gt 0 -and $existing[0].FriendlyName -ceq $tempName
+        if ($existing.Count -gt 0 -and $existing[0].HasPrivateKey) {
+            return [pscustomobject]@{ Certificate = $existing[0]; Owned = $stale; Restore = $null }
+        }
+        $restore = $null
+        if ($existing.Count -gt 0 -and -not $stale) {
+            $restore = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($existing[0].RawData)
+            $restore.FriendlyName = $existing[0].FriendlyName
+        }
+        $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::UserKeySet -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
+        $loaded = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($Path, $env:DX_MSIX_PFX_PASSWORD, $flags)
+        $import = [pscustomobject]@{ Certificate = $loaded; Owned = $true; Restore = $restore }
+        try {
+            $loaded.FriendlyName = $tempName
+            foreach ($found in $existing) {
+                $store.Remove($found)
+            }
+            $store.Add($loaded)
+        } catch {
+            Remove-PrivateKey $loaded
+            if ($restore) {
+                $store.Add($restore)
+            }
+            throw
+        }
+        return $import
+    } finally {
+        $store.Close()
+    }
+}
+
+function Remove-PrivateKey($Certificate) {
+    try {
+        $key = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($Certificate)
+        if ($null -eq $key) {
+            $key = [System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions]::GetECDsaPrivateKey($Certificate)
+        }
+        if ($key -is [System.Security.Cryptography.RSACng]) {
+            $key.Key.Delete()
+        } elseif ($key -is [System.Security.Cryptography.ECDsaCng]) {
+            $key.Key.Delete()
+        } elseif ($key -is [System.Security.Cryptography.RSACryptoServiceProvider]) {
+            $key.PersistKeyInCsp = $false
+            $key.Clear()
+        }
+    } catch {
+        [Console]::Error.WriteLine("dx_msix_sign: cannot delete the private key of $($Certificate.Thumbprint): $($_.Exception.Message)")
+    }
+}
+
+function Remove-SigningCertificate($Import) {
+    if (-not $Import -or -not $Import.Owned) {
+        return
+    }
+    $certificate = $Import.Certificate
+    try {
+        $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+        $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+        try {
+            foreach ($found in $store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $certificate.Thumbprint, $false)) {
+                $store.Remove($found)
+            }
+        } finally {
+            $store.Close()
+        }
+    } catch {
+        [Console]::Error.WriteLine("dx_msix_sign: cannot remove certificate $($certificate.Thumbprint) from the store: $($_.Exception.Message)")
+    }
+    Remove-PrivateKey $certificate
+    if ($Import.Restore) {
+        try {
+            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
+            $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+            try {
+                $store.Add($Import.Restore)
+            } finally {
+                $store.Close()
+            }
+        } catch {
+            [Console]::Error.WriteLine("dx_msix_sign: cannot restore certificate $($certificate.Thumbprint) to the store: $($_.Exception.Message)")
+        }
+    }
+}
+
 function Copy-Package([string]$Package, [string]$Target) {
     Copy-Item -LiteralPath $Package -Destination $Target -Force
     Set-ItemProperty -LiteralPath $Target -Name IsReadOnly -Value $false
@@ -92,14 +195,23 @@ if ($certificate.SubjectName.Decode(0) -cne $publisher.Decode(0)) {
     Stop-Sign 3 "certificate subject $($certificate.Subject) does not match the package publisher $($identity.publisher)"
 }
 
-$arguments = @("sign", "/fd", "SHA256", "/f", $certificatePath)
-if ($env:DX_MSIX_PFX_PASSWORD) {
-    $arguments += @("/p", $env:DX_MSIX_PFX_PASSWORD)
-}
+$arguments = @("sign", "/fd", "SHA256", "/sha1", $certificate.Thumbprint, "/s", "My")
 $staging = Join-Path ([System.IO.Path]::GetDirectoryName($target)) ("{0}.{1}.signing{2}" -f [System.IO.Path]::GetFileNameWithoutExtension($target), $PID, [System.IO.Path]::GetExtension($target))
 $failCode = 0
 $failMessage = ""
+$lock = $null
+$import = $null
 try {
+    $lock = Enter-SignLock $certificate.Thumbprint
+    try {
+        $import = Import-SigningCertificate $certificatePath $certificate.Thumbprint
+    } catch {
+        $failCode = 3
+        $failMessage = "cannot open certificate ${certificatePath}: $($_.Exception.Message)"
+    }
+    if ($failCode -ne 0) {
+        throw $failMessage
+    }
     Copy-Package $package $staging
     $result = Invoke-Signtool $signtool ($arguments + @($staging))
     if ($result.Exit -ne 0) {
@@ -117,11 +229,18 @@ try {
         Move-Item -LiteralPath $staging -Destination $target -Force
     }
 } catch {
-    $failCode = 1
-    $failMessage = $_.Exception.Message
+    if ($failCode -eq 0) {
+        $failCode = 1
+        $failMessage = $_.Exception.Message
+    }
 } finally {
     if (Test-Path -LiteralPath $staging) {
         Remove-Item -LiteralPath $staging -Force -ErrorAction SilentlyContinue
+    }
+    Remove-SigningCertificate $import
+    if ($lock) {
+        $lock.ReleaseMutex()
+        $lock.Dispose()
     }
 }
 if ($failCode -ne 0) {

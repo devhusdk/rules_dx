@@ -1,3 +1,4 @@
+load("//cc/rules:defs.bzl", "cc_binary")
 load("//msix:defs.bzl", "dx_msix", "dx_msix_sign")
 load("//msix:repos.bzl", "UNACCEPTED")
 load("//msix:toolchain.bzl", "msix_toolchain")
@@ -6,9 +7,18 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":cell_tests.bzl", "arm64_action_test", "attribute_failure_test", "data_paths_test", "fake_exe", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
 load(":transition.bzl", "msix_variant")
 
+# gazelle:exclude argv_signtool.c
+
 _LINUX = ["@platforms//os:linux"]
 
 _WINDOWS = ["@platforms//os:windows"]
+
+cc_binary(
+    name = "argv_signtool",
+    srcs = ["argv_signtool.c"],
+    linkopts = ["crypt32.lib"],
+    target_compatible_with = _WINDOWS,
+)
 
 fake_exe(
     name = "fake_makeappx",
@@ -437,11 +447,13 @@ pwsh_test(
     srcs = ["sign_test.ps1"],
     data = [
         ":app_arm64",
+        ":argv_signtool",
         "//examples/msix-app/app",
         "//examples/msix-app/app:app_sign",
         "//msix:signtool",
     ],
     env = {
+        "DX_MSIX_ARGV_SIGNTOOL": "$(rlocationpaths :argv_signtool)",
         "DX_MSIX_ARM64": "$(rlocationpaths :app_arm64)",
         "DX_MSIX_PACKAGE": "$(rlocationpaths //examples/msix-app/app)",
         "DX_MSIX_SIGN": "_main/examples/msix-app/app/app_sign.bat",

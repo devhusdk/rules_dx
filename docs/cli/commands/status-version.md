@@ -35,12 +35,17 @@ Inside a `dx worktree` slot it adds a `lease` check that names the holder and br
 The checks are `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`,
 `tools`, `pin`, and `agents`. With a dx launcher there is also `launcher`.
 Inside a worktree slot there is also `lease`.
+The `share` check appears only while build slots are held.
 The `slots` check appears only when a `slot-N.lock` file under the dx slots
 directory cannot be opened.
 
 - `slots`: `warn` and names each `slot-N.lock` file dx cannot open, the files
   the once-per-run skip warning also mentions. It only reads; it creates and
   locks nothing.
+- `share`: `ok` and appears only while build slots are held. It names how many
+  slots are held and the CPUs and memory a run started now would get (the
+  machine split over the held slots plus that run), assuming the default slot
+  setting. It only reads; it creates and locks nothing.
 - `toolchain`: reads the rust toolchain versions and the `rules_rust` version
   declared in `MODULE.bazel`. `ok` when they match the versions `dx` is tested
   with. `warn` when `MODULE.bazel` is missing, does not parse, declares no rust

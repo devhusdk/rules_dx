@@ -306,6 +306,24 @@ fn format_check_keeps_bytes_apply_rewrites_and_recheck_passes() {
 }
 
 #[test]
+fn an_ignored_owned_file_is_still_checked_and_rewritten() {
+    let root = consumer();
+    write(&root.join(".gitignore"), "api/fragment.gql\n");
+    write(&root.join(".prettierignore"), "api/fragment.gql\npages/\n");
+    write(&root.join("api/fragment.gql"), EXTRA_GQL_DIRTY);
+    write(&root.join("pages/index.html"), INDEX_HTML_DIRTY);
+    let run = dx(&root, "format", &[]);
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    for path in ["api/fragment.gql", "pages/index.html"] {
+        assert!(run.combined().contains(path), "{path}: {}", run.combined());
+    }
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&root.join("api/fragment.gql")), EXTRA_GQL);
+    assert_eq!(read(&root.join("pages/index.html")), INDEX_HTML);
+}
+
+#[test]
 fn a_syntax_error_is_located_and_never_clean_in_every_class() {
     for (path, broken, line) in [
         (

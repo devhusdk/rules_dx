@@ -21,6 +21,7 @@ js_binary(
 js_binary(
     name = "prettier_generated",
     data = [
+        "prettier_ignore",
         "prettier_options.json",
         "//quality/tools/javascript:node_modules/@prettier/plugin-xml",
         "//quality/tools/javascript:node_modules/prettier",

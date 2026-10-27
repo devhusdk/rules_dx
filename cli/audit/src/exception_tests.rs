@@ -210,6 +210,28 @@ fn npm_locked_markers_branch_shapes_and_merged_operators() {
 }
 
 #[test]
+fn npm_unparseable_scopes_are_incomplete_and_branches_use_three_valued_or() {
+    use crate::vuln::VersionScope::{Affected, Incomplete, Unaffected};
+    let oversized = "1".repeat(4097);
+    let many = vec!["9.9.9"; 65].join(" || ");
+    for (scope, version) in [
+        ("1.2.3", "banana"),
+        ("not a range", "1.2.3"),
+        ("1.x.3", "1.2.3"),
+        ("9.9.9 || ", "1.0.0"),
+        (oversized.as_str(), "1.0.0"),
+        (many.as_str(), "1.0.0"),
+        ("2.0.0 || banana", "1.0.0"),
+        ("1.2.3", ""),
+    ] {
+        assert_eq!(npm_assess(scope, version), Incomplete, "{scope} {version}");
+    }
+    assert_eq!(npm_assess("1.0.0 || banana", "1.0.0"), Affected);
+    assert_eq!(npm_assess("", "1.2.3"), Unaffected);
+    assert_eq!(npm_assess("<1.0.0 || >=2.0.0", "1.2.3"), Unaffected);
+}
+
+#[test]
 fn npm_malformed_partials_fail_closed() {
     assert!(!npm_in_scope("1.2.3.4", "1.2.3"));
     assert!(!npm_in_scope("1..2", "1.2.0"));

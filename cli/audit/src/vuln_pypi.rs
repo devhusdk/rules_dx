@@ -1,12 +1,6 @@
+use crate::vuln::VersionScope;
 use pep440_rs::Version;
 use std::str::FromStr;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PypiScope {
-    Affected,
-    Unaffected,
-    Incomplete,
-}
 
 pub fn normalize_pypi_name(name: &str) -> String {
     let mut out = String::with_capacity(name.len());
@@ -36,21 +30,21 @@ fn clause(part: &str) -> Option<(&str, Version)> {
     None
 }
 
-pub fn pypi_assess(scope: &str, version: &str) -> PypiScope {
+pub fn pypi_assess(scope: &str, version: &str) -> VersionScope {
     let scope = scope.trim();
     if scope.is_empty() {
-        return PypiScope::Unaffected;
+        return VersionScope::Unaffected;
     }
     let Ok(locked) = Version::from_str(version.trim()) else {
-        return PypiScope::Incomplete;
+        return VersionScope::Incomplete;
     };
     if scope == "*" {
-        return PypiScope::Affected;
+        return VersionScope::Affected;
     }
     let mut affected = true;
     for part in scope.split(',') {
         let Some((op, bound)) = clause(part) else {
-            return PypiScope::Incomplete;
+            return VersionScope::Incomplete;
         };
         let holds = match op {
             ">=" => locked >= bound,
@@ -63,12 +57,12 @@ pub fn pypi_assess(scope: &str, version: &str) -> PypiScope {
         affected &= holds;
     }
     if affected {
-        PypiScope::Affected
+        VersionScope::Affected
     } else {
-        PypiScope::Unaffected
+        VersionScope::Unaffected
     }
 }
 
 pub fn pypi_in_scope(scope: &str, version: &str) -> bool {
-    pypi_assess(scope, version) == PypiScope::Affected
+    pypi_assess(scope, version) == VersionScope::Affected
 }

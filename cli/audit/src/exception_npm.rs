@@ -1,28 +1,34 @@
+use crate::vuln::{any_scope, VersionScope};
 use nodejs_semver::{Range, Version};
 
 pub fn npm_in_scope(scope: &str, version: &str) -> bool {
+    npm_assess(scope, version) == VersionScope::Affected
+}
+
+pub fn npm_assess(scope: &str, version: &str) -> VersionScope {
     let scope_trimmed = scope.trim();
     let version_trimmed = version.trim();
-    if scope_trimmed.is_empty() || version_trimmed.is_empty() {
-        return false;
+    if scope_trimmed.is_empty() {
+        return VersionScope::Unaffected;
+    }
+    if version_trimmed.is_empty() {
+        return VersionScope::Incomplete;
     }
     if scope_trimmed.len() > 4096 || version_trimmed.len() > 256 {
-        return false;
+        return VersionScope::Incomplete;
     }
-    let locked = match parse_npm_locked(version_trimmed) {
-        Some(locked) => locked,
-        None => return false,
+    let Some(locked) = parse_npm_locked(version_trimmed) else {
+        return VersionScope::Incomplete;
     };
     let branches: Vec<&str> = scope_trimmed.split("||").collect();
     if branches.len() > 64 {
-        return false;
+        return VersionScope::Incomplete;
     }
-    for branch in branches {
-        if npm_branch_matches(branch.trim(), &locked) {
-            return true;
-        }
-    }
-    false
+    any_scope(
+        branches
+            .into_iter()
+            .map(|branch| npm_branch_assess(branch.trim(), &locked)),
+    )
 }
 
 fn parse_npm_locked(version: &str) -> Option<Version> {
@@ -44,35 +50,36 @@ fn parse_npm_locked(version: &str) -> Option<Version> {
     Version::parse(text).ok()
 }
 
-fn npm_branch_matches(branch: &str, locked: &Version) -> bool {
+fn npm_branch_assess(branch: &str, locked: &Version) -> VersionScope {
     if branch.is_empty() || branch.len() > 4096 {
-        return false;
+        return VersionScope::Incomplete;
     }
     let normalized = npm_normalize_branch(branch);
     if normalized.is_empty() {
-        return false;
+        return VersionScope::Incomplete;
     }
     let tokens: Vec<&str> = normalized.split_whitespace().collect();
     let hyphen = tokens.len() == 3 && tokens[1] == "-";
     for bound in npm_bounds(&tokens, hyphen) {
         if !npm_wildcard_is_trailing(bound) || npm_has_leading_zero(bound) {
-            return false;
+            return VersionScope::Incomplete;
         }
     }
     if !hyphen {
         for token in &tokens {
             let (operator, rest) = npm_split_operator(token);
             if operator.is_some() && npm_is_bare_wildcard(rest) {
-                return false;
+                return VersionScope::Incomplete;
             }
             if tokens.len() > 1 && npm_is_bare_wildcard(token) {
-                return false;
+                return VersionScope::Incomplete;
             }
         }
     }
     match Range::parse(&normalized) {
-        Ok(range) => range.satisfies(locked),
-        Err(_) => false,
+        Ok(range) if range.satisfies(locked) => VersionScope::Affected,
+        Ok(_) => VersionScope::Unaffected,
+        Err(_) => VersionScope::Incomplete,
     }
 }
 

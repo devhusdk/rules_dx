@@ -1,25 +1,38 @@
 use super::{
-    canonical_severity, go_in_scope, maven_in_scope, normalize_level, normalize_pypi_name,
-    nuget_in_scope, pypi_assess, pypi_in_scope, ruby_assess, ruby_in_scope, Advisory,
-    LockedPackage, PypiScope, RubyScope, Unassessed, VulnFinding, REASON_GIT, REASON_PRIVATE,
-    REASON_VERSION_SYNTAX,
+    canonical_severity, go_assess, maven_assess, normalize_level, normalize_pypi_name,
+    nuget_assess, pypi_assess, ruby_assess, split_gem_lock_version, Advisory, LockedPackage,
+    Unassessed, VersionScope, VulnFinding, REASON_GIT, REASON_PRIVATE, REASON_VERSION_SYNTAX,
 };
 use crate::exception::{
-    check_expiry, npm_in_scope, validate_exception, version_in_scope, ExceptionProblem, FindingRef,
+    cargo_assess, check_expiry, npm_assess, validate_exception, ExceptionProblem, FindingRef,
     RiskException,
 };
 
-pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
+/// The single dispatch table from a lock set to its version matcher.
+pub fn version_assess(set: &str, scope: &str, version: &str) -> VersionScope {
     match set {
-        "cargo" => version_in_scope(scope, version),
-        "npm" => npm_in_scope(scope, version),
-        "go" => go_in_scope(scope, version),
-        "maven" => maven_in_scope(scope, version),
-        "nuget" => nuget_in_scope(scope, version),
-        "ruby" => ruby_in_scope(scope, version),
-        "uv" => pypi_in_scope(scope, version),
-        _ => scope.trim() == version.trim() && !scope.trim().is_empty(),
+        "cargo" => cargo_assess(scope, version),
+        "npm" => npm_assess(scope, version),
+        "go" => go_assess(scope, version),
+        "maven" => maven_assess(scope, version),
+        "nuget" => nuget_assess(scope, version),
+        "ruby" => {
+            let (bare, platform) = split_gem_lock_version(version.trim());
+            ruby_assess(scope, bare, platform)
+        }
+        "uv" => pypi_assess(scope, version),
+        _ => {
+            if !scope.trim().is_empty() && scope.trim() == version.trim() {
+                VersionScope::Affected
+            } else {
+                VersionScope::Unaffected
+            }
+        }
     }
+}
+
+pub fn version_affected(set: &str, scope: &str, version: &str) -> bool {
+    version_assess(set, scope, version) == VersionScope::Affected
 }
 
 pub fn package_identity(set: &str, name: &str) -> String {
@@ -75,38 +88,26 @@ pub fn match_packages(
             if advisory.id.trim().is_empty() {
                 continue;
             }
-            if package.set == "ruby" {
-                match ruby_assess(
+            let scope = if package.set == "ruby" {
+                ruby_assess(
                     &advisory.versions,
                     &package.version,
                     package.platform.as_deref(),
-                ) {
-                    RubyScope::Unaffected => continue,
-                    RubyScope::Incomplete => {
-                        unassessed.push(Unassessed {
-                            package: package.name.clone(),
-                            set: package.set.clone(),
-                            reason: REASON_VERSION_SYNTAX,
-                        });
-                        continue;
-                    }
-                    RubyScope::Affected => {}
+                )
+            } else {
+                version_assess(&package.set, &advisory.versions, &package.version)
+            };
+            match scope {
+                VersionScope::Unaffected => continue,
+                VersionScope::Incomplete => {
+                    unassessed.push(Unassessed {
+                        package: package.name.clone(),
+                        set: package.set.clone(),
+                        reason: REASON_VERSION_SYNTAX,
+                    });
+                    continue;
                 }
-            } else if package.set == "uv" {
-                match pypi_assess(&advisory.versions, &package.version) {
-                    PypiScope::Unaffected => continue,
-                    PypiScope::Incomplete => {
-                        unassessed.push(Unassessed {
-                            package: package.name.clone(),
-                            set: package.set.clone(),
-                            reason: REASON_VERSION_SYNTAX,
-                        });
-                        continue;
-                    }
-                    PypiScope::Affected => {}
-                }
-            } else if !version_affected(&package.set, &advisory.versions, &package.version) {
-                continue;
+                VersionScope::Affected => {}
             }
             let severity = canonical_severity(&advisory.severity);
             findings.push(VulnFinding {

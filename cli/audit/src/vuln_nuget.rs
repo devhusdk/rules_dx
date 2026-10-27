@@ -1,3 +1,5 @@
+use super::VersionScope;
+
 fn compare_nuget_numeric(left: &str, right: &str) -> std::cmp::Ordering {
     if left.len() != right.len() {
         return left.len().cmp(&right.len());
@@ -176,78 +178,96 @@ pub fn nuget_version_eq(left: &str, right: &str) -> bool {
 }
 
 pub fn nuget_in_scope(scope: &str, version: &str) -> bool {
+    nuget_assess(scope, version) == VersionScope::Affected
+}
+
+pub fn nuget_assess(scope: &str, version: &str) -> VersionScope {
     let scope_trimmed = scope.trim();
     let version_trimmed = version.trim();
-    if scope_trimmed.is_empty() || version_trimmed.is_empty() {
-        return false;
+    if scope_trimmed.is_empty() {
+        return VersionScope::Unaffected;
+    }
+    if version_trimmed.is_empty() {
+        return VersionScope::Incomplete;
     }
     if scope_trimmed.len() > 4096 || version_trimmed.len() > 256 {
-        return false;
+        return VersionScope::Incomplete;
     }
     if scope_trimmed.contains('*') {
-        return false;
+        return VersionScope::Incomplete;
     }
     if parse_nuget_version(version_trimmed).is_none() {
-        return false;
+        return VersionScope::Incomplete;
     }
     let has_brackets = scope_trimmed.contains('[')
         || scope_trimmed.contains('(')
         || scope_trimmed.contains(']')
         || scope_trimmed.contains(')');
     if !has_brackets {
-        return nuget_version_eq(scope_trimmed, version_trimmed);
+        if parse_nuget_version(scope_trimmed).is_none() {
+            return VersionScope::Incomplete;
+        }
+        return scope_from(nuget_version_eq(scope_trimmed, version_trimmed));
     }
     let chars: Vec<char> = scope_trimmed.chars().collect();
     if chars.len() < 3 {
-        return false;
+        return VersionScope::Incomplete;
     }
     if (chars[0] != '[' && chars[0] != '(')
         || (chars[chars.len() - 1] != ']' && chars[chars.len() - 1] != ')')
     {
-        return false;
+        return VersionScope::Incomplete;
     }
     let inner: String = chars[1..chars.len() - 1].iter().collect();
     if inner.contains('[') || inner.contains('(') || inner.contains(']') || inner.contains(')') {
-        return false;
+        return VersionScope::Incomplete;
     }
     let parts: Vec<&str> = inner.split(',').collect();
     if parts.len() == 1 {
         let bound = parts[0].trim();
         if bound.is_empty() {
-            return false;
+            return VersionScope::Incomplete;
         }
         if chars[0] != '[' || chars[chars.len() - 1] != ']' {
-            return false;
+            return VersionScope::Incomplete;
         }
         if bound.len() > 256 || parse_nuget_version(bound).is_none() {
-            return false;
+            return VersionScope::Incomplete;
         }
-        return nuget_version_eq(bound, version_trimmed);
+        return scope_from(nuget_version_eq(bound, version_trimmed));
     }
     if parts.len() != 2 {
-        return false;
+        return VersionScope::Incomplete;
     }
     let lower = parts[0].trim().to_owned();
     let upper = parts[1].trim().to_owned();
     if lower.is_empty() && upper.is_empty() {
-        return false;
+        return VersionScope::Incomplete;
     }
     if lower.len() > 256 || upper.len() > 256 {
-        return false;
+        return VersionScope::Incomplete;
     }
     if !lower.is_empty() && parse_nuget_version(&lower).is_none() {
-        return false;
+        return VersionScope::Incomplete;
     }
     if !upper.is_empty() && parse_nuget_version(&upper).is_none() {
-        return false;
+        return VersionScope::Incomplete;
     }
-    nuget_interval_matches(
+    scope_from(nuget_interval_matches(
         &lower,
         &upper,
         chars[0] == '[',
         chars[chars.len() - 1] == ']',
         version_trimmed,
-    )
+    ))
+}
+
+fn scope_from(affected: bool) -> VersionScope {
+    if affected {
+        VersionScope::Affected
+    } else {
+        VersionScope::Unaffected
+    }
 }
 
 fn nuget_interval_matches(

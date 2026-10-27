@@ -56,6 +56,28 @@ pub const REASON_GIT: &str = "unsupported git revision";
 pub const REASON_PRIVATE: &str = "unidentified private package";
 pub const REASON_VERSION_SYNTAX: &str = "unsupported version syntax";
 
+/// Outcome of matching a locked version against an advisory scope.
+/// `Incomplete` means dx could not parse the scope or the locked version.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum VersionScope {
+    Affected,
+    Unaffected,
+    Incomplete,
+}
+
+/// Three-valued OR: any Affected wins, else any Incomplete, else Unaffected.
+pub fn any_scope(outcomes: impl IntoIterator<Item = VersionScope>) -> VersionScope {
+    let mut result = VersionScope::Unaffected;
+    for outcome in outcomes {
+        match outcome {
+            VersionScope::Affected => return VersionScope::Affected,
+            VersionScope::Incomplete => result = VersionScope::Incomplete,
+            VersionScope::Unaffected => {}
+        }
+    }
+    result
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Unassessed {
     pub package: String,

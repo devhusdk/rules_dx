@@ -1,6 +1,8 @@
 use chrono::{Datelike, NaiveDate};
 use serde::Deserialize;
 
+use crate::vuln::VersionScope;
+
 pub const EXCEPTION_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -119,16 +121,25 @@ pub fn check_expiry(expires: &str, today: &str) -> Result<(), ExceptionProblem> 
     Ok(())
 }
 
+pub fn cargo_assess(scope: &str, version: &str) -> VersionScope {
+    if scope.trim().is_empty() {
+        return VersionScope::Unaffected;
+    }
+    let Ok(requirements) = semver::VersionReq::parse(scope) else {
+        return VersionScope::Incomplete;
+    };
+    let Ok(version) = semver::Version::parse(version) else {
+        return VersionScope::Incomplete;
+    };
+    if requirements.matches(&version) {
+        VersionScope::Affected
+    } else {
+        VersionScope::Unaffected
+    }
+}
+
 pub fn version_in_scope(scope: &str, version: &str) -> bool {
-    let requirements = match semver::VersionReq::parse(scope) {
-        Ok(requirements) => requirements,
-        Err(_) => return false,
-    };
-    let version = match semver::Version::parse(version) {
-        Ok(version) => version,
-        Err(_) => return false,
-    };
-    requirements.matches(&version)
+    cargo_assess(scope, version) == VersionScope::Affected
 }
 
 fn parse_audit_date(value: &str) -> Result<NaiveDate, ExceptionProblem> {

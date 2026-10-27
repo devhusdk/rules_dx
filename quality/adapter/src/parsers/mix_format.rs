@@ -1,3 +1,4 @@
+use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
 use super::{as_text, code_name, finding, known_relative, unformatted_at, FileFinding, ParseError};
@@ -40,7 +41,7 @@ pub fn parse_mix_format(
         if listing && is_listed_path(*styled, line) {
             let file = known_relative(TOOL, files, cwd, line.trim())?;
             if !findings.iter().any(|found| found.file == file) {
-                findings.push(unformatted_at(TOOL, file, 1, 1));
+                findings.push(unformatted_at(TOOL, file, 1, 1, ColumnEncoding::Scalars));
             }
         }
     }
@@ -87,8 +88,8 @@ fn syntax_error(file: &str, reported: &str, rest: &[(bool, String)]) -> FileFind
         "syntax".to_owned(),
         message,
         ToolSeverity::Error,
-        line,
-        column,
+        TextPosition { line, column },
+        ColumnEncoding::Scalars,
     )
 }
 

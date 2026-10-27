@@ -1,5 +1,6 @@
 use super::{as_text, code_name, finding, listed_paths, FileFinding, ParseError, Spelling};
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "yamlfmt";
 const HEADER: &str = "The following files had formatting differences:";
@@ -73,8 +74,11 @@ fn failure(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
         String::new(),
         message.to_owned(),
         ToolSeverity::Error,
-        row,
-        1,
+        TextPosition {
+            line: row,
+            column: 1,
+        },
+        ColumnEncoding::Scalars,
     ))
 }
 

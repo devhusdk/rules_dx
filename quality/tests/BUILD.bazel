@@ -55,6 +55,41 @@ rust_clippy_test(
 
 # keep
 rust_test(
+    name = "column_units_test",
+    size = "medium",
+    srcs = ["column_units_test.rs"],
+    data = [
+        "//quality/tools/javascript/bin:eslint",
+        "//quality/tools/jvm:checkstyle",
+        "//quality/tools/jvm:ktlint",
+        "//quality/tools/jvm:pmd",
+    ],
+    env = {
+        "DX_CHECKSTYLE": "$(rootpath //quality/tools/jvm:checkstyle)",
+        "DX_ESLINT": "$(rootpath //quality/tools/javascript/bin:eslint)",
+        "DX_KTLINT": "$(rootpath //quality/tools/jvm:ktlint)",
+        "DX_PMD": "$(rootpath //quality/tools/jvm:pmd)",
+    },
+    tags = ["block-network"],
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//quality/adapter:quality_adapter",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "column_units_fmt_test",
+    targets = [":column_units_test"],
+)
+
+rust_clippy_test(
+    name = "column_units_clippy_test",
+    targets = [":column_units_test"],
+)
+
+# keep
+rust_test(
     name = "qml_format_consumer_test",
     size = "enormous",
     srcs = ["qml_format_consumer_test.rs"],

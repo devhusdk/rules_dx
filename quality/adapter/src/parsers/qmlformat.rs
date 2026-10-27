@@ -1,4 +1,5 @@
 use super::{as_text, code_name, unformatted_at, FileFinding, ParseError};
+use crate::ColumnEncoding;
 
 pub fn parse_qmlformat(
     stdout: &[u8],
@@ -17,7 +18,13 @@ pub fn parse_qmlformat(
     if stdout == input {
         return Ok(Vec::new());
     }
-    Ok(vec![unformatted_at(TOOL, file, 1, 1)])
+    Ok(vec![unformatted_at(
+        TOOL,
+        file,
+        1,
+        1,
+        ColumnEncoding::Scalars,
+    )])
 }
 
 #[cfg(test)]

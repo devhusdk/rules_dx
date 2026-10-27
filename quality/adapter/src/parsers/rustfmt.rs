@@ -3,6 +3,7 @@ use super::{
     ParseError,
 };
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 pub fn parse_rustfmt(
     stdout: &[u8],
@@ -26,7 +27,13 @@ pub fn parse_rustfmt(
         if let Some(header) = line.strip_prefix("Diff in ") {
             let (path, line) = rustfmt_header(header)?;
             let checked = known_lexical(TOOL, files, path)?;
-            findings.push(unformatted_at(TOOL, checked, line, 1));
+            findings.push(unformatted_at(
+                TOOL,
+                checked,
+                line,
+                1,
+                ColumnEncoding::Scalars,
+            ));
         }
     }
     let mut pending: Option<String> = None;
@@ -46,8 +53,8 @@ pub fn parse_rustfmt(
                     String::new(),
                     message,
                     ToolSeverity::Error,
-                    line,
-                    column,
+                    TextPosition { line, column },
+                    ColumnEncoding::Scalars,
                 ));
             }
         }

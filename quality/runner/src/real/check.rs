@@ -990,7 +990,8 @@ fn clamp_to_text(found: &mut FileFinding) {
         return;
     };
     let start = found.finding.start;
-    if quality_adapter::line_col_to_byte(&text, start.line, start.column).is_some() {
+    let encoding = found.finding.encoding;
+    if quality_adapter::line_col_to_byte(&text, start.line, start.column, encoding).is_some() {
         return;
     }
     let lines = text.split_inclusive('\n').count().max(1);
@@ -998,6 +999,56 @@ fn clamp_to_text(found: &mut FileFinding) {
     let body = last.strip_suffix('\n').unwrap_or(last);
     found.finding.start = quality_adapter::TextPosition {
         line: lines as u64,
-        column: body.chars().count() as u64 + 1,
+        column: quality_adapter::column_width(body, encoding) + 1,
     };
+}
+
+#[cfg(test)]
+mod clamp_tests {
+    use quality_adapter::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
+
+    use super::{clamp_to_text, FileFinding};
+
+    fn clamped(text: &str, encoding: ColumnEncoding) -> (TextPosition, Option<u64>) {
+        let dir = tempfile::tempdir().expect("scratch");
+        let path = dir.path().join("BUILD.bazel");
+        std::fs::write(&path, text).expect("write");
+        let mut found = FileFinding {
+            file: path.to_string_lossy().into_owned(),
+            finding: Finding {
+                tool_id: "buildifier".to_owned(),
+                rule_id: String::new(),
+                message: "unexpected end of file".to_owned(),
+                severity: ToolSeverity::Error,
+                start: TextPosition {
+                    line: 99,
+                    column: 1,
+                },
+                end: None,
+                suggestions: Vec::new(),
+                encoding,
+                related: Vec::new(),
+            },
+        };
+        clamp_to_text(&mut found);
+        let start = found.finding.start;
+        let byte = quality_adapter::line_col_to_byte(text, start.line, start.column, encoding);
+        (start, byte)
+    }
+
+    #[test]
+    fn clamp_lands_on_a_non_ascii_last_line_in_the_finding_units() {
+        let text = "x = 1\ny = \"\u{1F600}\u{e9}\"";
+        let (start, byte) = clamped(text, ColumnEncoding::Utf16);
+        assert_eq!((start.line, start.column), (2, 10));
+        assert_eq!(byte, Some(text.len() as u64));
+        for encoding in [
+            ColumnEncoding::Scalars,
+            ColumnEncoding::Utf8,
+            ColumnEncoding::ScalarsTabs { width: 4 },
+        ] {
+            let (_, byte) = clamped(&format!("{text}\t\r"), encoding);
+            assert_eq!(byte, Some(text.len() as u64 + 2), "{encoding:?}");
+        }
+    }
 }

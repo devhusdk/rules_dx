@@ -2,6 +2,7 @@ use super::{
     columned, finding, lines, located, missing, require_findings, FileFinding, ParseError,
 };
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 /// `yamllint -f parsable` prints `<path>:<line>:<column>: [<level>] <message> (<rule>)`.
 pub fn parse_yamllint(
@@ -37,8 +38,11 @@ pub fn parse_yamllint(
             rule_id.to_owned(),
             message.trim().to_owned(),
             severity,
-            line_no,
-            column,
+            TextPosition {
+                line: line_no,
+                column,
+            },
+            ColumnEncoding::Scalars,
         ));
     }
     require_findings(TOOL, &findings, code)?;

@@ -1,3 +1,4 @@
+use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
 use serde::Deserialize;
@@ -85,7 +86,7 @@ pub fn parse_fantomas(
             }
             "needs-formatting" => {
                 let checked = known(TOOL, files, normalized)?;
-                findings.push(unformatted_at(TOOL, checked, 1, 1));
+                findings.push(unformatted_at(TOOL, checked, 1, 1, ColumnEncoding::Scalars));
             }
             "error" => {
                 let checked = known(TOOL, files, normalized)?;
@@ -97,8 +98,8 @@ pub fn parse_fantomas(
                         "syntax".to_owned(),
                         entry.message.clone(),
                         ToolSeverity::Error,
-                        1,
-                        1,
+                        TextPosition { line: 1, column: 1 },
+                        ColumnEncoding::Scalars,
                     ));
                 }
                 for diagnostic in &entry.diagnostics {
@@ -108,8 +109,11 @@ pub fn parse_fantomas(
                         diagnostic.code.clone(),
                         diagnostic.message.clone(),
                         ToolSeverity::Error,
-                        diagnostic.range.start_line,
-                        diagnostic.range.start_column,
+                        TextPosition {
+                            line: diagnostic.range.start_line,
+                            column: diagnostic.range.start_column,
+                        },
+                        ColumnEncoding::Scalars,
                     ));
                 }
             }

@@ -2,6 +2,7 @@ use super::{
     as_text, known, missing, path_row_col, require_findings, unformatted_at, FileFinding,
     ParseError,
 };
+use crate::ColumnEncoding;
 
 const TOOL: &str = "clang_format";
 const VIOLATION_TAIL: &str = "error: code should be clang-formatted [-Wclang-format-violations]";
@@ -55,7 +56,13 @@ pub fn parse_clang_format(
     }
     let mut findings = Vec::new();
     for (path, row, column) in ordered {
-        findings.push(unformatted_at(TOOL, known(TOOL, files, path)?, row, column));
+        findings.push(unformatted_at(
+            TOOL,
+            known(TOOL, files, path)?,
+            row,
+            column,
+            ColumnEncoding::Scalars,
+        ));
     }
     require_findings(TOOL, &findings, code)?;
     Ok(findings)

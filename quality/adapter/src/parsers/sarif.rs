@@ -232,9 +232,11 @@ fn end(
     }))
 }
 
+/// SARIF gives `columnKind` no default, so `absent` names the producer's units.
 fn column_encoding(
     tool: &'static str,
     kind: Option<&impl serde::Serialize>,
+    absent: ColumnEncoding,
 ) -> Result<ColumnEncoding, ParseError> {
     let value = kind
         .map(serde_json::to_value)
@@ -244,7 +246,7 @@ fn column_encoding(
             detail: err.to_string(),
         })?;
     match value.as_ref().and_then(|value| value.as_str()) {
-        None => Ok(ColumnEncoding::Utf16),
+        None => Ok(absent),
         Some("utf16CodeUnits") => Ok(ColumnEncoding::Utf16),
         Some("unicodeCodePoints") => Ok(ColumnEncoding::Scalars),
         Some(other) => Err(ParseError::Shape {
@@ -297,9 +299,10 @@ pub fn parse_sarif(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
+    absent: ColumnEncoding,
 ) -> Result<Vec<FileFinding>, ParseError> {
     let log = read_sarif(tool, stdout)?;
-    sarif_findings(tool, &log, code, files)
+    sarif_findings(tool, &log, code, files, absent)
 }
 
 pub(super) fn read_sarif(tool: &'static str, stdout: &[u8]) -> Result<Sarif, ParseError> {
@@ -368,11 +371,12 @@ pub(super) fn sarif_findings(
     log: &Sarif,
     code: Option<i32>,
     files: &[&str],
+    absent: ColumnEncoding,
 ) -> Result<Vec<FileFinding>, ParseError> {
     let mut findings = Vec::new();
     for run in &log.runs {
         check_invocations(tool, run.invocations.as_deref().unwrap_or_default())?;
-        let encoding = column_encoding(tool, run.column_kind.as_ref())?;
+        let encoding = column_encoding(tool, run.column_kind.as_ref(), absent)?;
         let bases = run.original_uri_base_ids.as_ref();
         let empty = std::collections::BTreeMap::new();
         let bases = bases.unwrap_or(&empty);
@@ -475,7 +479,14 @@ mod tests {
         let stdout = log(
             r#"{"ruleId":"R1","level":"error","message":{"text":"boom"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:/s/a.java"},"region":{"startLine":2,"startColumn":8}}}]},{"ruleId":"R2","level":"warning","message":{"text":"warn"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":3,"startColumn":1,"endLine":3,"endColumn":5}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &stdout, Some(1), &["/s/a.java"]).expect("parsed");
+        let findings = parse_sarif(
+            TOOL,
+            &stdout,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16,
+        )
+        .expect("parsed");
         assert_eq!(findings.len(), 2);
         assert_eq!(findings[0].finding.rule_id, "R1");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
@@ -483,10 +494,31 @@ mod tests {
         let end = findings[1].finding.end.expect("extent");
         assert_eq!((end.line, end.column), (3, 5));
         let clean_json = log("");
-        let clean = parse_sarif(TOOL, &clean_json, Some(0), &["/s/a.java"]).expect("clean");
+        let clean = parse_sarif(
+            TOOL,
+            &clean_json,
+            Some(0),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16,
+        )
+        .expect("clean");
         assert!(clean.is_empty());
-        assert!(parse_sarif(TOOL, &clean_json, Some(1), &["/s/a.java"]).is_err());
-        assert!(parse_sarif(TOOL, b"not json", Some(1), &["/s/a.java"]).is_err());
+        assert!(parse_sarif(
+            TOOL,
+            &clean_json,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
+        assert!(parse_sarif(
+            TOOL,
+            b"not json",
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
     }
 
     fn suppressed_result(rule: &str, suppressions: &str) -> String {
@@ -499,13 +531,15 @@ mod tests {
     fn sarif_skips_suppressed_results() {
         let files = ["/s/a.java"];
         let accepted = log(&suppressed_result("R", r#"[{"kind":"inSource"}]"#));
-        let findings = parse_sarif(TOOL, &accepted, Some(0), &files).expect("parsed");
+        let findings =
+            parse_sarif(TOOL, &accepted, Some(0), &files, ColumnEncoding::Utf16).expect("parsed");
         assert!(findings.is_empty(), "{findings:?}");
 
         let nowhere = log(
             r#"{"ruleId":"R","message":{"text":"m"},"suppressions":[{"kind":"external","status":"accepted"}]}"#,
         );
-        let findings = parse_sarif(TOOL, &nowhere, Some(0), &files).expect("parsed");
+        let findings =
+            parse_sarif(TOOL, &nowhere, Some(0), &files, ColumnEncoding::Utf16).expect("parsed");
         assert!(findings.is_empty(), "{findings:?}");
 
         for open in [
@@ -514,7 +548,8 @@ mod tests {
             "[]",
         ] {
             let kept = log(&suppressed_result("R", open));
-            let findings = parse_sarif(TOOL, &kept, Some(1), &files).expect(open);
+            let findings =
+                parse_sarif(TOOL, &kept, Some(1), &files, ColumnEncoding::Utf16).expect(open);
             assert_eq!(findings.len(), 1, "{open}");
         }
 
@@ -522,7 +557,8 @@ mod tests {
             "{},{FINDING}",
             suppressed_result("S", r#"[{"kind":"inSource"}]"#)
         ));
-        let findings = parse_sarif(TOOL, &mixed, Some(1), &files).expect("parsed");
+        let findings =
+            parse_sarif(TOOL, &mixed, Some(1), &files, ColumnEncoding::Utf16).expect("parsed");
         let rules: Vec<&str> = findings
             .iter()
             .map(|found| found.finding.rule_id.as_str())
@@ -540,16 +576,17 @@ mod tests {
     fn a_failed_invocation_is_incomplete_analysis() {
         let files = ["/s/a.java"];
         let missing = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"SpotBugs"}},"results":[],"invocations":[{"executionSuccessful":false,"toolConfigurationNotifications":[{"level":"error","message":{"text":"Classes needed for analysis were missing: [example.Dependency]"}}]}]}]}"#;
-        let err = parse_sarif(TOOL, missing, Some(0), &files).expect_err("incomplete");
+        let err = parse_sarif(TOOL, missing, Some(0), &files, ColumnEncoding::Utf16)
+            .expect_err("incomplete");
         assert!(matches!(err, ParseError::Incomplete { .. }));
         assert!(err.to_string().contains("example.Dependency"), "{err}");
 
         let bare = with_invocation(r#"{"executionSuccessful":false}"#, "");
-        assert!(parse_sarif(TOOL, &bare, Some(0), &files).is_err());
+        assert!(parse_sarif(TOOL, &bare, Some(0), &files, ColumnEncoding::Utf16).is_err());
 
         let mixed = with_invocation(r#"{"executionSuccessful":false}"#, FINDING);
         assert!(matches!(
-            parse_sarif(TOOL, &mixed, Some(1), &files),
+            parse_sarif(TOOL, &mixed, Some(1), &files, ColumnEncoding::Utf16),
             Err(ParseError::Incomplete { .. })
         ));
 
@@ -557,11 +594,12 @@ mod tests {
             r#"{"executionSuccessful":true,"toolExecutionNotifications":[{"level":"error","message":{"text":"boom"}}]}"#,
             "",
         );
-        let err = parse_sarif(TOOL, &execution, Some(0), &files).expect_err("error note");
+        let err = parse_sarif(TOOL, &execution, Some(0), &files, ColumnEncoding::Utf16)
+            .expect_err("error note");
         assert!(err.to_string().contains("boom"), "{err}");
 
         let second = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"t"}},"results":[]},{"tool":{"driver":{"name":"t"}},"results":[],"invocations":[{"executionSuccessful":true},{"executionSuccessful":false}]}]}"#;
-        assert!(parse_sarif(TOOL, second, Some(0), &files).is_err());
+        assert!(parse_sarif(TOOL, second, Some(0), &files, ColumnEncoding::Utf16).is_err());
     }
 
     #[test]
@@ -571,12 +609,14 @@ mod tests {
             r#"{"executionSuccessful":true,"toolExecutionNotifications":[{"level":"warning","message":{"text":"w"}},{"level":"note","message":{"text":"n"}}]}"#,
             "",
         );
-        assert!(parse_sarif(TOOL, &ok, Some(0), &files)
-            .expect("clean")
-            .is_empty());
+        assert!(
+            parse_sarif(TOOL, &ok, Some(0), &files, ColumnEncoding::Utf16)
+                .expect("clean")
+                .is_empty()
+        );
         let found = with_invocation(r#"{"executionSuccessful":true}"#, FINDING);
         assert_eq!(
-            parse_sarif(TOOL, &found, Some(1), &files)
+            parse_sarif(TOOL, &found, Some(1), &files, ColumnEncoding::Utf16)
                 .expect("found")
                 .len(),
             1
@@ -603,16 +643,25 @@ mod tests {
         let stdout = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///C:/src/a.cs"},"region":{"startLine":3}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &stdout, Some(1), &[&drive]).expect("drive uri");
+        let findings = parse_sarif(TOOL, &stdout, Some(1), &[&drive], ColumnEncoding::Utf16)
+            .expect("drive uri");
         assert_eq!(findings[0].file, drive);
         let relative_uri = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/a.cs"},"region":{"startLine":3}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &relative_uri, Some(1), &[&drive]).expect("relative uri");
+        let findings = parse_sarif(
+            TOOL,
+            &relative_uri,
+            Some(1),
+            &[&drive],
+            ColumnEncoding::Utf16,
+        )
+        .expect("relative uri");
         assert_eq!(findings[0].file, drive);
         let based = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"k"}},"originalUriBaseIds":{"%SRCROOT%":{"uri":"file:///C:/src/"}},"results":[{"ruleId":"R","level":"error","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"../other/a.cs","uriBaseId":"%SRCROOT%"},"region":{"startLine":1}}}]}]}]}"#;
         let other = format!("C:{sep}other{sep}a.cs");
-        let findings = parse_sarif(TOOL, based, Some(1), &[&other]).expect("drive base join");
+        let findings = parse_sarif(TOOL, based, Some(1), &[&other], ColumnEncoding::Utf16)
+            .expect("drive base join");
         assert_eq!(findings[0].file, other);
     }
 
@@ -623,18 +672,26 @@ mod tests {
         let stdout = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///C:/src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &stdout, Some(1), &[&drive]).expect("encoded drive uri");
+        let findings = parse_sarif(TOOL, &stdout, Some(1), &[&drive], ColumnEncoding::Utf16)
+            .expect("encoded drive uri");
         assert_eq!(findings[0].file, drive);
         let relative = format!("/scratch{sep}src{sep}my file.cs");
         let relative_uri = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
         );
-        let findings =
-            parse_sarif(TOOL, &relative_uri, Some(1), &[&relative]).expect("encoded relative uri");
+        let findings = parse_sarif(
+            TOOL,
+            &relative_uri,
+            Some(1),
+            &[&relative],
+            ColumnEncoding::Utf16,
+        )
+        .expect("encoded relative uri");
         assert_eq!(findings[0].file, relative);
         let literal = format!("/scratch{sep}src{sep}my%20file.cs");
         let both = [literal.as_str(), relative.as_str()];
-        let findings = parse_sarif(TOOL, &relative_uri, Some(1), &both).expect("both spellings");
+        let findings = parse_sarif(TOOL, &relative_uri, Some(1), &both, ColumnEncoding::Utf16)
+            .expect("both spellings");
         assert_eq!(
             findings[0].file, relative,
             "the encoded URI names the decoded file, not the literal-percent one"
@@ -642,34 +699,37 @@ mod tests {
         let double = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///scratch/src/my%2520file.cs"},"region":{"startLine":3}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &double, Some(1), &both).expect("double encoded");
+        let findings = parse_sarif(TOOL, &double, Some(1), &both, ColumnEncoding::Utf16)
+            .expect("double encoded");
         assert_eq!(findings[0].file, literal);
         let single = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///scratch/src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &single, Some(1), &both).expect("single encoded");
+        let findings = parse_sarif(TOOL, &single, Some(1), &both, ColumnEncoding::Utf16)
+            .expect("single encoded");
         assert_eq!(findings[0].file, relative);
         let only_literal = [literal.as_str()];
         assert!(
-            parse_sarif(TOOL, &single, Some(1), &only_literal).is_err(),
+            parse_sarif(TOOL, &single, Some(1), &only_literal, ColumnEncoding::Utf16).is_err(),
             "a literal-percent file is not the decoded name"
         );
         let local = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file://localhost/scratch/src/my%20file.cs"},"region":{"startLine":3}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &local, Some(1), &both).expect("localhost");
+        let findings =
+            parse_sarif(TOOL, &local, Some(1), &both, ColumnEncoding::Utf16).expect("localhost");
         assert_eq!(findings[0].file, relative);
         let foreign = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"https://x/a.cs"},"region":{"startLine":3}}}]}"#,
         );
-        assert!(parse_sarif(TOOL, &foreign, Some(1), &both).is_err());
+        assert!(parse_sarif(TOOL, &foreign, Some(1), &both, ColumnEncoding::Utf16).is_err());
         let ambiguous = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"my%20file.cs"},"region":{"startLine":3}}}]}"#,
         );
         let other = format!("/other{sep}src{sep}my file.cs");
         let checked = [relative.as_str(), other.as_str()];
         assert!(
-            parse_sarif(TOOL, &ambiguous, Some(1), &checked).is_err(),
+            parse_sarif(TOOL, &ambiguous, Some(1), &checked, ColumnEncoding::Utf16).is_err(),
             "an ambiguous suffix names no one file"
         );
     }
@@ -692,28 +752,43 @@ mod tests {
         );
         let sibling = format!("/proj{sep}za:b{sep}c.cs");
         assert!(
-            parse_sarif(TOOL, &stdout, Some(1), &[&sibling]).is_err(),
+            parse_sarif(TOOL, &stdout, Some(1), &[&sibling], ColumnEncoding::Utf16).is_err(),
             "the colon belongs to the name, so za:b/c.cs is a different file"
         );
         let checked = format!("/proj{sep}a:b{sep}c.cs");
-        let findings =
-            parse_sarif(TOOL, &stdout, Some(1), &[&checked]).expect("drive relative uri");
+        let findings = parse_sarif(TOOL, &stdout, Some(1), &[&checked], ColumnEncoding::Utf16)
+            .expect("drive relative uri");
         assert_eq!(findings[0].file, checked);
         let notes = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"C:notes/notes.md"},"region":{"startLine":1}}}]}"#,
         );
         let notes_file = format!("/proj{sep}C:notes{sep}notes.md");
-        let findings = parse_sarif(TOOL, &notes, Some(1), &[&notes_file]).expect("drive relative");
+        let findings = parse_sarif(TOOL, &notes, Some(1), &[&notes_file], ColumnEncoding::Utf16)
+            .expect("drive relative");
         assert_eq!(findings[0].file, notes_file);
     }
 
     #[test]
     fn sarif_resolves_base_id_joins() {
         let stdout = br#"{"version":"2.1.0","runs":[{"originalUriBaseIds":{"%SRCROOT%":{"uri":"file:///home/u/"}},"tool":{"driver":{"name":"k"}},"results":[{"ruleId":"R","level":"error","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"../../tmp/x/Dirty.kt","uriBaseId":"%SRCROOT%"},"region":{"startLine":1,"startColumn":1}}}]}]}]}"#;
-        let findings = parse_sarif(TOOL, stdout, Some(1), &["/tmp/x/Dirty.kt"]).expect("base join");
+        let findings = parse_sarif(
+            TOOL,
+            stdout,
+            Some(1),
+            &["/tmp/x/Dirty.kt"],
+            ColumnEncoding::Utf16,
+        )
+        .expect("base join");
         assert_eq!(findings[0].file, "/tmp/x/Dirty.kt");
         let unknown_base = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"k"}},"results":[{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"a.java","uriBaseId":"%MISSING%"},"region":{"startLine":1}}}]}]}]}"#;
-        assert!(parse_sarif(TOOL, unknown_base, Some(1), &["/tmp/x/Dirty.kt"]).is_err());
+        assert!(parse_sarif(
+            TOOL,
+            unknown_base,
+            Some(1),
+            &["/tmp/x/Dirty.kt"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
     }
 
     #[test]
@@ -721,8 +796,14 @@ mod tests {
         let stdout = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/a.java"},"region":{"startLine":1}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &stdout, Some(1), &["/scratch/src/a.java"])
-            .expect("relative resolves");
+        let findings = parse_sarif(
+            TOOL,
+            &stdout,
+            Some(1),
+            &["/scratch/src/a.java"],
+            ColumnEncoding::Utf16,
+        )
+        .expect("relative resolves");
         assert_eq!(findings[0].file, "/scratch/src/a.java");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
         assert_eq!(
@@ -735,26 +816,62 @@ mod tests {
         let note = log(
             r#"{"ruleId":"R","level":"note","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":1}}}]}"#,
         );
-        let findings = parse_sarif(TOOL, &note, Some(1), &["/s/a.java"]).expect("note");
+        let findings =
+            parse_sarif(TOOL, &note, Some(1), &["/s/a.java"], ColumnEncoding::Utf16).expect("note");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
         let bad_level = log(
             r#"{"ruleId":"R","level":"fatal","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":1}}}]}"#,
         );
-        assert!(parse_sarif(TOOL, &bad_level, Some(1), &["/s/a.java"]).is_err());
+        assert!(parse_sarif(
+            TOOL,
+            &bad_level,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
         let unknown = log(
             r#"{"ruleId":"R","level":"warning","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/other.java"},"region":{"startLine":1,"startColumn":1}}}]}"#,
         );
-        assert!(parse_sarif(TOOL, &unknown, Some(1), &["/s/a.java"]).is_err());
+        assert!(parse_sarif(
+            TOOL,
+            &unknown,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
         let empty_msg = log(
             r#"{"ruleId":"R","level":"warning","message":{"text":""},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":1}}}]}"#,
         );
-        assert!(parse_sarif(TOOL, &empty_msg, Some(1), &["/s/a.java"]).is_err());
+        assert!(parse_sarif(
+            TOOL,
+            &empty_msg,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
         let no_loc = log(r#"{"ruleId":"R","message":{"text":"m"},"locations":[]}"#);
-        assert!(parse_sarif(TOOL, &no_loc, Some(1), &["/s/a.java"]).is_err());
+        assert!(parse_sarif(
+            TOOL,
+            &no_loc,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
         let bad_line = log(
             r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":0,"startColumn":1}}}]}"#,
         );
-        assert!(parse_sarif(TOOL, &bad_line, Some(1), &["/s/a.java"]).is_err());
+        assert!(parse_sarif(
+            TOOL,
+            &bad_line,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
         for region in [
             r#"{"startLine":3,"endLine":2}"#,
             r#"{"startLine":3,"endLine":0}"#,
@@ -765,7 +882,7 @@ mod tests {
                 r#"{{"ruleId":"R","message":{{"text":"m"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"/s/a.java"}},"region":{region}}}}}]}}"#
             ));
             assert!(
-                parse_sarif(TOOL, &bad, Some(1), &["/s/a.java"]).is_err(),
+                parse_sarif(TOOL, &bad, Some(1), &["/s/a.java"], ColumnEncoding::Utf16).is_err(),
                 "{region}"
             );
         }
@@ -775,7 +892,14 @@ mod tests {
         let stdout = log(&format!(
             r#"{{"ruleId":"R","message":{{"text":"m"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"/s/a.java"}},"region":{region}}}}}]}}"#
         ));
-        let mut found = parse_sarif(TOOL, &stdout, Some(1), &["/s/a.java"]).expect("parsed");
+        let mut found = parse_sarif(
+            TOOL,
+            &stdout,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16,
+        )
+        .expect("parsed");
         found.remove(0).finding
     }
 
@@ -809,20 +933,22 @@ mod tests {
         let with = |kind: &str| {
             format!("{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},{kind}\"results\":[{result}]}}]}}").into_bytes()
         };
-        let encoding = |kind: &str| {
-            let found = parse_sarif(TOOL, &with(kind), Some(1), &["/s/a.java"]);
+        let encoding = |kind: &str, absent: ColumnEncoding| {
+            let found = parse_sarif(TOOL, &with(kind), Some(1), &["/s/a.java"], absent);
             found.map(|found| found[0].finding.encoding)
         };
-        assert_eq!(encoding(""), Ok(ColumnEncoding::Utf16));
-        assert_eq!(
-            encoding("\"columnKind\":\"utf16CodeUnits\","),
-            Ok(ColumnEncoding::Utf16)
-        );
-        assert_eq!(
-            encoding("\"columnKind\":\"unicodeCodePoints\","),
-            Ok(ColumnEncoding::Scalars)
-        );
-        assert!(encoding("\"columnKind\":\"bytes\",").is_err());
+        for absent in [ColumnEncoding::Utf16, ColumnEncoding::Scalars] {
+            assert_eq!(encoding("", absent), Ok(absent));
+            assert_eq!(
+                encoding("\"columnKind\":\"utf16CodeUnits\",", absent),
+                Ok(ColumnEncoding::Utf16)
+            );
+            assert_eq!(
+                encoding("\"columnKind\":\"unicodeCodePoints\",", absent),
+                Ok(ColumnEncoding::Scalars)
+            );
+            assert!(encoding("\"columnKind\":\"bytes\",", absent).is_err());
+        }
     }
 
     #[test]
@@ -831,23 +957,36 @@ mod tests {
         let result = |kind: &str, column: u64| {
             format!("{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},{kind}\"results\":[{{\"ruleId\":\"R\",\"message\":{{\"text\":\"m\"}},\"locations\":[{{\"physicalLocation\":{{\"artifactLocation\":{{\"uri\":\"/s/a.java\"}},\"region\":{{\"startLine\":1,\"startColumn\":{column}}}}}}}]}}]}}]}}").into_bytes()
         };
-        let place = |kind: &str, column: u64| {
-            let found = parse_sarif(TOOL, &result(kind, column), Some(1), &["/s/a.java"]).ok()?;
+        let place = |kind: &str, column: u64, absent: ColumnEncoding| {
+            let found =
+                parse_sarif(TOOL, &result(kind, column), Some(1), &["/s/a.java"], absent).ok()?;
             let placed = crate::place_finding(&found[0].finding, "a.java", source).ok()?;
             placed.start_byte
         };
-        assert_eq!(place("", 4), Some(5));
-        assert_eq!(place("\"columnKind\":\"utf16CodeUnits\",", 4), Some(5));
-        assert_eq!(place("\"columnKind\":\"unicodeCodePoints\",", 3), Some(5));
-        assert_eq!(place("", 3), None);
+        let utf16 = "\"columnKind\":\"utf16CodeUnits\",";
+        let scalars = "\"columnKind\":\"unicodeCodePoints\",";
+        for absent in [ColumnEncoding::Utf16, ColumnEncoding::Scalars] {
+            assert_eq!(place(utf16, 4, absent), Some(5));
+            assert_eq!(place(scalars, 3, absent), Some(5));
+        }
+        assert_eq!(place("", 4, ColumnEncoding::Utf16), Some(5));
+        assert_eq!(place("", 3, ColumnEncoding::Utf16), None);
+        assert_eq!(place("", 3, ColumnEncoding::Scalars), Some(5));
+        assert_eq!(place("", 4, ColumnEncoding::Scalars), Some(6));
     }
 
     #[test]
     fn sarif_related_locations_become_related_items() {
         let result = r#"{"ruleId":"R","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"/s/a.java"},"region":{"startLine":1,"startColumn":5}}}],"relatedLocations":[{"id":1,"message":{"text":"declared here"},"physicalLocation":{"artifactLocation":{"uri":"/s/b.java"},"region":{"startLine":3,"startColumn":2}}},{"message":{"text":"outside"},"physicalLocation":{"artifactLocation":{"uri":"/elsewhere/c.java"},"region":{"startLine":1,"startColumn":1}}},{"physicalLocation":{"artifactLocation":{"uri":"/s/b.java"}}}]}"#;
         let log = format!("{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\"t\"}}}},\"results\":[{result}]}}]}}");
-        let found = parse_sarif(TOOL, log.as_bytes(), Some(1), &["/s/a.java", "/s/b.java"])
-            .expect("parsed");
+        let found = parse_sarif(
+            TOOL,
+            log.as_bytes(),
+            Some(1),
+            &["/s/a.java", "/s/b.java"],
+            ColumnEncoding::Utf16,
+        )
+        .expect("parsed");
         assert_eq!(found.len(), 1);
         let related = &found[0].finding.related;
         assert_eq!(related.len(), 2);

@@ -1,3 +1,4 @@
+use crate::{ColumnEncoding, TextPosition};
 use std::path::Path;
 
 use super::{
@@ -51,8 +52,11 @@ fn syntax_errors(
             String::new(),
             summary.trim().to_owned(),
             ToolSeverity::Error,
-            number,
-            1,
+            TextPosition {
+                line: number,
+                column: 1,
+            },
+            ColumnEncoding::Scalars,
         ));
     }
     if findings.is_empty() {

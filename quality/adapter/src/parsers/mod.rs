@@ -351,10 +351,9 @@ fn finding(
     rule_id: String,
     message: String,
     severity: ToolSeverity,
-    line: u64,
-    column: u64,
+    start: TextPosition,
+    encoding: ColumnEncoding,
 ) -> FileFinding {
-    let (start, end) = point(line, column);
     FileFinding {
         file: file.to_owned(),
         finding: Finding {
@@ -363,9 +362,9 @@ fn finding(
             message,
             severity,
             start,
-            end,
+            end: None,
             suggestions: Vec::new(),
-            encoding: ColumnEncoding::Scalars,
+            encoding,
             related: Vec::new(),
         },
     }
@@ -761,7 +760,7 @@ pub(super) fn listed_paths(
             Spelling::Exact => known(tool, files, path)?,
             Spelling::Below(cwd) => known_relative(tool, files, cwd, path)?,
         };
-        findings.push(unformatted_at(tool, checked, 1, 1));
+        findings.push(unformatted_at(tool, checked, 1, 1, ColumnEncoding::Scalars));
     }
     Ok(findings)
 }
@@ -783,7 +782,15 @@ fn unformatted(
 ) -> Result<Vec<FileFinding>, ParseError> {
     paths
         .iter()
-        .map(|path| Ok(unformatted_at(tool, known(tool, files, path)?, 1, 1)))
+        .map(|path| {
+            Ok(unformatted_at(
+                tool,
+                known(tool, files, path)?,
+                1,
+                1,
+                ColumnEncoding::Scalars,
+            ))
+        })
         .collect()
 }
 
@@ -793,6 +800,7 @@ pub(super) fn unformatted_at(
     file: &str,
     line: u64,
     column: u64,
+    encoding: ColumnEncoding,
 ) -> FileFinding {
     finding(
         tool,
@@ -800,8 +808,8 @@ pub(super) fn unformatted_at(
         String::new(),
         "file is not formatted".to_owned(),
         ToolSeverity::Warning,
-        line,
-        column,
+        TextPosition { line, column },
+        encoding,
     )
 }
 
@@ -994,8 +1002,8 @@ mod tests {
             "R1".to_owned(),
             "msg".to_owned(),
             ToolSeverity::Error,
-            3,
-            4,
+            TextPosition { line: 3, column: 4 },
+            ColumnEncoding::Scalars,
         );
         assert_eq!(found.file, "/s/a.rs");
         assert_eq!(
@@ -1025,8 +1033,8 @@ mod tests {
             String::new(),
             "m".to_owned(),
             ToolSeverity::Warning,
-            1,
-            1,
+            TextPosition { line: 1, column: 1 },
+            ColumnEncoding::Scalars,
         )];
         assert!(require_findings("tsc", &one, Some(1)).is_ok());
         assert!(require_findings("tsc", &[], Some(2))
@@ -1094,7 +1102,14 @@ mod tests {
                 limit: MAX_OUTPUT_BYTES,
             })
         );
-        assert!(super::sarif::parse_sarif("sarif-test", &big, Some(1), &["/s/a.java"]).is_err());
+        assert!(super::sarif::parse_sarif(
+            "sarif-test",
+            &big,
+            Some(1),
+            &["/s/a.java"],
+            ColumnEncoding::Utf16
+        )
+        .is_err());
     }
 
     #[test]
@@ -1894,7 +1909,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::sarif::parse_sarif("fuzz", input, code, files)
+        super::sarif::parse_sarif("fuzz", input, code, files, ColumnEncoding::Utf16)
     }
 
     fn fuzz_scalafix(

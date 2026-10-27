@@ -1,3 +1,4 @@
+use crate::ColumnEncoding;
 use serde_sarif::sarif::Sarif;
 
 use super::sarif::{read_sarif, sarif_findings};
@@ -53,7 +54,7 @@ pub fn parse_ktlint(
 ) -> Result<Vec<FileFinding>, ParseError> {
     let mut log = read_sarif("ktlint", stdout)?;
     anchor_to_cwd(&mut log);
-    sarif_findings("ktlint", &log, code, files)
+    sarif_findings("ktlint", &log, code, files, ColumnEncoding::Utf16)
 }
 
 #[cfg(test)]
@@ -91,8 +92,14 @@ mod tests {
         assert_eq!(findings[0].file, checked);
         assert_eq!(findings[0].finding.start.line, 4);
         assert!(
-            super::super::sarif::parse_sarif("sarif-test", stdout.as_bytes(), Some(1), &files)
-                .is_err(),
+            super::super::sarif::parse_sarif(
+                "sarif-test",
+                stdout.as_bytes(),
+                Some(1),
+                &files,
+                ColumnEncoding::Utf16
+            )
+            .is_err(),
             "other tools keep resolving against the declared base"
         );
 

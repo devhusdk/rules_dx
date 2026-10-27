@@ -84,10 +84,10 @@ pub fn parse_checkstyle(
     tab_width: u32,
 ) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size("checkstyle", stdout)?;
-    let mut findings = parse_sarif("checkstyle", stdout, code, files)?;
+    let mut findings = parse_sarif("checkstyle", stdout, code, files, ColumnEncoding::Scalars)?;
     for found in &mut findings {
-        if found.finding.encoding == ColumnEncoding::Utf16 {
-            found.finding.encoding = ColumnEncoding::Utf16Tabs { width: tab_width };
+        if found.finding.encoding == ColumnEncoding::Scalars {
+            found.finding.encoding = ColumnEncoding::ScalarsTabs { width: tab_width };
         }
     }
     Ok(findings)

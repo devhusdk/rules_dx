@@ -77,15 +77,16 @@ impl Related {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// Units a tool reports columns in. Deliberately has no `Default`: every
+/// parser must state the units its tool uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColumnEncoding {
-    #[default]
     Scalars,
     Utf16,
     Utf8,
-    /// UTF-16 units with tabs expanded to the next multiple of `width`,
+    /// Unicode scalars with tabs expanded to the next multiple of `width`,
     /// as Checkstyle reports columns. A width of 0 counts as 8.
-    Utf16Tabs {
+    ScalarsTabs {
         width: u32,
     },
 }
@@ -111,11 +112,7 @@ pub enum PlaceError {
     InvertedRange,
 }
 
-pub fn line_col_to_byte(text: &str, line: u64, column: u64) -> Option<u64> {
-    line_col_to_byte_in(text, line, column, ColumnEncoding::Scalars)
-}
-
-pub fn line_col_to_byte_in(
+pub fn line_col_to_byte(
     text: &str,
     line: u64,
     column: u64,
@@ -136,11 +133,28 @@ pub fn line_col_to_byte_in(
     Some((start + column_to_offset(body, column - 1, encoding)?) as u64)
 }
 
-fn column_to_offset(body: &str, units: u64, encoding: ColumnEncoding) -> Option<usize> {
-    if encoding == ColumnEncoding::Utf8 {
-        let offset = usize::try_from(units).ok()?;
-        return body.is_char_boundary(offset).then_some(offset);
+/// Column units occupied after `ch`, given `seen` units before it.
+fn column_step(seen: u64, ch: char, encoding: ColumnEncoding) -> u64 {
+    match encoding {
+        ColumnEncoding::Scalars => seen + 1,
+        ColumnEncoding::Utf8 => seen + ch.len_utf8() as u64,
+        ColumnEncoding::Utf16 => seen + ch.len_utf16() as u64,
+        ColumnEncoding::ScalarsTabs { width } if ch == '\t' => {
+            let w = if width == 0 { 8 } else { u64::from(width) };
+            (seen / w + 1) * w
+        }
+        ColumnEncoding::ScalarsTabs { .. } => seen + 1,
     }
+}
+
+/// Width of `body` in `encoding` units, so `width + 1` is the column just
+/// past its last character.
+pub fn column_width(body: &str, encoding: ColumnEncoding) -> u64 {
+    body.chars()
+        .fold(0, |seen, ch| column_step(seen, ch, encoding))
+}
+
+fn column_to_offset(body: &str, units: u64, encoding: ColumnEncoding) -> Option<usize> {
     let mut seen = 0u64;
     for (offset, ch) in body.char_indices() {
         if seen == units {
@@ -149,15 +163,7 @@ fn column_to_offset(body: &str, units: u64, encoding: ColumnEncoding) -> Option<
         if seen > units {
             return None;
         }
-        match encoding {
-            ColumnEncoding::Utf16 => seen += ch.len_utf16() as u64,
-            ColumnEncoding::Utf16Tabs { width } if ch == '\t' => {
-                let w = if width == 0 { 8 } else { u64::from(width) };
-                seen = (seen / w + 1) * w;
-            }
-            ColumnEncoding::Utf16Tabs { .. } => seen += ch.len_utf16() as u64,
-            _ => seen += 1,
-        }
+        seen = column_step(seen, ch, encoding);
     }
     (seen == units).then_some(body.len())
 }
@@ -203,7 +209,7 @@ pub fn place_finding_with<'t>(
     text: &str,
     lookup: impl Fn(&str) -> Option<(String, &'t str)>,
 ) -> Result<Diagnostic, PlaceError> {
-    let start = line_col_to_byte_in(
+    let start = line_col_to_byte(
         text,
         finding.start.line,
         finding.start.column,
@@ -218,7 +224,7 @@ pub fn place_finding_with<'t>(
             let byte = if position.column == LINE_END {
                 line_end_to_byte(text, position.line)
             } else {
-                line_col_to_byte_in(text, position.line, position.column, finding.encoding)
+                line_col_to_byte(text, position.line, position.column, finding.encoding)
             };
             byte.ok_or(PlaceError::UnmappablePosition {
                 line: position.line,
@@ -268,10 +274,10 @@ fn place_related<'t>(
     let Some((path, text)) = lookup(&location.file) else {
         return placed;
     };
-    let start = line_col_to_byte_in(text, location.start.line, location.start.column, encoding);
+    let start = line_col_to_byte(text, location.start.line, location.start.column, encoding);
     let end = match location.end {
         Some(position) if position.column == LINE_END => line_end_to_byte(text, position.line),
-        Some(position) => line_col_to_byte_in(text, position.line, position.column, encoding),
+        Some(position) => line_col_to_byte(text, position.line, position.column, encoding),
         None => start,
     };
     if let (Some(start), Some(end)) = (start, end) {
@@ -292,51 +298,117 @@ mod tests {
 
     #[test]
     fn line_col_covers_ascii_positions() {
-        assert_eq!(line_col_to_byte("ab\ncd\n", 1, 1), Some(0));
-        assert_eq!(line_col_to_byte("ab\ncd\n", 1, 3), Some(2));
-        assert_eq!(line_col_to_byte("ab\ncd\n", 2, 1), Some(3));
-        assert_eq!(line_col_to_byte("ab\ncd\n", 2, 3), Some(5));
+        assert_eq!(
+            line_col_to_byte("ab\ncd\n", 1, 1, ColumnEncoding::Scalars),
+            Some(0)
+        );
+        assert_eq!(
+            line_col_to_byte("ab\ncd\n", 1, 3, ColumnEncoding::Scalars),
+            Some(2)
+        );
+        assert_eq!(
+            line_col_to_byte("ab\ncd\n", 2, 1, ColumnEncoding::Scalars),
+            Some(3)
+        );
+        assert_eq!(
+            line_col_to_byte("ab\ncd\n", 2, 3, ColumnEncoding::Scalars),
+            Some(5)
+        );
     }
 
     #[test]
     fn line_col_counts_characters_not_bytes() {
-        assert_eq!(line_col_to_byte(CAFE, 2, 9), Some(20));
-        assert_eq!(line_col_to_byte(CAFE, 2, 12), Some(23));
+        assert_eq!(
+            line_col_to_byte(CAFE, 2, 9, ColumnEncoding::Scalars),
+            Some(20)
+        );
+        assert_eq!(
+            line_col_to_byte(CAFE, 2, 12, ColumnEncoding::Scalars),
+            Some(23)
+        );
     }
 
     #[test]
     fn line_col_rejects_zero_and_out_of_range() {
-        assert_eq!(line_col_to_byte(CAFE, 0, 1), None);
-        assert_eq!(line_col_to_byte(CAFE, 1, 0), None);
-        assert_eq!(line_col_to_byte(CAFE, 5, 1), None);
-        assert_eq!(line_col_to_byte(CAFE, 2, 99), None);
-        assert_eq!(line_col_to_byte(CAFE, 4, 2), None);
+        assert_eq!(line_col_to_byte(CAFE, 0, 1, ColumnEncoding::Scalars), None);
+        assert_eq!(line_col_to_byte(CAFE, 1, 0, ColumnEncoding::Scalars), None);
+        assert_eq!(line_col_to_byte(CAFE, 5, 1, ColumnEncoding::Scalars), None);
+        assert_eq!(line_col_to_byte(CAFE, 2, 99, ColumnEncoding::Scalars), None);
+        assert_eq!(line_col_to_byte(CAFE, 4, 2, ColumnEncoding::Scalars), None);
     }
 
     #[test]
     fn line_col_covers_empty_trailing_crlf_and_astral() {
-        assert_eq!(line_col_to_byte("", 1, 1), Some(0));
-        assert_eq!(line_col_to_byte("", 1, 2), None);
-        assert_eq!(line_col_to_byte("", 2, 1), None);
-        assert_eq!(line_col_to_byte("ab\n", 1, 1), Some(0));
-        assert_eq!(line_col_to_byte("ab\n", 1, 3), Some(2));
-        assert_eq!(line_col_to_byte("ab\n", 1, 4), None);
-        assert_eq!(line_col_to_byte("ab\n", 2, 1), Some(3));
-        assert_eq!(line_col_to_byte("ab\n", 2, 2), None);
-        assert_eq!(line_col_to_byte(CAFE, 4, 1), Some(CAFE.len() as u64));
+        assert_eq!(line_col_to_byte("", 1, 1, ColumnEncoding::Scalars), Some(0));
+        assert_eq!(line_col_to_byte("", 1, 2, ColumnEncoding::Scalars), None);
+        assert_eq!(line_col_to_byte("", 2, 1, ColumnEncoding::Scalars), None);
+        assert_eq!(
+            line_col_to_byte("ab\n", 1, 1, ColumnEncoding::Scalars),
+            Some(0)
+        );
+        assert_eq!(
+            line_col_to_byte("ab\n", 1, 3, ColumnEncoding::Scalars),
+            Some(2)
+        );
+        assert_eq!(
+            line_col_to_byte("ab\n", 1, 4, ColumnEncoding::Scalars),
+            None
+        );
+        assert_eq!(
+            line_col_to_byte("ab\n", 2, 1, ColumnEncoding::Scalars),
+            Some(3)
+        );
+        assert_eq!(
+            line_col_to_byte("ab\n", 2, 2, ColumnEncoding::Scalars),
+            None
+        );
+        assert_eq!(
+            line_col_to_byte(CAFE, 4, 1, ColumnEncoding::Scalars),
+            Some(CAFE.len() as u64)
+        );
         let crlf = "a\r\nb";
-        assert_eq!(line_col_to_byte(crlf, 1, 1), Some(0));
-        assert_eq!(line_col_to_byte(crlf, 1, 2), Some(1));
-        assert_eq!(line_col_to_byte(crlf, 1, 3), Some(2));
-        assert_eq!(line_col_to_byte(crlf, 1, 4), None);
-        assert_eq!(line_col_to_byte(crlf, 2, 1), Some(3));
-        assert_eq!(line_col_to_byte(crlf, 2, 2), Some(4));
+        assert_eq!(
+            line_col_to_byte(crlf, 1, 1, ColumnEncoding::Scalars),
+            Some(0)
+        );
+        assert_eq!(
+            line_col_to_byte(crlf, 1, 2, ColumnEncoding::Scalars),
+            Some(1)
+        );
+        assert_eq!(
+            line_col_to_byte(crlf, 1, 3, ColumnEncoding::Scalars),
+            Some(2)
+        );
+        assert_eq!(line_col_to_byte(crlf, 1, 4, ColumnEncoding::Scalars), None);
+        assert_eq!(
+            line_col_to_byte(crlf, 2, 1, ColumnEncoding::Scalars),
+            Some(3)
+        );
+        assert_eq!(
+            line_col_to_byte(crlf, 2, 2, ColumnEncoding::Scalars),
+            Some(4)
+        );
         let astral = "a\u{1f496}b";
-        assert_eq!(line_col_to_byte(astral, 1, 1), Some(0));
-        assert_eq!(line_col_to_byte(astral, 1, 2), Some(1));
-        assert_eq!(line_col_to_byte(astral, 1, 3), Some(5));
-        assert_eq!(line_col_to_byte(astral, 1, 4), Some(6));
-        assert_eq!(line_col_to_byte(astral, 1, 5), None);
+        assert_eq!(
+            line_col_to_byte(astral, 1, 1, ColumnEncoding::Scalars),
+            Some(0)
+        );
+        assert_eq!(
+            line_col_to_byte(astral, 1, 2, ColumnEncoding::Scalars),
+            Some(1)
+        );
+        assert_eq!(
+            line_col_to_byte(astral, 1, 3, ColumnEncoding::Scalars),
+            Some(5)
+        );
+        assert_eq!(
+            line_col_to_byte(astral, 1, 4, ColumnEncoding::Scalars),
+            Some(6)
+        );
+        assert_eq!(
+            line_col_to_byte(astral, 1, 5, ColumnEncoding::Scalars),
+            None
+        );
     }
 
     #[test]
@@ -453,7 +525,7 @@ mod tests {
     #[test]
     fn encodings_map_columns_after_astral_characters() {
         let text = "const s = \"\u{1f600}\"; missing();\n";
-        let at = |line, col, enc| line_col_to_byte_in(text, line, col, enc);
+        let at = |line, col, enc| line_col_to_byte(text, line, col, enc);
         assert_eq!(at(1, 17, ColumnEncoding::Utf16), Some(18));
         assert_eq!(at(1, 24, ColumnEncoding::Utf16), Some(25));
         assert_eq!(at(1, 27, ColumnEncoding::Utf16), Some(28));
@@ -468,8 +540,7 @@ mod tests {
     #[test]
     fn tab_expanded_columns_map_to_bytes() {
         let text = "\t\treturn 42;\n";
-        let at =
-            |col, width| line_col_to_byte_in(text, 1, col, ColumnEncoding::Utf16Tabs { width });
+        let at = |col, width| line_col_to_byte(text, 1, col, ColumnEncoding::ScalarsTabs { width });
         assert_eq!(at(24, 8), Some(9));
         assert_eq!(at(16, 4), Some(9));
         assert_eq!(at(1, 8), Some(0));
@@ -479,39 +550,25 @@ mod tests {
         assert_eq!(at(3, 4), None);
         let astral = "\t\u{1f600}x\n";
         let astral_at =
-            |col| line_col_to_byte_in(astral, 1, col, ColumnEncoding::Utf16Tabs { width: 4 });
+            |col| line_col_to_byte(astral, 1, col, ColumnEncoding::ScalarsTabs { width: 4 });
         assert_eq!(astral_at(5), Some(1));
-        assert_eq!(astral_at(7), Some(5));
-        assert_eq!(astral_at(6), None);
+        assert_eq!(astral_at(6), Some(5));
+        assert_eq!(astral_at(7), Some(6));
+        assert_eq!(astral_at(8), None);
     }
 
     #[test]
     fn invalid_interior_columns_are_rejected() {
         let text = "a\u{1f600}b\r\nc";
-        assert_eq!(line_col_to_byte_in(text, 1, 3, ColumnEncoding::Utf16), None);
-        assert_eq!(
-            line_col_to_byte_in(text, 1, 4, ColumnEncoding::Utf16),
-            Some(5)
-        );
-        assert_eq!(line_col_to_byte_in(text, 1, 3, ColumnEncoding::Utf8), None);
-        assert_eq!(
-            line_col_to_byte_in(text, 1, 6, ColumnEncoding::Utf8),
-            Some(5)
-        );
-        assert_eq!(
-            line_col_to_byte_in(text, 1, 7, ColumnEncoding::Utf8),
-            Some(6)
-        );
-        assert_eq!(
-            line_col_to_byte_in(text, 1, 8, ColumnEncoding::Utf8),
-            Some(7)
-        );
-        assert_eq!(line_col_to_byte_in(text, 1, 9, ColumnEncoding::Utf8), None);
-        assert_eq!(
-            line_col_to_byte_in(text, 2, 2, ColumnEncoding::Utf16),
-            Some(9)
-        );
-        assert_eq!(line_col_to_byte_in(text, 2, 3, ColumnEncoding::Utf16), None);
+        assert_eq!(line_col_to_byte(text, 1, 3, ColumnEncoding::Utf16), None);
+        assert_eq!(line_col_to_byte(text, 1, 4, ColumnEncoding::Utf16), Some(5));
+        assert_eq!(line_col_to_byte(text, 1, 3, ColumnEncoding::Utf8), None);
+        assert_eq!(line_col_to_byte(text, 1, 6, ColumnEncoding::Utf8), Some(5));
+        assert_eq!(line_col_to_byte(text, 1, 7, ColumnEncoding::Utf8), Some(6));
+        assert_eq!(line_col_to_byte(text, 1, 8, ColumnEncoding::Utf8), Some(7));
+        assert_eq!(line_col_to_byte(text, 1, 9, ColumnEncoding::Utf8), None);
+        assert_eq!(line_col_to_byte(text, 2, 2, ColumnEncoding::Utf16), Some(9));
+        assert_eq!(line_col_to_byte(text, 2, 3, ColumnEncoding::Utf16), None);
     }
 
     #[test]
@@ -564,5 +621,39 @@ mod tests {
         assert_eq!(placed.related[3].role, "help");
         let plain = place_finding(&finding, "a.rs", CAFE).expect("placed");
         assert!(plain.related.iter().all(|item| item.path.is_empty()));
+    }
+
+    #[test]
+    fn column_width_round_trips_for_every_encoding() {
+        let body = "a\u{1F600}\u{e9}\tb";
+        for (encoding, width) in [
+            (ColumnEncoding::Scalars, 5),
+            (ColumnEncoding::Utf16, 6),
+            (ColumnEncoding::Utf8, 9),
+            (ColumnEncoding::ScalarsTabs { width: 4 }, 5),
+            (ColumnEncoding::ScalarsTabs { width: 0 }, 9),
+        ] {
+            assert_eq!(column_width(body, encoding), width, "{encoding:?}");
+            for text in [
+                body.to_owned(),
+                format!("x\n{body}\n"),
+                format!("x\r\n{body}\r\n"),
+            ] {
+                let line = if text == body { 1 } else { 2 };
+                let line_start = if text == body {
+                    0
+                } else {
+                    text.find('\n').unwrap() + 1
+                };
+                let line_body = text[line_start..].split('\n').next().unwrap();
+                let end = column_width(line_body, encoding) + 1;
+                assert_eq!(
+                    line_col_to_byte(&text, line, end, encoding),
+                    Some((line_start + line_body.len()) as u64),
+                    "{encoding:?} {text:?}"
+                );
+                assert_eq!(line_col_to_byte(&text, line, end + 1, encoding), None);
+            }
+        }
     }
 }

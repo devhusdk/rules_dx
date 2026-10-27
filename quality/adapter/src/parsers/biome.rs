@@ -149,7 +149,13 @@ pub fn parse_biome_format(
             });
         }
         let checked = known_native(TOOL, files, &diagnostic.location.path)?;
-        findings.push(unformatted_at(REGISTRY, checked, 1, 1));
+        findings.push(unformatted_at(
+            REGISTRY,
+            checked,
+            1,
+            1,
+            ColumnEncoding::Scalars,
+        ));
     }
     if findings.is_empty() && code != Some(0) {
         return Err(ParseError::Shape {

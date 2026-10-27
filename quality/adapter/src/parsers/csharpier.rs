@@ -1,5 +1,6 @@
 use super::{as_text, code_name, finding, known, row_col, unformatted_at, FileFinding, ParseError};
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "csharpier";
 const UNFORMATTED: &str = " - Was not formatted.";
@@ -18,7 +19,13 @@ pub fn parse_csharpier(
             close_syntax(&mut syntax, &mut findings);
             if let Some(path) = rest.strip_suffix(UNFORMATTED) {
                 let path = path.strip_prefix("./").unwrap_or(path);
-                findings.push(unformatted_at(TOOL, known(TOOL, files, path)?, 1, 1));
+                findings.push(unformatted_at(
+                    TOOL,
+                    known(TOOL, files, path)?,
+                    1,
+                    1,
+                    ColumnEncoding::Scalars,
+                ));
             } else if let Some(path) = rest.strip_suffix(SYNTAX) {
                 let path = path.strip_prefix("./").unwrap_or(path);
                 syntax = Some((known(TOOL, files, path)?, findings.len()));
@@ -60,8 +67,8 @@ fn close_syntax(syntax: &mut Option<(&str, usize)>, findings: &mut Vec<FileFindi
                 "syntax".to_owned(),
                 "was not formatted due to syntax errors".to_owned(),
                 ToolSeverity::Error,
-                1,
-                1,
+                TextPosition { line: 1, column: 1 },
+                ColumnEncoding::Scalars,
             ));
         }
     }
@@ -78,8 +85,8 @@ fn syntax_error(file: &str, line: &str) -> Option<FileFinding> {
         rule.to_owned(),
         text.to_owned(),
         ToolSeverity::Error,
-        row,
-        column,
+        TextPosition { line: row, column },
+        ColumnEncoding::Scalars,
     ))
 }
 

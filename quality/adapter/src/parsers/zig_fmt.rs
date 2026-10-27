@@ -1,4 +1,5 @@
 use crate::ToolSeverity;
+use crate::{ColumnEncoding, TextPosition};
 
 use super::{
     as_text, code_name, columned, finding, listed_paths, prefixed, FileFinding, ParseError,
@@ -46,8 +47,11 @@ fn syntax_errors(stderr: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, Pars
                 "syntax".to_owned(),
                 message.trim().to_owned(),
                 ToolSeverity::Error,
-                row,
-                col,
+                TextPosition {
+                    line: row,
+                    column: col,
+                },
+                ColumnEncoding::Scalars,
             ));
         }
     }

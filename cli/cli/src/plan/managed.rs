@@ -138,7 +138,6 @@ mod tests {
                 "--nosystem_rc",
                 "build",
                 "--jobs=4",
-                crate::plan::VALIDATE_FLAG,
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",

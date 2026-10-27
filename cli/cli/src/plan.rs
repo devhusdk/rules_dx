@@ -30,17 +30,11 @@ pub use run_temp::{
 };
 pub use workflow::{plan_workflow, workflow_options, workflow_protected, WorkflowVerb};
 
-pub const VALIDATE_FLAG: &str = "--@rules_dx//config:validate=false";
-
 pub const CLIPPY_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:clippy_output_diagnostics=true";
 
 pub const RUSTC_DIAGNOSTICS_FLAG: &str = "--@rules_dx//config:rustc_output_diagnostics=true";
 
-pub const BAZEL_SETTINGS: [&str; 3] = [
-    VALIDATE_FLAG,
-    CLIPPY_DIAGNOSTICS_FLAG,
-    RUSTC_DIAGNOSTICS_FLAG,
-];
+pub const BAZEL_SETTINGS: [&str; 2] = [CLIPPY_DIAGNOSTICS_FLAG, RUSTC_DIAGNOSTICS_FLAG];
 
 const UPSTREAM_SETTINGS: [&str; 2] = [
     "--@rules_rust//rust/settings:clippy_output_diagnostics=true",
@@ -259,7 +253,6 @@ mod tests {
         assert_eq!(
             settings_for("my_dx", "cquery"),
             [
-                "--@my_dx//config:validate=false",
                 "--@my_dx//config:clippy_output_diagnostics=true",
                 "--@my_dx//config:rustc_output_diagnostics=true",
             ]
@@ -314,8 +307,8 @@ mod tests {
     #[test]
     fn labels_default_to_the_rules_dx_repo() {
         assert_eq!(
-            rules_dx_label("config:validate"),
-            "@rules_dx//config:validate"
+            rules_dx_label("config:workspace"),
+            "@rules_dx//config:workspace"
         );
     }
 

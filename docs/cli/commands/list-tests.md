@@ -36,7 +36,7 @@ drop tests or fail with `no_tests`.
 Listing never runs test bodies, but `--cases` builds the selected tests
 and executes their binaries and initialization code; pass it only for
 targets you trust. The `--list` run also passes
-`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+`--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 Every other

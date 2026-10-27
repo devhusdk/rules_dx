@@ -44,11 +44,11 @@ run no phase, `generate` included, and skip the build-output check. They print
 unless `--apply` is given. Affected targets that do not fit the host platform
 are skipped.
 Every phase, including `test`, passes the same Bazel settings:
-`--@rules_dx//config:validate=false`, `--@rules_dx//config:clippy_output_diagnostics=true`
+`--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 dx spells them with the name your MODULE.bazel gives rules_dx, for example
-`--@my_dx//config:validate=false` when `repo_name = "my_dx"`.
+`--@my_dx//config:clippy_output_diagnostics=true` when `repo_name = "my_dx"`.
 `--check` passes through to every phase. `--fail-on` applies to `format`,
 `lint`, and `typecheck`. `--report sarif=<dest>` merges the `lint` and
 `typecheck` phases into one document. `generate` and `test` take neither. A

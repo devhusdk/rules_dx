@@ -126,8 +126,15 @@ _javascript_wasm_bindgen_library = rule(
     doc = "Adapts one rust_wasm_bindgen target to JsInfo.",
     provides = [_JsInfo, DefaultInfo, _RustWasmBindgenInfo],
     attrs = {
-        "bindgen": attr.label(mandatory = True, allow_files = True),
-        "deps": attr.label_list(providers = [[_JsInfo]]),
+        "bindgen": attr.label(
+            doc = "rust_wasm_bindgen target whose output is adapted.",
+            mandatory = True,
+            allow_files = True,
+        ),
+        "deps": attr.label_list(
+            doc = "JsInfo dependencies whose runfiles are added to this target.",
+            providers = [[_JsInfo]],
+        ),
     },
 )
 

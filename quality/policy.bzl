@@ -68,19 +68,24 @@ quality_family = rule(
     doc = "Quality tool selection for one family.",
     attrs = {
         "audit": attr.string_list(
+            doc = "Audit tool ids selected for this quality family.",
             default = [],
         ),
         "disabled": attr.string_list(
+            doc = "Capabilities disabled for this family, which must select no tools.",
             default = [],
         ),
-        "family_id": attr.string(),
+        "family_id": attr.string(doc = "Unique non-empty identifier for this quality family."),
         "format": attr.string_list(
+            doc = "Format tool ids selected for this quality family.",
             default = [],
         ),
         "lint": attr.string_list(
+            doc = "Lint tool ids selected for this quality family.",
             default = [],
         ),
         "typecheck": attr.string_list(
+            doc = "Typecheck tool ids selected for this quality family.",
             default = [],
         ),
     },
@@ -101,6 +106,7 @@ workspace_policy = rule(
     doc = "Workspace quality policy built from family sections.",
     attrs = {
         "families": attr.label_list(
+            doc = "Family policy sections combined into the workspace policy.",
             providers = [FamilyPolicyInfo],
             default = [],
         ),

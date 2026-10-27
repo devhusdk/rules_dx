@@ -140,13 +140,16 @@ def _make_native_config_rule(tool_id):
         doc = "Native config file for " + tool_id + ".",
         attrs = {
             "allow_generated": attr.bool(
+                doc = "Accepts generated config and data files, not only checked-in sources.",
                 default = False,
             ),
             "data": attr.label_list(
+                doc = "Extra files the tool reads alongside its config.",
                 allow_files = True,
                 default = [],
             ),
             "src": attr.label(
+                doc = "Config file the tool reads, normally a checked-in source.",
                 allow_single_file = True,
                 mandatory = True,
             ),

@@ -84,15 +84,42 @@ ndk_cc_toolchain_config = rule(
     implementation = _ndk_cc_toolchain_config_impl,
     doc = "NDK clang toolchain configuration for one Android tuple.",
     attrs = {
-        "api_level": attr.int(mandatory = True),
-        "clang_resource_dir": attr.string(mandatory = True),
-        "clang_target": attr.string(mandatory = True),
-        "cpu": attr.string(mandatory = True),
-        "cxx_include_dir": attr.string(mandatory = True),
-        "cxx_runtime": attr.string(mandatory = True),
-        "ndk_prebuilt": attr.string(mandatory = True),
-        "ndk_sysroot": attr.string(mandatory = True),
-        "rust_triple": attr.string(mandatory = True),
-        "tuple": attr.string(mandatory = True),
+        "api_level": attr.int(
+            doc = "Android API level that selects the libc version.",
+            mandatory = True,
+        ),
+        "clang_resource_dir": attr.string(
+            doc = "Clang resource directory added to builtin include paths.",
+            mandatory = True,
+        ),
+        "clang_target": attr.string(
+            doc = "Clang target triple passed to every compile and link.",
+            mandatory = True,
+        ),
+        "cpu": attr.string(doc = "Target CPU name reported to the toolchain.", mandatory = True),
+        "cxx_include_dir": attr.string(
+            doc = "C++ standard library include directory added to builtin includes.",
+            mandatory = True,
+        ),
+        "cxx_runtime": attr.string(
+            doc = "C++ runtime linkage, shared or static; any other value disables it.",
+            mandatory = True,
+        ),
+        "ndk_prebuilt": attr.string(
+            doc = "NDK prebuilt toolchain directory holding clang and LLVM tools.",
+            mandatory = True,
+        ),
+        "ndk_sysroot": attr.string(
+            doc = "NDK sysroot directory used as the builtin sysroot.",
+            mandatory = True,
+        ),
+        "rust_triple": attr.string(
+            doc = "Rust target triple used in the sysroot include path.",
+            mandatory = True,
+        ),
+        "tuple": attr.string(
+            doc = "Android ABI tuple that names the toolchain identifier.",
+            mandatory = True,
+        ),
     },
 )

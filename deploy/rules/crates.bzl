@@ -70,13 +70,16 @@ _crates_launcher = rule(
     doc = "Writes the launcher Rust source for one crates.io deployment.",
     attrs = {
         "crate": attr.label(
+            doc = "Crate target whose files are published by the deployment.",
             allow_files = True,
             mandatory = True,
         ),
         "crate_name": attr.string(
+            doc = "Name the crate is published under on crates.io.",
             mandatory = True,
         ),
         "version": attr.string(
+            doc = "Crate version published by the deployment.",
             mandatory = True,
         ),
     },

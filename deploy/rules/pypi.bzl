@@ -91,15 +91,19 @@ _pypi_launcher = rule(
     doc = "Writes the launcher Rust source for one PyPI deployment.",
     attrs = {
         "dist_name": attr.string(
+            doc = "PyPI distribution name, taken from the deployment target name.",
             mandatory = True,
         ),
         "repository_url": attr.string(
+            doc = "Upload endpoint URL of the package index.",
             mandatory = True,
         ),
         "sdist": attr.label(
+            doc = "Optional source distribution, a single .tar.gz file.",
             allow_single_file = True,
         ),
         "wheel": attr.label(
+            doc = "Wheel file published as the main distribution.",
             allow_single_file = True,
             mandatory = True,
         ),

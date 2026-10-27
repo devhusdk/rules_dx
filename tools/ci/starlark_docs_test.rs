@@ -1,9 +1,9 @@
-//! Every non-test rule() and aspect() in rules_dx has a one-line doc.
+//! Every non-test rule(), aspect() and public attr in rules_dx has a one-line doc.
 
 use std::path::Path;
 
 use dx_testing::runfiles_root;
-use starlark_syntax::syntax::ast::{ArgumentP, AstExpr, AstLiteral, ExprP};
+use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, AstLiteral, ExprP};
 use starlark_syntax::syntax::{AstModule, Dialect};
 
 /// Callees whose calls must pass doc when they pass implementation.
@@ -113,10 +113,14 @@ const PACKAGES: [&str; 94] = [
 /// Fewer non-test rules and aspects than this means the sweep lost its data.
 const MIN_CALLS: usize = 100;
 
+/// Fewer public attrs than this means the sweep lost its data.
+const MIN_ATTRS: usize = 550;
+
 /// What one file contributes: checked calls and their findings.
 #[derive(Default)]
 struct Scan {
     calls: usize,
+    attrs: usize,
     findings: Vec<String>,
 }
 
@@ -128,7 +132,7 @@ fn skipped(path: &str) -> bool {
             .any(|segment| SKIPPED_SEGMENTS.contains(&segment))
 }
 
-/// The rule() and aspect() calls in `source` that lack a usable doc, as `path:line: ...`.
+/// The rule() and aspect() calls and public attrs in `source` that lack a usable doc, as `path:line: ...`.
 fn findings(path: &str, source: &str) -> Vec<String> {
     scan(path, source).findings
 }
@@ -155,50 +159,101 @@ fn scan(path: &str, source: &str) -> Scan {
 }
 
 fn walk(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) {
-    check_call(ast, path, expr, out);
+    if !check_call(ast, path, expr, out) {
+        return;
+    }
+    check_attr_dict(ast, path, expr, out);
     expr.node.visit_expr(|child| walk(ast, path, child, out));
 }
 
-fn check_call(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) {
+/// Checks a rule() or aspect() call; false when it is a test rule whose inline attrs are exempt.
+fn check_call(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) -> bool {
     let ExprP::Call(callee, args) = &expr.node else {
-        return;
+        return true;
     };
     let ExprP::Identifier(ident) = &callee.node else {
-        return;
+        return true;
     };
     let name = ident.node.ident.as_str();
     if !DOCUMENTED_CALLS.contains(&name) {
-        return;
+        return true;
     }
-    let named = |key: &str| {
-        args.args.iter().find_map(|arg| match &arg.node {
-            ArgumentP::Named(arg_key, value) if arg_key.node == key => Some(value),
-            _ => None,
-        })
-    };
+    let named = |key: &str| named_arg(&args.args, key);
     if named("implementation").is_none() {
-        return;
+        return true;
     }
     if named("test").is_some_and(
         |value| matches!(&value.node, ExprP::Identifier(id) if id.node.ident == "True"),
     ) {
-        return;
+        return false;
     }
     out.calls += 1;
-    let line = ast.file_span(expr.span).resolve_span().begin.line + 1;
-    let problem = match named("doc").map(|value| &value.node) {
-        None => "has no doc",
+    if let Some(problem) = doc_problem(named("doc")) {
+        let line = line_of(ast, expr);
+        out.findings.push(format!(
+            "{path}:{line}: {name}() {problem}; add doc = \"<one plain line>\""
+        ));
+    }
+    true
+}
+
+/// Checks each public `"key": attr.x(...)` entry of a dict literal for a doc.
+fn check_attr_dict(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) {
+    let ExprP::Dict(entries) = &expr.node else {
+        return;
+    };
+    for (key, value) in entries {
+        let ExprP::Literal(AstLiteral::String(key)) = &key.node else {
+            continue;
+        };
+        if key.node.starts_with('_') {
+            continue;
+        }
+        let ExprP::Call(callee, args) = &value.node else {
+            continue;
+        };
+        let ExprP::Dot(object, _) = &callee.node else {
+            continue;
+        };
+        if !matches!(&object.node, ExprP::Identifier(id) if id.node.ident == "attr") {
+            continue;
+        }
+        out.attrs += 1;
+        if let Some(problem) = doc_problem(named_arg(&args.args, "doc")) {
+            let line = line_of(ast, value);
+            out.findings.push(format!(
+                "{path}:{line}: attr \"{}\" {problem}; add doc = \"<one plain line>\"",
+                key.node
+            ));
+        }
+    }
+}
+
+/// The value of the named argument `key`, if passed.
+fn named_arg<'a>(args: &'a [AstArgument], key: &str) -> Option<&'a AstExpr> {
+    args.iter().find_map(|arg| match &arg.node {
+        ArgumentP::Named(arg_key, value) if arg_key.node == key => Some(value),
+        _ => None,
+    })
+}
+
+/// Why `doc` is not a usable one-line doc, or None when it is (computed docs count).
+fn doc_problem(doc: Option<&AstExpr>) -> Option<&'static str> {
+    match doc.map(|value| &value.node) {
+        None => Some("has no doc"),
         Some(ExprP::Literal(AstLiteral::String(text))) if text.node.trim().is_empty() => {
-            "has an empty doc"
+            Some("has an empty doc")
         }
         Some(ExprP::Literal(AstLiteral::String(text))) if text.node.trim().contains('\n') => {
-            "has a multi-line doc"
+            Some("has a multi-line doc")
         }
-        Some(_) => return,
-    };
-    out.findings.push(format!(
-        "{path}:{line}: {name}() {problem}; add doc = \"<one plain line>\""
-    ));
+        Some(_) => None,
+    }
+}
+
+/// The 1-based line where `expr` starts.
+fn line_of(ast: &AstModule, expr: &AstExpr) -> usize {
+    ast.file_span(expr.span).resolve_span().begin.line + 1
 }
 
 /// Every .bzl file under `dir`, relative to the runfiles root.
@@ -237,9 +292,10 @@ fn owner(path: &str) -> Option<&'static str> {
 }
 
 #[test]
-fn every_rule_and_aspect_has_doc() {
+fn every_rule_aspect_and_attr_has_doc() {
     let root = runfiles_root();
     let mut calls = 0;
+    let mut attrs = 0;
     let mut problems = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
     for path in bzl_files(&root) {
@@ -253,6 +309,7 @@ fn every_rule_and_aspect_has_doc() {
             .unwrap_or_else(|error| panic!("read {path}: {error}"));
         let result = scan(&path, &source);
         calls += result.calls;
+        attrs += result.attrs;
         problems.extend(result.findings);
     }
     let missing: Vec<_> = PACKAGES.iter().filter(|pkg| !seen.contains(*pkg)).collect();
@@ -261,6 +318,7 @@ fn every_rule_and_aspect_has_doc() {
         calls > MIN_CALLS,
         "only {calls} rules and aspects were checked"
     );
+    assert!(attrs > MIN_ATTRS, "only {attrs} public attrs were checked");
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
@@ -330,4 +388,59 @@ fn a_tests_path_is_skipped() {
     assert!(findings("pkg/tests/defs.bzl", source).is_empty());
     assert!(findings("pkg/defs_tests.bzl", source).is_empty());
     assert!(findings("third_party/x/defs.bzl", source).is_empty());
+}
+
+#[test]
+fn an_attr_without_doc_is_reported() {
+    let source = "x = rule(\n    implementation = _impl,\n    doc = \"X.\",\n    attrs = {\n        \"srcs\": attr.label_list(),\n    },\n)\n";
+    assert_eq!(
+        findings("pkg/defs.bzl", source),
+        ["pkg/defs.bzl:5: attr \"srcs\" has no doc; add doc = \"<one plain line>\""]
+    );
+}
+
+#[test]
+fn a_private_attr_is_exempt() {
+    let source =
+        "x = rule(implementation = _impl, doc = \"X.\", attrs = {\"_tool\": attr.label()})\n";
+    assert!(findings("pkg/defs.bzl", source).is_empty());
+}
+
+#[test]
+fn a_test_rule_inline_attr_is_exempt() {
+    let source = "x = rule(implementation = _i, test = True, attrs = {\"x\": attr.label()})\n";
+    assert!(findings("pkg/defs.bzl", source).is_empty());
+}
+
+#[test]
+fn an_attr_in_a_shared_dict_is_reported() {
+    let source = "_COMMON = {\n    \"deps\": attr.label_list(),\n}\n";
+    assert_eq!(
+        findings("pkg/defs.bzl", source),
+        ["pkg/defs.bzl:2: attr \"deps\" has no doc; add doc = \"<one plain line>\""]
+    );
+}
+
+#[test]
+fn a_multi_line_attr_doc_is_reported() {
+    let source = "_A = {\"x\": attr.string(doc = \"\"\"One.\n\nTwo.\"\"\")}\n";
+    assert_eq!(
+        findings("pkg/defs.bzl", source),
+        ["pkg/defs.bzl:1: attr \"x\" has a multi-line doc; add doc = \"<one plain line>\""]
+    );
+}
+
+#[test]
+fn an_attr_with_kwargs_still_needs_doc() {
+    let source = "def f(**kw):\n    return {\"upstream\": attr.label(**kw)}\n";
+    assert_eq!(
+        findings("pkg/defs.bzl", source),
+        ["pkg/defs.bzl:2: attr \"upstream\" has no doc; add doc = \"<one plain line>\""]
+    );
+}
+
+#[test]
+fn a_non_attr_dict_value_is_ignored() {
+    let source = "_A = {\"x\": \"s\", \"y\": foo.label()}\n";
+    assert!(findings("pkg/defs.bzl", source).is_empty());
 }

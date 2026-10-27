@@ -93,11 +93,26 @@ _apk_validation = rule(
     implementation = _apk_validation_impl,
     doc = "Fails analysis when an APK package declaration is invalid.",
     attrs = {
-        "abis": attr.string_list(mandatory = True),
-        "api_level": attr.int(mandatory = True),
-        "apk_name": attr.string(mandatory = True),
-        "app_id": attr.string(mandatory = True),
-        "version_code": attr.int(mandatory = True),
+        "abis": attr.string_list(
+            doc = "ABIs the APK packages, checked for validity.",
+            mandatory = True,
+        ),
+        "api_level": attr.int(
+            doc = "Android API level the APK targets, checked for validity.",
+            mandatory = True,
+        ),
+        "apk_name": attr.string(
+            doc = "Name of the APK file, checked for validity.",
+            mandatory = True,
+        ),
+        "app_id": attr.string(
+            doc = "Application id of the APK, checked for validity.",
+            mandatory = True,
+        ),
+        "version_code": attr.int(
+            doc = "Integer version code of the APK, checked for validity.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -121,13 +136,28 @@ _apk_manifest = rule(
     implementation = _apk_manifest_impl,
     doc = "Writes the AndroidManifest.xml for one APK.",
     attrs = {
-        "activity": attr.string(mandatory = True),
-        "api_level": attr.int(mandatory = True),
-        "app_id": attr.string(mandatory = True),
-        "library": attr.string(mandatory = True),
-        "permissions": attr.string_list(mandatory = True),
-        "version_code": attr.int(mandatory = True),
-        "version_name": attr.string(mandatory = True),
+        "activity": attr.string(
+            doc = "Fully qualified activity class the manifest launches.",
+            mandatory = True,
+        ),
+        "api_level": attr.int(
+            doc = "Android API level written into the manifest.",
+            mandatory = True,
+        ),
+        "app_id": attr.string(doc = "Application id written into the manifest.", mandatory = True),
+        "library": attr.string(doc = "Native library name the activity loads.", mandatory = True),
+        "permissions": attr.string_list(
+            doc = "Android permissions requested by the manifest.",
+            mandatory = True,
+        ),
+        "version_code": attr.int(
+            doc = "Integer version code written into the manifest.",
+            mandatory = True,
+        ),
+        "version_name": attr.string(
+            doc = "Human-readable version name written into the manifest.",
+            mandatory = True,
+        ),
     },
     outputs = {"manifest": "%{name}.xml"},
 )
@@ -297,8 +327,15 @@ _apk_file = rule(
     implementation = _apk_file_impl,
     doc = "Exposes the one signed or unsigned APK an android_binary builds.",
     attrs = {
-        "src": attr.label(allow_files = True, mandatory = True),
-        "unsigned": attr.bool(default = False),
+        "src": attr.label(
+            doc = "Target whose default outputs include the built APK.",
+            allow_files = True,
+            mandatory = True,
+        ),
+        "unsigned": attr.bool(
+            doc = "Selects the unsigned APK instead of the signed one.",
+            default = False,
+        ),
     },
 )
 
@@ -334,10 +371,22 @@ _adb_selection = rule(
     implementation = _adb_selection_impl,
     doc = "Fails analysis when an adb launcher declaration is invalid.",
     attrs = {
-        "activity": attr.string(default = ""),
-        "app_id": attr.string(default = ""),
-        "require_activity": attr.bool(default = False),
-        "serial": attr.string(default = ""),
+        "activity": attr.string(
+            doc = "Activity launched on the device, required when require_activity is set.",
+            default = "",
+        ),
+        "app_id": attr.string(
+            doc = "Application id to launch, validated when non-empty.",
+            default = "",
+        ),
+        "require_activity": attr.bool(
+            doc = "Whether an empty activity fails analysis.",
+            default = False,
+        ),
+        "serial": attr.string(
+            doc = "Device or emulator serial the adb operation targets.",
+            default = "",
+        ),
     },
 )
 
@@ -444,9 +493,19 @@ _sign_selection = rule(
     implementation = _sign_selection_impl,
     doc = "Fails analysis when a release signing declaration is invalid.",
     attrs = {
-        "apk": attr.label(allow_files = True, mandatory = True),
-        "min_sdk": attr.int(default = 0),
-        "schemes": attr.string_list(mandatory = True),
+        "apk": attr.label(
+            doc = "APK file the release signing launcher signs.",
+            allow_files = True,
+            mandatory = True,
+        ),
+        "min_sdk": attr.int(
+            doc = "Minimum SDK level the signature covers, zero leaves it unset.",
+            default = 0,
+        ),
+        "schemes": attr.string_list(
+            doc = "Signature schemes to apply, such as v1, v2, and v3.",
+            mandatory = True,
+        ),
     },
 )
 

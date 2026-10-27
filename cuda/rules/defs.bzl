@@ -44,8 +44,15 @@ _cuda_library_forward = dx_library_forward_rule(
     allow_files = _CUDA_SRCS + _CUDA_HDRS,
     upstream_providers = [[CcInfo, CudaInfo]],
     extra_attrs = {
-        "hdrs": attr.label_list(allow_files = _CUDA_HDRS),
-        "check": attr.label(mandatory = True, cfg = cuda_host_transition),
+        "hdrs": attr.label_list(
+            doc = "Header files exported with the CUDA library.",
+            allow_files = _CUDA_HDRS,
+        ),
+        "check": attr.label(
+            doc = "Generated check target that validates the CUDA architectures.",
+            mandatory = True,
+            cfg = cuda_host_transition,
+        ),
         "_toolkit_check": attr.label(default = Label("//cuda/toolchain:toolkit_check"), cfg = cuda_host_transition),
     },
     runtime = "besteffort",

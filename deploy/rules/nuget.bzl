@@ -92,14 +92,16 @@ _nuget_launcher = rule(
     doc = "Writes the launcher Rust source for one NuGet deployment.",
     attrs = {
         "nupkg": attr.label(
+            doc = "Single NuGet package file that is published.",
             allow_single_file = True,
             mandatory = True,
         ),
-        "package_id": attr.string(),
+        "package_id": attr.string(doc = "NuGet package id embedded in the generated launcher."),
         "source": attr.string(
+            doc = "HTTPS NuGet feed URL the launcher publishes to.",
             mandatory = True,
         ),
-        "version": attr.string(),
+        "version": attr.string(doc = "NuGet package version embedded in the generated launcher."),
     },
 )
 

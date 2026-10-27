@@ -265,7 +265,10 @@ dx_data_coverage_aspect = aspect(
 
 def dx_forward_data_attr():
     """Returns the data attribute forwarders use to expand args."""
-    return {"data": attr.label_list(allow_files = True)}
+    return {"data": attr.label_list(
+        doc = "Runtime data files made available to the wrapped target.",
+        allow_files = True,
+    )}
 
 def dx_forward_attrs(allow_files, upstream_providers, extra_attrs = None, upstream_cfg = None, upstream_aspects = None):
     """Builds the common srcs/upstream attribute dict for forwarders."""
@@ -280,9 +283,13 @@ def dx_forward_attrs(allow_files, upstream_providers, extra_attrs = None, upstre
         upstream_attr_kwargs["providers"] = upstream_providers
     attrs = {
         "srcs": attr.label_list(
+            doc = "Source files the wrapper reports to quality checks.",
             allow_files = allow_files,
         ),
-        "upstream": attr.label(**upstream_attr_kwargs),
+        "upstream": attr.label(
+            doc = "Wrapped upstream target whose providers are forwarded.",
+            **upstream_attr_kwargs
+        ),
     }
     if extra_attrs:
         attrs.update(extra_attrs)

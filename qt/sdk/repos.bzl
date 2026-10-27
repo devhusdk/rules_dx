@@ -561,10 +561,22 @@ def _qt_hub_repo_impl(ctx):
 _qt_cell_repo = repository_rule(
     implementation = _qt_cell_repo_impl,
     attrs = {
-        "cell": attr.string(mandatory = True),
-        "mirror": attr.string(default = ""),
-        "modules": attr.string_list(mandatory = True),
-        "runtime_mirror": attr.string(default = ""),
+        "cell": attr.string(
+            doc = "Qt platform cell whose pinned archives are acquired.",
+            mandatory = True,
+        ),
+        "mirror": attr.string(
+            doc = "Optional https mirror of the Qt online repository.",
+            default = "",
+        ),
+        "modules": attr.string_list(
+            doc = "Qt modules to acquire, closed over their requirements.",
+            mandatory = True,
+        ),
+        "runtime_mirror": attr.string(
+            doc = "Optional https mirror for the Qt runtime packages.",
+            default = "",
+        ),
         "_launcher": attr.label(default = "//qt/sdk:launcher.c"),
     },
 )
@@ -572,7 +584,10 @@ _qt_cell_repo = repository_rule(
 _qt_hub_repo = repository_rule(
     implementation = _qt_hub_repo_impl,
     attrs = {
-        "cells": attr.string(mandatory = True),
+        "cells": attr.string(
+            doc = "JSON map from cell names to their acquired repository names.",
+            mandatory = True,
+        ),
     },
 )
 

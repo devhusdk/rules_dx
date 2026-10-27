@@ -60,8 +60,15 @@ cosign_binary = rule(
     implementation = _cosign_binary_impl,
     doc = "Pairs a pinned cosign binary with its sha256.",
     attrs = {
-        "binary": attr.label(mandatory = True, allow_single_file = True),
-        "sha256": attr.string(mandatory = True),
+        "binary": attr.label(
+            doc = "Pinned cosign executable file provided by this target.",
+            mandatory = True,
+            allow_single_file = True,
+        ),
+        "sha256": attr.string(
+            doc = "Expected sha256 digest of the pinned cosign binary.",
+            mandatory = True,
+        ),
     },
     provides = [CosignInfo],
 )
@@ -160,11 +167,27 @@ _signing_launcher = rule(
     implementation = _signing_launcher_impl,
     doc = "Writes the owner-gated signing deploy launcher Rust source.",
     attrs = {
-        "artifacts": attr.label_list(mandatory = True),
-        "cosign": attr.label(mandatory = True, providers = [CosignInfo]),
-        "cosign_version": attr.string(mandatory = True),
-        "identity": attr.string(mandatory = True),
-        "issuer": attr.string(mandatory = True),
+        "artifacts": attr.label_list(
+            doc = "Executable targets the signing launcher embeds as assets.",
+            mandatory = True,
+        ),
+        "cosign": attr.label(
+            doc = "Pinned cosign binary target providing the signing tool.",
+            mandatory = True,
+            providers = [CosignInfo],
+        ),
+        "cosign_version": attr.string(
+            doc = "Cosign release version embedded in the signing launcher.",
+            mandatory = True,
+        ),
+        "identity": attr.string(
+            doc = "Certificate identity the signatures must match.",
+            mandatory = True,
+        ),
+        "issuer": attr.string(
+            doc = "OIDC issuer the signing certificate must come from.",
+            mandatory = True,
+        ),
     },
 )
 

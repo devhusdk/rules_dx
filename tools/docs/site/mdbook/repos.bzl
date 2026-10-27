@@ -159,12 +159,30 @@ def _hub_repo_impl(ctx):
 _mdbook_repo = repository_rule(
     implementation = _mdbook_repo_impl,
     attrs = {
-        "archive_format": attr.string(mandatory = True),
-        "asset": attr.string(mandatory = True),
-        "executable": attr.string(mandatory = True),
-        "executable_sha256": attr.string(mandatory = True),
-        "sha256": attr.string(mandatory = True),
-        "url": attr.string(mandatory = True),
+        "archive_format": attr.string(
+            doc = "Archive type of the download, tar.gz or zip.",
+            mandatory = True,
+        ),
+        "asset": attr.string(
+            doc = "Release asset filename expected for this platform.",
+            mandatory = True,
+        ),
+        "executable": attr.string(
+            doc = "Name of the executable extracted from the archive.",
+            mandatory = True,
+        ),
+        "executable_sha256": attr.string(
+            doc = "Expected sha256 of the extracted executable file.",
+            mandatory = True,
+        ),
+        "sha256": attr.string(
+            doc = "Expected sha256 of the downloaded archive.",
+            mandatory = True,
+        ),
+        "url": attr.string(
+            doc = "Download URL of the archive for this platform.",
+            mandatory = True,
+        ),
     },
 )
 

@@ -163,23 +163,29 @@ _maven_launcher = rule(
     doc = "Writes the launcher Rust source for one Maven deployment.",
     attrs = {
         "artifact": attr.string(
+            doc = "Maven artifact id the jar and pom are published under.",
             mandatory = True,
         ),
         "group": attr.string(
+            doc = "Maven group id the jar and pom are published under.",
             mandatory = True,
         ),
         "jar": attr.label(
+            doc = "Single jar file to publish.",
             allow_single_file = True,
             mandatory = True,
         ),
         "pom": attr.label(
+            doc = "Single pom file published alongside the jar.",
             allow_single_file = True,
             mandatory = True,
         ),
         "repository_url": attr.string(
+            doc = "Maven repository endpoint that receives the publish.",
             mandatory = True,
         ),
         "version": attr.string(
+            doc = "Maven version of the published artifact.",
             mandatory = True,
         ),
     },

@@ -21,9 +21,18 @@ _simulator_selection = rule(
     implementation = _simulator_selection_impl,
     doc = "Fails analysis when a simulator launcher declaration is invalid.",
     attrs = {
-        "bundle_id": attr.string(default = ""),
-        "check_bundle_id": attr.bool(default = False),
-        "simulator": attr.string(mandatory = True),
+        "bundle_id": attr.string(
+            doc = "Bundle identifier of the app on the simulator, validated when requested.",
+            default = "",
+        ),
+        "check_bundle_id": attr.bool(
+            doc = "Whether to validate bundle_id as a reverse DNS identifier.",
+            default = False,
+        ),
+        "simulator": attr.string(
+            doc = "Name or UDID of the simulator to target.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -40,7 +49,10 @@ def _app_archive_impl(ctx):
 _app_archive = rule(
     implementation = _app_archive_impl,
     doc = "Exposes the one .ipa or .app an iOS app builds.",
-    attrs = {"app": attr.label(mandatory = True)},
+    attrs = {"app": attr.label(
+        doc = "App target whose single built ipa or app output is installed.",
+        mandatory = True,
+    )},
 )
 
 def _launcher(name, op, selection, env, data, visibility):

@@ -41,7 +41,10 @@ def _hub_repo_impl(ctx):
 
 _hub_repo = repository_rule(
     implementation = _hub_repo_impl,
-    attrs = {"build": attr.string(mandatory = True)},
+    attrs = {"build": attr.string(
+        doc = "BUILD file content written to the hub repository root.",
+        mandatory = True,
+    )},
 )
 
 def _dx_rustdoc_impl(module_ctx):

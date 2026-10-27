@@ -15,7 +15,13 @@ def _hub_fixture_repo_impl(ctx):
 hub_fixture_repo = repository_rule(
     implementation = _hub_fixture_repo_impl,
     attrs = {
-        "platform": attr.string(mandatory = True),
-        "tool": attr.string(mandatory = True),
+        "platform": attr.string(
+            doc = "Platform name written into the fixture tool file.",
+            mandatory = True,
+        ),
+        "tool": attr.string(
+            doc = "Tool name written into the fixture tool file.",
+            mandatory = True,
+        ),
     },
 )

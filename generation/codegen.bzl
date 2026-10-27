@@ -252,15 +252,19 @@ dx_codegen_shard = rule(
     doc = "Declares codegen plan entries for dx codegen.",
     attrs = {
         "deps": attr.label_list(
+            doc = "Other codegen shard targets whose plans are collected.",
             default = [],
         ),
         "entries": attr.string_list(
+            doc = "Pipe separated codegen entries of logical path, root and namespace.",
             mandatory = True,
         ),
         "language": attr.string(
+            doc = "Target language of the generated code.",
             mandatory = True,
         ),
         "schema_kind": attr.string(
+            doc = "Schema kind of the inputs, protobuf by default.",
             default = "protobuf",
         ),
         "_writer": attr.label(
@@ -368,15 +372,19 @@ prost_codegen_shard = rule(
     doc = "Declares codegen plan entries for the sources prost generates.",
     attrs = {
         "entries": attr.string_list(
+            doc = "Codegen entry specs for the sources prost generates.",
             mandatory = True,
         ),
         "language": attr.string(
+            doc = "Target language of the generated code, rust by default.",
             default = "rust",
         ),
         "proto_rs": attr.label(
+            doc = "Target providing the prost generated Rust sources.",
             mandatory = True,
         ),
         "schema_kind": attr.string(
+            doc = "Schema kind of the inputs, protobuf by default.",
             default = "protobuf",
         ),
         "_writer": attr.label(
@@ -408,6 +416,7 @@ codegen_plan_subject = rule(
     doc = "Analysis subject reporting the codegen plan of one target.",
     attrs = {
         "target": attr.label(
+            doc = "Target whose codegen plan this subject reports.",
             aspects = [dx_codegen_plan_aspect],
             mandatory = True,
         ),

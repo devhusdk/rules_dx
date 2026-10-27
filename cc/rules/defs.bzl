@@ -27,6 +27,7 @@ _cc_library_forward = dx_library_forward_rule(
     upstream_providers = [[CcInfo]],
     extra_attrs = {
         "hdrs": attr.label_list(
+            doc = "Header files exported to dependent targets.",
             allow_files = True,
         ),
     },
@@ -42,9 +43,11 @@ _objc_library_forward = dx_library_forward_rule(
     upstream_providers = [[CcInfo, ObjcInfo]],
     extra_attrs = {
         "hdrs": attr.label_list(
+            doc = "Header files exported to dependent targets.",
             allow_files = True,
         ),
         "non_arc_srcs": attr.label_list(
+            doc = "Objective-C sources compiled without automatic reference counting.",
             allow_files = True,
         ),
     },

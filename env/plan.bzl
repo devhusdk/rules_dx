@@ -233,12 +233,15 @@ dx_env_shard = rule(
     doc = "Declares environment plan entries for dx env.",
     attrs = {
         "deps": attr.label_list(
+            doc = "Dependency labels declared for the environment shard.",
             default = [],
         ),
         "entries": attr.string_list(
+            doc = "Environment entries as KEY|VALUE or KEY|VALUE|EXEC_PATH specs.",
             mandatory = True,
         ),
         "integration": attr.string(
+            doc = "Language integration class of the shard, currently rust.",
             default = "rust",
         ),
         "_writer": attr.label(
@@ -334,12 +337,15 @@ rust_env_shard = rule(
     doc = "Declares environment plan entries from the sources of one Rust crate.",
     attrs = {
         "entries": attr.string_list(
+            doc = "Environment entries as KEY|VALUE or KEY|VALUE|EXEC_PATH, where EXEC_PATH selects one crate source.",
             mandatory = True,
         ),
         "integration": attr.string(
+            doc = "Language integration class of the shard, currently rust.",
             default = "rust",
         ),
         "target": attr.label(
+            doc = "Rust target whose crate sources the shard reads.",
             mandatory = True,
         ),
         "_writer": attr.label(
@@ -371,6 +377,7 @@ env_plan_subject = rule(
     doc = "Analysis subject reporting the environment plan of one target.",
     attrs = {
         "target": attr.label(
+            doc = "Target whose environment plan entries are reported.",
             aspects = [dx_env_plan_aspect],
             mandatory = True,
         ),

@@ -150,12 +150,15 @@ environment_tool = rule(
     doc = "One tool that dx env puts on PATH under its names.",
     attrs = {
         "aliases": attr.string_list(
+            doc = "Extra command names exposed on PATH for the same tool.",
             default = [],
         ),
         "bin_name": attr.string(
+            doc = "Command name the tool is exposed under on PATH.",
             mandatory = True,
         ),
         "executable": attr.label(
+            doc = "Executable target linked into the environment under its names.",
             cfg = "exec",
             executable = True,
             mandatory = True,
@@ -201,6 +204,7 @@ environment_config = rule(
     doc = "Collects environment tools and rejects host-name collisions.",
     attrs = {
         "tools": attr.label_list(
+            doc = "Environment tool targets collected into one config.",
             default = [],
             providers = [DefaultInfo, EnvironmentInfo],
         ),
@@ -252,6 +256,7 @@ environment_tree = rule(
             default = "@platforms//os:windows",
         ),
         "config": attr.label(
+            doc = "Environment config whose tools are staged into the tree.",
             mandatory = True,
             providers = [DefaultInfo, EnvironmentInfo],
         ),
@@ -269,10 +274,12 @@ environment_metadata = rule(
     doc = "Writes the metadata JSON of one environment.",
     attrs = {
         "config": attr.label(
+            doc = "Environment config whose tools are written as metadata.",
             mandatory = True,
             providers = [DefaultInfo, EnvironmentInfo],
         ),
         "windows": attr.bool(
+            doc = "Whether to render host file names for Windows.",
             default = False,
         ),
     },

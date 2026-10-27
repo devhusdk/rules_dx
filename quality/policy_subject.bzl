@@ -24,6 +24,7 @@ policy_subject = rule(
     doc = "Analysis subject reporting a workspace quality policy.",
     attrs = {
         "policy": attr.label(
+            doc = "Quality policy target whose families are reported as subject fields.",
             providers = [QualityPolicyInfo],
         ),
     },

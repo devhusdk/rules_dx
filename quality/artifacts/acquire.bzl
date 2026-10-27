@@ -8,12 +8,30 @@ ARCHIVE_TYPES = {
 }
 
 ACQUIRE_ATTRS = {
-    "archive_format": attr.string(mandatory = True),
-    "asset": attr.string(mandatory = True),
-    "executable": attr.string(mandatory = True),
-    "executable_sha256": attr.string(mandatory = True),
-    "sha256": attr.string(mandatory = True),
-    "url": attr.string(mandatory = True),
+    "archive_format": attr.string(
+        doc = "Archive format of the download, or none for a bare executable.",
+        mandatory = True,
+    ),
+    "asset": attr.string(
+        doc = "Upstream release asset name the tool was published as.",
+        mandatory = True,
+    ),
+    "executable": attr.string(
+        doc = "File name the tool executable is written to.",
+        mandatory = True,
+    ),
+    "executable_sha256": attr.string(
+        doc = "Expected sha256 of the extracted executable file.",
+        mandatory = True,
+    ),
+    "sha256": attr.string(
+        doc = "Expected sha256 of the downloaded archive or executable.",
+        mandatory = True,
+    ),
+    "url": attr.string(
+        doc = "Download URL of the upstream archive or executable.",
+        mandatory = True,
+    ),
 }
 
 _STAGING = "dx_extracted"

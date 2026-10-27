@@ -630,20 +630,27 @@ def _harness_execution_impl(ctx):
 
 _common_attrs = {
     "_windows_os": attr.label(default = "@platforms//os:windows"),
-    "checks": attr.string_list(),
+    "checks": attr.string_list(
+        doc = "JSON check records asserting expected against actual values.",
+    ),
     "expected_observations": attr.string(
+        doc = "Expected observation text compared with the observed subject data.",
         default = "",
     ),
     "windows_expected_observations": attr.string(
+        doc = "Expected observation text used instead on Windows targets.",
         default = "",
     ),
     "file_checks": attr.label_keyed_string_dict(
+        doc = "Map from file targets to newline separated substrings each file must contain.",
         allow_files = True,
     ),
     "observe_output_groups": attr.bool(
+        doc = "Whether to also observe dx_results output groups of subjects.",
         default = False,
     ),
     "subjects": attr.label_list(
+        doc = "Analysis subject targets whose fields and files are observed.",
         aspects = [dx_aspect_note],
     ),
 }

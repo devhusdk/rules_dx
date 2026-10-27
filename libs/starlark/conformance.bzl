@@ -163,8 +163,16 @@ dx_wrapper_forward_subject = rule(
     implementation = _dx_wrapper_forward_subject_impl,
     doc = "Compares one wrapper against its private upstream for forwarded providers and attributes.",
     attrs = {
-        "kind": attr.string(mandatory = True, values = DX_WRAPPER_FORWARD_KINDS),
-        "wrapper": attr.label(mandatory = True, aspects = [_dx_wrapper_attrs_aspect]),
+        "kind": attr.string(
+            doc = "Kind of the wrapped target, one of library, binary, or test.",
+            mandatory = True,
+            values = DX_WRAPPER_FORWARD_KINDS,
+        ),
+        "wrapper": attr.label(
+            doc = "Wrapper target compared against its private upstream.",
+            mandatory = True,
+            aspects = [_dx_wrapper_attrs_aspect],
+        ),
     },
 )
 

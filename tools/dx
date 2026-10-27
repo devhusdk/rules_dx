@@ -83,7 +83,7 @@ build_dx() {
   (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2)
 }
 query_inputs() {
-  (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))')
+  (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//:dx)) + buildfiles(deps(//:dx))')
 }
 # True for `update --apply [cargo]` without --check, --frozen or --offline: the only launches that may repin.
 wants_cargo_repin() {
@@ -214,7 +214,7 @@ if stale; then
     mv "$state/built.$$" "$state/built"
   else
     # The fresh dx is already stored. Leave built alone so the next call rebuilds and queries again.
-    echo "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway" >&2
+    echo "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway" >&2
     rm -f "$state/built.$$" "$state/inputs.$$"
   fi
 elif [ ! -x "$state/dx$exe" ] && [ -x "$bin" ]; then

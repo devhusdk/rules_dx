@@ -100,7 +100,7 @@ if not "%DX_FAIL%"=="0" (
 call powershell -NoProfile -NonInteractive -Command "%DX_SYNC%"
 if not errorlevel 1 set "DX_COPY=1"
 :dxqueryrun
-call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))" > "%DX_STATE%\query.%DX_TAG%"
+call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info "kind('source file', deps(//:dx)) + buildfiles(deps(//:dx))" > "%DX_STATE%\query.%DX_TAG%"
 set "DX_EC=%errorlevel%"
 if not defined DX_QRETRY if "%DX_EC%"=="33" goto dxqcrash
 if not defined DX_QRETRY if "%DX_EC%"=="37" goto dxqcrash
@@ -113,7 +113,7 @@ goto dxqueryrun
 :dxqdone
 if not "%DX_EC%"=="0" (
   popd
-  echo dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway 1>&2
+  echo dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway 1>&2
   del /q "%DX_STATE%\*.%DX_TAG%" 2>nul
   goto dxcopy
 )

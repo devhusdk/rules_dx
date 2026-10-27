@@ -63,31 +63,29 @@ pub(crate) fn execute_new(
         Err(error) => return invalid_name_code(invocation, out, err, &error),
     };
     let root = workspace.join(&dest);
-    if let Err(error) = super::wiring::preflight(&root) {
-        return operational(invocation, out, err, CODE_NEW_FAILED, &error.to_string());
+    let prefix = format!("{dest}/");
+    if let Err(message) = super::wiring::preflight(&root, &prefix) {
+        return operational(invocation, out, err, CODE_NEW_FAILED, &message);
     }
-    match dx_adopt::apply_new(workspace, language, name) {
-        Ok(entries) => {
-            for entry in entries {
-                if entry == "---" {
-                    continue;
-                }
-                if let Some(path) = entry.strip_prefix("refused:") {
-                    let _ = writeln!(err, "dx: {path} (absent-only, left untouched)");
-                } else if !summaries_suppressed(invocation) {
-                    if let Err(exit) = check_stdout_write(writeln!(out, "wrote {entry}")) {
-                        return exit;
-                    }
-                }
-            }
-            let prefix = format!("{dest}/");
-            match super::wiring::apply(invocation, &root, &prefix, CODE_NEW_FAILED, out, err) {
-                Ok(()) => 0,
-                Err(code) => code,
-            }
-        }
-        Err(error) => invalid_name_code(invocation, out, err, &error),
-    }
+    let mut applied = dx_adopt::Applied::default();
+    let mut notes = Vec::new();
+    let result = match dx_adopt::apply_new(workspace, language, name, &mut applied) {
+        Ok(()) => super::wiring::apply(&root, &prefix, &mut applied, &mut notes),
+        Err(
+            error @ (dx_adopt::AdoptError::NewInvalidDestination { .. }
+            | dx_adopt::AdoptError::NewInvalidIdentity { .. }),
+        ) => return invalid_name_code(invocation, out, err, &error),
+        Err(error) => Err(error.to_string()),
+    };
+    super::wiring::report(
+        invocation,
+        &applied,
+        &notes,
+        result,
+        CODE_NEW_FAILED,
+        out,
+        err,
+    )
 }
 
 fn check_new(
@@ -631,7 +629,7 @@ mod tests {
     }
 
     #[test]
-    fn new_apply_keeps_the_scaffold_when_wiring_fails() {
+    fn new_apply_refuses_an_orphaned_agents_marker_before_writing() {
         let scratch = dx_test_scratch::scratch("dx-adopt-new-wiring-fail-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("demo")).expect("demo");
@@ -639,7 +637,8 @@ mod tests {
         let (code, _out, err) = run(&invocation(&["new", "--apply", "rust", "demo"]), &root);
         assert_eq!(code, 1);
         assert!(err.contains("new_failed"), "{err}");
-        assert!(root.join("demo/Cargo.toml").exists());
+        assert!(!root.join("demo/Cargo.toml").exists());
+        assert!(!root.join("demo/tools").exists());
     }
 
     fn workspace_root() -> PathBuf {

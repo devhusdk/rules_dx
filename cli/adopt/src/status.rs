@@ -650,7 +650,8 @@ mod tests {
                 .expect("checks")
         };
         assert_eq!(last("1.2.3").name, "pin");
-        super::super::write_launcher_files(dir, "1.2.3").expect("launchers");
+        super::super::write_launcher_files(dir, "1.2.3", &mut crate::scaffold::Applied::default())
+            .expect("launchers");
         let ok = last("1.2.3");
         assert_eq!((ok.name.as_str(), ok.status.as_str()), ("launcher", "ok"));
         assert_eq!(ok.detail, "tools/dx, tools/dx.cmd pin dx 1.2.3");

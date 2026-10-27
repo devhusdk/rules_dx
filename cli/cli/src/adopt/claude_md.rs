@@ -158,6 +158,13 @@ mod tests {
     }
 
     #[test]
+    fn a_directory_in_place_of_the_file_is_an_error() {
+        let dir = scratch("dx-claude-md-dir-");
+        std::fs::create_dir(dir.path().join(FILE)).expect("dir");
+        assert!(state(dir.path()).is_err());
+    }
+
+    #[test]
     fn an_existing_file_gets_the_line_appended() {
         let dir = scratch("dx-claude-md-append-");
         put(dir.path(), FILE, "# Mine\n");

@@ -181,6 +181,15 @@ pub struct Outcome {
 
 /// Writes each hooks file that is absent and never overwrites one.
 pub fn apply(workspace: &Path) -> io::Result<Outcome> {
+    sync(workspace, true)
+}
+
+/// What [`apply`] would do, without writing; fails where it would fail to read.
+pub fn inspect(workspace: &Path) -> io::Result<Outcome> {
+    sync(workspace, false)
+}
+
+fn sync(workspace: &Path, write: bool) -> io::Result<Outcome> {
     let mut outcome = Outcome {
         wrote: Vec::new(),
         missing: Vec::new(),
@@ -198,10 +207,12 @@ pub fn apply(workspace: &Path) -> io::Result<Outcome> {
                 outcome.missing.push((file.path, missing));
             }
         } else {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
+            if write {
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&path, settings_text(file))?;
             }
-            std::fs::write(&path, settings_text(file))?;
             outcome.wrote.push(file.path.to_owned());
         }
     }
@@ -231,6 +242,16 @@ mod tests {
             assert!(missing_entries(file, &text).is_empty(), "{}", file.path);
         }
         assert!(workspace_missing(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn inspect_writes_nothing_and_fails_on_a_directory() {
+        let dir = scratch("dx-worktree-setup-inspect-");
+        let outcome = inspect(dir.path()).expect("inspect");
+        assert_eq!(outcome.wrote.len(), HOOK_FILES.len());
+        assert!(!dir.path().join(".claude").exists());
+        std::fs::create_dir_all(dir.path().join(CLAUDE.path)).expect("dir");
+        assert!(inspect(dir.path()).is_err());
     }
 
     #[test]

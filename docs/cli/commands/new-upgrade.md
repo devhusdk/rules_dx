@@ -71,7 +71,9 @@ Exit codes: `0` success, `2` usage errors including an unknown language, an
 invalid destination or package identity, or extra positionals, `1` missing
 files in check mode or scaffolding failed. It also exits `1` with `new_failed`,
 before writing any file, when `<name>/.dx/version` already exists and is not
-semver.
+semver. Like `dx init --apply`, `--apply` checks every destination first, so a
+parent that is a file or an `AGENTS.md` with an unmatched begin marker fails
+before any write, and a later write failure still lists the files written.
 
 The `[name]` is the destination directory and defaults to `my_project`.
 Destinations stay inside the workspace. Absolute paths, `..` segments, empty
@@ -196,7 +198,9 @@ Output: text only.
 Exit codes: `0` success, `2` usage errors including an invalid destination or
 module name, `1` missing files in check mode or scaffolding failed. It also exits `1` with `new_failed`,
 before writing any file, when `<name>/.dx/version` already exists and is not
-semver.
+semver. Like `dx init --apply`, `--apply` checks every destination first, so a
+parent that is a file or an `AGENTS.md` with an unmatched begin marker fails
+before any write, and a later write failure still lists the files written.
 
 ## `dx new c` And `dx new cpp`
 

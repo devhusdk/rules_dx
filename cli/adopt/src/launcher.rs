@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use super::AdoptError;
+use crate::scaffold::Applied;
 
 pub const LAUNCHER_SH_REL: &str = "tools/dx";
 
@@ -193,12 +194,19 @@ fn write_launcher(
     Ok(())
 }
 
-pub fn write_launcher_files(root: &Path, version: &str) -> Result<Vec<String>, AdoptError> {
-    sync(root, version, true, true)
+/// Writes absent or stale launchers, recording each in `applied` as it lands.
+pub fn write_launcher_files(
+    root: &Path,
+    version: &str,
+    applied: &mut Applied,
+) -> Result<(), AdoptError> {
+    sync(root, version, true, true, applied)
 }
 
 pub fn refresh_launcher_files(root: &Path, version: &str) -> Result<Vec<String>, AdoptError> {
-    Ok(written(sync(root, version, false, true)?))
+    let mut applied = Applied::default();
+    sync(root, version, false, true, &mut applied)?;
+    Ok(applied.wrote)
 }
 
 pub fn plan_launcher_files(
@@ -206,14 +214,9 @@ pub fn plan_launcher_files(
     version: &str,
     create_missing: bool,
 ) -> Result<Vec<String>, AdoptError> {
-    Ok(written(sync(root, version, create_missing, false)?))
-}
-
-fn written(entries: Vec<String>) -> Vec<String> {
-    entries
-        .into_iter()
-        .filter(|entry| !entry.starts_with("refused:"))
-        .collect()
+    let mut applied = Applied::default();
+    sync(root, version, create_missing, false, &mut applied)?;
+    Ok(applied.wrote)
 }
 
 pub fn launcher_version(root: &Path, rel: &str) -> Option<String> {
@@ -248,7 +251,8 @@ fn sync(
     version: &str,
     create_missing: bool,
     apply: bool,
-) -> Result<Vec<String>, AdoptError> {
+    applied: &mut Applied,
+) -> Result<(), AdoptError> {
     let mut plan = Vec::new();
     for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
         let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
@@ -264,10 +268,9 @@ fn sync(
             version: version.to_owned(),
         });
     }
-    let mut entries = Vec::new();
     for (rel, write) in plan {
         if !write {
-            entries.push(format!("refused:{rel}"));
+            applied.refused.push(rel.to_owned());
             continue;
         }
         if apply {
@@ -278,9 +281,9 @@ fn sync(
             };
             write_launcher(root, rel, &content, executable)?;
         }
-        entries.push(rel.to_owned());
+        applied.wrote.push(rel.to_owned());
     }
-    Ok(entries)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -333,13 +336,16 @@ mod tests {
     #[test]
     fn write_replaces_absent_or_stale_launchers_only() {
         let dir = dx_test_scratch::scratch("dx-launcher-write-");
-        let first = write_launcher_files(dir.path(), "1.2.3").expect("writes");
+        let first = crate::scaffold::entries(|a| write_launcher_files(dir.path(), "1.2.3", a))
+            .expect("writes");
         assert_eq!(first, vec!["tools/dx", "tools/dx.cmd"]);
-        let current = write_launcher_files(dir.path(), "1.2.3").expect("current");
+        let current = crate::scaffold::entries(|a| write_launcher_files(dir.path(), "1.2.3", a))
+            .expect("current");
         assert_eq!(current, vec!["refused:tools/dx", "refused:tools/dx.cmd"]);
         std::fs::write(dir.path().join(LAUNCHER_SH_REL), "custom\n").expect("edit");
-        let second = write_launcher_files(dir.path(), "1.3.0").expect("syncs");
-        assert_eq!(second, vec!["refused:tools/dx", "tools/dx.cmd"]);
+        let second = crate::scaffold::entries(|a| write_launcher_files(dir.path(), "1.3.0", a))
+            .expect("syncs");
+        assert_eq!(second, vec!["tools/dx.cmd", "refused:tools/dx"]);
         assert_eq!(
             std::fs::read_to_string(dir.path().join(LAUNCHER_SH_REL)).expect("read"),
             "custom\n"
@@ -442,15 +448,18 @@ mod tests {
     fn a_non_semver_version_writes_nothing() {
         let dir = dx_test_scratch::scratch("dx-launcher-semver-");
         for bad in ["1\"; x", "../1", ""] {
-            let refused = Err(AdoptError::LauncherVersion {
+            let refused = AdoptError::LauncherVersion {
                 version: bad.to_owned(),
-            });
-            assert_eq!(write_launcher_files(dir.path(), bad), refused);
-            assert_eq!(plan_launcher_files(dir.path(), bad, true), refused);
+            };
+            assert_eq!(
+                write_launcher_files(dir.path(), bad, &mut Applied::default()),
+                Err(refused.clone())
+            );
+            assert_eq!(plan_launcher_files(dir.path(), bad, true), Err(refused));
             assert_eq!(refresh_launcher_files(dir.path(), bad), Ok(Vec::new()));
         }
         assert!(!dir.path().join("tools").exists());
-        write_launcher_files(dir.path(), "1.2.3").expect("seed");
+        write_launcher_files(dir.path(), "1.2.3", &mut Applied::default()).expect("seed");
         assert!(refresh_launcher_files(dir.path(), "v1").is_err());
         assert_eq!(
             launcher_version(dir.path(), LAUNCHER_SH_REL).as_deref(),
@@ -460,7 +469,8 @@ mod tests {
             std::fs::write(dir.path().join(rel), "custom\n").expect("custom");
         }
         assert_eq!(
-            write_launcher_files(dir.path(), "v1").expect("custom kept"),
+            crate::scaffold::entries(|a| write_launcher_files(dir.path(), "v1", a))
+                .expect("custom kept"),
             vec!["refused:tools/dx", "refused:tools/dx.cmd"]
         );
     }
@@ -554,7 +564,7 @@ mod tests {
                 std::fs::write(&curl, body).expect("curl");
                 std::fs::set_permissions(&curl, std::fs::Permissions::from_mode(0o755))
                     .expect("chmod");
-                write_launcher_files(&root, "1.2.3").expect("launcher");
+                write_launcher_files(&root, "1.2.3", &mut Applied::default()).expect("launcher");
                 let fx = Self {
                     base: dir.path().to_path_buf(),
                     _guard: Box::new(dir),
@@ -896,7 +906,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     format!("{guid}{download}"),
                 )
                 .expect("stub");
-                write_launcher_files(&root, "1.2.3").expect("launcher");
+                write_launcher_files(&root, "1.2.3", &mut Applied::default()).expect("launcher");
                 Self {
                     base,
                     _guard: Box::new(dir),

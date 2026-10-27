@@ -58,24 +58,33 @@ Scopes: optional single module name.
 Output: text only. Check mode looks for `.dx/version`,
 `.devcontainer/devcontainer.json`, `.gitignore`, `.bazelignore`, `.envrc`,
 `.vscode/settings.json`, `.vscode/extensions.json`,
-`.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx` and
-`tools/dx.cmd`. It does not inspect the hooks files, `AGENTS.md` or `CLAUDE.md`.
+`.github/workflows/ci.yml`, `MODULE.bazel.snippet`, `tools/dx`,
+`tools/dx.cmd`, `.claude/settings.json`, `AGENTS.md` and `CLAUDE.md`.
 It also flags a dx-written launcher whose version differs from `.dx/version`,
-and an empty or non-semver `.dx/version`.
-When all of them exist, no launcher is stale and the pin is valid, it prints
+an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks
+(`.codex/hooks.json` and `.gemini/settings.json` only when they exist), a
+`CLAUDE.md` without the `@AGENTS.md` import, and an empty or non-semver
+`.dx/version`.
+When nothing is missing or stale and the pin is valid, it prints
 `init current: <module>` to stdout. Otherwise it prints
-`dx: init_failed: init drift: missing <paths>; stale <paths>; invalid .dx/version ("<pin>")`
+`dx: init_failed: init drift: missing <paths>; stale <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/version ("<pin>")`
 to stderr (only the parts that apply), followed by the `dx init <module> --apply`
-command to run. An invalid pin is not fixed by apply: write the module version to
+command to run. Apply does not edit an existing hooks file; it prints the hooks
+to add. An invalid pin is not fixed by apply: write the module version to
 `.dx/version`, which the message names.
-Apply prints `wrote <path>` to stdout for each file it creates or refreshes,
+Apply checks every destination before the first write. A path whose parent is
+a file, such as a `.vscode` file, an unreadable hooks file, or an `AGENTS.md`
+with a begin marker and no end marker fails with `init_failed` and writes
+nothing. Apply then writes every file and prints afterwards. It prints `wrote <path>` to stdout for each file it creates or refreshes,
 `wrote AGENTS.md` when the block changes, and `wrote CLAUDE.md` when the import is added. For each scaffold or launcher file
 that already exists and is kept, it prints `dx: <path> (absent-only, left untouched)` to
-stderr. `--quiet` hides the stdout lines. The stderr lines still print.
+stderr. `--quiet` hides the stdout lines. The stderr lines still print. When a
+write fails, apply still lists the files it already wrote, then the
+`init_failed` error. Closing stdout early does not stop the writes.
 
 Exit codes: `0` check passed or apply succeeded, `2` usage error, including
-extra positionals or an invalid module name, `1` check found missing files or
-apply failed.
+extra positionals or an invalid module name, `1` check found drift or apply
+failed, `141` apply wrote every file but stdout closed early.
 
 ## rules_dx overrides
 

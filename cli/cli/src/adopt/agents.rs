@@ -102,11 +102,11 @@ pub(crate) fn workspace_state(workspace: &Path) -> io::Result<State> {
     Ok(read(workspace)?.map_or(State::Missing, |text| state(&text)))
 }
 
-/// Writes the block, creating AGENTS.md when `create` is set. True when the file changed.
-pub(crate) fn write(workspace: &Path, create: bool) -> io::Result<bool> {
+/// The AGENTS.md text a write would produce, or `None` when nothing would change.
+pub(crate) fn planned(workspace: &Path, create: bool) -> io::Result<Option<String>> {
     let current = read(workspace)?;
     if current.is_none() && !create {
-        return Ok(false);
+        return Ok(None);
     }
     let text = current.unwrap_or_default();
     if orphaned(&text) {
@@ -118,9 +118,17 @@ pub(crate) fn write(workspace: &Path, create: bool) -> io::Result<bool> {
         ));
     }
     if state(&text) == State::Current {
-        return Ok(false);
+        return Ok(None);
     }
-    dx_atomic_fs::write_atomic(&target(workspace, FILE)?, render(&text).as_bytes())?;
+    Ok(Some(render(&text)))
+}
+
+/// Writes the block, creating AGENTS.md when `create` is set. True when the file changed.
+pub(crate) fn write(workspace: &Path, create: bool) -> io::Result<bool> {
+    let Some(text) = planned(workspace, create)? else {
+        return Ok(false);
+    };
+    dx_atomic_fs::write_atomic(&target(workspace, FILE)?, text.as_bytes())?;
     Ok(true)
 }
 
@@ -266,6 +274,24 @@ mod tests {
             std::fs::read_to_string(dir.path().join(FILE)).expect("read"),
             old
         );
+    }
+
+    #[test]
+    fn planned_reads_without_writing_and_fails_on_an_orphan_or_a_directory() {
+        let dir = scratch("dx-agents-planned-");
+        assert_eq!(planned(dir.path(), false).expect("absent"), None);
+        assert_eq!(planned(dir.path(), true).expect("create"), Some(block()));
+        assert!(!dir.path().join(FILE).exists());
+        let old = format!("# Mine\n{BEGIN}\n");
+        std::fs::write(dir.path().join(FILE), &old).expect("seed");
+        assert!(planned(dir.path(), true).is_err());
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(FILE)).expect("read"),
+            old
+        );
+        let nested = scratch("dx-agents-planned-dir-");
+        std::fs::create_dir(nested.path().join(FILE)).expect("dir");
+        assert!(planned(nested.path(), true).is_err());
     }
 
     #[test]

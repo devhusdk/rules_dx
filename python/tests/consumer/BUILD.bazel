@@ -9,6 +9,7 @@ rust_test(
     srcs = ["service_consumer_test.rs"],
     data = [
         "service_consumer_test.rs",
+        "//:MODULE.bazel.lock",
         "//cli/cli:dx",
         "//examples/python-service:consumer_srcs",
     ] + NESTED_BAZEL_DATA + CONSUMER_MAVEN_DATA,

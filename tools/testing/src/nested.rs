@@ -1338,6 +1338,56 @@ pub fn rules_dx_module(attrs: &str, body: &str) -> String {
     format!("module(name = \"fixture\", repo_name = \"rules_dx\"{attrs})\n{body}")
 }
 
+/// Lock keys a seeded consumer lock keeps from the rules_dx lock; every other top-level key is emptied.
+const SEED_LOCK_KEPT: &[&str] = &["lockFileVersion", "facts", "factsVersions"];
+
+/// Turns the rules_dx `MODULE.bazel.lock` text into a consumer lock that carries only its extension facts.
+///
+/// Facts hold what extensions downloaded without a checksum (for example the python_interpreters
+/// SHA256SUMS), so a seeded consumer resolves offline. Bazel keeps facts across extension changes.
+pub fn seed_lock_json(lock: &str) -> Result<String, String> {
+    let parsed: serde_json::Value =
+        serde_json::from_str(lock).map_err(|error| format!("MODULE.bazel.lock: {error}"))?;
+    let serde_json::Value::Object(map) = parsed else {
+        return Err("MODULE.bazel.lock: not a JSON object".to_string());
+    };
+    if !map.contains_key("lockFileVersion") {
+        return Err("MODULE.bazel.lock: no lockFileVersion".to_string());
+    }
+    match map.get("facts") {
+        Some(serde_json::Value::Object(facts)) if !facts.is_empty() => {}
+        _ => return Err("MODULE.bazel.lock: no extension facts to seed".to_string()),
+    }
+    let mut seeded = serde_json::Map::new();
+    for (key, value) in map {
+        let value = if SEED_LOCK_KEPT.contains(&key.as_str()) {
+            value
+        } else if value.is_array() {
+            serde_json::Value::Array(Vec::new())
+        } else {
+            serde_json::Value::Object(serde_json::Map::new())
+        };
+        seeded.insert(key, value);
+    }
+    let mut text = serde_json::to_string_pretty(&serde_json::Value::Object(seeded))
+        .map_err(|error| format!("MODULE.bazel.lock: {error}"))?;
+    text.push('\n');
+    Ok(text)
+}
+
+/// Writes `root/MODULE.bazel.lock` holding the extension facts of the rules_dx checkout at `rules`.
+///
+/// The consumer must pin the `.bazelversion` of the same checkout, or Bazel ignores the lock.
+pub fn seed_rules_dx_lock(root: &Path, rules: &Path) {
+    let source = rules.join("MODULE.bazel.lock");
+    let lock = std::fs::read_to_string(&source).unwrap_or_else(|error| {
+        panic!("{source:?}: {error}; add //:module_srcs to the test's data")
+    });
+    let seeded = seed_lock_json(&lock).unwrap_or_else(|error| panic!("{source:?}: {error}"));
+    let target = root.join("MODULE.bazel.lock");
+    std::fs::write(&target, seeded).unwrap_or_else(|error| panic!("write {target:?}: {error}"));
+}
+
 /// Writes the `config` package declaring [`RULES_DX_FLAGS`] under `root`.
 pub fn write_rules_dx_config(root: &Path) {
     let dir = root.join("config");
@@ -1405,6 +1455,11 @@ pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
 }
 
 impl Case {
+    /// Seeds this workspace's `MODULE.bazel.lock` with the extension facts of the rules_dx checkout.
+    pub fn seed_rules_dx_lock(&self) {
+        seed_rules_dx_lock(&self.root, &dx_testing::rules_dx_source());
+    }
+
     fn server(&self) -> Ref<'_, Server> {
         Ref::map(self.lease.borrow(), |guard| match guard.as_ref() {
             Some(server) => server,
@@ -1514,6 +1569,7 @@ impl Case {
             &dx_testing::read_text(&rules.join(".bazelversion")),
         );
         case.write("MODULE.bazel", &consumer_module(&rules, extra_module));
+        seed_rules_dx_lock(case.root(), &rules);
         let mut imports = String::new();
         for layer in ["correctness", "performance", "resources"] {
             let file = format!("{layer}.bazelrc");
@@ -1771,6 +1827,56 @@ mod tests {
         assert!(text.contains("repo_name = \"rules_dx\""), "{text}");
         assert!(text.contains("version = \"1\""), "{text}");
         assert!(text.ends_with("bazel_dep(name = \"lib\")\n"), "{text}");
+    }
+
+    const LOCK: &str = r#"{
+  "lockFileVersion": 28,
+  "registryFileHashes": {"https://bcr.bazel.build/a": "abc"},
+  "selectedYankedVersions": {"x@1": "why"},
+  "moduleExtensions": {"//:ext.bzl%ext": {"general": {}}},
+  "facts": {"@@mod+//:ext.bzl%ext": {"sums": "abc"}},
+  "factsVersions": {}
+}"#;
+
+    #[test]
+    fn seed_lock_json_keeps_facts_and_empties_resolution() {
+        let seeded: serde_json::Value =
+            serde_json::from_str(&seed_lock_json(LOCK).expect("seed")).expect("json");
+        let original: serde_json::Value = serde_json::from_str(LOCK).expect("json");
+        assert_eq!(seeded["lockFileVersion"], 28);
+        assert_eq!(seeded["facts"], original["facts"]);
+        assert_eq!(seeded["factsVersions"], original["factsVersions"]);
+        for key in [
+            "registryFileHashes",
+            "selectedYankedVersions",
+            "moduleExtensions",
+        ] {
+            assert_eq!(seeded[key], serde_json::json!({}), "{key}");
+        }
+    }
+
+    #[test]
+    fn seed_lock_json_rejects_unusable_locks() {
+        for (lock, needle) in [
+            ("not json", "MODULE.bazel.lock"),
+            ("[]", "not a JSON object"),
+            (r#"{"facts": {"k": 1}}"#, "lockFileVersion"),
+            (r#"{"lockFileVersion": 28}"#, "facts"),
+            (r#"{"lockFileVersion": 28, "facts": {}}"#, "facts"),
+        ] {
+            let error = seed_lock_json(lock).expect_err(lock);
+            assert!(error.contains(needle), "{lock}: {error}");
+        }
+    }
+
+    #[test]
+    fn seed_rules_dx_lock_writes_the_consumer_lock() {
+        let rules = scratch("dx-seed-rules-");
+        let root = scratch("dx-seed-root-");
+        std::fs::write(rules.path().join("MODULE.bazel.lock"), LOCK).expect("write lock");
+        seed_rules_dx_lock(root.path(), rules.path());
+        let text = std::fs::read_to_string(root.path().join("MODULE.bazel.lock")).expect("read");
+        assert_eq!(text, seed_lock_json(LOCK).expect("seed"));
     }
 
     #[test]

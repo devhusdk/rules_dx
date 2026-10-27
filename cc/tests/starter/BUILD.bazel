@@ -8,6 +8,7 @@ nested_bazel_test(
     srcs = ["starter_test.rs"],
     data = [
         "starter_test.rs",
+        "//:MODULE.bazel.lock",
         "//cli/cli:dx",
     ],
     env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
@@ -15,8 +16,6 @@ nested_bazel_test(
         "HOME",
         "PATH",
     ],
-    # python_interpreters fetches an unhashed release index.
-    network = True,
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

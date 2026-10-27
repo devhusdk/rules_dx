@@ -213,6 +213,7 @@ rust_test(
         "src/exec/changed_coverage_tests.rs",
         "src/exec/clean.rs",
         "src/exec/common.rs",
+        "src/exec/current_dir_guard_tests.rs",
         "src/exec/delivery_sink.rs",
         "src/exec/dep_edit.rs",
         "src/exec/deploy.rs",

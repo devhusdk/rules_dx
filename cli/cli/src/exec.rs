@@ -7,6 +7,8 @@ mod changed_coverage;
 mod clean;
 pub mod common;
 #[cfg(test)]
+mod current_dir_guard_tests;
+#[cfg(test)]
 mod delivery_sink;
 mod dep_edit;
 mod deploy;

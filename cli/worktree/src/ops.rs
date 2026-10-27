@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use dx_path::nested_bazel;
 
+use super::cache;
 use super::git;
 use super::host::{
     download_used, resolved, same_path, scan_downloads, scan_output_bases, DiskSpace, Download,
@@ -147,6 +148,22 @@ pub struct PruneBase {
     pub owner: BaseOwner,
 }
 
+/// One rebuildable cache directory in a free slot's `.dx` that `prune` would remove.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PruneCache {
+    pub slot: u32,
+    pub path: PathBuf,
+    pub bytes: u64,
+}
+
+/// One cache `prune` could not remove.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PruneSkippedCache {
+    pub slot: u32,
+    pub path: PathBuf,
+    pub reason: &'static str,
+}
+
 /// One output base `prune` keeps.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneKeptBase {
@@ -194,6 +211,7 @@ pub(crate) struct Applied {
     pub(crate) kept: Vec<PruneKept>,
     pub(crate) skipped_slots: Vec<PruneSkippedSlot>,
     pub(crate) skipped_bases: Vec<PruneKeptBase>,
+    pub(crate) skipped_caches: Vec<PruneSkippedCache>,
     pub(crate) used_downloads: Vec<PathBuf>,
 }
 
@@ -204,6 +222,7 @@ pub struct Pruned {
     pub kept: Vec<PruneKept>,
     pub skipped_slots: Vec<PruneSkippedSlot>,
     pub skipped_bases: Vec<PruneKeptBase>,
+    pub skipped_caches: Vec<PruneSkippedCache>,
 }
 
 /// What `prune` found.
@@ -212,6 +231,7 @@ pub struct PrunePlan {
     pub slots: Vec<PruneSlot>,
     pub externals: Vec<PruneExternal>,
     pub bases: Vec<PruneBase>,
+    pub caches: Vec<PruneCache>,
     pub kept_bases: Vec<PruneKeptBase>,
     pub kept_externals: Vec<PruneKept>,
     pub downloads: Vec<PruneDownloads>,
@@ -222,6 +242,7 @@ impl PrunePlan {
         self.slots.is_empty()
             && self.externals.is_empty()
             && self.bases.is_empty()
+            && self.caches.is_empty()
             && self.downloads.is_empty()
     }
 
@@ -233,6 +254,7 @@ impl PrunePlan {
                 .map(|external| external.bytes)
                 .sum::<u64>()
             + self.bases.iter().map(|base| base.bytes).sum::<u64>()
+            + self.caches.iter().map(|cache| cache.bytes).sum::<u64>()
             + self
                 .downloads
                 .iter()
@@ -1242,8 +1264,11 @@ pub fn prune(
         kept,
         skipped_slots,
         skipped_bases,
+        skipped_caches,
         used_downloads,
     } = prune_apply(pool, host, &plan, &lock)?;
+    plan.caches
+        .retain(|cache| !skipped_caches.iter().any(|item| item.path == cache.path));
     plan.externals
         .retain(|external| !kept.iter().any(|item| item.path == external.path));
     plan.slots
@@ -1273,6 +1298,7 @@ pub fn prune(
         kept,
         skipped_slots,
         skipped_bases,
+        skipped_caches,
     })
 }
 
@@ -1403,6 +1429,24 @@ pub(crate) fn prune_plan(
                 workspace: base.workspace.clone(),
                 bytes: measure(host, &base.dir)?,
                 owner: BaseOwner::Slot(slot),
+            });
+        }
+    }
+    let mut free: Vec<Record> = pool
+        .records()
+        .into_iter()
+        .filter(|record| !record.held && !plan.slots.iter().any(|slot| slot.slot == record.slot))
+        .collect();
+    free.sort_by_key(|record| (record.last_used, record.slot));
+    for record in free {
+        for path in cache::slot_caches(&pool.slot_path(record.slot)) {
+            if trigger == Trigger::LowDisk && !disk_low(host, &path) {
+                continue;
+            }
+            plan.caches.push(PruneCache {
+                slot: record.slot,
+                bytes: measure(host, &path)?,
+                path,
             });
         }
     }
@@ -1701,6 +1745,24 @@ pub(crate) fn prune_apply(
             skipped.push(skip("busy"));
         }
     }
+    let mut skipped_caches = Vec::new();
+    for cache in &plan.caches {
+        stop_check(host)?;
+        let reason = if !pool.record(cache.slot).is_some_and(|record| !record.held) {
+            Some("held")
+        } else if pool.busy(cache.slot) || !host.remove_tree(&cache.path) {
+            Some("busy")
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            skipped_caches.push(PruneSkippedCache {
+                slot: cache.slot,
+                path: cache.path.clone(),
+                reason,
+            });
+        }
+    }
     let mut used_downloads = Vec::new();
     for entry in plan
         .downloads
@@ -1716,6 +1778,7 @@ pub(crate) fn prune_apply(
         kept,
         skipped_slots,
         skipped_bases: skipped,
+        skipped_caches,
         used_downloads,
     })
 }

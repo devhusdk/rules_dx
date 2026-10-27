@@ -163,7 +163,7 @@ nothing. `--check` is that default: it reports and deletes nothing. Pass `--appl
 holds is never pruned. When process observation is unavailable (`/proc` cannot be listed, or any
 process cannot be read, such as one owned by another user or blocked by ptrace
 restrictions), dx keeps unobserved state and reports it; pass `--prune-unobserved` to prune it
-anyway; this still keeps state used by readable processes and never overrides a held lease. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes.
+anyway; this still keeps state used by readable processes and never overrides a held lease. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes. It manages only setup records and generations and leaves other `.dx` entries alone; `dx worktree prune --apply --bases` reclaims tagged rebuildable caches in free slots.
 
 Output: `--output text|json`. `--quiet` silences text output.
 

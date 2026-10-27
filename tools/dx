@@ -34,6 +34,12 @@ done
 if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
   exec "$here/tools/dx" "$@"
 fi
+tag_state() {
+  { printf '%s\n%s\n' 'Signature: 8a477f597d28d172789f06886806bc55' '# Rebuildable copy of dx kept by tools/dx; see https://bford.info/cachedir/' > "$state/CACHEDIR.TAG.$$" && mv -f "$state/CACHEDIR.TAG.$$" "$state/CACHEDIR.TAG"; } 2> /dev/null || rm -f "$state/CACHEDIR.TAG.$$"
+}
+if [ -d "$state" ] && [ ! -f "$state/CACHEDIR.TAG" ]; then
+  tag_state
+fi
 stale() {
   [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
   newer=$(cd "$root" && {
@@ -44,6 +50,7 @@ stale() {
 }
 keep_copy() {
   { cp "$bin" "$state/dx$exe.$$" && mv -f "$state/dx$exe.$$" "$state/dx$exe"; } 2> /dev/null || rm -f "$state/dx$exe.$$"
+  tag_state
 }
 if stale; then
   command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"

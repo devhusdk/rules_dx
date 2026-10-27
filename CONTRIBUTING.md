@@ -53,3 +53,5 @@ is what it is. Tools parse that marker, so keep it as written. Use
 For now every floor equals its tested version. Do not lower a floor until the
 floor CI job exists. That job builds the consumer suites at the floors, and the
 full procedure for finding a floor will land with it (#3747).
+
+`.dx/launcher` is a copy (about 50 MB) of the last built dx, kept for worktree hooks and failed rebuilds. You can delete it any time and `tools/dx` recreates it. `tools/dx worktree prune --apply --bases` drops it in free slots.

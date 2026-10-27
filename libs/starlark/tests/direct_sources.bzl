@@ -20,14 +20,7 @@ _direct_sources_test = analysistest.make(
 )
 
 def dx_direct_sources_test(name, target_under_test, expected, **kwargs):
-    """Asserts that target_under_test analyzes and lints exactly the expected direct sources.
-
-    Args:
-      name: Test name.
-      target_under_test: Wrapper target to analyze.
-      expected: Dict from file class to source basenames; {} means nothing is linted.
-      **kwargs: Common test attributes.
-    """
+    """Asserts a wrapper's direct quality sources by file class."""
     _direct_sources_test(
         name = name,
         target_under_test = target_under_test,

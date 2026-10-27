@@ -14,9 +14,7 @@ kotlin_library(
     srcs = ["Hello.kt"],
 )
 
-# rules_kotlin compiles the Java half for the Kotlin jvm_target, which
-# defaults to 1.8; javac then warns that release 8 is obsolete and the repo's
-# -Werror fails the build. Target the JDK 21 runtime instead.
+# Mixed Java needs jvm_target 21 under -Werror.
 kt_kotlinc_options(
     name = "jvm21_opts",
     api_version = "2.2",

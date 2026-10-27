@@ -110,6 +110,22 @@ const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
 const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-format=json"];
 const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
 const STYLUA_CONFIG_FLAG: &str = "--config-path";
+const ORMOLU_CHECK_ARGS: &[&str] = &[
+    "--mode",
+    "check",
+    "--no-cabal",
+    "--no-dot-ormolu",
+    "--color",
+    "never",
+];
+const ORMOLU_FIX_ARGS: &[&str] = &[
+    "--mode",
+    "inplace",
+    "--no-cabal",
+    "--no-dot-ormolu",
+    "--color",
+    "never",
+];
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
 const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
@@ -966,6 +982,14 @@ pub fn mix_format_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn mix_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, &[], files, "")
+}
+
+pub fn ormolu_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ORMOLU_CHECK_ARGS, files, "")
+}
+
+pub fn ormolu_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ORMOLU_FIX_ARGS, files, "")
 }
 
 pub fn pkl_check(binary: &Path, files: &[&Path]) -> Invocation {

@@ -344,6 +344,35 @@ real_source_target(
 )
 
 quality_family(
+    name = "haskell_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "haskell",
+    format = ["ormolu"],
+)
+
+workspace_policy(
+    name = "haskell_policy",
+    families = [":haskell_family"],
+)
+
+filegroup(
+    name = "haskell_module",
+    srcs = [
+        "haskell_module/Lib/Greeting.hs",
+        "haskell_module/Main.hs",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_haskell",
+    haskell_srcs = [":haskell_module"],
+)
+
+quality_family(
     name = "pkl_family",
     disabled = [
         "lint",

@@ -1203,6 +1203,33 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&mix_format_fix(Path::new(BIN), &[ex])),
         vec![BIN, "/scratch/sample.ex"]
     );
+    let hs = Path::new("/scratch/Sample.hs");
+    assert_eq!(
+        argv_strings(&ormolu_check(Path::new(BIN), &[hs])),
+        vec![
+            BIN,
+            "--mode",
+            "check",
+            "--no-cabal",
+            "--no-dot-ormolu",
+            "--color",
+            "never",
+            "/scratch/Sample.hs"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&ormolu_fix(Path::new(BIN), &[hs])),
+        vec![
+            BIN,
+            "--mode",
+            "inplace",
+            "--no-cabal",
+            "--no-dot-ormolu",
+            "--color",
+            "never",
+            "/scratch/Sample.hs"
+        ]
+    );
     let pkl = Path::new("/scratch/Sample.pkl");
     assert_eq!(
         argv_strings(&pkl_check(Path::new(BIN), &[pkl])),

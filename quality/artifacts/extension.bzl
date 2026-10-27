@@ -46,6 +46,8 @@ load("//quality/artifacts:mdbook.linux_arm64.bzl", _mdbook_linux_arm64 = "ARTIFA
 load("//quality/artifacts:mdbook.linux_x86_64.bzl", _mdbook_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:mdbook.macos_arm64.bzl", _mdbook_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:mdbook.windows_x86_64.bzl", _mdbook_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:ormolu.linux_x86_64.bzl", _ormolu_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:ormolu.windows_x86_64.bzl", _ormolu_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:pkl.linux_arm64.bzl", _pkl_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:pkl.linux_x86_64.bzl", _pkl_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:pkl.macos_arm64.bzl", _pkl_macos_arm64 = "ARTIFACT")
@@ -147,6 +149,8 @@ _ARTIFACTS = [
     _mdbook_linux_arm64,
     _mdbook_macos_arm64,
     _mdbook_windows_x86_64,
+    _ormolu_linux_x86_64,
+    _ormolu_windows_x86_64,
     _pkl_linux_x86_64,
     _pkl_linux_arm64,
     _pkl_macos_arm64,

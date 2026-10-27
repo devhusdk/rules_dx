@@ -84,7 +84,7 @@ with `locale -a | grep -i c.utf`.
 
 ## Formatting
 
-No Haskell formatter or linter runs yet.
+`dx format` runs `ormolu` 0.9.0.0 on Haskell sources in a `haskell` quality family on Linux x86_64. See the Haskell section of `docs/cli/commands/quality.md`. No Haskell linter runs yet.
 
 ## Platforms
 

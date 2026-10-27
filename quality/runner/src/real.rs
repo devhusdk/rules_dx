@@ -41,6 +41,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "markdown_check",
     "mix_format",
     "modfmt",
+    "ormolu",
     "pkl",
     "pmd",
     "prettier",

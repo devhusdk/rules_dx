@@ -383,6 +383,14 @@ consumer_policy_tests(
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:lua_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_lua",
+          },
+          {
+            "case": "haskell_formatted",
+            "expected_dx_results": [
+                "clean_haskell-real-format-haskell.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:haskell_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_haskell",
         },
         {
             "case": "pkl_formatted",

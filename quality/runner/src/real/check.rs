@@ -756,6 +756,21 @@ impl RealBackend {
                     parsers::parse_stylua(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "ormolu" => {
+                // One process per file: ormolu formats files concurrently and interleaves
+                // their diffs on stderr, and exits 102 on mixed results.
+                let mut merged = Vec::new();
+                for (name, path) in strs.iter().zip(refs.iter()) {
+                    let invocation =
+                        commands::ormolu_check(&tool.binary, std::slice::from_ref(path));
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    merged.extend(parsed(
+                        tool_id,
+                        parsers::parse_ormolu(&out.stdout, &out.stderr, out.code, &[*name]),
+                    )?);
+                }
+                Ok(merged)
+            }
             "pkl" => {
                 let invocation = commands::pkl_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

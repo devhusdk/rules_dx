@@ -595,9 +595,19 @@ def real_pipeline_unit_tests(name):
                 "real aspects: table tool 'qmlformat' needs exactly one of fallback or target_tool",
             ),
             expect_equal(
-                "fallback stays on setting tools",
+                "a file tool may carry a fallback for an optional pin",
                 real_tool_table_shape_error({"biome": _FILE_TOOL | {"fallback": "=x"}}),
-                "real aspects: table tool 'biome' sets fallback or target_tool outside the setting kind",
+                "",
+            ),
+            expect_equal(
+                "target_tool stays on setting tools",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"target_tool": True}}),
+                "real aspects: table tool 'biome' sets target_tool outside the setting kind",
+            ),
+            expect_equal(
+                "fallback stays off executable tools",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"kind": "executable", "fallback": "=x"}}),
+                "real aspects: table tool 'biome' sets fallback outside the setting and file kinds",
             ),
             expect_equal(
                 "extra stays on executable tools",

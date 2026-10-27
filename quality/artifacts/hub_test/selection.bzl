@@ -1,8 +1,8 @@
 """Selection tests for standalone tool artifact repositories."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "expect_contains", "expect_equal", "expect_false", "starlark_test")
+load("//libs/starlark:defs.bzl", "DxSubjectInfo", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
-load("//quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "PLATFORM_CONSTRAINTS", "TOOL_PLATFORMS", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "decode_artifacts", "encode_artifacts", "hub_build", "no_match_error", "ordered_platforms")
+load("//quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "PLATFORM_CONSTRAINTS", "PARTIAL_TOOL_PLATFORMS", "TOOL_PLATFORMS", "UNAVAILABLE_TARGET", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "decode_artifacts", "encode_artifacts", "hub_build", "no_match_error", "ordered_platforms")
 
 _CONSTRAINT_LABELS = {
     "cpu_arm64": "@platforms//cpu:arm64",
@@ -105,13 +105,23 @@ def _unit_checks():
         expect_equal("an artifact on an unsupported platform is rejected", artifact_metadata_errors([dict(sample, os = "solaris")]), ["artifact '" + sample_tool + "' names unsupported platform 'solaris_" + sample["cpu"] + "'; want one of linux_x86_64, linux_arm64, macos_arm64, windows_x86_64, macos_x86_64, windows_arm64"]),
         expect_equal("two artifacts for one platform are rejected", artifact_metadata_errors([sample, dict(sample, url = "https://example.invalid/other")]), ["artifact '" + sample_tool + "/" + sample_platform + "' is declared twice: '" + sample["url"] + "' and 'https://example.invalid/other'"]),
     ]
+    checks.append(expect_contains("the rendered hub declares the unavailable target for partial tools", rendered, 'name = "%s",' % UNAVAILABLE_TARGET))
+    checks.append(expect_false("a hub without partial tools renders no unavailable target", 'name = "%s",' % UNAVAILABLE_TARGET in sparse_rendered))
+    for tool in sorted(PARTIAL_TOOL_PLATFORMS.keys()):
+        checks.append(expect_true(tool + " is released when allowlisted as partial", tool in released))
+        checks.append(expect_true(tool + " really lacks a qualified platform", len([p for p in TOOL_PLATFORMS if p not in PARTIAL_TOOL_PLATFORMS[tool]]) > 0))
+        checks.append(expect_equal(tool + " partial platforms equal its released qualified platforms", [p for p in ordered_platforms(released[tool]) if p in TOOL_PLATFORMS], PARTIAL_TOOL_PLATFORMS[tool]))
     for platform in ARTIFACT_PLATFORMS:
         checks.append(expect_contains("the rendered hub declares the " + platform + " config_setting", rendered, '    name = "%s",' % platform))
     for tool in sorted(released.keys()):
         platforms = ordered_platforms(released[tool])
-        checks.append(expect_equal(tool + " keeps one branch per supported platform", [platform for platform in platforms if platform in TOOL_PLATFORMS], TOOL_PLATFORMS))
+        checks.append(expect_equal(tool + " keeps one branch per supported platform", [platform for platform in platforms if platform in TOOL_PLATFORMS], PARTIAL_TOOL_PLATFORMS.get(tool, TOOL_PLATFORMS)))
         checks.append(expect_equal(tool + " ships outside the qualified set only where allowlisted", _unqualified_platforms(released[tool]), _UNQUALIFIED_ALLOWLIST.get(tool, [])))
         checks.append(expect_equal(tool + " keeps the repository of every platform", branch_labels(released[tool]), _platform_branches(tool, platforms)))
+        if tool in PARTIAL_TOOL_PLATFORMS:
+            checks.append(expect_contains(tool + " renders the unavailable default branch", rendered, '"//conditions:default": ":%s",' % UNAVAILABLE_TARGET))
+        else:
+            checks.append(expect_contains(tool + " keeps its no_match_error", rendered, "no_match_error = ("))
         checks.append(expect_contains(tool + " renders its linux_x86_64 branch", rendered, '":linux_x86_64": "@dx_%s_linux_x86_64//:tool",' % tool))
     return checks
 

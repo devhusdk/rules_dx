@@ -26,6 +26,7 @@ pub mod ktlint;
 pub mod markdown;
 pub mod mix_format;
 pub mod modfmt;
+pub mod ormolu;
 pub mod pkl;
 pub mod pmd;
 pub mod prettier;
@@ -88,6 +89,7 @@ pub use ktlint::parse_ktlint;
 pub use markdown::parse_markdown_findings;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
+pub use ormolu::parse_ormolu;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
 pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
@@ -1740,6 +1742,14 @@ mod tests {
         super::modfmt::parse_modfmt(input, code, files)
     }
 
+    fn fuzz_ormolu(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ormolu::parse_ormolu(input, input, code, files)
+    }
+
     fn fuzz_pkl(
         input: &[u8],
         code: Option<i32>,
@@ -2101,6 +2111,7 @@ mod tests {
         ("parse_markdown_findings", fuzz_markdown_findings),
         ("mix_format", fuzz_mix_format),
         ("modfmt", fuzz_modfmt),
+        ("ormolu", fuzz_ormolu),
         ("pkl", fuzz_pkl),
         ("pmd", fuzz_pmd),
         ("parse_prettier_check", fuzz_prettier_check),
@@ -2170,6 +2181,7 @@ mod tests {
         ("markdown", include_str!("markdown.rs")),
         ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),
+        ("ormolu", include_str!("ormolu.rs")),
         ("pkl", include_str!("pkl.rs")),
         ("pmd", include_str!("pmd.rs")),
         ("prettier", include_str!("prettier.rs")),

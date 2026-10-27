@@ -16,6 +16,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_ormolu",
+    build_setting_default = "@dx_tools//:ormolu",
+)
+
+label_flag(
     name = "tool_pkl",
     build_setting_default = "@dx_tools//:pkl",
 )

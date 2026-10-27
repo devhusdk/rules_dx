@@ -251,6 +251,7 @@ to.
 | `markdown_check` | lint | markdown |
 | `mix_format` | format | elixir |
 | `modfmt` | format | go_module |
+| `ormolu` | format | haskell |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
 | `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
@@ -771,6 +772,43 @@ reported at the start of the file. A syntax error fails the run with the file,
 line and column. It never counts as clean. `jsonnetfmt` stops at the first
 syntax error, so fix it and run again to see the next one. `jsonnetfmt` takes
 no config file.
+
+### Haskell
+
+`ormolu` 0.9.0.0 runs from the managed pin for format. Select it in a `haskell`
+family. It runs on Linux x86_64. The Windows x86_64 pin exists but is not
+qualified. macOS and Linux arm64 have no pin, because upstream ships no
+standalone binary for them. A run that formats Haskell there fails with a hint
+to set `tool_ormolu`. Runs with no Haskell sources are not affected.
+
+```python
+quality_family(
+    name = "haskell_family",
+    family_id = "haskell",
+    format = ["ormolu"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //app/...
+bazel run @rules_dx//:dx -- format --apply //app/...
+```
+
+Own Haskell files with `haskell_library`, `haskell_binary` or `haskell_test`
+from `@rules_dx//haskell/rules:defs.bzl`. A check never writes. `--apply`
+rewrites only the files the selected targets own. An unformatted file is
+reported at the start of the file. A parse error fails the run with the file,
+line and column. It never counts as clean. Each file runs in its own `ormolu`
+process. `ormolu` runs with `--no-cabal --no-dot-ormolu`, so it reads no
+`.cabal` or `.ormolu` file, and language extensions must be enabled with
+`LANGUAGE` pragmas in the source. Extensions set only in `compiler_flags` cause
+a parse error.
+
+To use another ormolu executable, point `tool_ormolu` at it.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_ormolu=//tools:ormolu
+```
 
 ### Pkl
 

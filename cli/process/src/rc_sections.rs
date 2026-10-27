@@ -38,6 +38,41 @@ pub fn remote_execution(
     last_value(&options, "--remote_executor").is_some_and(|value| !value.is_empty())
 }
 
+const NESTED_BAZEL_TAG: &str = "resources:nested_bazel";
+
+/// Whether the effective `test` options leave `resources:nested_bazel` tests selected by `--test_tag_filters`.
+pub fn nested_bazel_selected(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    read_user_rc: bool,
+    startup: &[String],
+    flags: &[String],
+) -> bool {
+    let lines = load_rc(env_get, workspace, read_file, read_user_rc, startup);
+    let options = effective_options(&lines, "test", flags);
+    let Some(filters) = last_value(&options, "--test_tag_filters") else {
+        return true;
+    };
+    let nested = |tag: &str| tag == NESTED_BAZEL_TAG || tag.starts_with("resources:nested_bazel:");
+    let tags = filters
+        .split(',')
+        .map(str::trim)
+        .filter(|tag| !tag.is_empty());
+    let (mut included, mut any_included) = (false, false);
+    for tag in tags {
+        if let Some(excluded) = tag.strip_prefix('-') {
+            if nested(excluded) {
+                return false;
+            }
+        } else {
+            any_included = true;
+            included |= nested(tag);
+        }
+    }
+    included || !any_included
+}
+
 /// Every rc line Bazel would read, imports inlined, in read order.
 pub(super) fn load_rc(
     env_get: &dyn Fn(&str) -> Option<String>,

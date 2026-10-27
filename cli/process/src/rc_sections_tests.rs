@@ -249,3 +249,27 @@ fn a_quoted_value_with_a_space_is_one_token() {
     let host = Host::new().file("/ws/.bazelrc", "build \"--disk_cache=/d d\" --x\n");
     assert_eq!(options(&host, "build", &[]), ["--disk_cache=/d d", "--x"]);
 }
+
+fn nested_selected(text: &str) -> bool {
+    let read = |path: &Path| (path == Path::new(WS_RC)).then(|| text.to_owned());
+    nested_bazel_selected(&|_| None, Path::new(WS), &read, false, &[], &[])
+}
+
+#[test]
+fn test_tag_filters_decide_whether_nested_bazel_tests_run() {
+    assert!(nested_selected(""));
+    assert!(nested_selected("test --test_tag_filters=-exclusive\n"));
+    assert!(!nested_selected(
+        "test --test_tag_filters=-resources:nested_bazel:1\n"
+    ));
+    assert!(!nested_selected("common --test_tag_filters=smoke\n"));
+    assert!(nested_selected(
+        "test --test_tag_filters=resources:nested_bazel:1\n"
+    ));
+    assert!(nested_selected(
+        "test --test_tag_filters=-resources:nested_bazel:1\ntest --test_tag_filters=\n"
+    ));
+    assert!(!nested_selected(
+        "build --test_tag_filters=-resources:nested_bazel\n"
+    ));
+}

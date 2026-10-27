@@ -5056,3 +5056,21 @@ mod reaping {
         assert!(host.stopped().is_empty());
     }
 }
+
+#[test]
+fn missing_output_root_is_not_read_as_a_low_ancestor_disk() {
+    let fixture = Fixture::new();
+    let host = FakeHost::new();
+    host.roots
+        .lock()
+        .expect("roots")
+        .push(fixture.cache.join("no-such-root"));
+    host.script_space(&[
+        OK,
+        DiskSpace {
+            free: GIB,
+            total: 50 * GIB,
+        },
+    ]);
+    assert_eq!(ops::low_disk(&host, &fixture.cache), None);
+}

@@ -134,6 +134,7 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
         data.append(sdist)
     rust_binary(
         name = program_target,
+        crate_name = program_target.replace("-", "_").replace(".", "_"),
         srcs = [":" + launcher_target],
         data = data,
         deps = [Label("//deploy/rules:dx_deploy_tools")],

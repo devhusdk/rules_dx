@@ -818,6 +818,11 @@ pypi_deploy(
     wheel = ":pypi_demo_wheel",
 )
 
+pypi_deploy(
+    name = "pypi.dotted_demo",
+    wheel = ":pypi_demo_wheel",
+)
+
 filegroup(
     name = "pypi_probe_srcs",
     srcs = [

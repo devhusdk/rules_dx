@@ -55,20 +55,23 @@ Run:
 
 ```
 MAVEN_PUBLISH_LIVE=1 MAVEN_PUBLISH_APPROVED=1 \
-MAVEN_USERNAME=... MAVEN_PASSWORD=... MAVEN_GPG_PASSPHRASE=... \
+MAVEN_USERNAME=... MAVEN_PASSWORD=... \
+MAVEN_GPG_KEY=... MAVEN_GPG_PASSPHRASE=... \
 bazel run //pkg:maven_demo
 ```
 
 Upload only stages the deployment. Validate and publish it in the Central
-Portal. Live upload sends the jar and the pom.
+Portal. Live upload sends the jar and the pom. Live signing runs the pinned
+maven-gpg-plugin `sign-and-deploy-file` goal, which reads the same
+`MAVEN_GPG_KEY` and `MAVEN_GPG_PASSPHRASE` env.
 
 Refusals, all exit 1:
 
 - Version `0.0.0` in a live run.
 - Missing `MAVEN_USERNAME` or `MAVEN_PASSWORD`.
 - Missing `MAVEN_PUBLISH_APPROVED=1`.
-- No `MAVEN_GPG_PASSPHRASE` or `MAVEN_GPG_KEY` without
-  `MAVEN_ALLOW_UNSIGNED=1`.
+- No `MAVEN_GPG_KEY` without `MAVEN_ALLOW_UNSIGNED=1`.
+- `MAVEN_GPG_PASSPHRASE` set without `MAVEN_GPG_KEY`.
 - A `MAVEN_GPG_KEY` that is not an armored secret key, or a
   `MAVEN_GPG_PASSPHRASE` that does not unlock it.
 - A `repository_url` on `oss.sonatype.org` or `s01.oss.sonatype.org`.

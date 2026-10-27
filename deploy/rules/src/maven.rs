@@ -386,18 +386,12 @@ pub fn maven_verify_detached(public_armored: &str, data: &[u8], asc: &str) -> Re
 }
 
 /// Renders one Maven settings.xml.
-pub fn maven_settings_xml(username: &str, password: &str, passphrase: &str) -> String {
+pub fn maven_settings_xml(username: &str, password: &str) -> String {
     let mut body = format!(
         "<settings>\n  <servers>\n    <server>\n      <id>dx-staging</id>\n      <username>{}</username>\n      <password>{}</password>\n    </server>\n  </servers>\n",
         quick_xml::escape::escape(username),
         quick_xml::escape::escape(password),
     );
-    if !passphrase.is_empty() {
-        body.push_str(&format!(
-            "  <profiles>\n    <profile>\n      <id>dx-gpg-passphrase</id>\n      <properties>\n        <gpg.passphrase>{}</gpg.passphrase>\n      </properties>\n    </profile>\n  </profiles>\n  <activeProfiles>\n    <activeProfile>dx-gpg-passphrase</activeProfile>\n  </activeProfiles>\n",
-            quick_xml::escape::escape(passphrase),
-        ));
-    }
     body.push_str("</settings>\n");
     body
 }
@@ -415,8 +409,21 @@ pub fn maven_retired_host(repository_url: &str) -> Option<&'static str> {
         .find(|retired| host.eq_ignore_ascii_case(retired))
 }
 
-/// Builds the mvn deploy-file arguments.
+/// Pinned maven-gpg-plugin goal that signs and uploads in one run.
+///
+/// The Bouncy Castle signer reads MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE from the
+/// inherited environment, so no secret reaches argv or settings.xml.
+pub const MAVEN_SIGN_GOAL: &str =
+    "org.apache.maven.plugins:maven-gpg-plugin:3.2.8:sign-and-deploy-file";
+
+/// Pinned maven-deploy-plugin goal for the explicit unsigned path.
+pub const MAVEN_DEPLOY_GOAL: &str =
+    "org.apache.maven.plugins:maven-deploy-plugin:3.1.4:deploy-file";
+
+/// Builds the mvn sign-and-deploy-file (signed) or deploy-file (unsigned) arguments.
+#[allow(clippy::too_many_arguments)]
 pub fn maven_deploy_args(
+    signed: bool,
     settings: &Path,
     repository_url: &str,
     jar: &Path,
@@ -425,11 +432,16 @@ pub fn maven_deploy_args(
     artifact: &str,
     version: &str,
 ) -> Vec<String> {
-    vec![
+    let mut args = vec![
         "-B".to_owned(),
         "--settings".to_owned(),
         settings.display().to_string(),
-        "deploy:deploy-file".to_owned(),
+        if signed {
+            MAVEN_SIGN_GOAL
+        } else {
+            MAVEN_DEPLOY_GOAL
+        }
+        .to_owned(),
         format!("-Durl={repository_url}"),
         "-DrepositoryId=dx-staging".to_owned(),
         format!("-Dfile={}", jar.display()),
@@ -438,7 +450,15 @@ pub fn maven_deploy_args(
         format!("-DartifactId={artifact}"),
         format!("-Dversion={version}"),
         "-Dpackaging=jar".to_owned(),
-    ]
+    ];
+    if signed {
+        args.extend([
+            "-Dgpg.signer=bc".to_owned(),
+            "-Dgpg.bestPractices=true".to_owned(),
+            "-Dgpg.useagent=false".to_owned(),
+        ]);
+    }
+    args
 }
 
 /// Owner approval gate for maven_deploy.
@@ -455,8 +475,6 @@ pub struct MavenLive {
     pub username: String,
     /// Repository password or token.
     pub password: String,
-    /// GPG passphrase for the mvn signing profile.
-    pub passphrase: String,
     /// Signer parsed from MAVEN_GPG_KEY.
     pub signer: Option<MavenSigner>,
     /// Whether the upload carries no signature.
@@ -489,16 +507,20 @@ pub fn maven_live_gate(
     } else {
         Some(MavenSigner::from_armored(&key, &passphrase)?)
     };
-    let unsigned = signer.is_none() && passphrase.is_empty();
+    if key.is_empty() && !passphrase.is_empty() {
+        return Err(
+            "maven staging: MAVEN_GPG_PASSPHRASE is set without MAVEN_GPG_KEY; refusing (set MAVEN_GPG_KEY, or unset the passphrase and record unsigned staging with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned(),
+        );
+    }
+    let unsigned = signer.is_none();
     if unsigned && env("MAVEN_ALLOW_UNSIGNED") != "1" {
         return Err(
-            "maven staging: no MAVEN_GPG_PASSPHRASE; refusing unsigned publish (set MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned(),
+            "maven staging: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned(),
         );
     }
     Ok(MavenLive {
         username: env("MAVEN_USERNAME"),
         password: env("MAVEN_PASSWORD"),
-        passphrase,
         signer,
         unsigned,
     })
@@ -573,7 +595,7 @@ pub fn maven_main(
         let settings = match write_secure_file(
             &workdir,
             "settings.xml",
-            &maven_settings_xml(&live.username, &live.password, &live.passphrase),
+            &maven_settings_xml(&live.username, &live.password),
         ) {
             Ok(path) => path,
             Err(error) => {
@@ -584,6 +606,7 @@ pub fn maven_main(
         };
         let mut cmd = std::process::Command::new("mvn");
         cmd.args(maven_deploy_args(
+            !live.unsigned,
             &settings,
             repository_url,
             &jar,
@@ -592,10 +615,7 @@ pub fn maven_main(
             artifact,
             version,
         ));
-        if !live.unsigned {
-            cmd.arg("-Pgpg-sign");
-        } else {
-            cmd.arg("-Dgpg.skip=true");
+        if live.unsigned {
             println!(
                 "maven_deploy: unsigned staging recorded (MAVEN_ALLOW_UNSIGNED=1 with owner approval; no GPG signature attached)"
             );
@@ -937,7 +957,7 @@ pub(crate) mod tests {
     fn maven_gate_rejects_unsigned_without_allow_and_accepts_with_allow() {
         assert_eq!(
             gate_error(&APPROVED, "1.0.0", MAVEN_PORTAL_STAGING_URL),
-            Some("maven staging: no MAVEN_GPG_PASSPHRASE; refusing unsigned publish (set MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned())
+            Some("maven staging: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned())
         );
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
@@ -959,6 +979,20 @@ pub(crate) mod tests {
             .expect("signed");
         assert!(!live.unsigned);
         assert!(live.signer.is_some());
+    }
+
+    #[test]
+    fn maven_gate_rejects_passphrase_without_key() {
+        for allow in [false, true] {
+            let mut vars = APPROVED.to_vec();
+            vars.push(("MAVEN_GPG_PASSPHRASE", PASSPHRASE));
+            if allow {
+                vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
+            }
+            let error = gate_error(&vars, "1.0.0", MAVEN_PORTAL_STAGING_URL).expect("refused");
+            assert!(error.contains("without MAVEN_GPG_KEY"));
+            assert!(!error.contains(PASSPHRASE));
+        }
     }
 
     #[test]
@@ -1108,11 +1142,10 @@ pub(crate) mod tests {
         assert!(house
             .join("com/example/maven_demo/maven-metadata.xml")
             .is_file());
-        let settings = maven_settings_xml("user", "pass", "secret");
+        let settings = maven_settings_xml("user", "pass");
         assert!(settings.contains("dx-staging"));
-        assert!(settings.contains("gpg.passphrase"));
-        let plain = maven_settings_xml("user", "pass", "");
-        assert!(!plain.contains("gpg.passphrase"));
+        assert!(!settings.contains("profile"));
+        assert!(!settings.contains("gpg.passphrase"));
         let secure = write_secure_file(scratch.path(), "settings.xml", &settings).expect("secure");
         assert!(secure.is_file());
     }
@@ -1131,9 +1164,9 @@ pub(crate) mod tests {
         assert_eq!(maven_retired_host("https://repo.example.com/maven2/"), None);
     }
 
-    #[test]
-    fn maven_deploy_args_target_the_given_repository() {
-        let args = maven_deploy_args(
+    fn deploy_args(signed: bool) -> Vec<String> {
+        maven_deploy_args(
+            signed,
             Path::new("/tmp/settings.xml"),
             MAVEN_PORTAL_STAGING_URL,
             Path::new("/tmp/a.jar"),
@@ -1141,12 +1174,52 @@ pub(crate) mod tests {
             "com.example",
             "a",
             "1.0.0",
-        );
+        )
+    }
+
+    fn assert_common_deploy_args(args: &[String]) {
         assert!(args.contains(&format!("-Durl={MAVEN_PORTAL_STAGING_URL}")));
-        assert!(args.contains(&"deploy:deploy-file".to_owned()));
         assert!(args.contains(&"-Dfile=/tmp/a.jar".to_owned()));
         assert!(args.contains(&"-Dversion=1.0.0".to_owned()));
-        assert!(!args.iter().any(|arg| arg.contains("password")));
+        assert!(!args
+            .iter()
+            .any(|arg| arg.contains("-Pgpg-sign") || arg.contains("gpg.skip")));
+        assert!(!args.iter().any(|arg| {
+            let lower = arg.to_lowercase();
+            lower.contains("password") || lower.contains("passphrase") || lower.contains("key")
+        }));
+    }
+
+    #[test]
+    fn maven_deploy_args_sign_when_signed() {
+        let args = deploy_args(true);
+        assert_common_deploy_args(&args);
+        assert!(args.contains(&MAVEN_SIGN_GOAL.to_owned()));
+        assert!(!args.contains(&MAVEN_DEPLOY_GOAL.to_owned()));
+        for flag in [
+            "-Dgpg.signer=bc",
+            "-Dgpg.bestPractices=true",
+            "-Dgpg.useagent=false",
+        ] {
+            assert!(args.contains(&flag.to_owned()), "{flag}");
+        }
+    }
+
+    #[test]
+    fn maven_deploy_args_unsigned_use_deploy_file() {
+        let args = deploy_args(false);
+        assert_common_deploy_args(&args);
+        assert!(args.contains(&MAVEN_DEPLOY_GOAL.to_owned()));
+        assert!(!args.contains(&MAVEN_SIGN_GOAL.to_owned()));
+        assert!(!args.iter().any(|arg| arg.contains("gpg.")));
+        let strip = |args: Vec<String>| -> Vec<String> {
+            args.into_iter()
+                .filter(|arg| {
+                    !arg.starts_with("-Dgpg.") && arg != MAVEN_SIGN_GOAL && arg != MAVEN_DEPLOY_GOAL
+                })
+                .collect()
+        };
+        assert_eq!(strip(deploy_args(true)), strip(args));
     }
 
     #[test]

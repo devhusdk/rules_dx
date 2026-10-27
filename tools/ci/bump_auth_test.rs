@@ -1,3 +1,4 @@
+use ci_workflow::steps;
 use dx_testing::read_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/bump.yml";
@@ -17,22 +18,6 @@ const DISPATCHED: &str = "inputs.selector != '' && inputs.version != ''";
 const GH_SUBCOMMANDS: [&str; 8] = [
     "api", "auth", "issue", "pr", "release", "repo", "run", "workflow",
 ];
-
-/// Returns the parsed workflow, which must be valid Actions YAML.
-fn document() -> serde_json::Value {
-    let text = read_runfiles(WORKFLOW);
-    yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{WORKFLOW} is not valid workflow YAML: {error}"))
-}
-
-/// Returns the steps of the widen-one job as values.
-fn steps() -> Vec<serde_json::Value> {
-    let document = document();
-    document["jobs"]["widen-one"]["steps"]
-        .as_array()
-        .unwrap_or_else(|| panic!("{WORKFLOW} job widen-one declares no steps"))
-        .clone()
-}
 
 /// Returns the raw workflow text.
 fn text() -> String {
@@ -121,7 +106,7 @@ fn bump_authenticates_through_a_pinned_app_token() {
         !comment.trim().trim_start_matches('#').trim().is_empty(),
         "{WORKFLOW} must carry a trailing tag comment on the {APP_ACTION} pin"
     );
-    for step in steps() {
+    for step in steps(WORKFLOW, "widen-one") {
         let uses = step["uses"].as_str().unwrap_or_default();
         if uses.starts_with(APP_ACTION) {
             assert_eq!(
@@ -189,7 +174,7 @@ fn missing_app_secrets_fail_before_any_mutation() {
 fn push_and_pr_creation_use_the_app_identity() {
     let body = text();
     let mut writers = 0;
-    for step in steps() {
+    for step in steps(WORKFLOW, "widen-one") {
         let run = run_of(&step);
         if run.contains("gh pr ") || run.contains("gh auth setup-git") || run.contains("git push") {
             writers += 1;
@@ -305,7 +290,7 @@ fn one_dependency_per_pr_with_automerge() {
 #[test]
 fn every_gh_step_sets_gh_token() {
     let mut found = 0;
-    for step in steps() {
+    for step in steps(WORKFLOW, "widen-one") {
         if invokes_gh(run_of(&step)) {
             found += 1;
             assert!(
@@ -323,7 +308,7 @@ fn every_gh_step_sets_gh_token() {
 
 #[test]
 fn gh_errors_stay_visible() {
-    for step in steps() {
+    for step in steps(WORKFLOW, "widen-one") {
         for line in run_of(&step).lines() {
             assert!(
                 !(line.contains("gh api") && line.contains("2>/dev/null")),
@@ -337,7 +322,7 @@ fn gh_errors_stay_visible() {
 
 #[test]
 fn discovery_never_runs_dx_bump_on_dispatch() {
-    let steps = steps();
+    let steps = steps(WORKFLOW, "widen-one");
     let discovery = steps
         .iter()
         .find(|step| name_of(step) == DISCOVERY)
@@ -378,7 +363,7 @@ fn discovery_never_runs_dx_bump_on_dispatch() {
 
 #[test]
 fn discovery_reads_pins_by_line_and_validates_the_sha() {
-    let steps = steps();
+    let steps = steps(WORKFLOW, "widen-one");
     let discovery = steps
         .iter()
         .find(|step| name_of(step) == DISCOVERY)

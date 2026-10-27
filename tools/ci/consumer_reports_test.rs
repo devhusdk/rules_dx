@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+use ci_workflow::steps;
 use dx_testing::read_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
@@ -22,18 +23,8 @@ const REPORTING: &[(&str, &[&str])] = &[
 /// Jobs that upload no reports. Flip these when the follow-ups land.
 const UNREPORTED: &[&str] = &["format", "generate", "security-audit", "license-audit"];
 
-/// Returns the steps of one job of the parsed workflow.
-fn steps(name: &str) -> Vec<Value> {
-    let doc: Value = yaml_serde::from_str(&read_runfiles(WORKFLOW))
-        .unwrap_or_else(|error| panic!("{WORKFLOW} is not valid workflow YAML: {error}"));
-    doc["jobs"][name]["steps"]
-        .as_array()
-        .cloned()
-        .unwrap_or_else(|| panic!("{WORKFLOW} job {name} declares no steps"))
-}
-
 fn uploads(name: &str) -> Vec<(usize, Value)> {
-    steps(name)
+    steps(WORKFLOW, name)
         .into_iter()
         .enumerate()
         .filter(|(_, step)| {
@@ -51,7 +42,7 @@ fn artifact_name(job: &str) -> String {
 #[test]
 fn each_reporting_job_passes_exactly_its_report_kinds() {
     for (job, kinds) in REPORTING {
-        let dx_steps: Vec<String> = steps(job)
+        let dx_steps: Vec<String> = steps(WORKFLOW, job)
             .iter()
             .filter_map(|step| step["run"].as_str())
             .filter(|run| run.contains("@rules_dx//:dx -- "))
@@ -98,7 +89,7 @@ fn each_reporting_job_uploads_once_after_dx_and_before_the_cache_steps() {
             step["with"]["overwrite"].is_null(),
             "{job} must not overwrite"
         );
-        let all = steps(job);
+        let all = steps(WORKFLOW, job);
         let dx_at = all
             .iter()
             .position(|s| {

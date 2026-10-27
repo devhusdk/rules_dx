@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -225,6 +225,34 @@ python_test(
 )
 
 # keep
+rust_library(
+    name = "ci_workflow",
+    testonly = True,
+    srcs = ["ci_workflow.rs"],
+    crate_name = "ci_workflow",
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
+    name = "ci_workflow_test",
+    size = "small",
+    srcs = ["ci_workflow_test.rs"],
+    data = [
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/reusable-consumer.yml",
+    ],
+    deps = [
+        ":ci_workflow",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
 rust_test(
     name = "actionlint_test",
     size = "small",
@@ -264,9 +292,9 @@ rust_test(
         "//examples:docs-ci/caller.yml",
     ],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -291,9 +319,8 @@ rust_test(
     srcs = ["advisory_snapshots_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
-        "//tools/testing:dx_testing",
+        ":ci_workflow",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -307,9 +334,9 @@ rust_test(
         "//docs:github-ci.md",
     ],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -353,9 +380,8 @@ rust_test(
     srcs = ["tool_resolve_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
-        "//tools/testing:dx_testing",
+        ":ci_workflow",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -381,9 +407,9 @@ rust_test(
         "//.github:workflows/bump.yml",
     ],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -413,9 +439,9 @@ rust_test(
     srcs = ["consumer_inputs_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -473,9 +499,9 @@ rust_test(
         "//.github:workflows/reusable-docs.yml",
     ],
     deps = [
+        ":ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 

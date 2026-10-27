@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use ci_workflow::{document, job, text_at};
 use dx_testing::read_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
@@ -43,41 +44,15 @@ const RAW_INPUTS: [&str; 4] = [
     "inputs.min_changed_line_coverage",
 ];
 
-/// Returns the parsed workflow, which must be valid Actions YAML.
-fn document() -> Value {
-    let text = read_runfiles(WORKFLOW);
-    yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{WORKFLOW} is not valid workflow YAML: {error}"))
-}
-
 /// Returns the job names the parsed workflow declares, sorted.
 fn job_names() -> Vec<String> {
-    let document = document();
+    let document = document(WORKFLOW);
     let jobs = document["jobs"]
         .as_object()
         .unwrap_or_else(|| panic!("{WORKFLOW} has no jobs mapping"));
     let mut names: Vec<String> = jobs.keys().cloned().collect();
     names.sort();
     names
-}
-
-/// Returns one job of the parsed workflow.
-fn job(name: &str) -> Value {
-    let found = document()["jobs"][name].clone();
-    assert!(
-        found.is_object(),
-        "{WORKFLOW} names no {name:?} job: {}",
-        document()["jobs"]
-    );
-    found
-}
-
-/// Returns one string value of the parsed workflow.
-fn text_at(value: &Value, what: &str) -> String {
-    value
-        .as_str()
-        .unwrap_or_else(|| panic!("{what} is not a string: {value}"))
-        .to_owned()
 }
 
 #[test]
@@ -98,7 +73,7 @@ preparation and the aggregate"
 
 #[test]
 fn the_validate_job_needs_nothing_so_it_rejects_input_first() {
-    let validate = job(VALIDATE);
+    let validate = job(WORKFLOW, VALIDATE);
     assert!(
         validate.get("needs").is_none(),
         "{WORKFLOW} job {VALIDATE} must declare no needs, so it runs before every matrix job"
@@ -123,11 +98,11 @@ fn every_check_job_waits_for_the_validated_inputs() {
             vec![VALIDATE]
         };
         assert_eq!(
-            job(name)["needs"],
+            job(WORKFLOW, name)["needs"],
             json!(wanted),
             "{WORKFLOW} job {name} must need the validate job and nothing else it can skip"
         );
-        let gate = text_at(&job(name)["if"], &format!("{name} if"));
+        let gate = text_at(&job(WORKFLOW, name)["if"], &format!("{name} if"));
         assert!(
             gate.contains(&format!("contains(format(',{{0}},', {DISABLED_REF})")),
             "{WORKFLOW} job {name} must gate on {DISABLED_REF}: {gate}"
@@ -142,7 +117,7 @@ fn every_check_job_waits_for_the_validated_inputs() {
 #[test]
 fn every_check_job_expands_its_matrix_from_the_validated_platforms() {
     for name in CHECKS {
-        let job = job(name);
+        let job = job(WORKFLOW, name);
         assert_eq!(
             job["strategy"]["matrix"]["platform"],
             json!(MATRIX),
@@ -158,7 +133,7 @@ fn every_check_job_expands_its_matrix_from_the_validated_platforms() {
 
 #[test]
 fn the_coverage_job_takes_its_threshold_from_the_validated_inputs() {
-    let coverage = job("coverage");
+    let coverage = job(WORKFLOW, "coverage");
     let steps = coverage["steps"]
         .as_array()
         .unwrap_or_else(|| panic!("{WORKFLOW} job coverage has no steps"));
@@ -174,7 +149,7 @@ fn the_coverage_job_takes_its_threshold_from_the_validated_inputs() {
 
 /// Returns the coverage job step whose name starts with the given prefix.
 fn coverage_step(prefix: &str) -> Value {
-    let coverage = job("coverage");
+    let coverage = job(WORKFLOW, "coverage");
     let steps = coverage["steps"]
         .as_array()
         .unwrap_or_else(|| panic!("{WORKFLOW} job coverage has no steps"))
@@ -237,7 +212,7 @@ fn the_coverage_comment_publishes_after_a_failed_gate() {
 
 #[test]
 fn the_aggregate_separates_a_disabled_check_from_a_lost_one() {
-    let aggregate = job(AGGREGATE);
+    let aggregate = job(WORKFLOW, AGGREGATE);
     let mut wanted: Vec<&str> = vec![VALIDATE];
     for name in CHECKS {
         wanted.push(name);

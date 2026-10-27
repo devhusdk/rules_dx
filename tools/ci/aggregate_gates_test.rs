@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use ci_workflow::document;
 use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
@@ -14,13 +15,6 @@ const AGGREGATE: &str = "dx-ci";
 
 /// Runs a gate on every dependency outcome, except a cancelled run outside merge_group.
 const GATE_IF: &str = "${{ !cancelled() || github.event_name == 'merge_group' }}";
-
-/// Returns the parsed workflow, which must be valid Actions YAML.
-fn document(workflow: &str) -> Value {
-    let text = read_runfiles(workflow);
-    yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{workflow} is not valid workflow YAML: {error}"))
-}
 
 /// Returns the aggregate run script of one job.
 fn aggregate_script(workflow: &str, job: &str) -> String {

@@ -10,6 +10,7 @@ PARITY_DEFERRED = {
     "lua": ["ADR", "stylua adapter pending in a later #1794 slice"],
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "perl": ["ADR", "perltidy adapter pending in a later #1788 slice"],
+    "php": ["ADR", "php-cs-fixer and phpstan adapters pending in a later #1795 slice"],
     "svelte": ["ADR", "framework adapter region; Prettier/ESLint plugin closure pending"],
 }
 

@@ -1,0 +1,97 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
+load("//php/rules:php.bzl", "php_autoload_tree")
+load("//quality:fixtures.bzl", "real_source_target")
+
+php_library(
+    name = "format",
+    srcs = ["src/Hello/Format/Upper.php"],
+)
+
+php_library(
+    name = "greeter",
+    srcs = ["src/Hello/Greeter.php"],
+    deps = [":format"],
+)
+
+php_binary(
+    name = "hello",
+    args = ["$(rlocationpath data/name.txt)"],
+    data = ["data/name.txt"],
+    ini = {"precision": "7"},
+    main = "bin/hello.php",
+    deps = [":greeter"],
+)
+
+php_test(
+    name = "greeter_test",
+    size = "small",
+    srcs = ["test/GreeterTest.php"],
+    ini = {"precision": "7"},
+    deps = [":greeter"],
+)
+
+sh_test(
+    name = "hello_test",
+    size = "small",
+    srcs = ["hello_test.sh"],
+    args = [
+        "$(rootpath :hello)",
+        "$(rlocationpath data/name.txt)",
+    ],
+    data = [
+        "data/name.txt",
+        ":hello",
+    ],
+)
+
+[
+    php_autoload_tree(
+        name = "autoload_" + copy,
+        suffix = "Dx_reproducible",
+        target_compatible_with = [
+            "@platforms//os:linux",
+            "@platforms//cpu:x86_64",
+        ],
+        deps = [":greeter"],
+    )
+    for copy in ("a", "b")
+]
+
+sh_test(
+    name = "autoload_reproducible_test",
+    size = "small",
+    srcs = ["same_tree_test.sh"],
+    args = [
+        "$(rootpath :autoload_a)",
+        "$(rootpath :autoload_b)",
+    ],
+    data = [
+        ":autoload_a",
+        ":autoload_b",
+    ],
+)
+
+php_autoload_tree(
+    name = "autoload_root_shape",
+    suffix = "Dx_main__hello_",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = [":greeter"],
+)
+
+build_test(
+    name = "autoload_root_shape_test",
+    targets = [":autoload_root_shape"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

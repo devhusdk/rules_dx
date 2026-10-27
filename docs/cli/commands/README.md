@@ -441,6 +441,7 @@ Language rules:
 - `@rules_dx//lua/rules:defs.bzl`: Lua.
 - `@rules_dx//perl/rules:defs.bzl`: Perl.
 - `@rules_dx//pkl/rules:defs.bzl`: Pkl.
+- `@rules_dx//php/rules:defs.bzl`: PHP.
 - `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
 - `@rules_dx//python/rules:defs.bzl`: Python.
 - `@rules_dx//qt/rules:defs.bzl`: Qt.

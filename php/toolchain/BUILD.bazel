@@ -1,0 +1,35 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":metadata_tests.bzl", "php_metadata_tests", "php_version_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "metadata_tests.bzl",
+    "php.bzl",
+    "pins.bzl",
+    "repos.bzl",
+])
+
+toolchain_type(name = "toolchain_type")
+
+toolchain_type(name = "exec_toolchain_type")
+
+php_metadata_tests(name = "metadata")
+
+php_version_test(
+    name = "version_test",
+    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "metadata_tests.bzl",
+        "php.bzl",
+        "pins.bzl",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

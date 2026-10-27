@@ -32,8 +32,6 @@ pub enum OutputError {
     RangeWithoutPath,
     #[error("inverted range: start must not exceed end")]
     InvertedRange,
-    #[error("missing resolution: default-mode diagnostics require a resolution")]
-    MissingResolution,
     #[error("unexpected resolution: check-mode diagnostics carry no resolution")]
     UnexpectedResolution,
     #[error("missing failure reason for {path:?}")]
@@ -269,10 +267,6 @@ mod tests {
         assert_eq!(
             OutputError::SecondStdoutReport.to_string(),
             "second stdout report: at most one report may target stdout"
-        );
-        assert_eq!(
-            OutputError::MissingResolution.to_string(),
-            "missing resolution: default-mode diagnostics require a resolution"
         );
     }
 

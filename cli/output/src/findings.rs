@@ -120,15 +120,13 @@ impl DiagnosticEvent {
     }
 }
 
-pub fn diagnostic_event(
-    diagnostic: &DiagnosticEvent,
-    mutating: bool,
-) -> Result<Value, OutputError> {
-    check_diagnostic(diagnostic, mutating)?;
-    Ok(diagnostic_value(diagnostic))
+/// Validates and builds the event for a producer with no validator of its own.
+pub fn diagnostic_event(diagnostic: &DiagnosticEvent) -> Result<Value, OutputError> {
+    check_diagnostic(diagnostic)?;
+    Ok(finding_value(&FindingRecord::single(diagnostic.clone())))
 }
 
-fn check_diagnostic(diagnostic: &DiagnosticEvent, mutating: bool) -> Result<(), OutputError> {
+fn check_diagnostic(diagnostic: &DiagnosticEvent) -> Result<(), OutputError> {
     nonempty("tool", &diagnostic.tool)?;
     nonempty("message", &diagnostic.message)?;
     if let Some(path) = &diagnostic.path {
@@ -166,19 +164,10 @@ fn check_diagnostic(diagnostic: &DiagnosticEvent, mutating: bool) -> Result<(), 
             nonempty("package license", license)?;
         }
     }
-    match (diagnostic.snapshot, diagnostic.resolution, mutating) {
-        (Snapshot::Terminal, Some(_), _) | (Snapshot::Initial, Some(_), false) => {
-            return Err(OutputError::UnexpectedResolution);
-        }
-        (Snapshot::Initial, None, true) => return Err(OutputError::MissingResolution),
-        (Snapshot::Initial, _, _) | (Snapshot::Terminal, None, _) => {}
+    if diagnostic.resolution.is_some() {
+        return Err(OutputError::UnexpectedResolution);
     }
     Ok(())
-}
-
-/// Builds the event for a diagnostic whose producer already validated it.
-pub fn diagnostic_value(diagnostic: &DiagnosticEvent) -> Value {
-    finding_value(&FindingRecord::single(diagnostic.clone()))
 }
 
 fn location(path: Option<&String>, range: Option<(u64, u64)>, span: Option<Span>) -> &'static str {
@@ -463,26 +452,27 @@ mod tests {
     }
 
     #[test]
-    fn diagnostic_resolution_rules() {
-        diagnostic_event(&finding(), false).expect("check initial");
+    fn diagnostic_event_rejects_any_resolution() {
+        diagnostic_event(&finding()).expect("check initial");
+        let mut initial = finding();
+        initial.resolution = Some(Resolution::Fixed);
         assert_eq!(
-            diagnostic_event(&finding(), true).expect_err("missing resolution"),
-            OutputError::MissingResolution
+            diagnostic_event(&initial).expect_err("initial resolution"),
+            OutputError::UnexpectedResolution
         );
         let mut terminal = finding();
         terminal.snapshot = Snapshot::Terminal;
         terminal.fixable = false;
-        terminal.resolution = None;
-        diagnostic_event(&terminal, true).expect("terminal");
+        diagnostic_event(&terminal).expect("terminal");
         terminal.resolution = Some(Resolution::Fixed);
         assert_eq!(
-            diagnostic_event(&terminal, true).expect_err("terminal resolution"),
+            diagnostic_event(&terminal).expect_err("terminal resolution"),
             OutputError::UnexpectedResolution
         );
         let mut ranged = finding();
         ranged.path = None;
         assert_eq!(
-            diagnostic_event(&ranged, false).expect_err("range without path"),
+            diagnostic_event(&ranged).expect_err("range without path"),
             OutputError::RangeWithoutPath
         );
     }
@@ -491,8 +481,7 @@ mod tests {
     fn new_builds_a_valid_terminal_diagnostic() {
         let event = DiagnosticEvent::new(Severity::Error, "vuln", "m");
         assert_eq!(event.snapshot, Snapshot::Terminal);
-        diagnostic_event(&event, false).expect("non-mutating");
-        diagnostic_event(&event, true).expect("mutating");
+        diagnostic_event(&event).expect("terminal");
     }
 
     fn package(fixed: Option<Vec<String>>, license: Option<&str>) -> PackageRef {
@@ -506,40 +495,34 @@ mod tests {
 
     #[test]
     fn package_is_absent_unless_set() {
-        let event = diagnostic_event(&finding(), false).expect("no package");
+        let event = diagnostic_event(&finding()).expect("no package");
         assert!(event.get("package").is_none());
     }
 
     #[test]
     fn package_keeps_an_empty_fixed_list() {
-        let event = diagnostic_event(
-            &DiagnosticEvent {
-                package: Some(package(Some(Vec::new()), None)),
-                ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
-            },
-            false,
-        )
+        let event = diagnostic_event(&DiagnosticEvent {
+            package: Some(package(Some(Vec::new()), None)),
+            ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
+        })
         .expect("vuln package");
         assert_eq!(
             event["package"],
             serde_json::json!({"name": "left-pad", "version": "1.0.0", "fixed": []})
         );
-        let fixed = diagnostic_value(&DiagnosticEvent {
+        let fixed = finding_value(&FindingRecord::single(DiagnosticEvent {
             package: Some(package(Some(vec!["1.0.1".to_owned()]), None)),
             ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
-        });
+        }));
         assert_eq!(fixed["package"]["fixed"], serde_json::json!(["1.0.1"]));
     }
 
     #[test]
     fn package_carries_a_license() {
-        let event = diagnostic_event(
-            &DiagnosticEvent {
-                package: Some(package(None, Some("MIT"))),
-                ..DiagnosticEvent::new(Severity::Error, "license", "m")
-            },
-            false,
-        )
+        let event = diagnostic_event(&DiagnosticEvent {
+            package: Some(package(None, Some("MIT"))),
+            ..DiagnosticEvent::new(Severity::Error, "license", "m")
+        })
         .expect("license package");
         assert_eq!(
             event["package"],
@@ -562,7 +545,7 @@ mod tests {
                 ..DiagnosticEvent::new(Severity::Error, "vuln", "m")
             };
             assert_eq!(
-                diagnostic_event(&event, false).expect_err("empty identity"),
+                diagnostic_event(&event).expect_err("empty identity"),
                 OutputError::EmptyField { field }
             );
         }
@@ -615,7 +598,7 @@ mod tests {
 
     #[test]
     fn diagnostic_events_carry_every_field() {
-        let event = diagnostic_event(&finding(), false).expect("check initial");
+        let event = diagnostic_event(&finding()).expect("check initial");
         assert_eq!(event["severity"], Value::from("warning"));
         assert_eq!(event["tool"], Value::from("ruff"));
         assert_eq!(event["message"], Value::from("Imported but unused"));
@@ -629,10 +612,10 @@ mod tests {
     }
 
     #[test]
-    fn diagnostic_value_matches_the_checked_event() {
+    fn diagnostic_events_render_resolution() {
         let mut resolved = finding();
         resolved.resolution = Some(Resolution::Remaining);
-        let event = diagnostic_value(&resolved);
+        let event = finding_value(&FindingRecord::single(resolved));
         assert_eq!(
             event["resolution"],
             Value::from("remaining"),
@@ -640,12 +623,7 @@ mod tests {
         );
         assert_eq!(event["tool"], Value::from("ruff"));
         assert_eq!(event["range"]["end_byte"], Value::from(24));
-        assert_eq!(
-            event,
-            diagnostic_event(&resolved, true).expect("resolved"),
-            "the checked entry point must agree with the value builder"
-        );
-        let initial = diagnostic_value(&finding());
+        let initial = finding_value(&FindingRecord::single(finding()));
         assert!(initial.get("resolution").is_none());
         assert_eq!(initial["snapshot"], Value::from("initial"));
         assert_eq!(initial["rule"], Value::from("F401"));
@@ -718,7 +696,7 @@ mod tests {
         let mut bad = finding();
         bad.range = Some((24, 18));
         assert_eq!(
-            diagnostic_event(&bad, false).expect_err("inverted range"),
+            diagnostic_event(&bad).expect_err("inverted range"),
             OutputError::InvertedRange
         );
     }
@@ -729,7 +707,7 @@ mod tests {
         tool_level.path = None;
         tool_level.range = None;
         tool_level.snapshot = Snapshot::Terminal;
-        let event = diagnostic_event(&tool_level, false).expect("tool-level");
+        let event = diagnostic_event(&tool_level).expect("tool-level");
         assert_eq!(event["snapshot"], Value::String("terminal".to_owned()));
         assert!(event.get("path").is_none());
         assert!(event.get("range").is_none());
@@ -744,7 +722,7 @@ mod tests {
         ] {
             let mut resolved = finding();
             resolved.resolution = Some(resolution);
-            let event = diagnostic_event(&resolved, true).expect("resolved");
+            let event = finding_value(&FindingRecord::single(resolved));
             assert_eq!(event["resolution"], Value::String(name.to_owned()));
         }
     }
@@ -814,7 +792,7 @@ mod tests {
                 applicability: Some("MaybeIncorrect".to_owned()),
             },
         ];
-        let value = diagnostic_event(&event, false).expect("event");
+        let value = diagnostic_event(&event).expect("event");
         let related = value["related"].as_array().expect("related");
         assert_eq!(related.len(), 2);
         assert_eq!(related[0]["role"], Value::from("label"));
@@ -823,10 +801,10 @@ mod tests {
         assert!(related[1].get("path").is_none());
         event.related[0].range = Some((4, 1));
         assert_eq!(
-            diagnostic_event(&event, false).expect_err("inverted"),
+            diagnostic_event(&event).expect_err("inverted"),
             OutputError::InvertedRange
         );
-        let plain = diagnostic_event(&finding(), false).expect("plain");
+        let plain = diagnostic_event(&finding()).expect("plain");
         assert!(plain.get("related").is_none());
     }
 
@@ -836,7 +814,7 @@ mod tests {
 
     #[test]
     fn locations_say_what_was_verified() {
-        let bytes = diagnostic_value(&finding());
+        let bytes = finding_value(&FindingRecord::single(finding()));
         assert_eq!(bytes["location"], Value::from("bytes"));
         assert_eq!(bytes["count"], Value::from(1));
         assert!(bytes["range"].get("start_line").is_none());
@@ -844,12 +822,15 @@ mod tests {
         assert!(bytes.get("baseline").is_none());
         let mut file = finding();
         file.range = None;
-        assert_eq!(diagnostic_value(&file)["location"], Value::from("file"));
+        assert_eq!(
+            finding_value(&FindingRecord::single(file.clone()))["location"],
+            Value::from("file")
+        );
         let mut unknown = finding();
         unknown.path = None;
         unknown.range = None;
         assert_eq!(
-            diagnostic_value(&unknown)["location"],
+            finding_value(&FindingRecord::single(unknown))["location"],
             Value::from("unknown")
         );
         let mut record = FindingRecord::single(finding());
@@ -867,7 +848,7 @@ mod tests {
                 "end_column": 7,
             })
         );
-        let mut stray = FindingRecord::single(file.clone());
+        let mut stray = FindingRecord::single(file);
         stray.span = Some((at(1, 1), at(1, 1)));
         assert_eq!(finding_value(&stray)["location"], Value::from("file"));
     }
@@ -887,7 +868,7 @@ mod tests {
                 configuration: None,
             },
         ];
-        diagnostic_event(&diagnostic, false).expect("origins validate");
+        diagnostic_event(&diagnostic).expect("origins validate");
         let record = FindingRecord {
             count: 2,
             suppressed: true,
@@ -904,7 +885,7 @@ mod tests {
         assert_eq!(event["origins"][1]["target"], Value::from("//src:b"));
         assert_eq!(event["origins"][1]["configuration"], Value::from("unknown"));
         diagnostic.origins[0].producer = String::new();
-        assert!(diagnostic_event(&diagnostic, false).is_err());
+        assert!(diagnostic_event(&diagnostic).is_err());
     }
 
     #[test]

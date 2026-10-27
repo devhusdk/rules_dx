@@ -294,6 +294,32 @@ fn secrets_process_status_and_report_content_are_both_authoritative() {
 }
 
 #[test]
+fn json_rejects_gitleaks_findings_with_unsafe_paths() {
+    for uri in ["/abs/creds.py", "../x.py"] {
+        let sarif = format!(
+            r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"gitleaks"}}}},"results":[{{"ruleId":"gitleaks/token","message":{{"text":"token detected"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"{uri}"}}}}}}]}}]}}]}}"#
+        );
+        let runner = AuditRunner::with_sarif(Some(0), &sarif);
+        let (code, out, err) = run_with(&["security", "--output=json"], &runner, &|h| {
+            clean_workspace_with_advisories(h);
+        });
+        assert_eq!(code, 1, "{uri}: {out}{err}");
+        let events = json_events(&out);
+        assert!(
+            events.iter().any(|event| event["code"] == "invalid_result"
+                && event["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains("invalid gitleaks finding"))),
+            "{uri}: {out}"
+        );
+        assert_eq!(
+            events.last().expect("finished")["exit_code"],
+            serde_json::json!(1)
+        );
+    }
+}
+
+#[test]
 fn audit_stdout_reports_are_single_machine_documents() {
     for (family, format) in [("security", "sarif"), ("license", "spdx")] {
         let report = format!("--report={format}=-");

@@ -1,165 +1,55 @@
-use std::path::{Path, PathBuf};
-use std::process::Command;
-
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::nested;
+use dx_testing::Run;
+use qt_board_support::*;
 
 const APP: &str = "//examples/qt-rust/app:ledger";
 const MODEL: &str = "examples/qt-rust/model";
 
-fn manifest(variable: &str) -> hermetic::Manifest {
-    let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} names the manifest"));
-    let text = std::fs::read_to_string(resolve_runfiles(&rel)).expect("manifest is readable");
-    let base = std::env::current_dir().expect("runfiles cwd");
-    hermetic::parse_manifest(&text, &base).expect("manifest parses")
+fn ledger(consumer: &Consumer, args: &[&str]) -> Run {
+    consumer.dx("run", &[APP], args)
 }
 
-struct Consumer {
-    dx: PathBuf,
-    repo: String,
-    root: PathBuf,
-    scratch: PathBuf,
+fn lint(consumer: &Consumer, scope: &str) -> Run {
+    consumer.quality("lint", "qmllint", scope)
 }
 
-impl Consumer {
-    fn new(name: &str, variable: &str, repo: Option<&str>) -> Self {
-        let mut manifest = manifest(variable);
-        let source = std::fs::canonicalize(&manifest.module_file)
-            .expect("rules_dx MODULE.bazel resolves")
-            .parent()
-            .expect("rules_dx source tree")
-            .to_path_buf();
-        let scratch = mkscratch(name).expect("scratch dir");
-        if let Some(repo) = repo {
-            let fragment = read_text(&manifest.module_fragment)
-                .replace(&format!("@{}//", manifest.repo_name), &format!("@{repo}//"));
-            manifest.module_fragment = scratch.join("module_fragment.bazel");
-            write(&manifest.module_fragment, &fragment);
-            manifest.repo_name = repo.to_owned();
-        }
-        let root = scratch.join(&manifest.workspace_dir);
-        hermetic::materialize(&manifest, &root, &source, "cc").expect("consumer materializes");
-        let rc = root.join(".bazelrc");
-        let mut text = read_text(&rc);
-        text.push_str("startup --max_idle_secs=120\n");
-        write(&rc, &text);
-        let dx = std::fs::canonicalize(&manifest.dx).expect("dx resolves");
-        Consumer {
-            dx,
-            repo: manifest.repo_name,
-            root,
-            scratch,
-        }
-    }
-
-    fn dx(&self, command: &str, args: &[&str], rest: &[&str]) -> Run {
-        let workspace = self.root.to_string_lossy().into_owned();
-        let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
-        argv.extend_from_slice(args);
-        if !rest.is_empty() {
-            argv.push("--");
-            argv.extend_from_slice(rest);
-        }
-        run(&self.dx, &argv, &[]).expect("dx runs")
-    }
-
-    fn ledger(&self, args: &[&str]) -> Run {
-        self.dx("run", &[APP], args)
-    }
-
-    fn lint(&self, scope: &str) -> Run {
-        let repo = &self.repo;
-        let tool = format!("--@{repo}//config:tool_qmllint=@dx_qt//:qmllint");
-        let policy = format!("--@{repo}//config:workspace=//:policy");
-        self.dx("lint", &[scope], &[policy.as_str(), tool.as_str()])
-    }
-
-    fn path(&self, rel: &str) -> PathBuf {
-        self.root.join(rel)
-    }
-
-    fn edit(&self, rel: &str, from: &str, to: &str) -> String {
-        let original = read_text(&self.path(rel));
-        assert!(original.contains(from), "{rel} lacks {from:?}");
-        write(&self.path(rel), &original.replacen(from, to, 1));
-        original
-    }
-
-    fn fetched(&self) -> Vec<String> {
-        let execroot = std::fs::canonicalize(self.path("bazel-out")).expect("bazel-out resolves");
-        let output_base = execroot
-            .ancestors()
-            .nth(3)
-            .expect("output base")
-            .to_path_buf();
-        let mut names: Vec<String> = std::fs::read_dir(output_base.join("external"))
-            .expect("external dir")
-            .map(|entry| {
-                entry
-                    .expect("entry")
-                    .file_name()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .filter(|name| !name.starts_with('@') && !name.ends_with(".marker"))
-            .collect();
-        names.sort();
-        names
-    }
+fn expunge(consumer: &Consumer) {
+    assert_exit(
+        &nested::bazel_in(&consumer.root, &["clean", "--expunge"]),
+        0,
+    );
 }
 
-fn read_text(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn rename(from: &Path, to: &Path) {
-    std::fs::rename(from, to).unwrap_or_else(|error| panic!("rename {from:?}: {error}"));
-}
-
-fn assert_exit(result: &Run, code: i32) {
-    assert_eq!(result.status.code(), Some(code), "{}", result.combined());
-}
-
-fn assert_fails(result: &Run) {
-    assert_ne!(result.status.code(), Some(0), "{}", result.combined());
-}
-
-fn assert_has(text: &str, needle: &str) {
-    assert!(text.contains(needle), "missing {needle:?} in:\n{text}");
+fn fetched(consumer: &Consumer) -> Vec<String> {
+    let execroot = std::fs::canonicalize(consumer.path("bazel-out")).expect("bazel-out resolves");
+    let output_base = execroot
+        .ancestors()
+        .nth(3)
+        .expect("output base")
+        .to_path_buf();
+    let mut names: Vec<String> = std::fs::read_dir(output_base.join("external"))
+        .expect("external dir")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .filter(|name| !name.starts_with('@') && !name.ends_with(".marker"))
+        .collect();
+    names.sort();
+    names
 }
 
 fn has_repo(fetched: &[String], fragment: &str) -> bool {
     fetched.iter().any(|name| name.contains(fragment))
 }
 
-fn launch(app: &Path, args: &[&str]) -> Run {
-    let output = Command::new(app)
-        .args(args)
-        .env_clear()
-        .current_dir(app.parent().expect("app dir"))
-        .output()
-        .expect("relocated app launches");
-    Run {
-        status: output.status,
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-    }
-}
-
-fn machine(path: &Path) -> Option<String> {
-    let bytes = std::fs::read(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
-    dx_testing::image_machine(&bytes)
-}
-
 #[test]
 fn qml_drives_the_rust_model_through_generated_bindings() {
     let consumer = Consumer::new("qt-rust-app", "DX_QT_RUST_MANIFEST", None);
+    expunge(&consumer);
     let model = read_text(&consumer.path(&format!("{MODEL}/BUILD.bazel")));
     assert_has(
         &model,
@@ -171,7 +61,7 @@ fn qml_drives_the_rust_model_through_generated_bindings() {
         &consumer.dx("test", &["//examples/qt-rust/ledger/..."], &[]),
         0,
     );
-    let pure_rust = consumer.fetched();
+    let pure_rust = fetched(&consumer);
     assert!(has_repo(&pure_rust, "shared_tasks_adler2"), "{pure_rust:?}");
     for optional in ["dx_qt", "crates__cxx-qt-", "crates__cxx-1."] {
         assert!(
@@ -185,7 +75,7 @@ fn qml_drives_the_rust_model_through_generated_bindings() {
     assert_exit(&tested, 0);
     assert_has(&tested.combined(), "//examples/qt-rust/app:ledger_test");
     assert_has(&tested.combined(), "//examples/qt-rust/ledger:ledger_test");
-    let full = consumer.fetched();
+    let full = fetched(&consumer);
     for integration in ["dx_qt", "crates__cxx-qt-0.10.0", "crates__cxx-1.0.202"] {
         assert!(has_repo(&full, integration), "{integration}: {full:?}");
     }
@@ -217,23 +107,23 @@ fn qml_drives_the_rust_model_through_generated_bindings() {
         "{qmltypes}"
     );
 
-    let rejected = consumer.ledger(&["5", "-2", "7"]);
+    let rejected = ledger(&consumer, &["5", "-2", "7"]);
     assert_exit(&rejected, 3);
     assert_has(
         &rejected.stdout,
         "added 5\nrejected -2\nadded 7\n2 entries, total 12, adler32 004c000d\n",
     );
     assert_has(&rejected.stderr, "ledger: rejected signal for -2\n");
-    let accepted = consumer.ledger(&["1", "2", "3"]);
+    let accepted = ledger(&consumer, &["1", "2", "3"]);
     assert_exit(&accepted, 0);
     assert_has(
         &accepted.stdout,
         "added 1\nadded 2\nadded 3\n3 entries, total 6, adler32 00340007\n",
     );
-    let overflow = consumer.ledger(&["2147483647", "1"]);
+    let overflow = ledger(&consumer, &["2147483647", "1"]);
     assert_exit(&overflow, 3);
     assert_has(&overflow.stdout, "added 2147483647\nrejected 1\n");
-    let usage = consumer.ledger(&["five"]);
+    let usage = ledger(&consumer, &["five"]);
     assert_exit(&usage, 2);
     assert_has(&usage.stderr, "ledger: not an amount: five");
 
@@ -276,8 +166,9 @@ fn qml_drives_the_rust_model_through_generated_bindings() {
 #[test]
 fn a_cpp_qml_consumer_does_not_fetch_the_rust_integration() {
     let consumer = Consumer::new("qt-rust-cpp-only", "DX_QT_TASKS_MANIFEST", None);
+    expunge(&consumer);
     assert_exit(&consumer.dx("test", &["//..."], &[]), 0);
-    let fetched = consumer.fetched();
+    let fetched = fetched(&consumer);
     assert!(has_repo(&fetched, "dx_qt"), "{fetched:?}");
     for optional in ["crates__cxx-qt-", "crates__cxx-1.", "crates__cxx-gen-"] {
         assert!(
@@ -301,28 +192,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         ),
         0,
     );
-    let bin = consumer.path("bazel-bin/examples/qt-rust/app");
-    let tarball = std::fs::read(bin.join("ledger_release.tar.gz")).expect("tarball built");
-    assert_eq!(
-        read_text(&bin.join("ledger_release.tar.gz.sha256")),
-        format!(
-            "{}  ledger_release.tar.gz\n",
-            hermetic::sha256_hex(&tarball)
-        )
-    );
-
-    let elsewhere = consumer.scratch.join("elsewhere");
-    std::fs::create_dir_all(&elsewhere).expect("extract dir");
-    let copy = elsewhere.join("ledger_release.tar.gz");
-    std::fs::write(&copy, &tarball).expect("tarball copied");
-    let extracted = Command::new("tar")
-        .arg("-xzf")
-        .arg(&copy)
-        .arg("-C")
-        .arg(&elsewhere)
-        .status()
-        .expect("tar runs");
-    assert!(extracted.success());
+    let elsewhere = extract(&consumer, "examples/qt-rust/app", "ledger_release");
     std::fs::remove_dir_all(&consumer.root).expect("source tree removed");
 
     let app = elsewhere.join("ledger");
@@ -416,9 +286,9 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
     let build = format!("{MODEL}/BUILD.bazel");
     let main_qml = "examples/qt-rust/ui/Main.qml";
 
-    assert_exit(&consumer.lint("//examples/qt-rust/ui"), 0);
+    assert_exit(&lint(&consumer, "//examples/qt-rust/ui"), 0);
     let original = consumer.edit(main_qml, "ledger.total + ", "ledger.totl + ");
-    let lint = consumer.lint("//examples/qt-rust/ui");
+    let lint = lint(&consumer, "//examples/qt-rust/ui");
     assert_exit(&lint, 1);
     assert_has(&lint.stdout, "examples/qt-rust/ui/Main.qml:");
     assert_has(
@@ -428,7 +298,7 @@ fn binding_signal_and_property_errors_fail_in_the_owning_target() {
     write(&consumer.path(main_qml), &original);
 
     consumer.edit(main_qml, "function onRejected(", "function onRefused(");
-    let unheard = consumer.ledger(&["-2"]);
+    let unheard = ledger(&consumer, &["-2"]);
     assert_exit(&unheard, 0);
     assert_has(
         &unheard.stdout,

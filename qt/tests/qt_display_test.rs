@@ -5,7 +5,7 @@ fn native_display_renders_the_relocated_board() {
     let displays =
         std::env::var("DX_QT_DISPLAYS").expect("DX_QT_DISPLAYS names xcb, wayland or both");
     assert!(!displays.is_empty(), "DX_QT_DISPLAYS is empty");
-    let consumer = Consumer::new("display", None);
+    let consumer = Consumer::new("display", "DX_QT_TASKS_MANIFEST", None);
     assert_exit(
         &consumer.dx(
             "build",
@@ -17,7 +17,7 @@ fn native_display_renders_the_relocated_board() {
         ),
         0,
     );
-    let board_dir = extract(&consumer, "board_release");
+    let board_dir = extract(&consumer, "examples/qt-tasks/app", "board_release");
     std::fs::remove_dir_all(&consumer.root).expect("source tree removed");
     let board = board_dir.join("board");
     let store = board_dir.join("tasks.json");

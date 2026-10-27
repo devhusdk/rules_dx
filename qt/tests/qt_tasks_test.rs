@@ -3,7 +3,7 @@ use qt_board_support::*;
 
 #[test]
 fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
-    let consumer = Consumer::new("tasks", None);
+    let consumer = Consumer::new("tasks", "DX_QT_TASKS_MANIFEST", None);
     assert_has(
         &read_text(&consumer.path("MODULE.bazel")),
         "repo_name = \"my_dx\"",
@@ -111,7 +111,7 @@ fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
 
 #[test]
 fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
-    let consumer = Consumer::new("tasks", None);
+    let consumer = Consumer::new("tasks", "DX_QT_TASKS_MANIFEST", None);
     assert_exit(
         &consumer.dx(
             "build",
@@ -125,8 +125,8 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
         ),
         0,
     );
-    let elsewhere = extract(&consumer, "tasks_release");
-    let board_dir = extract(&consumer, "board_release");
+    let elsewhere = extract(&consumer, "examples/qt-tasks/app", "tasks_release");
+    let board_dir = extract(&consumer, "examples/qt-tasks/app", "board_release");
     std::fs::remove_dir_all(&consumer.root).expect("source tree removed");
 
     let app = elsewhere.join("tasks");
@@ -480,7 +480,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
 
 #[test]
 fn quality_and_interface_errors_fail_inside_the_modules() {
-    let consumer = Consumer::new("tasks", Some("rules_dx"));
+    let consumer = Consumer::new("tasks", "DX_QT_TASKS_MANIFEST", Some("rules_dx"));
     let main_qml = "examples/qt-tasks/browser/Main.qml";
 
     assert_exit(

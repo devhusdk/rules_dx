@@ -40,6 +40,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "python",
     "python_stub",
     "cue",
+    "dart",
     "elixir",
     "erlang",
     "fortran",

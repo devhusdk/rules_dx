@@ -117,6 +117,9 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/elixir-app
 # gazelle:exclude examples/erlang-app
 # gazelle:exclude examples/haskell-app
+# gazelle:exclude dart/tests/cross
+# gazelle:exclude dart/tests/runtime
+# gazelle:exclude dart/tests/tags
 # gazelle:exclude examples/qt-app
 # gazelle:exclude examples/java-app/cli/Main.java
 # gazelle:exclude examples/java-app/diagnostics
@@ -220,6 +223,7 @@ exports_files([
     "cuda/README.md",
     "d/README.md",
     "elixir/README.md",
+    "dart/README.md",
     "fortran/README.md",
     "fsharp/README.md",
     "lua/README.md",
@@ -321,6 +325,7 @@ real_source_target(
         "csharp/README.md",
         "d/README.md",
         "elixir/README.md",
+        "dart/README.md",
         "fortran/README.md",
         "fsharp/README.md",
         "lua/README.md",

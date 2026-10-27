@@ -100,6 +100,7 @@ REAL_CLASS_TO_FAMILY = {
     "cue": "cue",
     "dockerfile": "dockerfile",
     "d": "d",
+    "dart": "dart",
     "elixir": "elixir",
     "erlang": "erlang",
     "fortran": "fortran",

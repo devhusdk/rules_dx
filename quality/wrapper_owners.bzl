@@ -15,6 +15,7 @@ WRAPPER_OWNERS = {
     "cue": "//cue/rules:defs.bzl",
     "dockerfile": "//dockerfile/rules:defs.bzl",
     "d": "//d/rules:defs.bzl",
+    "dart": "//dart/rules:defs.bzl",
     "elixir": "//elixir/rules:defs.bzl",
     "erlang": "//erlang/rules:defs.bzl",
     "fortran": "//fortran/rules:defs.bzl",

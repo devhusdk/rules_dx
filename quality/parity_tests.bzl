@@ -11,6 +11,7 @@ PARITY_DEFERRED = {
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "perl": ["ADR", "perltidy adapter pending in a later #1788 slice"],
     "php": ["ADR", "php-cs-fixer and phpstan adapters pending in a later #1795 slice"],
+    "dart": ["ADR", "dart_analyze and dart_format adapters pending in a later #1783 slice"],
     "d": ["ADR", "D formatter and D-Scanner adapters pending"],
 }
 

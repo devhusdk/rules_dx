@@ -19,6 +19,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | C# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `csharp` |
 | CUDA | `linux_x86_64` | `linux_x86_64` | `cuda` |
 | D | `linux_x86_64` | no | no |
+| Dart | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | Elixir | `linux_x86_64` | `linux_x86_64` | `elixir` |
 | Erlang | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64` | `erlang` |
 | Fortran | `linux_x86_64` | no | no |
@@ -67,6 +68,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | no |
 | CUDA | no | `clang_format` | no |
 | D | no | no | no |
+| Dart | no | no | no |
 | Elixir | no | `mix_format` | no |
 | Erlang | no | `erlfmt` | no |
 | Fortran | no | no | no |
@@ -77,7 +79,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |
 | Julia | no | no | no |
 | Kotlin | `ktlint` | `ktfmt` | no |
-| Lua | no | no | no |
+| Lua | no | `stylua` on `linux_x86_64` | no |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
 | OCaml | no | no | no |
 | Perl | no | no | no |

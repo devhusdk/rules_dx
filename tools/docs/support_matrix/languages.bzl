@@ -2,6 +2,7 @@
 
 load("//cuda/rules:defs.bzl", "CUDA_TARGET")
 load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
+load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
 load("//elixir/rules:defs.bzl", "ELIXIR_CELLS")
 load("//erlang/rules:defs.bzl", "ERLANG_CELLS")
 load("//erlang/toolchain:pins.bzl", OTP_CELLS = "CELLS")
@@ -40,6 +41,7 @@ def _otp_cells(cells):
 COMPUTED_CONSTRAINTS = {
     "//cuda/rules:defs.bzl%CUDA_TARGET": _all_of(CUDA_TARGET),
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _all_of(D_COMPATIBLE_WITH),
+    "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _otp_cells(ELIXIR_CELLS),
     "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _otp_cells(ERLANG_CELLS),
     "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": _all_of(FORTRAN_COMPATIBLE_WITH),
@@ -73,6 +75,7 @@ ROWS = [
         "title": "CUDA",
     },
     {"ci_tests": ["//d/tests/fixtures/hello:greet_test"], "name": "d", "section": "languages", "title": "D"},
+    {"ci_tests": ["//dart/tests/runtime:greet_test"], "name": "dart", "section": "languages", "title": "Dart"},
     {
         "ci_tests": ["//elixir/tests/runtime:probe_test"],
         "consumer_tests": ["//elixir/tests/starter:starter_test"],

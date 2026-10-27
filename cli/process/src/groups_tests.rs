@@ -220,7 +220,13 @@ fn a_terminal_run_takes_no_lease() {
         outcome,
         crate::lifecycle::StreamOutcome::Exited(_)
     ));
-    assert!(std::fs::read_dir(&dir).map_or(true, |mut entries| entries.next().is_none()));
+    // `GroupLease::acquire_in` creates the dir (via `create_dir_all` in the lock
+    // open) and its Drop removes only the file, so an empty dir would mean a
+    // lease was taken and released. A Terminal run must never reach it.
+    assert!(
+        !dir.exists(),
+        "a Terminal run must not call GroupLease::acquire_in, which creates the lease dir"
+    );
 }
 
 #[test]

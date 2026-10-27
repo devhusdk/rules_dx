@@ -186,6 +186,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "qmlformat",
             "qmllint",
             "redocly",
+            "remark",
             "roslyn",
             "rubocop",
             "ruff",

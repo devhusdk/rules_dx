@@ -452,6 +452,37 @@ fn prettier_check_and_fix_are_hermetic() {
 }
 
 #[test]
+fn remark_check_and_fix_pass_settings_only_when_bound() {
+    let launch = ResolvedTool::javascript("remark", Path::new(BIN));
+    let file = Path::new("/scratch/docs/a.mdx");
+    let check = remark_check(&launch, &[file], None).expect("resolves");
+    assert_eq!(
+        argv_strings(&check),
+        vec![BIN, "--check", "/scratch/docs/a.mdx"]
+    );
+    assert_eq!(check.cwd_rel, "");
+    let settings = Path::new("/scratch/remark.json");
+    let fix = remark_fix(&launch, &[file], Some(settings)).expect("resolves");
+    assert_eq!(
+        argv_strings(&fix),
+        vec![
+            BIN,
+            "--settings",
+            "/scratch/remark.json",
+            "--write",
+            "/scratch/docs/a.mdx"
+        ]
+    );
+    let blank = ResolvedTool::javascript("remark", Path::new(""));
+    assert_eq!(
+        remark_check(&blank, &[file], None),
+        Err(LaunchError::MissingProgram {
+            tool: "remark".to_owned()
+        })
+    );
+}
+
+#[test]
 fn scalafmt_check_and_fix_share_config() {
     let file = Path::new("/scratch/Sample.scala");
     let check = scalafmt_check(Path::new(BIN), &[file], None);

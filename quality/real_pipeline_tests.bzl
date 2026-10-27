@@ -97,7 +97,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("eslint", "format"),
                     real_supported_classes("eslint", "typecheck"),
                 ],
-                [["astro", "javascript", "jsx", "vue"], [], []],
+                [["astro", "javascript", "jsx", "mdx", "vue"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns graphql_eslint lint support only",

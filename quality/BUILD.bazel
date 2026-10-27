@@ -214,6 +214,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_mdx_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "mdx",
+    format = ["remark"],
+)
+
+quality_family(
     name = "default_vue_family",
     disabled = [
         "lint",
@@ -287,6 +297,7 @@ workspace_policy(
         ":default_kotlin_family",
         ":default_json_family",
         ":default_markdown_family",
+        ":default_mdx_family",
         ":default_python_family",
         ":default_rust_family",
         ":default_scala_family",

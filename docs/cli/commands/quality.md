@@ -194,6 +194,7 @@ workspace_policy(
 | `json` | `prettier` | `biome` | disabled |
 | `kotlin` | `ktfmt` | `ktlint` | disabled |
 | `markdown` | disabled | `markdown_check`, `vale` | disabled |
+| `mdx` | `remark` | disabled | disabled |
 | `python` | `ruff` | `pydoclint`, `ruff` | `ty` |
 | `rust` | `rustfmt` | `clippy` | `rustc` |
 | `scala` | `scalafmt` | disabled | disabled |
@@ -224,7 +225,7 @@ to.
 | `djlint` | format, lint | html_template |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
-| `eslint` | lint | astro, javascript, vue |
+| `eslint` | lint | astro, javascript, mdx, vue |
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
 | `fsharplint` | lint | fsharp |
@@ -250,6 +251,7 @@ to.
 | `qmlformat` | format | qml |
 | `qmllint` | lint | qml |
 | `redocly` | lint | api_spec |
+| `remark` | format | mdx |
 | `roslyn` | lint | csharp |
 | `rubocop` | lint | ruby |
 | `ruff` | audit, format, lint | python |
@@ -1247,6 +1249,91 @@ export default [
 Findings point at the line and column in the `.astro` file, including findings
 in `<script>` blocks. A `.astro` file that no config entry matches fails the
 run. It never counts as clean.
+
+### MDX
+
+`mdx_library` from `@rules_dx//mdx/rules:defs.bzl` owns `.mdx` files. The
+default policy formats them with `remark` from the managed pin (remark-stringify
+11.0.0 with remark-mdx 3.1.1). It runs on Linux x86_64. MDX has no typecheck.
+
+```sh
+bazel run @rules_dx//:dx -- format //docs/...
+bazel run @rules_dx//:dx -- fix --apply //docs/...
+```
+
+A check never writes. `--apply` rewrites only the files the selected targets
+own. An unformatted file is reported at the start of the file. A parse error,
+such as an unclosed JSX tag or a bad `{expression}`, fails the run with the
+file, line and column. It never counts as clean.
+
+The formatter parses its own output again and compares the syntax trees. If
+formatting would change what the document means, the run fails with "would
+change the document tree" and no file is written. `.remarkrc` files and remark
+plugins are ignored.
+
+The default style matches Prettier's Markdown style: `-` bullets, `_emphasis_`,
+`**strong**`, `---` rules and backtick fences. To change it, bind a
+`remark_config` to the library with `aspect_hints`. The file is a JSON object of
+remark-stringify options: `bullet`, `bulletOther`, `bulletOrdered`, `closeAtx`,
+`emphasis`, `fence`, `fences`, `incrementListMarker`, `listItemIndent`,
+`quote`, `resourceLink`, `rule`, `ruleRepetition`, `ruleSpaces`, `setext`,
+`strong` and `tightDefinitions`. Your keys replace the defaults one by one. Any
+other key, such as `plugins`, fails the run.
+
+```python
+remark_config(
+    name = "remark",
+    src = "remark.json",
+)
+```
+
+```json
+{ "bullet": "*" }
+```
+
+`eslint` lint is opt-in. Select it in the `mdx` family and bind an
+`eslint_config` to the library with `aspect_hints`. The config may import
+`eslint-plugin-mdx` 3.8.2 by name. dx provides it. Any other package must
+resolve from your workspace.
+
+```python
+quality_family(
+    name = "mdx_family",
+    disabled = ["audit", "typecheck"],
+    family_id = "mdx",
+    format = ["remark"],
+    lint = ["eslint"],
+)
+
+mdx_library(
+    name = "docs",
+    srcs = glob(["*.mdx"]),
+    aspect_hints = [":eslint", ":remark"],
+)
+```
+
+```js
+import * as mdx from "eslint-plugin-mdx";
+
+export default [
+  {
+    ...mdx.flat,
+    files: ["**/*.mdx"],
+    languageOptions: {
+      ...mdx.flat.languageOptions,
+      parserOptions: { ...mdx.flat.languageOptions.parserOptions, ignoreRemarkConfig: true },
+    },
+    rules: { ...mdx.flat.rules, "mdx/remark": "off", "no-unused-vars": "error" },
+  },
+];
+```
+
+Keep `ignoreRemarkConfig: true` and `"mdx/remark": "off"` so lint does not read
+`.remarkrc` files. Findings point at the line and column in the `.mdx` file.
+
+The formatter exits 0 when every file is formatted, 1 when a file is not, and 2
+on a parse error, a changed syntax tree or a bad `remark_config`. dx reports
+each of these as a finding or a failed run.
 
 ### SQL, XML and Gherkin
 

@@ -69,6 +69,12 @@ CURATED_DEFAULTS = {
         "lint": ["markdown_check", "vale"],
         "typecheck": [],
     },
+    "mdx": {
+        "audit": [],
+        "format": ["remark"],
+        "lint": [],
+        "typecheck": [],
+    },
     "python": {
         "audit": [],
         "format": ["ruff"],
@@ -137,6 +143,7 @@ FORMAT_FROZEN = {
     "json": ["prettier"],
     "kotlin": ["ktfmt"],
     "markdown": [],
+    "mdx": ["remark"],
     "python": ["ruff"],
     "rust": ["rustfmt"],
     "scala": ["scalafmt"],

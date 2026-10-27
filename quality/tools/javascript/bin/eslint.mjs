@@ -6,6 +6,7 @@ const MANAGED = [
   "@typescript-eslint/parser",
   "astro-eslint-parser",
   "eslint-plugin-astro",
+  "eslint-plugin-mdx",
   "eslint-plugin-vue",
   "vue-eslint-parser",
 ];

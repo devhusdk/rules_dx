@@ -108,6 +108,19 @@ def curated_defaults_unit_tests(name):
                 ],
             ),
             expect_equal(
+                "mdx curated defaults stay remark format only",
+                [CURATED_DEFAULTS["mdx"], FORMAT_FROZEN["mdx"]],
+                [
+                    {
+                        "audit": [],
+                        "format": ["remark"],
+                        "lint": [],
+                        "typecheck": [],
+                    },
+                    ["remark"],
+                ],
+            ),
+            expect_equal(
                 "vue curated defaults stay Prettier format only",
                 [CURATED_DEFAULTS["vue"], FORMAT_FROZEN["vue"]],
                 [

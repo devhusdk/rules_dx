@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_mdx_remark_parse_fail
+capability FORMAT
+stages 1
+stage remark classes=mdx sources=quality/testdata/real_broken.mdx
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR remark syntax quality/testdata/real_broken.mdx 37 37 fixable=false "Expected a closing tag for `<Chart>` (5:1-5:25)"
+terminal 1
+terminal ERROR remark syntax quality/testdata/real_broken.mdx 37 37 fixable=false "Expected a closing tag for `<Chart>` (5:1-5:25)"
+replacements 0

@@ -15,6 +15,7 @@ js_binary(
         "//quality/tools/javascript:node_modules/astro-eslint-parser",
         "//quality/tools/javascript:node_modules/eslint",
         "//quality/tools/javascript:node_modules/eslint-plugin-astro",
+        "//quality/tools/javascript:node_modules/eslint-plugin-mdx",
         "//quality/tools/javascript:node_modules/eslint-plugin-vue",
         "//quality/tools/javascript:node_modules/vue-eslint-parser",
     ],
@@ -46,6 +47,17 @@ js_binary(
 )
 
 redocly_bin.redocly_binary(name = "redocly_generated")
+js_binary(
+    name = "remark_generated",
+    data = [
+        "remark_options.json",
+        "//quality/tools/javascript:node_modules/remark-mdx",
+        "//quality/tools/javascript:node_modules/remark-parse",
+        "//quality/tools/javascript:node_modules/remark-stringify",
+        "//quality/tools/javascript:node_modules/unified",
+    ],
+    entry_point = "remark.mjs",
+)
 
 stylelint_bin.stylelint_binary(name = "stylelint_generated")
 
@@ -87,6 +99,12 @@ js_tool(
     name = "prettier",
     entry_point = "prettier.mjs",
     js_binary = ":prettier_generated",
+)
+
+js_tool(
+    name = "remark",
+    entry_point = "remark.mjs",
+    js_binary = ":remark_generated",
 )
 
 real_source_target(

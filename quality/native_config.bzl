@@ -40,6 +40,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "qmlformat": [".qmlformat.ini"],
     "qmllint": [".qmllint.ini"],
     "redocly": [".yaml", ".yml"],
+    "remark": [".json"],
     "rubocop": [".yml", ".yaml"],
     "ruff": [".toml"],
     "rustfmt": [".toml"],
@@ -198,6 +199,7 @@ stylelint_config = _make_native_config_rule("stylelint")
 graphql_eslint_config = _make_native_config_rule("graphql_eslint")
 
 redocly_config = _make_native_config_rule("redocly")
+remark_config = _make_native_config_rule("remark")
 
 psscriptanalyzer_config = _make_native_config_rule("psscriptanalyzer")
 

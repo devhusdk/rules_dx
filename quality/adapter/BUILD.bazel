@@ -53,6 +53,7 @@ rust_library(
         "src/parsers/qmlformat.rs",
         "src/parsers/qmllint.rs",
         "src/parsers/redocly.rs",
+        "src/parsers/remark.rs",
         "src/parsers/roslyn.rs",
         "src/parsers/rubocop.rs",
         "src/parsers/ruff.rs",

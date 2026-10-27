@@ -35,6 +35,7 @@ pub mod pylint;
 pub mod qmlformat;
 pub mod qmllint;
 pub mod redocly;
+pub mod remark;
 pub mod roslyn;
 pub mod rubocop;
 pub mod ruff;
@@ -94,6 +95,7 @@ pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
 pub use qmllint::{parse_qmllint, parse_qmllint_report};
 pub use redocly::parse_redocly;
+pub use remark::parse_remark;
 pub use roslyn::parse_roslyn;
 pub use rubocop::parse_rubocop;
 pub use ruff::{parse_ruff, parse_ruff_format};
@@ -1403,6 +1405,7 @@ mod tests {
         "/s/a.html",
         "/s/a.txt",
         "/s/a.pp",
+        "/s/a.mdx",
     ];
 
     const FUZZ_SEEDS: &[&[u8]] = &[
@@ -1423,6 +1426,8 @@ mod tests {
         br#"{"files":[{"path":"/s/a.rb","offenses":[{"message":"m","severity":"convention","cop_name":"c","location":{"line":1,"column":1}}]}]}"#,
         br#"[{"code":"S1000","severity":"warning","location":{"file":"/s/a.go","line":1,"column":1},"message":"m"}]"#,
         br#"[{"source":"/s/a.css","warnings":[{"line":1,"column":2,"rule":"r","text":"m","severity":"error"}]}]"#,
+        br#"[{"file":"/s/a.mdx","formatted":false}]"#,
+        b"/s/a.mdx:5:1: Expected a closing tag\n",
         br#"{"diagnostics":[{"file":"/s/a.qml","line":1,"message":"m"}]}"#,
         br#"{"path":"/s/a.scala","line":1,"column":1,"rule":"r","message":"m","severity":"error"}"#,
         b"path:1:1: E100 message\n",
@@ -1923,6 +1928,14 @@ mod tests {
         super::staticcheck::parse_staticcheck(input, code, files)
     }
 
+    fn fuzz_remark(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::remark::parse_remark(input, input, code, files)
+    }
+
     fn fuzz_stylelint(
         input: &[u8],
         code: Option<i32>,
@@ -2029,6 +2042,7 @@ mod tests {
         ("qmlformat", fuzz_qmlformat),
         ("qmllint", fuzz_qmllint),
         ("redocly", fuzz_redocly),
+        ("remark", fuzz_remark),
         ("roslyn", fuzz_roslyn),
         ("rubocop", fuzz_rubocop),
         ("ruff", fuzz_ruff),
@@ -2094,6 +2108,7 @@ mod tests {
         ("qmlformat", include_str!("qmlformat.rs")),
         ("qmllint", include_str!("qmllint.rs")),
         ("redocly", include_str!("redocly.rs")),
+        ("remark", include_str!("remark.rs")),
         ("roslyn", include_str!("roslyn.rs")),
         ("rubocop", include_str!("rubocop.rs")),
         ("ruff", include_str!("ruff.rs")),

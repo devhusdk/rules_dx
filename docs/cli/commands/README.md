@@ -330,7 +330,7 @@ per result, so a target with four shards counts four. Equal
 `build_failure` and `diagnostic` events from different targets and
 configurations appear once, with a `count`.
 
-- `command_started`: the command and its mode.
+- `command_started`: the `command` and its `mode`.
 - `build_failure`: one failure Bazel reported while building, from `dx build`,
   `dx test`, and `dx coverage`. It has `record_version`, `target`,
   `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`,
@@ -340,7 +340,7 @@ configurations appear once, with a `count`.
 - `capability`: one declared capability, with `name`, `source`,
   `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`,
   `effect`, and `passthrough`.
-- `operation`: a phase, with the scopes it resolved to.
+- `operation`: a `phase` of a `command`, with the optional `scope` it resolved to.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.

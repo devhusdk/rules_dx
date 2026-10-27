@@ -4,7 +4,7 @@ load(":layout_linux.bzl", "LAYOUT")
 
 _RELEASE = "6.11.3-0-202610220312"
 
-QT_LIBRARY_NEEDS = {
+_LIBRARY_NEEDS = {
     "libEGL.so.1": ["libGLdispatch.so.0"],
     "libGL.so.1": ["libGLX.so.0", "libGLdispatch.so.0", "libX11.so.6", "libXext.so.6"],
     "libGLX.so.0": ["libGLdispatch.so.0", "libX11.so.6", "libXext.so.6"],
@@ -135,7 +135,7 @@ QT_LIBRARY_NEEDS = {
     "libzstd.so.1": [],
 }
 
-QT_RUNTIME_PLUGIN_NEEDS = {
+_RUNTIME_PLUGIN_NEEDS = {
     "imageformats/libqgif.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
     "imageformats/libqico.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "imageformats/libqjpeg.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxkbcommon.so.0"],
@@ -152,7 +152,7 @@ QT_RUNTIME_PLUGIN_NEEDS = {
     "xcbglintegrations/libqxcb-glx-integration.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6XcbQpa.so.6", "libX11-xcb.so.1", "libX11.so.6", "libgcc_s.so.1", "libstdc++.so.6", "libxcb-cursor.so.0", "libxcb-glx.so.0", "libxcb-icccm.so.4", "libxcb-image.so.0", "libxcb-keysyms.so.1", "libxcb-randr.so.0", "libxcb-render-util.so.0", "libxcb-render.so.0", "libxcb-shape.so.0", "libxcb-shm.so.0", "libxcb-sync.so.1", "libxcb-util.so.1", "libxcb-xfixes.so.0", "libxcb-xkb.so.1", "libxcb.so.1", "libxkbcommon-x11.so.0", "libxkbcommon.so.0"],
 }
 
-QT_PLUGIN_NEEDS = {
+_PLUGIN_NEEDS = {
     "Qt/labs/StyleKit/impl/liblabsstylekitimplplugin.so": ["libQt6Core.so.6", "libQt6LabsStyleKitImpl.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "Qt/labs/StyleKit/liblabsstylekitplugin.so": ["libQt6Core.so.6", "libQt6LabsStyleKit.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
     "Qt/labs/animation/liblabsanimationplugin.so": ["libQt6Core.so.6", "libQt6LabsAnimation.so.6", "libQt6Network.so.6", "libQt6Qml.so.6", "libgcc_s.so.1", "libstdc++.so.6"],
@@ -792,6 +792,11 @@ CELL = struct(
     constraints = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
     directory = "linux_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_64",
     layout = LAYOUT,
+    needs = struct(
+        library = _LIBRARY_NEEDS,
+        plugin = _PLUGIN_NEEDS,
+        runtime_plugin = _RUNTIME_PLUGIN_NEEDS,
+    ),
     release = _RELEASE,
     runtime = struct(
         arch = "x86_64",

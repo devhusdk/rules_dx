@@ -51,7 +51,8 @@ qt_sdk.cell(
   from every other cell's.
 - `layout`: the file layout of the archives. Only `linux` (the default).
 - `spec`: a `.json` file with `archives`, `directory`, `release` and
-  `runtime`.
+  `runtime`, and optionally `needs`: the `library`, `plugin` and
+  `runtime_plugin` tables of what each shared object needs at run time.
 
 Start from a pinned spec:
 
@@ -65,8 +66,9 @@ needs a sha256. Archives come from `mirror` (or `download.qt.io`) under
 `directory`. Runtime packages come from `runtime_mirror` (or
 `vault.almalinux.org`). The Qt release must be 6.11.3. Unknown keys fail.
 
-Only the root module may declare cells. `qt_bundle` still packages pinned
-cells only.
+Only the root module may declare cells. `qt_bundle` packages a cell only
+when its spec carries `needs`, and those tables must match its archives;
+without them `@dx_qt//:needs` fails analysis and says why.
 
 ## Targets
 

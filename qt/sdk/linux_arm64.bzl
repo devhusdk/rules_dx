@@ -4,7 +4,7 @@ load(":layout_linux.bzl", "LAYOUT")
 
 _RELEASE = "6.11.3-0-202610231039"
 
-QT_LIBRARY_NEEDS = {
+_LIBRARY_NEEDS = {
     "libEGL.so.1": ["libGLdispatch.so.0"],
     "libGL.so.1": ["libGLX.so.0", "libGLdispatch.so.0", "libX11.so.6", "libXext.so.6"],
     "libGLX.so.0": ["libGLdispatch.so.0", "libX11.so.6", "libXext.so.6"],
@@ -125,7 +125,7 @@ QT_LIBRARY_NEEDS = {
     "libzstd.so.1": [],
 }
 
-QT_RUNTIME_PLUGIN_NEEDS = {
+_RUNTIME_PLUGIN_NEEDS = {
     "imageformats/libqgif.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libstdc++.so.6"],
     "imageformats/libqico.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libstdc++.so.6"],
     "imageformats/libqjpeg.so": ["libQt6Core.so.6", "libQt6Gui.so.6", "libstdc++.so.6"],
@@ -142,7 +142,7 @@ QT_RUNTIME_PLUGIN_NEEDS = {
     "xcbglintegrations/libqxcb-glx-integration.so": ["libGL.so.1", "libQt6Core.so.6", "libQt6Gui.so.6", "libQt6XcbQpa.so.6", "libX11.so.6", "libstdc++.so.6", "libxcb-glx.so.0", "libxcb.so.1"],
 }
 
-QT_PLUGIN_NEEDS = {
+_PLUGIN_NEEDS = {
     "Qt/labs/StyleKit/impl/liblabsstylekitimplplugin.so": ["libQt6Core.so.6", "libQt6LabsStyleKitImpl.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
     "Qt/labs/StyleKit/liblabsstylekitplugin.so": ["libQt6Core.so.6", "libQt6LabsStyleKit.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
     "Qt/labs/animation/liblabsanimationplugin.so": ["libQt6Core.so.6", "libQt6LabsAnimation.so.6", "libQt6Qml.so.6", "libstdc++.so.6"],
@@ -720,6 +720,11 @@ CELL = struct(
     constraints = ["@platforms//os:linux", "@platforms//cpu:arm64"],
     directory = "linux_arm64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.linux_gcc_arm64",
     layout = LAYOUT,
+    needs = struct(
+        library = _LIBRARY_NEEDS,
+        plugin = _PLUGIN_NEEDS,
+        runtime_plugin = _RUNTIME_PLUGIN_NEEDS,
+    ),
     release = _RELEASE,
     runtime = struct(
         arch = "aarch64",

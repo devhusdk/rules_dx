@@ -522,26 +522,9 @@ fn pinned_needs(table: &str) -> std::collections::BTreeMap<String, BTreeSet<Stri
         &std::env::var("DX_QT_NEEDS").expect("DX_QT_NEEDS"),
     ))
     .expect("needs tables");
-    let body = text
-        .split_once(&format!("{table} = {{\n"))
-        .expect("table")
-        .1
-        .split_once("\n}")
-        .expect("table end")
-        .0;
-    body.lines()
-        .map(|line| {
-            let (key, list) = line.trim().split_once("\": [").expect("entry");
-            let names = list.trim_end_matches("],").split(", ");
-            (
-                key.trim_start_matches('"').to_owned(),
-                names
-                    .filter(|name| !name.is_empty())
-                    .map(|name| name.trim_matches('"').to_owned())
-                    .collect(),
-            )
-        })
-        .collect()
+    let tables: std::collections::BTreeMap<String, std::collections::BTreeMap<String, BTreeSet<String>>> =
+        dx_testing::serde_json::from_str(&text).expect("needs JSON");
+    tables.get(table).cloned().expect("table")
 }
 
 fn shared_objects(dir: &Path, found: &mut Vec<PathBuf>) {
@@ -581,7 +564,7 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
         .iter()
         .map(|(name, path)| (name.clone(), known(path)))
         .collect();
-    assert_eq!(pinned_needs("QT_LIBRARY_NEEDS"), want);
+    assert_eq!(pinned_needs("library"), want);
 
     let mut files = Vec::new();
     shared_objects(&cell.join("qml"), &mut files);
@@ -593,7 +576,7 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
             (relative.to_string_lossy().into_owned(), known(path))
         })
         .collect();
-    assert_eq!(pinned_needs("QT_PLUGIN_NEEDS"), plugin_want);
+    assert_eq!(pinned_needs("plugin"), plugin_want);
 
     let runtime_plugin_want: std::collections::BTreeMap<String, BTreeSet<String>> = [
         "imageformats/libqgif.so",
@@ -614,5 +597,5 @@ fn the_pinned_dependency_tables_match_the_shipped_libraries() {
     .into_iter()
     .map(|name| (name.to_owned(), known(&cell.join("plugins").join(name))))
     .collect();
-    assert_eq!(pinned_needs("QT_RUNTIME_PLUGIN_NEEDS"), runtime_plugin_want);
+    assert_eq!(pinned_needs("runtime_plugin"), runtime_plugin_want);
 }

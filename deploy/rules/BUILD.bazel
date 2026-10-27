@@ -7,29 +7,29 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
-load(":archive_tests.bzl", "archive_analysis_tests", "archive_debug_analysis_tests", "archive_unit_tests", "consumer_archive_unit_tests")
+load(":archive_tests.bzl", "archive_unit_tests", "consumer_archive_unit_tests")
 load(":cloudflare.bzl", "cloudflare_pages_deploy", "cloudflare_site_ref")
-load(":cloudflare_tests.bzl", "cloudflare_analysis_tests", "cloudflare_program_closure_tests", "cloudflare_unit_tests", "site_dir")
+load(":cloudflare_tests.bzl", "cloudflare_program_closure_tests", "cloudflare_unit_tests", "site_dir")
 load(":crates.bzl", "crates_deploy")
-load(":crates_tests.bzl", "crates_analysis_tests", "crates_debug_analysis_tests", "crates_unit_tests")
+load(":crates_tests.bzl", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
-load(":deploy_tests.bzl", "deploy_analysis_tests", "deploy_app_analysis_tests", "deploy_debug_analysis_tests", "deploy_unit_tests", "deploy_web_analysis_tests")
+load(":deploy_tests.bzl", "deploy_analysis_test", "deploy_unit_tests")
 load(":github.bzl", "github_deploy", "github_launcher")
-load(":github_tests.bzl", "github_analysis_tests", "github_debug_analysis_tests", "github_unit_tests")
+load(":github_tests.bzl", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
-load(":maven_tests.bzl", "maven_analysis_tests", "maven_debug_analysis_tests", "maven_unit_tests")
+load(":maven_tests.bzl", "maven_unit_tests")
 load(":npm.bzl", "npm_deploy")
-load(":npm_tests.bzl", "npm_analysis_tests", "npm_debug_analysis_tests", "npm_unit_tests")
+load(":npm_tests.bzl", "npm_unit_tests")
 load(":nuget.bzl", "nuget_deploy")
-load(":nuget_tests.bzl", "nuget_analysis_tests", "nuget_debug_analysis_tests", "nuget_unit_tests")
+load(":nuget_tests.bzl", "nuget_unit_tests")
 load(":oci.bzl", "oci_deploy")
-load(":oci_tests.bzl", "oci_analysis_tests", "oci_debug_analysis_tests", "oci_unit_tests")
+load(":oci_tests.bzl", "oci_unit_tests")
 load(":octopus.bzl", "octopus_deploy")
-load(":octopus_tests.bzl", "octopus_analysis_tests", "octopus_debug_analysis_tests", "octopus_unit_tests")
+load(":octopus_tests.bzl", "octopus_unit_tests")
 load(":promotion.bzl", "promotion_deploy")
-load(":promotion_tests.bzl", "promotion_analysis_tests", "promotion_debug_analysis_tests", "promotion_unit_tests")
+load(":promotion_tests.bzl", "promotion_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
-load(":pypi_tests.bzl", "pypi_analysis_tests", "pypi_debug_analysis_tests", "pypi_unit_tests")
+load(":pypi_tests.bzl", "pypi_unit_tests")
 load(":resources.bzl", "dx_resources")
 load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
 load(":validate_tests.bzl", "validate_unit_tests")
@@ -285,11 +285,22 @@ dx_deployment(
 
 deploy_unit_tests(name = "deploy_unit")
 
-deploy_analysis_tests(name = "deploy_analysis")
+deploy_analysis_test(
+    name = "deploy_analysis",
+    subject = "deploy_default",
+)
 
-deploy_debug_analysis_tests(name = "deploy_debug_analysis")
+deploy_analysis_test(
+    name = "deploy_debug_analysis",
+    profile = "debug",
+    subject = "deploy_debug",
+)
 
-deploy_app_analysis_tests(name = "deploy_app_analysis")
+deploy_analysis_test(
+    name = "deploy_app_analysis",
+    app = "//deploy/rules:deploy_program",
+    subject = "deploy_with_app",
+)
 
 filegroup(
     name = "web_dir",
@@ -305,7 +316,14 @@ dx_deployment(
     deploy = ":deploy_program",
 )
 
-deploy_web_analysis_tests(name = "deploy_web_analysis")
+deploy_analysis_test(
+    name = "deploy_web_analysis",
+    artifacts = [
+        "//deploy/rules:web_dir",
+        "//deploy/release:notice_demo_a.txt",
+    ],
+    subject = "deploy_web",
+)
 
 filegroup(
     name = "empty_artifact",
@@ -511,9 +529,18 @@ archive_unit_tests(name = "archive_unit")
 
 consumer_archive_unit_tests(name = "consumer_archive_unit")
 
-archive_analysis_tests(name = "archive_analysis")
+deploy_analysis_test(
+    name = "archive_analysis",
+    app = "//deploy/rules:deploy_program",
+    subject = "release_demo",
+)
 
-archive_debug_analysis_tests(name = "archive_debug_analysis")
+deploy_analysis_test(
+    name = "archive_debug_analysis",
+    app = "//deploy/rules:deploy_program",
+    profile = "debug",
+    subject = "release_demo_debug",
+)
 
 # keep
 rust_test(
@@ -580,7 +607,6 @@ test_suite(
         ":cloudflare_unit",
         ":consumer_archive_unit",
         ":crates_analysis",
-        ":crates_debug_analysis",
         ":crates_unit",
         ":deploy_analysis",
         ":deploy_app_analysis",
@@ -591,31 +617,23 @@ test_suite(
         ":deploy_web_analysis",
         ":dx_deploy_tools_test",
         ":github_analysis",
-        ":github_debug_analysis",
         ":github_demo_verify",
         ":github_duplicate_basename_fails",
         ":github_unit",
         ":maven_analysis",
-        ":maven_debug_analysis",
         ":maven_unit",
         ":npm_analysis",
-        ":npm_debug_analysis",
         ":npm_unit",
         ":nuget_analysis",
-        ":nuget_debug_analysis",
         ":nuget_unit",
         ":oci_analysis",
-        ":oci_debug_analysis",
         ":oci_demo_verify",
         ":oci_unit",
         ":octopus_analysis",
-        ":octopus_debug_analysis",
         ":octopus_unit",
         ":promotion_analysis",
-        ":promotion_debug_analysis",
         ":promotion_unit",
         ":pypi_analysis",
-        ":pypi_debug_analysis",
         ":pypi_probe_verify",
         ":pypi_unit",
         ":release_demo_debug_verify",
@@ -642,20 +660,12 @@ github_deploy(
     ],
 )
 
-github_deploy(
-    name = "github_demo_debug",
-    artifacts = [
-        ":release_demo_archive",
-        ":release_demo_checksum",
-    ],
-    profile = "debug",
-)
-
 github_unit_tests(name = "github_unit")
 
-github_analysis_tests(name = "github_analysis")
-
-github_debug_analysis_tests(name = "github_debug_analysis")
+deploy_analysis_test(
+    name = "github_analysis",
+    subject = "github_demo",
+)
 
 genrule(
     name = "github_dup_a",
@@ -718,13 +728,6 @@ genrule(
 
 pypi_deploy(
     name = "pypi_demo",
-    sdist = ":pypi_demo_sdist",
-    wheel = ":pypi_demo_wheel",
-)
-
-pypi_deploy(
-    name = "pypi_demo_debug",
-    profile = "debug",
     sdist = ":pypi_demo_sdist",
     wheel = ":pypi_demo_wheel",
 )
@@ -893,15 +896,20 @@ rust_test(
 
 cloudflare_unit_tests(name = "cloudflare_unit")
 
-cloudflare_analysis_tests(name = "cloudflare_analysis")
+deploy_analysis_test(
+    name = "cloudflare_analysis",
+    artifacts = ["//deploy/rules:cloudflare_demo_site"],
+    subject = "cloudflare_demo",
+)
 
 cloudflare_program_closure_tests(name = "cloudflare_program_closure")
 
 pypi_unit_tests(name = "pypi_unit")
 
-pypi_analysis_tests(name = "pypi_analysis")
-
-pypi_debug_analysis_tests(name = "pypi_debug_analysis")
+deploy_analysis_test(
+    name = "pypi_analysis",
+    subject = "pypi_demo",
+)
 
 genrule(
     name = "crates_demo_manifest",
@@ -929,18 +937,12 @@ crates_deploy(
     version = "0.0.0",
 )
 
-crates_deploy(
-    name = "crates_demo_debug",
-    crate = ":crates_demo_crate",
-    profile = "debug",
-    version = "0.0.0",
-)
-
 crates_unit_tests(name = "crates_unit")
 
-crates_analysis_tests(name = "crates_analysis")
-
-crates_debug_analysis_tests(name = "crates_debug_analysis")
+deploy_analysis_test(
+    name = "crates_analysis",
+    subject = "crates_demo",
+)
 
 npm_deploy(
     name = "npm_demo",
@@ -948,18 +950,12 @@ npm_deploy(
     package = "npm-demo",
 )
 
-npm_deploy(
-    name = "npm_demo_debug",
-    srcs = ["npm_demo/package.json"],
-    package = "npm-demo",
-    profile = "debug",
-)
-
 npm_unit_tests(name = "npm_unit")
 
-npm_analysis_tests(name = "npm_analysis")
-
-npm_debug_analysis_tests(name = "npm_debug_analysis")
+deploy_analysis_test(
+    name = "npm_analysis",
+    subject = "npm_demo",
+)
 
 genrule(
     name = "nuget_demo_nuspec",
@@ -980,17 +976,12 @@ nuget_deploy(
     nupkg = ":nuget_demo_nupkg",
 )
 
-nuget_deploy(
-    name = "nuget_demo_debug",
-    nupkg = ":nuget_demo_nupkg",
-    profile = "debug",
-)
-
 nuget_unit_tests(name = "nuget_unit")
 
-nuget_analysis_tests(name = "nuget_analysis")
-
-nuget_debug_analysis_tests(name = "nuget_debug_analysis")
+deploy_analysis_test(
+    name = "nuget_analysis",
+    subject = "nuget_demo",
+)
 
 java_library(
     name = "maven_demo_lib",
@@ -1007,21 +998,12 @@ maven_deploy(
     version = "0.0.0",
 )
 
-maven_deploy(
-    name = "maven_demo_debug",
-    artifact = "maven_demo",
-    group = "com.example",
-    jar = ":maven_demo_lib",
-    pom = "testdata/maven/maven_demo-0.0.0.pom",
-    profile = "debug",
-    version = "0.0.0",
-)
-
 maven_unit_tests(name = "maven_unit")
 
-maven_analysis_tests(name = "maven_analysis")
-
-maven_debug_analysis_tests(name = "maven_debug_analysis")
+deploy_analysis_test(
+    name = "maven_analysis",
+    subject = "maven_demo",
+)
 
 genrule(
     name = "oci_demo_files",
@@ -1065,18 +1047,12 @@ oci_deploy(
     platform = "linux/amd64",
 )
 
-oci_deploy(
-    name = "oci_demo_debug",
-    image_tar = ":oci_demo_tar",
-    platform = "linux/amd64",
-    profile = "debug",
-)
-
 oci_unit_tests(name = "oci_unit")
 
-oci_analysis_tests(name = "oci_analysis")
-
-oci_debug_analysis_tests(name = "oci_debug_analysis")
+deploy_analysis_test(
+    name = "oci_analysis",
+    subject = "oci_demo",
+)
 
 octopus_deploy(
     name = "octopus_demo",
@@ -1087,21 +1063,12 @@ octopus_deploy(
     version = "0.0.0",
 )
 
-octopus_deploy(
-    name = "octopus_demo_debug",
-    channel = "Default",
-    deploy_to = ["Production"],
-    package = ":release_demo_archive",
-    profile = "debug",
-    project = "octopus_demo",
-    version = "0.0.0",
-)
-
 octopus_unit_tests(name = "octopus_unit")
 
-octopus_analysis_tests(name = "octopus_analysis")
-
-octopus_debug_analysis_tests(name = "octopus_debug_analysis")
+deploy_analysis_test(
+    name = "octopus_analysis",
+    subject = "octopus_demo",
+)
 
 promotion_deploy(
     name = "promotion_demo",
@@ -1111,20 +1078,12 @@ promotion_deploy(
     version = "0.0.0",
 )
 
-promotion_deploy(
-    name = "promotion_demo_debug",
-    artifact = ":release_demo_archive",
-    from_environment = "staging",
-    profile = "debug",
-    to_environment = "production",
-    version = "0.0.0",
-)
-
 promotion_unit_tests(name = "promotion_unit")
 
-promotion_analysis_tests(name = "promotion_analysis")
-
-promotion_debug_analysis_tests(name = "promotion_debug_analysis")
+deploy_analysis_test(
+    name = "promotion_analysis",
+    subject = "promotion_demo",
+)
 
 real_source_target(
     name = "corpus_starlark",

@@ -75,25 +75,6 @@ def cloudflare_unit_tests(name):
         ],
     )
 
-EXPECTED_CLOUDFLARE_DEFAULT_OBSERVATIONS = """subject //deploy/rules:cloudflare_demo
-file cloudflare_demo
-field app=
-field artifacts=//deploy/rules:cloudflare_demo_site
-field profile=release
-aspect_field aspect_seen=True
-aspect_field field_count=3
-aspect_field has_subject=True
-aspect_field subject_label=//deploy/rules:cloudflare_demo
-aspect_field transitive_count=0"""
-
-def cloudflare_analysis_tests(name):
-    starlark_test(
-        name = name,
-        mode = "analysis",
-        subjects = [":cloudflare_demo"],
-        expected_observations = EXPECTED_CLOUDFLARE_DEFAULT_OBSERVATIONS,
-    )
-
 _ClosureInfo = provider(
     doc = "Labels one target reaches through its attributes.",
     fields = {"labels": "Depset of reached labels."},

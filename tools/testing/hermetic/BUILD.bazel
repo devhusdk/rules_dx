@@ -510,6 +510,7 @@ hermetic_qualification(
     files = {
         "consumers/rust_wasi/app.BUILD.bazel": "examples/shared-rust/BUILD.bazel",
         "consumers/rust_wasi/consumer_report.rs": "examples/shared-rust/consumer_report.rs",
+        "consumers/rust_wasi/custom_runtime.sh": "examples/shared-rust/custom_runtime.sh",
         "consumers/rust_wasi/root.BUILD.bazel": "BUILD.bazel",
         "//examples/shared-rust:adler2.BUILD.bazel": "examples/shared-rust/adler2.build",
         "//examples/shared-rust:assets/board.txt": "examples/shared-rust/assets/board.txt",

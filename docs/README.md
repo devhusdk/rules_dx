@@ -6,6 +6,10 @@ guides below.
 
 - [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md): move from upstream rules one package at a time.
 
+## Support
+
+- [Support matrix](support-matrix.md): the platforms CI tests each language on, its `dx new` starter, and its quality tools. An empty cell or `no` is a missing test, tracked as an issue.
+
 ## Commands
 
 - [Command reference](cli/commands/README.md): behavior of each `dx` command.

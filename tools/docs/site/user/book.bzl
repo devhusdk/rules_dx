@@ -95,6 +95,8 @@ USER_BOOK = [
     ),
     mdbook_section("CI"),
     mdbook_page("GitHub CI", "docs/github-ci.md", "//docs:github-ci.md"),
+    mdbook_section("Support"),
+    mdbook_page("Support Matrix", "docs/support-matrix.md", "//docs:support-matrix.md"),
     mdbook_section("Examples"),
     mdbook_page("Examples", "examples/README.md", "//examples:README.md"),
     mdbook_page(

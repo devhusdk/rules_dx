@@ -304,6 +304,7 @@ real_source_target(
         "//docs:adopting-existing-bazel.md",
         "//docs:cli/commands/README.md",
         "//docs:github-ci.md",
+        "//docs:support-matrix.md",
         "//examples:README.md",
         "LICENSE",
     ],

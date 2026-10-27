@@ -75,3 +75,8 @@ consumer_acquisition_tests(
     binary = ":consumer_wasm",
     lib = ":consumer_wasm_lib",
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

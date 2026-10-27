@@ -1,0 +1,129 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load(":facts.bzl", "support_matrix_facts")
+load(":facts_tests.bzl", "support_matrix_facts_tests")
+load(":languages.bzl", "support_matrix_inputs")
+
+# gazelle:resolve rust serde @crates//:serde
+# gazelle:resolve rust serde_json @crates//:serde_json
+# gazelle:resolve rust yaml_serde @crates//:yaml_serde
+
+package(default_visibility = ["//:__subpackages__"])
+
+support_matrix_facts(name = "facts")
+
+support_matrix_facts_tests(name = "facts_test")
+
+filegroup(
+    name = "inputs",
+    srcs = [
+        ":facts",
+        "//.github:workflows/ci.yml",
+    ] + support_matrix_inputs(),
+)
+
+# keep
+rust_library(
+    name = "support_matrix",
+    srcs = [
+        "src/gaps.rs",
+        "src/lib.rs",
+        "src/render.rs",
+        "src/runfiles_source.rs",
+        "src/starlark.rs",
+        "src/workflows.rs",
+    ],
+    crate_name = "support_matrix",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = [
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+        "@rules_rust//rust/runfiles",
+    ],
+)
+
+# keep
+rust_test(
+    name = "support_matrix_test",
+    size = "small",
+    crate = ":support_matrix",
+)
+
+# keep
+rust_binary(
+    name = "update",
+    srcs = ["src/main.rs"],
+    args = ["--write"],
+    crate_root = "src/main.rs",
+    data = [":inputs"],
+    edition = "2021",
+    deps = [
+        ":support_matrix",
+        "//cli/adopt:dx_adopt",
+    ],
+)
+
+# keep
+rust_binary(
+    name = "gaps",
+    srcs = ["src/main.rs"],
+    args = ["--gaps"],
+    crate_root = "src/main.rs",
+    data = [":inputs"],
+    edition = "2021",
+    deps = [
+        ":support_matrix",
+        "//cli/adopt:dx_adopt",
+    ],
+)
+
+# keep
+rust_test(
+    name = "support_matrix_drift_test",
+    size = "small",
+    srcs = ["drift_test.rs"],
+    data = [
+        ":inputs",
+        "//docs:support-matrix.md",
+    ],
+    deps = [
+        ":support_matrix",
+        "//cli/adopt:dx_adopt",
+    ],
+)
+
+rustfmt_test(
+    name = "support_matrix_fmt_test",
+    size = "small",
+    targets = [
+        ":gaps",
+        ":support_matrix",
+        ":support_matrix_drift_test",
+        ":update",
+    ],
+)
+
+rust_clippy_test(
+    name = "support_matrix_clippy_test",
+    size = "small",
+    targets = [
+        ":gaps",
+        ":support_matrix",
+        ":support_matrix_drift_test",
+        ":update",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "facts.bzl",
+        "facts_tests.bzl",
+        "languages.bzl",
+    ],
+    tags = ["corpus"],
+)

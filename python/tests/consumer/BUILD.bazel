@@ -50,3 +50,8 @@ exports_files(
     ["service_consumer_test.rs"],
     visibility = ["//quality/tests:__pkg__"],
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

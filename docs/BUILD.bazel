@@ -50,6 +50,7 @@ real_source_target(
         "cli/commands/watch.md",
         "cli/commands/worktree.md",
         "github-ci.md",
+        "support-matrix.md",
     ],
     tags = ["corpus"],
 )
@@ -59,4 +60,9 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+test_suite(
+    name = "support_matrix",
+    tests = ["//tools/docs/support_matrix:support_matrix_drift_test"],
 )

@@ -51,3 +51,8 @@ ocaml_test(
     main = ":greet_test_main",
     opts = select({"//conditions:default": []}),
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

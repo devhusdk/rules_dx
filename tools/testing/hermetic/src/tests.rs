@@ -12,6 +12,7 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         module: "m".to_owned(),
         repo_name: "r".to_owned(),
         rust_target_triples: Vec::new(),
+        rust_extra_rustc_flags: Vec::new(),
         workspace_dir: "ws".to_owned(),
         patterns: vec!["//...".to_owned()],
         failures: Vec::new(),
@@ -210,6 +211,7 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
         "module": "hermetic_consumer",
         "repo_name": "my_dx",
         "rust_target_triples": [],
+        "rust_extra_rustc_flags": [],
         "workspace_dir": "consumer ws",
         "patterns": ["//..."],
         "failures": {},
@@ -254,6 +256,7 @@ fn manifest_rejects_escaping_files_and_empty_patterns() {
         "module": "m",
         "repo_name": "r",
         "rust_target_triples": [],
+        "rust_extra_rustc_flags": [],
         "workspace_dir": "ws",
         "patterns": ["//..."],
         "failures": {},
@@ -306,19 +309,47 @@ fn rust_target_triples_extend_the_init_toolchain() {
         "wasm32-unknown-unknown".to_owned(),
     ];
     assert_eq!(
-        add_rust_target_triples(RUST_SNIPPET, &triples).unwrap(),
+        add_rust_toolchain_list(RUST_SNIPPET, "extra_target_triples", &triples).unwrap(),
         "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    extra_target_triples = [\"wasm32-wasip1\", \"wasm32-unknown-unknown\"],\n    edition = \"2021\",\n)\nuse_repo(rust, \"rust_toolchains\")\n"
     );
-    assert_eq!(add_rust_target_triples(SNIPPET, &[]).unwrap(), SNIPPET);
+    assert_eq!(
+        add_rust_toolchain_list(SNIPPET, "extra_target_triples", &[]).unwrap(),
+        SNIPPET
+    );
 }
 
 #[test]
-fn rust_target_triples_need_one_rust_toolchain() {
+fn rust_extra_rustc_flags_extend_the_init_toolchain() {
     let triples = vec!["wasm32-wasip1".to_owned()];
-    let err = add_rust_target_triples(SNIPPET, &triples).unwrap_err();
+    let flags = vec!["--cfg=consumer_toolchain".to_owned()];
+    let snippet = add_rust_toolchain_list(RUST_SNIPPET, "extra_target_triples", &triples).unwrap();
+    assert_eq!(
+        add_rust_toolchain_list(&snippet, "extra_rustc_flags", &flags).unwrap(),
+        "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    extra_rustc_flags = [\"--cfg=consumer_toolchain\"],\n    extra_target_triples = [\"wasm32-wasip1\"],\n    edition = \"2021\",\n)\nuse_repo(rust, \"rust_toolchains\")\n"
+    );
+}
+
+#[test]
+fn rust_toolchain_lists_need_one_rust_toolchain() {
+    let triples = vec!["wasm32-wasip1".to_owned()];
+    let err = add_rust_toolchain_list(SNIPPET, "extra_target_triples", &triples).unwrap_err();
     assert!(err.contains("exactly one rust.toolchain"), "{err}");
     let twice = format!("{RUST_SNIPPET}{RUST_SNIPPET}");
-    assert!(add_rust_target_triples(&twice, &triples).is_err());
+    assert!(add_rust_toolchain_list(&twice, "extra_rustc_flags", &triples).is_err());
+}
+
+#[test]
+fn manifest_rejects_missing_or_bad_rust_extra_rustc_flags() {
+    let mut value = probe_manifest_json();
+    value["rust_extra_rustc_flags"] = json!("--cfg=x");
+    let err = parse_manifest(&value.to_string(), Path::new("/")).unwrap_err();
+    assert_eq!(err, "manifest field rust_extra_rustc_flags must be a list");
+    value
+        .as_object_mut()
+        .unwrap()
+        .remove("rust_extra_rustc_flags");
+    let err = parse_manifest(&value.to_string(), Path::new("/")).unwrap_err();
+    assert_eq!(err, "manifest field rust_extra_rustc_flags must be a list");
 }
 
 #[test]
@@ -928,6 +959,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
                 "module": "m",
                 "repo_name": "r",
                 "rust_target_triples": [],
+                "rust_extra_rustc_flags": [],
                 "workspace_dir": "ws",
                 "patterns": ["//..."],
                 "failures": {},
@@ -1159,6 +1191,7 @@ fn probe_manifest_json() -> Value {
         "module": "m",
         "repo_name": "r",
         "rust_target_triples": [],
+        "rust_extra_rustc_flags": [],
         "workspace_dir": "ws",
         "patterns": ["//..."],
         "failures": {

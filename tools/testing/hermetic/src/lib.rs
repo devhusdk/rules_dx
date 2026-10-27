@@ -142,6 +142,7 @@ pub struct Manifest {
     pub module: String,
     pub repo_name: String,
     pub rust_target_triples: Vec<String>,
+    pub rust_extra_rustc_flags: Vec<String>,
     pub workspace_dir: String,
     pub patterns: Vec<String>,
     pub failures: Vec<(String, String)>,
@@ -297,6 +298,7 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         module: string(&value, "module")?,
         repo_name: string(&value, "repo_name")?,
         rust_target_triples: strings(&value, "rust_target_triples")?,
+        rust_extra_rustc_flags: strings(&value, "rust_extra_rustc_flags")?,
         workspace_dir: checked_dest(&string(&value, "workspace_dir")?)?,
         patterns,
         failures,
@@ -317,9 +319,13 @@ fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// Adds extra Rust target triples to the one `rust.toolchain` in the `dx init` snippet.
-pub fn add_rust_target_triples(snippet: &str, triples: &[String]) -> Result<String, String> {
-    if triples.is_empty() {
+/// Adds the list attribute `name = [values]` to the one `rust.toolchain` in the `dx init` snippet.
+pub fn add_rust_toolchain_list(
+    snippet: &str,
+    name: &str,
+    values: &[String],
+) -> Result<String, String> {
+    if values.is_empty() {
         return Ok(snippet.to_owned());
     }
     let needle = "rust.toolchain(\n";
@@ -328,16 +334,10 @@ pub fn add_rust_target_triples(snippet: &str, triples: &[String]) -> Result<Stri
             "dx init snippet must hold exactly one rust.toolchain: {snippet}"
         ));
     }
-    let quoted: Vec<String> = triples
-        .iter()
-        .map(|triple| starlark_string(triple))
-        .collect();
+    let quoted: Vec<String> = values.iter().map(|value| starlark_string(value)).collect();
     Ok(snippet.replacen(
         needle,
-        &format!(
-            "{needle}    extra_target_triples = [{}],\n",
-            quoted.join(", ")
-        ),
+        &format!("{needle}    {name} = [{}],\n", quoted.join(", ")),
         1,
     ))
 }
@@ -1161,7 +1161,16 @@ pub fn materialize(
         .map_err(|err| format!("dx init wrote no MODULE.bazel.snippet: {err}"))?;
     let fragment = std::fs::read_to_string(&manifest.module_fragment)
         .map_err(|err| format!("cannot read {}: {err}", manifest.module_fragment.display()))?;
-    let snippet = add_rust_target_triples(&snippet, &manifest.rust_target_triples)?;
+    let snippet = add_rust_toolchain_list(
+        &snippet,
+        "extra_target_triples",
+        &manifest.rust_target_triples,
+    )?;
+    let snippet = add_rust_toolchain_list(
+        &snippet,
+        "extra_rustc_flags",
+        &manifest.rust_extra_rustc_flags,
+    )?;
     let (name, repo) = (&manifest.module, &manifest.repo_name);
     let module = compose_module(
         &snippet,
@@ -1430,7 +1439,10 @@ fn run_all(
         repos: &repos,
         command: "test",
         targets: patterns.clone(),
-        extra: vec!["--test_output=errors".to_owned()],
+        extra: vec![
+            "--repository_disable_download".to_owned(),
+            "--test_output=errors".to_owned(),
+        ],
         expect: Expect::Pass,
     })?;
     if !coverage.is_empty() {

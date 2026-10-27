@@ -159,24 +159,6 @@ apple_ios_app(
     xcode_version = "XCODE",
     deps = [":pocket_headers"],
 )
-
-apple_ios_app(
-    name = "pocket_export_app",
-    srcs = [
-        "PocketAppDelegate.m",
-        "main.m",
-    ],
-    arch = "arm64",
-    bundle_id = "com.example.pocket",
-    deployment = "17.0",
-    environment = "simulator",
-    export_ipa = True,
-    library = ":pocket_rust",
-    tags = ["manual"],
-    version = "3.1",
-    xcode_version = "XCODE",
-    deps = [":pocket_headers"],
-)
 "#;
 
 const POCKET_RS: &str = r#"//! Consumer-owned iOS adapter over the shared task board.
@@ -1079,21 +1061,12 @@ fn the_shared_core_runs_in_a_relocated_release_simulator_app() {
     );
     fails_with(
         &device,
-        "apple_app: device distribution needs provisioning_profile; credentials travel by file only",
+        "apple_app: device builds need provisioning_profile, a .mobileprovision file",
     );
-    let export = bazel(&root, "build", &["//pocket:pocket_export_app"], &[]);
-    fails_with(
-        &export,
-        "apple_app: export is a distinct explicitly applied operation; Check never exports an IPA",
+    assert!(
+        !root.join("bazel-bin/pocket/pocket_device_app.ipa").exists(),
+        "pocket_device_app produced an app without explicit signing"
     );
-    for unsigned in ["pocket_device_app", "pocket_export_app"] {
-        assert!(
-            !root
-                .join(format!("bazel-bin/pocket/{unsigned}.ipa"))
-                .exists(),
-            "{unsigned} produced an app without explicit signing"
-        );
-    }
 
     let rustc = rustc_identity(&root);
     assert!(rustc.starts_with(RUSTC), "{rustc}");

@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
 load(":real_aspects.bzl", "real_wired_tools")
-load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSHARP_ROSLYN_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "DOCKERFILE_HADOLINT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_LINT_SUPPORT", "JSONNET_FORMAT_SUPPORT", "PKL_FORMAT_SUPPORT", "POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "RUBY_RUBOCOP_SUPPORT", "RUBY_STANDARDRB_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "YAML_YAMLFMT_SUPPORT", "YAML_YAMLLINT_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_dockerfile_artifact_error", "support_dockerfile_cli_error", "support_dockerfile_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_html_template_artifact_error", "support_html_template_cli_error", "support_html_template_wiring_error", "support_jsonnet_artifact_error", "support_jsonnet_cli_error", "support_jsonnet_wiring_error", "support_pkl_artifact_error", "support_pkl_cli_error", "support_pkl_wiring_error", "support_powershell_artifact_error", "support_powershell_cli_error", "support_powershell_wiring_error", "support_prettier_plugins_artifact_error", "support_prettier_plugins_cli_error", "support_prettier_plugins_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_ruby_artifact_error", "support_ruby_wiring_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error", "support_yaml_artifact_error", "support_yaml_cli_error", "support_yaml_wiring_error")
+load(":support.bzl", "CSHARP_CSHARPIER_SUPPORT", "CSHARP_ROSLYN_SUPPORT", "CSS_STYLELINT_LINT_SUPPORT", "CUE_FORMAT_SUPPORT", "DOCKERFILE_HADOLINT_SUPPORT", "FSHARP_FANTOMAS_SUPPORT", "FSHARP_FSHARPLINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "GRAPHQL_ESLINT_LINT_SUPPORT", "HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT", "HTML_TEMPLATE_DJLINT_LINT_SUPPORT", "JSONNET_FORMAT_SUPPORT", "PKL_FORMAT_SUPPORT", "POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT", "PROTOBUF_BUF_FORMAT_SUPPORT", "PROTOBUF_BUF_LINT_SUPPORT", "RUBY_RUBOCOP_SUPPORT", "RUBY_STANDARDRB_SUPPORT", "SCALA_SCALAFIX_SUPPORT", "SCALA_SCALAFMT_SUPPORT", "SHELL_SHELLCHECK_SUPPORT", "SHELL_SHFMT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "TERRAFORM_FORMAT_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "YAML_YAMLFMT_SUPPORT", "YAML_YAMLLINT_SUPPORT", "is_support_tool", "support_artifact_error", "support_cli_error", "support_csharp_artifact_error", "support_csharp_cli_error", "support_csharp_wiring_error", "support_css_artifact_error", "support_css_cli_error", "support_css_wiring_error", "support_cue_artifact_error", "support_cue_cli_error", "support_cue_wiring_error", "support_dockerfile_artifact_error", "support_dockerfile_cli_error", "support_dockerfile_wiring_error", "support_fsharp_artifact_error", "support_fsharp_wiring_error", "support_graphql_artifact_error", "support_graphql_cli_error", "support_graphql_wiring_error", "support_html_template_artifact_error", "support_html_template_cli_error", "support_html_template_wiring_error", "support_jsonnet_artifact_error", "support_jsonnet_cli_error", "support_jsonnet_wiring_error", "support_pkl_artifact_error", "support_pkl_cli_error", "support_pkl_wiring_error", "support_powershell_artifact_error", "support_powershell_cli_error", "support_powershell_wiring_error", "support_prettier_plugins_artifact_error", "support_prettier_plugins_cli_error", "support_prettier_plugins_wiring_error", "support_protobuf_artifact_error", "support_protobuf_cli_error", "support_protobuf_wiring_error", "support_record_error", "support_ruby_artifact_error", "support_ruby_wiring_error", "support_scala_artifact_error", "support_scala_cli_error", "support_scala_wiring_error", "support_schema_error", "support_shell_artifact_error", "support_shell_cli_error", "support_shell_wiring_error", "support_state", "support_terraform_artifact_error", "support_terraform_cli_error", "support_terraform_wiring_error", "support_wiring_error", "support_yaml_artifact_error", "support_yaml_cli_error", "support_yaml_wiring_error")
 
 def support_unit_tests(name):
     starlark_test(
@@ -563,6 +563,36 @@ def support_unit_tests(name):
             expect_equal(
                 "pinned stylelint artifact clears the artifact gap",
                 support_css_artifact_error(),
+                "",
+            ),
+            expect_equal(
+                "graphql_eslint record validates as direct batched check-only GraphQL lint",
+                [support_record_error(GRAPHQL_ESLINT_LINT_SUPPORT), is_support_tool("graphql_eslint"), support_state("graphql_eslint"), GRAPHQL_ESLINT_LINT_SUPPORT["fix"], GRAPHQL_ESLINT_LINT_SUPPORT["family"], GRAPHQL_ESLINT_LINT_SUPPORT["platforms"]],
+                ["", True, "supported", "check_only", "graphql", ["linux_x86_64"]],
+            ),
+            expect_equal(
+                "missing graphql_eslint aspect wiring is an actionable failure",
+                support_graphql_wiring_error([]),
+                "support: graphql_eslint lint is qualified but has no wired aspect (missing real_js_lint_aspect; not silently clean)",
+            ),
+            expect_equal(
+                "wired graphql_eslint clears the aspect gap",
+                support_graphql_wiring_error(["graphql_eslint"]),
+                "",
+            ),
+            expect_equal(
+                "missing graphql_eslint CLI aspect is an actionable failure",
+                support_graphql_cli_error(["@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect"]),
+                "support: graphql_eslint lint is qualified but has no CLI lint aspect (missing real_js_lint_aspect)",
+            ),
+            expect_equal(
+                "graphql_eslint CLI aspect clears the CLI gap",
+                support_graphql_cli_error(["@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect"]),
+                "",
+            ),
+            expect_equal(
+                "pinned graphql_eslint artifact clears the artifact gap",
+                support_graphql_artifact_error(),
                 "",
             ),
             expect_equal(

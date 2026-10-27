@@ -14,6 +14,7 @@ CONFIG_REQUIRED_TOOLS = {
     "buildifier": "Buildifier",
     "checkstyle": "Checkstyle",
     "eslint": "ESLint",
+    "graphql_eslint": "graphql-eslint",
     "ruff": "Ruff",
     "scalafix": "Scalafix",
     "scalafmt": "Scalafmt",
@@ -32,6 +33,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "djlint": ["djlint.toml", ".djlintrc"],
     "eslint": [".js", ".mjs", ".cjs"],
     "fsharplint": [".json"],
+    "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
     "pmd": [".xml"],
     "psscriptanalyzer": [".psd1"],
@@ -190,6 +192,8 @@ qmlformat_config = _make_native_config_rule("qmlformat")
 qmllint_config = _make_native_config_rule("qmllint")
 
 stylelint_config = _make_native_config_rule("stylelint")
+
+graphql_eslint_config = _make_native_config_rule("graphql_eslint")
 
 psscriptanalyzer_config = _make_native_config_rule("psscriptanalyzer")
 

@@ -713,6 +713,52 @@ pub(super) fn biome_hinted(
     roundtrip_biome(argv, cwd, env)
 }
 
+pub(super) fn roundtrip_graphql_eslint(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let value = |flag: &str| {
+        argv.windows(2)
+            .find(|pair| pair[0] == flag)
+            .map(|pair| PathBuf::from(&pair[1]))
+            .expect("graphql_eslint takes --config and --root")
+    };
+    assert!(value("--config").is_file(), "config is materialized");
+    assert!(value("--root").is_dir(), "root is the scratch directory");
+    assert!(cwd.is_dir());
+    let separator = argv
+        .iter()
+        .position(|arg| arg == "--")
+        .expect("files follow --");
+    let file = last_file(argv);
+    assert_eq!(separator + 2, argv.len(), "one file after --");
+    let text = std::fs::read_to_string(&file).expect("checked file is materialized");
+    if text.contains("BROKEN") {
+        return Ok(ChildOutput {
+            code: Some(2),
+            stdout: b"[]".to_vec(),
+            stderr: b"graphql_eslint: schema pointer api/missing.graphql matches no file\n"
+                .to_vec(),
+        });
+    }
+    let messages = if text.contains("email") {
+        r#"{"ruleId":"@graphql-eslint/fields-on-correct-type","severity":2,"message":"Cannot query field \"email\" on type \"User\".","line":1,"column":9,"endLine":1,"endColumn":14}"#
+    } else {
+        ""
+    };
+    Ok(ChildOutput {
+        code: Some(i32::from(!messages.is_empty())),
+        stdout: format!(
+            r#"[{{"filePath":"{}","messages":[{messages}],"errorCount":0,"warningCount":0}}]"#,
+            json_escape(&file)
+        )
+        .into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn roundtrip_eslint(
     argv: &[OsString],
     _cwd: &Path,

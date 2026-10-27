@@ -223,6 +223,13 @@ impl super::RealBackend {
             | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "errcheck"
             | "stylelint" | "rubocop" | "psscriptanalyzer" | "yamllint" | "shellcheck"
             | "hadolint" => Ok(text.to_owned()),
+            "graphql_eslint" => match tool.config_rel {
+                Some(_) => Ok(text.to_owned()),
+                None => Err(execution(
+                    tool_id,
+                    "graphql_eslint requires a config".to_owned(),
+                )),
+            },
             "buf" | "djlint" | "biome" | "prettier" => {
                 if capability == "format" {
                     self.run_spec_fix(tool_id, tool, path, text, true)

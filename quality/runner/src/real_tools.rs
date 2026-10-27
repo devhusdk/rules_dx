@@ -692,6 +692,96 @@ fn eslint_without_config_fails_the_action() {
     assert!(err.to_string().contains("eslint requires a config"));
 }
 
+fn graphql_eslint_tool() -> RealTool {
+    RealTool {
+        config_rel: Some("api/graphql.json".to_owned()),
+        tool_files: vec![(
+            "api/graphql.json".to_owned(),
+            br#"{"schema":"api/schema.graphql"}"#.to_vec(),
+        )],
+        ..plain_tool()
+    }
+}
+
+#[test]
+fn graphql_eslint_reports_findings_and_never_fixes() {
+    let backend = backend_for(
+        "graphql_eslint",
+        graphql_eslint_tool(),
+        roundtrip_graphql_eslint,
+    );
+    let findings = backend
+        .diagnose(
+            "graphql_eslint",
+            "lint",
+            &single("api/query.graphql", "{ user { email } }\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "graphql_eslint");
+    assert_eq!(
+        findings[0].rule_id,
+        "@graphql-eslint/fields-on-correct-type"
+    );
+    assert_eq!(findings[0].path, "api/query.graphql");
+    assert!(backend
+        .diagnose(
+            "graphql_eslint",
+            "lint",
+            &single("api/query.graphql", "{ user { id } }\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+    assert_eq!(
+        backend
+            .apply_fix(
+                "graphql_eslint",
+                "api/query.graphql",
+                "{ user { email } }\n",
+                "lint"
+            )
+            .expect("check-only"),
+        "{ user { email } }\n"
+    );
+}
+
+#[test]
+fn graphql_eslint_without_config_fails_the_action() {
+    let backend = backend_for("graphql_eslint", plain_tool(), roundtrip_graphql_eslint);
+    let err = backend
+        .diagnose(
+            "graphql_eslint",
+            "lint",
+            &single("api/q.graphql", "{ a }\n"),
+        )
+        .expect_err("missing config fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("graphql_eslint requires a config"));
+    let err = backend
+        .apply_fix("graphql_eslint", "api/q.graphql", "{ a }\n", "lint")
+        .expect_err("missing config fails");
+    assert!(err.to_string().contains("graphql_eslint requires a config"));
+}
+
+#[test]
+fn graphql_eslint_usage_errors_are_never_clean() {
+    let backend = backend_for(
+        "graphql_eslint",
+        graphql_eslint_tool(),
+        roundtrip_graphql_eslint,
+    );
+    let err = backend
+        .diagnose(
+            "graphql_eslint",
+            "lint",
+            &single("api/q.graphql", "BROKEN\n"),
+        )
+        .expect_err("exit 2 fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("exit 2"), "{err}");
+    assert!(err.to_string().contains("matches no file"), "{err}");
+}
+
 fn recording_eslint(
     argv: &[OsString],
     cwd: &Path,

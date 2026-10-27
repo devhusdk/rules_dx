@@ -1010,6 +1010,22 @@ pub fn stylelint_check(
     launch.resolve(&args, files)
 }
 
+pub fn graphql_eslint_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: &Path,
+    root: &Path,
+) -> Result<Invocation, LaunchError> {
+    let args = vec![
+        OsString::from("--config"),
+        config.as_os_str().to_owned(),
+        OsString::from("--root"),
+        root.as_os_str().to_owned(),
+        OsString::from("--"),
+    ];
+    launch.resolve(&args, files)
+}
+
 pub fn rubocop_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,

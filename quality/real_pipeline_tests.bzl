@@ -100,6 +100,15 @@ def real_pipeline_unit_tests(name):
                 [["javascript", "jsx", "vue"], [], []],
             ),
             expect_equal(
+                "real_supported_classes returns graphql_eslint lint support only",
+                [
+                    real_supported_classes("graphql_eslint", "lint"),
+                    real_supported_classes("graphql_eslint", "format"),
+                    real_supported_classes("graphql_eslint", "typecheck"),
+                ],
+                [["graphql"], [], []],
+            ),
+            expect_equal(
                 "real_supported_classes returns prettier format support only",
                 [
                     real_supported_classes("prettier", "lint"),

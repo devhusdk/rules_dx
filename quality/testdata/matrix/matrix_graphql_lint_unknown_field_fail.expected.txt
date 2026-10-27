@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_graphql_lint_unknown_field_fail
+capability LINT
+stages 1
+stage graphql_eslint classes=graphql sources=matrix/graphql_unknown_field.graphql
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR graphql_eslint @graphql-eslint/fields-on-correct-type matrix/graphql_unknown_field.graphql 48 53 fixable=false "Cannot query field \"email\" on type \"User\"."
+terminal 1
+terminal ERROR graphql_eslint @graphql-eslint/fields-on-correct-type matrix/graphql_unknown_field.graphql 48 53 fixable=false "Cannot query field \"email\" on type \"User\"."
+replacements 0

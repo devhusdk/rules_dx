@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_graphql_lint_syntax_fail
+capability LINT
+stages 1
+stage graphql_eslint classes=graphql sources=matrix/graphql_syntax.graphql
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR graphql_eslint - matrix/graphql_syntax.graphql 40 40 fixable=false "Parsing error: [graphql-eslint] Syntax Error: Expected Name, found \"{\"."
+terminal 1
+terminal ERROR graphql_eslint - matrix/graphql_syntax.graphql 40 40 fixable=false "Parsing error: [graphql-eslint] Syntax Error: Expected Name, found \"{\"."
+replacements 0

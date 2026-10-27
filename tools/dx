@@ -85,6 +85,23 @@ build_dx() {
 query_inputs() {
   (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))')
 }
+# True for `update --apply [cargo]` without --check, --frozen or --offline: the only launches that may repin.
+wants_cargo_repin() {
+  [ "${1:-}" = update ] || return 1
+  shift
+  w_apply=
+  w_sel=0
+  for w_arg in "$@"; do
+    case $w_arg in
+      --apply) w_apply=1 ;;
+      --check | --frozen | --offline) return 1 ;;
+      -*) ;;
+      cargo) w_sel=$((w_sel + 1)) ;;
+      *) return 1 ;;
+    esac
+  done
+  [ -n "$w_apply" ] && [ "$w_sel" -le 1 ]
+}
 if stale; then
   command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
   mkdir -p "$state"
@@ -153,7 +170,21 @@ if stale; then
     [ "${found:-}" = gc ] || gc="--experimental_disk_cache_gc_max_size=20G --experimental_disk_cache_gc_max_age=14d"
   fi
   echo "dx: building //:dx" >&2
-  if ! retry_crash build_dx; then
+  built=
+  hint=
+  if retry_crash build_dx; then
+    built=1
+  elif wants_cargo_repin "$@"; then
+    echo "dx: //:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again" >&2
+    # Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
+    if (cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
+      built=1
+    fi
+  else
+    hint=1
+  fi
+  if [ -z "$built" ]; then
+    [ -z "$hint" ] || echo "dx: if a Cargo.toml dependency changed, run tools/dx update --apply cargo to repin" >&2
     if [ -x "$state/dx$exe" ]; then
       rm -f "$state/built.$$"
       echo "dx: //:dx does not build; running the previous dx" >&2

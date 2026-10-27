@@ -1,4 +1,5 @@
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use dx_atomic_fs::lease::{self, GenerationUse};
@@ -19,7 +20,7 @@ pub struct LiveHexes {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LiveObservation {
     Known(LiveHexes),
-    Unknown { reason: String },
+    Unknown { partial: LiveHexes, reason: String },
 }
 
 fn classify_managed_path(
@@ -62,17 +63,42 @@ fn classify_managed_path(
     }
 }
 
-fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) {
+const ESRCH: i32 = 3;
+
+fn gone(error: &io::Error) -> bool {
+    error.kind() == io::ErrorKind::NotFound || error.raw_os_error() == Some(ESRCH)
+}
+
+fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) -> Result<(), String> {
     let mut targets: Vec<PathBuf> = Vec::new();
-    if let Ok(cwd) = fs::read_link(dir.join("cwd")) {
-        targets.push(cwd);
+    let cwd_path = dir.join("cwd");
+    match fs::read_link(&cwd_path) {
+        Ok(cwd) => targets.push(cwd),
+        Err(error) if gone(&error) => {}
+        Err(error) => return Err(format!("cannot read {}: {error}", cwd_path.display())),
     }
-    if let Ok(fds) = fs::read_dir(dir.join("fd")) {
-        for fd in fds.flatten() {
-            if let Ok(target) = fs::read_link(fd.path()) {
-                targets.push(target);
+    let fd_dir = dir.join("fd");
+    match fs::read_dir(&fd_dir) {
+        Ok(fds) => {
+            for fd in fds {
+                let fd = match fd {
+                    Ok(fd) => fd,
+                    Err(error) if gone(&error) => continue,
+                    Err(error) => {
+                        return Err(format!("cannot read {}: {error}", fd_dir.display()));
+                    }
+                };
+                match fs::read_link(fd.path()) {
+                    Ok(target) => targets.push(target),
+                    Err(error) if gone(&error) => {}
+                    Err(error) => {
+                        return Err(format!("cannot read {}: {error}", fd.path().display()));
+                    }
+                }
             }
         }
+        Err(error) if gone(&error) => {}
+        Err(error) => return Err(format!("cannot read {}: {error}", fd_dir.display())),
     }
     for target in &targets {
         let text = target.to_string_lossy();
@@ -85,6 +111,7 @@ fn observe_process(dir: &Path, dx_dir: &Path, live: &mut LiveHexes) {
             live.generations.push(generation);
         }
     }
+    Ok(())
 }
 
 pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation {
@@ -92,16 +119,28 @@ pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation
         Ok(entries) => entries,
         Err(error) => {
             return LiveObservation::Unknown {
+                partial: LiveHexes::default(),
                 reason: format!("cannot list {}: {error}", proc_root.display()),
             };
         }
     };
     let mut live = LiveHexes::default();
-    for entry in entries.flatten() {
+    let mut unreadable: Vec<String> = Vec::new();
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) if gone(&error) => continue,
+            Err(error) => {
+                unreadable.push(format!("cannot list {}: {error}", proc_root.display()));
+                continue;
+            }
+        };
         let name = entry.file_name();
         let pid = name.to_string_lossy();
-        if pid.bytes().all(|byte| byte.is_ascii_digit()) {
-            observe_process(&entry.path(), dx_dir, &mut live);
+        if !pid.is_empty() && pid.bytes().all(|byte| byte.is_ascii_digit()) {
+            if let Err(reason) = observe_process(&entry.path(), dx_dir, &mut live) {
+                unreadable.push(format!("process {pid}: {reason}"));
+            }
         }
     }
     live.setup.sort();
@@ -113,7 +152,20 @@ pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation
             .then_with(|| left.hex.cmp(&right.hex))
     });
     live.generations.dedup();
-    LiveObservation::Known(live)
+    let Some(first) = unreadable.first() else {
+        return LiveObservation::Known(live);
+    };
+    let mut reason = first.clone();
+    if unreadable.len() > 1 {
+        reason.push_str(&format!(
+            " (+{} more unreadable processes)",
+            unreadable.len() - 1
+        ));
+    }
+    LiveObservation::Unknown {
+        partial: live,
+        reason,
+    }
 }
 
 fn lease_use(kind: GenerationKind) -> GenerationUse {
@@ -162,7 +214,7 @@ pub fn collect_inventory_with_scan_from(
     let dx_dir = workspace_root.join(DX_DIR_NAME);
     let (live, observation_unknown) = match scan_live_observation(proc_root, &dx_dir) {
         LiveObservation::Known(live) => (live, false),
-        LiveObservation::Unknown { .. } => (LiveHexes::default(), true),
+        LiveObservation::Unknown { partial, .. } => (partial, true),
     };
     let mut inventory = collect_inventory(workspace_root, &[], &[])?;
     let leased = leased_generation_hexes(workspace_root, &inventory.generations)?;
@@ -207,7 +259,10 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
         match scan_live_observation(&root.join("no-such-proc"), &dx_dir) {
-            LiveObservation::Unknown { reason } => assert!(!reason.is_empty()),
+            LiveObservation::Unknown { partial, reason } => {
+                assert!(!reason.is_empty());
+                assert_eq!(partial, LiveHexes::default());
+            }
             LiveObservation::Known(_) => panic!("a missing proc root is unknown, never idle"),
         }
         let _ = fs::remove_dir_all(&root);
@@ -472,6 +527,93 @@ mod tests {
         assert!(plan.preserved_unobserved_setup_records.is_empty());
         assert!(plan.preserved_unobserved_generations.is_empty());
         let _ = fs::remove_dir_all(&root);
+    }
+
+    fn stage_unreadable_cwd(proc_root: &Path, pid: &str) {
+        let dir = proc_root.join(pid);
+        fs::create_dir_all(dir.join("fd")).expect("stage fd dir");
+        fs::write(dir.join("cwd"), "not a link").expect("cwd file");
+    }
+
+    #[test]
+    fn scan_unreadable_cwd_reports_unknown_with_partial_hexes() {
+        let scratch = dx_test_scratch::scratch("dx-clean-test-scan-unreadable-cwd-");
+        let root = scratch.path().to_path_buf();
+        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let proc_root = root.join("proc");
+        fs::create_dir_all(&proc_root).expect("proc root");
+        let hex = digest('3');
+        stage_process(&proc_root, "10", None, &[&dx_dir.join("setups").join(&hex)]);
+        stage_unreadable_cwd(&proc_root, "11");
+        match scan_live_observation(&proc_root, &dx_dir) {
+            LiveObservation::Unknown { partial, reason } => {
+                assert_eq!(partial.setup, vec![hex]);
+                assert!(reason.contains("11"), "{reason}");
+            }
+            LiveObservation::Known(_) => panic!("an unreadable process is unknown"),
+        }
+    }
+
+    #[test]
+    fn scan_unreadable_fd_dir_reports_unknown() {
+        let scratch = dx_test_scratch::scratch("dx-clean-test-scan-unreadable-fd-");
+        let root = scratch.path().to_path_buf();
+        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let proc_root = root.join("proc");
+        fs::create_dir_all(proc_root.join("12")).expect("pid dir");
+        fs::write(proc_root.join("12").join("fd"), "not a dir").expect("fd file");
+        match scan_live_observation(&proc_root, &dx_dir) {
+            LiveObservation::Unknown { reason, .. } => assert!(reason.contains("12"), "{reason}"),
+            LiveObservation::Known(_) => panic!("an unreadable fd dir is unknown"),
+        }
+    }
+
+    #[test]
+    fn scan_skips_processes_that_are_gone() {
+        let scratch = dx_test_scratch::scratch("dx-clean-test-scan-gone-");
+        let root = scratch.path().to_path_buf();
+        let dx_dir = workspace_of(&root).join(DX_DIR_NAME);
+        let proc_root = root.join("proc");
+        fs::create_dir_all(proc_root.join("13")).expect("pid dir");
+        match scan_live_observation(&proc_root, &dx_dir) {
+            LiveObservation::Known(live) => assert_eq!(live, LiveHexes::default()),
+            LiveObservation::Unknown { reason, .. } => panic!("gone process is skipped: {reason}"),
+        }
+    }
+
+    #[test]
+    fn unreadable_process_keeps_observed_state_under_prune_unobserved() {
+        let scratch = dx_test_scratch::scratch("dx-clean-test-unreadable-prune-");
+        std::fs::create_dir_all(scratch.path().join("ws")).expect("create workspace");
+        let root = scratch.path().to_path_buf();
+        let (workspace, stale_hex, _) = two_record_workspace(&root);
+        let dx_dir = workspace.join(DX_DIR_NAME);
+        let proc_root = root.join("proc");
+        fs::create_dir_all(&proc_root).expect("proc root");
+        stage_process(
+            &proc_root,
+            "20",
+            Some(&dx_dir.join("setups").join(&stale_hex)),
+            &[],
+        );
+        stage_unreadable_cwd(&proc_root, "21");
+        let preserved =
+            collect_inventory_with_scan_from(&workspace, &proc_root, UnobservedPolicy::Preserve)
+                .expect("scan");
+        assert!(preserved.observation_unknown);
+        let plan = preserved.plan();
+        assert!(plan.prune_setup_records.is_empty());
+        assert!(plan.prune_generations.is_empty());
+        let pruned = collect_inventory_with_scan_from(
+            &workspace,
+            &proc_root,
+            UnobservedPolicy::PruneAcknowledged,
+        )
+        .expect("scan");
+        assert!(pruned.observation_unknown);
+        let plan = pruned.plan();
+        assert!(!plan.prune_setup_records.contains(&stale_hex));
+        assert!(plan.prune_generations.is_empty());
     }
 
     #[test]

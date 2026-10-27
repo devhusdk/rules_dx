@@ -1,10 +1,24 @@
+# gazelle:ignore
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "mdx_tool.mjs",
 ])
+
+js_binary(
+    name = "mdx_tool",
+    entry_point = "mdx_tool.mjs",
+)
+
+copy_to_bin(
+    name = "mdx_tool_entry",
+    srcs = ["mdx_tool.mjs"],
+)
 
 real_source_target(
     name = "corpus_starlark",

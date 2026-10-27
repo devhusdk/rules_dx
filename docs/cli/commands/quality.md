@@ -1546,6 +1546,69 @@ The formatter exits 0 when every file is formatted, 1 when a file is not, and 2
 on a parse error, a changed syntax tree or a bad `remark_config`. dx reports
 each of these as a finding or a failed run.
 
+#### Building and checking an MDX app
+
+`mdx_build` and `mdx_check` are Bazel targets. They run `vite`,
+`@mdx-js/rollup` and `@mdx-js/mdx` from your own `node_modules`. `dx check`
+does not run them. `mdx_library` does not compile.
+
+```python
+load("@rules_dx//javascript/rules:web.bzl", "javascript_web_server")
+load("@rules_dx//mdx/rules:defs.bzl", "mdx_build", "mdx_check")
+
+mdx_build(
+    name = "site",
+    srcs = glob(["src/**"]) + ["index.html"],
+    config = "vite.config.mjs",
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    ssr_entry = "src/entry-server.jsx",
+    deps = ["//:node_modules/preact"],
+)
+
+mdx_check(
+    name = "check",
+    srcs = glob(["src/**/*.mdx"]),
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+)
+
+javascript_web_server(
+    name = "serve",
+    app = ":site",
+)
+```
+
+```js
+import mdx from "@mdx-js/rollup";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [{ enforce: "pre", ...mdx({ jsxImportSource: "preact" }) }],
+  oxc: { jsx: { runtime: "automatic", importSource: "preact" } },
+});
+```
+
+```sh
+bazel build //web:site //web:site_ssr
+bazel test //web:check
+bazel run //web:serve
+```
+
+`mdx_build` runs a Vite client build into a `site/` tree. The build fails when
+the tree has no `index.html`. With `ssr_entry`, a second Vite SSR build writes
+`site_ssr/`. The SSR bundle keeps `preact` and other packages as imports, so
+code that loads it needs them at run time. A compile error fails the build with
+`<package>/<file>:<line>:<column>: <reason>`.
+
+`mdx_check` compiles each `.mdx` file in `srcs` with `@mdx-js/mdx` into
+`check.mdx_check.txt`. It keeps going after a broken file. The file starts with
+`exit_code: <n>` (0 clean, 1 errors) and has one line per message, for example
+`` web/src/Broken.mdx:5:1: Expected a closing tag for `<div>` (5:1-5:6) [mdast-util-mdx-jsx:end-tag-mismatch] ``.
+The test fails and prints the report when the exit code is not 0. A crash or a
+missing package fails the build. It never counts as clean. Tested with `vite`
+8.3.5, `@mdx-js/rollup` 3.1.1, `@mdx-js/mdx` 3.1.1 and `preact` 10.29.8.
+
 ### SQL, XML and Gherkin
 
 `prettier` runs from the managed pin with the `prettier-plugin-sql`,

@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//javascript/rules:defs.bzl", "javascript_library", "javascript_test")
-load("//mdx/rules:defs.bzl", "mdx_library")
+load("//javascript/rules:defs.bzl", "javascript_library")
+load("//mdx/rules:defs.bzl", "mdx_check", "mdx_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -19,25 +19,20 @@ javascript_library(
     aspect_hints = ["//:biome_config"],
 )
 
-javascript_test(
-    name = "hello_test",
-    srcs = ["Hello.test.js"],
-    aspect_hints = ["//:biome_config"],
-    data = [
-        ":Hello.mdx",
-        ":helper_lib",
-        "//:node_modules/@mdx-js/mdx",
+mdx_check(
+    name = "hello_check",
+    srcs = [
+        "Hello.mdx",
+        "helper.js",
     ],
     node_modules = "//:node_modules",
-    node_options = ["--experimental-vm-modules"],
-    package_json = "//:package_json",
 )
 
 build_test(
     name = "hello_aggregate_test",
     targets = [
         ":hello_lib",
-        ":hello_test",
+        ":hello_check",
     ],
 )
 

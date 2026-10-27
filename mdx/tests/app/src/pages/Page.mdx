@@ -1,0 +1,21 @@
+import clsx from "clsx";
+import logo from "../assets/logo.png";
+import Card from "../components/Card.mdx";
+import Counter from "../components/Counter.jsx";
+
+export const meta = { title: "Hello from MDX" };
+
+# {meta.title}
+
+Some *prose* with an <img src={logo} alt="logo" /> inline.
+
+<div className={clsx("cards", { empty: false })}>
+  <Card title="First">One card.</Card>
+  <Card title="Second">Two cards.</Card>
+</div>
+
+<Counter start={2} />
+
+```js
+import fake from "./fake.js";
+```

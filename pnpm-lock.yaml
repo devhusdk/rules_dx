@@ -9,6 +9,8 @@ overrides:
   brace-expansion@<2: ^1.1.21
   brace-expansion@>=2 <3: ^2.1.7
 
+packageExtensionsChecksum: sha256-uAP+nc5r0wgjIDQTLd2wGN9mXYCZPxyrKNW86H6KoiM=
+
 importers:
 
   .:
@@ -25,6 +27,9 @@ importers:
       '@mdx-js/mdx':
         specifier: 3.1.1
         version: 3.1.1
+      '@mdx-js/rollup':
+        specifier: 3.1.1
+        version: 3.1.1
       '@vitejs/plugin-vue':
         specifier: 6.0.10
         version: 6.0.10(vite@8.3.5(@types/node@22.20.2)(yaml@2.9.1))(vue@3.5.42(typescript@6.0.3))
@@ -37,6 +42,9 @@ importers:
       astro:
         specifier: 7.3.8
         version: 7.3.8(@types/node@22.20.2)(yaml@2.9.1)
+      clsx:
+        specifier: 2.1.1
+        version: 2.1.1
       jest:
         specifier: 30.2.0
         version: 30.2.0(@types/node@22.20.2)
@@ -55,6 +63,9 @@ importers:
       preact:
         specifier: 10.29.8
         version: 10.29.8(preact-render-to-string@6.8.2)
+      preact-render-to-string:
+        specifier: 6.8.2
+        version: 6.8.2(preact@10.29.8)
       svelte:
         specifier: 5.57.0
         version: 5.57.0
@@ -797,6 +808,14 @@ packages:
 
   '@mdx-js/mdx@3.1.1':
     resolution: {integrity: sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ==}
+
+  '@mdx-js/rollup@3.1.1':
+    resolution: {integrity: sha512-v8satFmBB+DqDzYohnm1u2JOvxx6Hl3pUvqzJvfs2Zk/ngZ1aRUhsWpXvwPkNeGN9c2NCm/38H29ZqXQUjf8dw==}
+    peerDependencies:
+      rollup: '>=2'
+    peerDependenciesMeta:
+      rollup:
+        optional: true
 
   '@napi-rs/wasm-runtime@1.2.4':
     resolution: {integrity: sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g==}
@@ -4361,6 +4380,15 @@ snapshots:
       unist-util-position-from-estree: 2.0.0
       unist-util-stringify-position: 4.0.0
       unist-util-visit: 5.1.0
+      vfile: 6.0.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@mdx-js/rollup@3.1.1':
+    dependencies:
+      '@mdx-js/mdx': 3.1.1
+      '@rollup/pluginutils': 5.5.1
+      source-map: 0.7.6
       vfile: 6.0.3
     transitivePeerDependencies:
       - supports-color

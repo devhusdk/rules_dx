@@ -16,27 +16,39 @@ use dx_process::ForwardError;
 use std::io::Write;
 
 pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
-    run_workflow(invocation, env, &mut false)
+    run_workflow(invocation, env, &mut false, &mut false)
 }
 
-/// Runs one workflow command and reports whether its test results are complete.
-pub(crate) fn execute_workflow_phase(invocation: &Invocation, env: Env<'_>) -> (i32, bool) {
+/// Runs one workflow command and reports its exit code, whether its test results are complete,
+/// and whether Bazel failed on the host (launch failure, signal, or a full disk).
+pub(crate) fn execute_workflow_phase(invocation: &Invocation, env: Env<'_>) -> (i32, bool, bool) {
     let mut complete = false;
-    let code = run_workflow(invocation, env, &mut complete);
-    (code, complete)
+    let mut host = false;
+    let code = run_workflow(invocation, env, &mut complete, &mut host);
+    (code, complete, host)
 }
 
-fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
+fn run_workflow(
+    invocation: &Invocation,
+    env: Env<'_>,
+    complete: &mut bool,
+    host: &mut bool,
+) -> i32 {
     if invocation.command == Command::Run {
         return execute_run(invocation, env);
     }
     if invocation.command == Command::Deploy {
         return execute_deploy(invocation, env);
     }
-    execute_checked(invocation, env, complete)
+    execute_checked(invocation, env, complete, host)
 }
 
-fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
+fn execute_checked(
+    invocation: &Invocation,
+    env: Env<'_>,
+    complete: &mut bool,
+    host: &mut bool,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -243,6 +255,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         Err(exit) => {
             let _ = std::fs::remove_file(&bep);
             discard_log();
+            *host = true;
             return exit;
         }
     };
@@ -382,7 +395,7 @@ mod tests {
         let runner = harness.runner();
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(phase, (0, false));
+        assert_eq!(phase, (0, false, false));
 
         let harness = Harness::new("workflow-phase-test");
         let uri = write_bep_artifact(
@@ -406,7 +419,7 @@ mod tests {
         let runner = harness.runner();
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(phase, (0, true));
+        assert_eq!(phase, (0, true, false));
     }
 
     #[test]

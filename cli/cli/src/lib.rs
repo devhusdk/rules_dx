@@ -11,6 +11,7 @@
 )]
 
 pub mod adopt;
+pub mod bazel_restart;
 pub mod exec;
 #[cfg(test)]
 mod test_support;

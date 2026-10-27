@@ -66,6 +66,7 @@ RUST_CRATE_MANIFESTS = [
     "//tools/depcheck:Cargo.toml",
     "//tools/repin_all:Cargo.toml",
     "//libs/gomod:Cargo.toml",
+    "//libs/archive:Cargo.toml",
     "//libs/module_bazel:Cargo.toml",
     "//tools/testing:Cargo.toml",
     "//appimage/packer:Cargo.toml",

@@ -1404,6 +1404,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_archive"
+version = "0.0.0"
+dependencies = [
+ "flate2",
+ "tar",
+ "tempfile",
+ "zip",
+]
+
+[[package]]
 name = "dx_atomic_fs"
 version = "0.0.0"
 dependencies = [
@@ -1608,7 +1618,11 @@ dependencies = [
 name = "dx_install_tools"
 version = "0.0.0"
 dependencies = [
+ "flate2",
+ "serde_json",
+ "tar",
  "tempfile",
+ "zip",
 ]
 
 [[package]]

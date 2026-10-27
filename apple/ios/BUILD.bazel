@@ -779,3 +779,9 @@ apple_ios_framework(
     tags = ["manual"],
     version = "1.0",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

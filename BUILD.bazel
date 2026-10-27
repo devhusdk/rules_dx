@@ -178,7 +178,6 @@ exports_files([
     "MODULE.bazel",
     "README.md",
     "android/README.md",
-    "apple/README.md",
     "csharp/README.md",
     "cuda/README.md",
     "elixir/README.md",
@@ -189,7 +188,6 @@ exports_files([
     "ocaml/README.md",
     "perl/README.md",
     "powershell/README.md",
-    "qt/README.md",
     "ruby/README.md",
     "zig/README.md",
     "cargo-bazel-lock.json",
@@ -205,6 +203,19 @@ exports_files([
 filegroup(
     name = "audit_curator",
     srcs = ["licenses.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        ".bazelversion",
+        "BUILD.bazel",
+        "MODULE.bazel",
+        "//config:module_srcs",
+        "//libs/starlark:module_srcs",
+        "//rust/rules:module_srcs",
+    ],
+    visibility = ["//:__subpackages__"],
 )
 
 filegroup(
@@ -261,7 +272,6 @@ real_source_target(
         "README.md",
         "SECURITY.md",
         "android/README.md",
-        "apple/README.md",
         "csharp/README.md",
         "elixir/README.md",
         "erlang/README.md",
@@ -272,7 +282,6 @@ real_source_target(
         "perl/README.md",
         "patches/README.md",
         "powershell/README.md",
-        "qt/README.md",
         "ruby/README.md",
         "zig/README.md",
         "cuda/README.md",

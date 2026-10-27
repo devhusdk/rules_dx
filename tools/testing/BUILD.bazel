@@ -56,6 +56,8 @@ rust_test(
     crate = ":dx_testing",
     data = [
         ":process_probe_child",
+        "//:.bazelversion",
+        "//:MODULE.bazel",
         "//tools/testing/process_probe",
     ],
     env = {
@@ -120,6 +122,19 @@ rust_binary(
 
 # keep
 rust_test(
+    name = "module_srcs_test",
+    size = "small",
+    srcs = ["module_srcs_test.rs"],
+    data = [
+        "//apple:module_srcs",
+        "//deploy:module_srcs",
+        "//qt:module_srcs",
+    ],
+    deps = [":dx_testing"],
+)
+
+# keep
+rust_test(
     name = "nested_bazel_leak_test",
     size = "large",
     srcs = ["nested_bazel_leak_test.rs"],
@@ -159,6 +174,7 @@ rustfmt_test(
     size = "small",
     targets = [
         ":dx_testing",
+        ":module_srcs_test",
         ":nested_bazel_leak_test",
         ":nested_bazel_pinned_test",
         ":nested_bazel_probe",
@@ -173,6 +189,7 @@ rust_clippy_test(
     size = "small",
     targets = [
         ":dx_testing",
+        ":module_srcs_test",
         ":nested_bazel_leak_test",
         ":nested_bazel_pinned_test",
         ":nested_bazel_probe",

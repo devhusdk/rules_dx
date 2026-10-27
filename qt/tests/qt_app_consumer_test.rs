@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use dx_testing::nested::{self, Case};
-use dx_testing::{resolve_runfiles, Run};
+use dx_testing::{resolve_runfiles, rules_dx_source, Run};
 
 const POLICY: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 
@@ -383,18 +383,8 @@ fn read(path: &Path) -> Vec<u8> {
     std::fs::read(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
 }
 
-fn rules_dx_root() -> PathBuf {
-    let fixture = resolve_runfiles("qt/tests/fixtures/ticker.h");
-    let real =
-        std::fs::canonicalize(&fixture).unwrap_or_else(|error| panic!("{fixture:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case("consumer");
     let version = std::fs::read_to_string(rules.join(".bazelversion"))
         .unwrap_or_else(|error| panic!("bazelversion: {error}"));

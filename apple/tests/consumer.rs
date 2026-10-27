@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use dx_testing::nested::{self, Case};
-use dx_testing::{resolve_runfiles, Run};
+use dx_testing::{rules_dx_source, Run};
 
 pub const APPLE_SUPPORT: &str = "2.9.1";
 
@@ -16,24 +16,15 @@ pub fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
 }
 
-fn rules_dx_root() -> PathBuf {
-    let anchor = resolve_runfiles("apple/provisioning/probe.sh");
-    let real = std::fs::canonicalize(&anchor).unwrap_or_else(|error| panic!("{anchor:?}: {error}"));
-    real.ancestors()
-        .nth(3)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 pub fn module(extra: &str) -> String {
     format!(
         "module(name = \"ledger\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"dx\")\nbazel_dep(name = \"apple_support\", version = \"{APPLE_SUPPORT}\", repo_name = \"xcode_support\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.27\")\nbazel_dep(name = \"platforms\", version = \"1.1.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{extra}",
-        rules_dx_root().display()
+        rules_dx_source().display()
     )
 }
 
 pub fn consumer(prefix: &str, module_extra: &str, bazelrc: &str) -> Case {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let root = nested::case(prefix);
     write(
         &root.join(".bazelversion"),

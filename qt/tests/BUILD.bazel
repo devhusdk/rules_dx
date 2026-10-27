@@ -133,8 +133,8 @@ rust_test(
     size = "enormous",
     srcs = ["qt_app_consumer_test.rs"],
     data = [
-        "fixtures/ticker.h",
         "//cli/cli:dx",
+        "//qt:module_srcs",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",

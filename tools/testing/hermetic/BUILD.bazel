@@ -302,6 +302,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "qt_tasks",
+    srcs = ["//qt:module_srcs"],
     files = {
         "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
         "consumers/qt_tasks/root.BUILD.bazel": "BUILD.bazel",
@@ -447,6 +448,7 @@ pwsh_test(
 
 hermetic_qualification(
     name = "qt_rust",
+    srcs = ["//qt:module_srcs"],
     files = {
         "consumers/qt_rust/consumer.bazelrc": ".bazelrc",
         "consumers/qt_rust/root.BUILD.bazel": "BUILD.bazel",

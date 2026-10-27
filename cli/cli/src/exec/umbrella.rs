@@ -1402,7 +1402,10 @@ mod tests {
             env: &[(&str, &str)],
         ) -> io::Result<ChildStatus> {
             if is_shard_probe(argv) {
-                return Ok(ChildStatus { code: Some(1), signal: None });
+                return Ok(ChildStatus {
+                    code: Some(1),
+                    signal: None,
+                });
             }
             let launch = self.launches.get();
             self.launches.set(launch + 1);

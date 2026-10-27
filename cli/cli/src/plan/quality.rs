@@ -16,7 +16,12 @@ pub fn required_options(
     bazel_options: &[String],
     bep_path: &str,
 ) -> Vec<String> {
-    shaped_options(&entry.aspects.join(","), OUTPUT_GROUP, bazel_options, bep_path)
+    shaped_options(
+        &entry.aspects.join(","),
+        OUTPUT_GROUP,
+        bazel_options,
+        bep_path,
+    )
 }
 
 /// The required options of one quality build; probe and build differ only in the aspects, output group and event file.

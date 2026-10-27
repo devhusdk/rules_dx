@@ -2,7 +2,7 @@ use super::common::*;
 use super::managed_prepare::{map_commit_error, prepare_managed_sides};
 use dx_output::{
     command_finished, command_started, notice_event, operation_event, selection_event,
-    FinishedCounts, NoticeEvent, OutputMode,
+    ActionCounts, FinishedCounts, NoticeEvent, OutputMode,
 };
 use dx_plan::args::{Command, Invocation};
 use dx_plan::plan::{bep_path, plan_managed, plan_managed_with_roots};
@@ -24,6 +24,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         nonce,
         out,
         err,
+        actions,
         ..
     } = env;
     if !invocation.command.is_managed() {
@@ -118,6 +119,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     };
+    let action_counts = read_actions(&bep, actions);
     if bazel_code != 0 {
         let _ = std::fs::remove_file(&bep);
         if json {
@@ -135,7 +137,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             )) {
  return kept_child(err, bazel_code, exit);
  }
-            let finished = command_finished(bazel_code, &FinishedCounts::default());
+            let finished = command_finished(bazel_code, &with_actions(action_counts));
             if let Err(exit) = emit_event(out, &finished) {
                 return kept_child(err, bazel_code, exit);
             }
@@ -152,6 +154,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
                 bep: &bep,
                 json,
                 verbose,
+                actions: action_counts,
             },
             out,
             err,
@@ -187,7 +190,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
         ) {
             return exit;
         }
-        if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+        if let Err(exit) = emit_event(out, &command_finished(0, &with_actions(action_counts))) {
             return exit;
         }
         return 0;
@@ -236,6 +239,14 @@ struct CheckInputs<'a> {
     bep: &'a Path,
     json: bool,
     verbose: bool,
+    actions: Option<ActionCounts>,
+}
+
+fn with_actions(actions: Option<ActionCounts>) -> FinishedCounts {
+    FinishedCounts {
+        actions,
+        ..FinishedCounts::default()
+    }
 }
 
 fn check_managed(
@@ -251,6 +262,7 @@ fn check_managed(
         bep,
         json,
         verbose,
+        actions,
     } = inputs;
     let scratch = temp_dir.join("managed-check");
     if let Err(error) = std::fs::create_dir_all(&scratch) {
@@ -300,7 +312,7 @@ fn check_managed(
     let setup = dx_setup::setup_hex(&intended);
     if current.as_ref() == Some(&intended) {
         if json {
-            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+            if let Err(exit) = emit_event(out, &command_finished(0, &with_actions(actions))) {
                 return exit;
             }
             return 0;
@@ -347,7 +359,7 @@ fn check_managed(
         ) {
             return exit;
         }
-        if let Err(exit) = emit_event(out, &command_finished(1, &FinishedCounts::default())) {
+        if let Err(exit) = emit_event(out, &command_finished(1, &with_actions(actions))) {
             return exit;
         }
         return 1;
@@ -781,6 +793,30 @@ mod tests {
                 .expect("selection kept"),
             foreign,
             "check leaves the stale selection in place"
+        );
+    }
+
+    #[test]
+    fn codegen_json_reports_action_counts() {
+        let mut harness = Harness::new("managed-actions");
+        let (_, out, _) = harness.run(&["codegen", "--output=json"]);
+        assert_eq!(finished_actions(&out), None, "{out}");
+        harness.build_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
+        let (code, out, err) = harness.run(&["codegen", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(
+            finished_actions(&out),
+            Some(
+                serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
+            )
+        );
+        let (code, out, err) = harness.run(&["codegen", "--apply", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            finished_actions(&out),
+            Some(
+                serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
+            )
         );
     }
 

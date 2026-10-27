@@ -1,3 +1,4 @@
+use crate::exec::{print_actions, ActionTally};
 use std::cell::RefCell;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -103,6 +104,7 @@ fn watch(
         mut err,
         ci,
         audit_today,
+        actions: _,
     } = env;
     let wrapped = invocation
         .targets
@@ -165,6 +167,7 @@ fn watch(
         };
         let held = slot.as_ref().map(|slot| slot.runner(runner));
         let mut iteration_out = dx_plan::slots::AfterFirstLine::new(&mut *out, notices);
+        let tally = ActionTally::default();
         let code = crate::exec::execute_until(
             &iteration,
             Env {
@@ -180,10 +183,12 @@ fn watch(
                 err: &mut err,
                 ci,
                 audit_today,
+                actions: &tally,
             },
             &withdraw,
         );
         drop(slot);
+        print_actions(iteration.output, &tally, &mut *err);
         if max_iterations == Some(round) {
             return code;
         }
@@ -395,6 +400,7 @@ mod tests {
                     err: &mut self.err,
                     ci: self.ci,
                     audit_today: None,
+                    actions: &ActionTally::default(),
                 },
                 max_iterations,
                 stop,
@@ -424,6 +430,7 @@ mod tests {
                     err: &mut err,
                     ci: self.ci,
                     audit_today: None,
+                    actions: &ActionTally::default(),
                 },
                 max_iterations,
                 &|| None,
@@ -664,6 +671,7 @@ mod tests {
                 err: &mut err,
                 ci: false,
                 audit_today: None,
+                actions: &ActionTally::default(),
             },
             Some(2),
             &|| None,
@@ -731,6 +739,7 @@ mod tests {
                 err: &mut err,
                 ci: false,
                 audit_today: None,
+                actions: &ActionTally::default(),
             },
             Some(2),
             &|| None,
@@ -911,6 +920,7 @@ mod tests {
                 err: &mut err,
                 ci: false,
                 audit_today: None,
+                actions: &ActionTally::default(),
             },
             Some(1),
             &|| None,
@@ -1212,6 +1222,7 @@ mod tests {
                 err: &mut err,
                 ci: false,
                 audit_today: None,
+                actions: &ActionTally::default(),
             },
             None,
             &|| None,
@@ -1431,6 +1442,7 @@ mod tests {
                     err: &mut err,
                     ci: false,
                     audit_today: None,
+                    actions: &ActionTally::default(),
                 },
                 max_iterations,
                 &|| None,

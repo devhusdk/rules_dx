@@ -4,7 +4,7 @@ use super::deploy::execute_deploy;
 use super::failure_reports::write_failure_reports;
 use super::run::execute_run;
 use super::test_reports::{execute_test_reports, TestReportsRequest};
-use dx_output::{command_finished, FinishedCounts, OutputMode};
+use dx_output::{command_finished, ActionCounts, FinishedCounts, OutputMode};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::plan::{bep_path, plan_workflow, results_path, run_id, WorkflowVerb};
 use dx_plan::reports::{plan_reports, Destination, PlannedReport, StandardFormat};
@@ -45,6 +45,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         err,
         ci: _,
         audit_today: _,
+        actions,
     } = env;
     let results_default = invocation.output == OutputMode::Json
         && invocation.command != Command::Build
@@ -195,6 +196,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
             return exit;
         }
     };
+    let action_counts = read_actions(&bep, actions);
     if verb == WorkflowVerb::Build {
         if bazel_code != 0 {
             if let Err(exit) = report_build_failures(&bep, invocation.output, out, err) {
@@ -222,7 +224,9 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
             bazel_code
         };
         if invocation.output == OutputMode::Json {
-            if let Err(exit) = emit_build_completion(invocation, out, bazel_code, code) {
+            if let Err(exit) =
+                emit_build_completion(invocation, out, bazel_code, code, action_counts)
+            {
                 if code == 0 {
                     return exit;
                 }
@@ -250,6 +254,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         bazel_code,
         query_runner,
         results_complete: complete,
+        actions: action_counts,
     })
 }
 
@@ -258,6 +263,7 @@ fn emit_build_completion(
     out: &mut dyn Write,
     bazel_code: i32,
     code: i32,
+    actions: Option<ActionCounts>,
 ) -> Result<(), i32> {
     if bazel_code != 0 {
         emit_bazel_exit(
@@ -270,7 +276,11 @@ fn emit_build_completion(
             bazel_code,
         )?;
     }
-    emit_event(out, &command_finished(code, &FinishedCounts::default()))?;
+    let counts = FinishedCounts {
+        actions,
+        ..FinishedCounts::default()
+    };
+    emit_event(out, &command_finished(code, &counts))?;
     flush_out(out)
 }
 
@@ -683,6 +693,52 @@ mod tests {
         let (code, _, err) = harness.run(&["build", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("unreadable_bep"), "{err}");
+    }
+
+    #[test]
+    fn build_json_reports_action_counts() {
+        let mut harness = Harness::new("wf-build-actions");
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(finished_actions(&out), None, "{out}");
+        harness.build_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(
+            finished_actions(&out),
+            Some(
+                serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
+            )
+        );
+    }
+
+    #[test]
+    fn test_json_reports_action_counts() {
+        let harness = Harness::new("wf-test-actions");
+        let uri = write_bep_artifact(
+            &harness,
+            "test.xml",
+            br#"<testsuites><testsuite name="s"><testcase name="passes" classname="c"/></testsuite></testsuites>"#,
+        );
+        let mut harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), uri)],
+            )]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(finished_actions(&out), None, "{out}");
+        harness.build_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
+        let (code, out, _) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 0, "{out}");
+        assert_eq!(
+            finished_actions(&out),
+            Some(
+                serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}})
+            )
+        );
     }
 
     #[test]

@@ -54,7 +54,7 @@ use dx_plan::args::{Command, Invocation};
 pub(crate) use umbrella::UMBRELLA_PHASES;
 
 pub use audit::AUDIT_TODAY_ENV;
-pub use common::Env;
+pub use common::{print_actions, ActionTally, Env};
 pub use failure::set_usage_command;
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 pub use worktree::{hook_kind, run_worktree_hook};
@@ -130,6 +130,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ci,
         audit_today,
+        actions,
     } = env;
     let mut latched = common::LatchedOut::new(out);
     let code = dispatch(
@@ -145,6 +146,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             err,
             ci,
             audit_today,
+            actions,
         },
     );
     if code == 0 {

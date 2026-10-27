@@ -13,7 +13,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use dx_cli::exec::common::flush_out;
-use dx_cli::{execute, Env};
+use dx_cli::{execute, print_actions, ActionTally, Env};
 use dx_output::OutputMode;
 use dx_plan::args::{
     early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
@@ -542,6 +542,7 @@ fn run() -> i32 {
     };
     let mut after_first = dx_plan::slots::AfterFirstLine::new(&mut out, pending);
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
+    let actions = ActionTally::default();
     let code = dx_plan::slots::with_gate(gate, || {
         execute(
             &invocation,
@@ -556,9 +557,11 @@ fn run() -> i32 {
                 err: &mut err,
                 ci: dx_process::is_ci(),
                 audit_today: audit_today.as_deref(),
+                actions: &actions,
             },
         )
     });
+    print_actions(invocation.output, &actions, &mut err);
     let temp_display = temp_dir.path().display().to_string();
     if let Err(error) = temp_dir.close() {
         let _ = writeln!(

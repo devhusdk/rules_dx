@@ -436,6 +436,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ci,
         audit_today,
+        actions,
     } = env;
     let text = !invocation.quiet && matches!(invocation.output, OutputMode::Text { .. });
     let base = match affected_base(workspace, query_runner) {
@@ -485,6 +486,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
                 err,
                 ci,
                 audit_today,
+                actions,
             },
         );
     }
@@ -502,6 +504,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
             err,
             ci,
             audit_today,
+            actions,
         },
     );
     let _ = injector.finish();

@@ -80,6 +80,7 @@ fn run_quality(
         err,
         ci,
         audit_today,
+        actions,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_quality_request(
@@ -95,6 +96,7 @@ fn run_quality(
             err,
             ci,
             audit_today,
+            actions,
         },
         fs,
         kind,
@@ -278,6 +280,7 @@ fn run_quality_request(
         err,
         ci: _,
         audit_today: _,
+        actions,
     } = env;
     let planned_reports = match plan_reports(
         workspace,
@@ -392,6 +395,7 @@ fn run_quality_request(
             return exit;
         }
     };
+    let action_counts = read_actions(&bep, actions);
     let compile_only = if bazel_code == 0 {
         false
     } else {
@@ -658,6 +662,7 @@ fn run_quality_request(
                 },
                 baseline: baseline.as_ref().map(BaselineView::counts),
                 tests: None,
+                actions: action_counts,
             },
         );
         if let Err(exit) = emit_event(out, &finished) {

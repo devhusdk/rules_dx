@@ -1,4 +1,4 @@
-use super::{execute, Env};
+use super::{execute, ActionTally, Env};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use dx_digest::blake3 as digest;
 use dx_plan::args::Invocation;
@@ -73,12 +73,15 @@ pub(crate) struct Harness {
     pub(crate) skip_bep: bool,
     pub(crate) raw_bep: Option<Vec<String>>,
     pub(crate) unterminated_bep: bool,
+    /// A `buildMetrics` line that ends the stream in place of `LAST_EVENT`.
+    pub(crate) build_metrics: Option<String>,
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) patch: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
+    pub(crate) actions: ActionTally,
     /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
     pub(crate) probe_shards: Option<Vec<String>>,
     /// An exit code the fake shard probe returns instead of answering.
@@ -203,6 +206,7 @@ impl Harness {
             skip_bep: false,
             raw_bep: None,
             unterminated_bep: false,
+            build_metrics: None,
             query: ScriptQuery {
                 calls: RefCell::new(Vec::new()),
                 expressions: RefCell::new(Vec::new()),
@@ -218,6 +222,7 @@ impl Harness {
             seen_env: Rc::new(RefCell::new(Vec::new())),
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
+            actions: ActionTally::default(),
             probe_shards: None,
             probe_code: None,
             probe_argv: Rc::new(RefCell::new(Vec::new())),
@@ -371,11 +376,17 @@ impl Harness {
         staged
     }
 
+    fn last_event(&self) -> String {
+        self.build_metrics
+            .clone()
+            .unwrap_or_else(|| LAST_EVENT.to_owned())
+    }
+
     pub(crate) fn runner(&self) -> FakeRunner {
         if let Some(lines) = &self.raw_bep {
             let mut lines = lines.clone();
             if !self.unterminated_bep {
-                lines.push(LAST_EVENT.to_owned());
+                lines.push(self.last_event());
             }
             return FakeRunner {
                 code: Some(self.bazel_code),
@@ -431,7 +442,7 @@ impl Harness {
             );
         }
         if !self.unterminated_bep {
-            lines.push(LAST_EVENT.to_owned());
+            lines.push(self.last_event());
         }
         FakeRunner {
             code: if self.signalled {
@@ -550,6 +561,7 @@ impl Harness {
             err,
             ci: false,
             audit_today: self.audit_today.as_deref(),
+            actions: &self.actions,
         }
     }
 
@@ -865,6 +877,40 @@ pub(crate) fn write_bep_artifact(harness: &Harness, name: &str, bytes: &[u8]) ->
     let path = harness.temp.join(name);
     std::fs::write(&path, bytes).expect("artifact");
     format!("file://{}", path.display())
+}
+
+/// A final `buildMetrics` event with one action summary, int64 values written as strings.
+pub(crate) fn build_metrics_line(
+    created: u64,
+    executed_raw: u64,
+    disk: u64,
+    remote: u64,
+    local: u64,
+) -> String {
+    serde_json::json!({
+        "id": {"buildMetrics": {}},
+        "buildMetrics": {"actionSummary": {
+            "actionsCreated": created.to_string(),
+            "actionsExecuted": executed_raw.to_string(),
+            "runnerCount": [
+                {"name": "total", "count": executed_raw},
+                {"name": "disk cache hit", "count": disk, "execKind": "Remote"},
+                {"name": "remote cache hit", "count": remote, "execKind": "Remote"},
+            ],
+            "actionCacheStatistics": {"hits": local},
+        }},
+        "lastMessage": true,
+    })
+    .to_string()
+}
+
+/// The `actions` object of the last `command_finished` event on `out`.
+pub(crate) fn finished_actions(out: &str) -> Option<serde_json::Value> {
+    out.lines()
+        .rev()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .find(|event| event["event"] == "command_finished")
+        .and_then(|event| event.get("actions").cloned())
 }
 
 pub(crate) fn test_result_line(label: &str, entries: &[(String, String)]) -> String {

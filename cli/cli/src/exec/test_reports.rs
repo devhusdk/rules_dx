@@ -8,7 +8,7 @@ use dx_bep::{
 use dx_lcov::{parse_source_manifest, CellAccount, SourceManifest, SOURCES_OUTPUT_GROUP};
 use dx_output::{
     command_finished, notice_event, report_event, test_outcome_event, test_result_record,
-    FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
+    ActionCounts, FinishedCounts, NoticeEvent, OutputMode, TestCase, TestCounts, TestOutcome,
 };
 use dx_plan::args::Invocation;
 use dx_plan::plan::WorkflowVerb;
@@ -140,6 +140,7 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) bazel_code: i32,
     pub(crate) query_runner: &'a dyn QueryRunner,
     pub(crate) results_complete: &'a mut bool,
+    pub(crate) actions: Option<ActionCounts>,
 }
 
 /// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
@@ -1254,6 +1255,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         bazel_code,
         query_runner,
         results_complete,
+        actions,
     } = request;
     let failure_count = if bazel_code != 0 {
         match report_build_failures(bep, invocation.output, out, err) {
@@ -1468,6 +1470,7 @@ return kept_child(err, bazel_code, exit);
                 results_complete: Some(*results_complete),
                 run_id: (!results_reports.is_empty()).then(|| run_id.to_owned()),
                 tests: (!reported.is_empty()).then_some(counts),
+                actions,
                 ..FinishedCounts::default()
             },
         );

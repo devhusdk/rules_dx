@@ -663,6 +663,7 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
         err,
         ci,
         audit_today,
+        actions,
     } = env;
     let watch = LaunchWatch::new(runner);
     let (code, complete) = super::workflow::execute_workflow_phase(
@@ -678,6 +679,7 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
             err,
             ci,
             audit_today,
+            actions,
         },
     );
     PhaseRun {
@@ -705,6 +707,7 @@ struct VerifyContext<'a> {
     nonce: u64,
     ci: bool,
     audit_today: Option<&'a str>,
+    actions: &'a ActionTally,
 }
 
 /// Re-runs umbrella phases read-only through `through` after `fix --apply` touched them.
@@ -752,6 +755,7 @@ fn verify_fix(
                 err: &mut phase_err,
                 ci: context.ci,
                 audit_today: context.audit_today,
+                actions: context.actions,
             };
             if *phase == Command::Generate {
                 execute_generate_request(&request.verify_generate_request(), phase_env)
@@ -913,6 +917,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         err,
         ci,
         audit_today,
+        actions,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_umbrella(
@@ -928,6 +933,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
             err,
             ci,
             audit_today,
+            actions,
         },
     );
     latched.exit_code(code)
@@ -945,6 +951,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         err,
         ci,
         audit_today,
+        actions,
     } = env;
     let fix_apply = request.command == Command::Fix && request.applies();
     let phase_check = !fix_apply;
@@ -1056,6 +1063,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 err: &mut phase_err,
                 ci,
                 audit_today,
+                actions,
             };
             if phase == Command::Generate {
                 execute_generate_phase(&request.phase_generate_request(phase_reports), phase_env)
@@ -1218,6 +1226,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             nonce: nonce.wrapping_add(phases.len() as u64),
             ci,
             audit_today,
+            actions,
         };
         let verification = verify_fix(request, &context, through, &failed_phases);
         reports_ok &= verification.readable;
@@ -1247,6 +1256,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             code,
             &FinishedCounts {
                 results_complete: Some(complete),
+                actions: actions.total(),
                 ..FinishedCounts::default()
             },
         );
@@ -1878,6 +1888,33 @@ mod tests {
             harness.seen_env.borrow().len(),
             4,
             "one Bazel launch per phase"
+        );
+    }
+
+    #[test]
+    fn check_json_sums_action_counts_across_phases() {
+        let mut harness = umbrella_clean("umbrella-check-actions");
+        harness.build_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
+        let (code, out, err) = harness.run(&["check", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let phases: Vec<&serde_json::Value> = events
+            .iter()
+            .filter(|event| event["event"] == "phase_finished" && event.get("actions").is_some())
+            .collect();
+        assert_eq!(phases.len(), 3, "{out}");
+        for phase in &phases {
+            assert_eq!(
+                phase["actions"],
+                serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}}),
+                "{phase}"
+            );
+        }
+        assert_eq!(
+            finished_actions(&out),
+            Some(
+                serde_json::json!({"created": 30, "executed": 12, "cache_hits": {"disk": 6, "remote": 9, "local": 15}})
+            )
         );
     }
 

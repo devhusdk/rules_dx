@@ -41,16 +41,21 @@ it then prints `Serving docs at <url> (<dir>)`, and `Opening <url>` with
 then `operation` events (`summary`, plus `render` without `--check`). On
 failure one `error` follows: `launch_failed` when Bazel cannot be launched,
 `bazel_failed`, `disk_full`, `bazel_signalled`, or `serve_failed`. The stream
-ends with `command_finished`. A usage, option, or scope error fails before the
-command starts: one `error` with `invalid_arguments`, then `command_finished`,
-and no `command_started`. Under `--serve`, `command_finished` comes when the
+ends with `command_finished`. A usage or option error fails before the command
+starts: one `error` with `invalid_arguments`, then `command_finished`, and no
+`command_started`. A scope that does not resolve fails the same way with
+`invalid_scope` (missing path, external or relative label), `no_owner`,
+`query_failed` (the Bazel query exited nonzero), or `query_launch_failed` (the
+query could not start). Under `--serve`, `command_finished` comes when the
 preview server exits.
 
 Reports: none. `--report` is a usage error.
 
-Exit codes: `0` success, `2` usage or scope errors, including `--here` with
-an explicit scope, `--output diff`, and `--report`. `1` a launch, signal, or
-preview failure, including `launch_failed` (Bazel cannot be launched),
+Exit codes: `0` success, `2` usage errors, including `--here` with an
+explicit scope, `--output diff`, and `--report`, and scope errors
+(`invalid_scope`, `no_owner`, `query_failed`). `1` a launch, signal, or
+preview failure, including `query_launch_failed` (the scope query cannot be
+launched), `launch_failed` (Bazel cannot be launched),
 `serve_failed` (no single site tree, a missing `index.html`, or a preview that
 fails to launch) and a signalled preview. Bazel failures keep Bazel's code.
 `disk_full` keeps exit `36`: Bazel exited 36 and a disk it writes to has under

@@ -115,7 +115,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
                 };
                 (resolved.targets, scope_text)
             }
-            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+            Err(error) => return resolve_failed(invocation.output, out, err, &error),
         }
     };
     let (actions, summary): (&[&str], String) = if invocation.check {
@@ -582,30 +582,72 @@ mod tests {
 
     #[test]
     fn docs_json_pre_exec_errors_have_no_command_started() {
-        for argv in [
-            &["docs", "--output=json", "--", "--home_rc"][..],
-            &["docs", "missing.md", "--output=json"][..],
-        ] {
-            let harness = Harness::new("docs-pre-exec");
-            let (code, out, err) = harness.run(argv);
-            assert_eq!(code, 2, "{argv:?}: {out}{err}");
-            let events = json_events(&out);
-            let kinds = event_kinds(&events);
-            assert!(!kinds.contains(&"command_started"), "{argv:?}: {kinds:?}");
-            assert!(!kinds.contains(&"operation"), "{argv:?}: {kinds:?}");
-            assert_eq!(kinds.first(), Some(&"error"), "{argv:?}: {out}");
-            assert_eq!(
-                events[0]["code"],
-                serde_json::json!("invalid_arguments"),
-                "{argv:?}: {out}"
-            );
-            assert_eq!(kinds.last(), Some(&"command_finished"), "{argv:?}: {out}");
-            assert_eq!(
-                events[events.len() - 1]["exit_code"],
-                serde_json::json!(2),
-                "{argv:?}: {out}"
-            );
-        }
+        let argv = &["docs", "--output=json", "--", "--home_rc"][..];
+        let harness = Harness::new("docs-pre-exec");
+        let (code, out, err) = harness.run(argv);
+        assert_eq!(code, 2, "{argv:?}: {out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert!(!kinds.contains(&"command_started"), "{argv:?}: {kinds:?}");
+        assert!(!kinds.contains(&"operation"), "{argv:?}: {kinds:?}");
+        assert_eq!(kinds.first(), Some(&"error"), "{argv:?}: {out}");
+        assert_eq!(
+            events[0]["code"],
+            serde_json::json!("invalid_arguments"),
+            "{argv:?}: {out}"
+        );
+        assert_eq!(kinds.last(), Some(&"command_finished"), "{argv:?}: {out}");
+        assert_eq!(
+            events[events.len() - 1]["exit_code"],
+            serde_json::json!(2),
+            "{argv:?}: {out}"
+        );
+    }
+
+    #[test]
+    fn docs_scope_resolution_failures_use_resolve_codes() {
+        let harness = Harness::new("docs-resolve-missing");
+        let (code, out, _) = harness.run(&["docs", "missing.md", "--output=json"]);
+        assert_eq!(code, 2, "{out}");
+        let events = json_events(&out);
+        assert_eq!(
+            events[0]["code"],
+            serde_json::json!("invalid_scope"),
+            "{out}"
+        );
+        assert!(!event_kinds(&events).contains(&"command_started"), "{out}");
+
+        let harness = Harness::new("docs-resolve-launch");
+        std::fs::create_dir_all(harness.workspace.join("docs")).expect("docs dir");
+        std::fs::write(harness.workspace.join("docs/page.md"), "# page\n").expect("page");
+        std::fs::write(harness.workspace.join("docs/BUILD.bazel"), "").expect("build");
+        let (code, out, _) = harness.run(&["docs", "docs/page.md", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        assert_eq!(
+            events[0]["code"],
+            serde_json::json!("query_launch_failed"),
+            "{out}"
+        );
+        assert!(!event_kinds(&events).contains(&"command_started"), "{out}");
+
+        let harness = Harness::new("docs-resolve-query");
+        std::fs::create_dir_all(harness.workspace.join("docs")).expect("docs dir");
+        std::fs::write(harness.workspace.join("docs/page.md"), "# page\n").expect("page");
+        std::fs::write(harness.workspace.join("docs/BUILD.bazel"), "").expect("build");
+        harness.query.outputs.borrow_mut().push(QueryResult {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: b"no such package\n".to_vec(),
+        });
+        let (code, out, _) = harness.run(&["docs", "docs/page.md", "--output=json"]);
+        assert_eq!(code, 2, "{out}");
+        let events = json_events(&out);
+        assert_eq!(
+            events[0]["code"],
+            serde_json::json!("query_failed"),
+            "{out}"
+        );
     }
 
     #[test]

@@ -596,7 +596,9 @@ fn backdate(path: &Path, ago: std::time::Duration) {
 fn backdate_tree(dir: &Path, ago: std::time::Duration) {
     for entry in std::fs::read_dir(dir).expect("read_dir") {
         let path = entry.expect("entry").path();
-        let kind = std::fs::symlink_metadata(&path).expect("metadata").file_type();
+        let kind = std::fs::symlink_metadata(&path)
+            .expect("metadata")
+            .file_type();
         if kind.is_dir() {
             backdate_tree(&path, ago);
         } else if kind.is_file() {

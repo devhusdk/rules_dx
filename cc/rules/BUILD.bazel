@@ -1,5 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load(":wrapper_tests.bzl", "cc_wrapper_contract_tests")
+load(":defs.bzl", "objc_library")
+load(":wrapper_tests.bzl", "cc_wrapper_contract_tests", "objc_forward_tests")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -14,6 +15,21 @@ exports_files(
 )
 
 cc_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+objc_library(
+    name = "objc_forward_fixture",
+    srcs = ["testdata/objc_forward/greeter.m"],
+    hdrs = ["testdata/objc_forward/greeter.h"],
+    non_arc_srcs = ["testdata/objc_forward/legacy.mm"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
+)
+
+objc_forward_tests(
+    name = "objc_forward_test",
+    target = ":objc_forward_fixture",
+    target_compatible_with = ["@platforms//os:macos"],
+)
 
 real_source_target(
     name = "corpus_markdown",

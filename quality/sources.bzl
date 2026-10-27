@@ -22,6 +22,8 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "c",
     "cpp",
     "cuda",
+    "objc",
+    "objcpp",
     "csharp",
     "fsharp",
     "powershell",
@@ -87,6 +89,8 @@ UPSTREAM_CC_CLASS_EXTENSIONS = {
     "c": ["c", "h"],
     "cpp": ["cc", "cpp", "cxx", "hh", "hpp", "hxx"],
     "cuda": ["cu", "cuh"],
+    "objc": ["m"],
+    "objcpp": ["mm"],
 }
 
 def upstream_source_class(extension):

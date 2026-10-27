@@ -261,10 +261,13 @@ platform are skipped; see [Scope Defaults](scope-defaults.md).
 Args after `--` reach the test binary through Bazel. `dx test` and
 `dx coverage` accept repeatable `--test_arg` tokens, in equals and
 two-token form, with spaces and Unicode kept verbatim. `--test_filter`
-stays a Bazel option. When the selected tests are `rust_test` targets,
-optionally with their `rustfmt_test` and `rust_clippy_test` checks, dx also
-passes the last `--test_filter` value to the test binaries as a libtest
-filter, so only matching cases run. Other commands
+stays a Bazel option. When every selected test is a `rust_test` that uses
+the libtest harness, optionally with its `rustfmt_test` and
+`rust_clippy_test` checks, dx also passes the last `--test_filter` value to
+the test binaries as a libtest filter, so only matching cases run. To decide,
+dx first queries the kinds of the selected tests with the run's repository
+options, such as `--override_repository` and `--repo_env`. If that query
+fails, dx stops with a query error before Bazel runs. Other commands
 reject `--test_arg`; run those cases with `bazel` directly.
 
 Tests run once by default. Only tests marked flaky in their build

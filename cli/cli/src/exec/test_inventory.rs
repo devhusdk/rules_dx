@@ -1012,6 +1012,15 @@ mod tests {
             "ownership ignores configuration: {:?}",
             calls[0]
         );
+        for index in [1, 3] {
+            for dropped in ["--platforms=//:x", "--config=ci"] {
+                assert!(
+                    !calls[index].contains(&dropped.to_owned()),
+                    "query calls drop build options: {:?}",
+                    calls[index]
+                );
+            }
+        }
     }
 
     #[test]
@@ -1156,6 +1165,7 @@ mod tests {
         assert!(hints[0].contains("--token"), "{hints:?}");
         assert!(!hints[0].contains("abc"), "{hints:?}");
         let calls = harness.query.calls.borrow();
-        assert!(calls[0].contains(&"--token=abc".to_owned()), "{calls:?}");
+        assert!(!calls[0].contains(&"--token=abc".to_owned()), "{calls:?}");
+        assert!(calls[1].contains(&"--token=abc".to_owned()), "{calls:?}");
     }
 }

@@ -27,6 +27,58 @@ fn selection_options(options: &[String]) -> Vec<String> {
     kept
 }
 
+/// Options `bazel query` accepts that change which packages and repositories load.
+/// `--config` is left out on purpose: Bazel expands `--config=X` for `query`
+/// only from `always`, `common` and `query` rc sections, so a `build:`-only
+/// config would make the query fail.
+const QUERY_OPTIONS: &[&str] = &[
+    "override_repository",
+    "override_module",
+    "repo_env",
+    "registry",
+    "lockfile_mode",
+    "vendor_dir",
+    "distdir",
+    "repository_cache",
+    "repo_contents_cache",
+    "downloader_config",
+    "check_direct_dependencies",
+    "ignore_dev_dependency",
+    "allow_yanked_versions",
+    "enable_platform_specific_config",
+    "check_bazel_compatibility",
+    "keep_going",
+    "loading_phase_threads",
+    "deleted_packages",
+    "package_path",
+];
+
+fn query_option_name(arg: &str) -> Option<&'static str> {
+    let name = dx_process::flag_name(arg)?;
+    let bare = name.strip_prefix("no").unwrap_or(&name);
+    QUERY_OPTIONS
+        .iter()
+        .copied()
+        .find(|allowed| *allowed == name || *allowed == bare)
+}
+
+fn query_options(options: &[String]) -> Vec<String> {
+    let mut kept = Vec::with_capacity(options.len());
+    let mut index = 0;
+    while index < options.len() {
+        let arg = &options[index];
+        let consumed = match options.get(index + 1) {
+            Some(next) if !arg.contains('=') && !next.starts_with('-') => 2,
+            _ => 1,
+        };
+        if query_option_name(arg).is_some() {
+            kept.extend(options[index..index + consumed].iter().cloned());
+        }
+        index += consumed;
+    }
+    kept
+}
+
 impl SelectionContext {
     pub fn unconfigured(startup: &[String]) -> Self {
         SelectionContext {
@@ -97,7 +149,12 @@ impl SelectionContext {
     }
 
     fn verb_argv(&self, verb: &str, required: &[String]) -> Result<Vec<String>, ForwardError> {
-        let options = crate::plan::profile_options(self.profile, &self.filtered_options()?);
+        let filtered = self.filtered_options()?;
+        let options = if verb == "query" {
+            query_options(&filtered)
+        } else {
+            crate::plan::profile_options(self.profile, &filtered)
+        };
         crate::plan::bazel_argv(verb, &options, required, &[], &[], &self.startup)
     }
 
@@ -351,6 +408,94 @@ mod tests {
         ] {
             assert!(detail.contains(kept), "{kept}: {detail}");
         }
+    }
+
+    fn query_test_options() -> Vec<String> {
+        strings(&[
+            "--config=ci",
+            "--override_repository=a=/p",
+            "--config",
+            "ci",
+            "--test_filter=x",
+            "--repo_env=K=V",
+            "--test_filter",
+            "x",
+            "--test_tag_filters=a",
+            "--keep_going",
+            "--platforms=//:x",
+            "--override_module",
+            "m=/p",
+            "--jobs=2",
+            "--nobuild_tests_only",
+            "--config=dx_dev",
+        ])
+    }
+
+    #[test]
+    fn query_verb_keeps_only_repository_options() {
+        let selection =
+            SelectionContext::for_test_execution(Profile::Dev, &query_test_options(), &[])
+                .unconfigured_view();
+        let expected = strings(&[
+            "--override_repository=a=/p",
+            "--repo_env=K=V",
+            "--keep_going",
+            "--override_module",
+            "m=/p",
+        ]);
+        let argv = selection
+            .selection_argv("query", &[], "tests(//...)")
+            .expect("argv");
+        assert_eq!(argv[3], "query");
+        assert_eq!(argv[4..9], expected, "{argv:?}");
+        for dropped in [
+            "--config=ci",
+            "--config",
+            "--config=dx_dev",
+            "--test_filter=x",
+            "--test_filter",
+            "--test_tag_filters=a",
+            "--platforms=//:x",
+            "--jobs=2",
+            "--nobuild_tests_only",
+            "ci",
+            "x",
+        ] {
+            assert!(!argv.contains(&dropped.to_owned()), "{dropped}: {argv:?}");
+        }
+        let file_argv = selection
+            .selection_query_file_argv("query", Path::new("/tmp/q.txt"))
+            .expect("argv");
+        assert_eq!(file_argv[4..9], expected, "{file_argv:?}");
+        assert!(!file_argv.contains(&"--config=dx_dev".to_owned()));
+    }
+
+    #[test]
+    fn cquery_verb_keeps_every_option_and_the_profile() {
+        let options = query_test_options();
+        let selection =
+            SelectionContext::for_test_execution(Profile::Dev, &options[..options.len() - 1], &[]);
+        let argv = selection
+            .selection_argv("cquery", &[], "tests(//...)")
+            .expect("argv");
+        assert!(argv.contains(&"--config=dx_dev".to_owned()), "{argv:?}");
+        for kept in &options[..options.len() - 1] {
+            assert!(argv.contains(kept), "{kept}: {argv:?}");
+        }
+    }
+
+    #[test]
+    fn query_verb_still_rejects_a_conflicting_profile() {
+        let selection = SelectionContext::for_test_execution(
+            Profile::Dev,
+            &strings(&["--config=dx_release"]),
+            &[],
+        )
+        .unconfigured_view();
+        let error = selection
+            .selection_argv("query", &[], "tests(//...)")
+            .expect_err("conflict");
+        assert!(matches!(error, ForwardError::ConflictingOption { .. }));
     }
 
     #[test]

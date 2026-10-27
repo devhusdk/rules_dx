@@ -62,6 +62,24 @@ javascript_web_bundle(
     config = ":bundle.config.json",
 )
 
+javascript_web_bundle(
+    name = "bundle_esbuild",
+    app = ":app_bundler",
+    bundler = "//quality/tools/javascript/bin:esbuild",
+    bundler_args = [
+        "{ENTRY}",
+        "--bundle",
+        "--format=esm",
+        "--platform=browser",
+        "--preserve-symlinks",
+        "--external:*.wasm",
+        "--log-level=warning",
+        "--outdir={OUT}",
+        "--metafile={OUT}/meta.json",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
 rust_test(
     name = "web_app_test",
     srcs = ["src/web_app_test.rs"],
@@ -73,6 +91,14 @@ rust_test(
     name = "web_companion_test",
     srcs = ["src/web_companion_test.rs"],
     data = [":app_bundler"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "web_real_bundle_test",
+    srcs = ["src/web_real_bundle_test.rs"],
+    data = [":bundle_esbuild"],
+    target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 

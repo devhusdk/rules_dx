@@ -200,10 +200,29 @@ impl RealBackend {
                 };
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 if capability == "format" {
-                    parsed(
+                    let batch = parsed(
                         tool_id,
                         parsers::parse_taplo_format_check(&out.stderr, out.code, &strs),
-                    )
+                    );
+                    if batch.is_ok() || refs.len() < 2 {
+                        return batch;
+                    }
+                    // Re-check each file alone to name the file taplo rejected.
+                    let mut merged = Vec::new();
+                    for (name, path) in strs.iter().zip(refs.iter()) {
+                        let single = commands::taplo_format(
+                            &tool.binary,
+                            std::slice::from_ref(path),
+                            config.as_deref(),
+                            true,
+                        );
+                        let out = self.run(tool_id, tool, &single, scratch)?;
+                        merged.extend(parsed(
+                            tool_id,
+                            parsers::parse_taplo_format_check(&out.stderr, out.code, &[*name]),
+                        )?);
+                    }
+                    Ok(merged)
                 } else {
                     parsed(
                         tool_id,

@@ -122,10 +122,15 @@ if stale; then
     die "bazel build //:dx failed"
   fi
   keep_copy
-  q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))') || die "bazel query for the inputs of //cli/cli:dx failed"
-  printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
-  mv "$state/inputs.$$" "$state/inputs"
-  mv "$state/built.$$" "$state/built"
+  if q=$(cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//cli/cli:dx)) + buildfiles(deps(//cli/cli:dx))'); then
+    printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
+    mv "$state/inputs.$$" "$state/inputs"
+    mv "$state/built.$$" "$state/built"
+  else
+    # The fresh dx is already stored. Leave built alone so the next call rebuilds and queries again.
+    echo "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway" >&2
+    rm -f "$state/built.$$" "$state/inputs.$$"
+  fi
 elif [ ! -x "$state/dx$exe" ] && [ -x "$bin" ]; then
   trap 'rm -f "$state/dx$exe.$$"' EXIT
   keep_copy

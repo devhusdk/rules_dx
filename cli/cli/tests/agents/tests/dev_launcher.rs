@@ -120,10 +120,20 @@ fn dev_launchers_build_dx_from_the_checkout() {
     assert!(!cmd.contains(":pinned"));
     assert!(!cmd.contains("goto bazel"));
     assert!(!sh.contains("fail "));
+    assert!(!sh.contains("|| die \"bazel query"));
+    let after_query = cmd
+        .split("query --noshow_progress")
+        .nth(1)
+        .expect("query line");
+    let before_run = after_query.split("\r\n:run\r\n").next().expect("run label");
+    assert!(!before_run.contains("exit /b 1"), "{before_run}");
     for script in [&sh, &cmd] {
         assert!(script.contains("dx: building //:dx"));
         assert!(script.contains("dx: //:dx does not build; running the previous dx"));
         assert!(script.contains("bazel build //:dx failed"));
+        assert!(script.contains(
+            "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway"
+        ));
         for gone in [
             "bazel run @rules_dx",
             "VERSION=",
@@ -198,7 +208,7 @@ mod sh {
         let stub = base.join("stub/bazel");
         std::fs::write(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      echo //cli/cli:BUILD.bazel\n      sleep 1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         )
         .expect("bazel stub");
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
@@ -226,7 +236,8 @@ mod sh {
                 )
                 .env("HOME", base.join("home"))
                 .env("STUB_LOG", base.join("calls"))
-                .env("STUB_PAYLOAD", base.join("payload"));
+                .env("STUB_PAYLOAD", base.join("payload"))
+                .env("STUB_QUERY_FAIL", base.join("query-fails"));
             cmd
         }
 
@@ -646,6 +657,41 @@ mod sh {
         assert_eq!(repo.builds(), 2, "an empty input list rebuilds dx");
         assert_eq!(repo.inputs(), "//cli/cli:BUILD.bazel\n");
     }
+    #[test]
+    fn source_launcher_runs_the_fresh_dx_when_the_inputs_query_fails() {
+        let repo = source_repo("dx-launcher-query-fails-");
+        let flag = repo.base.join("query-fails");
+        std::fs::write(&flag, "").expect("flag");
+        let (code, out, err) = repo.run();
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert!(
+            err.contains(
+                "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway\n"
+            ),
+            "{err}"
+        );
+        assert!(err.contains("Server shut down explicitly"), "{err}");
+        assert_eq!(repo.builds(), 1);
+        assert_eq!(repo.state_files(), vec!["dx"]);
+        let (code, out, err) = repo.run();
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert_eq!(repo.builds(), 2, "still stale, so it rebuilds");
+        assert_eq!(repo.state_files(), vec!["dx"]);
+        std::fs::remove_file(&flag).expect("clear flag");
+        repo.run_ok();
+        assert_eq!(repo.builds(), 3);
+        assert_eq!(repo.inputs(), "//cli/cli:BUILD.bazel\n");
+        repo.run_ok();
+        assert_eq!(repo.builds(), 3, "a recorded stamp skips Bazel");
+        std::fs::write(&flag, "").expect("flag");
+        repo.touch_build_file();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 4);
+        assert_eq!(repo.inputs(), "//cli/cli:BUILD.bazel\n");
+        assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+        repo.run_ok();
+        assert_eq!(repo.builds(), 5, "the stamp did not move, so it is stale");
+    }
 }
 
 #[cfg(windows)]
@@ -683,7 +729,7 @@ mod cmd {
         std::fs::create_dir_all(base.join("stub")).expect("stub dir");
         std::fs::write(
             base.join("stub/bazel.cmd"),
-            "@echo off\r\nif defined STUB_ARGS echo %*>>\"%STUB_ARGS%\"\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nset \"SRC=%SystemRoot%\\System32\\hostname.exe\"\r\nif defined STUB_EXE set \"SRC=%STUB_EXE%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SRC%\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
+            "@echo off\r\nif defined STUB_ARGS echo %*>>\"%STUB_ARGS%\"\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nset \"SRC=%SystemRoot%\\System32\\hostname.exe\"\r\nif defined STUB_EXE set \"SRC=%STUB_EXE%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SRC%\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" if exist \"%STUB_QUERY_FAIL%\" exit /b 1\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
         )
         .expect("bazel stub");
         SourceRepo { base }
@@ -712,7 +758,8 @@ mod cmd {
                         self.base.join("stub").display()
                     ),
                 )
-                .env("STUB_LOG", log);
+                .env("STUB_LOG", log)
+                .env("STUB_QUERY_FAIL", self.base.join("query-fails"));
             cmd
         }
 
@@ -1152,5 +1199,37 @@ mod cmd {
             "{}",
             repo.inputs()
         );
+    }
+
+    #[test]
+    fn cmd_launcher_runs_the_fresh_dx_when_the_inputs_query_fails() {
+        let repo = source_repo("dx-launcher-cmd-query-fails-");
+        let flag = repo.base.join("query-fails");
+        std::fs::write(&flag, "").expect("flag");
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert!(
+            out.contains(
+                "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway"
+            ),
+            "{out}"
+        );
+        assert_eq!(repo.builds(), 1);
+        assert_eq!(repo.state_files(), vec!["dx.exe"]);
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert_eq!(repo.builds(), 2, "still stale, so it rebuilds");
+        assert_eq!(repo.state_files(), vec!["dx.exe"]);
+        std::fs::remove_file(&flag).expect("clear flag");
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert_eq!(repo.builds(), 3);
+        assert_eq!(
+            repo.inputs().replace("\r\n", "\n"),
+            "//cli/cli:BUILD.bazel\n"
+        );
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        assert_eq!(repo.builds(), 3, "a recorded stamp skips Bazel");
     }
 }

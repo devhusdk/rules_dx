@@ -844,7 +844,7 @@ mod tests {
         output: OutputMode,
         reports: Vec<crate::args::ReportRequest>,
     ) -> Invocation {
-        let mut invocation = crate::args::parsed(&["run", "//app:bin"]);
+        let mut invocation = crate::test_support::parsed(&["run", "//app:bin"]);
         invocation.command = command;
         invocation.output = output;
         invocation.reports = reports;

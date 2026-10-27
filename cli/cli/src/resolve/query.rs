@@ -69,7 +69,7 @@ pub(crate) fn run_label_query_file(
 mod tests {
     use super::*;
     use crate::resolve::{first_line, resolve, QueryFailure, QueryResult};
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
     use std::cell::RefCell;
 
     struct FakeQuery {

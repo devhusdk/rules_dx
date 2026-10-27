@@ -33,7 +33,7 @@ pub use types::{QueryFailure, QueryResult, QueryRunner, ResolveError, ResolvedSc
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
     use std::io;
     use std::path::Path;
 

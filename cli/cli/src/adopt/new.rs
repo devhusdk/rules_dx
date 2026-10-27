@@ -503,7 +503,7 @@ mod tests {
             vec!["new", "--apply", "gleam", "demo", "--force"],
             vec!["new", "--apply", "erlang", "demo", "--force"],
         ] {
-            let parsed = crate::args::parse(&crate::test_support::strings(&words));
+            let parsed = crate::args::parse(&dx_testing::cli::strings(&words));
             assert!(parsed.is_err(), "{words:?}");
         }
         for words in [vec!["new", "rb", "demo"], vec!["new", "pwsh", "demo"]] {

@@ -114,7 +114,7 @@ mod tests {
     use super::*;
     use crate::args::Profile;
     use crate::plan::BAZEL_SETTINGS;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     fn expected(verb: &str, rest: &[&str]) -> Vec<String> {
         let split = rest

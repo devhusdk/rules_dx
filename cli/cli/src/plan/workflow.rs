@@ -109,8 +109,8 @@ pub fn plan_workflow(
 mod tests {
     use super::*;
     use crate::args::Profile;
-    use crate::test_support::strings;
     use dx_process::Scope;
+    use dx_testing::cli::strings;
 
     fn resolved(targets: &[&str]) -> ResolvedScope {
         ResolvedScope {

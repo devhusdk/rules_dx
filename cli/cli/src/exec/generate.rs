@@ -825,7 +825,7 @@ mod tests {
     }
 
     fn generate_phase(harness: &Harness, words: &[&str]) -> PhaseRun {
-        let parsed = crate::args::parse(&crate::test_support::strings(words)).expect("parse");
+        let parsed = crate::args::parse(&dx_testing::cli::strings(words)).expect("parse");
         let inv = crate::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
         let request = inv.generate_request().expect("generate request");
         let runner = harness.runner();

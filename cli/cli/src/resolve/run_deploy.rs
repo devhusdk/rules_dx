@@ -290,7 +290,7 @@ mod tests {
     use super::*;
     use crate::resolve::NeverQuery;
     use crate::resolve::QueryResult;
-    use crate::test_support::{graph_rule, graph_stdout, strings};
+    use dx_testing::cli::{graph_rule, graph_stdout, strings};
     use std::cell::RefCell;
     use std::io;
     use std::path::PathBuf;

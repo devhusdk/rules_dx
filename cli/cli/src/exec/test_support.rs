@@ -18,8 +18,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-pub(crate) use crate::args::parsed as invocation;
-pub(crate) use crate::test_support::{event, event_kinds, events_of_kind, graph_rule, json_events};
+pub(crate) use crate::test_support::parsed as invocation;
+pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, graph_rule, json_events};
 
 pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-"))
@@ -115,7 +115,7 @@ impl ScriptQuery {
     }
 
     pub(crate) fn script_graph(&self, rules: &[String]) {
-        self.script_owners(&crate::test_support::graph_stdout(rules));
+        self.script_owners(&dx_testing::cli::graph_stdout(rules));
     }
 
     pub(crate) fn script_git(&self, code: i32, stdout: &str) {
@@ -460,13 +460,9 @@ impl Harness {
             ci,
         )
         .map_err(|failure| format!("dx: {}\n", failure.detail))?;
-        let inv = crate::args::parse_with_ci(
-            &crate::test_support::strings(words),
-            &|_| None,
-            &defaults,
-            ci,
-        )
-        .map_err(|error| format!("dx: {error}\n{}\n", crate::args::help::usage_banner()))?;
+        let inv =
+            crate::args::parse_with_ci(&dx_testing::cli::strings(words), &|_| None, &defaults, ci)
+                .map_err(|error| format!("dx: {error}\n{}\n", crate::args::help::usage_banner()))?;
         crate::args::apply_here(&inv, &self.workspace, &self.cwd)
             .map_err(|detail| format!("dx: {detail}\n"))
     }

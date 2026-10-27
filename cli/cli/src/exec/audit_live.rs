@@ -281,7 +281,7 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
 
 fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32, String, String) {
     use crate::args::parse;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
     let mut invocation = parse(&strings(argv)).expect("parse");
     invocation.targets = Vec::new();
     invocation.test_targets = Some(Vec::new());
@@ -380,7 +380,7 @@ fn run_unpinned(
     setup: &dyn Fn(&Harness),
 ) -> (i32, String, String, Vec<Vec<String>>, Vec<Vec<String>>) {
     use crate::args::parse;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
     assert!(runner.gitleaks_tool().is_none());
     let invocation = parse(&strings(&["security"])).expect("parse");
     let harness = Harness::new(name);

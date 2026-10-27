@@ -109,8 +109,8 @@ pub(crate) fn filter_profile_configs(
 mod tests {
     use super::super::{assert_usage, parse, ArgsError};
     use super::*;
-    use crate::test_support::strings;
     use clap::ValueEnum;
+    use dx_testing::cli::strings;
 
     #[test]
     fn profile_vocabulary_maps_to_shared_configs() {

@@ -201,7 +201,7 @@ mod tests {
 
     use crate::resolve::NeverQuery;
     use crate::resolve::{QueryResult, QueryRunner};
-    use crate::test_support::{graph_rule, graph_stdout, strings};
+    use dx_testing::cli::{graph_rule, graph_stdout, strings};
 
     struct FakeQuery {
         calls: RefCell<Vec<(Vec<String>, PathBuf)>>,

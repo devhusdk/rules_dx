@@ -123,7 +123,7 @@ mod tests {
     }
 
     pub(crate) fn request_of(words: &[&str]) -> QualityRequest {
-        crate::args::parse(&crate::test_support::strings(words))
+        crate::args::parse(&dx_testing::cli::strings(words))
             .expect("parse")
             .quality_request()
             .expect("quality")

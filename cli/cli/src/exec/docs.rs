@@ -298,7 +298,7 @@ mod tests {
     use super::super::test_support::*;
     use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET, DOCS_CHECK_TARGET};
     use crate::resolve::QueryResult;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     fn script_site_tree(harness: &Harness, rel: &str) {
         harness.write_source(&format!("{rel}/index.html"), "<!doctype html>\n");

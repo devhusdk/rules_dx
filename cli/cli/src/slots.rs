@@ -1331,6 +1331,26 @@ impl<W: Write> Write for AfterFirstLine<W> {
 }
 
 #[cfg(test)]
+const SETTLE_LIMIT: Duration = Duration::from_secs(1);
+#[cfg(test)]
+const SETTLE_POLL: Duration = Duration::from_millis(10);
+
+/// Waits for `count` slots to look free, since a forked child can briefly hold a released slot's lock.
+#[cfg(test)]
+fn slot_settles_free(dir: &Path, count: usize) -> bool {
+    let start = Instant::now();
+    loop {
+        if try_take(dir, count, "settle").expect("try").is_some() {
+            return true;
+        }
+        if start.elapsed() >= SETTLE_LIMIT {
+            return false;
+        }
+        std::thread::sleep(SETTLE_POLL);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::process::{Command as Process, Stdio};
@@ -1665,7 +1685,7 @@ mod tests {
         std::fs::write(holder_path(&dir, 2), "gone").expect("stale holder");
         assert!(holder_path(&dir, 0).exists());
         assert_eq!(held(&dir, 0..3, 1), 1);
-        assert!(crate::test_support::slot_settles_free(&dir, 1));
+        assert!(slot_settles_free(&dir, 1));
     }
 
     #[test]
@@ -2206,7 +2226,7 @@ mod tests {
         assert!(take(Command::Run, &mut Vec::new(), &mut Vec::new())
             .expect("none")
             .is_none());
-        assert!(crate::test_support::slot_settles_free(&dir, 1));
+        assert!(slot_settles_free(&dir, 1));
     }
 
     #[test]
@@ -2503,7 +2523,7 @@ mod tests {
         assert_eq!(err, "");
         assert!(try_take(&dir, 2, "c").expect("try").is_none());
         drop(slot);
-        assert!(crate::test_support::slot_settles_free(&dir, 2));
+        assert!(slot_settles_free(&dir, 2));
     }
 
     fn count(n: usize) -> BuildSlots {

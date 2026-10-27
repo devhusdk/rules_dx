@@ -281,7 +281,7 @@ mod quality_docs_parity_tests;
 mod tests {
     use super::super::{assert_usage, parse, ArgsError, Command};
     use super::{render_command_help, usage_banner};
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     #[test]
     fn the_help_command_scan_skips_the_value_after_a_short_cluster() {

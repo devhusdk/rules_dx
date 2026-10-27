@@ -826,7 +826,7 @@ mod strict_tests;
 #[cfg(test)]
 mod startup_tests {
     use super::*;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     fn scratch_with_config(name: &str, config: Option<&str>) -> tempfile::TempDir {
         let scratch = dx_test_scratch::scratch(name);

@@ -10,6 +10,8 @@ mod delivery_sink;
 mod dep_edit;
 mod deploy;
 mod docs;
+#[cfg(test)]
+mod docs_parity_tests;
 mod failure;
 mod failure_reports;
 mod generate;
@@ -32,6 +34,8 @@ mod quality_reports;
 mod results;
 mod run;
 mod rustc_stderr;
+#[cfg(test)]
+mod startup_defaults_launcher_tests;
 mod test_filter;
 mod test_inventory;
 mod test_reports;

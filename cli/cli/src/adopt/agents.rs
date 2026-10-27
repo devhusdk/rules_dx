@@ -313,4 +313,22 @@ mod tests {
         let appended = render("# Mine\r\n");
         assert!(!appended.replace("\r\n", "").contains('\n'), "{appended:?}");
     }
+
+    fn docs_page(name: &str) -> std::path::PathBuf {
+        let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        std::path::Path::new(&root)
+            .join(workspace)
+            .join("docs/cli/commands")
+            .join(name)
+    }
+
+    #[test]
+    fn init_page_shows_the_agents_block() {
+        let page = std::fs::read_to_string(docs_page("init.md")).expect("init.md");
+        assert!(
+            page.contains(&block()),
+            "docs/cli/commands/init.md must show the block dx init writes to AGENTS.md"
+        );
+    }
 }

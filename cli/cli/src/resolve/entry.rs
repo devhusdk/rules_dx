@@ -90,7 +90,7 @@ pub fn resolve_for_test_with_selection(
 mod tests {
     use super::*;
     use crate::resolve::{NeverQuery, QueryResult, QueryRunner};
-    use crate::test_support::{graph_rule, graph_stdout, strings};
+    use dx_testing::cli::{graph_rule, graph_stdout, strings};
     use std::cell::RefCell;
     use std::path::PathBuf;
 

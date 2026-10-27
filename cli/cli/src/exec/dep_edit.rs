@@ -550,7 +550,7 @@ mod tests {
     }
 
     fn json_invocation() -> Invocation {
-        crate::args::parse(&crate::test_support::strings(&[
+        crate::args::parse(&dx_testing::cli::strings(&[
             "bump",
             "cargo:anyhow",
             "1.2.3",

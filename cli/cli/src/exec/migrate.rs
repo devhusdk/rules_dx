@@ -71,7 +71,7 @@ pub(crate) fn execute_migrate(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     #[test]
     fn live_fails_closed_with_migrate_failed() {

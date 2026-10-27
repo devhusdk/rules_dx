@@ -464,8 +464,8 @@ mod tests {
         }
     }
     use crate::resolve::{resolve, QueryResult, QueryRunner};
-    use crate::test_support::{graph_rule, graph_stdout, strings};
     use dx_process::Scope;
+    use dx_testing::cli::{graph_rule, graph_stdout, strings};
     use std::cell::RefCell;
     use std::io;
     use std::path::{Path, PathBuf};

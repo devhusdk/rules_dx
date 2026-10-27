@@ -803,7 +803,7 @@ fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::args::parsed;
+    use crate::test_support::parsed;
     use dx_worktree::host::Download;
     use dx_worktree::ops::State;
 

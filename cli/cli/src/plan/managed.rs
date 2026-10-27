@@ -116,7 +116,7 @@ fn managed_argv(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::strings;
+    use dx_testing::cli::strings;
 
     #[test]
     fn managed_plan_builds_collection_request() {

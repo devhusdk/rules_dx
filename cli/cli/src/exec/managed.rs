@@ -433,7 +433,7 @@ mod tests {
     }
 
     fn prost_fixture_graph() -> Vec<String> {
-        use crate::test_support::graph_rule_of_kind;
+        use dx_testing::cli::graph_rule_of_kind;
         vec![
             graph_rule_of_kind(
                 "//generation:result_proto",

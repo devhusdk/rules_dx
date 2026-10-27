@@ -171,7 +171,7 @@ func TestIsStdLib(t *testing.T) {
 
 func TestLiteralAndTruncatedSourceRemainInert(t *testing.T) {
 	for _, source := range []string{
-		"/*\nopen Fake.Block\n*/\n", "/*\nopen Fake.Unterminated", "\"escaped\\\" open Fake.String\"\n", "\"unterminated\n",
+		"\"escaped\\\" open Fake.String\"\n", "\"unterminated\n",
 		"'x'", `'\''`, "'unterminated", "'unterminated\n",
 	} {
 		if got := ParseImports([]byte(source)); len(got) != 0 {

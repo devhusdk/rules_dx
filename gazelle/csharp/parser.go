@@ -1,32 +1,54 @@
 package csharp
 
 import (
-	"bytes"
-	"github.com/devhusdk/rules_dx/gazelle/common"
-	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/devhusdk/rules_dx/gazelle/common/treesitter"
+	ts "github.com/odvcencio/gotreesitter"
+	"github.com/odvcencio/gotreesitter/grammars/c_sharp"
 )
 
-var (
-	usingRe     = regexp.MustCompile(`(?m)^\s*(?:global\s+)?using\s+(static\s+)?([A-Za-z_][\w]*\s*=\s*)?([A-Za-z_][\w]*(?:\.[\w]+)*)\s*;\s*$`)
-	namespaceRe = regexp.MustCompile(`(?m)^\s*namespace\s+([A-Za-z_][\w]*(?:\.[\w]+)*)\b`)
-	mainRe      = regexp.MustCompile(`static\s+[\w<>\[\],\s]*\bMain\s*\(`)
-)
+var grammar = sync.OnceValue(func() *ts.Language { return c_sharp.Language() })
 
+// ParseImports returns the sorted, deduplicated using targets of content.
+// Static and alias usings fold type targets to their namespace.
 func ParseImports(content []byte) []string {
-	stripped := common.MaskCSharpStyle(content)
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
 	set := make(map[string]struct{})
-	for _, m := range usingRe.FindAllSubmatch(stripped, -1) {
-		dotted := strings.TrimSpace(string(m[3]))
-		if dotted == "" {
-			continue
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		switch tree.Type(n) {
+		case "using_directive":
+			var dotted string
+			var static, alias bool
+			for _, c := range n.Children() {
+				switch tree.Type(c) {
+				case "static":
+					static = true
+				case "=":
+					alias = true
+					dotted = ""
+				case "identifier", "qualified_name":
+					// For an alias the first identifier is the alias name.
+					if alias || dotted == "" {
+						dotted = tree.Dotted(c)
+					}
+				}
+			}
+			if dotted != "" {
+				if static || alias {
+					dotted = foldTypeTarget(dotted)
+				}
+				set[dotted] = struct{}{}
+			}
+			return false
+		case "block", "class_declaration", "struct_declaration", "method_declaration":
+			return false
 		}
-		if len(m[1]) > 0 || len(m[2]) > 0 {
-			dotted = foldTypeTarget(dotted)
-		}
-		set[dotted] = struct{}{}
-	}
+		return true
+	})
 	out := make([]string, 0, len(set))
 	for name := range set {
 		out = append(out, name)
@@ -35,16 +57,33 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
+// ParsePackage returns the namespace name, or an error when the file declares
+// more than one namespace.
 func ParsePackage(content []byte) (string, error) {
-	stripped := common.MaskCSharpStyle(content)
-	matches := namespaceRe.FindAllSubmatch(stripped, -1)
-	if len(matches) > 1 {
-		return "", errDuplicatePackage(string(matches[0][1]))
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	var names []string
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		switch tree.Type(n) {
+		case "namespace_declaration", "file_scoped_namespace_declaration":
+			for _, c := range n.Children() {
+				if k := tree.Type(c); k == "identifier" || k == "qualified_name" {
+					names = append(names, tree.Dotted(c))
+					break
+				}
+			}
+		case "block", "class_declaration", "struct_declaration", "method_declaration":
+			return false
+		}
+		return true
+	})
+	if len(names) > 1 {
+		return "", errDuplicatePackage(names[0])
 	}
-	if len(matches) == 0 {
+	if len(names) == 0 {
 		return "", nil
 	}
-	return string(matches[0][1]), nil
+	return names[0], nil
 }
 
 type duplicatePackageError struct{ first string }
@@ -55,73 +94,42 @@ func (e *duplicatePackageError) Error() string {
 
 func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
 
+// DefinesMain reports whether content has a static Main method or top-level
+// statements.
 func DefinesMain(content []byte) bool {
-	m := common.MaskCSharpStyle(content)
-	return mainRe.Match(m) || hasTopLevelStatement(m)
-}
-
-var (
-	usingDirectiveRe = regexp.MustCompile(`^(?:global\s+)?using\s+(?:static\s+)?(?:@?[A-Za-z_]\w*\s*=\s*[^;{}()]*|@?[A-Za-z_][\w.@]*(?:<[^;(){}]*>)?)\s*;`)
-	externAliasRe    = regexp.MustCompile(`^extern\s+alias\s+@?[A-Za-z_]\w*\s*;`)
-	identRe          = regexp.MustCompile(`^@?[A-Za-z_]\w*`)
-	declWords        = map[string]bool{
-		"namespace": true, "class": true, "struct": true, "interface": true, "enum": true, "record": true, "delegate": true,
-		"public": true, "internal": true, "private": true, "protected": true, "static": true, "sealed": true, "abstract": true,
-		"partial": true, "unsafe": true, "readonly": true, "ref": true, "file": true, "new": true,
-	}
-)
-
-// hasTopLevelStatement reports whether the masked source has a statement
-// before any namespace or type declaration, which makes the file a
-// top-level-statements entry point.
-func hasTopLevelStatement(m []byte) bool {
-	i := 0
-	if bytes.HasPrefix(m, []byte{0xEF, 0xBB, 0xBF}) {
-		i = 3
-	}
-	for i < len(m) {
-		switch c := m[i]; {
-		case c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\v':
-			i++
-		case c == '#':
-			for i < len(m) && m[i] != '\n' {
-				i++
-			}
-		case c == '[':
-			depth := 0
-			for i < len(m) {
-				if m[i] == '[' {
-					depth++
-				} else if m[i] == ']' {
-					depth--
-					if depth == 0 {
-						i++
-						break
-					}
-				}
-				i++
-			}
-		default:
-			rest := m[i:]
-			if loc := externAliasRe.FindIndex(rest); loc != nil {
-				i += loc[1]
-				continue
-			}
-			if loc := usingDirectiveRe.FindIndex(rest); loc != nil {
-				i += loc[1]
-				continue
-			}
-			word := identRe.Find(rest)
-			if word == nil {
-				return true
-			}
-			if string(word) == "global" && bytes.HasPrefix(bytes.TrimLeft(rest[len(word):], " \t\r\n"), []byte("::")) {
-				return true
-			}
-			return !declWords[string(word)]
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	found := false
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if found {
+			return false
 		}
-	}
-	return false
+		switch tree.Type(n) {
+		case "global_statement":
+			// A stray ";" left by error recovery is not a statement.
+			found = tree.Text(n) != ";"
+			return false
+		case "method_declaration":
+			var name string
+			var static bool
+			for _, c := range n.Children() {
+				switch tree.Type(c) {
+				case "modifier":
+					if tree.Text(c) == "static" {
+						static = true
+					}
+				case "identifier":
+					name = tree.Text(c)
+				}
+			}
+			found = static && name == "Main"
+			return false
+		case "block":
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // foldTypeTarget maps the target of a static or alias using to its namespace.

@@ -116,9 +116,9 @@ func TestDefinesMainTopLevelStatements(t *testing.T) {
 		"[assembly: Foo([1])]\nrecord R(int X);\n",
 		"#!/usr/bin/env x\n#nullable enable\ninternal sealed class C {}\n",
 		"global using System;\nextern alias Z;\nusing static System.Math;\nenum E {}\n",
-		"@class\n",
+		"@class.Run();\n",
 	} {
-		want := src == "@class\n"
+		want := src == "@class.Run();\n"
 		if got := DefinesMain([]byte(src)); got != want {
 			t.Errorf("DefinesMain(%q) = %v, want %v", src, got, want)
 		}

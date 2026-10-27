@@ -1,4 +1,5 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
+
 # A shim over the dev hub @dx_npm, so consumers that load this package fetch no npm repos.
 load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
 load("@rules_dx//quality:native_config.bzl", "biome_config", "buildifier_config", "clang_format_config", "ruff_config", "rustfmt_config", "scalafmt_config", "vale_config")
@@ -34,6 +35,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust dx_sbom_schema //cli/sbom/schema:dx_sbom_schema
 # gazelle:resolve rust dx_schema //cli/schema:dx_schema
 # gazelle:resolve rust dx_setup //cli/setup:dx_setup
+# gazelle:resolve rust dx_shard_writer //cli/shard_writer:dx_shard_writer
 # gazelle:resolve rust dx_test_scratch //cli/test_scratch:dx_test_scratch
 # gazelle:resolve rust dx_update //cli/update:dx_update
 # gazelle:resolve rust dx_worktree //cli/worktree:dx_worktree

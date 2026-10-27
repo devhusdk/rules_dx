@@ -1,0 +1,35 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_ENV_GENERATION_QUALITY")
+
+package(default_visibility = VIS_CLI_ENV_GENERATION_QUALITY)
+
+exports_files(["src/lib.rs"])
+
+dx_rust_crate(
+    name = "dx_shard_writer",
+    package_name = "cli/dx_shard_writer",
+    dev_deps = ["tempfile"],
+    extra_deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/output:dx_output",
+    ],
+    deps = [
+        "clap",
+        "thiserror",
+        "tracing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

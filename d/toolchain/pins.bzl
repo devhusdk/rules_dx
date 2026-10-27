@@ -18,3 +18,22 @@ LDC_CELLS = {
         strip_prefix = "ldc2-" + LDC_VERSION + "-linux-x86_64",
     ),
 }
+
+DFMT_VERSION = "0.15.2"
+
+LIBDPARSE_VERSION = "0.25.1"
+
+TOOL_SOURCES = {
+    "dx_d_dfmt": struct(
+        dropped = ["bin", "tests", "dub.json", "dub.selections.json", "makefile", "Makefile"],
+        sha256 = "baf8da47a743b0f4a27629bd42b3389a82e91e4d4f88b4ce9487dc15b1518f1f",
+        strip_prefix = "dfmt-" + DFMT_VERSION,
+        url = "https://github.com/dlang-community/dfmt/archive/refs/tags/v" + DFMT_VERSION + ".tar.gz",
+    ),
+    "dx_d_libdparse": struct(
+        dropped = ["dub.json", "dub.selections.json", "makefile", "Makefile", "tests"],
+        sha256 = "83825fda4ce67cac49e1bfdce0051a9e2499a5fadbf3a7f4d0853b487eaebc82",
+        strip_prefix = "libdparse-" + LIBDPARSE_VERSION,
+        url = "https://github.com/dlang-community/libdparse/archive/refs/tags/v" + LIBDPARSE_VERSION + ".tar.gz",
+    ),
+}

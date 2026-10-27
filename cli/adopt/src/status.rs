@@ -2,6 +2,7 @@ use std::path::Path;
 
 use dx_module_bazel::ModuleFile;
 
+use crate::overrides::{OverridesState, OVERRIDES_INCLUDE};
 use crate::AdoptError;
 
 use super::{pin_fix_hint, read_module_dependency, version_pin_matches_module, MODULE_VERSION};
@@ -171,6 +172,28 @@ fn module_check(root: &Path) -> StatusCheck {
             "unavailable: MODULE.bazel and its includes have no rules_dx dependency".to_owned(),
             "dx init",
         ),
+    }
+}
+
+/// Whether the generated `third_party/rules_dx/` overrides match this dx (#3736).
+fn overrides_check(root: &Path) -> StatusCheck {
+    let hint = "tools/dx init --apply";
+    match crate::overrides::check_overrides(root) {
+        OverridesState::Ok => check(
+            "overrides",
+            "ok",
+            format!("available: {OVERRIDES_INCLUDE} matches dx {MODULE_VERSION}"),
+            hint,
+        ),
+        OverridesState::NotApplicable(detail) => {
+            check("overrides", "ok", format!("not applicable: {detail}"), hint)
+        }
+        OverridesState::Warn(detail) => {
+            check("overrides", "warn", format!("unknown: {detail}"), hint)
+        }
+        OverridesState::Error(detail) => {
+            check("overrides", "error", format!("unavailable: {detail}"), hint)
+        }
     }
 }
 
@@ -351,6 +374,7 @@ pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> 
         toolchain_check(root),
         bazel_check(root, std::env::var_os("PATH")),
         module_check(root),
+        overrides_check(root),
         host_check(std::env::consts::OS, std::env::consts::ARCH),
         exec_tools_check(root),
         tools,
@@ -594,6 +618,42 @@ mod tests {
     }
 
     #[test]
+    fn overrides_check_maps_every_state() {
+        use crate::overrides::{apply_overrides, OVERRIDES_DIR};
+        let dir = scratch("overrides-states");
+        std::fs::write(
+            dir.join("MODULE.bazel"),
+            format!("module(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"),
+        )
+        .expect("module");
+        let missing = super::overrides_check(&dir);
+        assert_eq!(missing.status, "warn", "{}", missing.detail);
+        assert_eq!(missing.hint, "tools/dx init --apply");
+        apply_overrides(&dir).expect("applies");
+        let ok = super::overrides_check(&dir);
+        assert_eq!(ok.status, "ok", "{}", ok.detail);
+        let patch = dir.join(OVERRIDES_DIR).join("rules_rust.lld_link.patch");
+        let mut bytes = std::fs::read(&patch).expect("patch");
+        bytes[0] ^= 1;
+        std::fs::write(&patch, bytes).expect("corrupt");
+        let stale = super::overrides_check(&dir);
+        assert_eq!(stale.status, "error");
+        assert!(
+            stale.detail.contains("rules_rust.lld_link.patch"),
+            "{}",
+            stale.detail
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        let own = scratch("overrides-rules-dx");
+        std::fs::write(own.join("MODULE.bazel"), "module(name = \"rules_dx\")\n").expect("module");
+        let na = super::overrides_check(&own);
+        assert_eq!(na.status, "ok");
+        assert!(na.detail.starts_with("not applicable: "), "{}", na.detail);
+        std::fs::remove_dir_all(&own).ok();
+    }
+
+    #[test]
     fn observed_checks_take_the_observed_tools_check() {
         let dir = std::env::temp_dir().join(format!("dx-status-observed-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("dir");
@@ -611,13 +671,14 @@ mod tests {
                 "toolchain",
                 "bazel",
                 "module",
+                "overrides",
                 "host",
                 "exec_tools",
                 "tools",
                 "pin"
             ]
         );
-        assert_eq!(checks[5], tools);
+        assert_eq!(checks[6], tools);
         std::fs::remove_dir_all(&dir).ok();
     }
 

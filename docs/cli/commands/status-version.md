@@ -12,7 +12,7 @@ bazel run @rules_dx//:dx -- version
 dx status
 ```
 
-Reports toolchain, Bazel, module, host, exec_tools, tools, pin, and agents
+Reports toolchain, Bazel, module, overrides, host, exec_tools, tools, pin, and agents
 health. With `--verbose` it adds one capability record per `dx` command. Takes no scopes and no
 per-command flags. Runs anywhere with a workspace. It is read-only: it
 downloads, installs, repairs, and runs nothing.
@@ -32,7 +32,7 @@ toolchain: ok (available: rust 1.98.0 via rules_rust 0.74.0 declared in MODULE.b
 
 Inside a `dx worktree` slot it adds a `lease` check that names the holder and branch.
 
-The checks are `toolchain`, `bazel`, `module`, `host`, `exec_tools`,
+The checks are `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`,
 `tools`, `pin`, and `agents`. With a dx launcher there is also `launcher`.
 Inside a worktree slot there is also `lease`.
 
@@ -47,6 +47,13 @@ Inside a worktree slot there is also `lease`.
   A `single_version_override` version wins over `bazel_dep`. An override
   without a version falls back to the `bazel_dep` version. The check is `warn`
   only when neither declares a version.
+- `overrides`: compares the dx-generated `third_party/rules_dx/` files and the
+  `include("//third_party/rules_dx:rules_dx.MODULE.bazel")` line with this `dx`.
+  `ok` when they match, or `not applicable` in rules_dx itself or without a
+  `rules_dx` `bazel_dep`. `warn` when the include is missing, `MODULE.bazel`
+  overrides one of those modules itself, or the `rules_dx` pin differs from
+  `dx`. `error` when a generated file is missing or changed, or when the include
+  and a consumer-owned override clash. The hint is `tools/dx init --apply`.
 - `host`: checks the machine is a v1 execution platform: linux_x86_64,
   linux_arm64, macos_arm64, or windows_x86_64. The target platform never
   selects tools. This is not native qualification.
@@ -74,7 +81,7 @@ Inside a worktree slot there is also `lease`.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --from <version> --to <version> --apply`.
-The `toolchain`, `bazel`, `module`, `host`, `exec_tools`, and `tools` detail text starts with
+The `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`, and `tools` detail text starts with
 `available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
 never healthy.
 

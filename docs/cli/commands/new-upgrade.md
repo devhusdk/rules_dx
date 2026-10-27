@@ -317,7 +317,7 @@ dx upgrade [--apply] --from <version> --to <version>
 Moves the pin in `.dx/version` from `--from` to `--to`. Checks by default;
 `--apply` upgrades. Both versions are required, and `--to` must be newer.
 `dx upgrade` runs even when the pin and `MODULE.bazel` disagree, so it is
-the fix that version skew names when the pin is older than the module version.
+the fix that version skew names when the pin is older than the module version. After a rollback it names `dx init`, `dx env`, and `dx codegen` so the generated `third_party/rules_dx/` overrides match the restored pin.
 Flags: `--from <version> --to <version>`, `--apply`.
 Scopes: none.
 

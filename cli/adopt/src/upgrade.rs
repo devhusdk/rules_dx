@@ -53,7 +53,7 @@ pub fn upgrade_restore_command_for(intent: &UpgradeIntent) -> Option<String> {
 }
 
 pub fn upgrade_refresh_commands(intent: &UpgradeIntent) -> Vec<String> {
-    ["env", "codegen"]
+    ["init", "env", "codegen"]
         .iter()
         .map(|command| format!("dx {command}{}", flags(intent)))
         .collect()
@@ -148,7 +148,7 @@ mod tests {
         assert_eq!(plan.restore_command.as_deref(), Some("dx rollback --apply"));
         assert_eq!(
             plan.refresh_commands,
-            vec!["dx env --apply", "dx codegen --apply"]
+            vec!["dx init --apply", "dx env --apply", "dx codegen --apply"]
         );
         assert!(plan.message.contains("idempotent"), "{}", plan.message);
         for removed in [

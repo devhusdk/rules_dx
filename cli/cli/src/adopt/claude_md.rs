@@ -1,7 +1,4 @@
-//! The `@AGENTS.md` import that lets Claude Code read the dx block.
-//!
-//! Claude Code reads `CLAUDE.md`, not `AGENTS.md`, and stops looking at
-//! `AGENTS.md` once any `CLAUDE.md` exists, so the import is the portable fix.
+//! The `@AGENTS.md` import in `CLAUDE.md`.
 
 use std::io;
 use std::path::Path;

@@ -1950,6 +1950,7 @@ fn low_disk_reading(
     let low = host
         .output_roots()
         .into_iter()
+        .filter(|root| root.is_dir())
         .chain(nested)
         .filter_map(|root| {
             host.disk_space(&root)

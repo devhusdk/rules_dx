@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "go.mod",
     "go.sum",
+    "gotreesitter_embed.patch",
 ])
 
 real_source_target(

@@ -697,7 +697,7 @@ func TestMaskStyles(t *testing.T) {
 	}
 	for _, tc := range cases {
 		for name, mask := range map[string]func([]byte) []byte{
-			"java": MaskJavaStyle, "csharp": MaskCSharpStyle,
+			"csharp": MaskCSharpStyle,
 		} {
 			if got := string(mask([]byte(tc.in))); got != tc.want {
 				t.Errorf("%s %s = %q, want %q", name, tc.name, got, tc.want)
@@ -719,24 +719,6 @@ func TestMaskMultiLineLiterals(t *testing.T) {
 	for _, tc := range cases {
 		if got := string(MaskCSharpStyle([]byte(tc.in))); got != tc.want {
 			t.Errorf("csharp %s = %q, want %q", tc.name, got, tc.want)
-		}
-	}
-}
-
-func TestMaskNestedStyles(t *testing.T) {
-	styles := map[string]func([]byte) []byte{"kotlin": MaskKotlinStyle, "scala": MaskScalaStyle}
-	cases := []struct{ name, in, want string }{
-		{"nested", "/* /* a */ b */\n", "               \n"},
-		{"unterminated nested", "/* /* a */ import x\n", "                   \n"},
-		{"block", "a /* b */ c\n", "a         c\n"},
-		{"line", "a // b\n", "a     \n"},
-		{"string inert", "val s = \"/* a\"\nimport x\n", "val s =       \nimport x\n"},
-	}
-	for name, mask := range styles {
-		for _, tc := range cases {
-			if got := string(mask([]byte(tc.in))); got != tc.want {
-				t.Errorf("%s %s = %q, want %q", name, tc.name, got, tc.want)
-			}
 		}
 	}
 }

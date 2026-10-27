@@ -192,3 +192,33 @@ func TestNestedBlockCommentInert(t *testing.T) {
 		t.Error("DefinesMain matched a main inside a nested comment")
 	}
 }
+
+// Intended behavior change from the regex parser: clauses sharing one line
+// (package a; package b) are chained.
+func TestParsePackageSameLine(t *testing.T) {
+	if got, err := ParsePackage([]byte("package a; package b\nclass X\n")); err != nil || got != "a.b" {
+		t.Errorf("ParsePackage = %q, %v; want a.b", got, err)
+	}
+}
+
+func TestParseImportsTreeSitterShapes(t *testing.T) {
+	tests := []struct {
+		name, src string
+		want      []string
+	}{
+		{"interpolated string inert", "import a.B\nobject O { val s = s\"import x.Y ${1}\" }\n", []string{"a.B"}},
+		{"block local import", "import a.B\nobject O { def f() = { import loc.L; 1 } }\n", []string{"a.B", "loc.L"}},
+		{"truncated import", "import a.B\nimport c.D\nimport e.", []string{"a.B", "c.D"}},
+		{"unclosed string after imports", "package p\nimport a.B\nimport c.D\nobject O { val s = \"oops\n", []string{"a.B", "c.D"}},
+		{"given selector", "import x.{given Foo, Y}\n", []string{"x.*", "x.Y"}},
+		{"hide with as", "import x.{Y as _, Z as W}\n", []string{"x.Z"}},
+		{"comment between segments", "import a./*c*/B\n", []string{"a.B"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ParseImports([]byte(tt.src)); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseImports = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

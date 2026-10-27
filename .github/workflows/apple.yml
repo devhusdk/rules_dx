@@ -10,7 +10,7 @@ on:
       targets:
         description: "Space-separated Bazel targets; each must start with //."
         required: false
-        default: "//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_framework_consumer_test"
+        default: "//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_framework_consumer_test //apple/tests:macos_shared_rust_consumer_test"
       runner:
         description: "macos-15 (arm64)."
         required: false
@@ -42,7 +42,7 @@ jobs:
       - name: Validate inputs
         env:
           DX_COMMAND: ${{ inputs.command || 'test' }}
-          DX_TARGETS: ${{ inputs.targets || '//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_framework_consumer_test' }}
+          DX_TARGETS: ${{ inputs.targets || '//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_framework_consumer_test //apple/tests:macos_shared_rust_consumer_test' }}
           DX_RUNNER: ${{ inputs.runner || 'macos-15' }}
         run: |
           case "$DX_COMMAND" in
@@ -95,7 +95,7 @@ jobs:
       - name: Run the Apple task
         env:
           DX_COMMAND: ${{ inputs.command || 'test' }}
-          DX_TARGETS: ${{ inputs.targets || '//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_framework_consumer_test' }}
+          DX_TARGETS: ${{ inputs.targets || '//apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_framework_consumer_test //apple/tests:macos_shared_rust_consumer_test' }}
         run: |
           set -o pipefail
           # shellcheck disable=SC2086

@@ -143,7 +143,20 @@ pub(crate) fn project_status(
             if covered {
                 continue;
             }
-            status.push(diagnostic.clone());
+            let mut unmatched = diagnostic.clone();
+            if written == Some(true) {
+                unmatched.range = None;
+                for related in &mut unmatched.related {
+                    let related_written = match related.path.as_ref() {
+                        Some(path) => on_disk.get(path).copied() == Some(true),
+                        None => true,
+                    };
+                    if related_written {
+                        related.range = None;
+                    }
+                }
+            }
+            status.push(unmatched);
         }
         dx_output::sort_diagnostics(&mut status);
     }
@@ -398,6 +411,7 @@ mod status_tests {
         assert!(failed);
         assert_eq!(status.len(), 1);
         assert_eq!(status[0].snapshot, Snapshot::Initial);
+        assert_eq!(status[0].range, None);
     }
 
     #[test]

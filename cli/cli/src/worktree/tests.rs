@@ -3136,7 +3136,10 @@ fn prune_apply_skips_stuck_bases_as_busy() {
         .skipped_bases
         .iter()
         .all(|base| base.reason == "busy"));
-    assert!(pruned.skipped_bases.iter().any(|base| base.owner == ops::BaseOwner::Orphan));
+    assert!(pruned
+        .skipped_bases
+        .iter()
+        .any(|base| base.owner == ops::BaseOwner::Orphan));
     assert!(pruned.plan.bases.is_empty());
     assert_eq!(pruned.plan.bytes(), 0);
     assert!(owned.exists() && orphan.exists());

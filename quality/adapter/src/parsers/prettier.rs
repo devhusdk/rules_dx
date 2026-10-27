@@ -138,7 +138,10 @@ fn parenthesised_position(text: &str) -> Option<(u64, u64)> {
 
 fn line_column_words(head: &str) -> Option<(u64, u64)> {
     let (_, tail) = head.rsplit_once(" at line ")?;
-    row_col(&tail.trim_end_matches('.').replacen(" column ", ":", 1), ':')
+    row_col(
+        &tail.trim_end_matches('.').replacen(" column ", ":", 1),
+        ':',
+    )
 }
 
 fn error_position(message: &str) -> Option<(u64, u64)> {

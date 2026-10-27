@@ -881,7 +881,7 @@ impl RealBackend {
                     parsers::parse_psscriptanalyzer(&out.stdout, out.code, &strs),
                 )
             }
-            "rubocop" | "yamllint" | "shellcheck" | "hadolint" => {
+            "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "checkmake" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)
                 } else {
@@ -891,6 +891,15 @@ impl RealBackend {
                         }
                         "yamllint" => {
                             commands::yamllint_check(&tool.binary, &refs, config.as_deref())
+                        }
+                        "checkmake" => {
+                            let Some(config) = config.as_deref() else {
+                                return Err(execution(
+                                    tool_id,
+                                    "checkmake needs a config path".to_owned(),
+                                ));
+                            };
+                            commands::checkmake_check(&tool.binary, &refs, config)
                         }
                         "hadolint" => {
                             let Some(config) = config.as_deref() else {
@@ -913,6 +922,13 @@ impl RealBackend {
                             scratch.root(),
                         ),
                         "yamllint" => parsers::parse_yamllint(&out.stdout, out.code, &strs),
+                        "checkmake" => parsers::parse_checkmake(
+                            &out.stdout,
+                            &out.stderr,
+                            out.code,
+                            &strs,
+                            config.as_deref().and_then(std::path::Path::to_str),
+                        ),
                         "hadolint" => {
                             parsers::parse_hadolint(&out.stdout, &out.stderr, out.code, &strs)
                         }

@@ -14,6 +14,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "biome",
     "buf",
     "buildifier",
+    "checkmake",
     "checkstyle",
     "clang_format",
     "clang_tidy",
@@ -89,6 +90,9 @@ ktlint_standard_function-signature = disabled
 ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_standard_trailing-comma-on-declaration-site = disabled
 ";
+const CHECKMAKE_DEFAULTS_REL: &str = "dx-checkmake-default/checkmake.ini";
+/// An empty ini loads and keeps every rule at its default.
+const CHECKMAKE_DEFAULTS_BYTES: &[u8] = b"";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";

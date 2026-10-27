@@ -1,0 +1,41 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//make/rules:defs.bzl", "make_library")
+load(":library_tests.bzl", "owns_make_class_test")
+
+make_library(
+    name = "app",
+    srcs = [
+        "fixtures/Makefile",
+        "fixtures/rules.mk",
+    ],
+)
+
+owns_make_class_test(
+    name = "owns_make_class_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+make_library(
+    name = "bad_name",
+    srcs = ["fixtures/Makefile.in"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_name_fails",
+    expected_failure_substring = "'Makefile.in' is not a make file name; accepted names: GNUmakefile, Makefile, makefile, *.mk",
+    target = ":bad_name",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

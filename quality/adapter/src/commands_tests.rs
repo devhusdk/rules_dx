@@ -1518,6 +1518,24 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/Dockerfile"
         ]
     );
+    let makefile = Path::new("/scratch/Makefile");
+    assert_eq!(
+        argv_strings(&checkmake_check(
+            Path::new(BIN),
+            &[makefile],
+            Path::new("/scratch/checkmake.ini")
+        )),
+        vec![
+            BIN,
+            "--debug",
+            "--output",
+            "json",
+            "--config",
+            "/scratch/checkmake.ini",
+            "--",
+            "/scratch/Makefile"
+        ]
+    );
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
         argv_strings(&keep_sorted_check(Path::new(BIN), &[txt])),

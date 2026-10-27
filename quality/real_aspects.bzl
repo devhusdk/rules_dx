@@ -193,6 +193,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "kubernetes",
     },
+    "checkmake": {
+        "attr": attr.label(default = "@dx_tools//:checkmake", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "make",
+    },
     "jsonnetfmt": {
         "attr": attr.label(default = "@dx_tools//:jsonnetfmt", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1474,6 +1481,12 @@ _REAL_SHARD_SPECS = {
         "shard": "kubernetes",
         "suffix": "-kubernetes",
     },
+    "real_make_lint": {
+        "capability": "lint",
+        "doc": "Additive Makefile lint family aspect (checkmake).",
+        "shard": "make",
+        "suffix": "-make",
+    },
     "real_cue_format": {
         "capability": "format",
         "doc": "Additive CUE format family aspect (cue fmt).",
@@ -1665,6 +1678,7 @@ real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
 real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
+real_make_lint_aspect = _make_real_aspect("real_make_lint")
 
 real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
 

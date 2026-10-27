@@ -323,6 +323,7 @@ impl RealBackend {
                 ),
                 "yamllint" => parsers::parse_yamllint(&bytes, Some(0), &workspaces),
                 "shellcheck" => parsers::parse_shellcheck(&bytes, Some(0), &workspaces),
+                "checkmake" => parsers::parse_checkmake(&bytes, &[], Some(0), &workspaces, None),
                 "hadolint" => parsers::parse_hadolint(&bytes, &[], Some(0), &workspaces),
                 "statix" => {
                     let code = i32::from(!String::from_utf8_lossy(&bytes).trim().is_empty());

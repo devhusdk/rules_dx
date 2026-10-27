@@ -1,6 +1,7 @@
 pub mod biome;
 pub mod buf;
 pub mod buildifier;
+pub mod checkmake;
 pub mod checkstyle;
 pub mod clang_format;
 pub mod clang_tidy;
@@ -65,6 +66,7 @@ pub mod zig_fmt;
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
+pub use checkmake::parse_checkmake;
 pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
 pub use clang_tidy::parse_clang_tidy;
@@ -1888,6 +1890,14 @@ mod tests {
         super::kubeconform::parse_kubeconform(input, input, code, &targets)
     }
 
+    fn fuzz_checkmake(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::checkmake::parse_checkmake(input, input, code, files, None)
+    }
+
     fn fuzz_hadolint(
         input: &[u8],
         code: Option<i32>,
@@ -2101,6 +2111,7 @@ mod tests {
         ("biome_format", fuzz_biome_format),
         ("buf_lint", fuzz_buf_lint),
         ("buf_format", fuzz_buf_format),
+        ("checkmake", fuzz_checkmake),
         ("checkstyle", fuzz_checkstyle),
         ("clang_format", fuzz_clang_format),
         ("clang_tidy", fuzz_clang_tidy),
@@ -2175,6 +2186,7 @@ mod tests {
         ("biome", include_str!("biome.rs")),
         ("buf", include_str!("buf.rs")),
         ("buildifier", include_str!("buildifier.rs")),
+        ("checkmake", include_str!("checkmake.rs")),
         ("checkstyle", include_str!("checkstyle.rs")),
         ("clang_format", include_str!("clang_format.rs")),
         ("clang_tidy", include_str!("clang_tidy.rs")),

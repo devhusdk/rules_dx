@@ -157,6 +157,7 @@ ROWS = [
         "workflows": ["apple.yml"],
     },
     {"families": ["dockerfile"], "name": "dockerfile", "section": "targets", "title": "Dockerfile"},
+    {"families": ["make"], "name": "make", "section": "targets", "title": "Make"},
     {"families": [], "name": "msix", "section": "targets", "title": "MSIX"},
     {
         "ci_tests": ["//qt/tests:qt_tasks_test"],

@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_api_spec_openapi_pass
+capability LINT
+stages 1
+stage redocly classes=api_spec sources=quality/testdata/api_spec/openapi.yaml
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

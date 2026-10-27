@@ -418,6 +418,7 @@ behavior. Read-only commands never rewrite config.
 Language rules:
 
 - `@rules_dx//android/rules:defs.bzl`: Android libraries.
+- `@rules_dx//api_spec/rules:defs.bzl`: OpenAPI and AsyncAPI specs.
 - `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
 - `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.

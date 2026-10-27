@@ -1,0 +1,1 @@
+pipeline failed: tool execution failed for redocly: quality/testdata/api_spec/openapi.yaml: exit 2: [1] quality/testdata/redocly_cfg/unknown_rule.yaml:4:3 at #/rules/not-a-redocly-rule

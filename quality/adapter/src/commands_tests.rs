@@ -1224,6 +1224,33 @@ fn graphql_eslint_check_passes_config_root_and_files_after_a_separator() {
 }
 
 #[test]
+fn redocly_check_lints_one_root_with_a_json_report_and_strict_config() {
+    let root = Path::new("/scratch/api/openapi.yaml");
+    let launch = ResolvedTool::javascript("redocly", Path::new(BIN));
+    let check = redocly_check(&launch, root, Path::new("/scratch/redocly.yaml")).expect("resolves");
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "lint",
+            "--format=json",
+            "--max-problems=1000000",
+            "--lint-config=error",
+            "--config",
+            "/scratch/redocly.yaml",
+            "/scratch/api/openapi.yaml"
+        ]
+    );
+    let blank = ResolvedTool::javascript("redocly", Path::new(""));
+    assert_eq!(
+        redocly_check(&blank, root, Path::new("/scratch/redocly.yaml")),
+        Err(LaunchError::MissingProgram {
+            tool: "redocly".to_owned()
+        })
+    );
+}
+
+#[test]
 fn file_family_lint_checks_are_check_only() {
     let css = Path::new("/scratch/style.css");
     let launch = ResolvedTool::javascript("stylelint", Path::new(BIN));

@@ -6,6 +6,7 @@ load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 WRAPPER_SCHEMA_VERSION = 1
 
 WRAPPER_OWNERS = {
+    "api_spec": "//api_spec/rules:defs.bzl",
     "astro": "//astro/rules:defs.bzl",
     "cc": "//cc/rules:defs.bzl",
     "csharp": "//csharp/rules:defs.bzl",

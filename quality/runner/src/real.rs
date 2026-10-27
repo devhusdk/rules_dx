@@ -49,6 +49,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "pylint",
     "qmlformat",
     "qmllint",
+    "redocly",
     "roslyn",
     "rubocop",
     "ruff",
@@ -88,6 +89,18 @@ const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
+const REDOCLY_DEFAULTS_REL: &str = "dx-redocly-default/redocly.yaml";
+/// The curated Redocly policy: spec structure plus the correctness rules, all as errors.
+const REDOCLY_DEFAULTS_BYTES: &[u8] = b"extends:
+  - spec
+rules:
+  no-unresolved-refs: error
+  operation-operationId-unique: error
+  path-parameters-defined: error
+  no-identical-paths: error
+  operation-parameters-unique: error
+telemetry: off
+";
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
 const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
   "rules": {
@@ -371,6 +384,13 @@ impl RealBackend {
                 env.push(pair);
             }
         }
+        if tool_id == "redocly" {
+            env.push((OsString::from("REDOCLY_TELEMETRY"), OsString::from("off")));
+            env.push((
+                OsString::from("REDOCLY_SUPPRESS_UPDATE_NOTICE"),
+                OsString::from("true"),
+            ));
+        }
         let argv = spawn_argv(tool_id, invocation);
         if let Some(max) = argv.first().and_then(|program| (self.argv_limit)(program)) {
             let units = commands::argv_cost(&argv).1 + 2 * argv.len();
@@ -403,6 +423,7 @@ fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
 mod check;
 mod delegated;
 mod pipeline;
+mod redocly;
 mod rustfmt;
 mod staging;
 
@@ -568,7 +589,13 @@ mod tests {
     /// The resolved JavaScript launch names its own runfiles on every platform.
     #[test]
     fn javascript_tools_resolve_to_their_own_manifest() {
-        for tool_id in ["eslint", "graphql_eslint", "prettier", "stylelint"] {
+        for tool_id in [
+            "eslint",
+            "graphql_eslint",
+            "prettier",
+            "redocly",
+            "stylelint",
+        ] {
             assert_eq!(
                 policy_for(tool_id),
                 RunfilesPolicy::OwnManifest,
@@ -600,7 +627,13 @@ mod tests {
         for tool_id in ALWAYS_OWN_MANIFEST {
             assert_eq!(policy_for(tool_id), RunfilesPolicy::Inherit, "{tool_id}");
         }
-        for tool_id in ["eslint", "graphql_eslint", "prettier", "stylelint"] {
+        for tool_id in [
+            "eslint",
+            "graphql_eslint",
+            "prettier",
+            "redocly",
+            "stylelint",
+        ] {
             assert!(!reads_own_manifest(tool_id), "{tool_id}");
         }
     }

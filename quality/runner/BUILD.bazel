@@ -16,6 +16,7 @@ rust_library(
         "src/real/check.rs",
         "src/real/delegated.rs",
         "src/real/pipeline.rs",
+        "src/real/redocly.rs",
         "src/real/rustfmt.rs",
         "src/real/staging.rs",
         "src/real_core.rs",

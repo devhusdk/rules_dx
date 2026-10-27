@@ -49,6 +49,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "toml",
     "xml",
     "yaml",
+    "api_spec",
     "java",
     "kotlin",
     "scala",

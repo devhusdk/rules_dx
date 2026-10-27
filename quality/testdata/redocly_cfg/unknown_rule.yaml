@@ -1,0 +1,4 @@
+extends:
+  - spec
+rules:
+  not-a-redocly-rule: error

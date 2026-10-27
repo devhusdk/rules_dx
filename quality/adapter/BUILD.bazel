@@ -8,6 +8,7 @@ package(default_visibility = VIS_QUALITY)
 rust_library(
     name = "quality_adapter",
     srcs = [
+        "src/api_spec_preflight.rs",
         "src/commands.rs",
         "src/commands_tests.rs",
         "src/exec.rs",
@@ -51,6 +52,7 @@ rust_library(
         "src/parsers/pylint.rs",
         "src/parsers/qmlformat.rs",
         "src/parsers/qmllint.rs",
+        "src/parsers/redocly.rs",
         "src/parsers/roslyn.rs",
         "src/parsers/rubocop.rs",
         "src/parsers/ruff.rs",

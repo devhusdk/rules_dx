@@ -1834,3 +1834,140 @@ fn hadolint_bound_config_reaches_the_tool() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id, "DL4006");
 }
+
+const REDOCLY_ROOT: &str = "openapi: 3.1.0\ninfo:\n  title: Pets\n  version: '1'\npaths: {}\n";
+
+fn redocly_files(root: &str) -> BTreeMap<String, String> {
+    single("api/openapi.yaml", root)
+}
+
+#[test]
+fn redocly_reports_root_findings_and_never_fixes() {
+    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    assert!(backend
+        .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
+        .expect("clean")
+        .is_empty());
+    let dupe = format!("{REDOCLY_ROOT}# dupe\n");
+    let findings = backend
+        .diagnose("redocly", "lint", &redocly_files(&dupe))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "redocly");
+    assert_eq!(findings[0].rule_id, "operation-operationId-unique");
+    assert_eq!(findings[0].path, "api/openapi.yaml");
+    assert_eq!(findings[0].start_byte, Some(56));
+    assert_eq!(
+        backend
+            .apply_fix("redocly", "api/openapi.yaml", &dupe, "lint")
+            .expect("check-only"),
+        dupe
+    );
+}
+
+#[test]
+fn redocly_places_fragment_findings_on_the_root() {
+    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    let root = format!(
+        "{REDOCLY_ROOT}components:\n  schemas:\n    Pet:\n      $ref: schemas/pet.yaml#/Pet\n# fragbad\n"
+    );
+    let fragment = single("api/schemas/pet.yaml", "Pet:\n  type: 7\n");
+    let findings = backend
+        .diagnose_with_siblings("redocly", "lint", &redocly_files(&root), &fragment)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "api/openapi.yaml");
+    assert_eq!(findings[0].start_byte, Some(0));
+    assert!(
+        findings[0]
+            .message
+            .starts_with("api/schemas/pet.yaml:2:3: "),
+        "{}",
+        findings[0].message
+    );
+    let findings = backend
+        .diagnose_with_resolve(
+            "redocly",
+            "lint",
+            &redocly_files(&root),
+            &BTreeMap::new(),
+            &fragment,
+        )
+        .expect("diagnosed through resolves");
+    assert_eq!(findings.len(), 1);
+}
+
+#[test]
+fn redocly_preflight_findings_skip_the_tool() {
+    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    for (root, rule) in [
+        ("swagger: '2.0'\n", "dx/api-spec-root"),
+        ("info: {}\n", "dx/api-spec-root"),
+        ("openapi: [3\n", "dx/api-spec-syntax"),
+        (
+            "openapi: 3.1.0\nx:\n  $ref: https://example.com/a.yaml\n",
+            "dx/api-spec-remote-ref",
+        ),
+        (
+            "openapi: 3.1.0\nx:\n  $ref: missing.yaml\n",
+            "dx/api-spec-unresolved-ref",
+        ),
+    ] {
+        let findings = backend
+            .diagnose(
+                "redocly",
+                "lint",
+                &redocly_files(&format!("{root}# BROKEN\n")),
+            )
+            .expect("preflight findings");
+        assert_eq!(findings.len(), 1, "{root}");
+        assert_eq!(findings[0].rule_id, rule, "{root}");
+        assert_eq!(findings[0].path, "api/openapi.yaml");
+    }
+}
+
+#[test]
+fn redocly_rejects_unsafe_configs_before_running() {
+    for config in [
+        "plugins:\n  - ./evil.js\n",
+        "resolve:\n  http:\n    headers: []\n",
+        "extends:\n  - ./other.yaml\n",
+    ] {
+        let tool = RealTool {
+            config_rel: Some("api/redocly.yaml".to_owned()),
+            tool_files: vec![("api/redocly.yaml".to_owned(), config.as_bytes().to_vec())],
+            ..plain_tool()
+        };
+        let backend = backend_for("redocly", tool, roundtrip_redocly);
+        let err = backend
+            .diagnose("redocly", "lint", &redocly_files(REDOCLY_ROOT))
+            .expect_err("unsafe config fails");
+        assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
+    }
+}
+
+#[test]
+fn redocly_config_errors_are_never_clean() {
+    let backend = backend_for("redocly", plain_tool(), roundtrip_redocly);
+    let err = backend
+        .diagnose(
+            "redocly",
+            "lint",
+            &redocly_files(&format!("{REDOCLY_ROOT}# BROKEN\n")),
+        )
+        .expect_err("exit 2 fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("exit 2"), "{err}");
+    assert!(err.to_string().contains("Unknown rule"), "{err}");
+}
+
+#[test]
+fn redocly_defaults_are_builtin_and_offline() {
+    let text = std::str::from_utf8(REDOCLY_DEFAULTS_BYTES).expect("utf-8");
+    assert_eq!(
+        quality_adapter::api_spec_preflight::check_config(text),
+        Ok(())
+    );
+    assert!(text.contains("telemetry: off"));
+    assert!(text.contains("no-unresolved-refs: error"));
+}

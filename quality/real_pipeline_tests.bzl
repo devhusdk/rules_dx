@@ -109,6 +109,15 @@ def real_pipeline_unit_tests(name):
                 [["graphql"], [], []],
             ),
             expect_equal(
+                "real_supported_classes returns redocly lint support only",
+                [
+                    real_supported_classes("redocly", "lint"),
+                    real_supported_classes("redocly", "format"),
+                    real_supported_classes("redocly", "typecheck"),
+                ],
+                [["api_spec"], [], []],
+            ),
+            expect_equal(
                 "real_supported_classes returns prettier format support only",
                 [
                     real_supported_classes("prettier", "lint"),

@@ -1,0 +1,1 @@
+pipeline failed: tool execution failed for redocly: redocly config key `plugins` is not allowed: dx runs Redocly offline, without plugins or resolver headers

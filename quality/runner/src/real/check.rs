@@ -270,6 +270,7 @@ impl RealBackend {
                 };
                 parsed(tool_id, parsers::parse_stylelint(report, out.code, &strs))
             }
+            "redocly" => self.check_redocly(tool_id, tool, staged, config.as_deref()),
             "graphql_eslint" => {
                 let launch = ResolvedTool::javascript(tool_id, &tool.binary);
                 let Some(cfg) = config.as_ref() else {

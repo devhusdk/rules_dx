@@ -34,6 +34,7 @@ pub mod pydoclint;
 pub mod pylint;
 pub mod qmlformat;
 pub mod qmllint;
+pub mod redocly;
 pub mod roslyn;
 pub mod rubocop;
 pub mod ruff;
@@ -92,6 +93,7 @@ pub use pydoclint::parse_pydoclint;
 pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
 pub use qmllint::{parse_qmllint, parse_qmllint_report};
+pub use redocly::parse_redocly;
 pub use roslyn::parse_roslyn;
 pub use rubocop::parse_rubocop;
 pub use ruff::{parse_ruff, parse_ruff_format};
@@ -1576,6 +1578,15 @@ mod tests {
         super::eslint::parse_graphql_eslint(input, code, files)
     }
 
+    fn fuzz_redocly(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let root = files.first().copied().unwrap_or("/scratch/openapi.yaml");
+        super::redocly::parse_redocly(input, code, root, Path::new("/"), files)
+    }
+
     fn fuzz_fantomas(
         input: &[u8],
         code: Option<i32>,
@@ -2017,6 +2028,7 @@ mod tests {
         ("pylint", fuzz_pylint),
         ("qmlformat", fuzz_qmlformat),
         ("qmllint", fuzz_qmllint),
+        ("redocly", fuzz_redocly),
         ("roslyn", fuzz_roslyn),
         ("rubocop", fuzz_rubocop),
         ("ruff", fuzz_ruff),
@@ -2081,6 +2093,7 @@ mod tests {
         ("pylint", include_str!("pylint.rs")),
         ("qmlformat", include_str!("qmlformat.rs")),
         ("qmllint", include_str!("qmllint.rs")),
+        ("redocly", include_str!("redocly.rs")),
         ("roslyn", include_str!("roslyn.rs")),
         ("rubocop", include_str!("rubocop.rs")),
         ("ruff", include_str!("ruff.rs")),

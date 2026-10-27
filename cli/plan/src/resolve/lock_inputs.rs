@@ -5,6 +5,14 @@ use dx_module_bazel::{Call, ModuleFile, Value};
 /// Changed crate names with every base and head version that changed.
 pub(crate) type ChangedCrates = BTreeMap<String, BTreeSet<String>>;
 
+/// What a lock diff changed: crates plus hub alias names (renames, extra
+/// aliased targets, binaries) that cannot be derived from crate names alone.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct LockChange {
+    pub(crate) crates: ChangedCrates,
+    pub(crate) aliases: BTreeSet<String>,
+}
+
 /// One `crate.from_cargo` hub with the lock files it reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Hub {
@@ -29,9 +37,12 @@ impl LockKind {
         }
     }
 
-    pub(crate) fn changed(&self, base: &str, head: &str) -> Result<ChangedCrates, String> {
+    pub(crate) fn changed(&self, base: &str, head: &str) -> Result<LockChange, String> {
         match self {
-            LockKind::Cargo(_) => changed_crates(base, head),
+            LockKind::Cargo(_) => Ok(LockChange {
+                crates: changed_crates(base, head)?,
+                aliases: BTreeSet::new(),
+            }),
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
             LockKind::Unknown => Err("unknown lock format".to_owned()),
         }
@@ -252,22 +263,135 @@ fn json_object(text: &str) -> Result<serde_json::Map<String, serde_json::Value>,
     }
 }
 
-pub(crate) fn changed_crates_from_bazel_lock(
-    base: &str,
-    head: &str,
-) -> Result<ChangedCrates, String> {
+/// Top-level keys that only list ids already present under `crates`; a change
+/// there always shows up as a `crates` change too, so it need not widen.
+const ID_LIST_KEYS: [&str; 4] = [
+    "direct_deps",
+    "direct_dev_deps",
+    "workspace_members",
+    "binary_crates",
+];
+
+fn id_set(lock: &serde_json::Map<String, serde_json::Value>, key: &str) -> BTreeSet<String> {
+    match lock.get(key) {
+        Some(serde_json::Value::Object(map)) => map.keys().cloned().collect(),
+        Some(serde_json::Value::Array(items)) => items
+            .iter()
+            .filter_map(|item| item.as_str().map(str::to_owned))
+            .collect(),
+        _ => BTreeSet::new(),
+    }
+}
+
+fn collect_aliases<'a>(value: &'a serde_json::Value, out: &mut Vec<(&'a str, &'a str)>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if let (Some(id), Some(alias)) = (
+                map.get("id").and_then(serde_json::Value::as_str),
+                map.get("alias").and_then(serde_json::Value::as_str),
+            ) {
+                out.push((id, alias));
+            }
+            for item in map.values() {
+                collect_aliases(item, out);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_aliases(item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Hub alias names rules_rust renders besides the plain crate names, each with
+/// the crates it points at.
+fn hub_aliases(
+    lock: &serde_json::Map<String, serde_json::Value>,
+) -> Result<BTreeMap<String, BTreeSet<Key>>, String> {
+    let mut out: BTreeMap<String, BTreeSet<Key>> = BTreeMap::new();
+    let Some(serde_json::Value::Object(crates)) = lock.get("crates") else {
+        return Err("crate_universe lockfile has no crates object".to_owned());
+    };
+    let members = id_set(lock, "workspace_members");
+    let binaries = id_set(lock, "binary_crates");
+    for (id, entry) in crates {
+        let key = crate_key(id)?;
+        if members.contains(id) {
+            let mut found = Vec::new();
+            collect_aliases(entry, &mut found);
+            for (dep, alias) in found {
+                let dep = crate_key(dep)?;
+                out.entry(format!("{alias}-{}", dep.1))
+                    .or_default()
+                    .insert(dep.clone());
+                out.entry(alias.to_owned()).or_default().insert(dep);
+            }
+        }
+        if let Some(serde_json::Value::Object(extra)) = entry.get("extra_aliased_targets") {
+            for name in extra.keys() {
+                out.entry(name.clone()).or_default().insert(key.clone());
+            }
+        }
+        if binaries.contains(id) {
+            if let Some(serde_json::Value::Array(targets)) = entry.get("targets") {
+                for bin in targets
+                    .iter()
+                    .filter_map(|target| target.get("Binary")?.get("crate_name")?.as_str())
+                {
+                    out.entry(format!("{}__{bin}", key.0))
+                        .or_default()
+                        .insert(key.clone());
+                    out.entry(format!("{}-{}__{bin}", key.0, key.1))
+                        .or_default()
+                        .insert(key.clone());
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+pub(crate) fn changed_crates_from_bazel_lock(base: &str, head: &str) -> Result<LockChange, String> {
     let base = json_object(base)?;
     let head = json_object(head)?;
     let keys: BTreeSet<&String> = base.keys().chain(head.keys()).collect();
     for key in keys {
-        if key != "checksum" && key != "crates" && base.get(key) != head.get(key) {
+        if key != "checksum"
+            && key != "crates"
+            && !ID_LIST_KEYS.contains(&key.as_str())
+            && base.get(key) != head.get(key)
+        {
             return Err(format!("crate_universe lockfile changed {key}"));
         }
     }
-    Ok(closure(
-        &bazel_lock_nodes(&base)?,
-        &bazel_lock_nodes(&head)?,
-    ))
+    let mut crates = closure(&bazel_lock_nodes(&base)?, &bazel_lock_nodes(&head)?);
+    let (base_aliases, head_aliases) = (hub_aliases(&base)?, hub_aliases(&head)?);
+    let in_closure = |key: &Key| crates.get(&key.0).is_some_and(|v| v.contains(&key.1));
+    let names: BTreeSet<&String> = base_aliases.keys().chain(head_aliases.keys()).collect();
+    let aliases = names
+        .into_iter()
+        .filter(|name| {
+            let (b, h) = (base_aliases.get(*name), head_aliases.get(*name));
+            b != h || b.into_iter().chain(h).flatten().any(in_closure)
+        })
+        .cloned()
+        .collect();
+    // Members are never hub aliases or spokes; they only matter as graph nodes.
+    for member in id_set(&base, "workspace_members")
+        .into_iter()
+        .chain(id_set(&head, "workspace_members"))
+    {
+        let (name, version) = crate_key(&member)?;
+        if let Some(versions) = crates.get_mut(&name) {
+            versions.remove(&version);
+            if versions.is_empty() {
+                crates.remove(&name);
+            }
+        }
+    }
+    Ok(LockChange { crates, aliases })
 }
 
 fn repo_is(repo: &str, name: &str) -> bool {
@@ -281,13 +405,17 @@ pub(crate) fn seeds<'a>(
     labels: impl Iterator<Item = &'a str>,
     hub: &str,
     crates: &ChangedCrates,
+    aliases: &BTreeSet<String>,
 ) -> Vec<String> {
-    let mut names: BTreeSet<String> = BTreeSet::new();
+    let mut names: BTreeSet<String> = aliases.clone();
+    let mut prefixes: Vec<String> = Vec::new();
     let mut spokes: BTreeSet<String> = BTreeSet::new();
     for (name, versions) in crates {
         names.insert(name.clone());
+        prefixes.push(format!("{name}__"));
         for version in versions {
             names.insert(format!("{name}-{version}"));
+            prefixes.push(format!("{name}-{version}__"));
             spokes.insert(format!("{hub}__{name}-{version}"));
         }
     }
@@ -301,7 +429,8 @@ pub(crate) fn seeds<'a>(
             };
             if repo_is(repo, hub) {
                 let name = target.rsplit_once(':').map_or(target, |(_, name)| name);
-                return names.contains(name);
+                return names.contains(name)
+                    || prefixes.iter().any(|prefix| name.starts_with(prefix));
             }
             spokes.iter().any(|spoke| repo_is(repo, spoke))
         })
@@ -460,46 +589,111 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         );
     }
 
-    fn bazel_lock(serde: &str, extra: &str) -> String {
+    fn bazel_lock_with(serde: &str, direct: &[&str], rename: Option<&str>) -> serde_json::Value {
+        let mut dep = serde_json::json!({"id": format!("serde {serde}"), "target": "serde"});
+        if let Some(rename) = rename {
+            dep["alias"] = rename.into();
+        }
         serde_json::json!({
             "checksum": format!("sum-{serde}"),
             "crates": {
-                format!("serde {serde}"): {"name": "serde", "version": serde},
+                format!("serde {serde}"): {
+                    "name": "serde",
+                    "extra_aliased_targets": {"serde_extra": "x"},
+                },
                 "serde_json 1.0.0": {
                     "name": "serde_json",
-                    "common_attrs": {"deps": {"common": [{"id": format!("serde {serde}"), "target": "serde"}]}},
+                    "common_attrs": {"deps": [{"id": format!("serde {serde}"), "target": "serde"}]},
                 },
                 "app 0.1.0": {
                     "name": "app",
-                    "common_attrs": {"deps": {"selects": {"cfg(unix)": [{"id": "serde_json 1.0.0", "target": "serde_json"}]}}},
+                    "common_attrs": {"deps": {"selects": {"cfg(unix)": [{"id": "serde_json 1.0.0", "target": "serde_json"}]}, "common": [dep]}},
+                },
+                "tool 0.2.0": {
+                    "name": "tool",
+                    "targets": [{"Binary": {"crate_name": "tool"}}],
                 },
                 "itoa 1.0.0": {"name": "itoa"},
             },
-            "direct_deps": ["serde_json 1.0.0", extra],
+            "conditions": {"cfg(unix)": ["x86_64-unknown-linux-gnu"]},
+            "direct_deps": direct,
+            "direct_dev_deps": [],
+            "workspace_members": {"app 0.1.0": "app"},
+            "binary_crates": ["tool 0.2.0"],
         })
-        .to_string()
+    }
+
+    fn bazel_lock(serde: &str, extra: &str) -> String {
+        bazel_lock_with(serde, &["serde_json 1.0.0", extra], None).to_string()
+    }
+
+    fn change(base: &serde_json::Value, head: &serde_json::Value) -> Result<LockChange, String> {
+        changed_crates_from_bazel_lock(&base.to_string(), &head.to_string())
+    }
+
+    fn names(items: &[&str]) -> BTreeSet<String> {
+        items.iter().map(ToString::to_string).collect()
     }
 
     #[test]
     fn bazel_lock_diffs_crates_and_their_dependents() {
+        let change =
+            changed_crates_from_bazel_lock(&bazel_lock("1.0.1", ""), &bazel_lock("1.0.2", ""))
+                .expect("change");
         assert_eq!(
-            changed_crates_from_bazel_lock(&bazel_lock("1.0.1", ""), &bazel_lock("1.0.2", "")),
-            Ok(crates(&[
-                ("app", &["0.1.0"]),
-                ("serde", &["1.0.1", "1.0.2"]),
-                ("serde_json", &["1.0.0"]),
-            ]))
+            change.crates,
+            crates(&[("serde", &["1.0.1", "1.0.2"]), ("serde_json", &["1.0.0"])])
         );
+        assert_eq!(change.aliases, names(&["serde_extra"]));
+    }
+
+    #[test]
+    fn bazel_lock_direct_dep_bump_narrows() {
+        let base = bazel_lock_with("1.0.1", &["serde 1.0.1"], None);
+        let head = bazel_lock_with("1.0.2", &["serde 1.0.2"], None);
+        let change = change(&base, &head).expect("narrowed");
+        assert!(change.crates.contains_key("serde"));
+        assert!(!change.crates.contains_key("app"));
     }
 
     #[test]
     fn bazel_lock_changes_outside_crates_fail() {
-        let error =
-            changed_crates_from_bazel_lock(&bazel_lock("1.0.1", ""), &bazel_lock("1.0.1", "x"))
-                .expect_err("direct_deps changed");
-        assert_eq!(error, "crate_universe lockfile changed direct_deps");
+        let base = bazel_lock_with("1.0.1", &[], None);
+        let mut head = base.clone();
+        head["direct_deps"] = serde_json::json!(["serde 1.0.1"]);
+        head["workspace_members"] = serde_json::json!({});
+        assert_eq!(change(&base, &head), Ok(LockChange::default()));
+        let mut head = base.clone();
+        head["conditions"] = serde_json::json!({});
+        assert_eq!(
+            change(&base, &head),
+            Err("crate_universe lockfile changed conditions".to_owned())
+        );
+        let mut head = base.clone();
+        head["mystery"] = serde_json::json!(1);
+        assert!(change(&base, &head).is_err());
         assert!(changed_crates_from_bazel_lock("[]", &bazel_lock("1.0.1", "")).is_err());
         assert!(changed_crates_from_bazel_lock("{", &bazel_lock("1.0.1", "")).is_err());
+    }
+
+    #[test]
+    fn bazel_lock_aliases_cover_renames_extras_and_binaries() {
+        let base = bazel_lock_with("1.0.1", &[], Some("serde1"));
+        let head = bazel_lock_with("1.0.2", &[], Some("serde1"));
+        let aliases = change(&base, &head).expect("change").aliases;
+        assert_eq!(
+            aliases,
+            names(&["serde1", "serde1-1.0.1", "serde1-1.0.2", "serde_extra"])
+        );
+        // A dropped rename counts even though crates[serde] is unchanged.
+        let dropped = bazel_lock_with("1.0.1", &[], None);
+        let aliases = change(&base, &dropped).expect("change").aliases;
+        assert_eq!(aliases, names(&["serde1", "serde1-1.0.1"]));
+        // A changed binary crate yields its aliases; unchanged ones do not.
+        let mut head = base.clone();
+        head["crates"]["tool 0.2.0"]["version"] = "x".into();
+        let aliases = change(&base, &head).expect("change").aliases;
+        assert_eq!(aliases, names(&["tool__tool", "tool-0.2.0__tool"]));
     }
 
     #[test]
@@ -513,17 +707,29 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             "@@rules_rust++crate+my_crates//:serde",
             "@@crates//:serde",
             "//a:serde",
+            "@@rules_rust++crate+crates//:serde__bin",
+            "@@rules_rust++crate+crates//:serde-1.0.2__bin",
+            "@@rules_rust++crate+crates//serde:serde",
+            "@@rules_rust++crate+crates//:serde1",
+            "@@rules_rust++crate+crates//:serde_json__x",
+            "@@rules_rust++crate+crates//:serdex",
+            "@@rules_rust++crate+crates//:serde-1.0.3__x",
         ];
         assert_eq!(
             seeds(
                 labels.into_iter(),
                 "crates",
-                &crates(&[("serde", &["1.0.1", "1.0.2"])])
+                &crates(&[("serde", &["1.0.1", "1.0.2"])]),
+                &names(&["serde1"])
             ),
             [
                 "@@crates//:serde",
                 "@@rules_rust++crate+crates//:serde",
                 "@@rules_rust++crate+crates//:serde-1.0.2",
+                "@@rules_rust++crate+crates//:serde-1.0.2__bin",
+                "@@rules_rust++crate+crates//:serde1",
+                "@@rules_rust++crate+crates//:serde__bin",
+                "@@rules_rust++crate+crates//serde:serde",
                 "@@rules_rust++crate+crates__serde-1.0.1//:serde",
                 "@@rules_rust~~crate~crates__serde-1.0.2//:serde",
             ]

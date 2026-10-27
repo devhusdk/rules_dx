@@ -444,6 +444,7 @@ fn run() -> i32 {
                 ci: dx_process::is_ci(),
                 audit_today: audit_today.as_deref(),
                 actions: &actions,
+                proc_root: std::path::Path::new("/proc"),
             },
         )
     });

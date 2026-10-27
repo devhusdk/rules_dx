@@ -82,6 +82,7 @@ fn run_quality(
         ci,
         audit_today,
         actions,
+        proc_root,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_quality_request(
@@ -98,6 +99,7 @@ fn run_quality(
             ci,
             audit_today,
             actions,
+            proc_root,
         },
         fs,
         kind,
@@ -289,6 +291,7 @@ fn run_quality_request(
         ci: _,
         audit_today: _,
         actions,
+        proc_root: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,

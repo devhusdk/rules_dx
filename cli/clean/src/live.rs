@@ -193,13 +193,6 @@ fn leased_generation_hexes(
     Ok(leased)
 }
 
-pub fn collect_inventory_with_scan(
-    workspace_root: &Path,
-    unobserved: UnobservedPolicy,
-) -> Result<CollectedInventory, CleanError> {
-    collect_inventory_with_scan_from(workspace_root, Path::new("/proc"), unobserved)
-}
-
 pub fn collect_inventory_with_scan_from(
     workspace_root: &Path,
     proc_root: &Path,

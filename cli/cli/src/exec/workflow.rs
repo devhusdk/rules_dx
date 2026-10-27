@@ -49,6 +49,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         ci: _,
         audit_today: _,
         actions,
+        proc_root: _,
     } = env;
     let results_default = invocation.output == OutputMode::Json
         && invocation.command != Command::Build

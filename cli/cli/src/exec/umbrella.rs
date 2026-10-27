@@ -654,6 +654,7 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
         ci,
         audit_today,
         actions,
+        proc_root,
     } = env;
     let watch = LaunchWatch::new(runner);
     let (code, complete) = super::workflow::execute_workflow_phase(
@@ -670,6 +671,7 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
             ci,
             audit_today,
             actions,
+            proc_root,
         },
     );
     PhaseRun {
@@ -698,6 +700,7 @@ struct VerifyContext<'a> {
     ci: bool,
     audit_today: Option<&'a str>,
     actions: &'a ActionTally,
+    proc_root: &'a Path,
 }
 
 /// Re-runs umbrella phases read-only through `through` after `fix --apply` touched them.
@@ -746,6 +749,7 @@ fn verify_fix(
                 ci: context.ci,
                 audit_today: context.audit_today,
                 actions: context.actions,
+                proc_root: context.proc_root,
             };
             if *phase == Command::Generate {
                 execute_generate_request(&request.verify_generate_request(), phase_env)
@@ -908,6 +912,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         ci,
         audit_today,
         actions,
+        proc_root,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_umbrella(
@@ -924,6 +929,7 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
             ci,
             audit_today,
             actions,
+            proc_root,
         },
     );
     latched.exit_code(code)
@@ -942,6 +948,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         ci,
         audit_today,
         actions,
+        proc_root,
     } = env;
     let fix_apply = request.command == Command::Fix && request.applies();
     let phase_check = !fix_apply;
@@ -1054,6 +1061,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 ci,
                 audit_today,
                 actions,
+                proc_root,
             };
             if phase == Command::Generate {
                 execute_generate_phase(&request.phase_generate_request(phase_reports), phase_env)
@@ -1217,6 +1225,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             ci,
             audit_today,
             actions,
+            proc_root,
         };
         let verification = verify_fix(request, &context, through, &failed_phases);
         reports_ok &= verification.readable;

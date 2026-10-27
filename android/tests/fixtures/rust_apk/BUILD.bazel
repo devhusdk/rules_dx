@@ -422,7 +422,9 @@ sh_test(
     data = [
         ":app_apk_file",
         "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
     ],
+    env = {"DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)"},
     tags = ["manual"],
 )
 
@@ -444,7 +446,9 @@ sh_test(
     data = [
         ":custom_apk_file",
         "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
     ],
+    env = {"DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)"},
     tags = ["manual"],
 )
 
@@ -619,6 +623,8 @@ sh_test(
     data = [
         ":arm_apk_file",
         "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
     ],
+    env = {"DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)"},
     tags = ["manual"],
 )

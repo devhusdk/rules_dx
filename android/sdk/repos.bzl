@@ -371,6 +371,8 @@ def hub_build(ndk_repos, build_tools_repos = {}, bundletool_repo = "", *, platfo
     lines.append("")
     _hub_target(lines, "zipalign", build_tools_repos, "zipalign", build_tools_no_match_error())
     lines.append("")
+    _hub_target(lines, "aapt", build_tools_repos, "aapt", build_tools_no_match_error())
+    lines.append("")
     _hub_target(lines, "apksigner_jar", build_tools_repos, "apksigner_jar", build_tools_no_match_error())
     lines.append("")
     _hub_alias(lines, "bundletool_jar", "@%s//file" % bundletool_repo if bundletool_repo != "" else "")
@@ -405,6 +407,16 @@ def build_tools_build(anchor):
         "filegroup(",
         '    name = "zipalign",',
         '    srcs = ["extracted/zipalign"],',
+        "    data = [",
+        '        "extracted/lib64/libc++.so",',
+        '        "extracted/lib64/libc++.so.1",',
+        "    ],",
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "aapt",',
+        '    srcs = ["extracted/aapt"],',
         "    data = [",
         '        "extracted/lib64/libc++.so",',
         '        "extracted/lib64/libc++.so.1",',

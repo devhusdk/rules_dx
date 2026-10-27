@@ -1,7 +1,10 @@
 //! NuGet publisher: feed staging, nuspec identity checks and the dotnet push.
 
 use crate::archive::*;
-use crate::run::{deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, DOTNET_CHILD_ENV_EXTRA, PUBLISH_CHILD_ENV_KEEP};
+use crate::run::{
+    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, DOTNET_CHILD_ENV_EXTRA,
+    PUBLISH_CHILD_ENV_KEEP,
+};
 use crate::stage::*;
 use std::io;
 use std::path::Path;

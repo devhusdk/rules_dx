@@ -759,4 +759,48 @@ mod tests {
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     }
 
+    /// Pins the crate-root entry points the generated launchers call, so the
+    /// module (and later crate) split cannot silently change the facade.
+    #[test]
+    fn crate_root_keeps_launcher_entry_points() {
+        type Main3 = fn(&str, &str, &str, &[String]) -> i32;
+        type Main4 = fn(&str, &str, &str, &str, &[String]) -> i32;
+        type Main5 = fn(&str, &str, &str, &str, &str, &[String]) -> i32;
+        type Main6 = fn(&str, &str, &str, &str, &str, &str, &[String]) -> i32;
+        let archive: Main3 = crate::archive_main;
+        let pypi: Main4 = crate::pypi_main;
+        let nuget: Main5 = crate::nuget_main;
+        let crates: Main3 = crate::crates_main;
+        let github: Main3 = crate::github_main;
+        let maven: Main6 = crate::maven_main;
+        let oci: Main5 = crate::oci_main;
+        let promotion: Main5 = crate::promotion_main;
+        let octopus: fn(&crate::OctopusLaunch<'_>, &[String]) -> i32 = crate::octopus_main;
+        let npm_deploy: fn(&[String], &str, &str) -> i32 = crate::npm_deploy_main;
+        let npm_pack: fn(&[String]) -> i32 = crate::npm_pack_main;
+        let pages: fn(&crate::PagesLaunch<'_>, &[String]) -> i32 = crate::cloudflare_pages_main;
+        let _ = (
+            archive, pypi, nuget, crates, github, maven, oci, promotion, octopus, npm_deploy,
+            npm_pack, pages,
+        );
+        let _ = crate::OctopusLaunch {
+            package_rloc: "",
+            deploy_name: "",
+            project: "",
+            channel: "",
+            version: "",
+            deploy_to_raw: "",
+            space_default: "",
+            url_default: "",
+        };
+        let _ = crate::PagesLaunch {
+            deploy_name: "",
+            account_id: "",
+            project: "",
+            branch: "",
+            production_branch: "",
+            site_ref_rloc: "",
+            wrangler_rloc: "",
+        };
+    }
 }

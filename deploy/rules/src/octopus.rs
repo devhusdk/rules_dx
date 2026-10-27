@@ -1,7 +1,9 @@
 //! Octopus Deploy publisher: drop staging and the octo push and release.
 
 use crate::archive::*;
-use crate::run::{deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP};
+use crate::run::{
+    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+};
 use crate::stage::*;
 use std::ffi::OsString;
 use std::io;

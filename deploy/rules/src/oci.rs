@@ -1,7 +1,9 @@
 //! OCI image publisher: layout staging, docker-save reading and the docker push.
 
 use crate::archive::*;
-use crate::run::{deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP};
+use crate::run::{
+    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+};
 use crate::stage::*;
 use std::io::{self, Read, Write};
 use std::path::Path;

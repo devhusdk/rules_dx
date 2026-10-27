@@ -537,7 +537,9 @@ mod tests {
 
     #[test]
     fn resolve_runfile_maps_a_repository_name_through_the_manifest() {
-        if env_test_in_child("stage::tests::resolve_runfile_maps_a_repository_name_through_the_manifest") {
+        if env_test_in_child(
+            "stage::tests::resolve_runfile_maps_a_repository_name_through_the_manifest",
+        ) {
             return;
         }
         let scratch = scratch_dir();

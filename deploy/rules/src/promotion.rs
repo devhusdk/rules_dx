@@ -567,7 +567,9 @@ mod tests {
 
     #[test]
     fn promotion_health_cmd_rejects_empty_and_missing_tools() {
-        if env_test_in_child("promotion::tests::promotion_health_cmd_rejects_empty_and_missing_tools") {
+        if env_test_in_child(
+            "promotion::tests::promotion_health_cmd_rejects_empty_and_missing_tools",
+        ) {
             return;
         }
         let empty = promotion_run_health_cmd("   ").expect_err("empty health cmd");

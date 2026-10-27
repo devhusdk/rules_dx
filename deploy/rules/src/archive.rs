@@ -47,7 +47,9 @@ pub(crate) fn ustar_header(name: &str, size: u64, mode: u32) -> io::Result<tar::
 }
 
 /// Returns one ustar image padded to a whole record.
-pub(crate) fn tar_archive<'a>(members: impl Iterator<Item = (&'a str, &'a [u8], u32)>) -> io::Result<Vec<u8>> {
+pub(crate) fn tar_archive<'a>(
+    members: impl Iterator<Item = (&'a str, &'a [u8], u32)>,
+) -> io::Result<Vec<u8>> {
     let mut builder = tar::Builder::new(Vec::new());
     for (name, data, mode) in members {
         let header = ustar_header(name, data.len() as u64, mode)?;

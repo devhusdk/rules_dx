@@ -1,6 +1,8 @@
 //! crates.io publisher: vendor staging and the cargo publish.
 
-use crate::run::{deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP};
+use crate::run::{
+    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+};
 use crate::stage::*;
 use std::io;
 use std::path::Path;

@@ -1,7 +1,9 @@
 //! npm publisher: deterministic pack, pack verification and the npm publish.
 
 use crate::archive::*;
-use crate::run::{deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP};
+use crate::run::{
+    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+};
 use crate::stage::*;
 use std::io;
 use std::path::Path;
@@ -1413,7 +1415,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn npm_deploy_main_requires_owner_approval_for_live_publish() {
-        if env_test_in_child("npm::tests::npm_deploy_main_requires_owner_approval_for_live_publish") {
+        if env_test_in_child("npm::tests::npm_deploy_main_requires_owner_approval_for_live_publish")
+        {
             return;
         }
         let scratch = scratch_dir();
@@ -1461,8 +1464,9 @@ mod tests {
 
     #[test]
     fn npm_deploy_main_refuses_required_provenance_without_identity() {
-        if env_test_in_child("npm::tests::npm_deploy_main_refuses_required_provenance_without_identity")
-        {
+        if env_test_in_child(
+            "npm::tests::npm_deploy_main_refuses_required_provenance_without_identity",
+        ) {
             return;
         }
         let scratch = scratch_dir();

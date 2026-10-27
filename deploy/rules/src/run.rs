@@ -238,7 +238,7 @@ impl DeployRun {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
-    use crate::tests::{env_test_in_child, scratch_dir, with_env};
+    use crate::test_support::{env_test_in_child, scratch_dir, with_env};
 
     /// Writes a fake sh tool that prints its env, one name=value per line.
     fn env_dumper(dir: &Path) -> PathBuf {

@@ -694,7 +694,7 @@ pub fn maven_main(
 pub(crate) mod tests {
     use super::*;
     use crate::resolve_runfile;
-    use crate::tests::{env_test_in_child, scratch_dir, with_env};
+    use crate::test_support::{env_test_in_child, scratch_dir, with_env};
     use pgp::composed::{EncryptionCaps, KeyType, SecretKeyParamsBuilder, SubkeyParamsBuilder};
 
     const PASSPHRASE: &str = "maven-test-passphrase";

@@ -1,6 +1,6 @@
 """Shared Jest and plain Node test core for the JavaScript and TypeScript wrappers."""
 
-load("//libs/starlark:wrapper.bzl", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_lcov_merger_attr", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_forwarded_run_environment", "dx_lcov_merger_attr", "dx_quality_sources", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _JEST_ONLY_KEYS = [
@@ -46,14 +46,14 @@ def node_test_forward_rule(what, allow_files, quality_specs):
     def _impl(ctx):
         return [
             dx_symlink_default_info(ctx, what),
-            testing.TestEnvironment({}, node_test_env(ctx.attr.env_inherit)),
+            dx_forwarded_run_environment(ctx.attr.upstream, {}, node_test_env(ctx.attr.env_inherit)),
             dx_quality_sources(ctx.files.srcs, quality_specs, str(ctx.label)),
         ] + dx_forwarded_quiet(ctx.attr.upstream, [InstrumentedFilesInfo, OutputGroupInfo])
 
     return rule(
         implementation = _impl,
         test = True,
-        provides = [DefaultInfo, QualitySourcesInfo],
+        provides = [DefaultInfo, RunEnvironmentInfo, QualitySourcesInfo],
         attrs = dx_forward_attrs(
             allow_files = allow_files,
             upstream_providers = [[DefaultInfo]],
@@ -80,6 +80,14 @@ def node_test_upstream_data(upstream_data, package_json, label_key):
 def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, package_json, upstream_attrs, env_inherit, visibility, kwargs):
     """Declares the manual upstream Node test and its forwarder."""
     effective_env = node_test_env(env_inherit)
+    label_error = dx_args_label_error(
+        name,
+        kwargs.get("args"),
+        list(srcs) + list(upstream_data),
+        {"deps": kwargs.get("deps"), "tools": kwargs.get("tools")},
+    )
+    if label_error != None:
+        fail(label_error)
     data = node_test_upstream_data(upstream_data, package_json, native.package_relative_label)
     upstream_kwargs = dx_test_upstream_kwargs(kwargs)
     upstream_kwargs.pop("aspect_hints", None)

@@ -572,3 +572,77 @@ def dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = None, upstream
         visibility = visibility,
         **forward_kwargs
     )
+
+def dx_forwarded_run_environment(upstream, environment = {}, inherited = []):
+    """Returns RunEnvironmentInfo merging the upstream's environment with extras.
+
+    Args:
+        upstream: The upstream target; its RunEnvironmentInfo, if any, is merged first.
+        environment: Extra variables; they override upstream values.
+        inherited: Extra inherited variable names, unioned with the upstream's.
+
+    Returns:
+        A RunEnvironmentInfo.
+    """
+    env = {}
+    names = []
+    if RunEnvironmentInfo in upstream:
+        env.update(upstream[RunEnvironmentInfo].environment)
+        names.extend(upstream[RunEnvironmentInfo].inherited_environment)
+    env.update(environment)
+    for item in inherited:
+        if item not in names:
+            names.append(item)
+    return RunEnvironmentInfo(environment = env, inherited_environment = names)
+
+_ARGS_LOCATION_FUNCTIONS = [
+    "location",
+    "locations",
+    "rootpath",
+    "rootpaths",
+    "execpath",
+    "execpaths",
+    "rlocationpath",
+    "rlocationpaths",
+]
+
+def dx_args_label_references(args):
+    """Returns the labels that $(location)-style expansions in args name."""
+    labels = []
+    for arg in args or []:
+        for part in arg.split("$(")[1:]:
+            if ")" not in part:
+                continue
+            tokens = part.split(")")[0].split(" ")
+            tokens = [t for t in tokens if t]
+            if len(tokens) < 2 or tokens[0] not in _ARGS_LOCATION_FUNCTIONS:
+                continue
+            for label in tokens[1:]:
+                if label.startswith(":") or label.startswith("//") or label.startswith("@"):
+                    labels.append(label)
+    return labels
+
+def dx_args_label_error(name, args, visible_labels, upstream_only):
+    """Returns an error when args expand a label the forwarder cannot see.
+
+    The forwarder only sees `data` and `srcs`; labels that appear only in other
+    upstream attributes (for example deps or tools) do not resolve there.
+
+    Args:
+        name: The target name, for the message.
+        args: The test args.
+        visible_labels: Labels in the forwarder's data and srcs.
+        upstream_only: Dict from attribute name (deps, tools) to its labels.
+
+    Returns:
+        The error string, or None when every referenced label is visible.
+    """
+    visible = [str(native.package_relative_label(l)) for l in visible_labels]
+    for label in dx_args_label_references(args):
+        key = str(native.package_relative_label(label))
+        if key in visible:
+            continue
+        for attr_name, labels in upstream_only.items():
+            if key in [str(native.package_relative_label(l)) for l in labels or []]:
+                return "%s: args names %s, which is only in %s; add it to data" % (name, label, attr_name)
+    return None

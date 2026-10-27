@@ -328,6 +328,12 @@ def _android_checks():
             ")",
             "",
             "filegroup(",
+            '    name = "aapt",',
+            "    srcs = [],",
+            '    visibility = ["//visibility:public"],',
+            ")",
+            "",
+            "filegroup(",
             '    name = "apksigner_jar",',
             "    srcs = [],",
             '    visibility = ["//visibility:public"],',
@@ -382,11 +388,13 @@ def _android_checks():
     checks.append(expect_contains("enabled hub aliases the anchor", enabled_hub, "@dx_android_ndk_linux_x86_64//:ndk_anchor"))
     checks.append(expect_contains("enabled hub keeps the no-match guard", enabled_hub, "linux_x86_64"))
     checks.append(expect_contains("enabled hub aliases zipalign", enabled_hub, '":linux_x86_64": "@dx_android_build_tools_linux_x86_64//:zipalign"'))
+    checks.append(expect_contains("enabled hub aliases aapt", enabled_hub, '":linux_x86_64": "@dx_android_build_tools_linux_x86_64//:aapt"'))
     checks.append(expect_contains("enabled hub aliases apksigner", enabled_hub, '":linux_x86_64": "@dx_android_build_tools_linux_x86_64//:apksigner_jar"'))
     checks.append(expect_contains("enabled hub guards build-tools", enabled_hub, build_tools_no_match_error()))
     checks.append(expect_contains("enabled hub aliases bundletool", enabled_hub, 'actual = "@dx_android_bundletool//file"'))
     tools_build = build_tools_build("source.properties")
     checks.append(expect_contains("build-tools build exposes zipalign", tools_build, '"extracted/zipalign"'))
+    checks.append(expect_contains("build-tools build exposes aapt", tools_build, '"extracted/aapt"'))
     checks.append(expect_contains("build-tools build ships libc++", tools_build, '"extracted/lib64/libc++.so"'))
     checks.append(expect_contains("build-tools build exposes apksigner", tools_build, '"extracted/lib/apksigner.jar"'))
     checks.append(expect_contains("build-tools build exposes the anchor", tools_build, '"extracted/source.properties"'))

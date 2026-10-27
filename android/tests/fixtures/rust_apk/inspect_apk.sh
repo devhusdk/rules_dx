@@ -10,13 +10,15 @@ permission="$7"
 version_code="$8"
 version_name="$9"
 extra_permission="${10:-}"
+aapt="${DX_AAPT:-}"
 sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-if [ -z "$sdk" ]; then
+if [ -z "$aapt" ] && [ -z "$sdk" ]; then
     echo "inspect_apk: ANDROID_HOME or ANDROID_SDK_ROOT names the installed SDK" >&2
     exit 2
 fi
-build_tools="$(ls -d "$sdk"/build-tools/* | sort -V | tail -n 1)"
-aapt="$build_tools/aapt"
+build_tools=""
+[ -z "$sdk" ] || build_tools="$(ls -d "$sdk"/build-tools/* | sort -V | tail -n 1)"
+[ -n "$aapt" ] || aapt="$build_tools/aapt"
 apksigner="$build_tools/apksigner"
 badging="$("$aapt" dump badging "$apk")"
 echo "$badging" | grep -q "package: name='$app_id' versionCode='$version_code'" || { echo "badging misses package $app_id version $version_code"; exit 1; }

@@ -613,6 +613,7 @@ rust_test(
         "//generation/codegen_shard:src/lib.rs",
         "//generation/codegen_shard:src/main.rs",
         "//generation/result:src/lib.rs",
+        "//libs/archive:src/lib.rs",
         "//libs/gomod:src/lib.rs",
         "//libs/module_bazel:src/lib.rs",
         "//quality/adapter:src/lib.rs",

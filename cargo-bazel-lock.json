@@ -1,5 +1,5 @@
 {
-  "checksum": "80a289c8b85e852804f101e96da6c9567eb17503297c5e8f6c389e6078b56f85",
+  "checksum": "2d0608e99d3ecbe736d7ed178f271ee38afb900bff588cf2cf9455c58007549c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6517,6 +6517,43 @@
       ],
       "version": "0.0.0"
     },
+    "dx_archive 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_archive",
+      "name": "dx_archive",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_archive",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_atomic_fs 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -7257,10 +7294,28 @@
     },
     "dx_install_tools 0.0.0": {
       "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
         "deps_dev": [
+          {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
+          },
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
           }
         ],
         "edition": "2021"
@@ -27281,6 +27336,7 @@
     "dx_adopt 0.0.0": "cli/dx_adopt",
     "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
     "dx_apply 0.0.0": "cli/dx_apply",
+    "dx_archive 0.0.0": "libs/dx_archive",
     "dx_atomic_fs 0.0.0": "cli/dx_atomic_fs",
     "dx_audit 0.0.0": "cli/dx_audit",
     "dx_bep 0.0.0": "cli/dx_bep",

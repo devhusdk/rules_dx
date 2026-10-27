@@ -7,19 +7,29 @@ package(default_visibility = ["//:__subpackages__"])
 
 rust_library(
     name = "dx_install_tools",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/install.rs",
+        "src/install_tests.rs",
+        "src/lib.rs",
+        "src/trust.rs",
+    ],
     aliases = aliases(
         package_name = "deploy/dx_install_tools",
         normal = True,
     ),
+    compile_data = ["//deploy/release:matrix.bzl"],
     crate_name = "dx_install_tools",
     crate_root = "src/lib.rs",
     edition = "2021",
-    deps = [
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "deploy/dx_install_tools",
+    ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//deploy/release:dx_release_tools",
+        "//libs/archive:dx_archive",
     ],
 )
 

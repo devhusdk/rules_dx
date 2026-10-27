@@ -1,0 +1,18 @@
+[package]
+name = "dx_archive"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_archive"
+path = "src/lib.rs"
+
+[dependencies]
+flate2 = { version = "1", default-features = false, features = ["zlib"] }
+tar = "0.4"
+zip = { version = "9", default-features = false, features = [
+  "deflate-flate2-zlib",
+] }
+
+[dev-dependencies]
+tempfile = "3"

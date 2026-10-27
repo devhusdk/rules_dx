@@ -346,7 +346,7 @@ pub(super) fn run_license(
                 provenance.get(&(licensed.name.clone(), licensed.version.clone()))
             {
                 for origin in origins {
-                    spdx.external.push(dx_audit::spdx::SpdxExternalRef {
+                    spdx.external_refs.push(dx_audit::spdx::SpdxExternalRef {
                         category: "OTHER".to_owned(),
                         ref_type: "bazel-origin".to_owned(),
                         locator: origin.clone(),

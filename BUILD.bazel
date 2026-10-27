@@ -27,6 +27,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust dx_preset //tools/bazelrc:dx_preset
 # gazelle:resolve rust dx_proto_validate //cli/proto_validate:dx_proto_validate
 # gazelle:resolve rust dx_roots //cli/roots:dx_roots
+# gazelle:resolve rust dx_sbom //cli/sbom:dx_sbom
+# gazelle:resolve rust dx_sbom_schema //cli/sbom/schema:dx_sbom_schema
 # gazelle:resolve rust dx_schema //cli/schema:dx_schema
 # gazelle:resolve rust dx_setup //cli/setup:dx_setup
 # gazelle:resolve rust dx_test_scratch //cli/test_scratch:dx_test_scratch

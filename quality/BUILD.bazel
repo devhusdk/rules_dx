@@ -574,6 +574,8 @@ rust_test(
         "//cli/process:src/lib.rs",
         "//cli/proto_validate:src/lib.rs",
         "//cli/roots:src/lib.rs",
+        "//cli/sbom:src/lib.rs",
+        "//cli/sbom/schema:src/lib.rs",
         "//cli/schema:src/lib.rs",
         "//cli/setup:src/lib.rs",
         "//cli/test_scratch:src/lib.rs",

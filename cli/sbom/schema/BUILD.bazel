@@ -1,0 +1,40 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY")
+
+package(default_visibility = VIS_CLI_DEPLOY_QUALITY)
+
+exports_files([
+    "src/lib.rs",
+])
+
+# spdx-schema.json is vendored verbatim from
+# https://raw.githubusercontent.com/spdx/spdx-spec/v2.3/schemas/spdx-schema.json
+# sha256 239208b7ac287b3cf5d9a9af23f9d69863971102a5e1587a27a398b43490b89b
+# Test-only: the validator must never ship inside dx or release_tool.
+dx_rust_crate(
+    name = "dx_sbom_schema",
+    package_name = "cli/sbom/dx_sbom_schema",
+    testonly = True,
+    srcs = ["src/lib.rs"],
+    compile_data = ["spdx-schema.json"],
+    extra_deps = ["//cli/sbom:dx_sbom"],
+    test_srcs = ["src/tests.rs"],
+    deps = [
+        "jsonschema",
+        "serde_json",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

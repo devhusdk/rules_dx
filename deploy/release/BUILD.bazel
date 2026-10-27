@@ -66,6 +66,7 @@ rust_library(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
+        "//cli/sbom:dx_sbom",
         "//deploy/rules:dx_deploy_tools",
     ],
 )
@@ -99,7 +100,7 @@ rust_test(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//cli/sbom/schema:dx_sbom_schema"],
 )
 
 # keep

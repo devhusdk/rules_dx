@@ -1,65 +1,16 @@
+//! Renders the `dx audit license` SPDX 2.3 report over the shared dx_sbom model.
+
 use packageurl::PackageUrl;
-use serde::{Deserialize, Serialize};
+
+pub use dx_sbom::{
+    contains, describes, Document, SpdxCreationInfo, SpdxDocument, SpdxExternalRef, SpdxPackage,
+    SpdxRelationship, CONTAINS, DATA_LICENSE, DESCRIBES, DOCUMENT_ID, NOASSERTION,
+};
 
 pub const SPDX_VERSION: &str = "2.3";
 
-pub const DATA_LICENSE: &str = "CC0-1.0";
-
-pub const DESCRIBES: &str = "DESCRIBES";
-
-pub const CONTAINS: &str = "CONTAINS";
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SpdxPackage {
-    #[serde(rename = "SPDXID")]
-    pub id: String,
-    pub name: String,
-    #[serde(rename = "versionInfo")]
-    pub version: String,
-    #[serde(rename = "licenseConcluded")]
-    pub license: String,
-    #[serde(rename = "licenseDeclared")]
-    pub declared: String,
-    #[serde(rename = "copyrightText")]
-    pub copyright: String,
-    #[serde(rename = "externalRefs")]
-    pub external: Vec<SpdxExternalRef>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SpdxExternalRef {
-    #[serde(rename = "referenceCategory")]
-    pub category: String,
-    #[serde(rename = "referenceType")]
-    pub ref_type: String,
-    #[serde(rename = "referenceLocator")]
-    pub locator: String,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SpdxRelationship {
-    #[serde(rename = "spdxElementId")]
-    pub from: String,
-    #[serde(rename = "relationshipType")]
-    pub rel_type: String,
-    #[serde(rename = "relatedSpdxElement")]
-    pub to: String,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct SpdxDocument {
-    #[serde(rename = "spdxVersion")]
-    pub version: String,
-    #[serde(rename = "dataLicense")]
-    pub data_license: String,
-    #[serde(rename = "SPDXID")]
-    pub id: String,
-    pub name: String,
-    #[serde(rename = "documentNamespace")]
-    pub namespace: String,
-    pub packages: Vec<SpdxPackage>,
-    pub relationships: Vec<SpdxRelationship>,
-}
+/// The creator every audit document names.
+pub const CREATOR: &str = "Tool: dx";
 
 pub fn package_url(set: &str, name: &str, version: &str) -> String {
     fn split_namespace(full: &str) -> (Option<&str>, &str) {
@@ -144,42 +95,51 @@ pub fn document_namespace(
     )
 }
 
+/// The package standing for one audited root label: element ids never come from labels.
+pub fn root_package(label: &str, index: usize) -> SpdxPackage {
+    SpdxPackage {
+        id: format!("SPDXRef-Root-{index}"),
+        name: label.to_owned(),
+        license_concluded: NOASSERTION.to_owned(),
+        license_declared: NOASSERTION.to_owned(),
+        copyright: NOASSERTION.to_owned(),
+        download_location: NOASSERTION.to_owned(),
+        ..SpdxPackage::default()
+    }
+}
+
 pub fn render_spdx(
     roots: &[String],
     packages: &[SpdxPackage],
-    contains: &[(String, String)],
+    contains_pairs: &[(String, String)],
     namespace: &str,
 ) -> String {
     let mut sorted_packages = packages.to_vec();
     sorted_packages.sort_by(|a, b| a.id.cmp(&b.id));
     let mut sorted_roots = roots.to_vec();
     sorted_roots.sort();
-    let mut sorted_contains = contains.to_vec();
+    sorted_roots.dedup();
+    let mut sorted_contains = contains_pairs.to_vec();
     sorted_contains.sort();
-    let mut relationships = Vec::new();
-    for root in &sorted_roots {
-        relationships.push(SpdxRelationship {
-            from: root.clone(),
-            rel_type: DESCRIBES.to_owned(),
-            to: "SPDXRef-DOCUMENT".to_owned(),
-        });
+    let mut document = Document::new("dx-audit-license", namespace, &[CREATOR]);
+    let root_packages: Vec<SpdxPackage> = sorted_roots
+        .iter()
+        .enumerate()
+        .map(|(index, label)| root_package(label, index + 1))
+        .collect();
+    if root_packages.is_empty() {
+        for package in &sorted_packages {
+            document.relationships.push(describes(&package.id));
+        }
+    }
+    for root in &root_packages {
+        document.relationships.push(describes(&root.id));
     }
     for (from, to) in &sorted_contains {
-        relationships.push(SpdxRelationship {
-            from: from.clone(),
-            rel_type: CONTAINS.to_owned(),
-            to: to.clone(),
-        });
+        document.relationships.push(contains(from, to));
     }
-    let document = SpdxDocument {
-        version: format!("SPDX-{SPDX_VERSION}"),
-        data_license: DATA_LICENSE.to_owned(),
-        id: "SPDXRef-DOCUMENT".to_owned(),
-        name: "dx-audit-license".to_owned(),
-        namespace: namespace.to_owned(),
-        packages: sorted_packages,
-        relationships,
-    };
+    document.packages = root_packages;
+    document.packages.extend(sorted_packages);
     serde_json::to_string_pretty(&document).unwrap_or_else(|_| "{}".to_owned())
 }
 
@@ -195,14 +155,16 @@ pub fn spdx_package(
         id: format!("SPDXRef-Package-{index}"),
         name: name.to_owned(),
         version: version.to_owned(),
-        license: license.to_owned(),
-        declared: license.to_owned(),
-        copyright: "NOASSERTION".to_owned(),
-        external: vec![SpdxExternalRef {
+        license_concluded: license.to_owned(),
+        license_declared: license.to_owned(),
+        copyright: NOASSERTION.to_owned(),
+        download_location: NOASSERTION.to_owned(),
+        external_refs: vec![SpdxExternalRef {
             category: "PACKAGE-MANAGER".to_owned(),
             ref_type: "purl".to_owned(),
             locator,
         }],
+        ..SpdxPackage::default()
     }
 }
 
@@ -384,19 +346,59 @@ mod tests {
         assert_eq!(value["spdxVersion"], serde_json::json!("SPDX-2.3"));
         assert_eq!(value["dataLicense"], serde_json::json!("CC0-1.0"));
         assert_eq!(value["SPDXID"], serde_json::json!("SPDXRef-DOCUMENT"));
-        let pkgs = value["packages"].as_array().expect("packages");
-        assert_eq!(pkgs.len(), 2);
         assert_eq!(
-            pkgs[0]["externalRefs"][0]["referenceLocator"],
-            serde_json::json!("pkg:cargo/serde@1.0.100")
+            value["creationInfo"]["creators"],
+            serde_json::json!(["Tool: dx"])
         );
-        let rels = value["relationships"].as_array().expect("relationships");
-        assert_eq!(rels[0]["relationshipType"], serde_json::json!("DESCRIBES"));
+        let pkgs = value["packages"].as_array().expect("packages");
+        assert_eq!(pkgs.len(), 3);
+        assert_eq!(pkgs[0]["SPDXID"], serde_json::json!("SPDXRef-Root-1"));
         assert_eq!(
-            rels[0]["spdxElementId"],
+            pkgs[0]["name"],
             serde_json::json!("//services/payments:image")
         );
+        assert_eq!(
+            pkgs[1]["externalRefs"][0]["referenceLocator"],
+            serde_json::json!("pkg:cargo/serde@1.0.100")
+        );
+        assert!(pkgs
+            .iter()
+            .all(|pkg| pkg["downloadLocation"] == serde_json::json!("NOASSERTION")));
+        let rels = value["relationships"].as_array().expect("relationships");
+        assert_eq!(
+            rels[0],
+            serde_json::json!({
+                "spdxElementId": "SPDXRef-DOCUMENT",
+                "relationshipType": "DESCRIBES",
+                "relatedSpdxElement": "SPDXRef-Root-1",
+            })
+        );
         assert_eq!(rels[1]["relationshipType"], serde_json::json!("CONTAINS"));
+    }
+
+    #[test]
+    fn audit_spdx_passes_spdx_2_3_schema() {
+        let roots = vec![
+            "//services/payments:image".to_owned(),
+            "//a:one".to_owned(),
+            "//b:two".to_owned(),
+        ];
+        let packages = vec![
+            spdx_package("cargo", "serde", "1.0.100", "MIT", 1),
+            spdx_package("npm", "react", "18.2.0", "NOASSERTION", 2),
+            spdx_package("maven", "junit:junit", "4.13.2", "EPL-1.0", 3),
+        ];
+        let contains = vec![
+            ("SPDXRef-Root-1".to_owned(), "SPDXRef-Package-1".to_owned()),
+            (
+                "SPDXRef-Package-1".to_owned(),
+                "SPDXRef-Package-2".to_owned(),
+            ),
+        ];
+        let text = render_spdx(&roots, &packages, &contains, TEST_NAMESPACE);
+        assert_eq!(dx_sbom_schema::spdx_errors(&text), Vec::<String>::new());
+        let bare = render_spdx(&[], &packages, &[], TEST_NAMESPACE);
+        assert_eq!(dx_sbom_schema::spdx_errors(&bare), Vec::<String>::new());
     }
 
     #[test]
@@ -480,14 +482,39 @@ mod tests {
             value["documentNamespace"],
             serde_json::json!(TEST_NAMESPACE)
         );
-        let pkgs = value["packages"].as_array().expect("packages");
-        assert_eq!(pkgs.len(), 3);
+        assert_eq!(
+            value["creationInfo"],
+            serde_json::json!({
+                "created": "1970-01-01T00:00:00Z",
+                "creators": ["Tool: dx"],
+            })
+        );
+        let all = value["packages"].as_array().expect("packages");
+        assert_eq!(all.len(), 5);
+        assert_eq!(
+            all[0],
+            serde_json::json!({
+                "SPDXID": "SPDXRef-Root-1",
+                "name": "//a:one",
+                "licenseConcluded": "NOASSERTION",
+                "licenseDeclared": "NOASSERTION",
+                "copyrightText": "NOASSERTION",
+                "downloadLocation": "NOASSERTION",
+            })
+        );
+        assert_eq!(all[1]["SPDXID"], serde_json::json!("SPDXRef-Root-2"));
+        assert_eq!(all[1]["name"], serde_json::json!("//b:two"));
+        let pkgs = &all[2..];
         assert_eq!(pkgs[0]["SPDXID"], serde_json::json!("SPDXRef-Package-1"));
         assert_eq!(pkgs[0]["name"], serde_json::json!("serde"));
         assert_eq!(pkgs[0]["versionInfo"], serde_json::json!("1.0.100"));
         assert_eq!(pkgs[0]["licenseConcluded"], serde_json::json!("MIT"));
         assert_eq!(pkgs[0]["licenseDeclared"], serde_json::json!("MIT"));
         assert_eq!(pkgs[0]["copyrightText"], serde_json::json!("NOASSERTION"));
+        assert_eq!(
+            pkgs[0]["downloadLocation"],
+            serde_json::json!("NOASSERTION")
+        );
         assert_eq!(
             pkgs[0]["externalRefs"],
             serde_json::json!([{
@@ -509,17 +536,17 @@ mod tests {
         assert_eq!(
             rels[0],
             serde_json::json!({
-                "spdxElementId": "//a:one",
+                "spdxElementId": "SPDXRef-DOCUMENT",
                 "relationshipType": "DESCRIBES",
-                "relatedSpdxElement": "SPDXRef-DOCUMENT",
+                "relatedSpdxElement": "SPDXRef-Root-1",
             })
         );
         assert_eq!(
             rels[1],
             serde_json::json!({
-                "spdxElementId": "//b:two",
+                "spdxElementId": "SPDXRef-DOCUMENT",
                 "relationshipType": "DESCRIBES",
-                "relatedSpdxElement": "SPDXRef-DOCUMENT",
+                "relatedSpdxElement": "SPDXRef-Root-2",
             })
         );
         let with_contains = render_spdx(

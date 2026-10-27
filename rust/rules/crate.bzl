@@ -32,6 +32,7 @@ def dx_rust_crate(
         test_srcs = None,
         compile_data = None,
         size = "small",
+        testonly = None,
         visibility = None):
     """Single-crate boilerplate: lib + test + lint tests + manifest."""
     crate = name if crate_name == None else crate_name
@@ -56,6 +57,7 @@ def dx_rust_crate(
         crate_name = crate,
         crate_root = dx_rust_crate_root(srcs),
         deps = lib_deps,
+        testonly = testonly,
         visibility = visibility,
     )
     test_aliases = _aliases(
@@ -79,6 +81,7 @@ def dx_rust_crate(
             data = test_data or [],
             deps = test_deps,
             env = test_env or {},
+            testonly = testonly,
             visibility = visibility,
         )
     else:
@@ -90,17 +93,20 @@ def dx_rust_crate(
             data = test_data or [],
             deps = test_deps,
             env = test_env or {},
+            testonly = testonly,
             visibility = visibility,
         )
     rustfmt_test(
         name = name + "_fmt_test",
         size = size,
         targets = [":" + name, ":" + name + "_test"] if test_srcs else [":" + name],
+        testonly = testonly,
     )
     rust_clippy_test(
         name = name + "_clippy_test",
         size = size,
         targets = [":" + name],
+        testonly = testonly,
     )
     native.exports_files(
         ["Cargo.toml"],

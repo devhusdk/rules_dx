@@ -1,183 +1,10 @@
-use serde::{Deserialize, Serialize};
+//! Binds a release SPDX document to the artifact it describes; the model lives in dx_sbom.
 
-pub const SPDX_VERSION: &str = "SPDX-2.3";
-
-pub const DATA_LICENSE: &str = "CC0-1.0";
-
-pub const DOCUMENT_ID: &str = "SPDXRef-DOCUMENT";
-
-pub const SHA256: &str = "SHA256";
-
-pub const NOASSERTION: &str = "NOASSERTION";
-
-pub const NONE: &str = "NONE";
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct SpdxChecksum {
-    pub algorithm: String,
-    #[serde(rename = "checksumValue")]
-    pub value: String,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct SpdxExternalRef {
-    #[serde(rename = "referenceCategory")]
-    pub category: String,
-    #[serde(rename = "referenceType")]
-    pub ref_type: String,
-    #[serde(rename = "referenceLocator")]
-    pub locator: String,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct SpdxVerificationCode {
-    #[serde(rename = "packageVerificationCodeValue")]
-    pub value: String,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct SpdxFile {
-    #[serde(rename = "SPDXID", default, skip_serializing_if = "String::is_empty")]
-    pub id: String,
-    #[serde(rename = "fileName", default)]
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub checksums: Vec<SpdxChecksum>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct SpdxRelationship {
-    #[serde(
-        rename = "spdxElementId",
-        default,
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub from: String,
-    #[serde(
-        rename = "relationshipType",
-        default,
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub rel_type: String,
-    #[serde(
-        rename = "relatedSpdxElement",
-        default,
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub to: String,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct SpdxCreationInfo {
-    pub created: String,
-    pub creators: Vec<String>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct SpdxPackage {
-    #[serde(rename = "SPDXID", default, skip_serializing_if = "String::is_empty")]
-    pub id: String,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub name: String,
-    #[serde(
-        default,
-        rename = "versionInfo",
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub version: String,
-    #[serde(
-        default,
-        rename = "licenseConcluded",
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub license_concluded: String,
-    #[serde(
-        default,
-        rename = "licenseDeclared",
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub license_declared: String,
-    #[serde(
-        default,
-        rename = "copyrightText",
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub copyright: String,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub supplier: String,
-    #[serde(
-        default,
-        rename = "downloadLocation",
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub download_location: String,
-    #[serde(default, rename = "filesAnalyzed")]
-    pub files_analyzed: Option<bool>,
-    #[serde(default, rename = "verificationCode")]
-    pub verification_code: Option<SpdxVerificationCode>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub checksums: Vec<SpdxChecksum>,
-    #[serde(
-        default,
-        rename = "externalRefs",
-        skip_serializing_if = "Vec::is_empty"
-    )]
-    pub external_refs: Vec<SpdxExternalRef>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct SpdxDocument {
-    #[serde(rename = "spdxVersion")]
-    pub version: String,
-    #[serde(rename = "dataLicense")]
-    pub data_license: String,
-    #[serde(rename = "SPDXID", default, skip_serializing_if = "String::is_empty")]
-    pub id: String,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub name: String,
-    #[serde(
-        default,
-        rename = "documentNamespace",
-        skip_serializing_if = "String::is_empty"
-    )]
-    pub namespace: String,
-    #[serde(default, rename = "creationInfo")]
-    pub creation_info: Option<SpdxCreationInfo>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub files: Vec<SpdxFile>,
-    #[serde(default)]
-    pub packages: Vec<SpdxPackage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub relationships: Vec<SpdxRelationship>,
-}
-
-pub fn sha256_of(checksums: &[SpdxChecksum]) -> Option<&str> {
-    checksums
-        .iter()
-        .find(|checksum| checksum.algorithm.eq_ignore_ascii_case(SHA256))
-        .map(|checksum| checksum.value.as_str())
-}
-
-pub fn purl_name(locator: &str) -> Option<&str> {
-    let rest = locator.strip_prefix("pkg:")?;
-    let path = rest.split('@').next()?;
-    path.rsplit('/').next().filter(|name| !name.is_empty())
-}
-
-pub fn purl_version(locator: &str) -> Option<&str> {
-    let rest = locator.strip_prefix("pkg:")?;
-    let (_, version) = rest.rsplit_once('@')?;
-    Some(version).filter(|version| !version.is_empty())
-}
-
-fn license_error(field: &str, value: &str) -> Option<String> {
-    if value.is_empty() || value == NOASSERTION || value == NONE {
-        return None;
-    }
-    spdx::Expression::parse(value)
-        .err()
-        .map(|_| format!("sbom SPDX {field} '{value}' is not an SPDX license expression"))
-}
+pub use dx_sbom::{
+    describes, license_error, purl_name, purl_version, sha256_of, Document, SpdxChecksum,
+    SpdxDocument, SpdxExternalRef, SpdxFile, SpdxPackage, DOCUMENT_ID, NOASSERTION, SHA256,
+    SPDX_VERSION,
+};
 
 pub fn document_error(document: &SpdxDocument, base: &str, digest: &str) -> Result<(), String> {
     if document.version != SPDX_VERSION {
@@ -248,6 +75,7 @@ fn package_purls(package: &SpdxPackage) -> impl Iterator<Item = &str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_sbom::{SpdxCreationInfo, SpdxRelationship, DATA_LICENSE};
 
     fn checksum(digest: &str) -> SpdxChecksum {
         SpdxChecksum {
@@ -286,14 +114,11 @@ mod tests {
                 supplier: "Organization: rules_dx".to_owned(),
                 download_location: NOASSERTION.to_owned(),
                 files_analyzed: Some(false),
-                verification_code: Some(SpdxVerificationCode {
-                    value: digest.to_owned(),
-                }),
                 checksums: vec![checksum(digest)],
                 external_refs: vec![purl("dx", digest)],
                 ..SpdxPackage::default()
             }],
-            relationships: Vec::new(),
+            relationships: vec![describes("SPDXRef-Package")],
         }
     }
 
@@ -322,12 +147,11 @@ mod tests {
         doc.packages[0].supplier = String::new();
         doc.packages[0].download_location = String::new();
         doc.packages[0].files_analyzed = None;
-        doc.packages[0].verification_code = None;
         doc.creation_info = None;
         doc.relationships = vec![SpdxRelationship {
-            from: "SPDXRef-Package".to_owned(),
+            from: DOCUMENT_ID.to_owned(),
             rel_type: "DESCRIBES".to_owned(),
-            to: DOCUMENT_ID.to_owned(),
+            to: "SPDXRef-Package".to_owned(),
         }];
         let text = serde_json::to_string(&doc).expect("render audit document");
         let parsed: SpdxDocument = serde_json::from_str(&text).expect("read audit document");
@@ -349,39 +173,9 @@ mod tests {
     }
 
     #[test]
-    fn purl_locators_split_into_name_and_version() {
-        assert_eq!(
-            purl_name("pkg:generic/dx@abc"),
-            Some("dx"),
-            "generic purl names the package"
-        );
-        assert_eq!(purl_version("pkg:generic/dx@abc"), Some("abc"));
-        assert_eq!(purl_name("pkg:maven/junit/junit@4.13.2"), Some("junit"));
-        assert_eq!(purl_version("pkg:maven/junit/junit@4.13.2"), Some("4.13.2"));
-        assert_eq!(purl_name("pkg:generic/dx@"), Some("dx"), "name survives");
-        assert_eq!(purl_version("pkg:generic/dx@"), None, "no version");
-        assert_eq!(purl_name("pkg:generic/dx"), Some("dx"), "bare purl");
-        assert_eq!(purl_version("pkg:generic/dx"), None);
-        assert_eq!(purl_name("not-a-purl"), None);
-    }
-
-    #[test]
     fn file_names_lose_any_directory_prefix() {
         assert_eq!(file_name("artifact.bin"), "artifact.bin");
         assert_eq!(file_name("./artifact.bin"), "artifact.bin");
         assert_eq!(file_name("dist/artifact.bin"), "artifact.bin");
-    }
-
-    #[test]
-    fn checksums_select_sha256_case_insensitively() {
-        let checksums = vec![
-            SpdxChecksum {
-                algorithm: "MD5".to_owned(),
-                value: "0123456789abcdef0123456789abcdef".to_owned(),
-            },
-            checksum("abc"),
-        ];
-        assert_eq!(sha256_of(&checksums), Some("abc"));
-        assert_eq!(sha256_of(&[]), None);
     }
 }

@@ -244,6 +244,7 @@ rust_test(
         "//cli/path:dx_path",
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",
+        "//cli/sbom/schema:dx_sbom_schema",
         "//cli/setup:dx_setup",
         "//cli/test_scratch:dx_test_scratch",
         "//cli/update:dx_update",
